@@ -40,6 +40,15 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `collections_service.py`, `collection_store.py`, `collection_filters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
 - `vpx_parser.py`, `standalone_scripts.py`: reading and patching the .vpx itself.
 - `score_parser.py`: PinMAME NVRAM score extraction.
+- `game_service.py`, `game_index_service.py`, `media_service.py`, `asset_registry.py`, `archive_service.py`, `export_bundle.py`: workflows over a game and its media - rating, re-matching, the cached row index, media lookup and invalidation, and packing a game for export.
+
+**`common/uploads/`** - getting files into the library.
+
+- `upload_session_service.py`: an upload in progress. Files arrive in chunks into a session directory and every path is checked against it, so an upload naming `../` is refused rather than resolved.
+- `asset_analyzer_service.py`: what a zip, folder or loose file holds, worked out without extracting it.
+- `asset_import_service.py`: an analyzed drop becomes a plan, and only then files on disk - so an import that would overwrite something is declined rather than undone.
+
+Depends on `common/games/`, never the reverse: importing assets needs to know the library it is importing into.
 
 **`common/online/`** - services reached over the internet.
 

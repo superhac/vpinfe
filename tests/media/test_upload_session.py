@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
-from managerui.services import upload_session_service
+from common.uploads import upload_session_service
 
 
 class UploadSessionServiceTests(unittest.TestCase):

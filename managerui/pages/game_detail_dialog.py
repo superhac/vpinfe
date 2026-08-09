@@ -13,11 +13,12 @@ from pathlib import Path
 
 from nicegui import context, events, run, ui
 
+from common.games import game_index_service, game_service
 from common.games.game_metadata import reorder_leading_article
+from common.games.media_service import invalidate_media_cache
 from managerui.pages.dnd_drop_zone import DropContext, create_drop_zone
 from managerui.pages.game_dialog_context import GameDialogContext, default_context
-from managerui.services import game_index_service, game_service, plugin_profile_service
-from managerui.services.media_service import invalidate_media_cache
+from managerui.services import plugin_profile_service
 from managerui.ui_helpers import load_page_style
 
 logger = logging.getLogger("vpinfe.manager.games")

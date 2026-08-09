@@ -7,9 +7,9 @@ import shutil
 
 from nicegui import app, context, events, run, ui
 
+from common.games import media_service
 from managerui.filters import apply_game_filters, build_game_filter_options
 from managerui.pages.dnd_drop_zone import DropContext, create_drop_zone, enable_cell_drops
-from managerui.services import media_service
 from managerui.ui_helpers import debounced_input, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.media")

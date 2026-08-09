@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from common.games import game_repository
+from common.games import game_index_service, game_repository
 
 # Imported and re-exported: the collections page reaches both halves through this
 # module, and these four were duplicated here until 2026-08-05.
@@ -22,7 +22,6 @@ from common.games.collections_service import (  # noqa: F401  (import and export
     get_collections_manager,
 )
 from managerui.paths import CONFIG_DIR
-from managerui.services import game_index_service
 
 COLLECTION_ICONS_DIR = CONFIG_DIR / "collection_icons"
 COLLECTION_IMAGE_KEY = "image"
@@ -97,7 +96,7 @@ def get_vpsdb_rows_for_filter_options(cached_vpsdb_rows: list[dict] | None = Non
     if cached_vpsdb_rows is not None:
         return cached_vpsdb_rows
 
-    from managerui.services import game_service
+    from common.games import game_service
 
     rows = game_service.load_vpsdb()
     if not rows and game_service.ensure_vpsdb_downloaded():

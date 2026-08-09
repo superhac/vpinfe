@@ -13,6 +13,9 @@ import json
 from collections.abc import Iterator
 from pathlib import Path
 
+from common.games.asset_registry import (
+    is_readme,  # noqa: F401  (one matcher, import and export)
+)
 from common.games.game_metadata import vpinfe_section
 from common.games.info_file import ASSETS_KEY
 from common.games.tables import (
@@ -20,9 +23,6 @@ from common.games.tables import (
     recorded_default,
     table_entries,
     table_names,
-)
-from managerui.services.asset_registry import (
-    is_readme,  # noqa: F401  (one matcher, import and export)
 )
 
 # Directories a running game reads, whole. Media is browsing artwork, not part

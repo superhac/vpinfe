@@ -9,8 +9,8 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from managerui.paths import get_games_path
-from managerui.services.export_bundle import bundle_paths, prune_info
+from common.games.export_bundle import bundle_paths, prune_info
+from common.paths import get_games_path
 
 
 @dataclass(frozen=True)

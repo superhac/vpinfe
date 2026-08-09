@@ -234,7 +234,7 @@ class JobEndpointTests(unittest.TestCase):
             job.progress(1, 1, "scanned")
             return {"found": 1, "not_found": 0}
 
-        with patch("managerui.services.game_service.build_metadata", fake_build):
+        with patch("common.games.game_service.build_metadata", fake_build):
             response = self.client.post("/library/scan", json={"download_media": False})
             self.assertTrue(started.wait(5))
 

@@ -10,16 +10,14 @@ from pathlib import Path
 from common import jobs
 from common.config_access import SettingsConfig, cfg_get
 from common.config_store import ConfigStore
-from common.games import game_repository, info_maintenance, metadata_service
+from common.games import game_index_service, game_repository, info_maintenance, metadata_service
 from common.games.collection_store import CollectionStore
 from common.games.game_metadata import vpinfe_section
 from common.games.game_repository import refresh_game
 from common.games.info_file import VPINFE_SECTION
 from common.games.tables import default_table, recorded_default, table_entries
 from common.games.vpx_parser import VPXParser
-from common.paths import CONFIG_DIR
-from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_games_path
-from managerui.services import game_index_service
+from common.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, get_games_path
 
 logger = logging.getLogger("vpinfe.manager.game_service")
 
@@ -314,7 +312,7 @@ def associate_vps_to_folder(
 
         vps.downloadMediaForGame(_LightGame(game_folder, vpx_file), vps_entry.get("id"), meta_config=meta)
 
-    from managerui.services.media_service import invalidate_media_cache
+    from common.games.media_service import invalidate_media_cache
     invalidate_media_cache()
     refresh_game(str(game_folder))
 

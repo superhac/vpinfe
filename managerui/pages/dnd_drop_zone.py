@@ -12,10 +12,10 @@ from uuid import uuid4
 from nicegui import context, run, ui
 
 from common.games import identity_claims
+from common.uploads import upload_session_service
+from common.uploads.asset_analyzer_service import AnalysisResult, analyze_upload_session
+from common.uploads.asset_import_service import build_import_plan, build_media_slot_plan
 from managerui.pages.import_confirm_dialog import open_import_confirm_dialog
-from managerui.services import upload_session_service
-from managerui.services.asset_analyzer_service import AnalysisResult, analyze_upload_session
-from managerui.services.asset_import_service import build_import_plan, build_media_slot_plan
 
 logger = logging.getLogger("vpinfe.manager.dnd_ui")
 

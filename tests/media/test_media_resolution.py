@@ -12,8 +12,8 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from common.games.media_service import replace_media_file, source_media_path
 from common.media_specs import MEDIA_SPECS, resolve_media_files
-from managerui.services.media_service import replace_media_file, source_media_path
 
 FOLDER = "Cactus Canyon (Bally 1998)"
 TABLE = "Cactus Canyon (Bally 1998) - VPW 1.2"
@@ -169,7 +169,7 @@ class TokenAliasTests(unittest.TestCase):
         self.assertEqual(aliased, {"instruction_card", "flyer"})
 
     def test_spec_named_new_kinds_import_by_token(self) -> None:
-        from managerui.services.asset_registry import match_media_key
+        from common.games.asset_registry import match_media_key
 
         self.assertEqual(match_media_key(f"(Topper) {FOLDER}.mp4"), "topper_video")
         self.assertEqual(match_media_key(f"(Topper) {FOLDER}.png"), "topper")
@@ -208,7 +208,7 @@ class LogoTests(unittest.TestCase):
 
     def test_logo_png_imports_as_logo_not_wheel(self) -> None:
         """The alias fix: this is the import-behavior change PAR-12 documents."""
-        from managerui.services.asset_registry import match_media_key
+        from common.games.asset_registry import match_media_key
 
         self.assertEqual(match_media_key("logo.png"), "logo")
         self.assertEqual(match_media_key(f"(Logo) {FOLDER}.png"), "logo")

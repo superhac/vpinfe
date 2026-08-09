@@ -30,7 +30,7 @@ def scan(response: Response,
 
     # Imported here: the Manager UI service pulls in NiceGUI, and the API is meant
     # to be importable without it.
-    from managerui.services import game_service
+    from common.games import game_service
 
     def work(job: job_registry.Job):
         return game_service.build_metadata(

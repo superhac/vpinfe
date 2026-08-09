@@ -12,8 +12,8 @@ from pathlib import Path
 
 from nicegui import context, run, ui
 
+from common import player_client
 from common.online.app_updater import get_install_context
-from frontend.chromium_manager import get_chromium_path
 from managerui.paths import VPINFE_INI_PATH
 from managerui.services import system_service
 from managerui.ui_helpers import load_page_style
@@ -210,7 +210,7 @@ def _get_build_flavor(install_context: dict) -> str:
 
 def _get_frontend_browser_path() -> str | None:
     try:
-        return get_chromium_path().path
+        return player_client.local().browser_path()
     except Exception:
         return None
 

@@ -1,7 +1,7 @@
 """Working out what is inside something the user dropped on us.
 
 A zip, a folder or a loose file all become the same answer: which of these are media,
-which is the table, and which we do not recognise. Nothing is moved at this stage.
+which is the table, and which we do not recognize. Nothing is moved at this stage.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 
-from managerui.services.asset_registry import (
+from common.games.asset_registry import (
     ARCHIVE_EXTENSIONS,
     is_readme,
     match_media_key,

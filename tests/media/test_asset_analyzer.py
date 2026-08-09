@@ -6,8 +6,8 @@ import os
 import unittest
 from unittest import mock
 
-from managerui.services import asset_analyzer_service
-from managerui.services.asset_analyzer_service import analyze_path, analyze_upload_session
+from common.uploads import asset_analyzer_service
+from common.uploads.asset_analyzer_service import analyze_path, analyze_upload_session
 from tests.support.uploads import kinds, make_zip
 
 
@@ -184,7 +184,7 @@ class AssetAnalyzerTests(unittest.TestCase):
             self.assertEqual(result.assets[0].media_key, "wheel")
 
     def test_rar_tool_hint_is_platform_aware(self):
-        from managerui.services.asset_analyzer_service import rar_tool_hint
+        from common.uploads.asset_analyzer_service import rar_tool_hint
         with mock.patch.object(asset_analyzer_service.sys, "platform", "win32"):
             self.assertIn("UnRAR.exe", rar_tool_hint())
         with mock.patch.object(asset_analyzer_service.sys, "platform", "darwin"):
@@ -196,7 +196,7 @@ class AssetAnalyzerTests(unittest.TestCase):
         self.assertIn("Configuration", rar_tool_hint())   # points at the configurable path
 
     def test_configure_rar_tool_targets_right_global(self):
-        from managerui.services.asset_analyzer_service import configure_rar_tool
+        from common.uploads.asset_analyzer_service import configure_rar_tool
         fake = mock.Mock()
         with mock.patch.object(asset_analyzer_service, "rarfile", fake):
             configure_rar_tool("/opt/bin/unar")
@@ -211,7 +211,7 @@ class AssetAnalyzerTests(unittest.TestCase):
         from pathlib import Path
         from tempfile import TemporaryDirectory
 
-        from managerui.services.asset_analyzer_service import rar_tool_hint
+        from common.uploads.asset_analyzer_service import rar_tool_hint
         with TemporaryDirectory() as tmp:
             fake_rar = Path(tmp) / "x.rar"
             fake_rar.write_bytes(b"x")

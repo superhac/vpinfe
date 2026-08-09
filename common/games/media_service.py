@@ -17,7 +17,7 @@ from common.media_specs import (
     media_filename_map,
     resolve_media_files,
 )
-from managerui.paths import CONFIG_DIR, get_games_path
+from common.paths import CONFIG_DIR, get_games_path
 
 logger = logging.getLogger("vpinfe.manager.media_service")
 

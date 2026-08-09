@@ -14,7 +14,7 @@ The Manager UI is a NiceGUI application under `managerui/`. Its current refactor
 - `managerui/config_options.py`: non-UI support helpers for config pages such as display detection and field option shaping.
 - `managerui/remote_actions.py`: declarative remote control button definitions.
 - `managerui/remote_launch.py`: remote launch game scanning and collection filter matching.
-- `managerui/services/`: non-UI behavior shared by routes and pages.
+- `managerui/services/`: what only a NiceGUI front end needs. Logic shared with the API or a future UI lives under `common/`.
 - `managerui/static/manager.css`: shared Manager UI theme variables, shell layout, and nav styling.
 - `managerui/static/<page>.css`: page-specific CSS that has been moved out of Python modules.
 - `managerui/pages/`: feature pages. Each page should expose a `render_panel()` function, except standalone pages that intentionally expose a different entry point such as `mobile.build()`.
@@ -61,20 +61,32 @@ Avoid redefining `Path(user_config_dir("vpinfe", "vpinfe"))` in new Manager UI c
 
 ## Shared Services
 
-Service modules live under `managerui/services/` and should not depend on page layout. They can perform filesystem, config, archive, and repository operations, then return plain Python data for the UI layer to render.
+Business logic that is not about layout lives under `common/`, not here. The Manager UI is one consumer of it; `httpapi` is another, and a replacement UI would be a third. What stays in `managerui/services/` is what only a NiceGUI front end needs.
 
-Current services:
+Under `common/games/`:
 
 - `archive_service.py`: validates game folders and creates temporary `.vpxz` archives.
-- `app_control.py`: restart, quit, reboot, and shutdown actions that can be used without importing the remote page.
-- `collections_service.py`: collection manager access, game search, filter option building, and collection mutations.
+- `export_bundle.py`: what belongs in a game export, for every transport.
 - `media_service.py`: media scanning, thumbnail cache paths, media replacement, and media cache invalidation.
-- `system_service.py`: reusable system-page formatters, disk target resolution, and platform helpers.
-- `game_catalog.py`: shared game scanning and row shaping for mobile transfers and remote launching.
-- `game_index_service.py`: shared Manager UI game cache and lookup indexes (`table_path`, folder, VPS ID, search blobs, missing rows).
+- `asset_registry.py`: what a file is, judged by its name — which media kind, or none.
+- `game_index_service.py`: shared game cache and lookup indexes (`table_path`, folder, VPS ID, search blobs, missing rows).
 - `game_service.py`: shared game metadata, VPSdb, collection, upload, and game-association operations.
+
+Under `common/uploads/`:
+
+- `upload_session_service.py`: streaming, sanitized temp-file sessions with a size cap and TTL sweep.
+- `asset_analyzer_service.py`: what is inside a drop, without extracting it.
+- `asset_import_service.py`: an analyzed drop becomes a plan, and only then files on disk.
+
+Still in `managerui/services/`, because only a UI wants them:
+
+- `app_control.py`: restart, quit, reboot, and shutdown actions that can be used without importing the remote page.
+- `collection_admin.py`: collection manager access, game search, filter option building, and collection mutations.
+- `system_service.py`: reusable system-page formatters, disk target resolution, and platform helpers.
+- `game_catalog.py`: game scanning and row shaping for mobile transfers and remote launching.
 - `theme_service.py`: active theme, theme registry, install, and delete operations.
 - `vpx_config_service.py`: VPX config path lookup and backup management.
+- `plugin_profile_service.py`, `vpinplay_runtime_service.py`, `ui_state.py`.
 
 Use services from page event handlers instead of reaching into another page module. For example, use `create_vpxz_archive()` instead of calling a helper from `pages/mobile.py`.
 
@@ -178,8 +190,8 @@ These modules are the public import points for dialog entry functions and own th
 When changing game dialogs:
 
 - keep NiceGUI layout and event wiring in the dialog module
-- put filesystem, metadata, VPSdb, and cache behavior in `services/game_service.py` or `services/game_index_service.py`
-- use `services/media_service.invalidate_media_cache()` after changes that affect media listings
+- put filesystem, metadata, VPSdb, and cache behavior in `common/games/game_service.py` or `common/games/game_index_service.py`
+- use `common/games/media_service.invalidate_media_cache()` after changes that affect media listings
 - avoid adding more dialog body code to `pages/games.py`
 
 ## Remote Imports
@@ -227,10 +239,10 @@ Dropping a file, archive, or folder onto the Tables page, a game row, the game d
 
 Layers, bottom up:
 
-- `services/asset_registry.py` owns the asset-kind registry (`AssetSpec`): extensions, whether a kind needs a target game or ROM name, and media-slot matching. Add a new asset kind here first.
-- `services/asset_analyzer_service.py` opens a source (zip/rar/7z/directory/single file) behind one listing API and detects what it holds without extracting. It returns an `AnalysisResult` (detected assets, unrecognized paths, and a parsed bundle `.info`). It also owns the RAR-tool helpers (`configure_rar_tool`, `rar_tool_available`, `rar_tool_hint`).
-- `services/asset_import_service.py` turns an `AnalysisResult` plus a target context into an `ImportPlan` (`build_import_plan`), then runs it (`execute_import_plan`) by delegating to the existing `table_service`/`media_service` write primitives. It owns the `.info` merge (`merge_info`) and the media-slot plan (`build_media_slot_plan`).
-- `services/upload_session_service.py` provides streaming, sanitized temp-file sessions with a size cap and TTL sweep. It is transport-agnostic: anything that can stage files can drive an import.
+- `common/games/asset_registry.py` owns the asset-kind registry (`AssetSpec`): extensions, whether a kind needs a target game or ROM name, and media-slot matching. Add a new asset kind here first.
+- `common/uploads/asset_analyzer_service.py` opens a source (zip/rar/7z/directory/single file) behind one listing API and detects what it holds without extracting. It returns an `AnalysisResult` (detected assets, unrecognized paths, and a parsed bundle `.info`). It also owns the RAR-tool helpers (`configure_rar_tool`, `rar_tool_available`, `rar_tool_hint`).
+- `common/uploads/asset_import_service.py` turns an `AnalysisResult` plus a target context into an `ImportPlan` (`build_import_plan`), then runs it (`execute_import_plan`) by delegating to the existing `table_service`/`media_service` write primitives. It owns the `.info` merge (`merge_info`) and the media-slot plan (`build_media_slot_plan`).
+- `common/uploads/upload_session_service.py` provides streaming, sanitized temp-file sessions with a size cap and TTL sweep. It is transport-agnostic: anything that can stage files can drive an import.
 - Upload and import routes live in `httpapi/uploads.py` under `/api/v1/uploads/*`, not in the Manager UI. `managerui/static/dnd_upload.js` is one client of them; any non-browser caller uses the same routes. See `docs/http_api.md`.
 
 UI pieces:

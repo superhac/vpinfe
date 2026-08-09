@@ -9,7 +9,7 @@ from pathlib import Path
 
 from screeninfo import get_monitors
 
-from common import config_schema
+from common import config_schema, player_client
 
 
 def get_detected_displays() -> dict:
@@ -34,17 +34,15 @@ def get_detected_displays() -> dict:
         return detected
 
     if sys.platform == "darwin":
-        try:
-            from frontend.chromium_manager import get_mac_screens
+        screens = player_client.local().displays()
+        if screens:
             detected["nsscreen"] = [{
-                "id": f"Screen {i}",
+                "id": screen.id,
                 "x": screen.x,
                 "y": screen.y,
                 "width": screen.width,
                 "height": screen.height,
-            } for i, screen in enumerate(get_mac_screens())]
-        except Exception:
-            pass
+            } for screen in screens]
 
     return detected
 

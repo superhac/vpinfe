@@ -259,7 +259,7 @@ peripherals.register()
 start_dof_service_if_enabled(config_store)
 
 # Point the archive analyzer at a configured RAR tool (blank = auto-detect from PATH)
-from managerui.services.asset_analyzer_service import configure_rar_tool
+from common.uploads.asset_analyzer_service import configure_rar_tool
 
 configure_rar_tool(cfg_get(config_store, 'Settings', 'rar_tool_path', '').strip())
 

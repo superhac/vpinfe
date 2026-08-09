@@ -267,6 +267,28 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-56 — Shared services move out from under the Manager UI.** Nine modules move:
+`game_service`, `game_index_service`, `media_service`, `asset_registry`,
+`archive_service` and `export_bundle` to `common/games/`, and `upload_session_service`,
+`asset_analyzer_service` and `asset_import_service` to a new `common/uploads/`. The four
+things the Manager UI does to a player - enumerate displays, find the browser, read input
+bindings, request a lifecycle change - go through `common/player_client.py` instead of
+importing `frontend` directly. No behavior changes and no endpoint moves; this is where
+the code lives.
+*Why:* `httpapi` imported `managerui.services` at nine sites for game, archive, upload and
+asset logic, and none of it was UI - business logic filed under a UI package, which is the
+clearest layering break in the tree. It also made the incumbent UI privileged: a
+replacement would have had to import it, which is a skin rather than a replacement. Of the
+18 modules under `managerui/services/`, 17 imported no NiceGUI, so the logic was written
+UI-independent and only filed in the wrong place. The move is by what a module knows about,
+which is how `docs/common.md` already draws these boundaries; `uploads` is its own package
+because it depends on `games` and nothing in `games` depends on it. The four `frontend`
+imports were not a tangle either - they are a precise map of the player-administration
+surface, so they became one interface that resolves in-process today and can resolve over
+HTTP later, which is also the thing to authenticate once a hub administers a player over a
+network. Both rules were prose that nothing checked, which is how they drifted; they are
+now asserted by `tests/invariants/test_layering.py`.
+
 **PAR-55 — Every event says which install it happened on.** Each payload on
 `GET /api/v1/events` carries `install_id` alongside the fields it already had. Purely
 additive: a client reading `state` or `job_id` is unaffected, and on a single-machine

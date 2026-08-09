@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from common.games import game_index_service
 from common.games.info_file import VPINFE_SECTION
-from managerui.services import game_index_service
 
 
 def scan_mobile_games(reload: bool = False) -> list[dict]:

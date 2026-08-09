@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import unittest
 
-from managerui.services.asset_registry import (
+from common.games.asset_registry import (
     classify_bare_extension,
     match_media_key,
     spec_for,

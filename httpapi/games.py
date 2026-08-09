@@ -396,7 +396,7 @@ def launch_game(game_id: str,
             dependencies=[requires(scopes.GAMES_READ)])
 def get_game_archive(request: Request, game_id: str, download_token: str = "",
                       full: bool = False, file: str = ""):
-    from managerui.services.archive_service import cleanup_archive, create_vpxz_archive
+    from common.games.archive_service import cleanup_archive, create_vpxz_archive
 
     game = _game_or_404(game_id)
     if full:

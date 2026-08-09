@@ -6,8 +6,8 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from common.games.media_service import IMAGE_EXTENSIONS
 from common.media_specs import MEDIA_SPECS, media_filename_map
-from managerui.services.media_service import IMAGE_EXTENSIONS
 
 logger = logging.getLogger("vpinfe.manager.asset_registry")
 

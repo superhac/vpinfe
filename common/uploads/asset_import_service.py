@@ -1,4 +1,4 @@
-"""Turning an analysed drop into a plan, and only then into files on disk.
+"""Turning an analyzed drop into a plan, and only then into files on disk.
 
 The plan is built and shown before anything is written, so an import that would
 overwrite a file is something the user declines rather than undoes.
@@ -15,26 +15,26 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 
+from common.games.asset_registry import ARCHIVE_EXTENSIONS, spec_for
 from common.games.game_repository import refresh_game
-from common.games.info_file import VPINFE_SECTION, MetaConfig
-from common.games.vpx_parser import VPXParser
-from common.media_specs import media_filename_map
-from managerui.paths import get_games_path
-from managerui.services.asset_analyzer_service import (
-    AnalysisResult,
-    DetectedAsset,
-    SourceEntry,
-    open_source,
-)
-from managerui.services.asset_registry import ARCHIVE_EXTENSIONS, spec_for
-from managerui.services.game_service import (
+from common.games.game_service import (
     _find_directb2s_file,
     _find_ini_file,
     _find_vpx_file,
     _safe_upload_name,
     ensure_dir,
 )
-from managerui.services.media_service import IMAGE_EXTENSIONS, replace_media_file
+from common.games.info_file import VPINFE_SECTION, MetaConfig
+from common.games.media_service import IMAGE_EXTENSIONS, replace_media_file
+from common.games.vpx_parser import VPXParser
+from common.media_specs import media_filename_map
+from common.paths import get_games_path
+from common.uploads.asset_analyzer_service import (
+    AnalysisResult,
+    DetectedAsset,
+    SourceEntry,
+    open_source,
+)
 
 logger = logging.getLogger("vpinfe.manager.asset_import")
 
@@ -291,7 +291,7 @@ def vps_folder_name(vps_entry: dict) -> str:
 
 def find_vps_entry(vps_id: str) -> dict | None:
     """Look up a VPS entry by its id."""
-    from managerui.services.game_service import load_vpsdb
+    from common.games.game_service import load_vpsdb
 
     wanted = (vps_id or "").strip()
     if not wanted:
@@ -350,7 +350,7 @@ def _resolves_locally(key: str, value) -> bool:
     if key == "alt_launcher":
         return Path(text).expanduser().exists()
     if key == "plugin_profile":
-        from managerui.paths import PLUGIN_PROFILES_DIR
+        from common.paths import PLUGIN_PROFILES_DIR
 
         try:
             return any(p.stem == text or p.name == text for p in Path(PLUGIN_PROFILES_DIR).iterdir())

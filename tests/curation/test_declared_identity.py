@@ -203,8 +203,8 @@ class ImportRecordingTests(TempTree):
     def _plan_and_import(self, identity):
         import zipfile
 
-        from managerui.services.asset_analyzer_service import analyze_upload_session
-        from managerui.services.asset_import_service import (
+        from common.uploads.asset_analyzer_service import analyze_upload_session
+        from common.uploads.asset_import_service import (
             build_import_plan,
             execute_import_plan,
         )

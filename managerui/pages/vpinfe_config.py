@@ -11,17 +11,12 @@ from pathlib import Path
 
 from nicegui import run, ui
 
-from common import input_registry
+from common import input_registry, player_client
 from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from common.games.collection_store import CollectionStore
 from common.host.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
 from common.host.launch import build_masked_tableini_path, build_vpx_launch_command
-from frontend import input_api
-from frontend.chromium_manager import (
-    get_builtin_chromium_options,
-    parse_additional_chromium_options,
-)
 from managerui import config_options
 from managerui.config_fields import is_checkbox_field
 from managerui.config_options import get_friendly_name
@@ -266,13 +261,13 @@ def render_panel(tab=None):
             or ''
         ).strip()
         try:
-            additional_opts = parse_additional_chromium_options(additional_raw)
+            additional_opts = player_client.local().parse_browser_options(additional_raw)
         except ValueError:
             additional_opts = []
         chrome_options_preview.value = '\n'.join(
-            get_builtin_chromium_options(
+            player_client.local().browser_options(
                 include_default_options=not disable_defaults,
-                exclude_options=parse_additional_chromium_options(exclude_raw),
+                exclude_options=player_client.local().parse_browser_options(exclude_raw),
             )
             + additional_opts
         )
@@ -466,7 +461,7 @@ def render_panel(tab=None):
                 # Anything neither field can show - a chord, a hold, an axis, a second
                 # pad - is carried through untouched. Rebuilding from the two fields
                 # alone would delete it the first time anyone pressed Save.
-                current = input_api.get_bindings(config)[action.name]
+                current = player_client.local().bindings(config)[action.name]
                 rebuilt += input_registry.unrenderable(current)
                 if not config.config.has_section(input_registry.SECTION):
                     config.config.add_section(input_registry.SECTION)
@@ -505,7 +500,7 @@ def render_panel(tab=None):
                 cfg_get(config, 'general', 'vpx_ini_path', ''),
             )
             try:
-                from managerui.services import game_index_service
+                from common.games import game_index_service
                 game_index_service.invalidate()
             except Exception:
                 logger.exception("Failed to invalidate game index after saving configuration")
@@ -866,7 +861,7 @@ def render_panel(tab=None):
                                         # bindings together; the page shows the keyboard
                                         # ones and the gamepad one in the places they have
                                         # always been, and save_config puts them back.
-                                        bindings = input_api.get_bindings(config)
+                                        bindings = player_client.local().bindings(config)
                                         other_input_keys = [
                                             key for key in options
                                             if not input_registry.action_for_legacy_key(key)

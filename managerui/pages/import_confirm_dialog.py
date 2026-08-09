@@ -10,17 +10,18 @@ from pathlib import Path
 
 from nicegui import context, run, ui
 
-from managerui.services import game_service, upload_session_service
-from managerui.services.asset_analyzer_service import AnalysisResult
-from managerui.services.asset_import_service import (
+from common.games import game_service
+from common.games.asset_registry import spec_for
+from common.games.media_service import MEDIA_TYPES, invalidate_media_cache
+from common.uploads import upload_session_service
+from common.uploads.asset_analyzer_service import AnalysisResult
+from common.uploads.asset_import_service import (
     ImportPlan,
     execute_import_plan,
     find_vps_entry,
     select_plan_items,
     vps_folder_name,
 )
-from managerui.services.asset_registry import spec_for
-from managerui.services.media_service import MEDIA_TYPES, invalidate_media_cache
 from managerui.ui_helpers import debounced_input, dialog_card
 
 logger = logging.getLogger("vpinfe.manager.dnd_ui")

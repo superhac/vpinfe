@@ -13,8 +13,8 @@ import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from managerui.services.archive_service import create_vpxz_archive
-from managerui.services.export_bundle import bundle_paths, is_readme, prune_info
+from common.games.archive_service import create_vpxz_archive
+from common.games.export_bundle import bundle_paths, is_readme, prune_info
 
 FOLDER = "Cactus Canyon (Bally 1998)"
 CHOSEN = "Cactus Canyon (Bally 1998) - VPW 1.2.vpx"

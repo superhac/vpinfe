@@ -8,8 +8,8 @@ from pathlib import Path
 
 from nicegui import events, run, ui
 
+from common.games import game_service
 from managerui.pages.game_dialog_context import GameDialogContext, default_context
-from managerui.services import game_service
 from managerui.ui_helpers import debounced_input
 
 logger = logging.getLogger("vpinfe.manager.games")

@@ -13,13 +13,14 @@ from fastapi import APIRouter, Body, File, Form, UploadFile
 from starlette.concurrency import run_in_threadpool
 
 from common.games import identity_claims
-from managerui.services import upload_session_service
-from managerui.services.asset_analyzer_service import (
+from common.games.asset_registry import spec_for
+from common.uploads import upload_session_service
+from common.uploads.asset_analyzer_service import (
     AnalysisResult,
     DetectedAsset,
     analyze_upload_session,
 )
-from managerui.services.asset_import_service import (
+from common.uploads.asset_import_service import (
     ImportPlan,
     build_import_plan,
     execute_import_plan,
@@ -27,8 +28,7 @@ from managerui.services.asset_import_service import (
     select_plan_items,
     vps_folder_name,
 )
-from managerui.services.asset_registry import spec_for
-from managerui.services.upload_session_service import (
+from common.uploads.upload_session_service import (
     UnknownSessionError,
     UnsafePathError,
     UploadTooLargeError,
@@ -242,7 +242,7 @@ def import_upload(upload_id: str,
 
     if vps_entry is not None and report.get("new_table"):
         # Files are on disk; association failure is reported, not fatal.
-        from managerui.services.game_service import associate_vps_to_folder, build_metadata
+        from common.games.game_service import associate_vps_to_folder, build_metadata
 
         try:
             associate_vps_to_folder(Path(report["table_path"]), vps_entry, True)
@@ -258,7 +258,7 @@ def import_upload(upload_id: str,
 
 @vps_router.get("/search", summary="Search VPSdb", dependencies=[requires(scopes.VPS_READ)])
 def search_vps(q: str = "", limit: int = 20) -> models.VpsSearchResults:
-    from managerui.services.game_service import search_vpsdb
+    from common.games.game_service import search_vpsdb
 
     return {
         "results": [

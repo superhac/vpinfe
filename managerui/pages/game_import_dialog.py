@@ -10,9 +10,9 @@ from pathlib import Path
 
 from nicegui import context, events, run, ui
 
+from common.games import game_service
+from common.games.media_service import invalidate_media_cache
 from managerui.paths import get_games_path
-from managerui.services import game_service
-from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import debounced_input
 
 logger = logging.getLogger("vpinfe.manager.games")

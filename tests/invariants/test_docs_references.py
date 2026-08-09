@@ -37,7 +37,7 @@ BARE_REF = re.compile(r"`([A-Za-z0-9_.-]+\.(?:py|css|js))`")
 PACKAGE_DIRS = {"pages", "services", "static", "host", "online", "games"}
 RELATIVE_REF = re.compile(r"`((?:" + "|".join(PACKAGE_DIRS) + r")/[A-Za-z0-9_.-]+\.(?:py|css|js))`")
 
-# `managerui.services.game_index_service` - an import, not a path. Needs two dots or more,
+# `common.games.game_index_service` - an import, not a path. Needs two dots or more,
 # which keeps `managerui.py` out: that is a filename that happens to contain one.
 DOTTED_REF = re.compile(r"`(?:managerui|common|httpapi|frontend)((?:\.[a-z_]+){2,})`")
 

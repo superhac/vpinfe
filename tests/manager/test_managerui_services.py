@@ -5,13 +5,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
-from managerui.filters import ALL_VALUE, apply_game_filters, build_game_filter_options
-from managerui.services import theme_service
-from managerui.services.archive_service import resolve_game_dir
-from managerui.services.collection_admin import get_filter_options, search_games
-from managerui.services.game_catalog import build_mobile_game_rows
-from managerui.services.game_index_service import (
+from common.games.archive_service import resolve_game_dir
+from common.games.game_index_service import (
     add_collection_membership,
     find_by_path,
     search_rows,
@@ -19,14 +14,19 @@ from managerui.services.game_index_service import (
     set_rows,
     update_row_by_path,
 )
-from managerui.services.game_service import normalize_game_rating, replace_table
-from managerui.services.media_service import (
+from common.games.game_service import normalize_game_rating, replace_table
+from common.games.media_service import (
     get_media_cache,
     invalidate_media_cache,
     media_url,
     set_media_cache,
     update_cache_entry,
 )
+from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
+from managerui.filters import ALL_VALUE, apply_game_filters, build_game_filter_options
+from managerui.services import theme_service
+from managerui.services.collection_admin import get_filter_options, search_games
+from managerui.services.game_catalog import build_mobile_game_rows
 from managerui.services.system_service import format_bytes, metric_tone
 
 
@@ -80,7 +80,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             old_vpx.write_bytes(b"old vpx")
             old_b2s.write_bytes(b"old b2s")
 
-            with mock.patch("managerui.services.game_service.refresh_game"):
+            with mock.patch("common.games.game_service.refresh_game"):
                 result = replace_table(
                     str(game_dir),
                     "New Table.vpx",
@@ -107,7 +107,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             existing_b2s = game_dir / "Custom Backglass.directb2s"
             existing_b2s.write_bytes(b"old b2s")
 
-            with mock.patch("managerui.services.game_service.refresh_game"):
+            with mock.patch("common.games.game_service.refresh_game"):
                 result = replace_table(
                     str(game_dir),
                     "Uploaded.directb2s",
@@ -125,7 +125,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             game_dir.mkdir()
             (game_dir / "Example.vpx").write_bytes(b"vpx")
 
-            with mock.patch("managerui.services.game_service.refresh_game"):
+            with mock.patch("common.games.game_service.refresh_game"):
                 result = replace_table(
                     str(game_dir),
                     "Uploaded.directb2s",
@@ -194,10 +194,10 @@ class ManagerUiServiceTests(unittest.TestCase):
              "year": 1997, "type": "SS", "theme": ["Fantasy"]},
         ]
 
-        with mock.patch("managerui.services.game_service.load_vpsdb", return_value=vpsdb_rows), \
-                mock.patch("managerui.services.game_service.ensure_vpsdb_downloaded") \
+        with mock.patch("common.games.game_service.load_vpsdb", return_value=vpsdb_rows), \
+                mock.patch("common.games.game_service.ensure_vpsdb_downloaded") \
                         as ensure_vpsdb, \
-                mock.patch("managerui.services.game_index_service.scan_rows") as scan_rows:
+                mock.patch("common.games.game_index_service.scan_rows") as scan_rows:
             options = get_filter_options()
 
         self.assertEqual(options["letters"], ["All", "A", "M"])

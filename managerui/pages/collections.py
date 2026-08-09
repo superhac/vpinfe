@@ -4,8 +4,9 @@ import logging
 
 from nicegui import app, events, run, ui
 
+from common.games import game_index_service
 from common.values import is_truthy
-from managerui.services import collection_admin, game_index_service
+from managerui.services import collection_admin
 from managerui.ui_helpers import debounced_input, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.collections")

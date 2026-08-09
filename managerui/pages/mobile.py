@@ -161,7 +161,7 @@ def _send_game_to_device(
 
     # The standalone bundle for the game's default table - the same answer the VPXZ
     # download gives. Whole-folder export is API-only, under its own scope.
-    from managerui.services.export_bundle import bundle_paths, prune_info
+    from common.games.export_bundle import bundle_paths, prune_info
     pruned_info_path = None
     contents = list(bundle_paths(Path(game_path), everything=False))
     allowed = {arcname.replace(os.sep, '/') for _, arcname in contents}

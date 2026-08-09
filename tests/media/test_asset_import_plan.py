@@ -6,8 +6,8 @@ import os
 import unittest
 from unittest import mock
 
-from managerui.services.asset_analyzer_service import analyze_path
-from managerui.services.asset_import_service import (
+from common.uploads.asset_analyzer_service import analyze_path
+from common.uploads.asset_import_service import (
     build_import_plan,
     build_media_slot_plan,
     execute_import_plan,
@@ -148,7 +148,7 @@ class MediaSlotPlanTests(unittest.TestCase):
             src = Path(tmp) / "cool-art.png"
             src.write_bytes(b"png-bytes")
             plan = build_media_slot_plan(src, game_path=str(game_dir), media_key="wheel")
-            with mock.patch("managerui.services.asset_import_service.replace_media_file") as fake:
+            with mock.patch("common.uploads.asset_import_service.replace_media_file") as fake:
                 report = execute_import_plan(plan, src)
             self.assertEqual(fake.call_args.args[2], "wheel")
             self.assertEqual(report["media_keys"], ["wheel"])
@@ -171,7 +171,7 @@ class VpsHelperTests(unittest.TestCase):
 
     def test_find_vps_entry(self):
         rows = [{"id": "abc123", "name": "Foo"}, {"id": "def456", "name": "Bar"}]
-        with mock.patch("managerui.services.game_service.load_vpsdb", return_value=rows):
+        with mock.patch("common.games.game_service.load_vpsdb", return_value=rows):
             self.assertEqual(find_vps_entry("def456")["name"], "Bar")
             self.assertIsNone(find_vps_entry("nope"))
             self.assertIsNone(find_vps_entry(""))

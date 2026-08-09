@@ -9,12 +9,14 @@ from queue import Queue
 from nicegui import context, events, run, ui
 
 from common.config_store import ConfigStore
+from common.games import game_index_service, game_service
 from common.games.game_metadata import (
     default_table,
     reorder_leading_article,
     vpinfe_section,
 )
 from common.games.info_file import VPINFE_SECTION
+from common.games.media_service import invalidate_media_cache
 from managerui.filters import apply_game_filters, build_game_filter_options
 from managerui.pages.dnd_drop_zone import DropContext, create_drop_zone, enable_row_drops
 from managerui.pages.game_detail_dialog import open_game_dialog
@@ -23,8 +25,6 @@ from managerui.pages.game_match_dialog import open_missing_games_dialog
 from managerui.pages.info_maintenance_dialogs import maintenance_menu, render_info_banners
 from managerui.paths import VPINFE_INI_PATH
 from managerui.paths import get_games_path as resolve_games_path
-from managerui.services import game_index_service, game_service
-from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import debounced_input, dialog_card, load_page_style
 
 VPSDB_JSON_PATH = game_service.VPSDB_JSON_PATH

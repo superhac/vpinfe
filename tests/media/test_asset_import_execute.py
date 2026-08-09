@@ -6,9 +6,9 @@ import unittest
 from unittest import mock
 
 from common.games.tables import entry_for_filename, table_filenames
-from managerui.services import asset_import_service
-from managerui.services.asset_analyzer_service import analyze_path
-from managerui.services.asset_import_service import (
+from common.uploads import asset_import_service
+from common.uploads.asset_analyzer_service import analyze_path
+from common.uploads.asset_import_service import (
     _safe_dest,
     build_import_plan,
     execute_import_plan,

@@ -13,7 +13,8 @@ from queue import Queue
 
 from nicegui import run, ui
 
-from managerui.services import game_service, ui_state
+from common.games import game_service
+from managerui.services import ui_state
 from managerui.ui_helpers import dialog_card
 
 logger = logging.getLogger("vpinfe.manager.info_maintenance")
