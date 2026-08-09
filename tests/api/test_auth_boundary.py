@@ -149,8 +149,8 @@ class CapabilityTests(unittest.TestCase):
     def test_discovery_reports_residency_for_each_capability(self) -> None:
         declared = {c["name"]: c for c in _client().get("/").json()["capabilities"]}
 
-        self.assertEqual(declared["library"]["residency"], [capabilities.RESIDENCY_CATALOG])
-        self.assertEqual(declared["play"]["residency"], [capabilities.RESIDENCY_PLAY_HOST])
+        self.assertEqual(declared["library"]["residency"], [capabilities.RESIDENCY_HUB])
+        self.assertEqual(declared["play"]["residency"], [capabilities.RESIDENCY_PLAYER])
 
     def test_an_unavailable_capability_says_why(self) -> None:
         """The reason is shown to users, so 'no' on its own is not good enough."""

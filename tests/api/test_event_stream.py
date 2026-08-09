@@ -317,7 +317,7 @@ class EndpointTests(unittest.TestCase):
         """It carries library events and launch events alike."""
         declared = {c["name"]: c for c in self.client.get("/").json()["capabilities"]}
 
-        self.assertEqual(declared["events"]["residency"], ["catalog", "play_host"])
+        self.assertEqual(declared["events"]["residency"], ["hub", "player"])
 
     def test_building_the_app_declares_the_play_state_snapshot(self) -> None:
         """A theme subscribing mid-launch has to be told there is one."""

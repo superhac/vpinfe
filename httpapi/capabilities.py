@@ -11,12 +11,12 @@ from dataclasses import dataclass
 from typing import Any
 
 # Residency: which roles a capability lives in. Listing both means each role serves
-# its own, not that one capability spans the two - so if the catalog and the play
-# host are ever separate machines, both have it. Clients hold no residency at all.
-RESIDENCY_CATALOG = "catalog"
-RESIDENCY_PLAY_HOST = "play_host"
+# its own, not that one capability spans the two - so if the hub and the player are
+# ever separate machines, both have it. Clients hold no residency at all.
+RESIDENCY_HUB = "hub"
+RESIDENCY_PLAYER = "player"
 
-RESIDENCIES = frozenset({RESIDENCY_CATALOG, RESIDENCY_PLAY_HOST})
+RESIDENCIES = frozenset({RESIDENCY_HUB, RESIDENCY_PLAYER})
 
 
 @dataclass(frozen=True)

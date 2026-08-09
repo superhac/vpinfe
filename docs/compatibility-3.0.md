@@ -267,6 +267,19 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-50 — The two roles are `hub` and `player`, and `acquisition` is `uploads`.**
+Discovery's `residency` values change from `catalog` and `play_host` to `hub` and
+`player`, and the capability named `acquisition` becomes `uploads`. `GET /api/v1` is the
+only place these strings appear.
+*Why:* `catalog` named one of the role's jobs rather than the role - `jobs` and `uploads`
+are declared there and neither is a catalog - and `play_host` reads as dedicated hardware
+when a laptop someone plays on is a player in full. `acquisition` was an abstraction over
+something with a plain name, and the router was already `/uploads`. Done now because
+nothing consumes these values yet: no client, no extension, and the frontend does not
+resolve against discovery, so today it is two constants and eight declarations. Once
+anything reads them it becomes a permanent alias, exactly like the config section rename
+in PAR-44.
+
 **PAR-49 — Core's own files are served at `/core/`, and `/web/` still works.** `web/` is
 now `frontend/static/`, mounted at `/core/` - what core provides, against `/themes/` for what
 a theme provides. Every published theme asks for `vpinfe-core.js` and `vpinfe-style.css` by

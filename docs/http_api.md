@@ -239,7 +239,7 @@ from httpapi import capabilities
 
 capabilities.declare(capabilities.Capability(
     name="peripherals",
-    residency=[capabilities.RESIDENCY_PLAY_HOST],
+    residency=[capabilities.RESIDENCY_PLAYER],
     description="DOF and real-DMD output",
     is_available=lambda: (dof_configured(), "DOF is not configured"),
 ))
@@ -249,15 +249,17 @@ capabilities.declare(capabilities.Capability(
 user changes a setting. Return `(False, reason)` rather than a bare `False` — the reason is
 shown to users, so say what's missing and how to fix it.
 
-`residency` records which roles a capability lives in: `catalog` for things that only need
-the library (location-independent, cacheable) and `play_host` for things tied to the machine
-where games launch and hardware lives.
+`residency` records which roles a capability lives in: `hub` for the shared,
+machine-independent half — the library, metadata, and work not tied to a screen — and
+`player` for things true only of the machine they came from, where games launch and
+hardware lives. Neither name implies hardware: a laptop someone plays on is a player in
+full.
 
 It's a list because some capabilities belong to both — the event stream carries library
 events and launch events alike. Listing both means each role serves its own, not that one
-capability spans the two: if the catalog and the play host are ever separate machines, they
+capability spans the two: if the hub and the player are ever separate machines, they
 each have an event stream, carrying their own events. Test for a role with
-`"play_host" in residency`, which reads the same whether a capability has one or two.
+`"player" in residency`, which reads the same whether a capability has one or two.
 
 ## Launching
 
