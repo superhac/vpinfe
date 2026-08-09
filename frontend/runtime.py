@@ -173,8 +173,9 @@ def build_mount_points(base_path: str, config_dir: Path, iniconfig):
 
 def start_asset_server(mount_points, iniconfig):
     http_server = CustomHTTPServer(mount_points)
-    theme_assets_port = NetworkConfig.from_config(iniconfig).theme_assets_port
-    http_server.start_file_server(port=theme_assets_port)
+    network = NetworkConfig.from_config(iniconfig)
+    http_server.start_file_server(port=network.theme_assets_port,
+                                  bind=network.theme_assets_bind)
     return http_server
 
 

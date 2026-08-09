@@ -554,6 +554,17 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             aliases=("themeassetsport",),
         ),
         ConfigOption(
+            "theme_assets_bind",
+            type="string",
+            default="127.0.0.1",
+            label="Theme Server Address",
+            description="Which address to serve theme packages and table media on. The"
+                        " default answers this machine only. An address rather than a"
+                        " switch, so a single interface can be named; 0.0.0.0 is every"
+                        " one. This port serves the table library, so opening it shares"
+                        " read access to it.",
+        ),
+        ConfigOption(
             "ws_port",
             type="int",
             default="8002",
@@ -568,6 +579,15 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             default="8001",
             label="Manager UI Port",
             aliases=("manageruiport",),
+        ),
+        ConfigOption(
+            "manager_ui_bind",
+            type="string",
+            default="0.0.0.0",
+            label="Manager UI Address",
+            description="Which address to serve the Manager UI on. The default answers"
+                        " every interface, which is what it has always done - set"
+                        " 127.0.0.1 to reach it only from this machine.",
         ),
     ),
     *in_section(

@@ -267,6 +267,26 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-54 — Each server's listening address is configurable, per port.** Two new settings,
+`network.theme_assets_bind` and `network.manager_ui_bind`. Both default to what that
+server already did - `127.0.0.1` for theme assets and table media, `0.0.0.0` for the
+Manager UI - so nothing about an existing install changes until somebody sets one. The
+window channel gets no such setting.
+*Why:* the theme assets port answers this machine only, so pointing a browser on another
+machine at a VPinFE install got nothing, and correcting the URLs it builds (PAR-53) only
+gets a remote viewer as far as being refused. Making it configurable is what turns
+"develop a theme from another machine" from broken into supported. An address rather than
+a boolean, because binding one interface is a real case and `0.0.0.0` should not be the
+only alternative to loopback. Deliberately per port and not one switch: this port serves
+the table library, and the window channel reaches `shutdown_system`, `launch_game` and
+`build_metadata`, so a single setting would mean anybody wanting to preview a theme
+remotely also exposed machine control. That is also why the window channel has no bind
+setting at all - it stays loopback until it can authenticate a caller, and adding the
+setting before the auth would be offering the exposure. A blank value falls back to the
+default rather than through to the socket layer, where an empty host means every
+interface - the opposite of what clearing the setting looks like it means. Covered by
+`tests/theming/test_asset_server_scope.py`.
+
 **PAR-53 — The page is told where the services are, instead of asserting one machine.**
 *(machine-checked)* `vpin.endpoints` gives a theme complete base URLs keyed by role -
 `hub`, `player`, `bridge` - and the window URL now carries `themeAssetsPort` and

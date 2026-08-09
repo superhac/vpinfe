@@ -499,14 +499,18 @@ class CustomHTTPServer:
         self.file_server = None
         self.mount_points = mount_points
 
-    def start_file_server(self, port=8000):
+    def start_file_server(self, port=8000, bind=LOOPBACK):
         handler_class = partial(self.MultiDirHTTPRequestHandler, mount_points=self.mount_points)
         ThreadingTCPServer.allow_reuse_address = True
-        # Loopback, not every interface. Every caller of this port already builds a
-        # 127.0.0.1 url, and it serves the table library and the theme packages.
-        self.file_server = ThreadingTCPServer((LOOPBACK, port), handler_class)
+        # Loopback unless told otherwise: this serves the table library, so opening it
+        # shares read access to it. An address rather than a switch, so one interface can
+        # be named instead of every one.
+        self.file_server = ThreadingTCPServer((bind, port), handler_class)
         threading.Thread(target=self.file_server.serve_forever, daemon=True).start()
-        logger.info("Serving on http://%s:%s/", LOOPBACK, port)
+        if bind != LOOPBACK:
+            logger.warning("Theme assets and table media are reachable on %s - this port "
+                           "serves the table library", bind)
+        logger.info("Serving on http://%s:%s/", bind, port)
 
     def stop_file_server(self):
         if self.file_server:

@@ -77,8 +77,9 @@ def gamepadtest():
     }
     http_server = CustomHTTPServer(mount_points)
     theme_assets_port = int(cfg_get(config_store, 'Network', 'theme_assets_port', '8000'))
+    theme_assets_bind = cfg_get(config_store, 'network', 'theme_assets_bind', '127.0.0.1')
     ws_port = cfg_int(config_store, 'network', 'wsport', 8002)
-    http_server.start_file_server(port=theme_assets_port)
+    http_server.start_file_server(port=theme_assets_port, bind=theme_assets_bind)
 
     monitors = get_monitors()
     ws_bridge = WebSocketBridge(port=ws_port)

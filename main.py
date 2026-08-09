@@ -195,7 +195,8 @@ nicegui_app.add_static_files('/themes', themes_dir)
 if config_store.is_new:
     set_first_run(True)
     manager_ui_port = int(cfg_get(config_store, 'Network', 'manager_ui_port', '8001'))
-    start_manager_ui(port=manager_ui_port)
+    manager_ui_bind = cfg_get(config_store, 'network', 'manager_ui_bind', '0.0.0.0')
+    start_manager_ui(port=manager_ui_port, bind=manager_ui_bind)
     reconfigure_app_logging()
     # Wait for the NiceGUI server to be ready before chromium tries to load it
     runtime.wait_for_manager_ui_ready(manager_ui_port)
@@ -270,7 +271,8 @@ http_server = runtime.start_asset_server(MOUNT_POINTS, config_store)
 
 # Start the NiceGUI HTTP server
 manager_ui_port = int(cfg_get(config_store, 'Network', 'manager_ui_port', '8001'))
-start_manager_ui(port=manager_ui_port)
+manager_ui_bind = cfg_get(config_store, 'network', 'manager_ui_bind', '0.0.0.0')
+start_manager_ui(port=manager_ui_port, bind=manager_ui_bind)
 reconfigure_app_logging()
 
 # Start the WebSocket bridge

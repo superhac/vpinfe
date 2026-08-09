@@ -854,13 +854,23 @@ options:
 ## Server Listeners
 There are three server listeners started on your machine:
 
-| Service | Bound Address/Port | Description                                                           |
-| ------- | ---------------    | --------------------------------------------------------------------- |
-| HTTP    | 127.0.0.1:RANDOM   | Frontend web asset server (themes/UI content)                               |
-| HTTP    | 127.0.0.1:8000     | Python HTTPServer. Serves tables media assets (configurable)          |
-| HTTP    | 0.0.0.0:8001       | NiceGui sever.  Handles the UI for configuration and management (configurable) |
+| Service   | Bound Address/Port | Description                                                           |
+| -------   | ---------------    | --------------------------------------------------------------------- |
+| HTTP      | 127.0.0.1:8000     | Python HTTPServer. Serves themes and table media (configurable)       |
+| HTTP      | 0.0.0.0:8001       | NiceGui sever.  Handles the UI for configuration and management (configurable) |
+| WebSocket | 127.0.0.1:8002     | How the frontend windows talk to VPinFE. Not configurable - this one stays on your machine |
 
 The only service that externally accessable from your machine its UI for managing it.  This is setup like this so people with cabinets can administer it remotely.
+
+Both addresses can be changed in `[network]`, independently of each other:
+
+| Setting                    | Default     | What it does                                        |
+| -------------------------- | ----------- | --------------------------------------------------- |
+| `theme_assets_bind`        | `127.0.0.1` | Set to `0.0.0.0` to work on a theme from another machine. This port serves your table library, so opening it shares read access to it. |
+| `manager_ui_bind`          | `0.0.0.0`   | Set to `127.0.0.1` to reach the Manager UI only from the machine itself. |
+
+They are separate settings on purpose. The WebSocket listener can start a game and power
+the machine off, and nothing authenticates it yet, so there is no setting to open it.
 
 External Web Endpoints:
 - Table/VPX Configuration and Management: http://{YOUR-IP}:8001

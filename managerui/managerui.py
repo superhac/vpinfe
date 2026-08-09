@@ -400,6 +400,9 @@ def mobile_page():
 _ui_thread = None
 
 _ui_port = 8001
+# Every interface, which is what the Manager UI has always answered on. Configurable so
+# an install can pull it back to this machine, not because the default changes.
+_ui_bind = "0.0.0.0"
 
 
 def _manager_ui_urls(port: int) -> list[str]:
@@ -444,18 +447,19 @@ def _manager_ui_urls(port: int) -> list[str]:
 def _run_ui():
     STORAGE_SECRET = "verysecret" # The storage is just to keep the active tab between sessions. Nothing sensitive.
     logger.info("Using NiceGUI storage path: %s", _NICEGUI_STORAGE_PATH)
-    logger.info("Starting Manager UI on host=0.0.0.0 port=%s", _ui_port)
+    logger.info("Starting Manager UI on host=%s port=%s", _ui_bind, _ui_port)
     logger.info("Manager UI expected URLs: %s", ", ".join(_manager_ui_urls(_ui_port)))
     ui.run(title='VPinFE Manager UI',
-           host='0.0.0.0',
+           host=_ui_bind,
            port=_ui_port,
            reload=False,
            show=False,
            storage_secret=STORAGE_SECRET)
 
-def start_manager_ui(port=8001):
-    global _ui_thread, _ui_port
+def start_manager_ui(port=8001, bind="0.0.0.0"):
+    global _ui_thread, _ui_port, _ui_bind
     _ui_port = port
+    _ui_bind = bind
     if _ui_thread and _ui_thread.is_alive():
         logger.info("Manager UI is already running")
         return _ui_thread

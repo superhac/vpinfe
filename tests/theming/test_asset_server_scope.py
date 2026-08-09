@@ -64,16 +64,59 @@ class TranslateTests(unittest.TestCase):
 
 
 class BindTests(unittest.TestCase):
-    def test_the_file_server_binds_loopback(self) -> None:
-        """It serves the table library and the theme packages, and every caller of this
-        port builds a 127.0.0.1 url. It bound every interface."""
+    def _bound_to(self, **kwargs) -> tuple:
         server = CustomHTTPServer({})
         with mock.patch("frontend.custom_http_server.ThreadingTCPServer") as tcp, \
              mock.patch("frontend.custom_http_server.threading.Thread"):
-            server.start_file_server(port=8123)
+            server.start_file_server(port=8123, **kwargs)
+        return tcp.call_args[0][0]
 
-        address = tcp.call_args[0][0]
-        self.assertEqual(address, ("127.0.0.1", 8123))
+    def test_the_file_server_binds_loopback(self) -> None:
+        """It serves the table library and the theme packages, and every caller of this
+        port builds a 127.0.0.1 url. It bound every interface."""
+        self.assertEqual(self._bound_to(), ("127.0.0.1", 8123))
+
+    def test_an_install_can_name_the_address_to_serve_on(self) -> None:
+        """An address, not a switch, so one interface can be named rather than every one.
+        Opening this port shares read access to the table library, so it is opt-in."""
+        self.assertEqual(self._bound_to(bind="0.0.0.0"), ("0.0.0.0", 8123))
+        self.assertEqual(self._bound_to(bind="100.64.0.1"), ("100.64.0.1", 8123))
+
+
+class NetworkConfigTests(unittest.TestCase):
+    """The two ports do not share one setting: 8000 serves the table library and 8002
+    reaches shutdown_system, so one switch would mean previewing a theme remotely also
+    exposed machine control."""
+
+    def _network(self, **settings):
+        from configparser import ConfigParser
+
+        from common.config_access import NetworkConfig, cfg_set
+
+        parser = ConfigParser()
+        for key, value in settings.items():
+            cfg_set(parser, "network", key, value)
+        return NetworkConfig.from_config(parser)
+
+    def test_the_defaults_are_what_the_two_servers_already_did(self) -> None:
+        network = self._network()
+
+        self.assertEqual(network.theme_assets_bind, "127.0.0.1")
+        self.assertEqual(network.manager_ui_bind, "0.0.0.0", "it has always answered all")
+
+    def test_each_address_is_set_on_its_own(self) -> None:
+        network = self._network(theme_assets_bind="0.0.0.0")
+
+        self.assertEqual(network.theme_assets_bind, "0.0.0.0")
+        self.assertEqual(network.manager_ui_bind, "0.0.0.0", "the other is untouched")
+
+    def test_a_blank_address_falls_back_rather_than_binding_nothing(self) -> None:
+        """An empty string binds every interface, which is the opposite of what somebody
+        clearing the setting meant."""
+        network = self._network(theme_assets_bind="   ", manager_ui_bind="")
+
+        self.assertEqual(network.theme_assets_bind, "127.0.0.1")
+        self.assertEqual(network.manager_ui_bind, "0.0.0.0")
 
 
 if __name__ == "__main__":
