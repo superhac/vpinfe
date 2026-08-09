@@ -267,6 +267,25 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-55 — Every event says which install it happened on.** Each payload on
+`GET /api/v1/events` carries `install_id` alongside the fields it already had. Purely
+additive: a client reading `state` or `job_id` is unaffected, and on a single-machine
+install the value is the same on every event and can be ignored. It is absent rather than
+empty when the install has no id yet.
+*Why:* the bus is in-process and its wire projection drops the origin's address, both
+correct while one process is one machine and both wrong the moment a hub holds more than
+one player - a player's `game.launched` would arrive with nothing saying which player it
+came from. The comment on the dropped field collapsed a distinction worth keeping: *which
+surface asked* names one user's browser tab and stays dropped, while *which install it
+happened on* is what a subscriber can act on and is safe to publish. Adding it to the
+envelope rather than to each projection means a new event gets provenance by existing
+instead of by remembering. Crossing the boundary - a player's events actually reaching a
+hub - is a separate mechanism and is not built here; what is built is that the wire shape
+can carry provenance when it is, rather than needing a breaking change then. The id is
+read once and cached, because `_dispatch` runs on the publishing thread and reading it off
+disk cost 2ms an event, which a launch and every `job.progress` tick would have paid.
+Covered by `tests/api/test_event_stream.py`.
+
 **PAR-54 — Each server's listening address is configurable, per port.** Two new settings,
 `network.theme_assets_bind` and `network.manager_ui_bind`. Both default to what that
 server already did - `127.0.0.1` for theme assets and table media, `0.0.0.0` for the

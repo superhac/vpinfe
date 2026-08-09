@@ -16,13 +16,15 @@ import logging
 import threading
 from collections import deque
 from collections.abc import Callable
+from functools import lru_cache
 
 from fastapi import APIRouter, Header, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 
-from common import events
+from common import events, install_identity
 from common.games import game_identity
+from common.paths import get_ini_config
 
 from . import scopes
 from .auth import requires
@@ -180,11 +182,31 @@ def _frame(name: str, data: str, seq: int | None = None) -> str:
     return f"{head}event: {name}\ndata: {data}\n\n"
 
 
+@lru_cache(maxsize=1)
+def _install_id() -> str:
+    """This install's id. Cached: `_dispatch` runs on the publishing thread and reading
+    it off disk costs ~2ms, which a launch and every job tick would pay."""
+    try:
+        return install_identity.install_id(get_ini_config())
+    except Exception:
+        logger.debug("Could not read this install's id for an event", exc_info=True)
+        return ""
+
+
+def _provenance() -> dict:
+    """Which install an event happened on - the surface that asked stays dropped, above.
+
+    Absent rather than empty, so "did not say" is not an id of "".
+    """
+    install_id = _install_id()
+    return {"install_id": install_id} if install_id else {}
+
+
 def _dispatch(name: str, payload: dict) -> None:
     """Bus subscriber. Runs on whichever thread published, so it only formats and hands off."""
     global _seq
 
-    data = _encode(STREAMED_EVENTS[name](**payload))
+    data = _encode(STREAMED_EVENTS[name](**payload) | _provenance())
     if data is None:
         return
 
@@ -230,6 +252,7 @@ def reset() -> None:
         _history.clear()
         _seq = 0
     _snapshots.clear()
+    _install_id.cache_clear()
 
 
 def _parse_filter(raw: str) -> frozenset[str] | None:

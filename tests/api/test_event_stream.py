@@ -9,6 +9,7 @@ import asyncio
 import json
 import unittest
 from types import SimpleNamespace
+from unittest import mock
 
 from starlette.testclient import TestClient
 
@@ -33,11 +34,37 @@ def _payload(frame: str) -> dict:
     return json.loads(_fields(frame)["data"])
 
 
+def _shape(frame: str) -> dict:
+    """The payload without its provenance, for asserting on an event's own shape.
+
+    Every frame carries `install_id`; repeating it in each expected literal below would
+    say nothing about the event and would let one test's copy-paste error hide. It has
+    its own test instead.
+    """
+    return {key: value for key, value in _payload(frame).items() if key != "install_id"}
+
+
+INSTALL_ID = "TestInst01"
+
+
+def _pinned_id(value: str):
+    """A stand-in for the cached `_install_id`, which `reset()` clears - so the
+    replacement has to answer `cache_clear` too."""
+    stub = lambda: value            # noqa: E731 - one expression, named by assignment
+    stub.cache_clear = lambda: None
+    return stub
+
+
 class StreamTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         events.clear()
         event_stream.reset()
         event_stream.attach()
+        # Pinned, or every payload assertion below would depend on the id this machine
+        # happens to have minted - and would pass locally while asserting nothing.
+        patch = mock.patch.object(event_stream, "_install_id", _pinned_id(INSTALL_ID))
+        patch.start()
+        self.addCleanup(patch.stop)
         self.addCleanup(events.clear)
         self.addCleanup(event_stream.reset)
 
@@ -96,7 +123,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(_fields(frame)["event"], events.PLAY_STATE_CHANGED)
         self.assertEqual(_fields(frame)["id"], "1")
-        self.assertEqual(_payload(frame), {"state": {"launching": True, "table_name": "Taxi"}})
+        self.assertEqual(_shape(frame), {"state": {"launching": True, "table_name": "Taxi"}})
 
     async def test_an_event_published_on_another_thread_reaches_the_client(self) -> None:
         """The bus runs handlers on whoever published, which is never this loop."""
@@ -107,7 +134,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
                                 state={"launching": False, "table_name": None})
         frame = await self._next(stream)
 
-        self.assertEqual(_payload(frame), {"state": {"launching": False, "table_name": None}})
+        self.assertEqual(_shape(frame), {"state": {"launching": False, "table_name": None}})
 
     async def test_a_game_event_carries_identity_not_the_game(self) -> None:
         """The bus payload is in-process; the Game object and the ini config are not
@@ -122,7 +149,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         events.emit(events.GAME_SELECTED, game=game, ini_config="secret-ini-config")
         frame = await self._next(stream)
 
-        self.assertEqual(_payload(frame), {
+        self.assertEqual(_shape(frame), {
             "game": {
                 "id": "6f1c9a4e",
                 "name": "Medieval Madness (Williams 1997)",
@@ -153,7 +180,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         events.emit(events.GAME_LAUNCHING, game=None, ini_config="cfg")
         frame = await self._next(stream)
 
-        self.assertEqual(_payload(frame), {"game": None})
+        self.assertEqual(_shape(frame), {"game": None})
 
     async def test_a_job_event_keeps_the_documented_shape(self) -> None:
         """The shape is a contract, so a caller's extra keyword does not become one."""
@@ -164,8 +191,33 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
                     internal_handle=object())
         frame = await self._next(stream)
 
-        self.assertEqual(_payload(frame),
+        self.assertEqual(_shape(frame),
                          {"job_id": "import-7", "pct": 42, "message": "Copying"})
+
+    async def test_every_event_says_which_install_it_happened_on(self) -> None:
+        """A hub holding two players needs to know which one a launch came from. The
+        surface address stays dropped - which browser tab asked is nobody else's
+        business; which install it happened on is what a subscriber can act on."""
+        stream = self._open()
+        await self._hello(stream)
+
+        events.emit(events.GAME_LAUNCHING, game=None, ini_config="cfg")
+        events.emit(events.JOB_PROGRESS, job_id="j", pct=1, message="m")
+
+        for _ in range(2):
+            self.assertEqual(_payload(await self._next(stream))["install_id"], INSTALL_ID)
+
+    async def test_an_install_with_no_id_says_nothing_rather_than_nothing_useful(self) -> None:
+        """Absent beats empty: a subscriber can tell "did not say" from an install
+        whose id is the empty string."""
+        stream = self._open()
+        await self._hello(stream)
+
+        with mock.patch.object(event_stream, "_install_id", _pinned_id("")):
+            events.emit(events.JOB_PROGRESS, job_id="j", pct=1, message="m")
+            frame = await self._next(stream)
+
+        self.assertNotIn("install_id", _payload(frame))
 
     async def test_a_filter_delivers_only_what_it_names(self) -> None:
         stream = self._open(PLAY_STATE)

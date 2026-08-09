@@ -326,7 +326,7 @@ event name, so a client listens for what it cares about rather than filtering a 
 generic messages. `?events=` is a comma-separated filter — leave it off for everything. An
 unknown name is an `invalid_request`, not a silently empty stream.
 
-What's on it:
+What's on it, each alongside the `install_id` described below:
 
 | Event | Payload |
 |-------|---------|
@@ -335,6 +335,15 @@ What's on it:
 | `job.progress` | `{"job_id", "pct", "message"}` |
 | `job.done` | `{"job_id"}` |
 | `job.failed` | `{"job_id", "error"}` |
+
+Every payload also carries `install_id` — which install the event happened on. On a
+single-machine install it is always the same value and can be ignored; a client watching
+more than one is how it tells them apart. It is absent, not empty, when the install has no
+id yet, so "didn't say" is distinguishable from an id that is the empty string.
+
+What is deliberately *not* there is which surface asked. That names one user's browser tab
+and means nothing to anyone else on the stream. Which install something happened on is the
+provenance a subscriber can act on; who asked is private.
 
 A game on the stream is a *reference*, not a resource: an id, a name to show, and
 `links.self` to fetch the rest. Events stay small and there is one answer to what a game
