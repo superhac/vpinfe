@@ -267,6 +267,21 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-51 — The window channel refuses connections from other pages.** A WebSocket
+handshake carrying an `Origin` from anywhere but this machine is closed with 1008 instead
+of being served. A real window is served from loopback and passes; a client that sends no
+`Origin` at all - anything that is not a browser - is unaffected.
+*Why:* the channel reaches `shutdown_system`, `launch_game` and `build_metadata`, and the
+loopback bind was doing none of the work people assumed. A WebSocket handshake is not
+subject to the same-origin policy the way `XMLHttpRequest` is, so any page open in any
+browser on the machine could connect to `ws://127.0.0.1:8002` and call them. A browser
+sets `Origin` itself and a page cannot forge it, which is what makes one comparison at
+connect sufficient. Refusing a missing `Origin` was considered and rejected: it stops no
+attacker, because a non-browser client already runs code on the machine, and it would
+break scripts that legitimately drive the channel. Covered by
+`tests/theming/test_ws_origin.py`, which asserts against a real handshake rather than only
+the predicate.
+
 **PAR-50 — The two roles are `hub` and `player`, and `acquisition` is `uploads`.**
 Discovery's `residency` values change from `catalog` and `play_host` to `hub` and
 `player`, and the capability named `acquisition` becomes `uploads`. `GET /api/v1` is the

@@ -21,6 +21,10 @@ from frontend.api import API_ALLOWED_METHODS
 
 logger = logging.getLogger("vpinfe.frontend.ws_bridge")
 
+# Compared against urlparse().hostname, which unwraps the brackets an IPv6 url is
+# written with - so "::1" matches "http://[::1]:8000" and "[::1]" would match nothing.
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
 
 class WebSocketBridge:
     """WebSocket server that bridges JavaScript ↔ Python API calls."""
@@ -83,10 +87,31 @@ class WebSocketBridge:
         self._server.close()
         await self._server.wait_closed()
 
+    def _origin_allowed(self, origin) -> bool:
+        """Whether a handshake's Origin may open a channel that can power off the machine.
+
+        A browser sets Origin itself and a page cannot forge it, so this is what keeps any
+        other page open on this machine from reaching `shutdown_system` - loopback binding
+        does not, because WebSockets are not subject to same-origin the way XHR is.
+
+        No Origin at all is allowed: that is a non-browser client, which already runs code
+        here and so is not held back by anything this check could do.
+        """
+        if origin is None:
+            return True
+        return urlparse(origin).hostname in LOOPBACK_HOSTS
+
     async def _handle_connection(self, websocket):
         """Handle a new WebSocket connection from a Chromium window."""
+        origin = websocket.request.headers.get("Origin")
+        if not self._origin_allowed(origin):
+            logger.warning("Refused a websocket connection from origin %r", origin)
+            await websocket.close(code=1008, reason="origin not allowed")
+            return
+
         # Parse window name from query params
-        parsed = urlparse(websocket.request.path if hasattr(websocket.request, 'path') else str(websocket.request))
+        request = websocket.request
+        parsed = urlparse(request.path if hasattr(request, 'path') else str(request))
         params = parse_qs(parsed.query)
         window_name = params.get('window', ['unknown'])[0]
 
