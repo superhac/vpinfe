@@ -267,6 +267,23 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-59 — A theme's index is converted to a game before it leaves the window.** The five
+index-taking WebSocket methods keep their names, arguments and answers; internally they now
+resolve the index to an entry through one place (`API.entry_at`) and act on the game rather
+than the position. `set_game_rating` writes through the same `set_game_rating` in
+`common/games/game_metadata.py` the API uses, and returns the shape it always did. One behavior change, which is a fix: a negative index is refused instead of counting
+back from the end of the list.
+*Why:* an index is a position in *one window's* filtered list, so the same number names
+different games in two windows filtered differently - which is why rating had no HTTP
+equivalent and could not trivially get one. Converting at the boundary is what makes these
+operations expressible by id, and it is the prerequisite for the hub half of the window
+channel moving onto HTTP at all. `-1` previously reached `entries[-1]` and launched or
+rated the last game in the list: Python's negative indexing answering a question a theme
+counting up from zero never meant to ask. The duplicate rating implementation in
+`frontend/game_state.py` is deleted rather than left beside the one in `common/`, so a
+rating set from a theme and one set over HTTP are the same write. Covered by
+`tests/theming/test_index_addressing.py`, which the five methods had no test of at all.
+
 **PAR-58 — What a library can be filtered on is answerable over the API.** New:
 `GET /api/v1/library/filters`, returning every filter axis with its scope, kind, summary
 and the values this library holds. Additive - nothing is removed, and the window channel's

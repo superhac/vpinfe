@@ -10,10 +10,10 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.games import game_play_service, game_report_service
-from common.games.game_metadata import game_frontend_dof_event
+from common.games.game_metadata import game_frontend_dof_event, set_game_rating
 from common.games.tables import entry_for_filename
 from common.host import real_dmd, system_actions
-from frontend import config_api, game_state, theme_api
+from frontend import config_api, theme_api
 from tests.support.library import write_game
 
 
@@ -240,9 +240,7 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = game_state.set_game_rating([game], 0, 5)
-
-            self.assertEqual(result, {"success": True, "rating": 5})
+            self.assertEqual(set_game_rating(game, 5), 5)
             saved = json.loads(info_path.read_text(encoding="utf-8"))
             self.assertEqual(saved["User"]["Rating"], 5)
             self.assertEqual(saved["User"]["StartCount"], 7)

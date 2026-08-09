@@ -14,11 +14,7 @@ from common.games.collections_service import (
 from common.games.game_metadata import (
     DETECTION_KEYS,
     game_title,
-    get_or_create_user_meta,
-    load_game_meta,
     normalize_meta,
-    normalize_rating,
-    persist_game_meta,
     reorder_leading_article,
     run_time_seconds,
     section,
@@ -372,19 +368,6 @@ def _numeric_meta_value(game, field):
     return value
 
 
-def get_game_rating(games, index):
-    try:
-        game = games[index]
-    except Exception:
-        return 0
-    return normalize_rating(section(load_game_meta(game), "User").get("Rating", 0))
-
-
-def set_game_rating(games, index, rating):
-    game = games[index]
-    config = load_game_meta(game)
-    user = get_or_create_user_meta(config)
-    normalized = normalize_rating(rating)
-    user["Rating"] = normalized
-    persist_game_meta(game, config)
-    return {"success": True, "rating": normalized}
+# Rating lives in common/games/game_metadata.py, addressed by game rather than by a
+# position in one window's filtered list. `API.set_game_rating` converts the index and
+# calls it, so a rating set from a theme and one set over HTTP are the same write.

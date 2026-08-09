@@ -11,13 +11,13 @@ import logging
 from common import events, lifecycle
 from common.config_access import cfg_get
 from common.deprecations import announce
-from common.games import collection_resolver
+from common.games import collection_resolver, game_identity
 from common.games.collections_service import (
     get_collection_image_url,
     get_collection_names,
     get_collections_metadata,
 )
-from common.games.game_metadata import normalize_meta
+from common.games.game_metadata import game_rating, normalize_meta, set_game_rating
 from common.games.game_repository import ensure_games_loaded
 from common.host import launch, launch_state
 from common.host.display_service import monitors_as_dicts
@@ -257,6 +257,31 @@ class API:
         if getattr(self, "_entries", None) is None or self._entries_source is not games:
             self._rebuild_entries()
         return self._entries
+
+    def entry_at(self, index):
+        """The entry a theme's index names, or None when it names nothing.
+
+        An index is a position in *this window's* filtered list, so it means nothing
+        anywhere else - two windows filtered differently give the same number to
+        different games. Anything leaving this process converts through here first.
+        """
+        try:
+            position = int(index)
+        except (TypeError, ValueError):
+            return None
+        # Not `entries[-1]`: a theme counts up from zero, so a negative number is one
+        # that went wrong, and Python would quietly hand back the end of the list.
+        if position < 0:
+            return None
+        try:
+            return self.entries[position]
+        except IndexError:
+            return None
+
+    def game_id_at(self, index) -> str:
+        """The id of the game an index names, or "" - the addressable form of an index."""
+        entry = self.entry_at(index)
+        return game_identity.game_id(entry.game) if entry is not None else ""
 
 
     ###################
@@ -499,9 +524,8 @@ class API:
         The windows hear about it through the bus like everyone else, so nothing
         here has to tell them.
         """
-        try:
-            entry = self.entries[int(index)]
-        except Exception:
+        entry = self.entry_at(index)
+        if entry is None:
             logger.warning("Ignoring launch for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
 
@@ -524,26 +548,34 @@ class API:
         subscribes to the event. Nothing is reported back, because none of it can
         fail in a way the wheel should care about.
         """
-        try:
-            game = self.entries[int(index)].game
-        except Exception:
+        entry = self.entry_at(index)
+        if entry is None:
             logger.debug("Ignoring game selection for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
+        game = entry.game
 
         events.emit(events.GAME_SELECTED, game=game, ini_config=self._iniConfig)
         return {"success": True}
 
     def get_game_rating(self, index):
         """Get User.Rating for a game index in the current filtered list."""
-        return game_state.get_game_rating([e.game for e in self.entries], index)
+        entry = self.entry_at(index)
+        return game_rating(entry.game) if entry is not None else 0
 
     def set_game_rating(self, index, rating):
-        """Set User.Rating (0-5) for a game index in the current filtered list."""
-        games = [e.game for e in self.entries]
-        result = game_state.set_game_rating(games, index, rating)
-        logger.info("Updated User.Rating for %s -> %s",
-                    games[index].gameDirName, result["rating"])
-        return result
+        """Set User.Rating (0-5) for a game index in the current filtered list.
+
+        The index is converted here; the write itself is the one in common/, so a
+        rating set from a theme and one set over HTTP are the same operation.
+        """
+        entry = self.entry_at(index)
+        if entry is None:
+            logger.warning("Ignoring rating for invalid index: %s", index)
+            return {"success": False, "reason": "invalid_index"}
+
+        stored = set_game_rating(entry.game, rating)
+        logger.info("Updated User.Rating for %s -> %s", entry.game.gameDirName, stored)
+        return {"success": True, "rating": stored}
 
     def build_metadata(self, download_media=True, update_all=False):
         """
