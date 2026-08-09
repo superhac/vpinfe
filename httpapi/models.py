@@ -373,6 +373,24 @@ class JobList(ApiModel):
     jobs: list[JobResource]
 
 
+class FilterAxis(ApiModel):
+    """One thing a collection can filter on.
+
+    `values` are the ones this library actually has, so a client offers a choice that
+    matches something. A `rating` axis has no values: it is 0-5 whatever is installed.
+    """
+
+    name: str
+    scope: str
+    kind: str
+    summary: str
+    values: list[str] | None = None
+
+
+class FilterAxisList(ApiModel):
+    axes: list[FilterAxis]
+
+
 class ScanRequest(ApiModel):
     """Absent body means both default to true, which is what the Manager UI's own
     scan does."""

@@ -261,14 +261,7 @@ def save_current_filter_collection(api, name, letter, theme, game_type, manufact
 
 
 def filter_options(games):
-    filters = GameListFilters(games)
-    return {
-        "letters": filters.get_available_letters(),
-        "themes": filters.get_available_themes(),
-        "types": filters.get_available_types(),
-        "manufacturers": filters.get_available_manufacturers(),
-        "years": filters.get_available_years(),
-    }
+    return GameListFilters(games).available_options()
 
 
 def apply_filters(api, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):

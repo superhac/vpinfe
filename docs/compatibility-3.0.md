@@ -267,6 +267,23 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-58 — What a library can be filtered on is answerable over the API.** New:
+`GET /api/v1/library/filters`, returning every filter axis with its scope, kind, summary
+and the values this library holds. Additive - nothing is removed, and the window channel's
+`get_filter_*` methods answer exactly as before.
+*Why:* the five `get_filter_*` methods existed only on the window channel, which is
+reachable by a theme window and nothing else, so no other client could learn what a filter
+collection could filter by. The axes are projected from the same registry the resolver
+matches on rather than listed again, so a client cannot be offered an axis nothing would
+resolve, and an axis added there needs no second edit here. The values are the ones the
+library actually holds, because a choice that matches nothing is not a choice. A `rating`
+axis carries `null` instead of a list: it is 0-5 on every install, and enumerating the
+ratings in use would offer a different scale to two libraries and a shrinking one as
+ratings change. `filter_options` in `frontend/game_state.py` was a second copy of this
+computation and now delegates to `GameListFilters.available_options()`, so the frontend
+and the API answer from one implementation - a parity test asserts they agree. Covered by
+`tests/api/test_library_filters.py`.
+
 **PAR-57 — A game can be rated over the API.** New: `PUT /api/v1/games/{id}/rating`,
 taking `{"rating": 0-5}` and carrying the `games:write` scope. `GET /games/{id}` reported
 a rating already, so this is the write half of a field that was read-only; a rating set

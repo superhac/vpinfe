@@ -52,6 +52,7 @@ the documented entry point is a plain 200. Both spellings work.
 | DELETE | `/api/v1/collections/{name}/games/{id}` | Remove a game |
 | GET | `/api/v1/jobs` | Slow work, running first. `?kind=` filters |
 | GET | `/api/v1/jobs/{id}` | One job — state, last progress, outcome |
+| GET | `/api/v1/library/filters` | Every filter axis, with the values this library holds |
 | POST | `/api/v1/library/scan` | Rebuild game metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library game count. The reference for logo packs and alias maps |
 | GET | `/api/v1/games` | List games (`q`, `limit`, `offset`) |
@@ -412,6 +413,16 @@ the wire uses the honest names.
 
 Collection names are the identity, so they are URL-encoded in paths (`Last%20Played`).
 `Last Played` itself is maintained automatically as you play.
+
+`GET /library/filters` says what a filter collection can filter on: every axis with its
+`scope`, `kind`, a one-line `summary`, and the `values` this library actually holds — so a
+client offers a manufacturer somebody owns rather than every manufacturer that ever
+existed. The axes are projected from the registry the resolver matches on, so the two
+cannot disagree, and an axis added there appears here without a second edit.
+
+A `rating` axis carries `values: null` rather than a list. It is 0–5 on every install, and
+enumerating the ratings currently in use would offer a different scale to two libraries
+and a shrinking one as ratings change.
 
 ## Jobs
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Response
 
 from common import jobs as job_registry
+from common.games import game_service
 
 from . import jobs as jobs_api
 from . import models, scopes
@@ -17,6 +18,34 @@ from .auth import requires
 from .errors import ConflictError
 
 router = APIRouter(prefix="/library", tags=["library"])
+
+# Which values answer for which axis. Stated, not derived: `game_type`/`types` do not
+# correspond, so pluralising the name would be a rule with an exception.
+_VALUES_FOR = {
+    "letter": "letters",
+    "theme": "themes",
+    "game_type": "types",
+    "manufacturer": "manufacturers",
+    "year": "years",
+}
+
+
+@router.get("/filters", summary="What this library can be filtered on",
+            dependencies=[requires(scopes.GAMES_READ)])
+def filters() -> models.FilterAxisList:
+    """Every filter axis, with the values this library holds.
+
+    Projected from the registry the resolver matches on, so the two cannot disagree.
+    A rating axis carries no values: it is 0-5 whatever is installed.
+    """
+    from common.games.collection_filters import AXES, GameListFilters
+    from common.games.game_repository import ensure_games_loaded
+
+    available = GameListFilters(ensure_games_loaded()).available_options()
+    return {"axes": [{"name": axis.name, "scope": axis.scope, "kind": axis.kind,
+                      "summary": axis.summary,
+                      "values": available.get(_VALUES_FOR.get(axis.name))}
+                     for axis in AXES]}
 
 
 @router.post("/scan", summary="Rebuild game metadata from VPSdb", status_code=202,
@@ -27,10 +56,6 @@ def scan(response: Response,
     stream. The scope is games:write because that is what a scan does - it writes
     a .info for every game it can match."""
     options = request or models.ScanRequest()
-
-    # Imported here: the Manager UI service pulls in NiceGUI, and the API is meant
-    # to be importable without it.
-    from common.games import game_service
 
     def work(job: job_registry.Job):
         return game_service.build_metadata(

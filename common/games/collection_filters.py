@@ -247,6 +247,20 @@ class GameListFilters:
                 years.add(str(year))
         return sorted(years)
 
+    def available_options(self) -> dict[str, list[str]]:
+        """Every choice axis and the values this library actually holds.
+
+        One answer for the frontend and the API both, so a filter offered on one
+        surface is a filter the other can resolve.
+        """
+        return {
+            "letters": self.get_available_letters(),
+            "themes": self.get_available_themes(),
+            "types": self.get_available_types(),
+            "manufacturers": self.get_available_manufacturers(),
+            "years": self.get_available_years(),
+        }
+
     def _get_game_name(self, game):
         """Get game name from either JSON or legacy format."""
         return game_title(game)
