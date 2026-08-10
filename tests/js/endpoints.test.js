@@ -21,25 +21,44 @@ describe("the endpoint block", () => {
   test("is resolved from the url before any theme code runs", () => {
     const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&managerUiPort=9001");
 
-    assert.equal(vpin.endpoints.hub, "http://127.0.0.1:9000");
+    assert.equal(vpin.endpoints.assets, "http://127.0.0.1:9000");
     assert.equal(vpin.endpoints.player, "http://127.0.0.1:9001");
-    assert.equal(vpin.endpoints.bridge, "ws://127.0.0.1:9002");
+    assert.equal(vpin.endpoints.hub, "http://127.0.0.1:9001", "one api answers for both today");
+    assert.equal(vpin.endpoints.frontend_channel, "ws://127.0.0.1:9002");
   });
 
   test("falls back to what the frontend has always assumed", () => {
     // A page opened by hand, or an older launcher that sends no ports.
     const vpin = withPorts("?window=table");
 
-    assert.equal(vpin.endpoints.hub, "http://127.0.0.1:8000");
+    assert.equal(vpin.endpoints.assets, "http://127.0.0.1:8000");
     assert.equal(vpin.endpoints.player, "http://127.0.0.1:8001");
-    assert.equal(vpin.endpoints.bridge, "ws://127.0.0.1:8002");
+    assert.equal(vpin.endpoints.frontend_channel, "ws://127.0.0.1:8002");
   });
 
   test("a port given in the url wins over the assumed one", () => {
     const vpin = withPorts("?window=table&themeAssetsPort=9000");
 
-    assert.equal(vpin.endpoints.hub, "http://127.0.0.1:9000");
+    assert.equal(vpin.endpoints.assets, "http://127.0.0.1:9000");
     assert.equal(vpin.endpoints.player, "http://127.0.0.1:8001", "the rest are untouched");
+  });
+
+  test("each key points where its own setting says", () => {
+    // The keys are not interchangeable: media comes off the asset server and the api
+    // off the manager ui port. Pointing hub at the asset server was the original bug.
+    const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&managerUiPort=9001");
+
+    assert.equal(vpin.endpoints.assets, `http://127.0.0.1:${vpin.themeAssetsPort}`);
+    assert.equal(vpin.endpoints.hub, `http://127.0.0.1:${vpin.managerUiPort}`);
+    assert.equal(vpin.endpoints.player, `http://127.0.0.1:${vpin.managerUiPort}`);
+    assert.equal(vpin.endpoints.frontend_channel, `ws://127.0.0.1:${vpin.wsPort}`);
+  });
+
+  test("the frontend channel is a line to hold open, not an address to append to", () => {
+    const vpin = withPorts("?window=table&wsPort=9002");
+
+    assert.ok(vpin.endpoints.frontend_channel.startsWith("ws://"), "not http");
+    assert.ok(!vpin.endpoints.frontend_channel.endsWith("/"), "no path is appended to it");
   });
 
   test("correcting a port after startup corrects the urls built from it", () => {
@@ -50,12 +69,12 @@ describe("the endpoint block", () => {
 
     vpin.themeAssetsPort = 9000;
 
-    assert.equal(vpin.endpoints.hub, "http://127.0.0.1:9000");
+    assert.equal(vpin.endpoints.assets, "http://127.0.0.1:9000");
   });
 });
 
 describe("every url the page builds comes from the block", () => {
-  test("game media resolves against the hub", () => {
+  test("game media resolves against the asset server", () => {
     const vpin = withPorts("?window=table&themeAssetsPort=9000");
     vpin.gameData = ROWS;
     const index = ROWS.findIndex((row) => row.tableDirName === "Attack from Mars (Bally 1995)");
@@ -65,7 +84,7 @@ describe("every url the page builds comes from the block", () => {
     assert.ok(url.startsWith("http://127.0.0.1:9000/"), url);
   });
 
-  test("the manufacturer logo resolves against the hub", () => {
+  test("the manufacturer logo resolves against the asset server", () => {
     const vpin = withPorts("?window=table&themeAssetsPort=9000");
     vpin.gameData = [{}];
     vpin._reader = { logo: () => "/assets/manufacturers/default/bally.png" };
@@ -74,7 +93,7 @@ describe("every url the page builds comes from the block", () => {
                  "http://127.0.0.1:9000/assets/manufacturers/default/bally.png");
   });
 
-  test("the window channel is dialled at the bridge endpoint", () => {
+  test("the frontend channel is dialled at its own endpoint", () => {
     const { vpin, browser } = newCore({
       windowName: "table", search: "?window=table&wsPort=9002",
     });

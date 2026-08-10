@@ -267,6 +267,26 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-62 — The endpoint block says what each address is for.** `vpin.endpoints` becomes
+`{ hub, player, assets, frontend_channel }`. `assets` is new and is where media, theme
+packages and shared art come from; `hub` now points at the API rather than the asset
+server, which is where the library actually answers; `bridge` is `frontend_channel`.
+Introduced in PAR-53 and corrected here before any theme reads it, so there is nothing to
+alias.
+*Why:* two of the keys were wrong and the third did not read. `hub` pointed at the asset
+server on port 8000, but the library, collections and uploads are on `/api/v1` - so a
+theme following the documented meaning would have asked the wrong service. The files are
+a distinct thing worth naming, hence `assets`. `hub` and `player` are the same address
+today because one `/api/v1` answers for both, and they stay separate keys because they
+are separate questions: a theme built against them keeps working when the two are
+separate machines. `bridge` said where the thing sat rather than what it was for, and
+"the one case where transport and residency coincide" is a rationale rather than a name
+anybody could read; `frontend_channel` names the surface that owns it, which stays correct
+as other surfaces on a player arrive - `SURFACE_EXTENSION` is already declared alongside
+`SURFACE_FRONTEND`. Three of the four are addresses a path is appended to; the fourth is a
+line held open, and the block now says so rather than implying it is keyed by role when
+one key never was. Covered by `tests/js/endpoints.test.js`.
+
 **PAR-61 — `ws_bridge` is `player_channel`.** The `ws_bridge` module under `frontend/`
 becomes `frontend/player_channel.py`, and `WebSocketBridge` becomes `PlayerChannel`. Internal
 Python only: no theme imports it, the port is still `network.ws_port`, the window URL
@@ -416,8 +436,8 @@ interface - the opposite of what clearing the setting looks like it means. Cover
 `tests/theming/test_asset_server_scope.py`.
 
 **PAR-53 — The page is told where the services are, instead of asserting one machine.**
-*(machine-checked)* `vpin.endpoints` gives a theme complete base URLs keyed by role -
-`hub`, `player`, `bridge` - and the window URL now carries `themeAssetsPort` and
+*(machine-checked)* `vpin.endpoints` gives a theme complete base URLs instead of a host to
+assume - see PAR-62 for the keys it settled on - and the window URL now carries `themeAssetsPort` and
 `managerUiPort` alongside the `wsPort` it already carried. Same values as before and the
 same defaults when nothing says otherwise, so a single-machine install is unchanged.
 `vpin.themeAssetsPort` keeps working and keeps its meaning; the block derives from it.

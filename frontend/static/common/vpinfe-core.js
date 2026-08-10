@@ -138,7 +138,7 @@ class ContractTwoReader {
     // and still appears in the wheel. The route accepts either id.
     const id = String(entry.table?.id || entry.game?.id || "");
     if (!id) return null;
-    return `${this.core.endpoints.hub}/media/${encodeURIComponent(id)}/${kind}`;
+    return `${this.core.endpoints.assets}/media/${encodeURIComponent(id)}/${kind}`;
   }
 
   imageURL(entry, kind) { return this.url(entry, kind) || MISSING_MEDIA_URL; }
@@ -385,17 +385,17 @@ class ContractOneReader {
     const normalized = localPath.replace(/\\/g, '/');       // Windows separators
     const parts = normalized.split('/');
     const file = parts[parts.length - 1];
-    const hub = this.core.endpoints.hub;
+    const assets = this.core.endpoints.assets;
     // The file may sit deeper than medias/ itself - wheel sets live in
     // medias/wheels/<set>/ - so keep everything from medias/ down.
     const mediasIndex = parts.lastIndexOf('medias');
     if (mediasIndex > 0) {
       const gameDir = parts[mediasIndex - 1];
       const rest = parts.slice(mediasIndex).map(encodeURIComponent).join('/');
-      return `${hub}/tables/${encodeURIComponent(gameDir)}/${rest}`;
+      return `${assets}/tables/${encodeURIComponent(gameDir)}/${rest}`;
     }
     const dir = parts[parts.length - 2];        // media sitting in the game folder
-    return `${hub}/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
+    return `${assets}/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
   }
 }
 
@@ -637,7 +637,7 @@ class VPinFECore {
   getManufacturerLogoURL(index) {
     const item = this.gameData[index];
     const path = item ? this._reader.logo(item) : null;
-    return path ? `${this.endpoints.hub}${path}` : null;
+    return path ? `${this.endpoints.assets}${path}` : null;
   }
 
   getPreferredMediaURL(index, type) {
@@ -688,26 +688,34 @@ class VPinFECore {
   }
 
   /**
-   * Complete base urls for the services this page talks to, keyed by which role answers:
-   * `hub` for the library and its media, `player` for this machine's api, `bridge` for
-   * the window channel. Build urls from these rather than assuming a host.
+   * Where the things this page talks to actually are. Build urls from these rather than
+   * assuming a host or a port: the halves can be separate machines, and only this knows.
    *
-   * Keyed by role, not by transport. The window channel is one transport serving two
-   * roles, so a block keyed `assets`/`bridge`/`api` could not say "hub calls go there,
-   * player calls go here" - it would encode the one-machine assumption it exists to undo.
+   * Three are addresses you fetch from - take one, add a path, get an answer back:
+   *   `hub`     the library and what is known about it: games, collections, uploads
+   *   `player`  this machine: launching, play state, its hardware
+   *   `assets`  the files themselves: theme packages, table media, shared art
+   *
+   * One is a line held open instead, so it takes no path:
+   *   `frontend_channel`  how this page and VPinFE talk to each other, both ways
+   *
+   * `hub` and `player` are one address today because one `/api/v1` answers for both.
+   * They are separate keys because they are separate questions, and a theme built
+   * against them keeps working when the two are separate machines.
    *
    * Derived on read, so correcting a port after startup corrects every url built from it.
-   * Hosts are loopback until bind configuration exists to say otherwise, and deliberately
-   * not taken from window.location: "wherever this page came from" is a different
+   * Hosts are loopback until bind configuration says otherwise, and deliberately not
+   * taken from window.location: "wherever this page came from" is a different
    * one-machine assumption, and one that fails only for remote viewers - so it still
    * looks right on the machine it was written on.
    */
   get endpoints() {
     const host = '127.0.0.1';
     return {
-      hub: `http://${host}:${this.themeAssetsPort}`,
+      hub: `http://${host}:${this.managerUiPort}`,
       player: `http://${host}:${this.managerUiPort}`,
-      bridge: `ws://${host}:${this.wsPort}`,
+      assets: `http://${host}:${this.themeAssetsPort}`,
+      frontend_channel: `ws://${host}:${this.wsPort}`,
     };
   }
 
@@ -1691,7 +1699,7 @@ class VPinFECore {
   // **********************************************
 
   #connectWebSocket() {
-    const wsUrl = `${this.endpoints.bridge}?window=${this._windowName}`;
+    const wsUrl = `${this.endpoints.frontend_channel}?window=${this._windowName}`;
     console.log(`[WS] Connecting to ${wsUrl}`);
     this._ws = new WebSocket(wsUrl);
 
