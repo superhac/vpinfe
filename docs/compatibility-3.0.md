@@ -472,7 +472,8 @@ disk cost 2ms an event, which a launch and every `job.progress` tick would have 
 Covered by `tests/api/test_event_stream.py`.
 
 **PAR-54 — Each server's listening address is configurable, per port.** Two new settings,
-`network.theme_assets_bind` and `network.manager_ui_bind`. Both default to what that
+`network.theme_assets_bind` and `network.manager_ui_bind` (renamed `hub_bind` by PAR-63,
+which kept the old spelling working). Both default to what that
 server already did - `127.0.0.1` for theme assets and table media, `0.0.0.0` for the
 Manager UI - so nothing about an existing install changes until somebody sets one. The
 window channel gets no such setting.
@@ -629,7 +630,8 @@ takes a declared identity and does not know what produced it. Covered by
 `tests/curation/test_declared_identity.py`.
 
 **PAR-45 — The browser is told which ports to use instead of assuming them.**
-*(machine-checked)* One WebSocket method is added, `get_manager_ui_port`, and the bridge's
+*(machine-checked)* One WebSocket method is added, `get_manager_ui_port` (renamed
+`get_hub_port` by PAR-63, which kept the old name forwarding), and the bridge's
 own port now travels in the window URL as `?wsPort=`. Purely additive: a theme never calls
 either, and both fall back to the values they assumed before.
 *Why:* `network.ws_port` and `network.manager_ui_port` are settings the browser ignored.
