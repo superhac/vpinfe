@@ -1,4 +1,4 @@
-"""Who is allowed to open the window channel.
+"""Who is allowed to open the player channel.
 
 The channel reaches `shutdown_system`, `launch_game` and `build_metadata`, and binding it
 to loopback does not keep other pages out: a WebSocket handshake is not subject to the
@@ -14,18 +14,18 @@ import unittest
 
 import websockets
 
-from frontend.ws_bridge import WebSocketBridge
+from frontend.player_channel import PlayerChannel
 
 
 class OriginPredicateTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.bridge = WebSocketBridge(port=0)
+        self.channel = PlayerChannel(port=0)
 
     def test_a_window_served_from_this_machine_is_allowed(self) -> None:
         for origin in ("http://127.0.0.1:8000", "http://localhost:8000",
                        "http://127.0.0.1:54321", "http://[::1]:8000"):
             with self.subTest(origin=origin):
-                self.assertTrue(self.bridge._origin_allowed(origin))
+                self.assertTrue(self.channel._origin_allowed(origin))
 
     def test_a_page_from_anywhere_else_is_refused(self) -> None:
         for origin in ("http://evil.example.com", "https://mail.google.com",
@@ -34,12 +34,12 @@ class OriginPredicateTests(unittest.TestCase):
                        # owner points them, and both read as loopback at a glance.
                        "http://127.0.0.1.evil.com", "http://localhost.evil.com"):
             with self.subTest(origin=origin):
-                self.assertFalse(self.bridge._origin_allowed(origin))
+                self.assertFalse(self.channel._origin_allowed(origin))
 
     def test_no_origin_at_all_is_allowed(self) -> None:
         """A non-browser client sends none. It already runs code here, so refusing it
         stops nothing and would break scripts that legitimately drive the channel."""
-        self.assertTrue(self.bridge._origin_allowed(None))
+        self.assertTrue(self.channel._origin_allowed(None))
 
 
 class OriginHandshakeTests(unittest.IsolatedAsyncioTestCase):
@@ -49,9 +49,9 @@ class OriginHandshakeTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         from tests.support.browser_session import free_port
 
-        self.bridge = WebSocketBridge(port=free_port())
-        self.bridge.start()
-        self.addCleanup(self.bridge.stop)
+        self.channel = PlayerChannel(port=free_port())
+        self.channel.start()
+        self.addCleanup(self.channel.stop)
         await asyncio.sleep(0.5)
 
     async def _connect(self, origin):
@@ -61,12 +61,12 @@ class OriginHandshakeTests(unittest.IsolatedAsyncioTestCase):
         silence is the pass and a close frame is the refusal.
         """
         extra = {"additional_headers": {"Origin": origin}} if origin else {}
-        url = f"ws://127.0.0.1:{self.bridge.port}/?window=bg"
+        url = f"ws://127.0.0.1:{self.channel.port}/?window=bg"
         async with websockets.connect(url, **extra) as socket:
             with self.assertRaises(TimeoutError):
                 await asyncio.wait_for(socket.recv(), timeout=0.3)
             # While it is still open: registration is undone on disconnect.
-            return self.bridge.is_window_connected("bg")
+            return self.channel.is_window_connected("bg")
 
     async def test_a_real_window_connects(self) -> None:
         self.assertTrue(await self._connect("http://127.0.0.1:8000"))
@@ -76,7 +76,7 @@ class OriginHandshakeTests(unittest.IsolatedAsyncioTestCase):
             await self._connect("https://mail.google.com")
 
         self.assertEqual(caught.exception.rcvd.code, 1008)
-        self.assertFalse(self.bridge.is_window_connected("bg"),
+        self.assertFalse(self.channel.is_window_connected("bg"),
                          "a refused connection must not displace a real window")
 
 

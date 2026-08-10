@@ -267,6 +267,23 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-61 — `ws_bridge` is `player_channel`.** The `ws_bridge` module under `frontend/`
+becomes `frontend/player_channel.py`, and `WebSocketBridge` becomes `PlayerChannel`. Internal
+Python only: no theme imports it, the port is still `network.ws_port`, the window URL
+still carries `?wsPort=`, and `vpin.endpoints.bridge` is unchanged. Nothing outside the
+repo can tell.
+*Why:* "bridge" was a 2.x migration artifact - the module docstring said it "replaces
+legacy frontend's JS API bridge", so the name only ever meant "the thing between JS and
+Python", which describes where it sits and nothing about what it does. That is why every
+discussion of it had to re-explain it, and part of why the residency mix inside it went
+unnoticed for so long. It is the connection between a player and its own windows: never
+to a hub, never window to window. Renamed now rather than earlier because the name had to
+wait for consolidation to settle what the channel contains. No alias is added - the old
+name has no callers outside this repo, so one would be dead code on arrival.
+*(`vpin.endpoints.bridge` keeps its name deliberately: the block is keyed by role, and
+`player` there already means this machine's HTTP API. A second `player`-ish key would be
+worse than the inconsistency.)*
+
 **PAR-60 — The windows share one view instead of deriving the same one each.** The
 library, the filter, the sort, the collection and the entry list move from the per-window
 `API` instance onto a `View` the windows hold in common. Every WebSocket method keeps its
@@ -451,7 +468,7 @@ sets `Origin` itself and a page cannot forge it, which is what makes one compari
 connect sufficient. Refusing a missing `Origin` was considered and rejected: it stops no
 attacker, because a non-browser client already runs code on the machine, and it would
 break scripts that legitimately drive the channel. Covered by
-`tests/theming/test_ws_origin.py`, which asserts against a real handshake rather than only
+`tests/theming/test_player_channel_origin.py`, which asserts against a real handshake rather than only
 the predicate.
 
 **PAR-50 — The two roles are `hub` and `player`, and `acquisition` is `uploads`.**

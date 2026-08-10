@@ -1,11 +1,14 @@
-"""
-WebSocket bridge server that replaces legacy frontend's JS API bridge.
+"""The connection between a player and its own windows.
 
-Each Chromium window connects via WebSocket with its window name as a query param:
-  ws://127.0.0.1:8002?window=bg
+Each window opens one, naming itself in the query string:
+  ws://127.0.0.1:8002?window=playfield
 
-JS→Python: API call requests with unique IDs, responses sent back
-Python→JS: Event push messages for inter-window communication
+JS to Python: calls, gated by `API_ALLOWED_METHODS`, answered by id.
+Python to JS: events pushed out to the windows.
+
+Never to a hub and never window to window - each window holds its own connection to
+this process, which fans events out to all of them. Was `ws_bridge`: "bridge" said
+where it sat rather than what it did, and dated from replacing 2.x's JS API bridge.
 """
 
 import asyncio
@@ -19,15 +22,15 @@ import websockets
 
 from frontend.api import API_ALLOWED_METHODS
 
-logger = logging.getLogger("vpinfe.frontend.ws_bridge")
+logger = logging.getLogger("vpinfe.frontend.player_channel")
 
 # Compared against urlparse().hostname, which unwraps the brackets an IPv6 url is
 # written with - so "::1" matches "http://[::1]:8000" and "[::1]" would match nothing.
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
-class WebSocketBridge:
-    """WebSocket server that bridges JavaScript ↔ Python API calls."""
+class PlayerChannel:
+    """The WebSocket server a player's windows connect to."""
 
     # Public API methods that JS is allowed to call
     ALLOWED_METHODS = API_ALLOWED_METHODS
@@ -59,7 +62,7 @@ class WebSocketBridge:
                 break
             import time
             time.sleep(0.05)
-        logger.info("WebSocket bridge started on ws://127.0.0.1:%s/", self.port)
+        logger.info("Player channel listening on ws://127.0.0.1:%s/", self.port)
 
     def _run_server(self):
         """Run the async event loop in the daemon thread."""
@@ -269,4 +272,4 @@ class WebSocketBridge:
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=5)
-        logger.info("WebSocket bridge stopped.")
+        logger.info("Player channel stopped.")
