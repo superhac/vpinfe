@@ -118,6 +118,24 @@ class PlayerChannel:
         params = parse_qs(parsed.query)
         window_name = params.get('window', ['unknown'])[0]
 
+        # A window this process never opened is not one of ours. Every real window is
+        # registered before its browser is launched, so the set is already known and a
+        # name outside it can only be something else dialling in.
+        if window_name not in self._api_instances:
+            logger.warning("Refused a connection naming unknown window %r", window_name)
+            await websocket.close(code=1008, reason="unknown window")
+            return
+
+        # One live connection per window. This used to overwrite, so a second client
+        # naming an open window displaced it silently and inherited its events - and its
+        # whole API surface, `shutdown_system` included. A real window that dropped is
+        # already cleaned up in the `finally` below, so a genuine reconnect still fits.
+        existing = self._connections.get(window_name)
+        if existing is not None:
+            logger.warning("Refused a second connection for window '%s'", window_name)
+            await websocket.close(code=1008, reason="window already connected")
+            return
+
         logger.info("Window '%s' connected", window_name)
         self._connections[window_name] = websocket
 

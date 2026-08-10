@@ -50,6 +50,10 @@ class OriginHandshakeTests(unittest.IsolatedAsyncioTestCase):
         from tests.support.browser_session import free_port
 
         self.channel = PlayerChannel(port=free_port())
+        # A real window is one this process opened, so it has an API registered before
+        # its browser is launched. Without that the channel refuses the name outright
+        # and the origin check never runs.
+        self.channel.register_api("bg", object())
         self.channel.start()
         self.addCleanup(self.channel.stop)
         await asyncio.sleep(0.5)

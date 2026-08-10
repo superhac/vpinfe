@@ -267,6 +267,23 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-64 — A client cannot claim to be a window it is not.** The player channel refuses a
+connection naming a window this process never opened, and refuses a second connection for
+a window that already has one; both are closed with 1008. A real window is unaffected -
+every one is registered before its browser launches, and a window whose socket dropped is
+deregistered on the way out, so a genuine reconnect still fits.
+*Why:* the channel read a window name out of the query string and believed it. Any name
+was accepted, and a second client naming an open window *replaced* it -
+`self._connections[window_name] = websocket` overwrote. The impostor then received the
+real window's events and inherited its whole API surface, `shutdown_system` and
+`build_metadata` included, while the real window carried on believing it was connected.
+This was reached accidentally during a diagnostic session rather than found by reading:
+a probe connecting as `window=scoreview` knocked the real scoreview window off its channel
+several times before anyone noticed. The origin check from PAR-51 does not help here - a
+page served from loopback passes it and can still take a window's name. No new mechanism
+was needed: the set of valid names is already known before any browser starts. Covered by
+`tests/theming/test_player_channel_identity.py`.
+
 **PAR-63 — The port on 8001 is the hub's, not the Manager UI's.**
 `network.manager_ui_port` is `network.hub_port` and `network.manager_ui_bind` is
 `network.hub_bind`; the WebSocket method `get_manager_ui_port` is `get_hub_port`; the
