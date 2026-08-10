@@ -1,0 +1,129 @@
+"""What the wheel is showing, held once for every window showing it.
+
+Three windows onto one library were three copies that happened to agree, each deriving
+the same answer. Only the controller takes input, so only one could ever change it. The
+window keeps its name, its socket and its browser; this is everything else.
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+
+from common.games import collection_resolver
+from common.games.game_repository import ensure_games_loaded
+from frontend import game_state
+
+logger = logging.getLogger("vpinfe.frontend.view")
+
+
+def expands_tables(ini_config) -> bool:
+    """Whether the wheel shows every table of a game or just one. Off by default, which
+    is what every theme written so far assumes."""
+    try:
+        return str(ini_config.config["Settings"].get(
+            "expandtables", "false")).strip().lower() in ("1", "true", "yes", "on")
+    except Exception:
+        return False
+
+
+class View:
+    """The library, the filter, the sort, and the list they produce.
+
+    Mutation is serialized: the bridge runs each window's call on its own thread, so
+    one shared view makes a sort and a read genuinely concurrent.
+    """
+
+    def __init__(self, ini_config, expanded: bool | None = None, games=None):
+        self._ini_config = ini_config
+        self._expanded = expands_tables(ini_config) if expanded is None else bool(expanded)
+        self.lock = threading.RLock()
+
+        # An unreadable library is empty, not fatal: a first run before the scan has
+        # none, and wants a view it can fill in rather than an exception.
+        if games is not None:
+            self.all_games = games
+        else:
+            try:
+                self.all_games = ensure_games_loaded()
+            except Exception:
+                logger.debug("No library to build a view from yet", exc_info=True)
+                self.all_games = []
+        self.filtered_games: list = []
+        self.current_filters = game_state.default_filter_state()
+        self.current_collection = None
+        self.current_sort = "Alpha"
+        self.current_order = "Ascending"
+
+        self._entries: list | None = None
+        self._entries_source: list | None = None
+        self._payload: str | None = None
+        self._payload_key: tuple | None = None
+        self._stale = True
+
+        self.reset_to_default()
+
+    # -- staleness -----------------------------------------------------------
+
+    def mark_stale(self) -> None:
+        """Say the library may have moved. One broadcast, one refresh - not one per
+        window answering it."""
+        with self.lock:
+            self._stale = True
+
+    def refresh_if_stale(self, refresh) -> None:
+        """Run `refresh` only if nothing has since. `refresh` takes no arguments."""
+        with self.lock:
+            if not self._stale:
+                return
+            self._stale = False
+        refresh()
+
+    # -- derivation ----------------------------------------------------------
+
+    def rebuild_entries(self) -> None:
+        """Recompute the list the wheel steps through. Call after a sort: it mutates in
+        place, so the change is otherwise undetectable."""
+        games = self.filtered_games or []
+        self._entries = collection_resolver.entries_for(games, expanded=self._expanded)
+        self._entries_source = games
+        self._payload = None
+
+    @property
+    def entries(self):
+        """What an index from a theme addresses. Rebuilt when the source list is
+        replaced, so swapping `filtered_games` cannot leave a stale view behind."""
+        games = self.filtered_games or []
+        if self._entries is None or self._entries_source is not games:
+            self.rebuild_entries()
+        return self._entries
+
+    def reset_to_default(self) -> None:
+        """Alphabetical by the (article-reordered) title, ascending. `filtered_games` is
+        a fresh copy so an in-place sort never disturbs the master list; the Game objects
+        stay shared, so a rating update still reaches every reader."""
+        with self.lock:
+            self.filtered_games = list(self.all_games)
+            self.current_sort = "Alpha"
+            self.current_order = "Ascending"
+            game_state.apply_sort(self.filtered_games, self.current_sort, self.current_order)
+            self.rebuild_entries()
+
+    # -- the payload ---------------------------------------------------------
+
+    def payload(self, contract: int, *, collection: str = "") -> str:
+        """The theme payload, built once however many windows ask. Cleared by
+        `rebuild_entries`, which every change to the list goes through."""
+        key = (contract, collection, self._expanded)
+        with self.lock:
+            if self._payload is None or self._payload_key != key:
+                self._payload = game_state.games_json(
+                    self.entries, contract, collection=collection,
+                    expanded=self._expanded)
+                self._payload_key = key
+            return self._payload
+
+    def invalidate_payload(self) -> None:
+        """Drop the built payload without rebuilding the list behind it."""
+        with self.lock:
+            self._payload = None

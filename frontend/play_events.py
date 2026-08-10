@@ -47,9 +47,25 @@ _LEGACY_MESSAGE_TYPES = {
 }
 
 
+def _mark_views_stale() -> None:
+    """Tell the shared view the library moved, before the windows are sent for it.
+
+    Set here rather than in each window's handler: the broadcast is one event and the
+    refresh behind it should be one refresh, however many windows answer it.
+    """
+    if _bridge is None:
+        return
+    for api in list(getattr(_bridge, "_api_instances", {}).values()):
+        view = getattr(api, "view", None)
+        if view is not None:
+            view.mark_stale()
+
+
 def _broadcast(message: dict) -> None:
     if _bridge is None:
         return
+    if message.get("type") == "GameDataChange":
+        _mark_views_stale()
     _bridge.send_event_all_with_iframe(message)
     legacy = _LEGACY_MESSAGE_TYPES.get(message.get("type"))
     if legacy is not None:

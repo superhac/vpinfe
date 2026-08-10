@@ -11,7 +11,7 @@ import logging
 from common import events, lifecycle
 from common.config_access import cfg_get
 from common.deprecations import announce
-from common.games import collection_resolver, game_identity
+from common.games import game_identity
 from common.games.collections_service import (
     get_collection_image_url,
     get_collection_names,
@@ -36,6 +36,7 @@ from frontend import (
     theme_api,
     theme_windows,
 )
+from frontend import view as frontend_view
 from frontend.theme_contract import CURRENT_CONTRACT, declared_contract
 
 logger = logging.getLogger("vpinfe.frontend.api")
@@ -166,22 +167,18 @@ class API:
         reaches announce(), which looks both up in the registry and logs.
         """
         announce(str(key), str(name))
-    def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None):
+    def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None,
+                 view=None):
         self._iniConfig = iniConfig
         self.window_name = window_name          # whatever the theme declared
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
         self.frontend_browser = frontend_browser  # ChromiumManager instance
-        self.allGames = ensure_games_loaded()
+        # The wheel's state, shared with every other window onto the same library.
+        # Given one when the frontend builds the windows; a caller that constructs an
+        # API on its own - a test, the gamepad diagnostic - gets a view of its own.
+        if view is not None:
+            self.view = view
         self.jsGameDictData = None
-        # Track current filter state
-        self.current_filters = game_state.default_filter_state()
-        # Track current collection
-        self.current_collection = None
-        # Establish the default view: alphabetical by (article-reordered) title,
-        # ascending. Also sets current_sort/current_order. Done here so the
-        # initial wheel matches the displayed titles instead of on-disk folder
-        # order (which ignores the "The"-moved-to-end renaming).
-        self._reset_to_default_view()
         # Check for startup collection
         startup_collection = cfg_get(self._iniConfig, 'general', 'startup_collection').strip()
         if startup_collection:
@@ -189,6 +186,80 @@ class API:
                 self.set_games_by_collection(startup_collection)
             except Exception:
                 logger.exception("Could not load startup collection '%s'", startup_collection)
+
+    # The view's state, reached through the window that is showing it. Properties rather
+    # than a move, so every existing caller - and `game_state`, which mutates these by
+    # name - keeps working against one shared object instead of a copy per window.
+    @property
+    def view(self):
+        """The shared view, made on demand for a caller that never gave one.
+
+        `API.__new__(API)` is a real pattern here: paging arithmetic and input mapping
+        are tested against a bare instance with no library behind it. Those get a view
+        of their own rather than an AttributeError routed through `__getattr__`, which
+        reports the wrong name entirely.
+        """
+        existing = self.__dict__.get("_view")
+        if existing is None:
+            # Loaded through this module's name, which is the one callers already patch
+            # to stand a library up for a test - the view is an implementation detail
+            # of where the games are held, not of how they are found.
+            existing = frontend_view.View(getattr(self, "_iniConfig", None),
+                                          games=ensure_games_loaded())
+            self.__dict__["_view"] = existing
+        return existing
+
+    @view.setter
+    def view(self, value):
+        self.__dict__["_view"] = value
+
+    @property
+    def allGames(self):  # noqa: N802 - the name game_state and themes already use
+        return self.view.all_games
+
+    @allGames.setter
+    def allGames(self, value):  # noqa: N802
+        self.view.all_games = value
+
+    @property
+    def filteredGames(self):  # noqa: N802 - as above
+        return self.view.filtered_games
+
+    @filteredGames.setter
+    def filteredGames(self, value):  # noqa: N802
+        self.view.filtered_games = value
+
+    @property
+    def current_filters(self):
+        return self.view.current_filters
+
+    @current_filters.setter
+    def current_filters(self, value):
+        self.view.current_filters = value
+
+    @property
+    def current_collection(self):
+        return self.view.current_collection
+
+    @current_collection.setter
+    def current_collection(self, value):
+        self.view.current_collection = value
+
+    @property
+    def current_sort(self):
+        return self.view.current_sort
+
+    @current_sort.setter
+    def current_sort(self, value):
+        self.view.current_sort = value
+
+    @property
+    def current_order(self):
+        return self.view.current_order
+
+    @current_order.setter
+    def current_order(self, value):
+        self.view.current_order = value
 
     ####################
     ## Private Functions
@@ -207,56 +278,26 @@ class API:
         return declared_contract(theme_dir) if theme_dir else CURRENT_CONTRACT
 
     def _reset_to_default_view(self):
-        """Reset the current view to the default order: alphabetical by the
-        (article-reordered) title, ascending.
-
-        filteredGames is a fresh shallow copy of allGames so later in-place
-        sorts never disturb the master list (the Game objects stay shared, so
-        rating/meta updates still propagate). Shared by startup and every reset
-        path so they all agree on the default order.
-        """
-        self.filteredGames = list(self.allGames)
-        self.current_sort = 'Alpha'
-        self.current_order = 'Ascending'
-        game_state.apply_sort(self.filteredGames, self.current_sort, self.current_order)
-        self._rebuild_entries()
+        """Reset the shared view to its default order. See `View.reset_to_default`."""
+        self.view.reset_to_default()
 
     @property
     def _expanded(self) -> bool:
-        """Whether the wheel shows every table of a game or just one.
-
-        Off by default, which is what every theme written so far assumes and what the
-        list looked like before a game could offer more than one.
-        """
-        try:
-            return str(self._iniConfig.config["Settings"].get(
-                "expandtables", "false")).strip().lower() in ("1", "true", "yes", "on")
-        except Exception:
-            return False
+        """Whether the wheel shows every table of a game or just one."""
+        return frontend_view.expands_tables(self._iniConfig)
 
     def _rebuild_entries(self) -> None:
-        """Recompute the view. Called whenever the list or its order changes."""
-        games = getattr(self, "filteredGames", []) or []
-        self._entries = collection_resolver.entries_for(games, expanded=self._expanded)
-        self._entries_source = games
+        """Recompute the shared view. Called whenever the list or its order changes."""
+        self.view.rebuild_entries()
 
     @property
     def entries(self):
         """What the wheel steps through, and what an index from a theme addresses.
 
-        filteredGames stays the games the filters and sorts work on - those are
-        game-level questions. Cached rather than derived per access: notify_game_selected
-        fires on every wheel step, and rebuilding a large library there costs milliseconds
-        a step.
-
-        Rebuilt automatically when the source list is replaced, so a caller that swaps
-        filteredGames cannot leave a stale view behind. An in-place re-sort keeps the
-        same object, which is why apply_sort rebuilds explicitly.
+        The view's list, not this window's: every window onto the same library steps
+        through the same entries, and only the controller can change them.
         """
-        games = getattr(self, "filteredGames", []) or []
-        if getattr(self, "_entries", None) is None or self._entries_source is not games:
-            self._rebuild_entries()
-        return self._entries
+        return self.view.entries
 
     def entry_at(self, index):
         """The entry a theme's index names, or None when it names nothing.
@@ -354,12 +395,14 @@ class API:
         if reset:
             self._reset_to_default_view()
         else:
-            # This is the only place a refresh lands, so it re-derives the view rather
-            # than assuming only the payload went stale.
-            game_state.refresh_view(self)
-        self.jsGameDictData = game_state.games_json(
-            self.entries, self._theme_contract(),
-            collection=self.current_collection or "", expanded=self._expanded)
+            # Re-derived once per change, not once per window: all three ask after the
+            # same GameDataChange broadcast, and the second and third were rebuilding a
+            # view the first had just rebuilt.
+            self.view.refresh_if_stale(lambda: game_state.refresh_view(self))
+        # Built once for the view, not once per window: three windows onto the same
+        # library were each serializing an identical answer.
+        self.jsGameDictData = self.view.payload(
+            self._theme_contract(), collection=self.current_collection or "")
         return self.jsGameDictData
 
     def get_initial_game_index(self):

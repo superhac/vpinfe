@@ -267,6 +267,25 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-60 — The windows share one view instead of deriving the same one each.** The
+library, the filter, the sort, the collection and the entry list move from the per-window
+`API` instance onto a `View` the windows hold in common. Every WebSocket method keeps its
+name, arguments and answers, and `API` exposes the same attributes it always did, so no
+theme sees a difference. Measured on a 653-game library: three windows asking for the
+payload at startup went from three builds and 108ms to one build and 32ms.
+*Why:* a cabinet opens three windows onto one library and one selection, and each was
+re-reading the library, re-sorting it, rebuilding its own entry list and serializing its
+own 1.5MiB payload - three derivations of an answer that was identical by construction.
+Only the controller window takes input (`vpinfe-core.js` gates `registerInputHandler` on
+it), so only one of the three could ever change what all three were deriving; holding it
+once makes that structural rather than a convention enforced in the browser on an
+unauthenticated socket. One behavior change follows from it: a display window can no
+longer hold a view that differs from the controller's, which was previously possible
+after a channel drop and reconnect. That is the intended behavior rather than a
+regression - the windows are showing one wheel. A refresh is coalesced, so the
+`GameDataChange` broadcast that sends all three windows back for the payload re-derives
+once instead of once per window. Covered by `tests/theming/test_shared_view.py`.
+
 **PAR-59 — A theme's index is converted to a game before it leaves the window.** The five
 index-taking WebSocket methods keep their names, arguments and answers; internally they now
 resolve the index to an entry through one place (`API.entry_at`) and act on the game rather
