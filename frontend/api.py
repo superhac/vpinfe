@@ -103,7 +103,7 @@ API_ALLOWED_METHODS = {
     'get_cab_mode',
     'get_playfield_media_rotation',
     'get_theme_assets_port',
-    'get_manager_ui_port',
+    'get_hub_port',
     'get_managerui_remote_link',
     'get_managerui_vpinplay_multi_link',
     'get_theme_index_page',
@@ -135,6 +135,9 @@ _RENAMED_METHODS = {
     'set_table_rating': 'set_game_rating',
     'get_table_orientation': 'get_playfield_orientation',
     'get_table_rotation': 'get_playfield_rotation',
+    # The port serves the API, the Manager UI, and the remote and mobile pages - all of
+    # them hub-side - so it is named for the role rather than one thing listening on it.
+    'get_manager_ui_port': 'get_hub_port',
 }
 
 API_ALLOWED_METHODS |= set(_RENAMED_METHODS)
@@ -701,8 +704,8 @@ class API:
     def get_theme_assets_port(self):
         return config_api.get_theme_assets_port(self._iniConfig.config)
 
-    def get_manager_ui_port(self):
-        return config_api.get_manager_ui_port(self._iniConfig.config)
+    def get_hub_port(self):
+        return config_api.get_hub_port(self._iniConfig.config)
 
     def get_managerui_remote_link(self):
         return config_api.get_managerui_remote_link(self._iniConfig.config)

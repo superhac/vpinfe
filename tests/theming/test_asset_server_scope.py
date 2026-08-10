@@ -102,21 +102,21 @@ class NetworkConfigTests(unittest.TestCase):
         network = self._network()
 
         self.assertEqual(network.theme_assets_bind, "127.0.0.1")
-        self.assertEqual(network.manager_ui_bind, "0.0.0.0", "it has always answered all")
+        self.assertEqual(network.hub_bind, "0.0.0.0", "it has always answered all")
 
     def test_each_address_is_set_on_its_own(self) -> None:
         network = self._network(theme_assets_bind="0.0.0.0")
 
         self.assertEqual(network.theme_assets_bind, "0.0.0.0")
-        self.assertEqual(network.manager_ui_bind, "0.0.0.0", "the other is untouched")
+        self.assertEqual(network.hub_bind, "0.0.0.0", "the other is untouched")
 
     def test_a_blank_address_falls_back_rather_than_binding_nothing(self) -> None:
         """An empty string binds every interface, which is the opposite of what somebody
         clearing the setting meant."""
-        network = self._network(theme_assets_bind="   ", manager_ui_bind="")
+        network = self._network(theme_assets_bind="   ", hub_bind="")
 
         self.assertEqual(network.theme_assets_bind, "127.0.0.1")
-        self.assertEqual(network.manager_ui_bind, "0.0.0.0")
+        self.assertEqual(network.hub_bind, "0.0.0.0")
 
 
 if __name__ == "__main__":

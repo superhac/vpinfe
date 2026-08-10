@@ -63,6 +63,27 @@ class CompatibilityTests(unittest.TestCase):
         self.assertEqual(gone, [], "an alias is a promise to whoever upgrades - restore "
                                    "it, or drop it from the fixture deliberately")
 
+    def test_a_typed_accessor_reads_every_spelling_its_setting_has_had(self) -> None:
+        """`config_schema.locate` resolving is not enough: the typed views ask by a
+        literal section and key, so one written against the *new* name stops seeing a
+        file that uses an old one. Nothing else catches that - `locate` still says the
+        names map, and every test that builds config by hand uses the current spelling.
+        """
+        from common.config_access import NetworkConfig
+
+        for section, key, expected in (
+            ("Network", "manageruiport", 9999),      # pre-PAR-44 section and key
+            ("network", "manageruiport", 9998),      # migrated section, oldest key
+            ("network", "manager_ui_port", 8888),    # the PAR-44 spelling
+            ("network", "hub_port", 7777),           # what it is called now
+        ):
+            with self.subTest(section=section, key=key):
+                parser = self._parser()
+                parser.add_section(section)
+                parser.set(section, key, str(expected))
+
+                self.assertEqual(NetworkConfig.from_config(parser).hub_port, expected)
+
     def test_the_frozen_list_covers_every_alias_declared_today(self) -> None:
         """So adding a rename without recording it is also a failure, not a gap."""
         frozen = {(s, k) for s, k, _, _ in

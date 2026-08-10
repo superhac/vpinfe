@@ -225,8 +225,8 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
     if iniconfig.is_new:
         network = NetworkConfig.from_config(iniconfig)
         displays = DisplayConfig.from_config(iniconfig)
-        manager_ui_port = network.manager_ui_port
-        setup_url = f"http://localhost:{manager_ui_port}/"
+        hub_port = network.hub_port
+        setup_url = f"http://localhost:{hub_port}/"
         screen_id = displays.playfield_screen_id
         monitors = get_display_monitors()
         monitor = monitors[screen_id] if screen_id < len(monitors) else monitors[0]

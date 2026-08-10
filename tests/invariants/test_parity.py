@@ -46,9 +46,11 @@ LEDGER_ALLOWS = {
     # PAR-40: one method added so the browser can fetch an action's whole binding list.
     # Additive - get_keymapping and get_joymaping still answer, projected from it.
     "PAR-40": {"get_bindings"},
-    # PAR-45: one method added so the browser can learn the Manager UI's port instead of
+    # PAR-45: one method added so the browser can learn the hub's port instead of
     # assuming 8001. Additive - a theme never calls it.
+    # PAR-63 renamed it; the old spelling stays in the allowlist as its forwarding alias.
     "PAR-45": {"get_manager_ui_port"},
+    "PAR-63": {"get_hub_port"},
     # PAR-48: two methods added so a theme can start, stop or restart the frontend,
     # VPinFE or the machine, and know whether to ask first. Additive - close_app and
     # shutdown_system keep their names and now route through the same place.
@@ -159,7 +161,7 @@ class ParityTests(unittest.TestCase):
                 | LEDGER_ALLOWS["PAR-30"] | LEDGER_ALLOWS["PAR-32"]
                 | LEDGER_ALLOWS["PAR-33"]
             | LEDGER_ALLOWS["PAR-40"] | LEDGER_ALLOWS["PAR-45"]
-            | LEDGER_ALLOWS["PAR-48"],
+            | LEDGER_ALLOWS["PAR-48"] | LEDGER_ALLOWS["PAR-63"],
             "only PAR-04's, PAR-21's and PAR-27's additions are permitted")
 
     def test_legacy_endpoints_served_on_master_and_do_not_serve_here(self) -> None:

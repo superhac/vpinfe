@@ -238,25 +238,28 @@ def _media_priority(source: Any, key: str, allowed: tuple[str, ...], fallback: s
 @dataclass(frozen=True)
 class NetworkConfig:
     ws_port: int = 8002
-    manager_ui_port: int = 8001
+    hub_port: int = 8001
     theme_assets_port: int = 8000
     # Per port, never one switch: 8000 serves the table library and 8002 reaches
     # shutdown_system, so one setting would mean previewing a theme remotely also
     # exposed machine control. The window channel has no bind setting at all until it
     # has authentication.
     theme_assets_bind: str = "127.0.0.1"
-    manager_ui_bind: str = "0.0.0.0"
+    hub_bind: str = "0.0.0.0"
 
     @classmethod
     def from_config(cls, source: Any) -> NetworkConfig:
         return cls(
             ws_port=cfg_int(source, "Network", "wsport", 8002),
-            manager_ui_port=cfg_int(source, "Network", "manageruiport", 8001),
+            # Asked for by the oldest spelling, as the sibling ports are: resolution
+            # walks forward to `network.hub_port`, and a parser built by hand with the
+            # pre-PAR-44 section still answers.
+            hub_port=cfg_int(source, "Network", "manageruiport", 8001),
             theme_assets_port=cfg_int(source, "Network", "themeassetsport", 8000),
             theme_assets_bind=cfg_get(source, "network", "theme_assets_bind",
                                       "127.0.0.1").strip() or "127.0.0.1",
-            manager_ui_bind=cfg_get(source, "network", "manager_ui_bind",
-                                    "0.0.0.0").strip() or "0.0.0.0",
+            hub_bind=cfg_get(source, "network", "hub_bind",
+                             "0.0.0.0").strip() or "0.0.0.0",
         )
 
 

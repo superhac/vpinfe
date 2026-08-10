@@ -109,7 +109,7 @@ def _build_window_url(
     window_name: str,
     splash_enabled: bool,
     ws_port: int = 8002,
-    manager_ui_port: int = 8001,
+    hub_port: int = 8001,
 ) -> str:
     """Where a window opens, and how it finds the services.
 
@@ -122,7 +122,7 @@ def _build_window_url(
     frontend ended up asserting one machine in six places.
     """
     endpoints = (f"wsPort={ws_port}&themeAssetsPort={theme_assets_port}"
-                 f"&managerUiPort={manager_ui_port}")
+                 f"&hubPort={hub_port}")
 
     if platform.system() == "Linux":
         return f"{base_url}:{theme_assets_port}/app/{window_name}?{endpoints}"
@@ -444,7 +444,7 @@ class ChromiumManager:
                 window_name=window_name,
                 splash_enabled=splash_enabled,
                 ws_port=network.ws_port,
-                manager_ui_port=network.manager_ui_port,
+                hub_port=network.hub_port,
             )
 
             override_key = f"{window_name}windowoverride"

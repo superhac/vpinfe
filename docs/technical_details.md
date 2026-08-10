@@ -146,8 +146,8 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | `theme_assets_port` | int | `8000` | Theme Server Port |
 | `theme_assets_bind` | string | `127.0.0.1` | Which address to serve theme packages and table media on. The default answers this machine only. An address rather than a switch, so a single interface can be named; 0.0.0.0 is every one. This port serves the table library, so opening it shares read access to it. |
 | `ws_port` | int | `8002` | Port the frontend windows and the theme talk to VPinFE over. Loopback only. |
-| `manager_ui_port` | int | `8001` | Manager UI Port |
-| `manager_ui_bind` | string | `0.0.0.0` | Which address to serve the Manager UI on. The default answers every interface, which is what it has always done - set 127.0.0.1 to reach it only from this machine. |
+| `hub_port` | int | `8001` | Port the hub answers on: the HTTP API, the Manager UI, and the remote and mobile pages. Named for the role rather than any one thing listening on it - all four are hub-side. |
+| `hub_bind` | string | `0.0.0.0` | Which address to serve the hub on. The default answers every interface, which is what it has always done - set 127.0.0.1 to reach it only from this machine. |
 
 ### `dof`
 

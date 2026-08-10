@@ -574,20 +574,24 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             aliases=("wsport",),
         ),
         ConfigOption(
-            "manager_ui_port",
+            "hub_port",
             type="int",
             default="8001",
-            label="Manager UI Port",
-            aliases=("manageruiport",),
+            label="Hub Port",
+            description="Port the hub answers on: the HTTP API, the Manager UI, and the"
+                        " remote and mobile pages. Named for the role rather than any one"
+                        " thing listening on it - all four are hub-side.",
+            aliases=("manager_ui_port", "manageruiport"),
         ),
         ConfigOption(
-            "manager_ui_bind",
+            "hub_bind",
             type="string",
             default="0.0.0.0",
-            label="Manager UI Address",
-            description="Which address to serve the Manager UI on. The default answers"
-                        " every interface, which is what it has always done - set"
-                        " 127.0.0.1 to reach it only from this machine.",
+            label="Hub Address",
+            description="Which address to serve the hub on. The default answers every"
+                        " interface, which is what it has always done - set 127.0.0.1 to"
+                        " reach it only from this machine.",
+            aliases=("manager_ui_bind",),
         ),
     ),
     *in_section(

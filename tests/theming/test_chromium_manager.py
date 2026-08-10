@@ -195,7 +195,7 @@ class WindowUrlTests(unittest.TestCase):
                 window_name="playfield",
                 splash_enabled=splash,
                 ws_port=9002,
-                manager_ui_port=9001,
+                hub_port=9001,
             )
 
     def test_every_window_url_carries_every_port(self) -> None:
@@ -207,7 +207,7 @@ class WindowUrlTests(unittest.TestCase):
 
                 self.assertIn("wsPort=9002", url)
                 self.assertIn("themeAssetsPort=9000", url)
-                self.assertIn("managerUiPort=9001", url)
+                self.assertIn("hubPort=9001", url)
 
     def test_the_ports_are_query_parameters_of_the_page(self) -> None:
         """Appended to whatever the form already asks for, not replacing it."""

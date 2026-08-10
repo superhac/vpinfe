@@ -74,8 +74,8 @@ class TypedValueTests(ConfigStoreTests):
         settings = self._payload()[SETTINGS_KEY]
 
         self.assertIs(settings["displays"]["cab_mode"], False)
-        self.assertEqual(settings["network"]["manager_ui_port"], 8001)
-        self.assertIsInstance(settings["network"]["manager_ui_port"], int)
+        self.assertEqual(settings["network"]["hub_port"], 8001)
+        self.assertIsInstance(settings["network"]["hub_port"], int)
 
     def test_a_blank_int_stays_blank_rather_than_becoming_zero(self) -> None:
         """Blank means "no window on this one", which is not the same as screen 0."""
@@ -103,12 +103,12 @@ class TypedValueTests(ConfigStoreTests):
     def test_values_survive_the_round_trip_as_text(self) -> None:
         first = ConfigStore(str(self.ini))
         first.config.set("displays", "cab_mode", "true")
-        first.config.set("network", "manager_ui_port", "9001")
+        first.config.set("network", "hub_port", "9001")
         first.save()
 
         second = ConfigStore(str(self.ini))
         self.assertTrue(second.config.getboolean("displays", "cab_mode"))
-        self.assertEqual(second.config.get("network", "manager_ui_port"), "9001")
+        self.assertEqual(second.config.get("network", "hub_port"), "9001")
 
 
 class IniConversionTests(ConfigStoreTests):

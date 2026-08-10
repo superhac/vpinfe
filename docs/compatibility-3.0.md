@@ -267,6 +267,27 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-63 — The port on 8001 is the hub's, not the Manager UI's.**
+`network.manager_ui_port` is `network.hub_port` and `network.manager_ui_bind` is
+`network.hub_bind`; the WebSocket method `get_manager_ui_port` is `get_hub_port`; the
+window URL carries `hubPort=` and a theme reads `vpin.hubPort`. Every old spelling still
+resolves - the config names through the same alias machinery that has carried
+`manageruiport` since PAR-44, and the method through `_RENAMED_METHODS`, which forwards it
+the way every renamed method is forwarded. Nothing about the port, the default or what
+answers on it changes.
+*Why:* the port was named after one of the four things listening on it. It serves
+`/api/v1`, the Manager UI at `/`, and the remote and mobile pages - and the API is
+explicitly not part of the Manager UI (`docs/http_api.md`: "it belongs to the platform").
+So `endpoints.hub` and `endpoints.player` were being built from a port named for a UI,
+which read as though the library were fetched from the Manager UI. What the four have in
+common is the role: all of them are hub-side, the Manager UI included, since the Manager
+UI is hub-only. Naming it `hub_api_port` would have repeated the original mistake from the
+other end - naming one listener while three others share the port. One consequence is
+visible and deliberate: `endpoints.player` points at the hub's port for now, because one
+`/api/v1` still answers for both roles. That is honest about today's topology rather than
+inventing an address, and it is the seam the remaining consolidation splits. Covered by
+`tests/invariants/test_config_conventions.py` and `tests/invariants/test_parity.py`.
+
 **PAR-62 — The endpoint block says what each address is for.** `vpin.endpoints` becomes
 `{ hub, player, assets, frontend_channel }`. `assets` is new and is where media, theme
 packages and shared art come from; `hub` now points at the API rather than the asset

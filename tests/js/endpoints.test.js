@@ -19,7 +19,7 @@ const withPorts = (search) => newCore({ windowName: "table", search }).vpin;
 
 describe("the endpoint block", () => {
   test("is resolved from the url before any theme code runs", () => {
-    const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&managerUiPort=9001");
+    const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&hubPort=9001");
 
     assert.equal(vpin.endpoints.assets, "http://127.0.0.1:9000");
     assert.equal(vpin.endpoints.player, "http://127.0.0.1:9001");
@@ -46,11 +46,11 @@ describe("the endpoint block", () => {
   test("each key points where its own setting says", () => {
     // The keys are not interchangeable: media comes off the asset server and the api
     // off the manager ui port. Pointing hub at the asset server was the original bug.
-    const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&managerUiPort=9001");
+    const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&hubPort=9001");
 
     assert.equal(vpin.endpoints.assets, `http://127.0.0.1:${vpin.themeAssetsPort}`);
-    assert.equal(vpin.endpoints.hub, `http://127.0.0.1:${vpin.managerUiPort}`);
-    assert.equal(vpin.endpoints.player, `http://127.0.0.1:${vpin.managerUiPort}`);
+    assert.equal(vpin.endpoints.hub, `http://127.0.0.1:${vpin.hubPort}`);
+    assert.equal(vpin.endpoints.player, `http://127.0.0.1:${vpin.hubPort}`);
     assert.equal(vpin.endpoints.frontend_channel, `ws://127.0.0.1:${vpin.wsPort}`);
   });
 

@@ -194,13 +194,13 @@ nicegui_app.add_static_files('/themes', themes_dir)
 # On first run, start the manager UI early so chromium can load it
 if config_store.is_new:
     set_first_run(True)
-    manager_ui_port = int(cfg_get(config_store, 'Network', 'manager_ui_port', '8001'))
-    manager_ui_bind = cfg_get(config_store, 'network', 'manager_ui_bind', '0.0.0.0')
-    start_manager_ui(port=manager_ui_port, bind=manager_ui_bind)
+    hub_port = int(cfg_get(config_store, 'network', 'hub_port', '8001'))
+    hub_bind = cfg_get(config_store, 'network', 'hub_bind', '0.0.0.0')
+    start_manager_ui(port=hub_port, bind=hub_bind)
     reconfigure_app_logging()
     # Wait for the NiceGUI server to be ready before chromium tries to load it
-    runtime.wait_for_manager_ui_ready(manager_ui_port)
-    logger.info("First run: Manager UI ready on port %s", manager_ui_port)
+    runtime.wait_for_manager_ui_ready(hub_port)
+    logger.info("First run: Manager UI ready on port %s", hub_port)
 
 # Before anything installs or updates a theme. An update deletes the theme's folder, and
 # until now that folder is where the user's option values were kept - so this has to run
@@ -270,9 +270,9 @@ create_api_instances()
 http_server = runtime.start_asset_server(MOUNT_POINTS, config_store)
 
 # Start the NiceGUI HTTP server
-manager_ui_port = int(cfg_get(config_store, 'Network', 'manager_ui_port', '8001'))
-manager_ui_bind = cfg_get(config_store, 'network', 'manager_ui_bind', '0.0.0.0')
-start_manager_ui(port=manager_ui_port, bind=manager_ui_bind)
+hub_port = int(cfg_get(config_store, 'network', 'hub_port', '8001'))
+hub_bind = cfg_get(config_store, 'network', 'hub_bind', '0.0.0.0')
+start_manager_ui(port=hub_port, bind=hub_bind)
 reconfigure_app_logging()
 
 # Start the WebSocket bridge

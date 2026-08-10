@@ -478,7 +478,7 @@ class VPinFECore {
     const params = new URLSearchParams(window.location.search);
     const port = (name, fallback) => Number(params.get(name)) || fallback;
     this.themeAssetsPort = port('themeAssetsPort', 8000);
-    this.managerUiPort = port('managerUiPort', 8001);
+    this.hubPort = port('hubPort', 8001);
     this.wsPort = port('wsPort', 8002);
     this.vpinplayEndpoint = '';
 
@@ -712,8 +712,8 @@ class VPinFECore {
   get endpoints() {
     const host = '127.0.0.1';
     return {
-      hub: `http://${host}:${this.managerUiPort}`,
-      player: `http://${host}:${this.managerUiPort}`,
+      hub: `http://${host}:${this.hubPort}`,
+      player: `http://${host}:${this.hubPort}`,
       assets: `http://${host}:${this.themeAssetsPort}`,
       frontend_channel: `ws://${host}:${this.wsPort}`,
     };
@@ -1820,7 +1820,7 @@ class VPinFECore {
     // corrects every url built from it.
     this.themeAssetsPort = await this.call("get_theme_assets_port");
     try {
-      this.managerUiPort = await this.call("get_manager_ui_port");
+      this.hubPort = await this.call("get_hub_port");
     } catch (_e) {
       /* an older build cannot answer; the 8001 default already covers it */
     }

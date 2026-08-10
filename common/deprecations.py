@@ -126,6 +126,7 @@ SHIMS: tuple[Shim, ...] = (
             ("set_table_rating", "set_game_rating"),
             ("get_table_orientation", "get_playfield_orientation"),
             ("get_table_rotation", "get_playfield_rotation"),
+            ("get_manager_ui_port", "get_hub_port"),
         ),
     ),
     Shim(
