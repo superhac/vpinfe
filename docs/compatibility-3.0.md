@@ -267,6 +267,25 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-66 — A hub can hold a roster of the players it knows.** New: `common/roster.py`,
+a `players.json` beside the other config files, keyed by `install_id`. Nothing writes to
+it yet and no screen shows it, so an existing install never grows the file and behaves
+identically.
+*Why:* two players answering one hub were indistinguishable at every layer until install
+identity (PAR-52) and event provenance (PAR-55) landed; this is the place their answers
+go. Keyed on `install_id` because it is the only thing about a player that does not
+change - a display name is meant to be renamed and an address moves with DHCP, so a
+roster keyed on either loses the player the first time somebody uses the feature.
+`display_name`, `roles` and `address` are a cached copy of what that install last
+reported and are refreshed on every sighting; `first_seen` is the roster's own and is not.
+One entry is the degenerate case of many, so nothing treats a single player specially.
+Data only: routing a launch to a chosen player, aggregating state and resolving conflicts
+between them each need real design and none are needed to tell one player from another.
+A field a newer build wrote is carried through rather than dropped, so a downgrade does
+not silently strip it, and an unreadable roster reads as empty rather than refusing to
+start - losing track of who a hub knew is recoverable, not starting is not. Covered by
+`tests/api/test_roster.py`.
+
 **PAR-65 — The API records whether a caller reached it from this machine.** Every identity
 now carries an `origin` of `local` or `network`, decided by the request's own peer
 address. **Nothing a caller may do changes**: a network caller keeps exactly the scopes it

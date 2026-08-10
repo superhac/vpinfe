@@ -18,8 +18,9 @@ import string
 from pathlib import Path
 
 from common import config_schema, input_registry
+from common.atomic_write import write_atomic
 from common.deprecations import announce
-from common.games.info_migration import copy_aside, write_atomic
+from common.games.info_migration import copy_aside
 from common.values import is_truthy
 
 logger = logging.getLogger("vpinfe.common.config_store")

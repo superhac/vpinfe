@@ -59,6 +59,35 @@ class LayeringTests(unittest.TestCase):
         on it - otherwise a hub install has to ship a frontend to import a game."""
         self.assertEqual(_offenders("common", {"managerui", "httpapi", "frontend"}), [])
 
+    def test_the_infrastructure_layer_does_not_import_a_domain_package(self) -> None:
+        """`docs/common.md`: nothing in `common/` itself may import `games`, `online` or
+        `host`. Only the top level - the domain packages may of course import each other.
+
+        Two are grandfathered, both because the thing they reach for is genuinely about
+        that domain. A third would mean a generic helper filed in the wrong place, which
+        is what `common/atomic_write.py` exists to have fixed.
+        """
+        allowed = {("config_store.py", "common.games.info_migration"),   # .info backups
+                   ("install_identity.py", "common.games.ids")}          # the id alphabet
+        domains = {"games", "online", "host"}
+        found = set()
+        # `_imports` reports the top-level package only; the full dotted name is what
+        # distinguishes `common.games` from `common.paths`, so this walks it directly.
+        for path in sorted((REPO / "common").glob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                names = []
+                if isinstance(node, ast.ImportFrom) and node.module:
+                    names = [node.module]
+                elif isinstance(node, ast.Import):
+                    names = [alias.name for alias in node.names]
+                for name in names:
+                    parts = name.split(".")
+                    if len(parts) >= 2 and parts[0] == "common" and parts[1] in domains:
+                        found.add((path.name, name))
+
+        self.assertEqual(sorted(found - allowed), [])
+
     def test_the_api_does_not_reach_into_a_user_interface(self) -> None:
         """Business logic under a UI package makes that UI privileged: a replacement
         would import the incumbent, which is a skin rather than a replacement."""
