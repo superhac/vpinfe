@@ -226,6 +226,13 @@ is exactly how the app has always behaved — this changes nothing for anyone. W
 is the mechanism, so tightening later is a policy change rather than a retrofit across every
 endpoint. Replacing `LocalTrustPolicy` is the whole of it.
 
+An identity does carry `origin` — `local` or `network` — decided by the request's own peer
+address, so a policy that wants to treat the two differently has the fact without re-deriving
+it. It is read from the socket and never from `X-Forwarded-For`, which the caller writes.
+Nothing acts on it yet: the hub binds every interface by default so a phone can administer a
+cabinet, and what a network caller should be allowed is a decision that lands on that
+workflow.
+
 Three properties keep it honest:
 
 - The middleware runs before any route, so no route is reachable without passing it.

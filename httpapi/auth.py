@@ -20,13 +20,42 @@ logger = logging.getLogger("vpinfe.httpapi.auth")
 _SCOPE_ATTR = "__vpinfe_scope__"
 
 
+# Where a caller reached us from, recorded so a policy has the fact to hand.
+LOCAL = "local"
+NETWORK = "network"
+
+
 @dataclass(frozen=True)
 class Identity:
     name: str
     scopes: frozenset[str]
+    # Defaults to the cautious answer: an identity that forgets to say must not
+    # silently claim to be on the machine.
+    origin: str = NETWORK
 
     def can(self, scope: str) -> bool:
         return scope in self.scopes
+
+    @property
+    def is_local(self) -> bool:
+        return self.origin == LOCAL
+
+
+# Matched against the socket's own address, never a header: X-Forwarded-For is written
+# by the caller, so trusting it would let anyone declare itself local.
+LOOPBACK_PEERS = frozenset({"127.0.0.1", "::1", "localhost"})
+
+# What Starlette's TestClient reports in place of an address.
+TEST_PEER = "testclient"
+
+
+def caller_is_local(request: Request) -> bool:
+    """Whether the request came from this machine. No client at all is an in-process
+    call rather than a socket, so there is no remote party to be cautious about."""
+    client = getattr(request, "client", None)
+    if client is None or not getattr(client, "host", None):
+        return True
+    return client.host in LOOPBACK_PEERS or client.host == TEST_PEER
 
 
 class LocalTrustPolicy:
@@ -35,12 +64,19 @@ class LocalTrustPolicy:
     The current behavior, written down. A cabinet on a home network has no
     tokens and no user accounts, and inventing them here would be friction with
     nothing on the other side of it. Replacing this class is how that changes.
+
+    `origin` records where the caller came from without changing what it may do. The hub
+    binds every interface by default, so "local" and "reachable" have never been the same
+    question - what a network caller is allowed is a later decision than seeing it is one.
     """
 
     name = "local-trust"
 
     def identify(self, request: Request) -> Identity:
-        return Identity(name="local", scopes=scopes.CORE)
+        local = caller_is_local(request)
+        return Identity(name="local" if local else "network",
+                        scopes=scopes.CORE,
+                        origin=LOCAL if local else NETWORK)
 
 
 _policy: LocalTrustPolicy = LocalTrustPolicy()

@@ -267,6 +267,24 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-65 — The API records whether a caller reached it from this machine.** Every identity
+now carries an `origin` of `local` or `network`, decided by the request's own peer
+address. **Nothing a caller may do changes**: a network caller keeps exactly the scopes it
+had, so no install behaves differently and no request that worked stops working.
+*Why:* the hub binds every interface by default and has since 2.x - that is deliberate,
+so a phone can administer a cabinet - which means "on this machine" and "able to reach
+this machine" have never been the same question, and nothing could tell them apart. Every
+caller was identified as `local` whether it was or not, so a policy wanting to treat the
+two differently had no fact to build on. This is that fact and nothing more; what a
+network caller should be *allowed* is a separate decision with real user cost, since the
+phone workflow the open bind exists for is the thing any restriction would land on. Split
+out so the mechanism can be reviewed on its own rather than bundled with a policy nobody
+has agreed. The peer address is read from the socket and never from `X-Forwarded-For`,
+which the caller writes - trusting it would let anyone declare itself local, which is the
+whole distinction. An in-process call with no socket reads as local, and `origin` defaults
+to `network` so an identity that forgets to say cannot silently claim the machine.
+Covered by `tests/api/test_caller_origin.py`.
+
 **PAR-64 — A client cannot claim to be a window it is not.** The player channel refuses a
 connection naming a window this process never opened, and refuses a second connection for
 a window that already has one; both are closed with 1008. A real window is unaffected -
