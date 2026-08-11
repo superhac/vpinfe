@@ -45,12 +45,11 @@ class SharedViewTests(unittest.TestCase):
         patcher = patch("frontend.api.ensure_games_loaded", return_value=self.games)
         patcher.start()
         self.addCleanup(patcher.stop)
+        # One seam: the view reads the library, and `refresh_view` asks the view rather
+        # than loading a second time behind its back.
         also = patch("frontend.view.ensure_games_loaded", return_value=self.games)
         also.start()
         self.addCleanup(also.stop)
-        refresh = patch("frontend.game_state.ensure_games_loaded", return_value=self.games)
-        refresh.start()
-        self.addCleanup(refresh.stop)
 
         ini = _ini()
         self.view = frontend_view.View(ini, games=self.games)

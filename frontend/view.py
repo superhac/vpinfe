@@ -86,6 +86,16 @@ class View:
                                              expanded=self._expanded)
         return ensure_games_loaded()
 
+    def reload(self):
+        """The library again. A hub that has gone quiet leaves the list alone: a stale
+        wheel beats a player emptying its screen because one request failed."""
+        try:
+            self.all_games = self._load(self.current_collection or "")
+        except Exception:
+            logger.debug("Could not reload the library; keeping what is shown",
+                         exc_info=True)
+        return self.all_games
+
     # -- staleness -----------------------------------------------------------
 
     def mark_stale(self) -> None:

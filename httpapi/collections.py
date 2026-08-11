@@ -27,12 +27,11 @@ from common.games.collections_service import (
     get_collections_metadata,
 )
 from common.games.game_metadata import (
-    DETECTION_KEYS,
     game_rating,
     game_themes,
     game_title,
     play_record,
-    table_play_record,
+    table_descriptor,
 )
 from common.games.media_lookup import resolved_kinds
 from common.shared_assets import manufacturer_logo_web_path
@@ -152,17 +151,7 @@ def _entry_resource(entry) -> dict:
             "rating": game_rating(entry.game),
             "user": play_record(meta),
         },
-        "table": {
-            "id": entry.table_id,
-            "filename": entry.filename,
-            "version": str(entry.table.get("version", "") or ""),
-            "rom": str(entry.table.get("rom", "") or ""),
-            "default": entry.table_id == default_id,
-            "authors": entry.table.get("authors") or [],
-            "detects": {key.removeprefix("detect_"): bool(entry.table.get(key, False))
-                        for key in DETECTION_KEYS},
-            "user": table_play_record(entry.table),
-        },
+        "table": table_descriptor(entry.table, default_id=default_id),
         "siblings": entry.siblings,
         "assets": {
             "pup_pack": bool(getattr(entry.game, "pupPackExists", False)),

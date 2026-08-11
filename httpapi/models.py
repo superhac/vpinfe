@@ -56,6 +56,13 @@ class DiscoveryLinks(ApiModel):
     manufacturers: str | None
 
 
+class ServiceEndpoint(ApiModel):
+    """One of this install's servers. The port only - the host is wherever the caller
+    reached this document, which is the address already known to route here."""
+
+    port: int
+
+
 class Discovery(ApiModel):
     """`name` is the product and is the same on every install; `install_id` is which
     install this is, which is what a hub holding several of them addresses."""
@@ -67,6 +74,9 @@ class Discovery(ApiModel):
     api_version: str
     app_version: str
     capabilities: list[CapabilityInfo]
+    # Servers that are not the API. `assets` is where artwork is fetched from, which a
+    # player cannot guess: it is a different port from the one it asked this on.
+    services: dict[str, ServiceEndpoint] = Field(default_factory=dict)
     extensions: list[dict]
     links: DiscoveryLinks
 
@@ -209,6 +219,7 @@ class Table(ApiModel):
     launch - every visible table is independently launchable.
     """
 
+    id: str
     format: str
     app: str
     filename: str
@@ -269,13 +280,28 @@ class EntryGame(ApiModel):
 
 
 class EntryTable(ApiModel):
-    """The table half. `default` is the game's own default, not this entry's position."""
+    """The table half. `default` is the game's own default, not this entry's position.
+
+    `manufacturer`, `year` and `type` are what the .vpx itself records, which can
+    disagree with what VPSdb says about the game - a recreation of a 1979 machine built
+    in 2021 is both, and the table's answer is the one a table-scoped filter means. Null
+    where the file has not been parsed, rather than borrowing the game's.
+
+    `id` is the same id `GET /games/{id}/tables` reports, so a client can hold one table
+    across both lenses.
+    """
 
     id: str
     filename: str
     version: str
     rom: str
+    file_hash: str = ""
     default: bool
+    hidden: bool = False
+    manufacturer: str | None = None
+    year: str | None = None
+    type: str | None = None
+    release_date: str | None = None
     authors: list[str] = Field(default_factory=list)
     detects: dict[str, bool] = Field(default_factory=dict)
     user: TablePlayRecord = Field(default_factory=TablePlayRecord)

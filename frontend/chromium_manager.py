@@ -18,10 +18,12 @@ import tempfile
 import threading
 import time
 from collections import namedtuple
+from typing import NamedTuple
 from shutil import which
 from urllib.parse import quote, urlparse
 
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig, cfg_get
+from common.games import hub_library
 from common.log_setup import include_thirdparty_logs
 from common.paths import bundled
 
@@ -102,21 +104,38 @@ def get_builtin_chromium_options(
     return options
 
 
-def _hub_endpoint(network) -> tuple[str, int, int]:
-    """Where a page dials for the hub, and where it dials for this player.
+class HubEndpoint(NamedTuple):
+    """Where a page dials for the hub, and where it dials for this player."""
 
-    Returns `(hub_host, hub_port, player_port)`. With no `hub_url` the host is "" and both
-    ports are this install's, which is every single-machine setup. With one, the hub's port
-    comes from the URL when it states one: `network.hub_port` is what *this* install serves
-    on, so a player reading a hub on 9000 would otherwise dial its own port at the other
-    machine - and its own api would be looked for on the hub's.
+    host: str
+    port: int
+    player_port: int
+    assets_port: int
+
+
+def _hub_endpoint(network) -> HubEndpoint:
+    """Resolve `network.hub_url` into the addresses a window is launched with.
+
+    With no hub the host is "" and every port is this install's, which is every
+    single-machine setup. With one, three of the four are the hub's, and they have to be
+    asked for separately: `network.hub_port` and `network.theme_assets_port` describe what
+    *this* install serves, so a player reading a hub on other ports would dial its own
+    numbers at the other machine. The api port is in the url; the asset port is not in it
+    at all, so the hub is asked - it publishes its own in discovery.
     """
     trimmed = str(getattr(network, "hub_url", "") or "").strip()
-    own_port = network.hub_port
+    own_api = network.hub_port
+    own_assets = network.theme_assets_port
     if not trimmed:
-        return "", own_port, own_port
+        return HubEndpoint("", own_api, own_api, own_assets)
+
     parsed = urlparse(trimmed)
-    return parsed.hostname or "", parsed.port or own_port, own_port
+    assets = hub_library.hub_services(trimmed).get("assets") or {}
+    try:
+        hub_assets = int(assets.get("port") or own_assets)
+    except (TypeError, ValueError):
+        hub_assets = own_assets
+    return HubEndpoint(parsed.hostname or "", parsed.port or own_api, own_api, hub_assets)
 
 
 def _build_window_url(
@@ -129,6 +148,7 @@ def _build_window_url(
     hub_port: int = 8001,
     hub_host: str = "",
     player_port: int = 8001,
+    hub_assets_port: int = 0,
 ) -> str:
     """Where a window opens, and how it finds the services.
 
@@ -146,7 +166,8 @@ def _build_window_url(
     # port for both roles, which is right for every install that serves its own library.
     if hub_host:
         endpoints += (f"&hubHost={quote(hub_host, safe='')}"
-                      f"&playerPort={player_port}")
+                      f"&playerPort={player_port}"
+                      f"&hubAssetsPort={hub_assets_port or theme_assets_port}")
 
     if platform.system() == "Linux":
         return f"{base_url}:{theme_assets_port}/app/{window_name}?{endpoints}"
@@ -440,7 +461,7 @@ class ChromiumManager:
         theme_assets_port = network.theme_assets_port
         theme_name = settings.theme
         splash_enabled = settings.splashscreen
-        hub_host, hub_port, player_port = _hub_endpoint(network)
+        hub = _hub_endpoint(network)
 
         # One definition, in runtime. Reversed so the controller - first in the theme's
         # list - is launched last and takes focus.
@@ -469,9 +490,10 @@ class ChromiumManager:
                 window_name=window_name,
                 splash_enabled=splash_enabled,
                 ws_port=network.ws_port,
-                hub_port=hub_port,
-                hub_host=hub_host,
-                player_port=player_port,
+                hub_port=hub.port,
+                hub_host=hub.host,
+                player_port=hub.player_port,
+                hub_assets_port=hub.assets_port,
             )
 
             override_key = f"{window_name}windowoverride"

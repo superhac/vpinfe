@@ -486,6 +486,9 @@ class VPinFECore {
     // What this player serves on, which is not what a remote hub answers on - `hubPort`
     // carries the hub's when there is one, so the two cannot be the same number.
     this.playerPort = port('playerPort', this.hubPort);
+    // The hub's asset server, when the hub is elsewhere. Its own port, not this
+    // machine's: pairing a remote host with the local port addresses neither.
+    this.hubAssetsPort = port('hubAssetsPort', this.themeAssetsPort);
     this.vpinplayEndpoint = '';
 
     // Display config, as the ini states it. Raw values - `layout` below is what a theme
@@ -724,7 +727,7 @@ class VPinFECore {
     return {
       hub: `http://${hubHost}:${this.hubPort}`,
       player: `http://${host}:${this.playerPort}`,
-      assets: `http://${hubHost}:${this.themeAssetsPort}`,
+      assets: `http://${hubHost}:${this.hubHost ? this.hubAssetsPort : this.themeAssetsPort}`,
       frontend_channel: `ws://${host}:${this.wsPort}`,
     };
   }
@@ -1829,6 +1832,9 @@ class VPinFECore {
     // page opened without them - `endpoints` derives from the ports, so correcting one
     // corrects every url built from it.
     this.themeAssetsPort = await this.call("get_theme_assets_port");
+    // Only this machine's. With a hub elsewhere its asset port came in the url and this
+    // answer is about the wrong machine.
+    if (!this.hubHost) this.hubAssetsPort = this.themeAssetsPort;
     try {
       const ownPort = await this.call("get_hub_port");
       // What this install serves on. It is the hub's port too, unless a hub elsewhere

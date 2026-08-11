@@ -85,6 +85,7 @@ rather than matching a version number against a document.
   "api_version": "v1",
   "app_version": "2.5.0",
   "capabilities": [],
+  "services": {"assets": {"port": 8000}},
   "extensions": [],
   "links": {
     "self": "/api/v1",
@@ -95,6 +96,12 @@ rather than matching a version number against a document.
   }
 }
 ```
+
+`services` says where this install's other servers are — the ones that are not the API.
+Only the port: the host is wherever you reached this document, which is the address
+already known to route here. `assets` is where artwork is served from, and a client that
+is not on this machine has no other way to learn it — it is a different port from the one
+it just asked on, and guessing is right only until someone moves it.
 
 Links are relative so they stay correct behind a reverse proxy. A link that is present but
 `null` is a known part of the contract that this instance doesn't offer — clients should

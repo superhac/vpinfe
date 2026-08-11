@@ -24,6 +24,7 @@ from common.games.game_repository import (
     game_to_row,
 )
 from common.games.tables import (
+    TABLE_ID_KEY,
     default_table,
     entry_for_filename,
     hidden_tables,
@@ -199,6 +200,10 @@ def _tables(game, row: dict) -> list[dict]:
     for name in names:
         described_entry = entry_for_filename(described, name)[1]
         entry = {
+            # The table's own id, the same one the play lens uses. Without it the two
+            # lenses describe the same table and a client cannot tell that they do -
+            # filenames are not identity, which is why ids were minted in the first place.
+            "id": str(described_entry.get(TABLE_ID_KEY, "") or ""),
             "format": "vpx",
             "app": "vpx",
             "filename": name,

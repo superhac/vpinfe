@@ -23,10 +23,22 @@ def _game(name, last_run=0):
     )
 
 
+class _View:
+    """Just the part `refresh_view` reaches for: where the library comes from. A player's
+    is a hub, so asking the view is what keeps the two answers from diverging."""
+
+    def __init__(self, games):
+        self.all_games = list(games)
+
+    def reload(self):
+        return self.all_games
+
+
 class _Api:
     """The parts of the frontend API a view is derived from."""
 
     def __init__(self, games, sort="Alpha", order="Ascending", collection=None):
+        self.view = _View(games)
         self.allGames = list(games)
         self.filteredGames = list(games)
         self.current_filters = game_state.default_filter_state()
@@ -41,8 +53,10 @@ class _Api:
 
 class ViewRefreshTests(unittest.TestCase):
     def _refresh(self, api, library):
-        with mock.patch.object(game_state, "ensure_games_loaded", lambda: list(library)):
-            game_state.refresh_view(api)
+        # The view is what reads the library now, so that is what a test stands up:
+        # `refresh_view` asks it rather than loading a second time behind its back.
+        api.view.all_games = list(library)
+        game_state.refresh_view(api)
 
     def test_the_view_picks_up_the_replacement_game_object(self):
         """refresh_game swaps the object out. A view holding the old one never sees the

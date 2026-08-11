@@ -18,6 +18,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from contextlib import suppress
 from pathlib import Path
@@ -37,6 +38,9 @@ class LiveInstance:
         self.theme = theme
         self.windows = windows
         self.extra_settings = extra_settings or {}
+        # The hub's asset port, which the real launcher reads out of its discovery
+        # document. A test that stands up a hub sets it from that instance.
+        self.hub_assets_port = 0
         self._tmp = TemporaryDirectory(prefix="vpinfe-live-")
         self.config_dir = Path(self._tmp.name)
         self.proc: subprocess.Popen | None = None
@@ -121,14 +125,41 @@ class LiveInstance:
         return f"http://127.0.0.1:{self.ports['assets']}{path}"
 
     def theme_url(self, window: str = "playfield") -> str:
-        return self.url(f"/themes/{self.theme}/index_{window}.html?window={window}"
-                        f"&wsPort={self.ports['ws']}"
-                        f"&themeAssetsPort={self.ports['assets']}")
+        query = (f"/themes/{self.theme}/index_{window}.html?window={window}"
+                 f"&wsPort={self.ports['ws']}"
+                 f"&themeAssetsPort={self.ports['assets']}")
+        # What the launcher appends for a player, and the reason it has to be here too:
+        # without it the page dials this machine for the library's art, which a player
+        # does not have. See `_build_window_url`, which is what does this for real.
+        hub_url = str(self.extra_settings.get(("network", "hub_url"), "") or "")
+        if hub_url:
+            parsed = urllib.parse.urlparse(hub_url)
+            query += (f"&hubHost={urllib.parse.quote(parsed.hostname or '', safe='')}"
+                      f"&hubPort={parsed.port or self.ports['manager']}"
+                      f"&playerPort={self.ports['manager']}"
+                      f"&hubAssetsPort={self.hub_assets_port or self.ports['assets']}")
+        return self.url(query)
 
     def api(self, path: str):
         with urllib.request.urlopen(
                 f"http://127.0.0.1:{self.ports['manager']}{path}", timeout=10) as handle:
             return json.load(handle)
+
+    def wait_for_api(self, timeout: float = 120.0) -> None:
+        """Block until the hub answers. Separate from `_wait_until_serving`, which waits
+        on the asset server: the two come up independently, and the api is the slower."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.proc.poll() is not None:
+                raise RuntimeError("VPinFE exited before its api served:\n" + self.output())
+            try:
+                self.api("/api/v1/library/entries")
+                return
+            except urllib.error.HTTPError:
+                return          # answering at all is what we are waiting for
+            except Exception:
+                time.sleep(0.25)
+        raise TimeoutError("VPinFE never served its api:\n" + self.output())
 
     def output(self, tail: int = 4000) -> str:
         """Whatever the instance has logged so far. Readable while it is still running,

@@ -13,6 +13,7 @@ from fastapi import APIRouter
 
 from common import install_identity
 from common.app_version import get_version
+from common.config_access import NetworkConfig
 from common.paths import get_ini_config
 
 from . import capabilities, models, scopes
@@ -48,6 +49,21 @@ def _identity() -> dict:
         return {"install_id": "", "display_name": "", "roles": []}
 
 
+def _services() -> dict:
+    """Where this install's other servers are, for a client that is not on this machine.
+
+    Only the asset server so far, and only its port: the host is wherever the caller
+    reached this document, which is the one address known to be routable to here. A
+    player needs this because artwork is served off a different port from the API, and
+    nothing else tells it which - guessing 8000 is right until someone moves it.
+    """
+    try:
+        return {"assets": {"port": NetworkConfig.from_config(get_ini_config()).theme_assets_port}}
+    except Exception as exc:
+        logger.warning("Could not read this install's service ports: %s", exc)
+        return {}
+
+
 def discovery_payload(prefix: str, api_version: str) -> dict:
     """The discovery document. Links are relative so they survive a reverse proxy;
     present-but-null means a known link this instance does not offer."""
@@ -58,6 +74,7 @@ def discovery_payload(prefix: str, api_version: str) -> dict:
         "api_version": api_version,
         "app_version": get_version(),
         "capabilities": capabilities.declared(),
+        "services": _services(),
         "extensions": [],
         "links": {
             "self": prefix,

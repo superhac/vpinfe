@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from common.games.tables import TABLE_FILENAME_KEY, TABLE_ID_KEY
 from common.media_specs import MEDIA_SPECS
 from common.timestamps import iso_to_epoch
 
@@ -51,6 +52,7 @@ class WireGame:
                 "Year": str(game.get("year") or ""),
                 "Type": game.get("type") or "",
                 "Themes": list(game.get("themes") or []),
+                "VPSId": game.get("vps_id") or "",
             },
             # The flat `rating` is the same value; `user` is where it moved to, so it is
             # what gets read here.
@@ -61,10 +63,48 @@ class WireGame:
                 # the sort reads it as.
                 "LastRun": iso_to_epoch(user.get("last_played")) or 0,
             },
-            # Seconds, which is what the sort uses - ordering on `User.RunTime`'s minutes
-            # ties every game with under a minute on it.
-            "vpinfe": {"run_time_seconds": user.get("play_time_seconds", 0) or 0},
+            "vpinfe": {
+                # The id is how everything addresses a game - media urls, launches, the
+                # last-played record. Without it a player renders a wheel it cannot point
+                # at anything in.
+                "game_id": game.get("id") or "",
+                # Seconds, which is what the sort uses - ordering on `User.RunTime`'s
+                # minutes ties every game with under a minute on it.
+                "run_time_seconds": user.get("play_time_seconds", 0) or 0,
+            },
         }
+
+
+def table_of(entry: dict[str, Any]) -> dict[str, Any]:
+    """A wire entry's table in the shape stored tables are read in.
+
+    The two name the same fields differently - `detects.ssf` against `detect_ssf`, a play
+    record under `last_played` against `last_run` - and handing the wire dict to code that
+    reads storage keys does not fail, it answers false for every flag.
+    """
+    table = entry.get("table") or {}
+    user = table.get("user") or {}
+    detects = table.get("detects") or {}
+    restored = {
+        TABLE_ID_KEY: table.get("id") or "",
+        TABLE_FILENAME_KEY: table.get("filename") or "",
+        "version": table.get("version") or "",
+        "rom": table.get("rom") or "",
+        "file_hash": table.get("file_hash") or "",
+        "authors": list(table.get("authors") or []),
+        "hidden": table.get("hidden") is True,
+        "default": table.get("default") is True,
+        "user": {
+            "last_run": user.get("last_played"),
+            "start_count": user.get("play_count", 0) or 0,
+            "run_time_seconds": user.get("play_time_seconds", 0) or 0,
+        },
+    }
+    for key in ("manufacturer", "year", "type", "release_date"):
+        if table.get(key) is not None:
+            restored[key] = table[key]
+    restored.update({f"detect_{name}": bool(value) for name, value in detects.items()})
+    return restored
 
 
 def game_of(entry: dict[str, Any]) -> WireGame:

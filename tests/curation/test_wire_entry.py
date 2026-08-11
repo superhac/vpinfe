@@ -13,7 +13,7 @@ from __future__ import annotations
 import unittest
 
 from common.games import collection_filters, collection_resolver, wire_entry
-from common.games.game_metadata import game_title
+from common.games.game_metadata import game_title, table_descriptor
 from httpapi.collections import _entry_resource
 from tests.support.library import TempTree, fake_game, write_game
 
@@ -129,6 +129,49 @@ class WireEntryTests(TempTree):
                       if game_title(e.game).startswith("Addams"))
 
         self.assertEqual(game_title(addams), "Addams Family, The")
+
+    def test_a_table_survives_the_trip_field_for_field(self) -> None:
+        """The wire names a table's fields for a consumer and storage names them for the
+        parser. Handing the wire dict to code that reads storage keys does not fail - it
+        answers false for every detect flag and loses the game's default. So the whole
+        descriptor is compared, not a sample of it."""
+        original = {
+            "id": "Tbl1111111", "filename": "AFM.vpx", "version": "1.2",
+            "rom": "afm_113b", "file_hash": "3a77427e", "default": True, "hidden": False,
+            "manufacturer": "Bally", "year": "1995", "type": "SS",
+            "release_date": "1995-06-01", "authors": ["Someone"],
+            "detects": {"nfozzy": True, "fleep": False, "ssf": True, "lut": False,
+                        "scorbit": False, "fastflips": False, "flex": False,
+                        "pinmame": True},
+            "user": {"last_played": "2026-08-01T20:14:00Z", "play_count": 12,
+                     "play_time_seconds": 5400},
+        }
+
+        restored = wire_entry.table_of({"table": original})
+        # The default comes back off the restored table, not from an id handed in here -
+        # passing one would make `default` true whatever survived the trip.
+        again = table_descriptor(
+            restored, default_id=restored["id"] if restored.get("default") else "")
+
+        self.assertEqual(again, original)
+        self.assertIs(restored["default"], True)
+
+    def test_a_hidden_table_stays_hidden_after_the_trip(self) -> None:
+        """`hidden` is the user's choice not to be offered a table. A player that loses it
+        would offer one the hub does not."""
+        restored = wire_entry.table_of({"table": {"id": "T", "hidden": True}})
+
+        self.assertIs(restored["hidden"], True)
+        self.assertIs(table_descriptor(restored)["hidden"], True)
+
+    def test_a_table_the_hub_never_parsed_says_so(self) -> None:
+        """Null, not the game's answer: a table's provenance is the file's own."""
+        restored = wire_entry.table_of({"table": {"id": "T", "filename": "x.vpx"}})
+        described = table_descriptor(restored)
+
+        for field in ("manufacturer", "year", "type", "release_date"):
+            with self.subTest(field=field):
+                self.assertIsNone(described[field])
 
     def test_a_game_with_nothing_recorded_reads_as_zero(self) -> None:
         """Absent is not an error, and must not sort as newest or most played."""

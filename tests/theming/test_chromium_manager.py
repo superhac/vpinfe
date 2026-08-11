@@ -185,30 +185,51 @@ class HubEndpointTests(unittest.TestCase):
     """Reading `network.hub_url` into the three values a window url carries."""
 
     @staticmethod
-    def _network(hub_url: str = "", hub_port: int = 8001):
-        return types.SimpleNamespace(hub_url=hub_url, hub_port=hub_port)
+    def _network(hub_url: str = "", hub_port: int = 8001, assets_port: int = 8000):
+        return types.SimpleNamespace(hub_url=hub_url, hub_port=hub_port,
+                                     theme_assets_port=assets_port)
+
+    def _resolve(self, *args, services=None, **kwargs):
+        """The hub's own ports come from its discovery document, so a test says what it
+        published rather than reaching a real one."""
+        with mock.patch.object(chromium_manager.hub_library, "hub_services",
+                               return_value=services or {}):
+            return chromium_manager._hub_endpoint(self._network(*args, **kwargs))
 
     def test_no_hub_is_the_default_and_both_ports_are_this_install(self) -> None:
         for value in ("", "   "):
             with self.subTest(value=value):
-                self.assertEqual(chromium_manager._hub_endpoint(self._network(value)),
-                                 ("", 8001, 8001))
+                self.assertEqual(self._resolve(value), ("", 8001, 8001, 8000))
 
     def test_a_hub_url_yields_its_host_and_port(self) -> None:
-        self.assertEqual(
-            chromium_manager._hub_endpoint(self._network("http://cab.local:8001")),
-            ("cab.local", 8001, 8001))
+        self.assertEqual(self._resolve("http://cab.local:8001"),
+                         ("cab.local", 8001, 8001, 8000))
 
     def test_the_hub_port_and_this_player_port_are_answered_separately(self) -> None:
         """The one that would misdial in both directions if a single number were sent."""
-        self.assertEqual(
-            chromium_manager._hub_endpoint(self._network("https://hub.example:9000")),
-            ("hub.example", 9000, 8001))
+        self.assertEqual(self._resolve("https://hub.example:9000"),
+                         ("hub.example", 9000, 8001, 8000))
 
     def test_a_url_with_no_port_falls_back_to_this_install_s(self) -> None:
-        self.assertEqual(
-            chromium_manager._hub_endpoint(self._network("http://cab.local", 8005)),
-            ("cab.local", 8005, 8005))
+        self.assertEqual(self._resolve("http://cab.local", 8005),
+                         ("cab.local", 8005, 8005, 8000))
+
+
+    def test_the_hub_s_asset_port_comes_from_the_hub(self) -> None:
+        """It is in no url and cannot be guessed: artwork is served on a different port
+        from the api, and this install's own number describes the wrong machine."""
+        resolved = self._resolve("http://hub.example:9000",
+                                 services={"assets": {"port": 9500}})
+
+        self.assertEqual(resolved, ("hub.example", 9000, 8001, 9500))
+
+    def test_a_hub_that_says_nothing_leaves_this_install_s_answer(self) -> None:
+        """An older hub, or one that could not be reached for its discovery document."""
+        for services in ({}, {"assets": {}}, {"assets": {"port": "nonsense"}}):
+            with self.subTest(services=services):
+                self.assertEqual(
+                    self._resolve("http://hub.example:9000", services=services).assets_port,
+                    8000)
 
 
 class WindowUrlTests(unittest.TestCase):

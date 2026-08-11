@@ -7,22 +7,21 @@ import logging
 
 from common.games import game_identity
 from common.games.collection_filters import GameListFilters
+from common.games.collection_resolver import visible_entries
 from common.games.collections_service import (
     filter_games_by_collection,
     save_filter_collection,
 )
 from common.games.game_metadata import (
-    DETECTION_KEYS,
     game_title,
     normalize_meta,
     play_record,
     reorder_leading_article,
     run_time_seconds,
     section,
-    table_play_record,
+    table_descriptor,
     vpinfe_section,
 )
-from common.games.game_repository import ensure_games_loaded
 from common.games.media_lookup import resolved_kinds
 from common.media_specs import game_media_payload
 from common.shared_assets import manufacturer_logo_web_path
@@ -103,6 +102,13 @@ def _legacy_row(game, logo_cache) -> dict:
     return row
 
 
+def _default_id(game) -> str:
+    """Which of a game's tables is its default. Resolved the same way the REST lens
+    resolves it, so a theme showing siblings agrees with an API client about which."""
+    offered = visible_entries(game)
+    return str(offered[0].get("id", "") or "") if offered else ""
+
+
 def _entry_row(entry, logo_cache) -> dict:
     """One entry in contract 2: the game, the table it is, and what resolved for it."""
     game = entry.game
@@ -126,17 +132,10 @@ def _entry_row(entry, logo_cache) -> dict:
             "created_at": epoch_to_iso(getattr(game, "creation_time", None)) or None,
             "user": play_record(meta),
         },
-        "table": {
-            "id": entry.table_id,
-            "filename": entry.filename,
-            "path": game.fullPathVPXfile,
-            "version": str(entry.table.get("version", "") or ""),
-            "rom": str(entry.table.get("rom", "") or ""),
-            "authors": entry.table.get("authors") or [],
-            "detects": {key.removeprefix("detect_"): bool(entry.table.get(key, False))
-                        for key in DETECTION_KEYS},
-            "user": table_play_record(entry.table),
-        },
+        # `path` is the theme's alone: a local frontend opens the file, and REST cannot
+        # carry a path that means anything on another machine.
+        "table": table_descriptor(entry.table, default_id=_default_id(game)) | {
+            "path": game.fullPathVPXfile},
         "assets": {
             "pup_pack": bool(game.pupPackExists),
             "alt_color": bool(game.altColorExists),
@@ -217,8 +216,11 @@ def refresh_view(api):
 
     A collection's own stored sort is not reapplied. Choosing a collection applies it
     once; a player who sorted differently afterwards keeps that.
+
+    The view says where its library comes from. Reading the local one here would hand a
+    player its own empty disk on the first refresh, throwing away what the hub sent.
     """
-    api.allGames = ensure_games_loaded()
+    api.allGames = api.view.reload()
     api.filteredGames = _current_membership(api)
     apply_sort(api.filteredGames, api.current_sort, api.current_order)
     api._rebuild_entries()

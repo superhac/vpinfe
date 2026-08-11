@@ -267,6 +267,65 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-77 — The table is a first-class object on the wire.** *(machine-checked)* One
+`table_descriptor` builds the table half of both play lenses, so `GET /collections/{name}
+/entries` and the contract 2 theme payload carry the same fields. New on both: `hidden`,
+and the table's own `manufacturer`, `year`, `type` and `release_date`. `default` was
+REST-only and is now on both. `GET /games/{id}/tables` gains `id`, the same one the play
+lens uses, and `file_hash`. A player restores the storage shape through
+`wire_entry.table_of`.
+*Why:* a game folder holds several tables and each answers for itself, but the transport
+treated the table as a few fields hanging off a game. Three consequences, all real: a
+table's own manufacturer/year/type never crossed, so the `table` filter scope the axis
+registry already declares had nothing to filter on; `hidden` never crossed, so a player
+could only ever be handed a list the hub had already filtered; and the two lenses named
+the same table differently, with the management lens carrying no id at all - a client
+could not tell that `GET /games/{id}/tables` and an entry described the same table. The
+wire names fields for a consumer and storage names them for the parser, so a player that
+passed the wire dict through unchanged answered false for every detect flag and lost the
+game's default. `table_of` is the counterpart to `WireGame`, and the round trip is
+compared field for field. `file_hash` crosses because a shared-storage check is content
+rather than path - two installs on one filesystem mount it at different places, so the
+hash is what says they hold the same file. `source` deliberately does not cross: its
+fields need a matcher that does not exist yet, and building the slot ahead of the producer
+is the mistake that document's own audit section exists to prevent. Covered by
+`tests/curation/test_wire_entry.py` and `tests/curation/test_entry_lens_parity.py`.
+
+**PAR-76 — A hub publishes where its asset server is.** *(machine-checked)* Discovery
+(`GET /api/v1/`) gains `services`, currently `{"assets": {"port": N}}`. Purely additive.
+*Why:* artwork is served on a different port from the API, and nothing told a player which
+- so `endpoints.assets` paired the hub's host with the *player's* asset port and every
+image 404'd. The port only: the host is wherever the caller reached the document, which is
+the one address known to route there. A hub that says nothing leaves the player's own
+answer standing, which is what a single-machine install has always used. Covered by
+`tests/theming/test_chromium_manager.py` and `tests/theming/test_separation.py`.
+
+**PAR-75 — The last-launched row is remembered by id, not by path.** *(machine-checked)*
+`state.last_game` stores a table id, falling back to a game id. `save_last_game` becomes
+`save_last_launched` and takes the ids; `game.launching` carries `table_id`.
+**A saved value written before this does not resolve** - the wheel opens at the first row
+once, and the next launch writes the new form. Nothing else reads the key.
+*Why:* the identity was the game folder's path, which answers the wrong question twice
+over. A game offers several tables, so an expanded wheel came back to whichever row that
+folder happened to be first in rather than the table that was played. And a player reading
+its library off a hub never sees the hub's filesystem, so a path identifies nothing there
+- ids cross the wire, paths deliberately do not. Covered by
+`tests/theming/test_last_game.py`.
+
+**PAR-74 — Refreshing the wheel asks the view where its library is.** *(machine-checked)*
+`refresh_view` called `ensure_games_loaded()` directly; it now calls `View.reload()`. No
+behavior changes on an install that holds its own library - the view loads exactly what
+that function returned.
+*Why:* a player fetched the hub's entries at startup and then threw them away on the first
+`get_games`, because the refresh went to the local disk behind the view's back. The wheel
+came up empty with nothing logged, and every unit involved was individually correct - the
+separation test is what found it. Reloading through the view means one seam decides where
+the library comes from instead of two places agreeing by accident. A reload that fails
+keeps what is shown: a stale wheel beats a player blanking its screen because one request
+timed out. Covered by `tests/theming/test_separation.py`, which runs a hub and a player as
+separate processes and renders the player's wheel in a browser - it fails if this reads the
+local disk again.
+
 **PAR-73 — A window is told which machine its hub is on.** *(machine-checked)* Two query
 parameters are added to the window url, `hubHost` and `playerPort`, and only when
 `network.hub_url` is set. `vpin.endpoints` reads them: `hub` and `assets` follow the hub,

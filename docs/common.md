@@ -85,9 +85,11 @@ Prefer facade compatibility over broad caller churn. Existing imports like
 remain valid, while new behavior can live in smaller modules behind them.
 
 Use `game_metadata.py` for display and fallback accessors. New game filtering,
-sorting, or row-building code should use helpers like `table_title`,
-`table_themes`, `table_type`, `table_manufacturer`, `table_year`, and
-`table_rating` instead of repeating `Info`/legacy `VPSdb` fallback logic.
+sorting, or row-building code should use helpers like `game_title`,
+`game_themes`, `game_type`, `game_manufacturer`, `game_year`, and
+`game_rating` instead of repeating `Info`/legacy `VPSdb` fallback logic.
+These read the game; a table's own manufacturer, year and type are its parsed
+fields and are read off the table entry, never through these.
 
 Know which game id you want. A game row carries several, and they are not
 interchangeable:

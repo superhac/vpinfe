@@ -25,8 +25,10 @@ from tests.support.library import TempTree, fake_game, write_game
 THEME_ONLY = {"game": {"path"}, "table": {"path"}, "top": set()}
 
 # REST concerns. `rating` is also flat here because it shipped that way before it moved
-# into `user`; `default` and `links` are things a theme derives or does not need.
-WIRE_ONLY = {"game": {"rating"}, "table": {"default"}, "top": {"links"}}
+# into `user`; `links` is a REST affordance a theme has no use for. `default` used to be
+# here - a theme that lists a game's tables has to know which one the game defaults to,
+# and deriving it a second way is how the two lenses would come to disagree.
+WIRE_ONLY = {"game": {"rating"}, "table": set(), "top": {"links"}}
 
 META = {
     "Info": {"Name": "Attack from Mars", "Title": "Attack from Mars",

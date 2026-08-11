@@ -14,7 +14,7 @@ from urllib.parse import quote, urljoin
 
 from common import http_client
 from common.games.collection_resolver import Entry
-from common.games.wire_entry import WireGame
+from common.games.wire_entry import WireGame, table_of
 
 logger = logging.getLogger("vpinfe.common.games.hub_library")
 
@@ -32,11 +32,29 @@ def entries_url(hub_url: str, collection: str = "", *, expanded: bool = False) -
     return urljoin(hub_url.rstrip("/") + "/", path + query)
 
 
+def hub_services(hub_url: str, *, timeout: int = http_client.DEFAULT_TIMEOUT) -> dict[str, Any]:
+    """What the hub says about its own servers, from its discovery document.
+
+    The asset server is the one a player has to be told about: artwork is on a different
+    port from the API, and assuming 8000 is right only until someone moves it. Empty when
+    the hub cannot be reached or says nothing - the caller keeps its own answer, which is
+    what a single-machine install has always used.
+    """
+    url = urljoin(hub_url.rstrip("/") + "/", "api/v1/")
+    try:
+        payload = http_client.get_json(url, timeout=timeout)
+    except Exception:
+        logger.debug("Could not read the hub's discovery document", exc_info=True)
+        return {}
+    services = payload.get("services") if isinstance(payload, dict) else None
+    return services if isinstance(services, dict) else {}
+
+
 def _entry_from_wire(row: dict[str, Any]) -> Entry:
     """One wire row as the Entry the rest of the frontend already reads. `siblings` comes
     from the hub, which is the only side that can see a game's other tables."""
     return Entry(game=WireGame(row.get("game") or {}, row),
-                 table=row.get("table") or {},
+                 table=table_of(row),
                  siblings=int(row.get("siblings") or 1))
 
 

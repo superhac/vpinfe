@@ -296,6 +296,7 @@
         "siblings": 1,
         "table": {
           "authors": [],
+          "default": true,
           "detects": {
             "fastflips": false,
             "fleep": false,
@@ -306,16 +307,22 @@
             "scorbit": false,
             "ssf": false
           },
+          "file_hash": "",
           "filename": "Attack from Mars (Bally 1995).vpx",
+          "hidden": false,
           "id": "afmtable01",
+          "manufacturer": null,
           "path": "/library/Attack from Mars (Bally 1995)/Attack from Mars (Bally 1995).vpx",
+          "release_date": null,
           "rom": "afm_113b",
+          "type": null,
           "user": {
             "last_played": null,
             "play_count": 0,
             "play_time_seconds": 0
           },
-          "version": ""
+          "version": "",
+          "year": null
         }
       },
       {
@@ -349,6 +356,7 @@
         "siblings": 1,
         "table": {
           "authors": [],
+          "default": false,
           "detects": {
             "fastflips": false,
             "fleep": false,
@@ -359,16 +367,22 @@
             "scorbit": false,
             "ssf": false
           },
+          "file_hash": "",
           "filename": "Bare Table (Gottlieb 1980).vpx",
+          "hidden": false,
           "id": "",
+          "manufacturer": null,
           "path": "/library/Bare Table (Gottlieb 1980)/Bare Table (Gottlieb 1980).vpx",
+          "release_date": null,
           "rom": "",
+          "type": null,
           "user": {
             "last_played": null,
             "play_count": 0,
             "play_time_seconds": 0
           },
-          "version": ""
+          "version": "",
+          "year": null
         }
       },
       {
@@ -404,6 +418,7 @@
         "siblings": 1,
         "table": {
           "authors": [],
+          "default": true,
           "detects": {
             "fastflips": false,
             "fleep": false,
@@ -414,16 +429,22 @@
             "scorbit": false,
             "ssf": false
           },
+          "file_hash": "",
           "filename": "Congo (Williams 1995).vpx",
+          "hidden": false,
           "id": "cngtable01",
+          "manufacturer": null,
           "path": "/library/Congo (Williams 1995)/Congo (Williams 1995).vpx",
+          "release_date": null,
           "rom": "",
+          "type": null,
           "user": {
             "last_played": null,
             "play_count": 0,
             "play_time_seconds": 0
           },
-          "version": ""
+          "version": "",
+          "year": null
         }
       },
       {
@@ -460,6 +481,7 @@
         "siblings": 1,
         "table": {
           "authors": [],
+          "default": true,
           "detects": {
             "fastflips": false,
             "fleep": false,
@@ -470,16 +492,22 @@
             "scorbit": false,
             "ssf": false
           },
+          "file_hash": "",
           "filename": "Medieval Madness (Williams 1997).vpx",
+          "hidden": false,
           "id": "mmtable001",
+          "manufacturer": null,
           "path": "/library/Medieval Madness (Williams 1997)/Medieval Madness (Williams 1997).vpx",
+          "release_date": null,
           "rom": "",
+          "type": null,
           "user": {
             "last_played": null,
             "play_count": 0,
             "play_time_seconds": 0
           },
-          "version": ""
+          "version": "",
+          "year": null
         }
       }
     ],

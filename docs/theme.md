@@ -175,6 +175,10 @@ the game it belongs to attached.
 | `entries[].game` | Identity and metadata for the machine. The same names `/api/v1/games` uses. |
 | `entries[].game.user` | What this user did with the game: `rating`, `favorite`, `tags`, `last_played`, `play_count`, `play_time_seconds`. Timestamps are ISO 8601 UTC and durations name their unit, whatever the `.info` stores. |
 | `entries[].table` | The `.vpx` this entry is. `id` is stable across renames; `filename` is not. |
+| `entries[].table.file_hash` | The sha256 of the `.vpx`. Two installs sharing a filesystem can agree they hold the same file without comparing paths, which differ by mount point. |
+| `entries[].table.hidden` | The user chose not to be offered this table. A wheel skips these; the hub has already dropped them from what it serves. |
+| `entries[].table.manufacturer` / `.year` / `.type` / `.release_date` | What the `.vpx` itself records, which can disagree with the game's - a 2021 recreation of a 1979 machine is both. Null where the file has not been parsed, never borrowed from the game. |
+| `entries[].table.default` | Whether this is the table its game defaults to. A game offering several appears once per table when expanded; this says which one is the game's own. |
 | `entries[].table.user` | The same counters for this table alone — `last_played`, `play_count`, `play_time_seconds`. A game and its tables accumulate independently, so deleting a table does not un-play the game's hours. |
 | `entries[].assets` | What the game needs to play as intended, as booleans. |
 | `entries[].siblings` | How many tables this entry's game offers. `1` means there is nothing to switch to. |

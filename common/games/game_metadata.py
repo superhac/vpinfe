@@ -17,6 +17,7 @@ from common.games.tables import (
     TABLE_FILENAME_KEY,
     TABLE_ID_KEY,
     TABLES_KEY,
+    entry_filename,
     entry_for_filename,
     recorded_default,
     rekey_by_id,
@@ -237,6 +238,44 @@ def table_play_record(table: dict) -> dict[str, Any]:
         "play_count": int(user.get("start_count", 0) or 0),
         "play_time_seconds": int(user.get("run_time_seconds", 0) or 0),
     }
+
+def table_descriptor(table: dict, *, default_id: str = "") -> dict[str, Any]:
+    """One table as both play lenses report it.
+
+    A game folder holds several tables and each answers for itself, so this is the whole
+    of what a table is on the wire rather than a few fields borrowed from its game. Built
+    once here because the REST lens and the theme payload have to agree: a client that
+    filters on `table.year` in one and reads a different answer in the other has no way
+    to tell which is the table's.
+
+    The .vpx's own manufacturer/year/type stay null when the file has not been parsed.
+    Falling back to the game's would state a table's provenance from the game's metadata,
+    which is exactly the conflation ids and per-table parsing exist to undo.
+    """
+    def parsed(key):
+        """Null rather than "" so "not parsed" is distinct from "parsed as blank"."""
+        return str(table.get(key, "") or "").strip() or None
+
+    return {
+        "id": str(table.get(TABLE_ID_KEY, "") or ""),
+        "filename": entry_filename(table),
+        "version": str(table.get("version", "") or ""),
+        "rom": str(table.get("rom", "") or ""),
+        # The sha256 of the .vpx. What lets two installs sharing a filesystem agree they
+        # hold the same file without comparing paths, which differ by mount point.
+        "file_hash": str(table.get("file_hash", "") or ""),
+        "default": bool(default_id) and table.get(TABLE_ID_KEY) == default_id,
+        "hidden": table.get("hidden") is True,
+        "manufacturer": parsed("manufacturer"),
+        "year": parsed("year"),
+        "type": parsed("type"),
+        "release_date": parsed("release_date"),
+        "authors": table.get("authors") or [],
+        "detects": {key.removeprefix("detect_"): bool(table.get(key, False))
+                    for key in DETECTION_KEYS},
+        "user": table_play_record(table),
+    }
+
 
 def game_frontend_dof_event(game) -> str:
     """The DOF effect a game asks for when selected, or "" to use the default."""
