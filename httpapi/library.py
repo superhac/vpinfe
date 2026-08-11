@@ -48,6 +48,25 @@ def filters() -> models.FilterAxisList:
                      for axis in AXES]}
 
 
+@router.get("/entries", summary="The entries the whole library resolves to",
+            dependencies=[requires(scopes.GAMES_READ)])
+def entries(expanded: bool = False) -> models.EntryList:
+    """The play lens over everything, which is what a frontend shows before a collection
+    is chosen. `GET /collections/{name}/entries` is the same lens narrowed to one.
+
+    A collection cannot answer this: there is no stored collection meaning "all of it",
+    and inventing one would put a name in every user's file to serve a default view.
+    """
+    from common.games.collection_resolver import entries_for
+    from common.games.game_repository import ensure_games_loaded
+
+    from .collections import _entry_resource
+
+    resolved = entries_for(ensure_games_loaded(), expanded=expanded)
+    return {"collection": "", "expanded": expanded, "count": len(resolved),
+            "entries": [_entry_resource(entry) for entry in resolved]}
+
+
 @router.post("/scan", summary="Rebuild game metadata from VPSdb", status_code=202,
              dependencies=[requires(scopes.GAMES_WRITE)])
 def scan(response: Response,

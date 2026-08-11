@@ -52,6 +52,7 @@ the documented entry point is a plain 200. Both spellings work.
 | DELETE | `/api/v1/collections/{name}/games/{id}` | Remove a game |
 | GET | `/api/v1/jobs` | Slow work, running first. `?kind=` filters |
 | GET | `/api/v1/jobs/{id}` | One job — state, last progress, outcome |
+| GET | `/api/v1/library/entries` | The play lens over the whole library. `?expanded=true` for one entry per table |
 | GET | `/api/v1/library/filters` | Every filter axis, with the values this library holds |
 | POST | `/api/v1/library/scan` | Rebuild game metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library game count. The reference for logo packs and alias maps |
@@ -434,6 +435,12 @@ the wire uses the honest names.
 
 Collection names are the identity, so they are URL-encoded in paths (`Last%20Played`).
 `Last Played` itself is maintained automatically as you play.
+
+`GET /library/entries` is the same play lens over everything, which is what a frontend
+shows before a collection is chosen. It exists as its own route because no stored
+collection means "all of it", and inventing one would put a name in every user's file to
+serve a default view. Both routes build their entries the same way, so they cannot
+disagree about what an entry looks like.
 
 `GET /library/filters` says what a filter collection can filter on: every axis with its
 `scope`, `kind`, a one-line `summary`, and the `values` this library actually holds — so a

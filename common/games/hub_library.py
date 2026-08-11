@@ -1,0 +1,56 @@
+"""The library as a player reads it off a hub.
+
+A player with no library of its own asks the hub for entries and builds its own payload
+from them. This turns the wire rows into the same objects `entries_for` produces locally,
+so everything downstream - filters, sorts, the payload builder - cannot tell which side
+the library came from.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+from urllib.parse import quote, urljoin
+
+from common import http_client
+from common.games.collection_resolver import Entry
+from common.games.wire_entry import WireGame
+
+logger = logging.getLogger("vpinfe.common.games.hub_library")
+
+# A library is one request, and a cold one on a large library is not instant. Longer than
+# the shared default, which is sized for a metadata lookup.
+LIBRARY_TIMEOUT = 30
+
+def entries_url(hub_url: str, collection: str = "", *, expanded: bool = False) -> str:
+    """Where a player asks for entries. Empty means the whole library, which is its own
+    endpoint rather than a collection: no stored collection means "all of it"."""
+    name = collection.strip()
+    path = f"api/v1/collections/{quote(name, safe='')}/entries" if name \
+        else "api/v1/library/entries"
+    query = "?expanded=true" if expanded else ""
+    return urljoin(hub_url.rstrip("/") + "/", path + query)
+
+
+def _entry_from_wire(row: dict[str, Any]) -> Entry:
+    """One wire row as the Entry the rest of the frontend already reads. `siblings` comes
+    from the hub, which is the only side that can see a game's other tables."""
+    return Entry(game=WireGame(row.get("game") or {}, row),
+                 table=row.get("table") or {},
+                 siblings=int(row.get("siblings") or 1))
+
+
+def fetch_entries(hub_url: str, collection: str = "", *, expanded: bool = False,
+                  timeout: int = LIBRARY_TIMEOUT) -> list[Entry]:
+    """The hub's entries for a collection, as local Entry objects.
+
+    Raises rather than returning an empty list: a hub that cannot be reached is not a hub
+    with no games, and a caller showing an empty wheel for it would be reporting the wrong
+    thing.
+    """
+    payload = http_client.get_json(entries_url(hub_url, collection, expanded=expanded),
+                                   timeout=timeout)
+    rows = payload.get("entries") if isinstance(payload, dict) else payload
+    if not isinstance(rows, list):
+        raise ValueError(f"Hub at {hub_url} did not return an entry list")
+    return [_entry_from_wire(row) for row in rows if isinstance(row, dict)]

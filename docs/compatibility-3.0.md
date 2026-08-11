@@ -267,6 +267,23 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-71 — A player can read its library from a hub.** New: `GET /library/entries`, the
+play lens over the whole library, and `common/games/hub_library.py`, which turns what it
+returns back into local `Entry` objects. `WireGame` grows the resolved asset flags, the
+media kinds and two deliberately empty paths. Purely additive - no existing route,
+payload or stored file changes shape.
+*Why:* a player with no library of its own shows everything before a collection is chosen,
+and no stored collection means "all of it" - so `GET /collections/{name}/entries` could not
+answer for that view, and inventing an "All" collection would put a name in every user's
+file to serve a default. Both routes share `_entry_resource`, so the two cannot drift. The
+hub returns entries rather than a finished payload because what to show is the player's
+question: it knows its theme, its contract and its windows, and a payload built by the hub
+would carry one machine's paths into what another renders. `fullPathGame` and
+`fullPathVPXfile` arrive empty for that reason, while the asset flags and media kinds
+arrive resolved - both are a stat of the hub's disk, which a player cannot redo. Covered by
+`tests/curation/test_library_entries.py`, which builds a contract 2 payload from a hub's
+answer with no local library behind it.
+
 **PAR-70 — Two surfaces writing collections no longer lose each other's edit.**
 `CollectionStore` gains `mutate()`, a context manager that reloads and saves under one
 process-wide lock. Every writer goes through it: the theme's collection menu, the four

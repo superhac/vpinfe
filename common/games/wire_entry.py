@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from common.media_specs import MEDIA_SPECS
 from common.timestamps import iso_to_epoch
 
 
@@ -24,12 +25,25 @@ class WireGame:
     ordering, not a stand-in for the game.
     """
 
-    __slots__ = ("gameDirName", "meta_config", "creation_time")
 
-    def __init__(self, game: dict[str, Any]) -> None:
+    def __init__(self, game: dict[str, Any], entry: dict[str, Any] | None = None) -> None:
         user = game.get("user") or {}
+        entry = entry or {}
+        assets = entry.get("assets") or {}
         self.gameDirName = game.get("dir_name") or ""
         self.creation_time = iso_to_epoch(game.get("created_at"))
+        # Empty, not missing: they name the hub's disk, so a player holding them would
+        # hold an address it cannot reach - but a reader still expects the attribute.
+        self.fullPathGame = ""
+        self.fullPathVPXfile = ""
+        self.pupPackExists = bool(assets.get("pup_pack"))
+        self.altColorExists = bool(assets.get("alt_color"))
+        self.altSoundExists = bool(assets.get("alt_sound"))
+        # `resolved_kinds` reports a kind when its attribute is non-empty and never reads
+        # the value, so the kind's own name stands in for the path the hub did not send.
+        present = set(entry.get("media") or [])
+        for spec in MEDIA_SPECS:
+            setattr(self, spec.attr, spec.key if spec.key in present else "")
         self.meta_config = {
             "Info": {
                 "Title": game.get("name") or "",
@@ -54,5 +68,6 @@ class WireGame:
 
 
 def game_of(entry: dict[str, Any]) -> WireGame:
-    """The game half of a wire entry, as something the accessors can read."""
-    return WireGame(entry.get("game") or {})
+    """A wire entry's game, as something the accessors can read. The whole entry is
+    passed because assets and media are resolved per entry, not per game."""
+    return WireGame(entry.get("game") or {}, entry)
