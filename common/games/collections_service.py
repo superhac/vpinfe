@@ -91,17 +91,16 @@ def save_filter_collection(
     sort_by: str = "Alpha",
     order_by: str = "Descending",
 ) -> None:
-    manager = get_collections_manager()
-    manager.add_filter_collection(
-        name,
-        letter,
-        theme,
-        game_type,
-        manufacturer,
-        year,
-        rating,
-        "true" if is_truthy(rating_or_higher) else "false",
-        sort_by,
-        order_by,
-    )
-    manager.save()
+    with get_collections_manager().mutate() as manager:
+        manager.add_filter_collection(
+            name,
+            letter,
+            theme,
+            game_type,
+            manufacturer,
+            year,
+            rating,
+            "true" if is_truthy(rating_or_higher) else "false",
+            sort_by,
+            order_by,
+        )

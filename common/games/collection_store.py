@@ -2,9 +2,11 @@
 
 # collection_store.py
 import configparser
+import contextlib
 import json
 import logging
 import os
+import threading
 from pathlib import Path
 
 from common import events
@@ -24,6 +26,12 @@ from common.games.info_migration import (
 )
 
 logger = logging.getLogger("vpinfe.common.games.collection_store")
+
+# Every writer holds a whole copy of the file and `save` writes all of it, so two that
+# read before either saved lose one of the two edits. Callers each build their own store
+# - the theme's collection menu and the API are different objects reading the same path -
+# so the lock is the module's rather than any one store's.
+_write_lock = threading.RLock()
 
 # Generations of the collections file, counting from the first one that shipped.
 #   1  ini, membership keyed by VPS id. Implied when no version is recorded.
@@ -532,22 +540,46 @@ class CollectionStore:
                            + (", ..." if len(ids) > 10 else ""))
         return moved
 
+    @contextlib.contextmanager
+    def mutate(self):
+        """Read the file, change it, write it back, with no other writer in between.
+
+        `write_atomic` already stops a reader seeing half a file. What it cannot stop is
+        the edit made against a copy that went stale while it was being made: the theme's
+        collection menu and the API write the same file through different stores, and
+        without this the second `save` drops the first one's collection and reports
+        success. Reloading inside the lock is what makes the copy current.
+
+        Raising inside the block writes nothing, which is what lets a caller validate
+        against the just-reloaded file and refuse.
+        """
+        with _write_lock:
+            self.reload()
+            yield self
+            self.save()
+
     def save(self):
         """Write collections back to disk, atomically.
+
+        Prefer `mutate` for a read-modify-write; calling this alone writes whatever this
+        store last read, which may no longer be what is on disk.
 
         The first save after reading an ini keeps a copy of it and leaves the original
         in place: a user who goes back to 2.x needs the file 2.x reads.
         """
-        if self._converted_from_ini and self.ini_path.exists():
-            logger.info("Kept the pre-JSON collections at %s",
-                        copy_aside(str(self.ini_path)))
-            self._converted_from_ini = False
-        # Never stamp a newer file down to what this build writes. A newer VPinFE owns
-        # that number, and claiming it would tell the next reader we understood the file.
-        payload = {SCHEMA_KEY: max(self._schema, COLLECTIONS_SCHEMA),
-                   COLLECTIONS_KEY: self.records}
-        write_atomic(self.path,
-                     lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))
+        with _write_lock:
+            if self._converted_from_ini and self.ini_path.exists():
+                logger.info("Kept the pre-JSON collections at %s",
+                            copy_aside(str(self.ini_path)))
+                self._converted_from_ini = False
+            # Never stamp a newer file down to what this build writes. A newer VPinFE
+            # owns that number, and claiming it would tell the next reader we understood
+            # the file.
+            payload = {SCHEMA_KEY: max(self._schema, COLLECTIONS_SCHEMA),
+                       COLLECTIONS_KEY: self.records}
+            write_atomic(self.path,
+                         lambda handle: json.dump(payload, handle, indent=2,
+                                                  ensure_ascii=False))
         # Same reason game_repository announces a refreshed game: a wheel showing a
         # collection is showing this file, and nothing else would tell it.
         events.emit(events.COLLECTIONS_CHANGED, path=str(self.path))

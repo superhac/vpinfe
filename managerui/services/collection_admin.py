@@ -81,11 +81,10 @@ def _set_section_image(manager, name: str, filename: str | None) -> None:
 
 
 def set_collection_image(name: str, filename: str | None) -> None:
-    manager = get_collections_manager()
-    if name not in manager:
-        raise KeyError(f"Section '{name}' not found")
-    _set_section_image(manager, name, filename)
-    manager.save()
+    with get_collections_manager().mutate() as manager:
+        if name not in manager:
+            raise KeyError(f"Section '{name}' not found")
+        _set_section_image(manager, name, filename)
 
 
 def get_game_rows_for_collections(cached_games: list[dict] | None = None) -> list[dict]:
@@ -193,50 +192,44 @@ def get_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> dict[str,
 
 
 def delete_collection(name: str) -> None:
-    manager = get_collections_manager()
-    manager.delete_collection(name)
-    manager.save()
+    with get_collections_manager().mutate() as manager:
+        manager.delete_collection(name)
 
 
 def rename_collection(name: str, new_name: str) -> None:
-    manager = get_collections_manager()
-    manager.rename_collection(name, new_name)
-    manager.save()
+    with get_collections_manager().mutate() as manager:
+        manager.rename_collection(name, new_name)
 
 
 def create_game_collection(name: str, game_ids: list[str], image: str | None = None) -> None:
-    manager = get_collections_manager()
-    manager.add_collection(name, game_ids)
-    if image:
-        _set_section_image(manager, name, image)
-    manager.save()
+    with get_collections_manager().mutate() as manager:
+        manager.add_collection(name, game_ids)
+        if image:
+            _set_section_image(manager, name, image)
 
 
 def create_filter_collection(name: str, **filters) -> None:
     image = filters.pop(COLLECTION_IMAGE_KEY, None)
-    manager = get_collections_manager()
-    manager.add_filter_collection(name, **filters)
-    if image:
-        _set_section_image(manager, name, image)
-    manager.save()
+    with get_collections_manager().mutate() as manager:
+        manager.add_filter_collection(name, **filters)
+        if image:
+            _set_section_image(manager, name, image)
 
 
 def update_filter_collection(name: str, **filters) -> None:
     image = filters.pop(COLLECTION_IMAGE_KEY, None)
-    manager = get_collections_manager()
-    for key, value in filters.items():
-        manager.set_filter(name, key, value)
-    if image is not None:
-        _set_section_image(manager, name, image)
-    manager.save()
+    with get_collections_manager().mutate() as manager:
+        for key, value in filters.items():
+            manager.set_filter(name, key, value)
+        if image is not None:
+            _set_section_image(manager, name, image)
 
 
 def update_game_collection(name: str, game_ids: list[str], image: str | None = None) -> None:
-    manager = get_collections_manager()
-    manager.set_members(name, game_ids)
-    if image is not None:
-        _set_section_image(manager, name, image)
-    manager.save()
+    with get_collections_manager().mutate() as manager:
+        manager.set_members(name, game_ids)
+        if image is not None:
+            _set_section_image(manager, name, image)
 
 
 def search_games(term: str, cached_games: list[dict] | None = None, limit: int = 20) -> list[dict]:

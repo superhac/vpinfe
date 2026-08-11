@@ -267,6 +267,22 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-70 — Two surfaces writing collections no longer lose each other's edit.**
+`CollectionStore` gains `mutate()`, a context manager that reloads and saves under one
+process-wide lock. Every writer goes through it: the theme's collection menu, the four
+API routes, the seven Manager UI operations and the launch tracker. No payload, route or
+stored file changes shape.
+*Why:* the whole file is rewritten on every save, so a writer holding a copy read before
+another one saved wrote that stale copy back - dropping the other's collection and
+reporting success. `httpapi` had a lock of its own, which serialised API writes against
+each other and nothing else; its comment said as much and called it tolerable because
+edits are rare. It is reachable from any pair of the four surfaces, and the launch
+tracker writes on every game start, so a user creating a collection while a game loads
+could lose it. A lock alone would not have fixed it - the stale copy is read before the
+lock is taken - which is why `mutate` reloads inside it. Raising inside the block writes
+nothing, so a route can validate against the just-reloaded file and refuse. Covered by
+`tests/curation/test_collection_writes.py`.
+
 **PAR-69 — Filtering and sorting can read an entry, not just a game.** New:
 `common/games/wire_entry.py`, which presents a wire entry in the shape the metadata
 accessors read, and an `iso_to_epoch` in `common/timestamps.py`, the inverse of

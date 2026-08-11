@@ -13,8 +13,6 @@ that migration - see common/tables/collection_store.py.
 
 from __future__ import annotations
 
-import threading
-
 from fastapi import APIRouter, Body, Response
 
 from common.games import game_identity
@@ -46,11 +44,6 @@ from .errors import ConflictError, InvalidRequestError, NotFoundError
 from .games import _catalog, _resource
 
 router = APIRouter(prefix="/collections", tags=["collections"])
-
-# The whole file is rewritten on every save, so two overlapping requests could lose
-# one another's edit. Serialising here covers the API; a Manager UI write still goes
-# its own way, which is tolerable only because collection edits are rare and small.
-_write_lock = threading.RLock()
 
 
 def _links(name: str) -> dict:
@@ -222,9 +215,7 @@ def create_collection(response: Response,
         raise InvalidRequestError(
             "A collection is either filter-based or an explicit list of games, not both")
 
-    with _write_lock:
-        manager = get_collections_manager()
-        manager.reload()
+    with get_collections_manager().mutate() as manager:
         if name in manager.get_collections_name():
             raise ConflictError(f"A collection named {name} already exists")
 
@@ -240,7 +231,6 @@ def create_collection(response: Response,
             if unknown:
                 raise InvalidRequestError("Unknown game ids", details={"ids": unknown})
             manager.add_collection(name, request.games)
-        manager.save()
 
     response.headers["Location"] = _links(name)["self"]
     return _resource_for(_row_or_404(name))
@@ -249,13 +239,10 @@ def create_collection(response: Response,
 @router.delete("/{name}", summary="Delete a collection", status_code=204,
                dependencies=[requires(scopes.COLLECTIONS_WRITE)])
 def delete_collection(name: str) -> Response:
-    with _write_lock:
-        manager = get_collections_manager()
-        manager.reload()
+    with get_collections_manager().mutate() as manager:
         if name not in manager.get_collections_name():
             raise NotFoundError(f"No collection named {name}")
         manager.delete_collection(name)
-        manager.save()
     return Response(status_code=204)
 
 
@@ -266,25 +253,20 @@ def add_member(name: str, game_id: str) -> Response:
     caller's intent - that it be in there - is satisfied either way."""
     if game_id not in _catalog():
         raise NotFoundError(f"No game with id {game_id}")
-    with _write_lock:
-        manager = get_collections_manager()
-        manager.reload()
+    with get_collections_manager().mutate() as manager:
         if name not in manager.get_collections_name():
             raise NotFoundError(f"No collection named {name}")
         if manager.is_filter_based(name):
             raise ConflictError(
                 f"{name} is a filter collection - its membership comes from its criteria")
         manager.add_member(name, game_id)
-        manager.save()
     return Response(status_code=204)
 
 
 @router.delete("/{name}/games/{game_id}", summary="Remove a game from a collection",
                status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
 def remove_member(name: str, game_id: str) -> Response:
-    with _write_lock:
-        manager = get_collections_manager()
-        manager.reload()
+    with get_collections_manager().mutate() as manager:
         if name not in manager.get_collections_name():
             raise NotFoundError(f"No collection named {name}")
         if manager.is_filter_based(name):
@@ -293,5 +275,4 @@ def remove_member(name: str, game_id: str) -> Response:
         if game_id not in manager.get_members(name):
             raise NotFoundError(f"{game_id} is not in {name}")
         manager.remove_member(name, game_id)
-        manager.save()
     return Response(status_code=204)

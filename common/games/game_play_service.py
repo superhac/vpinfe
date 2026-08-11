@@ -39,19 +39,18 @@ def track_game_play(game, collection_name: str = "Last Played", max_items: int =
         logger.debug("Game has no id, cannot track play")
         return
 
-    collections = get_collections_manager()
-    if collection_name not in collections.get_collections_name():
-        logger.info("Creating '%s' collection", collection_name)
-        collections.add_collection(collection_name, members=[])
+    with get_collections_manager().mutate() as collections:
+        if collection_name not in collections.get_collections_name():
+            logger.info("Creating '%s' collection", collection_name)
+            collections.add_collection(collection_name, members=[])
 
-    # Most-recent-first and capped, so this writes the list rather than using
-    # add_member - order carries the meaning here.
-    ids = collections.get_members(collection_name)
-    if member_id in ids:
-        ids.remove(member_id)
-    ids.insert(0, member_id)
-    collections.set_members(collection_name, ids[:max_items])
-    collections.save()
+        # Most-recent-first and capped, so this writes the list rather than using
+        # add_member - order carries the meaning here.
+        ids = collections.get_members(collection_name)
+        if member_id in ids:
+            ids.remove(member_id)
+        ids.insert(0, member_id)
+        collections.set_members(collection_name, ids[:max_items])
     logger.info("Tracked game play: %s (now %s in %s)", member_id, len(ids[:max_items]), collection_name)
 
 
