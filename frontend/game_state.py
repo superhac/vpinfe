@@ -26,6 +26,7 @@ from common.games.game_repository import ensure_games_loaded
 from common.games.media_lookup import resolved_kinds
 from common.media_specs import game_media_payload
 from common.shared_assets import manufacturer_logo_web_path
+from common.timestamps import epoch_to_iso
 from frontend.theme_contract import CURRENT_CONTRACT, project
 
 logger = logging.getLogger("vpinfe.frontend.game_state")
@@ -122,6 +123,7 @@ def _entry_row(entry, logo_cache) -> dict:
             "dir_name": game.gameDirName,
             "path": game.fullPathGame,
             "manufacturer_logo": logo_cache[maker],
+            "created_at": epoch_to_iso(getattr(game, "creation_time", None)) or None,
             "user": play_record(meta),
         },
         "table": {

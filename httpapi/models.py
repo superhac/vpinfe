@@ -259,6 +259,9 @@ class EntryGame(ApiModel):
     themes: list[str] = Field(default_factory=list)
     dir_name: str = ""
     manufacturer_logo: str | None = None
+    # When the folder appeared, which is what "Newest" sorts on. A stat of the hub's
+    # filesystem, so a client sorting its own copy has to be told rather than look.
+    created_at: str | None = None
     # Flat, and again inside `user`. The flat one shipped first and clients may read it;
     # `user.rating` is where it belongs beside the rest of the play record.
     rating: int

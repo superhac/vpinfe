@@ -29,6 +29,11 @@ FIXTURE = REPO_ROOT / "tests" / "fixtures" / "theme_payload.json"
 # What the captured paths pretend to live under. The JS side asserts against this.
 STABLE_ROOT = "/library"
 
+# `created_at` is a stat of the folder the capture just made, so it is a different value
+# every run - the same problem the root has, in time rather than in place. Frozen here so
+# the fixture stays a witness to the payload's shape rather than to when it was captured.
+STABLE_CREATED_AT = "2026-01-01T00:00:00Z"
+
 
 def _game(root: Path, folder: str, *, info: dict,
           medias: dict[str, bytes] | None = None,
@@ -106,7 +111,9 @@ def _stabilize(value, real_root: str):
     if isinstance(value, list):
         return [_stabilize(item, real_root) for item in value]
     if isinstance(value, dict):
-        return {key: _stabilize(item, real_root) for key, item in value.items()}
+        return {key: STABLE_CREATED_AT if key == "created_at" and item else
+                _stabilize(item, real_root)
+                for key, item in value.items()}
     return value
 
 

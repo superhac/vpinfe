@@ -38,6 +38,7 @@ from common.games.game_metadata import (
 )
 from common.games.media_lookup import resolved_kinds
 from common.shared_assets import manufacturer_logo_web_path
+from common.timestamps import epoch_to_iso
 
 from . import models, scopes
 from .auth import requires
@@ -154,6 +155,7 @@ def _entry_resource(entry) -> dict:
             "themes": game_themes(entry.game),
             "dir_name": str(getattr(entry.game, "gameDirName", "") or ""),
             "manufacturer_logo": manufacturer_logo_web_path(maker),
+            "created_at": epoch_to_iso(getattr(entry.game, "creation_time", None)) or None,
             "rating": game_rating(entry.game),
             "user": play_record(meta),
         },

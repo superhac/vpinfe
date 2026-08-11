@@ -267,6 +267,16 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-68 — The entry says when its folder appeared.** Entries gain `game.created_at`, an
+ISO-8601 UTC timestamp, on both the REST lens (`GET /collections/{name}/entries`) and the
+contract 2 theme payload. Purely additive. Null where the filesystem gave no answer, which
+is the same thing the sort already treated as oldest.
+*Why:* "Newest" sorts on the folder's creation time, which is a stat of the hub's disk. A
+client holding its own copy of the library cannot stat the hub's filesystem, so a sort that
+worked locally had no input at all off the machine - it is the one ordering the wire could
+not reproduce. The value is serialized rather than the raw epoch float so it reads the same
+on a client in another timezone. Covered by `tests/curation/test_entry_lens_parity.py`.
+
 **PAR-67 — The library and collections changing are on the event stream.** `game.changed`
 and `collections.changed` now reach `GET /api/v1/events`. Both already fired in-process and
 both keep doing so unchanged; this only adds the projection that puts them on the wire.

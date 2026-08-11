@@ -263,6 +263,7 @@
           "pup_pack": false
         },
         "game": {
+          "created_at": "2026-01-01T00:00:00Z",
           "dir_name": "Attack from Mars (Bally 1995)",
           "id": "afm0000001",
           "manufacturer": "Bally",
@@ -324,6 +325,7 @@
           "pup_pack": false
         },
         "game": {
+          "created_at": "2026-01-01T00:00:00Z",
           "dir_name": "Bare Table (Gottlieb 1980)",
           "id": "bar0000001",
           "manufacturer": "Gottlieb",
@@ -376,6 +378,7 @@
           "pup_pack": false
         },
         "game": {
+          "created_at": "2026-01-01T00:00:00Z",
           "dir_name": "Congo (Williams 1995)",
           "id": "cng0000001",
           "manufacturer": "Williams",
@@ -430,6 +433,7 @@
           "pup_pack": false
         },
         "game": {
+          "created_at": "2026-01-01T00:00:00Z",
           "dir_name": "Medieval Madness (Williams 1997)",
           "id": "mm00000001",
           "manufacturer": "Williams",

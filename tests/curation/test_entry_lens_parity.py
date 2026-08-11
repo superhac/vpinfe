@@ -90,6 +90,36 @@ class EntryLensParityTests(TempTree):
         self.assertEqual(self.wire["game"]["rating"], 4,
                          "the flat field still answers for clients that read it")
 
+    def test_the_wire_can_reproduce_the_newest_order(self) -> None:
+        """The "Newest" sort is a stat of the hub's filesystem, so a client sorting its
+        own copy has to be told rather than look. Newest-first off the wire answer has
+        to land in the same order the hub resolves.
+        """
+        folders = [("Medieval Madness (Williams 1997)", 300.0),
+                   ("Attack from Mars (Bally 1995)", 100.0),
+                   ("Twilight Zone (Bally 1993)", 200.0)]
+        games = []
+        for name, created in folders:
+            meta = {**META, "Info": {**META["Info"], "Title": name.split(" (")[0]}}
+            game = fake_game(write_game(self.root, name, info=meta), name, meta=meta)
+            game.creation_time = created
+            games.append(game)
+
+        entries = collection_resolver.entries_for(games, expanded=False)
+        hub_order = [game_state.game_title(e.game) for e in
+                     sorted(entries, key=collection_resolver._sort_key("added"))]
+        wire = [_entry_resource(e) for e in entries]
+        stamps = [row["game"]["created_at"] for row in wire]
+        client_order = [game_state.game_title(e.game) for _, e in sorted(
+            zip(stamps, entries), key=lambda pair: pair[0], reverse=True)]
+
+        self.assertEqual(client_order, hub_order)
+        self.assertEqual(client_order, ["Medieval Madness", "Twilight Zone",
+                                        "Attack from Mars"])
+        # Three distinct stamps, so the order above is the timestamps deciding it. Drop
+        # `created_at` from the wire and they collapse to one value and this fails.
+        self.assertEqual(len(set(stamps)), 3)
+
     def test_media_is_named_not_located(self) -> None:
         """Kinds, so the bytes can be fetched from wherever the assets are served."""
         self.assertIsInstance(self.wire["media"], list)
