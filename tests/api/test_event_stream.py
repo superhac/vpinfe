@@ -219,6 +219,47 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertNotIn("install_id", _payload(frame))
 
+    async def test_the_library_changing_reaches_a_client(self) -> None:
+        """A frontend on another machine cannot watch the files, so this is the only
+        thing that tells it the copy it is holding went stale."""
+        stream = self._open()
+        await self._hello(stream)
+
+        events.emit(events.GAME_CHANGED,
+                    game=SimpleNamespace(gameDirName="Medieval Madness",
+                                         meta_config={"vpinfe": {"game_id": "6f1c9a4e"}}),
+                    path="/mnt/library/Medieval Madness")
+        frame = await self._next(stream)
+
+        self.assertEqual(_fields(frame)["event"], events.GAME_CHANGED)
+        self.assertEqual(_shape(frame)["game"]["id"], "6f1c9a4e")
+
+    async def test_the_collections_changing_reaches_a_client(self) -> None:
+        stream = self._open()
+        await self._hello(stream)
+
+        events.emit(events.COLLECTIONS_CHANGED, path="/home/someone/collections.json")
+        frame = await self._next(stream)
+
+        self.assertEqual(_fields(frame)["event"], events.COLLECTIONS_CHANGED)
+
+    async def test_neither_carries_a_path_from_the_machine_it_happened_on(self) -> None:
+        """Both events carry a filesystem path on the bus, for handlers in this process.
+        A subscriber elsewhere has a different path for the same thing and would be told
+        one true only here."""
+        stream = self._open()
+        await self._hello(stream)
+
+        events.emit(events.COLLECTIONS_CHANGED, path="/home/someone/collections.json")
+        collections = await self._next(stream)
+        events.emit(events.GAME_CHANGED, game=None, path="/mnt/library/Some Game")
+        library = await self._next(stream)
+
+        for frame in (collections, library):
+            self.assertNotIn("/home/someone", frame)
+            self.assertNotIn("/mnt/library", frame)
+            self.assertNotIn("path", _payload(frame))
+
     async def test_a_filter_delivers_only_what_it_names(self) -> None:
         stream = self._open(PLAY_STATE)
         await self._hello(stream)

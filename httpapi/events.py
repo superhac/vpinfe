@@ -87,6 +87,16 @@ def _as_published(**payload) -> dict:
     return payload
 
 
+def _collections_event(**_payload) -> dict:
+    """That the collections changed, and nothing about where they live.
+
+    The bus carries the file's path so in-process handlers can log it. A subscriber on
+    another machine has a different path for the same collections, and would be told
+    one true only here - so it is dropped and the event says only that a re-read is due.
+    """
+    return {}
+
+
 def _lifecycle_event(**payload) -> dict:
     """What is happening, and which kind of surface asked for it.
 
@@ -106,6 +116,11 @@ STREAMED_EVENTS: dict[str, Callable[..., dict]] = {
     events.GAME_LAUNCHED: _game_event,
     events.GAME_EXITED: _game_event,
     events.GAME_SELECTED: _game_event,
+    # The library moved under whoever is holding it. Local subscribers get this
+    # already; it crosses now because a frontend on another machine has no other way
+    # to learn its copy is stale - it cannot watch the files.
+    events.GAME_CHANGED: _game_event,
+    events.COLLECTIONS_CHANGED: _collections_event,
     events.PLAY_STATE_CHANGED: _as_published,
     events.LIFECYCLE_ACTING: _lifecycle_event,
     events.JOB_PROGRESS: _job_event,

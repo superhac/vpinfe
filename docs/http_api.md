@@ -340,10 +340,17 @@ What's on it, each alongside the `install_id` described below:
 | Event | Payload |
 |-------|---------|
 | `game.launching` / `game.launched` / `game.exited` / `game.selected` | `{"game": {"id", "name", "links"}}`, or `{"game": null}` when the launch didn't come from the wheel |
+| `game.changed` | `{"game": {"id", "name", "links"}}` — a game's metadata was rewritten, so anything holding it is stale |
+| `collections.changed` | `{}` — the collections were edited; re-read them |
 | `play.state_changed` | `{"state": {"launching", "table_name", "source"}}` |
 | `job.progress` | `{"job_id", "pct", "message"}` |
 | `job.done` | `{"job_id"}` |
 | `job.failed` | `{"job_id", "error"}` |
+
+`game.changed` and `collections.changed` carry no path. The bus does, for handlers in
+this process, but a subscriber on another machine has a different path for the same thing
+and would be told one true only where it happened. They say a re-read is due, not where
+from.
 
 Every payload also carries `install_id` — which install the event happened on. On a
 single-machine install it is always the same value and can be ignored; a client watching

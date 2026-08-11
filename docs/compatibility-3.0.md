@@ -267,6 +267,20 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-67 — The library and collections changing are on the event stream.** `game.changed`
+and `collections.changed` now reach `GET /api/v1/events`. Both already fired in-process and
+both keep doing so unchanged; this only adds the projection that puts them on the wire.
+Purely additive - a client filtering with `?events=` is unaffected, and one taking
+everything gets two more names it can ignore.
+*Why:* a frontend on another machine cannot watch the files. Locally, `play_events`
+subscribes to both and sends the windows back for the payload; remotely there was no
+signal at all, so a copy of the library went stale with nothing to say so. Neither event
+carries its path: the bus does, for handlers in this process, but the same collections file
+is at a different path on the machine reading about it, and telling it one true only here
+is worse than saying nothing. `game.changed` reuses the projection the other game events
+use, so it names the game by id rather than by where it lives. Covered by
+`tests/api/test_event_stream.py`.
+
 **PAR-66 — A hub can hold a roster of the players it knows.** New: `common/roster.py`,
 a `players.json` beside the other config files, keyed by `install_id`. Nothing writes to
 it yet and no screen shows it, so an existing install never grows the file and behaves
