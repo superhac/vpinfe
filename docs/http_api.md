@@ -117,6 +117,13 @@ snake_case for the same reason — GitHub's and Stripe's among them.
 A game resource carries `id` (this install's id) and `vps_id` (correlation with VPSdb and
 friends). Sub-resources are linked from `links` rather than assembled by the client.
 
+**Resources gain fields without a version bump, so ignore ones you don't recognize.**
+Adding a field is additive and happens routinely — three of the 3.0 changes did it. A
+client that rejects unknown keys, or round-trips a resource by enumerating them, breaks on
+the next release for no reason. Renaming or retyping a field is the opposite: that is a
+compatibility change, it gets a `docs/compatibility-3.0.md` entry, and it does not happen
+inside a version.
+
 Path segments are hyphenated (`/games`); JSON field names are `snake_case`
 (`links.tables`). Different namespaces, different conventions — hyphens read better in a
 URL and nothing has to be translated on the way into Python.

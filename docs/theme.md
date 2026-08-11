@@ -143,6 +143,7 @@ At `contract: 2` the payload is an object, and the list you iterate is `entries`
         "year": "1995", "type": "SS", "themes": ["Aliens"],
         "dir_name": "Attack from Mars (Bally 1995)",
         "manufacturer_logo": "/assets/manufacturers/bally.png",
+        "created_at": "2026-08-01T09:30:00Z",
         "path": "/games/Attack from Mars (Bally 1995)",
         "user": { "rating": 4, "favorite": false, "tags": [],
                   "last_played": "2026-08-01T20:14:00Z",
@@ -179,6 +180,7 @@ the game it belongs to attached.
 | `entries[].siblings` | How many tables this entry's game offers. `1` means there is nothing to switch to. |
 | `entries[].media` | The media kinds this game **has a file for** — `playfield`, `bg`, `wheel` and the rest, the same names `vpin.getMedia(index, kind)` takes. Names, not paths: fetch one from `/media/<table id>/<kind>`. |
 | `entries[].game.manufacturer_logo` | Web path to the manufacturer's shared logo, or `null`. Art about the manufacturer rather than about this game, which is why it is not a media kind. |
+| `entries[].game.created_at` | When the game's folder appeared, ISO 8601 UTC, or `null` where the filesystem gave no answer. What a "Newest" sort orders on. |
 
 **`detects` loses the `detect_` prefix.** `table.detects.ssf`, not `detect_ssf` — the
 prefix was storage, not vocabulary.
