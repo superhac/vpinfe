@@ -60,15 +60,33 @@ class BundleTests(unittest.TestCase):
         self.assertNotIn(f"{Path(OTHER).stem}.directb2s", names,
                          "and so do their companions")
 
-    def test_the_chosen_builds_companions_and_shared_fallbacks_ride_along(self) -> None:
+    def test_the_bundle_ships_what_vpx_would_open_and_not_what_it_would_skip(self) -> None:
+        """The same rule the frontend applies to media: the most specific file that
+        exists, not everything that might match.
+
+        A table with its own `.directb2s` never opens the folder-named one - the
+        resolver takes the dedicated file and stops - so shipping both sent bytes the
+        far side could not load. On one real game that was 54MB of a 245MB bundle.
+        """
         with TemporaryDirectory() as tmp:
             names = self._names(_library(tmp))
 
         stem = Path(CHOSEN).stem
-        self.assertIn(f"{stem}.directb2s", names)
+        self.assertIn(f"{stem}.directb2s", names, "its own is what VPX opens")
         self.assertIn(f"{stem}.ini", names)
+        self.assertNotIn(f"{FOLDER}.directb2s", names,
+                         "the folder-named one is shadowed, so it is dead weight")
+
+    def test_the_shared_fallback_ships_when_it_is_the_one_that_resolves(self) -> None:
+        """Narrowing must not mean dropping the fallback - it is what a table without
+        its own companion actually loads."""
+        with TemporaryDirectory() as tmp:
+            root = _library(tmp)
+            (root / f"{Path(CHOSEN).stem}.directb2s").unlink()
+            names = self._names(root)
+
         self.assertIn(f"{FOLDER}.directb2s", names,
-                      "the folder-named fallback the engine would resolve")
+                      "with nothing more specific, the shared one is what VPX opens")
 
     def test_the_game_dirs_ship_and_media_does_not(self) -> None:
         with TemporaryDirectory() as tmp:

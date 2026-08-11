@@ -16,6 +16,7 @@ from pathlib import Path
 from common.games.asset_registry import (
     is_readme,  # noqa: F401  (one matcher, import and export)
 )
+from common.games.asset_resolver import resolve_for_table
 from common.games.game_metadata import vpinfe_section
 from common.games.info_file import ASSETS_KEY
 from common.games.tables import (
@@ -27,6 +28,13 @@ from common.games.tables import (
 
 # Directories a running game reads, whole. Media is browsing artwork, not part
 # of playing the game, so medias/ is deliberately absent.
+#
+# VPX's list, and the one part of a bundle still named for one engine. The file-level
+# question next to it is already app-agnostic - `resolve_for_table` takes its `kinds`
+# as a parameter, so its rule (a dedicated file wins, a folder-named one is the shared
+# fallback) holds for whatever the launcher is. `VPinFE.altlauncher` already lets a game
+# declare a different one. When a second app arrives, this tuple is what moves beside
+# `VPX_ASSET_KINDS` into that app's description rather than being extended in place.
 BUNDLE_DIRS = ("pinmame", "music", "serum", "vni", "altsound", "pupvideos")
 
 # Stem-matched companions of the chosen table, per the engine's own lookup.
@@ -90,13 +98,25 @@ def bundle_paths(game_dir: Path, *, everything: bool = False,
         return
 
     chosen = choose_table(game_dir, table)
-    stem = Path(chosen).stem.lower() if chosen else None
     folder_stem = game_dir.name.lower()
 
     try:
         entries = sorted(game_dir.iterdir())
     except OSError:
         return
+
+    # What VPX would actually open for this table, asked of the resolver rather than
+    # matched by hand. Stem-matching here accepted the table's own companion *and* the
+    # folder-named fallback, but the resolver takes the dedicated one and stops - so a
+    # table with its own .directb2s shipped the shadowed one too. On one real game that
+    # was 54MB of 245MB the far side could never load.
+    resolved_companions = {
+        str(picked["file"]).lower()
+        for picked in resolve_for_table(
+            chosen or "", game_dir.name,
+            [entry.name for entry in entries if entry.is_file()]).values()
+        if picked.get("file")
+    }
     for entry in entries:
         name = entry.name
         if entry.is_dir():
@@ -113,9 +133,5 @@ def bundle_paths(game_dir: Path, *, everything: bool = False,
             yield entry, name
         elif is_readme(name):
             yield entry, name
-        elif lower.endswith(COMPANION_EXTENSIONS):
-            companion_stem = Path(name).stem.lower()
-            # The chosen table's own companions, and the folder-named shared
-            # fallbacks the engine would resolve for it.
-            if companion_stem in (stem, folder_stem):
-                yield entry, name
+        elif lower in resolved_companions:
+            yield entry, name
