@@ -181,12 +181,43 @@ class ChromiumManagerTests(unittest.TestCase):
         self.assertTrue(manager._exit_event.is_set())
 
 
+class HubEndpointTests(unittest.TestCase):
+    """Reading `network.hub_url` into the three values a window url carries."""
+
+    @staticmethod
+    def _network(hub_url: str = "", hub_port: int = 8001):
+        return types.SimpleNamespace(hub_url=hub_url, hub_port=hub_port)
+
+    def test_no_hub_is_the_default_and_both_ports_are_this_install(self) -> None:
+        for value in ("", "   "):
+            with self.subTest(value=value):
+                self.assertEqual(chromium_manager._hub_endpoint(self._network(value)),
+                                 ("", 8001, 8001))
+
+    def test_a_hub_url_yields_its_host_and_port(self) -> None:
+        self.assertEqual(
+            chromium_manager._hub_endpoint(self._network("http://cab.local:8001")),
+            ("cab.local", 8001, 8001))
+
+    def test_the_hub_port_and_this_player_port_are_answered_separately(self) -> None:
+        """The one that would misdial in both directions if a single number were sent."""
+        self.assertEqual(
+            chromium_manager._hub_endpoint(self._network("https://hub.example:9000")),
+            ("hub.example", 9000, 8001))
+
+    def test_a_url_with_no_port_falls_back_to_this_install_s(self) -> None:
+        self.assertEqual(
+            chromium_manager._hub_endpoint(self._network("http://cab.local", 8005)),
+            ("cab.local", 8005, 8005))
+
+
 class WindowUrlTests(unittest.TestCase):
     """A window has to be told where the services are: it cannot ask, because asking
     needs the bridge and finding the bridge needs a port. A port missing here is a
     frontend dialling the wrong one forever, which is why every form is checked."""
 
-    def _url(self, system: str, *, splash: bool = False) -> str:
+    def _url(self, system: str, *, splash: bool = False, hub_host: str = "",
+             hub_port: int = 9001, player_port: int = 9001) -> str:
         with mock.patch("frontend.chromium_manager.platform.system", return_value=system):
             return chromium_manager._build_window_url(
                 base_url="http://127.0.0.1",
@@ -195,7 +226,9 @@ class WindowUrlTests(unittest.TestCase):
                 window_name="playfield",
                 splash_enabled=splash,
                 ws_port=9002,
-                hub_port=9001,
+                hub_port=hub_port,
+                hub_host=hub_host,
+                player_port=player_port,
             )
 
     def test_every_window_url_carries_every_port(self) -> None:
@@ -208,6 +241,42 @@ class WindowUrlTests(unittest.TestCase):
                 self.assertIn("wsPort=9002", url)
                 self.assertIn("themeAssetsPort=9000", url)
                 self.assertIn("hubPort=9001", url)
+
+    def test_no_hub_host_leaves_the_url_as_it_was(self) -> None:
+        """Every single-machine install. The page keeps assuming loopback for everything,
+        so a setting nobody set cannot change what a window opens with."""
+        for system, splash, label in (("Linux", False, "the /app/ bootstrap"),
+                                      ("Darwin", True, "the splash page"),
+                                      ("Darwin", False, "a theme page")):
+            with self.subTest(label):
+                url = self._url(system, splash=splash)
+
+                self.assertNotIn("hubHost", url)
+                self.assertNotIn("playerPort", url)
+
+    def test_a_remote_hub_travels_in_every_window_url(self) -> None:
+        """A page cannot ask where its hub is for the same reason it cannot ask for a
+        port, so the host takes the same route."""
+        for system, splash, label in (("Linux", False, "the /app/ bootstrap"),
+                                      ("Darwin", True, "the splash page"),
+                                      ("Darwin", False, "a theme page")):
+            with self.subTest(label):
+                url = self._url(system, splash=splash, hub_host="hub.example")
+
+                self.assertIn("hubHost=hub.example", url)
+
+    def test_the_hub_port_and_this_player_port_travel_separately(self) -> None:
+        """A hub on 9000 is not this machine on 9000. Sending one number would make a
+        player dial its own api at the hub's port, or the hub's at its own."""
+        url = self._url("Darwin", hub_host="hub.example", hub_port=9000, player_port=8001)
+
+        self.assertIn("hubPort=9000", url)
+        self.assertIn("playerPort=8001", url)
+
+    def test_a_host_that_needs_encoding_is_encoded(self) -> None:
+        url = self._url("Darwin", hub_host="hub name")
+
+        self.assertIn("hubHost=hub%20name", url)
 
     def test_the_ports_are_query_parameters_of_the_page(self) -> None:
         """Appended to whatever the form already asks for, not replacing it."""

@@ -480,6 +480,12 @@ class VPinFECore {
     this.themeAssetsPort = port('themeAssetsPort', 8000);
     this.hubPort = port('hubPort', 8001);
     this.wsPort = port('wsPort', 8002);
+    // Set only when the hub is another machine. The player's own services stay loopback:
+    // this names where the library and its art are, not where this page is running.
+    this.hubHost = params.get('hubHost') || '';
+    // What this player serves on, which is not what a remote hub answers on - `hubPort`
+    // carries the hub's when there is one, so the two cannot be the same number.
+    this.playerPort = port('playerPort', this.hubPort);
     this.vpinplayEndpoint = '';
 
     // Display config, as the ini states it. Raw values - `layout` below is what a theme
@@ -711,10 +717,14 @@ class VPinFECore {
    */
   get endpoints() {
     const host = '127.0.0.1';
+    // The hub's services follow the hub. `player` and `frontend_channel` never do: they
+    // are this machine's own, and a page dialling another host for them would be asking
+    // a different player to answer for this one's windows.
+    const hubHost = this.hubHost || host;
     return {
-      hub: `http://${host}:${this.hubPort}`,
-      player: `http://${host}:${this.hubPort}`,
-      assets: `http://${host}:${this.themeAssetsPort}`,
+      hub: `http://${hubHost}:${this.hubPort}`,
+      player: `http://${host}:${this.playerPort}`,
+      assets: `http://${hubHost}:${this.themeAssetsPort}`,
       frontend_channel: `ws://${host}:${this.wsPort}`,
     };
   }
@@ -1820,7 +1830,12 @@ class VPinFECore {
     // corrects every url built from it.
     this.themeAssetsPort = await this.call("get_theme_assets_port");
     try {
-      this.hubPort = await this.call("get_hub_port");
+      const ownPort = await this.call("get_hub_port");
+      // What this install serves on. It is the hub's port too, unless a hub elsewhere
+      // said otherwise in the url - correcting that here would point the page back at
+      // itself for the library.
+      this.playerPort = ownPort;
+      if (!this.hubHost) this.hubPort = ownPort;
     } catch (_e) {
       /* an older build cannot answer; the 8001 default already covers it */
     }

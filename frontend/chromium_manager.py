@@ -19,7 +19,7 @@ import threading
 import time
 from collections import namedtuple
 from shutil import which
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig, cfg_get
 from common.log_setup import include_thirdparty_logs
@@ -102,6 +102,23 @@ def get_builtin_chromium_options(
     return options
 
 
+def _hub_endpoint(network) -> tuple[str, int, int]:
+    """Where a page dials for the hub, and where it dials for this player.
+
+    Returns `(hub_host, hub_port, player_port)`. With no `hub_url` the host is "" and both
+    ports are this install's, which is every single-machine setup. With one, the hub's port
+    comes from the URL when it states one: `network.hub_port` is what *this* install serves
+    on, so a player reading a hub on 9000 would otherwise dial its own port at the other
+    machine - and its own api would be looked for on the hub's.
+    """
+    trimmed = str(getattr(network, "hub_url", "") or "").strip()
+    own_port = network.hub_port
+    if not trimmed:
+        return "", own_port, own_port
+    parsed = urlparse(trimmed)
+    return parsed.hostname or "", parsed.port or own_port, own_port
+
+
 def _build_window_url(
     base_url: str,
     theme_assets_port: int,
@@ -110,6 +127,8 @@ def _build_window_url(
     splash_enabled: bool,
     ws_port: int = 8002,
     hub_port: int = 8001,
+    hub_host: str = "",
+    player_port: int = 8001,
 ) -> str:
     """Where a window opens, and how it finds the services.
 
@@ -123,6 +142,11 @@ def _build_window_url(
     """
     endpoints = (f"wsPort={ws_port}&themeAssetsPort={theme_assets_port}"
                  f"&hubPort={hub_port}")
+    # Only when the hub is elsewhere. Absent, the page keeps assuming loopback and one
+    # port for both roles, which is right for every install that serves its own library.
+    if hub_host:
+        endpoints += (f"&hubHost={quote(hub_host, safe='')}"
+                      f"&playerPort={player_port}")
 
     if platform.system() == "Linux":
         return f"{base_url}:{theme_assets_port}/app/{window_name}?{endpoints}"
@@ -416,6 +440,7 @@ class ChromiumManager:
         theme_assets_port = network.theme_assets_port
         theme_name = settings.theme
         splash_enabled = settings.splashscreen
+        hub_host, hub_port, player_port = _hub_endpoint(network)
 
         # One definition, in runtime. Reversed so the controller - first in the theme's
         # list - is launched last and takes focus.
@@ -444,7 +469,9 @@ class ChromiumManager:
                 window_name=window_name,
                 splash_enabled=splash_enabled,
                 ws_port=network.ws_port,
-                hub_port=network.hub_port,
+                hub_port=hub_port,
+                hub_host=hub_host,
+                player_port=player_port,
             )
 
             override_key = f"{window_name}windowoverride"

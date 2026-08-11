@@ -267,6 +267,23 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-73 — A window is told which machine its hub is on.** *(machine-checked)* Two query
+parameters are added to the window url, `hubHost` and `playerPort`, and only when
+`network.hub_url` is set. `vpin.endpoints` reads them: `hub` and `assets` follow the hub,
+`player` and `frontend_channel` stay on this machine. Purely additive - with no hub set the
+url is byte-identical to what it was and every endpoint stays loopback.
+*Why:* `endpoints` hardcoded `127.0.0.1` for all four, so a remote player resolved the
+library and its art to its own machine. Its own comment said hosts were "loopback until
+bind configuration says otherwise", but nothing gave bind configuration a way to say so.
+The host travels in the url for the same reason the ports do (PAR-45): the page cannot ask
+before it has a connection. `hubPort` and `playerPort` are separate because they are
+different machines' ports - a hub on 9000 would otherwise have a player dialling its own
+api at 9000, and the hub's at 8001. `assets` follows the hub because art is a file in the
+library; `frontend_channel` never does, because it addresses this page's own windows.
+Covered by `tests/theming/test_chromium_manager.py` and `tests/js/endpoints.test.js`; the
+post-connect port refresh is covered by `tests/theming/test_render_smoke.py`, which caught
+it overwriting a remote hub's port with this install's.
+
 **PAR-72 — `network.hub_url` points a player at its hub.** *(machine-checked)* One new
 config key, defaulting to empty. Empty - which is every existing install and every
 single-machine setup - and the view loads the local library exactly as before. Set, and
