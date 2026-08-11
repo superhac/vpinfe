@@ -28,7 +28,16 @@ from common.games.collections_service import (
     get_collections_manager,
     get_collections_metadata,
 )
-from common.games.game_metadata import game_rating, game_title
+from common.games.game_metadata import (
+    DETECTION_KEYS,
+    game_rating,
+    game_themes,
+    game_title,
+    play_record,
+    table_play_record,
+)
+from common.games.media_lookup import resolved_kinds
+from common.shared_assets import manufacturer_logo_web_path
 
 from . import models, scopes
 from .auth import requires
@@ -133,15 +142,20 @@ def _entry_resource(entry) -> dict:
     meta = entry.game.meta_config or {}
     info = meta.get("Info") or {}
     prefix = f"/api/v1/games/{game_ident}"
+    maker = str(info.get("Manufacturer", "") or "")
     return {
         "game": {
             "id": game_ident,
             "vps_id": str(info.get("VPSId", "") or ""),
             "name": game_title(entry.game),
-            "manufacturer": str(info.get("Manufacturer", "") or ""),
+            "manufacturer": maker,
             "year": str(info.get("Year", "") or ""),
             "type": str(info.get("Type", "") or ""),
+            "themes": game_themes(entry.game),
+            "dir_name": str(getattr(entry.game, "gameDirName", "") or ""),
+            "manufacturer_logo": manufacturer_logo_web_path(maker),
             "rating": game_rating(entry.game),
+            "user": play_record(meta),
         },
         "table": {
             "id": entry.table_id,
@@ -149,8 +163,18 @@ def _entry_resource(entry) -> dict:
             "version": str(entry.table.get("version", "") or ""),
             "rom": str(entry.table.get("rom", "") or ""),
             "default": entry.table_id == default_id,
+            "authors": entry.table.get("authors") or [],
+            "detects": {key.removeprefix("detect_"): bool(entry.table.get(key, False))
+                        for key in DETECTION_KEYS},
+            "user": table_play_record(entry.table),
         },
         "siblings": entry.siblings,
+        "assets": {
+            "pup_pack": bool(getattr(entry.game, "pupPackExists", False)),
+            "alt_color": bool(getattr(entry.game, "altColorExists", False)),
+            "alt_sound": bool(getattr(entry.game, "altSoundExists", False)),
+        },
+        "media": resolved_kinds(entry.game),
         "links": {"game": prefix, "launch": f"{prefix}/launch",
                   "media": f"{prefix}/media"},
     }

@@ -15,16 +15,17 @@ from common.games.game_metadata import (
     DETECTION_KEYS,
     game_title,
     normalize_meta,
+    play_record,
     reorder_leading_article,
     run_time_seconds,
     section,
+    table_play_record,
     vpinfe_section,
 )
 from common.games.game_repository import ensure_games_loaded
 from common.games.media_lookup import resolved_kinds
 from common.media_specs import game_media_payload
 from common.shared_assets import manufacturer_logo_web_path
-from common.timestamps import epoch_to_iso
 from frontend.theme_contract import CURRENT_CONTRACT, project
 
 logger = logging.getLogger("vpinfe.frontend.game_state")
@@ -101,36 +102,6 @@ def _legacy_row(game, logo_cache) -> dict:
     return row
 
 
-def _game_user(meta) -> dict:
-    """The game's play record, in the payload's units rather than the file's.
-
-    `User` is VPX's own section and keeps its shapes: LastRun is an epoch integer and
-    RunTime is minutes, neither of which a theme should have to know. The names match
-    the collection sort axes, which are already the outward vocabulary for these.
-    """
-    user = section(meta, "User")
-    return {
-        "rating": int(user.get("Rating", 0) or 0),
-        "favorite": bool(user.get("Favorite", 0)),
-        "tags": user.get("Tags") or [],
-        "last_played": epoch_to_iso(user.get("LastRun")) or None,
-        "play_count": int(user.get("StartCount", 0) or 0),
-        # The seconds we keep, not the minutes multiplied back up - that only ever
-        # returned whole minutes, and inflated ones at that.
-        "play_time_seconds": run_time_seconds(meta),
-    }
-
-
-def _table_user(table) -> dict:
-    """One table's own play record. Counters only - nothing sets a per-table rating."""
-    user = table.get("user") or {}
-    return {
-        "last_played": user.get("last_run") or None,
-        "play_count": int(user.get("start_count", 0) or 0),
-        "play_time_seconds": int(user.get("run_time_seconds", 0) or 0),
-    }
-
-
 def _entry_row(entry, logo_cache) -> dict:
     """One entry in contract 2: the game, the table it is, and what resolved for it."""
     game = entry.game
@@ -151,7 +122,7 @@ def _entry_row(entry, logo_cache) -> dict:
             "dir_name": game.gameDirName,
             "path": game.fullPathGame,
             "manufacturer_logo": logo_cache[maker],
-            "user": _game_user(meta),
+            "user": play_record(meta),
         },
         "table": {
             "id": entry.table_id,
@@ -162,7 +133,7 @@ def _entry_row(entry, logo_cache) -> dict:
             "authors": entry.table.get("authors") or [],
             "detects": {key.removeprefix("detect_"): bool(entry.table.get(key, False))
                         for key in DETECTION_KEYS},
-            "user": _table_user(entry.table),
+            "user": table_play_record(entry.table),
         },
         "assets": {
             "pup_pack": bool(game.pupPackExists),

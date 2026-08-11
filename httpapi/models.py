@@ -223,9 +223,32 @@ class TableList(ApiModel):
     tables: list[Table]
 
 
+class PlayRecord(ApiModel):
+    """What a person did with this, in a consumer's units rather than the file's - the
+    `.info` keeps LastRun as an epoch integer and RunTime in minutes."""
+
+    rating: int = 0
+    favorite: bool = False
+    tags: list[str] = Field(default_factory=list)
+    last_played: str | None = None
+    play_count: int = 0
+    play_time_seconds: int = 0
+
+
+class TablePlayRecord(ApiModel):
+    """One table's own play record. Counters only - nothing sets a per-table rating."""
+
+    last_played: str | None = None
+    play_count: int = 0
+    play_time_seconds: int = 0
+
+
 class EntryGame(ApiModel):
-    """The game half of an entry - identity, not the full resource. A client wanting
-    the rest follows `links.game`."""
+    """The game half of an entry: enough to show it without a second request, which is
+    what the play lens is for. `links.game` has the rest.
+
+    No filesystem path - where a game lives is true only of the machine that answered.
+    """
 
     id: str
     vps_id: str
@@ -233,7 +256,13 @@ class EntryGame(ApiModel):
     manufacturer: str
     year: str
     type: str
+    themes: list[str] = Field(default_factory=list)
+    dir_name: str = ""
+    manufacturer_logo: str | None = None
+    # Flat, and again inside `user`. The flat one shipped first and clients may read it;
+    # `user.rating` is where it belongs beside the rest of the play record.
     rating: int
+    user: PlayRecord = Field(default_factory=PlayRecord)
 
 
 class EntryTable(ApiModel):
@@ -244,6 +273,17 @@ class EntryTable(ApiModel):
     version: str
     rom: str
     default: bool
+    authors: list[str] = Field(default_factory=list)
+    detects: dict[str, bool] = Field(default_factory=dict)
+    user: TablePlayRecord = Field(default_factory=TablePlayRecord)
+
+
+class EntryAssets(ApiModel):
+    """What the game needs to play as intended - not the artwork it is browsed by."""
+
+    pup_pack: bool = False
+    alt_color: bool = False
+    alt_sound: bool = False
 
 
 class EntryLinks(ApiModel):
@@ -263,6 +303,11 @@ class Entry(ApiModel):
     game: EntryGame
     table: EntryTable
     siblings: int
+    assets: EntryAssets = Field(default_factory=EntryAssets)
+    # Which art exists, not where it lives: the names of the kinds that resolved. The
+    # bytes come from `endpoints.assets`, so naming files here would put a filesystem
+    # path on the wire and several hundred kilobytes with it.
+    media: list[str] = Field(default_factory=list)
     links: EntryLinks
 
 

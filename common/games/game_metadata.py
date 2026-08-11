@@ -206,6 +206,38 @@ def set_game_rating(game, rating: Any) -> int:
     return normalize_rating(rating)
 
 
+
+def play_record(meta: Any) -> dict[str, Any]:
+    """A game's play record, in the shapes a consumer wants rather than the file's.
+
+    `User` is VPX's own section and keeps its own: LastRun an epoch integer, RunTime in
+    minutes. The names match the collection sort axes, which are already the outward
+    vocabulary for these.
+    """
+    from common.timestamps import epoch_to_iso
+
+    user = section(meta, "User")
+    return {
+        "rating": int(user.get("Rating", 0) or 0),
+        "favorite": bool(user.get("Favorite", 0)),
+        "tags": user.get("Tags") or [],
+        "last_played": epoch_to_iso(user.get("LastRun")) or None,
+        "play_count": int(user.get("StartCount", 0) or 0),
+        # The seconds we keep, not the minutes multiplied back up - that only ever
+        # returned whole minutes, and inflated ones at that.
+        "play_time_seconds": run_time_seconds(meta),
+    }
+
+
+def table_play_record(table: dict) -> dict[str, Any]:
+    """One table's own play record. Counters only - nothing sets a per-table rating."""
+    user = table.get("user") or {}
+    return {
+        "last_played": user.get("last_run") or None,
+        "play_count": int(user.get("start_count", 0) or 0),
+        "play_time_seconds": int(user.get("run_time_seconds", 0) or 0),
+    }
+
 def game_frontend_dof_event(game) -> str:
     """The DOF effect a game asks for when selected, or "" to use the default."""
     meta = normalize_meta(getattr(game, "meta_config", {}))
