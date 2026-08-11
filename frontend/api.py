@@ -411,8 +411,7 @@ class API:
     def get_initial_game_index(self):
         # Position the wheel on the last-launched game at startup. Resolved
         # against the current (possibly filtered) view; 0 when disabled or unfound.
-        return last_game.resolve_last_game_index(
-            self._iniConfig, [e.game for e in self.entries])
+        return last_game.resolve_last_game_index(self._iniConfig, self.entries)
 
 
     def get_collections(self):

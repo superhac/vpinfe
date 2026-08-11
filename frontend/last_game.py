@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from common.config_access import SettingsConfig, cfg_get
+from common.games.game_identity import game_id
 
 logger = logging.getLogger("vpinfe.frontend.last_game")
 
@@ -16,20 +17,26 @@ STATE_SECTION = "state"
 STATE_KEY = "last_game"
 
 
-def game_identity(game) -> str:
-    """Stable id for a game, preferring its absolute path over its dir name.
+def entry_identity(entry) -> str:
+    """Stable id for one row of the wheel: the table's, falling back to its game's.
 
-    Used both to save the last-launched game and to resolve it back to an
-    index, so it must be computed the same way in both directions.
+    A game offers several tables, so saving the game comes back to the wrong row on an
+    expanded wheel. Ids rather than a path, because a player reading its library off a
+    hub never sees the hub's filesystem.
     """
-    return str(getattr(game, "fullPathGame", "") or getattr(game, "gameDirName", "") or "")
+    table_id = str(getattr(entry, "table_id", "") or "").strip()
+    if table_id:
+        return table_id
+    return str(game_id(getattr(entry, "game", entry)) or "").strip()
 
 
-def save_last_game(iniConfig, game) -> None:
-    """Persist `game` as the last-launched game when the feature is enabled."""
+def save_last_launched(iniConfig, game, table_id: str = "") -> None:
+    """Persist what just launched. Takes the two ids rather than an entry: no entry
+    exists on the path a Remote or API launch takes."""
     if not SettingsConfig.from_config(iniConfig).restore_last_game:
         return
-    identity = game_identity(game)
+    identity = (str(table_id or "").strip()
+                or str(game_id(game) or "").strip())
     if not identity:
         return
     parser = iniConfig.config
@@ -44,10 +51,10 @@ def save_last_game(iniConfig, game) -> None:
         logger.exception("Could not persist last game selection")
 
 
-def resolve_last_game_index(iniConfig, games) -> int:
-    """Return the index of the saved last game within `games`, else 0.
+def resolve_last_game_index(iniConfig, entries) -> int:
+    """Return the index of the saved last row within `entries`, else 0.
 
-    Returns 0 when the feature is off, nothing is saved, or the saved game
+    Returns 0 when the feature is off, nothing is saved, or the saved row
     isn't in the current view (e.g. filtered out by a startup collection).
     """
     if not SettingsConfig.from_config(iniConfig).restore_last_game:
@@ -55,7 +62,7 @@ def resolve_last_game_index(iniConfig, games) -> int:
     saved = cfg_get(iniConfig, STATE_SECTION, STATE_KEY, "").strip()
     if not saved:
         return 0
-    for index, game in enumerate(games):
-        if game_identity(game) == saved:
+    for index, entry in enumerate(entries):
+        if entry_identity(entry) == saved:
             return index
     return 0

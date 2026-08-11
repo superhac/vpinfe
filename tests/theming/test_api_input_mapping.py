@@ -133,7 +133,7 @@ class TestApiInputMapping(unittest.TestCase):
                 patch("common.host.launch.delete_vpinball_log_on_start_if_configured",
                       side_effect=lambda _settings: call_order.append("delete_log")),
                 patch("common.host.launch.game_play_service"),
-                patch("frontend.play_events.save_last_game"),
+                patch("frontend.play_events.save_last_launched"),
             ):
                 play_events.register(ws_bridge)
                 api.launch_game(0)

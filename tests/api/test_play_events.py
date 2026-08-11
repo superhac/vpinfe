@@ -34,7 +34,7 @@ class PlayEventTests(unittest.TestCase):
         self.bridge = _Bridge()
 
     def _register(self, ini_config=None):
-        with mock.patch.object(play_events, "save_last_game"):
+        with mock.patch.object(play_events, "save_last_launched"):
             play_events.register(self.bridge, None, ini_config)
 
     def _settle(self):
@@ -47,7 +47,7 @@ class PlayEventTests(unittest.TestCase):
         """VPX pauses when its window loses focus, and Windows will not let us hand the
         foreground to a process we spawned - so the windows move, not the focus."""
         browser = mock.Mock()
-        with mock.patch.object(play_events, "save_last_game"), \
+        with mock.patch.object(play_events, "save_last_launched"), \
                 mock.patch.object(play_events.sys, "platform", "win32"):
             play_events.register(self.bridge, browser, None)
             events.emit(events.GAME_LAUNCHING, game=None, ini_config=None)
@@ -61,7 +61,7 @@ class PlayEventTests(unittest.TestCase):
         """game.exited is announced on every path out, so a cabinet with no keyboard is
         never left looking at minimized windows."""
         browser = mock.Mock()
-        with mock.patch.object(play_events, "save_last_game"), \
+        with mock.patch.object(play_events, "save_last_launched"), \
                 mock.patch.object(play_events.sys, "platform", "win32"):
             play_events.register(self.bridge, browser, None)
             events.emit(events.GAME_EXITED)
@@ -70,7 +70,7 @@ class PlayEventTests(unittest.TestCase):
 
     def test_only_windows_moves_its_windows(self) -> None:
         browser = mock.Mock()
-        with mock.patch.object(play_events, "save_last_game"), \
+        with mock.patch.object(play_events, "save_last_launched"), \
                 mock.patch.object(play_events.sys, "platform", "linux"):
             play_events.register(self.bridge, browser, None)
             events.emit(events.GAME_LAUNCHING, game=None, ini_config=None)
@@ -82,7 +82,7 @@ class PlayEventTests(unittest.TestCase):
     def test_a_browser_that_cannot_minimize_does_not_stop_the_launch(self) -> None:
         browser = mock.Mock()
         browser.minimize_all_windows.side_effect = OSError("no window manager")
-        with mock.patch.object(play_events, "save_last_game"), \
+        with mock.patch.object(play_events, "save_last_launched"), \
                 mock.patch.object(play_events.sys, "platform", "win32"):
             play_events.register(self.bridge, browser, None)
             events.emit(events.GAME_LAUNCHING, game=None, ini_config=None)
@@ -104,7 +104,7 @@ class PlayEventTests(unittest.TestCase):
     def test_the_windows_are_driven_by_the_lifecycle(self) -> None:
         self._register()
 
-        with mock.patch.object(play_events, "save_last_game"):
+        with mock.patch.object(play_events, "save_last_launched"):
             events.emit(events.GAME_LAUNCHING, game=None, ini_config=None)
             events.emit(events.GAME_LAUNCHED, game=None, ini_config=None)
             events.emit(events.GAME_EXITED, game=None, ini_config=None)
@@ -120,20 +120,34 @@ class PlayEventTests(unittest.TestCase):
         """The Remote page used to produce no window messages at all."""
         self._register()
 
-        with mock.patch.object(play_events, "save_last_game"):
+        with mock.patch.object(play_events, "save_last_launched"):
             events.emit(events.GAME_LAUNCHING, game=None, ini_config=None)
 
         self.assertEqual(self.bridge.messages, ["GameLaunching", "TableLaunching"])
 
-    def test_the_last_game_is_recorded_on_launch(self) -> None:
+    def test_the_table_that_launched_is_recorded_not_just_its_game(self) -> None:
+        """A game offers several tables, so the game alone comes back to the wrong row
+        on an expanded wheel. The launch says which one it started."""
         game = types.SimpleNamespace(gameDirName="Example")
         ini = types.SimpleNamespace(config={})
         self._register(ini)
 
-        with mock.patch.object(play_events, "save_last_game") as save:
+        with mock.patch.object(play_events, "save_last_launched") as save:
+            events.emit(events.GAME_LAUNCHING, game=game, ini_config=None,
+                        table_id="Tbl1111111")
+
+        save.assert_called_once_with(ini, game, "Tbl1111111")
+
+    def test_a_launch_that_names_no_table_still_records_its_game(self) -> None:
+        """An older publisher, or a folder whose tables have no ids yet."""
+        game = types.SimpleNamespace(gameDirName="Example")
+        ini = types.SimpleNamespace(config={})
+        self._register(ini)
+
+        with mock.patch.object(play_events, "save_last_launched") as save:
             events.emit(events.GAME_LAUNCHING, game=game, ini_config=None)
 
-        save.assert_called_once_with(ini, game)
+        save.assert_called_once_with(ini, game, "")
 
     def test_a_finished_session_sends_the_windows_back_for_the_payload(self) -> None:
         """Without this the play counts a theme shows are whatever they were at boot."""
@@ -224,7 +238,7 @@ class LifecycleMessageSpellingTests(unittest.TestCase):
         play_events.reset_for_tests()
         self.addCleanup(events.clear)
         self.addCleanup(play_events.reset_for_tests)
-        with mock.patch.object(play_events, "save_last_game"):
+        with mock.patch.object(play_events, "save_last_launched"):
             play_events.register(bridge, None, None)
 
         events.emit(events.GAME_LAUNCHING, game=None)

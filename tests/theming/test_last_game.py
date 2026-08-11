@@ -1,84 +1,129 @@
+"""Coming back to the table the player last launched.
+
+Identity is the table's id, falling back to the game's. Two reasons it is not the path it
+used to be: a game folder holds several tables and a path names the folder, so an expanded
+wheel came back to the wrong row; and a player reading its library off a hub never sees the
+hub's filesystem, so a path identifies nothing there. Both ids cross the wire.
+"""
+
+from __future__ import annotations
+
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 
 from common.config_store import ConfigStore
 from frontend import last_game
-from tests.support.library import fake_game
 
 
 def _config(tmp: str) -> ConfigStore:
     return ConfigStore(str(Path(tmp) / "vpinfe.ini"))
 
 
-class TestLastGame(unittest.TestCase):
-    def test_save_then_resolve_round_trips(self) -> None:
+def _game(game_id: str = "", name: str = "Game"):
+    return SimpleNamespace(
+        gameDirName=name, fullPathGame=f"/games/{name}",
+        meta_config={"Info": {"Title": name}, "vpinfe": {"game_id": game_id}})
+
+
+def _entry(table_id: str = "", game_id: str = "", name: str = "Game"):
+    """One row of the wheel, which is what is saved and resolved."""
+    return SimpleNamespace(game=_game(game_id, name), table_id=table_id)
+
+
+class LastLaunchedTests(unittest.TestCase):
+    def test_the_table_is_what_is_saved(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            games = [
-                fake_game("/games/AAA", "AAA"),
-                fake_game("/games/BBB", "BBB"),
-                fake_game("/games/CCC", "CCC"),
-            ]
+            entries = [_entry("Tbl1111111", "Gme1111111", "AAA"),
+                       _entry("Tbl2222222", "Gme2222222", "BBB")]
 
-            last_game.save_last_game(config, games[2])
+            last_game.save_last_launched(config, entries[1].game, "Tbl2222222")
 
-            self.assertEqual(config.config.get("state", "last_game"), "/games/CCC")
-            self.assertEqual(last_game.resolve_last_game_index(config, games), 2)
+            self.assertEqual(config.config.get("state", "last_game"), "Tbl2222222")
+            self.assertEqual(last_game.resolve_last_game_index(config, entries), 1)
+
+    def test_an_expanded_wheel_comes_back_to_the_table_not_the_game(self) -> None:
+        """The case a path could not answer: three rows, one game, three tables."""
+        with TemporaryDirectory() as tmp:
+            config = _config(tmp)
+            entries = [_entry(f"Tbl{n}{n}{n}{n}{n}{n}{n}{n}{n}{n}", "Gme1111111", "AAA")
+                       for n in (1, 2, 3)]
+
+            last_game.save_last_launched(config, entries[2].game, entries[2].table_id)
+
+            self.assertEqual(last_game.resolve_last_game_index(config, entries), 2)
+
+    def test_a_game_with_no_table_ids_still_comes_back(self) -> None:
+        """A folder no build has parsed has no table ids, and its row is the game."""
+        with TemporaryDirectory() as tmp:
+            config = _config(tmp)
+            entries = [_entry("", "Gme1111111", "AAA"), _entry("", "Gme2222222", "BBB")]
+
+            last_game.save_last_launched(config, entries[1].game)
+
+            self.assertEqual(config.config.get("state", "last_game"), "Gme2222222")
+            self.assertEqual(last_game.resolve_last_game_index(config, entries), 1)
 
     def test_resolve_survives_reordering(self) -> None:
+        """The point of saving an identity rather than a position."""
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            game = fake_game("/games/BBB", "BBB")
-            last_game.save_last_game(config, game)
+            last_game.save_last_launched(config, _game("Gme2222222"), "Tbl2222222")
 
-            reordered = [
-                fake_game("/games/CCC", "CCC"),
-                fake_game("/games/BBB", "BBB"),
-                fake_game("/games/AAA", "AAA"),
-            ]
+            reordered = [_entry("Tbl3333333", "Gme3333333"),
+                         _entry("Tbl2222222", "Gme2222222"),
+                         _entry("Tbl1111111", "Gme1111111")]
+
             self.assertEqual(last_game.resolve_last_game_index(config, reordered), 1)
 
-    def test_resolve_returns_zero_when_not_found(self) -> None:
+    def test_a_saved_row_that_is_no_longer_there_starts_at_the_beginning(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            config.config.set("state", "last_game", "/games/GONE")
+            config.config.set("state", "last_game", "Tbl9999999")
 
-            games = [fake_game("/games/AAA", "AAA")]
-            self.assertEqual(last_game.resolve_last_game_index(config, games), 0)
+            self.assertEqual(
+                last_game.resolve_last_game_index(config, [_entry("Tbl1111111")]), 0)
 
-    def test_resolve_returns_zero_when_nothing_saved(self) -> None:
+    def test_nothing_saved_starts_at_the_beginning(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            games = [fake_game("/games/AAA", "AAA")]
-            self.assertEqual(last_game.resolve_last_game_index(config, games), 0)
+
+            self.assertEqual(
+                last_game.resolve_last_game_index(config, [_entry("Tbl1111111")]), 0)
 
     def test_disabled_skips_save_and_resolve(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
             config.config.set("general", "restore_last_game", "false")
+            entries = [_entry("Tbl1111111"), _entry("Tbl2222222")]
 
-            games = [
-                fake_game("/games/AAA", "AAA"),
-                fake_game("/games/BBB", "BBB"),
-            ]
-            last_game.save_last_game(config, games[1])
+            last_game.save_last_launched(config, entries[1].game, "Tbl2222222")
 
-            # Nothing persisted, and resolution is short-circuited to 0.
             self.assertEqual(config.config.get("state", "last_game"), "")
-            self.assertEqual(last_game.resolve_last_game_index(config, games), 0)
+            self.assertEqual(last_game.resolve_last_game_index(config, entries), 0)
 
-    def test_falls_back_to_dir_name_when_path_missing(self) -> None:
+    def test_a_row_with_no_id_at_all_saves_nothing(self) -> None:
+        """Rather than writing "" and matching the first row with nothing either."""
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            game = fake_game("", "OnlyDirName")
-            last_game.save_last_game(config, game)
 
-            self.assertEqual(config.config.get("state", "last_game"), "OnlyDirName")
-            self.assertEqual(
-                last_game.resolve_last_game_index(config, [fake_game("", "Other"), game]),
-                1,
-            )
+            last_game.save_last_launched(config, _game())
+
+            self.assertEqual(config.config.get("state", "last_game"), "")
+
+
+class EntryIdentityTests(unittest.TestCase):
+    def test_the_table_wins_when_it_has_an_id(self) -> None:
+        self.assertEqual(
+            last_game.entry_identity(_entry("Tbl1111111", "Gme1111111")), "Tbl1111111")
+
+    def test_the_game_answers_when_the_table_has_no_id(self) -> None:
+        self.assertEqual(last_game.entry_identity(_entry("", "Gme1111111")), "Gme1111111")
+
+    def test_neither_is_no_identity_rather_than_a_guess(self) -> None:
+        self.assertEqual(last_game.entry_identity(_entry()), "")
 
 
 if __name__ == "__main__":

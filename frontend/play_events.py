@@ -16,7 +16,7 @@ import sys
 import threading
 
 from common import events
-from frontend.last_game import save_last_game
+from frontend.last_game import save_last_launched
 
 logger = logging.getLogger("vpinfe.frontend.play_events")
 
@@ -72,14 +72,14 @@ def _broadcast(message: dict) -> None:
         _bridge.send_event_all_with_iframe({**message, "type": legacy})
 
 
-def on_launching(*, game=None, **_payload) -> None:
+def on_launching(*, game=None, table_id="", **_payload) -> None:
     """Suppress frontend input and record where the player was.
 
     Runs after every hook, so a peripheral that refused the launch has already
     stopped this - input is never suppressed for a launch that is not happening.
     """
     if game is not None and _ini_config is not None:
-        save_last_game(_ini_config, game)
+        save_last_launched(_ini_config, game, table_id)
     _broadcast({"type": "GameLaunching"})
     if sys.platform == "win32" and _browser is not None:
         # VPX pauses whenever its player window loses focus, and Windows will not let a

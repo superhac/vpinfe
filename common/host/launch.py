@@ -26,7 +26,12 @@ from common import events
 from common.config_access import SettingsConfig, VPinPlayConfig
 from common.games import game_play_service
 from common.games.game_metadata import vpinfe_section
-from common.games.tables import default_table, table_names
+from common.games.tables import (
+    default_table,
+    entry_for_filename,
+    table_entries,
+    table_names,
+)
 from common.host import launch_state
 from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
 from common.online.vpinplay_runtime import (
@@ -76,6 +81,12 @@ def _resolve_launcher(game, settings) -> str:
     if not launcher.exists():
         raise LaunchUnavailableError(f"Launcher not found ({source_key}): {launcher}")
     return str(launcher)
+
+
+def _launched_table_id(game, vpx_path: str) -> str:
+    """The id of the table being launched, or "" for a folder with none yet."""
+    entries = table_entries(getattr(game, "meta_config", {}))
+    return entry_for_filename(entries, os.path.basename(vpx_path))[0]
 
 
 def _resolve_table(game, table: str | None) -> str:
@@ -211,7 +222,10 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
 
     # Hooks run first and can still stop this - releasing the peripherals is one.
     # Nothing below has happened yet, so a refusal here leaves nothing to undo.
-    events.emit(events.GAME_LAUNCHING, game=game, ini_config=ini_config)
+    # The table id says which build of the game this is: a subscriber recording what
+    # played cannot work it out from the game, which offers several.
+    events.emit(events.GAME_LAUNCHING, game=game, ini_config=ini_config,
+                table_id=_launched_table_id(game, vpx_path))
 
     started_at = None
     profile = None
