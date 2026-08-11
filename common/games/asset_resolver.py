@@ -30,14 +30,6 @@ VPX_ASSET_KINDS = (
     AssetKind("scv", ".scv", True),
 )
 
-# Directory-scoped: one per game folder, shared by every table in it.
-GAME_DIRECTORY_KINDS = {
-    "pup_pack": "pupvideos",
-    "alt_color_serum": "serum",
-    "alt_color_vni": "vni",
-    "music": "music",
-}
-
 RESOLUTION_DEDICATED = "dedicated"
 RESOLUTION_SHARED = "shared"
 RESOLUTION_NONE = "none"
