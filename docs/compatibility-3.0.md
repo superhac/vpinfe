@@ -267,6 +267,20 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-72 — `network.hub_url` points a player at its hub.** *(machine-checked)* One new
+config key, defaulting to empty. Empty - which is every existing install and every
+single-machine setup - and the view loads the local library exactly as before. Set, and
+`View` holds the entries the hub resolved. `Entry` gains `meta_config` and `creation_time`,
+both forwarding to the game it holds.
+*Why:* nothing named which hub a player reads from, so the remote path built in PAR-71 had
+no way to be switched on. The default preserves 2.x behavior by being the absence of a
+setting rather than a mode to opt out of. A remote list is entries, not games, and the two
+are not interchangeable: `entries_for` reads a game's table dicts out of its `.info`, and
+the hub kept those - re-deriving from what arrived yields an empty wheel, silently. The
+frontend's sorts read a title and a creation time off whatever they are handed, so an entry
+forwards both rather than every sort learning two shapes. Covered by
+`tests/theming/test_remote_view.py`, including that an install saying nothing stays local.
+
 **PAR-71 — A player can read its library from a hub.** New: `GET /library/entries`, the
 play lens over the whole library, and `common/games/hub_library.py`, which turns what it
 returns back into local `Entry` objects. `WireGame` grows the resolved asset flags, the

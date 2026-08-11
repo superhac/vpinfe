@@ -81,6 +81,16 @@ class Entry:
     def filename(self) -> str:
         return entry_filename(self.table)
 
+    # A player's list is entries rather than games, and the frontend's sorts read these
+    # two off whatever they are handed. Forwarding beats teaching every sort both shapes.
+    @property
+    def meta_config(self):
+        return getattr(self.game, "meta_config", {})
+
+    @property
+    def creation_time(self):
+        return getattr(self.game, "creation_time", None)
+
 
 def _user_value(game, key, fallback=0):
     try:

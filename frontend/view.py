@@ -10,11 +10,21 @@ from __future__ import annotations
 import logging
 import threading
 
-from common.games import collection_resolver
+from common.config_access import NetworkConfig
+from common.games import collection_resolver, hub_library
 from common.games.game_repository import ensure_games_loaded
 from frontend import game_state
 
 logger = logging.getLogger("vpinfe.frontend.view")
+
+
+def hub_url(ini_config) -> str:
+    """The hub this install reads its library from, or "" when it holds its own."""
+    try:
+        return NetworkConfig.from_config(ini_config.config).hub_url
+    except Exception:
+        logger.debug("Could not read the hub URL; holding a local library", exc_info=True)
+        return ""
 
 
 def expands_tables(ini_config) -> bool:
@@ -39,13 +49,18 @@ class View:
         self._expanded = expands_tables(ini_config) if expanded is None else bool(expanded)
         self.lock = threading.RLock()
 
+        # With a hub set, this install is a player: the list it holds is entries the hub
+        # resolved, not games off a disk it may not have.
+        self._hub_url = hub_url(ini_config)
+        self._remote = bool(self._hub_url)
+
         # An unreadable library is empty, not fatal: a first run before the scan has
         # none, and wants a view it can fill in rather than an exception.
         if games is not None:
             self.all_games = games
         else:
             try:
-                self.all_games = ensure_games_loaded()
+                self.all_games = self._load()
             except Exception:
                 logger.debug("No library to build a view from yet", exc_info=True)
                 self.all_games = []
@@ -62,6 +77,14 @@ class View:
         self._stale = True
 
         self.reset_to_default()
+
+    def _load(self, collection: str = ""):
+        """The library: the hub's entries, or the local games. Different kinds of thing,
+        which `rebuild_entries` knows."""
+        if self._remote:
+            return hub_library.fetch_entries(self._hub_url, collection,
+                                             expanded=self._expanded)
+        return ensure_games_loaded()
 
     # -- staleness -----------------------------------------------------------
 
@@ -83,9 +106,14 @@ class View:
 
     def rebuild_entries(self) -> None:
         """Recompute the list the wheel steps through. Call after a sort: it mutates in
-        place, so the change is otherwise undetectable."""
+        place, so the change is otherwise undetectable.
+
+        A remote library is already entries, and cannot be re-derived: `entries_for` reads
+        a game's table dicts out of its `.info`, and those stayed on the hub.
+        """
         games = self.filtered_games or []
-        self._entries = collection_resolver.entries_for(games, expanded=self._expanded)
+        self._entries = (list(games) if self._remote
+                         else collection_resolver.entries_for(games, expanded=self._expanded))
         self._entries_source = games
         self._payload = None
 

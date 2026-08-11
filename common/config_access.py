@@ -246,6 +246,9 @@ class NetworkConfig:
     # has authentication.
     theme_assets_bind: str = "127.0.0.1"
     hub_bind: str = "0.0.0.0"
+    # Empty means this install holds its own library. Set, it is the hub a player reads
+    # from - the one setting that makes this process a player rather than both roles.
+    hub_url: str = ""
 
     @classmethod
     def from_config(cls, source: Any) -> NetworkConfig:
@@ -260,6 +263,7 @@ class NetworkConfig:
                                       "127.0.0.1").strip() or "127.0.0.1",
             hub_bind=cfg_get(source, "network", "hub_bind",
                              "0.0.0.0").strip() or "0.0.0.0",
+            hub_url=cfg_get(source, "network", "hub_url", "").strip(),
         )
 
 

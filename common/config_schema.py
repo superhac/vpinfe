@@ -584,6 +584,16 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             aliases=("manager_ui_port", "manageruiport"),
         ),
         ConfigOption(
+            "hub_url",
+            type="string",
+            default="",
+            label="Hub URL",
+            description="Read the library from a hub on another machine, for example"
+                        " http://cabinet.local:8001. Empty - the default - means this"
+                        " install holds its own library, which is every single-machine"
+                        " setup.",
+        ),
+        ConfigOption(
             "hub_bind",
             type="string",
             default="0.0.0.0",
