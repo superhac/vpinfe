@@ -33,6 +33,16 @@ def epoch_to_iso(value) -> str:
     return stamp.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def iso_to_epoch(value) -> float | None:
+    """An ISO stamp back as epoch seconds, or None if it is not one. The inverse of
+    `epoch_to_iso`, for reading a time that crossed the wire back into something that
+    sorts as a number."""
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
+    except (TypeError, ValueError, OSError, OverflowError):
+        return None
+
+
 def iso_from_asctime(value) -> str:
     """A C asctime stamp - `Tue Dec 13 16:03:21 2022` - as naive ISO. No Z: asctime
     carries no timezone, so claiming UTC would be inventing one."""

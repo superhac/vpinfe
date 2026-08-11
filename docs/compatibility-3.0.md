@@ -267,6 +267,22 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-69 — Filtering and sorting can read an entry, not just a game.** New:
+`common/games/wire_entry.py`, which presents a wire entry in the shape the metadata
+accessors read, and an `iso_to_epoch` in `common/timestamps.py`, the inverse of
+`epoch_to_iso`.
+Nothing existing changes: the axis registry, the sort keys and every caller are
+untouched, and no payload gains or loses a field.
+*Why:* the seven filter axes and the seven sort orders are written against a `Game` and
+reach for `meta_config` - the raw `.info` sections. A client holding its own copy of the
+library has entries instead, whose fields the hub already resolved, so it could not ask
+the same questions of them. Rebuilding those sections from the entry means one
+implementation answers on both sides rather than two that agree until they do not. The
+resolution the hub did is not repeated: `name` goes back under `Info.Title` unchanged,
+which is only sound because moving a leading article in a title that has had one moved is
+a no-op. Covered by `tests/curation/test_wire_entry.py`, which runs every axis and every
+order against a game and its entry and compares.
+
 **PAR-68 — The entry says when its folder appeared.** Entries gain `game.created_at`, an
 ISO-8601 UTC timestamp, on both the REST lens (`GET /collections/{name}/entries`) and the
 contract 2 theme payload. Purely additive. Null where the filesystem gave no answer, which

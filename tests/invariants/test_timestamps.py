@@ -12,6 +12,7 @@ from common.timestamps import (
     epoch_to_iso,
     iso_from_asctime,
     iso_from_authored_date,
+    iso_to_epoch,
     utc_now_iso,
 )
 
@@ -101,6 +102,17 @@ class UtcTests(unittest.TestCase):
     def test_an_epoch_reads_back_as_utc(self):
         self.assertEqual(epoch_to_iso(1671033801), "2022-12-14T16:03:21Z")
         self.assertEqual(epoch_to_iso("not a number"), "")
+
+    def test_a_stamp_reads_back_as_the_epoch_it_came_from(self):
+        """A time that crossed the wire has to sort as the number it started as."""
+        self.assertEqual(iso_to_epoch("2022-12-14T16:03:21Z"), 1671033801)
+        for value in (0, 300, 1671033801):
+            self.assertEqual(iso_to_epoch(epoch_to_iso(value)), value)
+
+    def test_a_stamp_that_is_not_one_is_absent_rather_than_zero(self):
+        """Zero is a real moment and sorts as oldest; "no answer" must not become it."""
+        for value in (None, "", "not a stamp"):
+            self.assertIsNone(iso_to_epoch(value))
 
 
 if __name__ == "__main__":
