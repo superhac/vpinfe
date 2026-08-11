@@ -50,7 +50,15 @@ def _fetch(url: str):
 @unittest.skipIf(_UNSUPPORTED, "scoped to Linux and macOS, as the render smoke test is")
 @unittest.skipIf(chromium_path() is None, "no Chromium on this machine")
 class SeparationTests(TempTree):
-    """Slow by nature: two processes, each booting a real instance, and a browser."""
+    """Slow by nature: two processes, each booting a real instance, and a browser.
+
+    Seen failing once in a full-suite run on 2026-08-11 and not reproduced since - six
+    consecutive suite runs and four in isolation after it. Not diagnosed, so not fixed:
+    recorded here rather than guessed at, and the timeouts were already generous enough
+    that a slow machine is not the obvious answer. If it recurs, `_diagnose` prints the
+    page's failed requests, its console and the player's log, which is what a real
+    diagnosis would start from.
+    """
 
     READY_TIMEOUT = 90.0
 
