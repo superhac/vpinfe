@@ -113,7 +113,8 @@ class EntryLensParityTests(TempTree):
         wire = [_entry_resource(e) for e in entries]
         stamps = [row["game"]["created_at"] for row in wire]
         client_order = [game_state.game_title(e.game) for _, e in sorted(
-            zip(stamps, entries), key=lambda pair: pair[0], reverse=True)]
+            zip(stamps, entries, strict=True), key=lambda pair: pair[0],
+            reverse=True)]
 
         self.assertEqual(client_order, hub_order)
         self.assertEqual(client_order, ["Medieval Madness", "Twilight Zone",

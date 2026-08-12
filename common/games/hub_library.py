@@ -99,7 +99,6 @@ def verify_shared_library(entries, local_games) -> dict[str, Any]:
     different problems for a caller to act on, and what to do about each is a policy
     question this does not answer.
     """
-    from common.games.game_identity import game_id
     from common.games.tables import table_entries
 
     local: dict[str, str] = {}

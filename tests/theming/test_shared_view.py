@@ -12,6 +12,7 @@ change made through any window visible from all of them.
 from __future__ import annotations
 
 import configparser
+import sys
 import threading
 import unittest
 from types import SimpleNamespace
@@ -141,8 +142,23 @@ class ViewConcurrencyTests(unittest.TestCase):
     """One shared view makes two windows' calls genuinely concurrent, where three
     separate copies were accidentally safe."""
 
+    # Preempt hard. The window this catches is a few bytecodes wide, so a laptop runs
+    # right through it - this failed on CI while passing here every time.
+    SWITCH_INTERVAL = 1e-6
+
+    def setUp(self) -> None:
+        previous = sys.getswitchinterval()
+        sys.setswitchinterval(self.SWITCH_INTERVAL)
+        self.addCleanup(sys.setswitchinterval, previous)
+
     def test_sorting_while_another_window_reads_does_not_tear(self) -> None:
-        games = [_game(name, index) for index, name in enumerate(NAMES * 20)]
+        """A sort mutates `filtered_games` in place. A reader that rebuilds while that is
+        happening walks a list being reordered, and sees a wheel of nothing.
+
+        Two sorters and four readers rather than one each: the failing interleaving needs
+        a reader to land inside a rebuild, and one thread of each rarely arranges it.
+        """
+        games = [_game(name, index) for index, name in enumerate(NAMES * 100)]
         with patch("frontend.view.ensure_games_loaded", return_value=games):
             view = frontend_view.View(_ini(), games=games)
 
@@ -164,7 +180,8 @@ class ViewConcurrencyTests(unittest.TestCase):
                 except Exception as exc:      # noqa: BLE001
                     errors.append(exc)
 
-        threads = [threading.Thread(target=sorter), threading.Thread(target=reader)]
+        threads = ([threading.Thread(target=sorter) for _ in range(2)]
+                   + [threading.Thread(target=reader) for _ in range(4)])
         for thread in threads:
             thread.start()
         for thread in threads:

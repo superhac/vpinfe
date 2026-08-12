@@ -130,11 +130,18 @@ class View:
     @property
     def entries(self):
         """What an index from a theme addresses. Rebuilt when the source list is
-        replaced, so swapping `filtered_games` cannot leave a stale view behind."""
-        games = self.filtered_games or []
-        if self._entries is None or self._entries_source is not games:
-            self.rebuild_entries()
-        return self._entries
+        replaced, so swapping `filtered_games` cannot leave a stale view behind.
+
+        Under the lock: a sort mutates `filtered_games` in place, so a rebuild racing one
+        walks a list being reordered - and a reader can otherwise see `_entries` assigned
+        before `_entries_source` catches up. The window that produced that is small enough
+        to pass on a laptop and fail on a shared CI runner.
+        """
+        with self.lock:
+            games = self.filtered_games or []
+            if self._entries is None or self._entries_source is not games:
+                self.rebuild_entries()
+            return self._entries
 
     def reset_to_default(self) -> None:
         """Alphabetical by the (article-reordered) title, ascending. `filtered_games` is

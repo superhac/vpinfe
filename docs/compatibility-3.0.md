@@ -267,6 +267,19 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-80 — Reading the wheel's entries takes the view's lock.** *(machine-checked)* The
+`entries` property read and sometimes rebuilt `_entries` without holding the lock every
+writer takes. No API or payload changes.
+*Why:* a sort mutates `filtered_games` in place, so a reader that rebuilt while one was
+running walked a list being reordered and got an empty wheel - and could separately see
+`_entries` assigned before `_entries_source` caught up. PAR-60 made this reachable by
+giving three windows one view: the copies it replaced were accidentally safe. The window
+is a few bytecodes wide, which is why it passed locally every time and failed on a shared
+CI runner. Measured with an aggressive switch interval: 800 torn reads without the lock,
+none with it. The test now sets that interval and runs two sorters against four readers,
+so it fails on a laptop rather than only in CI. Covered by
+`tests/theming/test_shared_view.py`.
+
 **PAR-79 — A player can check that its library really is the hub's.**
 *(machine-checked)* New: `network.verify_shared_library`, off by default, and
 `hub_library.verify_shared_library`. With a hub set and the flag on, a player compares its
