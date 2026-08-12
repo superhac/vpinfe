@@ -2,20 +2,12 @@
 
 from __future__ import annotations
 
-INPUT_MAPPING_ACTION_ORDER = [
-    "left",
-    "right",
-    "up",
-    "down",
-    "pageup",
-    "pagedown",
-    "select",
-    "menu",
-    "back",
-    "exit",
-    "collectionmenu",
-    "tutorial",
-]
+from common.input_registry import INPUT_ACTIONS
+
+# The registry declares the actions in the order a player meets them, so take that
+# rather than restate it: the hand-written copy still said left/right/up/down after
+# those became previous/next, and seven of its twelve entries sorted nothing.
+INPUT_MAPPING_ACTION_ORDER = [action.name for action in INPUT_ACTIONS]
 
 # Which settings render as a checkbox. Derived from the schema rather than listed here:
 # the hand-written list was still spelled the way the ini spelled it, so after the move to

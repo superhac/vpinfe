@@ -41,7 +41,7 @@ IGNORED_SECTIONS = {
 # Icons for each section (fallback to 'settings' if not defined)
 SECTION_ICONS = {
     'general': 'folder_open',
-    'Input': 'sports_esports',
+    'input': 'sports_esports',
     'logger': 'terminal',
     'media': 'perm_media',
     'displays': 'monitor',
@@ -52,7 +52,7 @@ SECTION_ICONS = {
 SECTION_DESCRIPTIONS = {
     'general': 'Core paths, startup behavior, and theme defaults.',
     'displays': 'Monitor assignments and playfield orientation settings.',
-    'Input': 'Controller and input-related preferences.',
+    'input': 'Controller and input-related preferences.',
     'logger': 'Verbosity, console logging, and quick log access.',
     'media': 'Default media handling and fallback asset preferences.',
     'network': 'Ports and services used by the local frontend stack.',
@@ -62,12 +62,13 @@ SECTION_DESCRIPTIONS = {
 }
 
 
-MEDIA_PRIORITY_KEYS = (
-    'playfieldmediapriority',
-    'bgmediapriority',
-    'dmdmediapriority',
-    'realdmd_media_priority',
-)
+# One section per window since [Displays] was split up, so a per-window control is
+# picked by (section, key) rather than by a key that spelled its window into its name.
+WINDOW_SECTIONS = ('windows.playfield', 'windows.backglass', 'windows.scoreview')
+
+# media_priority now repeats across the window sections; the real DMD is hardware
+# rather than a window, so its own key stays in [media].
+MEDIA_PRIORITY_KEYS = ('media_priority', 'realdmd_media_priority')
 
 def _get_collection_names():
     """Get list of collection names for the dropdown."""
@@ -273,7 +274,9 @@ def render_panel(tab=None):
         )
 
     def build_config_input(section: str, key: str, value: str):
-        friendly_label = get_friendly_name(key)
+        # With the section: screen_id exists once per window section, and without it
+        # every window's monitor picker is labelled for the backglass.
+        friendly_label = get_friendly_name(key, section)
         special_label_above = (
             (section == 'libdmdutil' and key == 'enabled')
             or (section == 'libdmdutil' and key == 'pin2dmd_enabled')
@@ -325,7 +328,7 @@ def render_panel(tab=None):
                     options=theme_options,
                     value=value
                 ).props('outlined dense options-dense').classes('config-input')
-            elif section == 'media' and key in MEDIA_PRIORITY_KEYS:
+            elif key in MEDIA_PRIORITY_KEYS and section in ('media', *WINDOW_SECTIONS):
                 normalized_priority = str(value or '').strip().lower()
                 if key == 'realdmd_media_priority':
                     priority_options = {'color': 'Colorized frame', 'standard': 'Standard frame'}
@@ -357,7 +360,7 @@ def render_panel(tab=None):
                         'anything - use Playfield Monitor Mounting and Rotate VPinFE '
                         'Display for that.'
                     )
-            elif section == 'displays' and key == 'playfieldorientation':
+            elif section == 'windows.playfield' and key == 'orientation':
                 inp = ui.select(
                     options={'landscape': 'Landscape', 'portrait': 'Portrait'},
                     value=(value or 'landscape').strip().lower()
@@ -367,7 +370,7 @@ def render_panel(tab=None):
                     'turned on its side in the cabinet. This does not rotate anything by '
                     'itself - it tells themes what shape to lay out for.'
                 )
-            elif section == 'displays' and key == 'playfieldrotation':
+            elif section == 'windows.playfield' and key == 'rotation':
                 inp = ui.select(
                     options={
                         '0': '0\u00b0 - the screen is already the right way up',
@@ -384,8 +387,7 @@ def render_panel(tab=None):
                     'appears upright on it. If the desktop appears sideways, or the taskbar '
                     'runs up the side of the screen, set 90 or 270 here instead.'
                 )
-            elif section == 'displays' and key in (
-                    'playfieldscreenid', 'bgscreenid', 'dmdscreenid'):
+            elif section in WINDOW_SECTIONS and key == 'screen_id':
                 monitor_options = config_options.get_display_id_options(detected_displays, value)
                 inp = ui.select(
                     options=monitor_options,
@@ -410,7 +412,7 @@ def render_panel(tab=None):
                 inputs[section]['__windows_included'] = windows_inp
             else:
                 inp = ui.input(value=value).props('outlined dense').classes('config-input')
-                if section == 'displays' and key in ('bgwindowoverride', 'dmdwindowoverride'):
+                if section in WINDOW_SECTIONS and key == 'window_override':
                     inp.props('hint="Format: x,y,width,height"')
                     inp.tooltip(
                         'Optional high-DPI override passed to themes instead of the detected window bounds.'

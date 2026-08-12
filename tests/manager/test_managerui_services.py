@@ -168,8 +168,12 @@ class ManagerUiServiceTests(unittest.TestCase):
     def test_config_field_metadata(self):
         self.assertTrue(is_checkbox_field("Settings", "muteaudio"))
         self.assertFalse(is_checkbox_field("Settings", "gamerootdir"))
-        self.assertEqual(sort_input_mapping_keys(["keyback", "keyleft", "keycustom"], "key"), [
-            "keyleft",
+        # previous sorts ahead of back because the registry lists it first; an action
+        # the registry does not know keeps its place at the end. "keyleft" used to
+        # stand in for previous here, and passed only because the order list was
+        # still spelled the pre-rename way.
+        self.assertEqual(sort_input_mapping_keys(["keyback", "keyprevious", "keycustom"], "key"), [
+            "keyprevious",
             "keyback",
             "keycustom",
         ])
