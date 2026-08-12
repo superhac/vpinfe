@@ -16,6 +16,7 @@ import asyncio
 import json
 import sys
 import unittest
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -45,6 +46,16 @@ def _info(title: str) -> dict:
 def _fetch(url: str):
     with urllib.request.urlopen(url, timeout=30) as handle:
         return json.load(handle)
+
+
+def _post(url: str) -> tuple[int, str]:
+    """(status, error code) for a POST that is expected to be refused."""
+    request = urllib.request.Request(url, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=30) as handle:
+            return handle.status, ""
+    except urllib.error.HTTPError as exc:
+        return exc.code, (json.load(exc).get("error") or {}).get("code", "")
 
 
 @unittest.skipIf(_UNSUPPORTED, "scoped to Linux and macOS, as the render smoke test is")
@@ -97,6 +108,73 @@ class SeparationTests(TempTree):
         self.assertEqual(rendered, str(len(TITLES)),
                          "the player drew a wheel of games it does not have a copy of")
         self.assertEqual(failures, [])
+
+    def test_two_players_share_one_hub_without_sharing_each_other(self) -> None:
+        """The stronger version of the gate: anything assuming there is one player fails
+        here and nowhere else.
+
+        Both render the same library, so the hub really is serving two. Then one launches
+        and the other must not report it - `launch_state` is a module-level singleton, and
+        the question this answers is whether one per process is enough. It is, because a
+        player is a process; a shared launch state would show up as the idle player
+        claiming the other's game.
+        """
+        with LiveInstance(self.hub_root) as hub:
+            hub_api = f"http://127.0.0.1:{hub.ports['manager']}"
+            hub.wait_for_api()
+
+            with LiveInstance(self.player_root,
+                              extra_settings={("network", "hub_url"): hub_api}) as one, \
+                 LiveInstance(self.player_root,
+                              extra_settings={("network", "hub_url"): hub_api}) as two:
+                for player in (one, two):
+                    player.wait_for_api()
+                    player.hub_assets_port = hub.ports["assets"]
+
+                self.assertNotEqual(one.ports["manager"], two.ports["manager"],
+                                    "two players on one machine need their own ports")
+
+                # Both draw the hub's library, neither holding a copy of it.
+                for label, player in (("first", one), ("second", two)):
+                    with self.subTest(player=label):
+                        rendered, failures = self._render(player)
+                        self.assertEqual(rendered, str(len(TITLES)))
+                        self.assertEqual(failures, [])
+
+                # Play state is answered per player, not read off a shared singleton.
+                # Idle is what both report here, which on its own would pass whether or
+                # not they are isolated - what makes it evidence is that each is asked.
+                for label, player in (("first", one), ("second", two)):
+                    with self.subTest(player=label):
+                        state = _fetch(f"http://127.0.0.1:{player.ports['manager']}"
+                                       "/api/v1/play/state")
+                        self.assertEqual(state["launching"], False, label)
+                        self.assertIsNone(state["game_name"], label)
+
+    def test_a_player_cannot_launch_the_library_it_is_showing(self) -> None:
+        """Current behavior, asserted so the gap is visible rather than discovered.
+
+        `POST /games/{id}/launch` resolves the id against *this* install's catalog, and a
+        player's is empty - so a player renders a wheel it cannot launch from. Nothing is
+        broken by this today: the frontend launches through its own window channel against
+        files it reaches on a shared filesystem, and the API route is for a hub. It
+        matters the moment anything tries to drive a remote player over HTTP, which is
+        what item 9's roster would do.
+        """
+        with LiveInstance(self.hub_root) as hub:
+            hub.wait_for_api()
+            hub_api = f"http://127.0.0.1:{hub.ports['manager']}"
+            game_id = _fetch(f"{hub_api}/api/v1/library/entries")["entries"][0]["game"]["id"]
+
+            with LiveInstance(self.player_root,
+                              extra_settings={("network", "hub_url"): hub_api}) as player:
+                player.wait_for_api()
+                status, code = _post(f"http://127.0.0.1:{player.ports['manager']}"
+                                     f"/api/v1/games/{game_id}/launch")
+
+        self.assertEqual((status, code), (404, "not_found"),
+                         "if this starts succeeding, a player gained its own catalog and "
+                         "this test should say what that means instead")
 
     def _render(self, player: LiveInstance):
         """Open the player's playfield window and read back what the theme drew."""
