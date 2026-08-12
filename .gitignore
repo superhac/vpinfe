@@ -58,3 +58,6 @@ venv/
 
 # macOS folder metadata
 .DS_Store
+
+# uv's resolved lockfile. Local tooling output - the project pins nothing through it.
+uv.lock
