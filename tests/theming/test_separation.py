@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -175,6 +176,47 @@ class SeparationTests(TempTree):
         self.assertEqual((status, code), (404, "not_found"),
                          "if this starts succeeding, a player gained its own catalog and "
                          "this test should say what that means instead")
+
+    def test_the_hub_learns_which_players_it_is_serving(self) -> None:
+        """A roster is what turns the install_id on an event into a name someone
+        recognizes. Two players, so it is a roster rather than a single-entry special
+        case, and each has to arrive with its own identity."""
+        with LiveInstance(self.hub_root) as hub:
+            hub.wait_for_api()
+            hub_api = f"http://127.0.0.1:{hub.ports['manager']}"
+            self.assertEqual(_fetch(f"{hub_api}/api/v1/players")["count"], 0,
+                             "a hub knows nobody until someone says hello")
+
+            with LiveInstance(self.player_root,
+                              extra_settings={("network", "hub_url"): hub_api}) as one, \
+                 LiveInstance(self.player_root,
+                              extra_settings={("network", "hub_url"): hub_api}) as two:
+                one.wait_for_api()
+                two.wait_for_api()
+                roster = self._roster_of(hub_api, expected=2)
+
+        self.assertEqual(len(roster), 2, "both players, not one entry overwritten twice")
+        ids = {player["install_id"] for player in roster}
+        self.assertEqual(len(ids), 2, "each player announced its own identity")
+        self.assertNotIn("", ids, "an install with no id is not an identity")
+        for player in roster:
+            self.assertTrue(player["display_name"], player)
+            self.assertTrue(player["first_seen"], player)
+            self.assertEqual(player["address"], "127.0.0.1",
+                             "the hub records where it was reached from, not what it "
+                             "was told")
+
+    def _roster_of(self, hub_api: str, *, expected: int, timeout: float = 30.0) -> list:
+        """The roster once it holds `expected` players. Polled because announcing is a
+        background thread on each player - a fixed sleep would be a race either way."""
+        deadline = time.monotonic() + timeout
+        players = []
+        while time.monotonic() < deadline:
+            players = _fetch(f"{hub_api}/api/v1/players")["players"]
+            if len(players) >= expected:
+                return players
+            time.sleep(0.25)
+        return players
 
     def _render(self, player: LiveInstance):
         """Open the player's playfield window and read back what the theme drew."""

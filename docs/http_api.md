@@ -55,6 +55,10 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/library/entries` | The play lens over the whole library. `?expanded=true` for one entry per table |
 | GET | `/api/v1/library/filters` | Every filter axis, with the values this library holds |
 | POST | `/api/v1/library/scan` | Rebuild game metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
+| GET | `/api/v1/players` | The players this hub has been told about |
+| PUT | `/api/v1/players` | Announce a player to this hub (idempotent) |
+| GET | `/api/v1/players/{id}` | One player |
+| DELETE | `/api/v1/players/{id}` | Forget one |
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library game count. The reference for logo packs and alias maps |
 | GET | `/api/v1/games` | List games (`q`, `limit`, `offset`) |
 | GET | `/api/v1/games/{id}` | One game |
@@ -491,6 +495,28 @@ cannot disagree, and an axis added there appears here without a second edit.
 A `rating` axis carries `values: null` rather than a list. It is 0–5 on every install, and
 enumerating the ratings currently in use would offer a different scale to two libraries
 and a shrinking one as ratings change.
+
+## Players
+
+A hub records which players have said hello, keyed by `install_id`. That is the whole of
+it - there is no routing a launch to a chosen player, no aggregating their state and no
+conflict resolution, because each of those needs a decision *across* players that has not
+been made.
+
+What it buys today is attribution. Every event carries the `install_id` it happened on,
+and a roster turns that id into a name a person recognizes.
+
+A player announces itself with `PUT /players` on startup, sending its `install_id`,
+`display_name` and `roles`. Announcing twice is one player heard from twice: `first_seen`
+survives, everything else is refreshed, because the install owns those and the roster is a
+copy that goes stale by design.
+
+**The address is observed, not claimed.** The hub reads it off the socket and ignores any
+the body carries - a player behind a router does not know how it is reached, and a caller
+that could name its own address could name someone else's.
+
+A player that cannot reach its hub starts anyway. Registering costs a label, not a
+capability.
 
 ## Jobs
 

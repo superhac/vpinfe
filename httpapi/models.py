@@ -54,6 +54,7 @@ class DiscoveryLinks(ApiModel):
     events: str | None
     jobs: str | None
     manufacturers: str | None
+    players: str | None = None
 
 
 class ServiceEndpoint(ApiModel):
@@ -83,6 +84,40 @@ class Discovery(ApiModel):
 
 class Health(ApiModel):
     status: str
+
+
+# --- Players ---------------------------------------------------------------
+
+class PlayerLinks(ApiModel):
+    self_: str = Field(alias="self")
+
+
+class PlayerResource(ApiModel):
+    """One player a hub has seen. `display_name` and `roles` are what that install last
+    reported about itself, cached so the roster reads without asking every player - they
+    go stale by design, because the install owns them."""
+
+    install_id: str
+    display_name: str = ""
+    roles: list[str] = Field(default_factory=list)
+    address: str = ""
+    first_seen: str = ""
+    last_seen: str = ""
+    links: PlayerLinks
+
+
+class PlayerList(ApiModel):
+    count: int
+    players: list[PlayerResource]
+
+
+class PlayerAnnouncement(ApiModel):
+    """What a player says about itself. The address is not here: the hub reads it off
+    the socket, because a player behind a router does not know how it is reached."""
+
+    install_id: str
+    display_name: str = ""
+    roles: list[str] = Field(default_factory=list)
 
 
 # --- Play ------------------------------------------------------------------

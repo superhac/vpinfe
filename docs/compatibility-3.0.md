@@ -267,6 +267,25 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-78 — A hub knows which players it is serving.** *(machine-checked)* New:
+`GET/PUT/DELETE /api/v1/players`, two scopes (`players:read`, `players:write`), a
+`players` link in discovery, and `put_json` in `common/http_client.py`. A player with
+`network.hub_url` set announces itself at startup. Purely additive - an install with no
+hub announces nothing, and every existing route is untouched.
+*Why:* the roster storage shipped in PAR-66 with nothing writing to it, so a hub held an
+empty file. Events already carry the `install_id` they happened on (PAR-55); a roster is
+what turns that id into a name a person recognizes, which is the whole of what item 9 was
+scoped to - data, no screen. Routing a launch to a chosen player, aggregating state and
+conflict resolution are all deliberately absent: each needs a decision across players that
+has not been made. The address is read off the socket rather than the request body,
+because a player behind a router does not know how it is reached and a caller that could
+name its own address could name someone else's. Announcing is best effort on a background
+thread: a hub that refuses or cannot be reached costs a label, not a frontend. It also
+mints the install id if there is none - announcing is the first thing that needs one and
+it runs before the API, which is the other place that mints. Covered by
+`tests/api/test_players.py` and `tests/theming/test_separation.py`, which registers two
+live players with a live hub.
+
 **PAR-77 — The table is a first-class object on the wire.** *(machine-checked)* One
 `table_descriptor` builds the table half of both play lenses, so `GET /collections/{name}
 /entries` and the contract 2 theme payload carry the same fields. New on both: `hidden`,

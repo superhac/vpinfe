@@ -36,6 +36,11 @@ SYSTEM_READ = "system:read"
 # end someone's game.
 SYSTEM_ADMIN = "system:admin"
 
+# The players a hub knows. Reading the roster is not the same as joining it: a player
+# announces itself, which is a write, and anything asking who is out there is a read.
+PLAYERS_READ = "players:read"
+PLAYERS_WRITE = "players:write"
+
 EVENTS_SUBSCRIBE = "events:subscribe"
 
 # Asking what slow work is running. Starting it carries the scope of what it does -
@@ -52,6 +57,7 @@ CORE = frozenset({
     CONFIG_READ, CONFIG_WRITE,
     SYSTEM_READ, SYSTEM_ADMIN,
     EVENTS_SUBSCRIBE, JOBS_READ,
+    PLAYERS_READ, PLAYERS_WRITE,
 })
 
 EXTENSION_PREFIX = "ext:"

@@ -50,6 +50,41 @@ def hub_services(hub_url: str, *, timeout: int = http_client.DEFAULT_TIMEOUT) ->
     return services if isinstance(services, dict) else {}
 
 
+def announce_to_hub(hub_url: str, config, *, timeout: int = http_client.DEFAULT_TIMEOUT) -> bool:
+    """Tell the hub this player exists. True if it was recorded.
+
+    Best effort on purpose: a hub that refuses or cannot be reached must not stop a player
+    starting. The roster is for attribution - putting a name to the `install_id` an event
+    already carries - so failing to register costs a label, not a capability.
+
+    The address is not sent. The hub reads it off the socket, which is the only party that
+    knows how this player was actually reached.
+    """
+    from common import install_identity
+
+    # Minted here if this install has none. Announcing is the first thing that needs an
+    # identity, and it runs before the API starts - which is the other place that mints
+    # one. An id that is not on disk is not an identity, so this writes.
+    try:
+        install_id = install_identity.ensure_id(config)
+    except Exception:
+        logger.debug("Could not establish an install id; not announcing", exc_info=True)
+        return False
+    if not install_id:
+        return False
+    try:
+        http_client.put_json(
+            urljoin(hub_url.rstrip("/") + "/", "api/v1/players"),
+            {"install_id": install_id,
+             "display_name": install_identity.display_name(config),
+             "roles": install_identity.roles(config)},
+            timeout=timeout)
+    except Exception:
+        logger.debug("Could not announce this player to %s", hub_url, exc_info=True)
+        return False
+    return True
+
+
 def _entry_from_wire(row: dict[str, Any]) -> Entry:
     """One wire row as the Entry the rest of the frontend already reads. `siblings` comes
     from the hub, which is the only side that can see a game's other tables."""

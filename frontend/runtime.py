@@ -13,6 +13,7 @@ from pathlib import Path
 
 from common import shutdown
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
+from common.games import hub_library
 from common.host import system_actions
 from common.host.display_service import get_display_monitors
 from common.online.vpinplay_runtime import clear_alternate_profile
@@ -51,6 +52,15 @@ def create_api_instances(iniconfig, logger):
     # and only the controller window takes input - so three copies were three derivations
     # of one answer, kept in step by everyone doing the same work.
     shared_view = view.View(iniconfig)
+
+    # A player says hello to the hub whose library it is about to show. On a single
+    # machine there is no hub_url and this does nothing. Best effort: a hub that cannot
+    # be reached costs a name in someone's roster, not a frontend.
+    if network.hub_url:
+        threading.Thread(
+            target=hub_library.announce_to_hub,
+            args=(network.hub_url, iniconfig),
+            daemon=True, name="announce-to-hub").start()
 
     for window_name, config_key in window_configs(iniconfig):
         screen_id_str = displays.window_screen_id(config_key).strip()

@@ -21,6 +21,7 @@ from . import (
     instance,
     jobs,
     library,
+    players,
     manufacturers,
     play,
     scopes,
@@ -87,6 +88,7 @@ def create_api_app() -> FastAPI:
     api.include_router(collections.router)
     api.include_router(jobs.router)
     api.include_router(library.router)
+    api.include_router(players.router)
     api.include_router(manufacturers.router)
     api.include_router(play.router)
     api.include_router(games.router)
