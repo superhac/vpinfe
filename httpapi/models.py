@@ -317,10 +317,10 @@ class EntryGame(ApiModel):
 class EntryTable(ApiModel):
     """The table half. `default` is the game's own default, not this entry's position.
 
-    `manufacturer`, `year` and `type` are what the .vpx itself records, which can
-    disagree with what VPSdb says about the game - a recreation of a 1979 machine built
-    in 2021 is both, and the table's answer is the one a table-scoped filter means. Null
-    where the file has not been parsed, rather than borrowing the game's.
+    `release_date` is when this build was published, which is the table's own answer and
+    not the game's. The .vpx also records a company name, a company year and a playfield
+    variant; none is here, because none is populated in practice and the first two would
+    duplicate the game's.
 
     `id` is the same id `GET /games/{id}/tables` reports, so a client can hold one table
     across both lenses.
@@ -333,9 +333,6 @@ class EntryTable(ApiModel):
     file_hash: str = ""
     default: bool
     hidden: bool = False
-    manufacturer: str | None = None
-    year: str | None = None
-    type: str | None = None
     release_date: str | None = None
     authors: list[str] = Field(default_factory=list)
     detects: dict[str, bool] = Field(default_factory=dict)

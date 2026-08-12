@@ -267,6 +267,22 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-81 — The `.vpx`'s company fields are not published.** *(machine-checked)* The
+entry's table half briefly carried `manufacturer`, `year` and `type` from the `.vpx`'s
+`tableinfo`. All three are removed before anything consumed them; `release_date` and
+`version`, which come from the same block, stay.
+*Why:* measured across the 162 parsable `.vpx` files in a real library, `companyname`,
+`companyyear` and `playfieldvariant` are populated in **none** of them - authors fill in
+the filename, the version and the release date and leave VPX's company block alone. The
+same measurement puts `release_date` at 74% and `version` at 93%, which is why those two
+are worth carrying. Two of the three were also duplicates: a table's company and year are
+the *game's* company and year, which VPSdb does populate. And `playfieldvariant` is a
+rendering mode (`fss` versus a standard playfield), not SS/EM - publishing it as `type`
+beside the game's `type` would have put two unrelated meanings behind one word on the same
+payload, which is the collision `VOCABULARY.local.md` exists to prevent. Re-adding any of
+them is additive if a library is ever found that fills them in. Covered by
+`tests/curation/test_wire_entry.py`.
+
 **PAR-80 — Reading the wheel's entries takes the view's lock.** *(machine-checked)* The
 `entries` property read and sometimes rebuilt `_entries` without holding the lock every
 writer takes. No API or payload changes.
@@ -319,14 +335,14 @@ live players with a live hub.
 **PAR-77 — The table is a first-class object on the wire.** *(machine-checked)* One
 `table_descriptor` builds the table half of both play lenses, so `GET /collections/{name}
 /entries` and the contract 2 theme payload carry the same fields. New on both: `hidden`,
-and the table's own `manufacturer`, `year`, `type` and `release_date`. `default` was
+and the table's own `release_date`. `default` was
 REST-only and is now on both. `GET /games/{id}/tables` gains `id`, the same one the play
 lens uses, and `file_hash`. A player restores the storage shape through
 `wire_entry.table_of`.
 *Why:* a game folder holds several tables and each answers for itself, but the transport
 treated the table as a few fields hanging off a game. Three consequences, all real: a
-table's own manufacturer/year/type never crossed, so the `table` filter scope the axis
-registry already declares had nothing to filter on; `hidden` never crossed, so a player
+table's own `release_date` never crossed, so nothing could tell one build from another by
+when it shipped; `hidden` never crossed, so a player
 could only ever be handed a list the hub had already filtered; and the two lenses named
 the same table differently, with the management lens carrying no id at all - a client
 could not tell that `GET /games/{id}/tables` and an entry described the same table. The

@@ -244,13 +244,14 @@ def table_descriptor(table: dict, *, default_id: str = "") -> dict[str, Any]:
 
     A game folder holds several tables and each answers for itself, so this is the whole
     of what a table is on the wire rather than a few fields borrowed from its game. Built
-    once here because the REST lens and the theme payload have to agree: a client that
-    filters on `table.year` in one and reads a different answer in the other has no way
-    to tell which is the table's.
+    once here because the REST lens and the theme payload have to agree.
 
-    The .vpx's own manufacturer/year/type stay null when the file has not been parsed.
-    Falling back to the game's would state a table's provenance from the game's metadata,
-    which is exactly the conflation ids and per-table parsing exist to undo.
+    The .vpx's `companyname`, `companyyear` and `playfieldvariant` are deliberately absent.
+    Measured across 162 real tables they are populated in **none** of them - authors fill
+    in the filename, the version and the release date, and leave VPX's company fields
+    alone. The first two would also duplicate the game's, which VPSdb does populate, and
+    `playfieldvariant` is a rendering mode rather than SS/EM, so publishing it as `type`
+    beside the game's `type` would put two unrelated meanings behind one word.
     """
     def parsed(key):
         """Null rather than "" so "not parsed" is distinct from "parsed as blank"."""
@@ -266,9 +267,6 @@ def table_descriptor(table: dict, *, default_id: str = "") -> dict[str, Any]:
         "file_hash": str(table.get("file_hash", "") or ""),
         "default": bool(default_id) and table.get(TABLE_ID_KEY) == default_id,
         "hidden": table.get("hidden") is True,
-        "manufacturer": parsed("manufacturer"),
-        "year": parsed("year"),
-        "type": parsed("type"),
         "release_date": parsed("release_date"),
         "authors": table.get("authors") or [],
         "detects": {key.removeprefix("detect_"): bool(table.get(key, False))

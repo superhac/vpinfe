@@ -100,9 +100,8 @@ def table_of(entry: dict[str, Any]) -> dict[str, Any]:
             "run_time_seconds": user.get("play_time_seconds", 0) or 0,
         },
     }
-    for key in ("manufacturer", "year", "type", "release_date"):
-        if table.get(key) is not None:
-            restored[key] = table[key]
+    if table.get("release_date") is not None:
+        restored["release_date"] = table["release_date"]
     restored.update({f"detect_{name}": bool(value) for name, value in detects.items()})
     return restored
 

@@ -138,7 +138,6 @@ class WireEntryTests(TempTree):
         original = {
             "id": "Tbl1111111", "filename": "AFM.vpx", "version": "1.2",
             "rom": "afm_113b", "file_hash": "3a77427e", "default": True, "hidden": False,
-            "manufacturer": "Bally", "year": "1995", "type": "SS",
             "release_date": "1995-06-01", "authors": ["Someone"],
             "detects": {"nfozzy": True, "fleep": False, "ssf": True, "lut": False,
                         "scorbit": False, "fastflips": False, "flex": False,
@@ -165,13 +164,23 @@ class WireEntryTests(TempTree):
         self.assertIs(table_descriptor(restored)["hidden"], True)
 
     def test_a_table_the_hub_never_parsed_says_so(self) -> None:
-        """Null, not the game's answer: a table's provenance is the file's own."""
-        restored = wire_entry.table_of({"table": {"id": "T", "filename": "x.vpx"}})
-        described = table_descriptor(restored)
+        """Null rather than "" so "not parsed" stays distinct from "parsed as blank"."""
+        described = table_descriptor(
+            wire_entry.table_of({"table": {"id": "T", "filename": "x.vpx"}}))
 
-        for field in ("manufacturer", "year", "type", "release_date"):
-            with self.subTest(field=field):
-                self.assertIsNone(described[field])
+        self.assertIsNone(described["release_date"])
+
+    def test_the_vpx_company_fields_are_not_published(self) -> None:
+        """Measured across 162 real tables: companyname, companyyear and playfieldvariant
+        are populated in none of them. The first two would also duplicate the game's, and
+        playfieldvariant is a rendering mode rather than SS/EM - publishing it as `type`
+        beside the game's `type` would put two unrelated meanings behind one word."""
+        described = table_descriptor({"id": "T", "manufacturer": "Bally",
+                                      "year": "1995", "type": "FSS"})
+
+        for absent in ("manufacturer", "year", "type"):
+            with self.subTest(field=absent):
+                self.assertNotIn(absent, described)
 
     def test_a_game_with_nothing_recorded_reads_as_zero(self) -> None:
         """Absent is not an error, and must not sort as newest or most played."""
