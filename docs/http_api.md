@@ -265,6 +265,39 @@ extension ever claiming a core scope. The vocabulary is in `httpapi/scopes.py`; 
 are reserved for endpoints that don't exist yet, because settling a name is cheap and renaming
 one after callers depend on it is not.
 
+## What this API assumes about your network
+
+**It is unauthenticated, and it answers on every interface by default.** Anything that can
+reach the port is granted every scope — reading the library, rewriting config, uploading
+files, launching games, and `system:admin`. There are no tokens and no accounts.
+
+This is what VPinFE has always done, and 3.0 does not change it. It is written down here
+because 3.0 is the release that makes the API a documented, versioned surface worth
+building against, and a default nobody stated is a default nobody can decide about.
+
+**Run it on a network you trust.** A home LAN behind a router is the assumption. A shared
+or public network is not, and neither is port-forwarding it to the internet.
+
+Two settings decide reachability, and they are separate on purpose:
+
+| setting | default | what it serves |
+|---|---|---|
+| `network.hub_bind` | `0.0.0.0` | the API and the Manager UI |
+| `network.theme_assets_bind` | `127.0.0.1` | theme packages and the table library's media |
+
+`hub_bind` answers everywhere because the Remote Control page and the mobile QR flow are
+the point — a phone administering a cabinet is a supported workflow, not an accident. Set
+it to `127.0.0.1` if you want the API reachable only from the machine itself; the Remote
+and mobile pages stop working from other devices, which is the trade.
+
+`theme_assets_bind` is loopback because opening it shares read access to the table library
+itself. Opening it is what a player on another machine needs to fetch artwork, and VPinFE
+logs a warning when it is not loopback.
+
+An identity already records whether a caller reached the API from this machine (`origin`),
+read from the socket rather than a header. Nothing acts on it yet — that is the policy
+decision above, and it is deliberately not made here.
+
 ## Capabilities
 
 Discovery reports what this instance can actually do, so a feature that needs hardware or

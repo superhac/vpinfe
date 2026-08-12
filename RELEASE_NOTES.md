@@ -14,6 +14,13 @@ build and it changes how your library is stored — read the next section first.
   backed up the same way. Expect a burst of writes on first start and nothing after.
 - To undo it: the Tables page offers a restore when it finds backups, or run
   `--restore-info`.
+- **The API has no authentication, and it answers on every interface.** Anything that can
+  reach the port can read your library, change settings, upload files and launch tables.
+  That is how VPinFE has always worked and 3.0 does not change it — but 3.0 is the release
+  that makes the API worth building against, so it is worth saying plainly: run it on a
+  network you trust, and do not forward the port to the internet. Set `network.hub_bind`
+  to `127.0.0.1` to keep it on the machine itself, at the cost of the remote and mobile
+  pages working from other devices.
 
 ### What's New
 - **Core** — VPinFE can ask before it quits, restarts or powers off the machine. Off by
