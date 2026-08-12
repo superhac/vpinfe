@@ -20,9 +20,9 @@ from pathlib import Path
 
 from common.config_schema import canonical, spellings
 
-PAGE = Path(__file__).resolve().parents[2] / "managerui" / "pages" / "vpinfe_config.py"
+PAGES = Path(__file__).resolve().parents[2] / "managerui" / "pages"
 
-# The sections the page special-cases, and the keys it names inside each.
+# The sections these pages special-case, and the keys they name inside each.
 NAMED_KEYS = {
     "general": (
         "vpx_bin_path", "game_root_dir", "vpx_ini_path",
@@ -38,7 +38,12 @@ NAMED_KEYS = {
     ),
     "media": ("realdmd_media_priority",),
     "mobile": ("rename_mask_to_default_ini", "rename_mask_to_default_ini_mask"),
+    # VPinPlay gates its sync button and QR code on these, so a stale name here
+    # disables both while the fields on screen are visibly filled in.
+    "vpinplay": ("user_id", "initials", "machine_id", "api_endpoint", "sync_on_exit"),
 }
+
+SOURCES = ("vpinfe_config.py", "vpinplay.py")
 
 
 class ConfigPageKeyTests(unittest.TestCase):
@@ -49,20 +54,23 @@ class ConfigPageKeyTests(unittest.TestCase):
                 with self.subTest(section=section, key=key):
                     self.assertEqual(canonical(section, key), key)
 
-    def test_page_does_not_name_a_stale_spelling(self) -> None:
-        """The page's own string literals, checked against the schema."""
-        literals = {
-            node.value
-            for node in ast.walk(ast.parse(PAGE.read_text(encoding="utf-8")))
-            if isinstance(node, ast.Constant) and isinstance(node.value, str)
-        }
-        stale = []
-        for section, keys in NAMED_KEYS.items():
-            for key in keys:
-                for older in _older_spellings(section, key):
-                    if older in literals:
-                        stale.append(f"{section}.{older} (now {key})")
-        self.assertEqual(stale, [], f"config page still names renamed settings: {stale}")
+    def test_pages_do_not_name_a_stale_spelling(self) -> None:
+        """The pages' own string literals, checked against the schema."""
+        for source in SOURCES:
+            with self.subTest(source=source):
+                literals = {
+                    node.value
+                    for node in ast.walk(ast.parse((PAGES / source).read_text(encoding="utf-8")))
+                    if isinstance(node, ast.Constant) and isinstance(node.value, str)
+                }
+                stale = [
+                    f"{section}.{older} (now {key})"
+                    for section, keys in NAMED_KEYS.items()
+                    for key in keys
+                    for older in _older_spellings(section, key)
+                    if older in literals
+                ]
+                self.assertEqual(stale, [], f"{source} still names renamed settings: {stale}")
 
 
 def _older_spellings(section: str, key: str) -> set[str]:
