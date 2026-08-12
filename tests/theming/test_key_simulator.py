@@ -159,7 +159,19 @@ class HeadlessImportTests(unittest.TestCase):
         self.assertTrue(callable(module.KeySimulator.key_id_to_pynput))
 
 
+# Importable and usable are now different questions - which is the whole point of the
+# fix above. These build the real map, so they need a machine where pynput actually
+# loads; a headless runner imports the module fine and raises here.
+try:
+    import pynput.keyboard  # noqa: F401
+except Exception as exc:                    # no display, or no input backend
+    PYNPUT_ERROR: Exception | None = exc
+else:
+    PYNPUT_ERROR = None
+
+
 @unittest.skipIf(KeySimulator is None, f"key_simulator unavailable here: {IMPORT_ERROR}")
+@unittest.skipIf(PYNPUT_ERROR is not None, f"pynput will not load here: {PYNPUT_ERROR}")
 class KeyMapTests(unittest.TestCase):
     def test_the_map_carries_every_key_id_the_page_can_send(self) -> None:
         """Derived from names rather than written out, so this checks the derivation
