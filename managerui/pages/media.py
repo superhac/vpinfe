@@ -21,6 +21,16 @@ MEDIA_TYPES = media_service.MEDIA_TYPES
 MEDIA_KEY_TO_FILENAME = media_service.MEDIA_KEY_TO_FILENAME
 IMAGE_MEDIA_KEYS = media_service.IMAGE_MEDIA_KEYS
 
+# Column order only. The names, labels and fields all come from MEDIA_TYPES; this just
+# keeps Flyer where it has always sat on this page, ahead of the Real DMD pair rather
+# than after them. A key missing here would drop its column, so the table build asserts
+# it covers MEDIA_TYPES exactly.
+COLUMN_ORDER = [
+    "backglass", "scoreview", "playfield", "playfield_fss", "wheel", "cab", "flyer",
+    "real_dmd", "real_dmd_color", "playfield_video", "backglass_video",
+    "scoreview_video", "audio",
+]
+
 
 def invalidate_media_cache():
     """Reset the media cache so the next page visit triggers a fresh scan."""
@@ -74,21 +84,19 @@ def render_panel():
     with ui.column().classes('w-full'):
         load_page_style("media.css")
 
+        # Hand-written column names drifted from the media keys at the vocabulary rename,
+        # and five columns spent that time bound to fields no row had. Derive them.
+        label_by_key = {key: label for key, label, _ in MEDIA_TYPES}
+        if set(COLUMN_ORDER) != set(label_by_key):
+            raise RuntimeError(
+                "COLUMN_ORDER and MEDIA_TYPES disagree: "
+                f"{set(COLUMN_ORDER) ^ set(label_by_key)}")
         columns = [
             {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
-            {'name': 'backglass', 'label': 'BG', 'field': 'has_backglass', 'align': 'center', 'sortable': True},
-            {'name': 'scoreview', 'label': 'DMD', 'field': 'has_scoreview', 'align': 'center', 'sortable': True},
-            {'name': 'game_img', 'label': 'Table', 'field': 'has_table', 'align': 'center', 'sortable': True},
-            {'name': 'fss', 'label': 'FSS', 'field': 'has_fss', 'align': 'center', 'sortable': True},
-            {'name': 'wheel', 'label': 'Wheel', 'field': 'has_wheel', 'align': 'center', 'sortable': True},
-            {'name': 'cab', 'label': 'Cab', 'field': 'has_cab', 'align': 'center', 'sortable': True},
-            {'name': 'flyer', 'label': 'Flyer', 'field': 'has_flyer', 'align': 'center', 'sortable': True},
-            {'name': 'realdmd', 'label': 'Real DMD', 'field': 'has_realdmd', 'align': 'center', 'sortable': True},
-            {'name': 'realdmd_color', 'label': 'Real DMD Color', 'field': 'has_realdmd_color', 'align': 'center', 'sortable': True},
-            {'name': 'table_video', 'label': 'Table Video', 'field': 'has_game_video', 'align': 'center', 'sortable': True},
-            {'name': 'backglass_video', 'label': 'BG Video', 'field': 'has_backglass_video', 'align': 'center', 'sortable': True},
-            {'name': 'scoreview_video', 'label': 'DMD Video', 'field': 'has_scoreview_video', 'align': 'center', 'sortable': True},
-            {'name': 'audio', 'label': 'Audio', 'field': 'has_audio', 'align': 'center', 'sortable': True},
+        ] + [
+            {'name': key, 'label': label_by_key[key], 'field': f'has_{key}',
+             'align': 'center', 'sortable': True}
+            for key in COLUMN_ORDER
         ]
 
         # --- Filter state and functions ---
@@ -536,14 +544,9 @@ def render_panel():
                   .style("flex: 1; overflow: auto;")
             )
 
-            # Lookup for media_key -> label
-            MEDIA_KEY_TO_LABEL = {key: label for key, label, _ in MEDIA_TYPES}
-
             # Custom slot for each media type column to show thumbnail or missing indicator
             for media_key, _media_label, media_filename in MEDIA_TYPES:
                 col_name = media_key
-                if media_key == 'table':
-                    col_name = 'game_img'
                 emit_expr = "$parent.$emit('media_click', [props.row.game_dir, props.row.table_path, props.row.name, '" + media_key + "'])"
                 is_video = media_filename.endswith('.mp4')
                 is_audio = media_filename.endswith('.mp3')
@@ -621,7 +624,7 @@ def render_panel():
                 game_path = args[1]
                 game_name = args[2]
                 media_key = args[3]
-                media_label = MEDIA_KEY_TO_LABEL.get(media_key, media_key)
+                media_label = label_by_key.get(media_key, media_key)
                 open_replace_dialog(
                     game_dir=game_dir,
                     game_path=game_path,
