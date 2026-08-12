@@ -13,8 +13,6 @@ import sys
 import time
 from pathlib import Path
 
-from pynput.keyboard import Key
-
 from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from managerui.paths import VPINFE_INI_PATH
@@ -22,6 +20,9 @@ from managerui.paths import VPINFE_INI_PATH
 logger = logging.getLogger("vpinfe.manager.keysimulator")
 
 if sys.platform == "darwin":
+    # Inside the branch: pynput imports fine on a Mac, and a headless Linux runner never
+    # reaches this. The `else` below defers its own import for the same reason.
+    from pynput.keyboard import Key
     from Quartz import (
         CGEventCreateKeyboardEvent,
         CGEventPost,
@@ -59,7 +60,15 @@ if sys.platform == "darwin":
                 event = CGEventCreateKeyboardEvent(None, keycode, False)
                 CGEventPost(kCGHIDEventTap, event)
 else:
-    from pynput.keyboard import Controller as QuartzKeyboardController
+    def QuartzKeyboardController(*args, **kwargs):  # noqa: N802 - stands in for the class
+        """pynput's Controller, imported when one is first built.
+
+        `PynputKeyboardBackend.keyboard` is already a lazy property, so nothing constructs
+        one until something actually types - and a machine with no input backend can now
+        import this module without pynput raising."""
+        from pynput.keyboard import Controller
+
+        return Controller(*args, **kwargs)
 
 
 class PynputKeyboardBackend:
@@ -257,62 +266,46 @@ class KeySimulator:
             73: "insert",
         })
 
-    KEY_ID_TO_PYNPUT = {
+    # Every named key resolves to `Key.<the same name>`, so the map is derived rather
+    # than written out. `cmd_r` is the one exception and stays stated.
+    NAMED_KEYS = (
+        "enter", "esc", "backspace", "tab", "space",
+        "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12",
+        "home", "page_up", "delete", "end", "page_down",
+        "right", "left", "down", "up",
+        "ctrl_l", "shift_l", "alt_l", "cmd", "ctrl_r", "shift_r", "alt_r",
+    )
+
+    # Not on macOS, where pynput does not define them.
+    NAMED_KEYS_NON_DARWIN = ("print_screen", "pause", "insert")
+
+    # The characters a key id and its pynput value spell the same way.
+    LITERAL_KEYS = {
         **{str(n): str(n) for n in range(10)},
         **{chr(c): chr(c) for c in range(ord('a'), ord('z') + 1)},
-        "-": "-",
-        "=": "=",
-        "[": "[",
-        "]": "]",
-        "\\": "\\",
-        ";": ";",
-        "'": "'",
-        "`": "`",
-        ",": ",",
-        ".": ".",
-        "/": "/",
-        "enter": Key.enter,
-        "esc": Key.esc,
-        "backspace": Key.backspace,
-        "tab": Key.tab,
-        "space": Key.space,
-        "f1": Key.f1,
-        "f2": Key.f2,
-        "f3": Key.f3,
-        "f4": Key.f4,
-        "f5": Key.f5,
-        "f6": Key.f6,
-        "f7": Key.f7,
-        "f8": Key.f8,
-        "f9": Key.f9,
-        "f10": Key.f10,
-        "f11": Key.f11,
-        "f12": Key.f12,
-        "home": Key.home,
-        "page_up": Key.page_up,
-        "delete": Key.delete,
-        "end": Key.end,
-        "page_down": Key.page_down,
-        "right": Key.right,
-        "left": Key.left,
-        "down": Key.down,
-        "up": Key.up,
-        "ctrl_l": Key.ctrl_l,
-        "shift_l": Key.shift_l,
-        "alt_l": Key.alt_l,
-        "cmd": Key.cmd,
-        "ctrl_r": Key.ctrl_r,
-        "shift_r": Key.shift_r,
-        "alt_r": Key.alt_r,
-        "cmd_r": Key.cmd,
+        **{c: c for c in "-=[]\\;'`,./"},
     }
 
-    if sys.platform != "darwin":
-        KEY_ID_TO_PYNPUT.update({
-            "print_screen": Key.print_screen,
-            "pause": Key.pause,
-            "insert": Key.insert,
-        })
+    @staticmethod
+    def key_id_to_pynput():
+        """The pynput key map, built on first use.
+
+        Not a class attribute: every named value is a `pynput.Key`, and pynput raises at
+        import wherever there is no input backend - a headless runner, a container, a
+        server install. Building this at class-definition time made the whole module
+        unimportable there, so `managerui/pages/remote.py` never reached the failure it
+        already imports lazily to handle.
+        """
+        from pynput.keyboard import Key
+
+        mapping = dict(KeySimulator.LITERAL_KEYS)
+        names = KeySimulator.NAMED_KEYS
+        if sys.platform != "darwin":
+            names += KeySimulator.NAMED_KEYS_NON_DARWIN
+        mapping.update({name: getattr(Key, name) for name in names})
+        # Right command types as command; pynput's `cmd_r` is not used.
+        mapping["cmd_r"] = Key.cmd
+        return mapping
 
     KEY_ID_TO_YDOTOOL = {
         "1": 2,
@@ -599,4 +592,4 @@ class KeySimulator:
     def create_backend(self):
         if self.backend_name == "ydotool":
             return YdotoolKeyboardBackend(self.KEY_ID_TO_YDOTOOL, debug=self.debug)
-        return PynputKeyboardBackend(self.KEY_ID_TO_PYNPUT)
+        return PynputKeyboardBackend(self.key_id_to_pynput())

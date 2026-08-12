@@ -305,6 +305,10 @@ class ManagerUiServiceTests(unittest.TestCase):
             with mock.patch.dict(sys.modules, {"pynput": fake_pynput,
                                            "pynput.keyboard": fake_keyboard}):
                 from managerui.key_simulator import KeySimulator
+
+                # Built inside the stub: the map is a call rather than a class attribute,
+                # so that a machine with no input backend can import the module at all.
+                mapping = KeySimulator.key_id_to_pynput()
         finally:
             sys.modules.pop("managerui.key_simulator", None)
             if original is not None:
@@ -313,7 +317,7 @@ class ManagerUiServiceTests(unittest.TestCase):
         for key_id in ("0", "1", "5", "9", "a", "z", "-", "=", "[", "]", "\\",
                        ";", "'", "`", ",", ".", "/"):
             with self.subTest(key_id=key_id):
-                self.assertEqual(KeySimulator.KEY_ID_TO_PYNPUT[key_id], key_id)
+                self.assertEqual(mapping[key_id], key_id)
 
     def test_game_index_lookup_update_and_search(self):
         rows = set_rows([
