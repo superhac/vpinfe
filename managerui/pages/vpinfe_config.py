@@ -66,7 +66,7 @@ MEDIA_PRIORITY_KEYS = (
     'playfieldmediapriority',
     'bgmediapriority',
     'dmdmediapriority',
-    'realdmdmediapriority',
+    'realdmd_media_priority',
 )
 
 def _get_collection_names():
@@ -171,11 +171,11 @@ def render_panel(tab=None):
     # Get all sections, filter out ignored ones
     sections = [s for s in config.config.sections() if s not in IGNORED_SECTIONS]
     launch_preview_keys = {
-        ('general', 'vpxbinpath'),
-        ('general', 'globalinioverride'),
-        ('general', 'globaltableinioverrideenabled'),
-        ('general', 'globaltableinioverridemask'),
-        ('general', 'vpxlaunchenv'),
+        ('general', 'vpx_bin_path'),
+        ('general', 'global_ini_override'),
+        ('general', 'global_game_ini_override_enabled'),
+        ('general', 'global_game_ini_override_mask'),
+        ('general', 'vpx_launch_env'),
     }
 
     def _as_bool(value) -> bool:
@@ -188,30 +188,30 @@ def render_panel(tab=None):
         settings_inputs = inputs.get('general', {})
 
         vpxbin = str(
-            getattr(settings_inputs.get('vpxbinpath'), 'value', cfg_get(config, 'general', 'vpx_bin_path', ''))
+            getattr(settings_inputs.get('vpx_bin_path'), 'value', cfg_get(config, 'general', 'vpx_bin_path', ''))
             or ''
         ).strip()
         global_ini_override = str(
-            getattr(settings_inputs.get('globalinioverride'), 'value', cfg_get(config, 'general', 'global_ini_override', ''))
+            getattr(settings_inputs.get('global_ini_override'), 'value', cfg_get(config, 'general', 'global_ini_override', ''))
             or ''
         ).strip()
         tableini_enabled = _as_bool(
             getattr(
-                settings_inputs.get('globaltableinioverrideenabled'),
+                settings_inputs.get('global_game_ini_override_enabled'),
                 'value',
                 cfg_get(config, 'general', 'global_game_ini_override_enabled', 'false'),
             )
         )
         tableini_mask = str(
             getattr(
-                settings_inputs.get('globaltableinioverridemask'),
+                settings_inputs.get('global_game_ini_override_mask'),
                 'value',
                 cfg_get(config, 'general', 'global_game_ini_override_mask', ''),
             )
             or ''
         ).strip()
         launch_env = str(
-            getattr(settings_inputs.get('vpxlaunchenv'), 'value', cfg_get(config, 'general', 'vpx_launch_env', ''))
+            getattr(settings_inputs.get('vpx_launch_env'), 'value', cfg_get(config, 'general', 'vpx_launch_env', ''))
             or ''
         ).strip()
 
@@ -239,14 +239,14 @@ def render_panel(tab=None):
         settings_inputs = inputs.get('general', {})
         disable_defaults = _as_bool(
             getattr(
-                settings_inputs.get('disabledefaultchromeoptions'),
+                settings_inputs.get('disable_default_chrome_options'),
                 'value',
                 cfg_get(config, 'general', 'disable_default_chrome_options', 'false'),
             )
         )
         exclude_raw = str(
             getattr(
-                settings_inputs.get('chromeoptionsexclude'),
+                settings_inputs.get('chrome_options_exclude'),
                 'value',
                 cfg_get(config, 'general', 'chrome_options_exclude', ''),
             )
@@ -254,7 +254,7 @@ def render_panel(tab=None):
         ).strip()
         additional_raw = str(
             getattr(
-                settings_inputs.get('chromeoptions'),
+                settings_inputs.get('chrome_options'),
                 'value',
                 cfg_get(config, 'general', 'chrome_options', ''),
             )
@@ -276,7 +276,7 @@ def render_panel(tab=None):
         friendly_label = get_friendly_name(key)
         special_label_above = (
             (section == 'libdmdutil' and key == 'enabled')
-            or (section == 'libdmdutil' and key == 'pin2dmdenabled')
+            or (section == 'libdmdutil' and key == 'pin2dmd_enabled')
         )
         is_checkbox = is_checkbox_field(section, key)
 
@@ -287,11 +287,11 @@ def render_panel(tab=None):
             if not is_checkbox or special_label_above:
                 if section == 'libdmdutil' and key == 'enabled':
                     label_text = 'libdmdutil Service'
-                elif section == 'libdmdutil' and key == 'pin2dmdenabled':
+                elif section == 'libdmdutil' and key == 'pin2dmd_enabled':
                     label_text = 'PIN2DMD'
                 else:
                     label_text = friendly_label
-                if section == 'general' and key == 'globaltableinioverridemask':
+                if section == 'general' and key == 'global_game_ini_override_mask':
                     mask_value = (value or '').strip()
                     if mask_value:
                         label_text = (
@@ -307,12 +307,12 @@ def render_panel(tab=None):
                     options=collection_options,
                     value=value
                 ).props('outlined dense options-dense').classes('config-input')
-            elif section == 'general' and key == 'vpxlaunchenv':
+            elif section == 'general' and key == 'vpx_launch_env':
                 inp = ui.textarea(
                     value=value,
                     placeholder='KEY=value KEY2="value with spaces"'
                 ).props('outlined autogrow').classes('config-input config-input-env')
-            elif section == 'general' and key == 'chromeoptions':
+            elif section == 'general' and key == 'chrome_options':
                 inp = ui.textarea(
                     value=value,
                     placeholder='--disable-accelerated-video-decode\n--ozone-platform=x11'
@@ -327,7 +327,7 @@ def render_panel(tab=None):
                 ).props('outlined dense options-dense').classes('config-input')
             elif section == 'media' and key in MEDIA_PRIORITY_KEYS:
                 normalized_priority = str(value or '').strip().lower()
-                if key == 'realdmdmediapriority':
+                if key == 'realdmd_media_priority':
                     priority_options = {'color': 'Colorized frame', 'standard': 'Standard frame'}
                     priority_value = normalized_priority if normalized_priority in priority_options else 'color'
                 else:
@@ -337,7 +337,7 @@ def render_panel(tab=None):
                     options=priority_options,
                     value=priority_value
                 ).props('outlined dense options-dense emit-value map-options').classes('config-input')
-            elif section == 'Input' and key == 'pagingtype':
+            elif section == 'input' and key == 'paging_type':
                 normalized_paging = str(value or '').strip().lower()
                 paging_options = {'alpha': 'Alphabetic (jump by letter)', 'numeric': 'Numeric (jump by page size)'}
                 paging_value = normalized_paging if normalized_paging in paging_options else 'alpha'
@@ -350,7 +350,7 @@ def render_panel(tab=None):
                     text='Enable' if special_label_above else friendly_label,
                     value=(value == "true")
                 ).classes('config-input')
-                if section == 'displays' and key == 'cabmode':
+                if section == 'displays' and key == 'cab_mode':
                     inp.tooltip(
                         'Presents VPinFE for playing standing at a cabinet: larger text and '
                         'targets, and no controls that need a mouse. It does not rotate '
@@ -415,7 +415,7 @@ def render_panel(tab=None):
                     inp.tooltip(
                         'Optional high-DPI override passed to themes instead of the detected window bounds.'
                     )
-                if section == 'general' and key == 'globaltableinioverridemask' and label_widget is not None:
+                if section == 'general' and key == 'global_game_ini_override_mask' and label_widget is not None:
                     def on_mask_change(e):
                         mask_value = (e.value or '').strip()
                         if mask_value:
@@ -429,7 +429,7 @@ def render_panel(tab=None):
             inputs[section][key] = inp
             if (section, key) in launch_preview_keys:
                 inp.on_value_change(lambda _: update_launch_preview())
-            if section == 'general' and key == 'chromeoptions':
+            if section == 'general' and key == 'chrome_options':
                 inp.on_value_change(lambda _: update_chrome_options_preview())
 
     binding_inputs: dict[str, dict[str, object]] = {}
@@ -640,20 +640,20 @@ def render_panel(tab=None):
                         with ui.element('div').classes(content_classes):
                             if section == 'general':
                                 path_keys = [
-                                    key for key in ('vpxbinpath', 'gamerootdir', 'vpxinipath')
+                                    key for key in ('vpx_bin_path', 'game_root_dir', 'vpx_ini_path')
                                     if key in options
                                 ]
                                 launch_keys = [
                                     key for key in (
-                                        'vpxlaunchenv',
-                                        'globalinioverride',
-                                        'globaltableinioverrideenabled',
-                                        'globaltableinioverridemask',
+                                        'vpx_launch_env',
+                                        'global_ini_override',
+                                        'global_game_ini_override_enabled',
+                                        'global_game_ini_override_mask',
                                     )
                                     if key in options
                                 ]
                                 chrome_option_keys = [
-                                    key for key in ('disabledefaultchromeoptions', 'chromeoptions', 'chromeoptionsexclude')
+                                    key for key in ('disable_default_chrome_options', 'chrome_options', 'chrome_options_exclude')
                                     if key in options
                                 ]
                                 general_keys = [
@@ -662,7 +662,7 @@ def render_panel(tab=None):
                                 ]
                                 frontend_toggle_keys = [
                                     key for key in general_keys
-                                    if key in ('autoupdatemediaonstartup', 'splashscreen', 'muteaudio', 'mmhidequitbutton')
+                                    if key in ('auto_update_media_on_startup', 'splashscreen', 'mute_audio', 'hide_quit_button')
                                 ]
                                 frontend_primary_keys = [
                                     key for key in general_keys
@@ -721,41 +721,41 @@ def render_panel(tab=None):
                                             ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                             with ui.element('div').classes('config-launch-layout mt-3'):
                                                 with ui.element('div').classes('config-display-column'):
-                                                    if 'vpxlaunchenv' in launch_keys:
-                                                        value = config.config.get(section, 'vpxlaunchenv', fallback='')
-                                                        build_config_input(section, 'vpxlaunchenv', value)
+                                                    if 'vpx_launch_env' in launch_keys:
+                                                        value = config.config.get(section, 'vpx_launch_env', fallback='')
+                                                        build_config_input(section, 'vpx_launch_env', value)
 
-                                                    if 'globalinioverride' in launch_keys:
-                                                        value = config.config.get(section, 'globalinioverride', fallback='')
-                                                        build_config_input(section, 'globalinioverride', value)
+                                                    if 'global_ini_override' in launch_keys:
+                                                        value = config.config.get(section, 'global_ini_override', fallback='')
+                                                        build_config_input(section, 'global_ini_override', value)
 
                                                     if (
-                                                        'globaltableinioverrideenabled' in launch_keys
-                                                        or 'globaltableinioverridemask' in launch_keys
+                                                        'global_game_ini_override_enabled' in launch_keys
+                                                        or 'global_game_ini_override_mask' in launch_keys
                                                     ):
                                                         with ui.element('div').classes('w-full config-inline-pair'):
-                                                            if 'globaltableinioverrideenabled' in launch_keys:
+                                                            if 'global_game_ini_override_enabled' in launch_keys:
                                                                 value = config.config.get(
                                                                     section,
-                                                                    'globaltableinioverrideenabled',
+                                                                    'global_game_ini_override_enabled',
                                                                     fallback='false',
                                                                 )
                                                                 with ui.element('div').classes('w-full'):
                                                                     build_config_input(
                                                                         section,
-                                                                        'globaltableinioverrideenabled',
+                                                                        'global_game_ini_override_enabled',
                                                                         value,
                                                                     )
-                                                            if 'globaltableinioverridemask' in launch_keys:
+                                                            if 'global_game_ini_override_mask' in launch_keys:
                                                                 value = config.config.get(
                                                                     section,
-                                                                    'globaltableinioverridemask',
+                                                                    'global_game_ini_override_mask',
                                                                     fallback='',
                                                                 )
                                                                 with ui.element('div').classes('w-full'):
                                                                     build_config_input(
                                                                         section,
-                                                                        'globaltableinioverridemask',
+                                                                        'global_game_ini_override_mask',
                                                                         value,
                                                                     )
 
@@ -786,21 +786,21 @@ def render_panel(tab=None):
                                             ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                             with ui.element('div').classes('config-launch-layout mt-3'):
                                                 with ui.element('div').classes('config-display-column'):
-                                                    value = config.config.get(section, 'chromeoptions', fallback='')
-                                                    build_config_input(section, 'chromeoptions', value)
-                                                    if 'disabledefaultchromeoptions' in chrome_option_keys:
+                                                    value = config.config.get(section, 'chrome_options', fallback='')
+                                                    build_config_input(section, 'chrome_options', value)
+                                                    if 'disable_default_chrome_options' in chrome_option_keys:
                                                         with ui.element('div').classes('config-field-card'):
                                                             ui.label('Disabled Default Options').classes('config-field-label')
                                                             disable_all_inp = ui.checkbox(
                                                                 text='Disable All',
-                                                                value=(config.config.get(section, 'disabledefaultchromeoptions', fallback='false') == 'true'),
+                                                                value=(config.config.get(section, 'disable_default_chrome_options', fallback='false') == 'true'),
                                                             ).classes('config-input')
                                                             exclude_inp = ui.textarea(
-                                                                value=config.config.get(section, 'chromeoptionsexclude', fallback=''),
+                                                                value=config.config.get(section, 'chrome_options_exclude', fallback=''),
                                                                 placeholder='--kiosk\n--start-maximized'
                                                             ).props('outlined autogrow').classes('config-input config-input-env')
-                                                            inputs.setdefault(section, {})['disabledefaultchromeoptions'] = disable_all_inp
-                                                            inputs[section]['chromeoptionsexclude'] = exclude_inp
+                                                            inputs.setdefault(section, {})['disable_default_chrome_options'] = disable_all_inp
+                                                            inputs[section]['chrome_options_exclude'] = exclude_inp
 
                                                             # Bound as defaults, not captured: this sits inside the
                                                             # per-section loop, so a closure over the names would
@@ -926,8 +926,8 @@ def render_panel(tab=None):
                                                             value = config.config.get(section, key, fallback='')
                                                             build_config_input(section, key, value)
                                     elif section == 'mobile':
-                                        rename_enabled_key = 'renamemasktodefaultini'
-                                        rename_mask_key = 'renamemasktodefaultinimask'
+                                        rename_enabled_key = 'rename_mask_to_default_ini'
+                                        rename_mask_key = 'rename_mask_to_default_ini_mask'
                                         normal_mobile_options = [
                                             key for key in options
                                             if key not in (rename_enabled_key, rename_mask_key)
@@ -983,9 +983,9 @@ def render_panel(tab=None):
                                                     ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
                                     elif section == 'libdmdutil':
                                         service_key = 'enabled'
-                                        zedmd_keys = ['zedmddevice', 'zedmdwifiaddr']
-                                        pin2dmd_keys = ['pin2dmdenabled']
-                                        pixelcade_keys = ['pixelcadedevice']
+                                        zedmd_keys = ['zedmd_device', 'zedmd_wifi_address']
+                                        pin2dmd_keys = ['pin2dmd_enabled']
+                                        pixelcade_keys = ['pixelcade_device']
                                         device_keys = zedmd_keys + pin2dmd_keys + pixelcade_keys
                                         trailing_keys = [
                                             key for key in options
