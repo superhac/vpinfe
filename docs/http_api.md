@@ -518,6 +518,24 @@ that could name its own address could name someone else's.
 A player that cannot reach its hub starts anyway. Registering costs a label, not a
 capability.
 
+### Is the library really shared?
+
+A player and its hub are usually looking at the same files over a network share, and
+nothing checked that. A `game_root_dir` that is wrong or unmounted fails one game at a
+time, at launch, as a file-not-found.
+
+Set `network.verify_shared_library` and a player compares its own tables against the hub's
+at startup, by `table.file_hash` rather than by path — the same share is mounted at
+different places on different machines, so paths would report every install as broken. It
+logs what it found and changes nothing else: what to do about a mismatch is a decision
+nobody has made, and an unmounted share should not become fatal on a machine that was
+working a moment ago.
+
+Three outcomes, because they are three different problems: `missing` (the hub has a table
+this player cannot resolve), `differs` (both have it, the bytes are not the same), and
+`unverifiable` (the hub has not hashed it, so it says nothing either way). Nothing
+verifiable is not a pass.
+
 ## Jobs
 
 Work that takes minutes is a job: you ask for the work, get `202` and a job resource back,

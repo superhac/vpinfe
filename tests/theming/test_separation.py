@@ -152,15 +152,13 @@ class SeparationTests(TempTree):
                         self.assertEqual(state["launching"], False, label)
                         self.assertIsNone(state["game_name"], label)
 
-    def test_a_player_cannot_launch_the_library_it_is_showing(self) -> None:
-        """Current behavior, asserted so the gap is visible rather than discovered.
+    def test_a_player_holding_no_library_cannot_launch_from_it(self) -> None:
+        """The `bundle` player kind, asserted so it is not mistaken for a broken route.
 
-        `POST /games/{id}/launch` resolves the id against *this* install's catalog, and a
-        player's is empty - so a player renders a wheel it cannot launch from. Nothing is
-        broken by this today: the frontend launches through its own window channel against
-        files it reaches on a shared filesystem, and the API route is for a hub. It
-        matters the moment anything tries to drive a remote player over HTTP, which is
-        what item 9's roster would do.
+        `POST /games/{id}/launch` resolves the id against *this* install's catalog. A
+        player whose library root is empty has nothing to resolve, so it renders a wheel
+        it cannot launch from - correct, because the files genuinely are not there. The
+        `remote` kind is the next test: same call, same route, its own mount.
         """
         with LiveInstance(self.hub_root) as hub:
             hub.wait_for_api()
@@ -174,8 +172,35 @@ class SeparationTests(TempTree):
                                      f"/api/v1/games/{game_id}/launch")
 
         self.assertEqual((status, code), (404, "not_found"),
-                         "if this starts succeeding, a player gained its own catalog and "
-                         "this test should say what that means instead")
+                         "a player with no files cannot launch, and says so by id")
+
+    def test_a_player_sharing_the_library_can_reach_a_launch(self) -> None:
+        """The `remote` player kind: already there, its own mount of the same share.
+
+        Nothing new is needed to drive a chosen player over HTTP - the route resolves and
+        gets as far as asking whether *this machine* can launch. It cannot here, because a
+        test machine has no VPX, and that is the honest place to stop: the answer is about
+        the player's own hardware rather than about the library.
+        """
+        with LiveInstance(self.hub_root) as hub:
+            hub.wait_for_api()
+            hub_api = f"http://127.0.0.1:{hub.ports['manager']}"
+            game_id = _fetch(f"{hub_api}/api/v1/library/entries")["entries"][0]["game"]["id"]
+
+            # Same library root as the hub, which is what a shared mount looks like here.
+            with LiveInstance(self.hub_root,
+                              extra_settings={("network", "hub_url"): hub_api}) as player:
+                player.wait_for_api()
+                player_api = f"http://127.0.0.1:{player.ports['manager']}"
+                known = _fetch(f"{player_api}/api/v1/games/{game_id}")
+                status, code = _post(f"{player_api}/api/v1/games/{game_id}/launch")
+
+        self.assertEqual(known["id"], game_id, "the player resolves the hub's game id")
+        self.assertNotEqual(status, 404,
+                            "the library is right there; a 404 would mean the route "
+                            "cannot see a shared mount")
+        self.assertEqual((status, code), (501, "feature_unavailable"),
+                         "stopped on this machine having no VPX, not on the library")
 
     def test_the_hub_learns_which_players_it_is_serving(self) -> None:
         """A roster is what turns the install_id on an event into a name someone

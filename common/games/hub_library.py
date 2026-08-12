@@ -85,6 +85,51 @@ def announce_to_hub(hub_url: str, config, *, timeout: int = http_client.DEFAULT_
     return True
 
 
+def verify_shared_library(entries, local_games) -> dict[str, Any]:
+    """Whether the player's own copy of the library is the hub's, by content.
+
+    Shared storage is what the split assumes and nothing checks: a `game_root_dir` that is
+    wrong or unmounted fails one game at a time, at launch, as a file-not-found. This asks
+    the question up front and by hash rather than by path, because the same share is
+    mounted at different places on different machines - a path comparison would report
+    every install as broken.
+
+    Reports rather than decides. `matched`, `missing` (the hub has a table this player
+    cannot resolve) and `differs` (both have it, the bytes are not the same) are three
+    different problems for a caller to act on, and what to do about each is a policy
+    question this does not answer.
+    """
+    from common.games.game_identity import game_id
+    from common.games.tables import table_entries
+
+    local: dict[str, str] = {}
+    for game in local_games or ():
+        for table in table_entries(getattr(game, "meta_config", {})).values():
+            table_id = str(table.get("id", "") or "")
+            if table_id:
+                local[table_id] = str(table.get("file_hash", "") or "")
+
+    matched, missing, differs, unverifiable = 0, [], [], 0
+    for entry in entries or ():
+        table_id = getattr(entry, "table_id", "")
+        wanted = str((entry.table or {}).get("file_hash", "") or "")
+        if not table_id or not wanted:
+            # A table the hub has not hashed says nothing either way. Counted rather
+            # than dropped, so "everything matched" cannot mean "nothing was checked".
+            unverifiable += 1
+            continue
+        if table_id not in local:
+            missing.append(table_id)
+        elif local[table_id] != wanted:
+            differs.append(table_id)
+        else:
+            matched += 1
+
+    return {"matched": matched, "missing": missing, "differs": differs,
+            "unverifiable": unverifiable,
+            "shared": not missing and not differs and matched > 0}
+
+
 def _entry_from_wire(row: dict[str, Any]) -> Entry:
     """One wire row as the Entry the rest of the frontend already reads. `siblings` comes
     from the hub, which is the only side that can see a game's other tables."""

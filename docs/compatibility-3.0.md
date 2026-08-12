@@ -267,6 +267,23 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-79 — A player can check that its library really is the hub's.**
+*(machine-checked)* New: `network.verify_shared_library`, off by default, and
+`hub_library.verify_shared_library`. With a hub set and the flag on, a player compares its
+own tables against the hub's at startup and logs what does not match. Nothing else
+changes - no route, no payload, and an install that says nothing does exactly what it did.
+*Why:* shared storage is what the residency split assumes and nothing checked. A
+`game_root_dir` that is wrong or unmounted fails one game at a time, at launch, as a
+file-not-found - the least useful moment to find out. The comparison is by `file_hash`
+rather than by path, because the same share is mounted at different places on different
+machines and a path comparison would call every install broken; `file_hash` crossing the
+wire (PAR-77) is what made this possible. It reports and does not decide: `missing`, 
+`differs` and `unverifiable` are three different problems, and what to do about each is a
+policy call nobody has made - guessing it here would make an unmounted share fatal on a
+machine that was working a moment ago. Nothing verifiable is not a pass, so "everything
+matched" cannot mean "nothing was checked". Covered by
+`tests/curation/test_library_entries.py`.
+
 **PAR-78 — A hub knows which players it is serving.** *(machine-checked)* New:
 `GET/PUT/DELETE /api/v1/players`, two scopes (`players:read`, `players:write`), a
 `players` link in discovery, and `put_json` in `common/http_client.py`. A player with

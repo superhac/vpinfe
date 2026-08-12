@@ -594,6 +594,16 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                         " setup.",
         ),
         ConfigOption(
+            "verify_shared_library",
+            type="bool",
+            default="false",
+            label="Verify Shared Library",
+            description="On startup, check that this player's library really is the"
+                        " hub's, by comparing file hashes rather than paths. Reports"
+                        " what does not match and changes nothing else. Off by default,"
+                        " and ignored entirely without a Hub URL.",
+        ),
+        ConfigOption(
             "hub_bind",
             type="string",
             default="0.0.0.0",

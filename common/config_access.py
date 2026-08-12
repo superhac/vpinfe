@@ -249,6 +249,9 @@ class NetworkConfig:
     # Empty means this install holds its own library. Set, it is the hub a player reads
     # from - the one setting that makes this process a player rather than both roles.
     hub_url: str = ""
+    # Off by default: it costs a walk of the local library at startup, and an install
+    # that is working does not need to be told so.
+    verify_shared_library: bool = False
 
     @classmethod
     def from_config(cls, source: Any) -> NetworkConfig:
@@ -264,6 +267,8 @@ class NetworkConfig:
             hub_bind=cfg_get(source, "network", "hub_bind",
                              "0.0.0.0").strip() or "0.0.0.0",
             hub_url=cfg_get(source, "network", "hub_url", "").strip(),
+            verify_shared_library=cfg_bool(source, "network", "verify_shared_library",
+                                           False),
         )
 
 

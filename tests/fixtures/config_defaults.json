@@ -80,6 +80,7 @@
     "hub_url": "",
     "theme_assets_bind": "127.0.0.1",
     "theme_assets_port": "8000",
+    "verify_shared_library": "false",
     "ws_port": "8002"
   },
   "pinmame_score_parser": {

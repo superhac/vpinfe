@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import json
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import httpapi
 from common.games import hub_library
-from common.games.collection_resolver import entries_for
+from common.games.collection_resolver import Entry, entries_for
 from common.games.game_metadata import game_title
 from common.media_specs import MEDIA_SPECS
 from frontend import game_state
@@ -151,6 +152,64 @@ class LibraryEntriesTests(TempTree):
         with patch.object(hub_library.http_client, "get_json", lambda *a, **k: "nope"):
             with self.assertRaises(ValueError):
                 hub_library.fetch_entries("http://hub.example:8001")
+
+
+class SharedLibraryTests(unittest.TestCase):
+    """Whether a player's own copy of the library is the hub's, asked by content.
+
+    Shared storage is what the split assumes and nothing checked. A path comparison
+    cannot answer it - the same share is mounted at different places on different
+    machines - so this compares the hashes the hub already publishes per table.
+    """
+
+    @staticmethod
+    def _game(table_id: str, file_hash: str):
+        return SimpleNamespace(
+            meta_config={"tables": {table_id: {"id": table_id, "file_hash": file_hash}}})
+
+    @staticmethod
+    def _entry(table_id: str, file_hash: str) -> Entry:
+        return Entry(game=SimpleNamespace(meta_config={}),
+                     table={"id": table_id, "file_hash": file_hash}, siblings=1)
+
+    def test_the_same_share_verifies(self) -> None:
+        report = hub_library.verify_shared_library(
+            [self._entry("T1", "aaa"), self._entry("T2", "bbb")],
+            [self._game("T1", "aaa"), self._game("T2", "bbb")])
+
+        self.assertTrue(report["shared"])
+        self.assertEqual(report["matched"], 2)
+
+    def test_a_share_that_is_not_mounted_is_reported_as_missing(self) -> None:
+        """The failure this exists to catch: today it shows up one game at a time, at
+        launch, as a file-not-found."""
+        report = hub_library.verify_shared_library([self._entry("T1", "aaa")], [])
+
+        self.assertFalse(report["shared"])
+        self.assertEqual(report["missing"], ["T1"])
+
+    def test_a_table_whose_bytes_differ_is_not_the_same_table(self) -> None:
+        """Same id, different content - a local edit, a half-finished copy, a different
+        build of the same table. Distinct from missing, because the fix is different."""
+        report = hub_library.verify_shared_library(
+            [self._entry("T1", "aaa")], [self._game("T1", "zzz")])
+
+        self.assertFalse(report["shared"])
+        self.assertEqual(report["differs"], ["T1"])
+        self.assertEqual(report["missing"], [])
+
+    def test_nothing_verifiable_is_not_a_pass(self) -> None:
+        """A hub that has hashed nothing says nothing either way, and 'everything
+        matched' must not be able to mean 'nothing was checked'."""
+        report = hub_library.verify_shared_library(
+            [self._entry("T1", "")], [self._game("T1", "aaa")])
+
+        self.assertFalse(report["shared"])
+        self.assertEqual(report["unverifiable"], 1)
+        self.assertEqual(report["matched"], 0)
+
+    def test_an_empty_library_is_not_a_verified_one(self) -> None:
+        self.assertFalse(hub_library.verify_shared_library([], [])["shared"])
 
 
 class HubUrlTests(unittest.TestCase):

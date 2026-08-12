@@ -61,6 +61,10 @@ def create_api_instances(iniconfig, logger):
             target=hub_library.announce_to_hub,
             args=(network.hub_url, iniconfig),
             daemon=True, name="announce-to-hub").start()
+        if network.verify_shared_library:
+            threading.Thread(
+                target=_report_shared_library, args=(shared_view, logger),
+                daemon=True, name="verify-shared-library").start()
 
     for window_name, config_key in window_configs(iniconfig):
         screen_id_str = displays.window_screen_id(config_key).strip()
@@ -83,6 +87,32 @@ def create_api_instances(iniconfig, logger):
     play_events.register(ws_bridge, frontend_browser, iniconfig)
 
     return ws_bridge, frontend_browser
+
+
+def _report_shared_library(shared_view, logger) -> None:
+    """Say whether this player's library really is the hub's, once, at startup.
+
+    Reports and does nothing else. A mismatch is a real problem - it is the difference
+    between a wheel that launches and one that fails per game with a file-not-found - but
+    what to do about it is a policy decision nobody has made, and guessing it here would
+    make an unmounted share fatal on a machine that was working a moment ago.
+    """
+    from common.games.game_repository import ensure_games_loaded
+
+    try:
+        report = hub_library.verify_shared_library(shared_view.entries, ensure_games_loaded())
+    except Exception:
+        logger.debug("Could not verify the shared library", exc_info=True)
+        return
+
+    if report["shared"]:
+        logger.info("Shared library verified: %s tables match the hub", report["matched"])
+        return
+    logger.warning(
+        "Shared library does not match the hub: %s matched, %s missing here, %s differ, "
+        "%s the hub could not vouch for. Launching may fail per game.",
+        report["matched"], len(report["missing"]), len(report["differs"]),
+        report["unverifiable"])
 
 
 def _apply_theme_media_sets(iniconfig, logger) -> None:
