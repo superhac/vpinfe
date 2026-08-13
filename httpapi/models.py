@@ -373,10 +373,9 @@ class Entry(ApiModel):
 
 
 class EntryList(ApiModel):
-    """`expanded` echoes which lens answered: false is one entry per game."""
+    """One entry per game. `collection` is empty for the whole library."""
 
     collection: str
-    expanded: bool
     count: int
     entries: list[Entry]
 

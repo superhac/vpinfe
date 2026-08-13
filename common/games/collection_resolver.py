@@ -3,10 +3,9 @@
 Five steps, and the same answer whoever asks:
 
     1. membership   filters, then members overriding them, then exclusions
-    2. visibility   drop hidden - library-wide, and it beats a pin
-    3. selection    a pinned table, or every visible one
+    2. visibility   drop hidden - library-wide, and it beats a named table
+    3. selection    the table a member named, or the game's default
     4. order        the member array, or a computed sort
-    5. collapse     one entry per game, or all of them
 
 Before this there were two engines. Manual collections sorted by title in `common/`
 ignoring the stored criteria; filter collections sorted in `frontend/game_state.py`
@@ -102,9 +101,8 @@ def _user_value(game, key, fallback=0):
 def visible_entries(game) -> list[dict]:
     """A game's offerable tables, the default first and the rest by filename.
 
-    The order is what makes collapsing deterministic: taking the first entry per game
-    then yields the default for a followed game, and the curator's pick for a pinned
-    one, without either needing a special case.
+    Default first is what makes a member naming only a game deterministic: it takes the
+    head of this list, and that is the game's own choice rather than directory order.
     """
     entries = table_entries(getattr(game, "meta_config", {}))
     visible = [e for e in entries.values() if e.get("hidden") is not True]
@@ -136,9 +134,9 @@ def _unparsed_entry(game) -> list[dict]:
     return [{TABLE_ID_KEY: "", TABLE_FILENAME_KEY: os.path.basename(path)}]
 
 
-def _pinned_entry(game, table_id: str) -> dict | None:
-    """The named table, unless it is hidden. `hidden` is library-wide and beats a pin:
-    it exists so a patch base can stay on disk without being playable."""
+def _named_table(game, table_id: str) -> dict | None:
+    """The table a member named, unless it is hidden. `hidden` is library-wide and beats
+    a member: it exists so a patch base can stay on disk without being playable."""
     entry = table_entries(getattr(game, "meta_config", {})).get(table_id)
     if not isinstance(entry, dict) or entry.get("hidden") is True:
         return None
@@ -174,19 +172,19 @@ def _sort_key(order_by: str):
     return _sort_key(DEFAULT_ORDER)
 
 
-def entries_for(games, *, expanded: bool = False) -> list[Entry]:
+def entries_for(games) -> list[Entry]:
     """A list of games as entries, without a collection to resolve.
 
     The frontend's own filter controls produce an ad-hoc list that belongs to no
     collection, so there is nothing to resolve - but it still has to become entries,
     and by the same rule `resolve` uses, or the two would disagree about which table
-    a collapsed game shows.
+    a game shows.
     """
     out: list[Entry] = []
     for game in games:
         offered = visible_entries(game)
-        for table in (offered if expanded else offered[:1]):
-            out.append(Entry(game=game, table=table, siblings=len(offered)))
+        if offered:
+            out.append(Entry(game=game, table=offered[0], siblings=len(offered)))
     return out
 
 
@@ -256,11 +254,11 @@ def resolve_games(name: str, collections, games) -> list[Any]:
     return result
 
 
-def resolve(name: str, collections, games, *, expanded: bool = False) -> list[Entry]:
-    """The ordered entries a collection contains.
+def resolve(name: str, collections, games) -> list[Entry]:
+    """The ordered entries a collection contains, one per game.
 
-    `games` is the library. `expanded` is the user's setting: false gives one entry per
-    game, true gives one per included table.
+    `games` is the library. A game offering several tables contributes the one step 3
+    selected; `Entry.siblings` says how many it has, and `/games/{id}/tables` lists them.
     """
     unknown = collections.unknown_filter_axes(name)
     if unknown:
@@ -294,12 +292,16 @@ def resolve(name: str, collections, games, *, expanded: bool = False) -> list[En
         if game is None:
             continue    # not in the library right now; the membership stays on disk
         if MEMBER_TABLE_KEY in ref:
-            pinned = _pinned_entry(game, ref[MEMBER_TABLE_KEY])
-            if pinned is not None:
-                _take(game, pinned)
+            named_table = _named_table(game, ref[MEMBER_TABLE_KEY])
+            if named_table is not None:
+                _take(game, named_table)
         else:
-            for entry in visible_entries(game):
-                _take(game, entry)
+            # Naming a game means the game, so it contributes its default and nothing
+            # else. Naming two of a game's tables is how a collection holds both, and
+            # that is why nothing de-duplicates by game after this.
+            offered = visible_entries(game)
+            if offered:
+                _take(game, offered[0])
 
     from_filters: list[Entry] = []
     if stored_filters and not collection_filters.unknown_axes(stored_filters):
@@ -308,9 +310,11 @@ def resolve(name: str, collections, games, *, expanded: bool = False) -> list[En
                 continue
             if not collection_filters.matches(stored_filters, game):
                 continue
+            offered = visible_entries(game)
+            if not offered:
+                continue
             before = len(ordered)
-            for entry in visible_entries(game):
-                _take(game, entry)
+            _take(game, offered[0])
             from_filters.extend(ordered[before:])
             del ordered[before:]
 
@@ -331,17 +335,4 @@ def resolve(name: str, collections, games, *, expanded: bool = False) -> list[En
         if descending and order_by in ("title", "year"):
             result.reverse()
 
-    if expanded:
-        return result
-
-    # 5. Collapse: the first entry each game contributes, which is its default when
-    # followed and the curator's pick when named.
-    collapsed: list[Entry] = []
-    taken: set[str] = set()
-    for entry in result:
-        identity = game_id(entry.game)
-        if identity in taken:
-            continue
-        taken.add(identity)
-        collapsed.append(entry)
-    return collapsed
+    return result

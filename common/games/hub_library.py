@@ -22,14 +22,13 @@ logger = logging.getLogger("vpinfe.common.games.hub_library")
 # the shared default, which is sized for a metadata lookup.
 LIBRARY_TIMEOUT = 30
 
-def entries_url(hub_url: str, collection: str = "", *, expanded: bool = False) -> str:
+def entries_url(hub_url: str, collection: str = "") -> str:
     """Where a player asks for entries. Empty means the whole library, which is its own
     endpoint rather than a collection: no stored collection means "all of it"."""
     name = collection.strip()
     path = f"api/v1/collections/{quote(name, safe='')}/entries" if name \
         else "api/v1/library/entries"
-    query = "?expanded=true" if expanded else ""
-    return urljoin(hub_url.rstrip("/") + "/", path + query)
+    return urljoin(hub_url.rstrip("/") + "/", path)
 
 
 def hub_services(hub_url: str, *, timeout: int = http_client.DEFAULT_TIMEOUT) -> dict[str, Any]:
@@ -137,7 +136,7 @@ def _entry_from_wire(row: dict[str, Any]) -> Entry:
                  siblings=int(row.get("siblings") or 1))
 
 
-def fetch_entries(hub_url: str, collection: str = "", *, expanded: bool = False,
+def fetch_entries(hub_url: str, collection: str = "",
                   timeout: int = LIBRARY_TIMEOUT) -> list[Entry]:
     """The hub's entries for a collection, as local Entry objects.
 
@@ -145,8 +144,7 @@ def fetch_entries(hub_url: str, collection: str = "", *, expanded: bool = False,
     with no games, and a caller showing an empty wheel for it would be reporting the wrong
     thing.
     """
-    payload = http_client.get_json(entries_url(hub_url, collection, expanded=expanded),
-                                   timeout=timeout)
+    payload = http_client.get_json(entries_url(hub_url, collection), timeout=timeout)
     rows = payload.get("entries") if isinstance(payload, dict) else payload
     if not isinstance(rows, list):
         raise ValueError(f"Hub at {hub_url} did not return an entry list")

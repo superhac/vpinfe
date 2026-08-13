@@ -20,9 +20,9 @@ STATE_KEY = "last_game"
 def entry_identity(entry) -> str:
     """Stable id for one row of the wheel: the table's, falling back to its game's.
 
-    A game offers several tables, so saving the game comes back to the wrong row on an
-    expanded wheel. Ids rather than a path, because a player reading its library off a
-    hub never sees the hub's filesystem.
+    A game offers several tables and a collection may name a particular one, so saving
+    the game comes back to whichever table the list happens to hold. Ids rather than a
+    path, because a player reading its library off a hub never sees the hub's filesystem.
     """
     table_id = str(getattr(entry, "table_id", "") or "").strip()
     if table_id:

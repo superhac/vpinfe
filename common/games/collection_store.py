@@ -431,19 +431,19 @@ class CollectionStore:
         where order is the point - Last Played writes most-recent-first, and the
         Manager UI saves a whole edit.
 
-        A caller passing bare ids is saying "these games, following each", so any pin
-        this collection held is gone. That is the right meaning for an editor that
-        cannot show pins, but it is not something to lose quietly.
+        A caller passing bare ids is naming games rather than tables, so a table this
+        collection had named is gone. That is the right meaning for an editor that can
+        only show games, but it is not something to lose quietly.
         """
         record = self._require(section)
         replacement = _member_refs(members)
-        pinned = {m[MEMBER_GAME_KEY] for m in _member_refs(record.get("members"))
-                  if MEMBER_TABLE_KEY in m}
-        lost = pinned - {m[MEMBER_GAME_KEY] for m in replacement if MEMBER_TABLE_KEY in m}
+        named = {m[MEMBER_GAME_KEY] for m in _member_refs(record.get("members"))
+                 if MEMBER_TABLE_KEY in m}
+        lost = named - {m[MEMBER_GAME_KEY] for m in replacement if MEMBER_TABLE_KEY in m}
         if lost:
             logger.warning(
-                "Collection %r: replacing membership dropped the table pinned for %s; "
-                "those games follow every visible table now",
+                "Collection %r: replacing membership dropped the table named for %s; "
+                "those games contribute their default table now",
                 section, ", ".join(sorted(lost)))
         record["members"] = replacement
 

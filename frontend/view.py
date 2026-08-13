@@ -27,16 +27,6 @@ def hub_url(ini_config) -> str:
         return ""
 
 
-def expands_tables(ini_config) -> bool:
-    """Whether the wheel shows every table of a game or just one. Off by default, which
-    is what every theme written so far assumes."""
-    try:
-        return str(ini_config.config["Settings"].get(
-            "expandtables", "false")).strip().lower() in ("1", "true", "yes", "on")
-    except Exception:
-        return False
-
-
 class View:
     """The library, the filter, the sort, and the list they produce.
 
@@ -44,9 +34,8 @@ class View:
     one shared view makes a sort and a read genuinely concurrent.
     """
 
-    def __init__(self, ini_config, expanded: bool | None = None, games=None):
+    def __init__(self, ini_config, games=None):
         self._ini_config = ini_config
-        self._expanded = expands_tables(ini_config) if expanded is None else bool(expanded)
         self.lock = threading.RLock()
 
         # With a hub set, this install is a player: the list it holds is entries the hub
@@ -82,8 +71,7 @@ class View:
         """The library: the hub's entries, or the local games. Different kinds of thing,
         which `rebuild_entries` knows."""
         if self._remote:
-            return hub_library.fetch_entries(self._hub_url, collection,
-                                             expanded=self._expanded)
+            return hub_library.fetch_entries(self._hub_url, collection)
         return ensure_games_loaded()
 
     def reload(self):
@@ -123,7 +111,7 @@ class View:
         """
         games = self.filtered_games or []
         self._entries = (list(games) if self._remote
-                         else collection_resolver.entries_for(games, expanded=self._expanded))
+                         else collection_resolver.entries_for(games))
         self._entries_source = games
         self._payload = None
 
@@ -159,12 +147,11 @@ class View:
     def payload(self, contract: int, *, collection: str = "") -> str:
         """The theme payload, built once however many windows ask. Cleared by
         `rebuild_entries`, which every change to the list goes through."""
-        key = (contract, collection, self._expanded)
+        key = (contract, collection)
         with self.lock:
             if self._payload is None or self._payload_key != key:
                 self._payload = game_state.games_json(
-                    self.entries, contract, collection=collection,
-                    expanded=self._expanded)
+                    self.entries, contract, collection=collection)
                 self._payload_key = key
             return self._payload
 

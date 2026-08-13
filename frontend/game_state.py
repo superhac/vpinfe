@@ -150,7 +150,7 @@ def _entry_row(entry, logo_cache) -> dict:
 
 
 def games_json(entries, contract: int = CURRENT_CONTRACT, *,
-               collection: str = "", expanded: bool = False) -> str:
+               collection: str = "") -> str:
     """The theme payload, at the contract the theme asked for.
 
     Contract 1 is a bare array of rows, one per game - what every published theme
@@ -162,7 +162,6 @@ def games_json(entries, contract: int = CURRENT_CONTRACT, *,
                            for e in entries])
     return json.dumps({
         "collection": collection,
-        "expanded": expanded,
         "count": len(entries),
         "entries": [_entry_row(e, logo_cache) for e in entries],
     })

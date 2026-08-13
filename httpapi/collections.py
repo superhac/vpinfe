@@ -164,15 +164,14 @@ def _entry_resource(entry) -> dict:
     }
 
 
-def _resolved(name: str, expanded: bool):
+def _resolved(name: str):
     """The collection's entries, or a 409 naming what this build could not read.
 
     Refusing beats resolving what is left: dropping a criterion answers a different
     question and does it silently. Every other collection still answers.
     """
     try:
-        return resolve(name, get_collections_manager(),
-                       list(_catalog().values()), expanded=expanded)
+        return resolve(name, get_collections_manager(), list(_catalog().values()))
     except UnresolvableCollectionError as exc:
         raise ConflictError(
             str(exc), details={"unknown_filters": exc.axes}) from exc
@@ -180,15 +179,16 @@ def _resolved(name: str, expanded: bool):
 
 @router.get("/{name}/entries", summary="The entries a collection resolves to",
             dependencies=[requires(scopes.COLLECTIONS_READ)])
-def collection_entries(name: str, expanded: bool = False) -> models.EntryList:
+def collection_entries(name: str) -> models.EntryList:
     """The play lens: what a frontend would show, in the order it would show it.
 
-    One entry per game by default; `expanded=true` gives one per included table. The
-    theme payload is this same resolution, serialized differently.
+    One entry per game. A game offering several tables contributes the one the
+    collection selected; `siblings` says how many it has and `GET /games/{id}/tables`
+    lists them. The theme payload is this same resolution, serialized differently.
     """
     _row_or_404(name)
-    entries = _resolved(name, expanded)
-    return {"collection": name, "expanded": expanded, "count": len(entries),
+    entries = _resolved(name)
+    return {"collection": name, "count": len(entries),
             "entries": [_entry_resource(e) for e in entries]}
 
 

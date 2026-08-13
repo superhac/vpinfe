@@ -46,12 +46,10 @@ describe("the envelope is unwrapped into a list", () => {
       "the ordinal helpers count entries, not games");
   });
 
-  test("the view the list belongs to travels with it", async () => {
-    const vpin = await coreWithEntries({ ...PAYLOAD, collection: "Friday Night",
-                                         expanded: true });
+  test("the collection the list belongs to travels with it", async () => {
+    const vpin = await coreWithEntries({ ...PAYLOAD, collection: "Friday Night" });
 
     assert.equal(vpin.collection, "Friday Night");
-    assert.equal(vpin.expanded, true);
   });
 
   test("contract 1's array still loads", async () => {
@@ -191,13 +189,12 @@ describe("selection is something you can follow", () => {
   });
 });
 
-describe("the view a theme reads before any payload", () => {
-  test("collection and expanded have their documented types from the start", () => {
+describe("what a theme reads before any payload", () => {
+  test("collection has its documented type from the start", () => {
     // A theme renders once on boot, before the first GameDataChange. Reading undefined
     // there is how `collection || "All games"` silently becomes the fallback forever.
     const { vpin } = newCore({ windowName: "table" });
 
     assert.equal(vpin.collection, "");
-    assert.equal(vpin.expanded, false);
   });
 });

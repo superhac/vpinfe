@@ -148,8 +148,7 @@ class ContractTwoReader {
   audioURL(entry)       { return this.url(entry, "audio"); }
   logo(entry)           { return entry.game?.manufacturer_logo || null; }
   vpsId(entry)          { return String(entry.game?.vps_id || "").trim(); }
-  // The table, not the game: an expanded wheel shows a game's builds separately, and the
-  // player is standing on one of them.
+  // The table, not the game: a row is a table, and the collection chose which one.
   identity(entry)       { return String(entry.table?.id || entry.game?.id || ""); }
 
   imageVideo(entry, kind, priority) {
@@ -417,10 +416,9 @@ class VPinFECore {
     // The theme's windows, controller first. Replaced once the bridge answers; until
     // then the three VPinFE has always opened, under contract 1's names.
     this.windows = ["table", "bg", "dmd"];
-    // The view the entry list came from. Seeded so a theme reading either before the
-    // first payload gets the documented type rather than undefined.
+    // Which collection the entry list came from. Seeded so a theme reading it before
+    // the first payload gets the documented type rather than undefined.
     this.collection = "";
-    this.expanded = false;
     this._reader = new ContractOneReader(this);
     installLegacyAliases(this);
     this.monitors = [];
@@ -974,10 +972,9 @@ class VPinFECore {
     if (Array.isArray(payload)) {
       this.gameData = payload;                       // contract 1: a row per game
     } else {
-      // Contract 2 wraps the list so the view it belongs to travels with it.
+      // Contract 2 wraps the list so the collection it belongs to travels with it.
       this.gameData = payload.entries || [];
       this.collection = payload.collection || "";
-      this.expanded = !!payload.expanded;
     }
     this.#attachCachedVPinPlayRatings();
     if (this.isController()) {

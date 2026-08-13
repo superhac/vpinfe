@@ -72,7 +72,7 @@ class WireEntryTests(TempTree):
             game.creation_time = created
             games.append(game)
 
-        self.entries = collection_resolver.entries_for(games, expanded=False)
+        self.entries = collection_resolver.entries_for(games)
         self.wire = [_WireEntry(wire_entry.game_of(_entry_resource(entry)), entry.table_id)
                      for entry in self.entries]
 

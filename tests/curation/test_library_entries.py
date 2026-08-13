@@ -70,11 +70,6 @@ class LibraryEntriesTests(TempTree):
         self.assertEqual([row["game"]["name"] for row in wire],
                          [game_title(e.game) for e in entries_for(self.games)])
 
-    def test_expanded_is_carried_through(self) -> None:
-        body = self.client.get("/library/entries?expanded=true").json()
-
-        self.assertTrue(body["expanded"])
-
     def test_a_player_reads_the_answer_back_as_local_entries(self) -> None:
         """The round trip that makes a remote library indistinguishable from a local one:
         what the hub sent has to arrive as what `entries_for` would have built."""

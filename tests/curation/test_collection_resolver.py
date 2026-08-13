@@ -1,8 +1,8 @@
 """One collection in, one ordered list out.
 
 The cases that matter are the ones the two old engines could not express: a game
-appearing twice with different tables, a pin that outranks a filter, an exclusion that
-outranks both, and `hidden` outranking everything.
+appearing twice with different tables, a named table that outranks a filter, an
+exclusion that outranks both, and `hidden` outranking everything.
 """
 
 import unittest
@@ -70,12 +70,14 @@ class ResolverTests(TempTree):
         self.collections.add_member("Friday Night", "afm")
         self.collections.add_member("Friday Night", "mm", table_id="jp")
 
-        entries = resolve("Friday Night", self.collections, self.games, expanded=True)
+        entries = resolve("Friday Night", self.collections, self.games)
 
+        # mm twice because two of its tables were named; afm once because only the
+        # game was. Nothing de-duplicates by game, which is what makes this possible.
         self.assertEqual(self._ids(entries),
-                         [("mm", "vpw"), ("afm", "a1"), ("afm", "vr"), ("mm", "jp")])
+                         [("mm", "vpw"), ("afm", "a1"), ("mm", "jp")])
 
-    def test_collapsing_keeps_the_first_entry_each_game_contributed(self) -> None:
+    def test_a_named_table_and_a_named_game_sit_side_by_side(self) -> None:
         self.collections.add_collection("Friday Night")
         self.collections.set_order("Friday Night", "manual")
         self.collections.add_member("Friday Night", "mm", table_id="jp")
@@ -84,15 +86,18 @@ class ResolverTests(TempTree):
         entries = resolve("Friday Night", self.collections, self.games)
 
         self.assertEqual(self._ids(entries), [("mm", "jp"), ("afm", "a1")],
-                         "the curator's pick, then the followed game's default")
+                         "the table this collection named, then the other game's default")
 
-    def test_a_followed_game_expands_default_first(self) -> None:
+    def test_naming_a_game_takes_its_default_table(self) -> None:
+        """A member naming a game means the game, so the other tables it offers are not
+        in the collection. `siblings` says they exist and /games/{id}/tables lists them."""
         self.collections.add_collection("All")
         self.collections.add_member("All", "afm")
 
-        entries = resolve("All", self.collections, self.games, expanded=True)
+        entries = resolve("All", self.collections, self.games)
 
-        self.assertEqual(self._ids(entries), [("afm", "a1"), ("afm", "vr")])
+        self.assertEqual(self._ids(entries), [("afm", "a1")])
+        self.assertEqual([e.siblings for e in entries], [2])
 
     # --- precedence ---------------------------------------------------------------
 
@@ -101,7 +106,7 @@ class ResolverTests(TempTree):
         self.collections.add_filter_collection("Bally", manufacturer="Bally")
         self.collections.add_member("Bally", "afm", table_id="vr")
 
-        entries = resolve("Bally", self.collections, self.games, expanded=True)
+        entries = resolve("Bally", self.collections, self.games)
 
         self.assertIn(("afm", "vr"), self._ids(entries))
         self.assertNotIn(("afm", "a1"), self._ids(entries),
@@ -111,7 +116,7 @@ class ResolverTests(TempTree):
         self.collections.add_filter_collection("Bally", manufacturer="Bally")
         self.collections.exclude("Bally", "taf")
 
-        entries = resolve("Bally", self.collections, self.games, expanded=True)
+        entries = resolve("Bally", self.collections, self.games)
 
         self.assertEqual({gid for gid, _ in self._ids(entries)}, {"afm"})
 
@@ -119,27 +124,27 @@ class ResolverTests(TempTree):
         self.collections.add_filter_collection("Bally", manufacturer="Bally")
         self.collections.exclude("Bally", "afm", table_id="vr")
 
-        entries = resolve("Bally", self.collections, self.games, expanded=True)
+        entries = resolve("Bally", self.collections, self.games)
 
         self.assertIn(("afm", "a1"), self._ids(entries))
         self.assertNotIn(("afm", "vr"), self._ids(entries))
 
-    def test_hidden_beats_a_pin(self) -> None:
+    def test_hidden_beats_a_named_table(self) -> None:
         """`hidden` is library-wide and exists so a patch base can stay on disk."""
         self.mm.meta_config["tables"]["jp"]["hidden"] = True
         self.collections.add_collection("Friday Night")
         self.collections.add_member("Friday Night", "mm", table_id="jp")
 
-        entries = resolve("Friday Night", self.collections, self.games, expanded=True)
+        entries = resolve("Friday Night", self.collections, self.games)
 
         self.assertEqual(entries, [])
 
-    def test_a_hidden_table_is_not_offered_to_a_follower(self) -> None:
+    def test_a_hidden_table_is_not_offered_when_only_the_game_is_named(self) -> None:
         self.afm.meta_config["tables"]["vr"]["hidden"] = True
         self.collections.add_collection("All")
         self.collections.add_member("All", "afm")
 
-        entries = resolve("All", self.collections, self.games, expanded=True)
+        entries = resolve("All", self.collections, self.games)
 
         self.assertEqual(self._ids(entries), [("afm", "a1")])
 
@@ -168,8 +173,8 @@ class ResolverTests(TempTree):
         """Peers that tie on the sort key must not shuffle between refreshes."""
         self.collections.add_filter_collection("Everything", sort_by="Alpha")
 
-        first = resolve("Everything", self.collections, self.games, expanded=True)
-        second = resolve("Everything", self.collections, self.games, expanded=True)
+        first = resolve("Everything", self.collections, self.games)
+        second = resolve("Everything", self.collections, self.games)
 
         self.assertEqual(self._ids(first), self._ids(second))
 

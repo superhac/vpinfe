@@ -46,7 +46,7 @@ class EntryLensParityTests(TempTree):
         game = fake_game(folder, "Attack from Mars (Bally 1995)", meta=META)
         for attribute in ("pupPackExists", "altColorExists", "altSoundExists"):
             setattr(game, attribute, False)
-        self.entries = collection_resolver.entries_for([game], expanded=False)
+        self.entries = collection_resolver.entries_for([game])
         self.theme = json.loads(
             game_state.games_json(self.entries, contract=2))["entries"][0]
         self.wire = _entry_resource(self.entries[0])
@@ -107,7 +107,7 @@ class EntryLensParityTests(TempTree):
             game.creation_time = created
             games.append(game)
 
-        entries = collection_resolver.entries_for(games, expanded=False)
+        entries = collection_resolver.entries_for(games)
         hub_order = [game_state.game_title(e.game) for e in
                      sorted(entries, key=collection_resolver._sort_key("added"))]
         wire = [_entry_resource(e) for e in entries]

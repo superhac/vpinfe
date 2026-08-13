@@ -50,7 +50,7 @@ def filters() -> models.FilterAxisList:
 
 @router.get("/entries", summary="The entries the whole library resolves to",
             dependencies=[requires(scopes.GAMES_READ)])
-def entries(expanded: bool = False) -> models.EntryList:
+def entries() -> models.EntryList:
     """The play lens over everything, which is what a frontend shows before a collection
     is chosen. `GET /collections/{name}/entries` is the same lens narrowed to one.
 
@@ -62,8 +62,8 @@ def entries(expanded: bool = False) -> models.EntryList:
 
     from .collections import _entry_resource
 
-    resolved = entries_for(ensure_games_loaded(), expanded=expanded)
-    return {"collection": "", "expanded": expanded, "count": len(resolved),
+    resolved = entries_for(ensure_games_loaded())
+    return {"collection": "", "count": len(resolved),
             "entries": [_entry_resource(entry) for entry in resolved]}
 
 

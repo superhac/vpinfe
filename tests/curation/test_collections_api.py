@@ -223,18 +223,10 @@ class CollectionEntriesTests(CollectionsApiTests):
 
         body = self.client.get("/collections/Manual/entries").json()
 
-        self.assertFalse(body["expanded"])
         self.assertEqual(body["count"], len(body["entries"]))
         for entry in body["entries"]:
             self.assertTrue(entry["table"]["id"], "every entry names a table")
             self.assertIn("launch", entry["links"])
-
-    def test_expanded_is_echoed_back(self) -> None:
-        self.client.post("/collections", json={"name": "Manual", "games": [GAME_ID]})
-
-        body = self.client.get("/collections/Manual/entries?expanded=true").json()
-
-        self.assertTrue(body["expanded"])
 
     def test_a_collection_that_does_not_exist_is_a_404(self) -> None:
         self.assertEqual(self.client.get("/collections/Nope/entries").status_code, 404)
@@ -274,7 +266,9 @@ class CollectionEntriesTests(CollectionsApiTests):
         self.client.post("/collections", json={"name": "Manual",
                                                "games": [list(self.catalog)[0]]})
 
-        entries = self.client.get("/collections/Manual/entries?expanded=true").json()
-        defaults = [e["table"]["id"] for e in entries["entries"] if e["table"]["default"]]
+        # The entry the collection resolves to is the default, and `default` on it is
+        # the game's own choice rather than a flag read off the table row.
+        entries = self.client.get("/collections/Manual/entries").json()["entries"]
 
-        self.assertEqual(defaults, ["bb"], "the resolved default, exactly one of them")
+        self.assertEqual([e["table"]["id"] for e in entries], ["bb"])
+        self.assertTrue(entries[0]["table"]["default"], "the resolved default")

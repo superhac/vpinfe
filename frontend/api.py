@@ -284,11 +284,6 @@ class API:
         """Reset the shared view to its default order. See `View.reset_to_default`."""
         self.view.reset_to_default()
 
-    @property
-    def _expanded(self) -> bool:
-        """Whether the wheel shows every table of a game or just one."""
-        return frontend_view.expands_tables(self._iniConfig)
-
     def _rebuild_entries(self) -> None:
         """Recompute the shared view. Called whenever the list or its order changes."""
         self.view.rebuild_entries()
@@ -576,8 +571,8 @@ class API:
 
         game = entry.game
         try:
-            # The entry names the table, so an expanded list launches the build the
-            # player is looking at rather than whatever the game defaults to.
+            # The entry names the table, so the table the collection chose launches
+            # rather than whatever the game defaults to.
             launch.launch_game(game, self._iniConfig,
                                 source=launch_state.SOURCE_FRONTEND,
                                 table=entry.filename)

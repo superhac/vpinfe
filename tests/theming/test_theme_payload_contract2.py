@@ -64,13 +64,12 @@ class ContractTwoTests(unittest.TestCase):
     def _payload(self, games, **kwargs):
         return json.loads(games_json(entries_for(games, **kwargs), contract=2,
                                      collection="Friday Night",
-                                     expanded=kwargs.get("expanded", False)))
+                                     ))
 
-    def test_it_says_which_collection_and_which_lens(self) -> None:
+    def test_it_says_which_collection_it_is(self) -> None:
         body = self._payload([_game(tables=TWO_TABLES)])
 
         self.assertEqual(body["collection"], "Friday Night")
-        self.assertFalse(body["expanded"])
         self.assertEqual(body["count"], len(body["entries"]))
 
     def test_an_entry_names_its_game_and_its_table(self) -> None:
@@ -89,14 +88,14 @@ class ContractTwoTests(unittest.TestCase):
         self.assertTrue(entry["table"]["detects"]["ssf"])
         self.assertFalse(entry["table"]["detects"]["fleep"])
 
-    def test_expanded_gives_one_entry_per_table(self) -> None:
-        collapsed = self._payload([_game(tables=TWO_TABLES)])
-        expanded = self._payload([_game(tables=TWO_TABLES)], expanded=True)
+    def test_a_game_contributes_its_default_table(self) -> None:
+        """The list is one entry per game unless a collection named a second table of
+        one. `siblings` is how a theme knows there are others to offer."""
+        body = self._payload([_game(tables=TWO_TABLES)])
 
-        self.assertEqual(collapsed["count"], 1)
-        self.assertEqual(expanded["count"], 2)
-        self.assertEqual([e["table"]["id"] for e in expanded["entries"]], ["t1", "t2"],
-                         "the default first, then the rest by filename")
+        self.assertEqual(body["count"], 1)
+        self.assertEqual([e["table"]["id"] for e in body["entries"]], ["t1"])
+        self.assertEqual(body["entries"][0]["siblings"], 2)
 
     def test_the_entry_carries_play_stats_at_both_levels(self) -> None:
         """Texal-Flyer reads meta.User.StartCount and RunTime at contract 1. Contract 2
