@@ -1168,8 +1168,12 @@ matching. Existing `[Input]` keys migrate into the lists on first read (schema 3
 keep resolving afterwards.
 *What it costs someone:* a contract 1 theme that handled `joyup` for something other
 than paging loses it, because up is a paging action now and core answers paging by
-default. The design note behind the merge is that no published theme used it for
-anything else. Covered by `tests/theming/test_input_actions.py` and `tests/js/input.test.js`.
+default. Revolution and Trinidad do: both put a collection list in the wheel, and with
+core paging on, up and down page the game list underneath it and broadcast the move,
+which both read as the selection changing. Picking a collection with the flippers drops
+back to the games. carousel-desktop routes every direction through one function that
+checks which list is showing, so it is unaffected. Covered by
+`tests/theming/test_input_actions.py` and `tests/js/input.test.js`.
 
 **PAR-41 — Core moves the wheel, and a dialog can own the keys.**
 `core_navigation` is a capability, **on by default**, so `previous` and `next` move the

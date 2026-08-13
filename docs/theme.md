@@ -1115,6 +1115,12 @@ index while animating the move yourself. While a core overlay (menu, collection
 menu, tutorial) is up, these actions bypass core paging and go to the overlay's
 handler regardless.
 
+**Core paging is decided before your handler runs.** While it is on, a paging action
+never reaches `handleInput`, so a `case "joypageup"` added without the
+`enableCorePaging(false)` call never fires. A theme whose wheel shows something other
+than the game list wants the call: core pages the game list and broadcasts the move
+either way.
+
 ---
 
 ## vpinfe-core.js
@@ -1396,7 +1402,7 @@ Returns `true` when centralized core audio handling is enabled.
 Updates centralized audio options at runtime: volume (`maxVolume`, `max_volume`, or `volume`), fade duration (`fadeDuration`, `fade_duration_ms`, or `fadeMs`), and `loop`.
 
 #### enableCorePaging(enabled=true)
-Turns core-handled wheel paging (`joypageup`/`joypagedown`) on or off. Disable it if your theme does its own paging; the actions then arrive in `handleInput`. See [Wheel Paging](#wheel-paging).
+Turns core-handled wheel paging (`joypageup`/`joypagedown`) on or off. Disable it if your theme does its own paging; the actions then arrive in `handleInput`. Call it before you rely on those cases — while core paging is on it answers first, so the case never fires. See [Wheel Paging](#wheel-paging).
 
 #### isCorePagingEnabled()
 Returns `true` when core-handled wheel paging is enabled.
