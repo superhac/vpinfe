@@ -21,9 +21,9 @@ from . import (
     instance,
     jobs,
     library,
-    players,
     manufacturers,
     play,
+    players,
     scopes,
     uploads,
 )
