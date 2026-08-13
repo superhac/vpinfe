@@ -19,7 +19,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from frontend import game_state
-from frontend import view as frontend_view
+from frontend import library_resolver as frontend_library
 from frontend.api import API
 
 NAMES = ["Bravo", "Alpha", "Charlie"]
@@ -48,13 +48,13 @@ class SharedViewTests(unittest.TestCase):
         self.addCleanup(patcher.stop)
         # One seam: the view reads the library, and `refresh_view` asks the view rather
         # than loading a second time behind its back.
-        also = patch("frontend.view.ensure_games_loaded", return_value=self.games)
+        also = patch("frontend.library_resolver.ensure_games_loaded", return_value=self.games)
         also.start()
         self.addCleanup(also.stop)
 
         ini = _ini()
-        self.view = frontend_view.View(ini, games=self.games)
-        self.windows = {name: API(ini, window_name=name, view=self.view)
+        self.library = frontend_library.LibraryResolver(ini, games=self.games)
+        self.windows = {name: API(ini, window_name=name, library=self.library)
                         for name in ("playfield", "backglass", "scoreview")}
 
     def _counted_builds(self):
@@ -112,7 +112,7 @@ class SharedViewTests(unittest.TestCase):
         for window in self.windows.values():
             window.get_games()
 
-        self.view.mark_stale()
+        self.library.mark_stale()
         refreshes = []
         with patch.object(game_state, "refresh_view",
                           side_effect=lambda api: refreshes.append(1)):
@@ -126,7 +126,7 @@ class SharedViewTests(unittest.TestCase):
         into a view meant for somebody else's windows."""
         solo = API(_ini(), window_name="gamepad")
 
-        self.assertIsNot(solo.view, self.view)
+        self.assertIsNot(solo.library, self.library)
 
     def test_a_bare_instance_still_works(self) -> None:
         """`API.__new__(API)` is how paging and input mapping are tested - no library
@@ -159,8 +159,8 @@ class ViewConcurrencyTests(unittest.TestCase):
         a reader to land inside a rebuild, and one thread of each rarely arranges it.
         """
         games = [_game(name, index) for index, name in enumerate(NAMES * 100)]
-        with patch("frontend.view.ensure_games_loaded", return_value=games):
-            view = frontend_view.View(_ini(), games=games)
+        with patch("frontend.library_resolver.ensure_games_loaded", return_value=games):
+            view = frontend_library.LibraryResolver(_ini(), games=games)
 
         errors = []
 

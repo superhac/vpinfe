@@ -36,7 +36,7 @@ from frontend import (
     theme_api,
     theme_windows,
 )
-from frontend import view as frontend_view
+from frontend import library_resolver as frontend_library
 from frontend.theme_contract import CURRENT_CONTRACT, declared_contract
 
 logger = logging.getLogger("vpinfe.frontend.api")
@@ -171,7 +171,7 @@ class API:
         """
         announce(str(key), str(name))
     def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None,
-                 view=None):
+                 library=None):
         self._iniConfig = iniConfig
         self.window_name = window_name          # whatever the theme declared
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
@@ -179,8 +179,8 @@ class API:
         # The wheel's state, shared with every other window onto the same library.
         # Given one when the frontend builds the windows; a caller that constructs an
         # API on its own - a test, the gamepad diagnostic - gets a view of its own.
-        if view is not None:
-            self.view = view
+        if library is not None:
+            self.library = library
         self.jsGameDictData = None
         # Check for startup collection
         startup_collection = cfg_get(self._iniConfig, 'general', 'startup_collection').strip()
@@ -190,79 +190,80 @@ class API:
             except Exception:
                 logger.exception("Could not load startup collection '%s'", startup_collection)
 
-    # The view's state, reached through the window that is showing it. Properties rather
-    # than a move, so every existing caller - and `game_state`, which mutates these by
-    # name - keeps working against one shared object instead of a copy per window.
+    # The library's state, reached through the window that is showing it. Properties
+    # rather than a move, so every existing caller - and `game_state`, which mutates
+    # these by name - keeps working against one shared object instead of a copy per
+    # window.
     @property
-    def view(self):
-        """The shared view, made on demand for a caller that never gave one.
+    def library(self):
+        """The shared resolver, made on demand for a caller that never gave one.
 
         `API.__new__(API)` is a real pattern here: paging arithmetic and input mapping
         are tested against a bare instance with no library behind it. Those get a view
         of their own rather than an AttributeError routed through `__getattr__`, which
         reports the wrong name entirely.
         """
-        existing = self.__dict__.get("_view")
+        existing = self.__dict__.get("_library")
         if existing is None:
             # Loaded through this module's name, which is the one callers already patch
-            # to stand a library up for a test - the view is an implementation detail
-            # of where the games are held, not of how they are found.
-            existing = frontend_view.View(getattr(self, "_iniConfig", None),
+            # to stand a library up for a test - the resolver is an implementation
+            # detail of where the games are held, not of how they are found.
+            existing = frontend_library.LibraryResolver(getattr(self, "_iniConfig", None),
                                           games=ensure_games_loaded())
-            self.__dict__["_view"] = existing
+            self.__dict__["_library"] = existing
         return existing
 
-    @view.setter
-    def view(self, value):
-        self.__dict__["_view"] = value
+    @library.setter
+    def library(self, value):
+        self.__dict__["_library"] = value
 
     @property
     def allGames(self):  # noqa: N802 - the name game_state and themes already use
-        return self.view.all_games
+        return self.library.all_games
 
     @allGames.setter
     def allGames(self, value):  # noqa: N802
-        self.view.all_games = value
+        self.library.all_games = value
 
     @property
     def filteredGames(self):  # noqa: N802 - as above
-        return self.view.filtered_games
+        return self.library.filtered_games
 
     @filteredGames.setter
     def filteredGames(self, value):  # noqa: N802
-        self.view.filtered_games = value
+        self.library.filtered_games = value
 
     @property
     def current_filters(self):
-        return self.view.current_filters
+        return self.library.current_filters
 
     @current_filters.setter
     def current_filters(self, value):
-        self.view.current_filters = value
+        self.library.current_filters = value
 
     @property
     def current_collection(self):
-        return self.view.current_collection
+        return self.library.current_collection
 
     @current_collection.setter
     def current_collection(self, value):
-        self.view.current_collection = value
+        self.library.current_collection = value
 
     @property
     def current_sort(self):
-        return self.view.current_sort
+        return self.library.current_sort
 
     @current_sort.setter
     def current_sort(self, value):
-        self.view.current_sort = value
+        self.library.current_sort = value
 
     @property
     def current_order(self):
-        return self.view.current_order
+        return self.library.current_order
 
     @current_order.setter
     def current_order(self, value):
-        self.view.current_order = value
+        self.library.current_order = value
 
     ####################
     ## Private Functions
@@ -282,11 +283,11 @@ class API:
 
     def _reset_to_default_view(self):
         """Reset the shared view to its default order. See `View.reset_to_default`."""
-        self.view.reset_to_default()
+        self.library.reset_to_default()
 
     def _rebuild_entries(self) -> None:
         """Recompute the shared view. Called whenever the list or its order changes."""
-        self.view.rebuild_entries()
+        self.library.rebuild_entries()
 
     @property
     def entries(self):
@@ -295,7 +296,7 @@ class API:
         The view's list, not this window's: every window onto the same library steps
         through the same entries, and only the controller can change them.
         """
-        return self.view.entries
+        return self.library.entries
 
     def entry_at(self, index):
         """The entry a theme's index names, or None when it names nothing.
@@ -396,10 +397,10 @@ class API:
             # Re-derived once per change, not once per window: all three ask after the
             # same GameDataChange broadcast, and the second and third were rebuilding a
             # view the first had just rebuilt.
-            self.view.refresh_if_stale(lambda: game_state.refresh_view(self))
+            self.library.refresh_if_stale(lambda: game_state.refresh_view(self))
         # Built once for the view, not once per window: three windows onto the same
         # library were each serializing an identical answer.
-        self.jsGameDictData = self.view.payload(
+        self.jsGameDictData = self.library.payload(
             self._theme_contract(), collection=self.current_collection or "")
         return self.jsGameDictData
 

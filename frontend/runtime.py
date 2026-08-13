@@ -17,7 +17,7 @@ from common.games import hub_library
 from common.host import system_actions
 from common.host.display_service import get_display_monitors
 from common.online.vpinplay_runtime import clear_alternate_profile
-from frontend import play_events, view
+from frontend import library_resolver, play_events
 from frontend.api import API
 from frontend.chromium_manager import ChromiumManager
 from frontend.custom_http_server import CustomHTTPServer
@@ -51,7 +51,7 @@ def create_api_instances(iniconfig, logger):
     # One view, however many windows. They show the same library and the same selection,
     # and only the controller window takes input - so three copies were three derivations
     # of one answer, kept in step by everyone doing the same work.
-    shared_view = view.View(iniconfig)
+    shared_library = library_resolver.LibraryResolver(iniconfig)
 
     # A player says hello to the hub whose library it is about to show. On a single
     # machine there is no hub_url and this does nothing. Best effort: a hub that cannot
@@ -63,7 +63,7 @@ def create_api_instances(iniconfig, logger):
             daemon=True, name="announce-to-hub").start()
         if network.verify_shared_library:
             threading.Thread(
-                target=_report_shared_library, args=(shared_view, logger),
+                target=_report_shared_library, args=(shared_library, logger),
                 daemon=True, name="verify-shared-library").start()
 
     for window_name, config_key in window_configs(iniconfig):
@@ -76,7 +76,7 @@ def create_api_instances(iniconfig, logger):
             window_name=window_name,
             ws_bridge=ws_bridge,
             frontend_browser=frontend_browser,
-            view=shared_view,
+            library=shared_library,
         )
         api._finish_setup()
         ws_bridge.register_api(window_name, api)
@@ -89,7 +89,7 @@ def create_api_instances(iniconfig, logger):
     return ws_bridge, frontend_browser
 
 
-def _report_shared_library(shared_view, logger) -> None:
+def _report_shared_library(shared_library, logger) -> None:
     """Say whether this player's library really is the hub's, once, at startup.
 
     Reports and does nothing else. A mismatch is a real problem - it is the difference
@@ -100,7 +100,7 @@ def _report_shared_library(shared_view, logger) -> None:
     from common.games.game_repository import ensure_games_loaded
 
     try:
-        report = hub_library.verify_shared_library(shared_view.entries, ensure_games_loaded())
+        report = hub_library.verify_shared_library(shared_library.entries, ensure_games_loaded())
     except Exception:
         logger.debug("Could not verify the shared library", exc_info=True)
         return

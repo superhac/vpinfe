@@ -23,9 +23,9 @@ def _game(name, last_run=0):
     )
 
 
-class _View:
+class _Library:
     """Just the part `refresh_view` reaches for: where the library comes from. A player's
-    is a hub, so asking the view is what keeps the two answers from diverging."""
+    is a hub, so asking the resolver is what keeps the two answers from diverging."""
 
     def __init__(self, games):
         self.all_games = list(games)
@@ -35,10 +35,10 @@ class _View:
 
 
 class _Api:
-    """The parts of the frontend API a view is derived from."""
+    """The parts of the frontend API a resolved list is derived from."""
 
     def __init__(self, games, sort="Alpha", order="Ascending", collection=None):
-        self.view = _View(games)
+        self.library = _Library(games)
         self.allGames = list(games)
         self.filteredGames = list(games)
         self.current_filters = game_state.default_filter_state()
@@ -53,9 +53,9 @@ class _Api:
 
 class ViewRefreshTests(unittest.TestCase):
     def _refresh(self, api, library):
-        # The view is what reads the library now, so that is what a test stands up:
-        # `refresh_view` asks it rather than loading a second time behind its back.
-        api.view.all_games = list(library)
+        # The resolver is what reads the library now, so that is what a test stands
+        # up: `refresh_view` asks it rather than loading a second time behind its back.
+        api.library.all_games = list(library)
         game_state.refresh_view(api)
 
     def test_the_view_picks_up_the_replacement_game_object(self):

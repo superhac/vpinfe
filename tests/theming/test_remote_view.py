@@ -21,8 +21,8 @@ from unittest.mock import patch
 from common.games import hub_library
 from common.games.collection_resolver import Entry
 from common.games.wire_entry import WireGame
-from frontend import view as frontend_view
-from frontend.view import View
+from frontend import library_resolver as frontend_library
+from frontend.library_resolver import LibraryResolver
 
 TITLES = ("Attack from Mars", "Medieval Madness", "Twilight Zone")
 
@@ -61,16 +61,16 @@ class HubUrlTests(unittest.TestCase):
                 config.read_string(text)
                 ini = SimpleNamespace(config=config)
 
-                self.assertEqual(frontend_view.hub_url(ini), "")
-                self.assertFalse(View(ini, games=[])._remote)
+                self.assertEqual(frontend_library.hub_url(ini), "")
+                self.assertFalse(LibraryResolver(ini, games=[])._remote)
 
     def test_a_hub_makes_the_view_remote(self) -> None:
-        self.assertEqual(frontend_view.hub_url(_ini("http://hub:8001")), "http://hub:8001")
+        self.assertEqual(frontend_library.hub_url(_ini("http://hub:8001")), "http://hub:8001")
 
     def test_config_that_cannot_be_read_is_local_rather_than_fatal(self) -> None:
         """A player that cannot read its setting holds its own library, which is the
         behavior that needs no network to work."""
-        self.assertEqual(frontend_view.hub_url(SimpleNamespace(config=None)), "")
+        self.assertEqual(frontend_library.hub_url(SimpleNamespace(config=None)), "")
 
 
 class RemoteViewTests(unittest.TestCase):
@@ -79,26 +79,26 @@ class RemoteViewTests(unittest.TestCase):
                                lambda *a, **k: PAYLOAD)
         patcher.start()
         self.addCleanup(patcher.stop)
-        self.view = View(_ini("http://hub.example:8001"))
+        self.library = LibraryResolver(_ini("http://hub.example:8001"))
 
     def test_it_holds_what_the_hub_sent(self) -> None:
-        self.assertTrue(self.view._remote)
-        self.assertEqual(len(self.view.entries), len(TITLES))
-        self.assertTrue(all(isinstance(entry, Entry) for entry in self.view.entries))
+        self.assertTrue(self.library._remote)
+        self.assertEqual(len(self.library.entries), len(TITLES))
+        self.assertTrue(all(isinstance(entry, Entry) for entry in self.library.entries))
         self.assertTrue(all(isinstance(entry.game, WireGame)
-                            for entry in self.view.entries))
+                            for entry in self.library.entries))
 
     def test_the_entries_are_kept_rather_than_re_derived(self) -> None:
         """`entries_for` reads a game's table dicts out of its `.info`, and the hub kept
         those - re-deriving would quietly produce an empty wheel."""
-        self.assertEqual([entry.table_id for entry in self.view.entries],
+        self.assertEqual([entry.table_id for entry in self.library.entries],
                          [f"t-{title[:4]}" for title in TITLES])
-        self.assertEqual([entry.filename for entry in self.view.entries],
+        self.assertEqual([entry.filename for entry in self.library.entries],
                          [f"{title}.vpx" for title in TITLES])
 
     def test_it_serializes_a_theme_payload(self) -> None:
         """What the wheel actually renders, built on the player from the hub's answer."""
-        payload = json.loads(self.view.payload(2))
+        payload = json.loads(self.library.payload(2))
 
         self.assertEqual(payload["count"], len(TITLES))
         self.assertEqual([entry["game"]["name"] for entry in payload["entries"]],
@@ -108,7 +108,7 @@ class RemoteViewTests(unittest.TestCase):
             self.assertEqual(entry["media"], ["wheel"])
 
     def test_no_path_from_the_hub_reaches_the_payload(self) -> None:
-        payload = json.loads(self.view.payload(2))
+        payload = json.loads(self.library.payload(2))
 
         for entry in payload["entries"]:
             self.assertEqual(entry["game"]["path"], "")
@@ -119,18 +119,18 @@ class RemoteViewTests(unittest.TestCase):
         an entry forwards both - so a player sorts its wheel without a local library."""
         for sort in ("Alpha", "Newest", "LastRun", "Highest StartCount", "RunTime"):
             with self.subTest(sort=sort):
-                self.view.current_sort = sort
-                self.view.current_order = "Ascending"
-                self.view.reset_to_default()
+                self.library.current_sort = sort
+                self.library.current_order = "Ascending"
+                self.library.reset_to_default()
 
-                self.assertEqual(len(self.view.entries), len(TITLES))
+                self.assertEqual(len(self.library.entries), len(TITLES))
 
     def test_newest_orders_by_what_the_hub_stamped(self) -> None:
         """The one sort that cannot work without `created_at` crossing: the timestamps
         decide it, so a reversed order is the field arriving rather than a tiebreak."""
         from frontend import game_state
 
-        rows = list(self.view.entries)
+        rows = list(self.library.entries)
         game_state.apply_sort(rows, "Newest", "Descending")
 
         self.assertEqual([row.game.meta_config["Info"]["Title"] for row in rows],

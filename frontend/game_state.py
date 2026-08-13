@@ -219,7 +219,7 @@ def refresh_view(api):
     The view says where its library comes from. Reading the local one here would hand a
     player its own empty disk on the first refresh, throwing away what the hub sent.
     """
-    api.allGames = api.view.reload()
+    api.allGames = api.library.reload()
     api.filteredGames = _current_membership(api)
     apply_sort(api.filteredGames, api.current_sort, api.current_order)
     api._rebuild_entries()

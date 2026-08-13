@@ -1,4 +1,4 @@
-"""What the wheel is showing, held once for every window showing it.
+"""One collection resolved into the entries every window shows, cached.
 
 Three windows onto one library were three copies that happened to agree, each deriving
 the same answer. Only the controller takes input, so only one could ever change it. The
@@ -15,7 +15,7 @@ from common.games import collection_resolver, hub_library
 from common.games.game_repository import ensure_games_loaded
 from frontend import game_state
 
-logger = logging.getLogger("vpinfe.frontend.view")
+logger = logging.getLogger("vpinfe.frontend.library_resolver")
 
 
 def hub_url(ini_config) -> str:
@@ -27,7 +27,7 @@ def hub_url(ini_config) -> str:
         return ""
 
 
-class View:
+class LibraryResolver:
     """The library, the filter, the sort, and the list they produce.
 
     Mutation is serialized: the bridge runs each window's call on its own thread, so
