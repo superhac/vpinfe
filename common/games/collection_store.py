@@ -60,20 +60,20 @@ COLLECTION_IMAGE_KEY = "image"
 
 # A member names a game, and optionally one of its tables:
 #
-#   {"game": "tuF3WogthK"}                        follow - every visible table
-#   {"game": "tuF3WogthK", "table": "9kRm2QvT8x"} pin - exactly this one, frozen
+#   {"game": "tuF3WogthK"}                        the game - its default table
+#   {"game": "tuF3WogthK", "table": "9kRm2QvT8x"} exactly this table, frozen
 #
 # Two members may name the same game, which is how one game appears twice in a
-# curated order with a different table each time. A bare id is read as a follow.
+# curated order with a different table each time. A bare id names the game.
 MEMBER_GAME_KEY = "game"
 MEMBER_TABLE_KEY = "table"
 
 # Same shape, opposite sign. An excluded ref naming only a game removes the game; one
 # naming a table removes that table and leaves the rest of the game alone.
 #
-# Excluding a table is not the inverse of pinning one. A pin is frozen - a build added
-# next month does not appear. An exclusion still follows - it does. Both are wanted,
-# and neither substitutes for the other.
+# Excluding a table is not the inverse of naming one. A named table is frozen - a table
+# added next month does not appear. An exclusion still tracks - it does. Both are
+# wanted, and neither substitutes for the other.
 EXCLUDED_KEY = "excluded"
 
 # How a collection is ordered, as its own block rather than mixed in with the criteria.
@@ -90,6 +90,12 @@ ORDER_DIRECTION_KEY = "direction"
 DEFAULT_ORDER_BY = "title"
 DEFAULT_DIRECTION = "asc"
 MANUAL_ORDER = "manual"
+
+# How many rows to keep, applied last so it caps an ordered list rather than choosing
+# which rows are in it. Absent means all of them, which is every collection written
+# before this key existed - so it is an addition to schema 2, not a new version.
+# "Last 20 played" is an order plus this and nothing else.
+LIMIT_KEY = "limit"
 
 # The stored sort names, in the vocabulary the rest of 3.0 uses. Nothing writes the old
 # spellings any more; a file written before this block existed still holds them.
@@ -292,6 +298,32 @@ class CollectionStore:
             ORDER_BY_KEY: by,
             ORDER_DIRECTION_KEY: "desc" if str(direction).lower().startswith("desc")
                                  else "asc"}
+
+    def get_limit(self, section: str) -> int | None:
+        """How many rows this collection keeps, or None for all of them."""
+        raw = self._require(section).get(LIMIT_KEY)
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            return None
+        return value if value > 0 else None
+
+    def set_limit(self, section: str, limit: int | None) -> None:
+        """Cap this collection, or lift the cap with None.
+
+        Refused on a builtin: a limit on the whole library hides most of it with nothing
+        on screen to say why, and `builtin:all` is what everything else falls back to.
+        """
+        record = self._require(section)
+        if record.get("builtin") is True:
+            raise ValueError(f"Collection {section!r} is builtin and cannot be limited")
+        if limit is None:
+            record.pop(LIMIT_KEY, None)
+            return
+        value = int(limit)
+        if value <= 0:
+            raise ValueError("A limit must be a positive number of rows")
+        record[LIMIT_KEY] = value
 
     def get_excluded_refs(self, section: str) -> list[dict]:
         """What this collection removes, whatever put it there. Applied after members

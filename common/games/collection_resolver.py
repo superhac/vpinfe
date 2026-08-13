@@ -6,6 +6,7 @@ Five steps, and the same answer whoever asks:
     2. visibility   drop hidden - library-wide, and it beats a named table
     3. selection    the table a member named, or the game's default
     4. order        the member array, or a computed sort
+    5. limit        keep the first N rows, if the collection caps itself
 
 Before this there were two engines. Manual collections sorted by title in `common/`
 ignoring the stored criteria; filter collections sorted in `frontend/game_state.py`
@@ -335,4 +336,8 @@ def resolve(name: str, collections, games) -> list[Entry]:
         if descending and order_by in ("title", "year"):
             result.reverse()
 
-    return result
+    # 5. Limit. Last, so it caps an ordered list rather than deciding what is in it.
+    # The tiebreak in _sort_key is what stops "top 20 rated" returning a different
+    # twenty each time two tables are level.
+    limit = collections.get_limit(name)
+    return result[:limit] if limit else result

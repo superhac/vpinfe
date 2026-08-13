@@ -169,6 +169,45 @@ class ResolverTests(TempTree):
         self.assertEqual([e.game.gameDirName for e in entries],
                          ["Medieval Madness", "Attack from Mars", "The Addams Family"])
 
+    # --- limit ----------------------------------------------------------------------
+
+    def test_a_limit_keeps_the_first_rows_of_the_ordered_list(self) -> None:
+        """"Last 20 played" is an order plus a limit, so the cap has to come after the
+        sort or it would keep an arbitrary twenty."""
+        self.collections.add_filter_collection("Recent", sort_by="LastRun")
+        self.collections.set_limit("Recent", 2)
+
+        entries = resolve("Recent", self.collections, self.games)
+
+        self.assertEqual([e.game.gameDirName for e in entries],
+                         ["Medieval Madness", "Attack from Mars"])
+
+    def test_a_limit_past_the_end_keeps_everything(self) -> None:
+        self.collections.add_filter_collection("Recent", sort_by="LastRun")
+        self.collections.set_limit("Recent", 99)
+
+        self.assertEqual(len(resolve("Recent", self.collections, self.games)), 3)
+
+    def test_no_limit_keeps_everything(self) -> None:
+        self.collections.add_filter_collection("Recent", sort_by="LastRun")
+
+        self.assertIsNone(self.collections.get_limit("Recent"))
+        self.assertEqual(len(resolve("Recent", self.collections, self.games)), 3)
+
+    def test_a_limit_counts_rows_not_games(self) -> None:
+        """A row is a table. A collection naming two tables of one game asked for both,
+        so both count against the cap."""
+        self.collections.add_collection("Friday Night")
+        self.collections.set_order("Friday Night", "manual")
+        self.collections.add_member("Friday Night", "mm", table_id="vpw")
+        self.collections.add_member("Friday Night", "mm", table_id="jp")
+        self.collections.add_member("Friday Night", "afm")
+        self.collections.set_limit("Friday Night", 2)
+
+        entries = resolve("Friday Night", self.collections, self.games)
+
+        self.assertEqual(self._ids(entries), [("mm", "vpw"), ("mm", "jp")])
+
     def test_two_resolutions_of_the_same_input_agree(self) -> None:
         """Peers that tie on the sort key must not shuffle between refreshes."""
         self.collections.add_filter_collection("Everything", sort_by="Alpha")
