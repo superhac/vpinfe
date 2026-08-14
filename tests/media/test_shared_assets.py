@@ -232,8 +232,8 @@ class PayloadTests(unittest.TestCase):
     def test_every_game_row_carries_the_logo_path_or_null(self) -> None:
         import json as _json
 
-        from common.games.collection_resolver import entries_for
         from frontend.game_state import games_json
+        from tests.support.entries import entries_for
 
         game = fake_game(
                    "/games/Cactus Canyon (Bally 1998)", "Cactus Canyon (Bally 1998)",

@@ -1,7 +1,7 @@
 """The library as a player reads it off a hub.
 
 A player with no library of its own asks the hub for entries and builds its own payload
-from them. This turns the wire rows into the same objects `entries_for` produces locally,
+from them. This turns the wire rows into the same objects the resolver produces locally,
 so everything downstream - filters, sorts, the payload builder - cannot tell which side
 the library came from.
 """

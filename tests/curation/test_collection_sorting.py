@@ -2,7 +2,9 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
+from unittest.mock import patch
 
+from common.games import game_play_service
 from common.games.collection_store import CollectionStore
 from frontend.api import API
 
@@ -29,61 +31,27 @@ def _game(title, vpsid, last_run=None, altvpsid="", alttitle="", runtime=0,
     )
 
 
+class TestLastPlayedOrder(unittest.TestCase):
+    """Last Played is an ordinary collection now - nothing matches it by name - so the
+    recency order it is maintained in has to be recorded as the collection's own."""
+
+    def test_tracking_a_play_records_the_order_it_writes(self) -> None:
+        with TemporaryDirectory() as tmp:
+            store = CollectionStore(str(Path(tmp) / "collections.json"))
+            game = SimpleNamespace(meta_config={"Info": {"Title": "Alpha"},
+                                                "vpinfe": {"game_id": "alpha"}})
+
+            with patch.object(game_play_service, "get_collections_manager",
+                              lambda: store):
+                game_play_service.track_game_play(game)
+
+            self.assertEqual(store.get_members("Last Played"), ["alpha"])
+            self.assertEqual(store.get_order("Last Played")["by"], "manual")
+
+
 class TestCollectionSorting(unittest.TestCase):
-    def test_last_played_collection_sorts_by_user_last_run_desc(self) -> None:
-        with TemporaryDirectory() as tmp:
-            ini_path = Path(tmp) / "collections.ini"
-            ini_path.write_text(
-                "\n".join(
-                    [
-                        "[Last Played]",
-                        "type = vpsid",
-                        "vpsids = vps-1,vps-2,vps-3",
-                    ]
-                ),
-                encoding="utf-8",
-            )
-
-            manager = CollectionStore(str(ini_path))
-            games = [
-                _game("Bravo", "vps-1", last_run=100),
-                _game("Alpha", "vps-2", last_run=300),
-                _game("Charlie", "vps-3", last_run=None),
-            ]
-
-            result = manager.filter_games(games, "Last Played")
-
-            self.assertEqual(
-                [game.meta_config["Info"]["Title"] for game in result],
-                ["Alpha", "Bravo", "Charlie"],
-            )
-
-    def test_regular_vpsid_collection_still_sorts_alphabetically(self) -> None:
-        with TemporaryDirectory() as tmp:
-            ini_path = Path(tmp) / "collections.ini"
-            ini_path.write_text(
-                "\n".join(
-                    [
-                        "[Favorites]",
-                        "type = vpsid",
-                        "vpsids = vps-1,vps-2",
-                    ]
-                ),
-                encoding="utf-8",
-            )
-
-            manager = CollectionStore(str(ini_path))
-            games = [
-                _game("Zulu", "vps-1", last_run=999),
-                _game("Alpha", "vps-2", last_run=1),
-            ]
-
-            result = manager.filter_games(games, "Favorites")
-
-            self.assertEqual(
-                [game.meta_config["Info"]["Title"] for game in result],
-                ["Alpha", "Zulu"],
-            )
+    # A collection's own order is the resolver's, and tested there. What is left here is
+    # the sort a player applies on top of it, which is the frontend's.
 
     def test_api_last_run_sort_orders_all_collections_by_user_last_run(self) -> None:
         api = API.__new__(API)

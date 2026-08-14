@@ -6,6 +6,8 @@ import logging
 import threading
 from queue import Queue
 
+from frontend import game_state
+
 logger = logging.getLogger("vpinfe.frontend.metadata_build_service")
 
 
@@ -38,7 +40,9 @@ def start_build(api, *, build_metadata_func, ensure_games_loaded_func, download_
             )
             event_queue.put({"type": "buildmeta_complete", "result": result})
             api.allGames = ensure_games_loaded_func(reload=True)
-            api.filteredGames = api.allGames
+            # Re-derived rather than assigned: the view is a collection resolved to
+            # entries, and the build has just replaced every game object behind it.
+            game_state.rebuild_view(api)
         except Exception as exc:
             event_queue.put({"type": "buildmeta_error", "error": str(exc)})
             logger.exception("buildMetaData failed")

@@ -267,6 +267,21 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-82 — The wheel resolves a collection the same way the API does.** Choosing a
+collection in a theme now goes through the one resolver, so the wheel honors what a
+collection stores: a member naming one specific table, a table or game it excludes, a row
+limit, and the order it was arranged in. Filtering leaves the collection you were in and
+shows the library filtered, which is what it already did. `Last Played` still comes back
+most-recent-first, and no longer because its name is matched in code — the list is written
+in that order, and the collection now records that the order is the list.
+*Why:* the frontend had a membership engine of its own that read a collection's game ids
+and nothing else, so all four of those were invisible on the wheel while REST answered
+correctly for the same collection. Measured on identical collections: two named tables of
+one game showed one row, a limit of 2 over three games showed three, and an excluded game
+was still there. A theme reading `get_current_sort_state` can now see `"Manual"`, which is
+a curated order rather than one of the five sorts. Covered by
+`tests/theming/test_collection_view.py` and `tests/theming/test_view_refresh.py`.
+
 **PAR-81 — The `.vpx`'s company fields are not published.** *(machine-checked)* The
 entry's table half briefly carried `manufacturer`, `year` and `type` from the `.vpx`'s
 `tableinfo`. All three are removed before anything consumed them; `release_date` and

@@ -14,8 +14,6 @@ from common.games import collection_filters
 from common.games.game_identity import game_id
 from common.games.game_metadata import (
     base_game_vps_id,
-    game_title,
-    section,
     vpinfe_section,
 )
 from common.games.info_file import VPINFE_SECTION
@@ -97,6 +95,24 @@ MANUAL_ORDER = "manual"
 # "Last 20 played" is an order plus this and nothing else.
 LIMIT_KEY = "limit"
 
+# The whole library, as a collection. Synthesized: the store answers for it and `save()`
+# never writes it, so no user's file gains a row to say what absence already said. It
+# constrains nothing, which is why the resolver needs no case for it - empty criteria
+# match every game, so the library comes back through the ordinary path.
+BUILTIN_ALL = "builtin:all"
+
+BUILTIN_RECORDS = {
+    BUILTIN_ALL: {"name": BUILTIN_ALL, "label": "All Games", "type": "filter",
+                  "builtin": True, "image": "", "filters": {}},
+}
+
+
+def public_name(name: str | None) -> str:
+    """What a collection is called outside core. The whole library is no collection at
+    all out there - in the payload, in `get_current_collection`, in the hub's URL - and
+    the `builtin:` prefix reaches nobody."""
+    return "" if not name or name == BUILTIN_ALL else str(name)
+
 # The stored sort names, in the vocabulary the rest of 3.0 uses. Nothing writes the old
 # spellings any more; a file written before this block existed still holds them.
 ORDER_ALIASES = {
@@ -154,19 +170,6 @@ def _ini_schema(parser) -> int:
 _warned_newer_schema = set()
 
 
-def _get_display_title(game):
-    return game_title(game)
-
-
-def _get_last_run_value(game):
-    user = section(getattr(game, "meta_config", {}), "User")
-    raw = user.get("LastRun")
-    try:
-        return int(raw)
-    except (TypeError, ValueError):
-        return -1
-
-
 class CollectionStore:
     """The user's collections, stored as JSON.
 
@@ -185,6 +188,9 @@ class CollectionStore:
         else:
             self.path, self.ini_path = path, path.with_name(COLLECTIONS_NAME_INI)
         self._converted_from_ini = False
+        # This store's own copies: `set_view_filters` writes into `builtin:all`, and one
+        # caller's view must not become another's.
+        self._builtins = {name: dict(record) for name, record in BUILTIN_RECORDS.items()}
         self.reload()
 
     def reload(self):
@@ -245,12 +251,23 @@ class CollectionStore:
         for record in self.records:
             if record.get("name") == name:
                 return record
-        return None
+        # A fresh copy, so a reader that mutates what it is handed cannot make a builtin
+        # differ between two calls. Writers go through _require_mutable, which refuses.
+        builtin = self._builtins.get(name)
+        return dict(builtin) if builtin else None
 
     def _require(self, name: str) -> dict:
         record = self._record(name)
         if record is None:
             raise KeyError(f"Section '{name}' not found")
+        return record
+
+    def _require_mutable(self, name: str) -> dict:
+        """The stored record to write to. A builtin has none - it is synthesized on read,
+        so an edit would be accepted and then vanish at the next call."""
+        record = self._require(name)
+        if record.get("builtin") is True:
+            raise ValueError(f"Collection {name!r} is builtin and cannot be edited")
         return record
 
     def get_collections_name(self):
@@ -271,6 +288,13 @@ class CollectionStore:
             return None
         stored = self._require(section).get("filters") or {}
         return {key: stored.get(key, default) for key, default in _FILTER_DEFAULTS.items()}
+
+    def set_view_filters(self, criteria: dict | None) -> None:
+        """Constrain `builtin:all` by criteria that are stored nowhere - the frontend's
+        filter controls, which make a collection out of the library rather than narrowing
+        the one on screen. Around `_require_mutable` on purpose: there is no record to
+        write to, and this lasts as long as the store object."""
+        self._builtins[BUILTIN_ALL]["filters"] = dict(criteria or {})
 
     def get_order(self, section: str) -> dict:
         """How to order this collection: {"by": ..., "direction": "asc"|"desc"}.
@@ -294,7 +318,7 @@ class CollectionStore:
 
     def set_order(self, section: str, by: str, direction: str = DEFAULT_DIRECTION) -> None:
         """Record how this collection is ordered. `manual` means the member array."""
-        self._require(section)[ORDER_KEY] = {
+        self._require_mutable(section)[ORDER_KEY] = {
             ORDER_BY_KEY: by,
             ORDER_DIRECTION_KEY: "desc" if str(direction).lower().startswith("desc")
                                  else "asc"}
@@ -314,9 +338,7 @@ class CollectionStore:
         Refused on a builtin: a limit on the whole library hides most of it with nothing
         on screen to say why, and `builtin:all` is what everything else falls back to.
         """
-        record = self._require(section)
-        if record.get("builtin") is True:
-            raise ValueError(f"Collection {section!r} is builtin and cannot be limited")
+        record = self._require_mutable(section)
         if limit is None:
             record.pop(LIMIT_KEY, None)
             return
@@ -332,7 +354,7 @@ class CollectionStore:
 
     def exclude(self, section: str, game_id: str, table_id: str = "") -> None:
         """Remove a game, or one of its tables, from this collection."""
-        record = self._require(section)
+        record = self._require_mutable(section)
         excluded = _member_refs(record.get(EXCLUDED_KEY))
         ref = _member_ref({MEMBER_GAME_KEY: game_id, MEMBER_TABLE_KEY: table_id})
         if ref and ref not in excluded:
@@ -342,7 +364,7 @@ class CollectionStore:
     def unexclude(self, section: str, game_id: str, table_id: str = "") -> None:
         """Undo an exclusion. Without a table, drops every exclusion naming this game -
         including the per-table ones, since the game is wanted back whole."""
-        record = self._require(section)
+        record = self._require_mutable(section)
         excluded = _member_refs(record.get(EXCLUDED_KEY))
         if table_id:
             keep = [e for e in excluded
@@ -424,10 +446,10 @@ class CollectionStore:
         })
 
     def delete_collection(self, section: str):
-        self.records.remove(self._require(section))
+        self.records.remove(self._require_mutable(section))
 
     def rename_collection(self, old_name: str, new_name: str):
-        record = self._require(old_name)
+        record = self._require_mutable(old_name)
         if self._record(new_name) is not None:
             raise ValueError(f"Section '{new_name}' already exists")
         if not new_name.strip():
@@ -437,7 +459,7 @@ class CollectionStore:
     def add_member(self, section: str, member_id: str, table_id: str = ""):
         """Add a game, or one specific table of it. Adding the same pairing twice is
         a no-op; adding a second table of a game already present is not."""
-        record = self._require(section)
+        record = self._require_mutable(section)
         members = _member_refs(record.get("members"))
         ref = _member_ref({MEMBER_GAME_KEY: member_id, MEMBER_TABLE_KEY: table_id})
         if ref and ref not in members:
@@ -446,7 +468,7 @@ class CollectionStore:
 
     def remove_member(self, section: str, member_id: str, table_id: str = ""):
         """Remove a pairing, or every ref naming this game when no table is given."""
-        record = self._require(section)
+        record = self._require_mutable(section)
         members = _member_refs(record.get("members"))
         if table_id:
             keep = [m for m in members
@@ -467,7 +489,7 @@ class CollectionStore:
         collection had named is gone. That is the right meaning for an editor that can
         only show games, but it is not something to lose quietly.
         """
-        record = self._require(section)
+        record = self._require_mutable(section)
         replacement = _member_refs(members)
         named = {m[MEMBER_GAME_KEY] for m in _member_refs(record.get("members"))
                  if MEMBER_TABLE_KEY in m}
@@ -488,7 +510,7 @@ class CollectionStore:
 
     def set_image(self, section: str, filename: str | None) -> None:
         """Set the collection's icon, or clear it when given nothing."""
-        record = self._require(section)
+        record = self._require_mutable(section)
         if filename:
             record[COLLECTION_IMAGE_KEY] = filename
         else:
@@ -496,7 +518,7 @@ class CollectionStore:
 
     def set_filter(self, section: str, key: str, value) -> None:
         """One criterion on a filter collection."""
-        self._require(section).setdefault("filters", {})[key] = value
+        self._require_mutable(section).setdefault("filters", {})[key] = value
 
     def migrate_membership_to_game_ids(self, games) -> int:
         """Move VPS-keyed membership onto game ids. Returns how many entries moved.
@@ -638,21 +660,6 @@ class CollectionStore:
             (base_vpsid and base_vpsid in member_ids)
             or (alt_vpsid and alt_vpsid in member_ids)
         )
-
-    def filter_games(self, games, collection):
-        """Games belonging to a collection, ordered for display."""
-        filter_ids = set(self.get_members(collection))
-        result = [t for t in games if self.is_member(t, filter_ids)]
-
-        if collection == "Last Played":
-            # Automatic recents collection should surface the most recently run games first.
-            result.sort(
-                key=lambda t: (-_get_last_run_value(t), _get_display_title(t).lower())
-            )
-        else:
-            result.sort(key=lambda t: _get_display_title(t).lower())
-
-        return result
 
 
 COLLECTIONS_NAME = "collections.json"

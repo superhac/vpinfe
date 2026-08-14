@@ -1,8 +1,8 @@
 """The play lens over the whole library, and reading it back as local entries.
 
-A player with no library of its own shows everything before a collection is chosen, and
-there is no stored collection meaning "all of it" - so `GET /collections/{name}/entries`
-cannot answer for that view. `GET /library/entries` is the same lens, unnarrowed.
+A player with no library of its own shows everything before a collection is chosen. The
+whole library is `builtin:all`, synthesized rather than stored, and `GET /library/entries`
+is the path it answers on - the same lens `GET /collections/{name}/entries` narrows.
 
 `hub_library` is the other half: what a player does with the answer. It turns the wire
 rows back into the `Entry` objects the frontend already builds locally, so nothing
@@ -18,7 +18,8 @@ from unittest.mock import patch
 
 import httpapi
 from common.games import hub_library
-from common.games.collection_resolver import Entry, entries_for
+from common.games.collection_resolver import Entry, resolve
+from common.games.collection_store import BUILTIN_ALL, CollectionStore
 from common.games.game_metadata import game_title
 from common.media_specs import MEDIA_SPECS
 from frontend import game_state
@@ -54,6 +55,12 @@ class LibraryEntriesTests(TempTree):
         self.addCleanup(loader.stop)
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
 
+    def _resolved(self, games):
+        """The same answer the frontend derives for this view: `builtin:all` over the
+        library, through the one resolver."""
+        return resolve(BUILTIN_ALL,
+                       CollectionStore(str(self.root / "collections.json")), games)
+
     def test_the_whole_library_answers_as_entries(self) -> None:
         response = self.client.get("/library/entries")
 
@@ -68,17 +75,17 @@ class LibraryEntriesTests(TempTree):
         wire = self.client.get("/library/entries").json()["entries"]
 
         self.assertEqual([row["game"]["name"] for row in wire],
-                         [game_title(e.game) for e in entries_for(self.games)])
+                         [game_title(e.game) for e in self._resolved(self.games)])
 
     def test_a_player_reads_the_answer_back_as_local_entries(self) -> None:
         """The round trip that makes a remote library indistinguishable from a local one:
-        what the hub sent has to arrive as what `entries_for` would have built."""
+        what the hub sent has to arrive as what the resolver would have built."""
         payload = self.client.get("/library/entries").json()
 
         with patch.object(hub_library.http_client, "get_json", lambda *a, **k: payload):
             remote = hub_library.fetch_entries("http://hub.example:8001")
 
-        local = entries_for(self.games)
+        local = self._resolved(self.games)
         self.assertEqual([game_title(e.game) for e in remote],
                          [game_title(e.game) for e in local])
         # The table half too, by a field that actually carries a value here - comparing
@@ -128,7 +135,7 @@ class LibraryEntriesTests(TempTree):
         for kind in ("wheel", "playfield", "backglass"):
             setattr(game, by_key[kind], f"/on/the/hub/{kind}.png")
 
-        entry = entries_for([game])[0]
+        entry = self._resolved([game])[0]
         local = json.loads(game_state.games_json([entry], contract=2))["entries"][0]
         row = _entry_resource(entry)
         with patch.object(hub_library.http_client, "get_json",

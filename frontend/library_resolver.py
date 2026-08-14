@@ -12,6 +12,8 @@ import threading
 
 from common.config_access import NetworkConfig
 from common.games import collection_resolver, hub_library
+from common.games.collection_store import BUILTIN_ALL, public_name
+from common.games.collections_service import get_collections_manager
 from common.games.game_repository import ensure_games_loaded
 from frontend import game_state
 
@@ -55,7 +57,7 @@ class LibraryResolver:
                 self.all_games = []
         self.filtered_games: list = []
         self.current_filters = game_state.default_filter_state()
-        self.current_collection = None
+        self.current_collection = BUILTIN_ALL
         self.current_sort = "Alpha"
         self.current_order = "Ascending"
 
@@ -78,11 +80,33 @@ class LibraryResolver:
         """The library again. A hub that has gone quiet leaves the list alone: a stale
         wheel beats a player emptying its screen because one request failed."""
         try:
-            self.all_games = self._load(self.current_collection or "")
+            self.all_games = self._load(public_name(self.current_collection))
         except Exception:
             logger.debug("Could not reload the library; keeping what is shown",
                          exc_info=True)
         return self.all_games
+
+    def collections(self):
+        """This install's collections. One place to ask, so the view and the resolver
+        behind it cannot end up reading two different files."""
+        return get_collections_manager()
+
+    def resolve_view(self, collection: str, criteria: dict | None = None) -> list:
+        """The entries a collection holds, off this install's library.
+
+        A player's are the hub's answer, kept as it arrived: the resolver reads a game's
+        table dicts out of its `.info` and those stayed on the hub, so re-resolving here
+        would quietly produce an empty wheel.
+
+        `criteria` is the filter menu's controls, which make a collection out of the
+        library rather than narrowing one - so they only arrive with `builtin:all`.
+        """
+        if self._remote:
+            return list(self.all_games)
+        store = self.collections()
+        if criteria:
+            store.set_view_filters(criteria)
+        return collection_resolver.resolve(collection, store, self.all_games)
 
     # -- staleness -----------------------------------------------------------
 
@@ -104,14 +128,9 @@ class LibraryResolver:
 
     def rebuild_entries(self) -> None:
         """Recompute the list the wheel steps through. Call after a sort: it mutates in
-        place, so the change is otherwise undetectable.
-
-        A remote library is already entries, and cannot be re-derived: `entries_for` reads
-        a game's table dicts out of its `.info`, and those stayed on the hub.
-        """
+        place, so the change is otherwise undetectable."""
         games = self.filtered_games or []
-        self._entries = (list(games) if self._remote
-                         else collection_resolver.entries_for(games))
+        self._entries = list(games)
         self._entries_source = games
         self._payload = None
 
@@ -132,14 +151,15 @@ class LibraryResolver:
             return self._entries
 
     def reset_to_default(self) -> None:
-        """Alphabetical by the (article-reordered) title, ascending. `filtered_games` is
-        a fresh copy so an in-place sort never disturbs the master list; the Game objects
-        stay shared, so a rating update still reaches every reader."""
+        """The whole library, by the (article-reordered) title, ascending. Resetting
+        drops whatever collection or filter was on screen - that is what it is for. The
+        list is the resolver's own, so an in-place sort never disturbs the library behind
+        it; the Game objects stay shared, so a rating update still reaches every reader."""
         with self.lock:
-            self.filtered_games = list(self.all_games)
+            self.current_collection = BUILTIN_ALL
             self.current_sort = "Alpha"
             self.current_order = "Ascending"
-            game_state.apply_sort(self.filtered_games, self.current_sort, self.current_order)
+            self.filtered_games = self.resolve_view(BUILTIN_ALL)
             self.rebuild_entries()
 
     # -- the payload ---------------------------------------------------------

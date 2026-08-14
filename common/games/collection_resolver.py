@@ -1,6 +1,6 @@
 """One collection, resolved to the ordered list a frontend navigates.
 
-Five steps, and the same answer whoever asks:
+Five steps, and the same answer whoever asks - the wheel and the API both arrive here:
 
     1. membership   filters, then members overriding them, then exclusions
     2. visibility   drop hidden - library-wide, and it beats a named table
@@ -8,10 +8,11 @@ Five steps, and the same answer whoever asks:
     4. order        the member array, or a computed sort
     5. limit        keep the first N rows, if the collection caps itself
 
-Before this there were two engines. Manual collections sorted by title in `common/`
-ignoring the stored criteria; filter collections sorted in `frontend/game_state.py`
-with five sort types. The API resolved through the first, so the same filter collection
-came back in one order over REST and a different one in the frontend.
+Both callers are named above because for ten days only one of them was true. The wheel
+went through a second engine that read game ids and nothing else, so it could not see a
+member naming a table, an exclusion, a limit or a stored order - and it matched "Last
+Played" by string literal. A collection meant one thing over REST and another on the
+surface a player actually uses.
 
 An entry is a table with its game attached. Media is resolved by whoever serializes it,
 because the play lens and the management lens want different amounts of it.
@@ -173,22 +174,6 @@ def _sort_key(order_by: str):
     return _sort_key(DEFAULT_ORDER)
 
 
-def entries_for(games) -> list[Entry]:
-    """A list of games as entries, without a collection to resolve.
-
-    The frontend's own filter controls produce an ad-hoc list that belongs to no
-    collection, so there is nothing to resolve - but it still has to become entries,
-    and by the same rule `resolve` uses, or the two would disagree about which table
-    a game shows.
-    """
-    out: list[Entry] = []
-    for game in games:
-        offered = visible_entries(game)
-        if offered:
-            out.append(Entry(game=game, table=offered[0], siblings=len(offered)))
-    return out
-
-
 def resolve_games(name: str, collections, games) -> list[Any]:
     """The games a collection contains, for the management lens.
 
@@ -218,10 +203,10 @@ def resolve_games(name: str, collections, games) -> list[Any]:
     picked, seen = [], set()
 
     def _add(game):
-        found = game_id(game)
-        if found in seen or found in dropped_games:
+        # By object, for the reason `resolve._take` gives: an unscanned game has no id.
+        if id(game) in seen or game_id(game) in dropped_games:
             return
-        seen.add(found)
+        seen.add(id(game))
         picked.append(game)
 
     for ref in member_refs:
@@ -279,11 +264,18 @@ def resolve(name: str, collections, games) -> list[Entry]:
     # 1-3. Members first, in their order. A game named here states exactly what this
     # collection holds for it, so the filter is not consulted for that game at all.
     ordered: list[Entry] = []
-    seen: set[tuple[str, str]] = set()
+    seen: set[tuple[int, str]] = set()
 
     def _take(game, entry):
-        key = (game_id(game), str(entry.get(TABLE_ID_KEY, "")))
-        if key in seen or key[1] in dropped_tables or key[0] in dropped_games:
+        table_id = str(entry.get(TABLE_ID_KEY, ""))
+        if table_id in dropped_tables or game_id(game) in dropped_games:
+            return
+        # Keyed on the object, not on the game's id: a game that has never been through
+        # a metadata build has no id yet, and keying on "" would collapse every one of
+        # them into a single row. Members resolve through `by_id` to the object the
+        # library holds, so the same pairing twice is still one row.
+        key = (id(game), table_id)
+        if key in seen:
             return
         seen.add(key)
         ordered.append(Entry(game=game, table=entry, siblings=len(visible_entries(game))))

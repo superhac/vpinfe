@@ -87,7 +87,7 @@ def _capture_theme_payload(games_root: Path) -> dict:
     try:
         # 3.0 serves the view as entries and takes a contract; master hands its builder
         # the games directly and has no contract to ask for.
-        from common.games.collection_resolver import entries_for
+        from tests.support.entries import entries_for
         payload = json.loads(games_json(entries_for(games), contract=1))
     except ImportError:
         payload = json.loads(games_json(games))

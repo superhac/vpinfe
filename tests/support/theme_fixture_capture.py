@@ -141,7 +141,7 @@ def capture() -> dict:
         games = parser.getAllGames()
 
         try:
-            from common.games.collection_resolver import entries_for
+            from tests.support.entries import entries_for
             view = entries_for(games)
         except ImportError:      # pre-collections layout
             view = games

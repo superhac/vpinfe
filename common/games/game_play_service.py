@@ -12,6 +12,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from common.games import game_identity
+from common.games.collection_store import MANUAL_ORDER
 from common.games.collections_service import get_collections_manager
 from common.games.game_metadata import (
     default_table_entry,
@@ -51,6 +52,10 @@ def track_game_play(game, collection_name: str = "Last Played", max_items: int =
             ids.remove(member_id)
         ids.insert(0, member_id)
         collections.set_members(collection_name, ids[:max_items])
+        # And the collection says so, every time, which also repairs a file written
+        # before it did. Nothing matches this collection by its name any more, so an
+        # array that means recency has to be declared as the order.
+        collections.set_order(collection_name, MANUAL_ORDER)
     logger.info("Tracked game play: %s (now %s in %s)", member_id, len(ids[:max_items]), collection_name)
 
 

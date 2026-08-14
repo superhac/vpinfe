@@ -18,6 +18,7 @@ import unittest
 from common.games import collection_resolver
 from frontend import game_state
 from httpapi.collections import _entry_resource
+from tests.support.entries import entries_for
 from tests.support.library import TempTree, fake_game, write_game
 
 # Local filesystem paths. True only of the machine that answered, and the wire is read
@@ -46,7 +47,7 @@ class EntryLensParityTests(TempTree):
         game = fake_game(folder, "Attack from Mars (Bally 1995)", meta=META)
         for attribute in ("pupPackExists", "altColorExists", "altSoundExists"):
             setattr(game, attribute, False)
-        self.entries = collection_resolver.entries_for([game])
+        self.entries = entries_for([game])
         self.theme = json.loads(
             game_state.games_json(self.entries, contract=2))["entries"][0]
         self.wire = _entry_resource(self.entries[0])
@@ -107,7 +108,7 @@ class EntryLensParityTests(TempTree):
             game.creation_time = created
             games.append(game)
 
-        entries = collection_resolver.entries_for(games)
+        entries = entries_for(games)
         hub_order = [game_state.game_title(e.game) for e in
                      sorted(entries, key=collection_resolver._sort_key("added"))]
         wire = [_entry_resource(e) for e in entries]

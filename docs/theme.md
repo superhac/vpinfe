@@ -1273,7 +1273,7 @@ window is told through the `lifecycle.acting` event and cannot block it.
 | `get_collections` | — | `array` | Returns list of collection names from `collections.ini`. |
 | `get_collections_metadata` | — | `array` | Returns collection objects with `name`, `type`, `is_filter`, `image`, `image_url`, and `table_count`. `image_url` is a theme-server URL such as `/collection_icons/favorites.png`, or an empty string when no image is set. |
 | `get_collection_image_url` | `collection` | `string` | Returns the image URL for one collection, or an empty string when no image is set. |
-| `set_games_by_collection` | `collection` | — | Filters the game list by the named collection. Supports both VPS ID-based and filter-based collections. |
+| `set_games_by_collection` | `collection` | — | Shows the named collection: what it holds, in the order it stores. Works for a hand-picked collection and a filter-based one alike. |
 | `save_filter_collection` | `name`, `letter`, `theme`, `table_type`, `manufacturer`, `year`, `sort_by`, `rating`, `rating_or_higher`, `order_by` | `object` | Saves the current filter settings as a named collection. `order_by` is `"Descending"` or `"Ascending"` and defaults to `"Descending"`. Returns `{success, message}`. |
 | `get_current_collection` | — | `string` | Returns the name of the currently active collection, or `"None"`. |
 
@@ -1281,11 +1281,11 @@ window is told through the `lifecycle.acting` event and cannot block it.
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `apply_filters` | `letter`, `theme`, `table_type`, `manufacturer`, `year`, `rating`, `rating_or_higher` | `number` | Applies VPSdb filters to the full table list. Each arg is optional (pass `null` to keep current). Returns the filtered count. |
+| `apply_filters` | `letter`, `theme`, `table_type`, `manufacturer`, `year`, `rating`, `rating_or_higher` | `number` | Filters the whole library. Each arg is optional (pass `null` to keep current). A filter is always applied to the library, so this leaves whatever collection was showing rather than narrowing it. Returns the filtered count. |
 | `reset_filters` | — | — | Resets all filters back to the full game list. |
 | `apply_sort` | `sort_type`, `order_by` | `number` | Sorts the current filtered games. `sort_type` is `"Alpha"`, `"Newest"`, `"LastRun"`, `"Highest StartCount"`, or `"RunTime"`; `order_by` is `"Descending"` or `"Ascending"`. Returns the count. |
 | `get_current_filter_state` | — | `object` | Returns the current filter state: `{letter, theme, type, manufacturer, year, rating, rating_or_higher}`. |
-| `get_current_sort_state` | — | `string` | Returns the current sort type. |
+| `get_current_sort_state` | — | `string` | Returns the current sort type. Also `"Manual"`, when a collection is showing in the order its curator arranged — that is not one of the sorts `apply_sort` takes, and passing it back does nothing. |
 | `get_current_order_state` | — | `string` | Returns the current sort order (`"Descending"` or `"Ascending"`). |
 | `get_filter_letters` | — | `array` | Returns available starting letters from all games (for filter UI). |
 | `get_filter_themes` | — | `array` | Returns available themes/categories from all games. |

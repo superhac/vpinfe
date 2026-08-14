@@ -147,7 +147,7 @@ class WindowIndependenceTests(TempTree):
             wheel = API(_ini(), window_name="playfield")
             backglass = API(_ini(), window_name="backglass")
 
-        backglass.filteredGames = list(reversed(games))
+        backglass.filteredGames = list(reversed(backglass.entries))
 
         self.assertNotEqual(wheel.game_id_at(0), backglass.game_id_at(0))
 

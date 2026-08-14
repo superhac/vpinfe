@@ -12,6 +12,7 @@ from common import events, lifecycle
 from common.config_access import cfg_get
 from common.deprecations import announce
 from common.games import game_identity
+from common.games.collection_store import public_name
 from common.games.collections_service import (
     get_collection_image_url,
     get_collection_names,
@@ -401,7 +402,7 @@ class API:
         # Built once for the view, not once per window: three windows onto the same
         # library were each serializing an identical answer.
         self.jsGameDictData = self.library.payload(
-            self._theme_contract(), collection=self.current_collection or "")
+            self._theme_contract(), collection=public_name(self.current_collection))
         return self.jsGameDictData
 
     def get_initial_game_index(self):
@@ -457,8 +458,9 @@ class API:
         return self.current_order
 
     def get_current_collection(self):
-        """Return current collection name for UI synchronization."""
-        return self.current_collection or 'None'
+        """Return current collection name for UI synchronization. The whole library has
+        always answered 'None' here, and that is what `builtin:all` is."""
+        return public_name(self.current_collection) or 'None'
 
     def _filter_option(self, key: str):
         return game_state.filter_options(self.allGames)[key]

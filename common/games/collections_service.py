@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import quote
 
-from common.games.collection_filters import GameListFilters
 from common.games.collection_store import CollectionStore
 from common.paths import COLLECTIONS_PATH
 from common.values import is_truthy
@@ -60,23 +59,6 @@ def get_collections_metadata() -> list[dict]:
             "game_count": None if is_filter else len(manager.get_members(name)),
         })
     return rows
-
-
-def filter_games_by_collection(games, collection: str):
-    manager = get_collections_manager()
-    if manager.is_filter_based(collection):
-        filters = manager.get_filters(collection)
-        filtered = GameListFilters(games).apply_filters(
-            letter=filters["letter"],
-            theme=filters["theme"],
-            game_type=filters["table_type"],
-            manufacturer=filters["manufacturer"],
-            year=filters["year"],
-            rating=filters.get("rating", "All"),
-            rating_or_higher=filters.get("rating_or_higher", "false"),
-        )
-        return filtered, filters
-    return manager.filter_games(games, collection), None
 
 
 def save_filter_collection(

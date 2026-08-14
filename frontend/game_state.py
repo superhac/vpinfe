@@ -8,10 +8,8 @@ import logging
 from common.games import game_identity
 from common.games.collection_filters import GameListFilters
 from common.games.collection_resolver import visible_entries
-from common.games.collections_service import (
-    filter_games_by_collection,
-    save_filter_collection,
-)
+from common.games.collection_store import BUILTIN_ALL, MANUAL_ORDER, ORDER_ALIASES
+from common.games.collections_service import save_filter_collection
 from common.games.game_metadata import (
     game_title,
     normalize_meta,
@@ -26,11 +24,20 @@ from common.games.media_lookup import resolved_kinds
 from common.media_specs import game_media_payload
 from common.shared_assets import manufacturer_logo_web_path
 from common.timestamps import epoch_to_iso
+from common.values import is_truthy
 from frontend.theme_contract import CURRENT_CONTRACT, project
 
 logger = logging.getLogger("vpinfe.frontend.game_state")
 
 
+
+
+# The theme's sort names, from the order a collection stores. Choosing a collection
+# applies its order once, and these are what the sort UI and the letter jump read back.
+SORT_FOR_ORDER = {stored: name for name, stored in ORDER_ALIASES.items()}
+
+# A curated order, which is not one of the sorts a theme offers. See sort_state.
+MANUAL_SORT = "Manual"
 
 
 def default_filter_state():
@@ -167,62 +174,102 @@ def games_json(entries, contract: int = CURRENT_CONTRACT, *,
     })
 
 
-def apply_collection(api, collection):
-    api.current_collection = collection
-    filtered, filters = filter_games_by_collection(api.allGames, collection)
-    api.filteredGames = filtered
-    api._rebuild_entries()
-    if filters is None:
-        api.current_filters = default_filter_state()
-        return
+def sort_state(order: dict) -> tuple[str, str]:
+    """The sort name and direction that describe a collection's resolved order.
 
-    api.current_filters = {
+    A curated collection comes back as `Manual`, which `apply_sort` does not know - and
+    that is what leaves the curator's order alone when the view is rebuilt under it.
+    """
+    by = order["by"]
+    if by == MANUAL_ORDER:
+        return MANUAL_SORT, "Ascending"
+    # Only title and year read the stored direction. The rest are largest-first by
+    # definition: most recently played, most played, highest rated, newest.
+    if by in ("title", "year"):
+        return SORT_FOR_ORDER.get(by, "Alpha"), normalize_sort_order(order["direction"])
+    return SORT_FOR_ORDER.get(by, "Alpha"), "Descending"
+
+
+def _filter_state(criteria) -> dict:
+    """The menu's filter controls for a collection: what it selects on, or nothing."""
+    if not criteria:
+        return default_filter_state()
+    return {
+        "letter": criteria["letter"],
+        "theme": criteria["theme"],
+        "type": criteria["table_type"],
+        "manufacturer": criteria["manufacturer"],
+        "year": criteria["year"],
+        "rating": criteria.get("rating", "All"),
+        "rating_or_higher": is_truthy(criteria.get("rating_or_higher", "false")),
+    }
+
+
+def _criteria(filters: dict) -> dict:
+    """The filter controls as criteria, in the shape `save_filter_collection` stores."""
+    return {
         "letter": filters["letter"],
         "theme": filters["theme"],
-        "type": filters["table_type"],
+        "table_type": filters["type"],
         "manufacturer": filters["manufacturer"],
         "year": filters["year"],
-        "rating": filters.get("rating", "All"),
-        "rating_or_higher": str(filters.get("rating_or_higher", "false")).lower() in ("1", "true", "yes", "on"),
+        "rating": filters["rating"],
+        "rating_or_higher": "true" if filters["rating_or_higher"] else "false",
     }
-    api.current_sort = filters["sort_by"]
-    api.current_order = normalize_sort_order(filters.get("order_by"), filters["sort_by"])
-    api.apply_sort(filters["sort_by"], api.current_order)
+
+
+def apply_collection(api, collection):
+    """Show a collection: what it holds, in the order it says, applied once.
+
+    A collection that filters also fills the menu's controls, so what it selects is
+    visible and can be adjusted from there. Adjusting leaves the collection rather than
+    narrowing it - see `apply_filters`.
+    """
+    store = api.library.collections()
+    name = collection or BUILTIN_ALL
+    api.current_collection = name
+    # A player's collections live on its hub, so its own store need not know this one.
+    # It still resolves - the hub already did - but there is no local order to read.
+    if name in store:
+        api.current_filters = _filter_state(store.get_filters(name))
+        api.current_sort, api.current_order = sort_state(store.get_order(name))
+    api.filteredGames = api.library.resolve_view(name)
     api._rebuild_entries()
 
 
 def _current_membership(api):
-    """The games the current view holds, off the library as it now stands."""
-    if api.current_collection:
-        return filter_games_by_collection(api.allGames, api.current_collection)[0]
-    return GameListFilters(api.allGames).apply_filters(
-        letter=api.current_filters["letter"],
-        theme=api.current_filters["theme"],
-        game_type=api.current_filters["type"],
-        manufacturer=api.current_filters["manufacturer"],
-        year=api.current_filters["year"],
-        rating=api.current_filters["rating"],
-        rating_or_higher=api.current_filters["rating_or_higher"],
-    )
+    """The entries the current view holds, off the library as it now stands."""
+    if api.current_collection == BUILTIN_ALL:
+        # The controls make a collection out of the *library* rather than narrowing the
+        # one on screen, so they are criteria only here. A stored collection carries its
+        # own, and `current_filters` is then just what the menu should show.
+        return api.library.resolve_view(BUILTIN_ALL, _criteria(api.current_filters))
+    return api.library.resolve_view(api.current_collection)
+
+
+def rebuild_view(api):
+    """Re-derive the list from the library the view already holds.
+
+    A collection's own stored sort is not reapplied. Choosing a collection applies it
+    once; a player who sorted differently afterwards keeps that.
+    """
+    api.filteredGames = _current_membership(api)
+    apply_sort(api.filteredGames, api.current_sort, api.current_order)
+    api._rebuild_entries()
 
 
 def refresh_view(api):
     """Re-derive the current view from the library, without changing what it is.
 
     Membership, order and the game objects themselves all go stale: a finished session
-    moves a game up a LastRun wheel and into Last Played, and a Manager UI edit replaces
-    the object outright rather than mutating the one this view is holding.
-
-    A collection's own stored sort is not reapplied. Choosing a collection applies it
-    once; a player who sorted differently afterwards keeps that.
+    moves a game up a LastRun wheel, and a Manager UI edit replaces the object outright
+    rather than mutating the one this view is holding.
 
     The view says where its library comes from. Reading the local one here would hand a
     player its own empty disk on the first refresh, throwing away what the hub sent.
     """
     api.allGames = api.library.reload()
-    api.filteredGames = _current_membership(api)
-    apply_sort(api.filteredGames, api.current_sort, api.current_order)
-    api._rebuild_entries()
+    rebuild_view(api)
 
 
 def save_current_filter_collection(api, name, letter, theme, game_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by="Descending"):
@@ -235,7 +282,9 @@ def filter_options(games):
 
 
 def apply_filters(api, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
-    api.current_collection = None
+    """Filter the library. Setting a control is choosing a different collection - one
+    made from the library - so it leaves whatever collection was on screen."""
+    api.current_collection = BUILTIN_ALL
     updates = {
         "letter": letter,
         "theme": theme,
@@ -248,17 +297,10 @@ def apply_filters(api, letter=None, theme=None, game_type=None, manufacturer=Non
         if value is not None:
             api.current_filters[key] = value
     if rating_or_higher is not None:
-        api.current_filters["rating_or_higher"] = str(rating_or_higher).strip().lower() in ("1", "true", "yes", "on")
+        api.current_filters["rating_or_higher"] = is_truthy(rating_or_higher)
 
-    api.filteredGames = GameListFilters(api.allGames).apply_filters(
-        letter=api.current_filters["letter"],
-        theme=api.current_filters["theme"],
-        game_type=api.current_filters["type"],
-        manufacturer=api.current_filters["manufacturer"],
-        year=api.current_filters["year"],
-        rating=api.current_filters["rating"],
-        rating_or_higher=api.current_filters["rating_or_higher"],
-    )
+    api.current_sort, api.current_order = "Alpha", "Ascending"
+    api.filteredGames = _current_membership(api)
     api._rebuild_entries()
     return len(api.filteredGames)
 

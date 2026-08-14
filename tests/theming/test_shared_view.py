@@ -21,6 +21,7 @@ from unittest.mock import patch
 from frontend import game_state
 from frontend import library_resolver as frontend_library
 from frontend.api import API
+from tests.support.entries import entries_for
 
 NAMES = ["Bravo", "Alpha", "Charlie"]
 
@@ -133,7 +134,7 @@ class SharedViewTests(unittest.TestCase):
         behind it, and no view handed in."""
         bare = API.__new__(API)
         bare._iniConfig = _ini()
-        bare.filteredGames = self.games
+        bare.filteredGames = entries_for(self.games)
 
         self.assertEqual(len(bare.entries), len(self.games))
 

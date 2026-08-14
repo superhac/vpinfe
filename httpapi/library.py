@@ -54,15 +54,18 @@ def entries() -> models.EntryList:
     """The play lens over everything, which is what a frontend shows before a collection
     is chosen. `GET /collections/{name}/entries` is the same lens narrowed to one.
 
-    A collection cannot answer this: there is no stored collection meaning "all of it",
-    and inventing one would put a name in every user's file to serve a default view.
+    The whole library is a collection - `builtin:all`, synthesized rather than stored, so
+    it answers here without putting a row in anyone's file. It keeps its own path because
+    that is the one a client would guess, and because the prefix is core's business.
     """
-    from common.games.collection_resolver import entries_for
+    from common.games.collection_resolver import resolve
+    from common.games.collection_store import BUILTIN_ALL
+    from common.games.collections_service import get_collections_manager
     from common.games.game_repository import ensure_games_loaded
 
     from .collections import _entry_resource
 
-    resolved = entries_for(ensure_games_loaded())
+    resolved = resolve(BUILTIN_ALL, get_collections_manager(), ensure_games_loaded())
     return {"collection": "", "count": len(resolved),
             "entries": [_entry_resource(entry) for entry in resolved]}
 

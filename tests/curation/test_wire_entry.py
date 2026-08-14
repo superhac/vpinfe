@@ -15,6 +15,7 @@ import unittest
 from common.games import collection_filters, collection_resolver, wire_entry
 from common.games.game_metadata import game_title, table_descriptor
 from httpapi.collections import _entry_resource
+from tests.support.entries import entries_for
 from tests.support.library import TempTree, fake_game, write_game
 
 # Varied on every axis the filters and sorts read, so a comparison can actually
@@ -72,7 +73,7 @@ class WireEntryTests(TempTree):
             game.creation_time = created
             games.append(game)
 
-        self.entries = collection_resolver.entries_for(games)
+        self.entries = entries_for(games)
         self.wire = [_WireEntry(wire_entry.game_of(_entry_resource(entry)), entry.table_id)
                      for entry in self.entries]
 

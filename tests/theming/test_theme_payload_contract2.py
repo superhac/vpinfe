@@ -8,8 +8,9 @@ a game the same way.
 import json
 import unittest
 
-from common.games.collection_resolver import entries_for, visible_entries
+from common.games.collection_resolver import visible_entries
 from frontend.game_state import games_json
+from tests.support.entries import entries_for
 from tests.support.library import fake_game
 
 

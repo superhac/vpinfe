@@ -5,9 +5,8 @@ and every single-machine setup - and it reads its own disk exactly as it always 
 and the list it holds is entries the hub already resolved.
 
 The two are different kinds of thing, which is the whole of what the remote path has to
-get right: a local view holds games and derives entries from them, and a remote one holds
-entries that cannot be re-derived, because the table dicts `entries_for` reads stayed on
-the hub.
+get right: a local view resolves a collection into entries, and a remote one holds entries
+that cannot be re-resolved, because the table dicts the resolver reads stayed on the hub.
 """
 
 from __future__ import annotations
@@ -89,8 +88,8 @@ class RemoteViewTests(unittest.TestCase):
                             for entry in self.library.entries))
 
     def test_the_entries_are_kept_rather_than_re_derived(self) -> None:
-        """`entries_for` reads a game's table dicts out of its `.info`, and the hub kept
-        those - re-deriving would quietly produce an empty wheel."""
+        """The resolver reads a game's table dicts out of its `.info`, and the hub kept
+        those - re-resolving would quietly produce an empty wheel."""
         self.assertEqual([entry.table_id for entry in self.library.entries],
                          [f"t-{title[:4]}" for title in TITLES])
         self.assertEqual([entry.filename for entry in self.library.entries],

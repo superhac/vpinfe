@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from frontend import input_api
 from frontend.api import API
 from frontend.game_state import page_jump_index
+from tests.support.entries import entries_for
 
 
 def _game(title):
@@ -125,7 +126,8 @@ class TestApiGetPageIndex(unittest.TestCase):
             parser.set("Input", key, value)
         api = API.__new__(API)
         api._iniConfig = SimpleNamespace(config=parser)
-        api.filteredGames = games
+        # The view holds entries, which is what an index from a theme addresses.
+        api.filteredGames = entries_for(games)
         api.current_sort = sort_type
         return api
 
