@@ -35,6 +35,7 @@ AXIS_SNAPSHOT = {
     "year": ("game", "choice"),
     "rating": ("game", "rating"),
     "rating_or_higher": ("game", "rating"),
+    "played": ("game", "flag"),
 }
 
 
@@ -95,6 +96,33 @@ class MatchingTests(unittest.TestCase):
 
     def test_or_higher_without_a_rating_constrains_nothing(self) -> None:
         self.assertTrue(cf.matches({"rating_or_higher": "true"}, self.afm))
+
+    def test_played_selects_the_games_with_a_date_on_record(self) -> None:
+        never = make_game(name="Never Touched")
+        played = make_game(name="Played Once")
+        played.meta_config["User"]["LastRun"] = 1700000000
+
+        self.assertTrue(cf.matches({"played": True}, played))
+        self.assertFalse(cf.matches({"played": True}, never))
+
+    def test_played_false_selects_the_ones_without(self) -> None:
+        """The same axis answers "never played", which is why it is a flag and not a
+        second axis that would have to be kept in step with this one."""
+        never = make_game(name="Never Touched")
+        played = make_game(name="Played Once")
+        played.meta_config["User"]["LastRun"] = 1700000000
+
+        self.assertTrue(cf.matches({"played": False}, never))
+        self.assertFalse(cf.matches({"played": False}, played))
+
+    def test_a_zero_or_unreadable_last_run_is_not_a_play(self) -> None:
+        """A game carrying the key with nothing in it has not been played."""
+        for value in (0, "", None, "not a date"):
+            with self.subTest(value=value):
+                game = make_game(name="Odd")
+                game.meta_config["User"]["LastRun"] = value
+
+                self.assertFalse(cf.matches({"played": True}, game))
 
     def test_an_unknown_axis_is_ignored_here_and_caught_by_the_caller(self) -> None:
         """matches() is not where refusal happens - unknown_axes() is, before this runs."""

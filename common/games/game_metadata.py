@@ -194,6 +194,20 @@ def game_rating(game) -> int:
     return normalize_rating(get_meta_value(meta, "User", "Rating", 0))
 
 
+def game_last_run(game) -> int:
+    """When the game was last played, as the epoch integer `User.LastRun` is specced as.
+
+    0 for a game with no play on record. Both the `played` axis and the `last_played`
+    order read this one accessor, so a game the filter admits is always one the sort
+    has a date to place.
+    """
+    meta = normalize_meta(getattr(game, "meta_config", {}))
+    try:
+        return int(get_meta_value(meta, "User", "LastRun", 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def set_game_rating(game, rating: Any) -> int:
     """Write `User.Rating`, returning what was stored.
 

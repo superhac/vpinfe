@@ -20,6 +20,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from common.games.game_metadata import (
+    game_last_run,
     game_manufacturer,
     game_rating,
     game_themes,
@@ -68,6 +69,16 @@ def _match_year(criterion, game, table) -> bool:
 def _match_rating(criterion, game, table) -> bool:
     wanted = {normalize_rating(v) for v in _values(criterion)}
     return game_rating(game) in wanted
+
+
+def _match_played(criterion, game, table) -> bool:
+    """`true` selects the games with a play on record, `false` the ones without.
+
+    Ordering the library by `last_played` cannot stand in for this: a game that has
+    never been played sorts as a value rather than being left out, so "the last 30
+    played" over a library of 147 came back as 7 real rows and 23 nobody had touched.
+    """
+    return (game_last_run(game) > 0) == is_truthy(criterion)
 
 
 def _match_rating_or_higher(criterion, game, table) -> bool:
@@ -119,6 +130,9 @@ AXES: tuple[FilterAxis, ...] = (
     FilterAxis("rating_or_higher", GAME_SCOPE, "rating",
                "Read `rating` as a floor instead of a set",
                _match_rating_or_higher),
+    FilterAxis("played", GAME_SCOPE, "flag",
+               "Whether the game has ever been played",
+               _match_played),
 )
 
 AXES_BY_NAME = {axis.name: axis for axis in AXES}

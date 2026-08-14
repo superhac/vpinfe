@@ -40,6 +40,8 @@ FILTERS = (
     {"rating": "5"},
     {"letter": "A,M"},
     {"rating_or_higher": "1", "rating": "3"},
+    {"played": True},
+    {"played": False},
     {"manufacturer": "Bally", "theme": "Space"},
     {"theme": "Nothing Is Tagged This"},
     {},
