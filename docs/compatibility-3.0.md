@@ -1231,6 +1231,27 @@ menu's save-filter dialog completable from a cabinet - it had no such state, so 
 drove the menu underneath and Enter fired select and opened a dropdown instead of reaching
 the field. Covered by `tests/js/input.test.js`.
 
+**PAR-84 — Five sort and filter methods leave the theme API.**
+`apply_filters`, `apply_sort`, `get_current_filter_state`, `get_current_sort_state` and
+`get_current_order_state` are still dispatched, so the collection menu VPinFE ships keeps
+working, but they are out of `docs/theme.md` and `vpin.call` refuses them by name. A theme
+that calls one gets the same `Method not allowed` it would get for a name that was never
+in the allowlist, plus a console line and a line in the log on the machine.
+*Why:* `frontend/api.py` carried one flat allowlist and said in its own docstring that
+adding a name to it adds to the theme surface, so core had no way to have a private call —
+and these five exist only for core's own collection-menu overlay. Not one of the twelve
+themes in the registry calls any of them, so there is nobody to break today; ship 3.0 with
+them published and that stops being true. Once core owns the list the wheel steps through
+it owns sorting too, and they stop being a bridge concern at all.
+*What this does not do:* a theme's iframe is same-origin and can reach whatever the
+overlays reach if it goes looking. This is not a sandbox and does not try to be. It moves
+the five from documented and allowed to deliberately circumvented. The refusal is logged
+rather than silent because the measurement covers the registry, and a theme installed from
+somewhere else is outside it.
+PAR-82 noted that a theme reading `get_current_sort_state` can see `"Manual"`; that read
+is core's own now. Covered by `tests/invariants/test_theme_api_surface.py` and
+`tests/js/internal-methods.test.js`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

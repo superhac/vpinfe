@@ -278,7 +278,7 @@
       if (collectionIndex === -1) collectionIndex = 0; // fallback to None
 
       // Get current filter state and set indices
-      const currentFilters = await window.parent.vpin.call('get_current_filter_state');
+      const currentFilters = await window.parent.vpin.callInternal('get_current_filter_state');
       letterIndex = letters.indexOf(currentFilters.letter || 'All');
       if (letterIndex === -1) letterIndex = 0;
       themeIndex = themes.indexOf(currentFilters.theme || 'All');
@@ -295,10 +295,10 @@
       if (ratings[ratingIndex] === 'All') ratingModeIndex = 0;
 
       // Get current sort state
-      const currentSort = await window.parent.vpin.call('get_current_sort_state');
+      const currentSort = await window.parent.vpin.callInternal('get_current_sort_state');
       sortByIndex = sortOptions.indexOf(currentSort);
       if (sortByIndex === -1) sortByIndex = 0;
-      const currentOrder = await window.parent.vpin.call('get_current_order_state');
+      const currentOrder = await window.parent.vpin.callInternal('get_current_order_state');
       orderByIndex = orderOptions.indexOf(currentOrder);
       if (orderByIndex === -1) orderByIndex = 0;
 
@@ -460,7 +460,7 @@
     async function applyCurrentFiltersAndBroadcast() {
       clearFilterDisplayOverrides();
       const filters = getSelectedFilterValues();
-      const count = await window.parent.vpin.call(
+      const count = await window.parent.vpin.callInternal(
         "apply_filters",
         filters.letter,
         filters.theme,
@@ -470,7 +470,7 @@
         filters.rating,
         filters.rating_or_higher
       );
-      await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex], orderOptions[orderByIndex]);
+      await window.parent.vpin.callInternal("apply_sort", sortOptions[sortByIndex], orderOptions[orderByIndex]);
       window.parent.vpin.sendMessageToAllWindowsIncSelf({
         type: "GameDataChange",
         index: 0,
@@ -575,9 +575,9 @@
             await window.parent.vpin.call("set_tables_by_collection", selectedValue);
             await window.parent.vpin.call("get_tables");
 
-            const filterState = await window.parent.vpin.call("get_current_filter_state");
-            const sortState = await window.parent.vpin.call("get_current_sort_state");
-            const orderState = await window.parent.vpin.call("get_current_order_state");
+            const filterState = await window.parent.vpin.callInternal("get_current_filter_state");
+            const sortState = await window.parent.vpin.callInternal("get_current_sort_state");
+            const orderState = await window.parent.vpin.callInternal("get_current_order_state");
 
             if (filterState && filterState.letter !== null) {
               letterIndex = letters.indexOf(filterState.letter);
@@ -688,7 +688,7 @@
           if (collectionIndex !== 0) {
             filterDisplayOverrides.sortby = sortOptions[sortByIndex];
           }
-          const sortCount = await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex], orderOptions[orderByIndex]);
+          const sortCount = await window.parent.vpin.callInternal("apply_sort", sortOptions[sortByIndex], orderOptions[orderByIndex]);
           window.parent.vpin.sendMessageToAllWindowsIncSelf({
             type: "GameDataChange",
             index: 0,
@@ -703,7 +703,7 @@
           if (collectionIndex !== 0) {
             filterDisplayOverrides.orderby = orderOptions[orderByIndex];
           }
-          const orderCount = await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex], orderOptions[orderByIndex]);
+          const orderCount = await window.parent.vpin.callInternal("apply_sort", sortOptions[sortByIndex], orderOptions[orderByIndex]);
           window.parent.vpin.sendMessageToAllWindowsIncSelf({
             type: "GameDataChange",
             index: 0,

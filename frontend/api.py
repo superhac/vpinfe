@@ -1,9 +1,14 @@
-"""Everything a theme is allowed to ask for.
+"""What a theme is allowed to ask for, and what only core is.
 
-The WebSocket bridge dispatches to these methods by name, and only the names in
-`API_ALLOWED_METHODS` are reachable - so adding a method here is adding to the theme
-contract, and the parity gate holds it to that. Renamed methods keep their old
-spelling as an alias rather than breaking a published theme.
+The WebSocket bridge dispatches by name and reaches nothing outside
+`API_ALLOWED_METHODS`, which is two sets. `API_PUBLISHED_METHODS` is the theme
+surface - docs/theme.md documents it and the parity gate holds it to that, so adding a
+name there is adding to the theme contract. `API_INTERNAL_METHODS` is core's own: the
+overlays VPinFE ships call them across an iframe, which is why they stay dispatchable,
+and `vpin.call` refuses them so they are not theme API.
+
+Renamed methods keep their old spelling as an alias rather than breaking a published
+theme.
 """
 
 import logging
@@ -51,7 +56,7 @@ _FILTER_OPTION_KEYS = {
 }
 
 
-API_ALLOWED_METHODS = {
+API_PUBLISHED_METHODS = {
     'get_my_window_name',
     'close_app',
     'shutdown_system',
@@ -65,17 +70,12 @@ API_ALLOWED_METHODS = {
     'get_collection_image_url',
     'set_games_by_collection',
     'save_filter_collection',
-    'get_current_filter_state',
-    'get_current_sort_state',
-    'get_current_order_state',
     'get_current_collection',
     'get_filter_letters',
     'get_filter_themes',
     'get_filter_types',
     'get_filter_manufacturers',
     'get_filter_years',
-    'apply_filters',
-    'apply_sort',
     'get_page_index',
     'reset_filters',
     'console_out',
@@ -122,6 +122,17 @@ API_ALLOWED_METHODS = {
 }
 
 
+# The collection menu's own controls. Core ships that overlay, it runs as its own iframe,
+# and this channel is the only way it can reach the library - so the names stay
+# dispatchable while `vpin.call` refuses them.
+API_INTERNAL_METHODS = {
+    'apply_filters',
+    'apply_sort',
+    'get_current_filter_state',
+    'get_current_sort_state',
+    'get_current_order_state',
+}
+
 
 # Themes written before the vocabulary rename call these names. The allowlist carries
 # both spellings and __getattr__ forwards the old one, so an existing theme keeps working
@@ -141,7 +152,11 @@ _RENAMED_METHODS = {
     'get_manager_ui_port': 'get_hub_port',
 }
 
-API_ALLOWED_METHODS |= set(_RENAMED_METHODS)
+API_PUBLISHED_METHODS |= set(_RENAMED_METHODS)
+
+# What the channel dispatches. An overlay's call arrives the same way a theme's does, so
+# the gate that separates them is in the browser rather than here.
+API_ALLOWED_METHODS = API_PUBLISHED_METHODS | API_INTERNAL_METHODS
 
 
 class API:

@@ -33,7 +33,7 @@ The frontend starts at `main.py`, but most runtime responsibilities now live in 
 
 1. Put feature behavior in a focused service module first.
 2. Add a thin method to `frontend.api.API`.
-3. Add the public method name to `API_ALLOWED_METHODS`.
+3. Add the name to `API_PUBLISHED_METHODS` if a theme may call it, or to `API_INTERNAL_METHODS` if only the overlays VPinFE ships do. `vpin.call` refuses the second set, and `docs/theme.md` documents the first.
 4. Keep websocket transport logic in `frontend.player_channel`; it should not grow feature-specific behavior.
 
 ## Guidelines

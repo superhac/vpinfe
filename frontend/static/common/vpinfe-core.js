@@ -307,6 +307,37 @@ function announceLegacy(target, oldName, newName) {
   }
 }
 
+// Core's own calls, refused by vpin.call(). These sort and filter the library for the
+// collection-menu overlay, which core ships; no theme is expected to reach them, and core
+// owns sorting outright once it owns the list the wheel steps through.
+//
+// This is a line, not a wall. A theme's iframe is same-origin and can reach whatever the
+// overlays reach if it goes looking, so it does not stop a determined author - what it
+// does is move these from documented and allowed to deliberately circumvented, which is
+// the difference worth having before anyone builds on them.
+const INTERNAL_METHODS = new Set([
+  "apply_filters",
+  "apply_sort",
+  "get_current_filter_state",
+  "get_current_sort_state",
+  "get_current_order_state",
+]);
+
+// Same once-per-name reporting as announceLegacy, and for the same reason: without it the
+// only evidence about who still calls these is a console nobody reads on a cabinet.
+const announcedInternal = new Set();
+function announceInternal(target, method) {
+  if (announcedInternal.has(method)) return;
+  announcedInternal.add(method);
+  console.info(`vpinfe: '${method}' is not part of the theme API; the call was refused (PAR-84)`);
+  try {
+    Promise.resolve(target.callInternal("report_deprecated_use", "theme-internal-methods", method))
+      .catch(() => {});
+  } catch (err) {
+    /* nothing to do; the console line already went out */
+  }
+}
+
 function installLegacyAliases(target) {
   for (const [oldName, newName] of Object.entries(VPINFE_RENAMED_MEMBERS)) {
     if (oldName in target) continue;
@@ -616,6 +647,16 @@ class VPinFECore {
   }
 
   async call(method, ...args) {
+    if (INTERNAL_METHODS.has(method)) {
+      announceInternal(this, method);
+      throw new Error(`Method not allowed: ${method}`);
+    }
+    return this.callInternal(method, ...args);
+  }
+
+  // The door core's own overlays come in by. Not part of the theme surface - see
+  // INTERNAL_METHODS for what that is worth and what it is not.
+  async callInternal(method, ...args) {
     if (!this._ws || this._ws.readyState !== WebSocket.OPEN) {
       throw new Error(`WebSocket not connected, cannot call ${method}`);
     }
@@ -1278,7 +1319,7 @@ class VPinFECore {
       }
     } else if (message.filters) {
       // VPSdb filters - apply them to this window's API instance
-      await this.call("apply_filters",
+      await this.callInternal("apply_filters",
         message.filters.letter,
         message.filters.theme,
         message.filters.type,
@@ -1289,12 +1330,12 @@ class VPinFECore {
       );
       // If a sort order is also specified, apply it after filters
       if (message.sort) {
-        await this.call("apply_sort", message.sort, message.order);
+        await this.callInternal("apply_sort", message.sort, message.order);
       }
       await this.getGameData();
     } else if (message.sort) {
       // Sort order change - apply it to this window's API instance
-      await this.call("apply_sort", message.sort, message.order);
+      await this.callInternal("apply_sort", message.sort, message.order);
       await this.getGameData();
     } else {
       // No filters specified - just refresh the game data

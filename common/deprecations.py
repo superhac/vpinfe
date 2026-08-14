@@ -42,6 +42,9 @@ class Shim:
     implemented_in: str
     par: str | None = None
     names: tuple[tuple[str, str], ...] = field(default_factory=tuple)
+    # Set where reaching the name does not work. The log has to say which, or a
+    # maintainer reading it goes looking for a call that never happened.
+    refused: bool = False
 
     @property
     def count(self) -> int:
@@ -130,6 +133,17 @@ SHIMS: tuple[Shim, ...] = (
         ),
     ),
     Shim(
+        key="theme-internal-methods",
+        surface="theme JavaScript",
+        summary="Five sort and filter methods core's collection menu owns. Still "
+                "dispatched, because that overlay is an iframe with no other route in, "
+                "but vpin.call refuses them so a theme cannot reach them by name.",
+        implemented_in="frontend/api.py:API_INTERNAL_METHODS "
+                       "+ frontend/static/common/vpinfe-core.js:INTERNAL_METHODS",
+        par="PAR-84",
+        refused=True,
+    ),
+    Shim(
         key="ini-renamed-keys",
         surface="vpinfe.ini",
         summary="Renamed keys are read once under the old name and written back under "
@@ -186,8 +200,9 @@ def announce(key: str, used: str) -> None:
     often" - and the payload projection runs per game per refresh, so counting would
     bury the answer. First use says so; the rest are silent.
 
-    INFO rather than WARNING: every one of these is a working, supported path. Warning
-    about them would train people to ignore warnings.
+    INFO rather than WARNING: nearly all of these are working, supported paths, and
+    warning about them would train people to ignore warnings. A refused one stays INFO
+    too - it is evidence for a retirement, not a fault the user can act on.
     """
     pair = (key, used)
     if pair in _seen:
@@ -196,8 +211,9 @@ def announce(key: str, used: str) -> None:
 
     shim = SHIMS_BY_KEY.get(key)
     replacement = dict(shim.names).get(used, "") if shim else ""
-    logger.info("deprecated: %s %r is in use%s (%s)",
+    logger.info("deprecated: %s %r %s%s (%s)",
                 shim.surface if shim else key, used,
+                "was called and refused" if shim and shim.refused else "is in use",
                 f"; the current name is {replacement}" if replacement else "",
                 shim.par if shim and shim.par else "unledgered")
 

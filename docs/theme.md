@@ -1281,17 +1281,18 @@ window is told through the `lifecycle.acting` event and cannot block it.
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `apply_filters` | `letter`, `theme`, `table_type`, `manufacturer`, `year`, `rating`, `rating_or_higher` | `number` | Filters the whole library. Each arg is optional (pass `null` to keep current). A filter is always applied to the library, so this leaves whatever collection was showing rather than narrowing it. Returns the filtered count. |
 | `reset_filters` | — | — | Resets all filters back to the full game list. |
-| `apply_sort` | `sort_type`, `order_by` | `number` | Sorts the current filtered games. `sort_type` is `"Alpha"`, `"Newest"`, `"LastRun"`, `"Highest StartCount"`, or `"RunTime"`; `order_by` is `"Descending"` or `"Ascending"`. Returns the count. |
-| `get_current_filter_state` | — | `object` | Returns the current filter state: `{letter, theme, type, manufacturer, year, rating, rating_or_higher}`. |
-| `get_current_sort_state` | — | `string` | Returns the current sort type. Also `"Manual"`, when a collection is showing in the order its curator arranged — that is not one of the sorts `apply_sort` takes, and passing it back does nothing. |
-| `get_current_order_state` | — | `string` | Returns the current sort order (`"Descending"` or `"Ascending"`). |
 | `get_filter_letters` | — | `array` | Returns available starting letters from all games (for filter UI). |
 | `get_filter_themes` | — | `array` | Returns available themes/categories from all games. |
 | `get_filter_types` | — | `array` | Returns available game types (SS, EM, PM, etc.) from all games. |
 | `get_filter_manufacturers` | — | `array` | Returns available manufacturers from all games. |
 | `get_filter_years` | — | `array` | Returns available years from all games. |
+
+Applying a filter or a sort is not on this list. The collection menu VPinFE ships owns
+those controls, so `apply_filters`, `apply_sort`, `get_current_filter_state`,
+`get_current_sort_state` and `get_current_order_state` are core's own and `vpin.call`
+refuses them (PAR-84). Show the library the way a collection stores it and let the menu
+change it — `set_games_by_collection` and the lists above are what a theme needs for that.
 
 ##### Events & Messaging
 
