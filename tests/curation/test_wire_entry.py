@@ -47,7 +47,8 @@ FILTERS = (
     {},
 )
 
-ORDERS = ("title", "year", "rating", "added", "play_time", "last_played", "play_count")
+ORDERS = ("title", "year", "rating", "added", "play_time_seconds", "last_played",
+          "play_count")
 
 
 class _WireEntry:
@@ -110,7 +111,7 @@ class WireEntryTests(TempTree):
         """
         moved = {"added": "creation_time", "rating": ("User", "Rating"),
                  "last_played": ("User", "LastRun"), "play_count": ("User", "StartCount"),
-                 "play_time": ("vpinfe", "run_time_seconds")}
+                 "play_time_seconds": ("vpinfe", "run_time_seconds")}
         for order, field in moved.items():
             with self.subTest(order=order):
                 before = [game_title(e.game)

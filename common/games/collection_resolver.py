@@ -162,7 +162,7 @@ def _primary_key(order_by: str):
         return lambda e: game_rating(e.game)
     if order_by == "added":
         return lambda e: getattr(e.game, "creation_time", 0) or 0
-    if order_by == "play_time":
+    if order_by == "play_time_seconds":
         # The seconds, not User.RunTime: ordering on the minutes ties every game with
         # under a minute on it at zero, which is most of a library that gets browsed.
         return lambda e: run_time_seconds(getattr(e.game, "meta_config", {}) or {})

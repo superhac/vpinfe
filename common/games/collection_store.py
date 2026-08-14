@@ -118,14 +118,37 @@ def public_name(name: str | None) -> str:
     return "" if not name or name == BUILTIN_ALL else str(name)
 
 # The stored sort names, in the vocabulary the rest of 3.0 uses. Nothing writes the old
-# spellings any more; a file written before this block existed still holds them.
+# spellings any more; a file written before this block existed still holds them, and
+# `frontend.game_state` inverts this map to answer the theme API - so the five keys are
+# a published contract and the five values are ours to change.
 ORDER_ALIASES = {
     "Alpha": "title",
     "Newest": "added",
     "LastRun": "last_played",
     "Highest StartCount": "play_count",
-    "RunTime": "play_time",
+    "RunTime": "play_time_seconds",
+    # Not a 2.x spelling: the token this sort carried before durations named their unit.
+    "play_time": "play_time_seconds",
 }
+
+# The subset that is the theme's vocabulary. `frontend.game_state` inverts *this* to name
+# a collection's current sort, so a token alias above can never come back out as one.
+THEME_SORT_NAMES = ("Alpha", "Newest", "LastRun", "Highest StartCount", "RunTime")
+
+# What a collection can be ordered by: the token stored, and what a person picks from,
+# in dropdown order. `manual` is absent on purpose - it means the member array, which is
+# not something to choose for a collection that filters.
+SORT_LABELS = {
+    "title": "Title",
+    "year": "Year",
+    "added": "Date Added",
+    "last_played": "Last Played",
+    "play_count": "Play Count",
+    "play_time_seconds": "Play Time",
+    "rating": "Rating",
+}
+
+DIRECTION_LABELS = {"asc": "Ascending", "desc": "Descending"}
 
 
 def _member_ref(value) -> dict | None:
@@ -320,27 +343,36 @@ class CollectionStore:
 
         Falls back to the sort a filter collection stored beside its criteria, and then
         to title. Never falls back to `manual` - see ORDER_KEY.
+
+        Both paths read through ORDER_ALIASES. An old spelling in the block resolves to
+        no sort at all otherwise: it does not match a branch, so the list comes back in
+        title order and nothing says why.
         """
         record = self._require(section)
         stored = record.get(ORDER_KEY)
         if isinstance(stored, dict) and str(stored.get(ORDER_BY_KEY, "") or "").strip():
-            by = str(stored[ORDER_BY_KEY]).strip()
+            raw = str(stored[ORDER_BY_KEY]).strip()
             direction = str(stored.get(ORDER_DIRECTION_KEY, "") or DEFAULT_DIRECTION)
         else:
             criteria = record.get("filters") or {}
             raw = str(criteria.get("sort_by", "") or "").strip()
-            by = ORDER_ALIASES.get(raw, raw) or DEFAULT_ORDER_BY
             direction = str(criteria.get("order_by", "") or DEFAULT_DIRECTION)
+        by = ORDER_ALIASES.get(raw, raw) or DEFAULT_ORDER_BY
         return {ORDER_BY_KEY: by,
                 ORDER_DIRECTION_KEY: "desc" if direction.lower().startswith("desc")
                                      else "asc"}
 
     def set_order(self, section: str, by: str, direction: str = DEFAULT_DIRECTION) -> None:
         """Record how this collection is ordered. `manual` means the member array."""
-        self._require_mutable(section)[ORDER_KEY] = {
+        record = self._require_mutable(section)
+        record[ORDER_KEY] = {
             ORDER_BY_KEY: by,
             ORDER_DIRECTION_KEY: "desc" if str(direction).lower().startswith("desc")
                                  else "asc"}
+        # The criteria said the same thing in the 2.x spellings, and `get_order` reads
+        # this block first - so leaving them is leaving a second, stale answer behind.
+        for key in collection_filters.ORDERING_KEYS:
+            record.get("filters", {}).pop(key, None)
 
     def get_limit(self, section: str) -> int | None:
         """How many rows this collection keeps, or None for all of them."""

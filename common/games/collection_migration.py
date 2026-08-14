@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 
-from common.games.collection_store import COLLECTIONS_SCHEMA
+from common.games.collection_store import COLLECTIONS_SCHEMA, MANUAL_ORDER
 
 logger = logging.getLogger("vpinfe.common.games.collection_migration")
 
@@ -21,6 +21,40 @@ LAST_PLAYED_MIGRATION = "last_played_is_derived"
 LAST_PLAYED_FILTERS = {"played": True}
 LAST_PLAYED_ORDER = {"by": "last_played", "direction": "desc"}
 LAST_PLAYED_LIMIT = 30
+
+
+# Direction used to be a no-op for every sort but title and year, which read largest
+# first whatever was stored. Honouring `asc` literally now would reorder those lists to
+# express an intent nobody could have had, so the value they behaved as is written down.
+ORDER_DIRECTION_MIGRATION = "direction_applies_to_every_sort"
+DIRECTION_ALWAYS_APPLIED = ("title", "year", MANUAL_ORDER)
+
+
+def ensure_order_direction(collections) -> int:
+    """Pin the direction the sorts that ignored it were actually showing. Returns how
+    many collections moved."""
+    if collections.has_migrated(ORDER_DIRECTION_MIGRATION):
+        return 0
+    if collections.schema_version() > COLLECTIONS_SCHEMA:
+        logger.warning("Collections file is schema %s, newer than this build's %s; "
+                       "leaving stored sort directions alone",
+                       collections.schema_version(), COLLECTIONS_SCHEMA)
+        return 0
+
+    moved = []
+    with collections.mutate() as store:
+        for name in store.get_collections_name():
+            order = store.get_order(name)
+            if (order["by"] not in DIRECTION_ALWAYS_APPLIED
+                    and order["direction"] == "asc"):
+                store.set_order(name, order["by"], "desc")
+                moved.append(name)
+        store.record_migration(ORDER_DIRECTION_MIGRATION)
+
+    if moved:
+        logger.info("Recorded the descending order %s already had on screen",
+                    ", ".join(repr(name) for name in moved))
+    return len(moved)
 
 
 def ensure_last_played(collections) -> bool:

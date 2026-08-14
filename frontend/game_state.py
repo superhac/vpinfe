@@ -8,7 +8,12 @@ import logging
 from common.games import game_identity
 from common.games.collection_filters import GameListFilters
 from common.games.collection_resolver import visible_entries
-from common.games.collection_store import BUILTIN_ALL, MANUAL_ORDER, ORDER_ALIASES
+from common.games.collection_store import (
+    BUILTIN_ALL,
+    MANUAL_ORDER,
+    ORDER_ALIASES,
+    THEME_SORT_NAMES,
+)
 from common.games.collections_service import save_filter_collection
 from common.games.game_metadata import (
     game_title,
@@ -34,7 +39,9 @@ logger = logging.getLogger("vpinfe.frontend.game_state")
 
 # The theme's sort names, from the order a collection stores. Choosing a collection
 # applies its order once, and these are what the sort UI and the letter jump read back.
-SORT_FOR_ORDER = {stored: name for name, stored in ORDER_ALIASES.items()}
+# Built from the published names only: ORDER_ALIASES also carries token aliases, which
+# are read on the way in and must never be answered with.
+SORT_FOR_ORDER = {ORDER_ALIASES[name]: name for name in THEME_SORT_NAMES}
 
 # A curated order, which is not one of the sorts a theme offers. See sort_state.
 MANUAL_SORT = "Manual"
