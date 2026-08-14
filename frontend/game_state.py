@@ -183,11 +183,7 @@ def sort_state(order: dict) -> tuple[str, str]:
     by = order["by"]
     if by == MANUAL_ORDER:
         return MANUAL_SORT, "Ascending"
-    # Only title and year read the stored direction. The rest are largest-first by
-    # definition: most recently played, most played, highest rated, newest.
-    if by in ("title", "year"):
-        return SORT_FOR_ORDER.get(by, "Alpha"), normalize_sort_order(order["direction"])
-    return SORT_FOR_ORDER.get(by, "Alpha"), "Descending"
+    return SORT_FOR_ORDER.get(by, "Alpha"), normalize_sort_order(order["direction"])
 
 
 def _filter_state(criteria) -> dict:

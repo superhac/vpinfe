@@ -62,6 +62,9 @@ class ResolverTests(TempTree):
     def _ids(self, entries):
         return [(e.game.meta_config["vpinfe"]["game_id"], e.table_id) for e in entries]
 
+    def _titles(self, name):
+        return [e.game.gameDirName for e in resolve(name, self.collections, self.games)]
+
     # --- the case the whole design exists for ------------------------------------
 
     def test_one_game_appears_twice_with_different_tables_in_a_curated_order(self) -> None:
@@ -169,6 +172,29 @@ class ResolverTests(TempTree):
 
         self.assertEqual([e.game.gameDirName for e in entries],
                          ["Medieval Madness", "Attack from Mars", "The Addams Family"])
+
+    def test_every_sort_reads_the_stored_direction(self) -> None:
+        """`order.direction` used to be a no-op for everything but title and year: the
+        other sorts negated their value, so the list arrived largest-first and the
+        reverse step had nothing left to turn around.
+        """
+        self.collections.add_filter_collection("Everything")
+        for by in ("title", "rating", "last_played"):
+            with self.subTest(by=by):
+                self.collections.set_order("Everything", by, "asc")
+                up = self._titles("Everything")
+                self.collections.set_order("Everything", by, "desc")
+
+                self.assertEqual(self._titles("Everything"), list(reversed(up)))
+
+    def test_a_descending_sort_keeps_its_tiebreak_in_title_order(self) -> None:
+        """Reversing the finished list would reverse the tiebreak with it, so two games
+        level on the field would come back Z to A. Every game here is from 1995."""
+        self.collections.add_filter_collection("Everything")
+        self.collections.set_order("Everything", "year", "desc")
+
+        self.assertEqual(self._titles("Everything"),
+                         ["The Addams Family", "Attack from Mars", "Medieval Madness"])
 
     # --- limit ----------------------------------------------------------------------
 

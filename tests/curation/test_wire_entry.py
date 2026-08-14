@@ -97,9 +97,10 @@ class WireEntryTests(TempTree):
         """Including the three that read a play record and the one that reads a stat."""
         for order in ORDERS:
             with self.subTest(order=order):
-                key = collection_resolver._sort_key(order)
-                hub = [game_title(e.game) for e in sorted(self.entries, key=key)]
-                wire = [game_title(e.game) for e in sorted(self.wire, key=key)]
+                hub = [game_title(e.game)
+                       for e in collection_resolver._ordered(list(self.entries), order)]
+                wire = [game_title(e.game)
+                        for e in collection_resolver._ordered(list(self.wire), order)]
                 self.assertEqual(wire, hub)
 
     def test_each_order_reads_the_field_it_claims_to(self) -> None:
@@ -112,8 +113,8 @@ class WireEntryTests(TempTree):
                  "play_time": ("vpinfe", "run_time_seconds")}
         for order, field in moved.items():
             with self.subTest(order=order):
-                key = collection_resolver._sort_key(order)
-                before = [game_title(e.game) for e in sorted(self.wire, key=key)]
+                before = [game_title(e.game)
+                          for e in collection_resolver._ordered(list(self.wire), order)]
                 blanked = [_WireEntry(wire_entry.game_of(_entry_resource(e)), e.table_id)
                            for e in self.entries]
                 for entry in blanked:
@@ -121,7 +122,8 @@ class WireEntryTests(TempTree):
                         entry.game.creation_time = None
                     else:
                         entry.game.meta_config[field[0]][field[1]] = 0
-                after = [game_title(e.game) for e in sorted(blanked, key=key)]
+                after = [game_title(e.game)
+                         for e in collection_resolver._ordered(blanked, order)]
 
                 self.assertNotEqual(after, before)
 

@@ -152,26 +152,41 @@ def _excluded(refs) -> tuple[set[str], set[str]]:
     return games, tables
 
 
-def _sort_key(order_by: str):
-    if order_by == "title":
-        return lambda e: (game_title(e.game).lower(), e.table_id)
+def _primary_key(order_by: str):
+    """The value a sort orders on, ascending in every case. Negating one here would put
+    the field back to largest-first whatever `order.direction` says, which is the bug
+    this shape exists to prevent - direction is applied once, by `_ordered`."""
     if order_by == "year":
-        return lambda e: (str(game_year(e.game)), game_title(e.game).lower(), e.table_id)
+        return lambda e: str(game_year(e.game))
     if order_by == "rating":
-        return lambda e: (-game_rating(e.game), game_title(e.game).lower(), e.table_id)
+        return lambda e: game_rating(e.game)
     if order_by == "added":
-        return lambda e: (-(getattr(e.game, "creation_time", 0) or 0),
-                          game_title(e.game).lower(), e.table_id)
+        return lambda e: getattr(e.game, "creation_time", 0) or 0
     if order_by == "play_time":
         # The seconds, not User.RunTime: ordering on the minutes ties every game with
         # under a minute on it at zero, which is most of a library that gets browsed.
-        return lambda e: (-run_time_seconds(getattr(e.game, "meta_config", {}) or {}),
-                          game_title(e.game).lower(), e.table_id)
+        return lambda e: run_time_seconds(getattr(e.game, "meta_config", {}) or {})
     if order_by in ("last_played", "play_count"):
         stored = {"last_played": "LastRun", "play_count": "StartCount"}[order_by]
-        return lambda e: (-_user_value(e.game, stored), game_title(e.game).lower(),
-                          e.table_id)
-    return _sort_key(DEFAULT_ORDER)
+        return lambda e: _user_value(e.game, stored)
+    return lambda e: game_title(e.game).lower()
+
+
+def _tiebreak(entry) -> tuple:
+    """Title then table id, so a limited collection cuts the same rows every time."""
+    return (game_title(entry.game).lower(), entry.table_id)
+
+
+def _ordered(entries: list, order_by: str, descending: bool = False) -> list:
+    """`entries` sorted in place, tiebreak first and then the field, both stable.
+
+    The tiebreak does not turn around with the field. Two games level on rating stay in
+    title order in a descending list, which is the sort `frontend.game_state.apply_sort`
+    has always applied - reversing the finished list would order them Z to A instead.
+    """
+    entries.sort(key=_tiebreak)
+    entries.sort(key=_primary_key(order_by), reverse=descending)
+    return entries
 
 
 def resolve_games(name: str, collections, games) -> list[Any]:
@@ -228,17 +243,16 @@ def resolve_games(name: str, collections, games) -> list[Any]:
 
     order = collections.get_order(name)
     order_by = order["by"] or DEFAULT_ORDER
-    key = _sort_key(order_by)
     as_entries = {id(g): Entry(game=g, table={}, siblings=0) for g in picked + from_filters}
 
+    def _sorted(games, by, descending=False):
+        return [e.game for e in
+                _ordered([as_entries[id(g)] for g in games], by, descending)]
+
     if order_by == "manual":
-        from_filters.sort(key=lambda g: key(as_entries[id(g)]))
-        result = picked + from_filters
+        result = picked + _sorted(from_filters, DEFAULT_ORDER)
     else:
-        result = picked + from_filters
-        result.sort(key=lambda g: key(as_entries[id(g)]))
-        if order["direction"] == "desc" and order_by in ("title", "year"):
-            result.reverse()
+        result = _sorted(picked + from_filters, order_by, order["direction"] == "desc")
     limit = collections.get_limit(name)
     return result[:limit] if limit else result
 
@@ -323,16 +337,12 @@ def resolve(name: str, collections, games) -> list[Entry]:
 
     if order_by == "manual":
         # Whatever a filter contributed has no position of its own, so it follows.
-        from_filters.sort(key=_sort_key(DEFAULT_ORDER))
-        result = ordered + from_filters
+        result = ordered + _ordered(from_filters, DEFAULT_ORDER)
     else:
-        result = ordered + from_filters
-        result.sort(key=_sort_key(order_by))
-        if descending and order_by in ("title", "year"):
-            result.reverse()
+        result = _ordered(ordered + from_filters, order_by, descending)
 
     # 5. Limit. Last, so it caps an ordered list rather than deciding what is in it.
-    # The tiebreak in _sort_key is what stops "top 20 rated" returning a different
-    # twenty each time two tables are level.
+    # `_tiebreak` is what stops "top 20 rated" returning a different twenty each time
+    # two tables are level.
     limit = collections.get_limit(name)
     return result[:limit] if limit else result

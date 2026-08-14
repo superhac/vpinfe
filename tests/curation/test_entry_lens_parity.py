@@ -109,8 +109,10 @@ class EntryLensParityTests(TempTree):
             games.append(game)
 
         entries = entries_for(games)
+        # Newest first is `added` descending now that direction is not baked into the
+        # sort key, which is the same list this asserted when it was.
         hub_order = [game_state.game_title(e.game) for e in
-                     sorted(entries, key=collection_resolver._sort_key("added"))]
+                     collection_resolver._ordered(list(entries), "added", True)]
         wire = [_entry_resource(e) for e in entries]
         stamps = [row["game"]["created_at"] for row in wire]
         client_order = [game_state.game_title(e.game) for _, e in sorted(
