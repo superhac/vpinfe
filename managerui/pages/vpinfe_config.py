@@ -339,7 +339,7 @@ def render_panel(tab=None):
                 inp = ui.select(
                     options=priority_options,
                     value=priority_value
-                ).props('outlined dense options-dense emit-value map-options').classes('config-input')
+                ).props('outlined dense options-dense').classes('config-input')
             elif section == 'input' and key == 'paging_type':
                 normalized_paging = str(value or '').strip().lower()
                 paging_options = {'alpha': 'Alphabetic (jump by letter)', 'numeric': 'Numeric (jump by page size)'}
@@ -347,7 +347,7 @@ def render_panel(tab=None):
                 inp = ui.select(
                     options=paging_options,
                     value=paging_value
-                ).props('outlined dense options-dense emit-value map-options').classes('config-input')
+                ).props('outlined dense options-dense').classes('config-input')
             elif is_checkbox:
                 inp = ui.checkbox(
                     text='Enable' if special_label_above else friendly_label,
@@ -364,7 +364,7 @@ def render_panel(tab=None):
                 inp = ui.select(
                     options={'landscape': 'Landscape', 'portrait': 'Portrait'},
                     value=(value or 'landscape').strip().lower()
-                ).props('outlined dense options-dense emit-value map-options').classes('config-input')
+                ).props('outlined dense options-dense').classes('config-input')
                 inp.tooltip(
                     'How the playfield screen is physically mounted. Portrait means it is '
                     'turned on its side in the cabinet. This does not rotate anything by '
@@ -380,7 +380,7 @@ def render_panel(tab=None):
                     },
                     value=(value or '0').strip() if (value or '0').strip() in
                           ('0', '90', '180', '270') else '0'
-                ).props('outlined dense options-dense emit-value map-options').classes('config-input')
+                ).props('outlined dense options-dense').classes('config-input')
                 inp.tooltip(
                     'How far VPinFE turns its own display so it faces the player. Leave at '
                     '0 if your operating system already rotates this screen - the desktop '
