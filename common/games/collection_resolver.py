@@ -182,8 +182,9 @@ def resolve_games(name: str, collections, games) -> list[Any]:
     launch - but hiding it from the list you would go to in order to fix it is how a
     library grows a game nobody can find.
 
-    Same membership and the same ordering as `resolve`, so the two lenses cannot
-    disagree about what a collection holds or what order it is in.
+    Same membership, ordering and limit as `resolve`, so the two lenses cannot disagree
+    about what a collection holds or what order it is in. A game the limit cuts is not
+    in the collection - the cap is part of the definition, not a display setting.
     """
     unknown = collections.unknown_filter_axes(name)
     if unknown:
@@ -232,12 +233,14 @@ def resolve_games(name: str, collections, games) -> list[Any]:
 
     if order_by == "manual":
         from_filters.sort(key=lambda g: key(as_entries[id(g)]))
-        return picked + from_filters
-    result = picked + from_filters
-    result.sort(key=lambda g: key(as_entries[id(g)]))
-    if order["direction"] == "desc" and order_by in ("title", "year"):
-        result.reverse()
-    return result
+        result = picked + from_filters
+    else:
+        result = picked + from_filters
+        result.sort(key=lambda g: key(as_entries[id(g)]))
+        if order["direction"] == "desc" and order_by in ("title", "year"):
+            result.reverse()
+    limit = collections.get_limit(name)
+    return result[:limit] if limit else result
 
 
 def resolve(name: str, collections, games) -> list[Entry]:

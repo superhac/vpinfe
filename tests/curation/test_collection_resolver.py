@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from common.games.collection_resolver import (
     UnresolvableCollectionError,
     resolve,
+    resolve_games,
     visible_entries,
 )
 from common.games.collection_store import CollectionStore
@@ -207,6 +208,17 @@ class ResolverTests(TempTree):
         entries = resolve("Friday Night", self.collections, self.games)
 
         self.assertEqual(self._ids(entries), [("mm", "vpw"), ("mm", "jp")])
+
+    def test_the_management_lens_applies_the_limit_too(self) -> None:
+        """A capped collection contains what the cap leaves. If the lens you go to in
+        order to edit one showed more, the two would disagree about what is in it."""
+        self.collections.add_filter_collection("Recent", sort_by="LastRun")
+        self.collections.set_limit("Recent", 2)
+
+        games = resolve_games("Recent", self.collections, self.games)
+
+        self.assertEqual([g.gameDirName for g in games],
+                         ["Medieval Madness", "Attack from Mars"])
 
     def test_two_resolutions_of_the_same_input_agree(self) -> None:
         """Peers that tie on the sort key must not shuffle between refreshes."""
