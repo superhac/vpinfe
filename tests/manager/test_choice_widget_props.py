@@ -32,7 +32,9 @@ CHOICE_WIDGETS = {"select", "radio", "toggle"}
 
 # Options shapes whose values NiceGUI maps by index. A list literal is mapped the same
 # way, so it is no safer - it is here only because every one we ship is opaque or a dict.
-MAPPED_OPTIONS = ("dict", "name:", "call:", "Subscript", "list", "?")
+# `Attribute` is a vocabulary imported from core and reached as `module.NAME`, which is
+# as opaque here as a bare name: unlisted, the audit reads the shape and skips it.
+MAPPED_OPTIONS = ("dict", "name:", "call:", "Subscript", "list", "Attribute", "?")
 
 
 def _link_parents(tree: ast.AST) -> None:

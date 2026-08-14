@@ -95,11 +95,15 @@ class FilterAxis:
     `scope` says which object the criterion is about. It is what removes the ambiguity
     in `manufacturer`, `year` and `type`, which exist on a game *and* on each of its
     tables and were previously resolved by accident.
+
+    `name` is stored and `label` is shown, so a label can be reworded freely and a name
+    never can. Both rating axes label as "rating": they are one control.
     """
 
     name: str
     scope: str
     kind: str
+    label: str
     summary: str
     matches: Callable
 
@@ -109,28 +113,28 @@ class FilterAxis:
 
 
 AXES: tuple[FilterAxis, ...] = (
-    FilterAxis("letter", GAME_SCOPE, "letter",
+    FilterAxis("letter", GAME_SCOPE, "letter", "letter",
                "First letter of the title, as sorted",
                _match_letter),
-    FilterAxis("theme", GAME_SCOPE, "choice",
+    FilterAxis("theme", GAME_SCOPE, "choice", "theme",
                "Any theme the game is tagged with",
                _match_theme),
-    FilterAxis("game_type", GAME_SCOPE, "choice",
+    FilterAxis("game_type", GAME_SCOPE, "choice", "type",
                "Solid state, electro-mechanical and so on",
                _match_game_type),
-    FilterAxis("manufacturer", GAME_SCOPE, "choice",
+    FilterAxis("manufacturer", GAME_SCOPE, "choice", "mfr",
                "Who made the machine",
                _match_manufacturer),
-    FilterAxis("year", GAME_SCOPE, "choice",
+    FilterAxis("year", GAME_SCOPE, "choice", "year",
                "Year the machine was released",
                _match_year),
-    FilterAxis("rating", GAME_SCOPE, "rating",
+    FilterAxis("rating", GAME_SCOPE, "rating", "rating",
                "The rating the user gave the game",
                _match_rating),
-    FilterAxis("rating_or_higher", GAME_SCOPE, "rating",
+    FilterAxis("rating_or_higher", GAME_SCOPE, "rating", "rating",
                "Read `rating` as a floor instead of a set",
                _match_rating_or_higher),
-    FilterAxis("played", GAME_SCOPE, "flag",
+    FilterAxis("played", GAME_SCOPE, "flag", "played",
                "Whether the game has ever been played",
                _match_played),
 )

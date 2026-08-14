@@ -5,6 +5,7 @@ import logging
 from nicegui import app, events, run, ui
 
 from common.games import game_index_service
+from common.games.collection_filters import AXES, canonical_axis, is_unconstrained
 from common.values import is_truthy
 from managerui.services import collection_admin
 from managerui.ui_helpers import debounced_input, load_page_style
@@ -135,27 +136,32 @@ def render_panel(tab=None):
 
                         # Show details based on type
                         if is_filter:
-                            filters = manager.get_filters(name)
+                            filters = manager.get_filters(name) or {}
+                            # Keyed by the axis the criterion means, so a stored
+                            # `table_type` lands under `game_type`.
+                            stored = {canonical_axis(key): value for key, value in filters.items()}
+                            order = manager.get_order(name)
                             with ui.row().classes('mt-3 gap-2 flex-wrap'):
-                                rating_value = filters.get('rating', 'All') if filters else 'All'
-                                rating_or_higher = is_truthy(filters.get('rating_or_higher', 'false')) if filters else False
-                                key_labels = {
-                                    'letter': 'letter',
-                                    'theme': 'theme',
-                                    'table_type': 'type',
-                                    'manufacturer': 'mfr',
-                                    'year': 'year',
-                                    'sort_by': 'sort',
-                                    'order_by': 'order',
-                                }
-                                for key in ('letter', 'theme', 'table_type', 'manufacturer', 'year', 'sort_by', 'order_by'):
-                                    value = (filters or {}).get(key, '')
-                                    if value and value != 'All':
-                                        for v in str(value).split(','):
-                                            ui.chip(f'{key_labels[key]}: {v.strip()}', icon='label').props('outline color=purple dense')
+                                rating_value = filters.get('rating', 'All')
+                                rating_or_higher = is_truthy(filters.get('rating_or_higher', 'false'))
+                                for axis in AXES:
+                                    # The two rating axes are one control, chipped below.
+                                    if axis.kind == 'rating':
+                                        continue
+                                    value = stored.get(axis.name, '')
+                                    if is_unconstrained(value):
+                                        continue
+                                    if axis.kind == 'flag':
+                                        value = 'yes' if is_truthy(value) else 'no'
+                                    for v in str(value).split(','):
+                                        ui.chip(f'{axis.label}: {v.strip()}', icon='label').props('outline color=purple dense')
                                 if rating_value and rating_value != 'All':
                                     rating_chip = f'rating: {rating_value}+ ' if rating_or_higher else f'rating: {rating_value}'
                                     ui.chip(rating_chip.strip(), icon='star').props('outline color=amber dense')
+                                # From the `order` block rather than the criteria, which
+                                # carry a default the collection may never have set.
+                                ui.chip(f'sort: {collection_admin.SORT_LABELS.get(order["by"], order["by"])}', icon='sort').props('outline color=purple dense')
+                                ui.chip(f'order: {collection_admin.DIRECTION_LABELS.get(order["direction"], order["direction"])}', icon='swap_vert').props('outline color=purple dense')
                         else:
                             members = manager.get_members(name)
                             if members:
@@ -385,8 +391,11 @@ def render_panel(tab=None):
                         rating_or_higher_input.enable()
 
                 rating_input.on_value_change(_on_new_rating_change)
-                sort_input = ui.select(label='Sort By', options=filter_opts['sort_options'], value='Alpha').classes('w-full')
-                order_input = ui.select(label='Order By', options=filter_opts['order_options'], value='Descending').classes('w-full')
+                # Dict options, and no `emit-value map-options`: NiceGUI hands Quasar
+                # `[{label, value: <index>}]` and expects the option object back, so
+                # emit-value returns the bare index instead. See test_choice_widget_props.
+                sort_input = ui.select(label='Sort By', options=collection_admin.SORT_LABELS, value=collection_admin.DEFAULT_ORDER_BY).classes('w-full')
+                order_input = ui.select(label='Order By', options=collection_admin.DIRECTION_LABELS, value='desc').classes('w-full')
 
                 def _join_or_all(values):
                     """Join selected values with comma, or return 'All' if none selected."""
@@ -414,10 +423,12 @@ def render_panel(tab=None):
                                 year=_join_or_all(year_input.value),
                                 rating=selected_rating,
                                 rating_or_higher=selected_rating_or_higher,
-                                sort_by=sort_input.value or 'Alpha',
-                                order_by=order_input.value or 'Descending',
                                 image=image_state['filename'],
                             )
+                            collection_admin.set_collection_order(
+                                name,
+                                sort_input.value or collection_admin.DEFAULT_ORDER_BY,
+                                order_input.value or collection_admin.DEFAULT_DIRECTION)
                             ui.notify(f'Filter collection "{name}" created', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -520,11 +531,16 @@ def render_panel(tab=None):
                         rating_or_higher_input.enable()
 
                 rating_input.on_value_change(_on_edit_rating_change)
-                saved_order = filters.get('order_by') or 'Descending'
-                if saved_order not in filter_opts['order_options']:
-                    saved_order = 'Descending'
-                sort_input = ui.select(label='Sort By', options=filter_opts['sort_options'], value=filters.get('sort_by', 'Alpha')).classes('w-full')
-                order_input = ui.select(label='Order By', options=filter_opts['order_options'], value=saved_order).classes('w-full')
+                # The `order` block, not the criteria: what the resolver actually reads.
+                # A filter collection cannot be curated, so a `manual` here would be a
+                # hand-edited file - show it the sort it resolves as.
+                saved_order = manager.get_order(name)
+                saved_sort = saved_order['by']
+                if saved_sort not in collection_admin.SORT_LABELS:
+                    saved_sort = collection_admin.DEFAULT_ORDER_BY
+                # Dict options, and no `emit-value map-options` - see the create dialog.
+                sort_input = ui.select(label='Sort By', options=collection_admin.SORT_LABELS, value=saved_sort).classes('w-full')
+                order_input = ui.select(label='Order By', options=collection_admin.DIRECTION_LABELS, value=saved_order['direction']).classes('w-full')
 
                 def _join_or_all(values):
                     if not values:
@@ -546,10 +562,12 @@ def render_panel(tab=None):
                                 year=_join_or_all(year_input.value),
                                 rating=selected_rating,
                                 rating_or_higher='true' if (selected_rating != 'All' and rating_or_higher_input.value) else 'false',
-                                sort_by=sort_input.value or 'Alpha',
-                                order_by=order_input.value or 'Descending',
                                 image=image_state['filename'],
                             )
+                            collection_admin.set_collection_order(
+                                name,
+                                sort_input.value or collection_admin.DEFAULT_ORDER_BY,
+                                order_input.value or collection_admin.DEFAULT_DIRECTION)
                             ui.notify(f'Collection "{name}" updated', type='positive')
                             dlg.close()
                             refresh_collections()

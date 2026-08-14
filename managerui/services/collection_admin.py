@@ -15,6 +15,14 @@ from common.games import game_index_service, game_repository
 
 # Imported and re-exported: the collections page reaches both halves through this
 # module, and these four were duplicated here until 2026-08-05.
+# The sort vocabulary belongs to the store, and the page reads it from here rather than
+# writing the names out again - which is how the editor came to offer 2.x spellings.
+from common.games.collection_store import (  # noqa: F401  (import and export)
+    DEFAULT_DIRECTION,
+    DEFAULT_ORDER_BY,
+    DIRECTION_LABELS,
+    SORT_LABELS,
+)
 from common.games.collections_service import (  # noqa: F401  (import and export)
     collection_icon_url,
     ensure_collection_icons_dir,
@@ -148,8 +156,6 @@ def get_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> dict[str,
             "manufacturers": ["All"],
             "years": ["All"],
             "ratings": ["All", "1", "2", "3", "4", "5"],
-            "sort_options": ["Alpha", "Newest", "LastRun", "Highest StartCount", "RunTime"],
-            "order_options": ["Descending", "Ascending"],
         }
 
     letters = set()
@@ -186,8 +192,6 @@ def get_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> dict[str,
         "manufacturers": ["All"] + sorted(manufacturers),
         "years": ["All"] + sorted(years),
         "ratings": ["All", "1", "2", "3", "4", "5"],
-        "sort_options": ["Alpha", "Newest", "LastRun", "Highest StartCount", "RunTime"],
-        "order_options": ["Descending", "Ascending"],
     }
 
 
@@ -223,6 +227,17 @@ def update_filter_collection(name: str, **filters) -> None:
             manager.set_filter(name, key, value)
         if image is not None:
             _set_section_image(manager, name, image)
+
+
+def set_collection_order(name: str, by: str, direction: str) -> None:
+    """How this collection is ordered, in the `order` block the resolver reads.
+
+    Not as `sort_by`/`order_by` criteria: those are only a fallback for files written
+    before the block existed, so writing them at a collection that has one - every Last
+    Played does - changes the stored value and nothing on screen.
+    """
+    with get_collections_manager().mutate() as manager:
+        manager.set_order(name, by, direction)
 
 
 def update_game_collection(name: str, game_ids: list[str], image: str | None = None) -> None:
