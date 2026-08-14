@@ -2,9 +2,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
-from unittest.mock import patch
 
-from common.games import game_play_service
 from common.games.collection_store import CollectionStore
 from frontend.api import API
 
@@ -29,24 +27,6 @@ def _game(title, vpsid, last_run=None, altvpsid="", alttitle="", runtime=0,
         },
         creation_time=creation_time,
     )
-
-
-class TestLastPlayedOrder(unittest.TestCase):
-    """Last Played is an ordinary collection now - nothing matches it by name - so the
-    recency order it is maintained in has to be recorded as the collection's own."""
-
-    def test_tracking_a_play_records_the_order_it_writes(self) -> None:
-        with TemporaryDirectory() as tmp:
-            store = CollectionStore(str(Path(tmp) / "collections.json"))
-            game = SimpleNamespace(meta_config={"Info": {"Title": "Alpha"},
-                                                "vpinfe": {"game_id": "alpha"}})
-
-            with patch.object(game_play_service, "get_collections_manager",
-                              lambda: store):
-                game_play_service.track_game_play(game)
-
-            self.assertEqual(store.get_members("Last Played"), ["alpha"])
-            self.assertEqual(store.get_order("Last Played")["by"], "manual")
 
 
 class TestCollectionSorting(unittest.TestCase):

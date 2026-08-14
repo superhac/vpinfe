@@ -56,6 +56,10 @@ MEMBERS_KEY = "vpsids"
 COLLECTIONS_KEY = "collections"
 COLLECTION_IMAGE_KEY = "image"
 
+# One-time conversions this file has been through, by name. Not the schema number:
+# whichever conversion stamped that first would tell the others they had already run.
+MIGRATIONS_KEY = "migrations"
+
 # A member names a game, and optionally one of its tables:
 #
 #   {"game": "tuF3WogthK"}                        the game - its default table
@@ -197,6 +201,7 @@ class CollectionStore:
         """Load from disk, discarding unsaved changes."""
         self.records: list[dict] = []
         self._schema = COLLECTIONS_SCHEMA
+        self._migrations: list[str] = []
         self._converted_from_ini = False
 
         if self.path.exists():
@@ -214,6 +219,8 @@ class CollectionStore:
         if not isinstance(data, dict):
             return
         self._schema = int(data.get(SCHEMA_KEY, COLLECTIONS_SCHEMA) or COLLECTIONS_SCHEMA)
+        self._migrations = [str(name) for name in data.get(MIGRATIONS_KEY) or []
+                            if isinstance(name, str)]
         records = data.get(COLLECTIONS_KEY)
         if not isinstance(records, list):
             return
@@ -276,6 +283,16 @@ class CollectionStore:
     def schema_version(self) -> int:
         return self._schema
 
+    def has_migrated(self, name: str) -> bool:
+        """Whether this file has already been through the named one-time conversion."""
+        return name in self._migrations
+
+    def record_migration(self, name: str) -> None:
+        """Say it has, so it is not done to the user's file a second time. Written by
+        the next `save`, which is what makes it survive a restart."""
+        if name not in self._migrations:
+            self._migrations.append(name)
+
     def _stamp_schema(self, version: int = COLLECTIONS_SCHEMA) -> None:
         self._schema = version
 
@@ -287,7 +304,9 @@ class CollectionStore:
         if not self.is_filter_based(section):
             return None
         stored = self._require(section).get("filters") or {}
-        return {key: stored.get(key, default) for key, default in _FILTER_DEFAULTS.items()}
+        # Defaults underneath, the file on top: the defaults are the nine criteria an ini
+        # could hold, and an axis added since - `played` is the first - is only in the file.
+        return {**_FILTER_DEFAULTS, **stored}
 
     def set_view_filters(self, criteria: dict | None) -> None:
         """Constrain `builtin:all` by criteria that are stored nowhere - the frontend's
@@ -431,19 +450,40 @@ class CollectionStore:
         rating_or_higher="false",
         sort_by="Alpha",
         order_by="Descending",
+        played=None,
     ):
         """Add a filter-based collection."""
         if self._record(section) is not None:
             raise ValueError(f"Section '{section}' already exists")
-        self.records.append({
-            "name": section, "type": "filter", "image": "",
-            "filters": {
-                "letter": letter, "theme": theme, "table_type": game_type,
-                "manufacturer": manufacturer, "year": year, "rating": rating,
-                "rating_or_higher": rating_or_higher, "sort_by": sort_by,
-                "order_by": order_by or "Descending",
-            },
-        })
+        criteria = {
+            "letter": letter, "theme": theme, "table_type": game_type,
+            "manufacturer": manufacturer, "year": year, "rating": rating,
+            "rating_or_higher": rating_or_higher, "sort_by": sort_by,
+            "order_by": order_by or "Descending",
+        }
+        # Only when asked for. Written as false it would read as "never played" rather
+        # than as saying nothing about play at all.
+        if played is not None:
+            criteria["played"] = bool(played)
+        self.records.append({"name": section, "type": "filter", "image": "",
+                             "filters": criteria})
+
+    def make_filter_collection(self, section: str, filters: dict,
+                               order: dict | None = None,
+                               limit: int | None = None) -> None:
+        """Turn a collection into one that filters, keeping its name, icon and position.
+
+        Hand-picked membership goes with it: a named game overrides the criteria, so
+        one left behind would stay in the collection whatever the filter selects.
+        """
+        record = self._require_mutable(section)
+        record["type"] = "filter"
+        record["filters"] = dict(filters)
+        record.pop("members", None)
+        if order:
+            self.set_order(section, order.get(ORDER_BY_KEY, DEFAULT_ORDER_BY),
+                           order.get(ORDER_DIRECTION_KEY, DEFAULT_DIRECTION))
+        self.set_limit(section, limit)
 
     def delete_collection(self, section: str):
         self.records.remove(self._require_mutable(section))
@@ -481,9 +521,8 @@ class CollectionStore:
         record["members"] = keep
 
     def set_members(self, section: str, members) -> None:
-        """Replace the membership outright, taking game ids or refs. For the callers
-        where order is the point - Last Played writes most-recent-first, and the
-        Manager UI saves a whole edit.
+        """Replace the membership outright, taking game ids or refs. For a caller where
+        the order is the point, which is the Manager UI saving a whole edit.
 
         A caller passing bare ids is naming games rather than tables, so a table this
         collection had named is gone. That is the right meaning for an editor that can
@@ -631,6 +670,8 @@ class CollectionStore:
             # the file.
             payload = {SCHEMA_KEY: max(self._schema, COLLECTIONS_SCHEMA),
                        COLLECTIONS_KEY: self.records}
+            if self._migrations:
+                payload[MIGRATIONS_KEY] = self._migrations
             write_atomic(self.path,
                          lambda handle: json.dump(payload, handle, indent=2,
                                                   ensure_ascii=False))

@@ -366,9 +366,9 @@ playing works on a machine that can't start anything. Check it before offering a
 rather than finding out from a 501.
 
 This is the same launch the wheel and the Remote Control page use. That matters more than it
-sounds — it means a launch from the API counts as a play, updates Last Played, reads the
-score back out of NVRAM, and hands the peripherals over before VPX starts, because all of
-that lives in the one path rather than in whichever caller remembered it.
+sounds — it means a launch from the API counts as a play, records the date and the start
+count, reads the score back out of NVRAM, and hands the peripherals over before VPX starts,
+because all of that lives in the one path rather than in whichever caller remembered it.
 
 ## Event stream
 
@@ -478,7 +478,9 @@ still `vpsids` for files written before that migration, and `type` is still `vps
 the wire uses the honest names.
 
 Collection names are the identity, so they are URL-encoded in paths (`Last%20Played`).
-`Last Played` itself is maintained automatically as you play.
+`Last Played` itself is a filter collection over the games with a play on record, ordered
+by date and capped at 30 — it derives from what each `.info` says, so nothing maintains it
+and it never holds a game that is no longer installed.
 
 `GET /library/entries` is the same play lens over everything, which is what a frontend
 shows before a collection is chosen. The whole library is a collection internally, and one

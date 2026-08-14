@@ -36,6 +36,7 @@ from common.games.game_metadata import (
 from common.games.media_lookup import resolved_kinds
 from common.shared_assets import manufacturer_logo_web_path
 from common.timestamps import epoch_to_iso
+from common.values import is_truthy
 
 from . import models, scopes
 from .auth import requires
@@ -67,6 +68,7 @@ def _resource_for(row: dict) -> dict:
             "rating": raw.get("rating", "All"),
             "rating_or_higher": str(raw.get("rating_or_higher", "false")).lower()
             in ("1", "true", "yes", "on"),
+            "played": None if raw.get("played") is None else is_truthy(raw["played"]),
             "sort_by": raw.get("sort_by", "Alpha"),
             "order_by": raw.get("order_by", "Descending"),
         }
@@ -213,7 +215,7 @@ def create_collection(response: Response,
             manager.add_filter_collection(
                 name, f.letter, f.theme, f.game_type, f.manufacturer, f.year,
                 f.rating, "true" if f.rating_or_higher else "false",
-                f.sort_by, f.order_by)
+                f.sort_by, f.order_by, played=f.played)
         else:
             known = set(_catalog())
             unknown = [game_id for game_id in request.games if game_id not in known]

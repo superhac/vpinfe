@@ -415,6 +415,9 @@ class CollectionFilters(ApiModel):
     year: str = "All"
     rating: str = "All"
     rating_or_higher: bool = False
+    # Absent rather than false when the collection says nothing about play, because
+    # false is a criterion of its own here - it selects what has never been played.
+    played: bool | None = None
     sort_by: str = "Alpha"
     order_by: str = "Descending"
 

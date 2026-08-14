@@ -139,7 +139,6 @@ class PlayDataTests(LaunchTests):
     def test_a_launch_from_any_source_is_recorded_as_a_play(self) -> None:
         play = self._run()
 
-        play.track_game_play.assert_called_once()
         play.increment_start_count.assert_called_once()
 
     def test_runtime_and_score_are_recorded_when_the_game_exits(self) -> None:

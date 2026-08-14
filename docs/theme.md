@@ -1263,7 +1263,7 @@ window is told through the `lifecycle.acting` event and cannot block it.
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
 | `get_games` | `reset=false` | `string` (JSON) | Returns JSON string of the current (filtered) game list. Pass `true` to reset to the full unfiltered list. Each game object includes paths, media paths, addon flags, and metadata. |
-| `launch_game` | `index` | — | Launches the game at the given index. Blocks until the table exits. Automatically tracks play in the "Last Played" collection. Sends `GameLaunching` before launch, `GameRunning` when the table finishes loading, and `GameLaunchComplete` when it exits. |
+| `launch_game` | `index` | — | Launches the game at the given index. Blocks until the table exits. Records the play against the game — start count, last-played date and runtime — which is what the "Last Played" collection is built from. Sends `GameLaunching` before launch, `GameRunning` when the table finishes loading, and `GameLaunchComplete` when it exits. |
 | `build_metadata` | `download_media=true`, `update_all=false` | `object` | Triggers a background metadata build/refresh. Sends progress events (`buildmeta_progress`, `buildmeta_log`, `buildmeta_complete`, `buildmeta_error`) to all windows. Returns `{success, message}`. |
 
 ##### Collections

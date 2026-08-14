@@ -267,13 +267,32 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-83 — `Last Played` derives itself instead of being maintained.** It used to be a
+collection the launcher wrote to on every launch — push the game onto the front of a member
+array, trim it to 30. It is an ordinary filter collection now: every game with a play date,
+most recent first, capped at 30. An existing one is converted in place on first start,
+keeping its name, icon and position in the list; the member array goes. That conversion runs
+once and the file records that it ran, so deleting the collection, or turning it back into a
+list you picked yourself, sticks. A fresh install is seeded with it, empty until something is
+played. The `played` criterion behind it is a filter axis like any other, so "never played"
+and "the last 10" are collections you can define rather than code.
+*Why:* the array and the play date were written by the same launch, so the date already knew
+everything the array did — this changes where recency is read from, not what is known. It
+also fixes two things an array cannot do. It cannot hold ids matching no game on disk, which
+a maintained one does collect and which the wheel renders as raw hex. And play dates are
+never trimmed where the 31st entry of the array was destroyed, so raising the limit later
+surfaces plays that far back. Measured against a maintained array on a real library: the
+derived list gives the same games in the same order, minus the ids that matched nothing, plus
+every play the 30-item array had already forgotten. Covered by
+`tests/curation/test_last_played.py`.
+
 **PAR-82 — The wheel resolves a collection the same way the API does.** Choosing a
 collection in a theme now goes through the one resolver, so the wheel honors what a
 collection stores: a member naming one specific table, a table or game it excludes, a row
 limit, and the order it was arranged in. Filtering leaves the collection you were in and
 shows the library filtered, which is what it already did. `Last Played` still comes back
-most-recent-first, and no longer because its name is matched in code — the list is written
-in that order, and the collection now records that the order is the list.
+most-recent-first, and no longer because its name is matched in code — it says what order
+it is in, like every other collection. (PAR-83 then made it derive that order.)
 *Why:* the frontend had a membership engine of its own that read a collection's game ids
 and nothing else, so all four of those were invisible on the wheel while REST answered
 correctly for the same collection. Measured on identical collections: two named tables of

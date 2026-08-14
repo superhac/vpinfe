@@ -11,9 +11,6 @@ import time
 from copy import deepcopy
 from pathlib import Path
 
-from common.games import game_identity
-from common.games.collection_store import MANUAL_ORDER
-from common.games.collections_service import get_collections_manager
 from common.games.game_metadata import (
     default_table_entry,
     get_or_create_table_user,
@@ -23,40 +20,11 @@ from common.games.game_metadata import (
     normalize_meta,
     persist_game_meta,
     run_time_seconds,
-    section,
     vpinfe_section,
 )
 from common.timestamps import epoch_to_iso
 
 logger = logging.getLogger("vpinfe.common.games.game_play_service")
-
-
-def track_game_play(game, collection_name: str = "Last Played", max_items: int = 30) -> None:
-    meta = normalize_meta(getattr(game, "meta_config", {}))
-    # Membership is the game's own id; VPSId is a fallback for a game that has
-    # not been assigned one yet.
-    member_id = game_identity.game_id(game) or section(meta, "Info").get("VPSId")
-    if not member_id:
-        logger.debug("Game has no id, cannot track play")
-        return
-
-    with get_collections_manager().mutate() as collections:
-        if collection_name not in collections.get_collections_name():
-            logger.info("Creating '%s' collection", collection_name)
-            collections.add_collection(collection_name, members=[])
-
-        # Most-recent-first and capped, so this writes the list rather than using
-        # add_member - order carries the meaning here.
-        ids = collections.get_members(collection_name)
-        if member_id in ids:
-            ids.remove(member_id)
-        ids.insert(0, member_id)
-        collections.set_members(collection_name, ids[:max_items])
-        # And the collection says so, every time, which also repairs a file written
-        # before it did. Nothing matches this collection by its name any more, so an
-        # array that means recency has to be declared as the order.
-        collections.set_order(collection_name, MANUAL_ORDER)
-    logger.info("Tracked game play: %s (now %s in %s)", member_id, len(ids[:max_items]), collection_name)
 
 
 def increment_start_count(game, table: str = "") -> None:

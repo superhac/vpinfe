@@ -218,7 +218,6 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
     vpx_path = _resolve_table(game, table)
 
     delete_vpinball_log_on_start_if_configured(settings)
-    game_play_service.track_game_play(game)
 
     # Hooks run first and can still stop this - releasing the peripherals is one.
     # Nothing below has happened yet, so a refusal here leaves nothing to undo.

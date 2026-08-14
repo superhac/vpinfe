@@ -239,10 +239,13 @@ shutdown.exit_if_requested(logger)
 # Collection membership moves onto game ids once the ids exist. Resolvable entries
 # are rewritten; anything that does not resolve is left alone rather than dropped.
 try:
+    from common.games.collection_migration import ensure_last_played
     from common.games.collection_store import CollectionStore
     from common.paths import COLLECTIONS_PATH
     _collections = CollectionStore(str(COLLECTIONS_PATH))
     _collections.migrate_membership_to_game_ids(ensure_games_loaded())
+    # After the rekey, so a file arriving as a 2.x ini is in its current shape first.
+    ensure_last_played(_collections)
 except Exception:
     logger.exception("Collection membership migration failed; memberships left as they were")
 
