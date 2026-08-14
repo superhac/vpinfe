@@ -59,6 +59,10 @@ def _resource_for(row: dict) -> dict:
     filters = None
     if row["is_filter"]:
         raw = get_collections_manager().get_filters(name)
+        # From the `order` block, which is where the resolver reads it. The criteria
+        # carry a default for keys the collection never set, so reading the sort there
+        # reports "Alpha" for a collection that is ordered by anything else.
+        order = get_collections_manager().get_order(name)
         filters = {
             "letter": raw.get("letter", "All"),
             "theme": raw.get("theme", "All"),
@@ -69,8 +73,8 @@ def _resource_for(row: dict) -> dict:
             "rating_or_higher": str(raw.get("rating_or_higher", "false")).lower()
             in ("1", "true", "yes", "on"),
             "played": None if raw.get("played") is None else is_truthy(raw["played"]),
-            "sort_by": raw.get("sort_by", "Alpha"),
-            "order_by": raw.get("order_by", "Descending"),
+            "sort_by": order["by"],
+            "order_by": order["direction"],
         }
     return {
         "name": name,

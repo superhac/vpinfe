@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from common.games.collection_store import DEFAULT_DIRECTION, DEFAULT_ORDER_BY
+
 
 class ApiModel(BaseModel):
     """Base for every wire model.
@@ -406,7 +408,10 @@ class MediaList(ApiModel):
 class CollectionFilters(ApiModel):
     """A filter collection's criteria. "All" means unconstrained on that axis -
     the vocabulary the filter engine already uses, kept rather than translated so
-    a client sees the same values the Manager UI shows."""
+    a client sees the same values the Manager UI shows.
+
+    Which is why `sort_by` and `order_by` are the stored 3.0 names: that is what the
+    Manager UI shows now. The 2.x spellings are still accepted on the way in."""
 
     letter: str = "All"
     theme: str = "All"
@@ -418,8 +423,8 @@ class CollectionFilters(ApiModel):
     # Absent rather than false when the collection says nothing about play, because
     # false is a criterion of its own here - it selects what has never been played.
     played: bool | None = None
-    sort_by: str = "Alpha"
-    order_by: str = "Descending"
+    sort_by: str = DEFAULT_ORDER_BY
+    order_by: str = DEFAULT_DIRECTION
 
 
 class CollectionLinks(ApiModel):

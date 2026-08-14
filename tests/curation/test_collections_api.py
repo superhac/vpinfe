@@ -76,6 +76,28 @@ class CollectionsApiTests(TempTree):
         self.assertIsNone(body["game_count"],
                           "a filter collection has no stored member list to count")
 
+    def test_the_reported_sort_is_the_one_the_collection_resolves_by(self) -> None:
+        """Read off the `order` block, not the criteria: those carry a default for every
+        key a collection never set, so a Last Played reported `Alpha`."""
+        self.manager.add_collection("Recent")
+        self.manager.make_filter_collection(
+            "Recent", {"played": True},
+            order={"by": "last_played", "direction": "desc"})
+        self.manager.save()
+
+        body = self.client.get("/collections/Recent").json()
+
+        self.assertEqual(body["filters"]["sort_by"], "last_played")
+        self.assertEqual(body["filters"]["order_by"], "desc")
+
+    def test_a_2x_sort_name_is_accepted_and_reported_in_the_stored_vocabulary(self) -> None:
+        """A client written against 2.x still creates the collection it meant to."""
+        response = self.client.post("/collections", json={
+            "name": "Most Played", "filters": {"sort_by": "Highest StartCount"}})
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["filters"]["sort_by"], "play_count")
+
     def test_asking_for_both_kinds_at_once_is_refused(self) -> None:
         response = self.client.post("/collections", json={
             "name": "Confused", "games": [GAME_ID], "filters": {"year": "1977"}})
