@@ -545,7 +545,6 @@ class VPinFECore {
     this._audioFadeDuration = 500;
     this._audioMaxVolume = 0.8;
     this._audioCurrentUrl = null;
-    this._audioRetries = 0;
     this._lastSelectedIndex = null;
     // Preloading waits for the wheel to stop. Fetching on every step is what made a
     // two-second hold ask for hundreds of images that were obsolete before they decoded;
@@ -885,10 +884,11 @@ class VPinFECore {
     this._audio.play().then(() => {
       if (this._audioCurrentUrl === url) this.#fadeAudio(0, this._audioMaxVolume);
     }).catch((e) => {
-      if (e && e.name === "NotAllowedError") {
-        this._audioRetries = retries;
-        this.#audioTriggerWhenReady(url);
-      } else if (retries > 0 && this._audioCurrentUrl === url) {
+      // Autoplay refused: nothing to retry against, the browser wants a gesture. The
+      // frontend launches Chromium with --autoplay-policy=no-user-gesture-required, so
+      // this is only reachable outside that launcher.
+      if (e && e.name === "NotAllowedError") return;
+      if (retries > 0 && this._audioCurrentUrl === url) {
         setTimeout(() => this.playGameAudio(url, retries - 1), 1000);
       }
     });
@@ -1719,30 +1719,13 @@ class VPinFECore {
     }, 20);
   }
 
-  #audioTriggerWhenReady(url) {
-    if (this._audioCurrentUrl !== url) return;
-    if (this._audio.readyState >= 2) {
-      this.call("trigger_audio_play").catch(() => {});
-    } else {
-      this._audio.addEventListener("canplay", () => {
-        if (this._audioCurrentUrl === url) this.call("trigger_audio_play").catch(() => {});
-      }, { once: true });
-    }
-  }
-
   #audioResumePlay() {
     if (this._audioMuted) return;
     const url = this._audioCurrentUrl;
-    const retries = this._audioRetries || 0;
     if (!url) return;
     this._audio.play().then(() => {
       if (this._audioCurrentUrl === url) this.#fadeAudio(0, this._audioMaxVolume);
-    }).catch(() => {
-      if (retries > 0 && this._audioCurrentUrl === url) {
-        this._audioRetries = retries - 1;
-        setTimeout(() => this.#audioTriggerWhenReady(url), 500);
-      }
-    });
+    }).catch(() => {});
   }
 
   // **********************************************
