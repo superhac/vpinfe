@@ -5,6 +5,11 @@ only the overlays VPinFE ships may. That split is worth nothing unless three thi
 agree: the published set, the API table in docs/theme.md a theme author builds against,
 and the set `vpin.call` refuses in the browser. Only this holds them together.
 
+It also checks the other direction, that every name core's own JavaScript calls is a name
+the bridge answers. Nothing else can: a dead-code sweep over Python cannot see a caller
+living in JavaScript on the far side of the bridge, which is how trigger_audio_play was
+deleted in March 2026 and kept two call sites for five releases.
+
 The reverse of the first check - every published name is documented - is not asserted.
 Some published names exist for vpinfe-core.js's own bootstrap and have never been in the
 table, and sorting the rest of them into the two sets is a separate decision.
@@ -17,6 +22,7 @@ import unittest
 from pathlib import Path
 
 from frontend.api import (
+    _RENAMED_METHODS,
     API,
     API_ALLOWED_METHODS,
     API_INTERNAL_METHODS,
@@ -25,10 +31,15 @@ from frontend.api import (
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 THEME_DOC = REPO_ROOT / "docs" / "theme.md"
-CORE_JS = REPO_ROOT / "frontend" / "static" / "common" / "vpinfe-core.js"
+STATIC_ROOT = REPO_ROOT / "frontend" / "static"
+CORE_JS = STATIC_ROOT / "common" / "vpinfe-core.js"
 
 TABLE_HEADER = "| Method | Args | Returns | Description |"
 METHOD_ROW = re.compile(r"\| `([a-z_]+)` \|")
+
+# `vpin.call("x")`, `window.parent.vpin.call('x')`, core's own `this.callInternal("x")`.
+# A call whose name is a variable is invisible here, and there are three of those.
+JS_CALL = re.compile(r"""\.call(?:Internal)?\(\s*['"](\w+)['"]""")
 
 
 def _documented_methods() -> set[str]:
@@ -50,6 +61,17 @@ def _documented_methods() -> set[str]:
             row = METHOD_ROW.match(line)
             if row:
                 found.add(row.group(1))
+    return found
+
+
+def _called_from_javascript() -> dict[str, set[str]]:
+    """Every bridge method name the shipped JavaScript names, by the file naming it."""
+    found: dict[str, set[str]] = {}
+    for path in sorted(STATIC_ROOT.rglob("*")):
+        if path.suffix not in (".js", ".html"):
+            continue
+        for name in JS_CALL.findall(path.read_text(encoding="utf-8")):
+            found.setdefault(name, set()).add(str(path.relative_to(REPO_ROOT)))
     return found
 
 
@@ -87,6 +109,26 @@ class ThemeSurfaceTests(unittest.TestCase):
     def test_the_browser_refuses_exactly_what_python_calls_internal(self) -> None:
         """Two hand-written lists, one in each language. This is what pairs them."""
         self.assertEqual(_refused_in_the_browser(), API_INTERNAL_METHODS)
+
+    def test_there_are_javascript_call_sites_to_check(self) -> None:
+        """A regex that quietly matches nothing would pass the two checks below."""
+        self.assertGreater(len(_called_from_javascript()), 30)
+
+    def test_the_javascript_calls_nothing_the_bridge_cannot_answer(self) -> None:
+        called = _called_from_javascript()
+        unanswerable = {name: sorted(files) for name, files in called.items()
+                        if name not in API_ALLOWED_METHODS}
+        self.assertEqual(unanswerable, {},
+                         "shipped JavaScript calls a method the bridge does not have")
+
+    def test_core_does_not_call_its_own_deprecated_names(self) -> None:
+        """The deprecation log is the evidence for retiring an alias. Core calling one
+        puts core in a count that is only worth reading as a count of themes.
+        """
+        called = _called_from_javascript()
+        stale = {name: sorted(files) for name, files in called.items()
+                 if name in _RENAMED_METHODS}
+        self.assertEqual(stale, {})
 
 
 if __name__ == "__main__":
