@@ -129,7 +129,7 @@
 
         if (isTableWindow) {
           const cabMode = await vpin.call("get_cab_mode");
-          const rotationDegree = await vpin.call("get_table_rotation");
+          const rotationDegree = await vpin.call("get_playfield_rotation");
           const effectiveRotationDegree =
             cabMode && rotationDegree !== 0
               ? rotationDegree + 90

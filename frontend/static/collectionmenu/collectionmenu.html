@@ -565,15 +565,15 @@
             sortByIndex = 0;
             orderByIndex = 0;
 
-            await window.parent.vpin.call("get_tables", true);
+            await window.parent.vpin.call("get_games", true);
             window.parent.vpin.sendMessageToAllWindowsIncSelf({
               type: "GameDataChange",
               index: 0,
               collection: "None"
             });
           } else {
-            await window.parent.vpin.call("set_tables_by_collection", selectedValue);
-            await window.parent.vpin.call("get_tables");
+            await window.parent.vpin.call("set_games_by_collection", selectedValue);
+            await window.parent.vpin.call("get_games");
 
             const filterState = await window.parent.vpin.callInternal("get_current_filter_state");
             const sortState = await window.parent.vpin.callInternal("get_current_sort_state");
