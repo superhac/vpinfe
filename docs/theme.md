@@ -189,11 +189,11 @@ the game it belongs to attached.
 **`detects` loses the `detect_` prefix.** `table.detects.ssf`, not `detect_ssf` — the
 prefix was storage, not vocabulary.
 
-**`vpin.entries` is the list you iterate.** `vpin.gameData` holds the same array, but at
+**`vpin.entries` is the list you iterate.** `vpin.tableData` holds the same array, but at
 contract 2 its items are entries rather than games, so `entries` is the name that
 describes them. The view they came from travels alongside as `vpin.collection` and
-`vpin.expanded`. Every ordinal helper — `getGameCount()`, `getCurrentGameIndex()`,
-`getGameMeta(index)` — counts and addresses entries.
+`vpin.expanded`. Every ordinal helper — `getTableCount()`, `getCurrentTableIndex()`,
+`getTableMeta(index)` — counts and addresses entries.
 
 **Media is named, not located.** `entries[].media` lists the kinds this game has a file
 for. To show one, request `/media/<table id>/<kind>` from the theme assets port — the same
@@ -237,31 +237,19 @@ instead. They work at every contract, for reads, writes and calls alike:
 
 | use | still works |
 |---|---|
-| `vpin.gameData` | `vpin.tableData` |
 | `vpin.playfieldRotation` | `vpin.tableRotation` |
 | `vpin.playfieldOrientation` | `vpin.tableOrientation` |
-| `vpin.getGameMeta()` | `vpin.getTableMeta()` |
-| `vpin.getGameData()` | `vpin.getTableData()` |
-| `vpin.getGameCount()` | `vpin.getTableCount()` |
-| `vpin.getCurrentGameIndex()` | `vpin.getCurrentTableIndex()` |
-| `vpin.playGameAudio()` | `vpin.playTableAudio()` |
-| `vpin.stopGameAudio()` | `vpin.stopTableAudio()` |
-| `vpin.launchGame()` | `vpin.launchTable()` |
 
-**Window messages carry both spellings.** Every one below is broadcast under its new name
-and its old one, so a theme listening for either keeps receiving it. Inbound messages are
-accepted either way too.
+**The selection members and the window messages need no alias.** `vpin.tableData`,
+`getTableData()`, `getTableCount()`, `getCurrentTableIndex()`, `getTableMeta()`,
+`playTableAudio()`, `stopTableAudio()`, `launchTable()`, and the `TableIndexUpdate`,
+`TableDataChange`, `TableLaunching`, `TableRunning` and `TableLaunchComplete` messages,
+are the names 2.x published and the names 3.0 uses. They address a row, and a row is a
+table — one game may offer several.
 
-| new | legacy |
-|---|---|
-| `GameIndexUpdate` | `TableIndexUpdate` |
-| `GameDataChange` | `TableDataChange` |
-| `GameLaunching` | `TableLaunching` |
-| `GameRunning` | `TableRunning` |
-| `GameLaunchComplete` | `TableLaunchComplete` |
-
-The aliases are not a second API. Write new themes against the `game` and `playfield`
-names — those are what the rest of this document uses.
+The aliases are not a second API. Write new themes against the `playfield` names for the
+screens and the `table` names for the wheel — those are what the rest of this document
+uses.
 
 ---
 
@@ -757,20 +745,20 @@ vpin.ready.then(async () => {
 
 // listener for window events
 async function receiveEvent(message) {
-    // Let VPinFECore handle the data refresh logic (GameDataChange, filters, sorts)
+    // Let VPinFECore handle the data refresh logic (TableDataChange, filters, sorts)
     await vpin.handleEvent(message);
 
-    if (message.type == "GameIndexUpdate") {
+    if (message.type == "TableIndexUpdate") {
         currentGameIndex = message.index;
         updateScreen();
     }
-    else if (message.type == "GameLaunching") {
+    else if (message.type == "TableLaunching") {
         await fadeOut();
     }
-    else if (message.type == "GameRunning") {
+    else if (message.type == "TableRunning") {
         // Game has finished loading and is now running
     }
-    else if (message.type == "GameLaunchComplete") {
+    else if (message.type == "TableLaunchComplete") {
         fadeIn();
     }
     else if (message.type == "RemoteLaunching") {
@@ -782,7 +770,7 @@ async function receiveEvent(message) {
         hideRemoteLaunchOverlay();
         fadeIn();
     }
-    else if (message.type == "GameDataChange") {
+    else if (message.type == "TableDataChange") {
         currentGameIndex = message.index;
         updateScreen();
     }
@@ -794,25 +782,25 @@ async function receiveEvent(message) {
 async function handleInput(input) {
     switch (input) {
         case "joyleft":
-            currentGameIndex = wrapIndex(currentGameIndex - 1, vpin.gameData.length);
+            currentGameIndex = wrapIndex(currentGameIndex - 1, vpin.tableData.length);
             updateScreen();
             vpin.sendMessageToAllWindows({
-                type: 'GameIndexUpdate',
+                type: 'TableIndexUpdate',
                 index: currentGameIndex
             });
             break;
         case "joyright":
-            currentGameIndex = wrapIndex(currentGameIndex + 1, vpin.gameData.length);
+            currentGameIndex = wrapIndex(currentGameIndex + 1, vpin.tableData.length);
             updateScreen();
             vpin.sendMessageToAllWindows({
-                type: 'GameIndexUpdate',
+                type: 'TableIndexUpdate',
                 index: currentGameIndex
             });
             break;
         case "joyselect":
-            vpin.sendMessageToAllWindows({ type: "GameLaunching" });
+            vpin.sendMessageToAllWindows({ type: "TableLaunching" });
             await fadeOut();
-            await vpin.launchGame(currentGameIndex);
+            await vpin.launchTable(currentGameIndex);
             break;
         case "joyback":
             break;
@@ -822,7 +810,7 @@ async function handleInput(input) {
 function updateScreen() {
     if (vpin.isController()) {
         // Update the playfield window: images, carousel, info, audio
-        vpin.playGameAudio(currentGameIndex);
+        vpin.playTableAudio(currentGameIndex);
     } else if (windowName === "bg") {
         // Update backglass image
     } else if (windowName === "dmd") {
@@ -866,7 +854,7 @@ function hideRemoteLaunchOverlay() {
 }
 ```
 
-> **Important:** Call `await vpin.handleEvent(message)` at the top of your `receiveEvent` function. This lets VPinFECore handle `GameDataChange` events automatically (collection changes, filter/sort updates) so you don't have to manage that logic yourself.
+> **Important:** Call `await vpin.handleEvent(message)` at the top of your `receiveEvent` function. This lets VPinFECore handle `TableDataChange` events automatically (collection changes, filter/sort updates) so you don't have to manage that logic yourself.
 
 > **Important:** Set `window.vpin = vpin` so the in-theme menu system can call back into your VPinFECore instance.
 
@@ -920,15 +908,15 @@ Events are sent between windows via `receiveEvent()`. These are the built-in eve
 
 | Event Type | Properties | Description |
 |------------|------------|-------------|
-| `GameIndexUpdate` | `index` | User navigated to a different game. Sent by the controller to all others. |
-| `GameLaunching` | — | A game is about to launch. Frontend keyboard/gamepad routing is suspended until `GameLaunchComplete`; use this to fade out, stop audio, etc. |
-| `GameRunning` | — | The launched game has finished loading and is now running. Sent when the table process outputs "Startup done". |
-| `GameLaunchComplete` | — | The launched game has exited and frontend input routing is restored. Use this to fade back in, resume audio. |
+| `TableIndexUpdate` | `index` | User navigated to a different game. Sent by the controller to all others. |
+| `TableLaunching` | — | A game is about to launch. Frontend keyboard/gamepad routing is suspended until `TableLaunchComplete`; use this to fade out, stop audio, etc. |
+| `TableRunning` | — | The launched game has finished loading and is now running. Sent when the table process outputs "Startup done". |
+| `TableLaunchComplete` | — | The launched game has exited and frontend input routing is restored. Use this to fade back in, resume audio. |
 | `RemoteLaunching` | `table_name` | The manager UI triggered a remote game launch. Frontend keyboard/gamepad routing is suspended until `RemoteLaunchComplete`; show an overlay. |
 | `RemoteLaunchComplete` | — | The remote-launched game has exited and frontend input routing is restored. Hide the overlay. |
-| `GameDataChange` | `index`, `collection?`, `filters?`, `sort?` | Game data changed (collection switch, filter/sort update, a finished game's play data, a Manager UI edit). Handled automatically by `vpin.handleEvent()`. |
+| `TableDataChange` | `index`, `collection?`, `filters?`, `sort?` | Game data changed (collection switch, filter/sort update, a finished game's play data, a Manager UI edit). Handled automatically by `vpin.handleEvent()`. |
 
-`GameDataChange` also arrives unprompted: when a game exits, and when the Manager UI
+`TableDataChange` also arrives unprompted: when a game exits, and when the Manager UI
 changes a game or a collection. Those are raised by the backend, which has no wheel
 index to send, so `vpin.handleEvent()` fills `index` in before your handler sees it —
 and it fills in where the game you were on has *moved to*, not the slot it used to
@@ -941,9 +929,9 @@ You can also define custom event types and send them with `vpin.sendMessageToAll
 
 Themes can show a loading image or animation while VPX is starting. Use the built-in launch lifecycle instead of guessing with timers:
 
-- show the overlay on `GameLaunching`
-- hide it on `GameRunning`
-- also hide it on `GameLaunchComplete` as a cleanup fallback
+- show the overlay on `TableLaunching`
+- hide it on `TableRunning`
+- also hide it on `TableLaunchComplete` as a cleanup fallback
 
 Add the overlay markup to every theme page that should show it (`index_playfield.html`, `index_bg.html`, and/or `index_dmd.html`):
 
@@ -1001,32 +989,32 @@ function hideTableLoadingOverlay() {
 async function receiveEvent(message) {
   await vpin.handleEvent(message);
 
-  if (message.type === "GameLaunching") {
+  if (message.type === "TableLaunching") {
     showTableLoadingOverlay();
     await fadeOut();
-  } else if (message.type === "GameRunning") {
+  } else if (message.type === "TableRunning") {
     hideTableLoadingOverlay();
-  } else if (message.type === "GameLaunchComplete") {
+  } else if (message.type === "TableLaunchComplete") {
     hideTableLoadingOverlay();
     fadeIn();
   }
 }
 ```
 
-If the controller launches the game from local input, remember that `vpin.sendMessageToAllWindows(...)` excludes the sender. Call `showTableLoadingOverlay()` directly in the local `joyselect` path before `await vpin.launchGame(...)`, or send the event with `vpin.sendMessageToAllWindowsIncSelf(...)`.
+If the controller launches the game from local input, remember that `vpin.sendMessageToAllWindows(...)` excludes the sender. Call `showTableLoadingOverlay()` directly in the local `joyselect` path before `await vpin.launchTable(...)`, or send the event with `vpin.sendMessageToAllWindowsIncSelf(...)`.
 
 ### Attract Mode During Game Launch
 
-If your theme implements attract mode, treat game launch as a hard suspension boundary. Clearing the current timer is not enough, because user-activity listeners, menu events, or `GameRunning` handling can accidentally schedule a new idle timer while VPX is still open.
+If your theme implements attract mode, treat game launch as a hard suspension boundary. Clearing the current timer is not enough, because user-activity listeners, menu events, or `TableRunning` handling can accidentally schedule a new idle timer while VPX is still open.
 
 Use a separate launch/remote-launch suspension flag:
 
-- set `attractSuspended = true` and clear both idle and advance timers on `GameLaunching` and `RemoteLaunching`
+- set `attractSuspended = true` and clear both idle and advance timers on `TableLaunching` and `RemoteLaunching`
 - keep `shouldPauseAttractMode()` returning `true` while `attractSuspended` is set
 - make user-activity handlers clear timers and return without scheduling a new idle timer while suspended
-- clear `attractSuspended` only on `GameLaunchComplete` or `RemoteLaunchComplete`
+- clear `attractSuspended` only on `TableLaunchComplete` or `RemoteLaunchComplete`
 - after launch completion, restart the idle countdown instead of immediately starting attract mode
-- in a local `joyselect` launch path, suspend attract mode before calling `vpin.launchGame(...)` so the sender is protected before backend events arrive
+- in a local `joyselect` launch path, suspend attract mode before calling `vpin.launchTable(...)` so the sender is protected before backend events arrive
 
 Example pattern:
 
@@ -1059,9 +1047,9 @@ function markUserActivity() {
 async function receiveEvent(message) {
   await vpin.handleEvent(message);
 
-  if (message.type === "GameLaunching" || message.type === "RemoteLaunching") {
+  if (message.type === "TableLaunching" || message.type === "RemoteLaunching") {
     suspendAttractMode();
-  } else if (message.type === "GameLaunchComplete" || message.type === "RemoteLaunchComplete") {
+  } else if (message.type === "TableLaunchComplete" || message.type === "RemoteLaunchComplete") {
     attractSuspended = false;
     markUserActivity();
   }
@@ -1095,7 +1083,7 @@ The following actions are handled internally by VPinFECore and do **not** reach 
 #### Wheel Paging
 
 By default the core handles `joypageup`/`joypagedown` itself: it asks the backend
-where the press should land (`get_page_index`) and broadcasts a `GameIndexUpdate`
+where the press should land (`get_page_index`) and broadcasts a `TableIndexUpdate`
 to every window. Your theme moves its wheel through the same `receiveEvent` path it
 already uses for external index updates, so paging works with no theme changes.
 
@@ -1136,7 +1124,7 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `vpin.gameData` | `array` | The current (possibly filtered) game list. At contract 2 each element is an entry (see [Entry Data Object](#entry-data-object)); at contract 1 it is a game row. |
+| `vpin.tableData` | `array` | The current (possibly filtered) game list. At contract 2 each element is an entry (see [Entry Data Object](#entry-data-object)); at contract 1 it is a game row. |
 | `vpin.monitors` | `array` | List of monitor objects with `name`, `x`, `y`, `width`, `height`. Loaded during init. |
 | `vpin.playfieldOrientation` | `string` | Playfield orientation from config: `"landscape"` or `"portrait"`. |
 | `vpin.playfieldRotation` | `number` | Playfield rotation in degrees from config (default `0`). |
@@ -1262,8 +1250,8 @@ window is told through the `lifecycle.acting` event and cannot block it.
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `get_games` | `reset=false` | `string` (JSON) | Returns JSON string of the current (filtered) game list. Pass `true` to reset to the full unfiltered list. Each game object includes paths, media paths, addon flags, and metadata. |
-| `launch_game` | `index` | — | Launches the game at the given index. Blocks until the table exits. Records the play against the game — start count, last-played date and runtime — which is what the "Last Played" collection is built from. Sends `GameLaunching` before launch, `GameRunning` when the table finishes loading, and `GameLaunchComplete` when it exits. |
+| `get_tables` | `reset=false` | `string` (JSON) | Returns JSON string of the current (filtered) game list. Pass `true` to reset to the full unfiltered list. Each game object includes paths, media paths, addon flags, and metadata. |
+| `launch_table` | `index` | — | Launches the game at the given index. Blocks until the table exits. Records the play against the game — start count, last-played date and runtime — which is what the "Last Played" collection is built from. Sends `TableLaunching` before launch, `TableRunning` when the table finishes loading, and `TableLaunchComplete` when it exits. |
 | `build_metadata` | `download_media=true`, `update_all=false` | `object` | Triggers a background metadata build/refresh. Sends progress events (`buildmeta_progress`, `buildmeta_log`, `buildmeta_complete`, `buildmeta_error`) to all windows. Returns `{success, message}`. |
 
 ##### Collections
@@ -1273,7 +1261,7 @@ window is told through the `lifecycle.acting` event and cannot block it.
 | `get_collections` | — | `array` | Returns list of collection names from `collections.ini`. |
 | `get_collections_metadata` | — | `array` | Returns collection objects with `name`, `type`, `is_filter`, `image`, `image_url`, and `table_count`. `image_url` is a theme-server URL such as `/collection_icons/favorites.png`, or an empty string when no image is set. |
 | `get_collection_image_url` | `collection` | `string` | Returns the image URL for one collection, or an empty string when no image is set. |
-| `set_games_by_collection` | `collection` | — | Shows the named collection: what it holds, in the order it stores. Works for a hand-picked collection and a filter-based one alike. |
+| `set_tables_by_collection` | `collection` | — | Shows the named collection: what it holds, in the order it stores. Works for a hand-picked collection and a filter-based one alike. |
 | `save_filter_collection` | `name`, `letter`, `theme`, `table_type`, `manufacturer`, `year`, `sort_by`, `rating`, `rating_or_higher`, `order_by` | `object` | Saves the current filter settings as a named collection. `order_by` is `"Descending"` or `"Ascending"` and defaults to `"Descending"`. Returns `{success, message}`. |
 | `get_current_collection` | — | `string` | Returns the name of the currently active collection, or `"None"`. |
 
@@ -1292,7 +1280,7 @@ Applying a filter or a sort is not on this list. The collection menu VPinFE ship
 those controls, so `apply_filters`, `apply_sort`, `get_current_filter_state`,
 `get_current_sort_state` and `get_current_order_state` are core's own and `vpin.call`
 refuses them (PAR-84). Show the library the way a collection stores it and let the menu
-change it — `set_games_by_collection` and the lists above are what a theme needs for that.
+change it — `set_tables_by_collection` and the lists above are what a theme needs for that.
 
 ##### Events & Messaging
 
@@ -1361,8 +1349,8 @@ If `override` is present, themes that position or scale BG/DMD content based on 
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `playGameAudio` | `indexOrUrl`, `retries=3` | — | Plays game audio using VPinFECore's centralized audio manager. Pass a game index (recommended) or URL string. |
-| `stopGameAudio` | `options={}` | — | Stops audio via centralized manager. Supports fade-out; pass `{ immediate: true }` for an immediate stop. |
+| `playTableAudio` | `indexOrUrl`, `retries=3` | — | Plays game audio using VPinFECore's centralized audio manager. Pass a game index (recommended) or URL string. |
+| `stopTableAudio` | `options={}` | — | Stops audio via centralized manager. Supports fade-out; pass `{ immediate: true }` for an immediate stop. |
 | `enableCoreAudio` | `enabled=true` | — | Enables or disables centralized audio handling for the current window. Core audio is opt-in by default unless enabled in theme config. |
 | `isCoreAudioEnabled` | — | `boolean` | Returns whether centralized audio handling is currently enabled. |
 | `setAudioOptions` | `options` | — | Sets runtime audio options. Supported keys: `maxVolume`/`max_volume`/`volume`, `fadeDuration`/`fade_duration_ms`/`fadeMs`, `loop`. |
@@ -1387,10 +1375,10 @@ Returns an HTTP URL for a game's audio file, or `null` if no audio exists. See [
 #### getManufacturerLogoURL(index)
 Returns an HTTP URL for the game manufacturer's logo, or `null` if none is installed. Logos live in the shared assets folder (`[Settings] assetsdir`, `manufacturers/` subfolder) and are matched to the game's `Info.Manufacturer` metadata, so "Williams Electronics" and "Williams" find the same file. Always handle `null` — a fresh install has no logos.
 
-#### playGameAudio(indexOrUrl, retries=3)
+#### playTableAudio(indexOrUrl, retries=3)
 Plays game audio via VPinFECore's centralized audio manager. Normally you pass `currentGameIndex`; passing a URL string is also supported.
 
-#### stopGameAudio(options={})
+#### stopTableAudio(options={})
 Stops centralized audio playback. Default behavior is fade-out, or pass `{ immediate: true }` for an immediate stop.
 
 #### enableCoreAudio(enabled=true)
@@ -1411,10 +1399,10 @@ Returns `true` when core-handled wheel paging is enabled.
 #### getPageIndex(direction="next", index=current)
 Asks the backend where a page press should land and returns the target index. Convenience wrapper around the `get_page_index` API method for themes doing their own paging animation.
 
-#### getGameMeta(index)
-Returns the full object for a given index - an entry at contract 2, a game row at contract 1. The same object as `vpin.gameData[index]`. See [Entry Data Object](#entry-data-object).
+#### getTableMeta(index)
+Returns the full object for a given index - an entry at contract 2, a game row at contract 1. The same object as `vpin.tableData[index]`. See [Entry Data Object](#entry-data-object).
 
-#### getGameCount()
+#### getTableCount()
 Returns the number of games in the current (possibly filtered) game list.
 
 #### sendMessageToAllWindows(message)
@@ -1423,16 +1411,16 @@ Sends an event to all windows except the current one. Convenience wrapper around
 #### sendMessageToAllWindowsIncSelf(message)
 Sends an event to all windows including the current one and forwarding to iframes.
 
-#### launchGame(index)
-Suspends frontend keyboard/gamepad routing, calls backend to launch the selected game, then restores input after the launch lifecycle completes. The launch lifecycle is `GameLaunching` before the process starts, `GameRunning` when the table finishes loading, and `GameLaunchComplete` when it exits.
+#### launchTable(index)
+Suspends frontend keyboard/gamepad routing, calls backend to launch the selected game, then restores input after the launch lifecycle completes. The launch lifecycle is `TableLaunching` before the process starts, `TableRunning` when the table finishes loading, and `TableLaunchComplete` when it exits.
 
-#### getGameData(reset=false)
-Loads game data from the backend into `vpin.gameData`. Pass `reset=true` to reload from the full unfiltered game list.
+#### getTableData(reset=false)
+Loads game data from the backend into `vpin.tableData`. Pass `reset=true` to reload from the full unfiltered game list.
 
 #### handleEvent(message)
 Handles incoming events with built-in logic for:
-- `GameDataChange` (collection/filter/sort changes)
-- centralized audio transitions on `GameIndexUpdate`, `GameLaunching`, `RemoteLaunching`, `GameLaunchComplete`, and `RemoteLaunchComplete`
+- `TableDataChange` (collection/filter/sort changes)
+- centralized audio transitions on `TableIndexUpdate`, `TableLaunching`, `RemoteLaunching`, `TableLaunchComplete`, and `RemoteLaunchComplete`
 
 Call this at the top of your `receiveEvent` function to get automatic data refresh and default audio behavior.
 
@@ -1448,7 +1436,7 @@ fields are listed under [Contract 2 payload](#contract-2-payload); this section 
 reading them.
 
 ```javascript
-const entry = vpin.getGameMeta(currentGameIndex);
+const entry = vpin.getTableMeta(currentGameIndex);
 const { game, table, media, assets, siblings } = entry;
 ```
 
@@ -1462,7 +1450,7 @@ Everything a theme displays has a named home, so there is nothing to resolve or 
 through:
 
 ```javascript
-const entry = vpin.getGameMeta(currentGameIndex);
+const entry = vpin.getTableMeta(currentGameIndex);
 
 const title = entry.game.name;
 const manufacturer = entry.game.manufacturer;
@@ -1493,8 +1481,8 @@ store.
 ### Feature indicators
 
 ```javascript
-const { detects } = vpin.getGameMeta(currentGameIndex).table;
-const { alt_sound, alt_color, pup_pack } = vpin.getGameMeta(currentGameIndex).assets;
+const { detects } = vpin.getTableMeta(currentGameIndex).table;
+const { alt_sound, alt_color, pup_pack } = vpin.getTableMeta(currentGameIndex).assets;
 
 const lights = [
     ['Nfozzy', detects.nfozzy], ['Fleep', detects.fleep], ['SSF', detects.ssf],
@@ -1515,7 +1503,7 @@ lights.forEach(([label, on]) => {
 one from the asset server, the same one your theme was loaded from:
 
 ```javascript
-const entry = vpin.getGameMeta(currentGameIndex);
+const entry = vpin.getTableMeta(currentGameIndex);
 
 function mediaURL(kind) {
     if (!entry.media.includes(kind)) return null;
@@ -1541,7 +1529,7 @@ switch to, which is the common case — so a "other versions" affordance can hid
 without asking the backend anything:
 
 ```javascript
-const entry = vpin.getGameMeta(currentGameIndex);
+const entry = vpin.getTableMeta(currentGameIndex);
 if (entry.siblings > 1) {
     showVersionBadge(`${entry.siblings} versions`);
 }
@@ -1563,7 +1551,7 @@ read as `vpin.expanded`. A theme does not have to do anything differently either
 The returned object matches the API payload shape and is also stored on the table entry as `table.vpinplay`:
 
 ```javascript
-const table = vpin.getGameMeta(currentGameIndex);
+const table = vpin.getTableMeta(currentGameIndex);
 const rating = table.vpinplay?.cumulativeRating ?? null;
 const votes = table.vpinplay?.ratingCount ?? 0;
 ```
@@ -1660,7 +1648,7 @@ Two ways, and they answer different questions.
 `entry.media` tells you **what exists**, with no request:
 
 ```javascript
-const entry = vpin.getGameMeta(currentGameIndex);
+const entry = vpin.getTableMeta(currentGameIndex);
 const url = (kind) => entry.media.includes(kind)
     ? `${vpin.endpoints.assets}/media/${entry.table.id}/${kind}`
     : null;
@@ -1750,7 +1738,7 @@ Key points:
 - Set `muted = true` — browsers require this for autoplay to work without user gesture.
 - Set `poster = imageUrl` — gives the video element proper dimensions before metadata loads, preventing layout shifts.
 - The `onerror` handler provides a graceful fallback to the static image.
-- You can check `vpin.gameData[index].PlayfieldVideoPath` directly to decide whether to create a video or image element.
+- You can check `vpin.tableData[index].PlayfieldVideoPath` directly to decide whether to create a video or image element.
 
 ---
 
@@ -1769,10 +1757,10 @@ On the controller, `await vpin.handleEvent(message)` automatically manages audio
 Core audio is opt-in by default. If your theme does not explicitly enable it (or call `vpin.enableCoreAudio(true)` at runtime), no automatic game audio playback will occur.
 
 When enabled, these transitions are handled automatically:
-- `GameIndexUpdate` -> play selected game audio
-- `GameLaunching` and `RemoteLaunching` -> fade/stop audio
-- `GameLaunchComplete` and `RemoteLaunchComplete` -> resume audio for current selection
-- `GameDataChange` (with `index`) -> play audio for that index
+- `TableIndexUpdate` -> play selected game audio
+- `TableLaunching` and `RemoteLaunching` -> fade/stop audio
+- `TableLaunchComplete` and `RemoteLaunchComplete` -> resume audio for current selection
+- `TableDataChange` (with `index`) -> play audio for that index
 
 ### Backend vs Frontend Responsibility
 
@@ -1780,11 +1768,11 @@ When enabled, these transitions are handled automatically:
 
 ### Practical Note: Self-Event Caveat
 
-`vpin.sendMessageToAllWindows(...)` excludes the sender. If your playfield window sends `GameLaunching`, it might not receive that same event back, so backend-emitted lifecycle events are the reliable source of truth for launch state.
+`vpin.sendMessageToAllWindows(...)` excludes the sender. If your playfield window sends `TableLaunching`, it might not receive that same event back, so backend-emitted lifecycle events are the reliable source of truth for launch state.
 
 For robust behavior, it is valid to also call:
-- `vpin.stopGameAudio()` directly in your local `joyselect`/launch path
-- `vpin.playGameAudio(currentGameIndex)` directly on local launch-complete handling
+- `vpin.stopTableAudio()` directly in your local `joyselect`/launch path
+- `vpin.playTableAudio(currentGameIndex)` directly on local launch-complete handling
 
 This explicit local stop/resume acts as a safety net while still using centralized core audio.
 
@@ -1799,7 +1787,7 @@ Defaults:
 function updateScreen() {
     // ... update images, carousel, etc ...
     if (vpin.isController()) {
-        vpin.playGameAudio(currentGameIndex);
+        vpin.playTableAudio(currentGameIndex);
     }
 }
 
@@ -1810,7 +1798,7 @@ async function receiveEvent(message) {
 }
 
 // Optional immediate stop:
-// vpin.stopGameAudio({ immediate: true });
+// vpin.stopTableAudio({ immediate: true });
 ```
 
 ### Configuration Schema (theme `theme.json`)

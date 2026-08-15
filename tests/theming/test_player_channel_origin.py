@@ -1,6 +1,6 @@
 """Who is allowed to open the player channel.
 
-The channel reaches `shutdown_system`, `launch_game` and `build_metadata`, and binding it
+The channel reaches `shutdown_system`, `launch_table` and `build_metadata`, and binding it
 to loopback does not keep other pages out: a WebSocket handshake is not subject to the
 same-origin policy the way XHR is, so any page in any browser on this machine could
 connect. The origin check is what actually keeps them out, so it is asserted against a

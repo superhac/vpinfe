@@ -24,11 +24,12 @@ LEDGER = REPO_ROOT / "docs" / "compatibility-3.0.md"
 LEDGER_ALLOWS = {
     "PAR-03": {"remote_launch", "upload_begin", "archive_download"},
     "PAR-04": {"removed": "update_frontend_dof_for_table",
-               "added": "notify_game_selected"},
+               "added": "notify_table_selected"},
     # PAR-21: every old spelling stays in the allowlist and forwards, so this is
     # additive - nothing is removed, and a theme calling the old name still works.
-    "PAR-21": {"get_games", "get_initial_game_index", "set_games_by_collection",
-               "launch_game", "get_game_rating", "set_game_rating",
+    # The selection surface is absent because those are master's own names, not
+    # additions to it.
+    "PAR-21": {"get_game_rating", "set_game_rating",
                "get_playfield_orientation", "get_playfield_rotation",
                # PAR-04's name, kept as an alias by PAR-21 even though master
                # never served it - a 3.0-era theme may already call it.

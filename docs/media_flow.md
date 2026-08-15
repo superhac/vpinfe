@@ -10,7 +10,7 @@ High-level flow:
 
 1. `common/games/game_parser.py` scans each game folder for standard media filenames.
 2. `frontend/api.py` includes the discovered file paths in the game JSON returned to the browser.
-3. `frontend/static/common/vpinfe-core.js` stores that game data in `this.gameData`.
+3. `frontend/static/common/vpinfe-core.js` stores that game data in `this.tableData`.
 4. Theme code calls helper methods such as `vpin.getImageURL(index, type)` or `vpin.getVideoURL(index, type)`.
 5. `vpinfe-core.js` converts the local path into a URL under `/games/...`.
 6. The local HTTP server serves the file to the theme.
@@ -182,7 +182,7 @@ If the theme uses `vpin.getVideoURL()`, it should check whether the returned URL
 Typical theme usage is to ask for both the video and image for a screen and then decide what to render.
 
 ```js
-const index = vpin.getCurrentGameIndex();
+const index = vpin.getCurrentTableIndex();
 const playfieldVideoUrl = vpin.getVideoURL(index, "table");
 const playfieldImageUrl = vpin.getImageURL(index, "table");
 const bgVideoUrl = vpin.getVideoURL(index, "bg");
@@ -196,7 +196,7 @@ const dmdImageUrl = vpin.getImageURL(index, "dmd");
 Typical theme usage is to ask for both the DMD video and DMD image and then decide what to render.
 
 ```js
-const index = vpin.getCurrentGameIndex();
+const index = vpin.getCurrentTableIndex();
 const dmdVideoUrl = vpin.getVideoURL(index, "dmd");
 const dmdImageUrl = vpin.getImageURL(index, "dmd");
 ```

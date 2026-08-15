@@ -272,7 +272,7 @@ describe("a paging action moves the way its name says", () => {
 function navigating(count = 3) {
   const { vpin, press, calls } = controller();
   vpin._capabilities.core_navigation = true;
-  vpin.gameData = Array.from({ length: count }, (_, i) => ({ gameDirName: `G${i}` }));
+  vpin.tableData = Array.from({ length: count }, (_, i) => ({ gameDirName: `G${i}` }));
   const moves = [];
   vpin.sendMessageToAllWindowsIncSelf = (m) => moves.push(m);
   return { vpin, press, calls, moves };
@@ -284,8 +284,8 @@ describe("core moves the selection so a theme does not have to", () => {
 
     await press("ArrowRight");
 
-    assert.equal(vpin._currentGameIndex, 1);
-    assert.equal(moves.at(-1).type, "GameIndexUpdate");
+    assert.equal(vpin._currentTableIndex, 1);
+    assert.equal(moves.at(-1).type, "TableIndexUpdate");
     assert.equal(moves.at(-1).index, 1);
     assert.equal(moves.at(-1).previous, 0);
     assert.equal(moves.at(-1).direction, "next");
@@ -315,7 +315,7 @@ describe("core moves the selection so a theme does not have to", () => {
     await press("ArrowRight");
 
     assert.deepEqual(seen, ["next"], "the raw action reaches the theme");
-    assert.equal(vpin._currentGameIndex, 0, "and core has not moved anything");
+    assert.equal(vpin._currentTableIndex, 0, "and core has not moved anything");
   });
 });
 

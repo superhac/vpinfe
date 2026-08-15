@@ -23,7 +23,7 @@ is called `playfield`.
 
 ## The game list
 
-`vpin.gameData` is a flat array — one entry per game, addressed by integer index. There is
+`vpin.tableData` is a flat array — one entry per game, addressed by integer index. There is
 no collection wrapper and no per-table entry; a game with three `.vpx` files appears once,
 represented by its default table.
 
@@ -166,7 +166,7 @@ Keys VPinFE writes for its own use appear here too, spelled as 2.x spelled them
 ### Reading game info
 
 ```javascript
-const game = vpin.getGameMeta(currentGameIndex);
+const game = vpin.getTableMeta(currentGameIndex);
 const info = game.meta.Info || {};
 const user = game.meta.User || {};
 const vpx = game.meta.VPXFile || {};
@@ -183,7 +183,7 @@ const plays = Number(user.StartCount || 0);
 ### Feature indicator lights
 
 ```javascript
-const vpx = vpin.getGameMeta(currentGameIndex).meta.VPXFile || {};
+const vpx = vpin.getTableMeta(currentGameIndex).meta.VPXFile || {};
 
 const features = [
     { key: "detectnfozzy", label: "Nfozzy" },

@@ -112,10 +112,10 @@ def _lifecycle_event(**payload) -> dict:
 # publish onto the same bus, and what it may broadcast is a scope question that
 # has to be answered before anything is streamed.
 STREAMED_EVENTS: dict[str, Callable[..., dict]] = {
-    events.GAME_LAUNCHING: _game_event,
-    events.GAME_LAUNCHED: _game_event,
-    events.GAME_EXITED: _game_event,
-    events.GAME_SELECTED: _game_event,
+    events.TABLE_LAUNCHING: _game_event,
+    events.TABLE_LAUNCHED: _game_event,
+    events.TABLE_EXITED: _game_event,
+    events.TABLE_SELECTED: _game_event,
     # The library moved under whoever is holding it. Local subscribers get this
     # already; it crosses now because a frontend on another machine has no other way
     # to learn its copy is stale - it cannot watch the files.

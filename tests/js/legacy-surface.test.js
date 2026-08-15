@@ -12,17 +12,27 @@ import { newCore } from "./support/load-core.js";
 describe("the vpin.* names 2.x themes read still answer", () => {
   // PAR-23. The payload behind each is identical; only the spelling moved.
   const RENAMED = [
-    ["tableData", "gameData"],
     ["tableRotation", "playfieldRotation"],
     ["tableOrientation", "playfieldOrientation"],
-    ["getTableMeta", "getGameMeta"],
-    ["getTableData", "getGameData"],
-    ["getTableCount", "getGameCount"],
-    ["getCurrentTableIndex", "getCurrentGameIndex"],
-    ["playTableAudio", "playGameAudio"],
-    ["stopTableAudio", "stopGameAudio"],
-    ["launchTable", "launchGame"],
   ];
+
+  // Not aliases: these are the names 2.x published and 3.0 still uses, because they
+  // address a row. Listed so a future rename of one has to delete it from here first.
+  const UNCHANGED = [
+    "tableData", "getTableMeta", "getTableData", "getTableCount",
+    "getCurrentTableIndex", "playTableAudio", "stopTableAudio", "launchTable",
+  ];
+
+  for (const name of UNCHANGED) {
+    test(`vpin.${name} is the real member, not a forwarder`, () => {
+      const { vpin, context } = newCore();
+
+      assert.notEqual(vpin[name], undefined,
+        `${name} is a published name; dropping it breaks every 2.x theme`);
+      assert.equal(context.VPINFE_RENAMED_MEMBERS[name], undefined,
+        `${name} names a row, so it should not forward anywhere`);
+    });
+  }
 
   for (const [oldName, newName] of RENAMED) {
     test(`vpin.${oldName} reaches ${newName}`, () => {
@@ -38,16 +48,16 @@ describe("the vpin.* names 2.x themes read still answer", () => {
 
   test("a legacy read returns the current value, not a stale copy", () => {
     const { vpin } = newCore();
-    vpin.gameData = [{ tableDirName: "example" }];
+    vpin.playfieldRotation = 270;
 
-    assert.deepEqual(vpin.tableData, vpin.gameData);
+    assert.equal(vpin.tableRotation, 270);
   });
 
   test("a legacy write lands on the current member", () => {
     const { vpin } = newCore();
-    vpin.tableData = [{ tableDirName: "written through the old name" }];
+    vpin.tableRotation = 90;
 
-    assert.equal(vpin.gameData[0].tableDirName, "written through the old name");
+    assert.equal(vpin.playfieldRotation, 90);
   });
 
   test("every renamed name reaches something that exists", () => {
@@ -68,7 +78,7 @@ describe("the vpin.* names 2.x themes read still answer", () => {
     const reported = [];
     vpin.call = (method, ...args) => { reported.push([method, ...args]); return Promise.resolve(); };
 
-    void vpin.tableData;
+    void vpin.tableRotation;
 
     assert.ok(reported.some(([method]) => method === "report_deprecated_use"),
       "a shim nobody can observe is a shim nobody can ever retire");

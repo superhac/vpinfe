@@ -78,28 +78,28 @@ class LaunchTests(unittest.TestCase):
 class LifecycleTests(LaunchTests):
     def test_the_lifecycle_events_go_out_in_order(self) -> None:
         seen = []
-        for name in (events.GAME_LAUNCHING, events.GAME_LAUNCHED, events.GAME_EXITED):
+        for name in (events.TABLE_LAUNCHING, events.TABLE_LAUNCHED, events.TABLE_EXITED):
             events.subscribe(name, lambda _n=name, **_: seen.append(_n))
 
         self._run(popen=lambda cmd, **k: _FakePopen(["Startup done\n"]))
 
-        self.assertEqual(seen, ["game.launching", "game.launched", "game.exited"])
+        self.assertEqual(seen, ["table.launching", "table.launched", "table.exited"])
 
     def test_a_game_that_never_starts_reports_no_launched(self) -> None:
-        """game.launched means the table is up, not that a process exists."""
+        """table.launched means the table is up, not that a process exists."""
         seen = []
-        for name in (events.GAME_LAUNCHING, events.GAME_LAUNCHED, events.GAME_EXITED):
+        for name in (events.TABLE_LAUNCHING, events.TABLE_LAUNCHED, events.TABLE_EXITED):
             events.subscribe(name, lambda _n=name, **_: seen.append(_n))
 
         self._run(popen=lambda cmd, **k: _FakePopen(["some other output\n"]))
 
-        self.assertEqual(seen, ["game.launching", "game.exited"])
+        self.assertEqual(seen, ["table.launching", "table.exited"])
 
     def test_exited_still_fires_when_the_launch_blows_up(self) -> None:
         """Whoever heard launching has to hear exited, or the frontend never gets
         its input back."""
         seen = []
-        events.subscribe(events.GAME_EXITED, lambda **_: seen.append("exited"))
+        events.subscribe(events.TABLE_EXITED, lambda **_: seen.append("exited"))
 
         def boom(cmd, **kwargs):
             raise RuntimeError("popen failed")
@@ -112,7 +112,7 @@ class LifecycleTests(LaunchTests):
     def test_a_hook_that_refuses_stops_the_launch_before_anything_starts(self) -> None:
         """Releasing the peripherals is a hook. If it fails, VPX must not start."""
         started = []
-        events.hook(events.GAME_LAUNCHING, lambda **_: (_ for _ in ()).throw(
+        events.hook(events.TABLE_LAUNCHING, lambda **_: (_ for _ in ()).throw(
             RuntimeError("device busy")))
 
         with self.assertRaises(RuntimeError):
@@ -123,7 +123,7 @@ class LifecycleTests(LaunchTests):
 
     def test_the_launch_is_announced_and_then_cleared(self) -> None:
         during = []
-        events.subscribe(events.GAME_LAUNCHED,
+        events.subscribe(events.TABLE_LAUNCHED,
                          lambda **_: during.append(launch_state.current().as_dict()))
 
         self._run(popen=lambda cmd, **k: _FakePopen(["Startup done\n"]))
@@ -162,8 +162,8 @@ class PlayDataTests(LaunchTests):
         """Anything that shows play data reads it on this, not on `exited` - the
         runtime and the score are written after the exit goes out."""
         seen = []
-        events.subscribe(events.GAME_EXITED, lambda **_: seen.append("exited"))
-        events.subscribe(events.GAME_PLAY_RECORDED,
+        events.subscribe(events.TABLE_EXITED, lambda **_: seen.append("exited"))
+        events.subscribe(events.TABLE_PLAY_RECORDED,
                          lambda **_: seen.append("recorded"))
 
         self._run()
@@ -172,7 +172,7 @@ class PlayDataTests(LaunchTests):
 
     def test_a_game_that_never_started_records_nothing_to_announce(self) -> None:
         seen = []
-        events.subscribe(events.GAME_PLAY_RECORDED, lambda **_: seen.append("recorded"))
+        events.subscribe(events.TABLE_PLAY_RECORDED, lambda **_: seen.append("recorded"))
 
         def boom(cmd, **kwargs):
             raise RuntimeError("popen failed")

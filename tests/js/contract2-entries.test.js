@@ -13,7 +13,7 @@ const PAYLOAD = fixture("theme_payload.json").contract2;
 
 const BRIDGE_DEFAULTS = {
   get_theme_assets_port: 8000,
-  get_initial_game_index: 0,
+  get_initial_table_index: 0,
   get_theme_config: {},
   get_keymapping: {},
   get_joymaping: {},
@@ -28,7 +28,7 @@ async function coreWithEntries(payload = PAYLOAD) {
   const { vpin, browser } = newCore({ windowName: "table" });
   vpin.call = (method) => {
     if (method === "get_theme_contract") return Promise.resolve(2);
-    if (method === "get_games") return Promise.resolve(JSON.stringify(payload));
+    if (method === "get_tables") return Promise.resolve(JSON.stringify(payload));
     return Promise.resolve(BRIDGE_DEFAULTS[method]);
   };
   vpin.init();
@@ -42,7 +42,7 @@ describe("the envelope is unwrapped into a list", () => {
 
     assert.ok(Array.isArray(vpin.entries));
     assert.equal(vpin.entries.length, PAYLOAD.count);
-    assert.equal(vpin.getGameCount(), PAYLOAD.count,
+    assert.equal(vpin.getTableCount(), PAYLOAD.count,
       "the ordinal helpers count entries, not games");
   });
 
@@ -57,13 +57,13 @@ describe("the envelope is unwrapped into a list", () => {
     const { vpin, browser } = newCore();
     vpin.call = (method) => {
       if (method === "get_theme_contract") return Promise.resolve(1);
-      if (method === "get_games") return Promise.resolve(JSON.stringify(rows));
+      if (method === "get_tables") return Promise.resolve(JSON.stringify(rows));
       return Promise.resolve(BRIDGE_DEFAULTS[method]);
     };
     vpin.init();
     await browser.WebSocket.instances.at(-1).onopen();
 
-    assert.equal(vpin.gameData.length, rows.length);
+    assert.equal(vpin.tableData.length, rows.length);
   });
 });
 
@@ -150,7 +150,7 @@ describe("selection is something you can follow", () => {
     const seen = [];
     vpin.onSelection((index) => seen.push(index));
 
-    vpin.sendMessageToAllWindows({ type: "GameIndexUpdate", index: 2 });
+    vpin.sendMessageToAllWindows({ type: "TableIndexUpdate", index: 2 });
 
     assert.deepEqual(seen, [2], "the listener gets the index it moved to");
   });
@@ -160,9 +160,9 @@ describe("selection is something you can follow", () => {
     let calls = 0;
     const off = vpin.onSelection(() => { calls += 1; });
 
-    vpin.sendMessageToAllWindows({ type: "GameIndexUpdate", index: 1 });
+    vpin.sendMessageToAllWindows({ type: "TableIndexUpdate", index: 1 });
     off();
-    vpin.sendMessageToAllWindows({ type: "GameIndexUpdate", index: 2 });
+    vpin.sendMessageToAllWindows({ type: "TableIndexUpdate", index: 2 });
 
     assert.equal(calls, 1);
   });
@@ -173,7 +173,7 @@ describe("selection is something you can follow", () => {
     vpin.onSelection(() => { throw new Error("bad listener"); });
     vpin.onSelection(() => { reached = true; });
 
-    vpin.sendMessageToAllWindows({ type: "GameIndexUpdate", index: 1 });
+    vpin.sendMessageToAllWindows({ type: "TableIndexUpdate", index: 1 });
 
     assert.ok(reached, "the rating fetch must not be lost to a theme's bad handler");
   });
@@ -191,7 +191,7 @@ describe("selection is something you can follow", () => {
 
 describe("what a theme reads before any payload", () => {
   test("collection has its documented type from the start", () => {
-    // A theme renders once on boot, before the first GameDataChange. Reading undefined
+    // A theme renders once on boot, before the first TableDataChange. Reading undefined
     // there is how `collection || "All games"` silently becomes the fallback forever.
     const { vpin } = newCore({ windowName: "table" });
 

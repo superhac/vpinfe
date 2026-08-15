@@ -391,7 +391,7 @@ What's on it, each alongside the `install_id` described below:
 
 | Event | Payload |
 |-------|---------|
-| `game.launching` / `game.launched` / `game.exited` / `game.selected` | `{"game": {"id", "name", "links"}}`, or `{"game": null}` when the launch didn't come from the wheel |
+| `table.launching` / `table.launched` / `table.exited` / `table.selected` | `{"game": {"id", "name", "links"}}`, or `{"game": null}` when the launch didn't come from the wheel |
 | `game.changed` | `{"game": {"id", "name", "links"}}` — a game's metadata was rewritten, so anything holding it is stale |
 | `collections.changed` | `{}` — the collections were edited; re-read them |
 | `play.state_changed` | `{"state": {"launching", "table_name", "source"}}` |
@@ -418,7 +418,7 @@ A game on the stream is a *reference*, not a resource: an id, a name to show, an
 looks like, at `GET /api/v1/games/{id}`. A game that hasn't been assigned an id yet carries
 an empty one and no link rather than a broken one.
 
-The bus carries more than that per event — `game.launching` hands its handlers the whole
+The bus carries more than that per event — `table.launching` hands its handlers the whole
 `Game` object and the ini config, because its handlers are in-process. The stream projects
 each event into the shape above instead of forwarding what was published, which is what makes
 the wire shape a contract rather than a consequence: adding a keyword argument at a publisher

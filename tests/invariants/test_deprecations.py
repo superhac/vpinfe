@@ -7,8 +7,8 @@ each check here turns one of the ways it could into a failure:
   - a shim with no ledger entry, which is how the window messages shipped half-done:
     the handoff cited PAR-24 and the ledger stopped at PAR-23
   - a name the docs promise themes that the code does not actually emit, which is the
-    launch-event bug exactly - docs/theme.md told themes to match GameLaunching while
-    play_events.py broadcast TableLaunching alone
+    launch-event bug exactly - docs/theme.md told themes to match one spelling while
+    play_events.py broadcast the other alone
 
 The registry itself is common/deprecations.py.
 """
@@ -55,8 +55,6 @@ class ShimRegistryTests(unittest.TestCase):
         actual = {
             "vpin-members": dict(re.findall(
                 r"(\w+): '(\w+)'", _block(js, "VPINFE_RENAMED_MEMBERS = {", "}"))),
-            "window-messages": {legacy: current for current, legacy in re.findall(
-                r'(\w+): "(\w+)"', _block(js, "MESSAGE_TYPE_ALIASES = {", "}"))},
             "ws-methods": dict(re.findall(
                 r"'(\w+)': '(\w+)'",
                 _block(REPO_ROOT / "frontend" / "api.py", "_RENAMED_METHODS = {", "}"))),
@@ -118,9 +116,9 @@ class ShimAnnouncementTests(unittest.TestCase):
     def test_it_says_so_once_and_then_stays_quiet(self) -> None:
         """The payload projection runs per game per refresh."""
         with self.assertLogs("vpinfe.deprecations", level="INFO") as caught:
-            deprecations.announce("ws-methods", "get_tables")
-            deprecations.announce("ws-methods", "get_tables")
-            deprecations.announce("ws-methods", "launch_table")
+            deprecations.announce("ws-methods", "get_table_rating")
+            deprecations.announce("ws-methods", "get_table_rating")
+            deprecations.announce("ws-methods", "set_table_rating")
 
         self.assertEqual(len(caught.output), 2)
 
@@ -135,10 +133,10 @@ class ShimAnnouncementTests(unittest.TestCase):
 
         api = object.__new__(API)
         with self.assertLogs("vpinfe.deprecations", level="INFO") as caught:
-            forwarded = api.get_tables
+            forwarded = api.get_table_rating
 
-        self.assertEqual(forwarded, api.get_games)
-        self.assertIn("get_tables", "\n".join(caught.output))
+        self.assertEqual(forwarded, api.get_game_rating)
+        self.assertIn("get_table_rating", "\n".join(caught.output))
 
     def test_a_contract_1_theme_announces_the_projection(self) -> None:
         from frontend import theme_contract

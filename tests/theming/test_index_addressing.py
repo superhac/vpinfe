@@ -111,20 +111,20 @@ class IndexAddressingTests(TempTree):
         self.assertEqual(self.api.get_game_rating(99), 0)
 
     def test_launching_an_index_that_names_nothing_is_refused(self) -> None:
-        result = self.api.launch_game(99)
+        result = self.api.launch_table(99)
 
         self.assertEqual(result, {"success": False, "reason": "invalid_index"})
 
     def test_selecting_an_index_that_names_nothing_raises_no_event(self) -> None:
         with patch("frontend.api.events.emit") as emit:
-            result = self.api.notify_game_selected(99)
+            result = self.api.notify_table_selected(99)
 
         self.assertEqual(result, {"success": False, "reason": "invalid_index"})
         emit.assert_not_called()
 
     def test_selecting_a_real_index_announces_that_game(self) -> None:
         with patch("frontend.api.events.emit") as emit:
-            self.api.notify_game_selected(1)
+            self.api.notify_table_selected(1)
 
         self.assertEqual(emit.call_args.kwargs["game"], self.games[1])
 

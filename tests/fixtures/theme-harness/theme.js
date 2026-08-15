@@ -25,7 +25,7 @@ async function start() {
     document.body.dataset.window = vpin.windowName;
     if (vpin.isController()) {
       vpin.registerInputHandler(handleInput);
-      selected = vpin.getCurrentGameIndex();
+      selected = vpin.getCurrentTableIndex();
     }
     render();
     document.body.dataset.ready = "true";
@@ -38,14 +38,14 @@ async function start() {
 
 async function receiveEvent(message) {
   await vpin.handleEvent(message);
-  if (message.type === "GameIndexUpdate" && typeof message.index === "number") {
+  if (message.type === "TableIndexUpdate" && typeof message.index === "number") {
     selected = message.index;
   }
   render();
 }
 
 function handleInput(action) {
-  const count = vpin.getGameCount();
+  const count = vpin.getTableCount();
   if (!count) return;
   if (action === "next") selected = (selected + 1) % count;
   else if (action === "previous") selected = (selected - 1 + count) % count;
@@ -60,12 +60,12 @@ function fail(what) {
 }
 
 function render() {
-  const count = vpin.getGameCount();
+  const count = vpin.getTableCount();
   const root = document.getElementById("wheel");
   root.replaceChildren();
 
   for (let i = 0; i < count; i++) {
-    const entry = vpin.getGameMeta(i);
+    const entry = vpin.getTableMeta(i);
     const el = document.createElement("div");
     el.dataset.entry = String(i);
     el.dataset.title = (entry && entry.game && entry.game.title) || "";

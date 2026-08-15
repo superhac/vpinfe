@@ -17,9 +17,9 @@ import { newCore, fixture } from "./support/load-core.js";
 const ROWS = fixture("theme_payload.json").contract1;
 
 const BRIDGE_DEFAULTS = {
-  get_games: "[]",
+  get_tables: "[]",
   get_theme_assets_port: 8000,
-  get_initial_game_index: 0,
+  get_initial_table_index: 0,
   get_theme_config: {},
   get_keymapping: {},
   get_joymaping: {},
@@ -39,7 +39,7 @@ async function coreOn(windowName, { target = true, themeConfig = {} } = {}) {
   const stage = { children: [], replaceChildren(...kids) { this.children = kids; } };
   if (target) browser.document._query["[data-vpin-media]"] = stage;
 
-  vpin.gameData = ROWS;
+  vpin.tableData = ROWS;
   vpin.themeAssetsPort = 8000;
   return { vpin, stage, browser };
 }
@@ -47,7 +47,7 @@ async function coreOn(windowName, { target = true, themeConfig = {} } = {}) {
 // The receive path, which is how a secondary window learns the wheel moved. It is not
 // the controller, so the send path's selection hook never runs there.
 const step = (vpin, index = 0) =>
-  vpin.handleEvent({ type: "GameIndexUpdate", index });
+  vpin.handleEvent({ type: "TableIndexUpdate", index });
 
 describe("the media kind a window shows", () => {
   test("a contract 1 window resolves through its own spelling", async () => {
@@ -108,7 +108,7 @@ describe("core rendering the window's media", () => {
     const stage = { children: [], replaceChildren(...kids) { this.children = kids; } };
     browser.document._query["[data-vpin-media]"] = stage;
     vpin.call = (method) => Promise.resolve(
-      method === "get_games" ? JSON.stringify(ROWS) : BRIDGE_DEFAULTS[method]);
+      method === "get_tables" ? JSON.stringify(ROWS) : BRIDGE_DEFAULTS[method]);
 
     vpin.init();
     await browser.WebSocket.instances.at(-1).onopen();
@@ -125,7 +125,7 @@ describe("core rendering the window's media", () => {
     delete browser.window.receiveEvent;
 
     socket.onmessage({ data: JSON.stringify(
-      { type: "event", message: { type: "GameIndexUpdate", index: 0 } }) });
+      { type: "event", message: { type: "TableIndexUpdate", index: 0 } }) });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     assert.equal(stage.children.length, 1, "no script on the page, and it still drew");
@@ -137,17 +137,17 @@ describe("dimming every window while VPX launches", () => {
     // A theme's script runs in the controller only, so a theme doing this for itself
     // dims one screen and leaves the others lit - which is what the cabinet showed.
     const { vpin, browser } = await coreOn("backglass");
-    await vpin.handleEvent({ type: "GameLaunching" });
+    await vpin.handleEvent({ type: "TableLaunching" });
     assert.equal(browser.document.documentElement.dataset.vpinfeLaunching, "true");
 
-    await vpin.handleEvent({ type: "GameLaunchComplete" });
+    await vpin.handleEvent({ type: "TableLaunchComplete" });
     assert.equal(browser.document.documentElement.dataset.vpinfeLaunching, undefined);
   });
 
   test("a theme can turn it off", async () => {
     const { vpin, browser } = await coreOn("backglass",
       { themeConfig: { launch_dim: { enabled: false } } });
-    await vpin.handleEvent({ type: "GameLaunching" });
+    await vpin.handleEvent({ type: "TableLaunching" });
     assert.equal(browser.document.documentElement.dataset.vpinfeLaunching, undefined);
   });
 });

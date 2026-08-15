@@ -35,16 +35,9 @@ _change_lock = threading.Lock()
 
 # The same map vpinfe-core.js keeps as MESSAGE_TYPE_ALIASES, and it has to stay the same:
 # a theme matches on whichever spelling it was written against, so both have to arrive.
-# The JS sends the legacy copy for messages a theme originates; these three come from the
-# backend and were left out, so a theme written against 3.0's names saw no launch at all
-# while every 2.x theme kept working. PAR-24.
-_LEGACY_MESSAGE_TYPES = {
-    "GameIndexUpdate": "TableIndexUpdate",
-    "GameDataChange": "TableDataChange",
-    "GameLaunching": "TableLaunching",
-    "GameRunning": "TableRunning",
-    "GameLaunchComplete": "TableLaunchComplete",
-}
+# Empty now that the backend messages carry the Table* names 2.x published, and it has to
+# be filled again the next time one of them is renamed.
+_LEGACY_MESSAGE_TYPES: dict[str, str] = {}
 
 
 def _mark_views_stale() -> None:
@@ -64,7 +57,7 @@ def _mark_views_stale() -> None:
 def _broadcast(message: dict) -> None:
     if _bridge is None:
         return
-    if message.get("type") == "GameDataChange":
+    if message.get("type") == "TableDataChange":
         _mark_views_stale()
     _bridge.send_event_all_with_iframe(message)
     legacy = _LEGACY_MESSAGE_TYPES.get(message.get("type"))
@@ -80,7 +73,7 @@ def on_launching(*, game=None, table_id="", **_payload) -> None:
     """
     if game is not None and _ini_config is not None:
         save_last_launched(_ini_config, game, table_id)
-    _broadcast({"type": "GameLaunching"})
+    _broadcast({"type": "TableLaunching"})
     if sys.platform == "win32" and _browser is not None:
         # VPX pauses whenever its player window loses focus, and Windows will not let a
         # process hand the foreground to one it spawned - so a table came up paused until
@@ -93,12 +86,12 @@ def on_launching(*, game=None, table_id="", **_payload) -> None:
 
 def on_launched(**_payload) -> None:
     """The table is actually up, not merely started."""
-    _broadcast({"type": "GameRunning"})
+    _broadcast({"type": "TableRunning"})
 
 
 def on_exited(**_payload) -> None:
     """Always reached once a launch was announced, so input always comes back."""
-    _broadcast({"type": "GameLaunchComplete"})
+    _broadcast({"type": "TableLaunchComplete"})
     if sys.platform == "darwin" and _browser is not None:
         try:
             _browser.activate_all_mac()
@@ -118,7 +111,7 @@ def on_play_recorded(**_payload) -> None:
 
     Not on_exited: the exit is announced before the runtime and the score are written.
     """
-    _broadcast({"type": "GameDataChange"})
+    _broadcast({"type": "TableDataChange"})
 
 
 def on_game_changed(**_payload) -> None:
@@ -136,7 +129,7 @@ def _flush_game_changes() -> None:
     global _change_timer
     with _change_lock:
         _change_timer = None
-    _broadcast({"type": "GameDataChange"})
+    _broadcast({"type": "TableDataChange"})
 
 
 def register(ws_bridge, frontend_browser=None, ini_config=None) -> None:
@@ -148,10 +141,10 @@ def register(ws_bridge, frontend_browser=None, ini_config=None) -> None:
     if _registered:
         return
 
-    events.subscribe(events.GAME_LAUNCHING, on_launching)
-    events.subscribe(events.GAME_LAUNCHED, on_launched)
-    events.subscribe(events.GAME_EXITED, on_exited)
-    events.subscribe(events.GAME_PLAY_RECORDED, on_play_recorded)
+    events.subscribe(events.TABLE_LAUNCHING, on_launching)
+    events.subscribe(events.TABLE_LAUNCHED, on_launched)
+    events.subscribe(events.TABLE_EXITED, on_exited)
+    events.subscribe(events.TABLE_PLAY_RECORDED, on_play_recorded)
     events.subscribe(events.GAME_CHANGED, on_game_changed)
     events.subscribe(events.COLLECTIONS_CHANGED, on_game_changed)
     _registered = True

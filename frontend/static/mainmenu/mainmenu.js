@@ -52,7 +52,7 @@ window.addEventListener('message', async (event) => {
   if (message.vpinfeEvent) {
     const ev = message.vpinfeEvent;
     if (
-      (ev.type === 'GameIndexUpdate' || ev.type === 'GameDataChange') &&
+      (ev.type === 'TableIndexUpdate' || ev.type === 'TableDataChange') &&
       typeof ev.index === 'number' &&
       Number.isFinite(ev.index) &&
       ev.index >= 0
@@ -175,7 +175,7 @@ function resolveCurrentGameIndex() {
   } catch (_e) {}
 
   try {
-    const parentIndex = Number(window.parent.vpin.getCurrentGameIndex());
+    const parentIndex = Number(window.parent.vpin.getCurrentTableIndex());
     if (Number.isFinite(parentIndex) && parentIndex >= 0) {
       currentGameIndex = Math.floor(parentIndex);
     }
@@ -473,7 +473,7 @@ async function saveRatingDialog() {
   try {
     await window.parent.vpin.call('set_game_rating', ratingGameIndex, ratingDraft);
     window.parent.vpin.sendMessageToAllWindowsIncSelf({
-      type: 'GameDataChange',
+      type: 'TableDataChange',
       index: ratingGameIndex,
     });
     await refreshRatingMenuLabel(ratingGameIndex);

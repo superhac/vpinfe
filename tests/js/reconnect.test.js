@@ -14,9 +14,9 @@ import assert from "node:assert/strict";
 import { newCore } from "./support/load-core.js";
 
 const BRIDGE_DEFAULTS = {
-  get_games: "[]",
+  get_tables: "[]",
   get_theme_assets_port: 8000,
-  get_initial_game_index: 0,
+  get_initial_table_index: 0,
   get_theme_config: {},
   get_keymapping: {},
   get_joymaping: {},
@@ -85,7 +85,7 @@ describe("reconnecting to the bridge", () => {
     t.mock.timers.tick(2000);
     await browser.WebSocket.instances.at(-1).onopen();
 
-    assert.ok(asked.includes("get_games"), "came back without re-reading the library");
+    assert.ok(asked.includes("get_tables"), "came back without re-reading the library");
     assert.ok(asked.includes("get_theme_config"), "came back without re-reading the config");
   });
 

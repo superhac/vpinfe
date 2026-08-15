@@ -136,14 +136,14 @@ describe("with the setting on, the user answers first", () => {
 
   test("the wheel does not move behind it", async () => {
     const { vpin, press, settle } = controller({ confirm: true });
-    vpin.gameData = [{}, {}, {}];
-    const before = vpin._currentGameIndex;
+    vpin.tableData = [{}, {}, {}];
+    const before = vpin._currentTableIndex;
 
     const pending = vpin.requestLifecycle("app", "stop");
     await settle();
     await press("ArrowRight");
 
-    assert.equal(vpin._currentGameIndex, before,
+    assert.equal(vpin._currentTableIndex, before,
       "a confirm owns the input while it is up");
 
     await press("Escape");

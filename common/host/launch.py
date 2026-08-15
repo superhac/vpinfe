@@ -223,13 +223,13 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
     # Nothing below has happened yet, so a refusal here leaves nothing to undo.
     # The table id says which build of the game this is: a subscriber recording what
     # played cannot work it out from the game, which offers several.
-    events.emit(events.GAME_LAUNCHING, game=game, ini_config=ini_config,
+    events.emit(events.TABLE_LAUNCHING, game=game, ini_config=ini_config,
                 table_id=_launched_table_id(game, vpx_path))
 
     started_at = None
     profile = None
-    # Everything from here is inside the try, so game.exited is guaranteed to
-    # anyone who heard game.launching - which is what stops a failure below from
+    # Everything from here is inside the try, so table.exited is guaranteed to
+    # anyone who heard table.launching - which is what stops a failure below from
     # leaving the frontend with its input suppressed for the life of the process.
     try:
         launch_state.set_launching(getattr(game, "gameDirName", None), source=source)
@@ -257,7 +257,7 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
         for line in process.stdout:
             if not running and STARTUP_MARKER in line:
                 running = True
-                events.emit(events.GAME_LAUNCHED, game=game, ini_config=ini_config)
+                events.emit(events.TABLE_LAUNCHED, game=game, ini_config=ini_config)
                 logger.info("table running")
 
         process.wait()
@@ -265,12 +265,12 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
         # Before the play data below, so the peripherals come back promptly rather
         # than waiting on an NVRAM parse and possibly a network call.
         launch_state.clear()
-        events.emit(events.GAME_EXITED, game=game, ini_config=ini_config)
+        events.emit(events.TABLE_EXITED, game=game, ini_config=ini_config)
 
     if started_at is not None:
         _record_play(game, ini_config, max(0.0, time.time() - started_at), profile,
                      os.path.basename(vpx_path))
-        events.emit(events.GAME_PLAY_RECORDED, game=game, ini_config=ini_config)
+        events.emit(events.TABLE_PLAY_RECORDED, game=game, ini_config=ini_config)
     game_play_service.delete_nvram_if_configured(game)
 
 

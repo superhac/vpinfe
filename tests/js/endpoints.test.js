@@ -97,7 +97,7 @@ describe("the endpoint block", () => {
 describe("every url the page builds comes from the block", () => {
   test("game media resolves against the asset server", () => {
     const vpin = withPorts("?window=table&themeAssetsPort=9000");
-    vpin.gameData = ROWS;
+    vpin.tableData = ROWS;
     const index = ROWS.findIndex((row) => row.tableDirName === "Attack from Mars (Bally 1995)");
 
     const url = vpin.getImageURL(index, "wheel");
@@ -107,7 +107,7 @@ describe("every url the page builds comes from the block", () => {
 
   test("the manufacturer logo resolves against the asset server", () => {
     const vpin = withPorts("?window=table&themeAssetsPort=9000");
-    vpin.gameData = [{}];
+    vpin.tableData = [{}];
     vpin._reader = { logo: () => "/assets/manufacturers/default/bally.png" };
 
     assert.equal(vpin.getManufacturerLogoURL(0),

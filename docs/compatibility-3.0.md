@@ -198,17 +198,21 @@ served in the shape a theme declares as `contract` in its `manifest.json`, and a
 contract 1 — the 2.x shape, synthesised. Covered by `tests/games/test_info_migration.py` and
 `tests/theming/test_theme_contract.py`.
 
-**PAR-21 — The WebSocket methods take VPS's vocabulary, and the old names still answer.**
+**PAR-21 — Four WebSocket methods take VPS's vocabulary, and the old names still answer.**
 *(machine-checked)*
-`get_tables`, `get_initial_table_index`, `set_tables_by_collection`, `launch_table`,
-`notify_table_selected`, `get_table_rating`, `set_table_rating`, `get_table_orientation`
-and `get_table_rotation` are now `get_games`, `get_initial_game_index`,
-`set_games_by_collection`, `launch_game`, `notify_game_selected`, `get_game_rating`,
-`set_game_rating`, `get_playfield_orientation` and `get_playfield_rotation`.
-Every old name stays in the allowlist and forwards to its replacement, so a theme written
-against any earlier build keeps working unchanged and gets an identical payload back.
-*Why:* VPS calls the machine a game and the `.vpx` a table; ours said the opposite. The
-screen ones are the playfield, which is what `docs/conventions.md` already called it.
+`get_table_rating`, `set_table_rating`, `get_table_orientation` and `get_table_rotation`
+are now `get_game_rating`, `set_game_rating`, `get_playfield_orientation` and
+`get_playfield_rotation`. Each old name stays in the allowlist and forwards to its
+replacement, so a theme written against any earlier build keeps working unchanged and gets
+an identical payload back.
+*Why:* a rating belongs to the machine, which VPS calls a game. The screen ones are the
+playfield, which is what `docs/conventions.md` already called it.
+
+**The selection surface is not in this list, and does not change.** `get_tables`,
+`get_initial_table_index`, `set_tables_by_collection`, `launch_table` and
+`notify_table_selected` keep the names 2.x shipped, because what they address is a row and
+a row is a table. A game may offer several, and naming one is how a collection asks for
+exactly that build.
 
 **PAR-22 — The theme payload's own keys take the new vocabulary at contract 2.**
 *(machine-checked)*
@@ -227,15 +231,18 @@ the playfield, which `docs/conventions.md` already called it in the media list. 
 the first top-level row keys ever to move, so the projection had to grow past `meta` to
 reach them.
 
-**PAR-23 — The `vpin.*` JavaScript surface renames, and every old member still works.**
-`vpin.tableData`, `tableRotation`, `tableOrientation`, `getTableMeta`, `getTableData`,
-`getTableCount`, `getCurrentTableIndex`, `playTableAudio`,
-`stopTableAudio` and `launchTable` become the `game`/`playfield` spellings. Each old name
-stays as an accessor forwarding to its replacement, so reads, writes and method calls all
-still work from a theme written against any earlier build.
+**PAR-23 — Two `vpin.*` members rename, and both old names still work.**
+`vpin.tableRotation` and `tableOrientation` become `playfieldRotation` and
+`playfieldOrientation`. Each old name stays as an accessor forwarding to its replacement,
+so reads, writes and method calls all still work from a theme written against any earlier
+build.
 *Why:* the theme contract projects the **payload**; it has never covered the JS surface,
 so an alias is the only mechanism available. Removing these would be a hard break with no
-migration path, which is why none of them is removed.
+migration path, which is why neither is removed.
+
+**The selection members do not rename.** `vpin.tableData`, `getTableMeta`, `getTableData`,
+`getTableCount`, `getCurrentTableIndex`, `playTableAudio`, `stopTableAudio` and
+`launchTable` keep the names 2.x published — they address a row, and a row is a table.
 
 **PAR-31 — Contract 2 names its media kinds; a route serves them by game id.**
 `entries[].media` is the list of kinds a game has a file for, and the bytes come from
@@ -401,7 +408,7 @@ answer standing, which is what a single-machine install has always used. Covered
 
 **PAR-75 — The last-launched row is remembered by id, not by path.** *(machine-checked)*
 `state.last_game` stores a table id, falling back to a game id. `save_last_game` becomes
-`save_last_launched` and takes the ids; `game.launching` carries `table_id`.
+`save_last_launched` and takes the ids; `table.launching` carries `table_id`.
 **A saved value written before this does not resolve** - the wheel opens at the first row
 once, and the next launch writes the new form. Nothing else reads the key.
 *Why:* the identity was the game folder's path, which answers the wrong question twice
@@ -740,7 +747,7 @@ install the value is the same on every event and can be ignored. It is absent ra
 empty when the install has no id yet.
 *Why:* the bus is in-process and its wire projection drops the origin's address, both
 correct while one process is one machine and both wrong the moment a hub holds more than
-one player - a player's `game.launched` would arrive with nothing saying which player it
+one player - a player's `table.launched` would arrive with nothing saying which player it
 came from. The comment on the dropped field collapsed a distinction worth keeping: *which
 surface asked* names one user's browser tab and stays dropped, while *which install it
 happened on* is what a subscriber can act on and is safe to publish. Adding it to the
@@ -1039,19 +1046,14 @@ a default, and with one already written "copy only if absent" copies nothing and
 user's real value is dropped. That was a live bug for the section moves.
 Covered by `tests/config/test_config_store.py`.
 
-**PAR-24 — Window messages carry both spellings, and inbound is accepted either way.**
+**PAR-24 — Window messages do not rename. Withdrawn.**
 `TableIndexUpdate`, `TableDataChange`, `TableLaunching`, `TableRunning` and
-`TableLaunchComplete` become the `Game*` spellings. Every one is broadcast twice — current
-name then legacy — so a theme matching either receives it, and `vpin.handleEvent` maps an
-inbound legacy name onto the current one before anything matches on it.
-*Why:* a message type is a string a theme compares against, so there is no projection to
-hang this on and both have to arrive. The dual send first landed in `vpinfe-core.js` alone,
-which covers only the messages a theme originates; the launch lifecycle is broadcast by
-`frontend/play_events.py`, so it kept sending the 2.x names by themselves. Installed themes
-match those and were unaffected, which is exactly why it went unnoticed — but a theme
-written against the names `docs/theme.md` documents received no launch events at all.
-Covered by `tests/api/test_play_events.py`, which also asserts the Python and JavaScript alias
-maps are the same map.
+`TableLaunchComplete` briefly became the `Game*` spellings, broadcast under both names.
+They are back to the single spelling 2.x published, so there is nothing to translate and
+no dual send: a message names a row, and a row is a table.
+*Why it is still listed:* the entry described a promise, and withdrawing it is part of the
+record. The alias machinery stays in `vpinfe-core.js` and `frontend/play_events.py` with
+nothing in it, because the next message rename is what fills it again.
 
 **PAR-18 — Addon folders are detected whatever their casing.**
 The library scan matched `pupvideos`, `serum`, `vni`, `music` and `medias` against the

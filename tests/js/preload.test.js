@@ -15,9 +15,9 @@ const ROWS = fixture("theme_payload.json").contract1;
 const SETTLE_MS = 20;
 
 const BRIDGE_DEFAULTS = {
-  get_games: "[]",
+  get_tables: "[]",
   get_theme_assets_port: 8000,
-  get_initial_game_index: 0,
+  get_initial_table_index: 0,
   get_theme_config: {},
   get_keymapping: {},
   get_joymaping: {},
@@ -45,7 +45,7 @@ async function coreWithConfig(themeConfig, rows = library(60)) {
   vpin.init();
   await browser.WebSocket.instances.at(-1).onopen();
 
-  vpin.gameData = rows;
+  vpin.tableData = rows;
   vpin.themeAssetsPort = 8000;
   vpin._preloadSettleMs = SETTLE_MS;
   browser.Image.requested.length = 0;
@@ -54,7 +54,7 @@ async function coreWithConfig(themeConfig, rows = library(60)) {
 
 /** One wheel step, by the same call a theme makes. */
 function step(vpin, index) {
-  vpin.sendMessageToAllWindowsIncSelf({ type: "GameIndexUpdate", index });
+  vpin.sendMessageToAllWindowsIncSelf({ type: "TableIndexUpdate", index });
 }
 
 const settled = () => new Promise((resolve) => setTimeout(resolve, SETTLE_MS * 4));
@@ -131,7 +131,7 @@ describe("core preloading", () => {
 
     // A reach past either end would throw inside the listener and be swallowed, so the
     // assertion is that the selection still tracked rather than that nothing was logged.
-    assert.equal(vpin.getCurrentGameIndex(), ROWS.length - 1);
+    assert.equal(vpin.getCurrentTableIndex(), ROWS.length - 1);
   });
 
   test("a contract 1 theme names its kinds in its own vocabulary", async () => {

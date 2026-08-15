@@ -214,17 +214,12 @@ const LEGACY_ACTION_NAMES = {
   exit: "joyexit",
 };
 
+// Only the screen pair is left. The selection members went back to the Table* spelling
+// 2.x published, so there is nothing for them to forward to - and an entry mapping a
+// name to itself would install an accessor that reads itself.
 const VPINFE_RENAMED_MEMBERS = {
-  tableData: 'gameData',
   tableRotation: 'playfieldRotation',
   tableOrientation: 'playfieldOrientation',
-  getTableMeta: 'getGameMeta',
-  getTableData: 'getGameData',
-  getTableCount: 'getGameCount',
-  getCurrentTableIndex: 'getCurrentGameIndex',
-  playTableAudio: 'playGameAudio',
-  stopTableAudio: 'stopGameAudio',
-  launchTable: 'launchGame',
 };
 
 // Kind names earlier builds accepted, against the canonical snake_case set.
@@ -269,13 +264,10 @@ const MEDIA_FIELD_FALLBACK = {
 // posts them. Pre-3.0 themes use the Table* spelling, so at contract 1 every broadcast
 // goes out under both names. Receipts are normalized at either contract - a theme
 // posting an old name has to be understood regardless. PAR-24.
-const MESSAGE_TYPE_ALIASES = {
-  GameIndexUpdate: "TableIndexUpdate",
-  GameDataChange: "TableDataChange",
-  GameLaunching: "TableLaunching",
-  GameRunning: "TableRunning",
-  GameLaunchComplete: "TableLaunchComplete",
-};
+// Empty since the selection surface went back to the Table* spelling 2.x published:
+// there is nothing left to translate. The machinery stays because it is what the next
+// message rename uses - see VPINFE_RENAMED_MEMBERS, which is still carrying two.
+const MESSAGE_TYPE_ALIASES = {};
 
 const MESSAGE_TYPE_CANONICAL = Object.fromEntries(
   Object.entries(MESSAGE_TYPE_ALIASES).map(([current, legacy]) => [legacy, current]),
@@ -285,7 +277,7 @@ function canonicalMessageType(type) {
   return MESSAGE_TYPE_CANONICAL[type] || type;
 }
 
-// Say it once per name, not once per access - a wheel reads gameData every frame. The
+// Say it once per name, not once per access - a wheel reads tableData every frame. The
 // backend keeps the same list in common/deprecations.py and logs there; a theme runs in
 // the browser, so this is the only place its use of an old name is visible.
 const announcedLegacy = new Set();
@@ -441,7 +433,7 @@ class VPinFECore {
   #lifecycleNotice = null;
 
   constructor() {
-    this.gameData = {};
+    this.tableData = {};
     // What the running theme declared. Contract 1 until the bridge says otherwise.
     this.contract = OLDEST_CONTRACT;
     // The theme's windows, controller first. Replaced once the bridge answers; until
@@ -537,7 +529,7 @@ class VPinFECore {
     // Theme config and centralized audio state
     this.themeConfig = {};
     this.mediaPriorities = Object.assign({}, DEFAULT_MEDIA_PRIORITIES);
-    this._currentGameIndex = 0;
+    this._currentTableIndex = 0;
     this._initialGameRestored = false;
     this._audioMuted = false;
     this._audio = Object.assign(new Audio(), { loop: true });
@@ -560,7 +552,7 @@ class VPinFECore {
     // The base mode is never popped; overlays and dialogs push on top.
     this._inputModes = ['navigation'];
     this._lastMoveAt = 0;
-    this.onSelection(() => this.getVPinPlayRating(this._currentGameIndex).catch(() => {}));
+    this.onSelection(() => this.getVPinPlayRating(this._currentTableIndex).catch(() => {}));
     this.onSelection(() => this.#notifySelectedGame().catch(() => {}));
     this.onSelection(() => this.#schedulePreload());
     this._vpinplayRatingCache = new Map();
@@ -672,7 +664,7 @@ class VPinFECore {
   }
 
   getImageURL(index, kind) {
-    const item = this.gameData[index];
+    const item = this.tableData[index];
     return item ? this._reader.imageURL(item, this.#normalizeMediaType(kind)) : null;
   }
 
@@ -682,7 +674,7 @@ class VPinFECore {
 
   // URL of the game manufacturer's logo, or null when none is installed
   getManufacturerLogoURL(index) {
-    const item = this.gameData[index];
+    const item = this.tableData[index];
     const path = item ? this._reader.logo(item) : null;
     return path ? `${this.endpoints.assets}${path}` : null;
   }
@@ -692,7 +684,7 @@ class VPinFECore {
   }
 
   getMedia(index, type) {
-    const item = this.gameData[index];
+    const item = this.tableData[index];
     if (!item) return { url: null, kind: null, priority: null, path: null };
 
     const normalizedType = this.#normalizeMediaType(type);
@@ -719,13 +711,13 @@ class VPinFECore {
 
   // The URL of a game's audio, or null when it has none
   getAudioURL(index) {
-    const item = this.gameData[index];
+    const item = this.tableData[index];
     return item ? this._reader.audioURL(item) : null;
   }
 
   // Core handles joypageup/joypagedown by default: it asks the backend for the
   // target index ([Input] pagingtype/pagingsize + current sort) and broadcasts a
-  // GameIndexUpdate. Themes that implement their own paging call
+  // TableIndexUpdate. Themes that implement their own paging call
   /**
    * What this build does on your behalf, and whether each is on right now. A name that
    * is absent is a behavior this build does not have - check before using it.
@@ -788,7 +780,7 @@ class VPinFECore {
                          .find((value) => value !== undefined);
       this.#setCapability(name, stated === undefined ? spec.default : !!stated);
     }
-    if (!this.enabled("core_audio")) this.stopGameAudio({ immediate: true });
+    if (!this.enabled("core_audio")) this.stopTableAudio({ immediate: true });
 
     // A theme that shows a cab shot, or shows no wheel, preloads a different set. The
     // names go through the same normalization as everywhere else, so a contract 1 theme
@@ -817,13 +809,13 @@ class VPinFECore {
 
   // Ask the backend where a page next/prev press should land. Available to
   // themes doing their own paging animation.
-  async getPageIndex(direction = "next", index = this._currentGameIndex) {
+  async getPageIndex(direction = "next", index = this._currentTableIndex) {
     return await this.call("get_page_index", index, direction);
   }
 
   enableCoreAudio(enabled = true) {
     this.#setCapability("core_audio", enabled);
-    if (!this.enabled("core_audio")) this.stopGameAudio({ immediate: true });
+    if (!this.enabled("core_audio")) this.stopTableAudio({ immediate: true });
   }
 
   isCoreAudioEnabled() {
@@ -834,11 +826,11 @@ class VPinFECore {
     this._audioMuted = !!muted;
     if (this._audio) this._audio.muted = this._audioMuted;
     if (this._audioMuted) {
-      this.stopGameAudio({ immediate: true });
+      this.stopTableAudio({ immediate: true });
       return;
     }
     if (this.enabled("core_audio") && this.isController()) {
-      this.playGameAudio(this._currentGameIndex);
+      this.playTableAudio(this._currentTableIndex);
     }
   }
 
@@ -866,11 +858,11 @@ class VPinFECore {
     if (typeof options.loop === 'boolean') this._audio.loop = options.loop;
   }
 
-  playGameAudio(indexOrUrl = this._currentGameIndex, retries = 3) {
+  playTableAudio(indexOrUrl = this._currentTableIndex, retries = 3) {
     if (!this.enabled("core_audio") || this._audioMuted || !this.isController()) return;
     const url = this.#resolveAudioUrl(indexOrUrl);
     if (!url) {
-      this.stopGameAudio();
+      this.stopTableAudio();
       return;
     }
     if (this._audioCurrentUrl === url && !this._audio.paused) return;
@@ -889,12 +881,12 @@ class VPinFECore {
       // this is only reachable outside that launcher.
       if (e && e.name === "NotAllowedError") return;
       if (retries > 0 && this._audioCurrentUrl === url) {
-        setTimeout(() => this.playGameAudio(url, retries - 1), 1000);
+        setTimeout(() => this.playTableAudio(url, retries - 1), 1000);
       }
     });
   }
 
-  stopGameAudio(options = {}) {
+  stopTableAudio(options = {}) {
     const immediate = !!(options && options.immediate);
     if (!this._audio || this._audio.paused) {
       clearInterval(this._audioFadeId);
@@ -916,29 +908,29 @@ class VPinFECore {
 
   // The URL of a game's video, by media kind
   getVideoURL(index, kind) {
-    const item = this.gameData[index];
+    const item = this.tableData[index];
     return item ? this._reader.videoURL(item, this.#normalizeMediaType(kind)) : null;
   }
 
   // The list, under the name that describes what is in it. At contract 2 the items are
   // entries - a table with its game attached - so `entries` is what a theme iterates.
   get entries() {
-    return this.gameData;
+    return this.tableData;
   }
 
-  getGameMeta(index) {
-    return this.gameData[index];
+  getTableMeta(index) {
+    return this.tableData[index];
   }
 
-  getGameCount() {
-    return this.gameData.length;
+  getTableCount() {
+    return this.tableData.length;
   }
 
-  getCurrentGameIndex() {
-    return this._currentGameIndex;
+  getCurrentTableIndex() {
+    return this._currentTableIndex;
   }
 
-  getCachedVPinPlayRating(index = this._currentGameIndex) {
+  getCachedVPinPlayRating(index = this._currentTableIndex) {
     const item = this.#itemByIndex(index);
     if (!item) return null;
 
@@ -949,11 +941,11 @@ class VPinFECore {
     return cached && cached.data ? cached.data : null;
   }
 
-  async getVPinPlayRating(index = this._currentGameIndex, options = {}) {
+  async getVPinPlayRating(index = this._currentTableIndex, options = {}) {
     return this.#loadVPinPlayRating(index, !!(options && options.forceRefresh));
   }
 
-  async refreshVPinPlayRating(index = this._currentGameIndex) {
+  async refreshVPinPlayRating(index = this._currentTableIndex) {
     return this.#loadVPinPlayRating(index, true);
   }
 
@@ -994,13 +986,13 @@ class VPinFECore {
   }
 
   // Launch a game
-  async launchGame(index) {
+  async launchTable(index) {
     this.#setFrontendInputEnabled(false);
     try {
-      await this.call("launch_game", index);
+      await this.call("launch_table", index);
     } catch (e) {
       // The call will timeout after 30s while VPX is still running - that's expected
-      this.call("console_out", `launch_game call ended: ${e.message}`);
+      this.call("console_out", `launch_table call ended: ${e.message}`);
     } finally {
       if (!this._launchInputSuppressedByLifecycle && !this.remoteLaunchActive) {
         this.#setFrontendInputEnabled(true);
@@ -1008,20 +1000,20 @@ class VPinFECore {
     }
   }
 
-  async getGameData(reset=false) {
-    const payload = JSON.parse(await this.call("get_games", reset));
+  async getTableData(reset=false) {
+    const payload = JSON.parse(await this.call("get_tables", reset));
     if (Array.isArray(payload)) {
-      this.gameData = payload;                       // contract 1: a row per game
+      this.tableData = payload;                       // contract 1: a row per game
     } else {
       // Contract 2 wraps the list so the collection it belongs to travels with it.
-      this.gameData = payload.entries || [];
+      this.tableData = payload.entries || [];
       this.collection = payload.collection || "";
     }
     this.#attachCachedVPinPlayRatings();
     if (this.isController()) {
-      const maxIndex = Math.max(0, this.gameData.length - 1);
-      if (this._currentGameIndex > maxIndex) this._currentGameIndex = maxIndex;
-      if (this.gameData.length > 0) {
+      const maxIndex = Math.max(0, this.tableData.length - 1);
+      if (this._currentTableIndex > maxIndex) this._currentTableIndex = maxIndex;
+      if (this.tableData.length > 0) {
         if (!this._initialGameRestored) {
           this._initialGameRestored = true;
           await this.#restoreInitialGame();
@@ -1035,18 +1027,18 @@ class VPinFECore {
 
   // On the first game-data load, ask the backend for the last-launched game's
   // index and, if it isn't already first, move the wheel there. Sending a
-  // GameIndexUpdate (inc self) drives the theme through the same path its own
+  // TableIndexUpdate (inc self) drives the theme through the same path its own
   // input uses, so no theme changes are needed to honor the restored position.
   async #restoreInitialGame() {
     try {
-      const index = await this.call("get_initial_game_index");
-      if (typeof index === "number" && index > 0 && index < this.gameData.length) {
-        this._currentGameIndex = index;
+      const index = await this.call("get_initial_table_index");
+      if (typeof index === "number" && index > 0 && index < this.tableData.length) {
+        this._currentTableIndex = index;
         // Themes register window.receiveEvent at varying points in their startup
         // (some only after a couple of awaits inside vpin.ready.then). Wait for it
         // so the restore broadcast isn't dropped by the guard in #connectWebSocket.
         await this.#waitForReceiveEvent();
-        this.sendMessageToAllWindowsIncSelf({ type: "GameIndexUpdate", index });
+        this.sendMessageToAllWindowsIncSelf({ type: "TableIndexUpdate", index });
       }
     } catch (e) {
       this.call("console_out", `restoreInitialTable failed: ${e.message}`);
@@ -1064,7 +1056,7 @@ class VPinFECore {
   }
 
   // Register an event handler for a specific event type
-  // eventType: string (e.g., "GameIndexUpdate", "GameDataChange", etc.)
+  // eventType: string (e.g., "TableIndexUpdate", "TableDataChange", etc.)
   // handler: function to call when event is received
   registerEventHandler(eventType, handler) {
     if (typeof handler === 'function') {
@@ -1086,19 +1078,19 @@ class VPinFECore {
     // can filter it out of the list entirely.
     const raised = message && typeof message === "object"
       && typeof message.index !== "number"
-      && canonicalMessageType(message.type) === "GameDataChange";
-    const held = raised ? this.#identityAt(this._currentGameIndex) : null;
+      && canonicalMessageType(message.type) === "TableDataChange";
+    const held = raised ? this.#identityAt(this._currentTableIndex) : null;
     // Set now as well as after the refresh, so the message carries a usable index even
     // if the held game is gone. `raw` is the object the theme itself will read: the
     // alias copy below is core's, and writing only to that would leave a theme matching
     // on the 2.x spelling with the index this had before the refresh.
     const raw = message;
-    if (raised) message.index = this._currentGameIndex;
+    if (raised) message.index = this._currentTableIndex;
     // A theme may post the pre-3.0 spelling; normalize before anything matches on it.
     if (message && MESSAGE_TYPE_CANONICAL[message.type]) {
       message = { ...message, type: canonicalMessageType(message.type) };
     }
-    if (typeof message.index === "number") this._currentGameIndex = message.index;
+    if (typeof message.index === "number") this._currentTableIndex = message.index;
     if (message.type === "AudioMuteChanged") {
       this.setAudioMuted(!!message.muted);
       return;
@@ -1110,13 +1102,13 @@ class VPinFECore {
     }
     this.#handleFrontendInputLifecycleEvent(message);
 
-    // Default handling for GameDataChange
-    if (message.type === "GameDataChange") {
+    // Default handling for TableDataChange
+    if (message.type === "TableDataChange") {
       if (this.isController()) this._lastSelectedIndex = null;
-      await this.#handleGameDataChange(message);
+      await this.#handleTableDataChange(message);
       if (raised) {
         const index = this.#indexOfIdentity(held);
-        this._currentGameIndex = index;
+        this._currentTableIndex = index;
         raw.index = message.index = index;
       }
     }
@@ -1152,7 +1144,7 @@ class VPinFECore {
   }
 
 
-  // Default handler for GameDataChange events
+  // Default handler for TableDataChange events
   // The three overlays differ in four things: which flag says they are up, which iframe
   // they own, what they load, and what they are told when opened. Everything else - the
   // fade class, creating the frame once, the ten-millisecond wait so it does not flash,
@@ -1163,7 +1155,7 @@ class VPinFECore {
       frameId: "menu-frame",
       src: "/core/mainmenu/mainmenu.html",
       // table_index is mainmenu.js's own key, not ours to rename.
-      opened: (core) => ({ event: "menu_open", table_index: core._currentGameIndex }),
+      opened: (core) => ({ event: "menu_open", table_index: core._currentTableIndex }),
     },
     collectionMenu: {
       flag: "collectionMenuUP",
@@ -1307,15 +1299,15 @@ class VPinFECore {
   #showcollectionmenu() { return this.#toggleOverlay("collectionMenu"); }
   #showtutorial()       { return this.#toggleOverlay("tutorial"); }
 
-  async #handleGameDataChange(message) {
+  async #handleTableDataChange(message) {
     // Check if a collection filter was applied
     if (message.collection) {
       // if collection is "None" then reset to all tables, otherwise set to the selected collection.
       if (message.collection === "None") {
-        await this.getGameData(true);
+        await this.getTableData(true);
       } else {
-        await this.call("set_games_by_collection", message.collection);
-        await this.getGameData();
+        await this.call("set_tables_by_collection", message.collection);
+        await this.getTableData();
       }
     } else if (message.filters) {
       // VPSdb filters - apply them to this window's API instance
@@ -1332,40 +1324,40 @@ class VPinFECore {
       if (message.sort) {
         await this.callInternal("apply_sort", message.sort, message.order);
       }
-      await this.getGameData();
+      await this.getTableData();
     } else if (message.sort) {
       // Sort order change - apply it to this window's API instance
       await this.callInternal("apply_sort", message.sort, message.order);
-      await this.getGameData();
+      await this.getTableData();
     } else {
       // No filters specified - just refresh the game data
-      await this.getGameData();
+      await this.getTableData();
     }
   }
 
   async #handleCoreAudioEvent(message) {
     if (!this.enabled("core_audio") || !this.isController()) return;
 
-    if (message.type === "GameIndexUpdate") {
-      this.playGameAudio(this._currentGameIndex);
+    if (message.type === "TableIndexUpdate") {
+      this.playTableAudio(this._currentTableIndex);
       return;
     }
-    if (message.type === "GameLaunching" || message.type === "RemoteLaunching") {
-      this.stopGameAudio();
+    if (message.type === "TableLaunching" || message.type === "RemoteLaunching") {
+      this.stopTableAudio();
       return;
     }
-    if (message.type === "GameLaunchComplete" || message.type === "RemoteLaunchComplete") {
-      this.playGameAudio(this._currentGameIndex);
+    if (message.type === "TableLaunchComplete" || message.type === "RemoteLaunchComplete") {
+      this.playTableAudio(this._currentTableIndex);
       return;
     }
-    if (message.type === "GameDataChange" && typeof message.index === "number") {
-      this.playGameAudio(this._currentGameIndex);
+    if (message.type === "TableDataChange" && typeof message.index === "number") {
+      this.playTableAudio(this._currentTableIndex);
     }
   }
 
   #resolveAudioUrl(indexOrUrl) {
     if (typeof indexOrUrl === "number" && Number.isFinite(indexOrUrl)) {
-      this._currentGameIndex = indexOrUrl;
+      this._currentTableIndex = indexOrUrl;
       return this.getAudioURL(indexOrUrl);
     }
     if (typeof indexOrUrl === "string") return indexOrUrl;
@@ -1376,12 +1368,12 @@ class VPinFECore {
     if (!message || typeof message !== "object") return;
     if (typeof message.index !== "number" || !Number.isFinite(message.index)) return;
     if (message.index < 0) return;
-    if (message.type === "GameIndexUpdate" || message.type === "GameDataChange") {
-      this._currentGameIndex = Math.floor(message.index);
+    if (message.type === "TableIndexUpdate" || message.type === "TableDataChange") {
+      this._currentTableIndex = Math.floor(message.index);
     }
   }
 
-  // Which messages mean "the wheel is now on something else". GameIndexUpdate is an
+  // Which messages mean "the wheel is now on something else". TableIndexUpdate is an
   // ordinary step; the other two mean the list or the game underneath may have changed,
   // so the notify has to fire again even when the index did not move.
   // The longest we wait between reconnect attempts. A cabinet can sleep for hours, so
@@ -1389,7 +1381,7 @@ class VPinFECore {
   static RECONNECT_CEILING_MS = 10000;
 
   static SELECTION_MESSAGES = new Set([
-    "GameIndexUpdate", "GameDataChange", "GameLaunchComplete", "RemoteLaunchComplete",
+    "TableIndexUpdate", "TableDataChange", "TableLaunchComplete", "RemoteLaunchComplete",
   ]);
 
   // How many preloaded URLs to remember. Generous enough to cover a page of the wheel
@@ -1400,7 +1392,7 @@ class VPinFECore {
     if (!message || typeof message !== "object") return;
     if (!this.isController()) return;
     if (!VPinFECore.SELECTION_MESSAGES.has(message.type)) return;
-    if (message.type !== "GameIndexUpdate") this._lastSelectedIndex = null;
+    if (message.type !== "TableIndexUpdate") this._lastSelectedIndex = null;
     this.#selectionChanged();
   }
 
@@ -1424,7 +1416,7 @@ class VPinFECore {
       // One listener throwing must not stop the others, the same rule the backend's
       // event bus follows.
       try {
-        listener(this._currentGameIndex);
+        listener(this._currentTableIndex);
       } catch (err) {
         console.warn("vpinfe: a selection listener failed", err);
       }
@@ -1436,7 +1428,7 @@ class VPinFECore {
    *
    * Set on the document element rather than the body, so it is there before a theme's
    * own stylesheet loads and a theme can key off it without guessing a class name.
-   * GameLaunchComplete clears it - the same message that already tells every window the
+   * TableLaunchComplete clears it - the same message that already tells every window the
    * game came back.
    */
   #applyLaunchDim(type) {
@@ -1444,8 +1436,8 @@ class VPinFECore {
     const root = document.documentElement;
     if (!root) return;
     // dataset, like every other data-vpinfe-* this file sets.
-    if (type === "GameLaunching") root.dataset.vpinfeLaunching = "true";
-    else if (type === "GameLaunchComplete") delete root.dataset.vpinfeLaunching;
+    if (type === "TableLaunching") root.dataset.vpinfeLaunching = "true";
+    else if (type === "TableLaunchComplete") delete root.dataset.vpinfeLaunching;
   }
 
   /**
@@ -1465,7 +1457,7 @@ class VPinFECore {
 
     // Video first, then the still - the same order a theme would ask in, and the reason
     // the kinds are named in pairs.
-    const index = this._currentGameIndex;
+    const index = this._currentTableIndex;
     const wanted = [`${kind}_video`, kind].find((name) => {
       if (!MEDIA_KINDS.includes(name)) return false;
       const media = this.getMedia(index, name);
@@ -1478,7 +1470,7 @@ class VPinFECore {
     const isVideo = wanted.endsWith("_video");
     const node = document.createElement(isVideo ? "video" : "img");
     node.src = this.getMediaURL(index, wanted);
-    node.alt = this.gameData[index]?.game?.name || "";
+    node.alt = this.tableData[index]?.game?.name || "";
     if (isVideo) {
       Object.assign(node, { autoplay: true, loop: true, muted: true, playsInline: true });
     }
@@ -1494,9 +1486,9 @@ class VPinFECore {
 
   #preloadNeighbors() {
     this._preloadTimer = null;
-    const at = this._currentGameIndex;
+    const at = this._currentTableIndex;
     for (const index of [at - 1, at, at + 1]) {
-      if (index < 0 || index >= this.gameData.length) continue;
+      if (index < 0 || index >= this.tableData.length) continue;
       for (const kind of this._preloadKinds) this.#preload(this.getImageURL(index, kind));
     }
   }
@@ -1513,18 +1505,18 @@ class VPinFECore {
 
   async #notifySelectedGame() {
     if (!this.isController()) return;
-    if (!Array.isArray(this.gameData) || this.gameData.length === 0) return;
+    if (!Array.isArray(this.tableData) || this.tableData.length === 0) return;
 
-    const index = Math.floor(this._currentGameIndex);
-    if (!Number.isFinite(index) || index < 0 || index >= this.gameData.length) return;
+    const index = Math.floor(this._currentTableIndex);
+    if (!Number.isFinite(index) || index < 0 || index >= this.tableData.length) return;
     if (this._lastSelectedIndex === index) return;
 
     this._lastSelectedIndex = index;
     try {
-      await this.call("notify_game_selected", index);
+      await this.call("notify_table_selected", index);
     } catch (e) {
       this._lastSelectedIndex = null;
-      this.call("console_out", `notify_game_selected failed: ${e.message}`);
+      this.call("console_out", `notify_table_selected failed: ${e.message}`);
     }
   }
 
@@ -1541,8 +1533,8 @@ class VPinFECore {
     const numeric = Number(index);
     if (!Number.isFinite(numeric)) return null;
     const normalized = Math.floor(numeric);
-    if (!Array.isArray(this.gameData) || normalized < 0 || normalized >= this.gameData.length) return null;
-    return this.gameData[normalized];
+    if (!Array.isArray(this.tableData) || normalized < 0 || normalized >= this.tableData.length) return null;
+    return this.tableData[normalized];
   }
 
   #vpsIdOf(item) {
@@ -1560,13 +1552,13 @@ class VPinFECore {
    *
    * A game can leave the list - an edit filters it out, a collection drops it - and
    * there is no good answer for where the player then is. Staying put is the least
-   * surprising of the bad answers, and the clamp in getGameData keeps it in range.
+   * surprising of the bad answers, and the clamp in getTableData keeps it in range.
    */
   #indexOfIdentity(held) {
-    if (!held || !Array.isArray(this.gameData)) return this._currentGameIndex;
-    const found = this.gameData.findIndex(item =>
+    if (!held || !Array.isArray(this.tableData)) return this._currentTableIndex;
+    const found = this.tableData.findIndex(item =>
       item && typeof item === "object" && this._reader.identity(item) === held);
-    return found >= 0 ? found : this._currentGameIndex;
+    return found >= 0 ? found : this._currentTableIndex;
   }
 
   #getVPinPlayUrl(vpsId) {
@@ -1604,8 +1596,8 @@ class VPinFECore {
   }
 
   #applyCachedRatingToList(vpsId, payload) {
-    if (!Array.isArray(this.gameData)) return;
-    this.gameData.forEach((item) => {
+    if (!Array.isArray(this.tableData)) return;
+    this.tableData.forEach((item) => {
       if (this.#vpsIdOf(item) === vpsId) {
         this.#setGameVPinPlayRating(item, payload);
       }
@@ -1613,8 +1605,8 @@ class VPinFECore {
   }
 
   #attachCachedVPinPlayRatings() {
-    if (!Array.isArray(this.gameData)) return;
-    this.gameData.forEach((item) => {
+    if (!Array.isArray(this.tableData)) return;
+    this.tableData.forEach((item) => {
       const vpsId = this.#vpsIdOf(item);
       if (!vpsId) {
         this.#setGameVPinPlayRating(item, null);
@@ -1883,7 +1875,7 @@ class VPinFECore {
     this.playfieldMediaRotation = await this.call("get_playfield_media_rotation");
     this.#publishLayout();
     await this.#loadMonitors();
-    await this.getGameData();
+    await this.getTableData();
 
     // Draw once now the games are here. Waiting for a selection message would leave a
     // display window blank on a fresh start: the controller only broadcasts a restore
@@ -1944,10 +1936,10 @@ class VPinFECore {
   #handleFrontendInputLifecycleEvent(message) {
     if (!message || typeof message !== "object") return;
 
-    if (message.type === "GameLaunching" || message.type === "RemoteLaunching") {
+    if (message.type === "TableLaunching" || message.type === "RemoteLaunching") {
       this._launchInputSuppressedByLifecycle = true;
       this.#setFrontendInputEnabled(false);
-    } else if (message.type === "GameLaunchComplete" || message.type === "RemoteLaunchComplete") {
+    } else if (message.type === "TableLaunchComplete" || message.type === "RemoteLaunchComplete") {
       this._launchInputSuppressedByLifecycle = false;
       this.#setFrontendInputEnabled(true);
     }
@@ -1970,11 +1962,11 @@ class VPinFECore {
     this._pagingInFlight = true;
     try {
       const direction = action === "page_previous" ? "prev" : "next";
-      const index = await this.call("get_page_index", this._currentGameIndex, direction);
-      if (typeof index === "number" && index >= 0 && index !== this._currentGameIndex) {
+      const index = await this.call("get_page_index", this._currentTableIndex, direction);
+      if (typeof index === "number" && index >= 0 && index !== this._currentTableIndex) {
         // Same path restorelasttable uses: themes move their wheel on the
-        // incoming GameIndexUpdate, so no theme changes are needed.
-        this.sendMessageToAllWindowsIncSelf({ type: "GameIndexUpdate", index });
+        // incoming TableIndexUpdate, so no theme changes are needed.
+        this.sendMessageToAllWindowsIncSelf({ type: "TableIndexUpdate", index });
       }
     } catch (e) {
       this.call("console_out", `Core paging failed: ${e.message}`);
@@ -2096,20 +2088,20 @@ class VPinFECore {
   // Move the selection, wrap it, and tell everyone where it went. Every theme wrote
   // this, and two of the installed three broadcast an undefined index doing it.
   moveBy(delta) {
-    const count = this.gameData.length;
-    if (!count) return this._currentGameIndex;
-    const previous = this._currentGameIndex;
+    const count = this.tableData.length;
+    if (!count) return this._currentTableIndex;
+    const previous = this._currentTableIndex;
     const next = ((previous + delta) % count + count) % count;   // wraps both ways
     return this.moveTo(next, { previous, direction: delta < 0 ? "previous" : "next" });
   }
 
-  moveTo(index, { previous = this._currentGameIndex, direction = "" } = {}) {
-    const count = this.gameData.length;
-    if (!count) return this._currentGameIndex;
+  moveTo(index, { previous = this._currentTableIndex, direction = "" } = {}) {
+    const count = this.tableData.length;
+    if (!count) return this._currentTableIndex;
     const at = Math.max(0, Math.min(count - 1, Number(index) || 0));
-    this._currentGameIndex = at;
+    this._currentTableIndex = at;
     this.sendMessageToAllWindowsIncSelf({
-      type: "GameIndexUpdate", index: at, previous, direction,
+      type: "TableIndexUpdate", index: at, previous, direction,
       // True while the wheel is still settling - what a theme needs to decide whether
       // to load full art or wait. INPUT-PERFORMANCE's fast-scroll signal is this flag.
       moving: this.#stillMoving(),
@@ -2456,12 +2448,12 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
 
   // convert the hard full local path to the web servers url map
   getCurrentTutorialUrl() {
-    const index = Math.floor(this._currentGameIndex);
-    if (!Array.isArray(this.gameData) || index < 0 || index >= this.gameData.length) {
+    const index = Math.floor(this._currentTableIndex);
+    if (!Array.isArray(this.tableData) || index < 0 || index >= this.tableData.length) {
       return "";
     }
 
-    const item = this.gameData[index];
+    const item = this.tableData[index];
     const meta = (item && typeof item === "object") ? item.meta : null;
     const info = (meta && typeof meta === "object" && meta.Info && typeof meta.Info === "object")
       ? meta.Info
@@ -2497,7 +2489,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
       reportedOffline = false;
       const state = JSON.parse(message.data).state || {};
 
-      // Our own launches arrive as GameLaunching over the bridge. Acting on them
+      // Our own launches arrive as TableLaunching over the bridge. Acting on them
       // here as well would raise the remote overlay on a launch from the wheel.
       if (state.source === "frontend") return;
 

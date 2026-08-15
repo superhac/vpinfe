@@ -63,12 +63,12 @@ API_PUBLISHED_METHODS = {
     'lifecycle_request',
     'lifecycle_needs_confirmation',
     'get_monitors',
-    'get_games',
-    'get_initial_game_index',
+    'get_tables',
+    'get_initial_table_index',
     'get_collections',
     'get_collections_metadata',
     'get_collection_image_url',
-    'set_games_by_collection',
+    'set_tables_by_collection',
     'save_filter_collection',
     'get_current_collection',
     'get_filter_letters',
@@ -84,8 +84,8 @@ API_PUBLISHED_METHODS = {
     'get_keymapping',
     'get_mainmenu_config',
     'set_button_mapping',
-    'launch_game',
-    'notify_game_selected',
+    'launch_table',
+    'notify_table_selected',
     'get_game_rating',
     'set_game_rating',
     'build_metadata',
@@ -137,12 +137,10 @@ API_INTERNAL_METHODS = {
 # Themes written before the vocabulary rename call these names. The allowlist carries
 # both spellings and __getattr__ forwards the old one, so an existing theme keeps working
 # without a contract bump - the payload it gets back is identical either way.
+#
+# The selection surface is not in here: a row is a table, so `get_tables`, `launch_table`
+# and their siblings are the current names rather than forwarded ones.
 _RENAMED_METHODS = {
-    'get_tables': 'get_games',
-    'get_initial_table_index': 'get_initial_game_index',
-    'set_tables_by_collection': 'set_games_by_collection',
-    'launch_table': 'launch_game',
-    'notify_table_selected': 'notify_game_selected',
     'get_table_rating': 'get_game_rating',
     'set_table_rating': 'set_game_rating',
     'get_table_orientation': 'get_playfield_orientation',
@@ -202,7 +200,7 @@ class API:
         startup_collection = cfg_get(self._iniConfig, 'general', 'startup_collection').strip()
         if startup_collection:
             try:
-                self.set_games_by_collection(startup_collection)
+                self.set_tables_by_collection(startup_collection)
             except Exception:
                 logger.exception("Could not load startup collection '%s'", startup_collection)
 
@@ -406,12 +404,12 @@ class API:
         if self.ws_bridge:
             self.ws_bridge.send_event_all_with_iframe(message)
 
-    def get_games(self, reset=False):
+    def get_tables(self, reset=False):
         if reset:
             self._reset_to_default_view()
         else:
             # Re-derived once per change, not once per window: all three ask after the
-            # same GameDataChange broadcast, and the second and third were rebuilding a
+            # same TableDataChange broadcast, and the second and third were rebuilding a
             # view the first had just rebuilt.
             self.library.refresh_if_stale(lambda: game_state.refresh_view(self))
         # Built once for the view, not once per window: three windows onto the same
@@ -420,7 +418,7 @@ class API:
             self._theme_contract(), collection=public_name(self.current_collection))
         return self.jsGameDictData
 
-    def get_initial_game_index(self):
+    def get_initial_table_index(self):
         # Position the wheel on the last-launched game at startup. Resolved
         # against the current (possibly filtered) view; 0 when disabled or unfound.
         return last_game.resolve_last_game_index(self._iniConfig, self.entries)
@@ -435,7 +433,7 @@ class API:
     def get_collection_image_url(self, collection):
         return get_collection_image_url(collection)
 
-    def set_games_by_collection(self, collection):
+    def set_tables_by_collection(self, collection):
         """Set filtered games based on collection from collections.ini."""
         game_state.apply_collection(self, collection)
 
@@ -576,7 +574,7 @@ class API:
         """Set a gamepad button mapping and save to config."""
         return input_api.set_button_mapping(self._iniConfig, button_name, button_index)
 
-    def launch_game(self, index):
+    def launch_table(self, index):
         """Launch what the wheel is sitting on.
 
         The windows hear about it through the bus like everyone else, so nothing
@@ -592,14 +590,14 @@ class API:
             # The entry names the table, so the table the collection chose launches
             # rather than whatever the game defaults to.
             launch.launch_game(game, self._iniConfig,
-                                source=launch_state.SOURCE_FRONTEND,
-                                table=entry.filename)
+                               source=launch_state.SOURCE_FRONTEND,
+                               table=entry.filename)
         except launch.LaunchUnavailableError as exc:
             logger.warning("Cannot launch %s: %s", game.gameDirName, exc)
             return {"success": False, "reason": str(exc)}
         return {"success": True}
 
-    def notify_game_selected(self, index):
+    def notify_table_selected(self, index):
         """Announce that the player moved to this game.
 
         Whatever reacts - a DOF effect, the real DMD, something not written yet -
@@ -612,7 +610,7 @@ class API:
             return {"success": False, "reason": "invalid_index"}
         game = entry.game
 
-        events.emit(events.GAME_SELECTED, game=game, ini_config=self._iniConfig)
+        events.emit(events.TABLE_SELECTED, game=game, ini_config=self._iniConfig)
         return {"success": True}
 
     def get_game_rating(self, index):

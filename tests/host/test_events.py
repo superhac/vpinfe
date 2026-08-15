@@ -111,27 +111,27 @@ class PeripheralLaunchTests(unittest.TestCase):
     def test_register_attaches_to_both_lifecycle_events(self) -> None:
         peripherals.register()
 
-        self.assertEqual(events.registered(events.GAME_LAUNCHING)[0], 1)
-        self.assertEqual(events.registered(events.GAME_EXITED)[0], 1)
+        self.assertEqual(events.registered(events.TABLE_LAUNCHING)[0], 1)
+        self.assertEqual(events.registered(events.TABLE_EXITED)[0], 1)
 
     def test_register_is_idempotent(self) -> None:
         peripherals.register()
         peripherals.register()
 
-        self.assertEqual(events.registered(events.GAME_LAUNCHING)[0], 1)
+        self.assertEqual(events.registered(events.TABLE_LAUNCHING)[0], 1)
 
     def test_hardware_is_released_before_anything_else_hooked_to_a_launch(self) -> None:
         """VPX drives the same devices, so release has to come first - and it has to
         come first even when the other hook was registered earlier."""
         order = []
-        events.hook(events.GAME_LAUNCHING, lambda **_: order.append("other"), priority=50)
+        events.hook(events.TABLE_LAUNCHING, lambda **_: order.append("other"), priority=50)
 
         with mock.patch.object(peripherals, "stop_dof_service",
                                side_effect=lambda: order.append("dof released")), \
                 mock.patch.object(peripherals, "stop_libdmdutil_service",
                                   side_effect=lambda clear=False: order.append("dmd released")):
             peripherals.register()
-            events.emit(events.GAME_LAUNCHING, game=None, ini_config=None)
+            events.emit(events.TABLE_LAUNCHING, game=None, ini_config=None)
 
         self.assertEqual(order, ["dof released", "dmd released", "other"])
 
@@ -142,14 +142,14 @@ class PeripheralLaunchTests(unittest.TestCase):
             peripherals.register()
 
             with self.assertRaises(RuntimeError):
-                events.emit(events.GAME_LAUNCHING, game=None, ini_config=None)
+                events.emit(events.TABLE_LAUNCHING, game=None, ini_config=None)
 
     def test_the_hardware_is_taken_back_when_the_game_exits(self) -> None:
         taken_back = []
         with mock.patch.object(peripherals, "start_dof_service_if_enabled",
                                side_effect=lambda cfg: taken_back.append(cfg)):
             peripherals.register()
-            events.emit(events.GAME_EXITED, game=None, ini_config="the-config")
+            events.emit(events.TABLE_EXITED, game=None, ini_config="the-config")
 
         self.assertEqual(taken_back, ["the-config"])
 
@@ -172,7 +172,7 @@ class GameSelectionTests(unittest.TestCase):
         """A hook could abandon a selection. Nothing may stop the wheel moving."""
         peripherals.register()
 
-        hooks, subscribers = events.registered(events.GAME_SELECTED)
+        hooks, subscribers = events.registered(events.TABLE_SELECTED)
 
         self.assertEqual(hooks, 0)
         self.assertEqual(subscribers, 2)
@@ -185,7 +185,7 @@ class GameSelectionTests(unittest.TestCase):
             updater.return_value.queue_image_update.side_effect = (
                 lambda name, path: shown.append(name))
             peripherals.register()
-            events.emit(events.GAME_SELECTED, game=self._game(), ini_config="cfg")
+            events.emit(events.TABLE_SELECTED, game=self._game(), ini_config="cfg")
 
         self.assertEqual(sent, ["E901"], "the table's own effect, not the default")
         self.assertEqual(shown, ["Medieval Madness"])
@@ -198,7 +198,7 @@ class GameSelectionTests(unittest.TestCase):
             updater.return_value.queue_image_update.side_effect = (
                 lambda name, path: shown.append(name))
             peripherals.register()
-            events.emit(events.GAME_SELECTED, game=self._game(), ini_config="cfg")
+            events.emit(events.TABLE_SELECTED, game=self._game(), ini_config="cfg")
 
         self.assertEqual(shown, ["Medieval Madness"])
 
@@ -209,7 +209,7 @@ class GameSelectionTests(unittest.TestCase):
                 mock.patch.object(peripherals, "_updater",
                                   side_effect=RuntimeError("no panel attached")):
             peripherals.register()
-            events.emit(events.GAME_SELECTED, game=self._game(), ini_config="cfg")
+            events.emit(events.TABLE_SELECTED, game=self._game(), ini_config="cfg")
 
         self.assertEqual(sent, ["E901"])
 

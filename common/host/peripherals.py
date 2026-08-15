@@ -74,13 +74,13 @@ def register() -> None:
     global _registered
     if _registered:
         return
-    events.hook(events.GAME_LAUNCHING, release_for_launch, priority=PRIORITY)
-    events.hook(events.GAME_EXITED, reacquire_after_exit, priority=PRIORITY)
+    events.hook(events.TABLE_LAUNCHING, release_for_launch, priority=PRIORITY)
+    events.hook(events.TABLE_EXITED, reacquire_after_exit, priority=PRIORITY)
     # Two devices, two subscribers, one trigger. Neither knows the other exists,
     # so a DOF failure still leaves the art on the panel and vice versa - and a
     # third device is a third subscriber rather than an edit here.
-    events.subscribe(events.GAME_SELECTED, play_dof_effect)
-    events.subscribe(events.GAME_SELECTED, show_realdmd_art)
+    events.subscribe(events.TABLE_SELECTED, play_dof_effect)
+    events.subscribe(events.TABLE_SELECTED, show_realdmd_art)
     _registered = True
     logger.debug("Peripherals attached to table lifecycle events")
 

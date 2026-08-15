@@ -16,27 +16,21 @@ const { context } = loadCore();
 const ALIASES = context.MESSAGE_TYPE_ALIASES;
 const canonical = context.canonicalMessageType;
 
-describe("both spellings of every window message are carried", () => {
-  test("every current name maps to its 2.x spelling", () => {
-    assert.ok(Object.keys(ALIASES).length >= 5, "PAR-24 lists five message types");
+// The five message types, in the one spelling that exists. They named a row all along,
+// and a row is a table, so the 3.0 Game* spellings were withdrawn along with the alias
+// that carried them - see PAR-24.
+const MESSAGES = ["TableIndexUpdate", "TableDataChange", "TableLaunching",
+                  "TableRunning", "TableLaunchComplete"];
 
-    for (const [current, legacy] of Object.entries(ALIASES)) {
-      assert.notEqual(current, legacy);
-      assert.match(legacy, /^Table/,
-        `${legacy} should be the pre-3.0 spelling of ${current}`);
-    }
+describe("every window message has exactly one spelling", () => {
+  test("nothing is aliased, so nothing can arrive under a second name", () => {
+    assert.deepEqual(Object.keys(ALIASES), [],
+      "an entry here means a message is broadcast twice; the map is empty on purpose");
   });
 
-  test("an inbound legacy name normalizes to the current one", () => {
-    for (const [current, legacy] of Object.entries(ALIASES)) {
-      assert.equal(canonical(legacy), current,
-        `a theme posting ${legacy} must still be understood`);
-    }
-  });
-
-  test("a current name normalizes to itself", () => {
-    for (const current of Object.keys(ALIASES)) {
-      assert.equal(canonical(current), current);
+  test("a message type normalizes to itself", () => {
+    for (const name of MESSAGES) {
+      assert.equal(canonical(name), name);
     }
   });
 
@@ -46,22 +40,27 @@ describe("both spellings of every window message are carried", () => {
 });
 
 describe("the Python side broadcasts what the docs promise", () => {
-  // The half that was missing. Asserted against the source because the broadcast crosses
-  // a socket this harness does not stand up.
-  const LAUNCH_TRIO = /^(Game|Table)(Launching|Running|LaunchComplete)$/;
+  // The half that was missing once. Asserted against the source because the broadcast
+  // crosses a socket this harness does not stand up. With no alias to fall back on, a
+  // spelling that drifts here reaches a theme as silence rather than as a second copy.
+  const LAUNCH_TRIO = ["TableLaunching", "TableRunning", "TableLaunchComplete"];
 
-  test("play_events emits a spelling the JS side recognizes", () => {
+  test("play_events emits the spelling the JS side recognizes", () => {
     const events = readFileSync(
       path.join(REPO_ROOT, "frontend", "play_events.py"), "utf8");
 
-    const launchPairs = Object.entries(ALIASES)
-      .filter(([current]) => LAUNCH_TRIO.test(current));
-    assert.ok(launchPairs.length === 3, "the launch trio should be three messages");
+    for (const name of LAUNCH_TRIO) {
+      assert.ok(events.includes(name),
+        `play_events.py does not emit ${name}, so a theme listening for it gets no `
+        + "launch events");
+    }
+  });
 
-    for (const [current, legacy] of launchPairs) {
-      assert.ok(events.includes(current) || events.includes(legacy),
-        `play_events.py emits neither ${current} nor ${legacy}, so a theme listening `
-        + "for either gets no launch events");
+  test("the theme doc names what the code emits", () => {
+    const doc = readFileSync(path.join(REPO_ROOT, "docs", "theme.md"), "utf8");
+
+    for (const name of MESSAGES) {
+      assert.ok(doc.includes(name), `${name} is emitted but not documented`);
     }
   });
 });
@@ -80,9 +79,9 @@ describe("a data change the backend raised carries the wheel position", () => {
   const refreshWith = async (spelling, before, after, { index, at = 0 } = {}) => {
     const { vpin } = newCore({ windowName: "table" });
     let payload = before;
-    vpin.call = (method) => Promise.resolve(method === "get_games" ? payload : null);
-    await vpin.getGameData();
-    await vpin.handleEvent({ type: "GameIndexUpdate", index: at });
+    vpin.call = (method) => Promise.resolve(method === "get_tables" ? payload : null);
+    await vpin.getTableData();
+    await vpin.handleEvent({ type: "TableIndexUpdate", index: at });
 
     payload = after;
     const message = index === undefined ? { type: spelling } : { type: spelling, index };
@@ -90,27 +89,26 @@ describe("a data change the backend raised carries the wheel position", () => {
     return { message, vpin };
   };
 
-  for (const spelling of ["GameDataChange", "TableDataChange"]) {
-    test(`${spelling} follows its game when the refresh reorders`, async () => {
-      const { message, vpin } = await refreshWith(
-        spelling, rows("Alpha", "Beta", "Gamma"), rows("Gamma", "Alpha", "Beta"), { at: 1 });
+  test("TableDataChange follows its game when the refresh reorders", async () => {
+    const { message, vpin } = await refreshWith(
+      "TableDataChange", rows("Alpha", "Beta", "Gamma"), rows("Gamma", "Alpha", "Beta"),
+      { at: 1 });
 
-      assert.equal(message.index, 2, "Beta moved to the end, and the wheel went with it");
-      assert.equal(vpin.getCurrentGameIndex(), 2);
-    });
+    assert.equal(message.index, 2, "Beta moved to the end, and the wheel went with it");
+    assert.equal(vpin.getCurrentTableIndex(), 2);
+  });
 
-    test(`${spelling} with an index keeps the one it was sent`, async () => {
-      // A collection or filter change originates in the browser and knows its own index.
-      const { message } = await refreshWith(
-        spelling, rows("Alpha", "Beta"), rows("Alpha", "Beta"), { index: 1, at: 0 });
+  test("TableDataChange with an index keeps the one it was sent", async () => {
+    // A collection or filter change originates in the browser and knows its own index.
+    const { message } = await refreshWith(
+      "TableDataChange", rows("Alpha", "Beta"), rows("Alpha", "Beta"), { index: 1, at: 0 });
 
-      assert.equal(message.index, 1);
-    });
-  }
+    assert.equal(message.index, 1);
+  });
 
   test("a game that left the list leaves the wheel where it was", async () => {
     const { message } = await refreshWith(
-      "GameDataChange", rows("Alpha", "Beta", "Gamma"), rows("Alpha", "Gamma"), { at: 1 });
+      "TableDataChange", rows("Alpha", "Beta", "Gamma"), rows("Alpha", "Gamma"), { at: 1 });
 
     assert.equal(message.index, 1);
   });
@@ -118,7 +116,7 @@ describe("a data change the backend raised carries the wheel position", () => {
   test("an unrelated message is left alone", async () => {
     const { vpin } = newCore({ windowName: "table" });
     vpin.call = () => Promise.resolve("[]");
-    const message = { type: "GameLaunchComplete" };
+    const message = { type: "TableLaunchComplete" };
 
     await vpin.handleEvent(message);
 

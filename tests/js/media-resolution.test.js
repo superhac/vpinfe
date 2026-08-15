@@ -21,7 +21,7 @@ const BARE = byFolder("Bare Table (Gottlieb 1980)");
 
 function coreWithLibrary() {
   const { vpin } = newCore({ windowName: "table" });
-  vpin.gameData = ROWS;
+  vpin.tableData = ROWS;
   vpin.themeAssetsPort = 8000;
   return vpin;
 }

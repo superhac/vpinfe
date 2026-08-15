@@ -79,7 +79,7 @@ class SharedViewTests(unittest.TestCase):
         builds, counting = self._counted_builds()
 
         with counting:
-            payloads = [window.get_games() for window in self.windows.values()]
+            payloads = [window.get_tables() for window in self.windows.values()]
 
         self.assertEqual(len(builds), 1)
         self.assertEqual(len(set(payloads)), 1, "and they all got the same one")
@@ -87,38 +87,38 @@ class SharedViewTests(unittest.TestCase):
     def test_a_change_from_one_window_is_what_the_others_see(self) -> None:
         """The controller sorts; the display windows are showing that sort, not a copy
         of it that happens to match."""
-        before = self.windows["playfield"].get_games()
+        before = self.windows["playfield"].get_tables()
 
         self.windows["playfield"].apply_sort("Newest", "Descending")
-        after = self.windows["playfield"].get_games()
+        after = self.windows["playfield"].get_tables()
 
         self.assertNotEqual(after, before)
-        self.assertEqual(self.windows["backglass"].get_games(), after)
-        self.assertEqual(self.windows["scoreview"].get_games(), after)
+        self.assertEqual(self.windows["backglass"].get_tables(), after)
+        self.assertEqual(self.windows["scoreview"].get_tables(), after)
 
     def test_the_others_pay_nothing_to_see_it(self) -> None:
         self.windows["playfield"].apply_sort("Newest", "Descending")
-        self.windows["playfield"].get_games()
+        self.windows["playfield"].get_tables()
 
         builds, counting = self._counted_builds()
         with counting:
-            self.windows["backglass"].get_games()
-            self.windows["scoreview"].get_games()
+            self.windows["backglass"].get_tables()
+            self.windows["scoreview"].get_tables()
 
         self.assertEqual(builds, [])
 
     def test_a_stale_library_is_re_derived_once_not_once_per_window(self) -> None:
-        """All three ask after the same GameDataChange, and the second and third were
+        """All three ask after the same TableDataChange, and the second and third were
         rebuilding what the first had just rebuilt."""
         for window in self.windows.values():
-            window.get_games()
+            window.get_tables()
 
         self.library.mark_stale()
         refreshes = []
         with patch.object(game_state, "refresh_view",
                           side_effect=lambda api: refreshes.append(1)):
             for window in self.windows.values():
-                window.get_games()
+                window.get_tables()
 
         self.assertEqual(len(refreshes), 1)
 

@@ -146,7 +146,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         stream = self._open()
         await self._hello(stream)
 
-        events.emit(events.GAME_SELECTED, game=game, ini_config="secret-ini-config")
+        events.emit(events.TABLE_SELECTED, game=game, ini_config="secret-ini-config")
         frame = await self._next(stream)
 
         self.assertEqual(_shape(frame), {
@@ -164,7 +164,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         stream = self._open()
         await self._hello(stream)
 
-        events.emit(events.GAME_SELECTED,
+        events.emit(events.TABLE_SELECTED,
                     game=SimpleNamespace(gameDirName="Unidentified", meta_config={}),
                     ini_config=None)
         frame = await self._next(stream)
@@ -177,7 +177,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         stream = self._open()
         await self._hello(stream)
 
-        events.emit(events.GAME_LAUNCHING, game=None, ini_config="cfg")
+        events.emit(events.TABLE_LAUNCHING, game=None, ini_config="cfg")
         frame = await self._next(stream)
 
         self.assertEqual(_shape(frame), {"game": None})
@@ -201,7 +201,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         stream = self._open()
         await self._hello(stream)
 
-        events.emit(events.GAME_LAUNCHING, game=None, ini_config="cfg")
+        events.emit(events.TABLE_LAUNCHING, game=None, ini_config="cfg")
         events.emit(events.JOB_PROGRESS, job_id="j", pct=1, message="m")
 
         for _ in range(2):
@@ -264,7 +264,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         stream = self._open(PLAY_STATE)
         await self._hello(stream)
 
-        events.emit(events.GAME_SELECTED, game=None, ini_config=None)
+        events.emit(events.TABLE_SELECTED, game=None, ini_config=None)
         events.emit(events.PLAY_STATE_CHANGED, state={"launching": True, "table_name": "Taxi"})
         frame = await self._next(stream)
 

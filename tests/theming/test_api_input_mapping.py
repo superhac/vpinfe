@@ -136,13 +136,10 @@ class TestApiInputMapping(unittest.TestCase):
                 patch("frontend.play_events.save_last_launched"),
             ):
                 play_events.register(ws_bridge)
-                api.launch_game(0)
+                api.launch_table(0)
 
             self.assertEqual(call_order[:2], ["delete_log", "popen"])
-            # Current spelling first, the 2.x copy behind it. PAR-24.
-            self.assertEqual(window_messages[0]["type"], "GameLaunching")
-            self.assertEqual(window_messages[1]["type"], "TableLaunching")
+            self.assertEqual(window_messages[0]["type"], "TableLaunching")
             # The refresh that carries the finished session's play data comes after.
-            self.assertEqual([message["type"] for message in window_messages[-4:]],
-                             ["GameLaunchComplete", "TableLaunchComplete",
-                              "GameDataChange", "TableDataChange"])
+            self.assertEqual([message["type"] for message in window_messages[-2:]],
+                             ["TableLaunchComplete", "TableDataChange"])

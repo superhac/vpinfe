@@ -84,32 +84,8 @@ SHIMS: tuple[Shim, ...] = (
         implemented_in="frontend/static/common/vpinfe-core.js:VPINFE_RENAMED_MEMBERS",
         par="PAR-23",
         names=(
-            ("tableData", "gameData"),
             ("tableRotation", "playfieldRotation"),
             ("tableOrientation", "playfieldOrientation"),
-            ("getTableMeta", "getGameMeta"),
-            ("getTableData", "getGameData"),
-            ("getTableCount", "getGameCount"),
-            ("getCurrentTableIndex", "getCurrentGameIndex"),
-            ("playTableAudio", "playGameAudio"),
-            ("stopTableAudio", "stopGameAudio"),
-            ("launchTable", "launchGame"),
-        ),
-    ),
-    Shim(
-        key="window-messages",
-        surface="theme JavaScript",
-        summary="Every renamed window message is broadcast under both spellings, and an "
-                "inbound legacy name is normalized before anything matches on it.",
-        implemented_in="frontend/play_events.py:_LEGACY_MESSAGE_TYPES "
-                       "+ frontend/static/common/vpinfe-core.js:MESSAGE_TYPE_ALIASES",
-        par="PAR-24",
-        names=(
-            ("TableIndexUpdate", "GameIndexUpdate"),
-            ("TableDataChange", "GameDataChange"),
-            ("TableLaunching", "GameLaunching"),
-            ("TableRunning", "GameRunning"),
-            ("TableLaunchComplete", "GameLaunchComplete"),
         ),
     ),
     Shim(
@@ -120,11 +96,6 @@ SHIMS: tuple[Shim, ...] = (
         implemented_in="frontend/api.py:_RENAMED_METHODS",
         par="PAR-21",
         names=(
-            ("get_tables", "get_games"),
-            ("get_initial_table_index", "get_initial_game_index"),
-            ("set_tables_by_collection", "set_games_by_collection"),
-            ("launch_table", "launch_game"),
-            ("notify_table_selected", "notify_game_selected"),
             ("get_table_rating", "get_game_rating"),
             ("set_table_rating", "set_game_rating"),
             ("get_table_orientation", "get_playfield_orientation"),

@@ -11,9 +11,9 @@ import assert from "node:assert/strict";
 import { newCore } from "./support/load-core.js";
 
 const BRIDGE = {
-  get_games: "[]",
+  get_tables: "[]",
   get_theme_assets_port: 8000,
-  get_initial_game_index: 0,
+  get_initial_table_index: 0,
   get_theme_config: {},
   get_keymapping: {},
   get_joymaping: {},
