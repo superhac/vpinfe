@@ -57,7 +57,7 @@ const CAPABILITIES = {
     // which left carousel-desktop's own page-jump cases losing to core with no way to
     // opt out short of calling enableCorePaging(false) in JavaScript.
     config: ["paging.enabled"],
-    describe: "Core handles page-up and page-down itself.",
+    describe: "Core handles the paging actions itself.",
   },
   core_navigation: {
     // On by default: all four themes read reimplement the same wrap-and-broadcast, two
@@ -204,8 +204,8 @@ const VIDEO_KIND = { playfield: "playfield_video", backglass: "backglass_video",
 const LEGACY_ACTION_NAMES = {
   previous: "joyleft",
   next: "joyright",
-  page_up: "joypageup",
-  page_down: "joypagedown",
+  page_previous: "joypageup",
+  page_next: "joypagedown",
   select: "joyselect",
   back: "joyback",
   menu: "joymenu",
@@ -465,8 +465,8 @@ class VPinFECore {
     this.keyActionMap = {
       previous: ['arrowleft', 'shiftleft'],
       next: ['arrowright', 'shiftright'],
-      page_up: ['pageup', 'arrowup'],
-      page_down: ['pagedown', 'arrowdown'],
+      page_previous: ['pageup', 'arrowup'],
+      page_next: ['pagedown', 'arrowdown'],
       select: ['enter'],
       back: ['b'],
       menu: ['m'],
@@ -1956,7 +1956,7 @@ class VPinFECore {
   // True when core should consume a paging action itself: paging enabled, table
   // window, and no overlay up (overlays keep receiving the raw action).
   #shouldHandleCorePaging(action) {
-    if (action !== "page_up" && action !== "page_down") return false;
+    if (action !== "page_previous" && action !== "page_next") return false;
     if (!this.enabled("core_paging")) return false;
     if (!this.isController()) return false;
     if (this.menuUP || this.collectionMenuUP || this.tutorialUP) return false;
@@ -1969,8 +1969,7 @@ class VPinFECore {
     if (this._pagingInFlight) return;
     this._pagingInFlight = true;
     try {
-      // pageup advances (next letter / forward), pagedown goes back.
-      const direction = action === "page_up" ? "next" : "prev";
+      const direction = action === "page_previous" ? "prev" : "next";
       const index = await this.call("get_page_index", this._currentGameIndex, direction);
       if (typeof index === "number" && index >= 0 && index !== this._currentGameIndex) {
         // Same path restorelasttable uses: themes move their wheel on the

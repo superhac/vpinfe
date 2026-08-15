@@ -194,8 +194,8 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | --- | --- | --- | --- |
 | `previous` | list | `key:ArrowLeft,key:ShiftLeft` | Previous |
 | `next` | list | `key:ArrowRight,key:ShiftRight` | Next |
-| `page_up` | list | `key:PageUp,key:ArrowUp` | Page up |
-| `page_down` | list | `key:PageDown,key:ArrowDown` | Page down |
+| `page_previous` | list | `key:PageUp,key:ArrowUp` | Page previous |
+| `page_next` | list | `key:PageDown,key:ArrowDown` | Page next |
 | `select` | list | `key:Enter` | Select |
 | `back` | list | `key:b` | Back |
 | `menu` | list | `key:m` | Menu |

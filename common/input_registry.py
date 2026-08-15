@@ -61,17 +61,19 @@ INPUT_ACTIONS: tuple[InputAction, ...] = (
         legacy=("joyright", "keyright"),
     ),
     # up/down and pageup/pagedown were the same intent under two names: carousel-desktop
-    # used up/down for a page-sized jump, which is what paging is.
+    # used up/down for a page-sized jump, which is what paging is. Named for where the
+    # selection goes, not the key: "page up" has no answer on a horizontal wheel, and
+    # core answered it two ways.
     InputAction(
-        "page_up",
+        "page_previous",
         bindings=("key:PageUp", "key:ArrowUp"),
-        label="Page up",
+        label="Page previous",
         legacy=("joypageup", "keypageup", "joyup", "keyup"),
     ),
     InputAction(
-        "page_down",
+        "page_next",
         bindings=("key:PageDown", "key:ArrowDown"),
-        label="Page down",
+        label="Page next",
         legacy=("joypagedown", "keypagedown", "joydown", "keydown"),
     ),
     InputAction(

@@ -93,6 +93,12 @@ These are deliberate. `docs/compatibility-3.0.md` has the full list with the rea
 - **Core** — Imported media keeps its real extension. A `.jpg` wheel is written as
   `wheel.jpg` instead of JPEG bytes inside a file called `wheel.png`.
 - **Core** — The log is much quieter at INFO. Routine chatter moved to DEBUG.
+- **Frontend** — Page-up moves the wheel backward now, and page-down forward. The keys are
+  unchanged; what they mean is. Page-up was the odd one out — the same key already moved
+  *up* a menu — and the two paging actions are named `page_previous` and `page_next` for it.
+  Swap the two values under `[input]` if you prefer the old feel. If you ran a 3.0
+  development build and customized a paging binding, set it again — `page_up` and
+  `page_down` are no longer read as config keys.
 
 ### Fixes
 - **Frontend** — Tables no longer start paused on Windows. VPX pauses whenever its window
@@ -115,6 +121,10 @@ These are deliberate. `docs/compatibility-3.0.md` has the full list with the rea
   is nothing to change unless you want to.
 - **Themes** — Nothing changes unless you opt in. The payload is served in the shape your
   `manifest.json` declares as `contract`, and no declaration means the 2.x shape.
+- **Themes** — The paging actions are `page_previous` and `page_next`, not `page_up` and
+  `page_down`. `page up` had no answer on a horizontal wheel and core gave two, so two
+  themes shipped paging that ran backwards. A contract 1 theme still receives
+  `joypageup`/`joypagedown`.
 - **Core** — Breaking: the endpoints that predate `/api/v1` are removed, not aliased.
   `/api/remote-launch`, `/api/asset-upload/*` and `/api/download-table-vpxz` are gone and
   their replacements live under `/api/v1`.

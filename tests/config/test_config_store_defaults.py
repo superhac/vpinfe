@@ -43,7 +43,7 @@ class TestConfigStore(unittest.TestCase):
             self.assertTrue(config.config.has_section("input"))
             self.assertEqual(config.config.get("input", "previous"),
                              "key:ArrowLeft,key:ShiftLeft")
-            self.assertEqual(config.config.get("input", "page_up"),
+            self.assertEqual(config.config.get("input", "page_previous"),
                              "key:PageUp,key:ArrowUp")
             self.assertEqual(config.config.get("input", "back"), "key:b")
             self.assertEqual(config.config.get("input", "exit"), "key:Escape,key:q")

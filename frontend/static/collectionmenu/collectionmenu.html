@@ -342,12 +342,12 @@
       if (dropdownOpen) {
         const currentOptions = getCurrentDropdownOptions();
         switch (input) {
-          case "page_up":
+          case "page_previous":
           case "previous":
             dropdownSelected = (dropdownSelected - 1 + currentOptions.length) % currentOptions.length;
             updateDropdownPopup();
             break;
-          case "page_down":
+          case "page_next":
           case "next":
             dropdownSelected = (dropdownSelected + 1) % currentOptions.length;
             updateDropdownPopup();
@@ -364,11 +364,11 @@
       }
 
       switch (input) {
-        case "page_up":
+        case "page_previous":
         case "previous":
           selectedIndex = (selectedIndex - 1 + items.length) % items.length;
           break;
-        case "page_down":
+        case "page_next":
         case "next":
           selectedIndex = (selectedIndex + 1) % items.length;
           break;

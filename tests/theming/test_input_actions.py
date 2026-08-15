@@ -26,7 +26,7 @@ class RegistryTests(unittest.TestCase):
     def test_there_are_ten_actions(self) -> None:
         """Twelve became ten: up/down and pageup/pagedown were one intent twice."""
         self.assertEqual([a.name for a in input_registry.actions()],
-                         ["previous", "next", "page_up", "page_down", "select",
+                         ["previous", "next", "page_previous", "page_next", "select",
                           "back", "menu", "collection_menu", "tutorial", "exit"])
 
     def test_every_action_is_a_config_option(self) -> None:
@@ -41,7 +41,7 @@ class RegistryTests(unittest.TestCase):
 
     def test_an_old_key_still_names_its_action(self) -> None:
         for old, expect in (("keyleft", "previous"), ("joyleft", "previous"),
-                            ("joyup", "page_up"), ("keypagedown", "page_down"),
+                            ("joyup", "page_previous"), ("keypagedown", "page_next"),
                             ("joycollectionmenu", "collection_menu")):
             self.assertEqual(input_registry.action_for_legacy_key(old), expect)
 

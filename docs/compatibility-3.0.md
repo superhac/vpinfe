@@ -1182,7 +1182,7 @@ rename on this branch made. Covered by `tests/theming/test_theme_windows.py`,
 `tests/media/test_media_resolution.py` and `tests/js/media-resolution.test.js`.
 
 **PAR-40 — Input actions are named for intent, and a binding names its own device.**
-The twelve `joy*` actions become ten: `previous`, `next`, `page_up`, `page_down`,
+The twelve `joy*` actions become ten: `previous`, `next`, `page_previous`, `page_next`,
 `select`, `back`, `menu`, `collection_menu`, `tutorial`, `exit`. `joyup`/`joydown` and
 `joypageup`/`joypagedown` were one intent under two names - carousel-desktop used up and
 down for a page-sized jump - so they merge, which is also what fixes that theme's dead
@@ -1251,6 +1251,28 @@ somewhere else is outside it.
 PAR-82 noted that a theme reading `get_current_sort_state` can see `"Manual"`; that read
 is core's own now. Covered by `tests/invariants/test_theme_api_surface.py` and
 `tests/js/internal-methods.test.js`.
+
+**PAR-85 — The paging actions are `page_previous` and `page_next`, and page-up now pages
+backward.**
+PAR-40 renamed the directional actions to say what the player meant and stopped one row
+short: `page_up` and `page_down` kept their key names. `page_up` is now `page_previous`
+and `page_down` is `page_next`. The 2.x spellings — `joypageup`, `keypageup`, `joyup`,
+`keyup` and their down counterparts — keep resolving, and a contract 1 theme still
+receives `joypageup`/`joypagedown`. `page_up` and `page_down` are not carried: they only
+ever existed in 3.0, which has not shipped, so a config holding one falls back to the
+default binding for that action.
+*Why:* "page up" has no answer on a horizontal wheel, and core gave two — `page_up` moved
+*previous* in the main menu and the collection menu and *next* in the wheel's paging, in
+the same branch. Two themes, in two repos, independently read it the wrong way and shipped
+paging that ran backwards to real cabinets. No test could catch that: the themes live in
+different repos from the convention they have to match. A name that states the intent
+leaves nothing to get backwards.
+*What you will notice:* the default bindings are unchanged — `PageUp`/`ArrowUp` and
+`PageDown`/`ArrowDown` — but they now mean previous and next, so **page-up moves the wheel
+backward** where it used to move forward. That direction was the odd one out: the same key
+already moved *up* a menu in both overlays. Swap the two values in `[input]` to get the old
+feel back. ArrowUp and ArrowDown keep moving up and down in the menus. Covered by
+`tests/js/input.test.js` and `tests/theming/test_input_actions.py`.
 
 ## Explicitly *not* exceptions
 

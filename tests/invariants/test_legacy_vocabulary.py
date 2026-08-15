@@ -46,17 +46,26 @@ RENAMED = {
     "dmd_video": "scoreview_video",
     "joyleft": "previous",
     "joyright": "next",
-    "joyup": "page_up",
-    "joydown": "page_down",
+    "joyup": "page_previous",
+    "joydown": "page_next",
+    "page_up": "page_previous",
+    "page_down": "page_next",
     "joyselect": "select",
     "joyback": "back",
     "joymenu": "menu",
     "joyexit": "exit",
     "joytutorial": "tutorial",
-    "joypageup": "page_up",
-    "joypagedown": "page_down",
+    "joypageup": "page_previous",
+    "joypagedown": "page_next",
     "joycollectionmenu": "collection_menu",
     "enabledof": "enable_dof",
+}
+
+# `page_up` and `page_down` are pynput key names as well as our old action names, and
+# the Remote page sends keystrokes rather than actions - so this file means the key. Named
+# per file and per name rather than allowlisted whole: everything else stays checked here.
+NOT_THE_ACTION = {
+    "managerui/key_simulator.py": {"page_up", "page_down"},
 }
 
 SKIP_PARTS = {".venv", "build", "third_party", "chromium", "__pycache__", "tests"}
@@ -84,7 +93,10 @@ class LegacyVocabularyTests(unittest.TestCase):
         offenders = []
         for path, rel in _source_files():
             text = path.read_text(encoding="utf-8", errors="ignore")
+            exempt = NOT_THE_ACTION.get(rel, frozenset())
             for old, new in RENAMED.items():
+                if old in exempt:
+                    continue
                 for match in re.finditer(rf"""['"]{re.escape(old)}['"]""", text):
                     line_no = text[:match.start()].count("\n") + 1
                     line = text.splitlines()[line_no - 1]

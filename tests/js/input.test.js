@@ -241,6 +241,33 @@ describe("a theme is handed the action names its contract published", () => {
   });
 });
 
+describe("a paging action moves the way its name says", () => {
+  // Nothing asserted this before, and nothing could: core meant next by page_up while
+  // its own menus meant previous, and two themes read the ambiguity the same wrong way
+  // and shipped paging that ran backwards. The name states the direction now.
+  const pagesTo = async (key) => {
+    const { vpin, press } = controller();
+    vpin._capabilities.core_paging = true;
+    const asked = [];
+    vpin.call = async (method, _index, direction) => {
+      if (method === "get_page_index") asked.push(direction);
+      return -1;
+    };
+
+    await press(key);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return asked;
+  };
+
+  test("PageUp pages backward", async () => {
+    assert.deepEqual(await pagesTo("PageUp"), ["prev"]);
+  });
+
+  test("PageDown pages forward", async () => {
+    assert.deepEqual(await pagesTo("PageDown"), ["next"]);
+  });
+});
+
 // A controller with core navigation left on, which is its default.
 function navigating(count = 3) {
   const { vpin, press, calls } = controller();

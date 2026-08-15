@@ -135,7 +135,7 @@
   "Input",
   "joydown",
   "input",
-  "page_down"
+  "page_next"
  ],
  [
   "Input",
@@ -159,13 +159,13 @@
   "Input",
   "joypagedown",
   "input",
-  "page_down"
+  "page_next"
  ],
  [
   "Input",
   "joypageup",
   "input",
-  "page_up"
+  "page_previous"
  ],
  [
   "Input",
@@ -189,7 +189,7 @@
   "Input",
   "joyup",
   "input",
-  "page_up"
+  "page_previous"
  ],
  [
   "Input",
@@ -207,7 +207,7 @@
   "Input",
   "keydown",
   "input",
-  "page_down"
+  "page_next"
  ],
  [
   "Input",
@@ -231,13 +231,13 @@
   "Input",
   "keypagedown",
   "input",
-  "page_down"
+  "page_next"
  ],
  [
   "Input",
   "keypageup",
   "input",
-  "page_up"
+  "page_previous"
  ],
  [
   "Input",
@@ -261,7 +261,7 @@
   "Input",
   "keyup",
   "input",
-  "page_up"
+  "page_previous"
  ],
  [
   "Input",

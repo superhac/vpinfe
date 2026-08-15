@@ -311,11 +311,11 @@ function handleInput(input) {
   }
 
   switch (input) {
-    case 'page_up':
+    case 'page_previous':
     case 'previous':
       selectedIndex = (selectedIndex - 1 + items.length) % items.length;
       break;
-    case 'page_down':
+    case 'page_next':
     case 'next':
       selectedIndex = (selectedIndex + 1) % items.length;
       break;
@@ -343,12 +343,12 @@ function handleInput(input) {
 
 function handleDialogInput(input) {
   switch (input) {
-    case 'page_up':
+    case 'page_previous':
     case 'previous':
       dialogSelectedIndex = (dialogSelectedIndex - 1 + dialogItems.length) % dialogItems.length;
       updateDialogSelection();
       break;
-    case 'page_down':
+    case 'page_next':
     case 'next':
       dialogSelectedIndex = (dialogSelectedIndex + 1) % dialogItems.length;
       updateDialogSelection();
