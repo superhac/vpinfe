@@ -7,7 +7,7 @@ about the value being worthless, and the 2.x Manager UI worked around it by rebu
 before saving so the user's entry would survive.
 
 It is parked now instead of deleted. Nothing resolves through the parked value: every
-consumer sees exactly what it saw when this deleted it, so the behaviour is unchanged and
+consumer sees exactly what it saw when this deleted it, so the behavior is unchanged and
 the Manager UI can offer it back after 3.0 ships.
 
 That last part is the whole risk. A key sitting beside `alt_vpsid` invites a future reader
@@ -37,7 +37,9 @@ MAY_SURFACE_IT: set[str] = set()
 def _sources():
     for path in sorted(REPO_ROOT.rglob("*.py")):
         rel = path.relative_to(REPO_ROOT).as_posix()
-        if rel.startswith((".venv/", "tests/", "build/", "third_party/", "managerui/maps/")):
+        # `.claude/` holds agent worktrees: a second checkout of this repo, not our tree.
+        if rel.startswith((".venv/", ".claude/", "tests/", "build/", "third_party/",
+                           "managerui/maps/")):
             continue
         yield rel, path
 

@@ -68,7 +68,11 @@ NOT_THE_ACTION = {
     "managerui/key_simulator.py": {"page_up", "page_down"},
 }
 
-SKIP_PARTS = {".venv", "build", "third_party", "chromium", "__pycache__", "tests"}
+# `.claude` holds agent worktrees - a whole second checkout of this repo, at whatever
+# revision that agent started from. Scanning it reports every name the branch has ever
+# renamed, against files nobody here is editing.
+SKIP_PARTS = {".venv", ".claude", "build", "third_party", "chromium", "__pycache__",
+              "tests"}
 SKIP_PREFIXES = ("managerui/maps/", "frontend/static/themes/")
 
 
