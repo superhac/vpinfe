@@ -150,6 +150,22 @@ class FrontendServiceTests(unittest.TestCase):
         self.assertTrue(api._iniConfig.saved)
         self.assertEqual(events, [{"type": "AudioMuteChanged", "muted": True}])
 
+    def test_mainmenu_config_reports_the_setting_rather_than_raising(self):
+        """The menu asks once per open, and a raise here is invisible: mainmenu.js catches
+        it and shows the quit item, so hide_quit_button silently did nothing.
+
+        The config file has to exist and hold JSON for this to bite - configparser skips a
+        path that is not there, which is why a missing file does not reproduce it.
+        """
+        parser = configparser.ConfigParser()
+        parser["general"] = {"hide_quit_button": "true"}
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vpinfe.json"
+            path.write_text(json.dumps({"general": {"hide_quit_button": True}}))
+            ini = types.SimpleNamespace(config=parser, configfilepath=str(path))
+
+            self.assertEqual(config_api.get_mainmenu_config(ini), {"hideQuitButton": True})
+
     def test_realdmd_helpers_and_updater_process_pending(self):
         game = types.SimpleNamespace(
             gameDirName="Example",

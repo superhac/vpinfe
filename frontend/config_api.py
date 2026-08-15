@@ -18,10 +18,10 @@ from common.values import is_truthy
 
 
 def get_mainmenu_config(iniconfig):
-    try:
-        iniconfig.config.read(iniconfig.configfilepath)
-    except Exception:
-        raise
+    # No re-read: the store holds the live config and every write goes through save().
+    # This used to reload the ini here, which under JSON meant handing a configparser a
+    # JSON file - it raised on every menu open, the caller fell back to its default, and
+    # hide_quit_button silently did nothing.
     return {
         "hideQuitButton": SettingsConfig.from_config(iniconfig).hide_quit_button,
     }
