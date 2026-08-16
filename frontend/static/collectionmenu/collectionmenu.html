@@ -215,10 +215,11 @@
 
   <script>
     let rotationAngle = 0; // starting angle
-    let selectedIndex = 0;
-    let items = [];
+    // Two ordered lists with a cursor, one nested in the other, so both are core's list
+    // rather than two more copies of `(i +- 1 + n) % n`.
+    let rows = null;
+    let dropdown = null;
     let dropdownOpen = false;
-    let dropdownSelected = 0;
     let currentDropdownType = null;
 
     // Filter data
@@ -342,7 +343,7 @@
     window.addEventListener("message", (event) => {
       const message = event.data;
       if (message.event === "reset state") {
-        selectedIndex = 0;
+        if (rows) rows.moveTo(0);
         dropdownOpen = false;
         updateMenu();
       }
@@ -360,16 +361,15 @@
 
     function handleInput(input) {
       if (dropdownOpen) {
-        const currentOptions = getCurrentDropdownOptions();
         switch (input) {
           case "page_previous":
           case "previous":
-            dropdownSelected = (dropdownSelected - 1 + currentOptions.length) % currentOptions.length;
+            dropdown.moveBy(-1);
             updateDropdownPopup();
             break;
           case "page_next":
           case "next":
-            dropdownSelected = (dropdownSelected + 1) % currentOptions.length;
+            dropdown.moveBy(1);
             updateDropdownPopup();
             break;
           case "select":
@@ -386,14 +386,14 @@
       switch (input) {
         case "page_previous":
         case "previous":
-          selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+          rows.moveBy(-1);
           break;
         case "page_next":
         case "next":
-          selectedIndex = (selectedIndex + 1) % items.length;
+          rows.moveBy(1);
           break;
         case "select":
-          const selectedItem = items[selectedIndex];
+          const selectedItem = rows.current;
           if (selectedItem.id === 'collection-item') {
             openDropdown(selectedItem, 'collection');
           } else if (selectedItem.id === 'letter-item') {
@@ -438,8 +438,8 @@
     }
 
     function updateMenu() {
-      items.forEach((item, i) => {
-        item.classList.toggle('selected', i === selectedIndex);
+      rows.items.forEach((item, i) => {
+        item.classList.toggle('selected', i === rows.cursor);
       });
 
       document.getElementById('collection-value').textContent = collections[collectionIndex];
@@ -538,7 +538,10 @@
     function openDropdown(targetItem, dropdownType) {
       dropdownOpen = true;
       currentDropdownType = dropdownType;
-      dropdownSelected = getCurrentIndex();
+      // Built here because the options are computed per open, and the cursor starts on
+      // whatever is currently chosen - clamped, since a stored value can outlive its list.
+      dropdown = window.parent.vpin.createList(getCurrentDropdownOptions());
+      dropdown.moveTo(getCurrentIndex());
 
       const popup = document.getElementById('dropdown-popup');
       popup.style.display = 'block';
@@ -552,10 +555,11 @@
     function updateDropdownPopup() {
       const popup = document.getElementById('dropdown-popup');
       popup.innerHTML = '';
-      const options = getCurrentDropdownOptions();
-      options.forEach((option, i) => {
+      // The list core is holding, not a fresh call: the cursor below indexes into it,
+      // and two sources for one list is what this abstraction exists to stop.
+      dropdown.items.forEach((option, i) => {
         const div = document.createElement('div');
-        div.className = 'popup-option' + (i === dropdownSelected ? ' selected' : '');
+        div.className = 'popup-option' + (i === dropdown.cursor ? ' selected' : '');
         div.textContent = optionLabel(currentDropdownType, option);
         popup.appendChild(div);
       });
@@ -568,12 +572,11 @@
     }
 
     async function applyDropdownSelection() {
-      const options = getCurrentDropdownOptions();
-      const selectedValue = options[dropdownSelected];
+      const selectedValue = dropdown.current;
 
       switch (currentDropdownType) {
         case 'collection':
-          collectionIndex = dropdownSelected;
+          collectionIndex = dropdown.cursor;
           clearFilterDisplayOverrides();
 
           if (selectedValue == "None") {
@@ -662,51 +665,51 @@
           break;
 
         case 'letter':
-          letterIndex = dropdownSelected;
+          letterIndex = dropdown.cursor;
           collectionIndex = 0;
           document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
           break;
 
         case 'theme':
-          themeIndex = dropdownSelected;
+          themeIndex = dropdown.cursor;
           collectionIndex = 0;
           document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
           break;
 
         case 'type':
-          typeIndex = dropdownSelected;
+          typeIndex = dropdown.cursor;
           collectionIndex = 0;
           document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
           break;
 
         case 'manufacturer':
-          manufacturerIndex = dropdownSelected;
+          manufacturerIndex = dropdown.cursor;
           collectionIndex = 0;
           document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
           break;
 
         case 'year':
-          yearIndex = dropdownSelected;
+          yearIndex = dropdown.cursor;
           collectionIndex = 0;
           document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
           break;
 
         case 'rating':
-          ratingIndex = dropdownSelected;
+          ratingIndex = dropdown.cursor;
           collectionIndex = 0;
           normalizeRatingMode();
           document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
           break;
 
         case 'ratingmode':
-          ratingModeIndex = dropdownSelected;
+          ratingModeIndex = dropdown.cursor;
           collectionIndex = 0;
           normalizeRatingMode();
           document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
           break;
 
         case 'sortby':
-          sortByIndex = dropdownSelected;
+          sortByIndex = dropdown.cursor;
           if (collectionIndex !== 0) {
             filterDisplayOverrides.sortby = sortOptions[sortByIndex];
           }
@@ -721,7 +724,7 @@
           break;
 
         case 'orderby':
-          orderByIndex = dropdownSelected;
+          orderByIndex = dropdown.cursor;
           if (collectionIndex !== 0) {
             filterDisplayOverrides.orderby = orderOptions[orderByIndex];
           }
@@ -833,7 +836,8 @@
 
     window.onload = async () => {
       await init();
-      items = Array.from(document.querySelectorAll('.menu-item'));
+      rows = window.parent.vpin.createList(
+        Array.from(document.querySelectorAll('.menu-item')));
       updateMenu();
 
       // Set up save filter dialog buttons

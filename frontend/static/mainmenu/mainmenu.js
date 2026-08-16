@@ -1,9 +1,18 @@
 let rotationAngle = 0;
-let selectedIndex = 0;
-let items = [];
+// The menu and its dialog are ordered lists with a cursor, so they are core's list
+// rather than two more copies of `(i +- 1 + n) % n`. Core owns the arithmetic; the
+// wrap, the clamp and the empty case are its problem, not this page's.
+let menu = null;
+let dialog = null;
 let dialogState = null; // 'options' | 'progress' | 'rating' | null
-let dialogSelectedIndex = 0;
-let dialogItems = [];
+
+// Built lazily: core creates this iframe, so `vpin` is there by the time anything is
+// pressed, but not necessarily while this file is still evaluating.
+function navigable(items = [], cursor = 0) {
+  const list = window.parent.vpin.createList(items, { cursor: 0 });
+  list.moveTo(cursor);          // clamps, which is what the old rebuild did by hand
+  return list;
+}
 let ratingDraft = 0;
 let ratingGameIndex = 0;
 let currentGameIndex = 0;
@@ -30,7 +39,7 @@ window.addEventListener('message', async (event) => {
     } else {
       currentGameIndex = resolveCurrentGameIndex();
     }
-    selectedIndex = 0;
+    menu = navigable();
     await applyMainMenuConfig();
     updateMenu();
     refreshRatingMenuLabel(currentGameIndex);
@@ -40,7 +49,7 @@ window.addEventListener('message', async (event) => {
   }
 
   if (message.event === 'reset state') {
-    selectedIndex = 0;
+    menu = navigable();
     await applyMainMenuConfig();
     updateMenu();
     refreshRatingMenuLabel(resolveCurrentGameIndex());
@@ -128,20 +137,13 @@ async function applyMainMenuConfig() {
 }
 
 function rebuildMenuItems() {
-  items = Array.from(document.querySelectorAll('.menu-item')).filter(
-    (item) => getComputedStyle(item).display !== 'none'
-  );
-
-  if (items.length === 0) {
-    selectedIndex = 0;
-    return;
-  }
-
-  if (selectedIndex < 0) {
-    selectedIndex = 0;
-  } else if (selectedIndex >= items.length) {
-    selectedIndex = items.length - 1;
-  }
+  // Items come and go with the config, so the cursor is carried across and clamped to
+  // what is left rather than reset - the same thing the hand-rolled bounds check did.
+  menu = navigable(
+    Array.from(document.querySelectorAll('.menu-item')).filter(
+      (item) => getComputedStyle(item).display !== 'none'
+    ),
+    menu ? menu.cursor : 0);
 }
 
 function rotateMenu(degrees) {
@@ -293,7 +295,7 @@ async function refreshRatingMenuLabel(indexHint = null) {
 }
 
 function handleInput(input) {
-  if (!menuConfigLoaded || items.length === 0) return;
+  if (!menuConfigLoaded || !menu || !menu.length) return;
 
   if (dialogState === 'options' || dialogState === 'rating') {
     handleDialogInput(input);
@@ -313,14 +315,14 @@ function handleInput(input) {
   switch (input) {
     case 'page_previous':
     case 'previous':
-      selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+      menu.moveBy(-1);
       break;
     case 'page_next':
     case 'next':
-      selectedIndex = (selectedIndex + 1) % items.length;
+      menu.moveBy(1);
       break;
     case 'select': {
-      const selectedItem = items[selectedIndex];
+      const selectedItem = menu.current;
       if (selectedItem.id === 'quit-item') {
         window.parent.vpin.call('close_app');
       } else if (selectedItem.id === 'shutdown-item') {
@@ -345,16 +347,16 @@ function handleDialogInput(input) {
   switch (input) {
     case 'page_previous':
     case 'previous':
-      dialogSelectedIndex = (dialogSelectedIndex - 1 + dialogItems.length) % dialogItems.length;
+      dialog.moveBy(-1);
       updateDialogSelection();
       break;
     case 'page_next':
     case 'next':
-      dialogSelectedIndex = (dialogSelectedIndex + 1) % dialogItems.length;
+      dialog.moveBy(1);
       updateDialogSelection();
       break;
     case 'select': {
-      const selectedElement = dialogItems[dialogSelectedIndex];
+      const selectedElement = dialog.current;
       if (selectedElement.type === 'checkbox') {
         selectedElement.checked = !selectedElement.checked;
       } else if (selectedElement.tagName === 'BUTTON') {
@@ -377,16 +379,16 @@ function closeActiveDialog() {
 }
 
 function updateDialogSelection() {
-  dialogItems.forEach((item, i) => {
+  dialog.items.forEach((item, i) => {
     if (item.tagName === 'BUTTON') {
-      if (i === dialogSelectedIndex) {
+      if (i === dialog.cursor) {
         item.style.outline = '3px solid #2196F3';
         item.style.outlineOffset = '2px';
       } else {
         item.style.outline = 'none';
       }
     } else if (item.parentElement && item.parentElement.tagName === 'LABEL') {
-      if (i === dialogSelectedIndex) {
+      if (i === dialog.cursor) {
         item.parentElement.style.outline = '3px solid #2196F3';
         item.parentElement.style.outlineOffset = '2px';
       } else {
@@ -401,21 +403,19 @@ function showBuildMetaDialog() {
   document.getElementById('buildmeta-options').style.display = 'block';
   document.getElementById('buildmeta-progress').style.display = 'none';
   dialogState = 'options';
-  dialogSelectedIndex = 0;
-  dialogItems = [
+  dialog = navigable([
     document.getElementById('update-all-check'),
     document.getElementById('download-media-check'),
     document.getElementById('buildmeta-cancel'),
     document.getElementById('buildmeta-start'),
-  ];
+  ]);
   updateDialogSelection();
 }
 
 function hideBuildMetaDialog() {
   document.getElementById('buildmeta-overlay').style.display = 'none';
   dialogState = null;
-  dialogItems = [];
-  dialogSelectedIndex = 0;
+  dialog = navigable();
 }
 
 function renderRatingStars() {
@@ -452,21 +452,19 @@ async function showRatingDialog() {
   renderRatingStars();
   document.getElementById('rating-overlay').style.display = 'block';
   dialogState = 'rating';
-  dialogSelectedIndex = 0;
-  dialogItems = [
+  dialog = navigable([
     ...Array.from(document.querySelectorAll('.rating-star')),
     document.getElementById('rating-clear'),
     document.getElementById('rating-cancel'),
     document.getElementById('rating-save'),
-  ];
+  ]);
   updateDialogSelection();
 }
 
 function hideRatingDialog() {
   document.getElementById('rating-overlay').style.display = 'none';
   dialogState = null;
-  dialogItems = [];
-  dialogSelectedIndex = 0;
+  dialog = navigable();
 }
 
 async function saveRatingDialog() {
@@ -493,8 +491,7 @@ function startBuildMeta() {
   document.getElementById('buildmeta-close').style.display = 'none';
 
   dialogState = 'progress';
-  dialogItems = [];
-  dialogSelectedIndex = 0;
+  dialog = navigable();
 
   window.parent.vpin.call('build_metadata', downloadMedia, updateAll);
 }
@@ -525,10 +522,10 @@ window.receiveEvent = function(event) {
 
 function updateMenu() {
   rebuildMenuItems();
-  if (items.length === 0) return;
+  if (!menu.length) return;
 
-  items.forEach((item, i) => {
-    item.classList.toggle('selected', i === selectedIndex);
+  menu.items.forEach((item, i) => {
+    item.classList.toggle('selected', i === menu.cursor);
   });
   syncMenuWidthFromLongestLabel();
 }

@@ -139,6 +139,152 @@ class RenderSmokeTests(TempTree):
             before, after = asyncio.run(run(instance))
         self.assertNotEqual(before, after)
 
+    # -- the main menu, driven the way a player drives it --------------------
+    #
+    # Nothing loaded `mainmenu.js` before this. The JS suite covers core's overlay
+    # plumbing - opening, closing, which one owns the actions - and stops at the iframe
+    # boundary, so the cursor inside the menu had no coverage at all.
+
+    # -- the main menu, driven the way a player drives it --------------------
+    #
+    # Nothing loaded `mainmenu.js` before this. The JS suite covers core's overlay
+    # plumbing - opening, closing, which one owns the actions - and stops at the
+    # iframe boundary, so the menu's own cursor had no coverage at all.
+
+    # Same-origin, so the menu's own document is readable from the host page.
+    SELECTED = ("(document.getElementById('menu-frame')?.contentDocument"
+                "?.querySelector('.menu-item.selected')?.id) || ''")
+
+    async def _open_menu(self, browser, instance):
+        await self._open(browser, instance, "playfield")
+        await browser.press("m", "KeyM")
+        return await browser.wait_for(self.SELECTED)
+
+    def test_the_menu_opens_with_something_selected(self) -> None:
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                return await self._open_menu(browser, instance), list(browser.console)
+
+        with LiveInstance(self.root) as instance:
+            selected, console = asyncio.run(run(instance))
+        self.assertTrue(selected, "the menu opened with no item selected")
+        self.assertEqual([line for line in console if "Uncaught" in line], [])
+
+    def test_the_menu_cursor_moves(self) -> None:
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                first = await self._open_menu(browser, instance)
+                await browser.press("ArrowDown", "ArrowDown")
+                moved = await browser.wait_for(
+                    f"({self.SELECTED}) && ({self.SELECTED}) !== '{first}'")
+                return first, moved
+
+        with LiveInstance(self.root) as instance:
+            first, moved = asyncio.run(run(instance))
+        self.assertNotEqual(first, moved)
+
+    def test_the_menu_cursor_wraps(self) -> None:
+        """Stepping back from the first item lands on the last, not on nothing."""
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                first = await self._open_menu(browser, instance)
+                await browser.press("ArrowUp", "ArrowUp")
+                wrapped = await browser.wait_for(
+                    f"({self.SELECTED}) && ({self.SELECTED}) !== '{first}'")
+                return first, wrapped
+
+        with LiveInstance(self.root) as instance:
+            first, wrapped = asyncio.run(run(instance))
+        self.assertNotEqual(first, wrapped)
+
+    def test_back_closes_the_menu(self) -> None:
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                await self._open_menu(browser, instance)
+                await browser.press("b", "KeyB")
+                return await browser.wait_for(
+                    "document.getElementById('menu-frame')?.style.display === 'none'")
+
+        with LiveInstance(self.root) as instance:
+            self.assertTrue(asyncio.run(run(instance)))
+
+
+
+    # -- the collection menu, which carries a second cursor inside the first ---
+    #
+    # Its dropdown is a list inside a list: the rows navigate, and selecting one opens
+    # a popup that navigates on the same keys. Nothing covered either.
+
+    POPUP = ("(() => { const d = document.getElementById('collection-menu-frame')"
+             "?.contentDocument; if (!d) return ''; "
+             "const p = d.getElementById('dropdown-popup'); "
+             "return (p && p.style.display === 'block') "
+             "? (p.querySelector('.popup-option.selected')?.textContent || 'open') : ''; })()")
+
+    COLLECTION_ROW = ("(document.getElementById('collection-menu-frame')?.contentDocument"
+                      "?.querySelector('li.menu-item.selected')?.id) || ''")
+
+    async def _open_collection_menu(self, browser, instance):
+        await self._open(browser, instance, "playfield")
+        await browser.press("c", "KeyC")
+        return await browser.wait_for(self.COLLECTION_ROW)
+
+    def test_the_collection_menu_opens_with_a_row_selected(self) -> None:
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                return await self._open_collection_menu(browser, instance)
+
+        with LiveInstance(self.root) as instance:
+            self.assertTrue(asyncio.run(run(instance)))
+
+    def test_the_collection_menu_cursor_moves(self) -> None:
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                first = await self._open_collection_menu(browser, instance)
+                await browser.press("ArrowDown", "ArrowDown")
+                moved = await browser.wait_for(
+                    f"({self.COLLECTION_ROW}) && ({self.COLLECTION_ROW}) !== '{first}'")
+                return first, moved
+
+        with LiveInstance(self.root) as instance:
+            first, moved = asyncio.run(run(instance))
+        self.assertNotEqual(first, moved)
+
+    def test_the_dropdown_opens_and_its_own_cursor_moves(self) -> None:
+        """The inner list. Selecting a row opens a popup that navigates on the same
+        keys, and it kept a second hand-rolled cursor to do it."""
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                await self._open_collection_menu(browser, instance)
+                await browser.press("Enter", "Enter")
+                first = await browser.wait_for(self.POPUP)
+                await browser.press("ArrowDown", "ArrowDown")
+                moved = await browser.wait_for(
+                    f"({self.POPUP}) && ({self.POPUP}) !== '{first}'")
+                return first, moved
+
+        with LiveInstance(self.root) as instance:
+            first, moved = asyncio.run(run(instance))
+        self.assertNotEqual(first, moved)
+
+    def test_back_closes_the_dropdown_before_the_menu(self) -> None:
+        """Two nested lists, so back has to unwind one at a time."""
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                await self._open_collection_menu(browser, instance)
+                await browser.press("Enter", "Enter")
+                await browser.wait_for(self.POPUP)
+                await browser.press("b", "KeyB")
+                closed = await browser.wait_for(f"!({self.POPUP})")
+                still_open = await browser.evaluate(
+                    "document.getElementById('collection-menu-frame')?.style.display")
+                return closed, still_open
+
+        with LiveInstance(self.root) as instance:
+            closed, still_open = asyncio.run(run(instance))
+        self.assertTrue(closed)
+        self.assertEqual(still_open, "block", "back closed the whole menu, not the popup")
+
 
 if __name__ == "__main__":
     unittest.main()
