@@ -6,6 +6,10 @@
     "dof_config_tool_api_key": "",
     "enable_dof": "false"
   },
+  "frontend": {
+    "hide_quit_button": "false",
+    "restore_last_table": "true"
+  },
   "general": {
     "assets_dir": "",
     "auto_update_media_on_startup": "false",
@@ -16,10 +20,8 @@
     "global_game_ini_override_enabled": "false",
     "global_game_ini_override_mask": "",
     "global_ini_override": "",
-    "hide_quit_button": "false",
     "mute_audio": "false",
     "rar_tool_path": "",
-    "restore_last_game": "true",
     "splashscreen": "false",
     "startup_collection": "",
     "theme": "Revolution",
@@ -87,7 +89,7 @@
     "roms_update_sha": ""
   },
   "state": {
-    "last_game": ""
+    "last_table": ""
   },
   "themes": {
     "registries": "https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json",

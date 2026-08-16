@@ -58,12 +58,10 @@ _RENAMED_KEYS = (
     ('Displays', 'tableorientation', 'playfieldorientation'),
     ('Displays', 'tablerotation', 'playfieldrotation'),
     ('Settings', 'tablerootdir', 'gamerootdir'),
-    ('Settings', 'restorelasttable', 'restorelastgame'),
     ('Media', 'tabletype', 'playfieldvariant'),
     ('Media', 'tableresolution', 'playfieldresolution'),
     ('Media', 'tablevideoresolution', 'playfieldvideoresolution'),
     ('Media', 'tablemediapriority', 'playfieldmediapriority'),
-    ('State', 'lasttable', 'lastgame'),
 )
 
 def _nest(sections: dict) -> dict:

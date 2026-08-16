@@ -158,10 +158,10 @@ class FrontendServiceTests(unittest.TestCase):
         path that is not there, which is why a missing file does not reproduce it.
         """
         parser = configparser.ConfigParser()
-        parser["general"] = {"hide_quit_button": "true"}
+        parser["frontend"] = {"hide_quit_button": "true"}
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / "vpinfe.json"
-            path.write_text(json.dumps({"general": {"hide_quit_button": True}}))
+            path.write_text(json.dumps({"frontend": {"hide_quit_button": True}}))
             ini = types.SimpleNamespace(config=parser, configfilepath=str(path))
 
             self.assertEqual(config_api.get_mainmenu_config(ini), {"hideQuitButton": True})

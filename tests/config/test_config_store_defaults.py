@@ -56,7 +56,7 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("general"))
-            self.assertEqual(config.config.get("general", "hide_quit_button"), "false")
+            self.assertEqual(config.config.get("frontend", "hide_quit_button"), "false")
 
     def test_splashscreen_defaults_off(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -102,7 +102,7 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("general"))
-            self.assertEqual(config.config.get("general", "restore_last_game"), "true")
+            self.assertEqual(config.config.get("frontend", "restore_last_table"), "true")
 
     def test_state_section_lasttable_defaults_empty(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -111,7 +111,7 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("state"))
-            self.assertEqual(config.config.get("state", "last_game"), "")
+            self.assertEqual(config.config.get("state", "last_table"), "")
 
     def test_existing_splashscreen_setting_is_preserved(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -140,11 +140,11 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertEqual(config.config.get("general", "game_root_dir"), "/old/path")
-            self.assertEqual(config.config.get("general", "restore_last_game"), "false")
+            self.assertEqual(config.config.get("frontend", "restore_last_table"), "false")
             # Both of these also moved into their window's own section at schema 3.
             self.assertEqual(config.config.get("windows.playfield", "variant"), "fss")
             self.assertEqual(config.config.get("windows.playfield", "rotation"), "270")
-            self.assertEqual(config.config.get("state", "last_game"), "Foo")
+            self.assertEqual(config.config.get("state", "last_table"), "Foo")
             self.assertFalse(config.config.has_option("general", "tablerootdir"),
                              "the old key should be gone once it has been read")
 

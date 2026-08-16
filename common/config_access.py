@@ -149,7 +149,7 @@ class SettingsConfig:
     chrome_options: str = ""
     disable_default_chrome_options: bool = False
     hide_quit_button: bool = False
-    restore_last_game: bool = True
+    restore_last_table: bool = True
 
     @classmethod
     def from_config(cls, source: Any) -> SettingsConfig:
@@ -173,7 +173,7 @@ class SettingsConfig:
             chrome_options=cfg_get(source, "Settings", "chromeoptions", ""),
             disable_default_chrome_options=cfg_bool(source, "Settings", "disabledefaultchromeoptions", False),
             hide_quit_button=cfg_bool(source, "Settings", "MMhideQuitButton", False),
-            restore_last_game=cfg_bool(source, "Settings", "restorelastgame", True),
+            restore_last_table=cfg_bool(source, "Settings", "restorelasttable", True),
         )
 
 

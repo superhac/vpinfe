@@ -72,7 +72,7 @@ class SchemaShapeTests(unittest.TestCase):
         hand, but they are not settings and should never reach a UI or the docs."""
         internal = {(e.section, e.key) for e in config_schema.options() if e.internal}
 
-        self.assertEqual(internal, {("vpsdb", "last"), ("state", "last_game"),
+        self.assertEqual(internal, {("vpsdb", "last"), ("state", "last_table"),
                                     ("pinmame_score_parser", "roms_update_sha"),
                                     ("install", "id")})
         self.assertNotIn(("State", "last_game"),

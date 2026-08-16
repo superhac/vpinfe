@@ -12,9 +12,9 @@ logger = logging.getLogger("vpinfe.frontend.last_game")
 # Internal state, not a user-facing setting. Kept in its own section so the
 # Manager UI (which renders every key in a shown section) never surfaces it.
 STATE_SECTION = "state"
-# The canonical spelling; config_schema keeps "lastgame" resolving for a file
+# The canonical spelling; config_schema keeps "lasttable" resolving for a file
 # written before schema 2.
-STATE_KEY = "last_game"
+STATE_KEY = "last_table"
 
 
 def entry_identity(entry) -> str:
@@ -33,7 +33,7 @@ def entry_identity(entry) -> str:
 def save_last_launched(iniConfig, game, table_id: str = "") -> None:
     """Persist what just launched. Takes the two ids rather than an entry: no entry
     exists on the path a Remote or API launch takes."""
-    if not SettingsConfig.from_config(iniConfig).restore_last_game:
+    if not SettingsConfig.from_config(iniConfig).restore_last_table:
         return
     identity = (str(table_id or "").strip()
                 or str(game_id(game) or "").strip())
@@ -51,13 +51,13 @@ def save_last_launched(iniConfig, game, table_id: str = "") -> None:
         logger.exception("Could not persist last game selection")
 
 
-def resolve_last_game_index(iniConfig, entries) -> int:
+def resolve_last_table_index(iniConfig, entries) -> int:
     """Return the index of the saved last row within `entries`, else 0.
 
     Returns 0 when the feature is off, nothing is saved, or the saved row
     isn't in the current view (e.g. filtered out by a startup collection).
     """
-    if not SettingsConfig.from_config(iniConfig).restore_last_game:
+    if not SettingsConfig.from_config(iniConfig).restore_last_table:
         return 0
     saved = cfg_get(iniConfig, STATE_SECTION, STATE_KEY, "").strip()
     if not saved:

@@ -512,7 +512,7 @@
  [
   "Settings",
   "MMhideQuitButton",
-  "general",
+  "frontend",
   "hide_quit_button"
  ],
  [
@@ -673,12 +673,6 @@
  ],
  [
   "Settings",
-  "restorelastgame",
-  "general",
-  "restore_last_game"
- ],
- [
-  "Settings",
   "splashscreen",
   "general",
   "splashscreen"
@@ -750,12 +744,6 @@
   "last_game"
  ],
  [
-  "State",
-  "lastgame",
-  "state",
-  "last_game"
- ],
- [
   "VPSdb",
   "last",
   "vpsdb",
@@ -782,7 +770,7 @@
  [
   "general",
   "MMhideQuitButton",
-  "general",
+  "frontend",
   "hide_quit_button"
  ],
  [
@@ -850,12 +838,6 @@
   "rartoolpath",
   "general",
   "rar_tool_path"
- ],
- [
-  "general",
-  "restorelastgame",
-  "general",
-  "restore_last_game"
  ],
  [
   "general",
@@ -990,12 +972,6 @@
   "roms_update_sha"
  ],
  [
-  "state",
-  "lastgame",
-  "state",
-  "last_game"
- ],
- [
   "vpinplay",
   "apiendpoint",
   "vpinplay",
@@ -1030,5 +1006,35 @@
   "manager_ui_bind",
   "network",
   "hub_bind"
+ ],
+ [
+  "Settings",
+  "restorelasttable",
+  "frontend",
+  "restore_last_table"
+ ],
+ [
+  "State",
+  "lasttable",
+  "state",
+  "last_table"
+ ],
+ [
+  "frontend",
+  "restorelasttable",
+  "frontend",
+  "restore_last_table"
+ ],
+ [
+  "state",
+  "lasttable",
+  "state",
+  "last_table"
+ ],
+ [
+  "frontend",
+  "MMhideQuitButton",
+  "frontend",
+  "hide_quit_button"
  ]
 ]

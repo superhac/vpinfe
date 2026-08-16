@@ -75,8 +75,13 @@ uses an old spelling both still load.
 | `chrome_options` | string |  | Additional Chrome Options |
 | `chrome_options_exclude` | string |  |  |
 | `disable_default_chrome_options` | bool | `false` | Disable Default Chrome Options |
+
+### `frontend`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
 | `hide_quit_button` | bool | `false` | Hide Quit from MainMenu |
-| `restore_last_game` | bool | `true` | Restore Last Table |
+| `restore_last_table` | bool | `true` | Restore Last Table |
 
 ### `themes`
 
@@ -129,7 +134,7 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `last_game` | string |  |  |
+| `last_table` | string |  |  |
 
 ### `pinmame_score_parser`
 

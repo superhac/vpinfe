@@ -41,8 +41,8 @@ class LastLaunchedTests(unittest.TestCase):
 
             last_game.save_last_launched(config, entries[1].game, "Tbl2222222")
 
-            self.assertEqual(config.config.get("state", "last_game"), "Tbl2222222")
-            self.assertEqual(last_game.resolve_last_game_index(config, entries), 1)
+            self.assertEqual(config.config.get("state", "last_table"), "Tbl2222222")
+            self.assertEqual(last_game.resolve_last_table_index(config, entries), 1)
 
     def test_an_expanded_wheel_comes_back_to_the_table_not_the_game(self) -> None:
         """The case a path could not answer: three rows, one game, three tables."""
@@ -53,7 +53,7 @@ class LastLaunchedTests(unittest.TestCase):
 
             last_game.save_last_launched(config, entries[2].game, entries[2].table_id)
 
-            self.assertEqual(last_game.resolve_last_game_index(config, entries), 2)
+            self.assertEqual(last_game.resolve_last_table_index(config, entries), 2)
 
     def test_a_game_with_no_table_ids_still_comes_back(self) -> None:
         """A folder no build has parsed has no table ids, and its row is the game."""
@@ -63,8 +63,8 @@ class LastLaunchedTests(unittest.TestCase):
 
             last_game.save_last_launched(config, entries[1].game)
 
-            self.assertEqual(config.config.get("state", "last_game"), "Gme2222222")
-            self.assertEqual(last_game.resolve_last_game_index(config, entries), 1)
+            self.assertEqual(config.config.get("state", "last_table"), "Gme2222222")
+            self.assertEqual(last_game.resolve_last_table_index(config, entries), 1)
 
     def test_resolve_survives_reordering(self) -> None:
         """The point of saving an identity rather than a position."""
@@ -76,33 +76,33 @@ class LastLaunchedTests(unittest.TestCase):
                          _entry("Tbl2222222", "Gme2222222"),
                          _entry("Tbl1111111", "Gme1111111")]
 
-            self.assertEqual(last_game.resolve_last_game_index(config, reordered), 1)
+            self.assertEqual(last_game.resolve_last_table_index(config, reordered), 1)
 
     def test_a_saved_row_that_is_no_longer_there_starts_at_the_beginning(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            config.config.set("state", "last_game", "Tbl9999999")
+            config.config.set("state", "last_table", "Tbl9999999")
 
             self.assertEqual(
-                last_game.resolve_last_game_index(config, [_entry("Tbl1111111")]), 0)
+                last_game.resolve_last_table_index(config, [_entry("Tbl1111111")]), 0)
 
     def test_nothing_saved_starts_at_the_beginning(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
 
             self.assertEqual(
-                last_game.resolve_last_game_index(config, [_entry("Tbl1111111")]), 0)
+                last_game.resolve_last_table_index(config, [_entry("Tbl1111111")]), 0)
 
     def test_disabled_skips_save_and_resolve(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            config.config.set("general", "restore_last_game", "false")
+            config.config.set("frontend", "restore_last_table", "false")
             entries = [_entry("Tbl1111111"), _entry("Tbl2222222")]
 
             last_game.save_last_launched(config, entries[1].game, "Tbl2222222")
 
-            self.assertEqual(config.config.get("state", "last_game"), "")
-            self.assertEqual(last_game.resolve_last_game_index(config, entries), 0)
+            self.assertEqual(config.config.get("state", "last_table"), "")
+            self.assertEqual(last_game.resolve_last_table_index(config, entries), 0)
 
     def test_a_row_with_no_id_at_all_saves_nothing(self) -> None:
         """Rather than writing "" and matching the first row with nothing either."""
@@ -111,7 +111,7 @@ class LastLaunchedTests(unittest.TestCase):
 
             last_game.save_last_launched(config, _game())
 
-            self.assertEqual(config.config.get("state", "last_game"), "")
+            self.assertEqual(config.config.get("state", "last_table"), "")
 
 
 class EntryIdentityTests(unittest.TestCase):

@@ -126,12 +126,10 @@ SHIMS: tuple[Shim, ...] = (
             ("tableorientation", "playfieldorientation"),
             ("tablerotation", "playfieldrotation"),
             ("tablerootdir", "gamerootdir"),
-            ("restorelasttable", "restorelastgame"),
             ("tabletype", "playfieldvariant"),
             ("tableresolution", "playfieldresolution"),
             ("tablevideoresolution", "playfieldvideoresolution"),
             ("tablemediapriority", "playfieldmediapriority"),
-            ("lasttable", "lastgame"),
         ),
     ),
     Shim(

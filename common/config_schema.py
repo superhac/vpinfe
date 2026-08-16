@@ -386,19 +386,29 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             label="Disable Default Chrome Options",
             aliases=("disabledefaultchromeoptions",),
         ),
+    ),
+    # How the frontend behaves, as against `themes`, which is what is installed. Both of
+    # these were in `general` beside genuinely global settings, on a Manager UI page
+    # nobody looks at for wheel behaviour.
+    *in_section(
+        "frontend",
         ConfigOption(
             "hide_quit_button",
             type="bool",
             default="false",
             label="Hide Quit from MainMenu",
             aliases=("MMhideQuitButton",),
+            legacy=(("Settings", "MMhideQuitButton"),),
         ),
         ConfigOption(
-            "restore_last_game",
+            "restore_last_table",
             type="bool",
             default="true",
             label="Restore Last Table",
-            aliases=("restorelastgame",),
+            # `restorelastgame` was 3.0's and never shipped; 2.x wrote `restorelasttable`,
+            # which is also what this restores - a row is a table.
+            aliases=("restorelasttable",),
+            legacy=(("Settings", "restorelasttable"),),
         ),
     ),
     *in_section(
@@ -527,10 +537,10 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     *in_section(
         "state",
         ConfigOption(
-            "last_game",
+            "last_table",
             type="string",
             default="",
-            aliases=("lastgame",),
+            aliases=("lasttable",),
             internal=True,
         ),
     ),

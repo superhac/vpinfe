@@ -41,6 +41,7 @@ IGNORED_SECTIONS = {
 # Icons for each section (fallback to 'settings' if not defined)
 SECTION_ICONS = {
     'general': 'folder_open',
+    'frontend': 'view_carousel',
     'input': 'sports_esports',
     'logger': 'terminal',
     'media': 'perm_media',
@@ -51,6 +52,7 @@ SECTION_ICONS = {
 
 SECTION_DESCRIPTIONS = {
     'general': 'Core paths, startup behavior, and theme defaults.',
+    'frontend': 'How the wheel behaves - what it opens on, and what the menu offers.',
     'displays': 'Monitor assignments and playfield orientation settings.',
     'input': 'Controller and input-related preferences.',
     'logger': 'Verbosity, console logging, and quick log access.',
