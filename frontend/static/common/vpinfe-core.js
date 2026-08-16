@@ -91,10 +91,8 @@ const CAPABILITIES = {
     legacyConfig: ["useCoreAudio", "audio.useCoreAudio"],
     describe: "Core plays, fades and mutes per-game audio.",
   },
-  // Off by default: every published theme preloads for itself, so turning this on
-  // without deleting the theme's own loop just doubles the requests.
-  // Off by default like the rest: a theme that already lays itself out must ask before
-  // core starts setting attributes its CSS may fight.
+  // Off by default: a theme that already lays itself out must ask before core starts
+  // setting attributes its CSS may fight.
   core_layout: {
     default: false,
     config: ["layout.enabled"],
@@ -118,6 +116,8 @@ const CAPABILITIES = {
     describe: "Core shows each display window the media named for it.",
   },
   core_preload: {
+    // Off by default: every published theme preloads for itself, so turning this on
+    // without deleting the theme's own loop just doubles the requests.
     default: false,
     // One spelling. A capability's settings live in a block named after it, and
     // `enabled` is one of them - which is also the only shape `kinds` can travel in.
