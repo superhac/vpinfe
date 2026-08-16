@@ -20,11 +20,10 @@ from common.games.collection_store import (
     DIRECTION_LABELS,
     ORDER_ALIASES,
     SORT_LABELS,
-    THEME_SORT_NAMES,
     CollectionStore,
 )
 from common.games.game_metadata import play_record
-from frontend.game_state import SORT_FOR_ORDER
+from frontend import game_state
 from tests.support.library import TempTree
 
 
@@ -58,11 +57,26 @@ class SortVocabularyTests(TempTree):
 
         self.assertEqual(set(SORT_LABELS) - self.LIBRARY_SORTS - reported, set())
 
-    def test_the_theme_is_still_answered_with_its_own_sort_names(self) -> None:
-        """ORDER_ALIASES carries token aliases as well as the published spellings, so
-        inverting the whole map would answer `get_current_sort_state` with one of them."""
-        self.assertEqual(SORT_FOR_ORDER["play_time_seconds"], "RunTime")
-        self.assertEqual(set(SORT_FOR_ORDER.values()), set(THEME_SORT_NAMES))
+    def test_the_sort_reported_is_the_collection_s_own_token(self) -> None:
+        """There is one vocabulary now, so there is nothing to translate.
+
+        This used to assert the opposite - that a collection's order was answered in the
+        five 2.x sort names. Those could not express year, rating or play time, so a
+        collection ordered by one of them reported `Alpha` and the wheel claimed a title
+        sort it did not have. Every order a collection can carry now answers as itself.
+        """
+        for order_by in SORT_LABELS:
+            with self.subTest(order_by=order_by):
+                sort, _direction = game_state.sort_state(
+                    {"by": order_by, "direction": "asc"})
+                self.assertEqual(sort, order_by)
+
+    def test_a_curated_order_answers_as_manual(self) -> None:
+        """And apply_sort leaves it alone deliberately, rather than by not recognising
+        a name it was handed."""
+        sort, _direction = game_state.sort_state({"by": "manual", "direction": "asc"})
+
+        self.assertEqual(sort, "manual")
 
     def test_the_bare_duration_token_still_reads(self) -> None:
         """A dev install could have stored it before the sort named its unit."""

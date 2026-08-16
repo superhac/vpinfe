@@ -138,7 +138,7 @@ class ViewRefreshTests(unittest.TestCase):
         library = [_game("Alpha"), _game("Bravo")]
         self.store.add_collection("Tournament", ["bravo", "alpha"])
         self.store.set_order("Tournament", "manual")
-        api = self._api(library, sort=game_state.MANUAL_SORT,
+        api = self._api(library, sort="manual",
                         collection="Tournament")
 
         self._refresh(api, library)

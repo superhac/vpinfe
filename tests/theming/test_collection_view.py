@@ -111,7 +111,8 @@ class CollectionViewTests(TempTree):
         api = self._api()
         game_state.apply_collection(api, "Friday Night")
 
-        self.assertEqual(api.current_sort, game_state.MANUAL_SORT)
+        self.assertEqual(api.current_sort, "manual",
+                         "the collection's own token, not a sort name of its own")
         self.assertEqual(self._rows(api), [("mm", "vpw"), ("taf", "t1")],
                          "the curator's order, not the alphabetical one")
 

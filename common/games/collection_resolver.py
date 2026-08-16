@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from common.games import collection_filters
+from common.games.collection_store import MANUAL_ORDER
 from common.games.game_identity import game_id
 from common.games.game_metadata import (
     game_rating,
@@ -155,21 +156,24 @@ def _excluded(refs) -> tuple[set[str], set[str]]:
 def _primary_key(order_by: str):
     """The value a sort orders on, ascending in every case. Negating one here would put
     the field back to largest-first whatever `order.direction` says, which is the bug
-    this shape exists to prevent - direction is applied once, by `_ordered`."""
+    this shape exists to prevent - direction is applied once, by `_ordered`.
+
+    Takes a game rather than an entry: every one of these reads the game, and the wheel
+    re-sorts games while a collection resolves entries. One key, both callers."""
     if order_by == "year":
-        return lambda e: str(game_year(e.game))
+        return lambda game: str(game_year(game))
     if order_by == "rating":
-        return lambda e: game_rating(e.game)
+        return lambda game: game_rating(game)
     if order_by == "added":
-        return lambda e: getattr(e.game, "creation_time", 0) or 0
+        return lambda game: getattr(game, "creation_time", 0) or 0
     if order_by == "play_time_seconds":
         # The seconds, not User.RunTime: ordering on the minutes ties every game with
         # under a minute on it at zero, which is most of a library that gets browsed.
-        return lambda e: run_time_seconds(getattr(e.game, "meta_config", {}) or {})
+        return lambda game: run_time_seconds(getattr(game, "meta_config", {}) or {})
     if order_by in ("last_played", "play_count"):
         stored = {"last_played": "LastRun", "play_count": "StartCount"}[order_by]
-        return lambda e: _user_value(e.game, stored)
-    return lambda e: game_title(e.game).lower()
+        return lambda game: _user_value(game, stored)
+    return lambda game: game_title(game).lower()
 
 
 def _tiebreak(entry) -> tuple:
@@ -184,9 +188,28 @@ def _ordered(entries: list, order_by: str, descending: bool = False) -> list:
     title order in a descending list, which is the sort `frontend.game_state.apply_sort`
     has always applied - reversing the finished list would order them Z to A instead.
     """
+    key = _primary_key(order_by)
     entries.sort(key=_tiebreak)
-    entries.sort(key=_primary_key(order_by), reverse=descending)
+    entries.sort(key=lambda entry: key(entry.game), reverse=descending)
     return entries
+
+
+def order_games(games: list, order_by: str, descending: bool = False) -> list:
+    """`games` in the order a collection would put them, sorted in place.
+
+    The wheel re-sorts games rather than entries, and used to do it through a second
+    implementation that knew five of the eight orders. This is that implementation
+    retired: one set of keys, one direction rule, and the same tiebreak - title, since
+    two games cannot share the table id an entry list tiebreaks on.
+
+    `manual` means the array is already the order, so it is left alone.
+    """
+    if order_by == MANUAL_ORDER:
+        return games
+    key = _primary_key(order_by)
+    games.sort(key=lambda game: game_title(game).lower())
+    games.sort(key=key, reverse=descending)
+    return games
 
 
 def resolve_games(name: str, collections, games) -> list[Any]:
@@ -249,7 +272,7 @@ def resolve_games(name: str, collections, games) -> list[Any]:
         return [e.game for e in
                 _ordered([as_entries[id(g)] for g in games], by, descending)]
 
-    if order_by == "manual":
+    if order_by == MANUAL_ORDER:
         result = picked + _sorted(from_filters, DEFAULT_ORDER)
     else:
         result = _sorted(picked + from_filters, order_by, order["direction"] == "desc")

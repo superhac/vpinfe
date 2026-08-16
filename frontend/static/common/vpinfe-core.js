@@ -1155,7 +1155,7 @@ class VPinFECore {
     // A data change raised by the backend carries no index - the wheel position only
     // exists in the browser, and a theme assigns message.index straight to its wheel.
     // The game under the wheel is held rather than the number, because the refresh can
-    // reorder: a finished session moves a game up a LastRun wheel, and a Manager UI edit
+    // reorder: a finished session moves a game up a last-played wheel, and a Manager UI edit
     // can filter it out of the list entirely.
     const raised = message && typeof message === "object"
       && typeof message.index !== "number"

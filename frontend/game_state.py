@@ -5,14 +5,12 @@ from __future__ import annotations
 import json
 import logging
 
-from common.games import game_identity
+from common.games import collection_resolver, game_identity
 from common.games.collection_filters import GameListFilters
 from common.games.collection_resolver import visible_entries
 from common.games.collection_store import (
     BUILTIN_ALL,
-    MANUAL_ORDER,
     ORDER_ALIASES,
-    THEME_SORT_NAMES,
 )
 from common.games.collections_service import save_filter_collection
 from common.games.game_metadata import (
@@ -20,7 +18,6 @@ from common.games.game_metadata import (
     normalize_meta,
     play_record,
     reorder_leading_article,
-    run_time_seconds,
     section,
     table_descriptor,
     vpinfe_section,
@@ -39,12 +36,8 @@ logger = logging.getLogger("vpinfe.frontend.game_state")
 
 # The theme's sort names, from the order a collection stores. Choosing a collection
 # applies its order once, and these are what the sort UI and the letter jump read back.
-# Built from the published names only: ORDER_ALIASES also carries token aliases, which
 # are read on the way in and must never be answered with.
-SORT_FOR_ORDER = {ORDER_ALIASES[name]: name for name in THEME_SORT_NAMES}
 
-# A curated order, which is not one of the sorts a theme offers. See sort_state.
-MANUAL_SORT = "Manual"
 
 
 def default_filter_state():
@@ -182,15 +175,17 @@ def games_json(entries, contract: int = CURRENT_CONTRACT, *,
 
 
 def sort_state(order: dict) -> tuple[str, str]:
-    """The sort name and direction that describe a collection's resolved order.
+    """The order a collection resolves by, and its direction.
 
-    A curated collection comes back as `Manual`, which `apply_sort` does not know - and
-    that is what leaves the curator's order alone when the view is rebuilt under it.
+    It used to translate into the five 2.x sort names, which could not express year,
+    rating or play time - those came back as `Alpha`, so the wheel reported a title sort
+    for a collection ordered by something else. There is one vocabulary now, so there is
+    nothing to translate and nothing to lose.
+
+    `manual` passes through: apply_sort leaves the curator's array alone, deliberately
+    rather than by not recognising the name.
     """
-    by = order["by"]
-    if by == MANUAL_ORDER:
-        return MANUAL_SORT, "Ascending"
-    return SORT_FOR_ORDER.get(by, "Alpha"), normalize_sort_order(order["direction"])
+    return order["by"], normalize_sort_order(order["direction"])
 
 
 def _filter_state(criteria) -> dict:
@@ -308,24 +303,20 @@ def apply_filters(api, letter=None, theme=None, game_type=None, manufacturer=Non
     return len(api.filteredGames)
 
 
-def apply_sort(games, sort_type, order_by=None):
-    reverse = normalize_sort_order(order_by, sort_type) == "Descending"
-    if sort_type == "Alpha":
-        games.sort(key=lambda game: game_title(game).lower(), reverse=reverse)
-    elif sort_type == "Newest":
-        games.sort(key=lambda game: game_title(game).lower())
-        games.sort(key=lambda game: game.creation_time if game.creation_time is not None else 0, reverse=reverse)
-    elif sort_type == "LastRun":
-        _sort_by_numeric_meta(games, "LastRun", reverse)
-    elif sort_type == "Highest StartCount":
-        _sort_by_numeric_meta(games, "StartCount", reverse)
-    elif sort_type == "RunTime":
-        # The seconds behind User.RunTime, so games with under a minute on them order
-        # against each other instead of all tying at zero. Same value the `play_time`
-        # collection axis sorts on, so the two lenses agree.
-        games.sort(key=lambda game: game_title(game).lower())
-        games.sort(key=lambda game: run_time_seconds(getattr(game, "meta_config", {})),
-                   reverse=reverse)
+def apply_sort(games, order_by, direction=None):
+    """Re-order the wheel, in place, by one of the orders a collection can carry.
+
+    This used to be a second sorter: five of the eight orders, keyed on the 2.x sort
+    names, written to match `collection_resolver` and drifting from it by construction -
+    a collection ordered by year or rating had no name here at all, so it arrived as
+    `Alpha` and the wheel was sorted by title while claiming to be sorted by year.
+
+    Now there is one implementation. `order_by` is the collection's own token, and the
+    2.x spellings still arrive from the collection menu, so they are normalized first.
+    """
+    order_by = ORDER_ALIASES.get(order_by, order_by)
+    descending = normalize_sort_order(direction, order_by) == "Descending"
+    collection_resolver.order_games(games, order_by, descending)
     return len(games)
 
 
