@@ -367,8 +367,12 @@ const VPINFE_OVERLAY_ALIASES = {
 // these widening to fit it - a method that means something to one consumer and nothing
 // to the rest is what makes a shared abstraction worse than none.
 class NavigableList {
-  constructor(items = [], { id = "", cursor = 0 } = {}) {
+  // `kind` says what the items are - "table" or "collection" - so a theme reading an
+  // index message knows which list it is about without tracking a mode of its own.
+  // That is what retires leaveCollectionMode(): a broadcast says which list moved.
+  constructor(items = [], { id = "", cursor = 0, kind = "table" } = {}) {
     this.id = id;
+    this.kind = kind;
     this.items = Array.isArray(items) ? items : [];
     this.cursor = cursor;
   }
@@ -585,6 +589,11 @@ class VPinFECore {
     // The overlay that is open, or null. One-of by construction - #toggleOverlay closes
     // any other before opening one - so three booleans could only ever disagree.
     this.overlay = null;
+
+    // Lists core has descended into, innermost last. Empty means the wheel is what is on
+    // screen. The wheel itself is not held here - it is derived from tableData, so there
+    // is still one place the entries live.
+    this._listStack = [];
 
     // Event handling
     this.eventHandlers = {}; // Custom event handlers registered by themes
@@ -1260,9 +1269,22 @@ class VPinFECore {
     },
   };
 
+  // The overlays are core's, so their mount is core's too. A theme that does not carry
+  // the element used to take core down on the menu key - getElementById returned null and
+  // the next line read classList off it.
+  #overlayRoot() {
+    let root = document.getElementById("overlay-root");
+    if (!root) {
+      root = document.createElement("div");
+      root.id = "overlay-root";
+      document.body.appendChild(root);
+    }
+    return root;
+  }
+
   async #toggleOverlay(name) {
     const spec = VPinFECore.OVERLAYS[name];
-    const overlayRoot = document.getElementById("overlay-root");
+    const overlayRoot = this.#overlayRoot();
     let iframe = document.getElementById(spec.frameId);
 
     if (this.overlay === name) {
@@ -2169,10 +2191,69 @@ class VPinFECore {
   // everything else. Core keeps the arithmetic so a fourth copy is never written.
   createList(items, options) { return new NavigableList(items, options); }
 
-  // Move the selection, wrap it, and tell everyone where it went.
+  /**
+   * The list the input actions are moving. The wheel until something is pushed on top.
+   *
+   * Derived rather than stored so the wheel's cursor cannot fall out of step with
+   * `_currentTableIndex`, which thirty-odd places still read.
+   */
+  activeList() { return this._listStack[this._listStack.length - 1] || this.wheelList(); }
+
+  /** Whether the wheel is what the cursor is on. */
+  get atRoot() { return this._listStack.length === 0; }
+
+  /**
+   * Descend into a list. The wheel keeps its cursor untouched underneath, so coming back
+   * lands where the player left rather than where they were browsing.
+   */
+  pushList(list) {
+    if (!(list instanceof NavigableList)) return this.activeList();
+    this._listStack.push(list);
+    this.#announceIndex(list.cursor, { previous: list.cursor, reason: "enter" });
+    return list;
+  }
+
+  /**
+   * Open the collection picker as a list core holds and moves.
+   *
+   * The theme renders it from the index messages, which now say which list they are
+   * about - so a theme needs no mode flag of its own, and no `leaveCollectionMode`.
+   */
+  async openCollectionPicker() {
+    const rows = await this.call("get_collections_metadata");
+    if (!Array.isArray(rows) || !rows.length) return null;
+    return this.pushList(new NavigableList(rows, {
+      id: "collections", kind: "collection",
+      cursor: Math.max(0, rows.findIndex((row) => row.name === this.collection)),
+    }));
+  }
+
+  /**
+   * Act on what the cursor is on. A collection is applied and the picker closes; at the
+   * root the theme still owns select, because that is where launching lives.
+   */
+  async selectCurrent() {
+    if (this.atRoot) return false;
+    const item = this.activeList().current;
+    this.popList();
+    if (item && item.name) await this.call("set_tables_by_collection", item.name);
+    return true;
+  }
+
+  /** Come back out. Returns false at the root, where there is nothing to pop. */
+  popList() {
+    if (this.atRoot) return false;
+    this._listStack.pop();
+    const list = this.activeList();
+    this.#announceIndex(list.cursor, { previous: list.cursor, reason: "leave" });
+    return true;
+  }
+
+  // Move the selection, wrap it, and tell everyone where it went. Whichever list is on
+  // top: the wheel, or a picker core has descended into.
   moveBy(delta) {
-    const list = this.wheelList();
-    if (!list.length) return this._currentTableIndex;
+    const list = this.activeList();
+    if (!list.length) return list.cursor;
     const previous = list.cursor;
     return this.moveTo(list.indexAfter(delta),
                        { previous, direction: delta < 0 ? "previous" : "next" });
@@ -2194,22 +2275,36 @@ class VPinFECore {
    * empty when the order has no groups, so a theme can tell "no grouping here" from
    * "the group happens to be empty".
    */
-  moveTo(index, { previous = this._currentTableIndex, direction = "",
+  moveTo(index, { previous = this.activeList().cursor, direction = "",
                   reason = "step", source = "user" } = {}) {
-    const count = this.tableData.length;
-    if (!count) return this._currentTableIndex;
-    const at = Math.max(0, Math.min(count - 1, Number(index) || 0));
-    this._currentTableIndex = at;
+    const list = this.activeList();
+    if (!list.length) return list.cursor;
+    const at = list.moveTo(index);
+    // Only the wheel has a selected game. Moving a picker's cursor must not fetch a
+    // rating, re-render window media or tell the backend a game was selected - every one
+    // of those follows `_currentTableIndex`, and this is the one place it is assigned.
+    if (this.atRoot) this._currentTableIndex = at;
+    this.#announceIndex(at, { previous, direction, reason, source });
+    if (this.atRoot) this.#selectionChanged();
+    return at;
+  }
+
+  // One shape for every index message, whichever list moved.
+  #announceIndex(at, { previous = at, direction = "", reason = "step",
+                       source = "user" } = {}) {
+    const list = this.activeList();
+    const item = this.atRoot ? (this.tableData[at] || {}) : {};
     this.sendMessageToAllWindowsIncSelf({
       type: "TableIndexUpdate", index: at, previous, direction, reason, source,
-      group: (this.tableData[at] || {}).group || "", groupKind: this.groupBy || "",
+      // Which list this index is in. A theme reads it instead of tracking a mode, so a
+      // picker no longer has to guess that an index message means "a game was picked".
+      list: list.id, kind: list.kind,
+      group: item.group || "", groupKind: this.atRoot ? (this.groupBy || "") : "",
       // True while the wheel is still settling - what a theme needs to decide whether to
       // load full art or wait. It cannot serve as a jump signal: it is time-based, so one
       // distant jump reports false.
       moving: this.#stillMoving(),
     });
-    this.#selectionChanged();
-    return at;
   }
 
   #stillMoving() {
@@ -2292,6 +2387,13 @@ class VPinFECore {
     else if (this.#shouldHandleCoreNavigation(action)) {
       if (action === "previous" || action === "next") this.moveBy(action === "previous" ? -1 : 1);
       else this.#handleCorePaging(action);
+    }
+    // Core owns select and back for as long as it is holding a list. It has to: the
+    // theme has no way to pop a stack it does not know about, so handing back either
+    // action would strand the player inside the picker.
+    else if (!this.atRoot && (action === "select" || action === "back")) {
+      if (action === "select") this.selectCurrent();
+      else this.popList();
     }
     else this.#triggerInputAction(action);
   }
