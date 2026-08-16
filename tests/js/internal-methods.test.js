@@ -21,7 +21,7 @@ function coreOnASocket() {
 }
 
 describe("vpin.call refuses core's own methods", () => {
-  test("the five the collection menu owns are the refused set", () => {
+  test("the ones the collection menu owns are the refused set", () => {
     const { internal } = coreOnASocket();
 
     assert.deepEqual([...internal].sort(), [
@@ -30,6 +30,7 @@ describe("vpin.call refuses core's own methods", () => {
       "get_current_filter_state",
       "get_current_order_state",
       "get_current_sort_state",
+      "get_paging_state",
     ]);
   });
 

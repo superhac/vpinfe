@@ -14,9 +14,9 @@ from __future__ import annotations
 from common import config_schema, input_registry
 from common.config_access import cfg_get
 
-PAGING_TYPES = config_schema.PAGING_TYPES
-PAGING_TYPE_ALIASES = config_schema.PAGING_TYPE_ALIASES
-PAGING_TYPE_DEFAULT = config_schema.PAGING_TYPE_DEFAULT
+PAGING_GROUPS = config_schema.PAGING_GROUPS
+PAGING_GROUP_ALIASES = config_schema.PAGING_GROUP_ALIASES
+PAGING_GROUP_DEFAULT = config_schema.PAGING_GROUP_DEFAULT
 PAGING_SIZE_DEFAULT = 10
 
 
@@ -58,12 +58,16 @@ def get_bindings(config) -> dict[str, list[str]]:
 
 
 def get_paging_config(config):
-    """Return (paging_type, page_size), normalized to sane values."""
-    paging_type = cfg_get(config, input_registry.SECTION, "paging_type",
-                          PAGING_TYPE_DEFAULT).strip().lower()
-    paging_type = PAGING_TYPE_ALIASES.get(paging_type, paging_type)
-    if paging_type not in PAGING_TYPES:
-        paging_type = PAGING_TYPE_DEFAULT
+    """Return (paging_group, page_size), normalized to sane values.
+
+    This is the player's default. A collection may override it - see the order block -
+    so a caller with a collection in hand resolves against that first.
+    """
+    paging_group = cfg_get(config, input_registry.SECTION, "paging_group",
+                           PAGING_GROUP_DEFAULT).strip().lower()
+    paging_group = PAGING_GROUP_ALIASES.get(paging_group, paging_group)
+    if paging_group not in PAGING_GROUPS:
+        paging_group = PAGING_GROUP_DEFAULT
     try:
         page_size = int(cfg_get(config, input_registry.SECTION, "paging_size",
                                 str(PAGING_SIZE_DEFAULT)).strip())
@@ -71,7 +75,7 @@ def get_paging_config(config):
         page_size = PAGING_SIZE_DEFAULT
     if page_size < 1:
         page_size = PAGING_SIZE_DEFAULT
-    return paging_type, page_size
+    return paging_group, page_size
 
 
 def get_joymapping(config):

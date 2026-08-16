@@ -1315,6 +1315,23 @@ disagreed with what the user saw on the wheel. Keeping it would have meant pagin
 group the filter cannot express, which is what group paging needs to work at all. Covered
 by `tests/curation/test_collection_filters.py` and `tests/theming/test_paging.py`.
 
+**PAR-88 — A page press is grouped by the sort, and a collection may say otherwise.**
+Master paged by letter only when the sort was alphabetical, and stepped a fixed number the
+rest of the time without saying so. A press now moves to the next group in whatever the
+list is ordered by — the next letter under title order, the next year under year order —
+and where an order gives every table its own value there are no groups, so it moves a fixed
+number. The `[input]` setting is `paging_group`, `sort` or `count`; the 2.x spellings
+`alpha` and `numeric` still resolve, to `sort` and `count`. A collection can override the
+player's choice in its `order` block, and says nothing there by default, so changing the
+player setting still reaches every collection that never expressed a preference.
+*What it costs someone:* nothing chosen in 2.x stops working — `alpha` and `numeric` both
+carry over and mean what they meant. What changes is that a collection ordered by year or
+rating now pages by year or rating, where master stepped.
+*Also added:* one WebSocket method, `get_paging_state`, so the collection menu can say what
+a press will do. It is refused to themes — core's own overlay is the caller. Covered by
+`tests/theming/test_paging.py`, `tests/curation/test_order_direction.py` and
+`tests/invariants/test_theme_api_surface.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

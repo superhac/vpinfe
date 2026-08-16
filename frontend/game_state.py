@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 import logging
 
-from common.games import collection_resolver, game_identity
+from common.games import collection_filters, collection_resolver, game_identity
 from common.games.collection_filters import (
     GameListFilters,
-    group_axis,
+    group_kind,
     group_key,
 )
 from common.games.collection_resolver import visible_entries
@@ -34,7 +34,7 @@ from common.media_specs import game_media_payload
 from common.shared_assets import manufacturer_logo_web_path
 from common.timestamps import epoch_to_iso
 from common.values import is_truthy
-from frontend.input_api import PAGING_TYPE_ALIASES, PAGING_TYPE_DEFAULT
+from frontend.input_api import PAGING_GROUP_ALIASES, PAGING_GROUP_DEFAULT
 from frontend.theme_contract import CURRENT_CONTRACT, project
 
 logger = logging.getLogger("vpinfe.frontend.game_state")
@@ -172,7 +172,7 @@ def games_json(entries, contract: int = CURRENT_CONTRACT, *,
         "count": len(entries),
         # Empty when the order has no groups, so a theme can tell "no grouping here"
         # from "the group happens to be empty".
-        "group_by": group_axis(order_by) if key is not None else "",
+        "group_by": group_kind(order_by) if key is not None else "",
         "entries": [_entry_row(e, logo_cache, key(e.game) if key else None)
                     for e in entries],
     })
@@ -199,7 +199,7 @@ def _filter_state(criteria) -> dict:
     return {
         "letter": criteria["letter"],
         "theme": criteria["theme"],
-        "type": criteria["table_type"],
+        "type": collection_filters.criterion(criteria, "game_type", "All"),
         "manufacturer": criteria["manufacturer"],
         "year": criteria["year"],
         "rating": criteria.get("rating", "All"),
@@ -212,7 +212,7 @@ def _criteria(filters: dict) -> dict:
     return {
         "letter": filters["letter"],
         "theme": filters["theme"],
-        "table_type": filters["type"],
+        "game_type": filters["type"],
         "manufacturer": filters["manufacturer"],
         "year": filters["year"],
         "rating": filters["rating"],
@@ -274,8 +274,13 @@ def refresh_view(api):
     rebuild_view(api)
 
 
-def save_current_filter_collection(api, name, letter, theme, game_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by="desc"):
-    save_filter_collection(name, letter, theme, game_type, manufacturer, year, rating, rating_or_higher, sort_by, order_by)
+def save_current_filter_collection(api, name, letter, theme, game_type, manufacturer,
+                                   year, order_by, rating, rating_or_higher,
+                                   direction="desc"):
+    # The stored criteria keys are still 2.x's `sort_by` and `order_by`, where `order_by`
+    # is the direction. That is on disk and stays; the names here say what they are.
+    save_filter_collection(name, letter, theme, game_type, manufacturer, year, rating,
+                           rating_or_higher, order_by, direction)
     return {"success": True, "message": f"Filter collection '{name}' saved successfully"}
 
 
@@ -326,17 +331,17 @@ def apply_sort(games, order_by, direction=None):
 
 
 def page_jump_index(games, index, direction, order_by="title",
-                    paging_type=PAGING_TYPE_DEFAULT, page_size=10):
+                    paging_group=PAGING_GROUP_DEFAULT, page_size=10):
     """The wheel index a page press lands on.
 
-    Group paging moves to the next boundary in whatever the list is ordered by - the next
-    letter when ordered by title, the next year when ordered by year. It used to be
-    `alpha` paging and only applied when the sort was alphabetical, silently stepping
-    instead the rest of the time; the group is the order now, so there is nothing to fall
-    back from. Where an order has no groups, or the whole list is one group, a press steps.
+    Grouping by `sort` moves to the next boundary in whatever the list is ordered by -
+    the next letter when ordered by title, the next year when ordered by year. Where an
+    order has no groups, or the whole list is one group, there is no boundary to find and
+    the press falls back to a count.
 
-    Step paging moves by `page_size`, capped at half the list so a press never wraps past
-    where it started. All paging is circular.
+    Grouping by `count` moves `page_size`, capped at half the list so a press never wraps
+    past where it started. It is the one grouping that works whatever the order is,
+    because it reads no values at all. All paging is circular.
     """
     count = len(games)
     if count <= 1:
@@ -344,7 +349,7 @@ def page_jump_index(games, index, direction, order_by="title",
     index = index % count
     forward = direction != "prev"
 
-    if PAGING_TYPE_ALIASES.get(paging_type, paging_type) == "group":
+    if PAGING_GROUP_ALIASES.get(paging_group, paging_group) == "sort":
         key = group_key(order_by)
         if key is not None:
             keys = [key(game) for game in games]

@@ -328,7 +328,7 @@ class OrderDefaultTests(TempTree):
 
         reopened = CollectionStore(str(self.collections.path))
         self.assertEqual(reopened.get_order("Favorites"),
-                         {"by": "manual", "direction": "asc"})
+                         {"by": "manual", "direction": "asc", "paging_group": None})
 
     def test_a_filter_collections_stored_sort_still_applies(self) -> None:
         """Read from where it has always been stored, in the new vocabulary."""
@@ -336,4 +336,4 @@ class OrderDefaultTests(TempTree):
                                                order_by="Descending")
 
         self.assertEqual(self.collections.get_order("Recent"),
-                         {"by": "last_played", "direction": "desc"})
+                         {"by": "last_played", "direction": "desc", "paging_group": None})

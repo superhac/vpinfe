@@ -197,6 +197,9 @@
     </ul>
 
     <div class="table-count" id="table-count">Table Count: 0</div>
+    <!-- What a page press will do here. The sort decides the groups, so this changes
+         with the sort above rather than being a setting of its own. -->
+    <div class="table-count" id="paging-state"></div>
 
     <!-- Popup for dropdown -->
     <div id="dropdown-popup" class="popup" style="display: none;"></div>
@@ -432,6 +435,14 @@
       updateMenu();
     }
 
+    async function updatePagingState() {
+      const state = await window.parent.vpin.callInternal('get_paging_state');
+      if (!state) return;
+      document.getElementById('paging-state').textContent = state.group === 'sort'
+        ? `Pages by ${state.kind}`
+        : `Pages ${state.size} at a time`;
+    }
+
     function updateTableCount() {
       const tableCount = window.parent.vpin.tableData ? window.parent.vpin.tableData.length : 0;
       document.getElementById('table-count').textContent = `Table Count: ${tableCount}`;
@@ -456,6 +467,7 @@
         directionLabel(filterDisplayOverrides.orderby || orderOptions[orderByIndex]);
 
       updateTableCount();
+      updatePagingState();
     }
 
     function normalizeRatingMode() {

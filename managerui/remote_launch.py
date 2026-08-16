@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from common.games import collection_filters
 from common.games.collection_store import CollectionStore
 from common.values import is_truthy
 from managerui.paths import COLLECTIONS_PATH
@@ -73,7 +74,7 @@ def game_matches_filters(game: dict, filters) -> bool:
     if year != "All" and str(game.get("year", "")) != str(year):
         return False
 
-    game_type = filters.get("table_type", "All")
+    game_type = collection_filters.criterion(filters, "game_type", "All")
     if game_type != "All" and game.get("type", "") != game_type:
         return False
 

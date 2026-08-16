@@ -5,12 +5,40 @@ import logging
 from nicegui import app, events, run, ui
 
 from common.games import game_index_service
-from common.games.collection_filters import AXES, canonical_axis, is_unconstrained
+from common.games.collection_filters import AXES, canonical_axis, group_kind, is_unconstrained
 from common.values import is_truthy
 from managerui.services import collection_admin
 from managerui.ui_helpers import debounced_input, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.collections")
+
+
+def _paging_control(sort_input, value=""):
+    """How this collection pages, with a caption saying what that means for this sort.
+
+    Every option stays selectable, including where the sort has no groups. Disabling it
+    there would stop the user recording a preference that starts mattering the moment
+    they change the sort - the caption says what happens today instead.
+    """
+    paging = ui.select(label='Page by',
+                       options=collection_admin.PAGING_GROUP_LABELS,
+                       value=value).classes('w-full')
+    caption = ui.label().classes('text-xs').style('color: var(--text-dim);')
+
+    def explain():
+        kind = group_kind(sort_input.value or collection_admin.DEFAULT_ORDER_BY)
+        if (paging.value or "") == "count":
+            caption.text = 'A page press moves a fixed number of tables.'
+        elif kind:
+            caption.text = f'A page press moves to the next {kind}.'
+        else:
+            caption.text = ('This sort puts every table in its own group, so a page press '
+                            'moves a fixed number instead.')
+
+    sort_input.on_value_change(lambda _: explain())
+    paging.on_value_change(lambda _: explain())
+    explain()
+    return paging
 _collection_icons_route_registered = False
 
 def render_panel(tab=None):
@@ -396,6 +424,7 @@ def render_panel(tab=None):
                 # emit-value returns the bare index instead. See test_choice_widget_props.
                 sort_input = ui.select(label='Sort By', options=collection_admin.SORT_LABELS, value=collection_admin.DEFAULT_ORDER_BY).classes('w-full')
                 order_input = ui.select(label='Order By', options=collection_admin.DIRECTION_LABELS, value='desc').classes('w-full')
+                paging_input = _paging_control(sort_input)
 
                 def _join_or_all(values):
                     """Join selected values with comma, or return 'All' if none selected."""
@@ -428,7 +457,8 @@ def render_panel(tab=None):
                             collection_admin.set_collection_order(
                                 name,
                                 sort_input.value or collection_admin.DEFAULT_ORDER_BY,
-                                order_input.value or collection_admin.DEFAULT_DIRECTION)
+                                order_input.value or collection_admin.DEFAULT_DIRECTION,
+                                paging_input.value or None)
                             ui.notify(f'Filter collection "{name}" created', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -541,6 +571,7 @@ def render_panel(tab=None):
                 # Dict options, and no `emit-value map-options` - see the create dialog.
                 sort_input = ui.select(label='Sort By', options=collection_admin.SORT_LABELS, value=saved_sort).classes('w-full')
                 order_input = ui.select(label='Order By', options=collection_admin.DIRECTION_LABELS, value=saved_order['direction']).classes('w-full')
+                paging_input = _paging_control(sort_input, saved_order['paging_group'] or '')
 
                 def _join_or_all(values):
                     if not values:
@@ -567,7 +598,8 @@ def render_panel(tab=None):
                             collection_admin.set_collection_order(
                                 name,
                                 sort_input.value or collection_admin.DEFAULT_ORDER_BY,
-                                order_input.value or collection_admin.DEFAULT_DIRECTION)
+                                order_input.value or collection_admin.DEFAULT_DIRECTION,
+                                paging_input.value or None)
                             ui.notify(f'Collection "{name}" updated', type='positive')
                             dlg.close()
                             refresh_collections()

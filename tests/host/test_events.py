@@ -172,7 +172,7 @@ class GameSelectionTests(unittest.TestCase):
         """A hook could abandon a selection. Nothing may stop the wheel moving."""
         peripherals.register()
 
-        hooks, subscribers = events.registered(events.TABLE_SELECTED)
+        hooks, subscribers = events.registered(events.GAME_SELECTED)
 
         self.assertEqual(hooks, 0)
         self.assertEqual(subscribers, 2)
@@ -185,7 +185,7 @@ class GameSelectionTests(unittest.TestCase):
             updater.return_value.queue_image_update.side_effect = (
                 lambda name, path: shown.append(name))
             peripherals.register()
-            events.emit(events.TABLE_SELECTED, game=self._game(), ini_config="cfg")
+            events.emit(events.GAME_SELECTED, game=self._game(), ini_config="cfg")
 
         self.assertEqual(sent, ["E901"], "the table's own effect, not the default")
         self.assertEqual(shown, ["Medieval Madness"])
@@ -198,7 +198,7 @@ class GameSelectionTests(unittest.TestCase):
             updater.return_value.queue_image_update.side_effect = (
                 lambda name, path: shown.append(name))
             peripherals.register()
-            events.emit(events.TABLE_SELECTED, game=self._game(), ini_config="cfg")
+            events.emit(events.GAME_SELECTED, game=self._game(), ini_config="cfg")
 
         self.assertEqual(shown, ["Medieval Madness"])
 
@@ -209,7 +209,7 @@ class GameSelectionTests(unittest.TestCase):
                 mock.patch.object(peripherals, "_updater",
                                   side_effect=RuntimeError("no panel attached")):
             peripherals.register()
-            events.emit(events.TABLE_SELECTED, game=self._game(), ini_config="cfg")
+            events.emit(events.GAME_SELECTED, game=self._game(), ini_config="cfg")
 
         self.assertEqual(sent, ["E901"])
 

@@ -16,13 +16,15 @@ from dataclasses import dataclass, replace
 
 from common import input_registry
 
-# What a page press does: move to the next boundary in the current order, or move a fixed
-# number of rows. `alpha` was the name for the first when letters were the only groups,
-# and `numeric` the name for the second; both are on disk in configs users already have,
-# so they keep resolving.
-PAGING_TYPES = ("group", "step")
-PAGING_TYPE_ALIASES = {"alpha": "group", "numeric": "step"}
-PAGING_TYPE_DEFAULT = "group"
+# What a page press groups by. `sort` takes the groups from whatever the list is ordered
+# by - the next letter, year or rating. `count` is a group of a fixed size, which is the
+# one grouping that works whatever the order is, because it reads no values at all.
+#
+# `alpha` and `numeric` were the 2.x names, from when letters were the only groups, and
+# they are on disk in configs users already have.
+PAGING_GROUPS = ("sort", "count")
+PAGING_GROUP_ALIASES = {"alpha": "sort", "numeric": "count"}
+PAGING_GROUP_DEFAULT = "sort"
 
 
 def _input_options() -> tuple[ConfigOption, ...]:
@@ -43,11 +45,11 @@ def _input_options() -> tuple[ConfigOption, ...]:
     ]
     # Not actions: how the paging actions step, which is a setting about them.
     out.append(ConfigOption(
-        "paging_type",
+        "paging_group",
         type="choice",
-        default=PAGING_TYPE_DEFAULT,
-        label="Paging Type",
-        choices=PAGING_TYPES,
+        default=PAGING_GROUP_DEFAULT,
+        label="Page by",
+        choices=PAGING_GROUPS,
         legacy=(("Input", "pagingtype"),),
     ))
     out.append(ConfigOption(

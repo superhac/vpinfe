@@ -229,15 +229,28 @@ def update_filter_collection(name: str, **filters) -> None:
             _set_section_image(manager, name, image)
 
 
-def set_collection_order(name: str, by: str, direction: str) -> None:
+# What a page press moves by in this collection. The empty key is "no opinion" - it has
+# to be offered, or a collection could never go back to following the player.
+PAGING_GROUP_LABELS = {
+    "": "Follow my setting",
+    "sort": "By the sort",
+    "count": "By a fixed number",
+}
+
+
+def set_collection_order(name: str, by: str, direction: str,
+                         paging_group: str | None = None) -> None:
     """How this collection is ordered, in the `order` block the resolver reads.
 
     Not as `sort_by`/`order_by` criteria: those are only a fallback for files written
     before the block existed, so writing them at a collection that has one - every Last
     Played does - changes the stored value and nothing on screen.
+
+    `paging_group` of None means this collection has no opinion and follows the player's
+    setting, which is not the same as choosing what the player currently has.
     """
     with get_collections_manager().mutate() as manager:
-        manager.set_order(name, by, direction)
+        manager.set_order(name, by, direction, paging_group)
 
 
 def update_game_collection(name: str, game_ids: list[str], image: str | None = None) -> None:

@@ -101,7 +101,7 @@ class StoredSpellingTests(TempTree):
         """The block is read verbatim, so an alias only applied to the criteria left the
         bare token matching no branch - the list came back in title order, silently."""
         self.assertEqual(self._order_of({"by": "play_time", "direction": "desc"}),
-                         {"by": "play_time_seconds", "direction": "desc"})
+                         {"by": "play_time_seconds", "direction": "desc", "paging_group": None})
 
     def test_a_2x_spelling_in_the_order_block_reads_too(self) -> None:
         self.assertEqual(self._order_of({"by": "RunTime", "direction": "desc"})["by"],
@@ -109,7 +109,7 @@ class StoredSpellingTests(TempTree):
 
     def test_a_current_token_is_unchanged(self) -> None:
         self.assertEqual(self._order_of({"by": "last_played", "direction": "asc"}),
-                         {"by": "last_played", "direction": "asc"})
+                         {"by": "last_played", "direction": "asc", "paging_group": None})
 
     def test_every_2x_spelling_maps_onto_an_offered_sort(self) -> None:
         self.assertEqual(set(ORDER_ALIASES.values()) - set(SORT_LABELS), set())
@@ -142,7 +142,7 @@ class OrderBlockTests(TempTree):
         self.assertNotIn("sort_by", stored["filters"])
         self.assertNotIn("order_by", stored["filters"])
         self.assertEqual(self.store.get_order("Recent"),
-                         {"by": "play_count", "direction": "desc"})
+                         {"by": "play_count", "direction": "desc", "paging_group": None})
 
 
 class OrderDirectionMigrationTests(TempTree):
@@ -166,7 +166,7 @@ class OrderDirectionMigrationTests(TempTree):
         self.assertEqual(ensure_order_direction(self._store()), 1)
 
         self.assertEqual(self._store().get_order("Recent"),
-                         {"by": "last_played", "direction": "desc"})
+                         {"by": "last_played", "direction": "desc", "paging_group": None})
 
     def test_the_list_the_user_had_comes_back_in_the_same_order(self) -> None:
         """The point of the whole conversion, end to end: `asc` was showing a

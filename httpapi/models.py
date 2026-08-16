@@ -416,8 +416,10 @@ class CollectionFilters(ApiModel):
     the vocabulary the filter engine already uses, kept rather than translated so
     a client sees the same values the Manager UI shows.
 
-    Which is why `sort_by` and `order_by` are the stored 3.0 names: that is what the
-    Manager UI shows now. The 2.x spellings are still accepted on the way in."""
+    `order_by` is the field the collection sorts on and `direction` is which way. They
+    used to be `sort_by` and `order_by`, which is what 2.x wrote into the criteria block
+    on disk - and there `order_by` is the direction. Carrying that up here gave one word
+    two meanings on the wire; the disk keeps its spelling, the wire does not repeat it."""
 
     letter: str = "All"
     theme: str = "All"
@@ -429,8 +431,8 @@ class CollectionFilters(ApiModel):
     # Absent rather than false when the collection says nothing about play, because
     # false is a criterion of its own here - it selects what has never been played.
     played: bool | None = None
-    sort_by: str = DEFAULT_ORDER_BY
-    order_by: str = DEFAULT_DIRECTION
+    order_by: str = DEFAULT_ORDER_BY
+    direction: str = DEFAULT_DIRECTION
 
 
 class CollectionLinks(ApiModel):

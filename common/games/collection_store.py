@@ -10,6 +10,7 @@ import threading
 from pathlib import Path
 
 from common import events
+from common.config_schema import PAGING_GROUP_ALIASES, PAGING_GROUPS
 from common.games import collection_filters
 from common.games.game_identity import game_id
 from common.games.game_metadata import (
@@ -89,6 +90,11 @@ EXCLUDED_KEY = "excluded"
 ORDER_KEY = "order"
 ORDER_BY_KEY = "by"
 ORDER_DIRECTION_KEY = "direction"
+# How a page press moves through this collection, or absent to follow the player's
+# default. Absent has to be distinct from an explicit choice: stored as the resolved
+# value instead, changing the default would stop reaching the collections that never
+# expressed a preference, which is most of them.
+ORDER_PAGING_GROUP_KEY = "paging_group"
 DEFAULT_ORDER_BY = "title"
 DEFAULT_DIRECTION = "asc"
 MANUAL_ORDER = "manual"
@@ -146,6 +152,19 @@ SORT_LABELS = {
 DIRECTION_LABELS = {"asc": "Ascending", "desc": "Descending"}
 
 
+def normalize_paging_group(value) -> str | None:
+    """A paging choice as `sort`, `count`, or None for "follow the player".
+
+    Anything unreadable becomes None rather than a guess: a collection that cannot say
+    what it wants is a collection with no preference, which is the safe reading.
+    """
+    if value is None:
+        return None
+    raw = str(value).strip().lower()
+    resolved = PAGING_GROUP_ALIASES.get(raw, raw)
+    return resolved if resolved in PAGING_GROUPS else None
+
+
 def normalize_direction(value) -> str:
     """A direction as `asc` or `desc`, whatever spelling it arrived in.
 
@@ -177,7 +196,7 @@ def _member_refs(values) -> list[dict]:
 
 # What a filter collection stores, with the value meaning "unconstrained on this axis".
 _FILTER_DEFAULTS = {
-    "letter": "All", "theme": "All", "table_type": "All", "manufacturer": "All",
+    "letter": "All", "theme": "All", "game_type": "All", "manufacturer": "All",
     "year": "All", "rating": "All", "rating_or_higher": "false",
     "sort_by": "Alpha", "order_by": "desc",
 }
@@ -343,7 +362,9 @@ class CollectionStore:
         self._builtins[BUILTIN_ALL]["filters"] = dict(criteria or {})
 
     def get_order(self, section: str) -> dict:
-        """How to order this collection: {"by": ..., "direction": "asc"|"desc"}.
+        """How to order this collection: {"by", "direction", "paging"}.
+
+        `paging_group` is None when the collection follows the player's default.
 
         Falls back to the sort a filter collection stored beside its criteria, and then
         to title. Never falls back to `manual` - see ORDER_KEY.
@@ -362,14 +383,24 @@ class CollectionStore:
             raw = str(criteria.get("sort_by", "") or "").strip()
             direction = criteria.get("order_by") or DEFAULT_DIRECTION
         by = ORDER_ALIASES.get(raw, raw) or DEFAULT_ORDER_BY
+        paging_group = stored.get(ORDER_PAGING_GROUP_KEY) if isinstance(stored, dict) else None
         return {ORDER_BY_KEY: by,
-                ORDER_DIRECTION_KEY: normalize_direction(direction)}
+                ORDER_DIRECTION_KEY: normalize_direction(direction),
+                ORDER_PAGING_GROUP_KEY: normalize_paging_group(paging_group)}
 
-    def set_order(self, section: str, by: str, direction: str = DEFAULT_DIRECTION) -> None:
-        """Record how this collection is ordered. `manual` means the member array."""
+    def set_order(self, section: str, by: str, direction: str = DEFAULT_DIRECTION,
+                  paging_group: str | None = None) -> None:
+        """Record how this collection is ordered. `manual` means the member array.
+
+        `paging_group` of None is not a value - it is the collection saying nothing, so
+        it follows whatever the player has set.
+        """
         record = self._require_mutable(section)
         record[ORDER_KEY] = {ORDER_BY_KEY: by,
                              ORDER_DIRECTION_KEY: normalize_direction(direction)}
+        paging_group = normalize_paging_group(paging_group)
+        if paging_group is not None:
+            record[ORDER_KEY][ORDER_PAGING_GROUP_KEY] = paging_group
         # The criteria said the same thing in the 2.x spellings, and `get_order` reads
         # this block first - so leaving them is leaving a second, stale answer behind.
         for key in collection_filters.ORDERING_KEYS:
@@ -489,7 +520,7 @@ class CollectionStore:
         if self._record(section) is not None:
             raise ValueError(f"Section '{section}' already exists")
         criteria = {
-            "letter": letter, "theme": theme, "table_type": game_type,
+            "letter": letter, "theme": theme, "game_type": game_type,
             "manufacturer": manufacturer, "year": year, "rating": rating,
             "rating_or_higher": rating_or_higher, "sort_by": sort_by,
             "order_by": normalize_direction(order_by),

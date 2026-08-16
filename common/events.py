@@ -27,9 +27,10 @@ TABLE_PLAY_RECORDED = "table.play_recorded"
 GAME_CHANGED = "game.changed"
 COLLECTIONS_CHANGED = "collections.changed"
 
-# The player moved to a table in the wheel. Fires once per wheel stop and nothing may
-# block on it, so subscribers only.
-TABLE_SELECTED = "table.selected"
+# The player moved to a game in the wheel. Fires once per wheel stop and nothing may
+# block on it, so subscribers only. Named for what it carries: the wheel stops on a
+# game, and the payload has never held a table.
+GAME_SELECTED = "game.selected"
 
 # Play-host state changed. Carries the whole new state, so a consumer that missed one
 # is still correct after the next.

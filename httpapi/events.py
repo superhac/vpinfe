@@ -53,23 +53,28 @@ RETRY_MS = 3000
 HELLO_EVENT = "stream.hello"
 
 
-def _game_event(game=None, **_) -> dict:
+def _game_event(game=None, table_id=None, **_) -> dict:
     """The wire shape of a game lifecycle event.
 
     The bus carries the Game object and the whole ini config because its handlers
     are in-process. Neither belongs on a socket, so the stream sends a reference to
-    the table rather than the table: an id, a name to show, and the link to fetch
-    the rest. That link is what keeps this a pointer instead of a second, thinner
-    answer to "what does a table look like".
+    the game rather than the game: an id, a name to show, and the link to fetch the
+    rest. That link is what keeps this a pointer instead of a second, thinner answer
+    to "what does a game look like".
+
+    `table` is which build launched, and it is why the launch events are named for a
+    table. The bus has carried it all along; it stopped here, so the wire had an event
+    called `table.launching` that said nothing about which table.
     """
     if game is None:
         return {"game": None}
 
     game_id = game_identity.game_id(game)
     reference = {"id": game_id, "name": getattr(game, "gameDirName", "")}
+    table = {"id": table_id} if table_id else None
     if game_id:
         reference["links"] = {"self": f"/api/v1/games/{game_id}"}
-    return {"game": reference}
+    return {"game": reference, "table": table}
 
 
 def _job_event(**payload) -> dict:
@@ -115,7 +120,7 @@ STREAMED_EVENTS: dict[str, Callable[..., dict]] = {
     events.TABLE_LAUNCHING: _game_event,
     events.TABLE_LAUNCHED: _game_event,
     events.TABLE_EXITED: _game_event,
-    events.TABLE_SELECTED: _game_event,
+    events.GAME_SELECTED: _game_event,
     # The library moved under whoever is holding it. Local subscribers get this
     # already; it crosses now because a frontend on another machine has no other way
     # to learn its copy is stale - it cannot watch the files.

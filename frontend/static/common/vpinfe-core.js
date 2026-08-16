@@ -325,6 +325,7 @@ const INTERNAL_METHODS = new Set([
   "get_current_filter_state",
   "get_current_sort_state",
   "get_current_order_state",
+  "get_paging_state",
 ]);
 
 // Same once-per-name reporting as announceLegacy, and for the same reason: without it the
@@ -2691,11 +2692,16 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
 
       if (state.launching && !this.remoteLaunchActive) {
         this.remoteLaunchActive = true;
-        console.log("[RemoteLaunch] Launch detected:", state.table_name);
-        this.call("console_out", `Remote launching: ${state.table_name}`);
+        // `game_name` is what the state carries. This read `table_name` and had done
+        // since the API started talking about games, so every theme has been shown
+        // "undefined" on a remote launch - the field is still sent under both names
+        // because the 2.x one works and twelve themes read it.
+        console.log("[RemoteLaunch] Launch detected:", state.game_name);
+        this.call("console_out", `Remote launching: ${state.game_name}`);
         this.sendMessageToAllWindowsIncSelf({
           type: "RemoteLaunching",
-          table_name: state.table_name
+          game_name: state.game_name,
+          table_name: state.game_name
         });
       } else if (!state.launching && this.remoteLaunchActive) {
         this.remoteLaunchActive = false;

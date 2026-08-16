@@ -73,32 +73,32 @@ class TestPageJumpIndexAlpha(unittest.TestCase):
 class TestPageJumpIndexNumeric(unittest.TestCase):
     def test_next_steps_by_page_size(self):
         games = _games(*[f"T{i:02d}" for i in range(30)])
-        self.assertEqual(page_jump_index(games, 0, "next", paging_type="numeric", page_size=10), 10)
+        self.assertEqual(page_jump_index(games, 0, "next", paging_group="count", page_size=10), 10)
 
     def test_prev_steps_back_and_wraps(self):
         games = _games(*[f"T{i:02d}" for i in range(30)])
-        self.assertEqual(page_jump_index(games, 5, "prev", paging_type="numeric", page_size=10), 25)
+        self.assertEqual(page_jump_index(games, 5, "prev", paging_group="count", page_size=10), 25)
 
     def test_step_caps_at_half_the_list(self):
         # 15 games, size 10: uncapped this would land 10 ahead, which reads as
         # moving backward 5 on a circular wheel. Cap keeps it at 7.
         games = _games(*[f"T{i:02d}" for i in range(15)])
-        self.assertEqual(page_jump_index(games, 0, "next", paging_type="numeric", page_size=10), 7)
+        self.assertEqual(page_jump_index(games, 0, "next", paging_group="count", page_size=10), 7)
 
     def test_two_games_step_one(self):
         games = _games("Alpha", "Bravo")
-        self.assertEqual(page_jump_index(games, 0, "next", paging_type="numeric", page_size=10), 1)
+        self.assertEqual(page_jump_index(games, 0, "next", paging_group="count", page_size=10), 1)
 
     def test_single_game_is_noop(self):
         games = _games("Alpha")
-        self.assertEqual(page_jump_index(games, 0, "next", paging_type="numeric"), 0)
+        self.assertEqual(page_jump_index(games, 0, "next", paging_group="count"), 0)
 
     def test_empty_list_returns_index(self):
         self.assertEqual(page_jump_index([], 3, "next"), 3)
 
     def test_out_of_range_index_is_normalized(self):
         games = _games(*[f"T{i:02d}" for i in range(10)])
-        self.assertEqual(page_jump_index(games, 12, "next", paging_type="numeric", page_size=3), 5)
+        self.assertEqual(page_jump_index(games, 12, "next", paging_group="count", page_size=3), 5)
 
 
 class TestGetPagingConfig(unittest.TestCase):
@@ -110,28 +110,28 @@ class TestGetPagingConfig(unittest.TestCase):
         return parser
 
     def test_defaults_when_unset(self):
-        self.assertEqual(input_api.get_paging_config(self._config()), ("group", 10))
+        self.assertEqual(input_api.get_paging_config(self._config()), ("sort", 10))
 
     def test_reads_configured_values(self):
-        config = self._config(pagingtype="step", pagingsize="25")
-        self.assertEqual(input_api.get_paging_config(config), ("step", 25))
+        config = self._config(pagingtype="count", pagingsize="25")
+        self.assertEqual(input_api.get_paging_config(config), ("count", 25))
 
     def test_the_2x_spellings_still_resolve(self):
         """`alpha` and `numeric` are in configs users already have."""
-        self.assertEqual(input_api.get_paging_config(self._config(pagingtype="alpha"))[0], "group")
-        self.assertEqual(input_api.get_paging_config(self._config(pagingtype="numeric"))[0], "step")
+        self.assertEqual(input_api.get_paging_config(self._config(pagingtype="alpha"))[0], "sort")
+        self.assertEqual(input_api.get_paging_config(self._config(pagingtype="numeric"))[0], "count")
 
     def test_invalid_values_fall_back_to_defaults(self):
         config = self._config(pagingtype="bogus", pagingsize="zero")
-        self.assertEqual(input_api.get_paging_config(config), ("group", 10))
+        self.assertEqual(input_api.get_paging_config(config), ("sort", 10))
 
     def test_nonpositive_size_falls_back(self):
         config = self._config(pagingsize="0")
-        self.assertEqual(input_api.get_paging_config(config), ("group", 10))
+        self.assertEqual(input_api.get_paging_config(config), ("sort", 10))
 
 
 class TestApiGetPageIndex(unittest.TestCase):
-    def _api(self, games, sort_type="Alpha", **input_values):
+    def _api(self, games, order_by="title", **input_values):
         parser = configparser.ConfigParser()
         parser.add_section("Input")
         for key, value in input_values.items():
@@ -140,7 +140,7 @@ class TestApiGetPageIndex(unittest.TestCase):
         api._iniConfig = SimpleNamespace(config=parser)
         # The view holds entries, which is what an index from a theme addresses.
         api.filteredGames = entries_for(games)
-        api.current_sort = sort_type
+        api.current_sort = order_by
         return api
 
     def test_alpha_paging_over_current_view(self):
@@ -159,7 +159,7 @@ class TestApiGetPageIndex(unittest.TestCase):
     def test_non_alpha_sort_uses_numeric_fallback(self):
         api = self._api(
             _games(*[f"T{i:02d}" for i in range(20)]),
-            sort_type="LastRun",
+            order_by="last_played",
             pagingsize="4",
         )
         self.assertEqual(api.get_page_index(0, "next"), 4)

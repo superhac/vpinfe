@@ -21,6 +21,7 @@ from common.games.collection_store import normalize_direction, public_name
 from common.games.collections_service import (
     get_collection_image_url,
     get_collection_names,
+    get_collections_manager,
     get_collections_metadata,
 )
 from common.games.game_metadata import game_rating, normalize_meta, set_game_rating
@@ -131,6 +132,7 @@ API_INTERNAL_METHODS = {
     'get_current_filter_state',
     'get_current_sort_state',
     'get_current_order_state',
+    'get_paging_state',
 }
 
 
@@ -445,15 +447,16 @@ class API:
         game_type="All",
         manufacturer="All",
         year="All",
-        sort_by="Alpha",
+        order_by="title",
         rating="All",
         rating_or_higher=False,
-        order_by="desc",
+        direction="desc",
     ):
         """Save current filter settings as a named collection."""
         try:
             return game_state.save_current_filter_collection(
-                self, name, letter, theme, game_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by
+                self, name, letter, theme, game_type, manufacturer, year, order_by,
+                rating, rating_or_higher, direction,
             )
         except ValueError as e:
             return {"success": False, "message": str(e)}
@@ -518,40 +521,72 @@ class API:
         self.current_filters = game_state.default_filter_state()
         self._reset_to_default_view()
 
-    def apply_sort(self, sort_type, order_by=None):
+    def apply_sort(self, order_by, direction=None):
         """
         Sort the current filtered games.
-        sort_type: one of the orders a collection can carry - 'title', 'year', 'added',
+        order_by: one of the orders a collection can carry - 'title', 'year', 'added',
         'last_played', 'play_count', 'play_time_seconds', 'rating'. The 2.x names still
         arrive from a stored filter and resolve.
-        order_by: 'asc' or 'desc'.
+        direction: 'asc' or 'desc'.
+
+        These used to be `sort_type` and `order_by`, where `order_by` was the direction -
+        one layer below, game_state.apply_sort uses the same word for the field. A stored
+        filter still writes the 2.x key `order_by` for a direction; nothing in code has to
+        repeat it.
         Returns the count of sorted games.
         """
-        self.current_sort = sort_type
+        self.current_sort = order_by
         # No direction asked for means descending, which is what the menu offers first
         # and what a bare apply_sort has always done.
-        self.current_order = normalize_direction(order_by or "desc")
-        logger.debug("Applying sort: %s %s", sort_type, self.current_order)
+        self.current_order = normalize_direction(direction or "desc")
+        logger.debug("Applying sort: %s %s", order_by, self.current_order)
 
-        count = game_state.apply_sort(self.filteredGames, sort_type, self.current_order)
+        count = game_state.apply_sort(self.filteredGames, order_by, self.current_order)
         self._rebuild_entries()
-        logger.debug("Sorted %s games by %s %s", count, sort_type, self.current_order)
+        logger.debug("Sorted %s games by %s %s", count, order_by, self.current_order)
         return count
+
+    def paging_state(self):
+        """What a page press does on the list showing now.
+
+        The collection's own choice if it made one, otherwise the player's. Resolved in
+        one place because two answers to this question is how the wheel and the menu
+        would come to disagree about what a press just did.
+        """
+        default, page_size = input_api.get_paging_config(self._iniConfig.config)
+        chosen = None
+        name = self.current_collection
+        if name:
+            try:
+                chosen = get_collections_manager().get_order(name)["paging_group"]
+            except (KeyError, ValueError):
+                chosen = None
+        group = chosen or default
+        kind = game_state.group_kind(self.current_sort)
+        # Asking for the sort's groups where the sort has none gets a count anyway.
+        if group == "sort" and not kind:
+            group = "count"
+        return {"group": group, "kind": kind if group == "sort" else "",
+                "size": page_size}
+
+    def get_paging_state(self):
+        """The same, for a surface that wants to say what a press will do."""
+        return self.paging_state()
 
     def get_page_index(self, index, direction):
         """
         Compute the target wheel index for a page next/prev request.
-        Paging behavior comes from [Input] paging_type/paging_size and the order
+        Paging behavior comes from [input] paging_group/paging_size and the order
         on screen, which is what decides the groups; see game_state.page_jump_index.
         """
         try:
             index = int(index)
         except (TypeError, ValueError):
             index = 0
-        paging_type, page_size = input_api.get_paging_config(self._iniConfig.config)
+        paging = self.paging_state()
         return game_state.page_jump_index(
             [e.game for e in self.entries], index, direction, self.current_sort,
-            paging_type, page_size
+            paging["group"], paging["size"]
         )
 
     def console_out(self, output):
@@ -614,7 +649,7 @@ class API:
             return {"success": False, "reason": "invalid_index"}
         game = entry.game
 
-        events.emit(events.TABLE_SELECTED, game=game, ini_config=self._iniConfig)
+        events.emit(events.GAME_SELECTED, game=game, ini_config=self._iniConfig)
         return {"success": True}
 
     def get_game_rating(self, index):

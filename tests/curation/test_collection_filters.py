@@ -154,6 +154,21 @@ class DelegationTests(unittest.TestCase):
     """GameListFilters and a filter collection have to agree on what a criterion means,
     which they only do because there is one definition."""
 
+    def test_a_criterion_reads_under_either_spelling(self) -> None:
+        """A file 2.x wrote holds `table_type`; one written now holds `game_type`. Both
+        have to answer, or a reader breaks on whichever it was not written against."""
+        self.assertEqual(cf.criterion({"table_type": "SS"}, "game_type"), "SS")
+        self.assertEqual(cf.criterion({"game_type": "EM"}, "game_type"), "EM")
+        self.assertEqual(cf.criterion({}, "game_type", "All"), "All")
+
+    def test_nothing_writes_the_retired_spelling_any_more(self) -> None:
+        """It was still being minted into every new filter collection while the comment
+        beside it said otherwise."""
+        from common.games.collection_store import _FILTER_DEFAULTS
+
+        self.assertIn("game_type", _FILTER_DEFAULTS)
+        self.assertNotIn("table_type", _FILTER_DEFAULTS)
+
     def test_the_letters_offered_are_the_letters_that_select(self) -> None:
         """The picker listed the raw first character, so a library with `300` offered
         `3` and selecting it came back empty."""

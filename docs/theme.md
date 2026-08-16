@@ -799,8 +799,8 @@ async function receiveEvent(message) {
         fadeIn();
     }
     else if (message.type == "RemoteLaunching") {
-        // Remote launch from manager UI - message.table_name has the game name
-        showRemoteLaunchOverlay(message.table_name);
+        // Remote launch from manager UI - message.game_name has the game name
+        showRemoteLaunchOverlay(message.game_name);
         await fadeOut();
     }
     else if (message.type == "RemoteLaunchComplete") {
@@ -998,7 +998,7 @@ window.receiveEvent = (message) => {
   else moveWheelTo(message.index);
 };
 ```
-| `RemoteLaunching` | `table_name` | The manager UI triggered a remote game launch. Frontend keyboard/gamepad routing is suspended until `RemoteLaunchComplete`; show an overlay. |
+| `RemoteLaunching` | `game_name`, `table_name` | The manager UI triggered a remote game launch. Both names carry the same value; `table_name` is the 2.x spelling. Frontend keyboard/gamepad routing is suspended until `RemoteLaunchComplete`; show an overlay. |
 | `RemoteLaunchComplete` | — | The remote-launched game has exited and frontend input routing is restored. Hide the overlay. |
 | `TableDataChange` | `index`, `collection?`, `filters?`, `sort?` | Game data changed (collection switch, filter/sort update, a finished game's play data, a Manager UI edit). Handled automatically by `vpin.handleEvent()`. |
 

@@ -267,6 +267,20 @@ class RenderSmokeTests(TempTree):
             first, moved = asyncio.run(run(instance))
         self.assertNotEqual(first, moved)
 
+    def test_the_menu_says_what_a_page_press_will_do(self) -> None:
+        """The only place this is visible. A page press moves by the sort's groups or by
+        a count, and which one depends on the collection - so it is told, not guessed."""
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                await self._open_collection_menu(browser, instance)
+                return await browser.wait_for(
+                    "(document.getElementById('collection-menu-frame')?.contentDocument"
+                    "?.getElementById('paging-state')?.textContent) || ''")
+
+        with LiveInstance(self.root) as instance:
+            said = asyncio.run(run(instance))
+        self.assertTrue(said.startswith("Pages "), f"the menu said {said!r}")
+
     def test_back_closes_the_dropdown_before_the_menu(self) -> None:
         """Two nested lists, so back has to unwind one at a time."""
         async def run(instance):

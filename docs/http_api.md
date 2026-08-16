@@ -378,7 +378,7 @@ Events. Anything that wants to know what's happening subscribes instead of polli
 ```js
 const stream = new EventSource("/api/v1/events?events=play.state_changed");
 stream.addEventListener("play.state_changed", (message) => {
-  const { launching, table_name } = JSON.parse(message.data).state;
+  const { launching, game_name } = JSON.parse(message.data).state;
 });
 ```
 
@@ -391,10 +391,11 @@ What's on it, each alongside the `install_id` described below:
 
 | Event | Payload |
 |-------|---------|
-| `table.launching` / `table.launched` / `table.exited` / `table.selected` | `{"game": {"id", "name", "links"}}`, or `{"game": null}` when the launch didn't come from the wheel |
+| `table.launching` / `table.launched` / `table.exited` | `{"game": {"id", "name", "links"}, "table": {"id"}}` — which game, and which of its builds launched. `table` is null when the launch didn't come from the wheel, and the whole payload is `{"game": null}` when there is no game at all |
+| `game.selected` | `{"game": {"id", "name", "links"}, "table": null}` — the wheel stops on a game, so there is no table to name |
 | `game.changed` | `{"game": {"id", "name", "links"}}` — a game's metadata was rewritten, so anything holding it is stale |
 | `collections.changed` | `{}` — the collections were edited; re-read them |
-| `play.state_changed` | `{"state": {"launching", "table_name", "source"}}` |
+| `play.state_changed` | `{"state": {"launching", "game_name", "source"}}` |
 | `job.progress` | `{"job_id", "pct", "message"}` |
 | `job.done` | `{"job_id"}` |
 | `job.failed` | `{"job_id", "error"}` |

@@ -342,14 +342,14 @@ def render_panel(tab=None):
                     options=priority_options,
                     value=priority_value
                 ).props('outlined dense options-dense').classes('config-input')
-            elif section == 'input' and key == 'paging_type':
+            elif section == 'input' and key == 'paging_group':
                 normalized_paging = str(value or '').strip().lower()
                 # A config written before 3.0 holds the old spelling; show it as what it
                 # resolves to rather than falling back to the default and losing the choice.
-                normalized_paging = config_schema.PAGING_TYPE_ALIASES.get(normalized_paging, normalized_paging)
-                paging_options = {'group': 'By group (jump to the next letter, year or rating - whichever the list is sorted by)',
-                                  'step': 'By page (jump a fixed number of tables)'}
-                paging_value = normalized_paging if normalized_paging in paging_options else 'group'
+                normalized_paging = config_schema.PAGING_GROUP_ALIASES.get(normalized_paging, normalized_paging)
+                paging_options = {'sort': 'By the sort - the next letter, year or rating',
+                                  'count': 'By a fixed number of tables'}
+                paging_value = normalized_paging if normalized_paging in paging_options else 'sort'
                 inp = ui.select(
                     options=paging_options,
                     value=paging_value

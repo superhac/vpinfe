@@ -87,16 +87,18 @@ class CollectionsApiTests(TempTree):
 
         body = self.client.get("/collections/Recent").json()
 
-        self.assertEqual(body["filters"]["sort_by"], "last_played")
-        self.assertEqual(body["filters"]["order_by"], "desc")
+        self.assertEqual(body["filters"]["order_by"], "last_played")
+        self.assertEqual(body["filters"]["direction"], "desc")
 
     def test_a_2x_sort_name_is_accepted_and_reported_in_the_stored_vocabulary(self) -> None:
-        """A client written against 2.x still creates the collection it meant to."""
+        """The 2.x sort *values* are what carries over. There was never a 2.x client for
+        this API - the names it accepts are 3.0's - but a collection on disk holds those
+        spellings, so a caller reading one back may well send them."""
         response = self.client.post("/collections", json={
-            "name": "Most Played", "filters": {"sort_by": "Highest StartCount"}})
+            "name": "Most Played", "filters": {"order_by": "Highest StartCount"}})
 
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json()["filters"]["sort_by"], "play_count")
+        self.assertEqual(response.json()["filters"]["order_by"], "play_count")
 
     def test_asking_for_both_kinds_at_once_is_refused(self) -> None:
         response = self.client.post("/collections", json={

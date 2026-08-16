@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
+from common.games import collection_filters
+
 ALL_VALUE = "All"
 
 
@@ -80,7 +82,7 @@ def apply_game_filters(
             if theme in _as_list(row.get("themes", []))
         ]
 
-    game_type = filter_state.get("table_type", ALL_VALUE)
+    game_type = collection_filters.criterion(filter_state, "game_type", ALL_VALUE)
     if game_type != ALL_VALUE:
         result = [row for row in result if row.get("type") == game_type]
 

@@ -159,9 +159,27 @@ AXES_BY_NAME = {axis.name: axis for axis in AXES}
 # refuse a collection it can resolve perfectly well.
 ORDERING_KEYS = frozenset({"sort_by", "order_by"})
 
-# `table_type` was the game's type under the old vocabulary. Reading it keeps a stored
-# filter working; nothing writes it.
+# `table_type` was the game's type under the old vocabulary. Reading it keeps a filter
+# 2.x wrote working. Nothing writes it - which was not true until 2026-08-16: every
+# filter collection 3.0 created was minted with the retired key while this comment said
+# otherwise.
 LEGACY_AXIS_NAMES = {"table_type": "game_type"}
+
+
+def criterion(stored: dict | None, name: str, default=None):
+    """One criterion out of a stored filter, under whichever spelling it was written.
+
+    A file 2.x wrote holds `table_type`; one written now holds `game_type`. Readers that
+    subscript the old name directly break on a new file, and readers that subscript the
+    new one break on an old file - so nobody subscripts either.
+    """
+    stored = stored or {}
+    if name in stored:
+        return stored[name]
+    for old, current in LEGACY_AXIS_NAMES.items():
+        if current == name and old in stored:
+            return stored[old]
+    return default
 
 
 def canonical_axis(name: str) -> str:
@@ -384,20 +402,20 @@ class GameListFilters:
         return result
 
 
-# Which axis groups each order. The two vocabularies name the same thing differently -
-# an order says `title`, the axis grouping it says `letter`. An order absent here has no
-# groups: every timestamp is its own, and a curated array has no boundaries.
-GROUP_AXIS_FOR_ORDER = {"title": "letter", "year": "year", "rating": "rating"}
+# What kind of group each order falls into. The two vocabularies name the same thing
+# differently - an order says `title`, the groups it makes are `letter`. An order absent
+# here has no groups: every timestamp is its own, and a curated array has no boundaries.
+GROUP_KIND_FOR_ORDER = {"title": "letter", "year": "year", "rating": "rating"}
 
 
-def group_axis(order_by):
+def group_kind(order_by):
     """What kind of group this order has - `letter`, `year`, `rating` - or "" for none."""
     # Deferred: collection_store imports this module, so a top-level import would loop.
     from common.games.collection_store import ORDER_ALIASES
-    return GROUP_AXIS_FOR_ORDER.get(ORDER_ALIASES.get(order_by, order_by), "")
+    return GROUP_KIND_FOR_ORDER.get(ORDER_ALIASES.get(order_by, order_by), "")
 
 
 def group_key(order_by):
     """What group a game falls in under this order, or None if the order has none."""
-    axis = AXES_BY_NAME.get(group_axis(order_by))
+    axis = AXES_BY_NAME.get(group_kind(order_by))
     return axis.groups if axis else None

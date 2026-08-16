@@ -16,7 +16,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Response
 
 from common.games import game_identity
-from common.games.collection_filters import group_axis, group_key
+from common.games.collection_filters import group_key, group_kind
 from common.games.collection_resolver import (
     UnresolvableCollectionError,
     resolve,
@@ -74,8 +74,8 @@ def _resource_for(row: dict) -> dict:
             "rating_or_higher": str(raw.get("rating_or_higher", "false")).lower()
             in ("1", "true", "yes", "on"),
             "played": None if raw.get("played") is None else is_truthy(raw["played"]),
-            "sort_by": order["by"],
-            "order_by": order["direction"],
+            "order_by": order["by"],
+            "direction": order["direction"],
         }
     return {
         "name": name,
@@ -203,7 +203,7 @@ def collection_entries(name: str) -> models.EntryList:
     order_by = get_collections_manager().get_order(name)["by"]
     key = group_key(order_by)
     return {"collection": name, "count": len(entries),
-            "group_by": group_axis(order_by) if key is not None else "",
+            "group_by": group_kind(order_by) if key is not None else "",
             "entries": [_entry_resource(e, key(e.game) if key else None)
                         for e in entries]}
 
@@ -229,7 +229,7 @@ def create_collection(response: Response,
             manager.add_filter_collection(
                 name, f.letter, f.theme, f.game_type, f.manufacturer, f.year,
                 f.rating, "true" if f.rating_or_higher else "false",
-                f.sort_by, f.order_by, played=f.played)
+                f.order_by, f.direction, played=f.played)
         else:
             known = set(_catalog())
             unknown = [game_id for game_id in request.games if game_id not in known]

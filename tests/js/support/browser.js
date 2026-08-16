@@ -38,6 +38,25 @@ FakeWebSocket.OPEN = 1;
 FakeWebSocket.CLOSED = 3;
 FakeWebSocket.instances = [];
 
+
+function FakeEventSource(url) {
+  const listeners = {};
+  const source = {
+    url,
+    addEventListener(name, fn) { (listeners[name] || (listeners[name] = [])).push(fn); },
+    removeEventListener() {},
+    close() {},
+    /** Deliver one event, the way the server would. */
+    emit(name, payload) {
+      for (const fn of listeners[name] || []) fn({ data: JSON.stringify(payload) });
+    },
+  };
+  FakeEventSource.instances.push(source);
+  return source;
+}
+
+FakeEventSource.instances = [];
+
 // Records every src it was given. Preloading is judged by how many requests it makes,
 // so the count is the assertion.
 class FakeImage {
@@ -133,7 +152,10 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
     // "landscape" whether or not the code worked.
     innerWidth,
     innerHeight,
-    location: { search: query, pathname, href: `http://127.0.0.1:8000${pathname}${query}` },
+    // `protocol` is read: the remote-launch stream is skipped on file://, where CORS
+    // blocks it. Without it here the guard compares against undefined and passes by luck.
+    location: { search: query, pathname, protocol: "http:",
+                href: `http://127.0.0.1:8000${pathname}${query}` },
     addEventListener() {},
     removeEventListener() {},
     postMessage() {},
@@ -143,6 +165,7 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
   };
 
   FakeWebSocket.instances = [];
+  FakeEventSource.instances = [];
   FakeImage.requested = [];
 
   return {
@@ -153,10 +176,10 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
     Audio: FakeAudio,
     Image: FakeImage,
     fetch: unimplemented("fetch"),
-    // The remote-launch stream. It only ever has listeners attached.
-    EventSource: function EventSource() {
-      return { addEventListener() {}, removeEventListener() {}, close() {} };
-    },
+    // The remote-launch stream. This used to swallow listeners, which is why nothing
+    // could reach the handler behind it - and the handler was reading a field the
+    // payload does not have. Keep it drivable.
+    EventSource: FakeEventSource,
     URLSearchParams,
     Promise,
     Map,

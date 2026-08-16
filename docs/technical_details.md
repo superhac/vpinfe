@@ -207,7 +207,7 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | `collection_menu` | list | `key:c` | Collection menu |
 | `tutorial` | list | `key:t` | Tutorial |
 | `exit` | list | `key:Escape,key:q` | Exit |
-| `paging_type` | choice (group, step) | `group` | Paging Type |
+| `paging_group` | choice (sort, count) | `sort` | Page by |
 | `paging_size` | int | `10` | Paging Size |
 
 ## Game Metadata File (based on the Zero install table format)

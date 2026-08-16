@@ -79,8 +79,8 @@ def register() -> None:
     # Two devices, two subscribers, one trigger. Neither knows the other exists,
     # so a DOF failure still leaves the art on the panel and vice versa - and a
     # third device is a third subscriber rather than an edit here.
-    events.subscribe(events.TABLE_SELECTED, play_dof_effect)
-    events.subscribe(events.TABLE_SELECTED, show_realdmd_art)
+    events.subscribe(events.GAME_SELECTED, play_dof_effect)
+    events.subscribe(events.GAME_SELECTED, show_realdmd_art)
     _registered = True
     logger.debug("Peripherals attached to table lifecycle events")
 

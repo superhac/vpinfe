@@ -60,7 +60,7 @@ class LastPlayedInstallTests(TempTree):
         self.assertTrue(reopened.is_filter_based(LAST_PLAYED_NAME))
         self.assertEqual(reopened.get_filters(LAST_PLAYED_NAME)["played"], True)
         self.assertEqual(reopened.get_order(LAST_PLAYED_NAME),
-                         {"by": "last_played", "direction": "desc"})
+                         {"by": "last_played", "direction": "desc", "paging_group": None})
         self.assertEqual(reopened.get_limit(LAST_PLAYED_NAME), 30)
 
     def test_a_maintained_row_is_converted_in_place(self) -> None:
@@ -83,7 +83,8 @@ class LastPlayedInstallTests(TempTree):
         self.assertEqual(record["image"], "recent.png")
         self.assertEqual(record["type"], "filter")
         self.assertNotIn("members", record)
-        self.assertEqual(record["order"], {"by": "last_played", "direction": "desc"})
+        self.assertEqual(record["order"], {"by": "last_played", "direction": "desc"},
+                         "the stored row says nothing about paging, so it follows the player")
 
     def test_it_does_not_run_a_second_time(self) -> None:
         store = self._store()
