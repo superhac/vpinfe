@@ -1,8 +1,9 @@
 """What a theme was written against, and how to serve it.
 
-A theme declares `contract` in its manifest.json; absent means 1, which is every theme
-written before this existed. The payload is always built in the current shape and
-projected backwards, never the reverse - the newest shape is the one that is true.
+A theme declares the oldest VPinFE it runs on - `min_vpinfe` in its manifest.json - and
+the contract follows from that; absent means the oldest, which is every theme written
+before this existed. The payload is always built in the current shape and projected
+backwards, never the reverse - the newest shape is the one that is true.
 
 Adding a field, a media kind or a method does not bump the contract: those are visible
 at every level and a theme feature-detects them. Only removing or reshaping something a
@@ -17,12 +18,18 @@ from pathlib import Path
 
 from common.deprecations import announce
 from common.games.game_metadata import DETECTION_KEYS, default_table
+from common.values import parse_version
 
 logger = logging.getLogger("vpinfe.frontend.theme_contract")
 
 CURRENT_CONTRACT = 2
 OLDEST_CONTRACT = 1
-CONTRACT_KEY = "contract"
+MIN_VERSION_KEY = "min_vpinfe"
+
+# The VPinFE version each contract arrived in, newest first. A theme states the oldest
+# build it runs on and gets the newest contract that build already served. Contract 1
+# has no entry: it is what a theme gets for saying nothing.
+_CONTRACT_SINCE = ((2, (3, 0)),)
 
 # What contract 1 calls each table field. The .info renamed these; a theme written
 # against 2.x still reads the old spelling, so the projection restores it.
@@ -68,21 +75,23 @@ _LEGACY_ROW_KEYS = {
 
 
 def declared_contract(theme_dir) -> int:
-    """The level a theme asks for, clamped to what this build can serve."""
+    """The contract a theme's declared minimum version implies, clamped to this build.
+
+    Whether that minimum is newer than the build running is answered at install, not
+    here - this is reached only once a theme is on disk and being served.
+    """
     manifest = Path(theme_dir) / "manifest.json"
     try:
         manifest_data = json.loads(manifest.read_text(encoding="utf-8"))
-        level = int(manifest_data.get(CONTRACT_KEY, OLDEST_CONTRACT))
+        minimum = parse_version(manifest_data.get(MIN_VERSION_KEY))
     except (OSError, ValueError, TypeError, AttributeError):
         return OLDEST_CONTRACT
 
-    if level > CURRENT_CONTRACT:
-        logger.warning(
-            "Theme %s asks for contract %s and this build serves %s. Serving %s; parts of "
-            "the theme may expect data that does not exist yet.",
-            Path(theme_dir).name, level, CURRENT_CONTRACT, CURRENT_CONTRACT)
-        return CURRENT_CONTRACT
-    return max(level, OLDEST_CONTRACT)
+    level = OLDEST_CONTRACT
+    for contract, since in _CONTRACT_SINCE:
+        if minimum >= since:
+            level = max(level, contract)
+    return min(level, CURRENT_CONTRACT)
 
 
 def project(row: dict, level: int) -> dict:

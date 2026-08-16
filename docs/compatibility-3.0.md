@@ -194,7 +194,7 @@ could previously be pinned by claiming it, and can no longer be pinned at all. C
 on read, keeping the original alongside it as `<Game>.info.vpinfe-<timestamp>`.
 *Why:* the format described one game file per folder, which stopped being true the first
 time anybody patched a table. Themes are unaffected unless they opt in: the payload is
-served in the shape a theme declares as `contract` in its `manifest.json`, and absent means
+served in the shape a theme's `min_vpinfe` implies, and absent means
 contract 1 — the 2.x shape, synthesised. Covered by `tests/games/test_info_migration.py` and
 `tests/theming/test_theme_contract.py`.
 
@@ -225,7 +225,7 @@ name and not the keys inside it, so five keys a 2.x theme could read simply vani
 gate compared only top-level payload keys, so nothing caught it; it compares every key now.
 **Contract 1 still receives the old four**, restored by the projection in
 `frontend/theme_contract.py`, so every theme written before 3.0 is unaffected - a theme
-only sees the new names by declaring `contract: 2` in its manifest.
+only sees the new names by declaring `min_vpinfe: "3.0"` in its manifest.
 *Why:* three of the four name the machine, which VPS calls a game; the playfield pair is
 the playfield, which `docs/conventions.md` already called it in the media list. These are
 the first top-level row keys ever to move, so the projection had to grow past `meta` to

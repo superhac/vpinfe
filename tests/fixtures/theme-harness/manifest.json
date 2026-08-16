@@ -5,6 +5,6 @@
   "description": "The theme the render smoke test drives. Not published, so it never moves.",
   "preview_image": "preview.png",
   "type": "both",
-  "contract": 2,
+  "min_vpinfe": "3.0",
   "windows": ["playfield", "backglass", "scoreview"]
 }

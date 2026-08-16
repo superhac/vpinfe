@@ -27,3 +27,17 @@ def is_truthy(value: Any, default: bool = False) -> bool:
     if normalized == "":
         return default
     return normalized in _TRUE_VALUES
+
+
+def parse_version(value: Any) -> tuple[int, ...]:
+    """A version string as a comparable tuple. `()` when it is not a version.
+
+    Stops at the first non-numeric part, so `3.0.1-beta.2` compares as `(3, 0, 1)`
+    rather than as nothing - a theme tested against a beta still means 3.0.1.
+    """
+    parts: list[int] = []
+    for part in str(value or "").strip().lstrip("vV").split("."):
+        if not part.isdigit():
+            break
+        parts.append(int(part))
+    return tuple(parts)

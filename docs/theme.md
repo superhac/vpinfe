@@ -46,7 +46,7 @@ Every theme must include a `manifest.json`:
   "preview_image": "preview.png",
   "type": "desktop",
   "change_log": "Initial release.",
-  "contract": 2,
+  "min_vpinfe": "3.0",
   "windows": ["playfield", "bg", "dmd"]
 }
 ```
@@ -60,12 +60,15 @@ Every theme must include a `manifest.json`:
 | `preview_image` | Filename of the preview image (`.png` or `.gif`). |
 | `type` | Theme type: `"desktop"` for desktop/flat-screen setups, `"cab"` for cabinet setups, or `"both"` for themes that adapt to either. |
 | `change_log` | What changed in this version. Optional. Shown as "What's new" in the Manager UI, and only to someone who has not installed your theme or has an update waiting — so it is worth writing for them, not as a running history. |
-| `contract` | Which VPinFE theme contract this theme is written against. Optional; absent means `1`. See [Theme contract](#theme-contract). |
+| `min_vpinfe` | The oldest VPinFE your theme runs on. Optional; absent means it runs on 2.x, which serves contract 1. Declaring `"3.0"` is what gets you the contract 2 surface. See [Theme contract](#theme-contract). |
 | `windows` | The windows your theme wants, **controller first**. Optional; absent means the three VPinFE has always opened. See [Declaring windows](#declaring-windows). |
 | `supported_screens` | Legacy. A count of screens, shown in the Manager UI and nothing more - it never decided which windows opened. `windows` replaces it and names them. Still accepted. |
 
-`version` is your theme's own release number. `contract` is the VPinFE surface it reads.
-They are different questions and they move independently.
+`version` is your theme's own release number. `min_vpinfe` is the oldest VPinFE it runs
+on. They are different questions and they move independently.
+
+You do not declare a contract number. VPinFE knows which contract each of its own
+versions serves, so the version you need already says which surface you get.
 
 ### Declaring windows
 
@@ -100,19 +103,20 @@ kind's art — which is what several published themes already rely on for `bg` a
 
 ### Theme contract
 
-VPinFE serves the game payload in the shape your theme declares, so a theme keeps working
-when the data behind it is reshaped.
+VPinFE serves the game payload in the shape your theme's `min_vpinfe` implies, so a theme
+keeps working when the data behind it is reshaped. You never name a contract yourself: each
+VPinFE version serves one, and saying which version you need says which you get.
 
-| Contract | What the payload looks like |
-|---|---|
-| `1` (default) | An **array of game rows**. Each row is one game, with its default table folded into `meta.VPXFile` and a media path per kind at the top level. This is what every theme written before 3.0 reads, and it is unchanged. |
-| `2` | An **object with an `entries` array**. Each entry is one *table*, with the game it belongs to attached. A game that offers several tables can appear more than once. |
+| Contract | Declared by | What the payload looks like |
+|---|---|---|
+| `1` (default) | no `min_vpinfe`, or one below `3.0` | An **array of game rows**. Each row is one game, with its default table folded into `meta.VPXFile` and a media path per kind at the top level. This is what every theme written before 3.0 reads, and it is unchanged. |
+| `2` | `"min_vpinfe": "3.0"` or newer | An **object with an `entries` array**. Each entry is one *table*, with the game it belongs to attached. A game that offers several tables can appear more than once. |
 
-These are different shapes, not the same shape with different key names — declaring
-`contract: 2` changes how you iterate the payload, not just what you call things. See
+These are different shapes, not the same shape with different key names — asking for 3.0
+changes how you iterate the payload, not just what you call things. See
 [Contract 2 payload](#contract-2-payload).
 
-**You do not need to bump `contract` when VPinFE adds things.** New media kinds, new fields
+**You do not need to raise `min_vpinfe` when VPinFE adds things.** New media kinds, new fields
 and new `vpin.*` methods are visible at every contract — check for what you want and use it
 if it is there:
 
@@ -216,10 +220,10 @@ collection, so nothing else is needed.
 3.0 takes its nouns from the Virtual Pinball Spreadsheet: the machine is a **game**, the
 `.vpx` is a **table**, and the main screen is the **playfield**. Nothing was removed, and a
 2.x theme needs no edits. Two different mechanisms keep it working, and which one you are
-leaning on decides whether declaring `contract: 2` changes anything for you.
+leaning on decides whether asking for 3.0 changes anything for you.
 
-**The payload follows the contract you declare.** At `1` — which is what you get by
-declaring nothing — VPinFE builds the row shape 2.x themes read, including the names 2.x
+**The payload follows the contract your `min_vpinfe` implies.** At `1` — which is what you
+get by declaring nothing — VPinFE builds the row shape 2.x themes read, including the names 2.x
 used:
 
 | the 3.0 name | what contract 1 serves |

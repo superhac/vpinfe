@@ -1,14 +1,14 @@
 # Contract 1 reference
 
-The payload shape 2.x themes were written against, kept for themes that still declare
-`"contract": 1`. Nothing here is going to change — that is the point of a contract. If you
+The payload shape 2.x themes were written against, kept for every theme that does not
+ask for 3.0. Nothing here is going to change — that is the point of a contract. If you
 are writing a new theme, read [theme.md](theme.md) instead; everything below is the older
 shape and none of it is served at contract 2.
 
-A theme gets contract 1 by declaring it, or by saying nothing at all:
+A theme gets contract 1 by saying nothing at all, or by naming a VPinFE older than 3.0:
 
 ```json
-{ "name": "My Theme", "contract": 1 }
+{ "name": "My Theme" }
 ```
 
 The `vpin.*` API, the window messages, input handling and CSS are identical at both
@@ -219,7 +219,7 @@ if (game.TableVideoPath) {
 
 ## Moving to contract 2
 
-Declaring `"contract": 2` changes three things: the payload becomes an entry list, `meta`
+Declaring `"min_vpinfe": "3.0"` changes three things: the payload becomes an entry list, `meta`
 goes away in favor of named fields, and the main window is called `playfield`. The
 renamed `vpin.*` members work at both contracts, so a theme can be renamed first and
 switched afterwards. [theme.md](theme.md) is the reference.

@@ -48,23 +48,44 @@ class DeclarationTests(TempTree):
 
         self.assertEqual(declared_contract(self.theme), OLDEST_CONTRACT)
 
-    def test_a_theme_gets_what_it_declares(self):
-        self._manifest({"name": "MyTheme", "contract": 2})
+    def test_the_version_a_theme_needs_decides_its_contract(self):
+        self._manifest({"name": "MyTheme", "min_vpinfe": "3.0"})
 
         self.assertEqual(declared_contract(self.theme), 2)
 
+    def test_a_theme_that_runs_on_2_x_gets_the_oldest(self):
+        """The reason the key is a version: a theme states what it runs on, not what
+        payload it wants, and 2.x never served anything but contract 1."""
+        for minimum in ("2.0", "2.6.0", "1.0"):
+            with self.subTest(minimum=minimum):
+                self._manifest({"name": "MyTheme", "min_vpinfe": minimum})
+                self.assertEqual(declared_contract(self.theme), OLDEST_CONTRACT)
+
+    def test_a_point_release_of_3_0_still_reaches_contract_2(self):
+        """A theme needing 3.1 needs 3.0 too, so it must not fall back to contract 1."""
+        for minimum in ("3.0.1", "3.1", "4.0", "v3.0", "3.0.0-beta.1"):
+            with self.subTest(minimum=minimum):
+                self._manifest({"name": "MyTheme", "min_vpinfe": minimum})
+                self.assertEqual(declared_contract(self.theme), 2)
+
     def test_a_theme_from_the_future_is_served_what_we_have(self):
         """Refusing to draw anything would be worse than drawing most of it."""
-        self._manifest({"name": "MyTheme", "contract": CURRENT_CONTRACT + 5})
+        self._manifest({"name": "MyTheme", "min_vpinfe": "99.0"})
 
-        with self.assertLogs("vpinfe.frontend.theme_contract", level="WARNING"):
-            self.assertEqual(declared_contract(self.theme), CURRENT_CONTRACT)
+        self.assertEqual(declared_contract(self.theme), CURRENT_CONTRACT)
 
     def test_a_manifest_we_cannot_read_is_not_fatal(self):
-        for body in ("{ not json", '{"contract": "two"}', '{"contract": null}'):
+        for body in ("{ not json", '{"min_vpinfe": "three"}', '{"min_vpinfe": null}'):
             with self.subTest(body=body):
                 (self.theme / "manifest.json").write_text(body, encoding="utf-8")
                 self.assertEqual(declared_contract(self.theme), OLDEST_CONTRACT)
+
+    def test_the_retired_contract_key_is_not_read(self):
+        """It was 3.0-internal and no published theme ever declared it, so it is gone
+        rather than aliased. A theme still carrying one must not get contract 2 by it."""
+        self._manifest({"name": "MyTheme", "contract": 2})
+
+        self.assertEqual(declared_contract(self.theme), OLDEST_CONTRACT)
 
     def test_a_missing_manifest_is_not_fatal(self):
         self.assertEqual(declared_contract(self.theme), OLDEST_CONTRACT)

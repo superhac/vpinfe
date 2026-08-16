@@ -74,7 +74,7 @@ Three, each versioning a different kind of thing, each with its own word:
 |---|---|---|
 | `.info` | a **file's shape** we write and read back | `vpinfe.schema` |
 | HTTP surface | a **wire protocol** we serve | `/api/v1` |
-| theme surface | an **interface handed to somebody else's code** | `contract` in a theme's `manifest.json` |
+| theme surface | an **interface handed to somebody else's code** | the contract, implied by `min_vpinfe` in a theme's `manifest.json` |
 
 They stay separate words because they answer different questions and move on different
 triggers — a `.info` reshape says nothing about the HTTP API. `schema` is deliberately not
