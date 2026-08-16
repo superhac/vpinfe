@@ -537,6 +537,7 @@ class VPinFECore {
     // Which collection the entry list came from. Seeded so a theme reading it before
     // the first payload gets the documented type rather than undefined.
     this.collection = "";
+    this.groupBy = "";
     this._reader = new ContractOneReader(this);
     installLegacyAliases(this);
     installOverlayAliases(this);
@@ -1086,6 +1087,10 @@ class VPinFECore {
       // Contract 2 wraps the list so the collection it belongs to travels with it.
       this.tableData = payload.entries || [];
       this.collection = payload.collection || "";
+      // What kind of group each entry carries - "letter", "year", "rating" - or "" when
+      // the order has none. The group itself rides on the entry, so a move costs no
+      // round trip to know where the wheel is sitting.
+      this.groupBy = payload.group_by || "";
     }
     this.#attachCachedVPinPlayRatings();
     if (this.isController()) {
@@ -2177,13 +2182,17 @@ class VPinFECore {
    * Move the selection to `index` and announce it. Every index path goes through here,
    * so a theme is told the same things however the cursor moved.
    *
-   * `reason` is how far and why: `step`, `page`, `restore`. A page press is a letter
-   * jump when alpha paging is on and a fixed step otherwise, and both say `page` -
-   * a theme reads this to choose between sliding and cutting, and both want a cut, so
-   * splitting them would be a distinction nothing acts on. `source` is who moved it:
-   * `user`, or `attract` once core advances on a timer.
+   * `reason` is how far and why: `step`, `page`, `restore`. A page press moves to the
+   * next group when group paging is on and a fixed number of rows otherwise, and both
+   * say `page` - a theme reads this to choose between sliding and cutting, and both want
+   * a cut, so splitting them would be a distinction nothing acts on. `source` is who
+   * moved it: `user`, or `attract` once core advances on a timer.
    * Two fields rather than one because they are independent - a random attract advance
    * is a jump *and* not a person, and one enum cannot say both.
+   *
+   * `group` and `groupKind` say where it landed - "T"/"letter", "1985"/"year". Both are
+   * empty when the order has no groups, so a theme can tell "no grouping here" from
+   * "the group happens to be empty".
    */
   moveTo(index, { previous = this._currentTableIndex, direction = "",
                   reason = "step", source = "user" } = {}) {
@@ -2193,6 +2202,7 @@ class VPinFECore {
     this._currentTableIndex = at;
     this.sendMessageToAllWindowsIncSelf({
       type: "TableIndexUpdate", index: at, previous, direction, reason, source,
+      group: (this.tableData[at] || {}).group || "", groupKind: this.groupBy || "",
       // True while the wheel is still settling - what a theme needs to decide whether to
       // load full art or wait. It cannot serve as a jump signal: it is time-based, so one
       // distant jump reports false.

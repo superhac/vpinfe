@@ -945,7 +945,7 @@ Events are sent between windows via `receiveEvent()`. These are the built-in eve
 
 | Event Type | Properties | Description |
 |------------|------------|-------------|
-| `TableIndexUpdate` | `index`, `previous`, `direction`, `reason`, `source`, `moving` | The selection moved. Sent by the controller to all others, on every path. |
+| `TableIndexUpdate` | `index`, `previous`, `direction`, `reason`, `source`, `moving`, `group`, `groupKind` | The selection moved. Sent by the controller to all others, on every path. |
 | `TableLaunching` | — | A game is about to launch. Frontend keyboard/gamepad routing is suspended until `TableLaunchComplete`; use this to fade out, stop audio, etc. |
 | `TableRunning` | — | The launched game has finished loading and is now running. Sent when the table process outputs "Startup done". |
 | `TableLaunchComplete` | — | The launched game has exited and frontend input routing is restored. Use this to fade back in, resume audio. |
@@ -958,14 +958,20 @@ a page and a startup restore all announce themselves the same way:
 | `index` | where the selection is now |
 | `previous` | where it was. A local diff cannot tell a wrap from a jump: 149 → 0 is either one step forward or 149 back |
 | `direction` | `"previous"` or `"next"`, empty when the move had no direction |
-| `reason` | how far and why — `"step"` for one item, `"page"` for a page press, `"restore"` at startup. A page press is a letter jump when alpha paging is on and a fixed step otherwise; both report `"page"`, because both want the same treatment |
+| `reason` | how far and why — `"step"` for one item, `"page"` for a page press, `"restore"` at startup. A page press moves to the next group when group paging is on and a fixed number of rows otherwise; both report `"page"`, because both want the same treatment |
 | `source` | who moved it — `"user"` today; core will move it on a timer later |
 | `moving` | true while the wheel is still settling, so you can defer full-resolution art. Time-based, so a single distant move reports `false` — use `reason` to tell a page from a step |
+| `group` | the group the selection landed in — `"T"`, `"1985"`, `"#"`. Empty when the list's order has no groups |
+| `groupKind` | what kind of group that is — `"letter"`, `"year"`, `"rating"`. Empty alongside `group`, so you can tell "no grouping here" from "the group happens to be empty" |
 
 If you animate between positions, read `reason`: sliding one item is right for a `"step"`
 and wrong for a `"page"`, which should cut. A page can move the selection a long way —
-alpha paging jumps to the next letter group — so sliding through it is what produces the
-two-wheels-stacked artifact.
+group paging jumps to the next letter, year or rating — so sliding through it is what
+produces the two-wheels-stacked artifact.
+
+`group` and `groupKind` are what you draw a "now in the Ts" badge from. They ride on every
+index message, not just a page, so the badge stays right when the user steps across a
+boundary too.
 | `RemoteLaunching` | `table_name` | The manager UI triggered a remote game launch. Frontend keyboard/gamepad routing is suspended until `RemoteLaunchComplete`; show an overlay. |
 | `RemoteLaunchComplete` | — | The remote-launched game has exited and frontend input routing is restored. Hide the overlay. |
 | `TableDataChange` | `index`, `collection?`, `filters?`, `sort?` | Game data changed (collection switch, filter/sort update, a finished game's play data, a Manager UI edit). Handled automatically by `vpin.handleEvent()`. |
@@ -1143,11 +1149,14 @@ already uses for external index updates, so paging works with no theme changes.
 
 The user controls the behavior with two `[Input]` settings in `vpinfe.ini`:
 
-- `pagingtype` — `alpha` (default) jumps to the next/previous letter of the current
-  Alpha sort (numbers and symbols share one `#` group); `numeric` jumps by a fixed
-  number of games. Alpha paging falls back to numeric when the active sort isn't
-  `Alpha` or the list is all one letter.
-- `pagingsize` — how many games a numeric jump moves (default `10`). All paging wraps
+- `pagingtype` — `group` (default) jumps to the next boundary in whatever the list is
+  ordered by: the next letter under title order (numbers and symbols share one `#`
+  group), the next year under year order, the next rating under rating order. `step`
+  jumps a fixed number of games. Orders where every value is its own — last played,
+  date added, play count, play time — have no groups, and neither does a curated
+  collection's manual order; a press steps there, and so does a list that is all one
+  group. The 2.x names `alpha` and `numeric` still resolve, to `group` and `step`.
+- `pagingsize` — how many games a `step` jump moves (default `10`). All paging wraps
   around.
 
 A theme that wants its own paging behavior calls `vpin.enableCorePaging(false)`;

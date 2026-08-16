@@ -16,6 +16,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Response
 
 from common.games import game_identity
+from common.games.collection_filters import group_axis, group_key
 from common.games.collection_resolver import (
     UnresolvableCollectionError,
     resolve,
@@ -129,7 +130,7 @@ def collection_games(name: str) -> models.GameList:
             "games": resources}
 
 
-def _entry_resource(entry) -> dict:
+def _entry_resource(entry, group=None) -> dict:
     """One entry as REST serves it.
 
     `default` is computed, never read off the entry: it is the game's own choice and
@@ -165,6 +166,8 @@ def _entry_resource(entry) -> dict:
             "alt_sound": bool(getattr(entry.game, "altSoundExists", False)),
         },
         "media": resolved_kinds(entry.game),
+        # None when the order has no groups; `group_by` on the list says which.
+        "group": group,
         "links": {"game": prefix, "launch": f"{prefix}/launch",
                   "media": f"{prefix}/media"},
     }
@@ -194,8 +197,15 @@ def collection_entries(name: str) -> models.EntryList:
     """
     _row_or_404(name)
     entries = _resolved(name)
+    # The same group the theme payload stamps. A client rendering a wheel needs to know
+    # which letter or year it is sitting in, and deriving it a second way is how the two
+    # lenses would come to disagree.
+    order_by = get_collections_manager().get_order(name)["by"]
+    key = group_key(order_by)
     return {"collection": name, "count": len(entries),
-            "entries": [_entry_resource(e) for e in entries]}
+            "group_by": group_axis(order_by) if key is not None else "",
+            "entries": [_entry_resource(e, key(e.game) if key else None)
+                        for e in entries]}
 
 
 @router.post("", summary="Create a collection", status_code=201,

@@ -1300,6 +1300,21 @@ already moved *up* a menu in both overlays. Swap the two values in `[input]` to 
 feel back. ArrowUp and ArrowDown keep moving up and down in the menus. Covered by
 `tests/js/input.test.js` and `tests/theming/test_input_actions.py`.
 
+**PAR-87 — Digits and symbols are one letter group, `#`, for filtering as well as paging.**
+Master had two definitions of "a letter". Paging bucketed a title starting with anything
+other than a letter into `#`; the filter compared the first character literally, and the
+picker listed that character raw. So a game called `300` paged under `#`, was offered as
+`3` in the picker, and selecting `3` matched it while `#` did not. `letter_of` is now the
+one definition, used by paging, by the filter, and by the list of letters offered.
+*What it costs someone:* a filter collection saved under 2.x with a digit or symbol as its
+letter — `letter = 3` — now matches nothing, where it used to match the games starting with
+that digit. Re-save it against `#` to get those games back. The picker no longer offers
+digits, so this cannot be created going forward.
+*Why:* the two definitions could not both be right, and the filter's was the one that
+disagreed with what the user saw on the wheel. Keeping it would have meant paging to a
+group the filter cannot express, which is what group paging needs to work at all. Covered
+by `tests/curation/test_collection_filters.py` and `tests/theming/test_paging.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

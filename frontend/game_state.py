@@ -6,10 +6,15 @@ import json
 import logging
 
 from common.games import collection_resolver, game_identity
-from common.games.collection_filters import GameListFilters
+from common.games.collection_filters import (
+    GameListFilters,
+    group_axis,
+    group_key,
+)
 from common.games.collection_resolver import visible_entries
 from common.games.collection_store import (
     BUILTIN_ALL,
+    DEFAULT_ORDER_BY,
     ORDER_ALIASES,
 )
 from common.games.collections_service import save_filter_collection
@@ -27,6 +32,7 @@ from common.media_specs import game_media_payload
 from common.shared_assets import manufacturer_logo_web_path
 from common.timestamps import epoch_to_iso
 from common.values import is_truthy
+from frontend.input_api import PAGING_TYPE_ALIASES, PAGING_TYPE_DEFAULT
 from frontend.theme_contract import CURRENT_CONTRACT, project
 
 logger = logging.getLogger("vpinfe.frontend.game_state")
@@ -116,7 +122,7 @@ def _default_id(game) -> str:
     return str(offered[0].get("id", "") or "") if offered else ""
 
 
-def _entry_row(entry, logo_cache) -> dict:
+def _entry_row(entry, logo_cache, group=None) -> dict:
     """One entry in contract 2: the game, the table it is, and what resolved for it."""
     game = entry.game
     meta = normalize_meta(game.meta_config)
@@ -153,11 +159,13 @@ def _entry_row(entry, logo_cache) -> dict:
         # bytes are fetched when something is shown - naming the files here would put a
         # filesystem path in a web page and several hundred kilobytes on the wire.
         "media": resolved_kinds(game),
+        # None when the order has no groups; `group_by` on the payload says which.
+        "group": group,
     }
 
 
 def games_json(entries, contract: int = CURRENT_CONTRACT, *,
-               collection: str = "") -> str:
+               collection: str = "", order_by: str = DEFAULT_ORDER_BY) -> str:
     """The theme payload, at the contract the theme asked for.
 
     Contract 1 is a bare array of rows, one per game - what every published theme
@@ -167,10 +175,17 @@ def games_json(entries, contract: int = CURRENT_CONTRACT, *,
     if contract < CURRENT_CONTRACT:
         return json.dumps([project(_legacy_row(e.game, logo_cache), contract)
                            for e in entries])
+    # The group comes from the order the list is built with, so it is correct for as long
+    # as the list is and a wheel step costs no round trip to know where it sits.
+    key = group_key(order_by)
     return json.dumps({
         "collection": collection,
         "count": len(entries),
-        "entries": [_entry_row(e, logo_cache) for e in entries],
+        # Empty when the order has no groups, so a theme can tell "no grouping here"
+        # from "the group happens to be empty".
+        "group_by": group_axis(order_by) if key is not None else "",
+        "entries": [_entry_row(e, logo_cache, key(e.game) if key else None)
+                    for e in entries],
     })
 
 
@@ -320,24 +335,18 @@ def apply_sort(games, order_by, direction=None):
     return len(games)
 
 
-def _paging_group_key(game):
-    # Letter groups for alpha paging. Titles starting with a digit or symbol all
-    # land in one '#' bucket so a big collection doesn't take several presses to
-    # cross the numeric titles.
-    title = game_title(game).strip()
-    if title and title[0].isalpha():
-        return title[0].upper()
-    return "#"
+def page_jump_index(games, index, direction, order_by="title",
+                    paging_type=PAGING_TYPE_DEFAULT, page_size=10):
+    """The wheel index a page press lands on.
 
+    Group paging moves to the next boundary in whatever the list is ordered by - the next
+    letter when ordered by title, the next year when ordered by year. It used to be
+    `alpha` paging and only applied when the sort was alphabetical, silently stepping
+    instead the rest of the time; the group is the order now, so there is nothing to fall
+    back from. Where an order has no groups, or the whole list is one group, a press steps.
 
-def page_jump_index(games, index, direction, sort_type="Alpha", paging_type="alpha", page_size=10):
-    """Return the target wheel index for a joypageup/joypagedown press.
-
-    Alpha paging jumps to the first game of the adjacent letter group in the
-    current list order. It only applies when the list is title-ordered (Alpha
-    sort); otherwise, or when the whole list is one letter group, it falls back
-    to numeric paging. Numeric paging steps by pagingsize, capped at half the
-    list so a press never wraps past the starting point. All paging is circular.
+    Step paging moves by `page_size`, capped at half the list so a press never wraps past
+    where it started. All paging is circular.
     """
     count = len(games)
     if count <= 1:
@@ -345,21 +354,24 @@ def page_jump_index(games, index, direction, sort_type="Alpha", paging_type="alp
     index = index % count
     forward = direction != "prev"
 
-    if paging_type == "alpha" and sort_type == "Alpha":
-        keys = [_paging_group_key(game) for game in games]
-        if len(set(keys)) > 1:
-            step = 1 if forward else -1
-            pos = (index + step) % count
-            while keys[pos] == keys[index]:
-                pos = (pos + step) % count
-            if not forward:
-                # Walked back onto the previous group's last entry; rewind to its first.
-                while keys[(pos - 1) % count] == keys[pos] and (pos - 1) % count != index:
-                    pos = (pos - 1) % count
-            return pos
+    if PAGING_TYPE_ALIASES.get(paging_type, paging_type) == "group":
+        key = group_key(order_by)
+        if key is not None:
+            keys = [key(game) for game in games]
+            if len(set(keys)) > 1:
+                step = 1 if forward else -1
+                pos = (index + step) % count
+                while keys[pos] == keys[index]:
+                    pos = (pos + step) % count
+                if not forward:
+                    # Walked back onto the previous group's last entry; rewind to its first.
+                    while keys[(pos - 1) % count] == keys[pos] and (pos - 1) % count != index:
+                        pos = (pos - 1) % count
+                return pos
 
     step = min(page_size, max(1, count // 2))
     return (index + step) % count if forward else (index - step) % count
+
 
 
 def _sort_by_numeric_meta(games, field, reverse):

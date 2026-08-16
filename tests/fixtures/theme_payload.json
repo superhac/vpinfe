@@ -283,6 +283,7 @@
           "vps_id": "vps-afm",
           "year": "1995"
         },
+        "group": "A",
         "media": [
           "backglass",
           "scoreview",
@@ -349,6 +350,7 @@
           "vps_id": "",
           "year": "1980"
         },
+        "group": "B",
         "media": [],
         "siblings": 1,
         "table": {
@@ -406,6 +408,7 @@
           "vps_id": "vps-congo",
           "year": "1995"
         },
+        "group": "C",
         "media": [
           "wheel"
         ],
@@ -465,6 +468,7 @@
           "vps_id": "vps-mm",
           "year": "1997"
         },
+        "group": "M",
         "media": [
           "backglass",
           "wheel"
@@ -498,6 +502,7 @@
           "version": ""
         }
       }
-    ]
+    ],
+    "group_by": "letter"
   }
 }

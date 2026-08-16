@@ -47,6 +47,13 @@ class RegistryShapeTests(unittest.TestCase):
         self.assertEqual(current, AXIS_SNAPSHOT,
                          "an axis moved; add a new one instead of changing this one")
 
+    def test_the_axes_that_group_still_do(self) -> None:
+        """Paging to the next boundary needs the extractor. An axis that loses it stops
+        being pageable, and the press silently steps instead."""
+        grouped = {name for name, axis in cf.AXES_BY_NAME.items() if axis.groups}
+
+        self.assertEqual(grouped, {"letter", "year", "rating"})
+
     def test_every_axis_has_a_summary_and_a_matcher(self) -> None:
         for axis in cf.AXES:
             with self.subTest(axis=axis.name):
@@ -77,6 +84,20 @@ class MatchingTests(unittest.TestCase):
     def setUp(self) -> None:
         self.afm = make_game(name="Attack from Mars", manufacturer="Bally",
                              year="1995", game_type="SS", themes=["Aliens"], rating=4)
+
+    def test_a_digit_title_filters_under_the_hash_group(self) -> None:
+        """Paging always bucketed `300` under `#`. The filter compared the first
+        character literally, so no letter selected it and neither did `#`."""
+        threehundred = make_game(name="300")
+
+        self.assertTrue(cf.matches({"letter": "#"}, threehundred))
+        self.assertFalse(cf.matches({"letter": "3"}, threehundred))
+
+    def test_a_symbol_title_shares_that_group(self) -> None:
+        self.assertTrue(cf.matches({"letter": "#"}, make_game(name="'Cuda")))
+
+    def test_a_letter_filter_is_case_insensitive(self) -> None:
+        self.assertTrue(cf.matches({"letter": "a"}, self.afm))
 
     def test_an_unconstrained_axis_matches_everything(self) -> None:
         for value in (None, "", "All"):
@@ -132,6 +153,19 @@ class MatchingTests(unittest.TestCase):
 class DelegationTests(unittest.TestCase):
     """GameListFilters and a filter collection have to agree on what a criterion means,
     which they only do because there is one definition."""
+
+    def test_the_letters_offered_are_the_letters_that_select(self) -> None:
+        """The picker listed the raw first character, so a library with `300` offered
+        `3` and selecting it came back empty."""
+        games = [make_game(name="300"), make_game(name="'Cuda"),
+                 make_game(name="Attack from Mars")]
+
+        offered = GameListFilters(games).get_available_letters()
+
+        self.assertEqual(offered, ["#", "A"])
+        for letter in offered:
+            with self.subTest(letter=letter):
+                self.assertTrue(any(cf.matches({"letter": letter}, g) for g in games))
 
     def test_the_list_filters_use_the_registry(self) -> None:
         games = [make_game(name="Attack from Mars", manufacturer="Bally"),

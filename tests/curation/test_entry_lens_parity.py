@@ -16,6 +16,7 @@ import json
 import unittest
 
 from common.games import collection_resolver
+from common.games.collection_filters import group_key
 from frontend import game_state
 from httpapi.collections import _entry_resource
 from tests.support.entries import entries_for
@@ -30,6 +31,8 @@ THEME_ONLY = {"game": {"path"}, "table": {"path"}, "top": set()}
 # here - a theme that lists a game's tables has to know which one the game defaults to,
 # and deriving it a second way is how the two lenses would come to disagree.
 WIRE_ONLY = {"game": {"rating"}, "table": set(), "top": {"links"}}
+
+ORDER_BY = "title"
 
 META = {
     "Info": {"Name": "Attack from Mars", "Title": "Attack from Mars",
@@ -48,9 +51,12 @@ class EntryLensParityTests(TempTree):
         for attribute in ("pupPackExists", "altColorExists", "altSoundExists"):
             setattr(game, attribute, False)
         self.entries = entries_for([game])
-        self.theme = json.loads(
-            game_state.games_json(self.entries, contract=2))["entries"][0]
-        self.wire = _entry_resource(self.entries[0])
+        # Both under the same order: the group each entry carries comes from it, and two
+        # lenses built under different orders would not be the same resolution.
+        self.theme = json.loads(game_state.games_json(
+            self.entries, contract=2, order_by=ORDER_BY))["entries"][0]
+        self.wire = _entry_resource(self.entries[0],
+                                    group_key(ORDER_BY)(self.entries[0].game))
 
     def test_the_two_lenses_carry_the_same_fields(self) -> None:
         """Every difference is one of the four listed above. A new field on either side

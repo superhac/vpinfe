@@ -16,6 +16,14 @@ from dataclasses import dataclass, replace
 
 from common import input_registry
 
+# What a page press does: move to the next boundary in the current order, or move a fixed
+# number of rows. `alpha` was the name for the first when letters were the only groups,
+# and `numeric` the name for the second; both are on disk in configs users already have,
+# so they keep resolving.
+PAGING_TYPES = ("group", "step")
+PAGING_TYPE_ALIASES = {"alpha": "group", "numeric": "step"}
+PAGING_TYPE_DEFAULT = "group"
+
 
 def _input_options() -> tuple[ConfigOption, ...]:
     """`[input]` comes from the action registry, so the two cannot disagree.
@@ -37,9 +45,9 @@ def _input_options() -> tuple[ConfigOption, ...]:
     out.append(ConfigOption(
         "paging_type",
         type="choice",
-        default="alpha",
+        default=PAGING_TYPE_DEFAULT,
         label="Paging Type",
-        choices=("alpha", "numeric"),
+        choices=PAGING_TYPES,
         legacy=(("Input", "pagingtype"),),
     ))
     out.append(ConfigOption(

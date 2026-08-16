@@ -45,9 +45,18 @@ def _values(criterion) -> set[str]:
     return {part.strip() for part in str(criterion).split(",") if part.strip()}
 
 
+def letter_of(game) -> str:
+    """The letter group a title sorts into. Digits and symbols share one bucket.
+
+    The one definition, for paging and filtering both: a second is how `300` came to
+    page under `#`, match no letter filter, and be offered as `3` by the picker.
+    """
+    title = game_title(game).strip()
+    return title[0].upper() if title and title[0].isalpha() else "#"
+
+
 def _match_letter(criterion, game, table) -> bool:
-    name = game_title(game)
-    return bool(name) and name[0].upper() in {v.upper() for v in _values(criterion)}
+    return letter_of(game) in {str(v).upper() for v in _values(criterion)}
 
 
 def _match_theme(criterion, game, table) -> bool:
@@ -106,6 +115,10 @@ class FilterAxis:
     label: str
     summary: str
     matches: Callable
+    # Which group this game is in. `matches` answers the other question - is it in group
+    # A? - and paging to the next boundary can only ask this one. None where the axis
+    # has no groups to page between.
+    groups: Callable | None = None
 
     @property
     def is_table_scoped(self) -> bool:
@@ -115,7 +128,7 @@ class FilterAxis:
 AXES: tuple[FilterAxis, ...] = (
     FilterAxis("letter", GAME_SCOPE, "letter", "letter",
                "First letter of the title, as sorted",
-               _match_letter),
+               _match_letter, groups=letter_of),
     FilterAxis("theme", GAME_SCOPE, "choice", "theme",
                "Any theme the game is tagged with",
                _match_theme),
@@ -127,10 +140,10 @@ AXES: tuple[FilterAxis, ...] = (
                _match_manufacturer),
     FilterAxis("year", GAME_SCOPE, "choice", "year",
                "Year the machine was released",
-               _match_year),
+               _match_year, groups=lambda game: str(game_year(game))),
     FilterAxis("rating", GAME_SCOPE, "rating", "rating",
                "The rating the user gave the game",
-               _match_rating),
+               _match_rating, groups=lambda game: str(game_rating(game))),
     FilterAxis("rating_or_higher", GAME_SCOPE, "rating", "rating",
                "Read `rating` as a floor instead of a set",
                _match_rating_or_higher),
@@ -219,17 +232,8 @@ class GameListFilters:
         return get_meta_value(getattr(game, "meta_config", {}), section, key, fallback)
 
     def get_available_letters(self):
-        """Return sorted list of unique starting letters from game names."""
-        letters = set()
-        for game in self.games:
-            # Try Info.Title first (JSON format), then VPSdb.name (legacy)
-            name = game_title(game)
-            if name:
-                first_char = name[0].upper()
-                # Only include alphanumeric characters
-                if first_char.isalnum():
-                    letters.add(first_char)
-        return sorted(letters)
+        """The groups present, through `letter_of` so the list and matcher agree."""
+        return sorted({letter_of(game) for game in self.games})
 
     def get_available_themes(self):
         """Return sorted list of unique themes from all games."""
@@ -378,3 +382,22 @@ class GameListFilters:
         )
 
         return result
+
+
+# Which axis groups each order. The two vocabularies name the same thing differently -
+# an order says `title`, the axis grouping it says `letter`. An order absent here has no
+# groups: every timestamp is its own, and a curated array has no boundaries.
+GROUP_AXIS_FOR_ORDER = {"title": "letter", "year": "year", "rating": "rating"}
+
+
+def group_axis(order_by):
+    """What kind of group this order has - `letter`, `year`, `rating` - or "" for none."""
+    # Deferred: collection_store imports this module, so a top-level import would loop.
+    from common.games.collection_store import ORDER_ALIASES
+    return GROUP_AXIS_FOR_ORDER.get(ORDER_ALIASES.get(order_by, order_by), "")
+
+
+def group_key(order_by):
+    """What group a game falls in under this order, or None if the order has none."""
+    axis = AXES_BY_NAME.get(group_axis(order_by))
+    return axis.groups if axis else None

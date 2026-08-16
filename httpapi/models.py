@@ -371,6 +371,9 @@ class Entry(ApiModel):
     # bytes come from `endpoints.assets`, so naming files here would put a filesystem
     # path on the wire and several hundred kilobytes with it.
     media: list[str] = Field(default_factory=list)
+    # Which group this entry falls in under the collection's order - a letter, a year, a
+    # rating. Absent when the order has no groups; `EntryList.group_by` says which.
+    group: str | None = None
     links: EntryLinks
 
 
@@ -379,6 +382,9 @@ class EntryList(ApiModel):
 
     collection: str
     count: int
+    # What kind of group each entry carries, empty when the order has none - so a client
+    # can tell "no grouping here" from "the group happens to be empty".
+    group_by: str = ""
     entries: list[Entry]
 
 

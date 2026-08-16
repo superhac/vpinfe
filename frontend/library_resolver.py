@@ -12,7 +12,7 @@ import threading
 
 from common.config_access import NetworkConfig
 from common.games import collection_resolver, hub_library
-from common.games.collection_store import BUILTIN_ALL, public_name
+from common.games.collection_store import BUILTIN_ALL, DEFAULT_ORDER_BY, public_name
 from common.games.collections_service import get_collections_manager
 from common.games.game_repository import ensure_games_loaded
 from frontend import game_state
@@ -58,7 +58,7 @@ class LibraryResolver:
         self.filtered_games: list = []
         self.current_filters = game_state.default_filter_state()
         self.current_collection = BUILTIN_ALL
-        self.current_sort = "Alpha"
+        self.current_sort = DEFAULT_ORDER_BY
         self.current_order = "Ascending"
 
         self._entries: list | None = None
@@ -157,7 +157,7 @@ class LibraryResolver:
         it; the Game objects stay shared, so a rating update still reaches every reader."""
         with self.lock:
             self.current_collection = BUILTIN_ALL
-            self.current_sort = "Alpha"
+            self.current_sort = DEFAULT_ORDER_BY
             self.current_order = "Ascending"
             self.filtered_games = self.resolve_view(BUILTIN_ALL)
             self.rebuild_entries()
@@ -167,11 +167,13 @@ class LibraryResolver:
     def payload(self, contract: int, *, collection: str = "") -> str:
         """The theme payload, built once however many windows ask. Cleared by
         `rebuild_entries`, which every change to the list goes through."""
-        key = (contract, collection)
+        # The order is in the key because it decides the groups stamped on each entry.
+        key = (contract, collection, self.current_sort)
         with self.lock:
             if self._payload is None or self._payload_key != key:
                 self._payload = game_state.games_json(
-                    self.entries, contract, collection=collection)
+                    self.entries, contract, collection=collection,
+                    order_by=self.current_sort)
                 self._payload_key = key
             return self._payload
 

@@ -11,7 +11,7 @@ from pathlib import Path
 
 from nicegui import run, ui
 
-from common import input_registry, player_client
+from common import config_schema, input_registry, player_client
 from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from common.games.collection_store import CollectionStore
@@ -344,8 +344,12 @@ def render_panel(tab=None):
                 ).props('outlined dense options-dense').classes('config-input')
             elif section == 'input' and key == 'paging_type':
                 normalized_paging = str(value or '').strip().lower()
-                paging_options = {'alpha': 'Alphabetic (jump by letter)', 'numeric': 'Numeric (jump by page size)'}
-                paging_value = normalized_paging if normalized_paging in paging_options else 'alpha'
+                # A config written before 3.0 holds the old spelling; show it as what it
+                # resolves to rather than falling back to the default and losing the choice.
+                normalized_paging = config_schema.PAGING_TYPE_ALIASES.get(normalized_paging, normalized_paging)
+                paging_options = {'group': 'By group (jump to the next letter, year or rating - whichever the list is sorted by)',
+                                  'step': 'By page (jump a fixed number of tables)'}
+                paging_value = normalized_paging if normalized_paging in paging_options else 'group'
                 inp = ui.select(
                     options=paging_options,
                     value=paging_value

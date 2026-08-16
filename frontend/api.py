@@ -537,8 +537,8 @@ class API:
     def get_page_index(self, index, direction):
         """
         Compute the target wheel index for a page next/prev request.
-        Paging behavior comes from [Input] pagingtype/pagingsize and the
-        current sort; see game_state.page_jump_index.
+        Paging behavior comes from [Input] paging_type/paging_size and the order
+        on screen, which is what decides the groups; see game_state.page_jump_index.
         """
         try:
             index = int(index)

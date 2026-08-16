@@ -11,11 +11,12 @@ anything built against them.
 
 from __future__ import annotations
 
-from common import input_registry
+from common import config_schema, input_registry
 from common.config_access import cfg_get
 
-PAGING_TYPES = ("alpha", "numeric")
-PAGING_TYPE_DEFAULT = "alpha"
+PAGING_TYPES = config_schema.PAGING_TYPES
+PAGING_TYPE_ALIASES = config_schema.PAGING_TYPE_ALIASES
+PAGING_TYPE_DEFAULT = config_schema.PAGING_TYPE_DEFAULT
 PAGING_SIZE_DEFAULT = 10
 
 
@@ -60,6 +61,7 @@ def get_paging_config(config):
     """Return (paging_type, page_size), normalized to sane values."""
     paging_type = cfg_get(config, input_registry.SECTION, "paging_type",
                           PAGING_TYPE_DEFAULT).strip().lower()
+    paging_type = PAGING_TYPE_ALIASES.get(paging_type, paging_type)
     if paging_type not in PAGING_TYPES:
         paging_type = PAGING_TYPE_DEFAULT
     try:

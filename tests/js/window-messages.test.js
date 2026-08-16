@@ -169,6 +169,28 @@ describe("every index path announces itself the same way", () => {
     assert.equal(sent[0].direction, "next");
   });
 
+  test("a move says which group it landed in", async () => {
+    const { vpin, sent } = await started();
+    vpin.tableData = [{ group: "A" }, { group: "B" }];
+    vpin.groupBy = "letter";
+
+    vpin.moveBy(1);
+
+    assert.equal(sent[0].group, "B");
+    assert.equal(sent[0].groupKind, "letter");
+  });
+
+  test("an order with no groups says so rather than guessing", async () => {
+    const { vpin, sent } = await started();
+    vpin.tableData = [{ group: null }, { group: null }];
+    vpin.groupBy = "";
+
+    vpin.moveBy(1);
+
+    assert.equal(sent[0].group, "");
+    assert.equal(sent[0].groupKind, "");
+  });
+
   test("a page says page, and carries where it came from", async () => {
     const { vpin, sent, press } = await started({ pageIndex: 3 });
     vpin._currentTableIndex = 0;

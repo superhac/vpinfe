@@ -118,9 +118,8 @@ def public_name(name: str | None) -> str:
     return "" if not name or name == BUILTIN_ALL else str(name)
 
 # The stored sort names, in the vocabulary the rest of 3.0 uses. Nothing writes the old
-# spellings any more; a file written before this block existed still holds them, and
-# `frontend.game_state` inverts this map to answer the theme API - so the five keys are
-# a published contract and the five values are ours to change.
+# spellings any more; a file written before this block existed still holds them, so the
+# keys are what 2.x put on disk and the values are ours to change.
 ORDER_ALIASES = {
     "Alpha": "title",
     "Newest": "added",
@@ -130,10 +129,6 @@ ORDER_ALIASES = {
     # Not a 2.x spelling: the token this sort carried before durations named their unit.
     "play_time": "play_time_seconds",
 }
-
-# The subset that is the theme's vocabulary. `frontend.game_state` inverts *this* to name
-# a collection's current sort, so a token alias above can never come back out as one.
-THEME_SORT_NAMES = ("Alpha", "Newest", "LastRun", "Highest StartCount", "RunTime")
 
 # What a collection can be ordered by: the token stored, and what a person picks from,
 # in dropdown order. `manual` is absent on purpose - it means the member array, which is

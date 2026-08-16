@@ -58,9 +58,16 @@ class TestPageJumpIndexAlpha(unittest.TestCase):
         # Numeric fallback: step = min(10, 4 // 2) = 2
         self.assertEqual(page_jump_index(games, 0, "next"), 2)
 
-    def test_non_alpha_sort_falls_back_to_numeric(self):
-        result = page_jump_index(self.games, 0, "next", sort_type="LastRun", page_size=3)
+    def test_an_order_with_no_groups_steps_instead(self):
+        """Not a fallback any more: last-played gives every game its own timestamp, so
+        there are no boundaries to page between and a press steps."""
+        result = page_jump_index(self.games, 0, "next", order_by="last_played", page_size=3)
         self.assertEqual(result, 3)
+
+    def test_the_2x_sort_name_still_groups(self):
+        """A caller holding `Alpha` means title order, and should not lose its groups."""
+        self.assertEqual(page_jump_index(self.games, 0, "next", order_by="Alpha"),
+                         page_jump_index(self.games, 0, "next", order_by="title"))
 
 
 class TestPageJumpIndexNumeric(unittest.TestCase):
@@ -103,19 +110,24 @@ class TestGetPagingConfig(unittest.TestCase):
         return parser
 
     def test_defaults_when_unset(self):
-        self.assertEqual(input_api.get_paging_config(self._config()), ("alpha", 10))
+        self.assertEqual(input_api.get_paging_config(self._config()), ("group", 10))
 
     def test_reads_configured_values(self):
-        config = self._config(pagingtype="numeric", pagingsize="25")
-        self.assertEqual(input_api.get_paging_config(config), ("numeric", 25))
+        config = self._config(pagingtype="step", pagingsize="25")
+        self.assertEqual(input_api.get_paging_config(config), ("step", 25))
+
+    def test_the_2x_spellings_still_resolve(self):
+        """`alpha` and `numeric` are in configs users already have."""
+        self.assertEqual(input_api.get_paging_config(self._config(pagingtype="alpha"))[0], "group")
+        self.assertEqual(input_api.get_paging_config(self._config(pagingtype="numeric"))[0], "step")
 
     def test_invalid_values_fall_back_to_defaults(self):
         config = self._config(pagingtype="bogus", pagingsize="zero")
-        self.assertEqual(input_api.get_paging_config(config), ("alpha", 10))
+        self.assertEqual(input_api.get_paging_config(config), ("group", 10))
 
     def test_nonpositive_size_falls_back(self):
         config = self._config(pagingsize="0")
-        self.assertEqual(input_api.get_paging_config(config), ("alpha", 10))
+        self.assertEqual(input_api.get_paging_config(config), ("group", 10))
 
 
 class TestApiGetPageIndex(unittest.TestCase):
@@ -159,3 +171,32 @@ class TestApiGetPageIndex(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestGroupPagingFollowsTheOrder(unittest.TestCase):
+    """A group press moves to the next boundary in whatever the list is ordered by.
+
+    It used to be letters or nothing: `alpha` paging applied only when the sort was
+    alphabetical and silently stepped otherwise, so a collection ordered by year was
+    paged by letter through a list where the letters were scattered.
+    """
+
+    def test_ordered_by_title_pages_to_the_next_letter(self):
+        games = _games("Attack", "Avalanche", "Bally Hoo", "Cactus")
+
+        self.assertEqual(page_jump_index(games, 0, "next", order_by="title"), 2)
+
+    def test_ordered_by_year_pages_to_the_next_year(self):
+        games = _games("A", "B", "C")
+        for game, year in zip(games, ("1975", "1975", "1980"), strict=True):
+            game.meta_config["Info"]["Year"] = year
+
+        self.assertEqual(page_jump_index(games, 0, "next", order_by="year"), 2,
+                         "the boundary is the year, not the letter")
+
+    def test_a_digit_title_shares_one_group(self):
+        """'300' and '24' are both `#`, so paging crosses them in a single press."""
+        games = _games("300", "24", "Attack")
+
+        self.assertEqual(page_jump_index(games, 0, "next", order_by="title"), 2)
+
