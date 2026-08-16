@@ -6,9 +6,9 @@ and a scrolling page - already disagreed about what "left" pointed at, and every
 carried a fall-through case as the evidence.
 
 A binding names its own device - `key:<name>`, `pad:<index>/button:<n>` - so an action
-needs one list rather than a key per device. Richer selectors (modifiers, axes, hold,
-chord) are `INPUT.local.md` §5.4's, and go in this same list, so adding them is a parser
-change rather than another migration.
+needs one list rather than a key per device. Richer selectors - modifiers, axes, hold,
+chord - go in this same list, so adding them is a parser change rather than another
+migration.
 """
 
 from __future__ import annotations

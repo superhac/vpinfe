@@ -320,8 +320,8 @@ are worth carrying. Two of the three were also duplicates: a table's company and
 the *game's* company and year, which VPSdb does populate. And `playfieldvariant` is a
 rendering mode (`fss` versus a standard playfield), not SS/EM - publishing it as `type`
 beside the game's `type` would have put two unrelated meanings behind one word on the same
-payload, which is the collision `VOCABULARY.local.md` exists to prevent. Re-adding any of
-them is additive if a library is ever found that fills them in. Covered by
+payload. Re-adding any of them is additive if a library is ever found that fills them in.
+Covered by
 `tests/curation/test_wire_entry.py`.
 
 **PAR-80 — Reading the wheel's entries takes the view's lock.** *(machine-checked)* The

@@ -1,8 +1,8 @@
 """What a file claims to be, declared by whatever sent it.
 
 Whatever delivered the bytes knows what it asked for. VPinFE used to throw that away and
-re-derive it from the bytes, and `VPS-UPDATES.local.md` §4.5 measured that guess at 32%
-top-1 against 32% random, 57% confidently wrong. So the sender says, and we record.
+re-derive it from the bytes, and that guess measured 32% top-1 against 32% random, 57%
+confidently wrong. So the sender says, and we record.
 
 What is pinned here is the part that keeps the record trustworthy: the accepted set is
 closed, there is no way to say "I guessed", a weaker claim cannot overwrite a stronger one,

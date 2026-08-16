@@ -1,9 +1,13 @@
-"""Docs may not name a file that is not there.
+"""Nothing in the tree may name a file that is not in the tree.
 
 A doc that cites `common/tableparser.py` is not merely out of date - it sends a reader
 to a path that does not exist, and nothing fails when it happens. The vocabulary rename
 made several docs wrong this way at once: modules moved under `common/games/`, a
 stylesheet became `games.css`, and the docs kept the old names.
+
+The same rule covers source comments, and there it catches a second thing: a comment
+that cites a document only the author has reads as a reference and is a dead end for
+everybody else. If the reasoning is worth citing, it belongs in the tree.
 
 Only repo-shaped paths are checked. A doc is full of paths that are not ours - a user's
 `~/tables`, an example `<table>/pinmame/roms`, a media file inside a game folder - so the
@@ -191,6 +195,42 @@ class DocRouteTests(unittest.TestCase):
                     missing.append(f"{doc.name}:{number} documents {ref!r}")
 
         self.assertEqual(missing, [], "\n".join(missing))
+
+
+class CitedMarkdownTests(unittest.TestCase):
+    """Every `.md` a tracked file names has to be one a reader can open.
+
+    In the tree, or on a line that carries the link. What this catches is the third
+    case: a bare name that resolves nowhere for anyone but the person who wrote it.
+    """
+
+    MARKDOWN_REF = re.compile(r"(?<![*\\])\b([A-Za-z0-9_-][A-Za-z0-9_.-]*\.md)\b")
+    SCANNED = {".py", ".js", ".md", ".html", ".css", ".yml", ".yaml"}
+    # Real files, just not ours to hold: Visual Pinball publishes the first, and the
+    # second is a name inside a fixture archive, picked because nothing claims it.
+    KNOWN_ABSENT = {"FileLayout.md", "notes.md"}
+
+    def test_every_markdown_file_a_tracked_file_names_is_in_the_tree(self) -> None:
+        listed = subprocess.run(["git", "-C", str(REPO_ROOT), "ls-files"],
+                                capture_output=True, text=True, check=True).stdout.split()
+        paths = [REPO_ROOT / item for item in listed]
+        present = {p.name for p in paths}
+
+        dangling = []
+        for path in paths:
+            if path.suffix not in self.SCANNED or not path.is_file():
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            for number, line in enumerate(text.splitlines(), 1):
+                if "http" in line:
+                    continue
+                for ref in self.MARKDOWN_REF.findall(line):
+                    if ref in present or ref in self.KNOWN_ABSENT:
+                        continue
+                    cited = path.relative_to(REPO_ROOT).as_posix()
+                    dangling.append(f"{cited}:{number} cites {ref!r}")
+
+        self.assertEqual(dangling, [], "\n".join(dangling))
 
 
 if __name__ == "__main__":

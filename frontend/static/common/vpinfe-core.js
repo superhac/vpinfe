@@ -57,8 +57,7 @@ const CAPABILITIES = {
   // contract 2 the two behaviors need separate knobs to preserve 2.x.
   //
   // At contract 2 they are one thing: core_navigation owns all four actions and this is
-  // not consulted. That is COLLECTIONS §10a.4's fold, applied where it is true rather
-  // than everywhere - a 3.0 theme sees one capability for one concern, and a 2.x theme
+  // not consulted, so a 3.0 theme sees one capability for one concern and a 2.x theme
   // keeps the two behaviors it was written against.
   core_paging: {
     default: true,

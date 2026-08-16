@@ -6,8 +6,6 @@ The two at the top rank together because neither inferred anything, and they nev
 either VPinFE built the file or something handed it over. There is deliberately no value
 meaning "I guessed" - a caller that inferred sends nothing and the file joins the manual
 queue, which is what makes this safe to accept over HTTP.
-
-Reasoning in `VPS-UPDATES.local.md` §4.7a and `INFO-SCHEMA.local.md` §3.9.
 """
 
 from __future__ import annotations

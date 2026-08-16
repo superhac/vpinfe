@@ -11,8 +11,6 @@ started headless can open its windows without being restarted.
 **An origin is an address, not a category:** a confirm belongs on the surface that asked,
 and a dialog raised anywhere else is a hang on a screen nobody is watching. Confirming and
 notifying are separate, and only the first can block.
-
-Design and open questions in `PLATFORM-ROADMAP.local.md` §2.
 """
 
 from __future__ import annotations

@@ -36,8 +36,8 @@ def _info(name: str) -> dict:
             "VPinFE": {}, "User": {}}
 
 
-# Windows is out by design, not by accident. §9.3 scoped this to Linux from the start,
-# and a cabinet is not a Windows box - but the honest reason is that the runner kills the
+# Windows is out by design, not by accident. This was scoped to Linux from the start and
+# a cabinet is not a Windows box - but the honest reason is that the runner kills the
 # test process partway through with no summary and no traceback, and I have not found out
 # why. Diagnosing it costs a push per attempt for a platform this test was never meant to
 # gate. Recorded rather than quietly excluded: if VPinFE ever needs this on Windows, that

@@ -2,9 +2,9 @@
 //
 // Before this, `contract` governed the payload and nothing else: the vpin.* aliases, the
 // media kind spellings and the dual-spelling window messages were unconditional, so none
-// of them could ever be retired - nothing signalled that a theme had stopped needing them
-// (THEME.local.md P1). A theme already says what it was written against; now that answer
-// selects everything.
+// of them could ever be retired - nothing signalled that a theme had stopped needing
+// them. A theme already says what it was written against; now that answer selects
+// everything.
 
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";

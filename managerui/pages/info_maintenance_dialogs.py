@@ -1,7 +1,7 @@
 """Upgrading the library's .info files, and putting them back.
 
 A library upgrades all at once at first launch, so a game still on the old format means
-that did not finish. See INFO-SCHEMA.local.md §5b.
+that did not finish.
 """
 
 from __future__ import annotations

@@ -1,8 +1,7 @@
 """The media resolution chain: table > folder > default, families per kind.
 
-The rules under test are MEDIA.local design decisions 1-5 made concrete: spec
-naming resolves above the fixed names vpinmediadb writes, a kind accepts its
-whole extension family, and consumers only ever see one winning path.
+Spec naming resolves above the fixed names vpinmediadb writes, a kind accepts
+its whole extension family, and consumers only ever see one winning path.
 """
 
 from __future__ import annotations

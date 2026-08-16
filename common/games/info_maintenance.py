@@ -1,7 +1,6 @@
 """Upgrade a library of `.info` files, or put back what a newer build upgraded.
 
-Neither walk stops on a bad file, and neither re-reads a `.vpx`. See
-INFO-SCHEMA.local.md §5b/§5c.
+Neither walk stops on a bad file, and neither re-reads a `.vpx`.
 """
 
 from __future__ import annotations

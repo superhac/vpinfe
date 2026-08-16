@@ -1,7 +1,7 @@
 """Stable local identity for tables: an opaque id on each entry in the `tables` map.
 
 Unique across the library, not just within a game, so an id alone identifies a table.
-The game-level counterpart is `game_identity`; the reasoning is in COLLECTIONS.local.md.
+The game-level counterpart is `game_identity`.
 """
 
 from __future__ import annotations

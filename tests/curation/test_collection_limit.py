@@ -2,7 +2,7 @@
 
 `limit` is an addition to schema 2 rather than a version of its own: absent means all
 of them, which is every collection written before the key existed, so nothing migrates.
-The resolver applies it last - §4 has why - and these pin the storage half.
+The resolver applies it last, and these pin the storage half.
 """
 
 from __future__ import annotations

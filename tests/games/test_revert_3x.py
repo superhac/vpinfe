@@ -2,9 +2,8 @@
 
 The round trip is the real test: a 2.x install, migrated, reset, and the `.info` files
 byte-identical to what went in. The second one matters more - running the migrations
-again and asserting every one did work is what keeps REVERT.local.md's marker table
-honest, because a migration whose marker nobody recorded here would report success while
-doing nothing.
+again and asserting every one did work is what keeps the marker list honest, because a
+migration whose marker nobody recorded here would report success while doing nothing.
 """
 
 from __future__ import annotations

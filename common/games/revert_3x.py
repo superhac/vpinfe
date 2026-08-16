@@ -2,7 +2,7 @@
 
 A test instrument rather than a recovery aid: a one-time migration whose marker is
 already set does nothing and says nothing, so a 2->3 test that has run once stops
-testing. REVERT.local.md lists every marker.
+testing.
 """
 
 from __future__ import annotations

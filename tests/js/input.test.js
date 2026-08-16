@@ -1,8 +1,8 @@
 // Keyboard input: one dispatch, and it does not quit the app from inside a menu.
 //
-// These started as throwaway checks that asserted the defects existed (INPUT.local.md
-// §4, input-tools/). They are inverted here: each one now pins the fixed behavior, so
-// the same evidence that found the bugs is the net that keeps them fixed.
+// These started as throwaway checks that asserted the defects existed. They are inverted
+// here: each one now pins the fixed behavior, so the same evidence that found the bugs is
+// the net that keeps them fixed.
 
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
@@ -372,8 +372,8 @@ describe("what a keypress means depends on the mode", () => {
 });
 
 describe("stepping and paging are one capability at contract 2", () => {
-  // §10a.4 asked for the fold. It happens where it is true: at contract 2 core_navigation
-  // owns all four actions and a theme sees one knob. Below it the two stay separate,
+  // The fold happens where it is true: at contract 2 core_navigation owns all four
+  // actions and a theme sees one knob. Below it the two stay separate,
   // because 2.x core pages for a theme and leaves the cursor to it - opposite defaults,
   // and preserving them is the only reason core_paging still exists.
   test("a contract 2 theme turns both off with one key", async () => {

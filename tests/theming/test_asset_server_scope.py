@@ -46,8 +46,8 @@ class TranslateTests(unittest.TestCase):
                          str(self.root / "Example" / "index.html"))
 
     def test_an_unmounted_path_is_not_looked_for_in_the_working_directory(self) -> None:
-        """The finding: /CLAUDE.local.md and /.git/config both returned 200."""
-        for path in ("/main.py", "/.git/config", "/CLAUDE.local.md", "/"):
+        """The finding: /main.py and /.git/config both returned 200."""
+        for path in ("/main.py", "/.git/config", "/README.md", "/"):
             self.assertTrue(self._is_refusal(self._served(path)), path)
 
     def test_a_miss_inside_a_mount_does_not_fall_out_of_it(self) -> None:

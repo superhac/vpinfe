@@ -1,8 +1,8 @@
 // The 2.x names a published theme still calls, and the window identity it reads.
 //
 // Every one of these is a compatibility shim with no expiry: nothing declares that a
-// theme has stopped needing them (THEME.local.md P1). Until a contract governs the whole
-// surface, these assertions are what stops one being dropped by accident.
+// theme has stopped needing them. Until a contract governs the whole surface, these
+// assertions are what stops one being dropped by accident.
 
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";

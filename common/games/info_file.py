@@ -95,7 +95,7 @@ def migrate_vpinfe_section(vpinfe):
 
 
 ALT_VPSID_KEY = "alt_vpsid"
-# Nothing resolves through this, and an invariant says so - see INFO-SCHEMA §3.11a.
+# Nothing resolves through this, and an invariant says so.
 ALT_VPSID_PREVIOUS_KEY = "alt_vpsid_previous"
 
 
@@ -103,7 +103,7 @@ def _park_alt_vpsid(vpinfe, table_filename):
     """Set a manual VPS match aside when the table it was claimed against is replaced.
 
     It stops applying either way; what changes is that the user's typed value survives to
-    be offered back. Only the most recent is kept (INFO-SCHEMA §3.11a).
+    be offered back. Only the most recent is kept.
     """
     previous = str(vpinfe.get(ALT_VPSID_KEY, "") or "").strip()
     vpinfe[ALT_VPSID_KEY] = ""

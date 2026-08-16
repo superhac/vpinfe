@@ -4,7 +4,7 @@ Generations of the file, counting from the first one that shipped:
 
   1  what 2.x wrote. Implied - 2.x recorded no version, so a file either carries a
      stamp or is this one.
-  2  the current shape. See INFO-SCHEMA.local.md for why each section moved.
+  2  the current shape.
 
 `schema_of` still answers None rather than 1 for an unstamped file, because callers
 need to tell "declares nothing" from "declares 1"; the migration treats them alike.

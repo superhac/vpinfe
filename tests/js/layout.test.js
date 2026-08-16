@@ -2,8 +2,8 @@
 //
 // Four published themes each worked these out by hand and no two agreed: six of the eight
 // display configurations produced different geometry depending on which theme was
-// installed, so the correct value in a user's ini depended on their theme
-// (THEME.local.md 18.2). These assertions are the single answer that replaces that.
+// installed, so the correct value in a user's ini depended on their theme. These
+// assertions are the single answer that replaces that.
 
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
