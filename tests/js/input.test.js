@@ -370,3 +370,24 @@ describe("what a keypress means depends on the mode", () => {
     assert.equal(vpin.inputMode, "navigation");
   });
 });
+
+describe("the two capability guards ask the same questions", () => {
+  // §10a.4 wanted core_paging folded into core_navigation so one rule decided both.
+  // They cannot merge - 2.x core pages for a theme and does not move its cursor, so
+  // below contract 2 they need opposite defaults - but the guards can still agree, and
+  // the drift the fold was meant to remove was one missing check.
+  test("neither takes an action outside navigation mode", async () => {
+    const { vpin, press } = controller();
+    vpin._capabilities.core_navigation = true;
+    vpin._capabilities.core_paging = true;
+    vpin.tableData = [{}, {}, {}, {}, {}];
+    const before = vpin._currentTableIndex;
+    vpin.pushInputMode("modal");
+
+    await press("ArrowLeft");
+    await press("PageDown");
+
+    assert.equal(vpin._currentTableIndex, before,
+      "a modal owns the input; neither the wheel nor a page may move behind it");
+  });
+});

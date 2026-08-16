@@ -51,6 +51,12 @@ const DEFAULT_MEDIA_PRIORITIES = {
 // extra spellings are contract 1's: they accumulated because nothing declared the real
 // one, and they stay only for themes already using them.
 const CAPABILITIES = {
+  // Separate from core_navigation, and it has to stay separate: 2.x core pages for the
+  // theme (_corePagingEnabled defaults true there) and 2.x core does *not* move the
+  // selection - it hands previous/next to the theme's handler. So the two want opposite
+  // defaults below contract 2, and one capability cannot hold both. COLLECTIONS §10a.4
+  // proposed folding them when they were both simply on; the contract gate on navigation
+  // is what made that impossible.
   core_paging: {
     default: true,
     // Declarable, so a theme that pages for itself can say so. It had no key at all,
@@ -1978,13 +1984,20 @@ class VPinFECore {
   }
 
   // True when core should consume a paging action itself: paging enabled, table
-  // window, and no overlay up (overlays keep receiving the raw action).
+  // window, no overlay up (overlays keep receiving the raw action), and the input mode
+  // is the one where moving the wheel is what a direction means.
+  //
+  // That last check is the whole of what §10a.4 wanted from folding this into
+  // core_navigation - one rule, asked the same way. It is unreachable today, because
+  // #dispatchAction drops the paging actions in `text` and `modal` before either guard
+  // runs, and it is written here anyway: the next mode added is the one that reaches it,
+  // and the two guards disagreeing is how that becomes a bug nobody is looking for.
   #shouldHandleCorePaging(action) {
     if (action !== "page_previous" && action !== "page_next") return false;
     if (!this.enabled("core_paging")) return false;
     if (!this.isController()) return false;
-    if (this.overlay) return false;
-    return true;
+    if (this.inputMode !== "navigation") return false;
+    return !this.overlay;
   }
 
   async #handleCorePaging(action) {
