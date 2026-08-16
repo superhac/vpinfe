@@ -212,10 +212,6 @@ const VIDEO_KIND = { playfield: "playfield_video", backglass: "backglass_video",
 //  contract 1 is retired, this whole block goes with it and nothing else moves.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Pre-3.0 themes read these names. Aliased rather than removed: the payload behind each
-// is identical, so a theme written against any earlier build keeps working. The contract
-// projects the payload, never this surface, so aliasing is the only mechanism there is.
-// PAR-23.
 // The action names a contract 1 theme's handleInput switches on. Core dispatches the
 // current names; a theme that declared nothing is handed these instead, so every
 // published `case "joyleft"` keeps matching. PAR-40.
@@ -232,6 +228,10 @@ const LEGACY_ACTION_NAMES = {
   exit: "joyexit",
 };
 
+// Pre-3.0 names, aliased rather than removed: the payload behind each is identical, so a
+// theme written against an earlier build keeps working. The contract projects the payload,
+// never this surface, so aliasing is the only mechanism there is. PAR-23.
+//
 // Only the screen pair is left. The selection members went back to the Table* spelling
 // 2.x published, so there is nothing for them to forward to - and an entry mapping a
 // name to itself would install an accessor that reads itself.
@@ -240,9 +240,6 @@ const VPINFE_RENAMED_MEMBERS = {
   tableOrientation: 'playfieldOrientation',
 };
 
-// Kind names earlier builds accepted, against the canonical snake_case set.
-// real_dmd_color is the odd one: at contract 1 both frames collapse onto real_dmd, the
-// way 2.x addressed them, while contract 2 keeps it separately addressable.
 // Every media kind VPinFE serves, in common/media_specs.py order. Kept in step by
 // tests/theming/test_media_kinds.py, because a name that drifts here fails silently:
 // a lookup for a kind nobody serves returns nothing rather than complaining.
@@ -253,6 +250,9 @@ const MEDIA_KINDS = [
   "loading", "audio_launch", "rule_sheet", "logo",
 ];
 
+// Kind names earlier builds accepted, against the canonical snake_case set.
+// real_dmd_color is the odd one: at contract 1 both frames collapse onto real_dmd, the
+// way 2.x addressed them, while contract 2 keeps it separately addressable.
 const MEDIA_KIND_ALIASES = {
   table: "playfield",
   table_video: "playfield_video",
@@ -279,9 +279,9 @@ const MEDIA_FIELD_FALLBACK = {
 };
 
 // Window message types are a theme-facing contract: a theme both listens for these and
-// posts them. Pre-3.0 themes use the Table* spelling, so at contract 1 every broadcast
-// goes out under both names. Receipts are normalized at either contract - a theme
-// posting an old name has to be understood regardless. PAR-24.
+// posts them, so at contract 1 every broadcast goes out under both names, and a receipt
+// is normalized at either contract. PAR-24.
+//
 // Empty since the selection surface went back to the Table* spelling 2.x published:
 // there is nothing left to translate. The machinery stays because it is what the next
 // message rename uses - see VPINFE_RENAMED_MEMBERS, which is still carrying two.
@@ -303,12 +303,9 @@ function announceLegacy(target, oldName, newName) {
   if (announcedLegacy.has(oldName)) return;
   announcedLegacy.add(oldName);
   console.info(`vpinfe: deprecated theme JavaScript '${oldName}' is in use; the current name is ${newName} (PAR-23)`);
-  // Also tell the backend, so the log on the machine can answer "is anything still
-  // on the old name". A console line is invisible on a cabinet. Best effort: this is
-  // reporting, and it must never be the reason a theme fails.
-  // call() is async, so a rejection has to be caught on the promise as well as around
-  // the invocation - the bridge may not be connected yet, and an unhandled rejection in
-  // a property getter is a poor trade for a log line.
+  // Also tell the backend: a console line is invisible on a cabinet. Best effort, and
+  // caught twice - call() is async, so a rejection needs catching on the promise as well
+  // as around the invocation, and the bridge may not be connected yet.
   try {
     Promise.resolve(target.call("report_deprecated_use", "vpin-members", oldName))
       .catch(() => {});
@@ -318,13 +315,10 @@ function announceLegacy(target, oldName, newName) {
 }
 
 // Core's own calls, refused by vpin.call(). These sort and filter the library for the
-// collection-menu overlay, which core ships; no theme is expected to reach them, and core
-// owns sorting outright once it owns the list the wheel steps through.
+// collection-menu overlay, which core ships; no theme is expected to reach them.
 //
-// This is a line, not a wall. A theme's iframe is same-origin and can reach whatever the
-// overlays reach if it goes looking, so it does not stop a determined author - what it
-// does is move these from documented and allowed to deliberately circumvented, which is
-// the difference worth having before anyone builds on them.
+// A line, not a wall: a theme's iframe is same-origin and can reach whatever the overlays
+// reach if it goes looking. What it does is move these from allowed to circumvented.
 const INTERNAL_METHODS = new Set([
   "apply_filters",
   "apply_sort",
@@ -737,9 +731,8 @@ class VPinFECore {
     if (normalizedType === "real_dmd") {
       return this.#resolveRealDmdMedia(item);
     }
-    // Canonical, because normalizedType is. Written as `bg`/`dmd` this never matched,
-    // so a backglass or scoreview video was never preferred over its still at either
-    // contract - the branch below treated both as a plain image.
+    // Canonical, because normalizedType is. Written as `bg`/`dmd` this never matches,
+    // and a video silently loses to its still.
     if (["playfield", "backglass", "scoreview"].includes(normalizedType)) {
       return this.#resolveImageVideoMedia(item, normalizedType);
     }
@@ -761,9 +754,6 @@ class VPinFECore {
     return item ? this._reader.audioURL(item) : null;
   }
 
-  // Core handles joypageup/joypagedown by default: it asks the backend for the
-  // target index ([Input] pagingtype/pagingsize + current sort) and broadcasts a
-  // TableIndexUpdate. Themes that implement their own paging call
   /**
    * What this build does on your behalf, and whether each is on right now. A name that
    * is absent is a behavior this build does not have - check before using it.
@@ -789,10 +779,6 @@ class VPinFECore {
    * against them keeps working when the two are separate machines.
    *
    * Derived on read, so correcting a port after startup corrects every url built from it.
-   * Hosts are loopback until bind configuration says otherwise, and deliberately not
-   * taken from window.location: "wherever this page came from" is a different
-   * one-machine assumption, and one that fails only for remote viewers - so it still
-   * looks right on the machine it was written on.
    */
   get endpoints() {
     const host = '127.0.0.1';
@@ -849,7 +835,7 @@ class VPinFECore {
     }
   }
 
-  // enableCorePaging(false) and receive the actions in handleInput instead.
+  // Turn core's paging off and receive the actions in handleInput instead.
   //
   // At contract 2 paging is part of core_navigation, so this turns off all four actions -
   // which is what the call asks for in the only sense that still exists there. Below it
@@ -1005,10 +991,9 @@ class VPinFECore {
     return this.#loadVPinPlayRating(index, true);
   }
 
-  // The legacy copy goes out by the SAME delivery as the message it mirrors. Sending it
-  // without _incself once reached bg and dmd but never came back to the playfield
-  // window, so paging updated the backglass and DMD while the wheel sat still. Both
-  // spellings leave from here, so they cannot disagree about how again.
+  // The legacy copy goes out by the SAME delivery as the message it mirrors. Both
+  // spellings leave from here, so they cannot disagree about how: sent without _incself
+  // the copy reaches bg and dmd but never the window that sent it.
   #broadcast(method, message) {
     this.#syncLocalIndexFromOutgoingMessage(message);
     this.#syncSelectionFromMessage(message);
@@ -1195,7 +1180,6 @@ class VPinFECore {
   }
 
 
-  // Default handler for TableDataChange events
   // The three overlays differ in four things: which flag says they are up, which iframe
   // they own, what they load, and what they are told when opened. Everything else - the
   // fade class, creating the frame once, the ten-millisecond wait so it does not flash,
@@ -1422,13 +1406,13 @@ class VPinFECore {
     }
   }
 
-  // Which messages mean "the wheel is now on something else". TableIndexUpdate is an
-  // ordinary step; the other two mean the list or the game underneath may have changed,
-  // so the notify has to fire again even when the index did not move.
   // The longest we wait between reconnect attempts. A cabinet can sleep for hours, so
   // there is no point trying every half second for all of it.
   static RECONNECT_CEILING_MS = 10000;
 
+  // Which messages mean "the wheel is now on something else". TableIndexUpdate is an
+  // ordinary step; the others mean the list or the game underneath may have changed, so
+  // the notify has to fire again even when the index did not move.
   static SELECTION_MESSAGES = new Set([
     "TableIndexUpdate", "TableDataChange", "TableLaunchComplete", "RemoteLaunchComplete",
   ]);
@@ -1447,8 +1431,8 @@ class VPinFECore {
 
   /**
    * Run something whenever the selection changes. This is how anything that follows the
-   * wheel attaches - the rating fetch and the backend notify already do, and preloading
-   * will - rather than being added to a list of message types by hand.
+   * wheel attaches - the rating fetch, the backend notify and preloading all do - rather
+   * than being added to a list of message types by hand.
    */
   onSelection(listener) {
     if (typeof listener !== "function") return () => {};
@@ -2030,9 +2014,8 @@ class VPinFECore {
       if (this.contract < 2) named = LEGACY_ACTION_NAMES[action] || action;
     }
 
-    // Handlers are async and their result was dropped, so a theme that threw did it
-    // in silence - and a theme guarding itself with an "is animating" flag never
-    // cleared it, which is what left the wheel dead until a restart.
+    // Handlers are async, so a rejection needs catching as well as a throw. Dropped, a
+    // theme's own "is animating" guard never clears and the wheel stays dead.
     for (const handler of handlers) {
       try {
         const result = handler(named);
@@ -2082,12 +2065,10 @@ class VPinFECore {
     return null;
   }
 
-  // Key events go to whichever document has focus, so once a touch or a click moves
-  // focus into an overlay's iframe the window listener stops seeing them. Each overlay
-  // used to carry its own hardcoded keyboard map for that case - three maps that only
-  // ran sometimes, agreed with nothing, and could not be configured. Core listens on
-  // the overlay's own window instead, so there is one dispatch and one set of bindings
-  // wherever focus happens to be. Same origin, so this is allowed.
+  // Key events go to whichever document has focus, so once a touch or a click moves focus
+  // into an overlay's iframe the window listener stops seeing them. Core listens on the
+  // overlay's own window too - same origin, so this is allowed - which is what makes one
+  // dispatch and one set of bindings work wherever focus happens to be.
   #listenForKeysIn(iframe) {
     // Nothing here may throw: this runs while an overlay is opening, and the socket is
     // not necessarily up - so it cannot report a failure through the bridge either.
@@ -2102,10 +2083,9 @@ class VPinFECore {
   }
 
   // ── Input modes ───────────────────────────────────────────────────────────
-  // What a keypress means depends on what is on screen. There was no such notion, so
-  // each overlay hand-rolled its own flag - and the collection menu's save dialog had
-  // none at all, which is why arrows drove the menu behind it and Enter opened a
-  // dropdown instead of saving.
+  // What a keypress means depends on what is on screen. Without this each overlay
+  // hand-rolls its own flag, and the one that has none takes the arrows for the menu
+  // behind it.
   //
   //   navigation  the default; actions reach the theme or the top overlay
   //   modal       a dialog owns them; select activates, back dismisses
@@ -2125,8 +2105,7 @@ class VPinFECore {
     return this._inputModes[this._inputModes.length - 1];
   }
 
-  // Move the selection, wrap it, and tell everyone where it went. Every theme wrote
-  // this, and two of the installed three broadcast an undefined index doing it.
+  // Move the selection, wrap it, and tell everyone where it went.
   moveBy(delta) {
     const count = this.tableData.length;
     if (!count) return this._currentTableIndex;
@@ -2152,10 +2131,9 @@ class VPinFECore {
     this._currentTableIndex = at;
     this.sendMessageToAllWindowsIncSelf({
       type: "TableIndexUpdate", index: at, previous, direction, reason, source,
-      // True while the wheel is still settling - what a theme needs to decide whether
-      // to load full art or wait. INPUT-PERFORMANCE's fast-scroll signal is this flag.
-      // It cannot serve as the jump signal: it is time-based, so one distant jump
-      // reports false.
+      // True while the wheel is still settling - what a theme needs to decide whether to
+      // load full art or wait. It cannot serve as a jump signal: it is time-based, so one
+      // distant jump reports false.
       moving: this.#stillMoving(),
     });
     this.#selectionChanged();
@@ -2168,9 +2146,6 @@ class VPinFECore {
     this._lastMoveAt = now;
     return moving;
   }
-
-  // Which overlay is up, or null. Every overlay is in OVERLAYS, so nothing new has to
-  // be added here when one is.
 
   // A key typed into a text field is text, never an action. This matters most inside an
   // overlay, where core now listens: b, c, m, q and t are bound by default, so without
@@ -2249,8 +2224,6 @@ class VPinFECore {
     else this.#triggerInputAction(action);
   }
 
-  // True when core should move the selection itself: navigation enabled, the table
-  // window, and nothing on top that owns the actions.
   // True when core moves the selection itself rather than handing the action to the
   // theme. One guard for all four actions, because at contract 2 they are one capability.
   //
@@ -2372,12 +2345,6 @@ class VPinFECore {
   }
 
   /**
-   * This window's name - which page it loaded, and its media kind when it has one.
-   *
-   * Known before the socket opens. Every published theme asks the backend for it instead,
-   * because until now there was nothing else to ask.
-   */
-  /**
    * The media kind this window shows, or null when it is not a display we hold art for.
    *
    * A media kind is named after the display it captures, so a window that is a display
@@ -2390,6 +2357,12 @@ class VPinFECore {
     return MEDIA_KINDS.includes(kind) ? kind : null;
   }
 
+  /**
+   * This window's name - which page it loaded.
+   *
+   * Known before the socket opens. Every published theme asks the backend for it instead,
+   * because until now there was nothing else to ask.
+   */
   get windowName() {
     return this._windowName;
   }
@@ -2470,8 +2443,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     if (!this.frontendInputEnabled) return;
 
     // Every action bound to this button. The branching is #dispatchAction's, shared with
-    // the keyboard - it used to be written out twice, and the two had already drifted:
-    // only the keyboard guarded exit while an overlay was up.
+    // the keyboard so the two cannot drift apart again.
     for (const action of this.joyButtonMap[buttonIndex.toString()] || []) {
       this.#dispatchAction(action);
     }
