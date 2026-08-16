@@ -26,7 +26,8 @@ function controller() {
   // would look at the list before anything reached it.
   // Core navigation answers previous/next itself when on, so a test about what reaches
   // a theme turns it off; the tests for core navigation turn it back on deliberately.
-  vpin.enableCoreNavigation?.(false);
+  // Poked directly: there is no enableCoreNavigation() and never was. This line used to
+  // call one through optional chaining, which silently did nothing.
   vpin._capabilities && (vpin._capabilities.core_navigation = false);
 
   const press = async (key, { code = key, repeat = false, target = null } = {}) => {

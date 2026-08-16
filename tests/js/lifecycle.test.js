@@ -19,7 +19,6 @@ function controller({ confirm = false } = {}) {
   vpin.init();
   vpin.isController = () => true;
   vpin.frontendInputEnabled = true;
-  vpin.enableCoreNavigation?.(false);
 
   const asked = [];
   vpin.call = async (method, ...args) => {

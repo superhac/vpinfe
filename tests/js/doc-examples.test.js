@@ -27,10 +27,12 @@ import { REPO_ROOT, loadCore } from "./support/load-core.js";
 
 const DOC = path.join(REPO_ROOT, "docs", "theme.md");
 const DOC_CONTRACT_1 = path.join(REPO_ROOT, "docs", "theme-contract-1.md");
+const DOC_COMPAT = path.join(REPO_ROOT, "docs", "compatibility-3.0.md");
 const PAYLOAD = path.join(REPO_ROOT, "tests", "fixtures", "theme_payload.json");
 
 const doc = readFileSync(DOC, "utf8");
 const docContract1 = readFileSync(DOC_CONTRACT_1, "utf8");
+const docCompat = readFileSync(DOC_COMPAT, "utf8");
 
 // Named exemptions, each with the reason, because a blanket allowance would hide the
 // drift this file exists to catch.
@@ -58,10 +60,11 @@ function jsBlocks(text = doc, name = "docs/theme.md") {
   return blocks;
 }
 
-/** Both theme docs: contract 2 is current, contract 1 is what 2.x themes still read. */
+/** Every doc a theme author builds from: both contracts, and the upgrade ledger. */
 function allJsBlocks() {
   return [...jsBlocks(),
-          ...jsBlocks(docContract1, "docs/theme-contract-1.md")];
+          ...jsBlocks(docContract1, "docs/theme-contract-1.md"),
+          ...jsBlocks(docCompat, "docs/compatibility-3.0.md")];
 }
 
 test("docs/theme.md still has examples to check", () => {
@@ -103,6 +106,29 @@ test("every vpin method the docs call exists on core", () => {
     .sort();
   assert.deepEqual(missing, [],
     `the theme docs call vpin members core does not have:\n  ${missing.join("\n  ")}`);
+});
+
+test("every capability method the docs name exists on core", () => {
+  // The fenced-block checks above only see code fences. `enableCoreNavigation(false)`
+  // sat in compatibility-3.0.md as prose for weeks, in backticks, telling authors to
+  // call a method that has never existed - two test files even called it through
+  // optional chaining, so the suite stayed green.
+  //
+  // Capability toggles are a closed shape, so this can match on the name alone without
+  // catching Python methods or config keys that happen to look like calls.
+  const { VPinFECore } = loadCore();
+  const surface = new Set(Object.getOwnPropertyNames(VPinFECore.prototype));
+
+  const missing = [];
+  for (const [text, name] of [[doc, "docs/theme.md"],
+                              [docContract1, "docs/theme-contract-1.md"],
+                              [docCompat, "docs/compatibility-3.0.md"]]) {
+    for (const m of text.matchAll(/`(?:vpin\.)?((?:enable|isCore)[A-Z]\w*)\(/g)) {
+      if (!surface.has(m[1])) missing.push(`${name} names ${m[1]}(), which core lacks`);
+    }
+  }
+  assert.deepEqual([...new Set(missing)], [],
+    `documented methods that do not exist:\n  ${[...new Set(missing)].join("\n  ")}`);
 });
 
 test("every payload path the docs read is in the payload we serve", () => {

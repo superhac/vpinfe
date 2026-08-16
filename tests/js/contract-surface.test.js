@@ -149,6 +149,41 @@ describe("a theme declaring contract 2 gets the current surface only", () => {
   });
 });
 
+describe("core navigation follows the VPinFE a theme says it needs", () => {
+  // Measured before it was fixed: with the capability on, one press of `previous` on a
+  // theme that still runs on 2.x moved core's game index and never reached the theme's
+  // handler - #dispatchAction hits #shouldHandleCoreNavigation first and the branches
+  // are else-if. Revolution, Trinidad and carousel-desktop drive their own collection
+  // list with those two actions, so their picker exited onto an unrelated game.
+  //
+  // The contract here is what the backend derived from the theme's min_vpinfe, so a
+  // theme reaches the second case by declaring "3.0" rather than by naming a contract.
+  test("a theme that still runs on 2.x keeps previous and next", async () => {
+    const { vpin } = await coreAtContract(1);
+
+    assert.equal(vpin.enabled("core_navigation"), false);
+  });
+
+  test("a theme that needs 3.0 gets core navigation", async () => {
+    const { vpin } = await coreAtContract(2);
+
+    assert.equal(vpin.enabled("core_navigation"), true);
+  });
+
+  test("a theme that has not moved yet can still ask for it", async () => {
+    const { vpin } = await coreAtContract(1,
+      { get_theme_config: { navigation: { enabled: true } } });
+
+    assert.equal(vpin.enabled("core_navigation"), true,
+      "navigation.enabled is the only opt-in there is - no method exists");
+  });
+
+  // What is not asserted here: the press itself. These cover the seeding, through the
+  // real init path; input.test.js covers dispatch given the flag. Joining the two needs
+  // the keyboard harness, and the case that matters - a theme's own picker staying up -
+  // is not something a green suite can show. It belongs on the cabinet.
+});
+
 describe("what the contract is for", () => {
   test("a theme can read which surface it is being served", async () => {
     const { vpin } = await coreAtContract(2);

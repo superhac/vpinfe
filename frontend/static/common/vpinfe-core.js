@@ -60,10 +60,16 @@ const CAPABILITIES = {
     describe: "Core handles the paging actions itself.",
   },
   core_navigation: {
-    // On by default: all four themes read reimplement the same wrap-and-broadcast, two
-    // ship the same undefined-index bug in it, and the Reference theme - written to
-    // demonstrate best practice - could not avoid the boilerplate either.
-    default: true,
+    // On only for a theme that says it needs 3.0. One that still runs on 2.x drives its
+    // own cursor: Revolution, Trinidad and carousel-desktop use previous/next to move
+    // their own collection list, and #dispatchAction reaches #shouldHandleCoreNavigation
+    // before #triggerInputAction with an else-if between them - so core consumes the
+    // press, the theme's handler never runs, and the broadcast behind it reads to those
+    // themes as "the user picked a game". Their picker exits onto an unrelated game.
+    //
+    // `navigation.enabled: true` still turns it on for a theme that has not moved yet.
+    default: false,
+    defaultFromContract: 2,
     config: ["navigation.enabled"],
     describe: "Core moves the selection, wraps it, and announces where it went.",
   },
@@ -778,7 +784,12 @@ class VPinFECore {
       const keys = [...(spec.config || []), ...(spec.legacyConfig || [])];
       const stated = keys.map((key) => configValue(config, key))
                          .find((value) => value !== undefined);
-      this.#setCapability(name, stated === undefined ? spec.default : !!stated);
+      // `defaultFromContract` reads ">= this contract", not "== it", so a contract 3
+      // theme inherits the newer default rather than falling back to the older one.
+      const fallback = spec.defaultFromContract === undefined
+        ? spec.default
+        : this.contract >= spec.defaultFromContract;
+      this.#setCapability(name, stated === undefined ? fallback : !!stated);
     }
     if (!this.enabled("core_audio")) this.stopTableAudio({ immediate: true });
 

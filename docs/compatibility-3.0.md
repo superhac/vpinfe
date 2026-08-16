@@ -1212,14 +1212,20 @@ checks which list is showing, so it is unaffected. Covered by
 `tests/theming/test_input_actions.py` and `tests/js/input.test.js`.
 
 **PAR-41 — Core moves the wheel, and a dialog can own the keys.**
-`core_navigation` is a capability, **on by default**, so `previous` and `next` move the
-selection in core: it wraps, sets the index, broadcasts `GameIndexUpdate` and fires the
-selection listeners. Themes already move on that broadcast - it is how paging and
-restore-last-game have always worked - so a theme needs no change, and one that would
-rather do it itself declares `navigation.enabled = false` or calls
-`enableCoreNavigation(false)`. `core_paging` gains a `paging.enabled` key for the same
-reason; it had none, so a theme that pages for itself had no way to say so in
-`theme.json`.
+`core_navigation` is a capability, **on for a theme that declares `min_vpinfe: "3.0"` and
+off for one that does not**, so at contract 2 `previous` and `next` move the selection in
+core: it wraps, sets the index, broadcasts `TableIndexUpdate` and fires the selection
+listeners.
+
+It is off below that because core taking those two actions is not invisible to a theme
+that already uses them. Revolution, Trinidad and carousel-desktop move their own
+collection list with `previous`/`next`, and core consumes the press before the theme's
+handler runs - so the picker exits onto whatever game the broadcast landed on. Those themes
+run on 2.x as well, which is exactly what declaring an older minimum says. A theme that has
+not moved yet but does want core navigation declares `navigation.enabled: true` in its
+`theme.json`; that is the only opt-in, and there is no `enableCoreNavigation` method.
+`core_paging` gains a `paging.enabled` key for the same reason; it had none, so a theme
+that pages for itself had no way to say so in `theme.json`.
 *Why:* all four themes read reimplemented the same wrap-and-broadcast, two of the
 installed three shipped the same undefined-index bug in it, and the Reference theme -
 written to demonstrate best practice - could not avoid the boilerplate either. When the
