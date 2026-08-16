@@ -638,7 +638,7 @@
  [
   "Settings",
   "hide_quit_button",
-  "general",
+  "frontend",
   "hide_quit_button"
  ],
  [
@@ -668,8 +668,8 @@
  [
   "Settings",
   "restore_last_game",
-  "general",
-  "restore_last_game"
+  "frontend",
+  "restore_last_table"
  ],
  [
   "Settings",
@@ -1036,5 +1036,29 @@
   "MMhideQuitButton",
   "frontend",
   "hide_quit_button"
+ ],
+ [
+  "general",
+  "hide_quit_button",
+  "frontend",
+  "hide_quit_button"
+ ],
+ [
+  "general",
+  "restore_last_game",
+  "frontend",
+  "restore_last_table"
+ ],
+ [
+  "Settings",
+  "restorelastgame",
+  "frontend",
+  "restore_last_table"
+ ],
+ [
+  "general",
+  "restorelastgame",
+  "frontend",
+  "restore_last_table"
  ]
 ]

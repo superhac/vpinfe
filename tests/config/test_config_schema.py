@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common import config_schema
+from common import config_access, config_schema
 from common.config_store import ConfigStore
 
 # What a new install wrote before the schema existed, captured once. The store reads its
@@ -42,6 +42,42 @@ class SchemaMatchesTheStoreTests(unittest.TestCase):
         seen = [(entry.section, entry.key) for entry in config_schema.options()]
         duplicates = {pair for pair in seen if seen.count(pair) > 1}
         self.assertEqual(duplicates, set())
+
+
+class MovedSettingsKeepTheirValueTests(unittest.TestCase):
+    """A setting that changed section must not silently take its default.
+
+    Found on the cabinet: "Hide Quit from MainMenu" was on, the setting moved from
+    `general` to `frontend`, and the Quit item came back - the stored value was in a
+    location nothing looked at any more, so the new section took the default. A 2.x
+    install was never at risk; one that had already run a 3.0 build was.
+    """
+
+    def _reads(self, section, key, stored):
+        from configparser import ConfigParser
+        parser = ConfigParser()
+        for (sec, name), value in stored.items():
+            parser.setdefault(sec, {})
+            parser[sec][name] = value
+        return config_access.cfg_get(parser, section, key)
+
+    def test_the_2x_spelling_still_reaches_the_moved_setting(self):
+        for stored, expected in ((("Settings", "MMhideQuitButton"), "true"),
+                                 (("Settings", "restorelasttable"), "false")):
+            with self.subTest(stored=stored):
+                section, key = ("frontend", "hide_quit_button") if "Quit" in stored[1] \
+                    else ("frontend", "restore_last_table")
+                self.assertEqual(self._reads(section, key, {stored: expected}), expected)
+
+    def test_a_3x_era_file_keeps_its_value_too(self):
+        """The half that was missing, and the half that bit."""
+        for stored, expected in ((("general", "hide_quit_button"), "true"),
+                                 (("general", "restore_last_game"), "false")):
+            with self.subTest(stored=stored):
+                section, key = ("frontend", "hide_quit_button") if "quit" in stored[1] \
+                    else ("frontend", "restore_last_table")
+                self.assertEqual(self._reads(section, key, {stored: expected}), expected,
+                                 f"{stored} was dropped; the setting silently defaults")
 
 
 class SchemaShapeTests(unittest.TestCase):

@@ -398,7 +398,11 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             default="false",
             label="Hide Quit from MainMenu",
             aliases=("MMhideQuitButton",),
-            legacy=(("Settings", "MMhideQuitButton"),),
+            # The 2.x location, then the one 3.0 briefly used. The second is not
+            # compatibility for a shipped release - 3.0 has none - it is so an install
+            # that already ran a 3.0 build keeps the setting instead of silently
+            # defaulting. It can go once no such install is left.
+            legacy=(("Settings", "MMhideQuitButton"), ("general", "hide_quit_button")),
         ),
         ConfigOption(
             "restore_last_table",
@@ -408,7 +412,12 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             # `restorelastgame` was 3.0's and never shipped; 2.x wrote `restorelasttable`,
             # which is also what this restores - a row is a table.
             aliases=("restorelasttable",),
-            legacy=(("Settings", "restorelasttable"),),
+            # As above: 2.x's location first, then the two spellings a 3.0 build wrote -
+            # `restore_last_game` into the JSON, and `restorelastgame` into the ini it
+            # converted from.
+            legacy=(("Settings", "restorelasttable"),
+                    ("general", "restore_last_game"),
+                    ("Settings", "restorelastgame")),
         ),
     ),
     *in_section(
