@@ -17,7 +17,7 @@ from common import events, lifecycle
 from common.config_access import cfg_get
 from common.deprecations import announce
 from common.games import game_identity
-from common.games.collection_store import public_name
+from common.games.collection_store import normalize_direction, public_name
 from common.games.collections_service import (
     get_collection_image_url,
     get_collection_names,
@@ -448,7 +448,7 @@ class API:
         sort_by="Alpha",
         rating="All",
         rating_or_higher=False,
-        order_by="Descending",
+        order_by="desc",
     ):
         """Save current filter settings as a named collection."""
         try:
@@ -521,12 +521,16 @@ class API:
     def apply_sort(self, sort_type, order_by=None):
         """
         Sort the current filtered games.
-        sort_type: 'Alpha', 'Newest', 'LastRun', 'Highest StartCount', or 'RunTime'
-        order_by: 'Ascending' or 'Descending'
+        sort_type: one of the orders a collection can carry - 'title', 'year', 'added',
+        'last_played', 'play_count', 'play_time_seconds', 'rating'. The 2.x names still
+        arrive from a stored filter and resolve.
+        order_by: 'asc' or 'desc'.
         Returns the count of sorted games.
         """
         self.current_sort = sort_type
-        self.current_order = game_state.normalize_sort_order(order_by, sort_type)
+        # No direction asked for means descending, which is what the menu offers first
+        # and what a bare apply_sort has always done.
+        self.current_order = normalize_direction(order_by or "desc")
         logger.debug("Applying sort: %s %s", sort_type, self.current_order)
 
         count = game_state.apply_sort(self.filteredGames, sort_type, self.current_order)

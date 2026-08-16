@@ -8,8 +8,10 @@ direction those collections were already being shown in.
 """
 
 import json
+import unittest
 from types import SimpleNamespace
 
+from common.games import collection_store
 from common.games.collection_migration import (
     ORDER_DIRECTION_MIGRATION,
     ensure_order_direction,
@@ -231,3 +233,27 @@ class OrderDirectionMigrationTests(TempTree):
 
         self.assertEqual(ensure_order_direction(self._store()), 0)
         self.assertEqual(self._store().get_order("Recent")["direction"], "asc")
+
+
+class DirectionVocabularyTests(unittest.TestCase):
+    """One spelling for a direction, and the 2.x one still resolves.
+
+    The frontend carried `Ascending`/`Descending` while a collection stored `asc`/`desc`,
+    with a translation between them - the same split that had a collection ordered by
+    year reporting itself as sorted by title.
+    """
+
+    def test_the_stored_spellings_are_asc_and_desc(self) -> None:
+        self.assertEqual(collection_store.normalize_direction("asc"), "asc")
+        self.assertEqual(collection_store.normalize_direction("desc"), "desc")
+
+    def test_the_2x_spellings_still_resolve(self) -> None:
+        """They are in a criteria block on disk, so they can arrive at any time."""
+        self.assertEqual(collection_store.normalize_direction("Ascending"), "asc")
+        self.assertEqual(collection_store.normalize_direction("Descending"), "desc")
+
+    def test_anything_unreadable_is_ascending(self) -> None:
+        """A direction is two-valued, so there is no third answer to give."""
+        for value in (None, "", "   ", "sideways", 0):
+            with self.subTest(value=value):
+                self.assertEqual(collection_store.normalize_direction(value), "asc")

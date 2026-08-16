@@ -14,8 +14,10 @@ from common.games.collection_filters import (
 from common.games.collection_resolver import visible_entries
 from common.games.collection_store import (
     BUILTIN_ALL,
+    DEFAULT_DIRECTION,
     DEFAULT_ORDER_BY,
     ORDER_ALIASES,
+    normalize_direction,
 )
 from common.games.collections_service import save_filter_collection
 from common.games.game_metadata import (
@@ -56,19 +58,6 @@ def default_filter_state():
         "rating": None,
         "rating_or_higher": False,
     }
-
-
-def default_sort_order(sort_type):
-    return "Descending"
-
-
-def normalize_sort_order(order_by, sort_type="Alpha"):
-    value = str(order_by or "").strip().lower()
-    if value in ("ascending", "asc"):
-        return "Ascending"
-    if value in ("descending", "desc"):
-        return "Descending"
-    return default_sort_order(sort_type)
 
 
 def _legacy_row(game, logo_cache) -> dict:
@@ -200,7 +189,7 @@ def sort_state(order: dict) -> tuple[str, str]:
     `manual` passes through: apply_sort leaves the curator's array alone, deliberately
     rather than by not recognising the name.
     """
-    return order["by"], normalize_sort_order(order["direction"])
+    return order["by"], order["direction"]
 
 
 def _filter_state(criteria) -> dict:
@@ -285,7 +274,7 @@ def refresh_view(api):
     rebuild_view(api)
 
 
-def save_current_filter_collection(api, name, letter, theme, game_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by="Descending"):
+def save_current_filter_collection(api, name, letter, theme, game_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by="desc"):
     save_filter_collection(name, letter, theme, game_type, manufacturer, year, rating, rating_or_higher, sort_by, order_by)
     return {"success": True, "message": f"Filter collection '{name}' saved successfully"}
 
@@ -312,7 +301,7 @@ def apply_filters(api, letter=None, theme=None, game_type=None, manufacturer=Non
     if rating_or_higher is not None:
         api.current_filters["rating_or_higher"] = is_truthy(rating_or_higher)
 
-    api.current_sort, api.current_order = "Alpha", "Ascending"
+    api.current_sort, api.current_order = DEFAULT_ORDER_BY, DEFAULT_DIRECTION
     api.filteredGames = _current_membership(api)
     api._rebuild_entries()
     return len(api.filteredGames)
@@ -330,7 +319,8 @@ def apply_sort(games, order_by, direction=None):
     2.x spellings still arrive from the collection menu, so they are normalized first.
     """
     order_by = ORDER_ALIASES.get(order_by, order_by)
-    descending = normalize_sort_order(direction, order_by) == "Descending"
+    # A caller that names no direction gets descending, as it always has.
+    descending = normalize_direction(direction or "desc") == "desc"
     collection_resolver.order_games(games, order_by, descending)
     return len(games)
 

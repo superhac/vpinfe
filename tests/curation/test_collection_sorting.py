@@ -59,13 +59,13 @@ class TestCollectionSorting(unittest.TestCase):
             _game("Medium", "vps-3", runtime=45),
         ]
         api.current_sort = "Alpha"
-        api.current_order = "Descending"
+        api.current_order = "desc"
 
-        count = API.apply_sort(api, "RunTime", "Descending")
+        count = API.apply_sort(api, "RunTime", "desc")
 
         self.assertEqual(count, 3)
         self.assertEqual(api.current_sort, "RunTime")
-        self.assertEqual(api.current_order, "Descending")
+        self.assertEqual(api.current_order, "desc")
         self.assertEqual(
             [game.meta_config["Info"]["Title"] for game in api.filteredGames],
             ["Long", "Medium", "Short"],
@@ -73,7 +73,8 @@ class TestCollectionSorting(unittest.TestCase):
 
         API.apply_sort(api, "RunTime", "Ascending")
 
-        self.assertEqual(api.current_order, "Ascending")
+        # The 2.x spelling still arrives from a stored filter and has to resolve.
+        self.assertEqual(api.current_order, "asc")
         self.assertEqual(
             [game.meta_config["Info"]["Title"] for game in api.filteredGames],
             ["Short", "Medium", "Long"],
@@ -85,7 +86,7 @@ class TestCollectionSorting(unittest.TestCase):
             manager = CollectionStore(str(ini_path))
             manager.add_filter_collection("Played", sort_by="RunTime")
 
-            self.assertEqual(manager.get_filters("Played")["order_by"], "Descending")
+            self.assertEqual(manager.get_filters("Played")["order_by"], "desc")
 
 
 if __name__ == "__main__":

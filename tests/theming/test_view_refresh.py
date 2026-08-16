@@ -49,7 +49,7 @@ class _Library:
 class _Api:
     """The parts of the frontend API a resolved list is derived from."""
 
-    def __init__(self, games, store, sort="Alpha", order="Ascending",
+    def __init__(self, games, store, sort="title", order="asc",
                  collection=BUILTIN_ALL):
         self.library = _Library(games, store)
         self.allGames = list(games)
@@ -95,7 +95,7 @@ class ViewRefreshTests(unittest.TestCase):
 
     def test_a_play_axis_reorders_the_wheel(self):
         library = [_game("Alpha", last_run=10), _game("Bravo", last_run=20)]
-        api = self._api(library, sort="LastRun", order="Descending")
+        api = self._api(library, sort="last_played", order="desc")
 
         self._refresh(api, library)
         self.assertEqual(self._shown(api), ["Bravo", "Alpha"])
@@ -123,13 +123,13 @@ class ViewRefreshTests(unittest.TestCase):
         library = [_game("Alpha"), _game("Bravo")]
         self.store.add_collection("Favorites", ["alpha", "bravo"])
         self.store.set_order("Favorites", "title", "asc")
-        api = self._api(library, sort="Alpha", order="Descending",
+        api = self._api(library, sort="title", order="desc",
                         collection="Favorites")
 
         self._refresh(api, library)
 
-        self.assertEqual(api.current_sort, "Alpha")
-        self.assertEqual(api.current_order, "Descending")
+        self.assertEqual(api.current_sort, "title")
+        self.assertEqual(api.current_order, "desc")
         self.assertEqual(self._shown(api), ["Bravo", "Alpha"])
 
     def test_a_curated_order_survives_a_refresh(self):

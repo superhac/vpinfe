@@ -12,7 +12,12 @@ import threading
 
 from common.config_access import NetworkConfig
 from common.games import collection_resolver, hub_library
-from common.games.collection_store import BUILTIN_ALL, DEFAULT_ORDER_BY, public_name
+from common.games.collection_store import (
+    BUILTIN_ALL,
+    DEFAULT_DIRECTION,
+    DEFAULT_ORDER_BY,
+    public_name,
+)
 from common.games.collections_service import get_collections_manager
 from common.games.game_repository import ensure_games_loaded
 from frontend import game_state
@@ -59,7 +64,7 @@ class LibraryResolver:
         self.current_filters = game_state.default_filter_state()
         self.current_collection = BUILTIN_ALL
         self.current_sort = DEFAULT_ORDER_BY
-        self.current_order = "Ascending"
+        self.current_order = DEFAULT_DIRECTION
 
         self._entries: list | None = None
         self._entries_source: list | None = None
@@ -158,7 +163,7 @@ class LibraryResolver:
         with self.lock:
             self.current_collection = BUILTIN_ALL
             self.current_sort = DEFAULT_ORDER_BY
-            self.current_order = "Ascending"
+            self.current_order = DEFAULT_DIRECTION
             self.filtered_games = self.resolve_view(BUILTIN_ALL)
             self.rebuild_entries()
 

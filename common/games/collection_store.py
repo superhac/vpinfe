@@ -146,6 +146,15 @@ SORT_LABELS = {
 DIRECTION_LABELS = {"asc": "Ascending", "desc": "Descending"}
 
 
+def normalize_direction(value) -> str:
+    """A direction as `asc` or `desc`, whatever spelling it arrived in.
+
+    The labels above are 2.x's stored spelling and still turn up in a criteria block, so
+    anything that is not descending is ascending rather than an error.
+    """
+    return "desc" if str(value or "").strip().lower().startswith("desc") else "asc"
+
+
 def _member_ref(value) -> dict | None:
     """One stored member as a ref, or None if there is nothing addressable in it."""
     if isinstance(value, str):
@@ -170,7 +179,7 @@ def _member_refs(values) -> list[dict]:
 _FILTER_DEFAULTS = {
     "letter": "All", "theme": "All", "table_type": "All", "manufacturer": "All",
     "year": "All", "rating": "All", "rating_or_higher": "false",
-    "sort_by": "Alpha", "order_by": "Descending",
+    "sort_by": "Alpha", "order_by": "desc",
 }
 
 
@@ -347,23 +356,20 @@ class CollectionStore:
         stored = record.get(ORDER_KEY)
         if isinstance(stored, dict) and str(stored.get(ORDER_BY_KEY, "") or "").strip():
             raw = str(stored[ORDER_BY_KEY]).strip()
-            direction = str(stored.get(ORDER_DIRECTION_KEY, "") or DEFAULT_DIRECTION)
+            direction = stored.get(ORDER_DIRECTION_KEY) or DEFAULT_DIRECTION
         else:
             criteria = record.get("filters") or {}
             raw = str(criteria.get("sort_by", "") or "").strip()
-            direction = str(criteria.get("order_by", "") or DEFAULT_DIRECTION)
+            direction = criteria.get("order_by") or DEFAULT_DIRECTION
         by = ORDER_ALIASES.get(raw, raw) or DEFAULT_ORDER_BY
         return {ORDER_BY_KEY: by,
-                ORDER_DIRECTION_KEY: "desc" if direction.lower().startswith("desc")
-                                     else "asc"}
+                ORDER_DIRECTION_KEY: normalize_direction(direction)}
 
     def set_order(self, section: str, by: str, direction: str = DEFAULT_DIRECTION) -> None:
         """Record how this collection is ordered. `manual` means the member array."""
         record = self._require_mutable(section)
-        record[ORDER_KEY] = {
-            ORDER_BY_KEY: by,
-            ORDER_DIRECTION_KEY: "desc" if str(direction).lower().startswith("desc")
-                                 else "asc"}
+        record[ORDER_KEY] = {ORDER_BY_KEY: by,
+                             ORDER_DIRECTION_KEY: normalize_direction(direction)}
         # The criteria said the same thing in the 2.x spellings, and `get_order` reads
         # this block first - so leaving them is leaving a second, stale answer behind.
         for key in collection_filters.ORDERING_KEYS:
@@ -476,7 +482,7 @@ class CollectionStore:
         rating="All",
         rating_or_higher="false",
         sort_by="Alpha",
-        order_by="Descending",
+        order_by="desc",
         played=None,
     ):
         """Add a filter-based collection."""
@@ -486,7 +492,7 @@ class CollectionStore:
             "letter": letter, "theme": theme, "table_type": game_type,
             "manufacturer": manufacturer, "year": year, "rating": rating,
             "rating_or_higher": rating_or_higher, "sort_by": sort_by,
-            "order_by": order_by or "Descending",
+            "order_by": normalize_direction(order_by),
         }
         # Only when asked for. Written as false it would read as "never played" rather
         # than as saying nothing about play at all.

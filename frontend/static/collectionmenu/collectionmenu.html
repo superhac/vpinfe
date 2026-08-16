@@ -243,7 +243,15 @@
       manual: 'Curated',
     };
     const sortLabel = (token) => SORT_LABELS[token] || token;
-    let orderOptions = ['Descending', 'Ascending'];
+    // Tokens with labels, for the same reason the sorts above are: the value stored and
+    // the value shown were the same string, so the display spelling was the vocabulary.
+    let orderOptions = ['desc', 'asc'];
+    const DIRECTION_LABELS = { asc: 'Ascending', desc: 'Descending' };
+    // Which dropdowns show something other than their stored value. The popup renders
+    // the raw option, so without this the sort list reads `play_time_seconds`.
+    const OPTION_LABELS = { sortby: SORT_LABELS, orderby: DIRECTION_LABELS };
+    const optionLabel = (type, value) => (OPTION_LABELS[type] || {})[value] || value;
+    const directionLabel = (token) => DIRECTION_LABELS[token] || token;
 
     // Current selections
     let collectionIndex = 0;
@@ -268,7 +276,7 @@
         rating: String(filterState.rating || 'All'),
         ratingmode: filterState.rating_or_higher ? 'Or Higher' : 'Exact',
         sortby: filterState.sort || sortOptions[sortByIndex] || 'title',
-        orderby: filterState.order || orderOptions[orderByIndex] || 'Descending',
+        orderby: filterState.order || orderOptions[orderByIndex] || 'desc',
       };
     }
 
@@ -318,7 +326,7 @@
         setFilterDisplayOverrides({
           ...currentFilters,
           sort: currentSort || 'title',
-          order: currentOrder || 'Descending',
+          order: currentOrder || 'desc',
         });
       }
 
@@ -444,7 +452,8 @@
       document.getElementById('ratingmode-value').textContent = filterDisplayOverrides.ratingmode || ratingModes[ratingModeIndex];
       document.getElementById('sortby-value').textContent =
         sortLabel(filterDisplayOverrides.sortby || sortOptions[sortByIndex]);
-      document.getElementById('orderby-value').textContent = filterDisplayOverrides.orderby || orderOptions[orderByIndex];
+      document.getElementById('orderby-value').textContent =
+        directionLabel(filterDisplayOverrides.orderby || orderOptions[orderByIndex]);
 
       updateTableCount();
     }
@@ -547,7 +556,7 @@
       options.forEach((option, i) => {
         const div = document.createElement('div');
         div.className = 'popup-option' + (i === dropdownSelected ? ' selected' : '');
-        div.textContent = option;
+        div.textContent = optionLabel(currentDropdownType, option);
         popup.appendChild(div);
       });
 
@@ -623,7 +632,7 @@
               setFilterDisplayOverrides({
                 ...filterState,
                 sort: sortState || 'title',
-                order: orderState || 'Descending',
+                order: orderState || 'desc',
               });
               window.parent.vpin.sendMessageToAllWindowsIncSelf({
                 type: "TableDataChange",
@@ -781,7 +790,7 @@
         (ratings[ratingIndex] !== "All") ||
         (years[yearIndex] !== "All") ||
         (sortOptions[sortByIndex] !== "title") ||
-        (orderOptions[orderByIndex] !== "Descending");
+        (orderOptions[orderByIndex] !== "desc");
 
       if (!hasActiveFilters) {
         message.textContent = 'No filters or sort order active. Set at least one before saving.';

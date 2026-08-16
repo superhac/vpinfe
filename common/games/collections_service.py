@@ -71,7 +71,7 @@ def save_filter_collection(
     rating: str = "All",
     rating_or_higher=False,
     sort_by: str = "Alpha",
-    order_by: str = "Descending",
+    order_by: str = "desc",
 ) -> None:
     with get_collections_manager().mutate() as manager:
         manager.add_filter_collection(
