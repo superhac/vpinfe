@@ -847,6 +847,16 @@ options:
   --restore-info        Put back the .info files saved before they were
                         upgraded, for every game that has one. Your current
                         .info is kept first
+  --reset-3x-state      Remove the state 3.x wrote so the next start migrates
+                        from scratch: its settings and collections files, the
+                        .info files it made, and every backup copy it kept.
+                        Settings you changed under 3.x are lost, and so is any
+                        rating or play count on a game 3.x added. Refuses
+                        while VPinFE is running
+  --config-only         With --reset-3x-state: reset the config directory and
+                        leave the game library alone
+  --dry-run             With --reset-3x-state: list what would be removed and
+                        change nothing
   --game, --table GAME  Specify a single game folder name to process with
                         --buildmeta, --upgrade-info or --restore-info
 ```

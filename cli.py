@@ -8,7 +8,7 @@ from screeninfo import get_monitors
 
 from common.config_store import ConfigStore
 from common.deprecations import announce
-from common.games import game_report_service, info_maintenance, metadata_service
+from common.games import game_report_service, info_maintenance, metadata_service, revert_3x
 from common.log_setup import get_logger
 from common.paths import VPINFE_INI_PATH, ensure_config_dir
 from frontend.custom_http_server import CustomHTTPServer
@@ -49,6 +49,18 @@ def restore_info_files(game_name: str = None, progress_cb=None, log_cb=None):
 
     return info_maintenance.restore_library(
         _game_root_dir(), game_name=game_name, config_dir=CONFIG_DIR,
+        progress_cb=progress_cb, log_cb=log_cb)
+
+
+def reset_3x_state(config_only: bool = False, dry_run: bool = False,
+                   progress_cb=None, log_cb=None):
+    from common.config_access import NetworkConfig
+    from common.paths import CONFIG_DIR
+
+    return revert_3x.reset(
+        _game_root_dir(), CONFIG_DIR,
+        hub_port=NetworkConfig.from_config(config_store).hub_port,
+        config_only=config_only, dry_run=dry_run,
         progress_cb=progress_cb, log_cb=log_cb)
 
 
@@ -123,6 +135,19 @@ def parseArgs():
     parser.add_argument("--user-media", action="store_true", help="With --buildmeta: skip vpinmediadb downloads entirely and supply all media yourself")
     parser.add_argument("--upgrade-info", action="store_true", help="Upgrade every game's .info file to the current format, backing up each one first. Normally done automatically at startup; use this to finish an upgrade that was interrupted")
     parser.add_argument("--restore-info", action="store_true", help="Put back the .info files saved before they were upgraded, for every game that has one. Your current .info is kept first")
+    parser.add_argument("--reset-3x-state", action="store_true",
+                        help="Remove the state 3.x wrote so the next start migrates "
+                             "from scratch: its settings and collections files, the "
+                             ".info files it made, and every backup copy it kept. "
+                             "Settings you changed under 3.x are lost, and so is any "
+                             "rating or play count on a game 3.x added. Refuses while "
+                             "VPinFE is running")
+    parser.add_argument("--config-only", action="store_true",
+                        help="With --reset-3x-state: reset the config directory and "
+                             "leave the game library alone")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="With --reset-3x-state: list what would be removed and "
+                             "change nothing")
     # --table is the pre-3.0 spelling, kept working and hidden from --help so the
     # documented flag is the current one. A user's script does not break.
     parser.add_argument("--game", "--table", dest="game",
@@ -188,6 +213,14 @@ def parseArgs():
 
     if args.restore_info:
         restore_info_files(game_name=args.game)
+        sys.exit()
+
+    if args.reset_3x_state:
+        try:
+            reset_3x_state(config_only=args.config_only, dry_run=args.dry_run)
+        except revert_3x.InstanceRunningError as exc:
+            logger.error("%s", exc)
+            sys.exit(1)
         sys.exit()
 
     if args.buildmeta:
