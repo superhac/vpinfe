@@ -958,12 +958,14 @@ a page and a startup restore all announce themselves the same way:
 | `index` | where the selection is now |
 | `previous` | where it was. A local diff cannot tell a wrap from a jump: 149 → 0 is either one step forward or 149 back |
 | `direction` | `"previous"` or `"next"`, empty when the move had no direction |
-| `reason` | how far and why — `"step"`, `"page"`, `"restore"`, and `"jump"` for a letter jump |
+| `reason` | how far and why — `"step"` for one item, `"page"` for a page press, `"restore"` at startup. A page press is a letter jump when alpha paging is on and a fixed step otherwise; both report `"page"`, because both want the same treatment |
 | `source` | who moved it — `"user"` today; core will move it on a timer later |
-| `moving` | true while the wheel is still settling, so you can defer full-resolution art. Time-based, so a single distant jump reports `false` — use `reason` to tell a jump from a step |
+| `moving` | true while the wheel is still settling, so you can defer full-resolution art. Time-based, so a single distant move reports `false` — use `reason` to tell a page from a step |
 
 If you animate between positions, read `reason`: sliding one item is right for a `"step"`
-and wrong for a `"page"`, which should cut.
+and wrong for a `"page"`, which should cut. A page can move the selection a long way —
+alpha paging jumps to the next letter group — so sliding through it is what produces the
+two-wheels-stacked artifact.
 | `RemoteLaunching` | `table_name` | The manager UI triggered a remote game launch. Frontend keyboard/gamepad routing is suspended until `RemoteLaunchComplete`; show an overlay. |
 | `RemoteLaunchComplete` | — | The remote-launched game has exited and frontend input routing is restored. Hide the overlay. |
 | `TableDataChange` | `index`, `collection?`, `filters?`, `sort?` | Game data changed (collection switch, filter/sort update, a finished game's play data, a Manager UI edit). Handled automatically by `vpin.handleEvent()`. |

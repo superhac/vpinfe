@@ -357,6 +357,51 @@ const VPINFE_OVERLAY_ALIASES = {
   registerInputHandlerTutorial:       { overlay: "tutorial",       call: "registerOverlayHandler" },
 };
 
+// An ordered sequence and a cursor, and nothing else. The wheel is one of these; so is
+// the main menu, its dialog, the collection menu and its dropdown - seven hand-rolled
+// copies of the same four lines before this existed, three of which shipped the same
+// bail-out bug.
+//
+// Stepping, wrapping and moving to a position are the common methods. A surface whose
+// contents cannot be navigated by them keeps its own handling and stays out, rather than
+// these widening to fit it - a method that means something to one consumer and nothing
+// to the rest is what makes a shared abstraction worse than none.
+class NavigableList {
+  constructor(items = [], { id = "", cursor = 0 } = {}) {
+    this.id = id;
+    this.items = Array.isArray(items) ? items : [];
+    this.cursor = cursor;
+  }
+
+  get length() { return this.items.length; }
+
+  get current() { return this.items[this.cursor]; }
+
+  // Where a step of `delta` lands. Wraps both ways: a wheel is circular, and so is
+  // paging - page_jump_index walks to the adjacent letter group with wraparound, so
+  // forward from the last Z reaches the first A rather than crawling back through 26.
+  // An empty list answers with the cursor it has, so no caller counts first.
+  indexAfter(delta) {
+    const count = this.length;
+    if (!count) return this.cursor;
+    return ((this.cursor + delta) % count + count) % count;
+  }
+
+  // Clamps, and that is a guard rather than a policy: every caller that wants to wrap
+  // has already done it - paging wraps in page_jump_index before the index gets here.
+  // What this stops is an out-of-range index landing somewhere arbitrary. Anything
+  // wanting circular movement uses moveBy, which is what circular movement is.
+  moveTo(index) {
+    const count = this.length;
+    if (!count) return this.cursor;
+    this.cursor = Math.max(0, Math.min(count - 1, Number(index) || 0));
+    return this.cursor;
+  }
+
+  moveBy(delta) { return this.moveTo(this.indexAfter(delta)); }
+}
+
+
 function installOverlayAliases(target) {
   for (const [oldName, spec] of Object.entries(VPINFE_OVERLAY_ALIASES)) {
     Object.defineProperty(target, oldName, {
@@ -2105,21 +2150,38 @@ class VPinFECore {
     return this._inputModes[this._inputModes.length - 1];
   }
 
+  // The wheel as a list. Built per call rather than held, so `tableData` stays the one
+  // place the entries live - two copies of the list is the bug this is meant to retire,
+  // not one to introduce.
+  wheelList() {
+    return new NavigableList(this.tableData, {
+      id: this.collection || "builtin:all",
+      cursor: this._currentTableIndex,
+    });
+  }
+
+  // A list a theme's own surface can borrow, reached the same way the overlays reach
+  // everything else. Core keeps the arithmetic so a fourth copy is never written.
+  createList(items, options) { return new NavigableList(items, options); }
+
   // Move the selection, wrap it, and tell everyone where it went.
   moveBy(delta) {
-    const count = this.tableData.length;
-    if (!count) return this._currentTableIndex;
-    const previous = this._currentTableIndex;
-    const next = ((previous + delta) % count + count) % count;   // wraps both ways
-    return this.moveTo(next, { previous, direction: delta < 0 ? "previous" : "next" });
+    const list = this.wheelList();
+    if (!list.length) return this._currentTableIndex;
+    const previous = list.cursor;
+    return this.moveTo(list.indexAfter(delta),
+                       { previous, direction: delta < 0 ? "previous" : "next" });
   }
 
   /**
    * Move the selection to `index` and announce it. Every index path goes through here,
    * so a theme is told the same things however the cursor moved.
    *
-   * `reason` is how far and why - `step`, `page`, `restore`, and `jump` when a letter
-   * jump lands. `source` is who: `user`, or `attract` once core advances on a timer.
+   * `reason` is how far and why: `step`, `page`, `restore`. A page press is a letter
+   * jump when alpha paging is on and a fixed step otherwise, and both say `page` -
+   * a theme reads this to choose between sliding and cutting, and both want a cut, so
+   * splitting them would be a distinction nothing acts on. `source` is who moved it:
+   * `user`, or `attract` once core advances on a timer.
    * Two fields rather than one because they are independent - a random attract advance
    * is a jump *and* not a person, and one enum cannot say both.
    */

@@ -25,6 +25,7 @@ const CORE_PATH = path.join(REPO_ROOT, "frontend", "static", "common", "vpinfe-c
 // thing, and this is the list of exceptions.
 const EXPOSE = [
   "VPinFECore",
+  "NavigableList",
   "canonicalMessageType",
   "MESSAGE_TYPE_ALIASES",
   "MEDIA_PATH_FIELDS",
