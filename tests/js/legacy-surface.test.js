@@ -154,67 +154,56 @@ describe("core behaviors have one stated default each", () => {
   });
 });
 
-describe("the overlays behave the same as each other", () => {
-  // Three near-identical methods until they were one: the fade class, creating the
-  // frame once, hiding rather than destroying. They had already drifted - only two of
-  // the three told their iframe anything on open.
-  const OVERLAYS = [
-    ["toggleMenu", "menuUP", "menu-frame"],
-    ["toggleCollectionMenu", "collectionMenuUP", "collection-menu-frame"],
-  ];
+describe("the 2.x overlay names still answer", () => {
+  // Nine of them, and none is a plain rename: three booleans over one string, six methods
+  // over two that take the overlay's name. The mechanism is covered by overlays.test.js;
+  // what is checked here is that a theme written against the old surface still works.
+  const FLAGS = [["menuUP", "menu"], ["collectionMenuUP", "collectionMenu"],
+                 ["tutorialUP", "tutorial"]];
 
-  for (const [toggle, flag, frameId] of OVERLAYS) {
-    test(`${toggle} opens, then closes`, async () => {
-      const { vpin, browser } = newCore();
-      const root = browser.document.getElementById("overlay-root");
+  for (const [flag, overlay] of FLAGS) {
+    test(`${flag} reads the overlay string`, () => {
+      const { vpin } = newCore();
 
-      await vpin[toggle]();
-      assert.equal(vpin[flag], true);
-      assert.ok(root.classList.contains("active"), "faded in");
-      const frame = browser.document.getElementById(frameId);
-      assert.ok(frame, "the frame was created");
-      assert.equal(frame.style.display, "block");
-
-      await vpin[toggle]();
       assert.equal(vpin[flag], false);
-      assert.ok(!root.classList.contains("active"), "faded out");
-      assert.equal(frame.style.display, "none", "hidden, never destroyed");
-      // Field, not deepEqual: the object is made inside the vm, so its prototype
-      // differs from this one and strict deep equality would fail on that alone.
-      assert.equal(frame.posted.at(-1).event, "reset state");
+      vpin.overlay = overlay;
+      assert.equal(vpin[flag], true);
+      vpin.overlay = "menu";
+      assert.equal(vpin[flag], overlay === "menu");
     });
   }
 
-  test("opening one closes the other", async () => {
+  test("the old toggle opens the overlay it names", async () => {
     const { vpin } = newCore();
 
     await vpin.toggleMenu();
+    assert.equal(vpin.overlay, "menu");
     await vpin.toggleCollectionMenu();
-
-    assert.equal(vpin.menuUP, false, "the main menu closed itself");
-    assert.equal(vpin.collectionMenuUP, true);
+    assert.equal(vpin.overlay, "collectionMenu", "and closes the other, as it always did");
   });
 
-  test("the frame is created once and reused", async () => {
-    const { vpin, browser } = newCore();
-
-    await vpin.toggleMenu();
-    const first = browser.document.getElementById("menu-frame");
-    await vpin.toggleMenu();
-    await vpin.toggleMenu();
-
-    assert.equal(browser.document.getElementById("menu-frame"), first);
-  });
-
-  test("a tutorial with no URL leaves what is open alone", async () => {
+  test("the old register lands in the handler map", async () => {
     const { vpin } = newCore();
-    vpin.getCurrentTutorialUrl = () => "";
+    // Stubbed because registration logs through the bridge, and an unconnected stub
+    // socket rejects after the test ends rather than during it.
+    vpin.call = () => Promise.resolve();
+    const handler = () => {};
+
+    await vpin.registerInputHandlerMenu(handler);
+
+    // Length and identity: the array is made inside the vm, so deepEqual would compare
+    // prototypes across realms and fail on that alone.
+    assert.equal(vpin.overlayHandlers.menu.length, 1);
+    assert.ok(vpin.overlayHandlers.menu.includes(handler));
+  });
+
+  test("assigning false closes the overlay rather than doing nothing", async () => {
+    const { vpin } = newCore();
     await vpin.toggleMenu();
 
-    await vpin.toggleTutorial();
+    vpin.menuUP = false;
 
-    assert.equal(vpin.tutorialUP, false, "nothing to show");
-    assert.equal(vpin.menuUP, true, "and the menu was not closed on the way to nothing");
+    assert.equal(vpin.overlay, null);
   });
 });
 

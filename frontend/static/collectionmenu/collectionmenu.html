@@ -313,7 +313,7 @@
       window.parent.vpin.call("console_out", "Collection menu filters loaded");
     }
 
-    window.parent.vpin.registerInputHandlerCollectionMenu(handleInput);
+    window.parent.vpin.registerOverlayHandler("collectionMenu", handleInput);
 
     // Keyboard input is core's, on this window as well as the parent's - see
     // #listenForKeysIn in vpinfe-core.js. This file used to carry its own hardcoded
@@ -397,7 +397,7 @@
           } else if (selectedItem.id === 'save-filter-item') {
             openSaveFilterDialog();
           } else if (selectedItem.id === 'close-item') {
-            window.parent.vpin.toggleCollectionMenu();
+            window.parent.vpin.toggleOverlay("collectionMenu");
           }
           break;
         case "back":
@@ -406,7 +406,7 @@
           // While the dialog is up, back dismisses it - that is the one action the
           // text mode lets through, and this is what it should reach.
           if (releaseInputMode) closeSaveFilterDialog();
-          else window.parent.vpin.toggleCollectionMenu();
+          else window.parent.vpin.toggleOverlay("collectionMenu");
           break;
       }
       updateMenu();
@@ -636,7 +636,7 @@
             }
           }
           updateMenu();
-          window.parent.vpin.toggleCollectionMenu();
+          window.parent.vpin.toggleOverlay("collectionMenu");
           break;
 
         case 'letter':

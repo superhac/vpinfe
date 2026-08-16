@@ -14,7 +14,7 @@ let relayoutTimer = null;
 let remoteQrLoaded = false;
 let vpinplayMultiQrLoaded = false;
 
-window.parent.vpin.registerInputHandlerMenu(handleInput);
+window.parent.vpin.registerOverlayHandler("menu", handleInput);
 
 // Keyboard input is core's, on this window as well as the parent's - see
 // #listenForKeysIn in vpinfe-core.js. This file used to carry its own hardcoded
@@ -335,7 +335,7 @@ function handleInput(input) {
       break;
     }
     case 'back':
-      window.parent.vpin.toggleMenu();
+      window.parent.vpin.toggleOverlay("menu");
       break;
   }
   updateMenu();

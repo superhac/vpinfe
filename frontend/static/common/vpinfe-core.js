@@ -336,6 +336,41 @@ function announceInternal(target, method) {
   }
 }
 
+// Contract 1's overlay surface, all nine names of it. Derived rather than forwarded: three
+// booleans over one string, and six methods over two that take the overlay's name - so
+// VPINFE_RENAMED_MEMBERS, which maps a name to a name, cannot express them.
+const VPINFE_OVERLAY_ALIASES = {
+  menuUP:           { overlay: "menu" },
+  collectionMenuUP: { overlay: "collectionMenu" },
+  tutorialUP:       { overlay: "tutorial" },
+  toggleMenu:                         { overlay: "menu",           call: "toggleOverlay" },
+  toggleCollectionMenu:               { overlay: "collectionMenu", call: "toggleOverlay" },
+  toggleTutorial:                     { overlay: "tutorial",       call: "toggleOverlay" },
+  registerInputHandlerMenu:           { overlay: "menu",           call: "registerOverlayHandler" },
+  registerInputHandlerCollectionMenu: { overlay: "collectionMenu", call: "registerOverlayHandler" },
+  registerInputHandlerTutorial:       { overlay: "tutorial",       call: "registerOverlayHandler" },
+};
+
+function installOverlayAliases(target) {
+  for (const [oldName, spec] of Object.entries(VPINFE_OVERLAY_ALIASES)) {
+    Object.defineProperty(target, oldName, {
+      get() {
+        announceLegacy(this, oldName, spec.call || "overlay");
+        if (!spec.call) return this.overlay === spec.overlay;
+        return (...args) => this[spec.call](spec.overlay, ...args);
+      },
+      // Nothing we ship writes these, but a theme could, and silently ignoring it would
+      // be worse than acting on it: assigning false closes the overlay it names.
+      set(value) {
+        announceLegacy(this, oldName, "overlay");
+        if (spec.call || !!value === (this.overlay === spec.overlay)) return;
+        this.toggleOverlay(spec.overlay);
+      },
+      configurable: true,
+    });
+  }
+}
+
 function installLegacyAliases(target) {
   for (const [oldName, newName] of Object.entries(VPINFE_RENAMED_MEMBERS)) {
     if (oldName in target) continue;
@@ -352,6 +387,9 @@ function installLegacyAliases(target) {
 }
 
 function removeLegacyAliases(target) {
+  for (const oldName of Object.keys(VPINFE_OVERLAY_ALIASES)) {
+    if (Object.getOwnPropertyDescriptor(target, oldName)) delete target[oldName];
+  }
   for (const oldName of Object.keys(VPINFE_RENAMED_MEMBERS)) {
     if (Object.getOwnPropertyDescriptor(target, oldName)) delete target[oldName];
   }
@@ -450,13 +488,14 @@ class VPinFECore {
     this.collection = "";
     this._reader = new ContractOneReader(this);
     installLegacyAliases(this);
+    installOverlayAliases(this);
     this.monitors = [];
     this._resolveReady = null;
     this.ready = new Promise(resolve => this._resolveReady = resolve);
     this.inputHandlers = []; // gamepad and joystick input handlers for theme
-    this.inputHandlerMenu = []; // gamepad and joystick input handlers for menu
-    this.inputHandlerCollectionMenu = []; // gamepad and joystick input handlers for collection menu
-    this.inputHandlerTutorial = []; // gamepad and joystick input handlers for tutorial overlay
+    // Input handlers per overlay, keyed by its name in OVERLAYS. One map rather than an
+    // array per overlay, so adding a fourth is a registry entry and nothing else.
+    this.overlayHandlers = {};
 
     // Gamepad mapping
     this.joyButtonMap = {}
@@ -491,9 +530,9 @@ class VPinFECore {
     this._pagingInFlight = false;
 
     // menu is up?
-    this.menuUP = false;
-    this.collectionMenuUP = false;
-    this.tutorialUP = false;
+    // The overlay that is open, or null. One-of by construction - #toggleOverlay closes
+    // any other before opening one - so three booleans could only ever disagree.
+    this.overlay = null;
 
     // Event handling
     this.eventHandlers = {}; // Custom event handlers registered by themes
@@ -620,27 +659,16 @@ class VPinFECore {
     }
   }
 
-  // Menu register for Input events
-  async registerInputHandlerMenu(handler) {
-    if (typeof handler === 'function') {
-      this.call("console_out", "registered gamepad handler");
-      this.inputHandlerMenu.push(handler);
+  // An overlay page registers the handler that receives every action while it is open.
+  // Not guarded on isController: an overlay only ever exists in the controller window.
+  async registerOverlayHandler(name, handler) {
+    if (!VPinFECore.OVERLAYS[name]) {
+      console.warn(`[vpinfe] registerOverlayHandler("${name}") names no overlay`);
+      return;
     }
-  }
-
-  // Collection Menu register for Input events
-  async registerInputHandlerCollectionMenu(handler) {
-    if (typeof handler === 'function') {
-      this.call("console_out", "registered collection menu gamepad handler");
-      this.inputHandlerCollectionMenu.push(handler);
-    }
-  }
-
-  async registerInputHandlerTutorial(handler) {
-    if (typeof handler === 'function') {
-      this.call("console_out", "registered tutorial gamepad handler");
-      this.inputHandlerTutorial.push(handler);
-    }
+    if (typeof handler !== 'function') return;
+    this.call("console_out", `registered ${name} overlay handler`);
+    (this.overlayHandlers[name] ||= []).push(handler);
   }
 
   async call(method, ...args) {
@@ -982,18 +1010,10 @@ class VPinFECore {
     this.#broadcast("send_event_all_windows_incself", message);
   }
 
-  // Toggle collection menu (public method callable from collection menu)
-  toggleCollectionMenu() {
-    return this.#showcollectionmenu();
-  }
-
-  // Toggle main menu (public method callable from main menu)
-  toggleMenu() {
-    return this.#showmenu();
-  }
-
-  toggleTutorial() {
-    return this.#showtutorial();
+  // Open the named overlay, or close it if it is the one that is open. Callable from an
+  // overlay's own page, which is how each of them closes itself.
+  toggleOverlay(name) {
+    return this.#toggleOverlay(name);
   }
 
   // Launch a game
@@ -1162,19 +1182,16 @@ class VPinFECore {
   // hiding rather than destroying - was written out three times and drifted.
   static OVERLAYS = {
     menu: {
-      flag: "menuUP",
       frameId: "menu-frame",
       src: "/core/mainmenu/mainmenu.html",
       // table_index is mainmenu.js's own key, not ours to rename.
       opened: (core) => ({ event: "menu_open", table_index: core._currentTableIndex }),
     },
     collectionMenu: {
-      flag: "collectionMenuUP",
       frameId: "collection-menu-frame",
       src: "/core/collectionmenu/collectionmenu.html",
     },
     tutorial: {
-      flag: "tutorialUP",
       frameId: "tutorial-frame",
       src: "/core/tutorial/tutorial.html",
       // There is nothing to show without a URL, and this runs before anything is
@@ -1194,12 +1211,15 @@ class VPinFECore {
     const overlayRoot = document.getElementById("overlay-root");
     let iframe = document.getElementById(spec.frameId);
 
-    if (this[spec.flag]) {
-      this[spec.flag] = false;
+    if (this.overlay === name) {
+      this.overlay = null;
       overlayRoot.classList.remove("active");          // fade out
       if (iframe) {
         iframe.style.display = "none";                 // hide, never destroy
         if (iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ event: "overlay_close", overlay: name }, "*");
+          // What the three pages we ship have always matched on. PAR-24's shape: the
+          // current spelling first, the older one behind it.
           iframe.contentWindow.postMessage({ event: "reset state" }, "*");
         }
       }
@@ -1209,16 +1229,15 @@ class VPinFECore {
     const context = spec.prepare ? spec.prepare(this) : undefined;
     if (spec.prepare && context === null) return;
 
-    for (const [other, otherSpec] of Object.entries(VPinFECore.OVERLAYS)) {
-      if (other !== name && this[otherSpec.flag]) await this.#toggleOverlay(other);
-    }
+    if (this.overlay) await this.#toggleOverlay(this.overlay);
 
-    this[spec.flag] = true;
+    this.overlay = name;
     overlayRoot.classList.add("active");               // fade in
     if (!iframe) {
       iframe = document.createElement("iframe");
       iframe.src = spec.src;
       iframe.id = spec.frameId;
+      iframe.className = "vpinfe-overlay-frame";
       iframe.setAttribute("allowTransparency", "true");
       iframe.style.display = "none";                   // start hidden to prevent a flash
       overlayRoot.appendChild(iframe);
@@ -1227,8 +1246,10 @@ class VPinFECore {
     }
 
     iframe.style.display = "block";
-    const message = spec.opened && spec.opened(this, context);
-    if (message && iframe.contentWindow) iframe.contentWindow.postMessage(message, "*");
+    if (!iframe.contentWindow) return;
+    iframe.contentWindow.postMessage({ event: "overlay_open", overlay: name, context }, "*");
+    const legacy = spec.opened && spec.opened(this, context);
+    if (legacy) iframe.contentWindow.postMessage(legacy, "*");
   }
 
   /**
@@ -1306,9 +1327,6 @@ class VPinFECore {
     this.#lifecycleNotice = root;
   }
 
-  #showmenu()           { return this.#toggleOverlay("menu"); }
-  #showcollectionmenu() { return this.#toggleOverlay("collectionMenu"); }
-  #showtutorial()       { return this.#toggleOverlay("tutorial"); }
 
   async #handleTableDataChange(message) {
     // Check if a collection filter was applied
@@ -1962,7 +1980,7 @@ class VPinFECore {
     if (action !== "page_previous" && action !== "page_next") return false;
     if (!this.enabled("core_paging")) return false;
     if (!this.isController()) return false;
-    if (this.menuUP || this.collectionMenuUP || this.tutorialUP) return false;
+    if (this.overlay) return false;
     return true;
   }
 
@@ -1990,9 +2008,7 @@ class VPinFECore {
     if (!this.frontendInputEnabled) return;
 
     let handlers, named = action;
-    if (this.tutorialUP) handlers = this.inputHandlerTutorial;
-    else if (this.collectionMenuUP) handlers = this.inputHandlerCollectionMenu;
-    else if (this.menuUP) handlers = this.inputHandlerMenu;
+    if (this.overlay) handlers = this.overlayHandlers[this.overlay] || [];
     else {
       handlers = this.inputHandlers;   // no menu is up: the theme's own handler
       // The theme's handler is the only one outside this repo, so it is the only one
@@ -2130,12 +2146,6 @@ class VPinFECore {
 
   // Which overlay is up, or null. Every overlay is in OVERLAYS, so nothing new has to
   // be added here when one is.
-  #overlayUp() {
-    for (const [name, spec] of Object.entries(VPinFECore.OVERLAYS)) {
-      if (this[spec.flag]) return name;
-    }
-    return null;
-  }
 
   // A key typed into a text field is text, never an action. This matters most inside an
   // overlay, where core now listens: b, c, m, q and t are bound by default, so without
@@ -2195,7 +2205,7 @@ class VPinFECore {
     if (this.inputMode === "modal" && !["select", "back", "previous", "next"].includes(action)) {
       return;
     }
-    const overlay = this.#overlayUp();
+    const overlay = this.overlay;
     if (action === "exit") {
       // Escape and q default to exit, and an overlay's own Escape handler never runs -
       // nothing focuses the iframe - so this used to quit VPinFE from inside a menu.
@@ -2203,9 +2213,9 @@ class VPinFECore {
       if (overlay) this.#toggleOverlay(overlay);
       else this.requestLifecycle("app", "stop");
     }
-    else if (action === "menu") this.#showmenu();
-    else if (action === "collection_menu") this.#showcollectionmenu();
-    else if (action === "tutorial") this.#showtutorial();
+    else if (action === "menu") this.#toggleOverlay("menu");
+    else if (action === "collection_menu") this.#toggleOverlay("collectionMenu");
+    else if (action === "tutorial") this.#toggleOverlay("tutorial");
     else if (this.#shouldHandleCorePaging(action)) this.#handleCorePaging(action);
     else if (this.#shouldHandleCoreNavigation(action)) {
       this.moveBy(action === "previous" ? -1 : 1);
@@ -2220,7 +2230,7 @@ class VPinFECore {
     if (!this.enabled("core_navigation")) return false;
     if (!this.isController()) return false;
     if (this.inputMode !== "navigation") return false;
-    return !(this.menuUP || this.collectionMenuUP || this.tutorialUP);
+    return !this.overlay;
   }
 
   async #loadMonitors() {
@@ -2478,11 +2488,6 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     return `/proxy/pinballprimer?url=${encodeURIComponent(tutorialUrl)}`;
   }
 
-  // Menu deregister for Input Events
-  async #deregisterAllInputHandlersMenu() {
-    this.inputHandlerMenu = [];
-    this.call("console_out", "cleared the menu gamepad handler. aka menu closed");
-  }
 
   // Subscribe to play state on the manager UI's event stream
   #watchPlayState() {

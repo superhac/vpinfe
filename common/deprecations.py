@@ -89,6 +89,27 @@ SHIMS: tuple[Shim, ...] = (
         ),
     ),
     Shim(
+        key="overlay-surface",
+        surface="theme JavaScript",
+        summary="The three overlay booleans and the six methods that named one overlay "
+                "each are derived from vpin.overlay and the two methods that take an "
+                "overlay's name. Derived rather than forwarded, so they are not in "
+                "VPINFE_RENAMED_MEMBERS.",
+        implemented_in="frontend/static/common/vpinfe-core.js:VPINFE_OVERLAY_ALIASES",
+        par="PAR-86",
+        names=(
+            ("menuUP", "overlay"),
+            ("collectionMenuUP", "overlay"),
+            ("tutorialUP", "overlay"),
+            ("toggleMenu", "toggleOverlay"),
+            ("toggleCollectionMenu", "toggleOverlay"),
+            ("toggleTutorial", "toggleOverlay"),
+            ("registerInputHandlerMenu", "registerOverlayHandler"),
+            ("registerInputHandlerCollectionMenu", "registerOverlayHandler"),
+            ("registerInputHandlerTutorial", "registerOverlayHandler"),
+        ),
+    ),
+    Shim(
         key="ws-methods",
         surface="theme WebSocket API",
         summary="Pre-rename method names forward to their replacements through "

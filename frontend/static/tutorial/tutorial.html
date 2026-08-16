@@ -108,12 +108,12 @@
           scrollTutorial(140);
           break;
         case 'back':
-          window.parent.vpin.toggleTutorial();
+          window.parent.vpin.toggleOverlay("tutorial");
           break;
       }
     }
 
-    window.parent.vpin.registerInputHandlerTutorial(handleInput);
+    window.parent.vpin.registerOverlayHandler("tutorial", handleInput);
 
     // Keyboard input is core's, on this window as well as the parent's - see
     // #listenForKeysIn in vpinfe-core.js. This file used to carry its own hardcoded

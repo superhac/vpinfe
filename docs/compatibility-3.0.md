@@ -1260,6 +1260,20 @@ PAR-82 noted that a theme reading `get_current_sort_state` can see `"Manual"`; t
 is core's own now. Covered by `tests/invariants/test_theme_api_surface.py` and
 `tests/js/internal-methods.test.js`.
 
+**PAR-86 — One overlay string replaces three booleans, and nine old names still answer.**
+`vpin.overlay` names the open overlay, or is `null`. It replaces `menuUP`,
+`collectionMenuUP` and `tutorialUP`, and `toggleOverlay(name)` and
+`registerOverlayHandler(name, handler)` replace the three toggles and three registration
+methods that each named one overlay. All nine keep working: the booleans read the string,
+and the six methods call the new pair with the overlay's name already supplied. They are
+derived rather than forwarded, so they are not in the renamed-members map.
+Each overlay is also told `{event: "overlay_open", overlay, context}` when it opens and
+`{event: "overlay_close", overlay}` when it closes; the older `menu_open`, `tutorial_open`
+and `reset state` messages are still sent behind them.
+*Why:* at most one overlay is ever up - opening one closes any other - so three
+independent booleans could only ever disagree, and every consumer re-derived which was
+open. Adding a fourth overlay meant eleven edits across JavaScript, CSS and Python.
+
 **PAR-85 — The paging actions are `page_previous` and `page_next`, and page-up now pages
 backward.**
 PAR-40 renamed the directional actions to say what the player meant and stopped one row

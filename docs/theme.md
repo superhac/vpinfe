@@ -328,7 +328,40 @@ Your theme's own `style.css` and `theme.js` can be named whatever you want.
 
 | Element | Purpose |
 |---------|---------|
-| `<div id="overlay-root">` | **Required on all windows.** VPinFECore injects the main menu and collection menu iframes here. Without this, menus won't appear. |
+| `<div id="overlay-root">` | **Required on the controller window.** VPinFECore injects the overlay iframes here; without it, no overlay appears. Harmless on the other windows, and nothing is ever injected into them. |
+
+### Overlays
+
+An overlay is a page VPinFE hosts above your theme: the main menu, the collection menu and
+the tutorial. Core owns the hosting — it creates the iframe once, fades it in, hides rather
+than destroys it, and closes any other overlay first, so **at most one is ever open**.
+
+```javascript
+vpin.overlay                      // "menu", "collectionMenu", "tutorial", or null
+vpin.toggleOverlay("menu")        // open it, or close it if it is the one that is open
+```
+
+`vpin.overlay` is the whole state. A theme that dims itself while a menu is up reads it:
+
+```javascript
+if (vpin.overlay) document.body.classList.add("dimmed");
+```
+
+**An open overlay owns every action.** While one is up, core sends input to that overlay's
+own handler and your theme's `handleInput` is not called. Nothing has to check for this;
+it is what the guard already does.
+
+Bindings are unchanged: `menu`, `collection_menu` and `tutorial` are input actions the user
+configures, and core toggles the matching overlay when one fires.
+
+| 2.x name | now |
+|---|---|
+| `vpin.menuUP` / `collectionMenuUP` / `tutorialUP` | `vpin.overlay` |
+| `vpin.toggleMenu()` / `toggleCollectionMenu()` / `toggleTutorial()` | `vpin.toggleOverlay(name)` |
+| `vpin.registerInputHandlerMenu(fn)` and its two siblings | `vpin.registerOverlayHandler(name, fn)` |
+
+All nine old names keep working — the booleans read the string, and the methods call the
+new pair with the overlay's name filled in.
 
 #### Optional HTML Elements
 

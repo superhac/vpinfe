@@ -54,19 +54,22 @@ describe("exit never quits VPinFE from inside an overlay", () => {
   // Escape and q are both bound to exit by default, and an overlay's own Escape
   // handler never runs because nothing focuses the iframe - so this used to be a
   // one-key exit from any menu.
-  for (const [name, flag] of [["main menu", "menuUP"],
-                              ["collection menu", "collectionMenuUP"],
-                              ["tutorial", "tutorialUP"]]) {
+  // Driven through vpin.overlay, the state itself. Setting it is not the same as opening
+  // the overlay for real - the tutorial refuses to open without a url - and what is under
+  // test is which branch the keypress takes, not the hosting.
+  for (const [name, overlay] of [["main menu", "menu"],
+                                 ["collection menu", "collectionMenu"],
+                                 ["tutorial", "tutorial"]]) {
     for (const key of ["Escape", "q"]) {
       test(`${key} with the ${name} up closes it instead of the app`, async () => {
         const { vpin, press, quits } = controller();
-        vpin[flag] = true;
+        vpin.overlay = overlay;
 
         await press(key);
 
         assert.equal(await quits(), false,
           "quitting must not be reachable while an overlay is up");
-        assert.equal(vpin[flag], false, "the overlay should have closed");
+        assert.equal(vpin.overlay, null, "the overlay should have closed");
       });
     }
   }
