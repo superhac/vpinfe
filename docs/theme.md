@@ -945,10 +945,25 @@ Events are sent between windows via `receiveEvent()`. These are the built-in eve
 
 | Event Type | Properties | Description |
 |------------|------------|-------------|
-| `TableIndexUpdate` | `index` | User navigated to a different game. Sent by the controller to all others. |
+| `TableIndexUpdate` | `index`, `previous`, `direction`, `reason`, `source`, `moving` | The selection moved. Sent by the controller to all others, on every path. |
 | `TableLaunching` | — | A game is about to launch. Frontend keyboard/gamepad routing is suspended until `TableLaunchComplete`; use this to fade out, stop audio, etc. |
 | `TableRunning` | — | The launched game has finished loading and is now running. Sent when the table process outputs "Startup done". |
 | `TableLaunchComplete` | — | The launched game has exited and frontend input routing is restored. Use this to fade back in, resume audio. |
+
+**What `TableIndexUpdate` carries.** Every one of these is on every index message — a step,
+a page and a startup restore all announce themselves the same way:
+
+| Field | Meaning |
+|---|---|
+| `index` | where the selection is now |
+| `previous` | where it was. A local diff cannot tell a wrap from a jump: 149 → 0 is either one step forward or 149 back |
+| `direction` | `"previous"` or `"next"`, empty when the move had no direction |
+| `reason` | how far and why — `"step"`, `"page"`, `"restore"`, and `"jump"` for a letter jump |
+| `source` | who moved it — `"user"` today; core will move it on a timer later |
+| `moving` | true while the wheel is still settling, so you can defer full-resolution art. Time-based, so a single distant jump reports `false` — use `reason` to tell a jump from a step |
+
+If you animate between positions, read `reason`: sliding one item is right for a `"step"`
+and wrong for a `"page"`, which should cut.
 | `RemoteLaunching` | `table_name` | The manager UI triggered a remote game launch. Frontend keyboard/gamepad routing is suspended until `RemoteLaunchComplete`; show an overlay. |
 | `RemoteLaunchComplete` | — | The remote-launched game has exited and frontend input routing is restored. Hide the overlay. |
 | `TableDataChange` | `index`, `collection?`, `filters?`, `sort?` | Game data changed (collection switch, filter/sort update, a finished game's play data, a Manager UI edit). Handled automatically by `vpin.handleEvent()`. |

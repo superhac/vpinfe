@@ -123,3 +123,76 @@ describe("a data change the backend raised carries the wheel position", () => {
     assert.equal(message.index, undefined);
   });
 });
+
+describe("every index path announces itself the same way", () => {
+  // Three paths reached the wheel and only one of them said anything about the move:
+  // moveTo sent previous/direction/moving, while paging and restore sent a bare index.
+  // So the one path that jumps fourteen positions was the one a theme could not place.
+  //
+  // Driven through init and a real keypress, because both of the paths under test are
+  // private - reaching them any other way would test the test.
+  const started = async ({ count = 5, pageIndex = 3, initial = 0 } = {}) => {
+    const { VPinFECore, browser } = loadCore({ windowName: "table" });
+    const listeners = {};
+    browser.window.addEventListener = (type, fn) => { (listeners[type] ||= []).push(fn); };
+    const vpin = new VPinFECore();
+    const sent = [];
+    vpin.call = (method) => {
+      if (method === "get_tables") return Promise.resolve("[]");
+      if (method === "get_page_index") return Promise.resolve(pageIndex);
+      if (method === "get_initial_table_index") return Promise.resolve(initial);
+      if (method === "get_theme_contract") return Promise.resolve(1);
+      return Promise.resolve(null);
+    };
+    vpin.init();
+    await browser.WebSocket.instances.at(-1).onopen();
+    vpin.isController = () => true;
+    vpin.frontendInputEnabled = true;
+    vpin.tableData = Array.from({ length: count }, () => ({}));
+    // Captured after startup so the restore broadcast is separated from the rest.
+    vpin.sendMessageToAllWindowsIncSelf = (m) => sent.push(m);
+    const press = async (key) => {
+      const event = { key, code: key, repeat: false, target: null, preventDefault() {} };
+      await Promise.all((listeners.keydown || []).map(fn => fn(event)));
+    };
+    return { vpin, sent, press };
+  };
+
+  test("a step says step", async () => {
+    const { vpin, sent } = await started();
+
+    vpin.moveBy(1);
+
+    assert.equal(sent[0].reason, "step");
+    assert.equal(sent[0].source, "user");
+    assert.equal(sent[0].previous, 0);
+    assert.equal(sent[0].direction, "next");
+  });
+
+  test("a page says page, and carries where it came from", async () => {
+    const { vpin, sent, press } = await started({ pageIndex: 3 });
+    vpin._currentTableIndex = 0;
+
+    await press("PageDown");
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const paged = sent.find(m => m.reason === "page");
+    assert.ok(paged, "paging must announce itself as a page");
+    assert.equal(paged.index, 3);
+    assert.equal(paged.previous, 0, "a theme cannot tell a jump from a step without this");
+  });
+
+  test("previous is captured before the index moves", async () => {
+    // The trap that made restore worth routing: it assigned _currentTableIndex before
+    // broadcasting, so a naive route through moveTo makes previous report the
+    // destination. moveTo defaults previous from the field, so the caller must capture.
+    const { vpin, sent } = await started();
+    vpin._currentTableIndex = 1;
+
+    vpin.moveTo(4, { previous: vpin._currentTableIndex, reason: "restore" });
+
+    assert.equal(sent[0].reason, "restore");
+    assert.equal(sent[0].index, 4);
+    assert.equal(sent[0].previous, 1, "previous reported the destination");
+  });
+});

@@ -1064,12 +1064,15 @@ class VPinFECore {
     try {
       const index = await this.call("get_initial_table_index");
       if (typeof index === "number" && index > 0 && index < this.tableData.length) {
-        this._currentTableIndex = index;
+        // Captured before moveTo assigns it, or `previous` reports the index we are
+        // moving to. This used to assign _currentTableIndex here for the same reason
+        // moveTo does it now.
+        const previous = this._currentTableIndex;
         // Themes register window.receiveEvent at varying points in their startup
         // (some only after a couple of awaits inside vpin.ready.then). Wait for it
         // so the restore broadcast isn't dropped by the guard in #connectWebSocket.
         await this.#waitForReceiveEvent();
-        this.sendMessageToAllWindowsIncSelf({ type: "TableIndexUpdate", index });
+        this.moveTo(index, { previous, reason: "restore" });
       }
     } catch (e) {
       this.call("console_out", `restoreInitialTable failed: ${e.message}`);
@@ -1993,9 +1996,12 @@ class VPinFECore {
       const direction = action === "page_previous" ? "prev" : "next";
       const index = await this.call("get_page_index", this._currentTableIndex, direction);
       if (typeof index === "number" && index >= 0 && index !== this._currentTableIndex) {
-        // Same path restorelasttable uses: themes move their wheel on the
-        // incoming TableIndexUpdate, so no theme changes are needed.
-        this.sendMessageToAllWindowsIncSelf({ type: "TableIndexUpdate", index });
+        // Through moveTo like every other index path, so a page carries previous,
+        // direction and reason rather than an index a theme cannot place.
+        this.moveTo(index, {
+          direction: direction === "prev" ? "previous" : "next",
+          reason: "page",
+        });
       }
     } catch (e) {
       this.call("console_out", `Core paging failed: ${e.message}`);
@@ -2122,15 +2128,27 @@ class VPinFECore {
     return this.moveTo(next, { previous, direction: delta < 0 ? "previous" : "next" });
   }
 
-  moveTo(index, { previous = this._currentTableIndex, direction = "" } = {}) {
+  /**
+   * Move the selection to `index` and announce it. Every index path goes through here,
+   * so a theme is told the same things however the cursor moved.
+   *
+   * `reason` is how far and why - `step`, `page`, `restore`, and `jump` when a letter
+   * jump lands. `source` is who: `user`, or `attract` once core advances on a timer.
+   * Two fields rather than one because they are independent - a random attract advance
+   * is a jump *and* not a person, and one enum cannot say both.
+   */
+  moveTo(index, { previous = this._currentTableIndex, direction = "",
+                  reason = "step", source = "user" } = {}) {
     const count = this.tableData.length;
     if (!count) return this._currentTableIndex;
     const at = Math.max(0, Math.min(count - 1, Number(index) || 0));
     this._currentTableIndex = at;
     this.sendMessageToAllWindowsIncSelf({
-      type: "TableIndexUpdate", index: at, previous, direction,
+      type: "TableIndexUpdate", index: at, previous, direction, reason, source,
       // True while the wheel is still settling - what a theme needs to decide whether
       // to load full art or wait. INPUT-PERFORMANCE's fast-scroll signal is this flag.
+      // It cannot serve as the jump signal: it is time-based, so one distant jump
+      // reports false.
       moving: this.#stillMoving(),
     });
     this.#selectionChanged();
