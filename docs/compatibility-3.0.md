@@ -1224,8 +1224,12 @@ handler runs - so the picker exits onto whatever game the broadcast landed on. T
 run on 2.x as well, which is exactly what declaring an older minimum says. A theme that has
 not moved yet but does want core navigation declares `navigation.enabled: true` in its
 `theme.json`; that is the only opt-in, and there is no `enableCoreNavigation` method.
-`core_paging` gains a `paging.enabled` key for the same reason; it had none, so a theme
-that pages for itself had no way to say so in `theme.json`.
+**At contract 2 paging is part of it.** `previous`, `next` and the two paging actions are
+one capability with one key, because they are one concern: a page is a bigger step, not a
+different feature. Below contract 2 they stay separate, and they have to — 2.x core pages
+for a theme but leaves its cursor alone, so the two need opposite defaults there. That is
+the whole of what `core_paging` is for now, and it retires with contract 1. A theme that
+declares `paging.enabled: false` gets what it asked either way.
 *Why:* all four themes read reimplemented the same wrap-and-broadcast, two of the
 installed three shipped the same undefined-index bug in it, and the Reference theme -
 written to demonstrate best practice - could not avoid the boilerplate either. When the

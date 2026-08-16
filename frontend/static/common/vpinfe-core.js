@@ -51,19 +51,22 @@ const DEFAULT_MEDIA_PRIORITIES = {
 // extra spellings are contract 1's: they accumulated because nothing declared the real
 // one, and they stay only for themes already using them.
 const CAPABILITIES = {
-  // Separate from core_navigation, and it has to stay separate: 2.x core pages for the
-  // theme (_corePagingEnabled defaults true there) and 2.x core does *not* move the
-  // selection - it hands previous/next to the theme's handler. So the two want opposite
-  // defaults below contract 2, and one capability cannot hold both. COLLECTIONS §10a.4
-  // proposed folding them when they were both simply on; the contract gate on navigation
-  // is what made that impossible.
+  // Contract 1 only, and it retires with contract 1. 2.x core pages for the theme
+  // (_corePagingEnabled defaults true there) and 2.x core does *not* move the selection -
+  // it hands previous/next to the theme's handler. Those are opposite defaults, so below
+  // contract 2 the two behaviors need separate knobs to preserve 2.x.
+  //
+  // At contract 2 they are one thing: core_navigation owns all four actions and this is
+  // not consulted. That is COLLECTIONS §10a.4's fold, applied where it is true rather
+  // than everywhere - a 3.0 theme sees one capability for one concern, and a 2.x theme
+  // keeps the two behaviors it was written against.
   core_paging: {
     default: true,
     // Declarable, so a theme that pages for itself can say so. It had no key at all,
     // which left carousel-desktop's own page-jump cases losing to core with no way to
     // opt out short of calling enableCorePaging(false) in JavaScript.
     config: ["paging.enabled"],
-    describe: "Core handles the paging actions itself.",
+    describe: "Core handles the paging actions itself. Contract 1 only.",
   },
   core_navigation: {
     // On only for a theme that says it needs 3.0. One that still runs on 2.x drives its
@@ -77,7 +80,11 @@ const CAPABILITIES = {
     default: false,
     defaultFromContract: 2,
     config: ["navigation.enabled"],
-    describe: "Core moves the selection, wraps it, and announces where it went.",
+    // At contract 2 this owns paging too, so the key that used to name paging alone turns
+    // the whole of it off. A theme that said "I page for myself" still gets what it asked.
+    legacyConfig: ["paging.enabled"],
+    describe: "Core moves the selection - by a step or by a page - wraps it, and "
+            + "announces where it went.",
   },
   core_audio: {
     default: false,
@@ -844,12 +851,17 @@ class VPinFECore {
   }
 
   // enableCorePaging(false) and receive the actions in handleInput instead.
+  //
+  // At contract 2 paging is part of core_navigation, so this turns off all four actions -
+  // which is what the call asks for in the only sense that still exists there. Below it
+  // the two are separate and this means paging alone, as it always did.
   enableCorePaging(enabled = true) {
-    this.#setCapability("core_paging", enabled);
+    const capability = this.contract < CURRENT_CONTRACT ? "core_paging" : "core_navigation";
+    this.#setCapability(capability, enabled);
   }
 
   isCorePagingEnabled() {
-    return this.enabled("core_paging");
+    return this.enabled(this.contract < CURRENT_CONTRACT ? "core_paging" : "core_navigation");
   }
 
   // Ask the backend where a page next/prev press should land. Available to
@@ -1983,23 +1995,6 @@ class VPinFECore {
     }
   }
 
-  // True when core should consume a paging action itself: paging enabled, table
-  // window, no overlay up (overlays keep receiving the raw action), and the input mode
-  // is the one where moving the wheel is what a direction means.
-  //
-  // That last check is the whole of what §10a.4 wanted from folding this into
-  // core_navigation - one rule, asked the same way. It is unreachable today, because
-  // #dispatchAction drops the paging actions in `text` and `modal` before either guard
-  // runs, and it is written here anyway: the next mode added is the one that reaches it,
-  // and the two guards disagreeing is how that becomes a bug nobody is looking for.
-  #shouldHandleCorePaging(action) {
-    if (action !== "page_previous" && action !== "page_next") return false;
-    if (!this.enabled("core_paging")) return false;
-    if (!this.isController()) return false;
-    if (this.inputMode !== "navigation") return false;
-    return !this.overlay;
-  }
-
   async #handleCorePaging(action) {
     // One page request in flight at a time; presses during the round trip are
     // dropped rather than queued against a stale index.
@@ -2247,21 +2242,30 @@ class VPinFECore {
     else if (action === "menu") this.#toggleOverlay("menu");
     else if (action === "collection_menu") this.#toggleOverlay("collectionMenu");
     else if (action === "tutorial") this.#toggleOverlay("tutorial");
-    else if (this.#shouldHandleCorePaging(action)) this.#handleCorePaging(action);
+
     else if (this.#shouldHandleCoreNavigation(action)) {
-      this.moveBy(action === "previous" ? -1 : 1);
+      if (action === "previous" || action === "next") this.moveBy(action === "previous" ? -1 : 1);
+      else this.#handleCorePaging(action);
     }
     else this.#triggerInputAction(action);
   }
 
   // True when core should move the selection itself: navigation enabled, the table
   // window, and nothing on top that owns the actions.
+  // True when core moves the selection itself rather than handing the action to the
+  // theme. One guard for all four actions, because at contract 2 they are one capability.
+  //
+  // Below contract 2 they are not: 2.x core pages for the theme but leaves the cursor to
+  // it, so a page falls to core_paging while a step falls to the theme. Preserving that
+  // is the whole reason core_paging still exists, and it retires with contract 1.
   #shouldHandleCoreNavigation(action) {
-    if (action !== "previous" && action !== "next") return false;
-    if (!this.enabled("core_navigation")) return false;
+    const paging = action === "page_previous" || action === "page_next";
+    if (!paging && action !== "previous" && action !== "next") return false;
     if (!this.isController()) return false;
     if (this.inputMode !== "navigation") return false;
-    return !this.overlay;
+    if (this.overlay) return false;   // an open overlay owns every action
+    if (paging && this.contract < CURRENT_CONTRACT) return this.enabled("core_paging");
+    return this.enabled("core_navigation");
   }
 
   async #loadMonitors() {

@@ -371,11 +371,43 @@ describe("what a keypress means depends on the mode", () => {
   });
 });
 
-describe("the two capability guards ask the same questions", () => {
-  // §10a.4 wanted core_paging folded into core_navigation so one rule decided both.
-  // They cannot merge - 2.x core pages for a theme and does not move its cursor, so
-  // below contract 2 they need opposite defaults - but the guards can still agree, and
-  // the drift the fold was meant to remove was one missing check.
+describe("stepping and paging are one capability at contract 2", () => {
+  // §10a.4 asked for the fold. It happens where it is true: at contract 2 core_navigation
+  // owns all four actions and a theme sees one knob. Below it the two stay separate,
+  // because 2.x core pages for a theme and leaves the cursor to it - opposite defaults,
+  // and preserving them is the only reason core_paging still exists.
+  test("a contract 2 theme turns both off with one key", async () => {
+    const { vpin, press } = controller();
+    vpin.contract = 2;
+    vpin._capabilities.core_navigation = false;
+    vpin._capabilities.core_paging = true;   // ignored at contract 2
+    vpin.tableData = [{}, {}, {}, {}, {}];
+    const seen = [];
+    vpin.inputHandlers.push((a) => seen.push(a));
+
+    await press("ArrowLeft");
+    await press("PageDown");
+
+    assert.deepEqual(seen, ["previous", "page_next"],
+      "one capability off must hand the theme every action it covers");
+  });
+
+  test("a contract 1 theme still pages while core leaves its cursor alone", async () => {
+    const { vpin, press } = controller();
+    vpin.contract = 1;
+    vpin._capabilities.core_navigation = false;   // the contract 1 default
+    vpin._capabilities.core_paging = true;        // 2.x parity
+    vpin.tableData = [{}, {}, {}, {}, {}];
+    const seen = [];
+    vpin.inputHandlers.push((a) => seen.push(a));
+
+    await press("ArrowLeft");
+
+    // joyleft, not previous: a contract 1 theme is handed the spelling it was written
+    // against. What matters here is that the action reached it at all.
+    assert.deepEqual(seen, ["joyleft"], "a 2.x theme moves its own cursor");
+  });
+
   test("neither takes an action outside navigation mode", async () => {
     const { vpin, press } = controller();
     vpin._capabilities.core_navigation = true;
