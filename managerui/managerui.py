@@ -35,7 +35,7 @@ from .pages import system as tab_system
 from .pages import themes as tab_themes
 from .pages import vpinfe_config as tab_vpinfe
 from .pages import vpinplay as tab_vpinplay
-from .pages import vpinplay_player as tab_vpinplay_player
+from .pages import vpinplay_account as tab_vpinplay_account
 from .pages import vpx_config as tab_vpx_config
 from .pages import vpx_plugins as tab_vpx_plugins
 from .services import app_control
@@ -122,7 +122,7 @@ _PAGE_RENDERERS = {
     'logs': tab_logs.render_panel,
     'vpinfe': tab_vpinfe.render_panel,
     'vpinplay': tab_vpinplay.render_panel,
-    'vpinplay_player': tab_vpinplay_player.render_panel,
+    'vpinplay_account': tab_vpinplay_account.render_panel,
     'vpx_config': tab_vpx_config.render_panel,
     'vpx_plugins': tab_vpx_plugins.render_panel,
 }

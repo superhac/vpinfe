@@ -1,4 +1,4 @@
-"""Switching to a guest player for a session, without touching the real account."""
+"""Switching to a guest account for a session, without touching the real one."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def render_panel():
         status_container.clear()
         with status_container:
             with ui.card().classes("config-side-card w-full p-4"):
-                ui.label("Alternate Player Status").classes("text-lg font-semibold").style(
+                ui.label("Alternate Account Status").classes("text-lg font-semibold").style(
                     "color: var(--ink) !important;"
                 )
                 profiles = status.get("profiles") or []
@@ -44,17 +44,17 @@ def render_panel():
                     current_profile_select.update()
 
                 if not profiles:
-                    ui.label("No alternate VPinPlay players are loaded for this session.").classes("text-sm").style(
+                    ui.label("No alternate VPinPlay accounts are loaded for this session.").classes("text-sm").style(
                         "color: var(--ink-muted) !important;"
                     )
                     ui.label(
-                        "Upload one or more VPinFE-generated QR SVG files to keep a session roster of alternate players until you clear them or VPinFE shuts down."
+                        "Upload one or more VPinFE-generated QR SVG files to keep a session list of alternate accounts until you clear them or VPinFE shuts down."
                     ).classes("text-sm").style("color: var(--ink-muted) !important;")
                     return
 
                 profile = status.get("profile") or {}
                 with ui.column().classes("w-full gap-2"):
-                    ui.label(f"Loaded Players: {len(profiles)}").style("color: var(--ink-muted) !important;")
+                    ui.label(f"Loaded Accounts: {len(profiles)}").style("color: var(--ink-muted) !important;")
                     ui.label(f"User ID: {profile.get('userId', '')}").style("color: var(--ink) !important;")
                     ui.label(f"Initials: {profile.get('initials', '')}").style("color: var(--ink) !important;")
                     if profile.get("sourceName"):
@@ -69,7 +69,7 @@ def render_panel():
                         f"Tracked Session Tables: {int(status.get('active_games', 0) or 0)}"
                     ).style("color: var(--ink-muted) !important;")
                     ui.label(
-                        "While this is active, VPinFE submits the alternate player's post-game VPinPlay data without modifying the machine's real table .info files."
+                        "While this is active, VPinFE submits the alternate account's post-game VPinPlay data without modifying the machine's real table .info files."
                     ).classes("text-sm").style("color: var(--ink-muted) !important;")
 
     async def handle_upload(e: events.UploadEventArguments):
@@ -78,7 +78,7 @@ def render_panel():
             result = await run.io_bound(vpinplay_runtime_service.activate_profile_from_upload, e.file.name, content)
             render_status()
             profile = result.get("profile") or {}
-            ui.notify(f"Alternate VPinPlay player activated: {profile.get('userId', '')}", type="positive")
+            ui.notify(f"Alternate VPinPlay account activated: {profile.get('userId', '')}", type="positive")
         except Exception as ex:
             ui.notify(f"QR upload failed: {ex}", type="negative")
 
@@ -87,31 +87,31 @@ def render_panel():
             vpinplay_runtime_service.set_current_profile(e.value)
             render_status()
         except Exception as ex:
-            ui.notify(f"Could not switch alternate player: {ex}", type="negative")
+            ui.notify(f"Could not switch alternate account: {ex}", type="negative")
 
     def clear_current_profile():
         status = vpinplay_runtime_service.get_profile_status()
         active_profile_key = str(status.get("activeProfileKey", "") or "").strip()
         if not active_profile_key:
-            ui.notify("No alternate player is currently selected.", type="warning")
+            ui.notify("No alternate account is currently selected.", type="warning")
             return
         vpinplay_runtime_service.clear_profile_by_key(active_profile_key)
         render_status()
-        ui.notify("Alternate VPinPlay player removed.", type="positive")
+        ui.notify("Alternate VPinPlay account removed.", type="positive")
 
     def clear_all_profiles():
         vpinplay_runtime_service.clear_profile()
         render_status()
-        ui.notify("All alternate VPinPlay players cleared.", type="positive")
+        ui.notify("All alternate VPinPlay accounts cleared.", type="positive")
 
     with ui.column().classes("w-full config-page-shell"):
         with ui.card().classes("w-full config-hero").style("overflow: hidden;"):
             with ui.column().classes("w-full p-6 gap-2"):
-                ui.label("Alternate VPinPlay Player").classes("text-2xl font-bold").style(
+                ui.label("Alternate VPinPlay Account").classes("text-2xl font-bold").style(
                     "color: var(--ink) !important;"
                 )
                 ui.label(
-                    "Upload your VPinFE QR code to submit VPinPlay results under an alternate player profile."
+                    "Upload your VPinFE QR code to submit VPinPlay results under an alternate account."
                 ).classes("text-sm").style("color: var(--ink-muted) !important;")
 
         with ui.element("div").classes("config-panel-shell w-full"):
@@ -123,7 +123,7 @@ def render_panel():
                                 "color: var(--ink) !important;"
                             )
                             ui.label(
-                                "Use the SVG downloaded from the VPinPlay page. Each upload is kept for this session so you can switch players from the dropdown."
+                                "Use the SVG downloaded from the VPinPlay page. Each upload is kept for this session so you can switch accounts from the dropdown."
                             ).classes("text-sm").style("color: var(--ink-muted) !important;")
                             ui.upload(
                                 label="Upload VPinPlay QR SVG",
@@ -135,15 +135,15 @@ def render_panel():
                             )
                             current_profile_select = ui.select(
                                 options={},
-                                label="Current Alternate Player",
+                                label="Current Alternate Account",
                                 on_change=set_current_profile,
                             ).props("outlined dense").classes("w-full mt-3")
                             with ui.row().classes("w-full gap-3 mt-3"):
-                                ui.button("Remove Current Player", icon="person_remove", on_click=clear_current_profile).style(
+                                ui.button("Remove Current Account", icon="person_remove", on_click=clear_current_profile).style(
                                     "color: var(--neon-pink) !important; background: var(--surface) !important; "
                                     "border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;"
                                 )
-                                ui.button("Clear All Players", icon="groups", on_click=clear_all_profiles).style(
+                                ui.button("Clear All Accounts", icon="groups", on_click=clear_all_profiles).style(
                                     "color: var(--neon-yellow) !important; background: var(--surface) !important; "
                                     "border: 1px solid var(--neon-yellow); border-radius: 18px; padding: 4px 10px;"
                                 )

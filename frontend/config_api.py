@@ -221,7 +221,7 @@ def get_managerui_remote_link(config):
 
 
 def get_managerui_vpinplay_multi_link(config):
-    urls = _managerui_page_urls(config, "vpinplay_player")
+    urls = _managerui_page_urls(config, "vpinplay_account")
     preferred_url = _preferred_managerui_url(urls)
     return {
         "url": preferred_url,

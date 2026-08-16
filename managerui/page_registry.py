@@ -24,7 +24,7 @@ NAV_PAGES: tuple[ManagerPage, ...] = (
     ManagerPage("vpx_config", "VPX Config", "settings_applications"),
     ManagerPage("vpx_plugins", "VPX-Plugins", "extension"),
     ManagerPage("vpinplay", "VPinPlay", "science"),
-    ManagerPage("vpinplay_player", "VPinPlay Multi", "badge"),
+    ManagerPage("vpinplay_account", "VPinPlay Multi", "badge"),
     ManagerPage("logs", "Logs", "article"),
 )
 
@@ -39,7 +39,8 @@ PAGE_ALIASES = {
     "logs": "logs",
     "vpinplay": "vpinplay",
     "vpinplay_config": "vpinplay",
-    "vpinplay_player": "vpinplay_player",
+    # Shipped in 2.x, so it can be sitting in a user's manager-ui-state.json.
+    "vpinplay_player": "vpinplay_account",
     "vpx": "vpx_config",
     "vpinballx": "vpx_config",
     "plugins": "vpx_plugins",
