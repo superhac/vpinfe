@@ -251,7 +251,7 @@ class ImportExecuteTests(unittest.TestCase):
                 new_dir = Path(tmp) / "Medieval Madness"
                 self.assertTrue((new_dir / "Medieval Madness.vpx").exists())
                 self.assertTrue((new_dir / "medias" / "wheel.png").exists())
-                self.assertTrue(report["new_table"])
+                self.assertTrue(report["new_game"])
 
     def test_execute_new_bundle_collision_raises(self):
         from pathlib import Path

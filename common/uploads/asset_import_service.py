@@ -644,7 +644,7 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
         "imported": imported,
         "skipped": [b.asset.kind for b in plan.blocked],
         "game_dir": str(base),
-        "new_table": bool(plan.new_game_dir_name),
+        "new_game": bool(plan.new_game_dir_name),
         "media_keys": media_keys,
         "declared": declared_written,
     }

@@ -334,7 +334,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
             report = await run.io_bound(
                 partial(execute_import_plan, resolved, source_path, declared=declared))
             vps_entry = vps_state["entry"]
-            if vps_entry is not None and report.get("new_table"):
+            if vps_entry is not None and report.get("new_game"):
                 with client:
                     loading_label.set_text("Associating with VPS and downloading media...")
                 try:

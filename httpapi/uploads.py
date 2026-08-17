@@ -240,7 +240,7 @@ def import_upload(upload_id: str,
     upload_session_service.cleanup_session(upload_id)
     report["blocked"] = blocked
 
-    if vps_entry is not None and report.get("new_table"):
+    if vps_entry is not None and report.get("new_game"):
         # Files are on disk; association failure is reported, not fatal.
         from common.games.game_service import associate_vps_to_folder, build_metadata
 
