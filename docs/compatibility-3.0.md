@@ -419,7 +419,7 @@ its library off a hub never sees the hub's filesystem, so a path identifies noth
 `tests/theming/test_last_game.py`.
 
 **PAR-74 — Refreshing the wheel asks the view where its library is.** *(machine-checked)*
-`refresh_view` called `ensure_games_loaded()` directly; it now calls `View.reload()`. No
+`refresh_view` called `all_games()` directly; it now calls `View.reload()`. No
 behavior changes on an install that holds its own library - the view loads exactly what
 that function returned.
 *Why:* a player fetched the hub's entries at startup and then threw them away on the first

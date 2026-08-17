@@ -22,6 +22,7 @@ from frontend import game_state
 from frontend import library_resolver as frontend_library
 from frontend.api import API
 from tests.support.entries import entries_for
+from tests.support.library_loader import start_library_of
 
 NAMES = ["Bravo", "Alpha", "Charlie"]
 
@@ -44,14 +45,7 @@ def _ini():
 class SharedViewTests(unittest.TestCase):
     def setUp(self) -> None:
         self.games = [_game(name, index) for index, name in enumerate(NAMES)]
-        patcher = patch("frontend.api.ensure_games_loaded", return_value=self.games)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-        # One seam: the view reads the library, and `refresh_view` asks the view rather
-        # than loading a second time behind its back.
-        also = patch("frontend.library_resolver.ensure_games_loaded", return_value=self.games)
-        also.start()
-        self.addCleanup(also.stop)
+        start_library_of(self, self.games)
 
         ini = _ini()
         self.library = frontend_library.LibraryResolver(ini, games=self.games)
@@ -160,7 +154,7 @@ class ViewConcurrencyTests(unittest.TestCase):
         a reader to land inside a rebuild, and one thread of each rarely arranges it.
         """
         games = [_game(name, index) for index, name in enumerate(NAMES * 100)]
-        with patch("frontend.library_resolver.ensure_games_loaded", return_value=games):
+        with patch("frontend.library_resolver.all_games", return_value=games):
             view = frontend_library.LibraryResolver(_ini(), games=games)
 
         errors = []

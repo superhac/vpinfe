@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from common.games.game_metadata import reorder_leading_article, vpinfe_section
-from common.games.game_repository import ensure_games_loaded
+from common.games.game_repository import all_games
 from common.games.info_file import MetaConfig
 from common.media_specs import (
     MEDIA_SPECS,
@@ -218,7 +218,7 @@ def scan_media_games(reload: bool = False) -> list[dict]:
         logger.warning("Games path does not exist: %s. Skipping media scan.", games_path)
         return []
 
-    for game in ensure_games_loaded(reload=reload):
+    for game in all_games(reload=reload):
         root = getattr(game, "fullPathGame", "") or ""
         if not root:
             continue

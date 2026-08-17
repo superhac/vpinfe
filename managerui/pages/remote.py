@@ -17,7 +17,7 @@ category_select = None
 # Import config
 from common.config_store import ConfigStore
 from common.games import game_identity
-from common.games.game_repository import ensure_games_loaded
+from common.games.game_repository import all_games
 from common.host import launch, launch_state
 from managerui.ui_helpers import debounced_input, load_page_style
 
@@ -91,7 +91,7 @@ def _launch_game(game: dict):
     import threading
 
     game_name = game.get('name', 'table')
-    resolved = game_identity.find_by_id(ensure_games_loaded(), game.get('vpinfe_id', ''))
+    resolved = game_identity.find_by_id(all_games(), game.get('vpinfe_id', ''))
     if resolved is None:
         # Every launchable game has an id, so this means the library moved under us.
         ui.notify(f'Could not find {game_name} in the library', type='negative')

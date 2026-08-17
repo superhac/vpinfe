@@ -19,7 +19,7 @@ from common.games.collection_store import (
     public_name,
 )
 from common.games.collections_service import get_collections_manager
-from common.games.game_repository import ensure_games_loaded
+from common.games.game_repository import all_games
 from frontend import game_state
 
 logger = logging.getLogger("vpinfe.frontend.library_resolver")
@@ -79,7 +79,7 @@ class LibraryResolver:
         which `rebuild_entries` knows."""
         if self._remote:
             return hub_library.fetch_entries(self._hub_url, collection)
-        return ensure_games_loaded()
+        return all_games()
 
     def reload(self):
         """The library again. A hub that has gone quiet leaves the list alone: a stale

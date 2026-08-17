@@ -226,9 +226,9 @@ shutdown.exit_if_requested(logger)
 # afterwards, and neither pass writes a .info it did not change.
 try:
     from common.games.game_identity import ensure_unique_ids
-    from common.games.game_repository import ensure_games_loaded
+    from common.games.game_repository import all_games
     from common.games.table_identity import ensure_unique_table_ids
-    games = ensure_games_loaded()
+    games = all_games()
     ensure_unique_ids(games)
     ensure_unique_table_ids(games)
 except Exception:
@@ -246,7 +246,7 @@ try:
     from common.games.collection_store import CollectionStore
     from common.paths import COLLECTIONS_PATH
     _collections = CollectionStore(str(COLLECTIONS_PATH))
-    _collections.migrate_membership_to_game_ids(ensure_games_loaded())
+    _collections.migrate_membership_to_game_ids(all_games())
     # After the rekey, so a file arriving as a 2.x ini is in its current shape first.
     ensure_last_played(_collections)
     ensure_order_direction(_collections)

@@ -47,7 +47,7 @@ class TestApiInputMapping(unittest.TestCase):
 
         return DummyIni(parser)
 
-    @patch("frontend.api.ensure_games_loaded", return_value=[])
+    @patch("frontend.api.all_games", return_value=[])
     def test_get_joymaping_includes_joytutorial(self, _mock_games) -> None:
         ini = self._build_ini()
         api = API(ini)
@@ -56,7 +56,7 @@ class TestApiInputMapping(unittest.TestCase):
 
         self.assertEqual(mapping["joytutorial"], "8")
 
-    @patch("frontend.api.ensure_games_loaded", return_value=[])
+    @patch("frontend.api.all_games", return_value=[])
     def test_set_button_mapping_accepts_joytutorial(self, _mock_games) -> None:
         ini = self._build_ini()
         api = API(ini)
@@ -70,7 +70,7 @@ class TestApiInputMapping(unittest.TestCase):
         self.assertTrue(ini.saved)
         self.assertTrue(ini.saved)
 
-    @patch("frontend.api.ensure_games_loaded", return_value=[])
+    @patch("frontend.api.all_games", return_value=[])
     def test_get_keymapping_includes_keytutorial(self, _mock_games) -> None:
         ini = self._build_ini()
         api = API(ini)
@@ -83,7 +83,7 @@ class TestApiInputMapping(unittest.TestCase):
     @patch("common.host.launch.build_vpx_launch_command",
            return_value=["/tmp/fake-launcher", "-play", "/tmp/table.vpx"])
     @patch("common.host.launch.get_effective_launcher")
-    @patch("frontend.api.ensure_games_loaded")
+    @patch("frontend.api.all_games")
     def test_launch_game_emits_launching_and_complete_events(
         self,
         mock_games,

@@ -329,7 +329,7 @@ class CustomHTTPServer:
 
             from common.games import game_repository, media_lookup
             try:
-                games = game_repository.ensure_games_loaded()
+                games = game_repository.all_games()
                 path = media_lookup.media_path(games, table_id, kind)
             except Exception:
                 logger.exception("[HTTP] media lookup failed for %s/%s", table_id, kind)

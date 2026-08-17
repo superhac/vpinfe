@@ -19,6 +19,7 @@ from unittest.mock import patch
 from common.games.game_metadata import game_rating
 from frontend.api import API
 from tests.support.library import TempTree, fake_game, write_game
+from tests.support.library_loader import library_of, start_library_of
 
 GAME_IDS = ["Aaaaaaaaa1", "Bbbbbbbbb2", "Ccccccccc3"]
 NAMES = ["Attack from Mars", "Congo", "Medieval Madness"]
@@ -51,9 +52,7 @@ class IndexAddressingTests(TempTree):
             self.info_paths.append(folder / f"{name}.info")
             self.games.append(fake_game(folder, name, meta=meta))
 
-        patcher = patch("frontend.api.ensure_games_loaded", return_value=self.games)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        start_library_of(self, self.games)
         self.api = API(_ini(), window_name="playfield")
 
     def _stored_rating(self, position: int) -> int:
@@ -143,11 +142,12 @@ class WindowIndependenceTests(TempTree):
                     "vpinfe": {"game_id": game_id}}
             games.append(fake_game(write_game(self.root, name, info=meta), name, meta=meta))
 
-        with patch("frontend.api.ensure_games_loaded", return_value=games):
+        # The library has to stay patched past construction: `entries` resolves through
+        # library_resolver, which holds its own reference to the loader.
+        with library_of(games):
             wheel = API(_ini(), window_name="playfield")
             backglass = API(_ini(), window_name="backglass")
-
-        backglass.filteredGames = list(reversed(backglass.entries))
+            backglass.filteredGames = list(reversed(backglass.entries))
 
         self.assertNotEqual(wheel.game_id_at(0), backglass.game_id_at(0))
 

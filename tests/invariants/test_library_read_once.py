@@ -14,6 +14,7 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.games.game_parser import GameParser
+from tests.support import library_loader
 from tests.support.library import TempTree, write_game
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -144,3 +145,36 @@ class GamesUnderTests(TempTree):
             names = [g.gameDirName for g in self.repo.games_under(str(other))]
 
         self.assertEqual(names, ["Elsewhere"])
+
+
+class LoaderPatchSitesTests(unittest.TestCase):
+    """A test standing a library in front of the app has to reach every module.
+
+    `all_games` is bound by `from ... import`, so patching one module leaves the
+    others holding the real function. That is not hypothetical: patching only
+    `frontend.api` and then reading `API.entries` - which resolves through
+    `frontend.library_resolver` - ran the real loader against whatever root the preceding
+    tests had configured, and failed only in a full run.
+    """
+
+    def test_the_sites_are_every_module_that_imported_it(self) -> None:
+        """So a sixth importer fails here rather than as an intermittent somewhere else."""
+        importers = set()
+        for path in sorted(REPO_ROOT.glob("*/**/*.py")):
+            rel = path.relative_to(REPO_ROOT)
+            if rel.parts[0] not in {"common", "frontend", "httpapi", "managerui"}:
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"))
+            # Module level only. A function-local import resolves through the defining
+            # module when it runs, so patching that module already reaches it - and it
+            # is not an attribute here to patch.
+            for node in tree.body:
+                if isinstance(node, ast.ImportFrom) and any(
+                        alias.name == "all_games" for alias in node.names):
+                    importers.add(str(rel.with_suffix("")).replace("/", "."))
+
+        covered = set(library_loader.LOADER_SITES) - {"common.games.game_repository"}
+        self.assertEqual(importers, covered,
+                         "tests/support/library_loader.py names the modules a test has to "
+                         "patch; this is the list of modules that actually import it")
+

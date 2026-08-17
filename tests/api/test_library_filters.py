@@ -38,7 +38,7 @@ class LibraryFilterTests(TempTree):
             meta = _meta(*row)
             games.append(fake_game(write_game(self.root, row[0], info=meta), row[0],
                                    meta=meta))
-        patcher = patch("common.games.game_repository.ensure_games_loaded",
+        patcher = patch("common.games.game_repository.all_games",
                         return_value=games)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -84,7 +84,7 @@ class LibraryFilterTests(TempTree):
 
     def test_an_empty_library_reports_axes_with_no_values(self) -> None:
         """The axes exist whether or not anything is installed; only the choices are empty."""
-        with patch("common.games.game_repository.ensure_games_loaded", return_value=[]):
+        with patch("common.games.game_repository.all_games", return_value=[]):
             axes = {axis["name"]: axis for axis
                     in self.client.get("/library/filters").json()["axes"]}
 

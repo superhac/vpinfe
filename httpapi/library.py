@@ -39,9 +39,9 @@ def filters() -> models.FilterAxisList:
     A rating axis carries no values: it is 0-5 whatever is installed.
     """
     from common.games.collection_filters import AXES, GameListFilters
-    from common.games.game_repository import ensure_games_loaded
+    from common.games.game_repository import all_games
 
-    available = GameListFilters(ensure_games_loaded()).available_options()
+    available = GameListFilters(all_games()).available_options()
     return {"axes": [{"name": axis.name, "scope": axis.scope, "kind": axis.kind,
                       "summary": axis.summary,
                       "values": available.get(_VALUES_FOR.get(axis.name))}
@@ -61,11 +61,11 @@ def entries() -> models.EntryList:
     from common.games.collection_resolver import resolve
     from common.games.collection_store import BUILTIN_ALL
     from common.games.collections_service import get_collections_manager
-    from common.games.game_repository import ensure_games_loaded
+    from common.games.game_repository import all_games
 
     from .collections import _entry_resource
 
-    resolved = resolve(BUILTIN_ALL, get_collections_manager(), ensure_games_loaded())
+    resolved = resolve(BUILTIN_ALL, get_collections_manager(), all_games())
     return {"collection": "", "count": len(resolved),
             "entries": [_entry_resource(entry) for entry in resolved]}
 

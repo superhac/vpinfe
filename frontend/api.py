@@ -25,7 +25,7 @@ from common.games.collections_service import (
     get_collections_metadata,
 )
 from common.games.game_metadata import game_rating, normalize_meta, set_game_rating
-from common.games.game_repository import ensure_games_loaded
+from common.games.game_repository import all_games
 from common.host import launch, launch_state
 from common.host.display_service import monitors_as_dicts
 from common.online.vpinplay_runtime import (
@@ -225,7 +225,7 @@ class API:
             # to stand a library up for a test - the resolver is an implementation
             # detail of where the games are held, not of how they are found.
             existing = frontend_library.LibraryResolver(getattr(self, "_iniConfig", None),
-                                          games=ensure_games_loaded())
+                                          games=all_games())
             self.__dict__["_library"] = existing
         return existing
 
@@ -689,7 +689,7 @@ class API:
         return metadata_build_service.start_build(
             self,
             build_metadata_func=lambda **kwargs: build_metadata(iniconfig=self._iniConfig, **kwargs),
-            ensure_games_loaded_func=ensure_games_loaded,
+            all_games_func=all_games,
             download_media=download_media,
             update_all=update_all,
         )

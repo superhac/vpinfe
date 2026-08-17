@@ -11,7 +11,7 @@ from frontend import game_state
 logger = logging.getLogger("vpinfe.frontend.metadata_build_service")
 
 
-def start_build(api, *, build_metadata_func, ensure_games_loaded_func, download_media=True, update_all=False):
+def start_build(api, *, build_metadata_func, all_games_func, download_media=True, update_all=False):
     event_queue = Queue()
 
     def progress_callback(current, total, message):
@@ -39,7 +39,7 @@ def start_build(api, *, build_metadata_func, ensure_games_loaded_func, download_
                 log_cb=log_callback,
             )
             event_queue.put({"type": "buildmeta_complete", "result": result})
-            api.allGames = ensure_games_loaded_func(reload=True)
+            api.allGames = all_games_func(reload=True)
             # Re-derived rather than assigned: the view is a collection resolved to
             # entries, and the build has just replaced every game object behind it.
             game_state.rebuild_view(api)

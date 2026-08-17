@@ -49,7 +49,7 @@ class LibraryEntriesTests(TempTree):
             self.games.append(
                 fake_game(write_game(self.root, name, info=meta), name, meta=meta))
 
-        loader = patch("common.games.game_repository.ensure_games_loaded",
+        loader = patch("common.games.game_repository.all_games",
                        lambda *a, **k: self.games)
         loader.start()
         self.addCleanup(loader.stop)

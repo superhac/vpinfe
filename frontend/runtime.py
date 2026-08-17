@@ -97,10 +97,10 @@ def _report_shared_library(shared_library, logger) -> None:
     what to do about it is a policy decision nobody has made, and guessing it here would
     make an unmounted share fatal on a machine that was working a moment ago.
     """
-    from common.games.game_repository import ensure_games_loaded
+    from common.games.game_repository import all_games
 
     try:
-        report = hub_library.verify_shared_library(shared_library.entries, ensure_games_loaded())
+        report = hub_library.verify_shared_library(shared_library.entries, all_games())
     except Exception:
         logger.debug("Could not verify the shared library", exc_info=True)
         return

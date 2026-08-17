@@ -19,8 +19,8 @@ from common.config_access import MediaConfig
 from common.games import asset_resolver, game_identity
 from common.games.game_metadata import set_game_rating, vpinfe_section
 from common.games.game_repository import (
+    all_games,
     collections_by_game_id,
-    ensure_games_loaded,
     game_to_row,
 )
 from common.games.tables import (
@@ -53,7 +53,7 @@ def _catalog() -> dict:
     been through it. main.py does the same at startup; this keeps the API correct
     when it is driven without a full app boot.
     """
-    return game_identity.ensure_unique_ids(ensure_games_loaded())
+    return game_identity.ensure_unique_ids(all_games())
 
 
 def _game_or_404(game_id: str):

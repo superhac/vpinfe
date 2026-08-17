@@ -117,10 +117,10 @@ class RouteTests(unittest.TestCase):
         _library(cls.root)
 
         # The route asks the shared repository for the library. Patched rather than
-        # injected: ensure_games_loaded rebuilds its parser when the configured games
+        # injected: all_games rebuilds its parser when the configured games
         # root does not match, which it would not here.
         cls.games = GameParser(str(cls.root)).getAllGames()
-        cls._patch = mock.patch("common.games.game_repository.ensure_games_loaded",
+        cls._patch = mock.patch("common.games.game_repository.all_games",
                                 return_value=cls.games)
         cls._patch.start()
 

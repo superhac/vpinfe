@@ -35,7 +35,13 @@ _PARSER: GameParser | None = None
 logger = logging.getLogger("vpinfe.common.games.game_repository")
 
 
-def ensure_games_loaded(reload: bool = False) -> list[Any]:
+def all_games(reload: bool = False) -> list[Any]:
+    """Every game in the configured library, read once and held.
+
+    The scan is the expensive part, so the parser is kept and reused. It is rebuilt when
+    the configured root changes, which is what stops a second library being answered with
+    the first one's games.
+    """
     global _PARSER
     started_at = perf_counter()
     with _LOCK:
@@ -47,13 +53,13 @@ def ensure_games_loaded(reload: bool = False) -> list[Any]:
             _PARSER.loadGames(reload=True)
         games = list(_PARSER.getAllGames())
 
-    elapsed = perf_counter() - started_at
-    logger.debug(
-        "ensure_games_loaded reload=%s count=%s elapsed=%.3fs",
-        reload,
-        len(games),
-        elapsed,
-    )
+    # Only when it read the library. Logging every call logged the caller rather than the
+    # work - a dozen call sites answered from cache on every page render, with the one
+    # line that matters buried among them. An unexpected line here means the root changed
+    # or something is discarding the cache, and both are worth seeing.
+    if needs_new_parser or reload:
+        logger.debug("read the library at %s: %s games in %.3fs",
+                     games_root, len(games), perf_counter() - started_at)
     return games
 
 
@@ -70,12 +76,12 @@ def games_under(games_root: str, config=None) -> list[Any]:
     """
     wanted = str(games_root or "").strip()
     if not wanted or wanted == get_games_path():
-        return ensure_games_loaded()
+        return all_games()
     return list(GameParser(wanted, config or get_ini_config()).getAllGames())
 
 
 def refresh_games() -> list[Any]:
-    return ensure_games_loaded(reload=True)
+    return all_games(reload=True)
 
 
 def info_maintenance_counts(reload: bool = False) -> dict[str, int]:
@@ -83,7 +89,7 @@ def info_maintenance_counts(reload: bool = False) -> dict[str, int]:
 
     Off the loaded library, which already read every .info and listed every folder.
     """
-    games = ensure_games_loaded(reload=reload)
+    games = all_games(reload=reload)
     return {
         "pending_upgrade": sum(1 for t in games if getattr(t, "info_pending_upgrade", False)),
         "restorable": sum(1 for t in games if getattr(t, "info_restorable", False)),
@@ -97,7 +103,7 @@ def info_maintenance_counts(reload: bool = False) -> dict[str, int]:
 
 def unreadable_games() -> list[dict[str, str]]:
     """Folders whose .info could not be read, so the game was left out of the library."""
-    ensure_games_loaded()
+    all_games()
     with _LOCK:
         if _PARSER is None:
             return []
@@ -107,7 +113,7 @@ def unreadable_games() -> list[dict[str, str]]:
 def pending_upgrade_game_names() -> list[str]:
     """Folders whose .info the upgrade did not reach, for the list its dialog shows."""
     return sorted(
-        (t.gameDirName for t in ensure_games_loaded()
+        (t.gameDirName for t in all_games()
          if getattr(t, "info_pending_upgrade", False)),
         key=str.lower,
     )
@@ -116,14 +122,14 @@ def pending_upgrade_game_names() -> list[str]:
 def newest_backup_stamp() -> str:
     """The most recent backup timestamp in the library, or ""."""
     stamps = [s for s in (getattr(t, "info_backup_stamp", "")
-                          for t in ensure_games_loaded()) if s]
+                          for t in all_games()) if s]
     return max(stamps) if stamps else ""
 
 
 def restorable_game_names() -> list[str]:
     """Folders holding a saved copy of their .info, for the list a restore dialog shows."""
     return sorted(
-        (t.gameDirName for t in ensure_games_loaded() if getattr(t, "info_restorable", False)),
+        (t.gameDirName for t in all_games() if getattr(t, "info_restorable", False)),
         key=str.lower,
     )
 
@@ -145,7 +151,7 @@ def refresh_game(game_dir: Path) -> list[Any]:
             games = list(_PARSER.getAllGames())
     if reloaded is None:
         # Nothing loaded yet, so there is no single game to refresh - read the library.
-        games = ensure_games_loaded(reload=True)
+        games = all_games(reload=True)
 
     logger.debug("refresh_game %s elapsed=%.3fs", normalized, perf_counter() - started_at)
     found = [game for game in games if str(Path(game.fullPathGame).resolve()) == normalized]
@@ -157,7 +163,7 @@ def refresh_game(game_dir: Path) -> list[Any]:
 
 
 def get_missing_games(reload: bool = False) -> list[dict[str, str]]:
-    ensure_games_loaded(reload=reload)
+    all_games(reload=reload)
     with _LOCK:
         if _PARSER is None:
             return []
@@ -275,7 +281,7 @@ def get_game_rows(reload: bool = False) -> list[dict[str, Any]]:
     # imported since startup would otherwise carry an empty id and collide with
     # every other game that has none. Already-assigned libraries pay nothing:
     # this only touches disk for a game that has no id yet.
-    games = ensure_unique_ids(ensure_games_loaded(reload=reload)).values()
+    games = ensure_unique_ids(all_games(reload=reload)).values()
     collections_map = collections_by_game_id()
     rows = [game_to_row(game, collections_map) for game in games]
     rows.sort(key=lambda row: (row.get("name") or "").lower())
