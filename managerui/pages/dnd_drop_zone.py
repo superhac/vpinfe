@@ -107,7 +107,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
         status_label = ui.label(label).style("color: inherit;")
 
     async def handle_done(upload_id: str, display_name: str, row_key: str = "",
-                          cell_row: str = "", cell_media_key: str = "") -> None:
+                          cell_row: str = "", cell_media_kind: str = "") -> None:
         if state["busy"]:
             return
         state["busy"] = True
@@ -116,8 +116,8 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
             session_dir = upload_session_service.get_session_dir(upload_id)
 
             cell_resolver = state.get("resolve_cell")
-            if cell_row and cell_media_key and cell_resolver is not None:
-                # Slot-targeted drop: the cell dictates game and media key; no analysis.
+            if cell_row and cell_media_kind and cell_resolver is not None:
+                # Slot-targeted drop: the cell dictates game and media kind; no analysis.
                 game_dir = cell_resolver(cell_row)
                 files = [p for p in session_dir.iterdir() if p.is_file()]
                 dirs = [p for p in session_dir.iterdir() if p.is_dir()]
@@ -131,7 +131,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                         upload_session_service.cleanup_session(upload_id)
                         return
                     plan = build_media_slot_plan(files[0], game_dir=game_dir,
-                                                 media_key=cell_media_key)
+                                                 media_kind=cell_media_kind)
                     if not plan.items:
                         reasons = "; ".join(sorted({b.reason for b in plan.blocked})) or "Nothing to import"
                         ui.notify(reasons, type="warning")
@@ -206,7 +206,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
             asyncio.create_task(handle_done(payload.get("upload_id"), payload.get("name") or "",
                                             payload.get("row_key") or "",
                                             payload.get("cell_row") or "",
-                                            payload.get("cell_media_key") or ""))
+                                            payload.get("cell_media_kind") or ""))
         elif status == "error":
             status_label.set_text(label)
             ui.notify(f"Upload failed: {payload.get('message', '')}", type="negative")
@@ -235,7 +235,7 @@ def enable_cell_drops(zone: ui.element, container: ui.element,
                       resolve_game_dir: Callable[[str], Path | None]) -> None:
     """Make media cells inside container slot-targeted drop targets.
 
-    Cells must carry data-drop-media-key and data-drop-media-row attributes; the cell
+    Cells must carry data-drop-media-kind and data-drop-media-row attributes; the cell
     dictates both the target game (resolved via resolve_game_dir) and the media slot.
     """
     zone.dnd_state["resolve_cell"] = resolve_game_dir

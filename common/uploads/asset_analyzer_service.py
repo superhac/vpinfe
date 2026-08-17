@@ -20,7 +20,7 @@ from typing import Protocol
 from common.games.asset_registry import (
     ARCHIVE_EXTENSIONS,
     is_readme,
-    match_media_key,
+    match_media_kind,
     spec_for,
 )
 
@@ -67,7 +67,9 @@ class DetectedAsset:
     label: str
     entries: tuple[SourceEntry, ...]
     root: str = ""          # arcname-space subtree root for folder kinds; "" for file kinds
-    media_key: str = ""
+    # Which media kind, when `kind` is "media". `kind` names the asset family, so the
+    # media one keeps its qualifier.
+    media_kind: str = ""
     size: int = 0
     detail: str = ""
     preview: str = ""       # inline text for readme kinds, shown in the confirm dialog
@@ -517,12 +519,12 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
 
     # 9. Media
     for e in list(unclaimed()):
-        media_key = match_media_key(_basename(e.arcname))
-        if media_key:
+        media_kind = match_media_kind(_basename(e.arcname))
+        if media_kind:
             claimed.add(e.path)
             assets.append(DetectedAsset(
-                "media", spec_for("media").label, (e,), media_key=media_key,
-                size=e.size, detail=f"{_basename(e.arcname)} → {media_key}"))
+                "media", spec_for("media").label, (e,), media_kind=media_kind,
+                size=e.size, detail=f"{_basename(e.arcname)} → {media_kind}"))
 
     unrecognized = tuple(e.arcname for e in files if e.path not in claimed)
     return assets, notes, has_game, unrecognized

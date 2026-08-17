@@ -181,7 +181,7 @@ class AssetAnalyzerTests(unittest.TestCase):
             wheel.write_bytes(b"x")
             result = analyze_path(wheel)
             self.assertEqual(kinds(result), ["media"])
-            self.assertEqual(result.assets[0].media_key, "wheel")
+            self.assertEqual(result.assets[0].media_kind, "wheel")
 
     def test_rar_tool_hint_is_platform_aware(self):
         from common.uploads.asset_analyzer_service import rar_tool_hint

@@ -3,10 +3,10 @@
 The kind names follow Visual Pinball's window names - `playfield`, `backglass`,
 `scoreview` - because a window name *is* a media kind here, and VPX is where those names
 come from. The files never moved: `bg.png` and `dmd.png` are what VPinMediaDB ships and
-what everyone has on disk, and the contract 1 payload attributes are frozen too. Keys
+what everyone has on disk, and the contract 1 payload attributes are frozen too. Kinds
 renamed, files frozen.
 
-`MEDIA_SPECS` is the declaration the rest of the tree reads: each kind's key, its
+`MEDIA_SPECS` is the declaration the rest of the tree reads: each kind's name, its
 attribute on a game, the filename it resolves to and the tokens it accepts. Naming
 a kind is what contract 2 hands a theme; the path is ours and stays here.
 """
@@ -27,9 +27,12 @@ DOC_FAMILY = (".pdf", ".md", ".txt", ".html")
 
 @dataclass(frozen=True)
 class MediaSpec:
-    key: str
+    kind: str
     attr: str
     filename_template: str
+    # What a person calls this art, for anywhere the Manager UI names a kind. BG and
+    # DMD stay: it is what the art is called, whatever the kind is called.
+    label: str
     # Which VPinMediaDB resolution bucket this kind is published under - "1k" for the
     # backglass and scoreview, the configured playfield resolution for the playfield.
     #
@@ -62,6 +65,7 @@ class MediaSpec:
 MEDIA_SPECS = (
     MediaSpec(
         "backglass",
+        label="BG",
         attr="BGImagePath",
         filename_template="bg.png",
         asset_group="1k",
@@ -69,16 +73,18 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "scoreview",
+        label="DMD",
         attr="DMDImagePath",
         filename_template="dmd.png",
         asset_group="1k",
         token="(DMD)",
     ),
-    # One kind, two variants: the filename follows [Media] playfieldvariant, the key
+    # One kind, two variants: the filename follows [Media] playfieldvariant, the kind
     # never does. playfield_fss is the FSS render on its own, and is what the
     # playfield falls back to when it has none.
     MediaSpec(
         "playfield",
+        label="Table",
         attr="PlayfieldImagePath",
         filename_template="{playfield_variant}.png",
         asset_group="table_resolution",
@@ -86,12 +92,14 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "playfield_fss",
+        label="FSS",
         attr="FSSImagePath",
         filename_template="fss.png",
         token="(FSS)",
     ),
     MediaSpec(
         "wheel",
+        label="Wheel",
         attr="WheelImagePath",
         filename_template="wheel.png",
         token="(Wheel)",
@@ -100,24 +108,28 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "cab",
+        label="Cab",
         attr="CabImagePath",
         filename_template="cab.png",
         token="(Cabinet)",
     ),
     MediaSpec(
         "real_dmd",
+        label="Real DMD",
         attr="realDMDImagePath",
         filename_template="realdmd.png",
         token="(RealDMD)",
     ),
     MediaSpec(
         "real_dmd_color",
+        label="Real DMD Color",
         attr="realDMDColorImagePath",
         filename_template="realdmd-color.png",
         token="(RealColorDMD)",
     ),
     MediaSpec(
         "flyer",
+        label="Flyer",
         attr="FlyerImagePath",
         filename_template="flyer.png",
         token="(Flyer)",
@@ -125,6 +137,7 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "playfield_video",
+        label="Table Video",
         attr="PlayfieldVideoPath",
         filename_template="{playfield_variant}.mp4",
         asset_group="table_video_resolution",
@@ -133,6 +146,7 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "backglass_video",
+        label="BG Video",
         attr="BGVideoPath",
         filename_template="bg.mp4",
         asset_group="table_video_resolution",
@@ -141,6 +155,7 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "scoreview_video",
+        label="DMD Video",
         attr="DMDVideoPath",
         filename_template="dmd.mp4",
         asset_group="table_video_resolution",
@@ -149,6 +164,7 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "audio",
+        label="Audio",
         attr="AudioPath",
         filename_template="audio.mp3",
         token="(Audio)",
@@ -158,6 +174,7 @@ MEDIA_SPECS = (
     # outside its media scheme and we bring in so it gets the chain.
     MediaSpec(
         "instruction_card",
+        label="Instruction Card",
         attr="InstructionCardImagePath",
         filename_template="instructioncard.png",
         token="(InstructionCard)",
@@ -165,12 +182,14 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "topper",
+        label="Topper",
         attr="TopperPath",
         filename_template="topper.png",
         token="(Topper)",
     ),
     MediaSpec(
         "topper_video",
+        label="Topper Video",
         attr="TopperVideoPath",
         filename_template="topper.mp4",
         token="(Topper)",
@@ -178,6 +197,7 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "loading",
+        label="Loading Video",
         attr="LoadingVideoPath",
         filename_template="loading.mp4",
         token="(Loading)",
@@ -185,6 +205,7 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "audio_launch",
+        label="Launch Audio",
         attr="AudioLaunchPath",
         filename_template="audiolaunch.mp3",
         token="(AudioLaunch)",
@@ -192,6 +213,7 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "rule_sheet",
+        label="Rule Sheet",
         attr="RuleSheetPath",
         filename_template="rulesheet.pdf",
         token="(RuleSheet)",
@@ -201,6 +223,7 @@ MEDIA_SPECS = (
     # is why the wheel falls back to it.
     MediaSpec(
         "logo",
+        label="Logo",
         attr="LogoImagePath",
         filename_template="logo.png",
         token="(Logo)",
@@ -233,23 +256,28 @@ def canonical_kind(kind: str) -> str:
 
 
 def media_filename_map(playfield_variant: str = "table") -> dict[str, str]:
-    """Kind key to the filename it resolves. The variant changes filenames, not keys."""
-    return {spec.key: spec.filename(playfield_variant) for spec in MEDIA_SPECS}
+    """Kind to the filename it resolves. The variant changes filenames, not kinds."""
+    return {spec.kind: spec.filename(playfield_variant) for spec in MEDIA_SPECS}
 
 
-def media_attr_key_map(playfield_variant: str = "table") -> dict[str, str]:
-    return {spec.attr: spec.key for spec in MEDIA_SPECS}
+def media_label_map() -> dict[str, str]:
+    """Kind to the name a person reads for it."""
+    return {spec.kind: spec.label for spec in MEDIA_SPECS}
+
+
+def media_attr_kind_map(playfield_variant: str = "table") -> dict[str, str]:
+    return {spec.attr: spec.kind for spec in MEDIA_SPECS}
 
 
 def media_attr_map(playfield_variant: str = "table") -> dict[str, str]:
     return {spec.attr: spec.filename(playfield_variant) for spec in MEDIA_SPECS}
 
 
-def default_media_path(game_dir: str | Path, key: str, playfield_variant: str = "table") -> Path:
+def default_media_path(game_dir: str | Path, kind: str, playfield_variant: str = "table") -> Path:
     filenames = media_filename_map(playfield_variant)
-    if key not in filenames:
-        raise KeyError(f"Unknown media key: {key}")
-    return Path(game_dir) / "medias" / filenames[key]
+    if kind not in filenames:
+        raise KeyError(f"Unknown media kind: {kind}")
+    return Path(game_dir) / "medias" / filenames[kind]
 
 
 # Theme-side set overrides. common/ cannot import frontend/, so the frontend
@@ -305,7 +333,7 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
                         playfield_variant: str = "table",
                         table_stem: str | None = None,
                         active_sets: dict[str, str] | None = None) -> dict[str, Path | None]:
-    """Canonical media key -> the file that serves it, or None.
+    """Canonical media kind -> the file that serves it, or None.
 
     Three tiers, most specific wins, per kind:
 
@@ -319,8 +347,8 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
     folder is canonical and the folder root is the fallback at every tier, which
     keeps tier 3 exactly as it always behaved.
 
-    Keyed by MEDIA_SPECS keys, stable across variants - under playfield_variant "fss"
-    the playfield's *filename* changes but its key stays "playfield".
+    Keyed by MEDIA_SPECS kinds, stable across variants - under playfield_variant "fss"
+    the playfield's *filename* changes but its kind stays "playfield".
 
     `medias_contents` may carry relative paths (wheels/tarcisio/wheel.png) for
     set folders. For a set-supporting kind with an active set, the order is:
@@ -359,10 +387,10 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
         fixed_stem = spec.stem(playfield_variant)
         fixed_names = [f"{fixed_stem}{ext}" for ext in spec.family]
 
-        active = (active_sets or {}).get(spec.key) if spec.supports_sets else None
+        active = (active_sets or {}).get(spec.kind) if spec.supports_sets else None
         set_names: list[str] = []
         if active and active != "logo":
-            set_names = [f"{spec.key}s/{active}/{name}"
+            set_names = [f"{spec.kind}s/{active}/{name}"
                          for name in user_names + fixed_names]
 
         first = lambda names: next(  # noqa: E731
@@ -372,20 +400,20 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
             # The reserved virtual set: prefer the logo kind between the user's
             # own files and the plain default. Logo resolves later in the spec
             # order, so finish this kind in the post-pass.
-            resolved[spec.key] = first(user_names)
-            virtual_pending[spec.key] = first(fixed_names)
+            resolved[spec.kind] = first(user_names)
+            virtual_pending[spec.kind] = first(fixed_names)
         else:
-            resolved[spec.key] = first(user_names) or first(set_names) or first(fixed_names)
+            resolved[spec.kind] = first(user_names) or first(set_names) or first(fixed_names)
 
-    for key, fixed_hit in virtual_pending.items():
-        if resolved[key] is None:
-            resolved[key] = resolved.get("logo") or fixed_hit
+    for kind, fixed_hit in virtual_pending.items():
+        if resolved[kind] is None:
+            resolved[kind] = resolved.get("logo") or fixed_hit
 
     # Cross-kind fallbacks, after everything: a kind with no file of its own at
     # any tier borrows its fallback kind's winner.
     for spec in MEDIA_SPECS:
-        if spec.fallback_kind and resolved[spec.key] is None:
-            resolved[spec.key] = resolved.get(spec.fallback_kind)
+        if spec.fallback_kind and resolved[spec.kind] is None:
+            resolved[spec.kind] = resolved.get(spec.fallback_kind)
     return resolved
 
 
@@ -397,7 +425,7 @@ def apply_media_specs(game, game_contents: set[str], medias_contents: set[str],
                                    medias_contents, playfield_variant, table_stem,
                                    active_sets)
     for spec in MEDIA_SPECS:
-        path = resolved[spec.key]
+        path = resolved[spec.kind]
         if path is not None:
             setattr(game, spec.attr, str(path))
 

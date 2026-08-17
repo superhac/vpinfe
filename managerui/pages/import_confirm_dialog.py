@@ -12,7 +12,11 @@ from nicegui import context, run, ui
 
 from common.games import game_service
 from common.games.asset_registry import spec_for
-from common.games.media_service import MEDIA_TYPES, invalidate_media_cache
+from common.games.media_service import (
+    MEDIA_LABEL_BY_KIND,
+    invalidate_media_cache,
+    is_image_media_kind,
+)
 from common.uploads import upload_session_service
 from common.uploads.asset_analyzer_service import AnalysisResult
 from common.uploads.asset_import_service import (
@@ -26,8 +30,6 @@ from managerui.ui_helpers import debounced_input, dialog_card
 
 logger = logging.getLogger("vpinfe.manager.dnd_ui")
 
-_MEDIA_LABELS = {key: label for key, label, _ in MEDIA_TYPES}
-
 _CHIP_STYLE = ("font-size: 11px; letter-spacing: 0.04em; color: var(--neon-purple); "
                "border: 1px solid var(--line); border-radius: 10px; padding: 1px 6px; "
                "width: 112px; text-align: center; flex: none; overflow: hidden; "
@@ -37,10 +39,10 @@ _CHIP_STYLE = ("font-size: 11px; letter-spacing: 0.04em; color: var(--neon-purpl
 def _chip_label(asset) -> str:
     if asset.kind != "media":
         return spec_for(asset.kind).label
-    label = _MEDIA_LABELS.get(asset.media_key, asset.media_key)
-    if asset.media_key == "audio" or "Video" in label:
-        return label
-    return f"{label} image"
+    label = MEDIA_LABEL_BY_KIND.get(asset.media_kind, asset.media_kind)
+    # Ask the kind whether it is an image. Sniffing "Video" out of the label was right for
+    # the thirteen kinds this dialog used to know and wrong for the rest.
+    return f"{label} image" if is_image_media_kind(asset.media_kind) else label
 
 
 def _vps_search_term(name: str) -> str:

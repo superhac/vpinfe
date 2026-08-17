@@ -181,7 +181,7 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
         return PlannedItem(asset, str(base / _patched_vpx_name(asset, base, vpx_stem)),
                            "apply_patch"), None
     if kind == "media":
-        filename = _MEDIA_FILENAMES.get(asset.media_key, asset.media_key)
+        filename = _MEDIA_FILENAMES.get(asset.media_kind, asset.media_kind)
         return PlannedItem(asset, str(base / "medias" / filename), "replace_media"), None
     return None, BlockedItem(asset, f"Unsupported asset type: {kind}")
 
@@ -230,24 +230,24 @@ def build_import_plan(analysis: AnalysisResult, *, game_dir: Path | None = None,
     return ImportPlan("", "", rom_name, (), tuple(blocked))
 
 
-def build_media_slot_plan(source_path: Path, *, game_dir: Path, media_key: str) -> ImportPlan:
+def build_media_slot_plan(source_path: Path, *, game_dir: Path, media_kind: str) -> ImportPlan:
     """Plan a targeted media-slot import from a single dropped file.
 
     The slot dictates the media key (no filename inference); the file only has to
     belong to the slot's family (image slots take images, video slots .mp4, audio .mp3).
     Unsuitable drops come back as a blocked item with the reason.
     """
-    canonical = _MEDIA_FILENAMES.get(media_key)
+    canonical = _MEDIA_FILENAMES.get(media_kind)
     if canonical is None:
-        raise ValueError(f"Unknown media slot: {media_key}")
+        raise ValueError(f"Unknown media kind: {media_kind}")
     src = Path(source_path)
     try:
         size = src.stat().st_size
     except OSError:
         size = 0
     entry = SourceEntry(src.name, src.name, size, False)
-    asset = DetectedAsset("media", "Media", (entry,), media_key=media_key,
-                          size=size, detail=f"{src.name} → {media_key}")
+    asset = DetectedAsset("media", "Media", (entry,), media_kind=media_kind,
+                          size=size, detail=f"{src.name} → {media_kind}")
 
     if src.is_dir() or src.suffix.lower() in ARCHIVE_EXTENSIONS:
         blocked = BlockedItem(asset, "Drop a single media file on a slot")
@@ -511,7 +511,7 @@ def _import_media(source, asset: DetectedAsset, game_dir: Path) -> None:
         scratch = Path(handle.name)
     try:
         source.extract_member(entry.path, scratch)
-        replace_media_file(game_dir, game_dir.name, asset.media_key, str(scratch))
+        replace_media_file(game_dir, game_dir.name, asset.media_kind, str(scratch))
     finally:
         scratch.unlink(missing_ok=True)
 
@@ -607,7 +607,7 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
 
     source = open_source(Path(source_path))
     imported: list[str] = []
-    media_keys: list[str] = []
+    media_kinds: list[str] = []
     try:
         for item in plan.items:
             if progress_cb:
@@ -629,7 +629,7 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
                 _import_game_info(source, item.asset, base)
             elif item.action == "replace_media":
                 _import_media(source, item.asset, base)
-                media_keys.append(item.asset.media_key)
+                media_kinds.append(item.asset.media_kind)
             else:
                 raise ValueError(f"Unknown import action: {item.action}")
             imported.append(item.asset.kind)
@@ -647,7 +647,7 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
         "skipped": [b.asset.kind for b in plan.blocked],
         "game_dir": str(base),
         "new_game": bool(plan.new_game_dir_name),
-        "media_keys": media_keys,
+        "media_kinds": media_kinds,
         "declared": declared_written,
     }
 

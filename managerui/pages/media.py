@@ -18,19 +18,20 @@ logger = logging.getLogger("vpinfe.manager.media")
 THUMB_CACHE_ROOT = media_service.THUMB_CACHE_ROOT
 THUMB_WARM_ROW_BATCH_SIZE = media_service.THUMB_WARM_ROW_BATCH_SIZE
 THUMB_WARM_CHUNK_SIZE = media_service.THUMB_WARM_CHUNK_SIZE
-MEDIA_TYPES = media_service.MEDIA_TYPES
-MEDIA_KEY_TO_FILENAME = media_service.MEDIA_KEY_TO_FILENAME
-IMAGE_MEDIA_KEYS = media_service.IMAGE_MEDIA_KEYS
+MEDIA_FILENAME_BY_KIND = media_service.MEDIA_FILENAME_BY_KIND
+MEDIA_LABEL_BY_KIND = media_service.MEDIA_LABEL_BY_KIND
 
-# Column order only. The names, labels and fields all come from MEDIA_TYPES; this just
-# keeps Flyer where it has always sat on this page, ahead of the Real DMD pair rather
-# than after them. A key missing here would drop its column, so the table build asserts
-# it covers MEDIA_TYPES exactly.
+# Which kinds this page shows, in the order it shows them. The registry holds every kind
+# VPinFE resolves; this page is a grid a person scans across, so it takes the thirteen it
+# has always shown and Flyer keeps its seat ahead of the Real DMD pair. Adding a kind here
+# is a deliberate act - the labels and fields still come from the registry, so nothing has
+# to be written out twice.
 COLUMN_ORDER = [
     "backglass", "scoreview", "playfield", "playfield_fss", "wheel", "cab", "flyer",
     "real_dmd", "real_dmd_color", "playfield_video", "backglass_video",
     "scoreview_video", "audio",
 ]
+IMAGE_COLUMNS = [kind for kind in COLUMN_ORDER if media_service.is_image_media_kind(kind)]
 
 
 def invalidate_media_cache():
@@ -85,19 +86,18 @@ def render_panel():
     with ui.column().classes('w-full'):
         load_page_style("media.css")
 
-        # Hand-written column names drifted from the media keys at the vocabulary rename,
-        # and five columns spent that time bound to fields no row had. Derive them.
-        label_by_key = {key: label for key, label, _ in MEDIA_TYPES}
-        if set(COLUMN_ORDER) != set(label_by_key):
-            raise RuntimeError(
-                "COLUMN_ORDER and MEDIA_TYPES disagree: "
-                f"{set(COLUMN_ORDER) ^ set(label_by_key)}")
+        # Hand-written column names drifted from the media kinds at the vocabulary rename,
+        # and five columns spent that time bound to fields no row had. Derive them, and
+        # fail loudly on a name the registry does not have rather than render it empty.
+        unknown = [kind for kind in COLUMN_ORDER if kind not in MEDIA_LABEL_BY_KIND]
+        if unknown:
+            raise RuntimeError(f"COLUMN_ORDER names kinds the registry does not have: {unknown}")
         columns = [
             {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
         ] + [
-            {'name': key, 'label': label_by_key[key], 'field': f'has_{key}',
+            {'name': kind, 'label': MEDIA_LABEL_BY_KIND[kind], 'field': f'has_{kind}',
              'align': 'center', 'sortable': True}
-            for key in COLUMN_ORDER
+            for kind in COLUMN_ORDER
         ]
 
         # --- Filter state and functions ---
@@ -106,15 +106,9 @@ def render_panel():
             'manufacturer': 'All',
             'year': 'All',
             'theme': 'All',
-            'table_type': 'All',
-            'missing_bg': False,
-            'missing_dmd': False,
-            'missing_game': False,
-            'missing_fss': False,
-            'missing_wheel': False,
-            'missing_cab': False,
-            'missing_realdmd': False,
-            'missing_realdmd_color': False,
+            'game_type': 'All',
+            # No missing_* seeds: the checkboxes write their own on change and every
+            # reader goes through .get(). Eight sat here, six under retired spellings.
         }
         pagination_state = {
             'page': 1,
@@ -128,9 +122,9 @@ def render_panel():
 
         def apply_filters():
             missing_predicates = [
-                (lambda key: lambda row: row.get('media', {}).get(key) is None)(media_key)
-                for media_key, _, _ in MEDIA_TYPES
-                if filter_state.get(f'missing_{media_key}')
+                (lambda key: lambda row: row.get('media', {}).get(key) is None)(kind)
+                for kind in COLUMN_ORDER
+                if filter_state.get(f'missing_{kind}')
             ]
             return apply_game_filters(media_service.get_media_cache() or [], filter_state, extra_predicates=missing_predicates)
 
@@ -192,14 +186,14 @@ def render_panel():
                     media = row.get('media', {})
                     thumbs = row.setdefault('thumbs', {})
                     errors = row.setdefault('thumb_errors', {})
-                    for media_key in IMAGE_MEDIA_KEYS:
-                        if not media.get(media_key):
+                    for kind in IMAGE_COLUMNS:
+                        if not media.get(kind):
                             continue
-                        if thumbs.get(media_key) or errors.get(media_key):
+                        if thumbs.get(kind) or errors.get(kind):
                             continue
-                        source_path = media_service.source_media_path(Path(row.get('game_dir', '')), media_key)
-                        if source_path and media_service.mark_thumb_requested(row.get('game_dir_name', ''), media_key, source_path):
-                            pending.append((row, media_key, source_path))
+                        source_path = media_service.source_media_path(Path(row.get('game_dir', '')), kind)
+                        if source_path and media_service.mark_thumb_requested(row.get('game_dir_name', ''), kind, source_path):
+                            pending.append((row, kind, source_path))
 
                 if not pending:
                     return
@@ -208,22 +202,22 @@ def render_panel():
                 sem = asyncio.Semaphore(4)
                 current_pagination = dict(media_table._props.get('pagination', {}))
 
-                async def _build_one(row: dict, media_key: str, source_path: str):
+                async def _build_one(row: dict, kind: str, source_path: str):
                     changed = False
                     try:
                         async with sem:
-                            thumb = await run.io_bound(media_service.ensure_thumb, row.get('game_dir_name', ''), media_key, source_path)
+                            thumb = await run.io_bound(media_service.ensure_thumb, row.get('game_dir_name', ''), kind, source_path)
                         if thumb:
-                            if row['thumbs'].get(media_key) != thumb:
-                                row['thumbs'][media_key] = thumb
+                            if row['thumbs'].get(kind) != thumb:
+                                row['thumbs'][kind] = thumb
                                 changed = True
-                            row.setdefault('thumb_errors', {}).pop(media_key, None)
+                            row.setdefault('thumb_errors', {}).pop(kind, None)
                         else:
-                            row.setdefault('thumb_errors', {})[media_key] = True
+                            row.setdefault('thumb_errors', {})[kind] = True
                     except Exception:
-                        row.setdefault('thumb_errors', {})[media_key] = True
+                        row.setdefault('thumb_errors', {})[kind] = True
                     finally:
-                        media_service.clear_thumb_request(row.get('game_dir_name', ''), media_key, source_path)
+                        media_service.clear_thumb_request(row.get('game_dir_name', ''), kind, source_path)
                     return changed
 
                 for i in range(0, len(pending), THUMB_WARM_CHUNK_SIZE):
@@ -291,7 +285,7 @@ def render_panel():
             update_game_display()
 
         def on_game_type_change(e: events.ValueChangeEventArguments):
-            filter_state['table_type'] = e.value or 'All'
+            filter_state['game_type'] = e.value or 'All'
             update_game_display()
 
         def clear_filters():
@@ -299,15 +293,15 @@ def render_panel():
             filter_state['manufacturer'] = 'All'
             filter_state['year'] = 'All'
             filter_state['theme'] = 'All'
-            filter_state['table_type'] = 'All'
+            filter_state['game_type'] = 'All'
             search_input.value = ''
             manufacturer_select.value = 'All'
             year_select.value = 'All'
             theme_select.value = 'All'
             game_type_select.value = 'All'
             # Reset missing media checkboxes
-            for media_key, _, _ in MEDIA_TYPES:
-                filter_state[f'missing_{media_key}'] = False
+            for kind in COLUMN_ORDER:
+                filter_state[f'missing_{kind}'] = False
             for cb in missing_checkboxes.values():
                 cb.value = False
             pagination_state['page'] = 1
@@ -382,9 +376,9 @@ def render_panel():
         # --- Media replacement logic ---
 
         def open_replace_dialog(game_dir_name: str, game_dir: Path, game_name: str,
-                                media_key: str, media_label: str):
+                                kind: str, media_label: str):
             """Open a dialog to replace a media file for a game."""
-            target_filename = MEDIA_KEY_TO_FILENAME[media_key]
+            target_filename = MEDIA_FILENAME_BY_KIND[kind]
             is_video = target_filename.endswith('.mp4')
             is_audio = target_filename.endswith('.mp3')
             media_type_label = 'Audio' if is_audio else ('Video' if is_video else 'Image')
@@ -394,7 +388,7 @@ def render_panel():
             if media_service.get_media_cache():
                 for row in media_service.get_media_cache():
                     if row['game_dir_name'] == game_dir_name:
-                        current_url = row['media'].get(media_key)
+                        current_url = row['media'].get(kind)
                         break
 
             with ui.dialog() as dlg, ui.card().style('min-width: 500px; background: var(--surface) !important; border: 1px solid var(--line) !important;'):
@@ -443,12 +437,12 @@ def render_panel():
                             return
                         try:
                             src = upload_state['path']
-                            target_path = await run.io_bound(media_service.replace_media_file, game_dir, game_dir_name, media_key, src)
+                            target_path = await run.io_bound(media_service.replace_media_file, game_dir, game_dir_name, kind, src)
 
                             # Build the URL for the new media (now in medias/ subfolder)
                             new_url = media_service.media_url('media_games', game_dir_name, 'medias', target_filename)
-                            new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir_name, media_key, target_path)
-                            media_service.update_cache_entry(game_dir_name, media_key, new_url, new_thumb)
+                            new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir_name, kind, target_path)
+                            media_service.update_cache_entry(game_dir_name, kind, new_url, new_thumb)
                             update_game_display()
 
                             # Cleanup temp
@@ -521,15 +515,15 @@ def render_panel():
         with ui.card().classes('w-full mb-4').style('border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line);'):
             with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
                 ui.label('Missing Media:').classes('text-sm font-semibold').style('flex-shrink: 0; color: var(--ink) !important;')
-                for media_key, media_label, _ in MEDIA_TYPES:
+                for kind in COLUMN_ORDER:
                     def make_handler(key):
                         def handler(e: events.ValueChangeEventArguments):
                             filter_state[f'missing_{key}'] = e.value
                             media_table._props['pagination']['page'] = 1
                             update_game_display()
                         return handler
-                    cb = ui.checkbox(media_label, value=False, on_change=make_handler(media_key)).style('color: var(--ink) !important;')
-                    missing_checkboxes[media_key] = cb
+                    cb = ui.checkbox(MEDIA_LABEL_BY_KIND[kind], value=False, on_change=make_handler(kind)).style('color: var(--ink) !important;')
+                    missing_checkboxes[kind] = cb
 
         # Game count label
         total = len(initial_rows)
@@ -546,19 +540,20 @@ def render_panel():
                   .style("flex: 1; overflow: auto;")
             )
 
-            # Custom slot for each media type column to show thumbnail or missing indicator
-            for media_key, _media_label, media_filename in MEDIA_TYPES:
-                col_name = media_key
-                emit_expr = "$parent.$emit('media_click', [props.row.game_dir_name, props.row.game_dir, props.row.name, '" + media_key + "'])"
+            # Custom slot for each media column to show thumbnail or missing indicator
+            for kind in COLUMN_ORDER:
+                media_filename = MEDIA_FILENAME_BY_KIND[kind]
+                col_name = kind
+                emit_expr = "$parent.$emit('media_click', [props.row.game_dir_name, props.row.game_dir, props.row.name, '" + kind + "'])"
                 is_video = media_filename.endswith('.mp4')
                 is_audio = media_filename.endswith('.mp3')
 
-                cell_td = ('<q-td :props="props" data-drop-media-key="' + media_key
+                cell_td = ('<q-td :props="props" data-drop-media-kind="' + kind
                            + '" :data-drop-media-row="props.row.game_dir_name">')
 
                 if is_audio:
                     media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
-                            <div v-if="props.row.media.''' + media_key + '''"
+                            <div v-if="props.row.media.''' + kind + '''"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
                                 <q-badge color="green-8" text-color="white" label="Audio"
@@ -571,7 +566,7 @@ def render_panel():
                     ''')
                 elif is_video:
                     media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
-                            <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
+                            <div v-if="props.row.media.''' + kind + '''" class="media-thumb-wrapper"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
                                 <q-checkbox
@@ -582,7 +577,7 @@ def render_panel():
                                 />
                                 <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
                                            class="bg-dark" style="padding: 4px;">
-                                    <video :src="props.row.media.''' + media_key + '''"
+                                    <video :src="props.row.media.''' + kind + '''"
                                            style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 2px solid #3b82f6;"
                                            preload="none"
                                            autoplay loop muted />
@@ -595,19 +590,19 @@ def render_panel():
                     ''')
                 else:
                     media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
-                            <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
+                            <div v-if="props.row.media.''' + kind + '''" class="media-thumb-wrapper"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
-                                <img v-if="props.row.thumbs && props.row.thumbs.''' + media_key + '''"
-                                     :src="props.row.thumbs.''' + media_key + '''"
+                                <img v-if="props.row.thumbs && props.row.thumbs.''' + kind + '''"
+                                     :src="props.row.thumbs.''' + kind + '''"
                                      class="media-thumb"
                                      loading="lazy" />
                                 <q-badge v-else color="blue-grey-7" text-color="white" label="IMG"
                                          style="font-size: 10px; padding: 2px 8px;" />
                                 <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
                                            class="bg-dark" style="padding: 4px;">
-                                    <img v-if="props.row.thumbs && props.row.thumbs.''' + media_key + '''"
-                                         :src="props.row.thumbs.''' + media_key + '''"
+                                    <img v-if="props.row.thumbs && props.row.thumbs.''' + kind + '''"
+                                         :src="props.row.thumbs.''' + kind + '''"
                                          style="max-width: 480px; max-height: 480px; border-radius: 6px; border: 2px solid #3b82f6; object-fit: contain;" />
                                     <q-badge v-else color="blue-grey-7" text-color="white" label="Generating..."
                                              style="font-size: 10px; padding: 2px 8px;" />
@@ -625,13 +620,13 @@ def render_panel():
                 game_dir_name = args[0]
                 game_dir = Path(args[1])
                 game_name = args[2]
-                media_key = args[3]
-                media_label = label_by_key.get(media_key, media_key)
+                kind = args[3]
+                media_label = MEDIA_LABEL_BY_KIND.get(kind, kind)
                 open_replace_dialog(
                     game_dir_name=game_dir_name,
                     game_dir=game_dir,
                     game_name=game_name,
-                    media_key=media_key,
+                    kind=kind,
                     media_label=media_label,
                 )
             media_table.on('media_click', on_media_click)
@@ -645,12 +640,12 @@ def render_panel():
                 async def _refresh():
                     game_dir = report.get('game_dir', '')
                     game_dir_name = os.path.basename(game_dir.rstrip('/'))
-                    for media_key in report.get('media_keys', []):
-                        target_filename = MEDIA_KEY_TO_FILENAME[media_key]
+                    for kind in report.get('media_kinds', []):
+                        target_filename = MEDIA_FILENAME_BY_KIND[kind]
                         target_path = os.path.join(game_dir, 'medias', target_filename)
                         new_url = media_service.media_url('media_games', game_dir_name, 'medias', target_filename)
-                        new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir_name, media_key, target_path)
-                        media_service.update_cache_entry(game_dir_name, media_key, new_url, new_thumb)
+                        new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir_name, kind, target_path)
+                        media_service.update_cache_entry(game_dir_name, kind, new_url, new_thumb)
                     update_game_display()
                 asyncio.create_task(_refresh())
 

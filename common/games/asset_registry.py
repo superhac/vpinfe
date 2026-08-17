@@ -25,7 +25,7 @@ MEDIA_EXTENSIONS = frozenset(IMAGE_EXTENSIONS) | VIDEO_EXTENSIONS | AUDIO_EXTENS
 
 @dataclass(frozen=True)
 class AssetSpec:
-    key: str
+    kind: str
     label: str
     icon: str
     extensions: tuple[str, ...]     # lowercase; () for marker/folder-detected kinds
@@ -60,12 +60,12 @@ ASSET_SPECS = (
     AssetSpec("readme", "Author's Notes", "description", (), True, False, True),
 )
 
-_SPECS_BY_KEY = {spec.key: spec for spec in ASSET_SPECS}
+_SPECS_BY_KIND = {spec.kind: spec for spec in ASSET_SPECS}
 
-# Canonical media filenames (bg.png, dmd.mp4, audio.mp3, ...) -> media key.
-_MEDIA_FILENAME_TO_KEY = {filename: key for key, filename in media_filename_map("table").items()}
+# Canonical media filenames (bg.png, dmd.mp4, audio.mp3, ...) -> media kind.
+_MEDIA_FILENAME_TO_KIND = {filename: kind for kind, filename in media_filename_map("table").items()}
 
-# Spec tokens ("(Wheel) Name.png") -> media key, image and video resolved by
+# Spec tokens ("(Wheel) Name.png") -> media kind, image and video resolved by
 # extension. Explicit, so spec-named files import by rule rather than by the
 # keyword fallback happening to contain the right word.
 def _bucket(ext: str) -> str:
@@ -78,13 +78,13 @@ def _bucket(ext: str) -> str:
     return "image"
 
 
-_TOKEN_TO_KEY: dict[str, dict[str, str]] = {}
+_TOKEN_TO_KIND: dict[str, dict[str, str]] = {}
 for _spec in MEDIA_SPECS:
     if _spec.token:
         for _token in (_spec.token,) + _spec.alt_tokens:
             for _ext in _spec.family:
-                _TOKEN_TO_KEY.setdefault(_token.lower(), {}).setdefault(
-                    _bucket(_ext), _spec.key)
+                _TOKEN_TO_KIND.setdefault(_token.lower(), {}).setdefault(
+                    _bucket(_ext), _spec.kind)
 
 # Keyword-in-stem fallbacks when a media file is not named canonically.
 # Ordered; realdmd is handled ahead of this table so the scoreview keyword never claims a
@@ -102,9 +102,9 @@ _MEDIA_KEYWORDS: tuple[tuple[tuple[str, ...], str, str | None], ...] = (
 )
 
 
-def spec_for(key: str) -> AssetSpec:
+def spec_for(kind: str) -> AssetSpec:
     """Return the AssetSpec for a kind key, raising KeyError if unknown."""
-    return _SPECS_BY_KEY[key]
+    return _SPECS_BY_KIND[kind]
 
 
 def classify_bare_extension(filename: str) -> AssetSpec | None:
@@ -118,8 +118,8 @@ def classify_bare_extension(filename: str) -> AssetSpec | None:
     return None
 
 
-def match_media_key(filename: str) -> str | None:
-    """Resolve a media file to its canonical media slot key (bg, wheel, ...), or None.
+def match_media_kind(filename: str) -> str | None:
+    """Resolve a media file to its canonical media kind (backglass, wheel, ...), or None.
 
     Exact canonical filenames win; otherwise a keyword in the stem plus the extension
     family (image vs video vs audio) decides the slot.
@@ -129,14 +129,14 @@ def match_media_key(filename: str) -> str | None:
         return None
 
     name = Path(filename).name.lower()
-    if name in _MEDIA_FILENAME_TO_KEY:
-        return _MEDIA_FILENAME_TO_KEY[name]
+    if name in _MEDIA_FILENAME_TO_KIND:
+        return _MEDIA_FILENAME_TO_KIND[name]
 
     # Spec naming: "(Token) Whatever.ext". The token decides the kind, the
     # extension family decides image vs video.
     if name.startswith("(") and ") " in name:
         token = name.split(") ", 1)[0] + ")"
-        kinds = _TOKEN_TO_KEY.get(token)
+        kinds = _TOKEN_TO_KIND.get(token)
         if kinds:
             family = _bucket(ext)
             hit = kinds.get(family)
@@ -159,10 +159,10 @@ def match_media_key(filename: str) -> str | None:
             return "real_dmd_color" if "color" in stem else "real_dmd"
         return None
 
-    for keywords, image_key, video_key in _MEDIA_KEYWORDS:
+    for keywords, image_kind, video_kind in _MEDIA_KEYWORDS:
         if any(kw in stem for kw in keywords):
             if ext in VIDEO_EXTENSIONS:
-                return video_key
+                return video_kind
             if ext in IMAGE_EXTENSIONS:
-                return image_key
+                return image_kind
     return None

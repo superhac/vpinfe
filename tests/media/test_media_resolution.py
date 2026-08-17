@@ -163,20 +163,20 @@ class TokenAliasTests(unittest.TestCase):
         self.assertEqual(resolved["instruction_card"].name, f"(GameHelp) {TABLE}.png")
 
     def test_aliases_are_only_where_the_published_name_is_opaque(self) -> None:
-        aliased = {spec.key for spec in MEDIA_SPECS if spec.alt_tokens}
+        aliased = {spec.kind for spec in MEDIA_SPECS if spec.alt_tokens}
 
         self.assertEqual(aliased, {"instruction_card", "flyer"})
 
     def test_spec_named_new_kinds_import_by_token(self) -> None:
-        from common.games.asset_registry import match_media_key
+        from common.games.asset_registry import match_media_kind
 
-        self.assertEqual(match_media_key(f"(Topper) {FOLDER}.mp4"), "topper_video")
-        self.assertEqual(match_media_key(f"(Topper) {FOLDER}.png"), "topper")
-        self.assertEqual(match_media_key(f"(RuleCard) {FOLDER}.png"), "instruction_card")
-        self.assertEqual(match_media_key(f"(GameHelp) {FOLDER}.png"), "instruction_card")
-        self.assertEqual(match_media_key("rulesheet.pdf"), "rule_sheet")
-        self.assertEqual(match_media_key(f"(Loading) {FOLDER}.mp4"), "loading")
-        self.assertEqual(match_media_key("audio.ogg"), "audio")
+        self.assertEqual(match_media_kind(f"(Topper) {FOLDER}.mp4"), "topper_video")
+        self.assertEqual(match_media_kind(f"(Topper) {FOLDER}.png"), "topper")
+        self.assertEqual(match_media_kind(f"(RuleCard) {FOLDER}.png"), "instruction_card")
+        self.assertEqual(match_media_kind(f"(GameHelp) {FOLDER}.png"), "instruction_card")
+        self.assertEqual(match_media_kind("rulesheet.pdf"), "rule_sheet")
+        self.assertEqual(match_media_kind(f"(Loading) {FOLDER}.mp4"), "loading")
+        self.assertEqual(match_media_kind("audio.ogg"), "audio")
 
 
 class LogoTests(unittest.TestCase):
@@ -207,11 +207,11 @@ class LogoTests(unittest.TestCase):
 
     def test_logo_png_imports_as_logo_not_wheel(self) -> None:
         """The alias fix: this is the import-behavior change PAR-12 documents."""
-        from common.games.asset_registry import match_media_key
+        from common.games.asset_registry import match_media_kind
 
-        self.assertEqual(match_media_key("logo.png"), "logo")
-        self.assertEqual(match_media_key(f"(Logo) {FOLDER}.png"), "logo")
-        self.assertEqual(match_media_key("wheel.png"), "wheel")
+        self.assertEqual(match_media_kind("logo.png"), "logo")
+        self.assertEqual(match_media_kind(f"(Logo) {FOLDER}.png"), "logo")
+        self.assertEqual(match_media_kind("wheel.png"), "wheel")
 
 
 class WheelSetTests(unittest.TestCase):
@@ -316,11 +316,11 @@ class SpecCopyTests(unittest.TestCase):
 
         # One copy per spec, in order, so they pair up exactly.
         for original, copy in zip(MEDIA_SPECS, MEDIA_SPECS, strict=True):
-            self.assertEqual(copy.token, original.token, original.key)
-            self.assertEqual(copy.family, original.family, original.key)
-            self.assertEqual(copy.fallback_kind, original.fallback_kind, original.key)
-            self.assertEqual(copy.supports_sets, original.supports_sets, original.key)
-            self.assertEqual(copy.attr, original.attr, original.key)
+            self.assertEqual(copy.token, original.token, original.kind)
+            self.assertEqual(copy.family, original.family, original.kind)
+            self.assertEqual(copy.fallback_kind, original.fallback_kind, original.kind)
+            self.assertEqual(copy.supports_sets, original.supports_sets, original.kind)
+            self.assertEqual(copy.attr, original.attr, original.kind)
 
     def test_the_variant_changes_filenames_not_keys(self) -> None:
         """The playfield key used to be renamed onto the variant's own name, which under
@@ -338,10 +338,10 @@ class SpecCopyTests(unittest.TestCase):
     def test_the_video_copies_keep_the_video_family(self) -> None:
         from common.media_specs import MEDIA_SPECS, VIDEO_FAMILY
 
-        by_key = {spec.key: spec for spec in MEDIA_SPECS}
+        by_kind = {spec.kind: spec for spec in MEDIA_SPECS}
 
-        self.assertEqual(by_key["playfield_video"].family, VIDEO_FAMILY)
-        self.assertEqual(by_key["scoreview_video"].family, VIDEO_FAMILY)
+        self.assertEqual(by_kind["playfield_video"].family, VIDEO_FAMILY)
+        self.assertEqual(by_kind["scoreview_video"].family, VIDEO_FAMILY)
 
 
 class ParserCasingTests(unittest.TestCase):

@@ -131,9 +131,9 @@ class LibraryEntriesTests(TempTree):
         game = self.games[0]
         for attribute in ("pupPackExists", "altColorExists", "altSoundExists"):
             setattr(game, attribute, True)
-        by_key = {spec.key: spec.attr for spec in MEDIA_SPECS}
+        by_kind = {spec.kind: spec.attr for spec in MEDIA_SPECS}
         for kind in ("wheel", "playfield", "backglass"):
-            setattr(game, by_key[kind], f"/on/the/hub/{kind}.png")
+            setattr(game, by_kind[kind], f"/on/the/hub/{kind}.png")
 
         entry = self._resolved([game])[0]
         local = json.loads(game_state.games_json([entry], contract=2))["entries"][0]

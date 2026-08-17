@@ -21,7 +21,7 @@ SPECS_PY = (REPO_ROOT / "common" / "media_specs.py").read_text(encoding="utf-8")
 
 
 def _python_kinds() -> list[str]:
-    # The key is on the line after `MediaSpec(`, one field per line, so this spans the
+    # The kind is on the line after `MediaSpec(`, one field per line, so this spans the
     # newline. The count guard below is what catches it if that layout changes again.
     return re.findall(r'MediaSpec\(\s*"([a-z_]+)"', SPECS_PY)
 
@@ -71,13 +71,13 @@ class PreloadDefaultTests(unittest.TestCase):
 class SpecAccessorTests(unittest.TestCase):
     def test_the_module_agrees_with_its_own_source(self) -> None:
         """Reading the file with a regex is only safe while it matches the import."""
-        self.assertEqual([spec.key for spec in media_specs.MEDIA_SPECS], _python_kinds())
+        self.assertEqual([spec.kind for spec in media_specs.MEDIA_SPECS], _python_kinds())
 
     def test_pythons_own_aliases_all_name_a_real_kind(self) -> None:
         """The JS map is checked the same way. They are deliberately not identical -
         core collapses both real DMD spellings onto `real_dmd` because one resolver
         handles the color split - so each is checked against the kinds, not the other."""
-        kinds = {spec.key for spec in media_specs.MEDIA_SPECS}
+        kinds = {spec.kind for spec in media_specs.MEDIA_SPECS}
         for old, new in media_specs.MEDIA_KIND_ALIASES.items():
             self.assertIn(new, kinds, f"{old} aliases to {new}, which is not a kind")
 

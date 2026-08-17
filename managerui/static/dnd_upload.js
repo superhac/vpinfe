@@ -186,7 +186,7 @@
     el.dataset.vpinfeDndCellsBound = '1';
 
     const cellOf = (target) =>
-      target && target.closest ? target.closest('td[data-drop-media-key]') : null;
+      target && target.closest ? target.closest('td[data-drop-media-kind]') : null;
     const clearHighlight = () => {
       el.querySelectorAll('td.dnd-cell-active').forEach((c) => c.classList.remove('dnd-cell-active'));
     };
@@ -208,7 +208,7 @@
       clearHighlight();
       if (!cell) return;
       e.preventDefault();
-      const mediaKey = cell.getAttribute('data-drop-media-key');
+      const mediaKind = cell.getAttribute('data-drop-media-kind');
       const rowKey = cell.getAttribute('data-drop-media-row');
       try {
         const files = await collectFiles(e.dataTransfer);
@@ -220,7 +220,7 @@
         const result = await uploadAll(token, files);
         emit({
           token: token, status: 'done', upload_id: result.uploadId,
-          cell_row: rowKey, cell_media_key: mediaKey,
+          cell_row: rowKey, cell_media_kind: mediaKind,
           file_count: result.info.file_count, total_bytes: result.info.total_bytes,
           name: rootName(files),
         });

@@ -14,7 +14,7 @@ from common.games.game_metadata import normalize_meta
 from common.games.tables import table_entries
 from common.media_specs import MEDIA_SPECS, canonical_kind
 
-_ATTR_BY_KIND = {spec.key: spec.attr for spec in MEDIA_SPECS}
+_ATTR_BY_KIND = {spec.kind: spec.attr for spec in MEDIA_SPECS}
 
 
 def resolved_kinds(game) -> list[str]:

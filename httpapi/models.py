@@ -594,7 +594,7 @@ class FileStored(ApiModel):
 class DetectedAssetInfo(ApiModel):
     kind: str
     label: str
-    media_key: str
+    media_kind: str
     root: str
     size: int
     detail: str
@@ -631,7 +631,7 @@ class PlanItem(ApiModel):
     action: str
     default_enabled: bool
     size: int
-    media_key: str
+    media_kind: str
 
 
 class ImportPlanResource(ApiModel):
@@ -650,7 +650,7 @@ class ImportReport(ApiModel):
     skipped: list[str]
     game_dir: str
     new_game: bool
-    media_keys: list[str]
+    media_kinds: list[str]
     blocked: list[BlockedAsset]
     vps_associated: bool | None = None
     vps_error: str | None = None

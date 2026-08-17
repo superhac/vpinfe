@@ -13,8 +13,9 @@ from common.games.game_repository import all_games
 from common.games.info_file import MetaConfig
 from common.media_specs import (
     MEDIA_SPECS,
-    media_attr_key_map,
+    media_attr_kind_map,
     media_filename_map,
+    media_label_map,
     resolve_media_files,
 )
 from common.paths import CONFIG_DIR, get_games_path
@@ -30,33 +31,11 @@ THUMB_SIZE = (512, 512)
 THUMB_WARM_ROW_BATCH_SIZE = 25
 THUMB_WARM_CHUNK_SIZE = 8
 
-# Canonical media kind keys. MEDIA_KEY_TO_FILENAME and _SPEC_BY_KEY are both built
-# from MEDIA_SPECS, so `bg` and `dmd` here were a KeyError on upload and an empty
-# filename on lookup - the two kinds people replace most. The labels stay as they are:
-# BG and DMD is what the art is called, whatever the kind is called.
-MEDIA_TYPES = [
-    ("backglass", "BG", "bg.png"),
-    ("scoreview", "DMD", "dmd.png"),
-    ("playfield", "Table", "table.png"),
-    ("playfield_fss", "FSS", "fss.png"),
-    ("wheel", "Wheel", "wheel.png"),
-    ("cab", "Cab", "cab.png"),
-    ("real_dmd", "Real DMD", "realdmd.png"),
-    ("real_dmd_color", "Real DMD Color", "realdmd-color.png"),
-    ("flyer", "Flyer", "flyer.png"),
-    ("playfield_video", "Table Video", "table.mp4"),
-    ("backglass_video", "BG Video", "bg.mp4"),
-    ("scoreview_video", "DMD Video", "dmd.mp4"),
-    ("audio", "Audio", "audio.mp3"),
-]
-MEDIA_KEY_TO_FILENAME = media_filename_map("table")
+MEDIA_FILENAME_BY_KIND = media_filename_map("table")
+MEDIA_LABEL_BY_KIND = media_label_map()
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
-IMAGE_MEDIA_KEYS = [
-    key for key, _, filename in MEDIA_TYPES
-    if Path(filename).suffix.lower() in IMAGE_EXTENSIONS
-]
 
-GAME_ATTR_TO_MEDIA_KEY = media_attr_key_map("table")
+GAME_ATTR_TO_MEDIA_KIND = media_attr_kind_map("table")
 
 
 def get_media_cache() -> list[dict] | None:
@@ -78,19 +57,19 @@ def media_url(*parts: str) -> str:
     return "/" + "/".join(encoded)
 
 
-def is_image_media_key(media_key: str) -> bool:
-    filename = MEDIA_KEY_TO_FILENAME.get(media_key, "")
+def is_image_media_kind(kind: str) -> bool:
+    filename = MEDIA_FILENAME_BY_KIND.get(kind, "")
     return Path(filename).suffix.lower() in IMAGE_EXTENSIONS
 
 
-_SPEC_BY_KEY = {spec.key: spec for spec in MEDIA_SPECS}
+_SPEC_BY_KIND = {spec.kind: spec for spec in MEDIA_SPECS}
 
 
-def source_media_path(game_dir: Path, media_key: str,
+def source_media_path(game_dir: Path, kind: str,
                       table_stem: str | None = None) -> str | None:
     """The file serving a media kind, through the one resolution chain - so the
     Manager UI and the scan can never disagree about which file that is."""
-    if media_key not in _SPEC_BY_KEY:
+    if kind not in _SPEC_BY_KIND:
         return None
     root = Path(game_dir)
     try:
@@ -104,7 +83,7 @@ def source_media_path(game_dir: Path, media_key: str,
         medias_contents = set()
     resolved = resolve_media_files(root, game_contents, medias_contents,
                                    "table", table_stem)
-    path = resolved.get(media_key)
+    path = resolved.get(kind)
     return str(path) if path is not None else None
 
 
@@ -113,8 +92,8 @@ def _build_thumb_sig(source_path: str) -> str:
     return f"{st.st_mtime_ns}_{st.st_size}"
 
 
-def thumb_file_path(game_dir_name: str, media_key: str, source_path: str) -> Path:
-    return THUMB_CACHE_ROOT / game_dir_name / f"{media_key}_{_build_thumb_sig(source_path)}.png"
+def thumb_file_path(game_dir_name: str, kind: str, source_path: str) -> Path:
+    return THUMB_CACHE_ROOT / game_dir_name / f"{kind}_{_build_thumb_sig(source_path)}.png"
 
 
 def thumb_url(path: Path) -> str:
@@ -122,11 +101,11 @@ def thumb_url(path: Path) -> str:
     return f"/media_thumbs/{rel}"
 
 
-def get_cached_thumb_url(game_dir_name: str, media_key: str, source_path: str) -> str | None:
-    if not is_image_media_key(media_key) or not os.path.exists(source_path):
+def get_cached_thumb_url(game_dir_name: str, kind: str, source_path: str) -> str | None:
+    if not is_image_media_kind(kind) or not os.path.exists(source_path):
         return None
     try:
-        path = thumb_file_path(game_dir_name, media_key, source_path)
+        path = thumb_file_path(game_dir_name, kind, source_path)
         if path.exists():
             os.utime(path, None)
             return thumb_url(path)
@@ -135,29 +114,29 @@ def get_cached_thumb_url(game_dir_name: str, media_key: str, source_path: str) -
     return None
 
 
-def thumb_request_key(game_dir_name: str, media_key: str, source_path: str) -> tuple[str, str, str]:
+def thumb_request_key(game_dir_name: str, kind: str, source_path: str) -> tuple[str, str, str]:
     try:
         signature = _build_thumb_sig(source_path)
     except Exception:
         signature = ""
-    return game_dir_name, media_key, signature
+    return game_dir_name, kind, signature
 
 
-def mark_thumb_requested(game_dir_name: str, media_key: str, source_path: str) -> bool:
+def mark_thumb_requested(game_dir_name: str, kind: str, source_path: str) -> bool:
     """Return True if this thumbnail request is new."""
-    key = thumb_request_key(game_dir_name, media_key, source_path)
+    key = thumb_request_key(game_dir_name, kind, source_path)
     if key in _thumb_request_state:
         return False
     _thumb_request_state.add(key)
     return True
 
 
-def clear_thumb_request(game_dir_name: str, media_key: str, source_path: str) -> None:
-    _thumb_request_state.discard(thumb_request_key(game_dir_name, media_key, source_path))
+def clear_thumb_request(game_dir_name: str, kind: str, source_path: str) -> None:
+    _thumb_request_state.discard(thumb_request_key(game_dir_name, kind, source_path))
 
 
-def ensure_thumb(game_dir_name: str, media_key: str, source_path: str) -> str | None:
-    if not is_image_media_key(media_key) or not os.path.exists(source_path):
+def ensure_thumb(game_dir_name: str, kind: str, source_path: str) -> str | None:
+    if not is_image_media_kind(kind) or not os.path.exists(source_path):
         return None
     try:
         from PIL import Image, ImageOps
@@ -165,16 +144,16 @@ def ensure_thumb(game_dir_name: str, media_key: str, source_path: str) -> str | 
         return None
 
     try:
-        path = thumb_file_path(game_dir_name, media_key, source_path)
+        path = thumb_file_path(game_dir_name, kind, source_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
             os.utime(path, None)
             return thumb_url(path)
 
-        for old in path.parent.glob(f"{media_key}_*.png"):
+        for old in path.parent.glob(f"{kind}_*.png"):
             if old != path:
                 old.unlink(missing_ok=True)
-        for old in path.parent.glob(f"{media_key}_*.jpg"):
+        for old in path.parent.glob(f"{kind}_*.jpg"):
             if old != path:
                 old.unlink(missing_ok=True)
 
@@ -229,14 +208,14 @@ def scan_media_games(reload: bool = False) -> list[dict]:
 
         media_info = {}
         thumb_info = {}
-        for attr_name, media_key in GAME_ATTR_TO_MEDIA_KEY.items():
+        for attr_name, kind in GAME_ATTR_TO_MEDIA_KIND.items():
             source_path = getattr(game, attr_name, None)
             if source_path:
-                media_info[media_key] = media_url_from_path(current_dir, source_path)
-                thumb_info[media_key] = get_cached_thumb_url(current_dir, media_key, source_path)
+                media_info[kind] = media_url_from_path(current_dir, source_path)
+                thumb_info[kind] = get_cached_thumb_url(current_dir, kind, source_path)
             else:
-                media_info[media_key] = None
-                thumb_info[media_key] = None
+                media_info[kind] = None
+                thumb_info[kind] = None
 
         row = {
             "name": name,
@@ -250,15 +229,17 @@ def scan_media_games(reload: bool = False) -> list[dict]:
             "thumbs": thumb_info,
             "thumb_errors": {},
         }
-        for media_key, _, _ in MEDIA_TYPES:
-            row[f"has_{media_key}"] = media_info.get(media_key) is not None
+        # Every kind, not the ones a page happens to show: a sortable column binds to
+        # has_<kind>, and which kinds get a column is the page's choice to make.
+        for kind in MEDIA_FILENAME_BY_KIND:
+            row[f"has_{kind}"] = media_info.get(kind) is not None
         rows.append(row)
 
     set_media_cache(rows)
     return rows
 
 
-def replace_media_file(game_dir: Path, game_dir_name: str, media_key: str,
+def replace_media_file(game_dir: Path, game_dir_name: str, kind: str,
                        uploaded_path: str) -> str:
     """Install an uploaded file as a game's media, keeping its real extension.
 
@@ -268,8 +249,8 @@ def replace_media_file(game_dir: Path, game_dir_name: str, media_key: str,
     with the same stem is removed from medias/ and the folder root, since an
     earlier-family leftover would shadow the new file in resolution order.
     """
-    spec = _SPEC_BY_KEY[media_key]
-    canonical = MEDIA_KEY_TO_FILENAME[media_key]
+    spec = _SPEC_BY_KIND[kind]
+    canonical = MEDIA_FILENAME_BY_KIND[kind]
     stem, canonical_ext = os.path.splitext(canonical)
     ext = os.path.splitext(uploaded_path)[1].lower()
     if ext not in spec.family:
@@ -298,14 +279,14 @@ def replace_media_file(game_dir: Path, game_dir_name: str, media_key: str,
     return target_path
 
 
-def update_cache_entry(game_dir_name: str, media_key: str, url_path: str,
+def update_cache_entry(game_dir_name: str, kind: str, url_path: str,
                        thumb: str | None = None) -> None:
     if _media_cache is None:
         return
     for row in _media_cache:
         if row["game_dir_name"] == game_dir_name:
-            row["media"][media_key] = url_path
-            row.setdefault("thumbs", {})[media_key] = thumb
-            row.setdefault("thumb_errors", {}).pop(media_key, None)
-            row[f"has_{media_key}"] = url_path is not None
+            row["media"][kind] = url_path
+            row.setdefault("thumbs", {})[kind] = thumb
+            row.setdefault("thumb_errors", {}).pop(kind, None)
+            row[f"has_{kind}"] = url_path is not None
             break

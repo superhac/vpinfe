@@ -44,7 +44,7 @@ class WireGame:
         # the value, so the kind's own name stands in for the path the hub did not send.
         present = set(entry.get("media") or [])
         for spec in MEDIA_SPECS:
-            setattr(self, spec.attr, spec.key if spec.key in present else "")
+            setattr(self, spec.attr, spec.kind if spec.kind in present else "")
         self.meta_config = {
             "Info": {
                 "Title": game.get("name") or "",

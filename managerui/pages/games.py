@@ -610,7 +610,7 @@ def render_panel(tab=None):
             'manufacturer': 'All',
             'year': 'All',
             'theme': 'All',
-            'table_type': 'All',
+            'game_type': 'All',
             'has_pup_pack': False,
             'has_b2s': False,
         }
@@ -663,7 +663,7 @@ def render_panel(tab=None):
             update_game_display()
 
         def on_game_type_change(e: events.ValueChangeEventArguments):
-            filter_state['table_type'] = e.value or 'All'
+            filter_state['game_type'] = e.value or 'All'
             update_game_display()
 
         def on_pup_pack_change(e: events.ValueChangeEventArguments):
@@ -679,7 +679,7 @@ def render_panel(tab=None):
             filter_state['manufacturer'] = 'All'
             filter_state['year'] = 'All'
             filter_state['theme'] = 'All'
-            filter_state['table_type'] = 'All'
+            filter_state['game_type'] = 'All'
             filter_state['has_pup_pack'] = False
             filter_state['has_b2s'] = False
             search_input.value = ''

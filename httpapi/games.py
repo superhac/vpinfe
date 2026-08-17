@@ -350,7 +350,7 @@ def get_game_media(game_id: str) -> models.MediaList:
             dependencies=[requires(scopes.GAMES_READ)])
 def get_game_media_file(game_id: str, kind: str):
     game = _game_or_404(game_id)
-    known = {spec.key for spec in MEDIA_SPECS}
+    known = {spec.kind for spec in MEDIA_SPECS}
     if kind not in known:
         raise InvalidRequestError("Unknown media kind",
                                   details={"unknown": kind, "known": sorted(known)})

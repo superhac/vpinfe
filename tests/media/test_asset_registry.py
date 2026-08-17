@@ -10,7 +10,7 @@ import unittest
 
 from common.games.asset_registry import (
     classify_bare_extension,
-    match_media_key,
+    match_media_kind,
     spec_for,
 )
 
@@ -38,9 +38,9 @@ class AssetRegistryTests(unittest.TestCase):
         for filename, expected in cases:
             with self.subTest(filename=filename):
                 spec = classify_bare_extension(filename)
-                self.assertEqual(spec.key if spec else None, expected)
+                self.assertEqual(spec.kind if spec else None, expected)
 
-    def test_match_media_key_canonical_names(self):
+    def test_match_media_kind_canonical_names(self):
         cases = [
             ("bg.png", "backglass"),
             ("dmd.png", "scoreview"),
@@ -53,9 +53,9 @@ class AssetRegistryTests(unittest.TestCase):
         ]
         for filename, expected in cases:
             with self.subTest(filename=filename):
-                self.assertEqual(match_media_key(filename), expected)
+                self.assertEqual(match_media_kind(filename), expected)
 
-    def test_match_media_key_keyword_fallback(self):
+    def test_match_media_kind_keyword_fallback(self):
         cases = [
             ("MyTable_wheel.png", "wheel"),
             ("Table_backglass.png", "backglass"),
@@ -67,13 +67,13 @@ class AssetRegistryTests(unittest.TestCase):
         ]
         for filename, expected in cases:
             with self.subTest(filename=filename):
-                self.assertEqual(match_media_key(filename), expected)
+                self.assertEqual(match_media_kind(filename), expected)
 
     def test_realdmd_not_claimed_by_dmd_rule(self):
         # "real_dmd" contains "scoreview"; the realdmd rule must win, and a realdmd video
         # (no such slot) must not fall through to dmd_video.
-        self.assertEqual(match_media_key("realdmd.png"), "real_dmd")
-        self.assertIsNone(match_media_key("realdmd.mp4"))
+        self.assertEqual(match_media_kind("realdmd.png"), "real_dmd")
+        self.assertIsNone(match_media_kind("realdmd.mp4"))
 
     def test_spec_for_flags(self):
         self.assertFalse(spec_for("table").requires_game)

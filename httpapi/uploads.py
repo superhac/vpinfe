@@ -48,7 +48,7 @@ def _asset_to_dict(asset: DetectedAsset) -> dict:
     return {
         "kind": asset.kind,
         "label": asset.label,
-        "media_key": asset.media_key,
+        "media_kind": asset.media_kind,
         "root": asset.root,
         "size": asset.size,
         "detail": asset.detail,
@@ -84,7 +84,7 @@ def _plan_to_dict(plan: ImportPlan) -> dict:
                 "action": item.action,
                 "default_enabled": item.default_enabled,
                 "size": item.asset.size,
-                "media_key": item.asset.media_key,
+                "media_kind": item.asset.media_kind,
             }
             for index, item in enumerate(plan.items)
         ],
