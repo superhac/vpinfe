@@ -127,7 +127,7 @@ def _launch_env(settings) -> dict:
 def _command(game, vpx_path: str, launcher: str, settings) -> list[str]:
     return build_vpx_launch_command(
         launcher_path=launcher,
-        vpx_game_path=vpx_path,
+        vpx_path=vpx_path,
         global_ini_override=settings.global_ini_override,
         tableini_override=resolve_launch_tableini_override(
             vpx_path,
@@ -428,7 +428,7 @@ def _to_bool(value) -> bool:
     return str(value or "").strip().lower() in ("1", "true", "yes", "on")
 
 
-def build_masked_tableini_path(vpx_game_path: str, override_enabled, override_mask: str) -> str:
+def build_masked_tableini_path(vpx_path: str, override_enabled, override_mask: str) -> str:
     """
     Build a masked table ini path for VPX -tableini override.
 
@@ -443,21 +443,21 @@ def build_masked_tableini_path(vpx_game_path: str, override_enabled, override_ma
         logger.warning("Global tableini override enabled, but mask is empty; skipping -tableini")
         return ""
 
-    game_path = Path(str(vpx_game_path or "").strip())
-    if not game_path.name:
+    vpx_file = Path(str(vpx_path or "").strip())
+    if not vpx_file.name:
         return ""
 
-    masked_name = f"{game_path.stem}.{mask}.ini"
-    return str(game_path.with_name(masked_name))
+    masked_name = f"{vpx_file.stem}.{mask}.ini"
+    return str(vpx_file.with_name(masked_name))
 
 
-def resolve_launch_tableini_override(vpx_game_path: str, override_enabled, override_mask: str) -> str:
+def resolve_launch_tableini_override(vpx_path: str, override_enabled, override_mask: str) -> str:
     """
     Resolve a tableini override for launch-time use.
 
     Returns empty string when disabled, mask is empty, or the resolved ini file does not exist.
     """
-    masked_path = build_masked_tableini_path(vpx_game_path, override_enabled, override_mask)
+    masked_path = build_masked_tableini_path(vpx_path, override_enabled, override_mask)
     if not masked_path:
         return ""
 
@@ -470,7 +470,7 @@ def resolve_launch_tableini_override(vpx_game_path: str, override_enabled, overr
 
 def build_vpx_launch_command(
     launcher_path: str,
-    vpx_game_path: str,
+    vpx_path: str,
     global_ini_override: str = "",
     tableini_override: str = "",
     plugin_profile_override: str = "",
@@ -497,5 +497,5 @@ def build_vpx_launch_command(
     if gameini:
         cmd.extend(["-tableini", gameini])
 
-    cmd.extend(["-play", str(vpx_game_path)])
+    cmd.extend(["-play", str(vpx_path)])
     return cmd

@@ -48,7 +48,7 @@ class TestLauncherGameIniOverride(unittest.TestCase):
     def test_build_vpx_launch_command_keeps_play_last_with_all_overrides(self) -> None:
         cmd = build_vpx_launch_command(
             launcher_path="/opt/vpinball/VPinballX",
-            vpx_game_path="/games/example.vpx",
+            vpx_path="/games/example.vpx",
             global_ini_override="/cfg/VPinballX.ini",
             tableini_override="/games/example.windows.ini",
         )
@@ -69,7 +69,7 @@ class TestLauncherGameIniOverride(unittest.TestCase):
     def test_build_vpx_launch_command_keeps_play_last_without_overrides(self) -> None:
         cmd = build_vpx_launch_command(
             launcher_path="/opt/vpinball/VPinballX",
-            vpx_game_path="/games/example.vpx",
+            vpx_path="/games/example.vpx",
         )
         self.assertEqual(
             cmd,
@@ -110,7 +110,7 @@ class TestLauncherPluginProfile(unittest.TestCase):
     def test_plugin_profile_fills_ini_slot_and_keeps_play_last(self) -> None:
         cmd = build_vpx_launch_command(
             launcher_path="/opt/vpinball/VPinballX",
-            vpx_game_path="/games/example.vpx",
+            vpx_path="/games/example.vpx",
             plugin_profile_override="/cfg/plugin_profiles/no-dmd.ini",
         )
         self.assertEqual(
@@ -128,7 +128,7 @@ class TestLauncherPluginProfile(unittest.TestCase):
     def test_plugin_profile_wins_over_global_ini_override_without_duplicate_flag(self) -> None:
         cmd = build_vpx_launch_command(
             launcher_path="/opt/vpinball/VPinballX",
-            vpx_game_path="/games/example.vpx",
+            vpx_path="/games/example.vpx",
             global_ini_override="/cfg/VPinballX.ini",
             plugin_profile_override="/cfg/plugin_profiles/no-dmd.ini",
         )
@@ -141,7 +141,7 @@ class TestLauncherPluginProfile(unittest.TestCase):
     def test_global_ini_override_still_applies_when_no_plugin_profile(self) -> None:
         cmd = build_vpx_launch_command(
             launcher_path="/opt/vpinball/VPinballX",
-            vpx_game_path="/games/example.vpx",
+            vpx_path="/games/example.vpx",
             global_ini_override="/cfg/VPinballX.ini",
             plugin_profile_override="",
         )
