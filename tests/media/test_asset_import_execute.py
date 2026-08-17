@@ -112,7 +112,7 @@ class GameInfoImportTests(unittest.TestCase):
                 zip_path = self._bundle(
                     tmp, {"Info": {"VPSId": "foreign-id"}, "User": {"Rating": 5, "StartCount": 99}})
                 analysis = analyze_path(zip_path)
-                plan = build_import_plan(analysis, game_path=str(game_dir))
+                plan = build_import_plan(analysis, game_dir=game_dir)
                 execute_import_plan(plan, zip_path)
 
                 data = json.loads(info_path.read_text())
@@ -143,7 +143,7 @@ class ImportExecuteTests(unittest.TestCase):
                     "mm.crz",
                 ])
                 analysis = analyze_path(zip_path)
-                plan = build_import_plan(analysis, game_path=str(game_dir), rom_name="mm_rom")
+                plan = build_import_plan(analysis, game_dir=game_dir, rom_name="mm_rom")
                 report = execute_import_plan(plan, zip_path)
 
                 self.assertTrue((game_dir / "pinmame" / "roms" / "mm.zip").exists())
@@ -163,7 +163,7 @@ class ImportExecuteTests(unittest.TestCase):
                 zip_path = Path(tmp) / "new.zip"
                 make_zip(zip_path, ["New.vpx"])
                 analysis = analyze_path(zip_path)
-                plan = build_import_plan(analysis, game_path=str(game_dir))
+                plan = build_import_plan(analysis, game_dir=game_dir)
                 execute_import_plan(plan, zip_path)
 
                 self.assertTrue((game_dir / "New.vpx").exists())
@@ -182,7 +182,7 @@ class ImportExecuteTests(unittest.TestCase):
         zip_path = Path(tmp) / "new.zip"
         make_zip(zip_path, [new_name])
 
-        plan = build_import_plan(analyze_path(zip_path), game_path=str(game_dir))
+        plan = build_import_plan(analyze_path(zip_path), game_dir=game_dir)
         with mock.patch.object(asset_import_service, "refresh_game"), \
                 mock.patch.object(asset_import_service, "VPXParser") as parser:
             parser.return_value.singleFileExtract.return_value = parsed
@@ -299,7 +299,7 @@ class TraversalGuardTests(unittest.TestCase):
                     archive.writestr("Pack/screens.pup", b"x")
                     archive.writestr("Pack/../../escape.mp4", b"x")
                 analysis = analyze_path(zip_path)
-                plan = build_import_plan(analysis, game_path=str(game_dir))
+                plan = build_import_plan(analysis, game_dir=game_dir)
                 with self.assertRaises(ValueError):
                     execute_import_plan(plan, zip_path)
 

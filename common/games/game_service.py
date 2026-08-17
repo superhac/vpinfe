@@ -77,9 +77,8 @@ def add_game_to_collection(game_id: str, collection_name: str) -> bool:
         return False
 
 
-def update_info_section(game_path: str, section: str, key: str, value) -> bool:
+def update_info_section(game_dir: Path, section: str, key: str, value) -> bool:
     try:
-        game_dir = Path(game_path)
         info_file = game_dir / f"{game_dir.name}.info"
         if not info_file.exists():
             logger.error("Info file not found: %s", info_file)
@@ -88,19 +87,19 @@ def update_info_section(game_path: str, section: str, key: str, value) -> bool:
         data = json.loads(info_file.read_text(encoding="utf-8"))
         data.setdefault(section, {})[key] = value
         info_file.write_text(json.dumps(data, indent=4), encoding="utf-8")
-        refresh_game(game_path)
+        refresh_game(game_dir)
         return True
     except Exception as e:
         logger.error("Failed to update %s.%s: %s", section, key, e)
         return False
 
 
-def update_vpinfe_setting(game_path: str, key: str, value) -> bool:
-    return update_info_section(game_path, VPINFE_SECTION, key, value)
+def update_vpinfe_setting(game_dir: Path, key: str, value) -> bool:
+    return update_info_section(game_dir, VPINFE_SECTION, key, value)
 
 
-def update_user_setting(game_path: str, key: str, value) -> bool:
-    return update_info_section(game_path, "User", key, value)
+def update_user_setting(game_dir: Path, key: str, value) -> bool:
+    return update_info_section(game_dir, "User", key, value)
 
 
 def load_vpsdb() -> list[dict]:
@@ -189,8 +188,9 @@ def _write_replace(dest_file: Path, content: bytes) -> None:
     os.replace(tmp_file, dest_file)
 
 
-def replace_table(game_path: str, filename: str, content: bytes, file_type: str, current_vpx_filename: str = "") -> dict[str, str]:
-    game_dir = Path(game_path).expanduser()
+def replace_table(game_dir: Path, filename: str, content: bytes, file_type: str,
+                  current_vpx_filename: str = "") -> dict[str, str]:
+    game_dir = game_dir.expanduser()
     if not game_dir.exists() or not game_dir.is_dir():
         raise FileNotFoundError(f"Table folder not found: {game_dir}")
 
@@ -232,11 +232,11 @@ def replace_table(game_path: str, filename: str, content: bytes, file_type: str,
                 os.replace(old_ini, new_ini)
             renamed_ini = new_ini.name
 
-        refresh_game(str(game_dir))
+        refresh_game(game_dir)
         return {
             "file_type": "vpx",
             "filename": new_vpx.name,
-            "table_path": str(game_dir),
+            "game_dir": str(game_dir),
             "directb2s_filename": renamed_b2s,
             "ini_filename": renamed_ini,
         }
@@ -250,11 +250,11 @@ def replace_table(game_path: str, filename: str, content: bytes, file_type: str,
         target_b2s = old_b2s if old_b2s else game_dir / f"{current_vpx.stem}.directb2s"
         _write_replace(target_b2s, content)
 
-        refresh_game(str(game_dir))
+        refresh_game(game_dir)
         return {
             "file_type": "directb2s",
             "filename": target_b2s.name,
-            "table_path": str(game_dir),
+            "game_dir": str(game_dir),
         }
 
     raise ValueError("Unsupported table update type")
@@ -314,7 +314,7 @@ def associate_vps_to_folder(
 
     from common.games.media_service import invalidate_media_cache
     invalidate_media_cache()
-    refresh_game(str(game_folder))
+    refresh_game(game_folder)
 
 
 def scan_game_rows(reload: bool = False) -> list[dict]:
@@ -325,7 +325,7 @@ def scan_missing_game_rows(reload: bool = False) -> list[dict]:
     return game_index_service.scan_missing_rows(reload=reload)
 
 
-def extract_vbs(game_path: str, vpx_filename: str, altlauncher: str = "") -> dict:
+def extract_vbs(game_dir: Path, vpx_filename: str, altlauncher: str = "") -> dict:
     """Run the VPX binary with -extractvbs to extract a table's .vbs script.
 
     VPX writes the extracted .vbs next to the .vpx file (the game's root dir)
@@ -348,7 +348,7 @@ def extract_vbs(game_path: str, vpx_filename: str, altlauncher: str = "") -> dic
     if not vpxbin_path.exists():
         raise FileNotFoundError(f"Launcher not found ({source_key}): {vpxbin_path}")
 
-    vpx_file = Path(game_path) / vpx_filename
+    vpx_file = game_dir / vpx_filename
     if not vpx_file.is_file():
         raise FileNotFoundError(f"Table file not found: {vpx_file}")
 

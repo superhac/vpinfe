@@ -12,13 +12,13 @@ def scan_mobile_games(reload: bool = False) -> list[dict]:
     """Return the compact game shape used by the mobile transfer page."""
     games = []
     for row in game_index_service.scan_rows(reload=reload):
-        game_path = row.get("table_path", "")
+        game_dir = row.get("game_dir", "")
         games.append({
             "name": row.get("name", ""),
             "manufacturer": row.get("manufacturer", ""),
             "year": str(row.get("year", "") or ""),
-            "game_dir_name": Path(game_path).name if game_path else "",
-            "table_path": game_path,
+            "game_dir_name": Path(game_dir).name if game_dir else "",
+            "game_dir": game_dir,
             "vpinfe_id": row.get("vpinfe_id", ""),
         })
     return games
@@ -43,11 +43,11 @@ def scan_launchable_games(games_path: str | None = None) -> list[dict]:
     """Return launchable game rows from the shared game index."""
     games = []
     for row in game_index_service.scan_rows(reload=False):
-        game_path = row.get("table_path", "")
+        game_dir = row.get("game_dir", "")
         filename = row.get("filename", "")
-        if not game_path or not filename:
+        if not game_dir or not filename:
             continue
-        vpx_path = str(Path(game_path) / filename)
+        vpx_path = str(Path(game_dir) / filename)
         name = row.get("name", "")
         manufacturer = row.get("manufacturer", "")
         year = row.get("year", "")
@@ -64,7 +64,7 @@ def scan_launchable_games(games_path: str | None = None) -> list[dict]:
             "name": name,
             "display_name": display_name,
             "vpx_path": vpx_path,
-            "table_path": game_path,
+            "game_dir": game_dir,
             "vpsid": row.get("vpsid", ""),
             "vpinfe_id": row.get("vpinfe_id", ""),
             "manufacturer": manufacturer,

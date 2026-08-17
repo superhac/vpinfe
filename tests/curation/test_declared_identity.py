@@ -167,34 +167,34 @@ class DropDeclarationTests(TempTree):
         self.folder = write_game(self.root, "Example", info={
             "Info": {"Name": "Example"}, "vpinfe": {"game_id": "abc123"}, "User": {}})
 
-    def _declared_for(self, path, names):
+    def _declared_for(self, game_dir, names):
         from managerui.pages.dnd_drop_zone import _declared_for
-        return _declared_for(path, names)
+        return _declared_for(game_dir, names)
 
     def test_a_drop_on_a_game_declares_that_game(self) -> None:
-        declared = self._declared_for(str(self.folder), {"wheel.png"})
+        declared = self._declared_for(self.folder, {"wheel.png"})
         self.assertEqual(declared["wheel.png"].game_id, "abc123")
 
     def test_a_person_choosing_a_target_is_user_not_declared(self) -> None:
         """`declared` is reserved for something that fetched the file from a record and
         therefore witnessed the identity, rather than deciding it."""
-        declared = self._declared_for(str(self.folder), {"wheel.png"})
+        declared = self._declared_for(self.folder, {"wheel.png"})
         self.assertEqual(declared["wheel.png"].confirmed_by, claims.USER)
 
     def test_a_drop_names_no_upstream_record(self) -> None:
         """Nothing may enter the .info claiming to be a VPS file on the strength of a
         drag gesture - that binding only comes from a client that fetched one."""
-        identity = self._declared_for(str(self.folder), {"wheel.png"})["wheel.png"]
+        identity = self._declared_for(self.folder, {"wheel.png"})["wheel.png"]
         self.assertFalse(identity.names_a_record)
         self.assertEqual(identity.problems(), [])
 
     def test_a_drop_on_no_game_declares_nothing(self) -> None:
         """The unclaimed file joins the manual queue instead of guessing."""
-        self.assertEqual(self._declared_for("", {"wheel.png"}), {})
+        self.assertEqual(self._declared_for(None, {"wheel.png"}), {})
 
     def test_a_folder_with_no_id_declares_nothing(self) -> None:
         bare = write_game(self.root, "NoId", info={"Info": {"Name": "NoId"}})
-        self.assertEqual(self._declared_for(str(bare), {"wheel.png"}), {})
+        self.assertEqual(self._declared_for(bare, {"wheel.png"}), {})
 
 
 class ImportRecordingTests(TempTree):
@@ -218,7 +218,7 @@ class ImportRecordingTests(TempTree):
             zf.writestr("Target.directb2s", "b2s bytes")
 
         analysis, source = analyze_upload_session(session)
-        plan = build_import_plan(analysis, game_path=str(game))
+        plan = build_import_plan(analysis, game_dir=game)
         declared = {"Target.directb2s": identity} if identity else None
         execute_import_plan(plan, source, declared=declared)
         return MetaConfig(str(game / "Target.info"))

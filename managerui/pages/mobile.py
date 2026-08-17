@@ -126,11 +126,11 @@ def _send_game_to_device(
     copy_masked_tableini_as_default = _to_bool(copy_masked_tableini_as_default)
 
     games_path = _get_games_path()
-    game_path = os.path.join(games_path, game_dir_name)
+    game_dir = os.path.join(games_path, game_dir_name)
     base_url = f'http://{host}:{port}'
 
-    if not os.path.isdir(game_path):
-        raise FileNotFoundError(f"Table directory not found: {game_path}")
+    if not os.path.isdir(game_dir):
+        raise FileNotFoundError(f"Table directory not found: {game_dir}")
 
     masked_ini_name_for_copy = ''
     default_ini_name_for_copy = ''
@@ -142,7 +142,7 @@ def _send_game_to_device(
         mask = mask.strip().strip('.')
         if mask:
             try:
-                root_entries = os.listdir(game_path)
+                root_entries = os.listdir(game_dir)
             except Exception:
                 root_entries = []
             root_vpx_files = sorted([f for f in root_entries if f.lower().endswith('.vpx')])
@@ -156,18 +156,18 @@ def _send_game_to_device(
                     expected_masked_ini_name,
                 )
                 masked_ini_exists_for_copy = os.path.isfile(
-                    os.path.join(game_path, masked_ini_name_for_copy)
+                    os.path.join(game_dir, masked_ini_name_for_copy)
                 )
 
     # The standalone bundle for the game's default table - the same answer the VPXZ
     # download gives. Whole-folder export is API-only, under its own scope.
     from common.games.export_bundle import bundle_paths, prune_info
     pruned_info_path = None
-    contents = list(bundle_paths(Path(game_path), everything=False))
+    contents = list(bundle_paths(Path(game_dir), everything=False))
     allowed = {arcname.replace(os.sep, '/') for _, arcname in contents}
     info_name = f'{game_dir_name}.info'
     if info_name in allowed:
-        source = os.path.join(game_path, info_name)
+        source = os.path.join(game_dir, info_name)
         try:
             import tempfile as _tempfile
             with open(source, encoding='utf-8', errors='replace') as fh:
@@ -183,12 +183,12 @@ def _send_game_to_device(
     def _in_bundle(dirpath, fname):
         if allowed is None:
             return True
-        rel = os.path.relpath(os.path.join(dirpath, fname), game_path)
+        rel = os.path.relpath(os.path.join(dirpath, fname), game_dir)
         return rel.replace(os.sep, '/') in allowed
 
     # Collect all files first to calculate total count
     all_files = []
-    for dirpath, _dirnames, filenames in os.walk(game_path):
+    for dirpath, _dirnames, filenames in os.walk(game_dir):
         filenames = [f for f in filenames if _in_bundle(dirpath, f)]
         rel_dir = os.path.relpath(dirpath, games_path)
 
@@ -200,7 +200,7 @@ def _send_game_to_device(
             # original masked ini; we optionally upload it only as the default ini name.
             if (
                 masked_ini_name_for_copy
-                and dirpath == game_path
+                and dirpath == game_dir
                 and fname.lower() == masked_ini_name_for_copy.lower()
             ):
                 continue
@@ -208,7 +208,7 @@ def _send_game_to_device(
                 copy_masked_tableini_as_default
                 and masked_ini_exists_for_copy
                 and default_ini_name_for_copy
-                and dirpath == game_path
+                and dirpath == game_dir
                 and fname.lower() == default_ini_name_for_copy.lower()
             ):
                 # In mask-copy mode, when masked ini exists, suppress local default ini.
@@ -241,7 +241,7 @@ def _send_game_to_device(
     # Safety rule: when both options are OFF, transfer all .ini files as-is.
     if not exclude_ini and not copy_masked_tableini_as_default:
         existing_keys = {(rel_dir, fname.lower()) for rel_dir, fname, _, _ in all_files}
-        for dirpath, _, filenames in os.walk(game_path):
+        for dirpath, _, filenames in os.walk(game_dir):
             rel_dir = os.path.relpath(dirpath, games_path)
             for fname in filenames:
                 if not fname.lower().endswith('.ini'):
@@ -258,8 +258,8 @@ def _send_game_to_device(
 
     if copy_masked_tableini_as_default:
         if masked_ini_name_for_copy and default_ini_name_for_copy:
-            masked_ini_path = os.path.join(game_path, masked_ini_name_for_copy)
-            rel_root_dir = os.path.relpath(game_path, games_path)
+            masked_ini_path = os.path.join(game_dir, masked_ini_name_for_copy)
+            rel_root_dir = os.path.relpath(game_dir, games_path)
 
             default_already_in_file_list = any(
                 rel_dir == rel_root_dir and fname.lower() == default_ini_name_for_copy.lower()
@@ -298,9 +298,9 @@ def _send_game_to_device(
     try:
         # Collect unique directories to create
         dirs_to_create = set()
-        for dirpath, _, _ in os.walk(game_path):
+        for dirpath, _, _ in os.walk(game_dir):
             if allowed is not None:
-                rel_within = os.path.relpath(dirpath, game_path).replace(os.sep, '/')
+                rel_within = os.path.relpath(dirpath, game_dir).replace(os.sep, '/')
                 if rel_within != '.' and not any(
                         arc.startswith(rel_within + '/') for arc in allowed):
                     continue

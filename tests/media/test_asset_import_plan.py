@@ -44,7 +44,7 @@ class ImportPlanTests(unittest.TestCase):
             zip_path = Path(tmp) / "assets.zip"
             make_zip(zip_path, ["new.vpx", "MyPup/screens.pup", "MyPup/s1/a.mp4", "wheel.png"])
             analysis = analyze_path(zip_path)
-            plan = build_import_plan(analysis, game_path=str(game_dir), rom_name="mm")
+            plan = build_import_plan(analysis, game_dir=game_dir, rom_name="mm")
             actions = plan_kinds_by_action(plan)
             self.assertEqual(actions["table"], "replace_vpx")
             self.assertEqual(actions["pup_pack"], "extract_tree")
@@ -119,7 +119,7 @@ class MediaSlotPlanTests(unittest.TestCase):
                 with self.subTest(filename=filename, media_key=media_key):
                     src = Path(tmp) / filename
                     src.write_bytes(b"x")
-                    plan = build_media_slot_plan(src, game_path=tmp, media_key=media_key)
+                    plan = build_media_slot_plan(src, game_dir=Path(tmp), media_key=media_key)
                     if ok:
                         self.assertEqual(len(plan.items), 1)
                         self.assertEqual(plan.items[0].action, "replace_media")
@@ -134,10 +134,10 @@ class MediaSlotPlanTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             archive = Path(tmp) / "pack.zip"
             archive.write_bytes(b"x")
-            plan = build_media_slot_plan(archive, game_path=tmp, media_key="wheel")
+            plan = build_media_slot_plan(archive, game_dir=Path(tmp), media_key="wheel")
             self.assertEqual(plan.items, ())
             with self.assertRaises(ValueError):
-                build_media_slot_plan(archive, game_path=tmp, media_key="not_a_slot")
+                build_media_slot_plan(archive, game_dir=Path(tmp), media_key="not_a_slot")
 
     def test_execute_slot_plan_calls_replace(self):
         from pathlib import Path
@@ -147,7 +147,7 @@ class MediaSlotPlanTests(unittest.TestCase):
             game_dir.mkdir()
             src = Path(tmp) / "cool-art.png"
             src.write_bytes(b"png-bytes")
-            plan = build_media_slot_plan(src, game_path=str(game_dir), media_key="wheel")
+            plan = build_media_slot_plan(src, game_dir=game_dir, media_key="wheel")
             with mock.patch("common.uploads.asset_import_service.replace_media_file") as fake:
                 report = execute_import_plan(plan, src)
             self.assertEqual(fake.call_args.args[2], "wheel")

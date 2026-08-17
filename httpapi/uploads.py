@@ -71,7 +71,7 @@ def _analysis_to_dict(analysis: AnalysisResult) -> dict:
 
 def _plan_to_dict(plan: ImportPlan) -> dict:
     return {
-        "game_path": plan.game_path,
+        "game_dir": plan.game_dir,
         "new_game_dir_name": plan.new_game_dir_name,
         "rom_name": plan.rom_name,
         "items": [
@@ -169,7 +169,7 @@ def plan_upload(upload_id: str,
     vps_entry = _vps_entry(payload.vps_id)
     plan = build_import_plan(
         analysis,
-        game_path=payload.game_path,
+        game_dir=Path(payload.game_dir) if payload.game_dir else None,
         rom_name=payload.rom_name,
         allow_new_game=payload.allow_new_game,
     )
@@ -213,7 +213,7 @@ def import_upload(upload_id: str,
     vps_entry = _vps_entry(payload.vps_id)
     plan = build_import_plan(
         analysis,
-        game_path=payload.game_path,
+        game_dir=Path(payload.game_dir) if payload.game_dir else None,
         rom_name=payload.rom_name,
         allow_new_game=payload.allow_new_game,
     )
@@ -245,9 +245,9 @@ def import_upload(upload_id: str,
         from common.games.game_service import associate_vps_to_folder, build_metadata
 
         try:
-            associate_vps_to_folder(Path(report["table_path"]), vps_entry, True)
+            associate_vps_to_folder(Path(report["game_dir"]), vps_entry, True)
             build_metadata(downloadMedia=True, updateAll=True,
-                           gameName=Path(report["table_path"]).name)
+                           gameName=Path(report["game_dir"]).name)
             report["vps_associated"] = True
         except Exception as exc:
             logger.exception("VPS association failed after import")

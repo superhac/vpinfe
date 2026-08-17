@@ -128,14 +128,14 @@ def restorable_game_names() -> list[str]:
     )
 
 
-def refresh_game(game_path: str) -> list[Any]:
+def refresh_game(game_dir: Path) -> list[Any]:
     """Re-read one game folder, not the library.
 
     The whole-library reload this used to do is why setting a star rating on a big
     network share took minutes: every caller changes one folder and then paid to look
     at all of them.
     """
-    normalized = str(Path(game_path).expanduser().resolve())
+    normalized = str(Path(game_dir).expanduser().resolve())
     started_at = perf_counter()
     with _LOCK:
         if _PARSER is None or not _PARSER.getGameCount():
@@ -234,7 +234,7 @@ def game_to_row(game, collections_map: dict[str, list[str]] | None = None) -> di
         "detectflex": gf_value("detect_flex"),
         "detectpinmame": gf_value("detect_pinmame"),
         "patch_applied": gf_value("patch_applied", False),
-        "table_path": game.fullPathGame,
+        "game_dir": game.fullPathGame,
         "b2s_exists": bool(getattr(game, "b2sExists", False)),
         "pup_pack_exists": bool(getattr(game, "pupPackExists", False)),
         "serum_exists": bool(getattr(game, "altColorExists", False)),

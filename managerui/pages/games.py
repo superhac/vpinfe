@@ -163,7 +163,7 @@ def parse_game_info(info_path):
             "patch_applied": get(("table", "patch_applied"), default=False),
 
             # Internal
-            "table_path": game_dir,
+            "game_dir": game_dir,
 
             # Addon detection (check for directories)
             "pup_pack_exists": (Path(game_dir) / "pupvideos").is_dir(),
@@ -221,9 +221,9 @@ def render_panel(tab=None):
                 clicked_row = e.args[1]
                 # Look up the actual row from the cache to get the latest data
                 # (the clicked row from Quasar is a copy that may be stale)
-                game_path = clicked_row.get('table_path', '')
+                game_dir = clicked_row.get('game_dir', '')
                 row_data = clicked_row
-                cached_row = game_index_service.find_by_path(game_path) if game_path else None
+                cached_row = game_index_service.find_by_path(Path(game_dir)) if game_dir else None
                 if cached_row is not None:
                     row_data = cached_row
                 # Pass update_game_display as callback to refresh the grid when the dialog closes
@@ -576,11 +576,15 @@ def render_panel(tab=None):
         # not read, news that the library was converted, or an offer to finish one.
         render_info_banners(on_done=lambda: asyncio.create_task(perform_scan(silent=True)))
 
+        def _row_game_dir(row: dict) -> Path | None:
+            folder = row.get('game_dir', '')
+            return Path(folder) if folder else None
+
         def _dnd_context() -> DropContext:
             selected = games_table.selected or []
             if len(selected) == 1:
                 row = selected[0]
-                return DropContext(game_path=row.get('table_path', ''), game_row=row,
+                return DropContext(game_dir=_row_game_dir(row), game_row=row,
                                    rom_name=(row.get('rom') or '').strip(), allow_new_game=True)
             return DropContext(allow_new_game=True)
 
@@ -588,7 +592,7 @@ def render_panel(tab=None):
             row = next((r for r in (game_index_service.get_rows() or []) if r.get('vpinfe_id') == row_key), None)
             if not row:
                 return None
-            return DropContext(game_path=row.get('table_path', ''), game_row=row,
+            return DropContext(game_dir=_row_game_dir(row), game_row=row,
                                rom_name=(row.get('rom') or '').strip())
 
         drop_zone = create_drop_zone(

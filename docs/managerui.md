@@ -69,7 +69,7 @@ Under `common/games/`:
 - `export_bundle.py`: what belongs in a game export, for every transport.
 - `media_service.py`: media scanning, thumbnail cache paths, media replacement, and media cache invalidation.
 - `asset_registry.py`: what a file is, judged by its name — which media kind, or none.
-- `game_index_service.py`: shared game cache and lookup indexes (`table_path`, folder, VPS ID, search blobs, missing rows).
+- `game_index_service.py`: shared game cache and lookup indexes (`game_dir`, folder, VPS ID, search blobs, missing rows).
 - `game_service.py`: shared game metadata, VPSdb, collection, upload, and game-association operations.
 
 Under `common/uploads/`:

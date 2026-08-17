@@ -165,7 +165,7 @@ def _tables(game, row: dict) -> list[dict]:
     table pointing at a missing file is something the caller should see - but the
     default falls to one that exists, since the default is what a caller would launch.
     """
-    game_dir = Path(row.get("table_path", ""))
+    game_dir = Path(row.get("game_dir", ""))
     described = _table_settings(game_dir)
 
     files, subdirs = _listing(game_dir)
@@ -282,7 +282,7 @@ def get_game(game_id: str) -> models.GameResource:
     game = _game_or_404(game_id)
     row = game_to_row(game, collections_by_game_id())
     resource = _resource(row, game_id)
-    resource["assets"] = _inventory_assets(Path(row.get("table_path", "")))
+    resource["assets"] = _inventory_assets(Path(row.get("game_dir", "")))
     return resource
 
 

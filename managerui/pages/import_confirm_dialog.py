@@ -83,7 +83,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
 
     def _row_destination(item) -> str:
         # Relative to the game folder; the folder itself is stated by the title/name field.
-        base = Path(plan.game_path)
+        base = Path(plan.game_dir)
         dest = Path(item.destination)
         try:
             rel = dest.relative_to(base)
@@ -103,12 +103,12 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
         if item.action == "write_info":
             if plan.new_game_dir_name:
                 return "adopts bundle metadata"
-            if Path(plan.game_path, f"{Path(plan.game_path).name}.info").exists():
+            if Path(plan.game_dir, f"{Path(plan.game_dir).name}.info").exists():
                 return "merges into existing metadata — fills gaps only · backup kept"
             return "adopts bundle metadata"
         if plan.new_game_dir_name:
             return ""   # brand-new folder; nothing can be replaced
-        base = Path(plan.game_path)
+        base = Path(plan.game_dir)
         if item.action == "replace_vpx":
             existing = sorted(base.glob("*.vpx"))
             if existing:
@@ -127,7 +127,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
             ui.label("Files keep their names — only the folder is named here").classes(
                 "text-xs").style("color: var(--ink-muted);")
         else:
-            ui.label(f"Import to {Path(plan.game_path).name}").classes("text-lg font-bold").style("color: var(--ink);")
+            ui.label(f"Import to {Path(plan.game_dir).name}").classes("text-lg font-bold").style("color: var(--ink);")
             if not single:
                 ui.label(f"from {title_source}").classes("text-xs").style("color: var(--ink-muted);")
 
@@ -339,7 +339,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                     loading_label.set_text("Associating with VPS and downloading media...")
                 try:
                     await run.io_bound(game_service.associate_vps_to_folder,
-                                       Path(report["table_path"]), vps_entry, True)
+                                       Path(report["game_dir"]), vps_entry, True)
                     await run.io_bound(game_service.build_metadata, downloadMedia=True,
                                        updateAll=True, gameName=resolved.new_game_dir_name)
                 except Exception:

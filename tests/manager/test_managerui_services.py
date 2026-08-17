@@ -82,7 +82,7 @@ class ManagerUiServiceTests(unittest.TestCase):
 
             with mock.patch("common.games.game_service.refresh_game"):
                 result = replace_table(
-                    str(game_dir),
+                    game_dir,
                     "New Table.vpx",
                     b"new vpx",
                     "vpx",
@@ -109,7 +109,7 @@ class ManagerUiServiceTests(unittest.TestCase):
 
             with mock.patch("common.games.game_service.refresh_game"):
                 result = replace_table(
-                    str(game_dir),
+                    game_dir,
                     "Uploaded.directb2s",
                     b"new b2s",
                     "directb2s",
@@ -127,7 +127,7 @@ class ManagerUiServiceTests(unittest.TestCase):
 
             with mock.patch("common.games.game_service.refresh_game"):
                 result = replace_table(
-                    str(game_dir),
+                    game_dir,
                     "Uploaded.directb2s",
                     b"new b2s",
                     "directb2s",
@@ -244,7 +244,7 @@ class ManagerUiServiceTests(unittest.TestCase):
         invalidate_media_cache()
         self.assertEqual(media_url("media_games", "A B", "medias", "bg.png"),
                          "/media_games/A%20B/medias/bg.png")
-        set_media_cache([{"game_dir": "A B", "media": {}, "thumbs": {},
+        set_media_cache([{"game_dir_name": "A B", "media": {}, "thumbs": {},
                           "thumb_errors": {"bg": True}}])
         update_cache_entry("A B", "bg", "/media_games/A%20B/medias/bg.png",
                            "/media_thumbs/A%20B/bg.png")
@@ -326,15 +326,15 @@ class ManagerUiServiceTests(unittest.TestCase):
     def test_game_index_lookup_update_and_search(self):
         rows = set_rows([
             {"vpinfe_id": "afm", "name": "Attack From Mars", "filename": "afm.vpx",
-             "table_path": "/tmp/tables/Attack", "collections": []},
+             "game_dir": "/tmp/tables/Attack", "collections": []},
             {"vpinfe_id": "mm", "name": "Medieval Madness", "filename": "mm.vpx",
-             "table_path": "/tmp/tables/MM", "collections": []},
+             "game_dir": "/tmp/tables/MM", "collections": []},
         ])
         set_missing_rows([{"folder": "Loose"}])
 
-        self.assertEqual(find_by_path("/tmp/tables/Attack")["vpinfe_id"], "afm")
+        self.assertEqual(find_by_path(Path("/tmp/tables/Attack"))["vpinfe_id"], "afm")
         self.assertEqual(search_rows("medieval")[0]["vpinfe_id"], "mm")
-        update_row_by_path("/tmp/tables/MM", {"rating": 5})
+        update_row_by_path(Path("/tmp/tables/MM"), {"rating": 5})
         self.assertEqual(rows[1]["rating"], 5)
         add_collection_membership("afm", "Favorites")
         self.assertEqual(rows[0]["collections"], ["Favorites"])

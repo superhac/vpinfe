@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from common.games.tables import entry_for_filename, is_parsed
@@ -32,7 +33,7 @@ class PatchAssetTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "mod.zip")
             make_zip(path, ["CactusCanyon.dif"])
-            plan = build_import_plan(analyze_path(path), game_path=tmp)
+            plan = build_import_plan(analyze_path(path), game_dir=Path(tmp))
             self.assertFalse(plan.items)
             self.assertTrue(any("base table" in b.reason for b in plan.blocked))
 
@@ -45,7 +46,7 @@ class PatchAssetTests(unittest.TestCase):
             Path(tmp, "Table.vpx").write_bytes(b"x" * 64)
             path = os.path.join(tmp, "mod.zip")
             make_zip(path, ["CactusCanyon VPW Mod 1.2.dif"])
-            plan = build_import_plan(analyze_path(path), game_path=tmp)
+            plan = build_import_plan(analyze_path(path), game_dir=Path(tmp))
             self.assertEqual([i.action for i in plan.items], ["apply_patch"])
             dest = Path(plan.items[0].destination)
             self.assertEqual(dest.name, "CactusCanyon VPW Mod 1.2.vpx")
@@ -59,7 +60,7 @@ class PatchAssetTests(unittest.TestCase):
             Path(tmp, "Cactus Canyon.vpx").write_bytes(b"x" * 64)
             path = os.path.join(tmp, "mod.zip")
             make_zip(path, ["cactus canyon.dif"])   # same name, other case
-            plan = build_import_plan(analyze_path(path), game_path=tmp)
+            plan = build_import_plan(analyze_path(path), game_dir=Path(tmp))
             dest = Path(plan.items[0].destination)
             self.assertEqual(dest.name, "cactus canyon [patched].vpx")
 
@@ -73,7 +74,7 @@ class PatchAssetTests(unittest.TestCase):
             Path(tmp, "Cactus Canyon (VR).vpx").write_bytes(b"x" * 32)
             path = os.path.join(tmp, "mod.zip")
             make_zip(path, ["Cactus Canyon (VR).dif"])
-            plan = build_import_plan(analyze_path(path), game_path=tmp)
+            plan = build_import_plan(analyze_path(path), game_dir=Path(tmp))
             dest = Path(plan.items[0].destination)
             self.assertEqual(dest.name, "Cactus Canyon (VR) [patched].vpx")
 
@@ -88,7 +89,7 @@ class PatchAssetTests(unittest.TestCase):
             path = os.path.join(tmp, "mod.zip")
             make_zip(path, ["CC VPW Mod 1.2.dif", "CC VPW Mod 1.2.ini",
                              "CC VPW Mod 1.2.directb2s"])
-            plan = build_import_plan(analyze_path(path), game_path=tmp)
+            plan = build_import_plan(analyze_path(path), game_dir=Path(tmp))
             by_kind = {i.asset.kind: Path(i.destination).name for i in plan.items}
 
             self.assertEqual(by_kind["patch"], "CC VPW Mod 1.2.vpx")
@@ -104,7 +105,7 @@ class PatchAssetTests(unittest.TestCase):
             Path(tmp, "Cactus Canyon.vpx").write_bytes(b"x" * 64)
             path = os.path.join(tmp, "b2s.zip")
             make_zip(path, ["Whatever It Was Called.directb2s"])
-            plan = build_import_plan(analyze_path(path), game_path=tmp)
+            plan = build_import_plan(analyze_path(path), game_dir=Path(tmp))
 
             self.assertEqual(Path(plan.items[0].destination).name, "Cactus Canyon.directb2s")
 
@@ -127,7 +128,7 @@ class PatchAssetTests(unittest.TestCase):
             with zipfile.ZipFile(zip_path, "w") as archive:
                 archive.writestr("Mod.dif", bytes([ESC, EQL, 5]))   # copy all six bytes
 
-            plan = build_import_plan(analyze_path(zip_path), game_path=str(game_dir))
+            plan = build_import_plan(analyze_path(zip_path), game_dir=game_dir)
             execute_import_plan(plan, zip_path)
 
             patched = game_dir / "Mod.vpx"
@@ -157,7 +158,7 @@ class PatchAssetTests(unittest.TestCase):
 
             parsed = {"file_hash": "abc123", "version": "1.2", "rom": "mod_rom",
                       "author_name": "VPW", "detect_ssf": True}
-            plan = build_import_plan(analyze_path(zip_path), game_path=str(game_dir))
+            plan = build_import_plan(analyze_path(zip_path), game_dir=game_dir)
             with mock.patch.object(asset_import_service, "VPXParser") as parser:
                 parser.return_value.singleFileExtract.return_value = parsed
                 execute_import_plan(plan, zip_path)
@@ -187,7 +188,7 @@ class PatchAssetTests(unittest.TestCase):
             with zipfile.ZipFile(zip_path, "w") as archive:
                 archive.writestr("Mod.dif", bytes([ESC, EQL, 5]))
 
-            plan = build_import_plan(analyze_path(zip_path), game_path=str(game_dir))
+            plan = build_import_plan(analyze_path(zip_path), game_dir=game_dir)
             with mock.patch.object(asset_import_service, "VPXParser") as parser:
                 parser.return_value.singleFileExtract.return_value = None
                 execute_import_plan(plan, zip_path)
@@ -217,7 +218,7 @@ class PatchAssetTests(unittest.TestCase):
             with zipfile.ZipFile(zip_path, "w") as archive:
                 archive.writestr("Mod.dif", bytes([ESC, EQL, 5]))
 
-            plan = build_import_plan(analyze_path(zip_path), game_path=str(game_dir))
+            plan = build_import_plan(analyze_path(zip_path), game_dir=game_dir)
             with self.assertLogs("vpinfe.manager.asset_import", level="WARNING"):
                 execute_import_plan(plan, zip_path)
 

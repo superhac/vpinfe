@@ -23,7 +23,7 @@ _loaded = False
 _missing_loaded = False
 
 
-def _normalize_path(path: str) -> str:
+def _normalize_path(path: str | Path) -> str:
     if not path:
         return ""
     try:
@@ -39,8 +39,8 @@ def _build_index(rows: list[dict], missing_rows: list[dict] | None = None) -> Ga
     searchable = []
 
     for row in rows:
-        game_path = row.get("table_path", "")
-        normalized_path = _normalize_path(game_path)
+        game_dir = row.get("game_dir", "")
+        normalized_path = _normalize_path(game_dir)
         if normalized_path:
             by_path[normalized_path] = row
             by_dir[Path(normalized_path).name] = row
@@ -120,12 +120,12 @@ def scan_game_data(reload: bool = False) -> tuple[list[dict], list[dict]]:
     return set_game_data(rows, missing_rows)
 
 
-def find_by_path(game_path: str) -> dict | None:
-    return _index.by_path.get(_normalize_path(game_path))
+def find_by_path(game_dir: Path) -> dict | None:
+    return _index.by_path.get(_normalize_path(game_dir))
 
 
-def find_by_dir(game_dir: str) -> dict | None:
-    return _index.by_dir.get(game_dir)
+def find_by_dir(game_dir_name: str) -> dict | None:
+    return _index.by_dir.get(game_dir_name)
 
 
 def find_by_game_id(game_id: str) -> dict | None:
@@ -147,8 +147,8 @@ def search_rows(term: str, *, limit: int = 20, rows: list[dict] | None = None) -
     return [row for blob, row in searchable if term in blob][:limit]
 
 
-def update_row_by_path(game_path: str, updates: dict) -> dict | None:
-    row = find_by_path(game_path)
+def update_row_by_path(game_dir: Path, updates: dict) -> dict | None:
+    row = find_by_path(game_dir)
     if row is None:
         return None
     row.update(updates)

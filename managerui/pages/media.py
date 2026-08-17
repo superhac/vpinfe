@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import shutil
+from pathlib import Path
 
 from nicegui import app, context, events, run, ui
 
@@ -196,8 +197,8 @@ def render_panel():
                             continue
                         if thumbs.get(media_key) or errors.get(media_key):
                             continue
-                        source_path = media_service.source_media_path(row.get('table_path', ''), media_key)
-                        if source_path and media_service.mark_thumb_requested(row.get('game_dir', ''), media_key, source_path):
+                        source_path = media_service.source_media_path(Path(row.get('game_dir', '')), media_key)
+                        if source_path and media_service.mark_thumb_requested(row.get('game_dir_name', ''), media_key, source_path):
                             pending.append((row, media_key, source_path))
 
                 if not pending:
@@ -211,7 +212,7 @@ def render_panel():
                     changed = False
                     try:
                         async with sem:
-                            thumb = await run.io_bound(media_service.ensure_thumb, row.get('game_dir', ''), media_key, source_path)
+                            thumb = await run.io_bound(media_service.ensure_thumb, row.get('game_dir_name', ''), media_key, source_path)
                         if thumb:
                             if row['thumbs'].get(media_key) != thumb:
                                 row['thumbs'][media_key] = thumb
@@ -222,7 +223,7 @@ def render_panel():
                     except Exception:
                         row.setdefault('thumb_errors', {})[media_key] = True
                     finally:
-                        media_service.clear_thumb_request(row.get('game_dir', ''), media_key, source_path)
+                        media_service.clear_thumb_request(row.get('game_dir_name', ''), media_key, source_path)
                     return changed
 
                 for i in range(0, len(pending), THUMB_WARM_CHUNK_SIZE):
@@ -380,7 +381,8 @@ def render_panel():
 
         # --- Media replacement logic ---
 
-        def open_replace_dialog(game_dir: str, game_path: str, game_name: str, media_key: str, media_label: str):
+        def open_replace_dialog(game_dir_name: str, game_dir: Path, game_name: str,
+                                media_key: str, media_label: str):
             """Open a dialog to replace a media file for a game."""
             target_filename = MEDIA_KEY_TO_FILENAME[media_key]
             is_video = target_filename.endswith('.mp4')
@@ -391,7 +393,7 @@ def render_panel():
             # Find current media URL from cache
             if media_service.get_media_cache():
                 for row in media_service.get_media_cache():
-                    if row['game_dir'] == game_dir:
+                    if row['game_dir_name'] == game_dir_name:
                         current_url = row['media'].get(media_key)
                         break
 
@@ -418,7 +420,7 @@ def render_panel():
 
                 async def handle_upload(e: events.UploadEventArguments):
                     # Save to a temp location first
-                    tmp_dir = os.path.join(game_path, '.tmp_upload')
+                    tmp_dir = os.path.join(game_dir, '.tmp_upload')
                     os.makedirs(tmp_dir, exist_ok=True)
                     tmp_path = os.path.join(tmp_dir, e.file.name)
                     with open(tmp_path, 'wb') as f:
@@ -441,16 +443,16 @@ def render_panel():
                             return
                         try:
                             src = upload_state['path']
-                            target_path = await run.io_bound(media_service.replace_media_file, game_path, game_dir, media_key, src)
+                            target_path = await run.io_bound(media_service.replace_media_file, game_dir, game_dir_name, media_key, src)
 
                             # Build the URL for the new media (now in medias/ subfolder)
-                            new_url = media_service.media_url('media_games', game_dir, 'medias', target_filename)
-                            new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir, media_key, target_path)
-                            media_service.update_cache_entry(game_dir, media_key, new_url, new_thumb)
+                            new_url = media_service.media_url('media_games', game_dir_name, 'medias', target_filename)
+                            new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir_name, media_key, target_path)
+                            media_service.update_cache_entry(game_dir_name, media_key, new_url, new_thumb)
                             update_game_display()
 
                             # Cleanup temp
-                            tmp_dir = os.path.join(game_path, '.tmp_upload')
+                            tmp_dir = os.path.join(game_dir, '.tmp_upload')
                             if os.path.exists(tmp_dir):
                                 shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -538,7 +540,7 @@ def render_panel():
 
         with table_container:
             media_table = (
-                ui.table(columns=columns, rows=initial_rows, row_key='game_dir', pagination=dict(pagination_state))
+                ui.table(columns=columns, rows=initial_rows, row_key='game_dir_name', pagination=dict(pagination_state))
                   .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
                   .classes("w-full")
                   .style("flex: 1; overflow: auto;")
@@ -547,12 +549,12 @@ def render_panel():
             # Custom slot for each media type column to show thumbnail or missing indicator
             for media_key, _media_label, media_filename in MEDIA_TYPES:
                 col_name = media_key
-                emit_expr = "$parent.$emit('media_click', [props.row.game_dir, props.row.table_path, props.row.name, '" + media_key + "'])"
+                emit_expr = "$parent.$emit('media_click', [props.row.game_dir_name, props.row.game_dir, props.row.name, '" + media_key + "'])"
                 is_video = media_filename.endswith('.mp4')
                 is_audio = media_filename.endswith('.mp3')
 
                 cell_td = ('<q-td :props="props" data-drop-media-key="' + media_key
-                           + '" :data-drop-media-row="props.row.game_dir">')
+                           + '" :data-drop-media-row="props.row.game_dir_name">')
 
                 if is_audio:
                     media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
@@ -620,34 +622,35 @@ def render_panel():
             # Handle media click events from slot templates
             def on_media_click(e):
                 args = e.args
-                game_dir = args[0]
-                game_path = args[1]
+                game_dir_name = args[0]
+                game_dir = Path(args[1])
                 game_name = args[2]
                 media_key = args[3]
                 media_label = label_by_key.get(media_key, media_key)
                 open_replace_dialog(
+                    game_dir_name=game_dir_name,
                     game_dir=game_dir,
-                    game_path=game_path,
                     game_name=game_name,
                     media_key=media_key,
                     media_label=media_label,
                 )
             media_table.on('media_click', on_media_click)
 
-            def _cell_game_path(game_dir: str):
-                return next((r.get('table_path') for r in (media_service.get_media_cache() or [])
-                             if r.get('game_dir') == game_dir), None)
+            def _cell_game_dir(game_dir_name: str) -> Path | None:
+                folder = next((r.get('game_dir') for r in (media_service.get_media_cache() or [])
+                               if r.get('game_dir_name') == game_dir_name), None)
+                return Path(folder) if folder else None
 
             def _on_cell_imported(report):
                 async def _refresh():
-                    game_path = report.get('table_path', '')
-                    game_dir = os.path.basename(game_path.rstrip('/'))
+                    game_dir = report.get('game_dir', '')
+                    game_dir_name = os.path.basename(game_dir.rstrip('/'))
                     for media_key in report.get('media_keys', []):
                         target_filename = MEDIA_KEY_TO_FILENAME[media_key]
-                        target_path = os.path.join(game_path, 'medias', target_filename)
-                        new_url = media_service.media_url('media_games', game_dir, 'medias', target_filename)
-                        new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir, media_key, target_path)
-                        media_service.update_cache_entry(game_dir, media_key, new_url, new_thumb)
+                        target_path = os.path.join(game_dir, 'medias', target_filename)
+                        new_url = media_service.media_url('media_games', game_dir_name, 'medias', target_filename)
+                        new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir_name, media_key, target_path)
+                        media_service.update_cache_entry(game_dir_name, media_key, new_url, new_thumb)
                     update_game_display()
                 asyncio.create_task(_refresh())
 
@@ -657,7 +660,7 @@ def render_panel():
                 on_imported=_on_cell_imported,
                 visible=False,
             )
-            enable_cell_drops(media_drop_zone, media_table, _cell_game_path)
+            enable_cell_drops(media_drop_zone, media_table, _cell_game_dir)
 
             media_table.add_slot('bottom', '''
                 <div class="row full-width items-center q-pa-sm"

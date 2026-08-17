@@ -58,7 +58,7 @@ class BlockedItem:
 
 @dataclass(frozen=True)
 class ImportPlan:
-    game_path: str          # target game dir (existing, or the resolved new-game dir)
+    game_dir: str           # target game dir (existing, or the resolved new-game dir)
     new_game_dir_name: str  # non-empty only for new-game bundle imports
     rom_name: str
     items: tuple[PlannedItem, ...]
@@ -184,8 +184,9 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
     return None, BlockedItem(asset, f"Unsupported asset type: {kind}")
 
 
-def build_import_plan(analysis: AnalysisResult, *, game_path: str = "", game_row: dict | None = None,
-                      rom_name: str = "", allow_new_game: bool = False,
+def build_import_plan(analysis: AnalysisResult, *, game_dir: Path | None = None,
+                      game_row: dict | None = None, rom_name: str = "",
+                      allow_new_game: bool = False,
                       games_path: str | None = None) -> ImportPlan:
     """Route detected assets to destinations for an existing game or a new game bundle."""
     items: list[PlannedItem] = []
@@ -204,8 +205,8 @@ def build_import_plan(analysis: AnalysisResult, *, game_path: str = "", game_row
             (items if item else blocked).append(item or block)
         return ImportPlan(str(base), new_dir_name, "", tuple(items), tuple(blocked))
 
-    if game_path:
-        base = Path(game_path).expanduser()
+    if game_dir is not None:
+        base = game_dir.expanduser()
         try:
             vpx_stem = _find_vpx_file(base).stem
         except (FileNotFoundError, OSError):
@@ -227,7 +228,7 @@ def build_import_plan(analysis: AnalysisResult, *, game_path: str = "", game_row
     return ImportPlan("", "", rom_name, (), tuple(blocked))
 
 
-def build_media_slot_plan(source_path: Path, *, game_path: str, media_key: str) -> ImportPlan:
+def build_media_slot_plan(source_path: Path, *, game_dir: Path, media_key: str) -> ImportPlan:
     """Plan a targeted media-slot import from a single dropped file.
 
     The slot dictates the media key (no filename inference); the file only has to
@@ -248,7 +249,7 @@ def build_media_slot_plan(source_path: Path, *, game_path: str, media_key: str) 
 
     if src.is_dir() or src.suffix.lower() in ARCHIVE_EXTENSIONS:
         blocked = BlockedItem(asset, "Drop a single media file on a slot")
-        return ImportPlan(game_path, "", "", (), (blocked,))
+        return ImportPlan(str(game_dir), "", "", (), (blocked,))
 
     slot_suffix = Path(canonical).suffix.lower()
     suffix = src.suffix.lower()
@@ -260,11 +261,11 @@ def build_media_slot_plan(source_path: Path, *, game_path: str, media_key: str) 
         expected = "an image file"
     if not suitable:
         blocked = BlockedItem(asset, f"This slot expects {expected}, not {suffix or 'a file without extension'}")
-        return ImportPlan(game_path, "", "", (), (blocked,))
+        return ImportPlan(str(game_dir), "", "", (), (blocked,))
 
-    destination = str(Path(game_path) / "medias" / canonical)
+    destination = str(game_dir / "medias" / canonical)
     item = PlannedItem(asset, destination, "replace_media")
-    return ImportPlan(game_path, "", "", (item,), ())
+    return ImportPlan(str(game_dir), "", "", (item,), ())
 
 
 def sanitize_dir_name(name: str) -> str:
@@ -325,10 +326,10 @@ def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
     if new_name == plan.new_game_dir_name:
         return replace(plan, items=chosen)
 
-    old_base = plan.game_path
+    old_base = plan.game_dir
     new_base = str(Path(old_base).parent / new_name)
     rebased = tuple(replace(item, destination=item.destination.replace(old_base, new_base, 1)) for item in chosen)
-    return replace(plan, game_path=new_base, new_game_dir_name=new_name, items=rebased)
+    return replace(plan, game_dir=new_base, new_game_dir_name=new_name, items=rebased)
 
 
 # Medias stays listed although nothing writes it any more: an imported .info written by
@@ -472,7 +473,7 @@ def _replace_vpx_from_file(source, asset: DetectedAsset, base: Path) -> None:
             if new_ini.exists():
                 new_ini.unlink()
             os.replace(old_ini, new_ini)
-    refresh_game(str(base))
+    refresh_game(base)
 
 
 def _build_rom_zip(source, asset: DetectedAsset, dest: Path) -> None:
@@ -501,14 +502,14 @@ def _extract_tree(source, asset: DetectedAsset, base_dir: Path) -> None:
         source.extract_member(entry.path, dest)
 
 
-def _import_media(source, asset: DetectedAsset, game_path: Path) -> None:
+def _import_media(source, asset: DetectedAsset, game_dir: Path) -> None:
     entry = asset.entries[0]
     suffix = PurePosixPath(entry.arcname).suffix
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as handle:
         scratch = Path(handle.name)
     try:
         source.extract_member(entry.path, scratch)
-        replace_media_file(str(game_path), game_path.name, asset.media_key, str(scratch))
+        replace_media_file(game_dir, game_dir.name, asset.media_key, str(scratch))
     finally:
         scratch.unlink(missing_ok=True)
 
@@ -596,7 +597,7 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
     `declared` is what the sender said each uploaded file is, keyed by the name it arrived
     under. Recorded after the files are on disk, so a failed import writes no claim.
     """
-    base = Path(plan.game_path)
+    base = Path(plan.game_dir)
     if plan.new_game_dir_name:
         if base.exists():
             raise ValueError(f"Table folder already exists: {base.name}")
@@ -642,7 +643,7 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
     return {
         "imported": imported,
         "skipped": [b.asset.kind for b in plan.blocked],
-        "table_path": str(base),
+        "game_dir": str(base),
         "new_table": bool(plan.new_game_dir_name),
         "media_keys": media_keys,
         "declared": declared_written,

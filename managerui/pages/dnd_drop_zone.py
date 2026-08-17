@@ -24,7 +24,7 @@ _script_clients: set[str] = set()
 
 @dataclass(frozen=True)
 class DropContext:
-    game_path: str = ""
+    game_dir: Path | None = None
     game_row: dict | None = None
     rom_name: str = ""
     allow_new_game: bool = False
@@ -51,7 +51,7 @@ def _ensure_assets() -> None:
         _script_clients.add(client_id)
 
 
-def _declared_for(game_path: str, filenames) -> dict:
+def _declared_for(game_dir: Path | None, filenames) -> dict:
     """What a drop says about the files it carried.
 
     The gesture is the declaration: letting go on a game row names that game, and on a
@@ -62,7 +62,7 @@ def _declared_for(game_path: str, filenames) -> dict:
     No upstream record is named here, so nothing enters the `.info` claiming to be a VPS
     file. That binding only arrives from a client that actually fetched one.
     """
-    game_id = _game_id_for(game_path)
+    game_id = _game_id_for(game_dir)
     if not game_id:
         return {}
     identity = identity_claims.DeclaredIdentity(
@@ -70,20 +70,19 @@ def _declared_for(game_path: str, filenames) -> dict:
     return {name: identity for name in filenames}
 
 
-def _game_id_for(game_path: str) -> str:
+def _game_id_for(game_dir: Path | None) -> str:
     """The game's own id, read off the folder it was dropped on."""
-    if not game_path:
+    if game_dir is None:
         return ""
     try:
         from common.games.game_metadata import vpinfe_section
         from common.games.info_file import GAME_ID_KEY, MetaConfig
-        folder = Path(game_path)
-        info = folder / f"{folder.name}.info"
+        info = game_dir / f"{game_dir.name}.info"
         if not info.exists():
             return ""
         return str(vpinfe_section(MetaConfig(str(info)).data).get(GAME_ID_KEY, "") or "")
     except Exception:
-        logger.debug("Could not read a game id for %s", game_path, exc_info=True)
+        logger.debug("Could not read a game id for %s", game_dir, exc_info=True)
         return ""
 
 
@@ -119,11 +118,11 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
             cell_resolver = state.get("resolve_cell")
             if cell_row and cell_media_key and cell_resolver is not None:
                 # Slot-targeted drop: the cell dictates game and media key; no analysis.
-                game_path = cell_resolver(cell_row)
+                game_dir = cell_resolver(cell_row)
                 files = [p for p in session_dir.iterdir() if p.is_file()]
                 dirs = [p for p in session_dir.iterdir() if p.is_dir()]
                 with client:
-                    if not game_path:
+                    if game_dir is None:
                         ui.notify("Could not resolve the drop target table", type="negative")
                         upload_session_service.cleanup_session(upload_id)
                         return
@@ -131,7 +130,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                         ui.notify("Drop a single media file on a slot", type="warning")
                         upload_session_service.cleanup_session(upload_id)
                         return
-                    plan = build_media_slot_plan(files[0], game_path=game_path,
+                    plan = build_media_slot_plan(files[0], game_dir=game_dir,
                                                  media_key=cell_media_key)
                     if not plan.items:
                         reasons = "; ".join(sorted({b.reason for b in plan.blocked})) or "Nothing to import"
@@ -142,7 +141,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                     open_import_confirm_dialog(
                         cell_analysis, plan, files[0], upload_id, on_imported,
                         refresh_media_cache=False,
-                        declared=_declared_for(game_path, {files[0].name}))
+                        declared=_declared_for(game_dir, {files[0].name}))
                 return
 
             analysis, source_path = await run.io_bound(analyze_upload_session, session_dir)
@@ -165,7 +164,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                     return
                 plan = build_import_plan(
                     analysis,
-                    game_path=ctx.game_path,
+                    game_dir=ctx.game_dir,
                     game_row=ctx.game_row,
                     rom_name=ctx.rom_name,
                     allow_new_game=ctx.allow_new_game,
@@ -183,7 +182,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                 open_import_confirm_dialog(
                     analysis, plan, source_path, upload_id, on_imported,
                     display_name=display_name,
-                    declared=_declared_for(ctx.game_path if row_key else "", names))
+                    declared=_declared_for(ctx.game_dir if row_key else None, names))
         except Exception:
             logger.exception("Drag/drop analysis failed")
             with client:
@@ -233,11 +232,11 @@ def enable_row_drops(zone: ui.element, container: ui.element,
 
 
 def enable_cell_drops(zone: ui.element, container: ui.element,
-                      resolve_game_path: Callable[[str], str | None]) -> None:
+                      resolve_game_dir: Callable[[str], Path | None]) -> None:
     """Make media cells inside container slot-targeted drop targets.
 
     Cells must carry data-drop-media-key and data-drop-media-row attributes; the cell
-    dictates both the target game (resolved via resolve_game_path) and the media slot.
+    dictates both the target game (resolved via resolve_game_dir) and the media slot.
     """
-    zone.dnd_state["resolve_cell"] = resolve_game_path
+    zone.dnd_state["resolve_cell"] = resolve_game_dir
     container.classes(f"vpinfe-dnd-cells-{zone.dnd_token}")

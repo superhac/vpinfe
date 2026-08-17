@@ -635,7 +635,7 @@ class PlanItem(ApiModel):
 
 
 class ImportPlanResource(ApiModel):
-    game_path: str
+    game_dir: str
     new_game_dir_name: str
     rom_name: str
     items: list[PlanItem]
@@ -648,7 +648,7 @@ class ImportReport(ApiModel):
 
     imported: list[str]
     skipped: list[str]
-    game_path: str
+    game_dir: str
     new_game: bool
     media_keys: list[str]
     blocked: list[BlockedAsset]
@@ -681,7 +681,7 @@ class PlanRequest(ApiModel):
     """Every field optional: an empty body plans the upload as it stands."""
 
     vps_id: str = ""
-    game_path: str = ""
+    game_dir: str = ""
     rom_name: str = ""
     allow_new_game: bool = False
 
