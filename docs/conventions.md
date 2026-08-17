@@ -66,6 +66,28 @@ and so are those section names.
 `Info` and `User` keep PascalCase: other frontends read them, so their shape is a contract
 rather than a style choice.
 
+### Kind, not type
+
+A closed set of named variants is a **kind** — media kinds, job kinds, asset kinds, the
+kind of control a filter wants. `kind` in identifiers, in the JSON we write, and in the
+fields we serve.
+
+`type` is for the places somebody else already chose the word, and only those:
+
+- Python's own: `type()`, `isinstance`, `typing`, `TypeVar`.
+- HTTP and HTML: `Content-Type`, Starlette's `media_type=`, `<input type=>`.
+- A library's parameter: NiceGUI's `ui.notify(type=...)`.
+- A key already on disk. `Info.Type` is in every `.info` a user has, so `game_type` reads
+  it and keeps that word end to end. Translating at the boundary would leave a reader
+  converting in their head at every call site, which is worse than one name that says
+  where it came from.
+
+The cost of not picking one is measurable rather than theoretical. `MEDIA_SPECS` and
+`MEDIA_TYPES` were the same closed set of media kinds under two words, one module
+importing the other, and the second had fallen seven kinds behind before anything noticed
+- which cost a KeyError on upload and an empty filename on lookup, in the two kinds people
+replace most. There is one list now.
+
 ## Things we version
 
 Three, each versioning a different kind of thing, each with its own word:
