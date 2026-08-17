@@ -761,11 +761,11 @@ class VPinFECore {
 
   getImageURL(index, kind) {
     const item = this.tableData[index];
-    return item ? this._reader.imageURL(item, this.#normalizeMediaType(kind)) : null;
+    return item ? this._reader.imageURL(item, this.#canonicalKind(kind)) : null;
   }
 
-  getMediaURL(index, type) {
-    return this.getMedia(index, type).url;
+  getMediaURL(index, kind) {
+    return this.getMedia(index, kind).url;
   }
 
   // URL of the game manufacturer's logo, or null when none is installed
@@ -775,32 +775,32 @@ class VPinFECore {
     return path ? `${this.endpoints.assets}${path}` : null;
   }
 
-  getPreferredMediaURL(index, type) {
-    return this.getMediaURL(index, type);
+  getPreferredMediaURL(index, kind) {
+    return this.getMediaURL(index, kind);
   }
 
-  getMedia(index, type) {
+  getMedia(index, kind) {
     const item = this.tableData[index];
     if (!item) return { url: null, kind: null, priority: null, path: null };
 
-    const normalizedType = this.#normalizeMediaType(type);
-    if (normalizedType === "real_dmd") {
+    const canonical = this.#canonicalKind(kind);
+    if (canonical === "real_dmd") {
       return this.#resolveRealDmdMedia(item);
     }
-    // Canonical, because normalizedType is. Written as `bg`/`dmd` this never matches,
+    // Canonical, because `canonical` is. Written as `bg`/`dmd` this never matches,
     // and a video silently loses to its still.
-    if (["playfield", "backglass", "scoreview"].includes(normalizedType)) {
-      return this.#resolveImageVideoMedia(item, normalizedType);
+    if (["playfield", "backglass", "scoreview"].includes(canonical)) {
+      return this.#resolveImageVideoMedia(item, canonical);
     }
 
     // Every other kind is a single image, whichever contract it came from.
-    const url = this._reader.imageURL(item, normalizedType);
-    const has = this._reader.has(item, normalizedType);
+    const url = this._reader.imageURL(item, canonical);
+    const has = this._reader.has(item, canonical);
     return {
       url,
       kind: has ? "image" : "missing",
       priority: null,
-      path: this._reader.path(item, normalizedType),
+      path: this._reader.path(item, canonical),
     };
   }
 
@@ -880,7 +880,7 @@ class VPinFECore {
     // can still say `table` and mean the playfield.
     const kinds = configValue(config, "preload.kinds");
     if (Array.isArray(kinds) && kinds.length) {
-      const asked = kinds.map((kind) => this.#normalizeMediaType(kind));
+      const asked = kinds.map((kind) => this.#canonicalKind(kind));
       const unknown = asked.filter((kind) => !MEDIA_KINDS.includes(kind));
       if (unknown.length) {
         console.warn(`[vpinfe] preload.kinds names ${unknown.join(", ")}, which `
@@ -1007,7 +1007,7 @@ class VPinFECore {
   // The URL of a game's video, by media kind
   getVideoURL(index, kind) {
     const item = this.tableData[index];
-    return item ? this._reader.videoURL(item, this.#normalizeMediaType(kind)) : null;
+    return item ? this._reader.videoURL(item, this.#canonicalKind(kind)) : null;
   }
 
   // The list, under the name that describes what is in it. At contract 2 the items are
@@ -2528,7 +2528,7 @@ class VPinFECore {
    * window a theme invented resolves to null instead of a lookup that finds nothing.
    */
   get windowMediaKind() {
-    const kind = this.#normalizeMediaType(this._windowName);
+    const kind = this.#canonicalKind(this._windowName);
     return MEDIA_KINDS.includes(kind) ? kind : null;
   }
 
@@ -2555,8 +2555,8 @@ class VPinFECore {
     return this.contract <= OLDEST_CONTRACT;
   }
 
-  #normalizeMediaType(type) {
-    const value = String(type || "").trim().toLowerCase();
+  #canonicalKind(kind) {
+    const value = String(kind || "").trim().toLowerCase();
     if (!this.#servesLegacyNames()) return value;
     return MEDIA_KIND_ALIASES[value] || value;
   }

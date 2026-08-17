@@ -1444,18 +1444,18 @@ If `override` is present, themes that position or scale BG/DMD content based on 
 | `isCoreAudioEnabled` | — | `boolean` | Returns whether centralized audio handling is currently enabled. |
 | `setAudioOptions` | `options` | — | Sets runtime audio options. Supported keys: `maxVolume`/`max_volume`/`volume`, `fadeDuration`/`fade_duration_ms`/`fadeMs`, `loop`. |
 
-#### getImageURL(index, type)
-Returns an HTTP URL for a table's image. `type` can be `"playfield"`, `"bg"`, `"dmd"`, `"wheel"`, or `"cab"`. Returns a fallback `/core/images/file_missing.png` URL if the file doesn't exist.
+#### getImageURL(index, kind)
+Returns an HTTP URL for a table's image. `kind` can be `"playfield"`, `"bg"`, `"dmd"`, `"wheel"`, or `"cab"`. Returns a fallback `/core/images/file_missing.png` URL if the file doesn't exist.
 
-#### getVideoURL(index, type)
-Returns an HTTP URL for a table's video. `type` can be `"playfield"`, `"bg"`, or `"dmd"`. Returns a fallback `/core/images/file_missing.png` URL if no video exists. See [Video Support](#video-support).
+#### getVideoURL(index, kind)
+Returns an HTTP URL for a table's video. `kind` can be `"playfield"`, `"bg"`, or `"dmd"`. Returns a fallback `/core/images/file_missing.png` URL if no video exists. See [Video Support](#video-support).
 
-#### getMediaURL(index, type)
+#### getMediaURL(index, kind)
 Returns an HTTP URL using the user's configured media priority from Manager UI > Configuration > Media > Media Priorities. For `"playfield"`, `"bg"`, and `"dmd"`, VPinFE chooses image or video first based on the setting and falls back to the alternate when the preferred file is missing. For `"real_dmd"`, VPinFE chooses `realdmd-color.png` or `realdmd.png` first based on the setting and falls back to the other frame.
 
 Kind names are snake_case, the same strings the payload and `/api/v1` use. The spellings earlier builds accepted — `table`, `table_video`, `fss`, `realdmd`, `realdmd-color`, `rulecard`, `audiolaunch`, `rulesheet` — still work.
 
-#### getMedia(index, type)
+#### getMedia(index, kind)
 Returns the same priority-aware selection with metadata: `{ url, kind, priority, path }`. Real DMD selections also include `variant` with `"color"` or `"standard"`.
 
 #### getAudioURL(index)
@@ -1759,7 +1759,7 @@ Use the first when your theme decides; use the second when the user's priority s
 
 Themes can display looping videos for table, backglass, and DMD screens in addition to (or instead of) static images.
 
-For new themes, prefer `vpin.getMedia(index, type)` or `vpin.getMediaURL(index, type)` when you want to honor the user's Manager UI media priority. The default priority is video for table, backglass, and DMD media, and colorized for Real DMD frames. If the preferred file is missing, VPinFE automatically falls back to the available alternate.
+For new themes, prefer `vpin.getMedia(index, kind)` or `vpin.getMediaURL(index, kind)` when you want to honor the user's Manager UI media priority. The default priority is video for table, backglass, and DMD media, and colorized for Real DMD frames. If the preferred file is missing, VPinFE automatically falls back to the available alternate.
 
 Priority-aware example:
 ```javascript
