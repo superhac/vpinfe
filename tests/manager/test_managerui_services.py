@@ -24,6 +24,7 @@ from common.games.media_service import (
 )
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
 from managerui.filters import ALL_VALUE, apply_game_filters, build_game_filter_options
+from managerui.pages.collections import paging_labels
 from managerui.services import theme_service
 from managerui.services.collection_admin import get_filter_options, search_games
 from managerui.services.game_catalog import build_mobile_game_rows
@@ -440,3 +441,34 @@ class PageStylesheetTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PagingOptionLabelTests(unittest.TestCase):
+    """The `Page by` control warns in the option, not only in a caption beside it.
+
+    The decision was "visible, disabled, with the reason". Disabling it would stop a user
+    recording a preference that starts mattering the moment they re-sort the collection,
+    so the warning rides on the option instead - which is still visible when the control
+    is closed, unlike a caption.
+    """
+
+    def test_a_sort_with_groups_reads_plainly(self) -> None:
+        for order_by in ("title", "year", "rating"):
+            with self.subTest(order_by=order_by):
+                self.assertEqual(paging_labels(order_by)["sort"], "By the sort")
+
+    def test_a_sort_without_groups_says_it_will_step(self) -> None:
+        """last_played, added and manual give every table its own value or no order."""
+        for order_by in ("last_played", "added", "manual"):
+            with self.subTest(order_by=order_by):
+                self.assertIn("no groups", paging_labels(order_by)["sort"])
+
+    def test_the_other_options_never_move(self) -> None:
+        """Only the option that asks for groups can be wrong about this sort."""
+        for order_by in ("title", "last_played"):
+            labels = paging_labels(order_by)
+            self.assertEqual(labels[""], "Follow my setting")
+            self.assertEqual(labels["count"], "By a fixed number")
+
+    def test_no_sort_at_all_is_the_default_sort(self) -> None:
+        self.assertEqual(paging_labels("")["sort"], paging_labels("title")["sort"])

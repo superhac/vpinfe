@@ -13,20 +13,41 @@ from managerui.ui_helpers import debounced_input, load_page_style
 logger = logging.getLogger("vpinfe.manager.collections")
 
 
-def _paging_control(sort_input, value=""):
-    """How this collection pages, with a caption saying what that means for this sort.
+def paging_labels(order_by):
+    """The `Page by` options for a collection sorted this way.
 
-    Every option stays selectable, including where the sort has no groups. Disabling it
-    there would stop the user recording a preference that starts mattering the moment
-    they change the sort - the caption says what happens today instead.
+    Where the sort has no groups, the option asking for them says so in its own label
+    rather than being disabled. Disabling it would stop the user recording a preference
+    that starts mattering the moment they re-sort - they would have to set the sort, save,
+    and come back. This keeps it to one visit, and puts the warning in the closed control
+    rather than only in a caption that is easy to miss.
+    """
+    labels = dict(collection_admin.PAGING_GROUP_LABELS)
+    if not group_kind(order_by or collection_admin.DEFAULT_ORDER_BY):
+        labels['sort'] = f"{labels['sort']} - this sort has no groups, so it steps"
+    return labels
+
+
+def _paging_control(sort_input, value=""):
+    """How this collection pages, and what that means for the sort it currently has.
+
+    The labels come from `paging_labels`; this wires them to the sort control.
     """
     paging = ui.select(label='Page by',
-                       options=collection_admin.PAGING_GROUP_LABELS,
+                       options=dict(collection_admin.PAGING_GROUP_LABELS),
                        value=value).classes('w-full')
     caption = ui.label().classes('text-xs').style('color: var(--text-dim);')
 
     def explain():
-        kind = group_kind(sort_input.value or collection_admin.DEFAULT_ORDER_BY)
+        order_by = sort_input.value or collection_admin.DEFAULT_ORDER_BY
+        kind = group_kind(order_by)
+        # Assigning options resets the value, so it is put back. Dict options here for the
+        # same reason as the sort and direction controls beside it - see the note there.
+        chosen = paging.value
+        paging.options = paging_labels(order_by)
+        paging.value = chosen
+        paging.update()
+
         if (paging.value or "") == "count":
             caption.text = 'A page press moves a fixed number of tables.'
         elif kind:
