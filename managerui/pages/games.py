@@ -87,11 +87,11 @@ def save_upload_bytes(dest_file: Path, content: bytes) -> None:
 
 # --- helper to create a .info file with a chosen VPS record for one folder ---
 
-def associate_vps_to_folder(game_folder: Path, vps_entry: dict, download_media: bool = False) -> None:
+def associate_vps_to_folder(game_dir: Path, vps_entry: dict, download_media: bool = False) -> None:
     """
-    Creates a `.info` file inside `game_folder` using the selected vps_entry and the VPX metadata.
+    Creates a `.info` file inside `game_dir` using the selected vps_entry and the VPX metadata.
     """
-    game_service.associate_vps_to_folder(game_folder, vps_entry, download_media)
+    game_service.associate_vps_to_folder(game_dir, vps_entry, download_media)
 
 
 logger = logging.getLogger("vpinfe.manager.games")

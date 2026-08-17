@@ -261,16 +261,16 @@ def replace_table(game_dir: Path, filename: str, content: bytes, file_type: str,
 
 
 def associate_vps_to_folder(
-    game_folder: Path,
+    game_dir: Path,
     vps_entry: dict,
     download_media: bool = False,
 ) -> None:
     from common.games.info_file import MetaConfig
 
-    if not game_folder.exists():
-        raise FileNotFoundError(f"Folder not found: {game_folder}")
+    if not game_dir.exists():
+        raise FileNotFoundError(f"Folder not found: {game_dir}")
 
-    meta_path = game_folder / f"{game_folder.name}.info"
+    meta_path = game_dir / f"{game_dir.name}.info"
     recorded = ""
     if meta_path.exists():
         try:
@@ -279,7 +279,7 @@ def associate_vps_to_folder(
         except Exception:
             recorded = ""
 
-    vpx_file = _find_vpx_file(game_folder, recorded)
+    vpx_file = _find_vpx_file(game_dir, recorded)
     parser = VPXParser()
     vpxdata = parser.singleFileExtract(str(vpx_file))
 
@@ -310,11 +310,11 @@ def associate_vps_to_folder(
                 self.DMDVideoPath = None
                 self.AudioPath = None
 
-        vps.downloadMediaForGame(_LightGame(game_folder, vpx_file), vps_entry.get("id"), meta_config=meta)
+        vps.downloadMediaForGame(_LightGame(game_dir, vpx_file), vps_entry.get("id"), meta_config=meta)
 
     from common.games.media_service import invalidate_media_cache
     invalidate_media_cache()
-    refresh_game(game_folder)
+    refresh_game(game_dir)
 
 
 def scan_game_rows(reload: bool = False) -> list[dict]:

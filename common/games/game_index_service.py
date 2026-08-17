@@ -13,7 +13,7 @@ class GameIndex:
     rows: list[dict] = field(default_factory=list)
     missing_rows: list[dict] = field(default_factory=list)
     by_path: dict[str, dict] = field(default_factory=dict)
-    by_dir: dict[str, dict] = field(default_factory=dict)
+    by_dir_name: dict[str, dict] = field(default_factory=dict)
     by_game_id: dict[str, dict] = field(default_factory=dict)
     searchable: list[tuple[str, dict]] = field(default_factory=list)
 
@@ -34,7 +34,7 @@ def _normalize_path(path: str | Path) -> str:
 
 def _build_index(rows: list[dict], missing_rows: list[dict] | None = None) -> GameIndex:
     by_path = {}
-    by_dir = {}
+    by_dir_name = {}
     by_game_id = {}
     searchable = []
 
@@ -43,7 +43,7 @@ def _build_index(rows: list[dict], missing_rows: list[dict] | None = None) -> Ga
         normalized_path = _normalize_path(game_dir)
         if normalized_path:
             by_path[normalized_path] = row
-            by_dir[Path(normalized_path).name] = row
+            by_dir_name[Path(normalized_path).name] = row
 
         game_id = row.get("vpinfe_id")
         if game_id:
@@ -59,7 +59,7 @@ def _build_index(rows: list[dict], missing_rows: list[dict] | None = None) -> Ga
         rows=rows,
         missing_rows=list(missing_rows if missing_rows is not None else _index.missing_rows),
         by_path=by_path,
-        by_dir=by_dir,
+        by_dir_name=by_dir_name,
         by_game_id=by_game_id,
         searchable=searchable,
     )
@@ -124,8 +124,8 @@ def find_by_path(game_dir: Path) -> dict | None:
     return _index.by_path.get(_normalize_path(game_dir))
 
 
-def find_by_dir(game_dir_name: str) -> dict | None:
-    return _index.by_dir.get(game_dir_name)
+def find_by_dir_name(game_dir_name: str) -> dict | None:
+    return _index.by_dir_name.get(game_dir_name)
 
 
 def find_by_game_id(game_id: str) -> dict | None:

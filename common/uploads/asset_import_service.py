@@ -58,6 +58,8 @@ class BlockedItem:
 
 @dataclass(frozen=True)
 class ImportPlan:
+    # A str, where a path in flight is a Path: this one is serialized onto the wire,
+    # and "" carries "no target folder" - which Path("") would turn into ".".
     game_dir: str           # target game dir (existing, or the resolved new-game dir)
     new_game_dir_name: str  # non-empty only for new-game bundle imports
     rom_name: str

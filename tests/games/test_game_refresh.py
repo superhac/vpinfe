@@ -16,7 +16,7 @@ from common.games.game_parser import GameParser
 from tests.support.library import TempTree, write_game
 
 
-def _game_folder(root: Path, name: str, rating: int = 0) -> Path:
+def _game_dir(root: Path, name: str, rating: int = 0) -> Path:
     return write_game(root, name, info={"Info": {"Title": name},
                                         "User": {"Rating": rating},
                                         "vpinfe": {"schema": 2}})
@@ -26,7 +26,7 @@ class SingleGameRefreshTests(TempTree):
     def setUp(self):
         super().setUp()
         for name in ("Alpha", "Bravo", "Charlie"):
-            _game_folder(self.root, name)
+            _game_dir(self.root, name)
         config = configparser.ConfigParser()
         config.read_dict({"Settings": {"gamerootdir": str(self.root)}, "Media": {}})
         self.parser = GameParser(str(self.root), config)
@@ -39,7 +39,7 @@ class SingleGameRefreshTests(TempTree):
         return next(t for t in self.parser.getAllGames() if t.gameDirName == name)
 
     def test_a_changed_folder_is_picked_up(self):
-        _game_folder(self.root, "Bravo", rating=5)
+        _game_dir(self.root, "Bravo", rating=5)
 
         self.parser.reload_game(str(self.root / "Bravo"))
 
@@ -48,7 +48,7 @@ class SingleGameRefreshTests(TempTree):
     def test_the_rest_of_the_library_is_not_re_read(self):
         """The point of the change. Charlie is edited on disk and must stay stale,
         because refreshing Bravo has no business reading Charlie's folder."""
-        _game_folder(self.root, "Charlie", rating=4)
+        _game_dir(self.root, "Charlie", rating=4)
 
         self.parser.reload_game(str(self.root / "Bravo"))
 
@@ -62,7 +62,7 @@ class SingleGameRefreshTests(TempTree):
         self.assertEqual(self.parser.getGameCount(), 3)
 
     def test_a_folder_that_appeared_is_added(self):
-        _game_folder(self.root, "Delta")
+        _game_dir(self.root, "Delta")
 
         added = self.parser.reload_game(str(self.root / "Delta"))
 
@@ -100,7 +100,7 @@ class SingleGameRefreshTests(TempTree):
         (self.root / "Bravo" / "Bravo.info").unlink()
         self.parser.reload_game(str(self.root / "Bravo"))
 
-        _game_folder(self.root, "Bravo", rating=2)
+        _game_dir(self.root, "Bravo", rating=2)
         self.parser.reload_game(str(self.root / "Bravo"))
 
         self.assertEqual(self.parser.getMissingGames(), [])
@@ -113,7 +113,7 @@ class ChangeAnnouncementTests(TempTree):
     def setUp(self):
         super().setUp()
         for name in ("Alpha", "Bravo"):
-            _game_folder(self.root, name)
+            _game_dir(self.root, name)
         config = configparser.ConfigParser()
         config.read_dict({"Settings": {"gamerootdir": str(self.root)}, "Media": {}})
         parser = GameParser(str(self.root), config)   # constructing loads
@@ -128,7 +128,7 @@ class ChangeAnnouncementTests(TempTree):
         self.addCleanup(setattr, game_repository, "_PARSER", previous)
 
     def test_a_refreshed_game_is_announced_with_the_new_object(self):
-        _game_folder(self.root, "Bravo", rating=5)
+        _game_dir(self.root, "Bravo", rating=5)
 
         refreshed = game_repository.refresh_game(str(self.root / "Bravo"))
 
