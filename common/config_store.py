@@ -52,6 +52,15 @@ def _generate_machine_id(length: int = 64) -> str:
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 
+# The values that changed vocabulary, not just the key that holds them. Renaming a key
+# is handled below; renaming what it may contain was not, so a file kept the retired word
+# and the schema's own choices said otherwise. One entry today - `paging_group` is the
+# only choice option of twelve whose values moved - so this is a lookup, not a framework.
+_RENAMED_VALUES = {
+    ('input', 'paging_group'): config_schema.PAGING_GROUP_ALIASES,
+}
+
+
 # (section, old key, new key) - see the migration in _migrate below.
 _RENAMED_KEYS = (
     ('Displays', 'tablescreenid', 'playfieldscreenid'),
@@ -193,6 +202,18 @@ class ConfigStore:
                     self.config.add_section(new_section)
                 self.config.set(new_section, new_key, self.config.get(section, key))
                 self.config.remove_option(section, key)
+                changed = True
+
+        # A retired spelling of a *value*. It resolves on read either way, so this is
+        # about what the file says rather than what it does - and the file is what the
+        # settings are served as, so it should not contradict the schema's choices.
+        for (section, key), aliases in _RENAMED_VALUES.items():
+            if not self.config.has_option(section, key):
+                continue
+            current = self.config.get(section, key).strip().lower()
+            if current in aliases:
+                announce('ini-renamed-values', f'{section}.{key}={current}')
+                self.config.set(section, key, aliases[current])
                 changed = True
 
         # Add any missing default options

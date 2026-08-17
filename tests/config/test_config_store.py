@@ -179,3 +179,38 @@ class IniConversionTests(ConfigStoreTests):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RetiredValueTests(ConfigStoreTests):
+    """A key rename carried the key and left the value in the old vocabulary.
+
+    It resolves either way on read, so this is about what the file says. The file is what
+    the settings are served as, and saying `alpha` where the schema publishes
+    `('sort', 'count')` is the file contradicting its own contract.
+    """
+
+    def test_an_ini_value_is_written_in_the_current_vocabulary(self) -> None:
+        self.ini.write_text("[Input]\npagingtype = alpha\n", encoding="utf-8")
+
+        ConfigStore(str(self.ini))
+
+        self.assertEqual(self._payload()["settings"]["input"]["paging_group"], "sort")
+
+    def test_a_json_written_before_the_rename_is_corrected_in_place(self) -> None:
+        """The cab hit this: the key migrated, the value did not, and nothing was
+        converting an ini any more so no migration was going to reach it."""
+        store = ConfigStore(str(self.ini))
+        store.config.set("input", "paging_group", "numeric")
+        store.save()
+
+        ConfigStore(str(self.ini))
+
+        self.assertEqual(self._payload()["settings"]["input"]["paging_group"], "count")
+
+    def test_a_current_value_is_left_alone(self) -> None:
+        self.ini.write_text("[input]\npaging_group = count\n", encoding="utf-8")
+
+        ConfigStore(str(self.ini))
+
+        self.assertEqual(self._payload()["settings"]["input"]["paging_group"], "count")
+
