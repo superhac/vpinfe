@@ -7,7 +7,10 @@
     "enable_dof": "false"
   },
   "frontend": {
+    "confirm": "false",
     "hide_quit_button": "false",
+    "paging_group": "sort",
+    "paging_size": "10",
     "restore_last_table": "true"
   },
   "general": {
@@ -38,8 +41,6 @@
     "next": "key:ArrowRight,key:ShiftRight",
     "page_next": "key:PageDown,key:ArrowDown",
     "page_previous": "key:PageUp,key:ArrowUp",
-    "paging_group": "sort",
-    "paging_size": "10",
     "previous": "key:ArrowLeft,key:ShiftLeft",
     "select": "key:Enter",
     "tutorial": "key:t"
@@ -55,9 +56,6 @@
     "pixelcade_device": "",
     "zedmd_device": "",
     "zedmd_wifi_address": ""
-  },
-  "lifecycle": {
-    "confirm": ""
   },
   "logger": {
     "console": "true",

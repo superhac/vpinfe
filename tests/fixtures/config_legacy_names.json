@@ -266,13 +266,13 @@
   [
     "Input",
     "pagingsize",
-    "input",
+    "frontend",
     "paging_size"
   ],
   [
     "Input",
     "pagingtype",
-    "input",
+    "frontend",
     "paging_group"
   ],
   [

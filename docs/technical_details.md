@@ -80,6 +80,9 @@ uses an old spelling both still load.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
+| `paging_group` | choice (sort, count) | `sort` | Page by |
+| `paging_size` | int | `10` | Paging Size |
+| `confirm` | bool | `false` | Ask before quitting VPinFE or powering off the machine. Closing the frontend never asks - the windows reopen from the Manager UI, so there is nothing to lose. Off is how VPinFE has always behaved, and the question is put to whichever surface asked. |
 | `hide_quit_button` | bool | `false` | Hide Quit from MainMenu |
 | `restore_last_table` | bool | `true` | Restore Last Table |
 
@@ -89,12 +92,6 @@ uses an old spelling both still load.
 | --- | --- | --- | --- |
 | `registries` | list | `https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json` | Catalogs to offer themes from, most trusted first. The stock registry is an entry like any other, so a mirrored or offline install can replace or drop it. |
 | `repositories` | list |  | Individual theme repos, each one a theme in its own right. Resolved before the registries, and named for the repo with any vpinfe-theme- prefix removed. |
-
-### `lifecycle`
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `confirm` | list |  | Scopes to ask about before acting: frontend, app, system. Empty asks about nothing, which is how VPinFE has always behaved. The question is put to whichever surface asked. |
 
 ### `logger`
 
@@ -207,8 +204,6 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | `collection_menu` | list | `key:c` | Collection menu |
 | `tutorial` | list | `key:t` | Tutorial |
 | `exit` | list | `key:Escape,key:q` | Exit |
-| `paging_group` | choice (sort, count) | `sort` | Page by |
-| `paging_size` | int | `10` | Paging Size |
 
 ## Game Metadata File (based on the Zero install table format)
 When you run VPinFE with the `--buildmeta` option it recursively goes through your game directory attempts to match your games to their VPSDB id.  When matched, it will then parse the VPX for the game for more meta information and produce a `GAME FOLDER NAME(manufactuer year).info` in that game's directory.  Heres an example for the game 1-2-3:

@@ -44,6 +44,13 @@ _MOVED_OPTIONS = (
     ('Settings', 'Displays', 'cabmode'),
     ('Settings', 'DOF', 'enabledof'),
     ('Displays', 'Settings', 'splashscreen'),
+    # `input` is which button does what; how far a press moves the wheel is what the
+    # frontend does when one is pressed. Moved rather than declared afresh: a file
+    # already holding these keeps its values, and the old entries go rather than
+    # lingering as a second copy the settings page would render beside the new one.
+    ('input', 'frontend', 'paging_group'),
+    ('input', 'frontend', 'paging_size'),
+    ('lifecycle', 'frontend', 'confirm'),
 )
 
 
@@ -57,7 +64,7 @@ def _generate_machine_id(length: int = 64) -> str:
 # and the schema's own choices said otherwise. One entry today - `paging_group` is the
 # only choice option of twelve whose values moved - so this is a lookup, not a framework.
 _RENAMED_VALUES = {
-    ('input', 'paging_group'): config_schema.PAGING_GROUP_ALIASES,
+    ('frontend', 'paging_group'): config_schema.PAGING_GROUP_ALIASES,
 }
 
 
@@ -214,6 +221,20 @@ class ConfigStore:
             if current in aliases:
                 announce('ini-renamed-values', f'{section}.{key}={current}')
                 self.config.set(section, key, aliases[current])
+                changed = True
+
+        # `frontend.confirm` was a list of scopes and is a switch now. Anything naming a
+        # scope meant "ask me", so it becomes on; empty meant "never", so it becomes off.
+        # Read rather than coerced: a stored "app,system" is not a boolean, and letting the
+        # type conversion have it would answer no to someone who asked to be asked.
+        if self.config.has_option('frontend', 'confirm'):
+            raw = self.config.get('frontend', 'confirm').strip()
+            if raw.lower() not in ('', 'true', 'false'):
+                announce('confirm-scopes-to-switch', raw)
+                self.config.set('frontend', 'confirm', 'true')
+                changed = True
+            elif not raw:
+                self.config.set('frontend', 'confirm', 'false')
                 changed = True
 
         # Add any missing default options

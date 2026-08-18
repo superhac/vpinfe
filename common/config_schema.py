@@ -43,22 +43,6 @@ def _input_options() -> tuple[ConfigOption, ...]:
         )
         for action in input_registry.actions()
     ]
-    # Not actions: how the paging actions step, which is a setting about them.
-    out.append(ConfigOption(
-        "paging_group",
-        type="choice",
-        default=PAGING_GROUP_DEFAULT,
-        label="Page by",
-        choices=PAGING_GROUPS,
-        legacy=(("Input", "pagingtype"),),
-    ))
-    out.append(ConfigOption(
-        "paging_size",
-        type="int",
-        default="10",
-        label="Paging Size",
-        legacy=(("Input", "pagingsize"),),
-    ))
     return in_section(input_registry.SECTION, *out)
 
 
@@ -402,6 +386,33 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     # nobody looks at for wheel behaviour.
     *in_section(
         "frontend",
+        # How far a page press moves the wheel. Not in `input`, which is which button
+        # does what: these say what the frontend does when one is pressed.
+        ConfigOption(
+            "paging_group",
+            type="choice",
+            default=PAGING_GROUP_DEFAULT,
+            label="Page by",
+            choices=PAGING_GROUPS,
+            legacy=(("Input", "pagingtype"),),
+        ),
+        ConfigOption(
+            "paging_size",
+            type="int",
+            default="10",
+            label="Paging Size",
+            legacy=(("Input", "pagingsize"),),
+        ),
+        ConfigOption(
+            "confirm",
+            type="bool",
+            default="false",
+            label="Confirm Before Exit",
+            description="Ask before quitting VPinFE or powering off the machine. Closing the"
+                        " frontend never asks - the windows reopen from the Manager UI, so"
+                        " there is nothing to lose. Off is how VPinFE has always behaved, and"
+                        " the question is put to whichever surface asked.",
+        ),
         ConfigOption(
             "hide_quit_button",
             type="bool",
@@ -449,18 +460,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             description="Individual theme repos, each one a theme in its own right. Resolved"
                         " before the registries, and named for the repo with any vpinfe-theme-"
                         " prefix removed.",
-        ),
-    ),
-    *in_section(
-        "lifecycle",
-        ConfigOption(
-            "confirm",
-            type="list",
-            default="",
-            label="Confirm Before",
-            description="Scopes to ask about before acting: frontend, app, system. Empty asks"
-                        " about nothing, which is how VPinFE has always behaved. The question is"
-                        " put to whichever surface asked.",
         ),
     ),
     *in_section(

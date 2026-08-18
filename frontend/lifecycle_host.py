@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 
 from common import events, lifecycle
-from common.config_access import cfg_list
+from common.config_access import cfg_bool
 from common.host import system_actions
 
 logger = logging.getLogger("vpinfe.frontend.lifecycle")
@@ -20,10 +20,15 @@ _bridge = None
 
 
 def confirm_scopes():
-    """Scopes the user asked to be checked on. Empty by default."""
-    if _config_store is None:
+    """What asks first: quitting VPinFE and powering off the machine, or nothing.
+
+    Stopping the frontend is not in it. The windows reopen from the Manager UI, so there
+    is nothing to lose and it is the scope you would meet most often - a prompt there is
+    the one that trains you to dismiss prompts.
+    """
+    if _config_store is None or not cfg_bool(_config_store, "frontend", "confirm"):
         return ()
-    return tuple(cfg_list(_config_store, "lifecycle", "confirm"))
+    return (lifecycle.APP, lifecycle.SYSTEM)
 
 
 def wants_confirmation(scope: str) -> bool:

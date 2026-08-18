@@ -63,13 +63,13 @@ def get_paging_config(config):
     This is the player's default. A collection may override it - see the order block -
     so a caller with a collection in hand resolves against that first.
     """
-    paging_group = cfg_get(config, input_registry.SECTION, "paging_group",
+    paging_group = cfg_get(config, "frontend", "paging_group",
                            PAGING_GROUP_DEFAULT).strip().lower()
     paging_group = PAGING_GROUP_ALIASES.get(paging_group, paging_group)
     if paging_group not in PAGING_GROUPS:
         paging_group = PAGING_GROUP_DEFAULT
     try:
-        page_size = int(cfg_get(config, input_registry.SECTION, "paging_size",
+        page_size = int(cfg_get(config, "frontend", "paging_size",
                                 str(PAGING_SIZE_DEFAULT)).strip())
     except (TypeError, ValueError):
         page_size = PAGING_SIZE_DEFAULT

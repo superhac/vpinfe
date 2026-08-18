@@ -194,23 +194,95 @@ class RetiredValueTests(ConfigStoreTests):
 
         ConfigStore(str(self.ini))
 
-        self.assertEqual(self._payload()["settings"]["input"]["paging_group"], "sort")
+        self.assertEqual(self._payload()["settings"]["frontend"]["paging_group"], "sort")
 
     def test_a_json_written_before_the_rename_is_corrected_in_place(self) -> None:
         """The cab hit this: the key migrated, the value did not, and nothing was
         converting an ini any more so no migration was going to reach it."""
         store = ConfigStore(str(self.ini))
-        store.config.set("input", "paging_group", "numeric")
+        store.config.set("frontend", "paging_group", "numeric")
         store.save()
 
         ConfigStore(str(self.ini))
 
-        self.assertEqual(self._payload()["settings"]["input"]["paging_group"], "count")
+        self.assertEqual(self._payload()["settings"]["frontend"]["paging_group"], "count")
 
     def test_a_current_value_is_left_alone(self) -> None:
-        self.ini.write_text("[input]\npaging_group = count\n", encoding="utf-8")
+        self.ini.write_text("[frontend]\npaging_group = count\n", encoding="utf-8")
 
         ConfigStore(str(self.ini))
 
-        self.assertEqual(self._payload()["settings"]["input"]["paging_group"], "count")
+        self.assertEqual(self._payload()["settings"]["frontend"]["paging_group"], "count")
+
+
+class ConfirmSwitchTests(ConfigStoreTests):
+    """`frontend.confirm` was a list of scopes and is a switch.
+
+    Anyone who had named a scope asked to be asked, so they stay asked. Letting the type
+    conversion have "app,system" would read it as not-a-boolean and answer no - turning a
+    setting off because its shape changed, which is the failure this whole file exists to
+    catch.
+    """
+
+    def _confirm(self, stored):
+        self.json.write_text(json.dumps({"schema": 2, "settings": {"lifecycle": stored}}),
+                             encoding="utf-8")
+        ConfigStore(str(self.ini))
+        return self._payload()["settings"]["frontend"]["confirm"]
+
+    def test_any_scope_named_means_keep_asking(self) -> None:
+        for scopes in (["app", "system"], ["system"], ["frontend"]):
+            with self.subTest(scopes=scopes):
+                self.assertIs(self._confirm({"confirm": scopes}), True)
+
+    def test_no_scopes_means_do_not_ask(self) -> None:
+        self.assertIs(self._confirm({"confirm": []}), False)
+
+    def test_a_fresh_install_does_not_ask(self) -> None:
+        """Off is how VPinFE has always behaved."""
+        ConfigStore(str(self.ini))
+        self.assertIs(self._payload()["settings"]["frontend"]["confirm"], False)
+
+
+class MovedSectionTests(ConfigStoreTests):
+    """A setting that changes section takes its value with it, and leaves nothing behind.
+
+    Declaring it in its new home and saying nothing about the old one loses whatever the
+    user had: the new key falls back to its default while the real value sits orphaned
+    under the old section - which the settings page then renders as a second control
+    beside the new one. Both halves of that were live before this.
+    """
+
+    def _written(self, settings):
+        self.json.write_text(json.dumps({"schema": 2, "settings": settings}),
+                             encoding="utf-8")
+        ConfigStore(str(self.ini))
+        return self._payload()["settings"]
+
+    def test_a_customised_value_moves_with_the_setting(self) -> None:
+        after = self._written({"input": {"paging_group": "count", "paging_size": 25}})
+
+        self.assertEqual(after["frontend"]["paging_group"], "count")
+        self.assertEqual(after["frontend"]["paging_size"], 25)
+
+    def test_the_old_entries_do_not_linger(self) -> None:
+        """A leftover is not harmless: the settings page renders what the file holds."""
+        after = self._written({"input": {"paging_group": "count", "paging_size": 25},
+                               "lifecycle": {"confirm": ["app"]}})
+
+        self.assertEqual([k for k in after.get("input", {}) if "paging" in k], [])
+        self.assertNotIn("lifecycle", after)
+
+    def test_a_setting_that_moved_and_changed_type_arrives(self) -> None:
+        """confirm did both at once - lifecycle to frontend, and a scope list to a switch.
+        Either step alone would have lost it."""
+        after = self._written({"lifecycle": {"confirm": ["app", "system"]}})
+
+        self.assertIs(after["frontend"]["confirm"], True)
+
+    def test_a_file_that_never_had_them_gets_the_defaults(self) -> None:
+        after = self._written({"general": {}})
+
+        self.assertEqual(after["frontend"]["paging_size"], 10)
+        self.assertIs(after["frontend"]["confirm"], False)
 
