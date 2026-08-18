@@ -34,7 +34,7 @@ from common.games.tables import (
     table_names,
 )
 from common.host import launch, launch_state, pinmame_catalog
-from common.media_specs import MEDIA_SPECS, resolve_media_files
+from common.media_specs import MEDIA_SPECS
 from common.paths import get_ini_config
 
 from . import models, scopes
@@ -319,8 +319,9 @@ def _resolved_media(game_dir: Path, table_stem: str | None = None) -> dict:
     from common.media_specs import active_set_for
     wheelset = active_set_for("wheel", media_cfg.wheelset)
     active_sets = {"wheel": wheelset} if wheelset else None
-    return resolve_media_files(game_dir, set(files), medias, media_cfg.playfield_variant,
-                               table_stem, active_sets)
+    from common.media_specs import resolve_media_entries
+    return resolve_media_entries(game_dir, set(files), medias, media_cfg.playfield_variant,
+                                 table_stem, active_sets)
 
 
 @router.get("/{game_id}/media", summary="A table's media",
@@ -332,17 +333,18 @@ def get_game_media(game_id: str) -> models.MediaList:
     game_dir = Path(getattr(game, "fullPathGame", "") or "")
     prefix = f"/api/v1/games/{game_id}/media"
     resolved = _resolved_media(game_dir, _default_stem(game))
-    logo = resolved.get("logo")
     return {"media": {
         key: {
-            "present": path is not None,
-            "file": path.name if path is not None else None,
-            # A wheel served by the logo fallback says so, for clients that care.
-            "via": ("logo" if key == "wheel" and path is not None
-                    and logo is not None and path == logo else None),
-            "links": {"self": f"{prefix}/{key}"} if path is not None else {"self": None},
+            "present": hit.path is not None,
+            "file": hit.path.name if hit.path is not None else None,
+            # Which tier served this kind - "table", "game", "default", "set:<name>" or
+            # "fallback:<kind>". Says why this file is the one being used. It is not the
+            # same question as who put it there: that is origin, recorded per path in
+            # the .info assets ledger, and neither answer implies the other.
+            "via": hit.tier,
+            "links": {"self": f"{prefix}/{key}"} if hit.path is not None else {"self": None},
         }
-        for key, path in resolved.items()
+        for key, hit in resolved.items()
     }}
 
 
@@ -355,7 +357,8 @@ def get_game_media_file(game_id: str, kind: str):
         raise InvalidRequestError("Unknown media kind",
                                   details={"unknown": kind, "known": sorted(known)})
     game_dir = Path(getattr(game, "fullPathGame", "") or "")
-    path = _resolved_media(game_dir, _default_stem(game)).get(kind)
+    hit = _resolved_media(game_dir, _default_stem(game)).get(kind)
+    path = hit.path if hit is not None else None
     if path is None or not path.is_file():
         raise NotFoundError(f"This game has no {kind} media")
     return FileResponse(path)
