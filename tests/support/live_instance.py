@@ -57,9 +57,14 @@ class LiveInstance:
         self._log_path = self.config_dir / "instance.log"
         self._log = open(self._log_path, "w", encoding="utf-8")
         self.proc = subprocess.Popen(
-            [sys.executable, "main.py", "--headless"],
+            # -u because the child buffers its own stdout when it is not a tty, so
+            # nothing reaches the file until it exits. `output()` flushes this end of the
+            # pipe, which does nothing about the far end - every failure of a still-running
+            # instance reported an empty log, which is why they were hard to diagnose.
+            [sys.executable, "-u", "main.py", "--headless"],
             cwd=str(REPO_ROOT),
-            env={**os.environ, "VPINFE_CONFIG_DIR": str(self.config_dir)},
+            env={**os.environ, "VPINFE_CONFIG_DIR": str(self.config_dir),
+                 "PYTHONUNBUFFERED": "1"},
             stdout=self._log, stderr=subprocess.STDOUT, text=True)
         self._wait_until_serving()
         return self

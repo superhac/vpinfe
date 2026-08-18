@@ -218,7 +218,8 @@ class SeparationTests(TempTree):
                               extra_settings={("network", "hub_url"): hub_api}) as two:
                 one.wait_for_api()
                 two.wait_for_api()
-                roster = self._roster_of(hub_api, expected=2)
+                roster = self._roster_of(hub_api, expected=2,
+                                         instances=(hub, one, two))
 
         self.assertEqual(len(roster), 2, "both players, not one entry overwritten twice")
         ids = {player["install_id"] for player in roster}
@@ -231,9 +232,16 @@ class SeparationTests(TempTree):
                              "the hub records where it was reached from, not what it "
                              "was told")
 
-    def _roster_of(self, hub_api: str, *, expected: int, timeout: float = 30.0) -> list:
+    def _roster_of(self, hub_api: str, *, expected: int, timeout: float = 30.0,
+                   instances=()) -> list:
         """The roster once it holds `expected` players. Polled because announcing is a
-        background thread on each player - a fixed sleep would be a race either way."""
+        background thread on each player - a fixed sleep would be a race either way.
+
+        Failing here rather than returning a short roster, and failing with what each
+        instance logged: this has timed out occasionally and "expected 2, got 1" says
+        nothing about which player never announced or what stopped it. The logs exist;
+        the assertion just was not reaching for them.
+        """
         deadline = time.monotonic() + timeout
         players = []
         while time.monotonic() < deadline:
@@ -241,7 +249,11 @@ class SeparationTests(TempTree):
             if len(players) >= expected:
                 return players
             time.sleep(0.25)
-        return players
+
+        logs = "\n\n".join(f"--- instance {n} ---\n{inst.output(tail=3000)}"
+                            for n, inst in enumerate(instances, 1))
+        self.fail(f"{len(players)} of {expected} players announced within {timeout}s.\n"
+                  f"roster: {players}\n\n{logs}")
 
     def _render(self, player: LiveInstance):
         """Open the player's playfield window and read back what the theme drew."""
