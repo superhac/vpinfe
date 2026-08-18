@@ -24,6 +24,7 @@ from . import (
     manufacturers,
     play,
     players,
+    preferences,
     scopes,
     uploads,
 )
@@ -89,6 +90,7 @@ def create_api_app() -> FastAPI:
     api.include_router(jobs.router)
     api.include_router(library.router)
     api.include_router(players.router)
+    api.include_router(preferences.router)
     api.include_router(manufacturers.router)
     api.include_router(play.router)
     api.include_router(games.router)

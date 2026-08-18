@@ -41,6 +41,11 @@ SYSTEM_ADMIN = "system:admin"
 PLAYERS_READ = "players:read"
 PLAYERS_WRITE = "players:write"
 
+# How a user arranged a UI, kept hub-side so it follows them between devices. Not
+# config:* - a column layout is not the same permission as reading where VPX lives.
+PREFERENCES_READ = "preferences:read"
+PREFERENCES_WRITE = "preferences:write"
+
 EVENTS_SUBSCRIBE = "events:subscribe"
 
 # Asking what slow work is running. Starting it carries the scope of what it does -
@@ -58,6 +63,7 @@ CORE = frozenset({
     SYSTEM_READ, SYSTEM_ADMIN,
     EVENTS_SUBSCRIBE, JOBS_READ,
     PLAYERS_READ, PLAYERS_WRITE,
+    PREFERENCES_READ, PREFERENCES_WRITE,
 })
 
 EXTENSION_PREFIX = "ext:"
