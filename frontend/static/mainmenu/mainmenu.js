@@ -323,10 +323,15 @@ function handleInput(input) {
       break;
     case 'select': {
       const selectedItem = menu.current;
+      // Through requestLifecycle, not the close_app/shutdown_system bridge calls it used
+      // to make. Those are the 2.x spellings and they go straight to the backend - which
+      // cannot raise a dialog, because the bridge to a window only goes one way. So
+      // "Confirm Before Exit" did nothing from the one menu that can shut the cabinet
+      // down. The confirm is drawn here and answered with select and back.
       if (selectedItem.id === 'quit-item') {
-        window.parent.vpin.call('close_app');
+        window.parent.vpin.requestLifecycle('app', 'stop');
       } else if (selectedItem.id === 'shutdown-item') {
-        window.parent.vpin.call('shutdown_system');
+        window.parent.vpin.requestLifecycle('system', 'stop');
       } else if (selectedItem.id === 'rating-item') {
         showRatingDialog();
       } else if (selectedItem.id === 'audio-item') {

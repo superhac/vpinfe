@@ -71,9 +71,26 @@ class Request:
         return (self.scope, self.action)
 
     def describe(self) -> str:
-        if self.pair == POWEROFF:
-            return "power off this machine"
-        return f"{self.action} the {self.scope}"
+        """What this asks for, in the words a person would use.
+
+        Written out rather than built from the scope and the action: the template read
+        "stop the app", which names an internal scope at someone about to be asked
+        whether they meant it. Already sentence-cased, because str.capitalize lowercases
+        the rest and "Quit VPinFE" would come back as "Quit vpinfe".
+        """
+        return _DESCRIPTIONS.get(self.pair, f"{self.action} the {self.scope}")
+
+
+# Every allowed pair, in the words the confirm card and the log both use.
+_DESCRIPTIONS = {
+    (FRONTEND, START): "Open the frontend windows",
+    (FRONTEND, STOP): "Close the frontend windows",
+    (FRONTEND, RESTART): "Reopen the frontend windows",
+    (APP, STOP): "Quit VPinFE",
+    (APP, RESTART): "Restart VPinFE",
+    (SYSTEM, STOP): "Power off this machine",
+    (SYSTEM, RESTART): "Reboot this machine",
+}
 
 
 @dataclass

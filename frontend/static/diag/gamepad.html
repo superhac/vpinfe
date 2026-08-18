@@ -435,7 +435,7 @@
 
     function onKeyDown(e) {
       if (e.key === 'Escape') {
-        vpin.call("close_app");
+        vpin.requestLifecycle("app", "stop");
       }
     }
 

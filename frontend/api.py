@@ -368,8 +368,9 @@ class API:
         """
         return {
             "confirm": lifecycle_host.wants_confirmation(str(scope)),
+            # Already sentence-cased - capitalize() here would lowercase "VPinFE".
             "description": lifecycle.Request(
-                str(scope), str(action), self._origin()).describe().capitalize(),
+                str(scope), str(action), self._origin()).describe(),
         }
 
     def lifecycle_request(self, scope, action, reason="", confirmed=False):

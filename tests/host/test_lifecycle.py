@@ -106,7 +106,7 @@ class LifecycleTests(unittest.TestCase):
             origin=self._at(lifecycle.SURFACE_FRONTEND)))
         # The broken one sits between the other two, so both running proves it neither
         # stopped the announcement nor stopped the action.
-        self.assertEqual(told, ["power off this machine", "system"])
+        self.assertEqual(told, ["Power off this machine", "system"])
         self.assertEqual(self.done, [(lifecycle.SYSTEM, lifecycle.STOP)])
 
     def test_nobody_is_told_about_something_that_was_declined(self) -> None:
@@ -137,16 +137,36 @@ class LifecycleTests(unittest.TestCase):
                     lifecycle.request(scope, action,
                                       origin=self._at(lifecycle.SURFACE_FRONTEND))
 
-    def test_powering_off_is_not_described_as_stopping_the_system(self) -> None:
-        """Wording a person reads on a confirm dialog. "Stop the system" reads as
-        stopping VPinFE on it."""
-        request = lifecycle.Request(lifecycle.SYSTEM, lifecycle.STOP,
-                                    self._at(lifecycle.SURFACE_FRONTEND))
-        self.assertEqual(request.describe(), "power off this machine")
-        self.assertEqual(
-            lifecycle.Request(lifecycle.SYSTEM, lifecycle.RESTART,
-                              self._at(lifecycle.SURFACE_FRONTEND)).describe(),
-            "restart the system")
+    def test_every_request_is_described_in_words_a_person_uses(self) -> None:
+        """This is read off a confirm dialog by someone deciding whether they meant it.
+
+        Built from the scope and the action it said "stop the app" - naming an internal
+        scope - and "restart the system", which reads as restarting VPinFE on the machine
+        rather than rebooting the machine.
+        """
+        expected = {
+            (lifecycle.FRONTEND, lifecycle.START): "Open the frontend windows",
+            (lifecycle.FRONTEND, lifecycle.STOP): "Close the frontend windows",
+            (lifecycle.FRONTEND, lifecycle.RESTART): "Reopen the frontend windows",
+            (lifecycle.APP, lifecycle.STOP): "Quit VPinFE",
+            (lifecycle.APP, lifecycle.RESTART): "Restart VPinFE",
+            (lifecycle.SYSTEM, lifecycle.STOP): "Power off this machine",
+            (lifecycle.SYSTEM, lifecycle.RESTART): "Reboot this machine",
+        }
+        for (scope, action), wording in expected.items():
+            with self.subTest(scope=scope, action=action):
+                request = lifecycle.Request(scope, action,
+                                            self._at(lifecycle.SURFACE_FRONTEND))
+                self.assertEqual(request.describe(), wording)
+
+    def test_the_wording_covers_every_pair_the_build_allows(self) -> None:
+        """A new pair with no wording falls back to the template that produced
+        "stop the app", and nobody would notice until it was on screen."""
+        described = {pair for pair in lifecycle._ALLOWED
+                     if lifecycle.Request(*pair, self._at(lifecycle.SURFACE_FRONTEND))
+                     .describe() != f"{pair[1]} the {pair[0]}"}
+
+        self.assertEqual(described, lifecycle._ALLOWED)
 
 
     def test_the_performer_reaches_for_the_real_thing(self) -> None:
@@ -215,7 +235,7 @@ class NoticeTests(unittest.TestCase):
         self.assertEqual(len(bridge.sent), 1)
         message, excluded = bridge.sent[0]
         self.assertEqual(message["type"], "LifecycleActing")
-        self.assertEqual(message["description"], "power off this machine")
+        self.assertEqual(message["description"], "Power off this machine")
         self.assertEqual(message["origin"], lifecycle.SURFACE_MANAGER_UI)
         self.assertIsNone(excluded, "no window asked, so no window is left out")
 
