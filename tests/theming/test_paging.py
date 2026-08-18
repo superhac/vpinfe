@@ -118,8 +118,10 @@ class TestGetPagingConfig(unittest.TestCase):
 
     def test_the_2x_spellings_still_resolve(self):
         """`alpha` and `numeric` are in configs users already have."""
-        self.assertEqual(input_api.get_paging_config(self._config(pagingtype="alpha"))[0], "sort")
-        self.assertEqual(input_api.get_paging_config(self._config(pagingtype="numeric"))[0], "count")
+        alpha = input_api.get_paging_config(self._config(pagingtype="alpha"))
+        numeric = input_api.get_paging_config(self._config(pagingtype="numeric"))
+        self.assertEqual(alpha[0], "sort")
+        self.assertEqual(numeric[0], "count")
 
     def test_invalid_values_fall_back_to_defaults(self):
         config = self._config(pagingtype="bogus", pagingsize="zero")
