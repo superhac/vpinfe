@@ -66,6 +66,18 @@ and so are those section names.
 `Info` and `User` keep PascalCase: other frontends read them, so their shape is a contract
 rather than a style choice.
 
+### The nouns, in identifiers
+
+`## Vocabulary` below defines them. In code: `game_dir` is a game's folder and
+`game_dir_name` is that folder's name; `game_root_dir` is the library holding them;
+`vpx_path` is a table file. A playfield is never `table`.
+
+`tests/invariants/test_game_and_table_names.py` checks this by meaning rather than by
+spelling - it calls the launch builder to confirm the argument named for a table really is
+what the launcher is handed. Two passes got it backwards before that test existed, and the
+second did it while fixing the first, because both stated the rule as a shape - which names
+refer to the folder - and a shape cannot see the case that contradicts it.
+
 ### Kind, not type
 
 A closed set of named variants is a **kind** — media kinds, job kinds, asset kinds, the
@@ -250,9 +262,9 @@ reading both had to invert twice.
 
 - **Game** — the pinball-machine concept: folder, identity, metadata, media, assets.
   VPS's top-level entry. One game, one folder.
-- **Table** — a launchable artifact for a specific app (`.vpx` today). VPS's `tableFiles`:
-  a game has several, by different authors, at different versions. A game is not
-  permanently one table.
+- **Table** — a launchable artifact for a specific launcher (`.vpx` today). VPS's
+  `tableFiles`: a game has several, by different authors, at different versions. A game
+  is not permanently one table.
 - **Playfield** — the main screen, and the media shown on it. Not "table": the playfield is
   a facet of a game, and `table` now means the file.
 - **Media** — artwork VPinFE shows *about* a game while you browse: playfield, backglass,
@@ -295,7 +307,13 @@ table misses. One known ambiguity: some EM/PM recreations *conditionally* drive 
 chime sounds (the `cOptRom` pattern), and read as required when the player may run
 happily without the ROM. The flag lands on the table on the next metadata rebuild;
 until then the chain reports `required: null`.
-- **App** — the application that plays a format (VPX standalone today).
+- **Launcher** — the application that runs a table file (VPX standalone today).
+  Not "app": that is VPinFE itself, and the lifecycle scopes use it that way.
+- **Install** — one VPinFE installation: its files, its config, its `install_id`. It
+  survives restarts, and it is what a hub or a player is addressed as.
+- **App** — VPinFE running. What a lifecycle request starts, stops or restarts, as against
+  the `frontend` it opens and the `system` it runs on. The install is still there when the
+  app is not.
 - **Theme** — a player-facing frontend package.
 - **Extension** — a feature extending VPinFE under a manifest. Never "plugin", which is
   reserved for VPX standalone plugins.
