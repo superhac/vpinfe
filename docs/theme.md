@@ -1173,17 +1173,21 @@ where the press should land (`get_page_index`) and broadcasts a `TableIndexUpdat
 to every window. Your theme moves its wheel through the same `receiveEvent` path it
 already uses for external index updates, so paging works with no theme changes.
 
-The user controls the behavior with two `[Input]` settings in `vpinfe.ini`:
+The user controls the behavior with two `[frontend]` settings:
 
-- `pagingtype` — `group` (default) jumps to the next boundary in whatever the list is
+- `paging_group` — `sort` (default) jumps to the next boundary in whatever the list is
   ordered by: the next letter under title order (numbers and symbols share one `#`
-  group), the next year under year order, the next rating under rating order. `step`
+  group), the next year under year order, the next rating under rating order. `count`
   jumps a fixed number of games. Orders where every value is its own — last played,
   date added, play count, play time — have no groups, and neither does a curated
-  collection's manual order; a press steps there, and so does a list that is all one
-  group. The 2.x names `alpha` and `numeric` still resolve, to `group` and `step`.
-- `pagingsize` — how many games a `step` jump moves (default `10`). All paging wraps
+  collection's manual order; a press moves a fixed number there, and so does a list
+  that is all one group. The 2.x names `alpha` and `numeric` still resolve, to `sort`
+  and `count`.
+- `paging_size` — how many games a `count` jump moves (default `10`). All paging wraps
   around.
+
+A collection may override `paging_group` for itself, or say nothing and follow the
+setting. Which it resolved to is what the wheel actually does.
 
 A theme that wants its own paging behavior calls `vpin.enableCorePaging(false)`;
 the actions are then routed to `handleInput` like any other, and
@@ -1386,7 +1390,7 @@ change it — `set_tables_by_collection` and the lists above are what a theme ne
 | `get_joymaping` | — | `object` | Returns the gamepad button mapping from `vpinfe.ini`. Keys: `joyleft`, `joyright`, `joyup`, `joydown`, `joypageup`, `joypagedown`, `joyselect`, `joymenu`, `joyback`, `joytutorial`, `joyexit`, `joycollectionmenu`. Values are button index strings. |
 | `get_keymapping` | — | `object` | Returns the keyboard mapping from `vpinfe.ini`. Keys: `keyleft`, `keyright`, `keyup`, `keydown`, `keypageup`, `keypagedown`, `keyselect`, `keymenu`, `keyback`, `keytutorial`, `keyexit`, `keycollectionmenu`. Values are comma-separated browser key names or key codes. |
 | `set_button_mapping` | `button_name`, `button_index` | `object` | Sets a gamepad button mapping and saves to config. Returns `{success, message}`. |
-| `get_page_index` | `index`, `direction` | `number` | Returns the wheel index a page press should land on, from `index` in the given `direction` (`"next"` or `"prev"`). Honors `[Input] pagingtype`/`pagingsize` and the current sort. See [Wheel Paging](#wheel-paging). |
+| `get_page_index` | `index`, `direction` | `number` | Returns the wheel index a page press should land on, from `index` in the given `direction` (`"next"` or `"prev"`). Honors `[frontend] paging_group`/`paging_size`, any override the collection carries, and the order on screen. See [Wheel Paging](#wheel-paging). |
 
 ##### Theme & Display Config
 
