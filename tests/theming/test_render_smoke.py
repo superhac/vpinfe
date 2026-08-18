@@ -141,11 +141,6 @@ class RenderSmokeTests(TempTree):
 
     # -- the main menu, driven the way a player drives it --------------------
     #
-    # Nothing loaded `mainmenu.js` before this. The JS suite covers core's overlay
-    # plumbing - opening, closing, which one owns the actions - and stops at the iframe
-    # boundary, so the cursor inside the menu had no coverage at all.
-
-    # -- the main menu, driven the way a player drives it --------------------
     #
     # Nothing loaded `mainmenu.js` before this. The JS suite covers core's overlay
     # plumbing - opening, closing, which one owns the actions - and stops at the
@@ -155,10 +150,28 @@ class RenderSmokeTests(TempTree):
     SELECTED = ("(document.getElementById('menu-frame')?.contentDocument"
                 "?.querySelector('.menu-item.selected')?.id) || ''")
 
+    # What the page looked like when no item was selected. Splits "the menu never
+    # opened" from "it opened empty" - a bare timeout names neither, and the answer
+    # costs a push per guess.
+    MENU_STATE = """JSON.stringify((() => {
+      const frame = document.getElementById('menu-frame');
+      const doc = frame && frame.contentDocument;
+      return {frame: !!frame,
+              display: frame ? frame.style.display : null,
+              src: frame ? frame.getAttribute('src') : null,
+              readyState: doc ? doc.readyState : null,
+              items: doc ? doc.querySelectorAll('.menu-item').length : null};
+    })())"""
+
     async def _open_menu(self, browser, instance):
         await self._open(browser, instance, "playfield")
         await browser.press("m", "KeyM")
-        return await browser.wait_for(self.SELECTED)
+        try:
+            return await browser.wait_for(self.SELECTED, timeout=self.READY_TIMEOUT)
+        except TimeoutError as exc:
+            state = await browser.evaluate(self.MENU_STATE)
+            report = self._diagnose(exc, browser, instance, "the menu")
+            raise AssertionError(f"{report}\n  menu: {state}") from exc
 
     def test_the_menu_opens_with_something_selected(self) -> None:
         async def run(instance):
