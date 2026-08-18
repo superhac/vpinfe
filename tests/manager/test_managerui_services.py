@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from common.games.archive_service import resolve_game_dir
@@ -25,6 +26,7 @@ from common.games.media_service import (
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
 from managerui.filters import ALL_VALUE, apply_game_filters, build_game_filter_options
 from managerui.pages.collections import paging_labels
+from managerui.pages.vpinfe_config import tracked_values
 from managerui.services import theme_service
 from managerui.services.collection_admin import get_filter_options, search_games
 from managerui.services.game_catalog import build_mobile_game_rows
@@ -455,20 +457,55 @@ class PagingOptionLabelTests(unittest.TestCase):
     def test_a_sort_with_groups_reads_plainly(self) -> None:
         for order_by in ("title", "year", "rating"):
             with self.subTest(order_by=order_by):
-                self.assertEqual(paging_labels(order_by)["sort"], "By the sort")
+                self.assertEqual(paging_labels(order_by)["sort"], "Sort groups")
 
     def test_a_sort_without_groups_says_it_will_step(self) -> None:
         """last_played, added and manual give every table its own value or no order."""
         for order_by in ("last_played", "added", "manual"):
             with self.subTest(order_by=order_by):
-                self.assertIn("no groups", paging_labels(order_by)["sort"])
+                self.assertIn("none in this sort", paging_labels(order_by)["sort"])
 
     def test_the_other_options_never_move(self) -> None:
         """Only the option that asks for groups can be wrong about this sort."""
         for order_by in ("title", "last_played"):
             labels = paging_labels(order_by)
-            self.assertEqual(labels[""], "Follow my setting")
-            self.assertEqual(labels["count"], "By a fixed number")
+            self.assertEqual(labels[""], "Use my default")
+            self.assertEqual(labels["count"], "Fixed number")
 
     def test_no_sort_at_all_is_the_default_sort(self) -> None:
         self.assertEqual(paging_labels("")["sort"], paging_labels("title")["sort"])
+
+
+class SaveBarTracksBindingsTests(unittest.TestCase):
+    """The Settings page's Save appears when something changed, so it has to watch
+    everything a person can change.
+
+    The binding fields live in their own dict - an action is shown through two of them,
+    recombined on save - and the save bar only looked at the other one. Editing a binding
+    and nothing else changed nothing it could see, so no Save button appeared at all.
+    """
+
+    @staticmethod
+    def _widget(value):
+        return SimpleNamespace(value=value)
+
+    def test_the_page_fields_are_watched(self) -> None:
+        values = tracked_values({"general": {"theme": self._widget("Revolution")}}, {})
+
+        self.assertEqual(values[("general", "theme")], "Revolution")
+
+    def test_the_binding_fields_are_watched_too(self) -> None:
+        values = tracked_values({}, {"previous": {"key": self._widget("ArrowLeft")}})
+
+        self.assertEqual(values[("previous", "key")], "ArrowLeft",
+                         "a binding edit has to be something the save bar can see")
+
+    def test_both_halves_of_an_action_are_separate(self) -> None:
+        """Two fields per action, so one changing must not hide the other."""
+        values = tracked_values({}, {"previous": {"key": self._widget("ArrowLeft"),
+                                                  "pad": self._widget("pad:0/button:3")}})
+
+        self.assertEqual(len(values), 2)
+
+    def test_nothing_rendered_is_nothing_watched(self) -> None:
+        self.assertEqual(tracked_values({}, {}), {})

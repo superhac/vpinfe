@@ -24,7 +24,7 @@ def paging_labels(order_by):
     """
     labels = dict(collection_admin.PAGING_GROUP_LABELS)
     if not group_kind(order_by or collection_admin.DEFAULT_ORDER_BY):
-        labels['sort'] = f"{labels['sort']} - this sort has no groups, so it steps"
+        labels['sort'] = f"{labels['sort']} - none in this sort"
     return labels
 
 
@@ -33,7 +33,7 @@ def _paging_control(sort_input, value=""):
 
     The labels come from `paging_labels`; this wires them to the sort control.
     """
-    paging = ui.select(label='Page by',
+    paging = ui.select(label='Page By',
                        options=dict(collection_admin.PAGING_GROUP_LABELS),
                        value=value).classes('w-full')
     caption = ui.label().classes('text-xs').style('color: var(--text-dim);')
@@ -48,7 +48,16 @@ def _paging_control(sort_input, value=""):
         paging.value = chosen
         paging.update()
 
-        if (paging.value or "") == "count":
+        # Each branch says what a press does here, not what the option is called. The
+        # default case has to name where the default lives, or "use my default" is a
+        # instruction with no address.
+        choice = paging.value or ""
+        if choice == "":
+            where = 'Follows Page By under Settings, Frontend.'
+            caption.text = (f'{where} This sort groups by {kind}.' if kind
+                            else f'{where} This sort has no groups, so a fixed number '
+                                 'either way.')
+        elif choice == "count":
             caption.text = 'A page press moves a fixed number of tables.'
         elif kind:
             caption.text = f'A page press moves to the next {kind}.'

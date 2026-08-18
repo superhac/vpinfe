@@ -72,6 +72,22 @@ WINDOW_SECTIONS = ('windows.playfield', 'windows.backglass', 'windows.scoreview'
 # rather than a window, so its own key stays in [media].
 MEDIA_PRIORITY_KEYS = ('media_priority', 'realdmd_media_priority')
 
+def tracked_values(inputs, binding_inputs):
+    """Every value the save bar watches, keyed by what identifies it.
+
+    The binding fields are held apart from the rest - an action is shown through two of
+    them, recombined on save - so they have to be added here deliberately. Left out, an
+    edit to a binding changed nothing the save bar could see and no Save appeared.
+    """
+    values = {(section, key): widget.value
+              for section, keys in inputs.items()
+              for key, widget in keys.items()}
+    values.update({(action, device): widget.value
+                   for action, fields in binding_inputs.items()
+                   for device, widget in fields.items()})
+    return values
+
+
 def _get_collection_names():
     """Get list of collection names for the dropdown."""
     try:
@@ -1103,39 +1119,40 @@ def render_panel(tab=None):
         def _norm(value):
             return '' if value is None else str(value)
 
-        initial_raw = {
-            (section, key): inp.value
-            for section, keys in inputs.items()
-            for key, inp in keys.items()
-        }
+        def _binding_widgets():
+            return [((action, device), widget)
+                    for action, fields in binding_inputs.items()
+                    for device, widget in fields.items()]
+
+        initial_raw = tracked_values(inputs, binding_inputs)
 
         def changed_count():
-            return sum(
-                1
-                for section, keys in inputs.items()
-                for key, inp in keys.items()
-                if _norm(inp.value) != _norm(initial_raw.get((section, key)))
-            )
+            return sum(1 for ident, value in tracked_values(inputs, binding_inputs).items()
+                       if _norm(value) != _norm(initial_raw.get(ident)))
 
         def on_save():
             save_config()
-            for section, keys in inputs.items():
-                for key, inp in keys.items():
-                    initial_raw[(section, key)] = inp.value
+            initial_raw.update(tracked_values(inputs, binding_inputs))
 
         def on_discard():
             for (section, key), value in initial_raw.items():
                 inp = inputs.get(section, {}).get(key)
                 if inp is not None:
                     inp.value = value
+            for ident, widget in _binding_widgets():
+                if ident in initial_raw:
+                    widget.value = initial_raw[ident]
 
         update_save_bar = attach_shell_save_bar(
             count=changed_count, on_save=on_save, on_discard=on_discard
         )
 
-        # Every input on the page, whatever section or key it belongs to.
+        # Every input on the page, whatever section or key it belongs to - and the
+        # binding fields, which are not in `inputs`.
         for _section, keys in inputs.items():
             for _key, inp in keys.items():
                 inp.on_value_change(lambda _: update_save_bar())
+        for _ident, widget in _binding_widgets():
+            widget.on_value_change(lambda _: update_save_bar())
 
         update_save_bar()

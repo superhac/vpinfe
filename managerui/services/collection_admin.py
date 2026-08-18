@@ -232,9 +232,9 @@ def update_filter_collection(name: str, **filters) -> None:
 # What a page press moves by in this collection. The empty key is "no opinion" - it has
 # to be offered, or a collection could never go back to following the player.
 PAGING_GROUP_LABELS = {
-    "": "Follow my setting",
-    "sort": "By the sort",
-    "count": "By a fixed number",
+    "": "Use my default",
+    "sort": "Sort groups",
+    "count": "Fixed number",
 }
 
 
