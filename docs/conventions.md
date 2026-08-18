@@ -204,6 +204,19 @@ Areas are `common`, `frontend`, `manager`, `httpapi`. Extensions get `vpinfe.ext
 issued by the extension context — an extension never logs into a core namespace, because the
 namespace is how "which extension did this?" stays answerable.
 
+### The browser side
+
+A theme and the overlays run in Chromium, and their consoles go nowhere anyone reads on a
+cabinet - an overlay is an iframe with a console of its own. Core forwards both to the
+same log: whatever a page sends through `console_out`, and every uncaught error and
+unhandled rejection without being asked. They arrive at INFO as `[<window>] ...`, or `[<window>/<overlay>] ...` when an
+overlay is what threw. The window comes from the connection, so it cannot be
+claimed; the overlay comes from the caller, because only it knows which frame it is.
+
+The automatic half is the one that matters. A page that throws stops responding and
+reports nothing, which reads as a dead button rather than a fault, and the deliberate
+half cannot help - the code that would have called it is what threw.
+
 ### Exceptions
 
 Use `logger.exception` inside an `except` block. It keeps the traceback;

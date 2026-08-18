@@ -696,6 +696,9 @@ class VPinFECore {
 
   init() {
     this.#applyWindowIdentity();
+    // The theme's own page, for the same reason an overlay gets it: a theme that throws
+    // at startup renders nothing, which looks exactly like a blank screen.
+    this.#reportUncaughtFrom(window, "");
     window.__vpinCoreResumeAudio = () => this.#audioResumePlay();
 
     // Set up keyboard listener
@@ -2149,10 +2152,40 @@ class VPinFECore {
       const frameWindow = iframe && iframe.contentWindow;
       if (!frameWindow || typeof frameWindow.addEventListener !== "function") return;
       frameWindow.addEventListener("keydown", (e) => this.#onKeyDown(e));
+      this.#reportUncaughtFrom(
+        frameWindow, (iframe.id || "").replace(/-frame$/, "") || "overlay");
     } catch {
       // Cross-origin, or a frame that went away while opening. The parent window's
       // listener still covers every case except focus being inside the frame.
     }
+  }
+
+  /**
+   * Forward what a frame throws to the log, because otherwise nobody sees it.
+   *
+   * An overlay is an iframe with its own console, and nothing reads it on a cabinet.
+   * A ReferenceError in the menu left it silently not responding to any key, with a
+   * clean vpinfe.log - the only clue was pressing a button and watching nothing happen.
+   * console_out already reaches the log; what was missing was anything calling it when
+   * the code threw before it could.
+   */
+  #reportUncaughtFrom(frameWindow, label) {
+    // The window is prefixed by console_out from the connection it arrived on; `label`
+    // is the overlay within it, so a fault reads [playfield/menu] rather than as the
+    // theme's own.
+    const report = (what) => {
+      // Never through this.call: the socket may be down, and a reporter that throws
+      // while reporting is worse than the fault it was sent to describe.
+      try { this.call("console_out", `threw: ${what}`, label); } catch { /* ignore */ }
+    };
+    frameWindow.addEventListener("error", (e) => {
+      // A setTimeout callback has no script URL, and "(?:1)" is punctuation pretending
+      // to be a location.
+      const file = (e.filename || "").split("/").pop();
+      report(`${e.message}${file ? ` (${file}:${e.lineno})` : ""}`);
+    });
+    frameWindow.addEventListener("unhandledrejection", (e) =>
+      report(`unhandled rejection: ${(e.reason && e.reason.message) || e.reason}`));
   }
 
   // ── Input modes ───────────────────────────────────────────────────────────

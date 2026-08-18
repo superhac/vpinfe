@@ -590,8 +590,14 @@ class API:
             paging["group"], paging["size"]
         )
 
-    def console_out(self, output):
-        logger.info("Win: %s - %s", self.window_name, output)
+    def console_out(self, output, frame=""):
+        """A line from the browser. `frame` names an overlay within this window.
+
+        The window comes from the connection rather than the caller, so it cannot be
+        claimed; the frame is the caller's, because only it knows which iframe it is.
+        """
+        where = f"{self.window_name}/{frame}" if frame else self.window_name
+        logger.info("[%s] %s", where, output)
         return output
 
     def get_bindings(self):

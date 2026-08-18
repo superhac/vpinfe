@@ -1303,7 +1303,7 @@ The following methods are available via `vpin.call()`:
 | `lifecycle_request` | `scope`, `action`, `reason`, `confirmed` | `bool` | Starts, stops or restarts something. Returns whether it is going ahead. |
 | `lifecycle_needs_confirmation` | `scope`, `action` | `object` | `{confirm, description}` — whether to ask the user first, and the wording to ask with. |
 | `get_monitors` | — | `array` | Returns list of monitor objects with `name`, `x`, `y`, `width`, `height`. |
-| `console_out` | `output` | `string` | Prints a message to the Python CLI console. Useful for debugging. Returns the same string. |
+| `console_out` | `output` | `string` | Sends a message to VPinFE's log, where it appears as `[<window>] your message`. Useful for debugging on a cabinet, where nothing reads the browser console. Returns the same string. Your uncaught errors and unhandled rejections are forwarded automatically — you do not need to call this for those. |
 
 ###### Starting, stopping and restarting
 

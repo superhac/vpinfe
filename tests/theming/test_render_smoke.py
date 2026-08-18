@@ -299,6 +299,45 @@ class RenderSmokeTests(TempTree):
         self.assertTrue(closed)
         self.assertEqual(still_open, "block", "back closed the whole menu, not the popup")
 
+    # -- what a frame throws reaches the log -------------------------------
+    #
+    # An overlay is an iframe with its own console, and nothing reads it on a cabinet.
+    # A ReferenceError in the menu left it not responding to any key with a clean log;
+    # the only clue was pressing a button and watching nothing happen.
+
+    def test_an_overlay_that_throws_says_so_in_the_log(self) -> None:
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                await self._open_menu(browser, instance)
+                # eval inside the frame, so the closure belongs to the frame's realm.
+                # Passing a parent-defined callback to contentWindow.setTimeout reports
+                # the error on the *parent* - which passes this test while proving
+                # nothing about the overlay path it is named for.
+                await browser.evaluate(
+                    'document.getElementById("menu-frame").contentWindow.eval('
+                    '"setTimeout(function () { throw new Error(\'menu exploded\'); }, 0)")')
+                await asyncio.sleep(1.5)
+
+        with LiveInstance(self.root) as instance:
+            asyncio.run(run(instance))
+            log = instance.output()
+        self.assertIn("[playfield/menu] threw", log,
+                      "the fault has to name the overlay, or it reads as the theme's")
+        self.assertIn("menu exploded", log)
+
+    def test_the_theme_page_reports_its_own_throws(self) -> None:
+        async def run(instance):
+            async with BrowserSession(chromium_path()) as browser:
+                await self._open(browser, instance, "playfield")
+                await browser.evaluate(
+                    "setTimeout(() => { throw new Error('theme exploded'); }, 0)")
+                await asyncio.sleep(1.5)
+
+        with LiveInstance(self.root) as instance:
+            asyncio.run(run(instance))
+            log = instance.output()
+        self.assertIn("theme exploded", log)
+
 
 if __name__ == "__main__":
     unittest.main()
