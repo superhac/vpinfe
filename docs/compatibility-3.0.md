@@ -1320,7 +1320,7 @@ Master paged by letter only when the sort was alphabetical, and stepped a fixed 
 rest of the time without saying so. A press now moves to the next group in whatever the
 list is ordered by — the next letter under title order, the next year under year order —
 and where an order gives every table its own value there are no groups, so it moves a fixed
-number. The `[input]` setting is `paging_group`, `sort` or `count`; the 2.x spellings
+number. The `[frontend]` setting is `paging_group`, `sort` or `count`; the 2.x spellings
 `alpha` and `numeric` still resolve, to `sort` and `count`. A collection can override the
 player's choice in its `order` block, and says nothing there by default, so changing the
 player setting still reaches every collection that never expressed a preference.

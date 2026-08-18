@@ -14,6 +14,11 @@ build and it changes how your library is stored — read the next section first.
   backed up the same way. Expect a burst of writes on first start and nothing after.
 - To undo it: the Tables page offers a restore when it finds backups, or run
   `--restore-info`.
+- To take 3.0 back off entirely, `--reset-3x-state` removes the settings and collections
+  files 3.0 wrote, the `.info` files it made and every backup it kept, so the next start
+  migrates from scratch. Settings you changed under 3.0 are lost, and so is any rating or
+  play count on a table 3.0 added. It refuses while VPinFE is running; `--dry-run` lists
+  what would go, and `--config-only` leaves the library alone.
 - **The API has no authentication, and it answers on every interface.** Anything that can
   reach the port can read your library, change settings, upload files and launch tables.
   That is how VPinFE has always worked and 3.0 does not change it — but 3.0 is the release
@@ -23,11 +28,30 @@ build and it changes how your library is stored — read the next section first.
   pages working from other devices.
 
 ### What's New
-- **Core** — VPinFE can ask before it quits, restarts or powers off the machine. Off by
-  default, which is how it has always behaved; set `lifecycle.confirm` to the scopes you
-  want checked. The question appears on whatever you used to ask — the cabinet asks on the
-  cabinet, the remote page asks on your phone — and every other screen is told what is about
-  to happen rather than left to go dark without explanation.
+- **Core** — VPinFE can ask before it quits or powers off the machine. Off by default,
+  which is how it has always behaved; tick Confirm Before Exit on the Frontend settings
+  page, or set `[frontend] confirm`. Closing the frontend never asks — those windows reopen
+  from the Manager UI, so there is nothing to lose. The question appears on whatever you
+  used to ask — the cabinet asks on the cabinet, the remote page asks on your phone — and
+  every other screen is told what is about to happen rather than left to go dark without
+  explanation.
+- **Frontend** — Back at the wheel's root leaves, down the same path the exit action takes,
+  so it asks when you have asked to be asked rather than becoming a second way out that
+  never does. Themes that have not moved to 3.0 keep `back` as their own action, and inside
+  a dialog or a text field it still means dismiss.
+- **Frontend** — A page press moves by the groups in whatever the list is ordered by: the
+  next letter under title order, the next year under year order. Orders where every table
+  has a value of its own — last played, date added, play count — have no groups, so a press
+  moves a fixed number instead. `[frontend] paging_group` picks which (`sort` or `count`),
+  `[frontend] paging_size` says how far a `count` jump goes, and a collection can override
+  both for itself. The 2.x spellings `alpha` and `numeric` still resolve.
+- **Core, Themes** — A theme declares the oldest VPinFE it runs on, as `min_vpinfe` in its
+  `manifest.json`. Installing one that needs a newer build than yours is refused before
+  anything downloads, and the message names the version it wants.
+- **Core** — What a theme or an overlay throws now reaches `vpinfe.log`, tagged with the
+  window it came from and the overlay if that is what threw. A Chromium console goes
+  nowhere anyone reads on a cabinet, so a theme that broke looked like a frontend that had
+  stopped answering the buttons.
 - **Core** — Every table gets a stable id, minted once and kept in its `.info`. It survives
   renaming a folder and updating a `.vpx`, which VPSId does not. Collection membership is
   keyed by it now, so an ordinary table update no longer orphans a table out of its
@@ -57,7 +81,7 @@ build and it changes how your library is stored — read the next section first.
   yourself, and `(GameHelp)` and `(GameInfo)` keep working if your media came that way.
 - **Core, Themes** — Wheel sets, chosen in the ini or by the theme.
 - **Core, Themes** — Manufacturer logos, served from a shared assets root
-  (`[Settings] assetsdir`, default `assets/` under the config dir) at `/assets/`. Nothing
+  (`[general] assets_dir`, default `assets/` under the config dir) at `/assets/`. Nothing
   ships or downloads yet, so today it is a slot for themes to fill.
 - **Manager UI, Core** — A table export is one game, not the whole folder: the chosen
   `.vpx`, its companions, `pinmame/`, `music/`, colorization and sound folders and the
@@ -99,6 +123,10 @@ These are deliberate. `docs/compatibility-3.0.md` has the full list with the rea
   Swap the two values under `[input]` if you prefer the old feel. If you ran a 3.0
   development build and customized a paging binding, set it again — `page_up` and
   `page_down` are no longer read as config keys.
+- **Manager UI** — Paging and Confirm Before Exit sit on the Frontend settings page now,
+  rather than under General and Additional Input Settings. They say what the frontend does
+  when a button is pressed, which is a different question from which button does what. The
+  ini keys you already have are still read.
 
 ### Fixes
 - **Frontend** — Tables no longer start paused on Windows. VPX pauses whenever its window
@@ -114,8 +142,24 @@ These are deliberate. `docs/compatibility-3.0.md` has the full list with the rea
   table is left out and named in the log, and its file is not touched.
 - **Manager UI** — Remote launch failures are logged instead of failing silently, and a
   remote launch no longer raises on Linux.
+- **Manager UI** — Editing an input binding and nothing else now offers a Save button. The
+  binding fields are kept apart from the rest and the save bar was not watching them.
+- **Frontend** — Core takes the wheel's previous and next only from a theme that says it
+  runs on 3.0. Revolution, Trinidad and carousel-desktop drive their own collection list
+  with those two actions, and core was consuming the press first, so their picker exited
+  onto an unrelated table. A theme that wants core navigation without declaring 3.0 sets
+  `navigation.enabled` in its `theme.json`.
 
 ### For theme and API authors
+- **Themes** — The selection surface keeps the names 2.x published: `get_tables`,
+  `launch_table`, `TableIndexUpdate`, `vpin.tableData` and the rest. A row on the wheel is
+  a table — a collection may hold two tables of one game, and both are rows — so these went
+  back after an earlier 3.0 build renamed them.
+- **Themes** — `min_vpinfe` in `manifest.json` replaces naming a contract number. Declaring
+  nothing still means the 2.x payload shape.
+- **Themes** — Core owns the wheel's list and cursor, and the menus run on the same one, so
+  a theme can open the collection picker and let core apply the choice and announce it.
+  `vpin.enableCorePaging(false)` still hands paging back to you.
 - **Themes** — Core's files are served at `/core/` now, against `/themes/` for what a theme
   provides. Your existing theme keeps working: `/web/` still serves the same files, so there
   is nothing to change unless you want to.
