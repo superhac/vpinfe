@@ -14,7 +14,9 @@ import unittest
 import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
+from common.online import themes
 from common.online.theme_installer import ASIDE_SUFFIX, ThemeInstallStore
 
 BASE_URL = "https://github.com/someone/Reference"
@@ -137,3 +139,65 @@ class ThemeStoreDetectionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MinimumVersionGateTests(unittest.TestCase):
+    """A theme states the oldest build it runs on. Nothing was checking it at install.
+
+    The frontend's gate decides which contract a theme *gets* once it is installed. That
+    is no help when the theme needs a build newer than this one: it arrives, replaces a
+    working theme, and renders against a contract this build does not serve. On a
+    cabinet that is a black screen after an unattended auto-update.
+    """
+
+    def _registry(self, min_vpinfe):
+        registry = themes.ThemeRegistry.__new__(themes.ThemeRegistry)
+        registry.themes = {"Fancy": {
+            "manifest": {"version": "2.0", "min_vpinfe": min_vpinfe},
+            "registry_info": {}, "release": None}}
+        registry._base_url = lambda info: "http://example.invalid"
+        registry._get_installed_version = lambda key: None
+        registry.downloads = []
+        registry._download_zip = lambda url: registry.downloads.append(url)
+        return registry
+
+    def test_a_theme_needing_a_newer_build_is_refused(self) -> None:
+        registry = self._registry("4.0")
+
+        with mock.patch.object(themes, "get_version", return_value="3.0.1"):
+            with self.assertRaises(themes.ThemeVersionError) as caught:
+                registry.install_theme("Fancy")
+
+        self.assertIn("4.0", str(caught.exception))
+        self.assertIn("3.0.1", str(caught.exception), "say what is running, not just what "
+                                                      "was wanted")
+
+    def test_it_refuses_before_downloading_anything(self) -> None:
+        """Ordered ahead of the fetch on purpose - a refusal after the download has
+        already spent the bandwidth and, on a slow share, the wait."""
+        registry = self._registry("4.0")
+
+        with mock.patch.object(themes, "get_version", return_value="3.0.1"):
+            with self.assertRaises(themes.ThemeVersionError):
+                registry.install_theme("Fancy")
+
+        self.assertEqual(registry.downloads, [])
+
+    def test_a_new_enough_build_passes_the_gate(self) -> None:
+        registry = self._registry("3.0")
+
+        with mock.patch.object(themes, "get_version", return_value="3.0.1"):
+            with self.assertRaises(Exception) as caught:
+                registry.install_theme("Fancy")
+
+        self.assertNotIsInstance(caught.exception, themes.ThemeVersionError)
+
+    def test_a_theme_that_states_nothing_is_not_gated(self) -> None:
+        """Saying nothing means contract 1, which every build serves."""
+        registry = self._registry(None)
+
+        with mock.patch.object(themes, "get_version", return_value="3.0.1"):
+            with self.assertRaises(Exception) as caught:
+                registry.install_theme("Fancy")
+
+        self.assertNotIsInstance(caught.exception, themes.ThemeVersionError)

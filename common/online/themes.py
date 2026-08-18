@@ -6,10 +6,20 @@ import os
 from io import BytesIO
 from typing import Any
 
+from common.app_version import get_version
 from common.online import theme_releases, theme_sources
 from common.online.theme_installer import ThemeInstallStore
 from common.online.theme_registry_client import ThemeRegistryClient, ThemeRegistryError
 from common.paths import CONFIG_DIR, get_ini_config
+from common.values import parse_version
+
+# What a theme states as the oldest build it runs on. Named here rather than imported
+# from the frontend: the installer runs on a hub with no frontend at all.
+MIN_VERSION_KEY = "min_vpinfe"
+
+
+class ThemeVersionError(ThemeRegistryError):
+    """A theme that needs a newer VPinFE than the one asked to install it."""
 
 logger = logging.getLogger("vpinfe.common.online.themes")
 
@@ -265,6 +275,18 @@ class ThemeRegistry:
 
         remote_version = manifest["version"]
         local_version = self._get_installed_version(theme_key)
+
+        # Before anything is downloaded, and before the up-to-date check: a theme that
+        # needs a newer build than this one is not an update, and installing it over a
+        # working theme leaves the frontend rendering against a contract this build does
+        # not serve. The theme's own gate decides which contract it *gets*; nothing was
+        # deciding whether it should arrive at all.
+        needs = parse_version(manifest.get(MIN_VERSION_KEY))
+        running = parse_version(get_version())
+        if needs and running and needs > running:
+            raise ThemeVersionError(
+                f"{theme_key} needs VPinFE {manifest[MIN_VERSION_KEY]} and this is "
+                f"{get_version()}")
 
         if not force and local_version:
             if not self._is_version_newer(remote_version, local_version):
