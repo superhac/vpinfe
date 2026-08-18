@@ -171,7 +171,7 @@ class LoaderPatchSitesTests(unittest.TestCase):
             for node in tree.body:
                 if isinstance(node, ast.ImportFrom) and any(
                         alias.name == "all_games" for alias in node.names):
-                    importers.add(str(rel.with_suffix("")).replace("/", "."))
+                    importers.add(".".join(rel.with_suffix("").parts))
 
         covered = set(library_loader.LOADER_SITES) - {"common.games.game_repository"}
         self.assertEqual(importers, covered,
