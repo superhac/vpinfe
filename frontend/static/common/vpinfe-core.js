@@ -2270,7 +2270,16 @@ class VPinFECore {
     if (this.atRoot) return false;
     const item = this.activeList().current;
     this.popList();
-    if (item && item.name) await this.call("set_tables_by_collection", item.name);
+    if (!item || !item.name) return true;
+
+    // Three steps, and skipping either of the last two is why this looked wired and was
+    // not: the backend swaps the view, this window still holds the previous list, and
+    // the other windows have heard nothing at all.
+    await this.call("set_tables_by_collection", item.name);
+    await this.getTableData();
+    this.sendMessageToAllWindowsIncSelf({
+      type: "TableDataChange", index: 0, collection: item.name,
+    });
     return true;
   }
 
@@ -2428,6 +2437,18 @@ class VPinFECore {
     else if (!this.atRoot && (action === "select" || action === "back")) {
       if (action === "select") this.selectCurrent();
       else this.popList();
+    }
+    // Back at the root leaves, through the same path exit takes - so it honours Confirm
+    // Before Exit rather than becoming a second way out that never asks. Contract 2 only:
+    // below it, back is the theme's own action and taking it would break every theme
+    // that handles it.
+    //
+    // Only while navigating. A dialog and a text field both mean back for dismiss, and
+    // quitting VPinFE because someone backed out of a field is not a near miss.
+    else if (action === "back" && this.inputMode === "navigation"
+             && this.contract >= CURRENT_CONTRACT
+             && this.enabled("core_navigation") && !overlay && this.isController()) {
+      this.requestLifecycle("app", "stop");
     }
     else this.#triggerInputAction(action);
   }

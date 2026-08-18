@@ -423,3 +423,64 @@ describe("stepping and paging are one capability at contract 2", () => {
       "a modal owns the input; neither the wheel nor a page may move behind it");
   });
 });
+
+
+describe("back at the root leaves", () => {
+  const atRoot = (contract) => {
+    const { vpin, press, calls } = navigating();
+    vpin.contract = contract;
+    const asked = [];
+    vpin.requestLifecycle = (scope, action) => { asked.push([scope, action]); };
+    return { vpin, press, calls, asked };
+  };
+
+  test("a contract 2 theme quits through the lifecycle path", async () => {
+    const { press, asked } = atRoot(2);
+
+    await press("b");
+
+    assert.deepEqual(asked, [["app", "stop"]],
+                     "through requestLifecycle, so Confirm Before Exit is honoured");
+  });
+
+  test("a contract 1 theme keeps its own back", async () => {
+    const { vpin, press, asked } = atRoot(1);
+    const seen = [];
+    vpin.inputHandlers.push((a) => seen.push(a));
+
+    await press("b");
+
+    assert.deepEqual(asked, [], "taking back would break every theme that handles it");
+    assert.deepEqual(seen, ["joyback"], "it reaches the theme under its own name");
+  });
+
+  // A field means back for dismiss. Quitting because someone backed out of one is not
+  // a near miss - this is the case that broke when the branch was first written.
+  test("typing is not leaving", async () => {
+    const { vpin, press, asked } = atRoot(2);
+    vpin.pushInputMode("text");
+
+    await press("b");
+
+    assert.deepEqual(asked, []);
+  });
+
+  test("a dialog is not leaving either", async () => {
+    const { vpin, press, asked } = atRoot(2);
+    vpin.pushInputMode("modal");
+
+    await press("b");
+
+    assert.deepEqual(asked, []);
+  });
+
+  test("inside a list back comes out of the list, not the app", async () => {
+    const { vpin, press, asked } = atRoot(2);
+    vpin.pushList(vpin.createList([{ name: "Favorites" }], { kind: "collection" }));
+
+    await press("b");
+
+    assert.deepEqual(asked, [], "there was somewhere to go back to");
+    assert.equal(vpin.atRoot, true);
+  });
+});

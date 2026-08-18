@@ -141,17 +141,31 @@ describe("what an index message says about its list", () => {
 });
 
 describe("select and back while core holds a list", () => {
-  test("select applies the collection and closes the picker", async () => {
-    const { vpin } = controller();
+  test("select applies the collection, reloads, and tells the other windows", async () => {
+    // All three: the backend swaps the view, this window still holds the previous list,
+    // and the other windows have heard nothing. Stopping after the first looked wired.
+    const { vpin, sent } = controller();
     const calls = [];
-    vpin.call = async (name, ...args) => { calls.push([name, ...args]); return null; };
+    vpin.call = async (name, ...args) => {
+      calls.push([name, ...args]);
+      return name === "get_tables" ? '[{"id":"x"}]' : null;
+    };
     vpin.pushList(vpin.createList([{ name: "Favorites" }, { name: "Played" }],
                                   { kind: "collection" }));
     vpin.moveBy(1);
+    sent.length = 0;
 
     assert.equal(await vpin.selectCurrent(), true);
 
-    assert.deepEqual(calls, [["set_tables_by_collection", "Played"]]);
+    // The first two in order; what getTableData does after is its own business.
+    assert.deepEqual(calls.slice(0, 2).map((c) => c[0]),
+                     ["set_tables_by_collection", "get_tables"]);
+    assert.equal(calls[0][1], "Played");
+    assert.deepEqual(vpin.tableData.map((row) => row.id), ["x"],
+                     "the wheel holds the new list");
+    const change = sent.find((m) => m.type === "TableDataChange");
+    assert.ok(change, "the other windows were not told");
+    assert.equal(change.collection, "Played");
     assert.equal(vpin.atRoot, true);
   });
 
