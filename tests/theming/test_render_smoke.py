@@ -156,12 +156,32 @@ class RenderSmokeTests(TempTree):
     MENU_STATE = """JSON.stringify((() => {
       const frame = document.getElementById('menu-frame');
       const doc = frame && frame.contentDocument;
+      const win = frame && frame.contentWindow;
+      const items = doc ? Array.from(doc.querySelectorAll('.menu-item')) : [];
+      // The menu's own variables. Same-origin, so its realm is readable, and its
+      // state says which of the three ways this fails actually happened: no
+      // navigable at all, one built while the frame was still hidden and so empty,
+      // or a full one whose selection was never applied.
+      const peek = (expr) => {
+        try { return win.eval(expr); } catch (err) { return String(err); }
+      };
       return {frame: !!frame,
               display: frame ? frame.style.display : null,
               src: frame ? frame.getAttribute('src') : null,
               readyState: doc ? doc.readyState : null,
-              items: doc ? doc.querySelectorAll('.menu-item').length : null};
+              items: items.length,
+              visible: items.filter(el => win.getComputedStyle(el).display !== 'none').length,
+              menuLength: peek('typeof menu !== "undefined" && menu ? menu.length : null'),
+              cursor: peek('typeof menu !== "undefined" && menu ? menu.cursor : null'),
+              configLoaded: peek(
+                  'typeof menuConfigLoaded !== "undefined" ? menuConfigLoaded : null')};
     })())"""
+
+    def _overlay_errors(self, instance) -> list[str]:
+        """What the overlay reported, from the whole log rather than the tail. A throw
+        while the menu loads is thousands of lines back by the time this runs."""
+        lines = [line for line in instance.output().splitlines() if "playfield/" in line]
+        return [line[:160] for line in lines[-6:]]
 
     async def _open_menu(self, browser, instance):
         await self._open(browser, instance, "playfield")
@@ -171,7 +191,9 @@ class RenderSmokeTests(TempTree):
         except TimeoutError as exc:
             state = await browser.evaluate(self.MENU_STATE)
             report = self._diagnose(exc, browser, instance, "the menu")
-            raise AssertionError(f"{report}\n  menu: {state}") from exc
+            overlay = self._overlay_errors(instance) or ["(none)"]
+            raise AssertionError(
+                f"{report}\n  menu: {state}\n  overlay log: " + "\n    ".join(overlay)) from exc
 
     def test_the_menu_opens_with_something_selected(self) -> None:
         async def run(instance):
