@@ -85,7 +85,7 @@ rather than matching a version number against a document.
   "name": "VPinFE",
   "install_id": "7Kq2mVx9Ab",
   "display_name": "basement cab",
-  "roles": ["hub", "player"],
+  "roles": ["hub", "device"],
   "api_version": "v1",
   "app_version": "2.5.0",
   "capabilities": [],
@@ -295,7 +295,7 @@ it to `127.0.0.1` if you want the API reachable only from the machine itself; th
 and mobile pages stop working from other devices, which is the trade.
 
 `theme_assets_bind` is loopback because opening it shares read access to the table library
-itself. Opening it is what a player on another machine needs to fetch artwork, and VPinFE
+itself. Opening it is what a device on another machine needs to fetch artwork, and VPinFE
 logs a warning when it is not loopback.
 
 An identity already records whether a caller reached the API from this machine (`origin`),
@@ -324,15 +324,15 @@ shown to users, so say what's missing and how to fix it.
 
 `residency` records which roles a capability lives in: `hub` for the shared,
 machine-independent half — the library, metadata, and work not tied to a screen — and
-`player` for things true only of the machine they came from, where games launch and
-hardware lives. Neither name implies hardware: a laptop someone plays on is a player in
+`device` for things true only of the machine they came from, where games launch and
+hardware lives. Neither name implies hardware: a laptop someone plays on is a device in
 full.
 
 It's a list because some capabilities belong to both — the event stream carries library
 events and launch events alike. Listing both means each role serves its own, not that one
-capability spans the two: if the hub and the player are ever separate machines, they
+capability spans the two: if the hub and the device are ever separate machines, they
 each have an event stream, carrying their own events. Test for a role with
-`"player" in residency`, which reads the same whether a capability has one or two.
+`"device" in residency`, which reads the same whether a capability has one or two.
 
 ## Launching
 
@@ -500,35 +500,35 @@ A `rating` axis carries `values: null` rather than a list. It is 0–5 on every 
 enumerating the ratings currently in use would offer a different scale to two libraries
 and a shrinking one as ratings change.
 
-## Players
+## Devices
 
-A hub records which players have said hello, keyed by `install_id`. That is the whole of
-it - there is no routing a launch to a chosen player, no aggregating their state and no
-conflict resolution, because each of those needs a decision *across* players that has not
+A hub records which devices have said hello, keyed by `install_id`. That is the whole of
+it - there is no routing a launch to a chosen device, no aggregating their state and no
+conflict resolution, because each of those needs a decision *across* devices that has not
 been made.
 
 What it buys today is attribution. Every event carries the `install_id` it happened on,
-and a roster turns that id into a name a person recognizes.
+and a device registry turns that id into a name a person recognizes.
 
 A device announces itself with `PUT /devices` on startup, sending its `install_id`,
-`display_name` and `roles`. Announcing twice is one player heard from twice: `first_seen`
-survives, everything else is refreshed, because the install owns those and the roster is a
+`display_name` and `roles`. Announcing twice is one device heard from twice: `first_seen`
+survives, everything else is refreshed, because the install owns those and the device registry is a
 copy that goes stale by design.
 
 **The address is observed, not claimed.** The hub reads it off the socket and ignores any
-the body carries - a player behind a router does not know how it is reached, and a caller
+the body carries - a device behind a router does not know how it is reached, and a caller
 that could name its own address could name someone else's.
 
-A player that cannot reach its hub starts anyway. Registering costs a label, not a
+A device that cannot reach its hub starts anyway. Registering costs a label, not a
 capability.
 
 ### Is the library really shared?
 
-A player and its hub are usually looking at the same files over a network share, and
+A device and its hub are usually looking at the same files over a network share, and
 nothing checked that. A `game_root_dir` that is wrong or unmounted fails one game at a
 time, at launch, as a file-not-found.
 
-Set `network.verify_shared_library` and a player compares its own tables against the hub's
+Set `network.verify_shared_library` and a device compares its own tables against the hub's
 at startup, by `table.file_hash` rather than by path — the same share is mounted at
 different places on different machines, so paths would report every install as broken. It
 logs what it found and changes nothing else: what to do about a mismatch is a decision
@@ -536,7 +536,7 @@ nobody has made, and an unmounted share should not become fatal on a machine tha
 working a moment ago.
 
 Three outcomes, because they are three different problems: `missing` (the hub has a table
-this player cannot resolve), `differs` (both have it, the bytes are not the same), and
+this device cannot resolve), `differs` (both have it, the bytes are not the same), and
 `unverifiable` (the hub has not hashed it, so it says nothing either way). Nothing
 verifiable is not a pass.
 

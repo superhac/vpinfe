@@ -608,7 +608,7 @@ class VPinFECore {
     this.themeAssetsPort = port('themeAssetsPort', 8000);
     this.hubPort = port('hubPort', 8001);
     this.wsPort = port('wsPort', 8002);
-    // Set only when the hub is another machine. The player's own services stay loopback:
+    // Set only when the hub is another machine. The device's own services stay loopback:
     // this names where the library and its art are, not where this page is running.
     this.hubHost = params.get('hubHost') || '';
     // What this device serves on, which is not what a remote hub answers on - `hubPort`

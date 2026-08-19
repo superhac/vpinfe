@@ -323,11 +323,16 @@ until then the chain reports `required: null`.
 - **Launcher** — the application that runs a table file (VPX standalone today).
   Not "app": that is VPinFE itself, and the lifecycle scopes use it that way.
 - **Install** — one VPinFE installation: its files, its config, its `install_id`. It
-  survives restarts, and it is what a hub or a player is addressed as.
+  survives restarts, and it is what a hub or a device is addressed as.
 - **App** — VPinFE running. What a lifecycle request starts, stops or restarts, as against
   the `frontend` it opens and the `system` it runs on. The install is still there when the
   app is not.
 - **Theme** — a player-facing frontend package.
+- **Device** — something a game can be launched on and played. A VPinFE install is
+  one kind; a phone running VPX Mobile is another that never runs our code.
+- **Player** — a human who plays. Reserved for that and used for nothing else:
+  it meant the machine until 2026-08-19, and every pinball machine ever built
+  prints PLAYER 1 on its display.
 - **Extension** — a feature extending VPinFE under a manifest. Never "plugin", which is
   reserved for VPX standalone plugins.
 - **Third-party** — a library VPinFE bundles and loads at runtime, written by someone else

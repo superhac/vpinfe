@@ -337,9 +337,9 @@ none with it. The test now sets that interval and runs two sorters against four 
 so it fails on a laptop rather than only in CI. Covered by
 `tests/theming/test_shared_view.py`.
 
-**PAR-79 — A player can check that its library really is the hub's.**
+**PAR-79 — A device can check that its library really is the hub's.**
 *(machine-checked)* New: `network.verify_shared_library`, off by default, and
-`hub_library.verify_shared_library`. With a hub set and the flag on, a player compares its
+`hub_library.verify_shared_library`. With a hub set and the flag on, a device compares its
 own tables against the hub's at startup and logs what does not match. Nothing else
 changes - no route, no payload, and an install that says nothing does exactly what it did.
 *Why:* shared storage is what the residency split assumes and nothing checked. A
@@ -354,40 +354,40 @@ machine that was working a moment ago. Nothing verifiable is not a pass, so "eve
 matched" cannot mean "nothing was checked". Covered by
 `tests/curation/test_library_entries.py`.
 
-**PAR-78 — A hub knows which players it is serving.** *(machine-checked)* New:
+**PAR-78 — A hub knows which devices it is serving.** *(machine-checked)* New:
 `GET/PUT/DELETE /api/v1/devices`, two scopes (`devices:read`, `devices:write`), a
 `devices` link in discovery, and `put_json` in `common/http_client.py`. A device with
 `network.hub_url` set announces itself at startup. Purely additive - an install with no
 hub announces nothing, and every existing route is untouched.
-*Why:* the roster storage shipped in PAR-66 with nothing writing to it, so a hub held an
-empty file. Events already carry the `install_id` they happened on (PAR-55); a roster is
+*Why:* the device registry storage shipped in PAR-66 with nothing writing to it, so a hub held an
+empty file. Events already carry the `install_id` they happened on (PAR-55); a device registry is
 what turns that id into a name a person recognizes, which is the whole of what item 9 was
-scoped to - data, no screen. Routing a launch to a chosen player, aggregating state and
-conflict resolution are all deliberately absent: each needs a decision across players that
+scoped to - data, no screen. Routing a launch to a chosen device, aggregating state and
+conflict resolution are all deliberately absent: each needs a decision across devices that
 has not been made. The address is read off the socket rather than the request body,
-because a player behind a router does not know how it is reached and a caller that could
+because a device behind a router does not know how it is reached and a caller that could
 name its own address could name someone else's. Announcing is best effort on a background
 thread: a hub that refuses or cannot be reached costs a label, not a frontend. It also
 mints the install id if there is none - announcing is the first thing that needs one and
 it runs before the API, which is the other place that mints. Covered by
 `tests/api/test_devices.py` and `tests/theming/test_separation.py`, which registers two
-live players with a live hub.
+live devices with a live hub.
 
 **PAR-77 — The table is a first-class object on the wire.** *(machine-checked)* One
 `table_descriptor` builds the table half of both play lenses, so `GET /collections/{name}
 /entries` and the contract 2 theme payload carry the same fields. New on both: `hidden`,
 and the table's own `release_date`. `default` was
 REST-only and is now on both. `GET /games/{id}/tables` gains `id`, the same one the play
-lens uses, and `file_hash`. A player restores the storage shape through
+lens uses, and `file_hash`. A device restores the storage shape through
 `wire_entry.table_of`.
 *Why:* a game folder holds several tables and each answers for itself, but the transport
 treated the table as a few fields hanging off a game. Three consequences, all real: a
 table's own `release_date` never crossed, so nothing could tell one build from another by
-when it shipped; `hidden` never crossed, so a player
+when it shipped; `hidden` never crossed, so a device
 could only ever be handed a list the hub had already filtered; and the two lenses named
 the same table differently, with the management lens carrying no id at all - a client
 could not tell that `GET /games/{id}/tables` and an entry described the same table. The
-wire names fields for a consumer and storage names them for the parser, so a player that
+wire names fields for a consumer and storage names them for the parser, so a device that
 passed the wire dict through unchanged answered false for every detect flag and lost the
 game's default. `table_of` is the counterpart to `WireGame`, and the round trip is
 compared field for field. `file_hash` crosses because a shared-storage check is content
@@ -399,10 +399,10 @@ is the mistake that document's own audit section exists to prevent. Covered by
 
 **PAR-76 — A hub publishes where its asset server is.** *(machine-checked)* Discovery
 (`GET /api/v1/`) gains `services`, currently `{"assets": {"port": N}}`. Purely additive.
-*Why:* artwork is served on a different port from the API, and nothing told a player which
-- so `endpoints.assets` paired the hub's host with the *player's* asset port and every
+*Why:* artwork is served on a different port from the API, and nothing told a device which
+- so `endpoints.assets` paired the hub's host with the *device's* asset port and every
 image 404'd. The port only: the host is wherever the caller reached the document, which is
-the one address known to route there. A hub that says nothing leaves the player's own
+the one address known to route there. A hub that says nothing leaves the device's own
 answer standing, which is what a single-machine install has always used. Covered by
 `tests/theming/test_chromium_manager.py` and `tests/theming/test_separation.py`.
 
@@ -413,7 +413,7 @@ answer standing, which is what a single-machine install has always used. Covered
 once, and the next launch writes the new form. Nothing else reads the key.
 *Why:* the identity was the game folder's path, which answers the wrong question twice
 over. A game offers several tables, so an expanded wheel came back to whichever row that
-folder happened to be first in rather than the table that was played. And a player reading
+folder happened to be first in rather than the table that was played. And a device reading
 its library off a hub never sees the hub's filesystem, so a path identifies nothing there
 - ids cross the wire, paths deliberately do not. Covered by
 `tests/theming/test_last_game.py`.
@@ -422,39 +422,39 @@ its library off a hub never sees the hub's filesystem, so a path identifies noth
 `refresh_view` called `all_games()` directly; it now calls `View.reload()`. No
 behavior changes on an install that holds its own library - the view loads exactly what
 that function returned.
-*Why:* a player fetched the hub's entries at startup and then threw them away on the first
+*Why:* a device fetched the hub's entries at startup and then threw them away on the first
 `get_games`, because the refresh went to the local disk behind the view's back. The wheel
 came up empty with nothing logged, and every unit involved was individually correct - the
 separation test is what found it. Reloading through the view means one seam decides where
 the library comes from instead of two places agreeing by accident. A reload that fails
-keeps what is shown: a stale wheel beats a player blanking its screen because one request
-timed out. Covered by `tests/theming/test_separation.py`, which runs a hub and a player as
-separate processes and renders the player's wheel in a browser - it fails if this reads the
+keeps what is shown: a stale wheel beats a device blanking its screen because one request
+timed out. Covered by `tests/theming/test_separation.py`, which runs a hub and a device as
+separate processes and renders the device's wheel in a browser - it fails if this reads the
 local disk again.
 
 **PAR-73 — A window is told which machine its hub is on.** *(machine-checked)* Two query
-parameters are added to the window url, `hubHost` and `playerPort`, and only when
+parameters are added to the window url, `hubHost` and `devicePort`, and only when
 `network.hub_url` is set. `vpin.endpoints` reads them: `hub` and `assets` follow the hub,
-`player` and `frontend_channel` stay on this machine. Purely additive - with no hub set the
+`device` and `frontend_channel` stay on this machine. Purely additive - with no hub set the
 url is byte-identical to what it was and every endpoint stays loopback.
-*Why:* `endpoints` hardcoded `127.0.0.1` for all four, so a remote player resolved the
+*Why:* `endpoints` hardcoded `127.0.0.1` for all four, so a remote device resolved the
 library and its art to its own machine. Its own comment said hosts were "loopback until
 bind configuration says otherwise", but nothing gave bind configuration a way to say so.
 The host travels in the url for the same reason the ports do (PAR-45): the page cannot ask
-before it has a connection. `hubPort` and `playerPort` are separate because they are
-different machines' ports - a hub on 9000 would otherwise have a player dialling its own
+before it has a connection. `hubPort` and `devicePort` are separate because they are
+different machines' ports - a hub on 9000 would otherwise have a device dialling its own
 api at 9000, and the hub's at 8001. `assets` follows the hub because art is a file in the
 library; `frontend_channel` never does, because it addresses this page's own windows.
 Covered by `tests/theming/test_chromium_manager.py` and `tests/js/endpoints.test.js`; the
 post-connect port refresh is covered by `tests/theming/test_render_smoke.py`, which caught
 it overwriting a remote hub's port with this install's.
 
-**PAR-72 — `network.hub_url` points a player at its hub.** *(machine-checked)* One new
+**PAR-72 — `network.hub_url` points a device at its hub.** *(machine-checked)* One new
 config key, defaulting to empty. Empty - which is every existing install and every
 single-machine setup - and the view loads the local library exactly as before. Set, and
 `View` holds the entries the hub resolved. `Entry` gains `meta_config` and `creation_time`,
 both forwarding to the game it holds.
-*Why:* nothing named which hub a player reads from, so the remote path built in PAR-71 had
+*Why:* nothing named which hub a device reads from, so the remote path built in PAR-71 had
 no way to be switched on. The default preserves 2.x behavior by being the absence of a
 setting rather than a mode to opt out of. A remote list is entries, not games, and the two
 are not interchangeable: `entries_for` reads a game's table dicts out of its `.info`, and
@@ -463,20 +463,20 @@ frontend's sorts read a title and a creation time off whatever they are handed, 
 forwards both rather than every sort learning two shapes. Covered by
 `tests/theming/test_remote_view.py`, including that an install saying nothing stays local.
 
-**PAR-71 — A player can read its library from a hub.** New: `GET /library/entries`, the
+**PAR-71 — A device can read its library from a hub.** New: `GET /library/entries`, the
 play lens over the whole library, and `common/games/hub_library.py`, which turns what it
 returns back into local `Entry` objects. `WireGame` grows the resolved asset flags, the
 media kinds and two deliberately empty paths. Purely additive - no existing route,
 payload or stored file changes shape.
-*Why:* a player with no library of its own shows everything before a collection is chosen,
+*Why:* a device with no library of its own shows everything before a collection is chosen,
 and no stored collection means "all of it" - so `GET /collections/{name}/entries` could not
 answer for that view, and inventing an "All" collection would put a name in every user's
 file to serve a default. Both routes share `_entry_resource`, so the two cannot drift. The
-hub returns entries rather than a finished payload because what to show is the player's
+hub returns entries rather than a finished payload because what to show is the device's
 question: it knows its theme, its contract and its windows, and a payload built by the hub
 would carry one machine's paths into what another renders. `fullPathGame` and
 `fullPathVPXfile` arrive empty for that reason, while the asset flags and media kinds
-arrive resolved - both are a stat of the hub's disk, which a player cannot redo. Covered by
+arrive resolved - both are a stat of the hub's disk, which a device cannot redo. Covered by
 `tests/curation/test_library_entries.py`, which builds a contract 2 payload from a hub's
 answer with no local library behind it.
 
@@ -536,22 +536,22 @@ is worse than saying nothing. `game.changed` reuses the projection the other gam
 use, so it names the game by id rather than by where it lives. Covered by
 `tests/api/test_event_stream.py`.
 
-**PAR-66 — A hub can hold a roster of the players it knows.** New: `common/device_registry.py`,
+**PAR-66 — A hub can hold a device registry of the devices it knows.** New: `common/device_registry.py`,
 a `devices.json` beside the other config files, keyed by `install_id`. Nothing writes to
 it yet and no screen shows it, so an existing install never grows the file and behaves
 identically.
-*Why:* two players answering one hub were indistinguishable at every layer until install
+*Why:* two devices answering one hub were indistinguishable at every layer until install
 identity (PAR-52) and event provenance (PAR-55) landed; this is the place their answers
-go. Keyed on `install_id` because it is the only thing about a player that does not
+go. Keyed on `install_id` because it is the only thing about a device that does not
 change - a display name is meant to be renamed and an address moves with DHCP, so a
-roster keyed on either loses the player the first time somebody uses the feature.
+device registry keyed on either loses the device the first time somebody uses the feature.
 `display_name`, `roles` and `address` are a cached copy of what that install last
-reported and are refreshed on every sighting; `first_seen` is the roster's own and is not.
-One entry is the degenerate case of many, so nothing treats a single player specially.
-Data only: routing a launch to a chosen player, aggregating state and resolving conflicts
-between them each need real design and none are needed to tell one player from another.
+reported and are refreshed on every sighting; `first_seen` is the device registry's own and is not.
+One entry is the degenerate case of many, so nothing treats a single device specially.
+Data only: routing a launch to a chosen device, aggregating state and resolving conflicts
+between them each need real design and none are needed to tell one device from another.
 A field a newer build wrote is carried through rather than dropped, so a downgrade does
-not silently strip it, and an unreadable roster reads as empty rather than refusing to
+not silently strip it, and an unreadable device registry reads as empty rather than refusing to
 start - losing track of who a hub knew is recoverable, not starting is not. Covered by
 `tests/api/test_device_registry.py`.
 
@@ -573,7 +573,7 @@ whole distinction. An in-process call with no socket reads as local, and `origin
 to `network` so an identity that forgets to say cannot silently claim the machine.
 Covered by `tests/api/test_caller_origin.py`.
 
-**PAR-64 — A client cannot claim to be a window it is not.** The player channel refuses a
+**PAR-64 — A client cannot claim to be a window it is not.** The device channel refuses a
 connection naming a window this process never opened, and refuses a second connection for
 a window that already has one; both are closed with 1008. A real window is unaffected -
 every one is registered before its browser launches, and a window whose socket dropped is
@@ -620,19 +620,19 @@ alias.
 *Why:* two of the keys were wrong and the third did not read. `hub` pointed at the asset
 server on port 8000, but the library, collections and uploads are on `/api/v1` - so a
 theme following the documented meaning would have asked the wrong service. The files are
-a distinct thing worth naming, hence `assets`. `hub` and `player` are the same address
+a distinct thing worth naming, hence `assets`. `hub` and `device` are the same address
 today because one `/api/v1` answers for both, and they stay separate keys because they
 are separate questions: a theme built against them keeps working when the two are
 separate machines. `bridge` said where the thing sat rather than what it was for, and
 "the one case where transport and residency coincide" is a rationale rather than a name
 anybody could read; `frontend_channel` names the surface that owns it, which stays correct
-as other surfaces on a player arrive - `SURFACE_EXTENSION` is already declared alongside
+as other surfaces on a device arrive - `SURFACE_EXTENSION` is already declared alongside
 `SURFACE_FRONTEND`. Three of the four are addresses a path is appended to; the fourth is a
 line held open, and the block now says so rather than implying it is keyed by role when
 one key never was. Covered by `tests/js/endpoints.test.js`.
 
 **PAR-61 — `ws_bridge` is `device_channel`.** The `ws_bridge` module under `frontend/`
-becomes `frontend/device_channel.py`, and `WebSocketBridge` becomes `PlayerChannel`. Internal
+becomes `frontend/device_channel.py`, and `WebSocketBridge` becomes `DeviceChannel`. Internal
 Python only: no theme imports it, the port is still `network.ws_port`, the window URL
 still carries `?wsPort=`, and `vpin.endpoints.bridge` is unchanged. Nothing outside the
 repo can tell.
@@ -640,12 +640,12 @@ repo can tell.
 legacy frontend's JS API bridge", so the name only ever meant "the thing between JS and
 Python", which describes where it sits and nothing about what it does. That is why every
 discussion of it had to re-explain it, and part of why the residency mix inside it went
-unnoticed for so long. It is the connection between a player and its own windows: never
+unnoticed for so long. It is the connection between a device and its own windows: never
 to a hub, never window to window. Renamed now rather than earlier because the name had to
 wait for consolidation to settle what the channel contains. No alias is added - the old
 name has no callers outside this repo, so one would be dead code on arrival.
 *(`vpin.endpoints.bridge` keeps its name deliberately: the block is keyed by role, and
-`player` there already means this machine's HTTP API. A second `player`-ish key would be
+`device` there already means this machine's HTTP API. A second `device`-ish key would be
 worse than the inconsistency.)*
 
 **PAR-60 — The windows share one view instead of deriving the same one each.** The
@@ -722,7 +722,7 @@ Covered by `tests/api/test_game_rating.py`.
 `game_service`, `game_index_service`, `media_service`, `asset_registry`,
 `archive_service` and `export_bundle` to `common/games/`, and `upload_session_service`,
 `asset_analyzer_service` and `asset_import_service` to a new `common/uploads/`. The four
-things the Manager UI does to a player - enumerate displays, find the browser, read input
+things the Manager UI does to a device - enumerate displays, find the browser, read input
 bindings, request a lifecycle change - go through `common/device_client.py` instead of
 importing `frontend` directly. No behavior changes and no endpoint moves; this is where
 the code lives.
@@ -734,9 +734,9 @@ replacement would have had to import it, which is a skin rather than a replaceme
 UI-independent and only filed in the wrong place. The move is by what a module knows about,
 which is how `docs/common.md` already draws these boundaries; `uploads` is its own package
 because it depends on `games` and nothing in `games` depends on it. The four `frontend`
-imports were not a tangle either - they are a precise map of the player-administration
+imports were not a tangle either - they are a precise map of the device-administration
 surface, so they became one interface that resolves in-process today and can resolve over
-HTTP later, which is also the thing to authenticate once a hub administers a player over a
+HTTP later, which is also the thing to authenticate once a hub administers a device over a
 network. Both rules were prose that nothing checked, which is how they drifted; they are
 now asserted by `tests/invariants/test_layering.py`.
 
@@ -747,12 +747,12 @@ install the value is the same on every event and can be ignored. It is absent ra
 empty when the install has no id yet.
 *Why:* the bus is in-process and its wire projection drops the origin's address, both
 correct while one process is one machine and both wrong the moment a hub holds more than
-one player - a player's `table.launched` would arrive with nothing saying which player it
+one device - a device's `table.launched` would arrive with nothing saying which device it
 came from. The comment on the dropped field collapsed a distinction worth keeping: *which
 surface asked* names one user's browser tab and stays dropped, while *which install it
 happened on* is what a subscriber can act on and is safe to publish. Adding it to the
 envelope rather than to each projection means a new event gets provenance by existing
-instead of by remembering. Crossing the boundary - a player's events actually reaching a
+instead of by remembering. Crossing the boundary - a device's events actually reaching a
 hub - is a separate mechanism and is not built here; what is built is that the wire shape
 can carry provenance when it is, rather than needing a breaking change then. The id is
 read once and cached, because `_dispatch` runs on the publishing thread and reading it off
@@ -794,7 +794,7 @@ assertions of one fact make a seventh easy to add and nothing notices. `window.l
 is not the fix: it replaces one one-machine assumption with another, and it fails only for
 remote viewers, so it looks right on the machine it was written on. The block is keyed by
 role rather than by transport because the window channel is one transport serving two
-roles, so `assets`/`bridge`/`api` could not express "hub calls go there, player calls go
+roles, so `assets`/`bridge`/`api` could not express "hub calls go there, device calls go
 here" - it would encode the assumption it exists to undo. It is derived on read, so the
 port correction the bridge sends during init reaches every URL built from it; resolving
 once at construction made that correction land on the port and stop, which fails silently
@@ -805,18 +805,18 @@ runs against ports chosen at random precisely so an assumed one fails.
 **PAR-52 — An install has an identity of its own.** A new `[install]` section holds `id`,
 `display_name` and `roles`. `id` is minted once on first start and written to the config;
 `display_name` defaults to this machine's hostname and is not written down by reading it;
-`roles` defaults to `hub,player`, which is what every existing install already is. All
+`roles` defaults to `hub,device`, which is what every existing install already is. All
 three are additive to `GET /api/v1`, so no client breaks and nothing looks different to
 anyone running one machine.
 *Why:* `GET /api/v1` returned `"name": "VPinFE"` and nothing else, byte-identical on every
 install, so two installs answering one hub were indistinguishable at every layer - no
 field to address one, none to attribute anything to one. That is correct for the
 one-to-one design 2.x had, and it is what has to change before a hub can hold more than
-one player. The id follows `common/games/game_identity.py`, which already solved this
+one device. The id follows `common/games/game_identity.py`, which already solved this
 shape: opaque, minted explicitly, and reading never writes. Minting happens once at
 startup rather than on a request, so discovery only reads and a read-only install is not
 a bug report. `display_name` deliberately addresses nothing - renaming an install must not
-break a roster, which is only true while nothing resolves through the name - and an
+break a device registry, which is only true while nothing resolves through the name - and an
 unreadable or misspelled `roles` falls back to both rather than to none, so a typo cannot
 decide that a machine has stopped launching games. Covered by
 `tests/config/test_install_identity.py`.
@@ -836,13 +836,13 @@ break scripts that legitimately drive the channel. Covered by
 `tests/theming/test_device_channel_origin.py`, which asserts against a real handshake rather than only
 the predicate.
 
-**PAR-50 — The two roles are `hub` and `player`, and `acquisition` is `uploads`.**
+**PAR-50 — The two roles are `hub` and `device`, and `acquisition` is `uploads`.**
 Discovery's `residency` values change from `catalog` and `play_host` to `hub` and
-`player`, and the capability named `acquisition` becomes `uploads`. `GET /api/v1` is the
+`device`, and the capability named `acquisition` becomes `uploads`. `GET /api/v1` is the
 only place these strings appear.
 *Why:* `catalog` named one of the role's jobs rather than the role - `jobs` and `uploads`
 are declared there and neither is a catalog - and `play_host` reads as dedicated hardware
-when a laptop someone plays on is a player in full. `acquisition` was an abstraction over
+when a laptop someone plays on is a device in full. `acquisition` was an abstraction over
 something with a plain name, and the router was already `/uploads`. Done now because
 nothing consumes these values yet: no client, no extension, and the frontend does not
 resolve against discovery, so today it is two constants and eight declarations. Once
@@ -1322,8 +1322,8 @@ list is ordered by — the next letter under title order, the next year under ye
 and where an order gives every table its own value there are no groups, so it moves a fixed
 number. The `[frontend]` setting is `paging_group`, `sort` or `count`; the 2.x spellings
 `alpha` and `numeric` still resolve, to `sort` and `count`. A collection can override the
-player's choice in its `order` block, and says nothing there by default, so changing the
-player setting still reaches every collection that never expressed a preference.
+device's choice in its `order` block, and says nothing there by default, so changing the
+device setting still reaches every collection that never expressed a preference.
 *What it costs someone:* nothing chosen in 2.x stops working — `alpha` and `numeric` both
 carry over and mean what they meant. What changes is that a collection ordered by year or
 rating now pages by year or rating, where master stepped.
