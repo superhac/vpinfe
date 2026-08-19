@@ -17,13 +17,13 @@ import logging
 
 from fastapi import APIRouter, Body, Request, Response
 
-from common.roster import get_roster
+from common.device_registry import get_device_registry
 
 from . import models, scopes
 from .auth import requires
 from .errors import InvalidRequestError, NotFoundError
 
-logger = logging.getLogger("vpinfe.httpapi.players")
+logger = logging.getLogger("vpinfe.httpapi.devices")
 
 router = APIRouter(prefix="/devices", tags=["devices"])
 
@@ -35,14 +35,14 @@ def _resource(player) -> dict:
 @router.get("", summary="The devices this hub knows",
             dependencies=[requires(scopes.DEVICES_READ)])
 def list_players() -> models.PlayerList:
-    players = get_roster().players()
+    players = get_device_registry().players()
     return {"count": len(players), "devices": [_resource(p) for p in players]}
 
 
 @router.get("/{install_id}", summary="One device",
             dependencies=[requires(scopes.DEVICES_READ)])
 def get_player(install_id: str) -> models.PlayerResource:
-    player = get_roster().get(install_id)
+    player = get_device_registry().get(install_id)
     if player is None:
         raise NotFoundError(f"No player with install id {install_id}")
     return _resource(player)
@@ -63,7 +63,7 @@ def announce(request: Request,
         raise InvalidRequestError("A player needs an install id")
 
     client = getattr(request, "client", None)
-    player = get_roster().record(
+    player = get_device_registry().record(
         install_id,
         display_name=payload.display_name.strip(),
         roles=tuple(payload.roles),
@@ -78,6 +78,6 @@ def announce(request: Request,
                dependencies=[requires(scopes.DEVICES_WRITE)])
 def forget(install_id: str):
     """Forgetting one that is still running only means it announces itself again."""
-    if not get_roster().forget(install_id):
+    if not get_device_registry().forget(install_id):
         raise NotFoundError(f"No player with install id {install_id}")
     return Response(status_code=204)

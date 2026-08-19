@@ -26,7 +26,7 @@ ALLOWED = {
     ("common/host/display_service.py", "frontend"),
     # The local resolution of the player client: deferred inside functions so that
     # importing it does not pull the frontend into a hub-only install.
-    ("common/player_client.py", "frontend"),
+    ("common/device_client.py", "frontend"),
 }
 
 
@@ -94,7 +94,7 @@ class LayeringTests(unittest.TestCase):
         self.assertEqual(_offenders("httpapi", {"managerui"}), [])
 
     def test_a_user_interface_does_not_reach_into_the_player(self) -> None:
-        """What the Manager UI does *to* a player goes through `common.player_client`,
+        """What the Manager UI does *to* a player goes through `common.device_client`,
         which is one interface whether that player is local or another machine."""
         self.assertEqual(_offenders("managerui", {"frontend"}), [])
 

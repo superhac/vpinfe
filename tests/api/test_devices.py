@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import patch
 
 import httpapi
-from common import roster as roster_module
+from common import device_registry as registry_module
 from tests.support.library import TempTree
 
 try:
@@ -29,11 +29,11 @@ DESK = {"install_id": "Bbbb222222", "display_name": "desktop", "roles": ["device
 class PlayerRosterTests(TempTree):
     def setUp(self) -> None:
         super().setUp()
-        roster = roster_module.Roster(self.root / "devices.json")
-        patcher = patch.object(roster_module, "get_roster", lambda: roster)
+        roster = registry_module.DeviceRegistry(self.root / "devices.json")
+        patcher = patch.object(registry_module, "get_device_registry", lambda: roster)
         patcher.start()
         self.addCleanup(patcher.stop)
-        also = patch("httpapi.players.get_roster", lambda: roster)
+        also = patch("httpapi.devices.get_device_registry", lambda: roster)
         also.start()
         self.addCleanup(also.stop)
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)

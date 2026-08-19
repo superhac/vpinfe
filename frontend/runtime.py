@@ -21,7 +21,7 @@ from frontend import library_resolver, play_events
 from frontend.api import API
 from frontend.chromium_manager import ChromiumManager
 from frontend.custom_http_server import CustomHTTPServer
-from frontend.player_channel import PlayerChannel
+from frontend.device_channel import DeviceChannel
 
 
 def window_configs(iniconfig=None):
@@ -45,7 +45,7 @@ def create_api_instances(iniconfig, logger):
     _apply_theme_media_sets(iniconfig, logger)
     network = NetworkConfig.from_config(iniconfig)
     displays = DisplayConfig.from_config(iniconfig)
-    ws_bridge = PlayerChannel(port=network.ws_port)
+    ws_bridge = DeviceChannel(port=network.ws_port)
     frontend_browser = ChromiumManager()
 
     # One view, however many windows. They show the same library and the same selection,

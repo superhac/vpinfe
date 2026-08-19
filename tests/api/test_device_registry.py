@@ -15,14 +15,14 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.roster import Player, Roster
+from common.device_registry import Device, DeviceRegistry
 
 
 class RosterTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.roster = Roster(Path(self.tmp.name) / "devices.json")
+        self.roster = DeviceRegistry(Path(self.tmp.name) / "devices.json")
 
     def test_a_hub_that_has_seen_nobody_has_an_empty_roster(self) -> None:
         self.assertEqual(self.roster.players(), [])
@@ -113,12 +113,12 @@ class RosterStorageTests(unittest.TestCase):
         self.path = Path(self.tmp.name) / "devices.json"
 
     def test_it_survives_being_reopened(self) -> None:
-        Roster(self.path).record("Aaaa111111", display_name="cab")
+        DeviceRegistry(self.path).record("Aaaa111111", display_name="cab")
 
-        self.assertEqual(Roster(self.path).get("Aaaa111111").display_name, "cab")
+        self.assertEqual(DeviceRegistry(self.path).get("Aaaa111111").display_name, "cab")
 
     def test_the_file_carries_its_own_schema(self) -> None:
-        Roster(self.path).record("Aaaa111111")
+        DeviceRegistry(self.path).record("Aaaa111111")
 
         self.assertEqual(json.loads(self.path.read_text())["schema"], 1)
 
@@ -127,7 +127,7 @@ class RosterStorageTests(unittest.TestCase):
         which is recoverable; refusing to run is not."""
         self.path.write_text("{ not json", encoding="utf-8")
 
-        self.assertEqual(Roster(self.path).players(), [])
+        self.assertEqual(DeviceRegistry(self.path).players(), [])
 
     def test_a_field_a_newer_build_wrote_is_not_dropped(self) -> None:
         """A downgrade must not silently strip what it does not understand."""
@@ -136,7 +136,7 @@ class RosterStorageTests(unittest.TestCase):
             "devices": [{"install_id": "Aaaa111111", "something_new": "keep me"}],
         }), encoding="utf-8")
 
-        roster = Roster(self.path)
+        roster = DeviceRegistry(self.path)
         roster.record("Aaaa111111", display_name="cab")
 
         self.assertEqual(json.loads(self.path.read_text())["devices"][0]["something_new"],
@@ -148,17 +148,17 @@ class RosterStorageTests(unittest.TestCase):
             "devices": [{"display_name": "nameless"}, {"install_id": "Aaaa111111"}],
         }), encoding="utf-8")
 
-        self.assertEqual([p.install_id for p in Roster(self.path).players()],
+        self.assertEqual([p.install_id for p in DeviceRegistry(self.path).players()],
                          ["Aaaa111111"])
 
 
 class PlayerTests(unittest.TestCase):
     def test_a_player_round_trips_through_its_dict(self) -> None:
-        player = Player(install_id="Aaaa111111", display_name="cab",
+        player = Device(install_id="Aaaa111111", display_name="cab",
                         roles=("hub", "device"), address="192.168.1.10",
                         first_seen="2026-01-01T00:00:00Z", last_seen="2026-01-02T00:00:00Z")
 
-        self.assertEqual(Player.from_dict(player.as_dict()), player)
+        self.assertEqual(Device.from_dict(player.as_dict()), player)
 
 
 if __name__ == "__main__":

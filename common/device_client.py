@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-logger = logging.getLogger("vpinfe.common.player_client")
+logger = logging.getLogger("vpinfe.common.device_client")
 
 
 @dataclass(frozen=True)
@@ -26,7 +26,7 @@ class Display:
     height: int
 
 
-class LocalPlayer:
+class LocalDevice:
     """The player in this process. Imports are deferred so that importing this module
     does not pull the frontend in - a hub-only install has no frontend to pull."""
 
@@ -84,10 +84,10 @@ class LocalPlayer:
         return lifecycle_host.request(scope, action, **kwargs)
 
 
-_local = LocalPlayer()
+_local = LocalDevice()
 
 
-def local() -> LocalPlayer:
+def local() -> LocalDevice:
     """The player in this process. A function, not the instance, so reaching a remote
     player later changes which player is asked and not how."""
     return _local

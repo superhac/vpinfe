@@ -12,7 +12,7 @@ from pathlib import Path
 
 from nicegui import context, run, ui
 
-from common import player_client
+from common import device_client
 from common.online.app_updater import get_install_context
 from managerui.paths import VPINFE_INI_PATH
 from managerui.services import system_service
@@ -211,7 +211,7 @@ def _get_build_flavor(install_context: dict) -> str:
 
 def _get_frontend_browser_path() -> str | None:
     try:
-        return player_client.local().browser_path()
+        return device_client.local().browser_path()
     except Exception:
         return None
 

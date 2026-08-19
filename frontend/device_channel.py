@@ -22,14 +22,14 @@ import websockets
 
 from frontend.api import API_ALLOWED_METHODS
 
-logger = logging.getLogger("vpinfe.frontend.player_channel")
+logger = logging.getLogger("vpinfe.frontend.device_channel")
 
 # Compared against urlparse().hostname, which unwraps the brackets an IPv6 url is
 # written with - so "::1" matches "http://[::1]:8000" and "[::1]" would match nothing.
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
-class PlayerChannel:
+class DeviceChannel:
     """The WebSocket server a player's windows connect to."""
 
     # Public API methods that JS is allowed to call
@@ -62,7 +62,7 @@ class PlayerChannel:
                 break
             import time
             time.sleep(0.05)
-        logger.info("Player channel listening on ws://127.0.0.1:%s/", self.port)
+        logger.info("Device channel listening on ws://127.0.0.1:%s/", self.port)
 
     def _run_server(self):
         """Run the async event loop in the daemon thread."""
@@ -290,4 +290,4 @@ class PlayerChannel:
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=5)
-        logger.info("Player channel stopped.")
+        logger.info("Device channel stopped.")

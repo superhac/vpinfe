@@ -81,7 +81,7 @@ def gamepadtest():
     from common.config_access import SettingsConfig, cfg_get, cfg_int
     from frontend.api import API
     from frontend.chromium_manager import ChromiumManager
-    from frontend.player_channel import PlayerChannel
+    from frontend.device_channel import DeviceChannel
 
     mount_points = {
         '/tables/': os.path.abspath(SettingsConfig.from_config(config_store).game_root_dir),
@@ -94,7 +94,7 @@ def gamepadtest():
     http_server.start_file_server(port=theme_assets_port, bind=theme_assets_bind)
 
     monitors = get_monitors()
-    ws_bridge = PlayerChannel(port=ws_port)
+    ws_bridge = DeviceChannel(port=ws_port)
     chromium = ChromiumManager()
     api = API(
         iniConfig=config_store,

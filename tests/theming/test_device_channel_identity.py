@@ -19,7 +19,7 @@ import unittest
 
 import websockets
 
-from frontend.player_channel import PlayerChannel
+from frontend.device_channel import DeviceChannel
 from tests.support.browser_session import free_port
 
 LOCAL = {"Origin": "http://127.0.0.1:8000"}
@@ -27,7 +27,7 @@ LOCAL = {"Origin": "http://127.0.0.1:8000"}
 
 class WindowIdentityTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
-        self.channel = PlayerChannel(port=free_port())
+        self.channel = DeviceChannel(port=free_port())
         self.channel.register_api("playfield", object())
         self.channel.start()
         self.addCleanup(self.channel.stop)

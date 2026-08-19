@@ -23,16 +23,16 @@ from common.atomic_write import write_atomic
 from common.paths import CONFIG_DIR
 from common.timestamps import utc_now_iso
 
-logger = logging.getLogger("vpinfe.common.roster")
+logger = logging.getLogger("vpinfe.common.device_registry")
 
-ROSTER_PATH = CONFIG_DIR / "devices.json"
+DEVICE_REGISTRY_PATH = CONFIG_DIR / "devices.json"
 SCHEMA = 1
 SCHEMA_KEY = "schema"
 DEVICES_KEY = "devices"
 
 
 @dataclass(frozen=True)
-class Player:
+class Device:
     """One player a hub has seen.
 
     `display_name` and `roles` are what that install last reported, cached so a roster
@@ -55,7 +55,7 @@ class Player:
                 **self.extra}
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> Player | None:
+    def from_dict(cls, raw: dict[str, Any]) -> Device | None:
         install_id = str(raw.get("install_id", "") or "").strip()
         if not install_id:
             return None
@@ -74,22 +74,22 @@ class Player:
         )
 
 
-class Roster:
+class DeviceRegistry:
     """Every player this hub knows, read and written whole."""
 
     def __init__(self, path: Path | str | None = None):
-        self.path = Path(path) if path is not None else ROSTER_PATH
+        self.path = Path(path) if path is not None else DEVICE_REGISTRY_PATH
         self._lock = threading.RLock()
 
     # -- reading -------------------------------------------------------------
 
-    def players(self) -> list[Player]:
+    def players(self) -> list[Device]:
         """Every entry, oldest first. An unreadable file is an empty roster, never an
         error: a hub with no players is the normal case, and so is a first run."""
         with self._lock:
             return self._load()
 
-    def get(self, install_id: str) -> Player | None:
+    def get(self, install_id: str) -> Device | None:
         wanted = (install_id or "").strip()
         if not wanted:
             return None
@@ -101,7 +101,7 @@ class Roster:
     # -- writing -------------------------------------------------------------
 
     def record(self, install_id: str, *, display_name: str = "", roles=(),
-               address: str = "") -> Player | None:
+               address: str = "") -> Device | None:
         """Note that a player exists, or that a known one has been heard from.
 
         `first_seen` is kept from the existing entry: a player is the same player
@@ -117,7 +117,7 @@ class Roster:
         with self._lock:
             players = {p.install_id: p for p in self._load()}
             existing = players.get(wanted)
-            players[wanted] = Player(
+            players[wanted] = Device(
                 install_id=wanted,
                 display_name=display_name or (existing.display_name if existing else ""),
                 roles=tuple(str(r) for r in roles) or (existing.roles if existing else ()),
@@ -128,7 +128,7 @@ class Roster:
             )
             self._save(list(players.values()))
             if existing is None:
-                logger.info("Roster: new player %s (%s)", wanted, display_name or "unnamed")
+                logger.info("DeviceRegistry: new player %s (%s)", wanted, display_name or "unnamed")
             return players[wanted]
 
     def forget(self, install_id: str) -> bool:
@@ -140,26 +140,26 @@ class Roster:
             if len(remaining) == len(players):
                 return False
             self._save(remaining)
-            logger.info("Roster: forgot player %s", wanted)
+            logger.info("DeviceRegistry: forgot player %s", wanted)
             return True
 
     # -- storage -------------------------------------------------------------
 
-    def _load(self) -> list[Player]:
+    def _load(self) -> list[Device]:
         if not self.path.exists():
             return []
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
         except Exception:
-            logger.warning("Roster at %s is unreadable; treating it as empty", self.path)
+            logger.warning("DeviceRegistry at %s is unreadable; treating it as empty", self.path)
             return []
         raw = payload.get(DEVICES_KEY) if isinstance(payload, dict) else payload
         if not isinstance(raw, list):
             return []
-        return [player for player in (Player.from_dict(entry) for entry in raw
+        return [player for player in (Device.from_dict(entry) for entry in raw
                                       if isinstance(entry, dict)) if player is not None]
 
-    def _save(self, players: list[Player]) -> None:
+    def _save(self, players: list[Device]) -> None:
         # Never stamp a newer file down to what this build writes - that number belongs
         # to whichever VPinFE wrote it, the same rule the config store follows.
         payload = {SCHEMA_KEY: SCHEMA,
@@ -169,17 +169,17 @@ class Roster:
                      lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))
 
 
-_roster: Roster | None = None
+_roster: DeviceRegistry | None = None
 
 
-def get_roster() -> Roster:
+def get_device_registry() -> DeviceRegistry:
     """The hub's roster. One per process."""
     global _roster
     if _roster is None:
-        _roster = Roster()
+        _roster = DeviceRegistry()
     return _roster
 
 
 def reset_for_tests(path=None) -> None:
     global _roster
-    _roster = Roster(path) if path is not None else None
+    _roster = DeviceRegistry(path) if path is not None else None

@@ -10,7 +10,7 @@ import logging
 
 from nicegui import Client, context, ui
 
-from common import events, lifecycle, player_client
+from common import device_client, events, lifecycle
 from common.host import system_actions
 
 logger = logging.getLogger("vpinfe.managerui.app_control")
@@ -67,7 +67,7 @@ async def _confirmed(scope: str, action: str) -> bool:
     Asked here rather than through a registered confirmer: a NiceGUI dialog is awaited
     and lifecycle.confirm is not, so the surface asks and reports the answer.
     """
-    if not player_client.local().wants_confirmation(scope):
+    if not device_client.local().wants_confirmation(scope):
         return True
 
     question = lifecycle.Request(scope, action, _origin()).describe().capitalize()
@@ -88,7 +88,7 @@ async def _confirmed(scope: str, action: str) -> bool:
 async def _request(scope: str, action: str, notice: str, notice_type: str = "info") -> bool:
     if not await _confirmed(scope, action):
         return False
-    if not player_client.local().request(scope, action, origin=_origin(),
+    if not device_client.local().request(scope, action, origin=_origin(),
                                         already_confirmed=True):
         return False
     ui.notify(notice, type=notice_type)

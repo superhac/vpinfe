@@ -11,7 +11,7 @@ from pathlib import Path
 
 from nicegui import run, ui
 
-from common import config_schema, input_registry, player_client
+from common import config_schema, device_client, input_registry
 from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from common.games.collection_store import CollectionStore
@@ -280,13 +280,13 @@ def render_panel(tab=None):
             or ''
         ).strip()
         try:
-            additional_opts = player_client.local().parse_browser_options(additional_raw)
+            additional_opts = device_client.local().parse_browser_options(additional_raw)
         except ValueError:
             additional_opts = []
         chrome_options_preview.value = '\n'.join(
-            player_client.local().browser_options(
+            device_client.local().browser_options(
                 include_default_options=not disable_defaults,
-                exclude_options=player_client.local().parse_browser_options(exclude_raw),
+                exclude_options=device_client.local().parse_browser_options(exclude_raw),
             )
             + additional_opts
         )
@@ -485,7 +485,7 @@ def render_panel(tab=None):
                 # Anything neither field can show - a chord, a hold, an axis, a second
                 # pad - is carried through untouched. Rebuilding from the two fields
                 # alone would delete it the first time anyone pressed Save.
-                current = player_client.local().bindings(config)[action.name]
+                current = device_client.local().bindings(config)[action.name]
                 rebuilt += input_registry.unrenderable(current)
                 if not config.config.has_section(input_registry.SECTION):
                     config.config.add_section(input_registry.SECTION)
@@ -885,7 +885,7 @@ def render_panel(tab=None):
                                         # bindings together; the page shows the keyboard
                                         # ones and the gamepad one in the places they have
                                         # always been, and save_config puts them back.
-                                        bindings = player_client.local().bindings(config)
+                                        bindings = device_client.local().bindings(config)
                                         other_input_keys = [
                                             key for key in options
                                             if not input_registry.action_for_legacy_key(key)

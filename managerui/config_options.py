@@ -9,7 +9,7 @@ from pathlib import Path
 
 from screeninfo import get_monitors
 
-from common import config_schema, player_client
+from common import config_schema, device_client
 
 
 def get_detected_displays() -> dict:
@@ -34,7 +34,7 @@ def get_detected_displays() -> dict:
         return detected
 
     if sys.platform == "darwin":
-        screens = player_client.local().displays()
+        screens = device_client.local().displays()
         if screens:
             detected["nsscreen"] = [{
                 "id": screen.id,

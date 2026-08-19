@@ -6,7 +6,7 @@ The frontend starts at `main.py`, but most runtime responsibilities now live in 
 
 1. `main.py` handles executable-only concerns such as platform console behavior, early config/logging setup, and command-line parsing.
 2. `frontend.runtime` creates the websocket/API/browser runtime, starts optional startup media sync, builds static mount points, starts the theme asset server, runs the frontend blocking loop, and performs shutdown/restart handling.
-3. `frontend.player_channel.PlayerChannel` receives JavaScript calls from theme windows and dispatches only methods listed by `frontend.api.API_ALLOWED_METHODS`.
+3. `frontend.device_channel.DeviceChannel` receives JavaScript calls from theme windows and dispatches only methods listed by `frontend.api.API_ALLOWED_METHODS`.
 4. `frontend.api.API` remains the JS-facing facade for theme code. It should stay thin and delegate feature behavior to service modules.
 
 ## Core Modules
@@ -34,7 +34,7 @@ The frontend starts at `main.py`, but most runtime responsibilities now live in 
 1. Put feature behavior in a focused service module first.
 2. Add a thin method to `frontend.api.API`.
 3. Add the name to `API_PUBLISHED_METHODS` if a theme may call it, or to `API_INTERNAL_METHODS` if only the overlays VPinFE ships do. `vpin.call` refuses the second set, and `docs/theme.md` documents the first.
-4. Keep websocket transport logic in `frontend.player_channel`; it should not grow feature-specific behavior.
+4. Keep websocket transport logic in `frontend.device_channel`; it should not grow feature-specific behavior.
 
 ## Guidelines
 

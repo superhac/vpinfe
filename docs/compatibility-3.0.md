@@ -370,7 +370,7 @@ name its own address could name someone else's. Announcing is best effort on a b
 thread: a hub that refuses or cannot be reached costs a label, not a frontend. It also
 mints the install id if there is none - announcing is the first thing that needs one and
 it runs before the API, which is the other place that mints. Covered by
-`tests/api/test_players.py` and `tests/theming/test_separation.py`, which registers two
+`tests/api/test_devices.py` and `tests/theming/test_separation.py`, which registers two
 live players with a live hub.
 
 **PAR-77 — The table is a first-class object on the wire.** *(machine-checked)* One
@@ -536,7 +536,7 @@ is worse than saying nothing. `game.changed` reuses the projection the other gam
 use, so it names the game by id rather than by where it lives. Covered by
 `tests/api/test_event_stream.py`.
 
-**PAR-66 — A hub can hold a roster of the players it knows.** New: `common/roster.py`,
+**PAR-66 — A hub can hold a roster of the players it knows.** New: `common/device_registry.py`,
 a `devices.json` beside the other config files, keyed by `install_id`. Nothing writes to
 it yet and no screen shows it, so an existing install never grows the file and behaves
 identically.
@@ -553,7 +553,7 @@ between them each need real design and none are needed to tell one player from a
 A field a newer build wrote is carried through rather than dropped, so a downgrade does
 not silently strip it, and an unreadable roster reads as empty rather than refusing to
 start - losing track of who a hub knew is recoverable, not starting is not. Covered by
-`tests/api/test_roster.py`.
+`tests/api/test_device_registry.py`.
 
 **PAR-65 — The API records whether a caller reached it from this machine.** Every identity
 now carries an `origin` of `local` or `network`, decided by the request's own peer
@@ -588,7 +588,7 @@ a probe connecting as `window=scoreview` knocked the real scoreview window off i
 several times before anyone noticed. The origin check from PAR-51 does not help here - a
 page served from loopback passes it and can still take a window's name. No new mechanism
 was needed: the set of valid names is already known before any browser starts. Covered by
-`tests/theming/test_player_channel_identity.py`.
+`tests/theming/test_device_channel_identity.py`.
 
 **PAR-63 — The port on 8001 is the hub's, not the Manager UI's.**
 `network.manager_ui_port` is `network.hub_port` and `network.manager_ui_bind` is
@@ -631,8 +631,8 @@ as other surfaces on a player arrive - `SURFACE_EXTENSION` is already declared a
 line held open, and the block now says so rather than implying it is keyed by role when
 one key never was. Covered by `tests/js/endpoints.test.js`.
 
-**PAR-61 — `ws_bridge` is `player_channel`.** The `ws_bridge` module under `frontend/`
-becomes `frontend/player_channel.py`, and `WebSocketBridge` becomes `PlayerChannel`. Internal
+**PAR-61 — `ws_bridge` is `device_channel`.** The `ws_bridge` module under `frontend/`
+becomes `frontend/device_channel.py`, and `WebSocketBridge` becomes `PlayerChannel`. Internal
 Python only: no theme imports it, the port is still `network.ws_port`, the window URL
 still carries `?wsPort=`, and `vpin.endpoints.bridge` is unchanged. Nothing outside the
 repo can tell.
@@ -723,7 +723,7 @@ Covered by `tests/api/test_game_rating.py`.
 `archive_service` and `export_bundle` to `common/games/`, and `upload_session_service`,
 `asset_analyzer_service` and `asset_import_service` to a new `common/uploads/`. The four
 things the Manager UI does to a player - enumerate displays, find the browser, read input
-bindings, request a lifecycle change - go through `common/player_client.py` instead of
+bindings, request a lifecycle change - go through `common/device_client.py` instead of
 importing `frontend` directly. No behavior changes and no endpoint moves; this is where
 the code lives.
 *Why:* `httpapi` imported `managerui.services` at nine sites for game, archive, upload and
@@ -833,7 +833,7 @@ sets `Origin` itself and a page cannot forge it, which is what makes one compari
 connect sufficient. Refusing a missing `Origin` was considered and rejected: it stops no
 attacker, because a non-browser client already runs code on the machine, and it would
 break scripts that legitimately drive the channel. Covered by
-`tests/theming/test_player_channel_origin.py`, which asserts against a real handshake rather than only
+`tests/theming/test_device_channel_origin.py`, which asserts against a real handshake rather than only
 the predicate.
 
 **PAR-50 — The two roles are `hub` and `player`, and `acquisition` is `uploads`.**
