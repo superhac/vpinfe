@@ -66,6 +66,7 @@ def announce(request: Request,
     client = getattr(request, "client", None)
     device = get_device_registry().record(
         device_id,
+        kind=payload.kind,
         display_name=payload.display_name.strip(),
         roles=tuple(payload.roles),
         address=getattr(client, "host", "") or "",

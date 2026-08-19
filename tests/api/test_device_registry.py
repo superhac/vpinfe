@@ -104,6 +104,25 @@ class DeviceRegistryTests(unittest.TestCase):
         self.assertEqual([p.device_id for p in self.registry.devices()],
                          ["Aaaa111111", "Bbbb222222"])
 
+    def test_a_kind_survives_a_re_record_that_does_not_name_one(self) -> None:
+        """A mobile entry is written once by a person and then updated by whatever knows
+        its address. Defaulting kind back to vpinfe on the second write would silently
+        turn a phone into an install."""
+        self.registry.record("Pppp444444", kind="vpx_mobile", address="192.168.1.50")
+        self.registry.record("Pppp444444", address="192.168.1.77")
+
+        self.assertEqual(self.registry.get("Pppp444444").kind, "vpx_mobile")
+
+    def test_an_entry_stored_without_a_kind_reads_as_an_install(self) -> None:
+        """Losing an entry is worse than mislabelling one, so an unreadable kind falls
+        back rather than dropping the device."""
+        self.registry.record("Aaaa111111")
+        raw = json.loads(self.registry.path.read_text())
+        del raw["devices"][0]["kind"]
+        self.registry.path.write_text(json.dumps(raw), encoding="utf-8")
+
+        self.assertEqual(self.registry.get("Aaaa111111").kind, "vpinfe")
+
     def test_a_device_with_no_id_is_refused(self) -> None:
         """An id is the entry's identity; without one there is nothing to key on."""
         self.assertIsNone(self.registry.record(""))

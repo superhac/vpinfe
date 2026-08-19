@@ -12,6 +12,8 @@ differ - that is the point of having a boundary.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from common.games.collection_store import DEFAULT_DIRECTION, DEFAULT_ORDER_BY
@@ -101,6 +103,7 @@ class DeviceResource(ApiModel):
     go stale by design, because the install owns them."""
 
     device_id: str
+    kind: str
     display_name: str = ""
     roles: list[str] = Field(default_factory=list)
     address: str = ""
@@ -116,9 +119,14 @@ class DeviceList(ApiModel):
 
 class DeviceAnnouncement(ApiModel):
     """What a device says about itself. The address is not here: the hub reads it off
-    the socket, because a device behind a router does not know how it is reached."""
+    the socket, because a device behind a router does not know how it is reached.
+
+    `kind` is a closed set, so an unrecognised one is a 422 rather than a string stored
+    and handed to a consumer that switches on it.
+    """
 
     device_id: str
+    kind: Literal["vpinfe", "vpx_mobile"] = "vpinfe"
     display_name: str = ""
     roles: list[str] = Field(default_factory=list)
 

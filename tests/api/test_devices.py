@@ -23,6 +23,7 @@ except ImportError:  # pragma: no cover
 CAB = {"device_id": "Aaaa111111", "display_name": "basement cab",
        "roles": ["hub", "device"]}
 DESK = {"device_id": "Bbbb222222", "display_name": "desktop", "roles": ["device"]}
+PHONE = {"device_id": "Pppp444444", "display_name": "iPhone", "kind": "vpx_mobile"}
 
 
 @unittest.skipIf(TestClient is None, "starlette test client unavailable")
@@ -110,6 +111,30 @@ class DeviceRegistryApiTests(TempTree):
 
     def test_forgetting_one_that_was_never_there_is_a_404(self) -> None:
         self.assertEqual(self.client.delete("/devices/Nope111111").status_code, 404)
+
+    def test_an_unknown_kind_is_refused(self) -> None:
+        """A closed set, checked at the boundary. hubui switches on this to decide what
+        it can do with an entry, so a kind it has never heard of is worse stored than
+        rejected - it would reach a screen as a device nothing knows how to talk to."""
+        response = self.client.put("/devices", json=CAB | {"kind": "toaster"})
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(self.client.get("/devices").json()["count"], 0,
+                         "refused means not stored, not stored-then-complained-about")
+
+    def test_a_kind_round_trips(self) -> None:
+        body = self.client.put("/devices", json=PHONE).json()
+
+        self.assertEqual(body["kind"], "vpx_mobile")
+        self.assertEqual(self.client.get(f"/devices/{PHONE['device_id']}").json()["kind"],
+                         "vpx_mobile")
+
+    def test_an_announcement_with_no_kind_is_a_vpinfe_install(self) -> None:
+        """Every device that can announce itself today is one, so the default is the
+        one a caller written before kind existed would have meant."""
+        body = self.client.put("/devices", json={"device_id": "Cccc333333"}).json()
+
+        self.assertEqual(body["kind"], "vpinfe")
 
     def test_the_registry_is_linked_from_discovery(self) -> None:
         """So an integrator finds it by asking rather than by reading this file."""

@@ -36,6 +36,19 @@ SCHEMA = 1
 SCHEMA_KEY = "schema"
 DEVICES_KEY = "devices"
 
+# What a device is, as a closed set. A VPinFE install runs our code and answers for
+# itself; a phone running VPX Mobile never does, and the hub holds everything known
+# about it. Closed because a consumer switches on this - an unrecognised value would
+# reach a UI as a device it has no idea how to talk to.
+KIND_VPINFE = "vpinfe"
+KIND_VPX_MOBILE = "vpx_mobile"
+KINDS = (KIND_VPINFE, KIND_VPX_MOBILE)
+
+
+def _known_kind(raw: Any) -> str:
+    value = str(raw or "").strip()
+    return value if value in KINDS else KIND_VPINFE
+
 
 @dataclass(frozen=True)
 class Device:
@@ -47,6 +60,7 @@ class Device:
     """
 
     device_id: str
+    kind: str = KIND_VPINFE
     display_name: str = ""
     roles: tuple[str, ...] = ()
     address: str = ""
@@ -55,7 +69,8 @@ class Device:
     extra: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
-        return {"device_id": self.device_id, "display_name": self.display_name,
+        return {"device_id": self.device_id, "kind": self.kind,
+                "display_name": self.display_name,
                 "roles": list(self.roles), "address": self.address,
                 "first_seen": self.first_seen, "last_seen": self.last_seen,
                 **self.extra}
@@ -65,10 +80,15 @@ class Device:
         device_id = str(raw.get("device_id", "") or "").strip()
         if not device_id:
             return None
-        known = {"device_id", "display_name", "roles", "address", "first_seen", "last_seen"}
+        known = {"device_id", "kind", "display_name", "roles", "address",
+                 "first_seen", "last_seen"}
         roles = raw.get("roles") or []
         return cls(
             device_id=device_id,
+            # An entry stored before kind existed, or by a build that knows a kind this
+            # one does not: read as vpinfe rather than dropped, because the entry is
+            # still a real device and losing it is worse than mislabelling it.
+            kind=_known_kind(raw.get("kind")),
             display_name=str(raw.get("display_name", "") or ""),
             roles=tuple(str(r) for r in roles if str(r).strip()),
             address=str(raw.get("address", "") or ""),
@@ -106,13 +126,18 @@ class DeviceRegistry:
 
     # -- writing -------------------------------------------------------------
 
-    def record(self, device_id: str, *, display_name: str = "", roles=(),
-               address: str = "") -> Device | None:
+    def record(self, device_id: str, *, kind: str = "", display_name: str = "",
+               roles=(), address: str = "") -> Device | None:
         """Note that a device exists, or that a known one has been heard from.
 
         `first_seen` is kept from the existing entry: a device is the same device
         however many times it reconnects. Everything else is refreshed, because the
         install owns those and this is only a copy of what it last said.
+
+        `kind` defaults to empty rather than to vpinfe so that a caller updating only an
+        address does not restate it. A phone is written once by a person and updated
+        afterwards by whatever learns where it is; defaulting would turn it back into an
+        install on that second write, silently.
         """
         wanted = (device_id or "").strip()
         if not wanted:
@@ -125,6 +150,7 @@ class DeviceRegistry:
             existing = devices.get(wanted)
             devices[wanted] = Device(
                 device_id=wanted,
+                kind=kind or (existing.kind if existing else KIND_VPINFE),
                 display_name=display_name or (existing.display_name if existing else ""),
                 roles=tuple(str(r) for r in roles) or (existing.roles if existing else ()),
                 address=address or (existing.address if existing else ""),

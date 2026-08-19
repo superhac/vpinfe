@@ -502,18 +502,28 @@ and a shrinking one as ratings change.
 
 ## Devices
 
-A hub records which devices have said hello, keyed by `install_id`. That is the whole of
-it - there is no routing a launch to a chosen device, no aggregating their state and no
+A hub records which devices it knows, keyed by `device_id`. That is the whole of it -
+there is no routing a launch to a chosen device, no aggregating their state and no
 conflict resolution, because each of those needs a decision *across* devices that has not
 been made.
 
 What it buys today is attribution. Every event carries the `install_id` it happened on,
-and a device registry turns that id into a name a person recognizes.
+and for a VPinFE install that is the same value as its `device_id` - so the registry turns
+that id into a name a person recognizes.
 
-A device announces itself with `PUT /devices` on startup, sending its `install_id`,
+`device_id` rather than `install_id` because not every device is an install. A phone
+running VPX Mobile has no install id to offer, so the hub mints one for it. The address is
+never the key: it is the property most likely to change, and a device on DHCP would
+otherwise become a new device every time its lease turned over.
+
+`kind` says what a device is, from a closed set: `vpinfe` or `vpx_mobile`. Anything else
+is a `422`, because a consumer switches on this to decide what it can ask of an entry.
+Omitted, it is `vpinfe`.
+
+A device announces itself with `PUT /devices` on startup, sending its `device_id`,
 `display_name` and `roles`. Announcing twice is one device heard from twice: `first_seen`
-survives, everything else is refreshed, because the install owns those and the device registry is a
-copy that goes stale by design.
+survives, everything else is refreshed, because the install owns those and the registry is
+a copy that goes stale by design.
 
 **The address is observed, not claimed.** The hub reads it off the socket and ignores any
 the body carries - a device behind a router does not know how it is reached, and a caller
