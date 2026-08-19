@@ -4,13 +4,36 @@ This file is what keeps the group folders from colliding with the packages they 
 without it, `tests/frontend/` is importable as top-level `frontend` and shadows the real
 one. With it, every module is `tests.<group>.<name>` and nothing is ambiguous.
 
-`python -m unittest discover tests` finds everything, as it always has.
+Run it as `python -m unittest discover -t . -s tests`. The top-level directory has
+to be the repo root, or discovery imports the group folders as top-level packages
+and never imports this file - which is where the power guard below is installed.
+tests/invariants/test_bootstrap_runs.py fails when that happens, so a wrong
+invocation says so instead of quietly running without a guard.
 """
 
 from __future__ import annotations
 
+import atexit
 import os
+import shutil
 import subprocess
+import tempfile
+
+# Every test runs against an empty config directory rather than the developer's own.
+# common/paths.py resolves CONFIG_DIR at import time, so this has to happen before
+# anything imports common/ - a setUp is already too late.
+#
+# Without it the in-process API tests read whatever vpinfe.json the machine happens to
+# have: a stale `roles` value failed an assertion about what an unconfigured install
+# reports, and vpx_bin_path decides which branch the auth boundary test takes. Both
+# pass on CI, which has no config at all, so the suite only lied on a developer's
+# machine - where its answer is most likely to be believed.
+#
+# An explicit VPINFE_CONFIG_DIR still wins, so a caller can hand in a prepared one.
+if not os.environ.get("VPINFE_CONFIG_DIR", "").strip():
+    _TEST_CONFIG_DIR = tempfile.mkdtemp(prefix="vpinfe-tests-")
+    os.environ["VPINFE_CONFIG_DIR"] = _TEST_CONFIG_DIR
+    atexit.register(shutil.rmtree, _TEST_CONFIG_DIR, ignore_errors=True)
 
 # Nothing in the suite may power the machine off, restart it, or replace the test
 # process with a new one.
