@@ -535,7 +535,13 @@ only way to reach it. Such an entry may also omit `device_id`, and the hub mints
 the same generator install ids use. That is what lets several phones coexist: each has an
 id of its own rather than one derived from an address they will both change.
 
-The hub records itself at startup, so it appears in its own registry like anything else.
+The hub records itself at startup, so it appears in its own registry like anything
+else.
+
+An install upgrading from 2.x brings its `[mobile]` address across once, as a
+`vpx_mobile` entry with a minted id. Those keys stay readable and keep their 2.x
+aliases, but nothing reads them at runtime afterwards - the registry is where a
+mobile device lives, which is what allows more than one of them.
 
 A device that cannot reach its hub starts anyway. Registering costs a label, not a
 capability.

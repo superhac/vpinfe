@@ -36,6 +36,7 @@ DEVICE_REGISTRY_PATH = CONFIG_DIR / "devices.json"
 SCHEMA = 1
 SCHEMA_KEY = "schema"
 DEVICES_KEY = "devices"
+MIGRATIONS_KEY = "migrations"
 
 # What a device is, as a closed set. A VPinFE install runs our code and answers for
 # itself; a phone running VPX Mobile never does, and the hub holds everything known
@@ -51,6 +52,13 @@ def mint_device_id() -> str:
     two are indistinguishable and a device that later gains an install id is not a new
     device. Minted once, when the device is added, and never again."""
     return mint_id()
+
+
+def _as_port(raw: Any) -> int:
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        return 0
 
 
 def _known_kind(raw: Any) -> str:
@@ -72,6 +80,9 @@ class Device:
     display_name: str = ""
     roles: tuple[str, ...] = ()
     address: str = ""
+    # Only a device the hub dials needs one. An install announces itself and is reached
+    # on the port discovery reports, so this stays 0 for a vpinfe entry.
+    port: int = 0
     first_seen: str = ""
     last_seen: str = ""
     extra: dict[str, Any] = field(default_factory=dict)
@@ -79,7 +90,7 @@ class Device:
     def as_dict(self) -> dict[str, Any]:
         return {"device_id": self.device_id, "kind": self.kind,
                 "display_name": self.display_name,
-                "roles": list(self.roles), "address": self.address,
+                "roles": list(self.roles), "address": self.address, "port": self.port,
                 "first_seen": self.first_seen, "last_seen": self.last_seen,
                 **self.extra}
 
@@ -88,7 +99,7 @@ class Device:
         device_id = str(raw.get("device_id", "") or "").strip()
         if not device_id:
             return None
-        known = {"device_id", "kind", "display_name", "roles", "address",
+        known = {"device_id", "kind", "display_name", "roles", "address", "port",
                  "first_seen", "last_seen"}
         roles = raw.get("roles") or []
         return cls(
@@ -100,6 +111,7 @@ class Device:
             display_name=str(raw.get("display_name", "") or ""),
             roles=tuple(str(r) for r in roles if str(r).strip()),
             address=str(raw.get("address", "") or ""),
+            port=_as_port(raw.get("port")),
             first_seen=str(raw.get("first_seen", "") or ""),
             last_seen=str(raw.get("last_seen", "") or ""),
             # Anything a newer build wrote is carried through rather than dropped, so a
@@ -135,7 +147,7 @@ class DeviceRegistry:
     # -- writing -------------------------------------------------------------
 
     def record(self, device_id: str, *, kind: str = "", display_name: str = "",
-               roles=(), address: str = "") -> Device | None:
+               roles=(), address: str = "", port: int = 0) -> Device | None:
         """Note that a device exists, or that a known one has been heard from.
 
         `first_seen` is kept from the existing entry: a device is the same device
@@ -162,6 +174,7 @@ class DeviceRegistry:
                 display_name=display_name or (existing.display_name if existing else ""),
                 roles=tuple(str(r) for r in roles) or (existing.roles if existing else ()),
                 address=address or (existing.address if existing else ""),
+                port=port or (existing.port if existing else 0),
                 first_seen=existing.first_seen if existing and existing.first_seen else now,
                 last_seen=now,
                 extra=existing.extra if existing else {},
@@ -183,6 +196,30 @@ class DeviceRegistry:
             logger.info("DeviceRegistry: forgot device %s", wanted)
             return True
 
+    # -- one-time conversions ------------------------------------------------
+
+    def has_migrated(self, name: str) -> bool:
+        """Whether this file has already been through the named conversion."""
+        return name in self._stored_migrations()
+
+    def record_migration(self, name: str) -> None:
+        """Say it has, so it is never done to a user's file twice."""
+        with self._lock:
+            names = self._stored_migrations()
+            if name in names:
+                return
+            self._save(self._load(), migrations=names + [name])
+
+    def _stored_migrations(self) -> list[str]:
+        if not self.path.exists():
+            return []
+        try:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+        raw = payload.get(MIGRATIONS_KEY) if isinstance(payload, dict) else None
+        return [str(name) for name in raw or [] if str(name).strip()]
+
     # -- storage -------------------------------------------------------------
 
     def _load(self) -> list[Device]:
@@ -199,10 +236,16 @@ class DeviceRegistry:
         return [device for device in (Device.from_dict(entry) for entry in raw
                                       if isinstance(entry, dict)) if device is not None]
 
-    def _save(self, devices: list[Device]) -> None:
+    def _save(self, devices: list[Device], migrations: list[str] | None = None) -> None:
         # Never stamp a newer file down to what this build writes - that number belongs
         # to whichever VPinFE wrote it, the same rule the config store follows.
+        #
+        # Migrations are read back rather than held: every other method here reads the
+        # file fresh, so keeping this one in memory would let two writers drop each
+        # other's marker.
         payload = {SCHEMA_KEY: SCHEMA,
+                   MIGRATIONS_KEY: (self._stored_migrations() if migrations is None
+                                    else migrations),
                    DEVICES_KEY: [device.as_dict() for device in devices]}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         write_atomic(self.path,

@@ -255,6 +255,18 @@ except Exception:
 
 shutdown.exit_if_requested(logger)
 
+# The one mobile device [mobile] could describe becomes a registry entry, after which
+# several can coexist and nothing reads those keys at runtime.
+try:
+    from common.device_migration import ensure_mobile_device
+    from common.device_registry import get_device_registry
+    from common.paths import get_ini_config
+    ensure_mobile_device(get_device_registry(), get_ini_config())
+except Exception:
+    logger.exception("Mobile device import failed; [mobile] left as it was")
+
+shutdown.exit_if_requested(logger)
+
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()
 # Feedback hardware follows game lifecycle events from here on, so both launch
