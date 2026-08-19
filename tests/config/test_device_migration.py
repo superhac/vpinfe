@@ -14,6 +14,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from common.config_store import ConfigStore
 from common.device_migration import MOBILE_MIGRATION, ensure_mobile_device
 from common.device_registry import DeviceRegistry
 
@@ -99,3 +100,25 @@ class MobileImportTests(unittest.TestCase):
         self.assertEqual(
             ensure_mobile_device(self.registry, _config(device_ip="192.168.1.50")), 1)
         self.assertEqual(len(self.registry.devices()), 2)
+
+
+class RealIniTests(unittest.TestCase):
+    """Through a ConfigStore rather than a hand-built parser, because the ini a user
+    actually upgrades from says `DeviceIP`, and the canonical key it resolves to is
+    the only thing the migration ever asks for."""
+
+    def test_a_2x_ini_produces_exactly_one_mobile_device(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "vpinfe.ini").write_text(
+                "[Settings]\ntheme = Revolution\n\n"
+                "[Mobile]\nDeviceIP = 192.168.1.42\nDevicePort = 2112\n",
+                encoding="utf-8")
+            registry = DeviceRegistry(root / "devices.json")
+
+            created = ensure_mobile_device(registry, ConfigStore(str(root / "vpinfe.ini")))
+
+            self.assertEqual(created, 1)
+            device, = registry.devices()
+            self.assertEqual((device.kind, device.address, device.port),
+                             ("vpx_mobile", "192.168.1.42", 2112))
