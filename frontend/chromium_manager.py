@@ -105,7 +105,7 @@ def get_builtin_chromium_options(
 
 
 class HubEndpoint(NamedTuple):
-    """Where a page dials for the hub, and where it dials for this player."""
+    """Where a page dials for the hub, and where it dials for this device."""
 
     host: str
     port: int
@@ -119,7 +119,7 @@ def _hub_endpoint(network) -> HubEndpoint:
     With no hub the host is "" and every port is this install's, which is every
     single-machine setup. With one, three of the four are the hub's, and they have to be
     asked for separately: `network.hub_port` and `network.theme_assets_port` describe what
-    *this* install serves, so a player reading a hub on other ports would dial its own
+    *this* install serves, so a device reading a hub on other ports would dial its own
     numbers at the other machine. The api port is in the url; the asset port is not in it
     at all, so the hub is asked - it publishes its own in discovery.
     """

@@ -230,7 +230,7 @@ def apply_collection(api, collection):
     store = api.library.collections()
     name = collection or BUILTIN_ALL
     api.current_collection = name
-    # A player's collections live on its hub, so its own store need not know this one.
+    # A device's collections live on its hub, so its own store need not know this one.
     # It still resolves - the hub already did - but there is no local order to read.
     if name in store:
         api.current_filters = _filter_state(store.get_filters(name))
@@ -268,7 +268,7 @@ def refresh_view(api):
     rather than mutating the one this view is holding.
 
     The view says where its library comes from. Reading the local one here would hand a
-    player its own empty disk on the first refresh, throwing away what the hub sent.
+    device its own empty disk on the first refresh, throwing away what the hub sent.
     """
     api.allGames = api.library.reload()
     rebuild_view(api)

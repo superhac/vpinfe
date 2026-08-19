@@ -1,8 +1,8 @@
-"""What a hub asks of a player: its displays, its browser, its input, its lifecycle.
+"""What a hub asks of a device: its displays, its browser, its input, its lifecycle.
 
-One interface whether that player is this process or another machine; only the local
+One interface whether that device is this process or another machine; only the local
 resolution exists today. Narrow on purpose - this is the surface a hub reaches, which
-is what has to be authenticated once a player is reachable over a network.
+is what has to be authenticated once a device is reachable over a network.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ class Display:
 
 
 class LocalDevice:
-    """The player in this process. Imports are deferred so that importing this module
+    """The device in this process. Imports are deferred so that importing this module
     does not pull the frontend in - a hub-only install has no frontend to pull."""
 
     def displays(self) -> list[Display]:
@@ -48,7 +48,7 @@ class LocalDevice:
             return []
 
     def browser_path(self) -> str | None:
-        """Which browser this player would open its windows with, or None."""
+        """Which browser this device would open its windows with, or None."""
         try:
             from frontend.chromium_manager import get_chromium_path
 
@@ -57,7 +57,7 @@ class LocalDevice:
             return None
 
     def browser_options(self, **kwargs: Any) -> list[str]:
-        """The flags this player would launch its browser with."""
+        """The flags this device would launch its browser with."""
         from frontend.chromium_manager import get_builtin_chromium_options
 
         return get_builtin_chromium_options(**kwargs)
@@ -88,6 +88,6 @@ _local = LocalDevice()
 
 
 def local() -> LocalDevice:
-    """The player in this process. A function, not the instance, so reaching a remote
-    player later changes which player is asked and not how."""
+    """The device in this process. A function, not the instance, so reaching a remote
+    device later changes which device is asked and not how."""
     return _local

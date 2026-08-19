@@ -150,7 +150,7 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | `ws_port` | int | `8002` | Port the frontend windows and the theme talk to VPinFE over. Loopback only. |
 | `hub_port` | int | `8001` | Port the hub answers on: the HTTP API, the Manager UI, and the remote and mobile pages. Named for the role rather than any one thing listening on it - all four are hub-side. |
 | `hub_url` | string |  | Read the library from a hub on another machine, for example http://cabinet.local:8001. Empty - the default - means this install holds its own library, which is every single-machine setup. |
-| `verify_shared_library` | bool | `false` | On startup, check that this player's library really is the hub's, by comparing file hashes rather than paths. Reports what does not match and changes nothing else. Off by default, and ignored entirely without a Hub URL. |
+| `verify_shared_library` | bool | `false` | On startup, check that this device's library really is the hub's, by comparing file hashes rather than paths. Reports what does not match and changes nothing else. Off by default, and ignored entirely without a Hub URL. |
 | `hub_bind` | string | `0.0.0.0` | Which address to serve the hub on. The default answers every interface, which is what it has always done - set 127.0.0.1 to reach it only from this machine. |
 
 ### `dof`

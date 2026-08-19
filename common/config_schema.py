@@ -626,7 +626,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="bool",
             default="false",
             label="Verify Shared Library",
-            description="On startup, check that this player's library really is the"
+            description="On startup, check that this device's library really is the"
                         " hub's, by comparing file hashes rather than paths. Reports"
                         " what does not match and changes nothing else. Off by default,"
                         " and ignored entirely without a Hub URL.",

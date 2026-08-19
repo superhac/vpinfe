@@ -246,8 +246,8 @@ class NetworkConfig:
     # has authentication.
     theme_assets_bind: str = "127.0.0.1"
     hub_bind: str = "0.0.0.0"
-    # Empty means this install holds its own library. Set, it is the hub a player reads
-    # from - the one setting that makes this process a player rather than both roles.
+    # Empty means this install holds its own library. Set, it is the hub a device reads
+    # from - the one setting that makes this process a device rather than both roles.
     hub_url: str = ""
     # Off by default: it costs a walk of the local library at startup, and an install
     # that is working does not need to be told so.

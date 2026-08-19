@@ -1,13 +1,13 @@
-"""The players a hub knows about.
+"""The devices a hub knows about.
 
-Keyed by `install_id`, which is the only thing about a player that never changes: a
+Keyed by `install_id`, which is the only thing about a device that never changes: a
 display name is meant to be renamed and an address moves with DHCP, so neither can be
 the key. Follows `common/games/collection_store.py` - a small JSON file, written whole
 and atomically, carrying its own schema version.
 
-Data only. Routing a launch to a chosen player, aggregating state across players and
+Data only. Routing a launch to a chosen device, aggregating state across devices and
 resolving conflicts between them are separate decisions, and none of them are needed to
-tell one player from another.
+tell one device from another.
 """
 
 from __future__ import annotations
@@ -33,10 +33,10 @@ DEVICES_KEY = "devices"
 
 @dataclass(frozen=True)
 class Device:
-    """One player a hub has seen.
+    """One device a hub has seen.
 
-    `display_name` and `roles` are what that install last reported, cached so a roster
-    can be read without asking every player. They go stale by design - the install owns
+    `display_name` and `roles` are what that install last reported, cached so a registry
+    can be read without asking every device. They go stale by design - the install owns
     them, this is a copy.
     """
 
@@ -75,7 +75,7 @@ class Device:
 
 
 class DeviceRegistry:
-    """Every player this hub knows, read and written whole."""
+    """Every device this hub knows, read and written whole."""
 
     def __init__(self, path: Path | str | None = None):
         self.path = Path(path) if path is not None else DEVICE_REGISTRY_PATH
@@ -83,9 +83,9 @@ class DeviceRegistry:
 
     # -- reading -------------------------------------------------------------
 
-    def players(self) -> list[Device]:
-        """Every entry, oldest first. An unreadable file is an empty roster, never an
-        error: a hub with no players is the normal case, and so is a first run."""
+    def devices(self) -> list[Device]:
+        """Every entry, oldest first. An unreadable file is an empty registry, never an
+        error: a hub with no devices is the normal case, and so is a first run."""
         with self._lock:
             return self._load()
 
@@ -93,7 +93,7 @@ class DeviceRegistry:
         wanted = (install_id or "").strip()
         if not wanted:
             return None
-        return next((p for p in self.players() if p.install_id == wanted), None)
+        return next((p for p in self.devices() if p.install_id == wanted), None)
 
     def knows(self, install_id: str) -> bool:
         return self.get(install_id) is not None
@@ -102,22 +102,22 @@ class DeviceRegistry:
 
     def record(self, install_id: str, *, display_name: str = "", roles=(),
                address: str = "") -> Device | None:
-        """Note that a player exists, or that a known one has been heard from.
+        """Note that a device exists, or that a known one has been heard from.
 
-        `first_seen` is kept from the existing entry: a player is the same player
+        `first_seen` is kept from the existing entry: a device is the same device
         however many times it reconnects. Everything else is refreshed, because the
         install owns those and this is only a copy of what it last said.
         """
         wanted = (install_id or "").strip()
         if not wanted:
-            logger.debug("Ignoring a roster entry with no install id")
+            logger.debug("Ignoring a registry entry with no install id")
             return None
 
         now = utc_now_iso()
         with self._lock:
-            players = {p.install_id: p for p in self._load()}
-            existing = players.get(wanted)
-            players[wanted] = Device(
+            devices = {p.install_id: p for p in self._load()}
+            existing = devices.get(wanted)
+            devices[wanted] = Device(
                 install_id=wanted,
                 display_name=display_name or (existing.display_name if existing else ""),
                 roles=tuple(str(r) for r in roles) or (existing.roles if existing else ()),
@@ -126,21 +126,21 @@ class DeviceRegistry:
                 last_seen=now,
                 extra=existing.extra if existing else {},
             )
-            self._save(list(players.values()))
+            self._save(list(devices.values()))
             if existing is None:
-                logger.info("DeviceRegistry: new player %s (%s)", wanted, display_name or "unnamed")
-            return players[wanted]
+                logger.info("DeviceRegistry: new device %s (%s)", wanted, display_name or "unnamed")
+            return devices[wanted]
 
     def forget(self, install_id: str) -> bool:
-        """Drop a player. Returns whether there was one to drop."""
+        """Drop a device. Returns whether there was one to drop."""
         wanted = (install_id or "").strip()
         with self._lock:
-            players = self._load()
-            remaining = [p for p in players if p.install_id != wanted]
-            if len(remaining) == len(players):
+            devices = self._load()
+            remaining = [p for p in devices if p.install_id != wanted]
+            if len(remaining) == len(devices):
                 return False
             self._save(remaining)
-            logger.info("DeviceRegistry: forgot player %s", wanted)
+            logger.info("DeviceRegistry: forgot device %s", wanted)
             return True
 
     # -- storage -------------------------------------------------------------
@@ -156,30 +156,30 @@ class DeviceRegistry:
         raw = payload.get(DEVICES_KEY) if isinstance(payload, dict) else payload
         if not isinstance(raw, list):
             return []
-        return [player for player in (Device.from_dict(entry) for entry in raw
-                                      if isinstance(entry, dict)) if player is not None]
+        return [device for device in (Device.from_dict(entry) for entry in raw
+                                      if isinstance(entry, dict)) if device is not None]
 
-    def _save(self, players: list[Device]) -> None:
+    def _save(self, devices: list[Device]) -> None:
         # Never stamp a newer file down to what this build writes - that number belongs
         # to whichever VPinFE wrote it, the same rule the config store follows.
         payload = {SCHEMA_KEY: SCHEMA,
-                   DEVICES_KEY: [player.as_dict() for player in players]}
+                   DEVICES_KEY: [device.as_dict() for device in devices]}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         write_atomic(self.path,
                      lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))
 
 
-_roster: DeviceRegistry | None = None
+_registry: DeviceRegistry | None = None
 
 
 def get_device_registry() -> DeviceRegistry:
-    """The hub's roster. One per process."""
-    global _roster
-    if _roster is None:
-        _roster = DeviceRegistry()
-    return _roster
+    """The hub's registry. One per process."""
+    global _registry
+    if _registry is None:
+        _registry = DeviceRegistry()
+    return _registry
 
 
 def reset_for_tests(path=None) -> None:
-    global _roster
-    _roster = DeviceRegistry(path) if path is not None else None
+    global _registry
+    _registry = DeviceRegistry(path) if path is not None else None

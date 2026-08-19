@@ -45,7 +45,7 @@ class LibraryResolver:
         self._ini_config = ini_config
         self.lock = threading.RLock()
 
-        # With a hub set, this install is a player: the list it holds is entries the hub
+        # With a hub set, this install is a device: the list it holds is entries the hub
         # resolved, not games off a disk it may not have.
         self._hub_url = hub_url(ini_config)
         self._remote = bool(self._hub_url)
@@ -83,7 +83,7 @@ class LibraryResolver:
 
     def reload(self):
         """The library again. A hub that has gone quiet leaves the list alone: a stale
-        wheel beats a player emptying its screen because one request failed."""
+        wheel beats a device emptying its screen because one request failed."""
         try:
             self.all_games = self._load(public_name(self.current_collection))
         except Exception:
@@ -99,7 +99,7 @@ class LibraryResolver:
     def resolve_view(self, collection: str, criteria: dict | None = None) -> list:
         """The entries a collection holds, off this install's library.
 
-        A player's are the hub's answer, kept as it arrived: the resolver reads a game's
+        A device's are the hub's answer, kept as it arrived: the resolver reads a game's
         table dicts out of its `.info` and those stayed on the hub, so re-resolving here
         would quietly produce an empty wheel.
 

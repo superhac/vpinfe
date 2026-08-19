@@ -1,7 +1,7 @@
-"""The roster: which players a hub has been told about.
+"""The registry: which devices a hub has been told about.
 
 Data only. There is no routing, no aggregation and no picking one to launch on - all
-three need decisions across players that nothing has made. What a roster buys today is
+three need decisions across devices that nothing has made. What a registry buys today is
 attribution: an event carries the `install_id` it happened on, and this turns that id
 into a name someone recognizes.
 """
@@ -26,14 +26,14 @@ DESK = {"install_id": "Bbbb222222", "display_name": "desktop", "roles": ["device
 
 
 @unittest.skipIf(TestClient is None, "starlette test client unavailable")
-class PlayerRosterTests(TempTree):
+class DeviceRegistryApiTests(TempTree):
     def setUp(self) -> None:
         super().setUp()
-        roster = registry_module.DeviceRegistry(self.root / "devices.json")
-        patcher = patch.object(registry_module, "get_device_registry", lambda: roster)
+        registry = registry_module.DeviceRegistry(self.root / "devices.json")
+        patcher = patch.object(registry_module, "get_device_registry", lambda: registry)
         patcher.start()
         self.addCleanup(patcher.stop)
-        also = patch("httpapi.devices.get_device_registry", lambda: roster)
+        also = patch("httpapi.devices.get_device_registry", lambda: registry)
         also.start()
         self.addCleanup(also.stop)
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
@@ -43,7 +43,7 @@ class PlayerRosterTests(TempTree):
 
         self.assertEqual(body, {"count": 0, "devices": []})
 
-    def test_announcing_records_what_the_player_said(self) -> None:
+    def test_announcing_records_what_the_device_said(self) -> None:
         response = self.client.put("/devices", json=CAB)
 
         self.assertEqual(response.status_code, 200)
@@ -54,19 +54,19 @@ class PlayerRosterTests(TempTree):
         self.assertTrue(body["first_seen"])
         self.assertEqual(body["links"]["self"], "/api/v1/devices/Aaaa111111")
 
-    def test_announcing_twice_is_one_player_heard_from_twice(self) -> None:
-        """A player restarting must not become a second entry."""
+    def test_announcing_twice_is_one_device_heard_from_twice(self) -> None:
+        """A device restarting must not become a second entry."""
         first = self.client.put("/devices", json=CAB).json()
         self.client.put("/devices", json=CAB | {"display_name": "renamed"})
 
         listed = self.client.get("/devices").json()
         self.assertEqual(listed["count"], 1)
         self.assertEqual(listed["devices"][0]["display_name"], "renamed",
-                         "the install owns its name; the roster is a copy")
+                         "the install owns its name; the registry is a copy")
         self.assertEqual(listed["devices"][0]["first_seen"], first["first_seen"],
-                         "it is the same player, however many times it reconnects")
+                         "it is the same device, however many times it reconnects")
 
-    def test_two_players_are_two_entries(self) -> None:
+    def test_two_devices_are_two_entries(self) -> None:
         self.client.put("/devices", json=CAB)
         self.client.put("/devices", json=DESK)
 
@@ -77,31 +77,31 @@ class PlayerRosterTests(TempTree):
                          {CAB["install_id"], DESK["install_id"]})
 
     def test_the_address_is_observed_rather_than_claimed(self) -> None:
-        """A player behind a router does not know how the hub reaches it, so a body that
+        """A device behind a router does not know how the hub reaches it, so a body that
         said would be a claim. The socket is the only party that knows."""
         body = self.client.put("/devices", json=CAB | {"address": "10.0.0.99"}).json()
 
         self.assertNotEqual(body["address"], "10.0.0.99")
 
-    def test_a_player_with_no_id_is_refused(self) -> None:
-        """An install with no id is not an identity, and a roster keyed on "" is a
-        roster of one."""
+    def test_a_device_with_no_id_is_refused(self) -> None:
+        """An install with no id is not an identity, and a registry keyed on "" is a
+        registry of one."""
         response = self.client.put("/devices", json={"install_id": "  "})
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(self.client.get("/devices").json()["count"], 0)
 
-    def test_one_player_answers_for_itself(self) -> None:
+    def test_one_device_answers_for_itself(self) -> None:
         self.client.put("/devices", json=CAB)
 
         body = self.client.get(f"/devices/{CAB['install_id']}").json()
 
         self.assertEqual(body["display_name"], CAB["display_name"])
 
-    def test_an_unknown_player_is_a_404(self) -> None:
+    def test_an_unknown_device_is_a_404(self) -> None:
         self.assertEqual(self.client.get("/devices/Nope111111").status_code, 404)
 
-    def test_forgetting_a_player_removes_it(self) -> None:
+    def test_forgetting_a_device_removes_it(self) -> None:
         self.client.put("/devices", json=CAB)
 
         self.assertEqual(self.client.delete(f"/devices/{CAB['install_id']}").status_code,
@@ -111,7 +111,7 @@ class PlayerRosterTests(TempTree):
     def test_forgetting_one_that_was_never_there_is_a_404(self) -> None:
         self.assertEqual(self.client.delete("/devices/Nope111111").status_code, 404)
 
-    def test_the_roster_is_linked_from_discovery(self) -> None:
+    def test_the_registry_is_linked_from_discovery(self) -> None:
         """So an integrator finds it by asking rather than by reading this file."""
         links = self.client.get("/").json()["links"]
 

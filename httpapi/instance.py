@@ -54,7 +54,7 @@ def _services() -> dict:
 
     Only the asset server so far, and only its port: the host is wherever the caller
     reached this document, which is the one address known to be routable to here. A
-    player needs this because artwork is served off a different port from the API, and
+    device needs this because artwork is served off a different port from the API, and
     nothing else tells it which - guessing 8000 is right until someone moves it.
     """
     try:

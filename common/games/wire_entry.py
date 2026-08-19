@@ -33,7 +33,7 @@ class WireGame:
         assets = entry.get("assets") or {}
         self.gameDirName = game.get("dir_name") or ""
         self.creation_time = iso_to_epoch(game.get("created_at"))
-        # Empty, not missing: they name the hub's disk, so a player holding them would
+        # Empty, not missing: they name the hub's disk, so a device holding them would
         # hold an address it cannot reach - but a reader still expects the attribute.
         self.fullPathGame = ""
         self.fullPathVPXfile = ""
@@ -65,7 +65,7 @@ class WireGame:
             },
             "vpinfe": {
                 # The id is how everything addresses a game - media urls, launches, the
-                # last-played record. Without it a player renders a wheel it cannot point
+                # last-played record. Without it a device renders a wheel it cannot point
                 # at anything in.
                 "game_id": game.get("id") or "",
                 # Seconds, which is what the sort uses - ordering on `User.RunTime`'s

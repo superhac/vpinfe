@@ -1,4 +1,4 @@
-"""The connection between a player and its own windows.
+"""The connection between a device and its own windows.
 
 Each window opens one, naming itself in the query string:
   ws://127.0.0.1:8002?window=playfield
@@ -30,7 +30,7 @@ LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
 class DeviceChannel:
-    """The WebSocket server a player's windows connect to."""
+    """The WebSocket server a device's windows connect to."""
 
     # Public API methods that JS is allowed to call
     ALLOWED_METHODS = API_ALLOWED_METHODS

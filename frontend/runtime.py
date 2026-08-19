@@ -53,9 +53,9 @@ def create_api_instances(iniconfig, logger):
     # of one answer, kept in step by everyone doing the same work.
     shared_library = library_resolver.LibraryResolver(iniconfig)
 
-    # A player says hello to the hub whose library it is about to show. On a single
+    # A device says hello to the hub whose library it is about to show. On a single
     # machine there is no hub_url and this does nothing. Best effort: a hub that cannot
-    # be reached costs a name in someone's roster, not a frontend.
+    # be reached costs a name in someone's device registry, not a frontend.
     if network.hub_url:
         threading.Thread(
             target=hub_library.announce_to_hub,
@@ -90,7 +90,7 @@ def create_api_instances(iniconfig, logger):
 
 
 def _report_shared_library(shared_library, logger) -> None:
-    """Say whether this player's library really is the hub's, once, at startup.
+    """Say whether this device's library really is the hub's, once, at startup.
 
     Reports and does nothing else. A mismatch is a real problem - it is the difference
     between a wheel that launches and one that fails per game with a file-not-found - but

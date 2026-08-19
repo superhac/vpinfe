@@ -78,7 +78,7 @@ class Discovery(ApiModel):
     app_version: str
     capabilities: list[CapabilityInfo]
     # Servers that are not the API. `assets` is where artwork is fetched from, which a
-    # player cannot guess: it is a different port from the one it asked this on.
+    # device cannot guess: it is a different port from the one it asked this on.
     services: dict[str, ServiceEndpoint] = Field(default_factory=dict)
     extensions: list[dict]
     links: DiscoveryLinks
@@ -88,15 +88,15 @@ class Health(ApiModel):
     status: str
 
 
-# --- Players ---------------------------------------------------------------
+# --- Devices ---------------------------------------------------------------
 
-class PlayerLinks(ApiModel):
+class DeviceLinks(ApiModel):
     self_: str = Field(alias="self")
 
 
-class PlayerResource(ApiModel):
-    """One player a hub has seen. `display_name` and `roles` are what that install last
-    reported about itself, cached so the roster reads without asking every player - they
+class DeviceResource(ApiModel):
+    """One device a hub has seen. `display_name` and `roles` are what that install last
+    reported about itself, cached so the registry reads without asking every device - they
     go stale by design, because the install owns them."""
 
     install_id: str
@@ -105,17 +105,17 @@ class PlayerResource(ApiModel):
     address: str = ""
     first_seen: str = ""
     last_seen: str = ""
-    links: PlayerLinks
+    links: DeviceLinks
 
 
-class PlayerList(ApiModel):
+class DeviceList(ApiModel):
     count: int
-    devices: list[PlayerResource]
+    devices: list[DeviceResource]
 
 
-class PlayerAnnouncement(ApiModel):
-    """What a player says about itself. The address is not here: the hub reads it off
-    the socket, because a player behind a router does not know how it is reached."""
+class DeviceAnnouncement(ApiModel):
+    """What a device says about itself. The address is not here: the hub reads it off
+    the socket, because a device behind a router does not know how it is reached."""
 
     install_id: str
     display_name: str = ""

@@ -83,7 +83,7 @@ class Entry:
     def filename(self) -> str:
         return entry_filename(self.table)
 
-    # A player's list is entries rather than games, and the frontend's sorts read these
+    # A device's list is entries rather than games, and the frontend's sorts read these
     # two off whatever they are handed. Forwarding beats teaching every sort both shapes.
     @property
     def meta_config(self):

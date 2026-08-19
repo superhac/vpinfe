@@ -22,7 +22,7 @@ def entry_identity(entry) -> str:
 
     A game offers several tables and a collection may name a particular one, so saving
     the game comes back to whichever table the list happens to hold. Ids rather than a
-    path, because a player reading its library off a hub never sees the hub's filesystem.
+    path, because a device reading its library off a hub never sees the hub's filesystem.
     """
     table_id = str(getattr(entry, "table_id", "") or "").strip()
     if table_id:

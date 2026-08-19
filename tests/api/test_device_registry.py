@@ -1,10 +1,10 @@
-"""The players a hub knows about.
+"""The devices a hub knows about.
 
-Keyed by `install_id` because it is the only thing about a player that does not change:
-a display name is meant to be renamed and an address moves with DHCP. A roster that
-keyed on either would lose track of a player the first time somebody used the feature.
+Keyed by `install_id` because it is the only thing about a device that does not change:
+a display name is meant to be renamed and an address moves with DHCP. A registry that
+keyed on either would lose track of a device the first time somebody used the feature.
 
-One entry is the degenerate case of many, so nothing here treats a single player
+One entry is the degenerate case of many, so nothing here treats a single device
 specially - building it single-entry-only would have taken deliberate effort.
 """
 
@@ -18,43 +18,43 @@ from tempfile import TemporaryDirectory
 from common.device_registry import Device, DeviceRegistry
 
 
-class RosterTests(unittest.TestCase):
+class DeviceRegistryTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.roster = DeviceRegistry(Path(self.tmp.name) / "devices.json")
+        self.registry = DeviceRegistry(Path(self.tmp.name) / "devices.json")
 
-    def test_a_hub_that_has_seen_nobody_has_an_empty_roster(self) -> None:
-        self.assertEqual(self.roster.players(), [])
-        self.assertIsNone(self.roster.get("anything"))
-        self.assertFalse(self.roster.knows("anything"))
+    def test_a_hub_that_has_seen_nobody_has_an_empty_registry(self) -> None:
+        self.assertEqual(self.registry.devices(), [])
+        self.assertIsNone(self.registry.get("anything"))
+        self.assertFalse(self.registry.knows("anything"))
 
-    def test_recording_a_player_makes_it_known(self) -> None:
-        self.roster.record("Aaaa111111", display_name="basement cab",
+    def test_recording_a_device_makes_it_known(self) -> None:
+        self.registry.record("Aaaa111111", display_name="basement cab",
                            roles=("hub", "device"))
 
-        player = self.roster.get("Aaaa111111")
-        self.assertEqual(player.display_name, "basement cab")
-        self.assertEqual(player.roles, ("hub", "device"))
-        self.assertTrue(self.roster.knows("Aaaa111111"))
+        device = self.registry.get("Aaaa111111")
+        self.assertEqual(device.display_name, "basement cab")
+        self.assertEqual(device.roles, ("hub", "device"))
+        self.assertTrue(self.registry.knows("Aaaa111111"))
 
-    def test_a_player_heard_from_twice_is_still_one_player(self) -> None:
-        """The whole point of keying on the id: a reconnect is not a second player."""
-        self.roster.record("Aaaa111111", display_name="cab")
-        self.roster.record("Aaaa111111", display_name="cab")
+    def test_a_device_heard_from_twice_is_still_one_device(self) -> None:
+        """The whole point of keying on the id: a reconnect is not a second device."""
+        self.registry.record("Aaaa111111", display_name="cab")
+        self.registry.record("Aaaa111111", display_name="cab")
 
-        self.assertEqual(len(self.roster.players()), 1)
+        self.assertEqual(len(self.registry.devices()), 1)
 
-    def test_a_rename_does_not_lose_the_player(self) -> None:
+    def test_a_rename_does_not_lose_the_device(self) -> None:
         """`display_name` addresses nothing, which is what makes renaming safe."""
-        first = self.roster.record("Aaaa111111", display_name="old name")
-        self.roster.record("Aaaa111111", display_name="new name")
+        first = self.registry.record("Aaaa111111", display_name="old name")
+        self.registry.record("Aaaa111111", display_name="new name")
 
-        players = self.roster.players()
-        self.assertEqual(len(players), 1)
-        self.assertEqual(players[0].display_name, "new name")
-        self.assertEqual(players[0].first_seen, first.first_seen,
-                         "it is the same player, so it was first seen when it was")
+        devices = self.registry.devices()
+        self.assertEqual(len(devices), 1)
+        self.assertEqual(devices[0].display_name, "new name")
+        self.assertEqual(devices[0].first_seen, first.first_seen,
+                         "it is the same device, so it was first seen when it was")
 
     def test_what_the_install_owns_is_refreshed_and_what_we_own_is_not(self) -> None:
         """Name, roles and address are a cached copy of what that install last said.
@@ -65,11 +65,11 @@ class RosterTests(unittest.TestCase):
         `first_seen` that silently resets on every record would still look equal.
         """
         pinned = "2020-01-01T00:00:00Z"
-        self.roster.record("Aaaa111111", display_name="a", roles=("device",),
+        self.registry.record("Aaaa111111", display_name="a", roles=("device",),
                            address="192.168.1.10")
         self._rewrite_first_seen("Aaaa111111", pinned)
 
-        later = self.roster.record("Aaaa111111", display_name="b", roles=("hub",),
+        later = self.registry.record("Aaaa111111", display_name="b", roles=("hub",),
                                    address="192.168.1.99")
 
         self.assertEqual((later.display_name, later.roles, later.address),
@@ -79,34 +79,34 @@ class RosterTests(unittest.TestCase):
 
     def _rewrite_first_seen(self, install_id: str, when: str) -> None:
         """Put a known timestamp on disk, so the assertion has an outside witness."""
-        payload = json.loads(self.roster.path.read_text())
+        payload = json.loads(self.registry.path.read_text())
         for entry in payload["devices"]:
             if entry["install_id"] == install_id:
                 entry["first_seen"] = when
-        self.roster.path.write_text(json.dumps(payload), encoding="utf-8")
+        self.registry.path.write_text(json.dumps(payload), encoding="utf-8")
 
-    def test_a_roster_holds_more_than_one(self) -> None:
-        self.roster.record("Aaaa111111", display_name="cab")
-        self.roster.record("Bbbb222222", display_name="desktop")
+    def test_a_registry_holds_more_than_one(self) -> None:
+        self.registry.record("Aaaa111111", display_name="cab")
+        self.registry.record("Bbbb222222", display_name="desktop")
 
-        self.assertEqual([p.install_id for p in self.roster.players()],
+        self.assertEqual([p.install_id for p in self.registry.devices()],
                          ["Aaaa111111", "Bbbb222222"])
 
-    def test_a_player_with_no_id_is_refused(self) -> None:
+    def test_a_device_with_no_id_is_refused(self) -> None:
         """An id is the entry's identity; without one there is nothing to key on."""
-        self.assertIsNone(self.roster.record(""))
-        self.assertIsNone(self.roster.record("   "))
-        self.assertEqual(self.roster.players(), [])
+        self.assertIsNone(self.registry.record(""))
+        self.assertIsNone(self.registry.record("   "))
+        self.assertEqual(self.registry.devices(), [])
 
-    def test_forgetting_a_player_says_whether_there_was_one(self) -> None:
-        self.roster.record("Aaaa111111")
+    def test_forgetting_a_device_says_whether_there_was_one(self) -> None:
+        self.registry.record("Aaaa111111")
 
-        self.assertTrue(self.roster.forget("Aaaa111111"))
-        self.assertFalse(self.roster.forget("Aaaa111111"))
-        self.assertEqual(self.roster.players(), [])
+        self.assertTrue(self.registry.forget("Aaaa111111"))
+        self.assertFalse(self.registry.forget("Aaaa111111"))
+        self.assertEqual(self.registry.devices(), [])
 
 
-class RosterStorageTests(unittest.TestCase):
+class DeviceRegistryStorageTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -122,12 +122,12 @@ class RosterStorageTests(unittest.TestCase):
 
         self.assertEqual(json.loads(self.path.read_text())["schema"], 1)
 
-    def test_an_unreadable_roster_is_empty_rather_than_fatal(self) -> None:
-        """A hub with a corrupt roster should still start. It has lost who it knew,
+    def test_an_unreadable_registry_is_empty_rather_than_fatal(self) -> None:
+        """A hub with a corrupt registry should still start. It has lost who it knew,
         which is recoverable; refusing to run is not."""
         self.path.write_text("{ not json", encoding="utf-8")
 
-        self.assertEqual(DeviceRegistry(self.path).players(), [])
+        self.assertEqual(DeviceRegistry(self.path).devices(), [])
 
     def test_a_field_a_newer_build_wrote_is_not_dropped(self) -> None:
         """A downgrade must not silently strip what it does not understand."""
@@ -136,8 +136,8 @@ class RosterStorageTests(unittest.TestCase):
             "devices": [{"install_id": "Aaaa111111", "something_new": "keep me"}],
         }), encoding="utf-8")
 
-        roster = DeviceRegistry(self.path)
-        roster.record("Aaaa111111", display_name="cab")
+        registry = DeviceRegistry(self.path)
+        registry.record("Aaaa111111", display_name="cab")
 
         self.assertEqual(json.loads(self.path.read_text())["devices"][0]["something_new"],
                          "keep me")
@@ -148,17 +148,17 @@ class RosterStorageTests(unittest.TestCase):
             "devices": [{"display_name": "nameless"}, {"install_id": "Aaaa111111"}],
         }), encoding="utf-8")
 
-        self.assertEqual([p.install_id for p in DeviceRegistry(self.path).players()],
+        self.assertEqual([p.install_id for p in DeviceRegistry(self.path).devices()],
                          ["Aaaa111111"])
 
 
-class PlayerTests(unittest.TestCase):
-    def test_a_player_round_trips_through_its_dict(self) -> None:
-        player = Device(install_id="Aaaa111111", display_name="cab",
+class DeviceTests(unittest.TestCase):
+    def test_a_device_round_trips_through_its_dict(self) -> None:
+        device = Device(install_id="Aaaa111111", display_name="cab",
                         roles=("hub", "device"), address="192.168.1.10",
                         first_seen="2026-01-01T00:00:00Z", last_seen="2026-01-02T00:00:00Z")
 
-        self.assertEqual(Device.from_dict(player.as_dict()), player)
+        self.assertEqual(Device.from_dict(device.as_dict()), device)
 
 
 if __name__ == "__main__":

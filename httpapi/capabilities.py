@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 # Residency: which roles a capability lives in. Listing both means each role serves
-# its own, not that one capability spans the two - so if the hub and the player are
+# its own, not that one capability spans the two - so if the hub and the device are
 # ever separate machines, both have it. Clients hold no residency at all.
 RESIDENCY_HUB = "hub"
 RESIDENCY_DEVICE = "device"

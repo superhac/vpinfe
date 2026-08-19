@@ -1,6 +1,6 @@
-"""The library as a player reads it off a hub.
+"""The library as a device reads it off a hub.
 
-A player with no library of its own asks the hub for entries and builds its own payload
+A device with no library of its own asks the hub for entries and builds its own payload
 from them. This turns the wire rows into the same objects the resolver produces locally,
 so everything downstream - filters, sorts, the payload builder - cannot tell which side
 the library came from.
@@ -23,7 +23,7 @@ logger = logging.getLogger("vpinfe.common.games.hub_library")
 LIBRARY_TIMEOUT = 30
 
 def entries_url(hub_url: str, collection: str = "") -> str:
-    """Where a player asks for entries. Empty means the whole library, which is its own
+    """Where a device asks for entries. Empty means the whole library, which is its own
     endpoint rather than a collection: no stored collection means "all of it"."""
     name = collection.strip()
     path = f"api/v1/collections/{quote(name, safe='')}/entries" if name \
@@ -34,7 +34,7 @@ def entries_url(hub_url: str, collection: str = "") -> str:
 def hub_services(hub_url: str, *, timeout: int = http_client.DEFAULT_TIMEOUT) -> dict[str, Any]:
     """What the hub says about its own servers, from its discovery document.
 
-    The asset server is the one a player has to be told about: artwork is on a different
+    The asset server is the one a device has to be told about: artwork is on a different
     port from the API, and assuming 8000 is right only until someone moves it. Empty when
     the hub cannot be reached or says nothing - the caller keeps its own answer, which is
     what a single-machine install has always used.
@@ -50,14 +50,14 @@ def hub_services(hub_url: str, *, timeout: int = http_client.DEFAULT_TIMEOUT) ->
 
 
 def announce_to_hub(hub_url: str, config, *, timeout: int = http_client.DEFAULT_TIMEOUT) -> bool:
-    """Tell the hub this player exists. True if it was recorded.
+    """Tell the hub this device exists. True if it was recorded.
 
-    Best effort on purpose: a hub that refuses or cannot be reached must not stop a player
-    starting. The roster is for attribution - putting a name to the `install_id` an event
+    Best effort on purpose: a hub that refuses or cannot be reached must not stop a device
+    starting. The device registry is for attribution - putting a name to the `install_id` an event
     already carries - so failing to register costs a label, not a capability.
 
     The address is not sent. The hub reads it off the socket, which is the only party that
-    knows how this player was actually reached.
+    knows how this device was actually reached.
     """
     from common import install_identity
 
@@ -79,13 +79,13 @@ def announce_to_hub(hub_url: str, config, *, timeout: int = http_client.DEFAULT_
              "roles": install_identity.roles(config)},
             timeout=timeout)
     except Exception:
-        logger.debug("Could not announce this player to %s", hub_url, exc_info=True)
+        logger.debug("Could not announce this device to %s", hub_url, exc_info=True)
         return False
     return True
 
 
 def verify_shared_library(entries, local_games) -> dict[str, Any]:
-    """Whether the player's own copy of the library is the hub's, by content.
+    """Whether the device's own copy of the library is the hub's, by content.
 
     Shared storage is what the split assumes and nothing checks: a `game_root_dir` that is
     wrong or unmounted fails one game at a time, at launch, as a file-not-found. This asks
@@ -93,7 +93,7 @@ def verify_shared_library(entries, local_games) -> dict[str, Any]:
     mounted at different places on different machines - a path comparison would report
     every install as broken.
 
-    Reports rather than decides. `matched`, `missing` (the hub has a table this player
+    Reports rather than decides. `matched`, `missing` (the hub has a table this device
     cannot resolve) and `differs` (both have it, the bytes are not the same) are three
     different problems for a caller to act on, and what to do about each is a policy
     question this does not answer.
