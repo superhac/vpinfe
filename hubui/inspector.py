@@ -16,7 +16,11 @@ async def build(container: ui.column, title: ui.column, library: Library,
     title.clear()
     with container:
         if game_id is None:
-            ui.label("Select a game").classes("text-sm hub-detail-label p-4")
+            with title:
+                ui.label("Game Details") \
+                    .classes("text-base hub-detail-title leading-tight truncate")
+                ui.label("Select a game") \
+                    .classes("text-xs hub-detail-label leading-none truncate")
             return
         game = next((entry for entry in library.games if entry["id"] == game_id), None)
         if game is not None:
@@ -26,7 +30,11 @@ async def build(container: ui.column, title: ui.column, library: Library,
                 ui.label(f"{game.get('manufacturer') or '?'} {game.get('year') or ''}") \
                     .classes("text-xs hub-detail-label leading-none truncate")
         if game is None:
-            ui.label("Not in this library").classes("text-sm opacity-60 p-4")
+            with title:
+                ui.label("Game Details") \
+                    .classes("text-base hub-detail-title leading-tight truncate")
+                ui.label("Not in this library") \
+                    .classes("text-xs hub-detail-label leading-none truncate")
             return
 
 

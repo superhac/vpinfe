@@ -10,31 +10,16 @@ from hubui import games, inspector, players, theme
 from hubui.api import HubClient
 from hubui.data import Library
 
-# Nav is object-first and grouped by a label rather than a destination: a section you
-# have to open to reach one item is ceremony, and PLAYERS holds exactly one on a normal
-# install. Grouping this way means adding a second player changes nothing structurally.
-# Flat, in the order you reach for them. No section headers: they cost a line each,
-# they say nothing in mini mode, and the one that listed players by name could not be
-# sized for a roster that accumulates installs which never come back.
-# The drawer's two widths. The border handle is fixed-position, so it has to be told
-# where the edge is; these are the only place that number lives.
-# The collapse tabs. A filled surface with a border, not a flat button - flat gave a
-# transparent background, so the chevron floated over the content and read as a
-# rendering artifact rather than a control.
-_TAB_STYLE = (
-    "position:fixed; top:50%; transform:translateY(-50%); z-index:2000;"
-    "width:22px; min-width:22px; height:52px; padding:0;"
-    "background:var(--q-dark); border:1px solid rgba(255,255,255,0.18);"
-    "box-shadow:0 2px 6px rgba(0,0,0,0.4);"
-)
-
 # Both panel headers are pinned to this, so the two toggles sit at the same height
 # whatever their labels do. Left to the text, one was 52px and the other 22px.
 HEADER_H_PX = 52
 
 NAV_WIDE_PX = 220
 DETAILS_WIDE_PX = 320
-NAV_MINI_PX = 57
+DETAILS_MIN_PX = 260
+DETAILS_MAX_PX = 760
+# One rail width for both panels - they collapse to the same thing.
+RAIL_PX = 57
 
 NAV_ITEMS = (
     ("games", "Games", "sports_esports"),
@@ -78,12 +63,16 @@ async def hub_page() -> None:
     ui.dark_mode(True)
     theme.apply_colors(dark=True)
     theme.apply_flair()
+    # The shell takes the viewport once, here, and every height below it is flex. The
+    # old layout gave each pane its own calc(100vh - N) against chrome that later
+    # changed, so a pane collapsed the moment the header it was subtracting went away.
+    ui.query(".nicegui-content").classes("p-0 gap-0 h-screen")
 
     # The shell first, then wait for the browser to have it, and only then read the
     # hub. Reading first meant a page function that took two seconds to return, and
     # nicegui abandons a response that is not ready in three - which surfaced as a
     # reload loop and a page whose handlers were never wired, not as a slow page.
-    with ui.column().classes("w-full items-center p-8 gap-3") as loading:
+    with ui.column().classes("w-full h-full items-center justify-center gap-3") as loading:
         ui.spinner(size="lg").classes("text-primary")
         ui.label("Reading the hub").classes("text-sm opacity-60")
 
@@ -102,6 +91,7 @@ async def hub_page() -> None:
 
     labels: list[ui.label] = []
     nav_rows: list[ui.row] = []
+    destinations: dict[str, ui.row] = {}
 
     def toggle_mini() -> None:
         """Collapse the nav to an icon rail rather than hiding it.
@@ -126,20 +116,20 @@ async def hub_page() -> None:
         # (`manager-nav-header`). It is the panel's own chrome, so it costs nothing that
         # was not already the panel, and nothing floats over the grid.
         nav_header = ui.row() \
-            .classes("items-center gap-2 px-3 cursor-pointer w-full") \
-            .style(f"min-height:{HEADER_H_PX}px") \
+            .classes("items-center gap-3 cursor-pointer w-full hub-nav-header") \
             .on("click", lambda: toggle_mini())
         with nav_header:
-            nav_icon = ui.icon("menu_open", size="20px").classes("opacity-70")
+            nav_icon = ui.icon("menu_open", size="24px").classes("opacity-70")
             # Larger and heavier than a nav item, like HA's own title. Row height may
             # differ from the items below - that is fine and expected; what has to stay
             # aligned is the icon column, which does not depend on the label's size.
             labels.append(ui.label("VPinFE Hub")
-                          .classes("text-xl whitespace-nowrap hub-nav-title"))
+                          .classes("whitespace-nowrap hub-nav-title"))
         nav_header.tooltip("Show or hide the navigation")
         nav_rows.append(nav_header)
         for key, label, icon in NAV_ITEMS:
-            _nav_item(key, label, icon, state, lambda: render(), labels, nav_rows)
+            _nav_item(key, label, icon, state, lambda: render(), labels, nav_rows,
+                      destinations)
         ui.space()
         foot = ui.column().classes("items-center gap-1 px-3 py-3 w-full") \
             .style("border-top:1px solid rgba(255,255,255,0.10)")
@@ -159,20 +149,29 @@ async def hub_page() -> None:
         nav_rows.append(foot)
 
 
-    with ui.right_drawer(value=True).props(f"width={DETAILS_WIDE_PX} bordered") as right:
+    splitter = ui.splitter(reverse=True, limits=(DETAILS_MIN_PX, DETAILS_MAX_PX),
+                           value=DETAILS_WIDE_PX) \
+        .props("unit=px").classes("w-full h-full")
+    with splitter.after, ui.column().classes("w-full h-full gap-0 hub-details"):
         # The selected game's name shares the row with the toggle rather than sitting
         # under it - same class list, same height and same gutter as the nav's header,
         # so neither the icon's inset from the edge nor its height can drift.
         details_header = ui.row() \
             .classes("items-center gap-2 px-3 cursor-pointer w-full justify-between "
-                     "hub-panel-header") \
+                     "no-wrap hub-panel-header") \
             .style(f"min-height:{HEADER_H_PX}px") \
             .on("click", lambda: show_details(not state["details"]))
         with details_header:
-            details_title = ui.column().classes("gap-0 min-w-0")
-            details_icon = ui.icon("menu_open", size="20px").classes("opacity-70")
+            # min-w-0 lets the column shrink below its content so the title truncates
+            # instead of pushing the toggle onto a second line; shrink-0 keeps the
+            # toggle at its own size while that happens.
+            details_title = ui.column().classes("gap-0 min-w-0 overflow-hidden")
+            details_icon = ui.icon("menu_open", size="24px").classes("opacity-70 shrink-0")
         details_header.tooltip("Show or hide details")
-        panel = ui.column().classes("w-full gap-0 hub-detail-body")
+        # grow + min-h-0 is what lets a flex child scroll instead of pushing its
+        # parent taller: without min-h-0 the panel grows to fit and the pane overflows.
+        panel = ui.column().classes("w-full gap-0 grow min-h-0 overflow-auto "
+                                    "hub-detail-body")
 
 
     def show_details(shown: bool) -> None:
@@ -184,7 +183,13 @@ async def hub_page() -> None:
         """
         state["details"] = shown
         details_icon.props(f'name={"menu_open" if shown else "menu"}')
-        right.props(remove="mini") if shown else right.props(add="mini")
+        # The floor moves with the state. Held at DETAILS_MIN_PX the pane cannot be
+        # dragged down to a useless sliver while it is open, and the rail is below that
+        # floor - so collapsing has to lower it first or Quasar clamps the value back.
+        splitter._props["limits"] = [RAIL_PX if not shown else DETAILS_MIN_PX,
+                                     DETAILS_MAX_PX]
+        splitter.update()
+        splitter.set_value(DETAILS_WIDE_PX if shown else RAIL_PX)
         panel.set_visibility(shown)
         details_title.set_visibility(shown)
         # justify-end, not justify-center: the header keeps its 18px right padding, and
@@ -195,7 +200,11 @@ async def hub_page() -> None:
             details_header.classes(add="justify-between", remove="justify-end")
 
 
-    content = ui.column().classes("w-full gap-0 p-0")
+    with splitter.before:
+        # 2.x's own 24px. It is dead space by the numbers, but it is what separates the
+        # content from the two panels either side and lets the backdrop read as a
+        # backdrop rather than a hairline.
+        content = ui.column().classes("w-full h-full gap-0 p-6")
 
     async def show_game(row: dict | None) -> None:
         await inspector.build(panel, details_title, library, (row or {}).get("id"))
@@ -205,7 +214,24 @@ async def hub_page() -> None:
         state["player"] = player
         render()
 
+    def clear_details() -> None:
+        """Empty the pane. Sync, so render() can call it without awaiting a rebuild."""
+        details_title.clear()
+        panel.clear()
+        # The same two-line shape a selected game gets, so the header does not change
+        # height or alignment as the selection comes and goes.
+        with details_title:
+            ui.label("Game Details") \
+                .classes("text-base hub-detail-title leading-tight truncate")
+            ui.label("Select a game").classes("text-xs hub-detail-label leading-none truncate")
+
     def render() -> None:
+        # A game shown beside a different destination is stale by definition.
+        clear_details()
+        # The page you are on stays lit while you are on it.
+        for key, row in destinations.items():
+            row.classes(add="hub-nav-active") if key == state["view"] \
+                else row.classes(remove="hub-nav-active")
         content.clear()
         with content:
             view = state["view"]
@@ -228,21 +254,22 @@ async def hub_page() -> None:
 
 
 def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
-              labels: list, rows: list) -> None:
+              labels: list, rows: list, destinations: dict) -> None:
     def choose() -> None:
         state["view"] = key
         state["player"] = None
         render()
 
-    row = ui.row().classes("items-center gap-2 px-3 py-1 cursor-pointer w-full") \
+    row = ui.row().classes("items-center gap-3 cursor-pointer w-full hub-nav-row") \
         .on("click", choose)
     with row:
-        ui.icon(icon, size="20px").classes("opacity-70")
+        ui.icon(icon, size="24px").classes("opacity-70")
         labels.append(ui.label(label).classes("hub-nav-item"))
     # The tooltip is what makes the collapsed rail usable at all, and it costs nothing
     # while expanded.
     row.tooltip(label)
     rows.append(row)
+    destinations[key] = row
 
 
 def _placeholder(view: str) -> None:

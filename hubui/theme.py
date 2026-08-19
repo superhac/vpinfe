@@ -50,7 +50,7 @@ body { background: #0a0518; }
    the details pane's 54px top gap, not anything the rows were doing. Scoped to the
    right drawer on purpose: the nav wants that breathing room, the inspector does not,
    because it has far more to fit. */
-.q-drawer--right .q-drawer__content {
+.hub-details {
   /* Gap goes, top padding stays: the gap was the double-spacing, but the 16px top is
      what puts this header level with the nav's, which keeps it. */
   padding: 16px 0 0 !important;
@@ -58,7 +58,7 @@ body { background: #0a0518; }
 }
 /* 18px is what centring a 20px icon in the 57px rail produces, so matching it here
    means the icon does not move horizontally when the panel collapses. */
-.q-drawer--right .hub-panel-header { padding-right: 18px !important; }
+.hub-details .hub-panel-header { padding-right: 18px !important; }
 .q-page-container, .q-page { background: transparent !important; }
 .q-drawer { background: #150a2e !important; }
 
@@ -107,6 +107,50 @@ body::before {
 /* The 2.x aesthetic proper: content sits in rounded, bordered panels that glow rather
    than on a bare page, the grid header carries the brand gradient, and cyan does the
    labelling. Values are manager.css's own - --line, --shadow, --header-gradient. */
+/* Menus in the app's own idiom, and tight: Quasar's default item is 48px tall with
+   16px gutters, which reads as a system menu dropped into the page. */
+.q-menu {
+  background: #1a0f35 !important;
+  border: 1px solid #3d2461;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
+  min-width: 168px;
+}
+.q-menu .q-item {
+  min-height: 30px;
+  padding: 4px 12px;
+  font-size: 13px;
+  color: #e8d5ff;
+}
+.q-menu .q-item:hover { background: #2a1a4a; }
+.q-menu .q-separator { background: #3d2461; margin: 2px 0; }
+/* The menu reads like the top of the details panel: heading in the title's voice,
+   entries in the subtitle's. */
+.hub-menu-header {
+  color: #eef9ff;
+  font-size: 16px;
+  text-shadow: 0 0 6px rgba(0, 217, 255, 0.45);
+  min-height: 26px !important;
+  padding: 4px 12px !important;
+}
+.q-menu .hub-menu-item,
+.q-menu .hub-menu-item .q-item__label {
+  color: #7fc9dd;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+/* Each row on its own line, tight, label reading left to right after the box. */
+.q-menu .q-checkbox.hub-menu-item {
+  display: flex;
+  padding: 2px 12px;
+  min-height: 26px;
+}
+.q-menu .q-checkbox.hub-menu-item:hover { background: #2a1a4a; }
+
+.q-menu .hub-menu-item:hover,
+.q-menu .hub-menu-item:hover .q-item__label { color: #00d9ff; }
+
 .hub-panel {
   background: #1a0f35;
   border: 1px solid #3d2461;
@@ -119,39 +163,84 @@ body::before {
    caps with tracking, and cyan for the title. The gradient runs dark enough by the foot
    that the version row still reads. */
 .q-drawer--left {
-  background: linear-gradient(180deg, #2a1a4a 0%, #150a2e 45%, #0f0722 100%) !important;
+  /* 2.x's --header-gradient stops, but the bright band is compressed into the header
+     row rather than spread down the rail. The title is near-white with a glow and
+     carries purple fine; the items are #5898d4 and do not, so the ground under them
+     has to be dark. 90px is just past the 59px header. */
+  background: linear-gradient(180deg, #b429f9 0px, #4a1e7c 60px, #1a0f35 90px,
+                              #0f0722 100%) !important;
 }
 .hub-nav-item {
+  /* Sampled from 2.x: 14px at weight 500 with normal tracking. Mine were 12px with
+     0.06em, which read noticeably smaller and tighter than the nav beside it. */
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 12px;
-  /* Muted at rest, full cyan on hover. Seven items at the title's brightness would
-     compete with it and leave nothing to mark the one under the cursor. */
-  color: #7fc9dd;
+  font-family: sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 24px;
+  /* Sampled off the running 2.x nav, not read from manager.css: .nav-btn declares
+     --ink-muted but never wins, and the items render at nicegui's default primary. The
+     label above them is the only cyan in the panel. */
+  color: #5898d4;
 }
-.q-drawer--left .cursor-pointer:hover .hub-nav-item { color: #00d9ff; }
-.q-drawer--left .cursor-pointer:hover .q-icon { color: #00d9ff; opacity: 1; }
-.q-drawer--left .q-icon { color: #7fc9dd; }
+.q-drawer--left .cursor-pointer:hover .hub-nav-item { color: #8fc4f0; }
+.q-drawer--left .cursor-pointer:hover .q-icon { color: #8fc4f0; opacity: 1; }
+.q-drawer--left .q-icon { color: #5898d4; }
+
+/* The row itself, also sampled: 48px tall on a 12px/16px pad with a 12px radius, so a
+   highlighted row reads as a rounded block inset from the panel edge. */
+/* Geometry only. The surface and border here came from matching the "Navigation"
+   label's row, which was the wrong element - the title it now matches sits in 2.x's
+   header bar with nothing drawn behind it. */
+.hub-nav-header {
+  min-height: 59px;
+  padding: 12px !important;
+}
+
+.hub-nav-row {
+  min-height: 48px;
+  padding: 12px 16px !important;
+  border-radius: 12px;
+  margin: 2px 8px;
+  /* w-full plus a horizontal margin overhangs on the right, which put the highlight
+     off-centre. 2.x's .nav-btn solves it the same way. */
+  max-width: calc(100% - 16px);
+}
+/* The page you are on stays lit while you are on it - --surface-2 behind it and
+   --glow-purple around it, which is what 2.x does. */
+.hub-nav-active {
+  background: #251447;
+  box-shadow: 0 0 4px rgba(180, 41, 249, 0.5), 0 0 8px rgba(180, 41, 249, 0.3);
+}
 
 /* One accent, not three. Purple is surface - gradients, borders, the grid header - and
    cyan is the only thing that accents. Pink was a third hue close enough to the header
    magenta to muddle rather than contrast; the panels are told apart by tone instead,
    the nav title at full neon and this one near-white with a softer halo. */
-.q-drawer--right {
-  background: linear-gradient(180deg, #2a1a4a 0%, #150a2e 45%, #0f0722 100%) !important;
+.hub-details {
+  /* The nav's gradient with its accent band removed - same stops from #1a0f35 down, so
+     the two panels read as one surface treatment. The band stays exclusive to the nav
+     because it marks the product, and this panel has no identity to carry. */
+  background: linear-gradient(180deg, #1a0f35 0%, #150a2e 30%, #0f0722 100%) !important;
 }
+/* truncate only ellipsizes against a definite width. The column may shrink under
+   min-w-0, but its labels have to be told to take that width or they overflow and get
+   cropped by the parent instead of ellipsised. */
+.hub-panel-header .hub-detail-title,
+.hub-panel-header .hub-detail-label { max-width: 100%; }
+
 .hub-detail-title {
   color: #eef9ff;
   text-shadow: 0 0 6px rgba(0, 217, 255, 0.45);
 }
 .hub-detail-label {
-  color: #7fc9dd;
+  color: #00d9ff;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: 11px;
 }
 /* Tight: this panel carries a lot and the default expansion chrome is mostly air. */
-.q-drawer--right .q-expansion-item {
+.hub-details .q-expansion-item {
   border: 1px solid #2b1a4d;
   border-radius: 8px;
   /* Vertical margin only. A horizontal margin on a w-full child overhangs by exactly
@@ -160,33 +249,35 @@ body::before {
   margin: 4px 0;
   background: rgba(26, 15, 53, 0.55);
 }
-.q-drawer--right .q-drawer__content { overflow-x: hidden !important; }
+.hub-details { overflow-x: hidden !important; }
 .hub-detail-body { padding: 0 6px; }
-.q-drawer--right .q-expansion-item .q-item {
+.hub-details .q-expansion-item .q-item {
   min-height: 32px;
   padding: 2px 10px;
 }
-.q-drawer--right .q-expansion-item .q-item__label { color: #9fd8e8; font-size: 12px; }
-.q-drawer--right .q-expansion-item__content { padding: 2px 0 6px; }
+.hub-details .q-expansion-item .q-item__label { color: #9fd8e8; font-size: 12px; }
+.hub-details .q-expansion-item__content { padding: 2px 0 6px; }
 /* nicegui puts a 16px flex gap on .nicegui-expansion-content, which double-spaced every
    line inside a section: 22px rows on a 38px pitch. Same default as the drawer's, in a
    different container - the rows carry their own spacing. */
-.q-drawer--right .nicegui-expansion-content {
+.hub-details .nicegui-expansion-content {
   /* Both of nicegui's defaults on this container: the 16px gap double-spaced the lines
      and the 16px padding is the dead space above the first field and below the last. */
   gap: 0 !important;
   padding: 0 !important;
 }
 /* The panel toggles match: nav and details are the same control, so the same colour. */
-.hub-panel-header .q-icon { color: #7fc9dd; }
-.q-drawer--right .q-expansion-item__content .row { min-height: 22px; }
+.hub-panel-header .q-icon { color: #5898d4; }
+.hub-details .q-expansion-item__content .row { min-height: 22px; }
 .hub-nav-title {
-  letter-spacing: 0.04em;
-  /* Neon reads as a white-hot core inside a coloured halo, not as flat cyan text. So
-     the glyph is a near-white cyan and the glow is manager.css's --glow-cyan. */
-  color: #d9f7ff;
-  text-shadow: 0 0 4px rgba(0, 217, 255, 0.9), 0 0 10px rgba(0, 217, 255, 0.55),
-               0 0 18px rgba(0, 217, 255, 0.3);
+  /* .manager-title, sampled: --ink with --glow-cyan behind it at 20px/900. The white
+     comes from the near-white glyph and the colour from the halo, which is why a cyan
+     glyph and a flat one both read wrong. */
+  font-family: sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  color: #e8d5ff;
+  text-shadow: 0 0 4px rgba(0, 217, 255, 0.5), 0 0 8px rgba(0, 217, 255, 0.3);
 }
 
 .nicegui-aggrid {
@@ -196,10 +287,27 @@ body::before {
   box-shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
 }
 .ag-header {
-  background: linear-gradient(135deg, #b429f9 0%, #7d1fb0 55%, #4a1e7c 100%) !important;
+  /* 2.x's --header-gradient in full - I had been running it to #4a1e7c and stopping,
+     which lost the fade to near-black at the far end. */
+  background: linear-gradient(135deg, #b429f9 0%, #4a1e7c 50%, #0a0518 100%) !important;
   border-bottom: 1px solid #3d2461 !important;
 }
-.ag-header-cell-text { color: #ffffff !important; letter-spacing: 0.03em; }
+/* Sampled from 2.x's th: --ink at 12px/600, uppercase, no added tracking. */
+.ag-header-cell-text {
+  /* pre, not pre-line: the header breaks only where a newline was put deliberately.
+     pre-line also lets it wrap on its own, which split words a letter from the end. */
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  line-height: 1.25;
+  font-family: sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: uppercase;
+  color: #e8d5ff !important;
+}
 .ag-header-cell-menu-button, .ag-header-icon { color: rgba(255,255,255,0.85) !important; }
 """
 

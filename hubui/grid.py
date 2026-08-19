@@ -16,22 +16,29 @@ DEFAULT_COL_DEF: dict[str, Any] = {
     "resizable": True,
     "filter": True,
     "minWidth": 60,
+    # Lets a header carrying a newline take the second line it needs.
+    "autoHeaderHeight": True,
 }
 
-# AG Grid's own column state is the stored payload - it already carries width, order,
-# visibility, sort and pinning.
+# AG Grid's own column state is the stored payload: width, order, visibility, sort, pin.
 _SAVE_EVENTS = ("columnMoved", "columnResized", "columnVisible", "columnPinned",
                 "sortChanged")
 
 
-# Padding either side plus the sort and filter icons AG Grid puts in every header.
+# Chrome measured at 50px; 9px/char is the widest average in the header font, so a
+# header never has to wrap.
 _HEADER_CHROME_PX = 58
-_HEADER_CHAR_PX = 7
+_HEADER_CHAR_PX = 9
 
 
 def header_width(header: str) -> int:
-    """The narrowest this column can be and still show its header in full."""
-    return len(header) * _HEADER_CHAR_PX + _HEADER_CHROME_PX
+    """The narrowest this column can be and still show its header in full.
+
+    Measured per line: a header broken over two lines needs the width of its longest
+    line, not of the whole string.
+    """
+    longest = max((len(line) for line in header.split("\n")), default=0)
+    return longest * _HEADER_CHAR_PX + _HEADER_CHROME_PX
 
 
 def column(field: str, header: str, width: int, **extra: Any) -> dict[str, Any]:
@@ -45,7 +52,8 @@ def column(field: str, header: str, width: int, **extra: Any) -> dict[str, Any]:
 
 def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
           on_select: Callable[[dict | None], None] | None = None,
-          on_context: Callable[[dict | None], None] | None = None) -> ui.aggrid:
+          on_context: Callable[[dict | None], None] | None = None,
+          on_header_context: Callable[[str | None], None] | None = None) -> ui.aggrid:
     """A grid whose column arrangement is restored from, and saved to, the hub."""
     grid = ui.aggrid({
         "columnDefs": columns,
@@ -58,6 +66,8 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         # The ":" prefix marks this as JavaScript. Without it AG Grid calls a string and
         # the grid dies as an empty table rather than an error.
         ":getRowId": "params => params.data.id",
+        # The checkbox belongs to the row, so it stays with the row's left edge.
+        "selectionColumnDef": {"pinned": "left"},
         "suppressDragLeaveHidesColumns": True,
         "animateRows": False,
         # False deliberately: preventing the default here stops the event reaching
@@ -67,7 +77,7 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         # nicegui defaults this True, which fits columns to the grid width and so
         # overrides both the declared widths and any the user saved.
         auto_size_columns=False,
-    ).classes("w-full").style("height:calc(100vh - 124px)")
+    ).classes("w-full grow min-h-0")
 
     _restore(grid, scope, columns)
     _save_on_change(grid, scope)
@@ -79,13 +89,18 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
             if inspect.isawaitable(result):
                 await result
 
-        # Queried rather than read off rowSelected: that payload can fail to serialise
-        # and is then never sent, and its `selected` field arrives undefined.
+        # Queried, not read off rowSelected: that payload can fail to serialise and its
+        # `selected` field arrives undefined.
         grid.on("selectionChanged", changed)
     if on_context is not None:
         # Only `data`: the full payload can fail to serialise and is then never sent.
         grid.on("cellContextMenu",
                 lambda event: on_context((event.args or {}).get("data")), args=["data"])
+    if on_header_context is not None:
+        # Fires in Community and carries colId. The native column menu is Enterprise.
+        grid.on("columnHeaderContextMenu",
+                lambda event: on_header_context((event.args or {}).get("colId")),
+                args=["colId"])
     return grid
 
 
@@ -99,8 +114,7 @@ def _restore(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]]) -> None
             logger.warning("hub ui: could not read column state for %s", scope, exc_info=True)
             return
         if stored:
-            # Only columns this grid still has: a saved layout outlives its column set,
-            # and state for columns that no longer exist collapses every column.
+            # Only columns this grid still has: state for ones it lost collapses them all.
             known = {definition["field"] for definition in columns}
             state = [entry for entry in stored if entry.get("colId") in known]
             if state:
@@ -125,7 +139,6 @@ def _save_on_change(grid: ui.aggrid, scope: str) -> None:
             logger.warning("hub ui: could not save column state for %s", scope, exc_info=True)
 
     for event in _SAVE_EVENTS:
-        # Dragging a column edge fires a resize event per pixel. throttle is nicegui's
-        # own, so there is no timer to outlive the element; trailing_events keeps the
-        # final width rather than the one mid-drag.
+        # A resize fires per pixel. nicegui's own throttle, so no timer outlives the
+        # element; trailing_events keeps the final width.
         grid.on(event, save, args=[], throttle=0.6, trailing_events=True)
