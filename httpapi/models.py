@@ -68,7 +68,8 @@ class ServiceEndpoint(ApiModel):
 
 class Discovery(ApiModel):
     """`name` is the product and is the same on every install; `install_id` is which
-    install this is, which is what a hub holding several of them addresses."""
+    install this is, which is what a hub holding several of them addresses. A hub files
+    that same value under `device_id` in its registry."""
 
     name: str
     install_id: str
@@ -99,7 +100,7 @@ class DeviceResource(ApiModel):
     reported about itself, cached so the registry reads without asking every device - they
     go stale by design, because the install owns them."""
 
-    install_id: str
+    device_id: str
     display_name: str = ""
     roles: list[str] = Field(default_factory=list)
     address: str = ""
@@ -117,7 +118,7 @@ class DeviceAnnouncement(ApiModel):
     """What a device says about itself. The address is not here: the hub reads it off
     the socket, because a device behind a router does not know how it is reached."""
 
-    install_id: str
+    device_id: str
     display_name: str = ""
     roles: list[str] = Field(default_factory=list)
 

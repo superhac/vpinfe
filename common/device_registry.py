@@ -1,9 +1,15 @@
 """The devices a hub knows about.
 
-Keyed by `install_id`, which is the only thing about a device that never changes: a
+Keyed by `device_id`, which is the only thing about a device that never changes: a
 display name is meant to be renamed and an address moves with DHCP, so neither can be
 the key. Follows `common/games/collection_store.py` - a small JSON file, written whole
 and atomically, carrying its own schema version.
+
+For a VPinFE install `device_id` *is* its `install_id`, which is what makes attribution
+work: an event carries the `install_id` it happened on, and that value finds the entry.
+They are two names because they answer different questions - `install_id` is what an
+installation calls itself, `device_id` is what this hub files it under - and because a
+device that is not an install has the second and never the first.
 
 Data only. Routing a launch to a chosen device, aggregating state across devices and
 resolving conflicts between them are separate decisions, and none of them are needed to
@@ -40,7 +46,7 @@ class Device:
     them, this is a copy.
     """
 
-    install_id: str
+    device_id: str
     display_name: str = ""
     roles: tuple[str, ...] = ()
     address: str = ""
@@ -49,20 +55,20 @@ class Device:
     extra: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
-        return {"install_id": self.install_id, "display_name": self.display_name,
+        return {"device_id": self.device_id, "display_name": self.display_name,
                 "roles": list(self.roles), "address": self.address,
                 "first_seen": self.first_seen, "last_seen": self.last_seen,
                 **self.extra}
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> Device | None:
-        install_id = str(raw.get("install_id", "") or "").strip()
-        if not install_id:
+        device_id = str(raw.get("device_id", "") or "").strip()
+        if not device_id:
             return None
-        known = {"install_id", "display_name", "roles", "address", "first_seen", "last_seen"}
+        known = {"device_id", "display_name", "roles", "address", "first_seen", "last_seen"}
         roles = raw.get("roles") or []
         return cls(
-            install_id=install_id,
+            device_id=device_id,
             display_name=str(raw.get("display_name", "") or ""),
             roles=tuple(str(r) for r in roles if str(r).strip()),
             address=str(raw.get("address", "") or ""),
@@ -89,18 +95,18 @@ class DeviceRegistry:
         with self._lock:
             return self._load()
 
-    def get(self, install_id: str) -> Device | None:
-        wanted = (install_id or "").strip()
+    def get(self, device_id: str) -> Device | None:
+        wanted = (device_id or "").strip()
         if not wanted:
             return None
-        return next((p for p in self.devices() if p.install_id == wanted), None)
+        return next((p for p in self.devices() if p.device_id == wanted), None)
 
-    def knows(self, install_id: str) -> bool:
-        return self.get(install_id) is not None
+    def knows(self, device_id: str) -> bool:
+        return self.get(device_id) is not None
 
     # -- writing -------------------------------------------------------------
 
-    def record(self, install_id: str, *, display_name: str = "", roles=(),
+    def record(self, device_id: str, *, display_name: str = "", roles=(),
                address: str = "") -> Device | None:
         """Note that a device exists, or that a known one has been heard from.
 
@@ -108,17 +114,17 @@ class DeviceRegistry:
         however many times it reconnects. Everything else is refreshed, because the
         install owns those and this is only a copy of what it last said.
         """
-        wanted = (install_id or "").strip()
+        wanted = (device_id or "").strip()
         if not wanted:
-            logger.debug("Ignoring a registry entry with no install id")
+            logger.debug("Ignoring a registry entry with no device id")
             return None
 
         now = utc_now_iso()
         with self._lock:
-            devices = {p.install_id: p for p in self._load()}
+            devices = {p.device_id: p for p in self._load()}
             existing = devices.get(wanted)
             devices[wanted] = Device(
-                install_id=wanted,
+                device_id=wanted,
                 display_name=display_name or (existing.display_name if existing else ""),
                 roles=tuple(str(r) for r in roles) or (existing.roles if existing else ()),
                 address=address or (existing.address if existing else ""),
@@ -131,12 +137,12 @@ class DeviceRegistry:
                 logger.info("DeviceRegistry: new device %s (%s)", wanted, display_name or "unnamed")
             return devices[wanted]
 
-    def forget(self, install_id: str) -> bool:
+    def forget(self, device_id: str) -> bool:
         """Drop a device. Returns whether there was one to drop."""
-        wanted = (install_id or "").strip()
+        wanted = (device_id or "").strip()
         with self._lock:
             devices = self._load()
-            remaining = [p for p in devices if p.install_id != wanted]
+            remaining = [p for p in devices if p.device_id != wanted]
             if len(remaining) == len(devices):
                 return False
             self._save(remaining)

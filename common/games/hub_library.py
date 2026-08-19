@@ -53,8 +53,11 @@ def announce_to_hub(hub_url: str, config, *, timeout: int = http_client.DEFAULT_
     """Tell the hub this device exists. True if it was recorded.
 
     Best effort on purpose: a hub that refuses or cannot be reached must not stop a device
-    starting. The device registry is for attribution - putting a name to the `install_id` an event
-    already carries - so failing to register costs a label, not a capability.
+    starting. The device registry is for attribution - putting a name to the `install_id` an
+    event already carries - so failing to register costs a label, not a capability.
+
+    The id is sent as `device_id`, which is what the hub files it under. For an install the
+    two are the same value; a device that is not an install has no `install_id` at all.
 
     The address is not sent. The hub reads it off the socket, which is the only party that
     knows how this device was actually reached.
@@ -74,7 +77,7 @@ def announce_to_hub(hub_url: str, config, *, timeout: int = http_client.DEFAULT_
     try:
         http_client.put_json(
             urljoin(hub_url.rstrip("/") + "/", "api/v1/devices"),
-            {"install_id": install_id,
+            {"device_id": install_id,
              "display_name": install_identity.display_name(config),
              "roles": install_identity.roles(config)},
             timeout=timeout)

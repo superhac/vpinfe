@@ -222,7 +222,7 @@ class SeparationTests(TempTree):
                                              instances=(hub, one, two))
 
         self.assertEqual(len(registry), 2, "both devices, not one entry overwritten twice")
-        ids = {device["install_id"] for device in registry}
+        ids = {device["device_id"] for device in registry}
         self.assertEqual(len(ids), 2, "each device announced its own identity")
         self.assertNotIn("", ids, "an install with no id is not an identity")
         for device in registry:

@@ -20,9 +20,9 @@ try:
 except ImportError:  # pragma: no cover
     TestClient = None
 
-CAB = {"install_id": "Aaaa111111", "display_name": "basement cab",
+CAB = {"device_id": "Aaaa111111", "display_name": "basement cab",
        "roles": ["hub", "device"]}
-DESK = {"install_id": "Bbbb222222", "display_name": "desktop", "roles": ["device"]}
+DESK = {"device_id": "Bbbb222222", "display_name": "desktop", "roles": ["device"]}
 
 
 @unittest.skipIf(TestClient is None, "starlette test client unavailable")
@@ -48,7 +48,7 @@ class DeviceRegistryApiTests(TempTree):
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
-        self.assertEqual(body["install_id"], CAB["install_id"])
+        self.assertEqual(body["device_id"], CAB["device_id"])
         self.assertEqual(body["display_name"], CAB["display_name"])
         self.assertEqual(body["roles"], CAB["roles"])
         self.assertTrue(body["first_seen"])
@@ -73,8 +73,8 @@ class DeviceRegistryApiTests(TempTree):
         listed = self.client.get("/devices").json()
 
         self.assertEqual(listed["count"], 2)
-        self.assertEqual({p["install_id"] for p in listed["devices"]},
-                         {CAB["install_id"], DESK["install_id"]})
+        self.assertEqual({p["device_id"] for p in listed["devices"]},
+                         {CAB["device_id"], DESK["device_id"]})
 
     def test_the_address_is_observed_rather_than_claimed(self) -> None:
         """A device behind a router does not know how the hub reaches it, so a body that
@@ -86,7 +86,7 @@ class DeviceRegistryApiTests(TempTree):
     def test_a_device_with_no_id_is_refused(self) -> None:
         """An install with no id is not an identity, and a registry keyed on "" is a
         registry of one."""
-        response = self.client.put("/devices", json={"install_id": "  "})
+        response = self.client.put("/devices", json={"device_id": "  "})
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(self.client.get("/devices").json()["count"], 0)
@@ -94,7 +94,7 @@ class DeviceRegistryApiTests(TempTree):
     def test_one_device_answers_for_itself(self) -> None:
         self.client.put("/devices", json=CAB)
 
-        body = self.client.get(f"/devices/{CAB['install_id']}").json()
+        body = self.client.get(f"/devices/{CAB['device_id']}").json()
 
         self.assertEqual(body["display_name"], CAB["display_name"])
 
@@ -104,7 +104,7 @@ class DeviceRegistryApiTests(TempTree):
     def test_forgetting_a_device_removes_it(self) -> None:
         self.client.put("/devices", json=CAB)
 
-        self.assertEqual(self.client.delete(f"/devices/{CAB['install_id']}").status_code,
+        self.assertEqual(self.client.delete(f"/devices/{CAB['device_id']}").status_code,
                          204)
         self.assertEqual(self.client.get("/devices").json()["count"], 0)
 

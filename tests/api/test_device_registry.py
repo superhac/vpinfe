@@ -1,6 +1,6 @@
 """The devices a hub knows about.
 
-Keyed by `install_id` because it is the only thing about a device that does not change:
+Keyed by `device_id` because it is the only thing about a device that does not change:
 a display name is meant to be renamed and an address moves with DHCP. A registry that
 keyed on either would lose track of a device the first time somebody used the feature.
 
@@ -56,6 +56,18 @@ class DeviceRegistryTests(unittest.TestCase):
         self.assertEqual(devices[0].first_seen, first.first_seen,
                          "it is the same device, so it was first seen when it was")
 
+    def test_a_new_address_is_the_same_device(self) -> None:
+        """The reason the key is not an address: a phone on DHCP keeps its lease for a
+        week and its identity forever. An address is an attribute that gets updated."""
+        first = self.registry.record("Aaaa111111", display_name="phone",
+                                     address="192.168.1.50")
+        self.registry.record("Aaaa111111", display_name="phone", address="192.168.1.77")
+
+        devices = self.registry.devices()
+        self.assertEqual(len(devices), 1, "one device, not one per address it has held")
+        self.assertEqual(devices[0].address, "192.168.1.77")
+        self.assertEqual(devices[0].first_seen, first.first_seen)
+
     def test_what_the_install_owns_is_refreshed_and_what_we_own_is_not(self) -> None:
         """Name, roles and address are a cached copy of what that install last said.
         `first_seen` is ours, and is the one thing a later record must not move.
@@ -77,11 +89,11 @@ class DeviceRegistryTests(unittest.TestCase):
         self.assertEqual(later.first_seen, pinned, "a re-record must not move it")
         self.assertNotEqual(later.last_seen, pinned, "but last_seen is now")
 
-    def _rewrite_first_seen(self, install_id: str, when: str) -> None:
+    def _rewrite_first_seen(self, device_id: str, when: str) -> None:
         """Put a known timestamp on disk, so the assertion has an outside witness."""
         payload = json.loads(self.registry.path.read_text())
         for entry in payload["devices"]:
-            if entry["install_id"] == install_id:
+            if entry["device_id"] == device_id:
                 entry["first_seen"] = when
         self.registry.path.write_text(json.dumps(payload), encoding="utf-8")
 
@@ -89,7 +101,7 @@ class DeviceRegistryTests(unittest.TestCase):
         self.registry.record("Aaaa111111", display_name="cab")
         self.registry.record("Bbbb222222", display_name="desktop")
 
-        self.assertEqual([p.install_id for p in self.registry.devices()],
+        self.assertEqual([p.device_id for p in self.registry.devices()],
                          ["Aaaa111111", "Bbbb222222"])
 
     def test_a_device_with_no_id_is_refused(self) -> None:
@@ -133,7 +145,7 @@ class DeviceRegistryStorageTests(unittest.TestCase):
         """A downgrade must not silently strip what it does not understand."""
         self.path.write_text(json.dumps({
             "schema": 99,
-            "devices": [{"install_id": "Aaaa111111", "something_new": "keep me"}],
+            "devices": [{"device_id": "Aaaa111111", "something_new": "keep me"}],
         }), encoding="utf-8")
 
         registry = DeviceRegistry(self.path)
@@ -145,16 +157,16 @@ class DeviceRegistryStorageTests(unittest.TestCase):
     def test_an_entry_with_no_id_is_skipped_rather_than_crashing(self) -> None:
         self.path.write_text(json.dumps({
             "schema": 1,
-            "devices": [{"display_name": "nameless"}, {"install_id": "Aaaa111111"}],
+            "devices": [{"display_name": "nameless"}, {"device_id": "Aaaa111111"}],
         }), encoding="utf-8")
 
-        self.assertEqual([p.install_id for p in DeviceRegistry(self.path).devices()],
+        self.assertEqual([p.device_id for p in DeviceRegistry(self.path).devices()],
                          ["Aaaa111111"])
 
 
 class DeviceTests(unittest.TestCase):
     def test_a_device_round_trips_through_its_dict(self) -> None:
-        device = Device(install_id="Aaaa111111", display_name="cab",
+        device = Device(device_id="Aaaa111111", display_name="cab",
                         roles=("hub", "device"), address="192.168.1.10",
                         first_seen="2026-01-01T00:00:00Z", last_seen="2026-01-02T00:00:00Z")
 
