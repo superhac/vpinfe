@@ -1,6 +1,6 @@
 """A view whose library is on another machine.
 
-`network.hub_url` is the one setting that makes an install a player: empty - the default,
+`network.hub_url` is the one setting that makes an install a device: empty - the default,
 and every single-machine setup - and it reads its own disk exactly as it always has. Set,
 and the list it holds is entries the hub already resolved.
 
@@ -67,7 +67,7 @@ class HubUrlTests(unittest.TestCase):
         self.assertEqual(frontend_library.hub_url(_ini("http://hub:8001")), "http://hub:8001")
 
     def test_config_that_cannot_be_read_is_local_rather_than_fatal(self) -> None:
-        """A player that cannot read its setting holds its own library, which is the
+        """A device that cannot read its setting holds its own library, which is the
         behavior that needs no network to work."""
         self.assertEqual(frontend_library.hub_url(SimpleNamespace(config=None)), "")
 
@@ -96,7 +96,7 @@ class RemoteViewTests(unittest.TestCase):
                          [f"{title}.vpx" for title in TITLES])
 
     def test_it_serializes_a_theme_payload(self) -> None:
-        """What the wheel actually renders, built on the player from the hub's answer."""
+        """What the wheel actually renders, built on the device from the hub's answer."""
         payload = json.loads(self.library.payload(2))
 
         self.assertEqual(payload["count"], len(TITLES))
@@ -115,7 +115,7 @@ class RemoteViewTests(unittest.TestCase):
 
     def test_every_sort_works_on_what_arrived(self) -> None:
         """The sorts read a title and a creation time off whatever they are handed, and
-        an entry forwards both - so a player sorts its wheel without a local library."""
+        an entry forwards both - so a device sorts its wheel without a local library."""
         for sort in ("Alpha", "Newest", "LastRun", "Highest StartCount", "RunTime"):
             with self.subTest(sort=sort):
                 self.library.current_sort = sort

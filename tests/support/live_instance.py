@@ -133,8 +133,8 @@ class LiveInstance:
         query = (f"/themes/{self.theme}/index_{window}.html?window={window}"
                  f"&wsPort={self.ports['ws']}"
                  f"&themeAssetsPort={self.ports['assets']}")
-        # What the launcher appends for a player, and the reason it has to be here too:
-        # without it the page dials this machine for the library's art, which a player
+        # What the launcher appends for a device, and the reason it has to be here too:
+        # without it the page dials this machine for the library's art, which a device
         # does not have. See `_build_window_url`, which is what does this for real.
         hub_url = str(self.extra_settings.get(("network", "hub_url"), "") or "")
         if hub_url:

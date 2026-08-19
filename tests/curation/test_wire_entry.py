@@ -162,7 +162,7 @@ class WireEntryTests(TempTree):
         self.assertIs(restored["default"], True)
 
     def test_a_hidden_table_stays_hidden_after_the_trip(self) -> None:
-        """`hidden` is the user's choice not to be offered a table. A player that loses it
+        """`hidden` is the user's choice not to be offered a table. A device that loses it
         would offer one the hub does not."""
         restored = wire_entry.table_of({"table": {"id": "T", "hidden": True}})
 

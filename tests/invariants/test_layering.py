@@ -4,7 +4,7 @@
 `docs/managerui.md` says the Manager UI is one consumer of the shared services rather
 than their owner. Neither was checked, and both had drifted: `httpapi` reached into
 `managerui.services` at nine sites for game, archive, upload and asset logic, and
-`managerui` reached into `frontend` at five for the things a hub does to a player.
+`managerui` reached into `frontend` at five for the things a hub does to a device.
 
 Nothing in either direction was deliberate - they are what happens when a rule lives
 only in prose. This file is the check, so the next one fails here instead of being
@@ -19,12 +19,12 @@ import unittest
 
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 
-# `common/host/` is the player's own package, so a frontend import inside it is a
-# player-to-player edge rather than a layering break. It predates this rule and is
+# `common/host/` is the device's own package, so a frontend import inside it is a
+# device-to-device edge rather than a layering break. It predates this rule and is
 # listed so that a *new* one still fails.
 ALLOWED = {
     ("common/host/display_service.py", "frontend"),
-    # The local resolution of the player client: deferred inside functions so that
+    # The local resolution of the device client: deferred inside functions so that
     # importing it does not pull the frontend into a hub-only install.
     ("common/device_client.py", "frontend"),
 }
@@ -93,9 +93,9 @@ class LayeringTests(unittest.TestCase):
         would import the incumbent, which is a skin rather than a replacement."""
         self.assertEqual(_offenders("httpapi", {"managerui"}), [])
 
-    def test_a_user_interface_does_not_reach_into_the_player(self) -> None:
-        """What the Manager UI does *to* a player goes through `common.device_client`,
-        which is one interface whether that player is local or another machine."""
+    def test_a_user_interface_does_not_reach_into_the_device(self) -> None:
+        """What the Manager UI does *to* a device goes through `common.device_client`,
+        which is one interface whether that device is local or another machine."""
         self.assertEqual(_offenders("managerui", {"frontend"}), [])
 
     def test_the_allowlist_only_names_files_that_exist(self) -> None:

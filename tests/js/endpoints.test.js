@@ -2,7 +2,7 @@
 //
 // Six places hardcoded 127.0.0.1 and read a port off the core, so "which machine answers
 // this" was asserted six times and a seventh was easy to add. The block answers it once,
-// keyed by role - hub and player, not by transport, because the window channel is one
+// keyed by role - hub and device, not by transport, because the window channel is one
 // transport serving both and a transport-keyed block cannot express the split.
 //
 // Ports arrive in the url because the page cannot ask for them: asking needs the bridge,
@@ -55,7 +55,7 @@ describe("the endpoint block", () => {
   });
 
   test("a hub on another machine moves the hub's services and nothing else", () => {
-    // What a player gets. `hubPort` is the hub's port, so `player` cannot read it: this
+    // What a device gets. `hubPort` is the hub's port, so `device` cannot read it: this
     // machine's own api is on devicePort, at loopback, whoever holds the library.
     const vpin = withPorts(
       "?window=table&wsPort=8002&themeAssetsPort=8000&hubPort=9000" +

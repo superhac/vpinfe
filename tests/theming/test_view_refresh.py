@@ -30,7 +30,7 @@ def _game(name, last_run=0, game_id=""):
 
 class _Library:
     """Just the part `refresh_view` reaches for: where the library comes from, and the
-    collection resolved off it. A player's library is a hub, so asking the view rather
+    collection resolved off it. A device's library is a hub, so asking the view rather
     than the disk is what keeps the two answers from diverging."""
 
     def __init__(self, games, store):

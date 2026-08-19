@@ -288,7 +288,7 @@ class WindowUrlTests(unittest.TestCase):
 
     def test_the_hub_port_and_this_device_port_travel_separately(self) -> None:
         """A hub on 9000 is not this machine on 9000. Sending one number would make a
-        player dial its own api at the hub's port, or the hub's at its own."""
+        device dial its own api at the hub's port, or the hub's at its own."""
         url = self._url("Darwin", hub_host="hub.example", hub_port=9000, device_port=8001)
 
         self.assertIn("hubPort=9000", url)

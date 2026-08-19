@@ -1,4 +1,4 @@
-"""Who is allowed to open the player channel.
+"""Who is allowed to open the device channel.
 
 The channel reaches `shutdown_system`, `launch_table` and `build_metadata`, and binding it
 to loopback does not keep other pages out: a WebSocket handshake is not subject to the

@@ -1,10 +1,10 @@
 """The play lens over the whole library, and reading it back as local entries.
 
-A player with no library of its own shows everything before a collection is chosen. The
+A device with no library of its own shows everything before a collection is chosen. The
 whole library is `builtin:all`, synthesized rather than stored, and `GET /library/entries`
 is the path it answers on - the same lens `GET /collections/{name}/entries` narrows.
 
-`hub_library` is the other half: what a player does with the answer. It turns the wire
+`hub_library` is the other half: what a device does with the answer. It turns the wire
 rows back into the `Entry` objects the frontend already builds locally, so nothing
 downstream can tell which side the library came from.
 """
@@ -77,7 +77,7 @@ class LibraryEntriesTests(TempTree):
         self.assertEqual([row["game"]["name"] for row in wire],
                          [game_title(e.game) for e in self._resolved(self.games)])
 
-    def test_a_player_reads_the_answer_back_as_local_entries(self) -> None:
+    def test_a_device_reads_the_answer_back_as_local_entries(self) -> None:
         """The round trip that makes a remote library indistinguishable from a local one:
         what the hub sent has to arrive as what the resolver would have built."""
         payload = self.client.get("/library/entries").json()
@@ -94,7 +94,7 @@ class LibraryEntriesTests(TempTree):
         self.assertTrue(all(e.filename for e in remote))
         self.assertEqual([e.siblings for e in remote], [e.siblings for e in local])
 
-    def test_a_player_with_no_library_builds_the_theme_payload(self) -> None:
+    def test_a_device_with_no_library_builds_the_theme_payload(self) -> None:
         """The separation test, in one process: everything the wheel renders comes from
         what the hub sent, and the local library is not consulted to build it."""
         payload = self.client.get("/library/entries").json()
@@ -111,7 +111,7 @@ class LibraryEntriesTests(TempTree):
             self.assertEqual(entry["game"]["user"]["rating"], 4)
 
     def test_no_path_from_the_hub_reaches_the_rendered_payload(self) -> None:
-        """A player holding the hub's paths would be holding addresses it cannot reach,
+        """A device holding the hub's paths would be holding addresses it cannot reach,
         so they arrive empty rather than wrong."""
         payload = self.client.get("/library/entries").json()
 
@@ -125,7 +125,7 @@ class LibraryEntriesTests(TempTree):
         self.assertNotIn(str(self.root), json.dumps(theme))
 
     def test_what_the_hub_resolved_arrives_resolved(self) -> None:
-        """Media kinds and asset flags are a stat of the hub's disk. A player cannot
+        """Media kinds and asset flags are a stat of the hub's disk. A device cannot
         redo that lookup, so the answer has to survive the trip rather than be recomputed
         against a filesystem that does not have the files."""
         game = self.games[0]
@@ -157,7 +157,7 @@ class LibraryEntriesTests(TempTree):
 
 
 class SharedLibraryTests(unittest.TestCase):
-    """Whether a player's own copy of the library is the hub's, asked by content.
+    """Whether a device's own copy of the library is the hub's, asked by content.
 
     Shared storage is what the split assumes and nothing checked. A path comparison
     cannot answer it - the same share is mounted at different places on different
