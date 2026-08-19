@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from common.atomic_write import write_atomic
+from common.install_identity import mint_id
 from common.paths import CONFIG_DIR
 from common.timestamps import utc_now_iso
 
@@ -43,6 +44,13 @@ DEVICES_KEY = "devices"
 KIND_VPINFE = "vpinfe"
 KIND_VPX_MOBILE = "vpx_mobile"
 KINDS = (KIND_VPINFE, KIND_VPX_MOBILE)
+
+
+def mint_device_id() -> str:
+    """An id for a device that cannot offer one. Same generator install ids use, so the
+    two are indistinguishable and a device that later gains an install id is not a new
+    device. Minted once, when the device is added, and never again."""
+    return mint_id()
 
 
 def _known_kind(raw: Any) -> str:

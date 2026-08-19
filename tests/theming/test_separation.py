@@ -205,12 +205,19 @@ class SeparationTests(TempTree):
     def test_the_hub_learns_which_devices_it_is_serving(self) -> None:
         """A device registry is what turns the install_id on an event into a name someone
         recognizes. Two devices, so it is a device registry rather than a single-entry special
-        case, and each has to arrive with its own identity."""
+        case, and each has to arrive with its own identity.
+
+        Three entries, not two: the hub is a device as well, and records itself at
+        startup. It is the machine someone is standing at, and a screen listing devices
+        should not have to synthesise the one it is running on.
+        """
         with LiveInstance(self.hub_root) as hub:
             hub.wait_for_api()
             hub_api = f"http://127.0.0.1:{hub.ports['manager']}"
-            self.assertEqual(_fetch(f"{hub_api}/api/v1/devices")["count"], 0,
-                             "a hub knows nobody until someone says hello")
+            itself = _fetch(f"{hub_api}/api/v1/devices")
+            self.assertEqual(itself["count"], 1,
+                             "a hub knows itself before anyone says hello")
+            hub_id = itself["devices"][0]["device_id"]
 
             with LiveInstance(self.device_root,
                               extra_settings={("network", "hub_url"): hub_api}) as one, \
@@ -218,16 +225,19 @@ class SeparationTests(TempTree):
                               extra_settings={("network", "hub_url"): hub_api}) as two:
                 one.wait_for_api()
                 two.wait_for_api()
-                registry = self._registry_of(hub_api, expected=2,
+                registry = self._registry_of(hub_api, expected=3,
                                              instances=(hub, one, two))
 
-        self.assertEqual(len(registry), 2, "both devices, not one entry overwritten twice")
+        self.assertEqual(len(registry), 3, "both devices and the hub, none overwritten")
         ids = {device["device_id"] for device in registry}
-        self.assertEqual(len(ids), 2, "each device announced its own identity")
+        self.assertEqual(len(ids), 3, "each device announced its own identity")
+        self.assertIn(hub_id, ids, "the hub is still in its own registry afterwards")
         self.assertNotIn("", ids, "an install with no id is not an identity")
         for device in registry:
             self.assertTrue(device["display_name"], device)
             self.assertTrue(device["first_seen"], device)
+            self.assertEqual(device["kind"], "vpinfe", device)
+        for device in [d for d in registry if d["device_id"] != hub_id]:
             self.assertEqual(device["address"], "127.0.0.1",
                              "the hub records where it was reached from, not what it "
                              "was told")

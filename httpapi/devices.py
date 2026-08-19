@@ -18,6 +18,7 @@ import logging
 
 from fastapi import APIRouter, Body, Request, Response
 
+from common import device_registry
 from common.device_registry import get_device_registry
 
 from . import models, scopes
@@ -53,23 +54,43 @@ def get_device(device_id: str) -> models.DeviceResource:
             dependencies=[requires(scopes.DEVICES_WRITE)])
 def announce(request: Request,
              payload: models.DeviceAnnouncement = Body(...)) -> models.DeviceResource:
-    """Idempotent: announcing twice is one device, heard from twice.
+    """Idempotent by `device_id`: announcing twice is one device, heard from twice.
 
-    The address is taken from the socket rather than the body. A device behind a
-    router does not know how the hub reaches it, and a body that said would be a
-    claim rather than an observation.
+    Where the address comes from depends on who is talking. An install announcing
+    itself gets the socket's address, never the body's: a device behind a router does
+    not know how the hub reaches it, and a caller that could name its own address could
+    name someone else's. A `vpx_mobile` entry is the other case - the phone is not the
+    one calling, a person is registering it, so its address can only be declared. The
+    socket there belongs to whoever filled in the form.
+
+    A `vpx_mobile` entry with no `device_id` is new, and the hub mints one. That is the
+    only way to add a device that cannot identify itself, and it is why several phones
+    can coexist: each gets its own id rather than one derived from an address they would
+    both change.
     """
+    registry = get_device_registry()
     device_id = payload.device_id.strip()
-    if not device_id:
-        raise InvalidRequestError("A device needs a device id")
+    is_mobile = payload.kind == device_registry.KIND_VPX_MOBILE
 
-    client = getattr(request, "client", None)
-    device = get_device_registry().record(
+    if not device_id:
+        if not is_mobile:
+            raise InvalidRequestError("A device needs a device id")
+        device_id = device_registry.mint_device_id()
+
+    if is_mobile:
+        address = payload.address.strip()
+        if not address:
+            raise InvalidRequestError("A vpx_mobile device needs an address")
+    else:
+        client = getattr(request, "client", None)
+        address = getattr(client, "host", "") or ""
+
+    device = registry.record(
         device_id,
         kind=payload.kind,
         display_name=payload.display_name.strip(),
         roles=tuple(payload.roles),
-        address=getattr(client, "host", "") or "",
+        address=address,
     )
     if device is None:
         raise InvalidRequestError("A device needs a device id")

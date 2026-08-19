@@ -11,9 +11,10 @@ import logging
 
 from fastapi import APIRouter
 
-from common import install_identity
+from common import device_registry, install_identity
 from common.app_version import get_version
 from common.config_access import NetworkConfig
+from common.device_registry import get_device_registry
 from common.paths import get_ini_config
 
 from . import capabilities, models, scopes
@@ -23,15 +24,32 @@ logger = logging.getLogger("vpinfe.httpapi.instance")
 
 
 def mint_identity() -> None:
-    """Give this install an id if it has none, at startup rather than on a request.
+    """Give this install an id if it has none, and put it in its own registry.
 
-    Discovery only reads, so a GET never writes to the config file - and the id is on
-    disk before anything can ask for it.
+    At startup rather than on a request: discovery only reads, so a GET never writes to
+    the config file, and the id is on disk before anything can ask for it.
+
+    The hub records itself because it is a device too - it is the one you are standing
+    at. Leaving it out meant every screen listing devices had to synthesise a row for
+    the machine it was running on, and that row was the only one nothing could forget.
     """
     try:
-        install_identity.ensure_id(get_ini_config())
+        config = get_ini_config()
+        device_id = install_identity.ensure_id(config)
     except Exception as exc:
         logger.warning("Could not mint this install's identity: %s", exc)
+        return
+    try:
+        get_device_registry().record(
+            device_id,
+            kind=device_registry.KIND_VPINFE,
+            display_name=install_identity.display_name(config),
+            roles=install_identity.roles(config),
+        )
+    except Exception as exc:
+        # A registry that cannot be written must not stop the API starting: the entry is
+        # a label, and the install is identified with or without it.
+        logger.warning("Could not record this install in its own registry: %s", exc)
 
 
 def _identity() -> dict:

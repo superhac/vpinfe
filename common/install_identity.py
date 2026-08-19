@@ -30,6 +30,13 @@ def install_id(config) -> str:
     return cfg_get(config, ID_SECTION, ID_KEY).strip()
 
 
+def mint_id() -> str:
+    """A fresh identity. One generator for every id a hub deals in, so one it minted for
+    a phone and one an install minted for itself are indistinguishable - which is what
+    lets the registry key on a single field."""
+    return new_id()
+
+
 def ensure_id(config) -> str:
     """This install's id, minting and saving one if it has none. An id that is not on
     disk is not an identity: the next start would mint another and become someone else."""
@@ -37,7 +44,7 @@ def ensure_id(config) -> str:
     if existing:
         return existing
 
-    minted = new_id()
+    minted = mint_id()
     cfg_set(config, ID_SECTION, ID_KEY, minted)
     config.save()
     logger.info("Minted install id %s", minted)

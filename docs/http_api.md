@@ -525,9 +525,17 @@ A device announces itself with `PUT /devices` on startup, sending its `device_id
 survives, everything else is refreshed, because the install owns those and the registry is
 a copy that goes stale by design.
 
-**The address is observed, not claimed.** The hub reads it off the socket and ignores any
-the body carries - a device behind a router does not know how it is reached, and a caller
-that could name its own address could name someone else's.
+**The address is observed, not claimed** - for a device announcing itself. The hub reads
+it off the socket and ignores any the body carries: a device behind a router does not know
+how it is reached, and a caller that could name its own address could name someone else's.
+
+A `vpx_mobile` entry is the other case. The phone is not the caller - a person is
+registering it - so its address is declared in the body and is required, because it is the
+only way to reach it. Such an entry may also omit `device_id`, and the hub mints one from
+the same generator install ids use. That is what lets several phones coexist: each has an
+id of its own rather than one derived from an address they will both change.
+
+The hub records itself at startup, so it appears in its own registry like anything else.
 
 A device that cannot reach its hub starts anyway. Registering costs a label, not a
 capability.

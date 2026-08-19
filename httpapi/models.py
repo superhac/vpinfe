@@ -123,12 +123,19 @@ class DeviceAnnouncement(ApiModel):
 
     `kind` is a closed set, so an unrecognised one is a 422 rather than a string stored
     and handed to a consumer that switches on it.
+
+    `device_id` is optional only for a device that cannot have one: a `vpx_mobile` entry
+    is registered by a person, not by the phone, so the hub mints its id. Omitting it for
+    a `vpinfe` install is an error - an install knows what it is called.
+
+    `address` is read for a `vpx_mobile` entry and ignored for the rest. See the handler.
     """
 
-    device_id: str
+    device_id: str = ""
     kind: Literal["vpinfe", "vpx_mobile"] = "vpinfe"
     display_name: str = ""
     roles: list[str] = Field(default_factory=list)
+    address: str = ""
 
 
 # --- Play ------------------------------------------------------------------

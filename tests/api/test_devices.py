@@ -23,7 +23,8 @@ except ImportError:  # pragma: no cover
 CAB = {"device_id": "Aaaa111111", "display_name": "basement cab",
        "roles": ["hub", "device"]}
 DESK = {"device_id": "Bbbb222222", "display_name": "desktop", "roles": ["device"]}
-PHONE = {"device_id": "Pppp444444", "display_name": "iPhone", "kind": "vpx_mobile"}
+PHONE = {"device_id": "Pppp444444", "display_name": "iPhone",
+         "kind": "vpx_mobile", "address": "192.168.1.50"}
 
 
 @unittest.skipIf(TestClient is None, "starlette test client unavailable")
@@ -135,6 +136,54 @@ class DeviceRegistryApiTests(TempTree):
         body = self.client.put("/devices", json={"device_id": "Cccc333333"}).json()
 
         self.assertEqual(body["kind"], "vpinfe")
+
+    def test_a_mobile_device_is_added_without_an_id_and_gets_one(self) -> None:
+        """The phone is not the caller - a person is registering it - so it cannot offer
+        an id and the hub mints one."""
+        body = self.client.put("/devices", json={"kind": "vpx_mobile",
+                                                 "display_name": "iPad",
+                                                 "address": "192.168.1.60"}).json()
+
+        self.assertTrue(body["device_id"], "the hub minted one")
+        self.assertEqual(body["address"], "192.168.1.60", "declared, not observed")
+        self.assertEqual(self.client.get("/devices").json()["count"], 1)
+
+    def test_two_mobile_devices_coexist(self) -> None:
+        """An iPhone and an iPad at once. The singular [mobile] key is what made this
+        impossible, and an id derived from an address would have collapsed them the
+        moment DHCP handed one the other's."""
+        first = self.client.put("/devices", json={"kind": "vpx_mobile", "display_name": "iPhone",
+                                                  "address": "192.168.1.50"}).json()
+        second = self.client.put("/devices", json={"kind": "vpx_mobile", "display_name": "iPad",
+                                                   "address": "192.168.1.60"}).json()
+
+        self.assertNotEqual(first["device_id"], second["device_id"])
+        self.assertEqual(self.client.get("/devices").json()["count"], 2)
+
+    def test_a_mobile_device_keeps_its_id_when_its_address_changes(self) -> None:
+        added = self.client.put("/devices", json={"kind": "vpx_mobile", "display_name": "iPhone",
+                                                  "address": "192.168.1.50"}).json()
+
+        moved = self.client.put("/devices", json={"device_id": added["device_id"],
+                                                  "kind": "vpx_mobile",
+                                                  "address": "192.168.1.77"}).json()
+
+        self.assertEqual(moved["device_id"], added["device_id"])
+        self.assertEqual(moved["address"], "192.168.1.77")
+        self.assertEqual(self.client.get("/devices").json()["count"], 1, "one phone")
+
+    def test_a_mobile_device_needs_an_address(self) -> None:
+        """Its address is the only way to reach it, and nothing else will supply one."""
+        response = self.client.put("/devices", json={"kind": "vpx_mobile", "display_name": "iPad"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.client.get("/devices").json()["count"], 0)
+
+    def test_an_install_still_cannot_omit_its_id(self) -> None:
+        """Minting is for devices that cannot identify themselves. An install can."""
+        response = self.client.put("/devices", json={"display_name": "cab"})
+
+        self.assertEqual(response.status_code, 400)
 
     def test_the_registry_is_linked_from_discovery(self) -> None:
         """So an integrator finds it by asking rather than by reading this file."""
