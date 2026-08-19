@@ -55,10 +55,10 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/library/entries` | The play lens over the whole library |
 | GET | `/api/v1/library/filters` | Every filter axis, with the values this library holds |
 | POST | `/api/v1/library/scan` | Rebuild game metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
-| GET | `/api/v1/players` | The players this hub has been told about |
-| PUT | `/api/v1/players` | Announce a player to this hub (idempotent) |
-| GET | `/api/v1/players/{id}` | One player |
-| DELETE | `/api/v1/players/{id}` | Forget one |
+| GET | `/api/v1/devices` | The devices this hub has been told about |
+| PUT | `/api/v1/devices` | Announce a device to this hub (idempotent) |
+| GET | `/api/v1/devices/{id}` | One device |
+| DELETE | `/api/v1/devices/{id}` | Forget one |
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library game count. The reference for logo packs and alias maps |
 | GET | `/api/v1/games` | List games (`q`, `limit`, `offset`) |
 | GET | `/api/v1/games/{id}` | One game |
@@ -312,7 +312,7 @@ from httpapi import capabilities
 
 capabilities.declare(capabilities.Capability(
     name="peripherals",
-    residency=[capabilities.RESIDENCY_PLAYER],
+    residency=[capabilities.RESIDENCY_DEVICE],
     description="DOF and real-DMD output",
     is_available=lambda: (dof_configured(), "DOF is not configured"),
 ))
@@ -510,7 +510,7 @@ been made.
 What it buys today is attribution. Every event carries the `install_id` it happened on,
 and a roster turns that id into a name a person recognizes.
 
-A player announces itself with `PUT /players` on startup, sending its `install_id`,
+A device announces itself with `PUT /devices` on startup, sending its `install_id`,
 `display_name` and `roles`. Announcing twice is one player heard from twice: `first_seen`
 survives, everything else is refreshed, because the install owns those and the roster is a
 copy that goes stale by design.

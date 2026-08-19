@@ -48,7 +48,7 @@
   "install": {
     "display_name": "",
     "id": "",
-    "roles": "hub,player"
+    "roles": "hub,device"
   },
   "libdmdutil": {
     "enabled": "false",

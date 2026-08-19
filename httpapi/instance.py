@@ -85,7 +85,7 @@ def discovery_payload(prefix: str, api_version: str) -> dict:
             "events": f"{prefix}/events",
             "jobs": f"{prefix}/jobs",
             "manufacturers": f"{prefix}/manufacturers",
-            "players": f"{prefix}/players",
+            "devices": f"{prefix}/devices",
         },
     }
 

@@ -25,7 +25,7 @@ logger = logging.getLogger("vpinfe.common.games.revert_3x")
 
 # 3.0 wrote these and 2.x reads none of them. Named one at a time on purpose: a sweep
 # for anything backup-shaped also eats the hand-made .bak-repro files kept beside them.
-CONFIG_FILES = ("vpinfe.json", COLLECTIONS_NAME, "players.json", "manager-ui-state.json")
+CONFIG_FILES = ("vpinfe.json", COLLECTIONS_NAME, "devices.json", "manager-ui-state.json")
 CONFIG_DIRS = ("theme_user_options",)
 
 # Whose `.vpinfe-*` copies are ours to remove. The ini pair is what the conversion to

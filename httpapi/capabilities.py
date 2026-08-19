@@ -14,9 +14,9 @@ from typing import Any
 # its own, not that one capability spans the two - so if the hub and the player are
 # ever separate machines, both have it. Clients hold no residency at all.
 RESIDENCY_HUB = "hub"
-RESIDENCY_PLAYER = "player"
+RESIDENCY_DEVICE = "device"
 
-RESIDENCIES = frozenset({RESIDENCY_HUB, RESIDENCY_PLAYER})
+RESIDENCIES = frozenset({RESIDENCY_HUB, RESIDENCY_DEVICE})
 
 
 @dataclass(frozen=True)

@@ -92,22 +92,22 @@ class RoleTests(unittest.TestCase):
 
     def test_an_install_serves_both_roles_by_default(self) -> None:
         """Every 2.x install and every desktop user, so nobody has to set it."""
-        self.assertEqual(install_identity.roles(self.store), ["hub", "player"])
+        self.assertEqual(install_identity.roles(self.store), ["hub", "device"])
 
     def test_one_role_can_be_declared_on_its_own(self) -> None:
-        self.assertEqual(self._roles("player"), ["player"])
+        self.assertEqual(self._roles("device"), ["device"])
         self.assertEqual(self._roles("hub"), ["hub"])
 
     def test_roles_read_the_same_however_they_were_written(self) -> None:
-        for written in ("player,hub", " hub , player ", "HUB,Player"):
+        for written in ("device,hub", " hub , device ", "HUB,Device"):
             with self.subTest(written=written):
-                self.assertEqual(self._roles(written), ["hub", "player"])
+                self.assertEqual(self._roles(written), ["hub", "device"])
 
     def test_a_typo_leaves_the_install_doing_what_it_did(self) -> None:
         """Falling back to both, not to none: a misspelling must not decide that this
         machine has stopped launching games."""
-        self.assertEqual(self._roles("wat"), ["hub", "player"])
-        self.assertEqual(self._roles(""), ["hub", "player"])
+        self.assertEqual(self._roles("wat"), ["hub", "device"])
+        self.assertEqual(self._roles(""), ["hub", "device"])
 
     def test_a_recognized_role_survives_an_unrecognized_one(self) -> None:
         self.assertEqual(self._roles("hub,wat"), ["hub"])
@@ -116,7 +116,7 @@ class RoleTests(unittest.TestCase):
         cfg_set(self.store, "install", "roles", "hub")
 
         self.assertTrue(install_identity.has_role(self.store, "hub"))
-        self.assertFalse(install_identity.has_role(self.store, "player"))
+        self.assertFalse(install_identity.has_role(self.store, "device"))
 
 
 if __name__ == "__main__":

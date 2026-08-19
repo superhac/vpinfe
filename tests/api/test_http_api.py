@@ -107,7 +107,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(payload["name"], "VPinFE")
         self.assertIn("install_id", payload)
         self.assertIn("display_name", payload)
-        self.assertEqual(payload["roles"], ["hub", "player"],
+        self.assertEqual(payload["roles"], ["hub", "device"],
                          "an unconfigured install serves both, as 2.x did")
 
     def test_asking_who_this_is_does_not_write_to_the_config(self) -> None:
@@ -129,7 +129,7 @@ class DiscoveryTests(unittest.TestCase):
         ))
         capabilities.declare(capabilities.Capability(
             name="peripherals",
-            residency=[capabilities.RESIDENCY_PLAYER],
+            residency=[capabilities.RESIDENCY_DEVICE],
             is_available=lambda: (False, "No DOF hardware detected"),
         ))
 
@@ -150,12 +150,12 @@ class DiscoveryTests(unittest.TestCase):
         self._isolated()
         capabilities.declare(capabilities.Capability(
             name="events",
-            residency=[capabilities.RESIDENCY_HUB, capabilities.RESIDENCY_PLAYER],
+            residency=[capabilities.RESIDENCY_HUB, capabilities.RESIDENCY_DEVICE],
         ))
 
         declared = self.client.get("/").json()["capabilities"]
 
-        self.assertEqual(declared[0]["residency"], ["hub", "player"])
+        self.assertEqual(declared[0]["residency"], ["hub", "device"])
 
     def test_a_bare_string_residency_is_refused(self) -> None:
         """It would iterate into single characters and reach discovery as seven of them."""
@@ -174,7 +174,7 @@ class DiscoveryTests(unittest.TestCase):
         declared = {c["name"]: c for c in self.client.get("/").json()["capabilities"]}
 
         self.assertIn("launch", declared)
-        self.assertEqual(declared["launch"]["residency"], ["player"])
+        self.assertEqual(declared["launch"]["residency"], ["device"])
         self.assertIsNotNone(declared["launch"].get("available"))
 
     def test_a_broken_availability_probe_does_not_break_discovery(self) -> None:
@@ -183,7 +183,7 @@ class DiscoveryTests(unittest.TestCase):
 
         self._isolated()
         capabilities.declare(capabilities.Capability(
-            name="flaky", residency=[capabilities.RESIDENCY_PLAYER], is_available=_explode))
+            name="flaky", residency=[capabilities.RESIDENCY_DEVICE], is_available=_explode))
 
         response = self.client.get("/")
         declared = response.json()["capabilities"]

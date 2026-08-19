@@ -36,10 +36,10 @@ SYSTEM_READ = "system:read"
 # end someone's game.
 SYSTEM_ADMIN = "system:admin"
 
-# The players a hub knows. Reading the roster is not the same as joining it: a player
+# The devices a hub knows. Reading the registry is not the same as joining it: a device
 # announces itself, which is a write, and anything asking who is out there is a read.
-PLAYERS_READ = "players:read"
-PLAYERS_WRITE = "players:write"
+DEVICES_READ = "devices:read"
+DEVICES_WRITE = "devices:write"
 
 EVENTS_SUBSCRIBE = "events:subscribe"
 
@@ -57,7 +57,7 @@ CORE = frozenset({
     CONFIG_READ, CONFIG_WRITE,
     SYSTEM_READ, SYSTEM_ADMIN,
     EVENTS_SUBSCRIBE, JOBS_READ,
-    PLAYERS_READ, PLAYERS_WRITE,
+    DEVICES_READ, DEVICES_WRITE,
 })
 
 EXTENSION_PREFIX = "ext:"

@@ -79,30 +79,30 @@ def declare_core() -> None:
     ))
     capabilities.declare(capabilities.Capability(
         name="play",
-        residency=[capabilities.RESIDENCY_PLAYER],
+        residency=[capabilities.RESIDENCY_DEVICE],
         description="Launch lifecycle state for this machine",
     ))
     capabilities.declare(capabilities.Capability(
         name="launch",
-        residency=[capabilities.RESIDENCY_PLAYER],
+        residency=[capabilities.RESIDENCY_DEVICE],
         description="Starting a game on this machine",
         is_available=_launch_available,
     ))
     capabilities.declare(capabilities.Capability(
         name="peripherals",
-        residency=[capabilities.RESIDENCY_PLAYER],
+        residency=[capabilities.RESIDENCY_DEVICE],
         description="DOF, real-DMD and other attached hardware",
         is_available=_peripherals_available,
     ))
     capabilities.declare(capabilities.Capability(
         name="rom_audit",
-        residency=[capabilities.RESIDENCY_PLAYER],
+        residency=[capabilities.RESIDENCY_DEVICE],
         description="ROM set verification through the VPX install's own PinMAME",
         is_available=_rom_audit_available,
     ))
     capabilities.declare(capabilities.Capability(
         name="events",
-        residency=[capabilities.RESIDENCY_HUB, capabilities.RESIDENCY_PLAYER],
+        residency=[capabilities.RESIDENCY_HUB, capabilities.RESIDENCY_DEVICE],
         description="Game lifecycle, play state and job progress as they happen",
     ))
     capabilities.declare(capabilities.Capability(

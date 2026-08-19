@@ -115,7 +115,7 @@ uses an old spelling both still load.
 | --- | --- | --- | --- |
 | `id` | string |  | Written by VPinFE on first start, and not meant to be edited. A hub tells its installs apart by this, so changing it makes this a different install. |
 | `display_name` | string |  | What to call this install where one is listed. Defaults to this machine's hostname. Nothing is addressed by it, so renaming is safe. |
-| `roles` | list | `hub,player` | What this install serves: the shared library half (hub), the machine games launch on (player), or both. |
+| `roles` | list | `hub,device` | What this install serves: the shared library half (hub), the machine games launch on (device), or both. |
 
 ### `vpsdb`
 

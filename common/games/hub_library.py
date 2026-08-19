@@ -73,7 +73,7 @@ def announce_to_hub(hub_url: str, config, *, timeout: int = http_client.DEFAULT_
         return False
     try:
         http_client.put_json(
-            urljoin(hub_url.rstrip("/") + "/", "api/v1/players"),
+            urljoin(hub_url.rstrip("/") + "/", "api/v1/devices"),
             {"install_id": install_id,
              "display_name": install_identity.display_name(config),
              "roles": install_identity.roles(config)},

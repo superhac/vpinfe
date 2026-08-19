@@ -150,7 +150,7 @@ class CapabilityTests(unittest.TestCase):
         declared = {c["name"]: c for c in _client().get("/").json()["capabilities"]}
 
         self.assertEqual(declared["library"]["residency"], [capabilities.RESIDENCY_HUB])
-        self.assertEqual(declared["play"]["residency"], [capabilities.RESIDENCY_PLAYER])
+        self.assertEqual(declared["play"]["residency"], [capabilities.RESIDENCY_DEVICE])
 
     def test_an_unavailable_capability_says_why(self) -> None:
         """The reason is shown to users, so 'no' on its own is not good enough."""

@@ -25,22 +25,22 @@ from .errors import InvalidRequestError, NotFoundError
 
 logger = logging.getLogger("vpinfe.httpapi.players")
 
-router = APIRouter(prefix="/players", tags=["players"])
+router = APIRouter(prefix="/devices", tags=["devices"])
 
 
 def _resource(player) -> dict:
-    return player.as_dict() | {"links": {"self": f"/api/v1/players/{player.install_id}"}}
+    return player.as_dict() | {"links": {"self": f"/api/v1/devices/{player.install_id}"}}
 
 
-@router.get("", summary="The players this hub knows",
-            dependencies=[requires(scopes.PLAYERS_READ)])
+@router.get("", summary="The devices this hub knows",
+            dependencies=[requires(scopes.DEVICES_READ)])
 def list_players() -> models.PlayerList:
     players = get_roster().players()
-    return {"count": len(players), "players": [_resource(p) for p in players]}
+    return {"count": len(players), "devices": [_resource(p) for p in players]}
 
 
-@router.get("/{install_id}", summary="One player",
-            dependencies=[requires(scopes.PLAYERS_READ)])
+@router.get("/{install_id}", summary="One device",
+            dependencies=[requires(scopes.DEVICES_READ)])
 def get_player(install_id: str) -> models.PlayerResource:
     player = get_roster().get(install_id)
     if player is None:
@@ -48,8 +48,8 @@ def get_player(install_id: str) -> models.PlayerResource:
     return _resource(player)
 
 
-@router.put("", summary="Announce a player to this hub", status_code=200,
-            dependencies=[requires(scopes.PLAYERS_WRITE)])
+@router.put("", summary="Announce a device to this hub", status_code=200,
+            dependencies=[requires(scopes.DEVICES_WRITE)])
 def announce(request: Request,
              payload: models.PlayerAnnouncement = Body(...)) -> models.PlayerResource:
     """Idempotent: announcing twice is one player, heard from twice.
@@ -74,8 +74,8 @@ def announce(request: Request,
     return _resource(player)
 
 
-@router.delete("/{install_id}", summary="Forget a player", status_code=204,
-               dependencies=[requires(scopes.PLAYERS_WRITE)])
+@router.delete("/{install_id}", summary="Forget a device", status_code=204,
+               dependencies=[requires(scopes.DEVICES_WRITE)])
 def forget(install_id: str):
     """Forgetting one that is still running only means it announces itself again."""
     if not get_roster().forget(install_id):

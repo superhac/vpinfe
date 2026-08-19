@@ -56,7 +56,7 @@ class DiscoveryLinks(ApiModel):
     events: str | None
     jobs: str | None
     manufacturers: str | None
-    players: str | None = None
+    devices: str | None = None
 
 
 class ServiceEndpoint(ApiModel):
@@ -110,7 +110,7 @@ class PlayerResource(ApiModel):
 
 class PlayerList(ApiModel):
     count: int
-    players: list[PlayerResource]
+    devices: list[PlayerResource]
 
 
 class PlayerAnnouncement(ApiModel):

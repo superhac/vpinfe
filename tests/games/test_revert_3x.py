@@ -245,7 +245,7 @@ class ConfigTests(RevertTestCase):
 
     def test_3x_only_files_go_whether_or_not_a_migration_wrote_them(self):
         self._migrate()
-        (self.config_dir / "players.json").write_text("{}", encoding="utf-8")
+        (self.config_dir / "devices.json").write_text("{}", encoding="utf-8")
         (self.config_dir / "manager-ui-state.json").write_text("{}", encoding="utf-8")
         options = self.config_dir / "theme_user_options"
         options.mkdir()
@@ -254,7 +254,7 @@ class ConfigTests(RevertTestCase):
         result = self._reset()
 
         self.assertFalse(options.exists())
-        self.assertIn("players.json", result["config_removed"])
+        self.assertIn("devices.json", result["config_removed"])
         self.assertIn("manager-ui-state.json", result["config_removed"])
 
     def test_a_half_written_temp_file_is_swept_up(self):

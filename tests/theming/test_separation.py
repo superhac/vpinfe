@@ -209,7 +209,7 @@ class SeparationTests(TempTree):
         with LiveInstance(self.hub_root) as hub:
             hub.wait_for_api()
             hub_api = f"http://127.0.0.1:{hub.ports['manager']}"
-            self.assertEqual(_fetch(f"{hub_api}/api/v1/players")["count"], 0,
+            self.assertEqual(_fetch(f"{hub_api}/api/v1/devices")["count"], 0,
                              "a hub knows nobody until someone says hello")
 
             with LiveInstance(self.player_root,
@@ -245,7 +245,7 @@ class SeparationTests(TempTree):
         deadline = time.monotonic() + timeout
         players = []
         while time.monotonic() < deadline:
-            players = _fetch(f"{hub_api}/api/v1/players")["players"]
+            players = _fetch(f"{hub_api}/api/v1/devices")["devices"]
             if len(players) >= expected:
                 return players
             time.sleep(0.25)

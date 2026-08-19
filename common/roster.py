@@ -25,10 +25,10 @@ from common.timestamps import utc_now_iso
 
 logger = logging.getLogger("vpinfe.common.roster")
 
-ROSTER_PATH = CONFIG_DIR / "players.json"
+ROSTER_PATH = CONFIG_DIR / "devices.json"
 SCHEMA = 1
 SCHEMA_KEY = "schema"
-PLAYERS_KEY = "players"
+DEVICES_KEY = "devices"
 
 
 @dataclass(frozen=True)
@@ -153,7 +153,7 @@ class Roster:
         except Exception:
             logger.warning("Roster at %s is unreadable; treating it as empty", self.path)
             return []
-        raw = payload.get(PLAYERS_KEY) if isinstance(payload, dict) else payload
+        raw = payload.get(DEVICES_KEY) if isinstance(payload, dict) else payload
         if not isinstance(raw, list):
             return []
         return [player for player in (Player.from_dict(entry) for entry in raw
@@ -163,7 +163,7 @@ class Roster:
         # Never stamp a newer file down to what this build writes - that number belongs
         # to whichever VPinFE wrote it, the same rule the config store follows.
         payload = {SCHEMA_KEY: SCHEMA,
-                   PLAYERS_KEY: [player.as_dict() for player in players]}
+                   DEVICES_KEY: [player.as_dict() for player in players]}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         write_atomic(self.path,
                      lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))

@@ -355,8 +355,8 @@ matched" cannot mean "nothing was checked". Covered by
 `tests/curation/test_library_entries.py`.
 
 **PAR-78 — A hub knows which players it is serving.** *(machine-checked)* New:
-`GET/PUT/DELETE /api/v1/players`, two scopes (`players:read`, `players:write`), a
-`players` link in discovery, and `put_json` in `common/http_client.py`. A player with
+`GET/PUT/DELETE /api/v1/devices`, two scopes (`devices:read`, `devices:write`), a
+`devices` link in discovery, and `put_json` in `common/http_client.py`. A device with
 `network.hub_url` set announces itself at startup. Purely additive - an install with no
 hub announces nothing, and every existing route is untouched.
 *Why:* the roster storage shipped in PAR-66 with nothing writing to it, so a hub held an
@@ -537,7 +537,7 @@ use, so it names the game by id rather than by where it lives. Covered by
 `tests/api/test_event_stream.py`.
 
 **PAR-66 — A hub can hold a roster of the players it knows.** New: `common/roster.py`,
-a `players.json` beside the other config files, keyed by `install_id`. Nothing writes to
+a `devices.json` beside the other config files, keyed by `install_id`. Nothing writes to
 it yet and no screen shows it, so an existing install never grows the file and behaves
 identically.
 *Why:* two players answering one hub were indistinguishable at every layer until install

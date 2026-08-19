@@ -537,10 +537,10 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ConfigOption(
             "roles",
             type="list",
-            default="hub,player",
+            default="hub,device",
             label="Roles",
             description="What this install serves: the shared library half (hub), the"
-                        " machine games launch on (player), or both.",
+                        " machine games launch on (device), or both.",
         ),
     ),
     *in_section(

@@ -18,11 +18,11 @@ ID_SECTION = "install"
 ID_KEY = "id"
 
 HUB = "hub"
-PLAYER = "player"
-ROLES = (HUB, PLAYER)
+DEVICE = "device"
+ROLES = (HUB, DEVICE)
 
 # What every 2.x install and every desktop install already is.
-DEFAULT_ROLES = (HUB, PLAYER)
+DEFAULT_ROLES = (HUB, DEVICE)
 
 
 def install_id(config) -> str:

@@ -22,7 +22,7 @@ class RosterTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.roster = Roster(Path(self.tmp.name) / "players.json")
+        self.roster = Roster(Path(self.tmp.name) / "devices.json")
 
     def test_a_hub_that_has_seen_nobody_has_an_empty_roster(self) -> None:
         self.assertEqual(self.roster.players(), [])
@@ -31,11 +31,11 @@ class RosterTests(unittest.TestCase):
 
     def test_recording_a_player_makes_it_known(self) -> None:
         self.roster.record("Aaaa111111", display_name="basement cab",
-                           roles=("hub", "player"))
+                           roles=("hub", "device"))
 
         player = self.roster.get("Aaaa111111")
         self.assertEqual(player.display_name, "basement cab")
-        self.assertEqual(player.roles, ("hub", "player"))
+        self.assertEqual(player.roles, ("hub", "device"))
         self.assertTrue(self.roster.knows("Aaaa111111"))
 
     def test_a_player_heard_from_twice_is_still_one_player(self) -> None:
@@ -65,7 +65,7 @@ class RosterTests(unittest.TestCase):
         `first_seen` that silently resets on every record would still look equal.
         """
         pinned = "2020-01-01T00:00:00Z"
-        self.roster.record("Aaaa111111", display_name="a", roles=("player",),
+        self.roster.record("Aaaa111111", display_name="a", roles=("device",),
                            address="192.168.1.10")
         self._rewrite_first_seen("Aaaa111111", pinned)
 
@@ -80,7 +80,7 @@ class RosterTests(unittest.TestCase):
     def _rewrite_first_seen(self, install_id: str, when: str) -> None:
         """Put a known timestamp on disk, so the assertion has an outside witness."""
         payload = json.loads(self.roster.path.read_text())
-        for entry in payload["players"]:
+        for entry in payload["devices"]:
             if entry["install_id"] == install_id:
                 entry["first_seen"] = when
         self.roster.path.write_text(json.dumps(payload), encoding="utf-8")
@@ -110,7 +110,7 @@ class RosterStorageTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.path = Path(self.tmp.name) / "players.json"
+        self.path = Path(self.tmp.name) / "devices.json"
 
     def test_it_survives_being_reopened(self) -> None:
         Roster(self.path).record("Aaaa111111", display_name="cab")
@@ -133,19 +133,19 @@ class RosterStorageTests(unittest.TestCase):
         """A downgrade must not silently strip what it does not understand."""
         self.path.write_text(json.dumps({
             "schema": 99,
-            "players": [{"install_id": "Aaaa111111", "something_new": "keep me"}],
+            "devices": [{"install_id": "Aaaa111111", "something_new": "keep me"}],
         }), encoding="utf-8")
 
         roster = Roster(self.path)
         roster.record("Aaaa111111", display_name="cab")
 
-        self.assertEqual(json.loads(self.path.read_text())["players"][0]["something_new"],
+        self.assertEqual(json.loads(self.path.read_text())["devices"][0]["something_new"],
                          "keep me")
 
     def test_an_entry_with_no_id_is_skipped_rather_than_crashing(self) -> None:
         self.path.write_text(json.dumps({
             "schema": 1,
-            "players": [{"display_name": "nameless"}, {"install_id": "Aaaa111111"}],
+            "devices": [{"display_name": "nameless"}, {"install_id": "Aaaa111111"}],
         }), encoding="utf-8")
 
         self.assertEqual([p.install_id for p in Roster(self.path).players()],
@@ -155,7 +155,7 @@ class RosterStorageTests(unittest.TestCase):
 class PlayerTests(unittest.TestCase):
     def test_a_player_round_trips_through_its_dict(self) -> None:
         player = Player(install_id="Aaaa111111", display_name="cab",
-                        roles=("hub", "player"), address="192.168.1.10",
+                        roles=("hub", "device"), address="192.168.1.10",
                         first_seen="2026-01-01T00:00:00Z", last_seen="2026-01-02T00:00:00Z")
 
         self.assertEqual(Player.from_dict(player.as_dict()), player)
