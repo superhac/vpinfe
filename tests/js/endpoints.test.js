@@ -22,7 +22,7 @@ describe("the endpoint block", () => {
     const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&hubPort=9001");
 
     assert.equal(vpin.endpoints.assets, "http://127.0.0.1:9000");
-    assert.equal(vpin.endpoints.player, "http://127.0.0.1:9001");
+    assert.equal(vpin.endpoints.device, "http://127.0.0.1:9001");
     assert.equal(vpin.endpoints.hub, "http://127.0.0.1:9001", "one api answers for both today");
     assert.equal(vpin.endpoints.frontend_channel, "ws://127.0.0.1:9002");
   });
@@ -32,7 +32,7 @@ describe("the endpoint block", () => {
     const vpin = withPorts("?window=table");
 
     assert.equal(vpin.endpoints.assets, "http://127.0.0.1:8000");
-    assert.equal(vpin.endpoints.player, "http://127.0.0.1:8001");
+    assert.equal(vpin.endpoints.device, "http://127.0.0.1:8001");
     assert.equal(vpin.endpoints.frontend_channel, "ws://127.0.0.1:8002");
   });
 
@@ -40,7 +40,7 @@ describe("the endpoint block", () => {
     const vpin = withPorts("?window=table&themeAssetsPort=9000");
 
     assert.equal(vpin.endpoints.assets, "http://127.0.0.1:9000");
-    assert.equal(vpin.endpoints.player, "http://127.0.0.1:8001", "the rest are untouched");
+    assert.equal(vpin.endpoints.device, "http://127.0.0.1:8001", "the rest are untouched");
   });
 
   test("each key points where its own setting says", () => {
@@ -50,20 +50,20 @@ describe("the endpoint block", () => {
 
     assert.equal(vpin.endpoints.assets, `http://127.0.0.1:${vpin.themeAssetsPort}`);
     assert.equal(vpin.endpoints.hub, `http://127.0.0.1:${vpin.hubPort}`);
-    assert.equal(vpin.endpoints.player, `http://127.0.0.1:${vpin.playerPort}`);
+    assert.equal(vpin.endpoints.device, `http://127.0.0.1:${vpin.devicePort}`);
     assert.equal(vpin.endpoints.frontend_channel, `ws://127.0.0.1:${vpin.wsPort}`);
   });
 
   test("a hub on another machine moves the hub's services and nothing else", () => {
     // What a player gets. `hubPort` is the hub's port, so `player` cannot read it: this
-    // machine's own api is on playerPort, at loopback, whoever holds the library.
+    // machine's own api is on devicePort, at loopback, whoever holds the library.
     const vpin = withPorts(
       "?window=table&wsPort=8002&themeAssetsPort=8000&hubPort=9000" +
-      "&hubHost=hub.example&playerPort=8001");
+      "&hubHost=hub.example&devicePort=8001");
 
     assert.equal(vpin.endpoints.hub, "http://hub.example:9000");
     assert.equal(vpin.endpoints.assets, "http://hub.example:8000", "art follows the library");
-    assert.equal(vpin.endpoints.player, "http://127.0.0.1:8001", "this machine, always");
+    assert.equal(vpin.endpoints.device, "http://127.0.0.1:8001", "this machine, always");
     assert.equal(vpin.endpoints.frontend_channel, "ws://127.0.0.1:8002", "this machine, always");
   });
 
@@ -72,7 +72,7 @@ describe("the endpoint block", () => {
 
     assert.equal(vpin.endpoints.hub, "http://127.0.0.1:8001");
     assert.equal(vpin.endpoints.assets, "http://127.0.0.1:8000");
-    assert.equal(vpin.endpoints.player, "http://127.0.0.1:8001");
+    assert.equal(vpin.endpoints.device, "http://127.0.0.1:8001");
   });
 
   test("the frontend channel is a line to hold open, not an address to append to", () => {

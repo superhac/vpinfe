@@ -109,7 +109,7 @@ class HubEndpoint(NamedTuple):
 
     host: str
     port: int
-    player_port: int
+    device_port: int
     assets_port: int
 
 
@@ -147,7 +147,7 @@ def _build_window_url(
     ws_port: int = 8002,
     hub_port: int = 8001,
     hub_host: str = "",
-    player_port: int = 8001,
+    device_port: int = 8001,
     hub_assets_port: int = 0,
 ) -> str:
     """Where a window opens, and how it finds the services.
@@ -166,7 +166,7 @@ def _build_window_url(
     # port for both roles, which is right for every install that serves its own library.
     if hub_host:
         endpoints += (f"&hubHost={quote(hub_host, safe='')}"
-                      f"&playerPort={player_port}"
+                      f"&devicePort={device_port}"
                       f"&hubAssetsPort={hub_assets_port or theme_assets_port}")
 
     if platform.system() == "Linux":
@@ -492,7 +492,7 @@ class ChromiumManager:
                 ws_port=network.ws_port,
                 hub_port=hub.port,
                 hub_host=hub.host,
-                player_port=hub.player_port,
+                device_port=hub.device_port,
                 hub_assets_port=hub.assets_port,
             )
 

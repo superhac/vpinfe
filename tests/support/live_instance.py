@@ -141,7 +141,7 @@ class LiveInstance:
             parsed = urllib.parse.urlparse(hub_url)
             query += (f"&hubHost={urllib.parse.quote(parsed.hostname or '', safe='')}"
                       f"&hubPort={parsed.port or self.ports['manager']}"
-                      f"&playerPort={self.ports['manager']}"
+                      f"&devicePort={self.ports['manager']}"
                       f"&hubAssetsPort={self.hub_assets_port or self.ports['assets']}")
         return self.url(query)
 

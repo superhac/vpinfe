@@ -601,18 +601,18 @@ answers on it changes.
 *Why:* the port was named after one of the four things listening on it. It serves
 `/api/v1`, the Manager UI at `/`, and the remote and mobile pages - and the API is
 explicitly not part of the Manager UI (`docs/http_api.md`: "it belongs to the platform").
-So `endpoints.hub` and `endpoints.player` were being built from a port named for a UI,
+So `endpoints.hub` and `endpoints.device` were being built from a port named for a UI,
 which read as though the library were fetched from the Manager UI. What the four have in
 common is the role: all of them are hub-side, the Manager UI included, since the Manager
 UI is hub-only. Naming it `hub_api_port` would have repeated the original mistake from the
 other end - naming one listener while three others share the port. One consequence is
-visible and deliberate: `endpoints.player` points at the hub's port for now, because one
+visible and deliberate: `endpoints.device` points at the hub's port for now, because one
 `/api/v1` still answers for both roles. That is honest about today's topology rather than
 inventing an address, and it is the seam the remaining consolidation splits. Covered by
 `tests/invariants/test_config_conventions.py` and `tests/invariants/test_parity.py`.
 
 **PAR-62 — The endpoint block says what each address is for.** `vpin.endpoints` becomes
-`{ hub, player, assets, frontend_channel }`. `assets` is new and is where media, theme
+`{ hub, device, assets, frontend_channel }`. `assets` is new and is where media, theme
 packages and shared art come from; `hub` now points at the API rather than the asset
 server, which is where the library actually answers; `bridge` is `frontend_channel`.
 Introduced in PAR-53 and corrected here before any theme reads it, so there is nothing to

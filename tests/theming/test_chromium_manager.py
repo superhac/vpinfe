@@ -205,7 +205,7 @@ class HubEndpointTests(unittest.TestCase):
         self.assertEqual(self._resolve("http://cab.local:8001"),
                          ("cab.local", 8001, 8001, 8000))
 
-    def test_the_hub_port_and_this_player_port_are_answered_separately(self) -> None:
+    def test_the_hub_port_and_this_device_port_are_answered_separately(self) -> None:
         """The one that would misdial in both directions if a single number were sent."""
         self.assertEqual(self._resolve("https://hub.example:9000"),
                          ("hub.example", 9000, 8001, 8000))
@@ -238,7 +238,7 @@ class WindowUrlTests(unittest.TestCase):
     frontend dialling the wrong one forever, which is why every form is checked."""
 
     def _url(self, system: str, *, splash: bool = False, hub_host: str = "",
-             hub_port: int = 9001, player_port: int = 9001) -> str:
+             hub_port: int = 9001, device_port: int = 9001) -> str:
         with mock.patch("frontend.chromium_manager.platform.system", return_value=system):
             return chromium_manager._build_window_url(
                 base_url="http://127.0.0.1",
@@ -249,7 +249,7 @@ class WindowUrlTests(unittest.TestCase):
                 ws_port=9002,
                 hub_port=hub_port,
                 hub_host=hub_host,
-                player_port=player_port,
+                device_port=device_port,
             )
 
     def test_every_window_url_carries_every_port(self) -> None:
@@ -273,7 +273,7 @@ class WindowUrlTests(unittest.TestCase):
                 url = self._url(system, splash=splash)
 
                 self.assertNotIn("hubHost", url)
-                self.assertNotIn("playerPort", url)
+                self.assertNotIn("devicePort", url)
 
     def test_a_remote_hub_travels_in_every_window_url(self) -> None:
         """A page cannot ask where its hub is for the same reason it cannot ask for a
@@ -286,13 +286,13 @@ class WindowUrlTests(unittest.TestCase):
 
                 self.assertIn("hubHost=hub.example", url)
 
-    def test_the_hub_port_and_this_player_port_travel_separately(self) -> None:
+    def test_the_hub_port_and_this_device_port_travel_separately(self) -> None:
         """A hub on 9000 is not this machine on 9000. Sending one number would make a
         player dial its own api at the hub's port, or the hub's at its own."""
-        url = self._url("Darwin", hub_host="hub.example", hub_port=9000, player_port=8001)
+        url = self._url("Darwin", hub_host="hub.example", hub_port=9000, device_port=8001)
 
         self.assertIn("hubPort=9000", url)
-        self.assertIn("playerPort=8001", url)
+        self.assertIn("devicePort=8001", url)
 
     def test_a_host_that_needs_encoding_is_encoded(self) -> None:
         url = self._url("Darwin", hub_host="hub name")

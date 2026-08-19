@@ -611,9 +611,9 @@ class VPinFECore {
     // Set only when the hub is another machine. The player's own services stay loopback:
     // this names where the library and its art are, not where this page is running.
     this.hubHost = params.get('hubHost') || '';
-    // What this player serves on, which is not what a remote hub answers on - `hubPort`
+    // What this device serves on, which is not what a remote hub answers on - `hubPort`
     // carries the hub's when there is one, so the two cannot be the same number.
-    this.playerPort = port('playerPort', this.hubPort);
+    this.devicePort = port('devicePort', this.hubPort);
     // The hub's asset server, when the hub is elsewhere. Its own port, not this
     // machine's: pairing a remote host with the local port addresses neither.
     this.hubAssetsPort = port('hubAssetsPort', this.themeAssetsPort);
@@ -827,13 +827,13 @@ class VPinFECore {
    *
    * Three are addresses you fetch from - take one, add a path, get an answer back:
    *   `hub`     the library and what is known about it: games, collections, uploads
-   *   `player`  this machine: launching, play state, its hardware
+   *   `device`  this machine: launching, play state, its hardware
    *   `assets`  the files themselves: theme packages, table media, shared art
    *
    * One is a line held open instead, so it takes no path:
    *   `frontend_channel`  how this page and VPinFE talk to each other, both ways
    *
-   * `hub` and `player` are one address today because one `/api/v1` answers for both.
+   * `hub` and `device` are one address today because one `/api/v1` answers for both.
    * They are separate keys because they are separate questions, and a theme built
    * against them keeps working when the two are separate machines.
    *
@@ -841,13 +841,13 @@ class VPinFECore {
    */
   get endpoints() {
     const host = '127.0.0.1';
-    // The hub's services follow the hub. `player` and `frontend_channel` never do: they
+    // The hub's services follow the hub. `device` and `frontend_channel` never do: they
     // are this machine's own, and a page dialling another host for them would be asking
-    // a different player to answer for this one's windows.
+    // a different device to answer for this one's windows.
     const hubHost = this.hubHost || host;
     return {
       hub: `http://${hubHost}:${this.hubPort}`,
-      player: `http://${host}:${this.playerPort}`,
+      device: `http://${host}:${this.devicePort}`,
       assets: `http://${hubHost}:${this.hubHost ? this.hubAssetsPort : this.themeAssetsPort}`,
       frontend_channel: `ws://${host}:${this.wsPort}`,
     };
@@ -1962,7 +1962,7 @@ class VPinFECore {
       // What this install serves on. It is the hub's port too, unless a hub elsewhere
       // said otherwise in the url - correcting that here would point the page back at
       // itself for the library.
-      this.playerPort = ownPort;
+      this.devicePort = ownPort;
       if (!this.hubHost) this.hubPort = ownPort;
     } catch (_e) {
       /* an older build cannot answer; the 8001 default already covers it */
@@ -2730,7 +2730,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     // The theme page loads over http://, where this works.
     if (window.location.protocol === 'file:') return;
 
-    const streamUrl = `${this.endpoints.player}/api/v1/events?events=play.state_changed`;
+    const streamUrl = `${this.endpoints.device}/api/v1/events?events=play.state_changed`;
     console.log("[RemoteLaunch] Subscribing to:", streamUrl);
 
     const source = new EventSource(streamUrl);
