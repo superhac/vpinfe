@@ -115,7 +115,7 @@ def set_active_profile(profile_key: str) -> dict[str, Any]:
     with _LOCK:
         global _ACTIVE_PROFILE_KEY
         if not normalized_key or normalized_key not in _PROFILES:
-            raise ValueError("Alternate VPinPlay player was not found.")
+            raise ValueError("Alternate VPinPlay account was not found.")
         _ACTIVE_PROFILE_KEY = normalized_key
     return get_alternate_profile_state()
 
