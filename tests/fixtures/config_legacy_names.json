@@ -873,13 +873,13 @@
     "libdmdutil",
     "pixelcadedevice",
     "libdmdutil",
-    "pixelcade_device"
+    "pixelcade_serial_port"
   ],
   [
     "libdmdutil",
     "zedmddevice",
     "libdmdutil",
-    "zedmd_device"
+    "zedmd_serial_port"
   ],
   [
     "libdmdutil",

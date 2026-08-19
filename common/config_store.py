@@ -174,7 +174,7 @@ class ConfigStore:
         for old_section, new_section, key in _MOVED_OPTIONS:
             changed |= self._move_option(old_section, new_section, key)
 
-        # [Input] is a merge, not a move: an action had one key per device, and both
+        # [Input] is a merge, not a move: an action had one key per input, and both
         # become entries in its single binding list, so the generic pass below - which
         # moves one value at a time - would have the second overwrite the first.
         if self.config.has_section('Input'):

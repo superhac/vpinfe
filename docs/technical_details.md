@@ -166,8 +166,8 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | --- | --- | --- | --- |
 | `enabled` | bool | `false` | Enabled |
 | `pin2dmd_enabled` | bool | `false` | Enable |
-| `pixelcade_device` | string |  | PixelcadeDevice |
-| `zedmd_device` | string |  | ZeDMDDevice |
+| `pixelcade_serial_port` | string |  | Pixelcade serial port |
+| `zedmd_serial_port` | string |  | ZeDMD serial port |
 | `zedmd_wifi_address` | string |  | ZeDMDWiFiAddr |
 
 ### `mobile`

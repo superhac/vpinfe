@@ -30,8 +30,8 @@ PAGING_GROUP_DEFAULT = "sort"
 def _input_options() -> tuple[ConfigOption, ...]:
     """`[input]` comes from the action registry, so the two cannot disagree.
 
-    One option per action holding an ordered list of bindings - not a key per device,
-    because a binding names its own device and a chord names two.
+    One option per action holding an ordered list of bindings - not a key per input,
+    because a binding names its own input and a chord names two.
     """
     out = [
         ConfigOption(
@@ -675,17 +675,17 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             aliases=("pin2dmdenabled",),
         ),
         ConfigOption(
-            "pixelcade_device",
+            "pixelcade_serial_port",
             type="string",
             default="",
-            label="PixelcadeDevice",
+            label="Pixelcade serial port",
             aliases=("pixelcadedevice",),
         ),
         ConfigOption(
-            "zedmd_device",
+            "zedmd_serial_port",
             type="string",
             default="",
-            label="ZeDMDDevice",
+            label="ZeDMD serial port",
             aliases=("zedmddevice",),
         ),
         ConfigOption(

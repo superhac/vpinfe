@@ -121,7 +121,7 @@ class PeripheralLaunchTests(unittest.TestCase):
         self.assertEqual(events.registered(events.TABLE_LAUNCHING)[0], 1)
 
     def test_hardware_is_released_before_anything_else_hooked_to_a_launch(self) -> None:
-        """VPX drives the same devices, so release has to come first - and it has to
+        """VPX drives the same hardware, so release has to come first - and it has to
         come first even when the other hook was registered earlier."""
         order = []
         events.hook(events.TABLE_LAUNCHING, lambda **_: order.append("other"), priority=50)
@@ -136,7 +136,7 @@ class PeripheralLaunchTests(unittest.TestCase):
         self.assertEqual(order, ["dof released", "dmd released", "other"])
 
     def test_a_launch_is_abandoned_if_the_hardware_will_not_release(self) -> None:
-        """Launching anyway would hand VPX a device DOF still holds."""
+        """Launching anyway would hand VPX hardware DOF still holds."""
         with mock.patch.object(peripherals, "stop_dof_service",
                                side_effect=RuntimeError("device busy")):
             peripherals.register()
@@ -155,7 +155,7 @@ class PeripheralLaunchTests(unittest.TestCase):
 
 
 class GameSelectionTests(unittest.TestCase):
-    """Selecting a game drives two devices that must not be able to break each other."""
+    """Selecting a game drives two peripherals that must not be able to break each other."""
 
     def setUp(self) -> None:
         events.clear()
@@ -177,7 +177,7 @@ class GameSelectionTests(unittest.TestCase):
         self.assertEqual(hooks, 0)
         self.assertEqual(subscribers, 2)
 
-    def test_both_devices_react_to_one_selection(self) -> None:
+    def test_both_peripherals_react_to_one_selection(self) -> None:
         sent, shown = [], []
         with mock.patch.object(peripherals, "send_frontend_dof_event",
                                side_effect=lambda cfg, token: sent.append(token)), \

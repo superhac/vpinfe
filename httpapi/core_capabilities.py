@@ -91,7 +91,7 @@ def declare_core() -> None:
     capabilities.declare(capabilities.Capability(
         name="peripherals",
         residency=[capabilities.RESIDENCY_PLAYER],
-        description="DOF, real-DMD and other attached devices",
+        description="DOF, real-DMD and other attached hardware",
         is_available=_peripherals_available,
     ))
     capabilities.declare(capabilities.Capability(

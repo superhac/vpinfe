@@ -82,11 +82,11 @@ def find_libdmdutil_file(*names: str) -> Path | None:
 
 
 def _build_controller_kwargs(iniconfig) -> dict[str, str]:
-    raw_device = str(
-        cfg_get(iniconfig, 'libdmdutil', 'zedmd_device', '')
+    raw_serial_port = str(
+        cfg_get(iniconfig, 'libdmdutil', 'zedmd_serial_port', '')
     ).strip()
-    if raw_device:
-        return {'device': raw_device}
+    if raw_serial_port:
+        return {'device': raw_serial_port}
 
     raw_host = str(
         cfg_get(iniconfig, 'libdmdutil', 'zedmd_wifi_address', '')

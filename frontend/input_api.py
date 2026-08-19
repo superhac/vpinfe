@@ -2,7 +2,7 @@
 
 One method now - `get_bindings` - handing back each action's whole binding list, rather
 than a gamepad map and a keyboard map separately. The split existed only because a stored
-value could not say which device it came from; a `key:` or `pad:` selector says it, so the
+value could not say which input it came from; a `key:` or `pad:` selector says it, so the
 two halves were one thing written down twice.
 
 `get_joymapping` and `get_keymapping` still answer, projected out of the same lists, for
@@ -39,7 +39,7 @@ def get_bindings(config) -> dict[str, list[str]]:
     """Every action and what is bound to it, in order.
 
     A parser the store has migrated holds the list directly. One it has not - a config
-    an older build wrote, or one a caller assembled - still holds a key per device, and
+    an older build wrote, or one a caller assembled - still holds a key per input, and
     those are assembled here rather than read as if they were already selectors.
     """
     out: dict[str, list[str]] = {}

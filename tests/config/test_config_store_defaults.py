@@ -15,8 +15,8 @@ class TestConfigStore(unittest.TestCase):
             self.assertTrue(config.config.has_section("libdmdutil"))
             self.assertEqual(config.config.get("libdmdutil", "enabled"), "false")
             self.assertEqual(config.config.get("libdmdutil", "pin2dmd_enabled"), "false")
-            self.assertEqual(config.config.get("libdmdutil", "pixelcade_device"), "")
-            self.assertEqual(config.config.get("libdmdutil", "zedmd_device"), "")
+            self.assertEqual(config.config.get("libdmdutil", "pixelcade_serial_port"), "")
+            self.assertEqual(config.config.get("libdmdutil", "zedmd_serial_port"), "")
             self.assertEqual(config.config.get("libdmdutil", "zedmd_wifi_address"), "")
 
     def test_adds_missing_libdmdutil_defaults_to_existing_config(self) -> None:
@@ -29,12 +29,12 @@ class TestConfigStore(unittest.TestCase):
             self.assertTrue(config.config.has_section("libdmdutil"))
             self.assertEqual(config.config.get("libdmdutil", "enabled"), "false")
             self.assertEqual(config.config.get("libdmdutil", "pin2dmd_enabled"), "false")
-            self.assertEqual(config.config.get("libdmdutil", "pixelcade_device"), "")
-            self.assertEqual(config.config.get("libdmdutil", "zedmd_device"), "")
+            self.assertEqual(config.config.get("libdmdutil", "pixelcade_serial_port"), "")
+            self.assertEqual(config.config.get("libdmdutil", "zedmd_serial_port"), "")
             self.assertEqual(config.config.get("libdmdutil", "zedmd_wifi_address"), "")
 
     def test_adds_the_shipped_input_bindings(self) -> None:
-        """One list per action, each binding naming its own device."""
+        """One list per action, each binding naming its own input."""
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 

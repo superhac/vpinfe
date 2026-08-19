@@ -5,8 +5,8 @@ Ten actions, each with one ordered list of bindings. The names say what the play
 and a scrolling page - already disagreed about what "left" pointed at, and every overlay
 carried a fall-through case as the evidence.
 
-A binding names its own device - `key:<name>`, `pad:<index>/button:<n>` - so an action
-needs one list rather than a key per device. Richer selectors - modifiers, axes, hold,
+A binding names its own input - `key:<name>`, `pad:<index>/button:<n>` - so an action
+needs one list rather than a key per input. Richer selectors - modifiers, axes, hold,
 chord - go in this same list, so adding them is a parser change rather than another
 migration.
 """

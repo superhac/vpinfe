@@ -60,7 +60,7 @@ SECTION_DESCRIPTIONS = {
     'network': 'Ports and services used by the local frontend stack.',
     'mobile': 'Connection details for external mobile devices.',
     'dof': 'Direct Output Framework integration and sync tools.',
-    'libdmdutil': 'libdmdutil integration settings for DMD device support.',
+    'libdmdutil': 'libdmdutil integration settings for DMD hardware support.',
 }
 
 
@@ -82,9 +82,9 @@ def tracked_values(inputs, binding_inputs):
     values = {(section, key): widget.value
               for section, keys in inputs.items()
               for key, widget in keys.items()}
-    values.update({(action, device): widget.value
+    values.update({(action, input_source): widget.value
                    for action, fields in binding_inputs.items()
-                   for device, widget in fields.items()})
+                   for input_source, widget in fields.items()})
     return values
 
 
@@ -458,16 +458,16 @@ def render_panel(tab=None):
 
     binding_inputs: dict[str, dict[str, object]] = {}
 
-    def build_binding_input(action, device: str, value: str):
+    def build_binding_input(action, input_source: str, value: str):
         """One field of the two an action is shown through.
 
-        The pair is a view over the action's single binding list - `device` says which
+        The pair is a view over the action's single binding list - `input_source` says which
         half this field owns, and save_config recombines them.
         """
         with ui.element('div').classes('config-field'):
             ui.label(action.label).classes('config-field-label')
             widget = ui.input(value=value).props('outlined dense').classes('config-input')
-        binding_inputs.setdefault(action.name, {})[device] = widget
+        binding_inputs.setdefault(action.name, {})[input_source] = widget
         return widget
 
     def save_config():
@@ -1007,13 +1007,13 @@ def render_panel(tab=None):
                                                     ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
                                     elif section == 'libdmdutil':
                                         service_key = 'enabled'
-                                        zedmd_keys = ['zedmd_device', 'zedmd_wifi_address']
+                                        zedmd_keys = ['zedmd_serial_port', 'zedmd_wifi_address']
                                         pin2dmd_keys = ['pin2dmd_enabled']
-                                        pixelcade_keys = ['pixelcade_device']
-                                        device_keys = zedmd_keys + pin2dmd_keys + pixelcade_keys
+                                        pixelcade_keys = ['pixelcade_serial_port']
+                                        hardware_keys = zedmd_keys + pin2dmd_keys + pixelcade_keys
                                         trailing_keys = [
                                             key for key in options
-                                            if key not in ([service_key] + device_keys)
+                                            if key not in ([service_key] + hardware_keys)
                                         ]
 
                                         with ui.element('div').classes('config-form-grid'):
@@ -1120,9 +1120,9 @@ def render_panel(tab=None):
             return '' if value is None else str(value)
 
         def _binding_widgets():
-            return [((action, device), widget)
+            return [((action, input_source), widget)
                     for action, fields in binding_inputs.items()
-                    for device, widget in fields.items()]
+                    for input_source, widget in fields.items()]
 
         initial_raw = tracked_values(inputs, binding_inputs)
 

@@ -1,7 +1,7 @@
 """The action set is declared once, and the copies that cannot import it are checked.
 
 Ten actions, each with one binding list. The names say what the player meant rather than
-which way a stick moved, and a binding names its own device - so the twelve-action,
+which way a stick moved, and a binding names its own input - so the twelve-action,
 two-key-per-action shape is gone and with it the table that translated `key*` to `joy*`.
 
 What cannot import Python is pinned here: core.js's fallback bindings, the contract 1
@@ -52,7 +52,7 @@ class BindingProjectionTests(unittest.TestCase):
     BINDINGS = ["key:ArrowLeft", "key:ShiftLeft", "pad:0/button:4",
                 "chord(pad:0/button:4+pad:0/button:5)@hold:1000"]
 
-    def test_each_field_shows_its_own_device(self) -> None:
+    def test_each_field_shows_its_own_input(self) -> None:
         self.assertEqual(input_registry.keys_in(self.BINDINGS), ["ArrowLeft", "ShiftLeft"])
         self.assertEqual(input_registry.pad_buttons_in(self.BINDINGS), ["4"])
 

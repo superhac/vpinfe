@@ -26,7 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TRANSLATORS = {
     "frontend/static/common/vpinfe-core.js",      # MEDIA_KIND_ALIASES, LEGACY_ACTION_NAMES, readers
     "frontend/theme_windows.py",      # CANONICAL, TITLES
-    "frontend/input_api.py",          # projects the old per-device bridge methods
+    "frontend/input_api.py",          # projects the old per-input bridge methods
     "common/input_registry.py",        # each action's legacy spellings
     "common/media_specs.py",          # MEDIA_KIND_ALIASES, the spec filenames
     "common/config_schema.py",        # every option's aliases and former locations

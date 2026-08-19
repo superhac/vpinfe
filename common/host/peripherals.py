@@ -1,6 +1,6 @@
 """DOF and real-DMD, driven by game lifecycle events.
 
-Handing the devices over for a launch is a hook: VPX drives the same hardware, so
+Handing the peripherals over for a launch is a hook: VPX drives the same hardware, so
 releasing them is part of launching rather than a notification about it. Reacting
 to a selection is not - see the subscribers below.
 """
@@ -21,7 +21,7 @@ from common.host.libdmdutil_service import show_image, stop_libdmdutil_service
 
 logger = logging.getLogger("vpinfe.common.host.peripherals")
 
-# Ahead of anything else that hooks a launch: the devices come first.
+# Ahead of anything else that hooks a launch: the peripherals come first.
 PRIORITY = 10
 
 _registered = False
@@ -29,13 +29,13 @@ _realdmd_updater: real_dmd.RealDmdUpdater | None = None
 
 
 def release_for_launch(**_payload) -> None:
-    """Hand the devices over before the table starts."""
+    """Hand the peripherals over before the table starts."""
     stop_dof_service()
     stop_libdmdutil_service(clear=False)
 
 
 def reacquire_after_exit(*, ini_config=None, **_payload) -> None:
-    """Take the devices back once the table has exited."""
+    """Take the peripherals back once the table has exited."""
     start_dof_service_if_enabled(ini_config)
 
 
@@ -76,9 +76,9 @@ def register() -> None:
         return
     events.hook(events.TABLE_LAUNCHING, release_for_launch, priority=PRIORITY)
     events.hook(events.TABLE_EXITED, reacquire_after_exit, priority=PRIORITY)
-    # Two devices, two subscribers, one trigger. Neither knows the other exists,
+    # Two peripherals, two subscribers, one trigger. Neither knows the other exists,
     # so a DOF failure still leaves the art on the panel and vice versa - and a
-    # third device is a third subscriber rather than an edit here.
+    # third peripheral is a third subscriber rather than an edit here.
     events.subscribe(events.GAME_SELECTED, play_dof_effect)
     events.subscribe(events.GAME_SELECTED, show_realdmd_art)
     _registered = True

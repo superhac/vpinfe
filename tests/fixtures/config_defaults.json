@@ -53,8 +53,8 @@
   "libdmdutil": {
     "enabled": "false",
     "pin2dmd_enabled": "false",
-    "pixelcade_device": "",
-    "zedmd_device": "",
+    "pixelcade_serial_port": "",
+    "zedmd_serial_port": "",
     "zedmd_wifi_address": ""
   },
   "logger": {

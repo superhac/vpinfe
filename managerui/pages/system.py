@@ -67,7 +67,7 @@ def _get_system_metrics(include_gpu: bool = False) -> dict:
         "gpu_error": None,
         "gpu_name": None,
         "gpu_percent": None,
-        "gpu_devices": [],
+        "gpus": [],
     }
 
     if psutil is not None:
@@ -90,7 +90,7 @@ def _get_nvtop_metrics() -> dict:
         "gpu_error": None,
         "gpu_name": None,
         "gpu_percent": None,
-        "gpu_devices": [],
+        "gpus": [],
     }
 
     nvtop_path = shutil.which("nvtop")
@@ -129,41 +129,42 @@ def _get_nvtop_metrics() -> dict:
 def _parse_nvtop_output(output: str, empty_metrics: dict) -> dict:
     metrics = empty_metrics.copy()
     try:
-        devices = json.loads(output)
+        gpus = json.loads(output)
     except json.JSONDecodeError as exc:
         metrics["gpu_error"] = f"Could not parse nvtop output: {exc}"
         return metrics
 
-    if not isinstance(devices, list) or not devices:
-        metrics["gpu_error"] = "nvtop did not report any GPU devices."
+    if not isinstance(gpus, list) or not gpus:
+        metrics["gpu_error"] = "nvtop did not report any GPUs."
         return metrics
 
-    parsed_devices = []
-    for index, device in enumerate(devices, start=1):
-        if not isinstance(device, dict):
+    parsed_gpus = []
+    for index, gpu in enumerate(gpus, start=1):
+        if not isinstance(gpu, dict):
             continue
-        parsed_devices.append(
+        parsed_gpus.append(
             {
                 "id": index,
-                "device_name": device.get("device_name") or f"GPU {index}",
-                "gpu_clock": device.get("gpu_clock"),
-                "mem_clock": device.get("mem_clock"),
-                "temp": device.get("temp"),
-                "fan_speed": device.get("fan_speed"),
-                "power_draw": device.get("power_draw"),
-                "gpu_util": device.get("gpu_util"),
-                "mem_util": device.get("mem_util"),
+                # device_name is nvtop's field; the key we store it under is ours.
+                "name": gpu.get("device_name") or f"GPU {index}",
+                "gpu_clock": gpu.get("gpu_clock"),
+                "mem_clock": gpu.get("mem_clock"),
+                "temp": gpu.get("temp"),
+                "fan_speed": gpu.get("fan_speed"),
+                "power_draw": gpu.get("power_draw"),
+                "gpu_util": gpu.get("gpu_util"),
+                "mem_util": gpu.get("mem_util"),
             }
         )
 
-    if not parsed_devices:
-        metrics["gpu_error"] = "nvtop returned no usable GPU devices."
+    if not parsed_gpus:
+        metrics["gpu_error"] = "nvtop returned no usable GPUs."
         return metrics
 
-    primary = parsed_devices[0]
-    metrics["gpu_name"] = primary["device_name"]
+    primary = parsed_gpus[0]
+    metrics["gpu_name"] = primary["name"]
     metrics["gpu_percent"] = _parse_percent_value(primary.get("gpu_util"))
-    metrics["gpu_devices"] = parsed_devices
+    metrics["gpus"] = parsed_gpus
     metrics["gpu_available"] = True
     return metrics
 
@@ -447,21 +448,21 @@ def render_panel(tab=None):
                         gpu_parts = []
                         if metrics["gpu_name"]:
                             gpu_parts.append(metrics["gpu_name"])
-                        if len(metrics["gpu_devices"]) > 1:
-                            gpu_parts.append(f"{len(metrics['gpu_devices'])} GPUs detected")
-                        primary = metrics["gpu_devices"][0]
+                        if len(metrics["gpus"]) > 1:
+                            gpu_parts.append(f"{len(metrics['gpus'])} GPUs detected")
+                        primary = metrics["gpus"][0]
                         for field in ("temp", "power_draw", "gpu_clock", "mem_clock"):
                             value = primary.get(field)
                             if value:
                                 gpu_parts.append(f"{_GPU_FIELD_LABELS[field]} {value}")
                         gpu_detail.set_text(", ".join(gpu_parts) or "GPU metrics detected.")
 
-                        gpu_blocks_label.set_text("Per-device GPU metrics")
+                        gpu_blocks_label.set_text("Per-GPU metrics")
                         gpu_blocks_container.clear()
                         with gpu_blocks_container:
-                            for device in metrics["gpu_devices"]:
+                            for gpu in metrics["gpus"]:
                                 with ui.column().classes("w-full gap-2"):
-                                    ui.label(device["device_name"]).classes("text-sm font-semibold text-slate-200")
+                                    ui.label(gpu["name"]).classes("text-sm font-semibold text-slate-200")
                                     with ui.row().classes("w-full gap-2 items-stretch flex-wrap"):
                                         for field in (
                                             "gpu_util",
@@ -472,7 +473,7 @@ def render_panel(tab=None):
                                             "gpu_clock",
                                             "mem_clock",
                                         ):
-                                            value = device.get(field)
+                                            value = gpu.get(field)
                                             if not value:
                                                 continue
                                             percent_value = _parse_percent_value(value) if field in {"gpu_util", "mem_util", "fan_speed"} else None
@@ -483,8 +484,8 @@ def render_panel(tab=None):
                                             with ui.column().classes(f"gpu-pill gpu-pill-{tone}").style("flex: 1 1 220px;"):
                                                 ui.label(_GPU_FIELD_LABELS[field]).classes(f"gpu-pill-label gpu-pill-label-{tone}")
                                                 ui.label(value).classes(value_classes)
-                        if not metrics["gpu_devices"]:
-                            gpu_blocks_label.set_text("No GPU device details were reported.")
+                        if not metrics["gpus"]:
+                            gpu_blocks_label.set_text("No GPU details were reported.")
 
                 host_label.set_text(f"Host: {metrics['hostname']}")
                 os_label.set_text(f"Operating system: {metrics['os_name']} {metrics['os_version']}")

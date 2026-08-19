@@ -2395,7 +2395,7 @@ class VPinFECore {
     this.#dispatchAction(action);
   }
 
-  // What an action does, whichever device produced it. One place, so the keyboard and
+  // What an action does, whichever input produced it. One place, so the keyboard and
   // the gamepad cannot drift apart again.
   #dispatchAction(action) {
     if (!this.isController() && action !== "select") return this.#triggerInputAction(action);
@@ -2643,7 +2643,7 @@ class VPinFECore {
  async #initKeyboardMapping() {
   // One call, one shape: every action and what is bound to it. The keyboard map and the
   // gamepad map used to arrive separately, with a table translating key* to joy* - which
-  // existed only because a stored value could not name its own device.
+  // existed only because a stored value could not name its own input.
   const bindings = await this.call("get_bindings") || {};
   const keys = {}, buttons = {};
   for (const [action, list] of Object.entries(bindings)) {
