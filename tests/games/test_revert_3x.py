@@ -257,6 +257,36 @@ class ConfigTests(RevertTestCase):
         self.assertIn("devices.json", result["config_removed"])
         self.assertIn("manager-ui-state.json", result["config_removed"])
 
+    def test_the_device_registry_is_copied_aside_before_it_goes(self):
+        """A vpx_mobile entry is entered by hand and nothing re-announces it, so the
+        reset is the one place it can be lost for good. The file still goes - 2.x does
+        not read it - but a copy stays behind, and that copy is not itself swept."""
+        self._migrate()
+        (self.config_dir / "devices.json").write_text(
+            json.dumps({"schema": 1, "devices": [
+                {"device_id": "Pppp444444", "kind": "vpx_mobile",
+                 "display_name": "iPhone", "address": "192.168.1.50", "port": 2112}]}),
+            encoding="utf-8")
+
+        result = self._reset()
+
+        self.assertIn("devices.json", result["config_removed"])
+        self.assertFalse((self.config_dir / "devices.json").exists())
+
+        kept = [p for p in self.config_dir.glob("devices.json.vpinfe-*")]
+        self.assertEqual(len(kept), 1, f"expected one copy, found {kept}")
+        self.assertEqual(sorted(result["config_kept"]), [kept[0].name])
+        saved = json.loads(kept[0].read_text(encoding="utf-8"))
+        self.assertEqual(saved["devices"][0]["address"], "192.168.1.50",
+                         "the phone is recoverable by hand")
+
+    def test_nothing_is_kept_when_there_is_no_registry(self):
+        self._migrate()
+
+        result = self._reset()
+
+        self.assertEqual(result["config_kept"], [])
+
     def test_a_half_written_temp_file_is_swept_up(self):
         self._migrate()
         (self.config_dir / ".vpinfe_write_abc.tmp").write_text("", encoding="utf-8")

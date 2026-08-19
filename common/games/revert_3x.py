@@ -17,7 +17,12 @@ from pathlib import Path
 from common.games.collection_store import COLLECTIONS_NAME, COLLECTIONS_NAME_INI
 from common.games.info_file import ASSETS_KEY, VPINFE_SECTION
 from common.games.info_maintenance import game_dirs, restore_library
-from common.games.info_migration import backup_names, needs_migration, restorable_backup
+from common.games.info_migration import (
+    backup_names,
+    copy_aside,
+    needs_migration,
+    restorable_backup,
+)
 from common.games.tables import TABLES_KEY
 from common.jobs import JobReporter
 
@@ -31,6 +36,13 @@ CONFIG_DIRS = ("theme_user_options",)
 # Whose `.vpinfe-*` copies are ours to remove. The ini pair is what the conversion to
 # JSON set aside; the JSON pair is what a restore keeps before it replaces one.
 BACKED_UP_NAMES = ("vpinfe.ini", "vpinfe.json", COLLECTIONS_NAME_INI, COLLECTIONS_NAME)
+
+# Copied aside before removal, and deliberately absent from BACKED_UP_NAMES so the copy
+# outlives the reset. Everything else here is regenerable or has a 2.x original to fall
+# back on; the device registry has neither once it holds a device that cannot announce
+# itself. A phone is entered by hand, nothing re-announces it, and the [mobile] import
+# that could have rebuilt one is marker-guarded and has already run.
+KEPT_BEFORE_REMOVAL = ("devices.json",)
 
 # What an atomic write leaves behind if it was killed between mkstemp and os.replace.
 WRITE_TEMP_PREFIX = ".vpinfe_write_"
@@ -89,7 +101,8 @@ def reset(game_root, config_dir, *, hub_port: int, config_only: bool = False,
 
     result = {
         "dry_run": dry_run, "config_only": config_only, "instance_running": live,
-        "config_removed": [], "restored": 0, "deleted_info": [], "removed_backups": 0,
+        "config_removed": [], "config_kept": [], "restored": 0, "deleted_info": [],
+        "removed_backups": 0,
         "failed": 0, "failures": [],
         # Never deleted, so this answer is the same before and after.
         "end_state": (RESTORED_FROM_2X if (config_dir / "vpinfe.ini").exists()
@@ -133,9 +146,32 @@ def _reset_config(config_dir: Path, result: dict, dry_run: bool) -> None:
     targets = _config_targets(config_dir)
     if dry_run:
         result["config_removed"] = sorted(path.name for path in targets)
+        result["config_kept"] = sorted(name for name in KEPT_BEFORE_REMOVAL
+                                       if (config_dir / name).exists())
         return
+    result["config_kept"] = _keep_aside(config_dir, result)
     result["config_removed"] = sorted(path.name for path in targets
                                       if _remove(path, result))
+
+
+def _keep_aside(config_dir: Path, result: dict) -> list[str]:
+    """Copy what cannot be rebuilt, before the removal that follows. Returns the copies.
+
+    A failure here is reported and does not stop the reset: the copy is a courtesy, and
+    refusing to reset because one could not be made would strand the user in the state
+    they are trying to leave.
+    """
+    kept = []
+    for name in KEPT_BEFORE_REMOVAL:
+        source = config_dir / name
+        if not source.exists():
+            continue
+        try:
+            kept.append(Path(copy_aside(source)).name)
+        except OSError as exc:
+            result["failed"] += 1
+            result["failures"].append((name, str(exc)))
+    return sorted(kept)
 
 
 def _library_plan(game_root) -> tuple[list[Path], list[Path]]:
@@ -223,6 +259,11 @@ def _summary(result: dict) -> list[str]:
     lines = [f"{'Would remove' if dry else 'Removed'} "
              f"{len(result['config_removed'])} item(s) from the config directory: "
              f"{', '.join(result['config_removed']) or 'nothing'}"]
+    if result["config_kept"]:
+        # Named, because a copy nobody is told about is one nobody restores from.
+        lines.append(
+            f"{'Would keep' if dry else 'Kept'} a copy of what cannot be rebuilt: "
+            f"{', '.join(result['config_kept'])}")
     if not result["config_only"]:
         lines.append(
             f"{'Would restore' if dry else 'Restored'} {result['restored']} .info "
