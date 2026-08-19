@@ -66,3 +66,12 @@ d41831b93acdfed5ff0cf8c4f931d15c09f58037  # config: the store is named for what 
 
 # Whitespace only - no line changed except its indentation
 b007dbc431994c0d68e9ef6e1e63bee4860b7766  # config: the last tab-indented file uses spaces
+
+# player is device, and player goes back to meaning a person - 2026-08-19
+a9e021054380af8712c888f1d889f494d5c3b705  # vocab: device is the machine you play on, and nothing else
+38e086b2245dc2f8b652fa3b8df96019e6f0ba88  # vocab: the names a device is known by outside this process
+9898798bdc20d0e292ef529861ce2514f0d8944c  # vocab: the modules a device is served by
+8508219c5a570b6a59fbcd5232763d8bba6eb9cb  # vocab: vpin.endpoints.player is vpin.endpoints.device
+ac97ee8dba37b6b04496a92d64d3da0da2f02b9b  # vocab: the identifiers, and the prose that reads with them
+e46b4f382c7ddb6f118965384908054f82d43d10  # vocab: the tests say device where they mean the machine
+9ba0f954ed51af43fa3f3108faa36d6468887a60  # docs: the written record says device too
