@@ -14,6 +14,9 @@ build and it changes how your library is stored — read the next section first.
   backed up the same way. Expect a burst of writes on first start and nothing after.
 - To undo it: the Tables page offers a restore when it finds backups, or run
   `--restore-info`.
+- `--reset-3x-state` keeps a copy of your device list before removing it, named in what it
+  reports. A phone you added by hand is not something any install re-announces, so it is the
+  one thing there that could not be rebuilt.
 - To take 3.0 back off entirely, `--reset-3x-state` removes the settings and collections
   files 3.0 wrote, the `.info` files it made and every backup it kept, so the next start
   migrates from scratch. Settings you changed under 3.0 are lost, and so is any rating or
@@ -94,6 +97,18 @@ build and it changes how your library is stored — read the next section first.
   whether a table's script drives PinMAME at all.
 - **Core, Manager UI** — Slow work runs in the background and reports progress on the event
   bus instead of blocking the page that started it.
+- **Manager UI** — A second interface, the Hub UI, at `/hub`. It is the hub's control
+  plane: one place for the library, media, devices and settings, with a table grid that
+  can draw art in a column instead of a tick, and a media map laid out like a pinball
+  machine so a game's coverage reads before any label does. Column layouts are kept on the
+  hub, so they follow you between machines. It ships beside the Manager UI, not instead of
+  it — the Manager UI is still the complete one, and parts of the Hub UI are unfinished.
+- **Core** — A hub keeps a list of the devices it serves. An install pointed at a hub with
+  `network.hub_url` announces itself on startup, and the hub records what it said and when
+  it last said it, so an event carrying an id turns into a name someone recognizes. A
+  device on your phone can be in that list too, added by hand — several of them, which the
+  single `[mobile]` address could never express. Your existing one is imported on the first
+  start.
 - **Manager UI** — The Tables page says when the library has been upgraded and where to undo
   it, and can upgrade or restore table info for the whole library in one pass.
 
@@ -106,6 +121,10 @@ These are deliberate. `docs/compatibility-3.0.md` has the full list with the rea
   than the one that started.
 - **Core** — Launches from the Remote page and the API count as plays now. Start count, last
   played, runtime and NVRAM score were only ever recorded for wheel launches.
+- **Core** — The two roles an install can serve are `hub` and `device`. If you set
+  `[install] roles` on a 3.0 preview build, change `player` to `device` — an unrecognised
+  role is ignored, so the install would report only the half it still recognises. Nothing
+  else reads it, and a config that never set it is unaffected.
 - **Core** — Tables whose folders are not all lowercase start reporting the PUP packs,
   colorizations, VNI and altsound they always had. The scan compared folder names exactly,
   so `PUPVideos` — the casing PinUP Popper itself writes — went undetected.
@@ -169,6 +188,15 @@ These are deliberate. `docs/compatibility-3.0.md` has the full list with the rea
   `page_down`. `page up` had no answer on a horizontal wheel and core gave two, so two
   themes shipped paging that ran backwards. A contract 1 theme still receives
   `joypageup`/`joypagedown`.
+- **Themes** — `vpin.endpoints.player` is `vpin.endpoints.device`, and the window url
+  carries `devicePort` rather than `playerPort`. It is the address of the machine a game
+  launches on — this one — as against `endpoints.hub`, which is where the library lives.
+  A theme that never read it is unaffected; one that did reads a different key and gets no
+  error if it does not, so it is worth checking.
+- **Core** — Breaking: `/api/v1/players` is `/api/v1/devices`, its scopes are
+  `devices:read` and `devices:write`, and a capability's residency says `device` where it
+  said `player`. A device is something a game can be launched on and played; a player is a
+  person, and every pinball machine ever built prints PLAYER 1 on its display.
 - **Core** — Breaking: the endpoints that predate `/api/v1` are removed, not aliased.
   `/api/remote-launch`, `/api/asset-upload/*` and `/api/download-table-vpxz` are gone and
   their replacements live under `/api/v1`.
