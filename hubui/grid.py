@@ -53,7 +53,8 @@ def column(field: str, header: str, width: int, **extra: Any) -> dict[str, Any]:
 def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
           on_select: Callable[[dict | None], None] | None = None,
           on_context: Callable[[dict | None], None] | None = None,
-          on_header_context: Callable[[str | None], None] | None = None) -> ui.aggrid:
+          on_header_context: Callable[[str | None], None] | None = None,
+          html_fields: list[str] | None = None) -> ui.aggrid:
     """A grid whose column arrangement is restored from, and saved to, the hub."""
     grid = ui.aggrid({
         "columnDefs": columns,
@@ -73,7 +74,9 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         # False deliberately: preventing the default here stops the event reaching
         # Quasar, and ui.context_menu never opens.
         "preventDefaultOnContextMenu": False,
-    }, theme="quartz",
+    }, html_columns=[i for i, d in enumerate(columns)
+                     if d["field"] in (html_fields or [])],
+        theme="quartz",
         # nicegui defaults this True, which fits columns to the grid width and so
         # overrides both the declared widths and any the user saved.
         auto_size_columns=False,

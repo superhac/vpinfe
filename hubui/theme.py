@@ -151,6 +151,28 @@ body::before {
 .q-menu .hub-menu-item:hover,
 .q-menu .hub-menu-item:hover .q-item__label { color: #00d9ff; }
 
+/* Tiles are deliberately plain: the art is the content, so the chrome around it stays
+   quiet enough that an outlier stands out rather than the frame. */
+.hub-tile { cursor: pointer; padding: 4px; border-radius: 8px; }
+.hub-tile:hover { background: #2a1a4a; }
+.hub-tile-art {
+  width: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #140a2b;
+  border: 1px solid #2b1a4d;
+}
+.hub-tile-missing { border-style: dashed; }
+.hub-tile-label {
+  font-size: 10px;
+  color: #7fc9dd;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
 .hub-panel {
   background: #1a0f35;
   border: 1px solid #3d2461;
@@ -314,9 +336,98 @@ body::before {
 
 def apply_flair() -> None:
     ui.add_css(_FLAIR)
+    ui.add_css(_COMPONENTS)
 
 
 def apply_colors(dark: bool) -> None:
     """Swap the palette. The page owns the single ui.dark_mode element and passes its
     value in - creating one per call leaves several fighting over the same body class."""
     ui.colors(**(DARK if dark else LIGHT))
+
+
+# Components added with the section build-out. Kept apart from _FLAIR so the palette
+# work and the component work stay legible as two things.
+_COMPONENTS = """
+/* --- media map ------------------------------------------------------------------ */
+.hub-mediatile {
+  flex: 1 1 0;
+  min-width: 0;
+  border: 1px solid #2b1a4d;
+  border-radius: 6px;
+  background: rgba(10, 5, 24, 0.55);
+  padding: 3px;
+}
+/* Present is stated with a colour, missing with the absence of one. A library is mostly
+   gaps, so making the gap loud would make the panel unreadable. */
+.hub-mediatile--present { border-color: rgba(0, 217, 255, 0.55); }
+.hub-mediatile--borrowed { border-color: rgba(255, 176, 32, 0.65); }
+.hub-mediatile--missing { border-style: dashed; opacity: 0.55; }
+.hub-mediatile--on { box-shadow: 0 0 0 2px #b429f9; border-color: #b429f9; }
+.hub-mediatile-art {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #06030f;
+}
+.hub-mediatile-art img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.hub-mediatile-cap {
+  display: block;
+  font-size: 10px;
+  line-height: 1.3;
+  text-align: center;
+  color: #cbb8ea;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hub-mediatile-group {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #7d6ba3;
+  padding: 6px 0 2px;
+}
+.hub-mediatile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+}
+
+/* --- section chrome -------------------------------------------------------------- */
+.hub-crumb { color: #cbb8ea; font-size: 13px; }
+.hub-crumb b { color: #eef9ff; font-weight: 600; }
+.hub-card {
+  border: 1px solid #2b1a4d;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(26,15,53,0.75) 0%, rgba(15,7,34,0.75) 100%);
+  padding: 14px 16px;
+}
+.hub-card-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #00d9ff;
+}
+.hub-kpi { font-size: 30px; font-weight: 700; color: #eef9ff; line-height: 1.1; }
+/* The explanation under a control, not a tooltip on it. This is the whole legibility
+   argument for the settings pages, so it gets a class rather than ad-hoc utilities. */
+.hub-help { font-size: 11px; color: #9b8bbd; line-height: 1.4; max-width: 62ch; }
+.hub-setting { font-size: 13px; color: #eef9ff; font-weight: 600; }
+.hub-group {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #7d6ba3;
+  padding: 10px 8px 4px;
+}
+.hub-index-item { border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 13px;
+                  color: #cbb8ea; }
+.hub-index-item:hover { background: rgba(180, 41, 249, 0.14); }
+.hub-index-item.hub-index-on { background: rgba(180, 41, 249, 0.28); color: #eef9ff; }
+.hub-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); }
+.hub-bar > div { height: 100%; border-radius: 3px; background: #00d9ff; }
+"""

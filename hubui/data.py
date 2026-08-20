@@ -24,6 +24,13 @@ FALLBACK_GLYPH = "\u25cc"
 TIER_LEGEND = "\u25cf table  \u25d0 game  \u25cb default  \u25c8 set  \u25cc borrowed"
 
 
+def _thumb(game_id: str, kind: str, entry: dict) -> str:
+    if not entry.get("present"):
+        return ""
+    return (f'<img src="/api/v1/games/{game_id}/media/{kind}" loading="lazy" '
+            f'style="height:52px;max-width:100%;object-fit:contain">')
+
+
 def _glyph(entry: dict) -> str:
     if not entry.get("present"):
         return ""
@@ -109,7 +116,11 @@ class Library:
                 # One field per kind, so media reads as columns over game rows. Blank
                 # rather than a cross when absent: a sparse matrix stays scannable,
                 # a full one does not.
-                **{f"media_{kind}": _glyph(entry)
+                **{f"media_{kind}": _glyph(entry) for kind, entry in entries.items()},
+                # The same cell, drawn as a picture. Both live on the row so switching
+                # renderer is a redraw rather than a reload - which is the whole point
+                # of separating what a field holds from how it is shown.
+                **{f"thumb_{kind}": _thumb(game_id, kind, entry)
                    for kind, entry in entries.items()},
             })
         return rows

@@ -44,6 +44,31 @@ def _two_line(header: str) -> str:
     return header if len(words) < 2 else " ".join(words[:-1]) + "\n" + words[-1]
 
 
+# A renderer is a way of drawing a field, chosen per column. Two here, hardcoded, to
+# see whether the idea earns a registry: the same media field as a mark or as a picture.
+RENDERERS = ("Ticks", "Thumbnails")
+
+# What one row is. A section owns a subject and a view is a preset of columns over it -
+# which is why this is a separate control from the view toggle rather than four more
+# entries in it. Only `game` is built; the rest declare themselves so the shape of the
+# idea is visible before the work is done.
+SUBJECTS = {
+    "game": "Games",
+    "table": "Tables",
+    "media_file": "Media files",
+    "vps": "VPS entries",
+}
+
+SUBJECT_STUBS = {
+    "table": "One row per .vpx file. The 15 games here that carry more than one table "
+             "collapse to a single row in Games and cannot be told apart there.",
+    "media_file": "One row per file on disk, with the game it resolved to and the tier "
+                  "it resolved at. This is where an orphaned file becomes visible.",
+    "vps": "One row per Virtual Pinball Spreadsheet entry, joined against this library, "
+           "so the footer can say how many are installed and how many are unmatched.",
+}
+
+
 def media_columns(kinds: list[str]) -> list[dict[str, Any]]:
     """One width for every kind, set by the widest line any of them needs.
 
@@ -98,16 +123,31 @@ async def _launch(games: list[dict[str, Any]]) -> None:
 
 
 def build(rows: list[dict[str, Any]], kinds: list[str],
-          on_select: Callable[[dict | None], None]) -> None:
+          on_select: Callable[[dict | None], None],
+          state: dict[str, Any] | None = None,
+          rerender: Callable[[], None] | None = None) -> None:
+    state = state if state is not None else {}
+    subject = state.get("subject", "game")
+    if subject != "game":
+        # Stop before the grid, not after it. A toolbar of controls acting on a table
+        # that is not there is worse than an empty page.
+        with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
+                              "hub-panel"):
+            _subject_select(state, rerender, subject)
+        _subject_stub(subject)
+        return
     columns = COLUMNS + media_columns(kinds)
     all_fields = [definition["field"] for definition in columns]
     selected: list[dict[str, Any]] = []
     context_row: list[dict[str, Any]] = []
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
+        _subject_select(state, rerender, subject)
         search = ui.input(placeholder="Search games") \
             .props("dense outlined clearable").classes("w-64")
         lens = ui.toggle(list(LENSES), value="Metadata").props("dense no-caps unelevated")
+        cells = ui.toggle(list(RENDERERS), value="Ticks").props("dense no-caps unelevated")
+        cells.bind_visibility_from(lens, "value", lambda value: value == "Media")
         columns_btn = ui.button(icon="view_column").props("flat round dense") \
             .tooltip("Choose columns")
         columns_menu = ui.menu()
@@ -194,7 +234,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str],
     # block it collapsed to its content height and the grid inside it never filled.
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
         table = grid.build(columns, rows, SCOPE, on_select_rows, on_context,
-                           on_header_context)
+                           on_header_context,
+                           html_fields=[f"media_{k}" for k in kinds])
         context_menu = ui.context_menu()
 
     def apply_lens() -> None:
@@ -232,6 +273,42 @@ def build(rows: list[dict[str, Any]], kinds: list[str],
 
     columns_btn.on_click(open_columns)
 
+    def apply_renderer() -> None:
+        """Redraw the media cells as marks or as pictures.
+
+        The field is the same either way; only its presentation changes. Rows carry
+        both, so this is a redraw - no refetch, and filters and sort survive it.
+        """
+        thumbs = cells.value == "Thumbnails"
+        for row, source in zip(table.options["rowData"], rows, strict=True):
+            for kind in kinds:
+                row[f"media_{kind}"] = source[f"thumb_{kind}" if thumbs else f"media_{kind}"]
+        table.run_grid_method("setGridOption", "rowHeight", 60 if thumbs else 42)
+        table.update()
+        table.run_grid_method("redrawRows")
+
+    cells.on_value_change(apply_renderer)
     lens.on_value_change(apply_lens)
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText", search.value or ""))
+
+
+def _subject_stub(subject: str) -> None:
+    with ui.column().classes("w-full items-start gap-2 p-6"):
+        ui.label(SUBJECTS.get(subject, subject)).classes("hub-card-title")
+        ui.label(SUBJECT_STUBS.get(subject, "")).classes("hub-help")
+        ui.label("Not built. The grid, the views and the details pane are the same "
+                 "machinery - what a new subject needs is a field registry entry and a "
+                 "reader, not a new page.").classes("hub-help mt-2 opacity-70")
+
+
+def _subject_select(state: dict[str, Any], rerender: Callable[[], None] | None,
+                    subject: str) -> None:
+    def pick(value: str) -> None:
+        state["subject"] = value
+        if rerender is not None:
+            rerender()
+
+    ui.select(SUBJECTS, value=subject, label="Show",
+              on_change=lambda e: pick(e.value)) \
+        .props("dense outlined").classes("w-40")
