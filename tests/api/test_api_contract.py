@@ -251,6 +251,19 @@ class ApiContractTests(unittest.TestCase):
         self.assertIn("playfield_video", media)
         self.assertIn("audio", media)
 
+    def test_media_says_which_tier_served_each_kind(self) -> None:
+        """`via` answers "why this file", which a client cannot work out from the name.
+        A wheel borrowed from a fallback and a dedicated one look identical without it,
+        and the value reaches a screen, so the vocabulary is part of the contract."""
+        media = self.probe["media_list"]["json"]["media"]
+
+        self.assertEqual(media["wheel"]["via"], "default", "the fixed-name slot")
+        self.assertEqual(media["backglass"]["via"], "default")
+        self.assertIsNone(media["flyer"]["via"], "nothing served it, so no tier")
+        for kind, entry in media.items():
+            if entry["present"]:
+                self.assertIsNotNone(entry["via"], f"{kind} is present but says no tier")
+
     def test_a_media_file_is_streamed_with_its_content_type(self) -> None:
         entry = self.probe["media_wheel"]
 

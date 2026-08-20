@@ -12,7 +12,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from common.games.media_service import replace_media_file, source_media_path
-from common.media_specs import MEDIA_SPECS, resolve_media_files
+from common.media_specs import MEDIA_SPECS, resolve_media_entries, resolve_media_files
 
 FOLDER = "Cactus Canyon (Bally 1998)"
 TABLE = "Cactus Canyon (Bally 1998) - VPW 1.2"
@@ -459,3 +459,57 @@ class ParserOrderTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReportedTierTests(unittest.TestCase):
+    """`resolve_media_entries` answers "why this file", which the paths half throws away.
+
+    The consumer is a person looking at a game and asking why the art is what it is - a
+    wheel borrowed from the logo looks identical to a dedicated one until the tier says
+    otherwise. Each tier is asserted by the name it reports, because those strings reach
+    a screen.
+    """
+
+    def _entries(self, medias, root=(), stem=TABLE, active=None):
+        return resolve_media_entries(f"/games/{FOLDER}", set(root), set(medias),
+                                     "table", stem,
+                                     {"wheel": active} if active else None)
+
+    def test_a_file_named_for_the_table_reports_table(self) -> None:
+        hit = self._entries([f"(Wheel) {TABLE}.png", f"(Wheel) {FOLDER}.png",
+                             "wheel.png"])["wheel"]
+
+        self.assertEqual(hit.tier, "table")
+        self.assertEqual(hit.path.name, f"(Wheel) {TABLE}.png")
+
+    def test_a_file_named_for_the_folder_reports_game(self) -> None:
+        hit = self._entries([f"(Wheel) {FOLDER}.png", "wheel.png"])["wheel"]
+
+        self.assertEqual(hit.tier, "game")
+
+    def test_the_fixed_name_reports_default(self) -> None:
+        hit = self._entries(["wheel.png"])["wheel"]
+
+        self.assertEqual(hit.tier, "default")
+
+    def test_a_set_reports_which_set_served_it(self) -> None:
+        """Named, not just "set": several sets can be installed and which one is active
+        is the thing someone is checking."""
+        hit = self._entries(["wheel.png", "wheels/tarcisio/wheel.png"],
+                            active="tarcisio")["wheel"]
+
+        self.assertEqual(hit.tier, "set:tarcisio")
+
+    def test_a_kind_with_nothing_reports_no_tier(self) -> None:
+        hit = self._entries([])["wheel"]
+
+        self.assertEqual((hit.path, hit.tier), (None, None))
+
+    def test_the_paths_half_returns_the_same_winners(self) -> None:
+        """resolve_media_files is defined as the paths of these, so a divergence would
+        mean two resolvers - which is the thing that made this one file."""
+        medias = [f"(Wheel) {TABLE}.png", f"(Backglass) {FOLDER}.png", "dmd.png"]
+        entries = self._entries(medias)
+        paths = _resolve(medias)
+
+        self.assertEqual({k: v.path for k, v in entries.items()}, paths)
