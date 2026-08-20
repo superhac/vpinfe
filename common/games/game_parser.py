@@ -25,7 +25,7 @@ from common.games.tables import (
     table_entries,
     table_names,
 )
-from common.media_specs import apply_media_specs
+from common.media_specs import apply_media_specs, resolve_media_by_table
 
 # Below this many folders the pool costs more than it saves.
 _PARALLEL_SCAN_THRESHOLD = 12
@@ -264,6 +264,13 @@ class GameParser:
                 medias_contents = set()
         apply_media_specs(Game, game_contents, medias_contents, self.playfieldvariant,
                           table_stem, self.active_sets or None)
+        # And again per table, off the same two listings. The walk is what costs; a
+        # second resolution is set lookups, so a folder with one table pays almost
+        # nothing and one with three answers honestly for all three.
+        Game.media_by_table = resolve_media_by_table(
+            Game.fullPathGame, game_contents, medias_contents,
+            table_names(game_contents), self.playfieldvariant,
+            self.active_sets or None)
 
     def loadMetaData(self, Game):
         meta_path = Path(Game.fullPathGame) / f"{Game.gameDirName}.info"

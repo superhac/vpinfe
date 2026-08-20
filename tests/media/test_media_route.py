@@ -60,9 +60,8 @@ class LookupTests(TempTree):
 
 
 class PerTableResolutionTests(TempTree):
-    """Tier 1 keys off the table that launches, but the scan only ever runs it for the
-    default table. Pinned so the gap is visible rather than folklore - the URL is already
-    addressed by table, so closing this does not move anything a theme built."""
+    """Tier 1 keys off the table, and the scan runs it for every .vpx in the folder. The
+    URL was already addressed by table, so closing this moved nothing a theme built."""
 
     def setUp(self) -> None:
         super().setUp()
@@ -76,17 +75,16 @@ class PerTableResolutionTests(TempTree):
             medias={"(Wheel) Other.png": b"\x89PNG other wheel"})
         self.games = GameParser(str(self.root)).getAllGames()
 
-    def test_both_tables_answer_with_the_default_tables_media(self) -> None:
-        first = media_lookup.media_path(self.games, "t1", "wheel")
-        second = media_lookup.media_path(self.games, "t2", "wheel")
+    def test_the_table_the_file_is_named_for_gets_it(self) -> None:
+        found = media_lookup.media_path(self.games, "t2", "wheel")
 
-        self.assertEqual(first, second,
-                         "one resolution per game today, so both tables see the same art")
+        self.assertIsNotNone(found)
+        self.assertEqual(found.name, "(Wheel) Other.png")
 
-    def test_a_tier_one_file_for_a_non_default_table_is_not_found(self) -> None:
-        """The scan resolves against the default table's stem, so this file - which the
-        precedence chain says should win for t2 - resolves nowhere."""
-        self.assertIsNone(media_lookup.media_path(self.games, "t2", "wheel"))
+    def test_the_other_table_does_not_borrow_it(self) -> None:
+        """Nothing resolves a wheel for Default at any tier, and a tier-1 file named for
+        its sibling is not a fallback - it is that sibling's art."""
+        self.assertIsNone(media_lookup.media_path(self.games, "t1", "wheel"))
 
 
 class UnparsedGameTests(TempTree):

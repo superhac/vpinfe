@@ -47,6 +47,13 @@ class Game:
     RuleSheetPath: str | None = None
     LogoImagePath: str | None = None
 
+    # The same resolution, run once per .vpx in the folder: {filename: {kind: path}}.
+    # The attributes above answer for the default table only, which is all a contract 1
+    # theme can ask about; this is what lets /media/<table id>/<kind> answer for the
+    # table it was actually addressed with. Keyed by filename because ids are backfilled
+    # after the scan.
+    media_by_table: dict[str, dict[str, str]] | None = None
+
     meta_config: dict[str, Any] | None = None
 
     # Read during the scan, which already has both. info_restorable means a backup this

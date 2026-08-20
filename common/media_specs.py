@@ -13,6 +13,7 @@ a kind is what contract 2 hands a theme; the path is ours and stays here.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
@@ -475,6 +476,34 @@ def resolve_media_entries(game_dir: str | Path, game_contents: set[str],
                 resolved[spec.kind] = MediaHit(borrowed.path,
                                                f"{TIER_FALLBACK}:{spec.fallback_kind}")
     return resolved
+
+
+def resolve_media_by_table(game_dir: str | Path, game_contents: set[str],
+                           medias_contents: set[str],
+                           table_filenames: Iterable[str],
+                           playfield_variant: str = "table",
+                           active_sets: dict[str, str] | None = None
+                           ) -> dict[str, dict[str, str]]:
+    """Every table in the folder, and the file each kind resolves to for it.
+
+    Keyed by lowercased filename, not by table id: ids are backfilled after the scan,
+    so during it the filename is the only handle a table has. The caller supplies the
+    names rather than this module filtering for them, which keeps media_specs free of
+    any dependency on the games package.
+
+    Only the kinds that resolved are recorded - a folder is mostly gaps, and storing
+    every miss for every table is a lot of None to carry around a library.
+    """
+    return {
+        name.lower(): {
+            kind: str(path)
+            for kind, path in resolve_media_files(
+                game_dir, game_contents, medias_contents, playfield_variant,
+                Path(name).stem, active_sets).items()
+            if path is not None
+        }
+        for name in table_filenames
+    }
 
 
 def apply_media_specs(game, game_contents: set[str], medias_contents: set[str],
