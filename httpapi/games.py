@@ -16,7 +16,7 @@ from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
 from common.config_access import MediaConfig
-from common.games import asset_resolver, game_identity
+from common.games import asset_resolver, game_identity, media_lookup
 from common.games.game_metadata import set_game_rating, vpinfe_section
 from common.games.game_repository import (
     all_games,
@@ -293,12 +293,6 @@ def get_games(game_id: str) -> models.TableList:
     return {"tables": _tables(game, game_to_row(game))}
 
 
-def _default_stem(game) -> str | None:
-    """The stem of the build that launches - tier 1 of media resolution."""
-    vpx = str(getattr(game, "fullPathVPXfile", "") or "")
-    return Path(vpx).stem if vpx else None
-
-
 def _resolved_media(game_dir: Path, table_stem: str | None = None) -> dict:
     """Every media kind against the folder as it is right now."""
     import os
@@ -324,15 +318,29 @@ def _resolved_media(game_dir: Path, table_stem: str | None = None) -> dict:
                                  table_stem, active_sets)
 
 
-@router.get("/{game_id}/media", summary="A table's media",
+def _table_stem_or_404(game, table_id: str) -> str:
+    """The stem to resolve against, or 404 if that table is not this game's."""
+    filename = media_lookup.table_filename(game, table_id)
+    if not filename:
+        raise NotFoundError("This game has no such table",
+                            details={"game": getattr(game, "gameDirName", ""),
+                                     "table": table_id})
+    return Path(filename).stem
+
+
+@router.get("/{game_id}/media", summary="A game's shared media",
             dependencies=[requires(scopes.GAMES_READ)])
 def get_game_media(game_id: str) -> models.MediaList:
     """Media is the artwork shown about a game - every kind, present or not,
-    so a client can enumerate what is possible instead of guessing."""
+    so a client can enumerate what is possible instead of guessing.
+
+    Resolved with no table stem, so this is what every table in the folder shares.
+    Art named for one build belongs to that build and answers under its table.
+    """
     game = _game_or_404(game_id)
     game_dir = Path(getattr(game, "fullPathGame", "") or "")
     prefix = f"/api/v1/games/{game_id}/media"
-    resolved = _resolved_media(game_dir, _default_stem(game))
+    resolved = _resolved_media(game_dir, None)
     return {"media": {
         key: {
             "present": hit.path is not None,
@@ -348,20 +356,54 @@ def get_game_media(game_id: str) -> models.MediaList:
     }}
 
 
-@router.get("/{game_id}/media/{kind}", summary="One media file",
-            dependencies=[requires(scopes.GAMES_READ)])
-def get_game_media_file(game_id: str, kind: str):
-    game = _game_or_404(game_id)
+def _media_file_or_404(game, kind: str, table_stem: str | None):
     known = {spec.kind for spec in MEDIA_SPECS}
     if kind not in known:
         raise InvalidRequestError("Unknown media kind",
                                   details={"unknown": kind, "known": sorted(known)})
     game_dir = Path(getattr(game, "fullPathGame", "") or "")
-    hit = _resolved_media(game_dir, _default_stem(game)).get(kind)
+    hit = _resolved_media(game_dir, table_stem).get(kind)
     path = hit.path if hit is not None else None
     if path is None or not path.is_file():
         raise NotFoundError(f"This game has no {kind} media")
     return FileResponse(path)
+
+
+@router.get("/{game_id}/media/{kind}", summary="One shared media file",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_game_media_file(game_id: str, kind: str):
+    return _media_file_or_404(_game_or_404(game_id), kind, None)
+
+
+@router.get("/{game_id}/tables/{table_id}/media", summary="One table's media",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_table_media(game_id: str, table_id: str) -> models.MediaList:
+    """The same kinds, resolved for one build rather than for the folder.
+
+    Two builds of a game can genuinely differ - a VR room and a desktop table are
+    not the same picture - so each answers for itself. `via: "table"` marks a file
+    named for this .vpx; anything else it shares with its siblings.
+    """
+    game = _game_or_404(game_id)
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+    prefix = f"/api/v1/games/{game_id}/tables/{table_id}/media"
+    resolved = _resolved_media(game_dir, _table_stem_or_404(game, table_id))
+    return {"media": {
+        key: {
+            "present": hit.path is not None,
+            "file": hit.path.name if hit.path is not None else None,
+            "via": hit.tier,
+            "links": {"self": f"{prefix}/{key}"} if hit.path is not None else {"self": None},
+        }
+        for key, hit in resolved.items()
+    }}
+
+
+@router.get("/{game_id}/tables/{table_id}/media/{kind}", summary="One table's media file",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_table_media_file(game_id: str, table_id: str, kind: str):
+    game = _game_or_404(game_id)
+    return _media_file_or_404(game, kind, _table_stem_or_404(game, table_id))
 
 
 @router.post("/{game_id}/launch", summary="Launch a game on this play host",
