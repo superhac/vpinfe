@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple
 
 # Extension families, ordered: resolution tries them in order and the first hit
 # wins. Aligned with what import accepts, so a file import writes is never
@@ -335,6 +336,42 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
                         active_sets: dict[str, str] | None = None) -> dict[str, Path | None]:
     """Canonical media kind -> the file that serves it, or None.
 
+    The paths half of resolve_media_entries, which is where the tiers are documented.
+    Kept because every caller but the API wants only the winner.
+    """
+    return {kind: hit.path for kind, hit
+            in resolve_media_entries(game_dir, game_contents, medias_contents,
+                                     playfield_variant, table_stem, active_sets).items()}
+
+
+class MediaHit(NamedTuple):
+    """The file serving a kind, and which tier it came from.
+
+    `tier` answers "why this file", which is a different question from "who put it
+    there" - that is origin, recorded per path in the .info assets ledger. A file named
+    for the folder can still have been downloaded, and a file in the fixed-name slot can
+    still be hand-placed, so neither answer implies the other.
+    """
+    path: Path | None
+    tier: str | None
+
+
+# What tier served a kind. Ordered most specific first, as the resolver tries them.
+TIER_TABLE = "table"        # "(Token) <table-stem>.ext" - this table's own
+TIER_SET = "set"            # from the kind's active set; reported as "set:<name>"
+TIER_GAME = "game"          # "(Token) <folder-name>.ext" - shared by the game's tables
+TIER_DEFAULT = "default"    # "wheel.png"-style fixed name; where vpinmediadb writes
+TIER_FALLBACK = "fallback"  # borrowed from fallback_kind; reported as "fallback:<kind>"
+
+
+def resolve_media_entries(game_dir: str | Path, game_contents: set[str],
+                          medias_contents: set[str],
+                          playfield_variant: str = "table",
+                          table_stem: str | None = None,
+                          active_sets: dict[str, str] | None = None
+                          ) -> dict[str, MediaHit]:
+    """Canonical media kind -> the file that serves it, or None.
+
     Three tiers, most specific wins, per kind:
 
       1. "(Token) <table-stem>.<ext>"      - this table's own media
@@ -372,18 +409,22 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
             return game_dir / hit
         return None
 
-    resolved: dict[str, Path | None] = {}
+    resolved: dict[str, MediaHit] = {}
     virtual_pending: dict[str, Path | None] = {}
     for spec in MEDIA_SPECS:
         # Tier outranks token preference: a table-specific alias still beats a
         # folder-level preferred token, or "most specific wins" would not hold.
         tokens = ((spec.token,) + spec.alt_tokens) if spec.token else ()
-        user_names: list[str] = []
+        # Tier 1 and tier 2 are built separately rather than as one list: merged, the
+        # winner's tier is unknowable, and "why is this file the one being used" is the
+        # question a curation view exists to answer.
+        table_names: list[str] = []
         if table_stem:
-            user_names += [f"{token} {table_stem}{ext}"
+            table_names = [f"{token} {table_stem}{ext}"
                            for token in tokens for ext in spec.family]
-        user_names += [f"{token} {folder_name}{ext}"
-                       for token in tokens for ext in spec.family]
+        folder_names = [f"{token} {folder_name}{ext}"
+                        for token in tokens for ext in spec.family]
+        user_names = table_names + folder_names
         fixed_stem = spec.stem(playfield_variant)
         fixed_names = [f"{fixed_stem}{ext}" for ext in spec.family]
 
@@ -396,24 +437,43 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
         first = lambda names: next(  # noqa: E731
             (path for name in names if (path := find(name)) is not None), None)
 
+        # first= is bound as a default because it is rebuilt each iteration; closing
+        # over the loop variable would make every kind use the last spec's finder.
+        def pick(names: list[str], tier: str, first=first) -> MediaHit | None:  # noqa: B006
+            hit = first(names)
+            return MediaHit(hit, tier) if hit is not None else None
+
         if active == "logo":
             # The reserved virtual set: prefer the logo kind between the user's
             # own files and the plain default. Logo resolves later in the spec
             # order, so finish this kind in the post-pass.
-            resolved[spec.kind] = first(user_names)
+            resolved[spec.kind] = (pick(table_names, TIER_TABLE)
+                                   or pick(folder_names, TIER_GAME)
+                                   or MediaHit(None, None))
             virtual_pending[spec.kind] = first(fixed_names)
         else:
-            resolved[spec.kind] = first(user_names) or first(set_names) or first(fixed_names)
+            resolved[spec.kind] = (pick(table_names, TIER_TABLE)
+                                   or pick(folder_names, TIER_GAME)
+                                   or pick(set_names, f"{TIER_SET}:{active}")
+                                   or pick(fixed_names, TIER_DEFAULT)
+                                   or MediaHit(None, None))
 
     for kind, fixed_hit in virtual_pending.items():
-        if resolved[kind] is None:
-            resolved[kind] = resolved.get("logo") or fixed_hit
+        if resolved[kind].path is None:
+            logo = resolved.get("logo")
+            if logo is not None and logo.path is not None:
+                resolved[kind] = MediaHit(logo.path, f"{TIER_SET}:logo")
+            elif fixed_hit is not None:
+                resolved[kind] = MediaHit(fixed_hit, TIER_DEFAULT)
 
     # Cross-kind fallbacks, after everything: a kind with no file of its own at
     # any tier borrows its fallback kind's winner.
     for spec in MEDIA_SPECS:
-        if spec.fallback_kind and resolved[spec.kind] is None:
-            resolved[spec.kind] = resolved.get(spec.fallback_kind)
+        if spec.fallback_kind and resolved[spec.kind].path is None:
+            borrowed = resolved.get(spec.fallback_kind)
+            if borrowed is not None and borrowed.path is not None:
+                resolved[spec.kind] = MediaHit(borrowed.path,
+                                               f"{TIER_FALLBACK}:{spec.fallback_kind}")
     return resolved
 
 
