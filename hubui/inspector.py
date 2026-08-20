@@ -6,6 +6,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from hubui import mediamap
 from hubui.data import Library
 
 
@@ -39,7 +40,16 @@ async def build(container: ui.column, title: ui.column, library: Library,
 
 
 
-        with ui.expansion("Identity", value=True).classes("w-full"):
+        media = library.media.get(game_id, {})
+        present, borrowed, total = mediamap.summary(media)
+        # First, not last. This is the question people actually have about a game, and
+        # the shape of the map answers it before any label is read.
+        label = f"Media ({present}/{total}"
+        label += f", {borrowed} borrowed)" if borrowed else ")"
+        with ui.expansion(label, value=True).classes("w-full"):
+            mediamap.build(media, game_id)
+
+        with ui.expansion("Identity").classes("w-full"):
             _rows(ui, {
                 "VPS id": game.get("vps_id") or "-",
                 "ROM": game.get("rom") or "-",
@@ -57,16 +67,6 @@ async def build(container: ui.column, title: ui.column, library: Library,
                     ui.label(table.get("filename") or "").classes("text-xs truncate")
                     ui.badge(table.get("app") or "?", color="secondary").props("outline")
 
-        media = library.media.get(game_id, {})
-        present = sum(1 for entry in media.values() if entry.get("present"))
-        with ui.expansion(f"Media ({present}/{len(media)})").classes("w-full"):
-            for kind, entry in media.items():
-                with ui.row().classes("items-center gap-2 w-full px-3"):
-                    ui.icon("check_circle" if entry.get("present") else "circle",
-                            size="16px").classes(
-                        "text-positive" if entry.get("present") else "opacity-30")
-                    ui.label(kind).classes("text-xs w-36")
-                    ui.label(entry.get("file") or "").classes("text-xs opacity-60 truncate")
 
 
 def _rows(target: Any, values: dict[str, str]) -> None:
