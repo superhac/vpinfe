@@ -6,7 +6,8 @@ from typing import Any
 
 from nicegui import run, ui
 
-from hubui import games, inspector, players, theme
+from hubui import games, inspector, players, sections, theme
+from hubui import settings as settings_page
 from hubui.api import HubClient
 from hubui.data import Library
 
@@ -21,15 +22,35 @@ DETAILS_MAX_PX = 760
 # One rail width for both panels - they collapse to the same thing.
 RAIL_PX = 57
 
+# Every entry is a place, not a thing. Jobs used to sit here and does not any more:
+# it is transient, it belongs in the header where it is visible from every page, and a
+# rail slot is too expensive for something that is empty most of the time. Logs moved
+# under Settings > Diagnostics with the rest of the troubleshooting surface, and Gallery
+# is gone - the media map in the details pane answers "what is missing here" and the
+# Media section answers "what is missing anywhere", which is what it was reaching for.
 NAV_ITEMS = (
+    ("overview", "Overview", "space_dashboard"),
     ("games", "Games", "sports_esports"),
     ("collections", "Collections", "collections_bookmark"),
-    ("jobs", "Jobs", "pending_actions"),
-    ("players", "Players", "devices"),
+    ("media", "Media", "perm_media"),
+    # Label only, ahead of the sweep: the decided word is `device`, and the
+    # identifiers follow when HANDOFF-2026-08-19-player-device lands on 3.0.
+    ("players", "Devices", "devices"),
     ("extensions", "Extensions", "extension"),
     ("settings", "Settings", "tune"),
-    ("logs", "Logs", "article"),
 )
+
+# Section title, and what one row is. The second half is the load-bearing part: a
+# section owns a subject, and a view is a preset of columns over it.
+SECTIONS = {
+    "overview": ("Overview", None),
+    "games": ("Games", "game"),
+    "collections": ("Collections", "collection"),
+    "media": ("Media", "media slot"),
+    "players": ("Devices", "device"),
+    "extensions": ("Extensions", "extension"),
+    "settings": ("Settings", None),
+}
 
 
 def _read_hub() -> dict[str, Any]:
@@ -86,8 +107,9 @@ async def hub_page() -> None:
     player_capabilities = loaded["player_capabilities"]
     local_capabilities = loaded["local_capabilities"]
 
-    state: dict[str, Any] = {"view": "games", "player": None,
-                             "mini": False, "details": True}
+    state: dict[str, Any] = {"view": "overview", "player": None, "mini": False,
+                             "details": True, "settings_page": "general",
+                             "subject": "game"}
 
     labels: list[ui.label] = []
     nav_rows: list[ui.row] = []
@@ -207,6 +229,10 @@ async def hub_page() -> None:
         content = ui.column().classes("w-full h-full gap-0 p-6")
 
     async def show_game(row: dict | None) -> None:
+        # A selection is the only thing that opens the pane. Arriving at a section does
+        # not, because there is nothing selected yet to be about.
+        if row:
+            show_details(True)
         await inspector.build(panel, details_title, library, (row or {}).get("id"))
 
     def open_player(player) -> None:
@@ -225,18 +251,59 @@ async def hub_page() -> None:
                 .classes("text-base hub-detail-title leading-tight truncate")
             ui.label("Select a game").classes("text-xs hub-detail-label leading-none truncate")
 
+    def crumb() -> None:
+        """Section and selection, in one line, at the top of the content pane.
+
+        It lives here rather than in an app header because each pane already owns its
+        own chrome in this shell, and adding a fourth band across the top would cost
+        height on every page to serve one line of text.
+        """
+        title, subject = SECTIONS.get(state["view"], (state["view"].title(), None))
+        # Games can be shown at more than one subject, so the crumb reads the live
+        # choice rather than the section's default - it is the sentence that tells the
+        # user what a row means, and it must not contradict the control above it.
+        if state["view"] == "games":
+            subject = games.SUBJECTS.get(state["subject"], subject).rstrip("s").lower()
+        with ui.row().classes("items-center gap-2 w-full no-wrap pb-3"):
+            with ui.row().classes("items-center gap-2 grow min-w-0"):
+                ui.html(f"<span class='hub-crumb'>VPinFE &nbsp;/&nbsp; <b>{title}</b></span>")
+                if subject:
+                    ui.label(f"one row is one {subject}").classes("hub-help")
+            # Jobs is a header affordance, always visible, never a destination. Empty is
+            # the normal state and it says so rather than showing a zero.
+            ui.button("No active jobs", icon="pending_actions") \
+                .props("flat dense no-caps size=sm").classes("shrink-0 opacity-70")
+
     def render() -> None:
         # A game shown beside a different destination is stale by definition.
         clear_details()
+        # ...and so is an open pane. Changing section collapses it: the pane is about
+        # the selection, the selection did not survive the move, and a pane left open
+        # describing nothing is worse than one the next click reopens.
+        if state.get("_last_view") != state["view"]:
+            state["_last_view"] = state["view"]
+            show_details(False)
         # The page you are on stays lit while you are on it.
         for key, row in destinations.items():
             row.classes(add="hub-nav-active") if key == state["view"] \
                 else row.classes(remove="hub-nav-active")
         content.clear()
         with content:
+            crumb()
             view = state["view"]
-            if view == "games":
-                games.build(library.game_rows(), library.kinds_present(), show_game)
+            if view == "overview":
+                sections.overview(library, roster, discovery, go)
+            elif view == "games":
+                games.build(library.game_rows(), library.kinds_present(), show_game,
+                            state, render)
+            elif view == "collections":
+                sections.collections(library)
+            elif view == "media":
+                sections.media(library, lambda gid: show_game({"id": gid}))
+            elif view == "extensions":
+                sections.extensions(roster)
+            elif view == "settings":
+                settings_page.build(state, render, go)
             elif view == "players":
                 if state["player"] is None:
                     players.build_roster(roster, open_player)
@@ -248,6 +315,10 @@ async def hub_page() -> None:
                                          discovery.get("install_id"), local_capabilities)
             else:
                 _placeholder(view)
+
+    def go(view: str) -> None:
+        state["view"] = view
+        render()
 
     await inspector.build(panel, details_title, library, None)
     render()
