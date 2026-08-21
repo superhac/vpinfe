@@ -424,6 +424,28 @@ _COMPONENTS = """
   color: #7d6ba3;
   padding: 10px 8px 4px;
 }
+/* The outline: a table of contents down the side of the workbench. Quiet, because
+   what it points at is the content - an open section is lit and the rest recede. */
+.hub-outline { border-right: 1px solid #1f1338; }
+/* The workbench measures itself, so the outline appears the moment the drag crosses
+   the width rather than when the mouse comes up. */
+.hub-workbench { container-type: inline-size; }
+@container (max-width: 519px) { .hub-outline { display: none; } }
+.hub-outline-item {
+  display: block;
+  font-size: 11px;
+  color: #cbb8ea;
+  padding: 4px 8px;
+  margin: 1px 4px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hub-outline-item:hover { background: rgba(180, 41, 249, 0.14); }
+.hub-outline-on { background: rgba(180, 41, 249, 0.28); color: #eef9ff; }
+
 .hub-index-item { border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 13px;
                   color: #cbb8ea; }
 .hub-index-item:hover { background: rgba(180, 41, 249, 0.14); }

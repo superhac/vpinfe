@@ -28,17 +28,29 @@ OWNERS = (("game", "This game"), ("table", "This table"), ("folder", "Whole fold
 # actually have about a game, and its shape answers before a label is read.
 DEFAULT_OPEN = frozenset({"media"})
 
+# Below this the outline costs more than it gives: 132px of it against a 320px
+# workbench leaves the map too narrow to read, and the section headers are already
+# a list of what is here. It earns its place once there is room for both.
+#
+# Enforced in CSS by a container query, not here. Quasar resizes the pane live while
+# you drag and only tells the server on release, so a server-side threshold changed
+# the layout a beat after you let go - which is exactly when you can no longer see
+# what you were aiming at.
+OUTLINE_FROM_PX = 520
+
 
 @dataclass(frozen=True)
 class Section:
     """One block in the panel: what it is called, whose it is, and how to draw it.
 
-    `label` takes the game's context because a heading that counts something has to
-    count this game's, and `build` is async because a section may need a fetch.
+    `name` is the fixed word the outline shows; `label` takes the game's context
+    because a heading that counts something has to count this game's. `build` is
+    async because a section may need a fetch.
     """
 
     key: str
     owner: str
+    name: str
     label: Callable[[dict[str, Any]], str]
     build: Callable[[dict[str, Any]], Any]
 
@@ -75,22 +87,66 @@ async def build(container: ui.column, title: ui.column, library: Library,
                    "tables": tables, "state": state}
 
         opened = open_sections(state)
+        entries: dict[str, ui.element] = {}
+        # The outline must not scroll with what it points at, so the row is the fixed
+        # frame and only the body column scrolls inside it.
+        with ui.row().classes("w-full grow min-h-0 no-wrap gap-0"):
+            _outline(entries, opened)
+            body = ui.column().classes("grow min-w-0 h-full overflow-auto gap-0 "
+                                       "hub-workbench-body")
+        with body:
+            for owner, heading in OWNERS:
+                mine = [section for section in SECTIONS if section.owner == owner]
+                if not mine:
+                    continue
+                ui.label(heading).classes("hub-group")
+                for section in mine:
+                    await _section(section, context, opened, entries)
+
+
+def _outline(entries: dict[str, ui.element], opened: set[str]) -> None:
+    """A table of contents, not a selector.
+
+    Clicking scrolls to a section and opens it rather than replacing what is shown -
+    which is what lets a left-hand nav and several-sections-open coexist. A selector
+    could only ever show one, and comparing across games needs more than one.
+    """
+    with ui.column().classes("shrink-0 h-full overflow-auto gap-0 pr-1 hub-outline") \
+            .style("width:132px"):
         for owner, heading in OWNERS:
             mine = [section for section in SECTIONS if section.owner == owner]
             if not mine:
                 continue
             ui.label(heading).classes("hub-group")
             for section in mine:
-                await _section(section, context, opened)
+                item = ui.label(section.name).classes("hub-outline-item")
+                if section.key in opened:
+                    item.classes(add="hub-outline-on")
+                item.on("click", lambda key=section.key: _reveal(key))
+                entries[section.key] = item
 
 
-async def _section(section: Section, context: dict[str, Any],
-                   opened: set[str]) -> None:
+def _reveal(key: str) -> None:
+    """Scroll a section into view. Opening it is the expansion's own doing."""
+    ui.run_javascript(
+        f"document.getElementById('wb-{key}')"
+        "?.scrollIntoView({behavior:'smooth', block:'start'})")
+
+
+async def _section(section: Section, context: dict[str, Any], opened: set[str],
+                   entries: dict[str, ui.element]) -> None:
     def remember(event: Any, key: str = section.key) -> None:
         opened.add(key) if event.value else opened.discard(key)
+        # The outline reflects the sections; it does not drive them. Whichever way a
+        # section was toggled, both places have to agree afterwards.
+        item = entries.get(key)
+        if item is not None:
+            item.classes(add="hub-outline-on") if event.value \
+                else item.classes(remove="hub-outline-on")
 
     with ui.expansion(section.label(context), value=section.key in opened,
-                      on_value_change=remember).classes("w-full"), \
+                      on_value_change=remember).classes("w-full") \
+            .props(f"id=wb-{section.key}"), \
             ui.column().classes("w-full gap-0"):
         await section.build(context)
 
@@ -189,7 +245,7 @@ def _rows(target: Any, values: dict[str, str]) -> None:
 
 
 SECTIONS: tuple[Section, ...] = (
-    Section("identity", "game", lambda _: "Identity", _identity_block),
-    Section("media", "table", _media_label, _media_block),
-    Section("tables", "folder", _tables_label, _tables_block),
+    Section("identity", "game", "Identity", lambda _: "Identity", _identity_block),
+    Section("media", "table", "Media", _media_label, _media_block),
+    Section("tables", "folder", "Tables", _tables_label, _tables_block),
 )
