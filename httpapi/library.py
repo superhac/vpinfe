@@ -93,3 +93,25 @@ def scan(response: Response,
 
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"
     return jobs_api.resource(job)
+
+
+@router.post("/refresh", summary="Find tables added or removed on disk", status_code=202,
+             dependencies=[requires(scopes.GAMES_WRITE)])
+def refresh(response: Response) -> models.JobResource:
+    """Accepted, not done. This is the local counterpart to a scan: it re-reads the
+    folders, gives every .vpx it finds an id, notes the ones that are gone, and reads
+    whatever nothing has read yet. It never touches the network.
+
+    Shares the scan's job kind deliberately - both write a .info for every game they
+    touch, so running them at once would interleave writes to the same files.
+    """
+    from common.games.library_refresh import refresh as run_refresh
+
+    try:
+        job = job_registry.submit(job_registry.KIND_LIBRARY_SCAN,
+                                  lambda job: run_refresh(job.reporter()))
+    except job_registry.JobBusyError as exc:
+        raise ConflictError(str(exc)) from exc
+
+    response.headers["Location"] = f"/api/v1/jobs/{job.id}"
+    return jobs_api.resource(job)
