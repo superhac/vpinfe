@@ -144,7 +144,8 @@ class GameParser:
         except OSError:
             logger.exception("Failed to enumerate game directory: %s", game_dir)
 
-        if not table_names(game_contents):
+        game.table_files = table_names(game_contents)
+        if not game.table_files:
             logger.warning("No .vpx found in %s directory.", game.gameDirName)
             return None
 

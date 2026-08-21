@@ -47,6 +47,11 @@ class Game:
     RuleSheetPath: str | None = None
     LogoImagePath: str | None = None
 
+    # Every .vpx the scan found in the folder. Recorded because discovery reconciles it
+    # against what the .info describes, and the listing is already in hand here - asking
+    # the disk a second time would be the expensive half of that job for nothing.
+    table_files: list[str] | None = None
+
     # The same resolution, run once per .vpx in the folder: {filename: {kind: path}}.
     # The attributes above answer for the default table only, which is all a contract 1
     # theme can ask about; this is what lets /media/<table id>/<kind> answer for the

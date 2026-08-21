@@ -231,9 +231,13 @@ shutdown.exit_if_requested(logger)
 try:
     from common.games.game_identity import ensure_unique_ids
     from common.games.game_repository import all_games
+    from common.games.library_discovery import discover
     from common.games.table_identity import ensure_unique_table_ids
     games = all_games()
     ensure_unique_ids(games)
+    # Before the minting pass, not after: discovery adds an entry for every .vpx the
+    # folder holds, and minting is what turns those into addressable tables.
+    discover(games)
     ensure_unique_table_ids(games)
 except Exception:
     logger.exception("Id backfill failed; games or tables without an id are not addressable")
