@@ -63,11 +63,25 @@ async def build(container: ui.column, title: ui.column, library: Library,
                 "Themes": ", ".join(game.get("themes") or []) or "-",
             })
 
-        with ui.expansion(f"Tables ({len(tables)})").classes("w-full"):
+        gone = [table for table in tables if table.get("absent_since")]
+        label = f"Tables ({len(tables)})"
+        if gone:
+            label += f" - {len(gone)} not on disk"
+        with ui.expansion(label).classes("w-full"):
             for table in tables:
                 with ui.row().classes("items-center gap-2 w-full px-3"):
-                    ui.label(table.get("filename") or "").classes("text-xs truncate")
-                    ui.badge(table.get("app") or "?", color="secondary").props("outline")
+                    name = ui.label(table.get("filename") or "").classes("text-xs truncate")
+                    since = str(table.get("absent_since") or "")
+                    if since:
+                        # Stated, not judged: how long it has been gone is what tells a
+                        # deletion from a share that was late mounting, and that call is
+                        # the user's to make.
+                        name.classes(add="opacity-60")
+                        ui.badge(f"gone since {since[:10]}", color="warning") \
+                            .props("outline")
+                    else:
+                        ui.badge(table.get("app") or "?", color="secondary") \
+                            .props("outline")
 
 
 

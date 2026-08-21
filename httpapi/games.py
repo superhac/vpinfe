@@ -16,7 +16,13 @@ from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
 from common.config_access import MediaConfig
-from common.games import asset_resolver, game_identity, media_lookup
+from common.games import (
+    asset_origin,
+    asset_resolver,
+    game_identity,
+    library_discovery,
+    media_lookup,
+)
 from common.games.game_metadata import set_game_rating, vpinfe_section
 from common.games.game_repository import (
     all_games,
@@ -210,6 +216,7 @@ def _tables(game, row: dict) -> list[dict]:
             "default": name == default,
             "hidden": name in hidden,
             "available": name in on_disk,
+            "absent_since": library_discovery.absent_since(described_entry) or None,
             "assets": asset_resolver.resolve_for_table(name, game_dir.name, files),
         }
         if is_parsed(described_entry):
@@ -318,6 +325,27 @@ def _resolved_media(game_dir: Path, table_stem: str | None = None) -> dict:
                                  table_stem, active_sets)
 
 
+def _media_entries(resolved: dict, game_dir: Path, prefix: str) -> dict:
+    """What a curator asks of a slot: does it resolve, how specific, and where from.
+
+    `via` is why this file is the one being used - "table", "game", "default",
+    "set:<name>" or "fallback:<kind>". `origin` is who put it there, which is a
+    different question with a different source: the .info ledger, read once per
+    request here rather than once per kind. Neither answer implies the other.
+    """
+    recorded = asset_origin.ledger(game_dir)
+    return {
+        key: {
+            "present": hit.path is not None,
+            "file": hit.path.name if hit.path is not None else None,
+            "via": hit.tier,
+            "origin": asset_origin.origin_of(recorded, game_dir, hit.path) or None,
+            "links": {"self": f"{prefix}/{key}"} if hit.path is not None else {"self": None},
+        }
+        for key, hit in resolved.items()
+    }
+
+
 def _table_stem_or_404(game, table_id: str) -> str:
     """The stem to resolve against, or 404 if that table is not this game's."""
     filename = media_lookup.table_filename(game, table_id)
@@ -340,20 +368,7 @@ def get_game_media(game_id: str) -> models.MediaList:
     game = _game_or_404(game_id)
     game_dir = Path(getattr(game, "fullPathGame", "") or "")
     prefix = f"/api/v1/games/{game_id}/media"
-    resolved = _resolved_media(game_dir, None)
-    return {"media": {
-        key: {
-            "present": hit.path is not None,
-            "file": hit.path.name if hit.path is not None else None,
-            # Which tier served this kind - "table", "game", "default", "set:<name>" or
-            # "fallback:<kind>". Says why this file is the one being used. It is not the
-            # same question as who put it there: that is origin, recorded per path in
-            # the .info assets ledger, and neither answer implies the other.
-            "via": hit.tier,
-            "links": {"self": f"{prefix}/{key}"} if hit.path is not None else {"self": None},
-        }
-        for key, hit in resolved.items()
-    }}
+    return {"media": _media_entries(_resolved_media(game_dir, None), game_dir, prefix)}
 
 
 def _media_file_or_404(game, kind: str, table_stem: str | None):
@@ -388,15 +403,7 @@ def get_table_media(game_id: str, table_id: str) -> models.MediaList:
     game_dir = Path(getattr(game, "fullPathGame", "") or "")
     prefix = f"/api/v1/games/{game_id}/tables/{table_id}/media"
     resolved = _resolved_media(game_dir, _table_stem_or_404(game, table_id))
-    return {"media": {
-        key: {
-            "present": hit.path is not None,
-            "file": hit.path.name if hit.path is not None else None,
-            "via": hit.tier,
-            "links": {"self": f"{prefix}/{key}"} if hit.path is not None else {"self": None},
-        }
-        for key, hit in resolved.items()
-    }}
+    return {"media": _media_entries(resolved, game_dir, prefix)}
 
 
 @router.get("/{game_id}/tables/{table_id}/media/{kind}", summary="One table's media file",

@@ -268,6 +268,10 @@ async def hub_page() -> None:
                 ui.html(f"<span class='hub-crumb'>VPinFE &nbsp;/&nbsp; <b>{title}</b></span>")
                 if subject:
                     ui.label(f"one row is one {subject}").classes("hub-help")
+            ui.button("Look for new tables", icon="refresh",
+                      on_click=_look_for_new_tables) \
+                .props("flat dense no-caps size=sm").classes("shrink-0") \
+                .tooltip("Re-read the game folders and pick up anything added or removed")
             # Jobs is a header affordance, always visible, never a destination. Empty is
             # the normal state and it says so rather than showing a zero.
             ui.button("No active jobs", icon="pending_actions") \
@@ -347,3 +351,14 @@ def _placeholder(view: str) -> None:
     with ui.column().classes("w-full items-center p-8 gap-2"):
         ui.icon("construction", size="32px").classes("opacity-40")
         ui.label(f"{view.title()} is not built yet").classes("text-sm opacity-60")
+
+
+async def _look_for_new_tables() -> None:
+    """Start a refresh and say so; watching it is the jobs affordance's job."""
+    try:
+        await run.io_bound(HubClient().refresh_library)
+    except Exception as exc:
+        # Already running is the ordinary case here, not a failure worth a trace.
+        ui.notify(f"Could not start: {exc}", type="warning")
+        return
+    ui.notify("Looking for tables added or removed", type="positive")

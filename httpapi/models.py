@@ -261,7 +261,8 @@ class Table(ApiModel):
     """A launchable artifact.
 
     `available` is false for a file the metadata records but which is not on disk -
-    worth reporting rather than hiding.
+    worth reporting rather than hiding. `absent_since` says how long that has been
+    true, which is the difference between a share that has not mounted and a deletion.
 
     `hidden` is the user's choice not to be offered this table in the frontend; the
     file stays on disk, because a patch base has to (the patched table cannot be
@@ -279,6 +280,7 @@ class Table(ApiModel):
     default: bool
     hidden: bool
     available: bool
+    absent_since: str | None = None
     assets: dict[str, ResolvedAsset]
     dependencies: Dependencies
 
@@ -412,12 +414,14 @@ class MediaEntryLinks(ApiModel):
 
 class MediaEntry(ApiModel):
     """Every kind is listed, present or not, so a client enumerates what is
-    possible instead of guessing from omissions. `via` names the kind whose file
-    is standing in - a wheel served by the logo fallback says so."""
+    possible instead of guessing from omissions. `via` says why this file is the one
+    being used; `origin` says who put it there, which nothing can derive from the
+    other - "unknown" is the honest answer for a file nobody recorded."""
 
     present: bool
     file: str | None
     via: str | None = None
+    origin: str | None = None
     links: MediaEntryLinks
 
 

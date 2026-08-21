@@ -99,6 +99,13 @@ class HubClient:
                                       json={}, timeout=_TIMEOUT)
         response.raise_for_status()
 
+    def refresh_library(self) -> dict:
+        """Ask the hub to look at the disk again. Returns the job to watch."""
+        _refuse_the_event_loop("/library/refresh")
+        response = self._session.post(f"{self._base}/library/refresh", timeout=_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+
     def devices(self) -> list[dict]:
         """Every device the hub knows, as the hub knows them.
 
