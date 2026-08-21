@@ -69,6 +69,15 @@ class HubClient:
             self._media[game_id] = self._get(f"/games/{game_id}/media").get("media", {})
         return self._media[game_id]
 
+    def table_media(self, game_id: str, table_id: str) -> dict:
+        """One build's answer, which differs from the game's only where it owns a file.
+
+        Not cached with the rest: this is asked for one game at a time, by someone
+        looking at it, rather than for the whole library on the way to a grid.
+        """
+        return self._get(
+            f"/games/{game_id}/tables/{table_id}/media").get("media", {})
+
     def preferences(self, scope: str) -> dict:
         return self._get(f"/preferences/{scope}").get("value", {})
 

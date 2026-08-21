@@ -93,7 +93,7 @@ def _state(entry: dict[str, Any]) -> str:
     return "borrowed" if via.startswith("fallback:") else "present"
 
 
-def _tile(game_id: str, kind: str, entry: dict[str, Any],
+def _tile(prefix: str, kind: str, entry: dict[str, Any],
           on_pick: Callable[[str], None] | None, selected: str | None) -> None:
     state = _state(entry)
     ratio = TILE_AR.get(kind, 1.6)
@@ -111,15 +111,19 @@ def _tile(game_id: str, kind: str, entry: dict[str, Any],
             elif glyph is not None:
                 ui.icon(glyph, size="18px").classes("text-primary opacity-80")
             else:
-                ui.html(f'<img src="/api/v1/games/{game_id}/media/{kind}" loading="lazy">')
+                ui.html(f'<img src="{prefix}/{kind}" loading="lazy">')
         ui.label(LABELS.get(kind, kind)).classes("hub-mediatile-cap")
     tile.tooltip(entry.get("file") or f"No {LABELS.get(kind, kind).lower()}")
 
 
-def build(entries: dict[str, dict[str, Any]], game_id: str,
+def build(entries: dict[str, dict[str, Any]], prefix: str,
           on_pick: Callable[[str], None] | None = None,
           selected: str | None = None) -> None:
-    """Draw the map for one game into the current container."""
+    """Draw the map into the current container.
+
+    `prefix` is where the art is fetched from, and it is what the lens changes: the
+    game's shared media, or one build's. The map itself does not care which.
+    """
     with ui.column().classes("w-full gap-1 px-2 pb-2").style("max-width:640px"):
         ui.label("Cabinet screens").classes("hub-mediatile-group")
         for row in CAB_STACK:
@@ -128,13 +132,13 @@ def build(entries: dict[str, dict[str, Any]], game_id: str,
                 continue
             with ui.row().classes("w-full gap-1 no-wrap items-end"):
                 for kind in kinds:
-                    _tile(game_id, kind, entries[kind], on_pick, selected)
+                    _tile(prefix, kind, entries[kind], on_pick, selected)
         extras = [kind for kind in EXTRAS if kind in entries]
         if extras:
             ui.label("Other assets").classes("hub-mediatile-group")
             with ui.element("div").classes("hub-mediatile-grid"):
                 for kind in extras:
-                    _tile(game_id, kind, entries[kind], on_pick, selected)
+                    _tile(prefix, kind, entries[kind], on_pick, selected)
 
 
 def summary(entries: dict[str, dict[str, Any]]) -> tuple[int, int, int]:

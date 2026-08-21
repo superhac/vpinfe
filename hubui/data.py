@@ -56,6 +56,7 @@ class Library:
         self._client = client
         self.games: list[dict[str, Any]] = []
         self.media: dict[str, dict[str, Any]] = {}
+        self.table_media: dict[tuple[str, str], dict[str, Any]] = {}
         self.tables: dict[str, list[dict[str, Any]]] = {}
 
     def load(self) -> None:
@@ -65,6 +66,19 @@ class Library:
             self.media[game["id"]] = self._client.media(game["id"])
         logger.info("hub ui: read %d games in %.2fs", len(self.games),
                     time.perf_counter() - started)
+
+    def media_for(self, game_id: str, table_id: str | None) -> dict[str, Any]:
+        """The shared media, or one build's. `None` is the game, which is already read.
+
+        Cached per build because the lens is a control someone flips back and forth,
+        and a folder holds a handful of tables at most.
+        """
+        if not table_id:
+            return self.media.get(game_id, {})
+        key = (game_id, table_id)
+        if key not in self.table_media:
+            self.table_media[key] = self._client.table_media(game_id, table_id)
+        return self.table_media[key]
 
     def tables_for(self, game_id: str) -> list[dict[str, Any]]:
         """Fetched when something asks, not with the library.
