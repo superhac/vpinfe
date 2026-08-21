@@ -242,6 +242,17 @@ try:
 except Exception:
     logger.exception("Id backfill failed; games or tables without an id are not addressable")
 
+# Reading those tables is the expensive half - a parse hashes the whole .vpx - so it
+# goes on a job and startup does not wait for it. Writes land on a background thread
+# while requests are served, which is safe because persist_game_meta rebinds
+# meta_config rather than mutating the dict a reader may be holding.
+try:
+    from common import jobs
+    from common.games.library_enrichment import enrich
+    jobs.submit(jobs.KIND_LIBRARY_SCAN, lambda job: enrich(games, job.reporter()))
+except Exception:
+    logger.exception("Could not start library enrichment; unread tables stay unread")
+
 shutdown.exit_if_requested(logger)
 
 # Collection membership moves onto game ids once the ids exist. Resolvable entries
