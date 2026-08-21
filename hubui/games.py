@@ -167,12 +167,19 @@ def build(rows: list[dict[str, Any]], kinds: list[str],
                              lambda: table.run_grid_method("deselectAll"))
         actions.set_visibility(False)
 
-    def on_select_rows(row: dict | None, rows_selected: list[dict[str, Any]]):
+    def on_select_rows(rows_selected: list[dict[str, Any]]):
         selected[:] = rows_selected
         actions.set_visibility(bool(rows_selected))
         count.text = (f"{len(rows_selected)} of {len(rows)} selected"
                       if rows_selected else f"{len(rows)} games")
-        return on_select(row)
+
+    by_id = {row["id"]: row for row in rows}
+
+    def focused(event) -> Any:
+        """The row the keyboard or a click landed on, which is what is being looked at."""
+        return on_select(by_id.get(str(event.args)))
+
+    ui.on("hub_row_focus", focused)
 
     def on_context(row: dict | None) -> None:
         # The row menu acts on the row under the cursor, which is not necessarily the

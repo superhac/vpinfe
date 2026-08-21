@@ -69,17 +69,15 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         ":getRowId": "params => params.data.id",
         # The checkbox belongs to the row, so it stays with the row's left edge.
         "selectionColumnDef": {"pinned": "left"},
-        # Arrow keys move the selection, not just the focus ring. AG Grid moves focus
-        # on its own and leaves the selection where it was, so stepping down a list
-        # with the keyboard changed nothing about what the workbench showed.
-        ":navigateToNextCell":
-            "params => { const n = params.nextCellPosition; if (n) { const r = "
-            "params.api.getDisplayedRowAtIndex(n.rowIndex); if (r) "
-            "r.setSelected(true, true); } return n; }",
+        # The workbench follows the focused row, and focus is not selection: arrowing
+        # must not disturb the checkboxes a bulk action reads.
+        ":onCellFocused":
+            "params => { const r = params.api.getDisplayedRowAtIndex(params.rowIndex); "
+            "if (r) emitEvent('hub_row_focus', r.data.id); }",
         "suppressDragLeaveHidesColumns": True,
         "animateRows": False,
-        # False deliberately: preventing the default here stops the event reaching
-        # Quasar, and ui.context_menu never opens.
+        # False deliberately: preventing the default stops the event reaching Quasar,
+        # and ui.context_menu never opens.
         "preventDefaultOnContextMenu": False,
     }, html_columns=[i for i, d in enumerate(columns)
                      if d["field"] in (html_fields or [])],
@@ -94,8 +92,8 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
     if on_select is not None:
         async def changed() -> None:
             rows = await grid.get_selected_rows()
-            # The workbench follows one row, the action menu wants them all.
-            result = on_select(rows[-1] if rows else None, rows)
+            # The count only; the focused row owns which game is on screen.
+            result = on_select(rows)
             if inspect.isawaitable(result):
                 await result
 
