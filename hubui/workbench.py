@@ -97,8 +97,8 @@ async def _section(section: Section, context: dict[str, Any],
 
 def _title(target: ui.column, name: str, subtitle: str) -> None:
     with target:
-        ui.label(name).classes("text-base hub-detail-title leading-tight truncate")
-        ui.label(subtitle).classes("text-xs hub-detail-label leading-none truncate")
+        ui.label(name).classes("text-base hub-workbench-title leading-tight truncate")
+        ui.label(subtitle).classes("text-xs hub-workbench-label leading-none truncate")
 
 
 def _prefix(game_id: str, table_id: str) -> str:

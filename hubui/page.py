@@ -1,4 +1,4 @@
-"""The Hub UI shell: nav, content and the panel that follows the selection."""
+"""The Hub UI shell: nav, content and the workbench that follows the selection."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any
 from nicegui import run, ui
 
 from hubui import devices as devices_page
-from hubui import games, inspector, sections, theme
+from hubui import games, sections, theme, workbench
 from hubui import settings as settings_page
 from hubui.api import HubClient
 from hubui.data import Library
@@ -17,9 +17,9 @@ from hubui.data import Library
 HEADER_H_PX = 52
 
 NAV_WIDE_PX = 220
-DETAILS_WIDE_PX = 320
-DETAILS_MIN_PX = 260
-DETAILS_MAX_PX = 760
+WORKBENCH_WIDE_PX = 320
+WORKBENCH_MIN_PX = 260
+WORKBENCH_MAX_PX = 760
 # One rail width for both panels - they collapse to the same thing.
 RAIL_PX = 57
 
@@ -107,7 +107,7 @@ async def hub_page() -> None:
     local_capabilities = loaded["local_capabilities"]
 
     state: dict[str, Any] = {"view": "overview", "device": None, "mini": False,
-                             "details": True, "settings_page": "general",
+                             "workbench": True, "settings_page": "general",
                              "subject": "game"}
 
     labels: list[ui.label] = []
@@ -170,55 +170,55 @@ async def hub_page() -> None:
         nav_rows.append(foot)
 
 
-    splitter = ui.splitter(reverse=True, limits=(DETAILS_MIN_PX, DETAILS_MAX_PX),
-                           value=DETAILS_WIDE_PX) \
+    splitter = ui.splitter(reverse=True, limits=(WORKBENCH_MIN_PX, WORKBENCH_MAX_PX),
+                           value=WORKBENCH_WIDE_PX) \
         .props("unit=px").classes("w-full h-full")
-    with splitter.after, ui.column().classes("w-full h-full gap-0 hub-details"):
+    with splitter.after, ui.column().classes("w-full h-full gap-0 hub-workbench"):
         # The selected game's name shares the row with the toggle rather than sitting
         # under it - same class list, same height and same gutter as the nav's header,
         # so neither the icon's inset from the edge nor its height can drift.
-        details_header = ui.row() \
+        workbench_header = ui.row() \
             .classes("items-center gap-2 px-3 cursor-pointer w-full justify-between "
                      "no-wrap hub-panel-header") \
             .style(f"min-height:{HEADER_H_PX}px") \
-            .on("click", lambda: show_details(not state["details"]))
-        with details_header:
+            .on("click", lambda: show_workbench(not state["workbench"]))
+        with workbench_header:
             # min-w-0 lets the column shrink below its content so the title truncates
             # instead of pushing the toggle onto a second line; shrink-0 keeps the
             # toggle at its own size while that happens.
-            details_title = ui.column().classes("gap-0 min-w-0 overflow-hidden")
-            details_icon = ui.icon("menu_open", size="24px").classes("opacity-70 shrink-0")
-        details_header.tooltip("Show or hide details")
+            workbench_title = ui.column().classes("gap-0 min-w-0 overflow-hidden")
+            workbench_icon = ui.icon("menu_open", size="24px").classes("opacity-70 shrink-0")
+        workbench_header.tooltip("Show or hide the workbench")
         # grow + min-h-0 is what lets a flex child scroll instead of pushing its
         # parent taller: without min-h-0 the panel grows to fit and the pane overflows.
         panel = ui.column().classes("w-full gap-0 grow min-h-0 overflow-auto "
-                                    "hub-detail-body")
+                                    "hub-workbench-body")
 
 
-    def show_details(shown: bool) -> None:
+    def show_workbench(shown: bool) -> None:
         """Collapse to a rail, never away.
 
         Hiding it outright left no control to bring it back, which is the only reason
         the floating tab existed. A rail keeps its own toggle on screen, so both panels
         collapse the same way and nothing overlays the grid.
         """
-        state["details"] = shown
-        details_icon.props(f'name={"menu_open" if shown else "menu"}')
-        # The floor moves with the state. Held at DETAILS_MIN_PX the pane cannot be
+        state["workbench"] = shown
+        workbench_icon.props(f'name={"menu_open" if shown else "menu"}')
+        # The floor moves with the state. Held at WORKBENCH_MIN_PX the pane cannot be
         # dragged down to a useless sliver while it is open, and the rail is below that
         # floor - so collapsing has to lower it first or Quasar clamps the value back.
-        splitter._props["limits"] = [RAIL_PX if not shown else DETAILS_MIN_PX,
-                                     DETAILS_MAX_PX]
+        splitter._props["limits"] = [RAIL_PX if not shown else WORKBENCH_MIN_PX,
+                                     WORKBENCH_MAX_PX]
         splitter.update()
-        splitter.set_value(DETAILS_WIDE_PX if shown else RAIL_PX)
+        splitter.set_value(WORKBENCH_WIDE_PX if shown else RAIL_PX)
         panel.set_visibility(shown)
-        details_title.set_visibility(shown)
+        workbench_title.set_visibility(shown)
         # justify-end, not justify-center: the header keeps its 18px right padding, and
         # centring inside a padded box put the icon 27px in. Held to the right, the
         # padding alone places it exactly where it sits when the panel is open.
-        details_header.classes(add="justify-end", remove="justify-between") \
+        workbench_header.classes(add="justify-end", remove="justify-between") \
             if not shown else \
-            details_header.classes(add="justify-between", remove="justify-end")
+            workbench_header.classes(add="justify-between", remove="justify-end")
 
 
     with splitter.before:
@@ -231,24 +231,24 @@ async def hub_page() -> None:
         # A selection is the only thing that opens the pane. Arriving at a section does
         # not, because there is nothing selected yet to be about.
         if row:
-            show_details(True)
-        await inspector.build(panel, details_title, library, (row or {}).get("id"), state)
+            show_workbench(True)
+        await workbench.build(panel, workbench_title, library, (row or {}).get("id"), state)
 
     def open_device(device) -> None:
         state["view"] = "devices"
         state["device"] = device
         render()
 
-    def clear_details() -> None:
+    def clear_workbench() -> None:
         """Empty the pane. Sync, so render() can call it without awaiting a rebuild."""
-        details_title.clear()
+        workbench_title.clear()
         panel.clear()
         # The same two-line shape a selected game gets, so the header does not change
         # height or alignment as the selection comes and goes.
-        with details_title:
+        with workbench_title:
             ui.label("Game Details") \
-                .classes("text-base hub-detail-title leading-tight truncate")
-            ui.label("Select a game").classes("text-xs hub-detail-label leading-none truncate")
+                .classes("text-base hub-workbench-title leading-tight truncate")
+            ui.label("Select a game").classes("text-xs hub-workbench-label leading-none truncate")
 
     def crumb() -> None:
         """Section and selection, in one line, at the top of the content pane.
@@ -279,13 +279,13 @@ async def hub_page() -> None:
 
     def render() -> None:
         # A game shown beside a different destination is stale by definition.
-        clear_details()
+        clear_workbench()
         # ...and so is an open pane. Changing section collapses it: the pane is about
         # the selection, the selection did not survive the move, and a pane left open
         # describing nothing is worse than one the next click reopens.
         if state.get("_last_view") != state["view"]:
             state["_last_view"] = state["view"]
-            show_details(False)
+            show_workbench(False)
         # The page you are on stays lit while you are on it.
         for key, row in destinations.items():
             row.classes(add="hub-nav-active") if key == state["view"] \
@@ -324,7 +324,7 @@ async def hub_page() -> None:
         state["view"] = view
         render()
 
-    await inspector.build(panel, details_title, library, None)
+    await workbench.build(panel, workbench_title, library, None)
     render()
 
 

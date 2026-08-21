@@ -87,7 +87,7 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
     if on_select is not None:
         async def changed() -> None:
             rows = await grid.get_selected_rows()
-            # The inspector follows one row, the action menu wants them all.
+            # The workbench follows one row, the action menu wants them all.
             result = on_select(rows[-1] if rows else None, rows)
             if inspect.isawaitable(result):
                 await result

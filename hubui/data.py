@@ -84,7 +84,7 @@ class Library:
         """Fetched when something asks, not with the library.
 
         Prefetching tables doubled the read to 294 requests for 147 games, and only the
-        inspector - one game at a time - ever needs them.
+        workbench - one game at a time - ever needs them.
         """
         if game_id not in self.tables:
             self.tables[game_id] = self._client.tables(game_id)

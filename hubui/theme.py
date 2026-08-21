@@ -47,18 +47,18 @@ _FLAIR = """
 body { background: #0a0518; }
 
 /* nicegui gives .q-drawer__content 16px of padding and a 16px flex gap - the source of
-   the details pane's 54px top gap, not anything the rows were doing. Scoped to the
-   right drawer on purpose: the nav wants that breathing room, the inspector does not,
+   the workbench's 54px top gap, not anything the rows were doing. Scoped to the
+   right drawer on purpose: the nav wants that breathing room, the workbench does not,
    because it has far more to fit. */
-.hub-details {
+.hub-workbench {
   /* Gap goes, top padding stays: the gap was the double-spacing, but the 16px top is
      what puts this header level with the nav's, which keeps it. */
   padding: 16px 0 0 !important;
   gap: 0 !important;
 }
 /* 18px is what centring a 20px icon in the 57px rail produces, so matching it here
-   means the icon does not move horizontally when the panel collapses. */
-.hub-details .hub-panel-header { padding-right: 18px !important; }
+   means the icon does not move horizontally when the workbench collapses. */
+.hub-workbench .hub-panel-header { padding-right: 18px !important; }
 .q-page-container, .q-page { background: transparent !important; }
 .q-drawer { background: #150a2e !important; }
 
@@ -124,7 +124,7 @@ body::before {
 }
 .q-menu .q-item:hover { background: #2a1a4a; }
 .q-menu .q-separator { background: #3d2461; margin: 2px 0; }
-/* The menu reads like the top of the details panel: heading in the title's voice,
+/* The menu reads like the top of the workbench: heading in the title's voice,
    entries in the subtitle's. */
 .hub-menu-header {
   color: #eef9ff;
@@ -239,7 +239,7 @@ body::before {
    cyan is the only thing that accents. Pink was a third hue close enough to the header
    magenta to muddle rather than contrast; the panels are told apart by tone instead,
    the nav title at full neon and this one near-white with a softer halo. */
-.hub-details {
+.hub-workbench {
   /* The nav's gradient with its accent band removed - same stops from #1a0f35 down, so
      the two panels read as one surface treatment. The band stays exclusive to the nav
      because it marks the product, and this panel has no identity to carry. */
@@ -248,49 +248,49 @@ body::before {
 /* truncate only ellipsizes against a definite width. The column may shrink under
    min-w-0, but its labels have to be told to take that width or they overflow and get
    cropped by the parent instead of ellipsised. */
-.hub-panel-header .hub-detail-title,
-.hub-panel-header .hub-detail-label { max-width: 100%; }
+.hub-panel-header .hub-workbench-title,
+.hub-panel-header .hub-workbench-label { max-width: 100%; }
 
-.hub-detail-title {
+.hub-workbench-title {
   color: #eef9ff;
   text-shadow: 0 0 6px rgba(0, 217, 255, 0.45);
 }
-.hub-detail-label {
+.hub-workbench-label {
   color: #00d9ff;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: 11px;
 }
 /* Tight: this panel carries a lot and the default expansion chrome is mostly air. */
-.hub-details .q-expansion-item {
+.hub-workbench .q-expansion-item {
   border: 1px solid #2b1a4d;
   border-radius: 8px;
   /* Vertical margin only. A horizontal margin on a w-full child overhangs by exactly
-     its own width, which is where the panel's 6px of horizontal scroll came from; the
+     its own width, which is where the workbench's 6px of horizontal scroll came from; the
      inset belongs on the container. */
   margin: 4px 0;
   background: rgba(26, 15, 53, 0.55);
 }
-.hub-details { overflow-x: hidden !important; }
-.hub-detail-body { padding: 0 6px; }
-.hub-details .q-expansion-item .q-item {
+.hub-workbench { overflow-x: hidden !important; }
+.hub-workbench-body { padding: 0 6px; }
+.hub-workbench .q-expansion-item .q-item {
   min-height: 32px;
   padding: 2px 10px;
 }
-.hub-details .q-expansion-item .q-item__label { color: #9fd8e8; font-size: 12px; }
-.hub-details .q-expansion-item__content { padding: 2px 0 6px; }
+.hub-workbench .q-expansion-item .q-item__label { color: #9fd8e8; font-size: 12px; }
+.hub-workbench .q-expansion-item__content { padding: 2px 0 6px; }
 /* nicegui puts a 16px flex gap on .nicegui-expansion-content, which double-spaced every
    line inside a section: 22px rows on a 38px pitch. Same default as the drawer's, in a
    different container - the rows carry their own spacing. */
-.hub-details .nicegui-expansion-content {
+.hub-workbench .nicegui-expansion-content {
   /* Both of nicegui's defaults on this container: the 16px gap double-spaced the lines
      and the 16px padding is the dead space above the first field and below the last. */
   gap: 0 !important;
   padding: 0 !important;
 }
-/* The panel toggles match: nav and details are the same control, so the same colour. */
+/* The panel toggles match: nav and workbench are the same control, same colour. */
 .hub-panel-header .q-icon { color: #5898d4; }
-.hub-details .q-expansion-item__content .row { min-height: 22px; }
+.hub-workbench .q-expansion-item__content .row { min-height: 22px; }
 .hub-nav-title {
   /* .manager-title, sampled: --ink with --glow-cyan behind it at 20px/900. The white
      comes from the near-white glyph and the colour from the halo, which is why a cyan
@@ -358,7 +358,7 @@ _COMPONENTS = """
   padding: 3px;
 }
 /* Present is stated with a colour, missing with the absence of one. A library is mostly
-   gaps, so making the gap loud would make the panel unreadable. */
+   gaps, so making the gap loud would make the workbench unreadable. */
 .hub-mediatile--present { border-color: rgba(0, 217, 255, 0.55); }
 .hub-mediatile--borrowed { border-color: rgba(255, 176, 32, 0.65); }
 .hub-mediatile--missing { border-style: dashed; opacity: 0.55; }
