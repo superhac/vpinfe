@@ -232,7 +232,7 @@ async def hub_page() -> None:
         # not, because there is nothing selected yet to be about.
         if row:
             show_details(True)
-        await inspector.build(panel, details_title, library, (row or {}).get("id"))
+        await inspector.build(panel, details_title, library, (row or {}).get("id"), state)
 
     def open_device(device) -> None:
         state["view"] = "devices"
