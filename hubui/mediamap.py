@@ -113,7 +113,24 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
             else:
                 ui.html(f'<img src="{prefix}/{kind}" loading="lazy">')
         ui.label(LABELS.get(kind, kind)).classes("hub-mediatile-cap")
-    tile.tooltip(entry.get("file") or f"No {LABELS.get(kind, kind).lower()}")
+    tile.tooltip(_tooltip(kind, entry))
+
+
+def _tooltip(kind: str, entry: dict[str, Any]) -> str:
+    """The three facts about a slot, in the order a curator asks them.
+
+    Does it resolve, how specific is the match, and where did the file come from.
+    Origin is not derivable from the tier - your own art at the fixed name reads as
+    `default` exactly like a download does.
+    """
+    if not entry.get("present"):
+        return f"No {LABELS.get(kind, kind).lower()}"
+    parts = [str(entry.get("file") or "")]
+    if entry.get("via"):
+        parts.append(f"resolved: {entry['via']}")
+    if entry.get("origin"):
+        parts.append(f"from: {entry['origin']}")
+    return "  ·  ".join(part for part in parts if part)
 
 
 def build(entries: dict[str, dict[str, Any]], prefix: str,
