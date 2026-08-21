@@ -314,33 +314,45 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any], draw) -> No
                   "Nothing to remove at this level", type="positive" if gone else "info")
         await draw()
 
+    # Preview and details are separate boxes so one rule can put them side by side.
+    # Docked under the map there is height for neither a tall preview nor a tall
+    # column of controls, and stacking them is what put the actions below the fold.
     with ui.column().classes("w-full gap-1 hub-slot p-2"):
         ui.label(label).classes("hub-card-title")
-        if entry.get("present"):
-            ui.html(f'<img src="{_prefix(game_id, table_id)}/{kind}" '
-                    f'style="max-width:100%;max-height:200px;object-fit:contain;'
-                    f'border-radius:4px;border:1px solid #2b1a4d">')
-            _rows(ui, {"File": entry.get("file") or "-",
-                       "Resolved": entry.get("via") or "-",
-                       "Origin": entry.get("origin") or "-"})
-        else:
-            ui.label(f"No {label.lower()} for this {'build' if table_id else 'game'}.") \
-                .classes("hub-help")
-        ui.upload(on_upload=place, auto_upload=True, max_files=1) \
-            .props("flat dense").classes("w-full")
-        ui.label("Placed here, it is named for "
-                 + ("this .vpx." if table_id else "the folder.")).classes("hub-help")
-        with ui.row().classes("items-center gap-1 w-full no-wrap").style("flex-wrap:wrap"):
-            if entry.get("present"):
-                ui.button("Remove", on_click=remove).props("flat dense no-caps size=sm")
-            # Shown disabled rather than omitted, so what the slot is *for* is legible
-            # before either exists. Both are parked in HUBUI section 10: sourcing wants
-            # a registry of places to look, and capture wants the recorder.
-            ui.button("Search sources").props("flat dense no-caps size=sm") \
-                .set_enabled(False)
-            ui.button("Capture").props("flat dense no-caps size=sm").set_enabled(False)
-        ui.label("Searching sources and capturing from a device are not built yet.") \
-            .classes("hub-help")
+        with ui.element("div").classes("hub-slot-body"):
+            with ui.element("div").classes("hub-slot-preview"):
+                if entry.get("present"):
+                    ui.html(f'<img src="{_prefix(game_id, table_id)}/{kind}">')
+                else:
+                    ui.label(f"No {label.lower()} for this "
+                             f"{'build' if table_id else 'game'}.").classes("hub-help")
+            with ui.column().classes("hub-slot-details gap-1"):
+                if entry.get("present"):
+                    _rows(ui, {"File": entry.get("file") or "-",
+                               "Resolved": entry.get("via") or "-",
+                               "Origin": entry.get("origin") or "-"})
+                # Labelled, because an unlabelled uploader falls back to Quasar's byte
+                # counter - "0.0B / 0.00%" where the name of the action should be.
+                ui.upload(on_upload=place, auto_upload=True, max_files=1,
+                          label="Replace" if entry.get("present") else "Add a file") \
+                    .props("flat dense").classes("w-full")
+                ui.label("Placed here, it is named for "
+                         + ("this .vpx." if table_id else "the folder.")) \
+                    .classes("hub-help")
+                with ui.row().classes("items-center gap-1 w-full").style("flex-wrap:wrap"):
+                    if entry.get("present"):
+                        ui.button("Remove", on_click=remove) \
+                            .props("flat dense no-caps size=sm")
+                    # Disabled rather than omitted, so what the slot is for is legible
+                    # before either exists. Both parked in HUBUI section 10.
+                    ui.button("Search sources").props("flat dense no-caps size=sm") \
+                        .set_enabled(False)
+                    ui.button("Capture").props("flat dense no-caps size=sm") \
+                        .set_enabled(False)
+                # A disabled control with no reason reads as broken. One line, because
+                # a Quasar button that is disabled takes no pointer events and so can
+                # carry no tooltip.
+                ui.label("Sources and capture are not built yet.").classes("hub-help")
 
 
 async def _identity_block(context: dict[str, Any]) -> None:

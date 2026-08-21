@@ -454,7 +454,12 @@ _COMPONENTS = """
 .hub-workbench-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
+  /* The cap goes on the row, not on the dock: a percentage max-height on a grid item
+     resolves against its own auto-sized area, which is circular, and Chrome settles it
+     at a fraction of what was asked for. On the row it resolves against the grid, which
+     is a real height - and fit-content, because a percentage in minmax() makes the track
+     that size outright, so the dock would hold 45% whether it needed it or not. */
+  grid-template-rows: minmax(0, 1fr) fit-content(45%);
   min-height: 0;
 }
 @container (min-width: 900px) {
@@ -467,11 +472,26 @@ _COMPONENTS = """
 .hub-dock:empty { display: none; }
 .hub-dock {
   border-top: 1px solid #2b1a4d;
-  max-height: 46%;
+  padding-bottom: 8px;
   overflow: auto;
 }
 @container (min-width: 900px) {
-  .hub-dock { border-top: none; border-left: 1px solid #2b1a4d; max-height: none; }
+  .hub-dock { border-top: none; border-left: 1px solid #2b1a4d; }
+}
+
+/* Quasar keeps the queued-file list at full height while it is empty, which is 60px of
+   nothing in a panel that has none to spare. Uploads are automatic, so the list only
+   ever flashes. What is left reads as a strip that still takes a drop. */
+.hub-slot .q-uploader { min-height: 0; }
+.hub-slot .q-uploader__list:empty { display: none; }
+/* The transfer stats go with it: they are the uploader's own progress readout, and
+   what belongs on that strip is the name of the action. */
+.hub-slot .q-uploader__subtitle { display: none; }
+.hub-slot .q-uploader__title { font-size: 13px; font-weight: 500; color: #c9a6ff; }
+/* Quasar fills the header with the primary colour. Magenta reads as "selected" in this
+   panel, and replacing a file is not the loudest thing on it. */
+.hub-slot .q-uploader__header {
+  background: rgba(43,26,77,0.5); border: 1px solid #2b1a4d; border-radius: 6px;
 }
 
 /* A form has nothing to choose, so it stays one column and leaves the rest alone
@@ -482,6 +502,21 @@ _COMPONENTS = """
 .hub-slot {
   border: 1px solid #2b1a4d; border-radius: 8px;
   background: linear-gradient(180deg, rgba(26,15,53,0.75) 0%, rgba(15,7,34,0.75) 100%);
+}
+/* Docked under the map there is no height to spend: the preview goes small and beside
+   the controls rather than above them, which is what keeps the actions on screen. In
+   the column beside the map there is height and no width, so it stacks. */
+.hub-slot-body { display: flex; gap: 10px; align-items: flex-start; }
+.hub-slot-preview { flex: 0 0 auto; max-width: 34%; }
+.hub-slot-preview img {
+  max-width: 100%; max-height: 130px; object-fit: contain;
+  border-radius: 4px; border: 1px solid #2b1a4d;
+}
+.hub-slot-details { flex: 1 1 auto; min-width: 0; }
+@container (min-width: 900px) {
+  .hub-slot-body { display: block; }
+  .hub-slot-preview { max-width: 100%; margin-bottom: 8px; }
+  .hub-slot-preview img { max-height: 240px; }
 }
 
 .hub-outline { border-right: 1px solid #1f1338; }
