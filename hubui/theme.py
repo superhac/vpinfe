@@ -494,6 +494,13 @@ _COMPONENTS = """
   background: rgba(43,26,77,0.5); border: 1px solid #2b1a4d; border-radius: 6px;
 }
 
+/* The chosen section's heading when it has the window to itself - there is no
+   expansion to click, so the name has to come from somewhere. */
+.hub-work-title {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: #00d9ff; padding: 8px 10px 4px;
+}
+
 /* A form has nothing to choose, so it stays one column and leaves the rest alone
    rather than stretching four fields across the window. */
 .hub-form { max-width: 420px; }
@@ -524,19 +531,29 @@ _COMPONENTS = """
    the width rather than when the mouse comes up. */
 .hub-workbench { container-type: inline-size; }
 @container (max-width: 519px) { .hub-outline { display: none; } }
+/* The splitter measures in pixels, so shrinking the window used to come entirely out
+   of the list: the workbench held its width and the list was left with a Name column
+   too narrow to read and a toolbar wrapped one word per line. A floor here makes the
+   workbench give way instead - it shrinks gracefully because everything in it is
+   already sized by its own width, and the list has nowhere to go. */
+.q-splitter__before { min-width: 380px; container-type: inline-size; }
+
+/* And when even that is tight, the parts that are commentary go before the parts that
+   are the work. */
+@container (max-width: 560px) { .hub-crumb-note { display: none; } }
+
 /* Full: the workbench takes the window and the list steps back to a rail. Quasar puts
    an inline width on the pane it sizes, so this swaps which of the two flexes rather
    than fighting that number - and being CSS, it lands the moment it is asked for. */
 /* Hidden, not squeezed. A grid at 57px is not a rail - it is a grid with its toolbar
    wrapped into a column of single words. Nothing is stranded by this: the control that
    brings it back sits in the workbench header, which is always on screen. */
-.hub-full .q-splitter__before { display: none !important; }
+.hub-full .q-splitter__before { display: none !important; min-width: 0 !important; }
 .hub-full .q-splitter__after { width: auto !important; flex: 10000 1 0% !important; }
 .hub-full .q-splitter__separator { display: none; }
 
 /* The outline carries the grouping once it is there; the body only needs it when it
    is the only structure on screen. */
-@container (min-width: 520px) { .hub-body-group { display: none; } }
 .hub-outline-item {
   display: block;
   font-size: 11px;

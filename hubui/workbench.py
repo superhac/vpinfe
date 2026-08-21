@@ -26,8 +26,6 @@ from hubui.data import Library
 # Short, because the outline and the body would otherwise say the same three phrases
 # twice on one screen. What each group means is carried by the lens sitting in it and
 # by the sections themselves, not by shouting the scope.
-OWNERS = (("game", "Game"), ("table", "Table"), ("folder", "Folder"))
-
 # Sections open when nobody has said otherwise. The map is the question people
 # actually have about a game, and its shape answers before a label is read.
 DEFAULT_OPEN = frozenset({"media"})
@@ -42,18 +40,25 @@ DEFAULT_OPEN = frozenset({"media"})
 # what you were aiming at.
 OUTLINE_FROM_PX = 520
 
+# Past this the workbench is for working rather than comparing, and the two want
+# opposite things: comparing wants several sections open and held still while the
+# selection moves, working wants one of them with the window to itself. So the outline
+# is a table of contents below this width and a selector above it - one control, doing
+# the job the width is for. Reported by the browser, since only it knows the width.
+WORK_FROM_PX = 900
+
 
 @dataclass(frozen=True)
 class Section:
-    """One block in the panel: what it is called, whose it is, and how to draw it.
+    """One block in the panel: what it is called and how to draw it.
 
     `name` is the fixed word the outline shows; `label` takes the game's context
-    because a heading that counts something has to count this game's. `build` is
-    async because a section may need a fetch.
+    because a heading that counts something has to count this game's - and, for the
+    one section a lens governs, say which build it is counting. `build` is async
+    because a section may need a fetch.
     """
 
     key: str
-    owner: str
     name: str
     label: Callable[[dict[str, Any]], str]
     build: Callable[[dict[str, Any]], Any]
@@ -73,7 +78,8 @@ async def build(container: ui.column, title: ui.column, library: Library,
     # Builds are serialised, and a superseded one gives up rather than drawing.
     # Without this the panel doubles: clearing happens before the tables fetch and the
     # drawing after it, so two builds that overlap both clear an empty container and
-    # then both append. Clicking one game and then another is enough.
+    # then both append. A drag can start three - the divider, the mode it settles, and
+    # the window listener - so this is the ordinary case, not the rare one.
     lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
     state["build_seq"] = mine = state.get("build_seq", 0) + 1
     async with lock:
@@ -104,16 +110,30 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
         # `lens` is a table id or "" for the folder's shared files, and it resets per
         # game because a table id means nothing to the next one. `redraws` is how the
         # lens reaches the sections that follow it without rebuilding the panel.
+        # The picked slot lives with the client, not this build of the panel: a mode
+        # change rebuilds and would otherwise forget it. Kept across games too, which
+        # is what sweeping one kind down a list needs.
+        state.setdefault("slot", {"kind": None})
         context = {"library": library, "game": game, "game_id": game_id,
                    "tables": tables, "state": state, "lens": "", "redraws": [],
-                   "slot": {"kind": None}}
+                   "slot": state["slot"]}
 
+        async def rebuild() -> None:
+            await build(container, title, library, game_id, state)
+
+        context["rebuild"] = rebuild
+        work = state.get("mode") == "work"
         opened = open_sections(state)
+        if work:
+            # Held across games, so a sweep does not re-pick it at every stop.
+            known = {section.key for section in SECTIONS}
+            if state.get("section") not in known:
+                state["section"] = "media"
         entries: dict[str, ui.element] = {}
         # The outline must not scroll with what it points at, so the row is the fixed
         # frame and only the body column scrolls inside it.
         with ui.row().classes("w-full grow min-h-0 no-wrap gap-0"):
-            _outline(entries, opened)
+            _outline(entries, opened, context, work)
             # A grid, so one rule decides whether the dock sits under the body or
             # beside it. Under is a vertical split of the workbench; beside is the
             # work layout. In both the dock is outside the scroll, which is what
@@ -123,43 +143,62 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
                                            "hub-workbench-body")
                 context["dock"] = ui.column().classes("min-w-0 gap-0 hub-dock")
         with body:
-            for owner, heading in OWNERS:
-                mine = [section for section in SECTIONS if section.owner == owner]
-                if not mine:
-                    continue
-                # Hidden by CSS once the outline is carrying these, so the two never
-                # say the same thing side by side.
-                ui.label(heading).classes("hub-group hub-body-group")
-                # The lens belongs with what it governs. The mockup put it across the
-                # top, where the context index was a selector and only one section
-                # showed - with sections stacked, a control at the top would not say
-                # which of them it applies to.
-                if owner == "table":
-                    _lens(context)
-                for section in mine:
-                    await _section(section, context, opened, entries)
+            if work:
+                await _one_section(context, state["section"])
+            else:
+                await _stacked_sections(context, opened, entries)
 
 
-def _outline(entries: dict[str, ui.element], opened: set[str]) -> None:
-    """A table of contents, not a selector.
+async def _one_section(context: dict[str, Any], key: str) -> None:
+    """The chosen section, with the window to itself."""
+    section = next(item for item in SECTIONS if item.key == key)
+    heading = ui.label(section.label(context)).classes("hub-work-title")
+    await section.build(context)
 
-    Clicking scrolls to a section and opens it rather than replacing what is shown -
-    which is what lets a left-hand nav and several-sections-open coexist. A selector
-    could only ever show one, and comparing across games needs more than one.
+    async def relabel() -> None:
+        heading.text = section.label(context)
+
+    context["redraws"].append(relabel)
+
+
+async def _stacked_sections(context: dict[str, Any], opened: set[str],
+                            entries: dict[str, ui.element]) -> None:
+    """Every section, with the ones you opened still open.
+
+    Flat on purpose: ownership is a property of a section, not an axis to group by.
+    Said instead by the one section a lens governs, in its own heading.
+    """
+    for item in SECTIONS:
+        await _section(item, context, opened, entries)
+
+
+def _outline(entries: dict[str, ui.element], opened: set[str],
+             context: dict[str, Any], work: bool) -> None:
+    """Contents when comparing, a selector when working.
+
+    Below the work width it scrolls to a section and opens it, leaving everything else
+    where it was - which is what lets a side nav and several-sections-open coexist.
+    Above it, it picks the one section that gets the window.
     """
     with ui.column().classes("shrink-0 h-full overflow-auto gap-0 pr-1 hub-outline") \
             .style("width:132px"):
-        for owner, heading in OWNERS:
-            mine = [section for section in SECTIONS if section.owner == owner]
-            if not mine:
-                continue
-            ui.label(heading).classes("hub-group")
-            for section in mine:
-                item = ui.label(section.name).classes("hub-outline-item")
-                if section.key in opened:
-                    item.classes(add="hub-outline-on")
-                item.on("click", lambda key=section.key: _reveal(key))
-                entries[section.key] = item
+        for section in SECTIONS:
+            item = ui.label(section.name).classes("hub-outline-item")
+            lit = (context["state"].get("section") == section.key if work
+                   else section.key in opened)
+            if lit:
+                item.classes(add="hub-outline-on")
+            item.on("click", lambda key=section.key: _choose(context, key, work))
+            entries[section.key] = item
+
+
+def _choose(context: dict[str, Any], key: str, work: bool) -> None:
+    """Reveal it, or make it the one on screen - whichever the width is for."""
+    if not work:
+        _reveal(key)
+        return
+    context["state"]["section"] = key
+    asyncio.create_task(context["rebuild"]())
 
 
 def _reveal(key: str) -> None:
@@ -180,11 +219,18 @@ async def _section(section: Section, context: dict[str, Any], opened: set[str],
             item.classes(add="hub-outline-on") if event.value \
                 else item.classes(remove="hub-outline-on")
 
-    with ui.expansion(section.label(context), value=section.key in opened,
-                      on_value_change=remember).classes("w-full") \
-            .props(f"id=wb-{section.key}"), \
-            ui.column().classes("w-full gap-0"):
+    expansion = ui.expansion(section.label(context), value=section.key in opened,
+                             on_value_change=remember).classes("w-full") \
+        .props(f"id=wb-{section.key}")
+    with expansion, ui.column().classes("w-full gap-0"):
         await section.build(context)
+
+    async def relabel() -> None:
+        # So the scope in the heading is still true after the lens moves, and readable
+        # with the section shut - which is the whole reason it is in the heading.
+        expansion.text = section.label(context)
+
+    context["redraws"].append(relabel)
 
 
 def _title(target: ui.column, name: str, subtitle: str) -> None:
@@ -202,7 +248,50 @@ def _media_label(context: dict[str, Any]) -> str:
     present, borrowed, total = mediamap.summary(
         context["library"].media.get(context["game_id"], {}))
     label = f"Media ({present}/{total}"
-    return label + (f", {borrowed} borrowed)" if borrowed else ")")
+    return label + (f", {borrowed} borrowed)" if borrowed else ")") + _media_scope(context)
+
+
+def _media_scope(context: dict[str, Any]) -> str:
+    """Which build this section is answering for, in its own heading.
+
+    The only section a lens governs, so the only one that says so. Silent for a
+    one-table folder: nothing to scope to, and nobody meets the concept.
+    """
+    tables = [table for table in context["tables"] if table.get("id")]
+    if len(tables) < 2:
+        return ""
+    if not context["lens"]:
+        return " \u00b7 shared"
+    return " \u00b7 " + _ellipsize(
+        _short_names(tables).get(context["lens"], context["lens"]), 24)
+
+
+def _ellipsize(name: str, limit: int) -> str:
+    """Shorten from the middle: trimming either end alone makes two builds read alike."""
+    if len(name) <= limit:
+        return name
+    head = (limit - 1) // 2
+    return name[:head] + "\u2026" + name[len(name) - (limit - 1 - head):]
+
+
+def _short_names(tables: list[dict[str, Any]]) -> dict[str, str]:
+    """What tells these builds apart, which is rarely the front of the name.
+
+    Files in one folder share a long head - game, maker, year - so trimming from the
+    right leaves every pill reading the same. The shared head comes off instead.
+    """
+    stems = {}
+    for table in tables:
+        name = table.get("filename") or table["id"]
+        stems[table["id"]] = name[:-4] if name.lower().endswith(".vpx") else name
+    values = list(stems.values())
+    head = values[0]
+    for value in values[1:]:
+        while head and not value.startswith(head):
+            head = head[:-1]
+    # Back to a word boundary, so no name starts mid-word.
+    head = head[:max(head.rfind(" "), head.rfind(")"), head.rfind("-")) + 1]
+    return {tid: (stem[len(head):].strip(" -_") or stem) for tid, stem in stems.items()}
 
 
 def _lens(context: dict[str, Any]) -> None:
@@ -216,7 +305,7 @@ def _lens(context: dict[str, Any]) -> None:
         return
 
     pills: dict[str, ui.element] = {}
-    note = ui.label().classes("hub-help px-3 pb-1")
+    short = _short_names(tables)
 
     async def pick(table_id: str) -> None:
         # The picked slot survives the switch. Looking at the same kind across two
@@ -232,16 +321,18 @@ def _lens(context: dict[str, Any]) -> None:
 
     with ui.row().classes("items-center gap-1 w-full px-3 pt-1 hub-lens"):
         ui.label("Viewing as").classes("hub-lens-label")
-        for table_id, label in [("", "Shared")] + [
-                (t["id"], t.get("filename") or t["id"]) for t in tables]:
-            pill = ui.label(label).classes("hub-lens-pill")
+        for table_id in [""] + [t["id"] for t in tables]:
+            pill = ui.label(_ellipsize(short.get(table_id, "Shared"), 18)) \
+                .classes("hub-lens-pill")
             if table_id == context["lens"]:
                 pill.classes(add="hub-lens-on")
             pill.on("click", lambda tid=table_id: pick(tid))
-            # Truncated to keep five builds on one line; the whole name is a hover away.
-            pill.tooltip(label)
+            # Still truncated where a tail is long; the whole filename is a hover away.
+            pill.tooltip(next((t.get("filename") or t["id"] for t in tables
+                               if t["id"] == table_id), "Every table in this game"))
             pills[table_id] = pill
-    note.text = _lens_note(context["lens"])
+    # After the control, not before it: this is the consequence of the pill you picked.
+    note = ui.label(_lens_note(context["lens"])).classes("hub-help px-3 pb-1")
 
 
 def _lens_note(table_id: str) -> str:
@@ -251,6 +342,8 @@ def _lens_note(table_id: str) -> str:
 
 async def _media_block(context: dict[str, Any]) -> None:
     """The map, and whatever tile is picked out of it."""
+    # Inside the section it scopes, so there is no question what it applies to.
+    _lens(context)
     library, game_id = context["library"], context["game_id"]
     holder = ui.column().classes("w-full gap-0")
 
@@ -399,7 +492,7 @@ def _rows(target: Any, values: dict[str, str]) -> None:
 
 
 SECTIONS: tuple[Section, ...] = (
-    Section("identity", "game", "Identity", lambda _: "Identity", _identity_block),
-    Section("media", "table", "Media", _media_label, _media_block),
-    Section("tables", "folder", "Tables", _tables_label, _tables_block),
+    Section("identity", "Identity", lambda _: "Identity", _identity_block),
+    Section("media", "Media", _media_label, _media_block),
+    Section("tables", "Tables", _tables_label, _tables_block),
 )

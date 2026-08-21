@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from nicegui import run, ui
@@ -19,7 +20,10 @@ HEADER_H_PX = 52
 NAV_WIDE_PX = 220
 WORKBENCH_WIDE_PX = 320
 WORKBENCH_MIN_PX = 260
-WORKBENCH_MAX_PX = 760
+# Past the work width, so the divider reaches every mode on its own and Full is the far
+# end of one continuum rather than the only way in. Short of squeezing the list out -
+# that is Full's job, and Full has a control that brings it back.
+WORKBENCH_MAX_PX = 1000
 # One rail width for both panels - they collapse to the same thing.
 RAIL_PX = 57
 
@@ -252,6 +256,7 @@ async def hub_page() -> None:
         full_icon.props(f'icon={"close_fullscreen" if state["full"] else "open_in_full"}')
         if state["full"] and not state["workbench"]:
             show_workbench(True)
+        asyncio.create_task(apply_mode())
 
     def _step(delta: int) -> None:
         """Move the focused row, which is what the workbench follows. Sent as the key
@@ -264,6 +269,50 @@ async def hub_page() -> None:
             " if (c) { c.focus(); c.dispatchEvent(new KeyboardEvent('keydown', "
             "{key: '" + key + "', bubbles: true})); } })()")
 
+    async def apply_mode() -> None:
+        """Compare below the work width, work above it; Full is always work.
+
+        Read off the controls that set the width rather than measured in the browser,
+        so the mode cannot lag the thing that changed it.
+        """
+        mode = "work" if (state.get("full") or
+                          _splitter_px() >= workbench.WORK_FROM_PX) else "compare"
+        if mode == state.get("mode"):
+            return
+        state["mode"] = mode
+        await workbench.build(panel, workbench_title, library, state.get("game"), state)
+
+    async def on_window_resize(event: Any) -> None:
+        """The one case the controls cannot cover.
+
+        Resizing the window moves the workbench without touching the divider, so the
+        width it was told about goes stale - and a workbench at 500px still showing one
+        section because it was 1000px a moment ago is the wrong answer. The browser
+        sends what it actually measures, debounced, and only that case needs it.
+        """
+        try:
+            px = float(event.args or 0)
+        except (TypeError, ValueError):
+            return
+        mode = "work" if px >= workbench.WORK_FROM_PX else "compare"
+        if mode == state.get("mode"):
+            return
+        state["mode"] = mode
+        await workbench.build(panel, workbench_title, library, state.get("game"), state)
+
+    ui.on("hub_resize", on_window_resize)
+    ui.run_javascript(
+        "window.addEventListener('resize', () => { clearTimeout(window.__hubRz);"
+        " window.__hubRz = setTimeout(() => { const w ="
+        " document.querySelector('.hub-workbench');"
+        " if (w) emitEvent('hub_resize', w.clientWidth); }, 250); });")
+
+    def _splitter_px() -> float:
+        try:
+            return float(splitter.value or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
     def remember_width(event: Any) -> None:
         """Keep the width a drag settled on. Quasar only reports it on release, which
         is exactly when it is worth keeping."""
@@ -273,6 +322,7 @@ async def hub_page() -> None:
             return
         if value > RAIL_PX:
             state["workbench_px"] = value
+        asyncio.create_task(apply_mode())
 
     splitter.on_value_change(remember_width)
 
@@ -317,7 +367,8 @@ async def hub_page() -> None:
             with ui.row().classes("items-center gap-2 grow min-w-0"):
                 ui.html(f"<span class='hub-crumb'>VPinFE &nbsp;/&nbsp; <b>{title}</b></span>")
                 if subject:
-                    ui.label(f"one row is one {subject}").classes("hub-help")
+                    ui.label(f"one row is one {subject}") \
+                        .classes("hub-help hub-crumb-note")
             ui.button("Look for new tables", icon="refresh",
                       on_click=_look_for_new_tables) \
                 .props("flat dense no-caps size=sm").classes("shrink-0") \
