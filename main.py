@@ -253,6 +253,15 @@ try:
 except Exception:
     logger.exception("Could not start library enrichment; unread tables stay unread")
 
+# And keep looking, if the user asked us to. Off by default: a check re-reads every
+# game folder, which is nothing locally and real traffic on a share.
+try:
+    from common.config_access import cfg_int
+    from common.games.library_refresh import start_periodic
+    start_periodic(cfg_int(config_store, "Settings", "library_refresh_minutes", 0))
+except Exception:
+    logger.exception("Could not start the periodic library refresh")
+
 shutdown.exit_if_requested(logger)
 
 # Collection membership moves onto game ids once the ids exist. Resolvable entries

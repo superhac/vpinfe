@@ -10,13 +10,18 @@ Refresh, not scan: `POST /library/scan` already means the VPSdb rebuild.
 from __future__ import annotations
 
 import logging
+import threading
 
+from common import jobs, shutdown
 from common.games.library_discovery import discover
 from common.games.library_enrichment import enrich
 from common.games.table_identity import ensure_unique_table_ids
 from common.jobs import JobReporter
 
 logger = logging.getLogger("vpinfe.common.games.library_refresh")
+
+_stop = threading.Event()
+_ticker: threading.Thread | None = None
 
 
 def refresh(reporter: JobReporter | None = None) -> dict:
@@ -44,3 +49,37 @@ def refresh(reporter: JobReporter | None = None) -> dict:
     logger.info("Library refresh: %s games, %s tables found, %s read",
                 len(games), found["found"], read["read"])
     return result
+
+
+def start_periodic(minutes: int) -> None:
+    """Refresh every `minutes`, forever. Zero or less never runs, which is the default.
+
+    A tick that finds the library busy is dropped rather than queued: the thing it
+    would have done is already being done, and a queue would mean a run for every
+    tick that passed while the first one worked.
+    """
+    global _ticker
+    if minutes <= 0 or _ticker is not None:
+        return
+    _stop.clear()
+
+    def _tick() -> None:
+        while not _stop.wait(minutes * 60):
+            if shutdown.requested():
+                return
+            try:
+                jobs.submit(jobs.KIND_LIBRARY_SCAN, lambda job: refresh(job.reporter()))
+            except jobs.JobBusyError:
+                logger.debug("Periodic refresh skipped; the library is busy")
+            except Exception:
+                logger.exception("Periodic refresh could not start")
+
+    _ticker = threading.Thread(target=_tick, daemon=True, name="library-refresh")
+    _ticker.start()
+    logger.info("Looking for new tables every %s minutes", minutes)
+
+
+def stop_periodic() -> None:
+    global _ticker
+    _stop.set()
+    _ticker = None

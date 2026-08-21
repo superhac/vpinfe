@@ -341,6 +341,16 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             label="Default Startup Collection",
         ),
         ConfigOption(
+            "library_refresh_minutes",
+            type="int",
+            default="0",
+            label="Check For New Tables Every",
+            description="How often to look for tables added or removed on disk, in"
+                        " minutes. Zero never looks, which is the default because a"
+                        " check re-reads every game folder - fine locally, real traffic"
+                        " on a network share. The Hub can always be asked to look now.",
+        ),
+        ConfigOption(
             "auto_update_media_on_startup",
             type="bool",
             default="false",

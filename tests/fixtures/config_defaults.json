@@ -23,6 +23,7 @@
     "global_game_ini_override_enabled": "false",
     "global_game_ini_override_mask": "",
     "global_ini_override": "",
+    "library_refresh_minutes": "0",
     "mute_audio": "false",
     "rar_tool_path": "",
     "splashscreen": "false",
