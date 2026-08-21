@@ -189,10 +189,9 @@ async def hub_page() -> None:
             workbench_title = ui.column().classes("gap-0 min-w-0 overflow-hidden")
             workbench_icon = ui.icon("menu_open", size="24px").classes("opacity-70 shrink-0")
         workbench_header.tooltip("Show or hide the workbench")
-        # grow + min-h-0 is what lets a flex child scroll instead of pushing its
-        # parent taller: without min-h-0 the panel grows to fit and the pane overflows.
-        panel = ui.column().classes("w-full gap-0 grow min-h-0 overflow-auto "
-                                    "hub-workbench-body")
+        # The scrolling belongs to the workbench's body column now, so the outline
+        # beside it can stay put while that scrolls.
+        panel = ui.column().classes("w-full gap-0 grow min-h-0 overflow-hidden")
 
 
     def show_workbench(shown: bool) -> None:
@@ -210,7 +209,11 @@ async def hub_page() -> None:
         splitter._props["limits"] = [RAIL_PX if not shown else WORKBENCH_MIN_PX,
                                      WORKBENCH_MAX_PX]
         splitter.update()
-        splitter.set_value(WORKBENCH_WIDE_PX if shown else RAIL_PX)
+        # The width you chose, not the width it opens at: show_workbench runs on every
+        # selection, so restoring the constant here snapped the pane back to 320 every
+        # time you clicked a game.
+        splitter.set_value(state.get("workbench_px", WORKBENCH_WIDE_PX) if shown
+                           else RAIL_PX)
         panel.set_visibility(shown)
         workbench_title.set_visibility(shown)
         # justify-end, not justify-center: the header keeps its 18px right padding, and
@@ -227,12 +230,25 @@ async def hub_page() -> None:
         # backdrop rather than a hairline.
         content = ui.column().classes("w-full h-full gap-0 p-6")
 
+    def remember_width(event: Any) -> None:
+        """Keep the width a drag settled on. Quasar only reports it on release, which
+        is exactly when it is worth keeping."""
+        try:
+            value = float(event.value or 0)
+        except (TypeError, ValueError):
+            return
+        if value > RAIL_PX:
+            state["workbench_px"] = value
+
+    splitter.on_value_change(remember_width)
+
     async def show_game(row: dict | None) -> None:
         # A selection is the only thing that opens the pane. Arriving at a section does
         # not, because there is nothing selected yet to be about.
-        if row:
+        if row and not state["workbench"]:
             show_workbench(True)
-        await workbench.build(panel, workbench_title, library, (row or {}).get("id"), state)
+        state["game"] = (row or {}).get("id")
+        await workbench.build(panel, workbench_title, library, state["game"], state)
 
     def open_device(device) -> None:
         state["view"] = "devices"
@@ -324,7 +340,7 @@ async def hub_page() -> None:
         state["view"] = view
         render()
 
-    await workbench.build(panel, workbench_title, library, None)
+    await workbench.build(panel, workbench_title, library, None, state)
     render()
 
 

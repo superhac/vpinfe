@@ -69,6 +69,13 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         ":getRowId": "params => params.data.id",
         # The checkbox belongs to the row, so it stays with the row's left edge.
         "selectionColumnDef": {"pinned": "left"},
+        # Arrow keys move the selection, not just the focus ring. AG Grid moves focus
+        # on its own and leaves the selection where it was, so stepping down a list
+        # with the keyboard changed nothing about what the workbench showed.
+        ":navigateToNextCell":
+            "params => { const n = params.nextCellPosition; if (n) { const r = "
+            "params.api.getDisplayedRowAtIndex(n.rowIndex); if (r) "
+            "r.setSelected(true, true); } return n; }",
         "suppressDragLeaveHidesColumns": True,
         "animateRows": False,
         # False deliberately: preventing the default here stops the event reaching
