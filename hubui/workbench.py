@@ -70,6 +70,20 @@ async def build(container: ui.column, title: ui.column, library: Library,
                 game_id: str | None, state: dict[str, Any] | None = None) -> None:
     """Fill the panel, and the name that lives up in the panel's header row."""
     state = state if state is not None else {}
+    # Builds are serialised, and a superseded one gives up rather than drawing.
+    # Without this the panel doubles: clearing happens before the tables fetch and the
+    # drawing after it, so two builds that overlap both clear an empty container and
+    # then both append. Clicking one game and then another is enough.
+    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
+    state["build_seq"] = mine = state.get("build_seq", 0) + 1
+    async with lock:
+        if state["build_seq"] != mine:
+            return
+        await _draw(container, title, library, game_id, state)
+
+
+async def _draw(container: ui.column, title: ui.column, library: Library,
+                game_id: str | None, state: dict[str, Any]) -> None:
     container.clear()
     title.clear()
     with container:
