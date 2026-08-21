@@ -142,7 +142,6 @@ def build(entries: dict[str, dict[str, Any]], prefix: str,
     game's shared media, or one build's. The map itself does not care which.
     """
     with ui.column().classes("w-full gap-1 px-2 pb-2").style("max-width:640px"):
-        ui.label("Cabinet screens").classes("hub-mediatile-group")
         for row in CAB_STACK:
             kinds = [kind for kind in row if kind in entries]
             if not kinds:
@@ -152,7 +151,9 @@ def build(entries: dict[str, dict[str, Any]], prefix: str,
                     _tile(prefix, kind, entries[kind], on_pick, selected)
         extras = [kind for kind in EXTRAS if kind in entries]
         if extras:
-            ui.label("Other assets").classes("hub-mediatile-group")
+            # A rule, not a heading: the cabinet stack and everything else are
+            # different shapes already, and naming them said nothing the tiles did not.
+            ui.element("div").classes("hub-mediatile-rule")
             with ui.element("div").classes("hub-mediatile-grid"):
                 for kind in extras:
                     _tile(prefix, kind, entries[kind], on_pick, selected)

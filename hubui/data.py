@@ -74,11 +74,34 @@ class Library:
         and a folder holds a handful of tables at most.
         """
         if not table_id:
-            return self.media.get(game_id, {})
+            # Fetched when missing rather than read blindly, so dropping the entry
+            # after a write is all invalidation has to do.
+            if game_id not in self.media:
+                self.media[game_id] = self._client.media(game_id)
+            return self.media[game_id]
         key = (game_id, table_id)
         if key not in self.table_media:
             self.table_media[key] = self._client.table_media(game_id, table_id)
         return self.table_media[key]
+
+    def place_media(self, game_id: str, table_id: str, kind: str,
+                    filename: str, data: bytes) -> dict:
+        result = self._client.place_media(game_id, table_id, kind, filename, data)
+        self.forget_media(game_id)
+        return result
+
+    def remove_media(self, game_id: str, table_id: str, kind: str) -> dict:
+        result = self._client.remove_media(game_id, table_id, kind)
+        self.forget_media(game_id)
+        return result
+
+    def forget_media(self, game_id: str) -> None:
+        """Every tier, not just the one written: a shared file changes what each build
+        resolves, so leaving the per-build reads cached would show the old answer."""
+        self.media.pop(game_id, None)
+        self._client.forget_media(game_id)
+        for key in [k for k in self.table_media if k[0] == game_id]:
+            self.table_media.pop(key, None)
 
     def tables_for(self, game_id: str) -> list[dict[str, Any]]:
         """Fetched when something asks, not with the library.

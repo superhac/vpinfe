@@ -187,7 +187,20 @@ async def hub_page() -> None:
             # instead of pushing the toggle onto a second line; shrink-0 keeps the
             # toggle at its own size while that happens.
             workbench_title = ui.column().classes("gap-0 min-w-0 overflow-hidden")
-            workbench_icon = ui.icon("menu_open", size="24px").classes("opacity-70 shrink-0")
+            with ui.row().classes("items-center gap-1 shrink-0 no-wrap"):
+                # Stepping the list from in here, so a sweep does not need the grid on
+                # screen - which is the point of Full.
+                ui.button(icon="keyboard_arrow_up", on_click=lambda: _step(-1)) \
+                    .props("flat dense round size=sm").on("click.stop", lambda: None) \
+                    .tooltip("Previous game")
+                ui.button(icon="keyboard_arrow_down", on_click=lambda: _step(1)) \
+                    .props("flat dense round size=sm").on("click.stop", lambda: None) \
+                    .tooltip("Next game")
+                full_icon = ui.button(icon="open_in_full", on_click=lambda: toggle_full()) \
+                    .props("flat dense round size=sm").on("click.stop", lambda: None) \
+                    .tooltip("Give the workbench the whole window")
+                workbench_icon = ui.icon("menu_open", size="24px") \
+                    .classes("opacity-70 shrink-0")
         workbench_header.tooltip("Show or hide the workbench")
         # The scrolling belongs to the workbench's body column now, so the outline
         # beside it can stay put while that scrolls.
@@ -229,6 +242,27 @@ async def hub_page() -> None:
         # content from the two panels either side and lets the backdrop read as a
         # backdrop rather than a hairline.
         content = ui.column().classes("w-full h-full gap-0 p-6")
+
+    def toggle_full() -> None:
+        """The list never goes away - it steps back to the rail every panel here
+        collapses to, and this control is what brings it forward again."""
+        state["full"] = not state.get("full")
+        splitter.classes(add="hub-full") if state["full"] \
+            else splitter.classes(remove="hub-full")
+        full_icon.props(f'icon={"close_fullscreen" if state["full"] else "open_in_full"}')
+        if state["full"] and not state["workbench"]:
+            show_workbench(True)
+
+    def _step(delta: int) -> None:
+        """Move the focused row, which is what the workbench follows. Sent as the key
+        the grid already handles rather than reaching into its API, so the buttons and
+        the keyboard cannot drift apart."""
+        key = "ArrowDown" if delta > 0 else "ArrowUp"
+        ui.run_javascript(
+            "(() => { const c = document.querySelector('.ag-body-viewport "
+            ".ag-cell-focus') || document.querySelector('.ag-body-viewport .ag-cell');"
+            " if (c) { c.focus(); c.dispatchEvent(new KeyboardEvent('keydown', "
+            "{key: '" + key + "', bubbles: true})); } })()")
 
     def remember_width(event: Any) -> None:
         """Keep the width a drag settled on. Quasar only reports it on release, which

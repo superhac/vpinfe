@@ -69,6 +69,10 @@ class HubClient:
             self._media[game_id] = self._get(f"/games/{game_id}/media").get("media", {})
         return self._media[game_id]
 
+    def forget_media(self, game_id: str) -> None:
+        """Drop the cached read after a write, so the next one sees what changed."""
+        self._media.pop(game_id, None)
+
     def table_media(self, game_id: str, table_id: str) -> dict:
         """One build's answer, which differs from the game's only where it owns a file.
 
@@ -98,6 +102,27 @@ class HubClient:
         response = self._session.post(f"{self._base}/games/{game_id}/launch",
                                       json={}, timeout=_TIMEOUT)
         response.raise_for_status()
+
+    def _media_path(self, game_id: str, table_id: str, kind: str) -> str:
+        """Which route places a file, which is the same thing as which tier it lands at."""
+        return (f"/games/{game_id}/tables/{table_id}/media/{kind}" if table_id
+                else f"/games/{game_id}/media/{kind}")
+
+    def place_media(self, game_id: str, table_id: str, kind: str,
+                    filename: str, data: bytes) -> dict:
+        path = self._media_path(game_id, table_id, kind)
+        _refuse_the_event_loop(path)
+        response = self._session.put(f"{self._base}{path}",
+                                     files={"file": (filename, data)}, timeout=_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+
+    def remove_media(self, game_id: str, table_id: str, kind: str) -> dict:
+        path = self._media_path(game_id, table_id, kind)
+        _refuse_the_event_loop(path)
+        response = self._session.delete(f"{self._base}{path}", timeout=_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
 
     def refresh_library(self) -> dict:
         """Ask the hub to look at the disk again. Returns the job to watch."""

@@ -390,6 +390,9 @@ _COMPONENTS = """
   color: #7d6ba3;
   padding: 6px 0 2px;
 }
+.hub-mediatile-rule {
+  height: 1px; width: 100%; margin: 8px 0 5px; background: #1f1338;
+}
 .hub-mediatile-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -426,11 +429,79 @@ _COMPONENTS = """
 }
 /* The outline: a table of contents down the side of the workbench. Quiet, because
    what it points at is the content - an open section is lit and the rest recede. */
+/* The lens: which build the sections under it answer for. Pills rather than a
+   dropdown so the choice and the alternatives are both visible, truncated because a
+   .vpx name runs long and the whole one is a hover away. */
+.hub-lens { flex-wrap: wrap; }
+.hub-lens-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #7d6ba3;
+}
+.hub-lens-pill {
+  font-size: 11px; color: #cbb8ea; border: 1px solid #3d2461; border-radius: 7px;
+  padding: 3px 9px; background: #150a2e; cursor: pointer; max-width: 150px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hub-lens-pill:hover { border-color: #5f3a8c; }
+.hub-lens-on {
+  background: #251447; color: #eef9ff; border-color: #00d9ff;
+  box-shadow: 0 0 0 1px rgba(0, 217, 255, 0.35);
+}
+
+/* Body and dock, and one rule for where the dock goes. Under the body it is a
+   vertical split - the map scrolls, the controls do not, and picking a tile can never
+   put them somewhere you have to go looking. Past the work width they sit side by
+   side instead, which is what the room is for. */
+.hub-workbench-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+}
+@container (min-width: 900px) {
+  .hub-workbench-main {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
+/* Empty when nothing is picked, and it should take no room at all then. */
+.hub-dock:empty { display: none; }
+.hub-dock {
+  border-top: 1px solid #2b1a4d;
+  max-height: 46%;
+  overflow: auto;
+}
+@container (min-width: 900px) {
+  .hub-dock { border-top: none; border-left: 1px solid #2b1a4d; max-height: none; }
+}
+
+/* A form has nothing to choose, so it stays one column and leaves the rest alone
+   rather than stretching four fields across the window. */
+.hub-form { max-width: 420px; }
+
+/* The picked slot, beside the map or under it depending on room. */
+.hub-slot {
+  border: 1px solid #2b1a4d; border-radius: 8px;
+  background: linear-gradient(180deg, rgba(26,15,53,0.75) 0%, rgba(15,7,34,0.75) 100%);
+}
+
 .hub-outline { border-right: 1px solid #1f1338; }
 /* The workbench measures itself, so the outline appears the moment the drag crosses
    the width rather than when the mouse comes up. */
 .hub-workbench { container-type: inline-size; }
 @container (max-width: 519px) { .hub-outline { display: none; } }
+/* Full: the workbench takes the window and the list steps back to a rail. Quasar puts
+   an inline width on the pane it sizes, so this swaps which of the two flexes rather
+   than fighting that number - and being CSS, it lands the moment it is asked for. */
+/* Hidden, not squeezed. A grid at 57px is not a rail - it is a grid with its toolbar
+   wrapped into a column of single words. Nothing is stranded by this: the control that
+   brings it back sits in the workbench header, which is always on screen. */
+.hub-full .q-splitter__before { display: none !important; }
+.hub-full .q-splitter__after { width: auto !important; flex: 10000 1 0% !important; }
+.hub-full .q-splitter__separator { display: none; }
+
+/* The outline carries the grouping once it is there; the body only needs it when it
+   is the only structure on screen. */
+@container (min-width: 520px) { .hub-body-group { display: none; } }
 .hub-outline-item {
   display: block;
   font-size: 11px;

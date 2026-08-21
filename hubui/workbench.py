@@ -12,6 +12,7 @@ above it; the rest are the game's whatever build you are looking at.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -22,7 +23,10 @@ from hubui import mediamap
 from hubui.data import Library
 
 # Which group a section belongs to, in the order they are shown.
-OWNERS = (("game", "This game"), ("table", "This table"), ("folder", "Whole folder"))
+# Short, because the outline and the body would otherwise say the same three phrases
+# twice on one screen. What each group means is carried by the lens sitting in it and
+# by the sections themselves, not by shouting the scope.
+OWNERS = (("game", "Game"), ("table", "Table"), ("folder", "Folder"))
 
 # Sections open when nobody has said otherwise. The map is the question people
 # actually have about a game, and its shape answers before a label is read.
@@ -83,8 +87,12 @@ async def build(container: ui.column, title: ui.column, library: Library,
         # event loop it blocks the server from answering it, the request times out
         # after 15s, and the browser reports the socket as lost rather than slow.
         tables = await run.io_bound(library.tables_for, game_id)
+        # `lens` is a table id or "" for the folder's shared files, and it resets per
+        # game because a table id means nothing to the next one. `redraws` is how the
+        # lens reaches the sections that follow it without rebuilding the panel.
         context = {"library": library, "game": game, "game_id": game_id,
-                   "tables": tables, "state": state}
+                   "tables": tables, "state": state, "lens": "", "redraws": [],
+                   "slot": {"kind": None}}
 
         opened = open_sections(state)
         entries: dict[str, ui.element] = {}
@@ -92,14 +100,28 @@ async def build(container: ui.column, title: ui.column, library: Library,
         # frame and only the body column scrolls inside it.
         with ui.row().classes("w-full grow min-h-0 no-wrap gap-0"):
             _outline(entries, opened)
-            body = ui.column().classes("grow min-w-0 h-full overflow-auto gap-0 "
-                                       "hub-workbench-body")
+            # A grid, so one rule decides whether the dock sits under the body or
+            # beside it. Under is a vertical split of the workbench; beside is the
+            # work layout. In both the dock is outside the scroll, which is what
+            # makes "always visible" true rather than usually true.
+            with ui.element("div").classes("grow min-w-0 h-full hub-workbench-main"):
+                body = ui.column().classes("min-w-0 h-full overflow-auto gap-0 "
+                                           "hub-workbench-body")
+                context["dock"] = ui.column().classes("min-w-0 gap-0 hub-dock")
         with body:
             for owner, heading in OWNERS:
                 mine = [section for section in SECTIONS if section.owner == owner]
                 if not mine:
                     continue
-                ui.label(heading).classes("hub-group")
+                # Hidden by CSS once the outline is carrying these, so the two never
+                # say the same thing side by side.
+                ui.label(heading).classes("hub-group hub-body-group")
+                # The lens belongs with what it governs. The mockup put it across the
+                # top, where the context index was a selector and only one section
+                # showed - with sections stacked, a control at the top would not say
+                # which of them it applies to.
+                if owner == "table":
+                    _lens(context)
                 for section in mine:
                     await _section(section, context, opened, entries)
 
@@ -169,45 +191,151 @@ def _media_label(context: dict[str, Any]) -> str:
     return label + (f", {borrowed} borrowed)" if borrowed else ")")
 
 
-async def _media_block(context: dict[str, Any]) -> None:
-    """The map, and - only where a folder holds more than one build - a lens over it.
+def _lens(context: dict[str, Any]) -> None:
+    """Which build the sections below answer for.
 
-    One table means one answer, so the control never appears and nobody meets the
-    concept. That is the common case by a long way.
+    Only where a folder holds more than one. One table means one answer, so the
+    control never appears and nobody meets the concept - the common case by a long way.
     """
+    tables = [table for table in context["tables"] if table.get("id")]
+    if len(tables) < 2:
+        return
+
+    pills: dict[str, ui.element] = {}
+    note = ui.label().classes("hub-help px-3 pb-1")
+
+    async def pick(table_id: str) -> None:
+        # The picked slot survives the switch. Looking at the same kind across two
+        # builds is the reason to have a lens at all; closing the panel would make
+        # the comparison two clicks instead of none.
+        context["lens"] = table_id
+        for key, pill in pills.items():
+            pill.classes(add="hub-lens-on") if key == table_id \
+                else pill.classes(remove="hub-lens-on")
+        note.text = _lens_note(table_id)
+        for redraw in context["redraws"]:
+            await redraw()
+
+    with ui.row().classes("items-center gap-1 w-full px-3 pt-1 hub-lens"):
+        ui.label("Viewing as").classes("hub-lens-label")
+        for table_id, label in [("", "Shared")] + [
+                (t["id"], t.get("filename") or t["id"]) for t in tables]:
+            pill = ui.label(label).classes("hub-lens-pill")
+            if table_id == context["lens"]:
+                pill.classes(add="hub-lens-on")
+            pill.on("click", lambda tid=table_id: pick(tid))
+            # Truncated to keep five builds on one line; the whole name is a hover away.
+            pill.tooltip(label)
+            pills[table_id] = pill
+    note.text = _lens_note(context["lens"])
+
+
+def _lens_note(table_id: str) -> str:
+    return ("Named for this .vpx. Only this table uses them." if table_id else
+            "Named for the folder. Every table in this game uses them.")
+
+
+async def _media_block(context: dict[str, Any]) -> None:
+    """The map, and whatever tile is picked out of it."""
     library, game_id = context["library"], context["game_id"]
-    tables = context["tables"]
-    chosen = {"table": ""}
-    note = ui.label().classes("hub-help px-2")
     holder = ui.column().classes("w-full gap-0")
 
     async def draw() -> None:
-        table_id = chosen["table"]
+        table_id = context["lens"]
         entries = await run.io_bound(library.media_for, game_id, table_id or None)
-        note.text = ("Named for this .vpx. Only this table uses them."
-                     if table_id else
-                     "Named for the folder. Every table in this game uses them.")
         holder.clear()
         with holder:
-            mediamap.build(entries, _prefix(game_id, table_id))
+            mediamap.build(entries, _prefix(game_id, table_id),
+                           on_pick=lambda kind: _pick_slot(context, kind, draw),
+                           selected=context["slot"]["kind"])
+        dock = context.get("dock")
+        if dock is not None:
+            dock.clear()
+            kind = context["slot"]["kind"]
+            if kind and kind in entries:
+                with dock:
+                    _slot(context, kind, entries[kind], draw)
 
-    async def pick(event: Any) -> None:
-        chosen["table"] = event.value or ""
+    context["redraws"].append(draw)
+    await draw()
+
+
+def _pick_slot(context: dict[str, Any], kind: str, draw) -> None:
+    """Clicking the picked tile again puts the panel away."""
+    slot = context["slot"]
+    slot["kind"] = None if slot["kind"] == kind else kind
+    asyncio.create_task(draw())
+
+
+def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any], draw) -> None:
+    """One slot: what is there, how it got to be the one used, and what to do about it.
+
+    The three facts are the whole point of the surface - does it resolve, how specific
+    is the match, where did the file come from - and this is where they stop being a
+    tooltip and become something you can act on.
+    """
+    library, game_id = context["library"], context["game_id"]
+    table_id = context["lens"]
+    label = mediamap.LABELS.get(kind, kind)
+
+    async def place(event: Any) -> None:
+        data = await event.file.read()
+        try:
+            await run.io_bound(library.place_media, game_id, table_id, kind,
+                               event.file.name, data)
+        except Exception as exc:
+            ui.notify(f"Could not place it: {exc}", type="negative")
+            return
+        ui.notify(f"{label} placed", type="positive")
         await draw()
 
-    if len(tables) > 1:
-        options = {"": "Shared"}
-        options.update({table["id"]: table.get("filename") or table["id"]
-                        for table in tables if table.get("id")})
-        ui.select(options, value="", label="Viewing as", on_change=pick) \
-            .props("dense outlined").classes("w-full px-2 pt-1")
-    else:
-        note.set_visibility(False)
-    await draw()
+    async def remove() -> None:
+        try:
+            result = await run.io_bound(library.remove_media, game_id, table_id, kind)
+        except Exception as exc:
+            ui.notify(f"Could not remove it: {exc}", type="negative")
+            return
+        gone = len(result.get("removed") or [])
+        ui.notify(f"Removed {gone} file(s)" if gone else
+                  "Nothing to remove at this level", type="positive" if gone else "info")
+        await draw()
+
+    with ui.column().classes("w-full gap-1 hub-slot p-2"):
+        ui.label(label).classes("hub-card-title")
+        if entry.get("present"):
+            ui.html(f'<img src="{_prefix(game_id, table_id)}/{kind}" '
+                    f'style="max-width:100%;max-height:200px;object-fit:contain;'
+                    f'border-radius:4px;border:1px solid #2b1a4d">')
+            _rows(ui, {"File": entry.get("file") or "-",
+                       "Resolved": entry.get("via") or "-",
+                       "Origin": entry.get("origin") or "-"})
+        else:
+            ui.label(f"No {label.lower()} for this {'build' if table_id else 'game'}.") \
+                .classes("hub-help")
+        ui.upload(on_upload=place, auto_upload=True, max_files=1) \
+            .props("flat dense").classes("w-full")
+        ui.label("Placed here, it is named for "
+                 + ("this .vpx." if table_id else "the folder.")).classes("hub-help")
+        with ui.row().classes("items-center gap-1 w-full no-wrap").style("flex-wrap:wrap"):
+            if entry.get("present"):
+                ui.button("Remove", on_click=remove).props("flat dense no-caps size=sm")
+            # Shown disabled rather than omitted, so what the slot is *for* is legible
+            # before either exists. Both are parked in HUBUI section 10: sourcing wants
+            # a registry of places to look, and capture wants the recorder.
+            ui.button("Search sources").props("flat dense no-caps size=sm") \
+                .set_enabled(False)
+            ui.button("Capture").props("flat dense no-caps size=sm").set_enabled(False)
+        ui.label("Searching sources and capturing from a device are not built yet.") \
+            .classes("hub-help")
 
 
 async def _identity_block(context: dict[str, Any]) -> None:
     game = context["game"]
+    with ui.column().classes("gap-0 hub-form"):
+        _identity_rows(game)
+
+
+def _identity_rows(game: dict[str, Any]) -> None:
     _rows(ui, {
         "VPS id": game.get("vps_id") or "-",
         "ROM": game.get("rom") or "-",
