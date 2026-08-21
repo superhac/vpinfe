@@ -11,8 +11,9 @@ import logging
 import threading
 from pathlib import Path
 
-from fastapi import APIRouter, Body, Query, Request
+from fastapi import APIRouter, Body, File, Query, Request, UploadFile
 from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse
 
 from common.config_access import MediaConfig
@@ -22,6 +23,7 @@ from common.games import (
     game_identity,
     library_discovery,
     media_lookup,
+    media_placement,
 )
 from common.games.game_metadata import set_game_rating, vpinfe_section
 from common.games.game_repository import (
@@ -411,6 +413,87 @@ def get_table_media(game_id: str, table_id: str) -> models.MediaList:
 def get_table_media_file(game_id: str, table_id: str, kind: str):
     game = _game_or_404(game_id)
     return _media_file_or_404(game, kind, _table_stem_or_404(game, table_id))
+
+
+async def _write_media(game, kind: str, stem: str, upload: UploadFile,
+                       prefix: str, table_stem: str | None):
+    """Store the bytes at `stem`'s tier, then answer with what now resolves.
+
+    The reply is the slot as it stands rather than a bare 201: a shared file is
+    outranked by any table-specific one, so "written" and "in use" are different
+    facts and the caller should not have to guess which it got.
+    """
+    import tempfile
+
+    known = {spec.kind for spec in MEDIA_SPECS}
+    if kind not in known:
+        raise InvalidRequestError("Unknown media kind",
+                                  details={"unknown": kind, "known": sorted(known)})
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+    suffix = Path(upload.filename or "").suffix
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as staged:
+        staged.write(await upload.read())
+        staged_path = staged.name
+    try:
+        written = await run_in_threadpool(
+            media_placement.place, game_dir, kind, stem, staged_path)
+    except media_placement.UnplaceableError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    finally:
+        Path(staged_path).unlink(missing_ok=True)
+
+    await run_in_threadpool(media_placement.record_origin, game_dir, written)
+    entries = _media_entries(_resolved_media(game_dir, table_stem), game_dir, prefix)
+    return {"written": written.name, "media": {kind: entries[kind]}}
+
+
+@router.put("/{game_id}/media/{kind}", summary="Place a file every table shares",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+async def put_game_media(game_id: str, kind: str,
+                         file: UploadFile = File(...)) -> models.MediaWritten:
+    """Named for the folder, so every table in it resolves this unless it has its own."""
+    game = _game_or_404(game_id)
+    return await _write_media(game, kind, Path(getattr(game, "fullPathGame", "")).name,
+                              file, f"/api/v1/games/{game_id}/media", None)
+
+
+@router.put("/{game_id}/tables/{table_id}/media/{kind}",
+            summary="Place a file for one build", dependencies=[requires(scopes.GAMES_WRITE)])
+async def put_table_media(game_id: str, table_id: str, kind: str,
+                          file: UploadFile = File(...)) -> models.MediaWritten:
+    """Named for this .vpx, so it serves this build and no other."""
+    game = _game_or_404(game_id)
+    stem = _table_stem_or_404(game, table_id)
+    return await _write_media(
+        game, kind, stem, file,
+        f"/api/v1/games/{game_id}/tables/{table_id}/media", stem)
+
+
+@router.delete("/{game_id}/media/{kind}", summary="Remove the file every table shares",
+               dependencies=[requires(scopes.GAMES_WRITE)])
+def delete_game_media(game_id: str, kind: str) -> models.MediaRemoved:
+    """Only the folder-named file. A build's own art and the default both survive."""
+    game = _game_or_404(game_id)
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+    try:
+        removed = media_placement.remove(game_dir, kind, game_dir.name)
+    except media_placement.UnplaceableError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    return {"removed": removed}
+
+
+@router.delete("/{game_id}/tables/{table_id}/media/{kind}",
+               summary="Remove one build's file",
+               dependencies=[requires(scopes.GAMES_WRITE)])
+def delete_table_media(game_id: str, table_id: str, kind: str) -> models.MediaRemoved:
+    game = _game_or_404(game_id)
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+    try:
+        removed = media_placement.remove(game_dir, kind,
+                                         _table_stem_or_404(game, table_id))
+    except media_placement.UnplaceableError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    return {"removed": removed}
 
 
 @router.post("/{game_id}/launch", summary="Launch a game on this play host",

@@ -429,6 +429,22 @@ class MediaList(ApiModel):
     media: dict[str, MediaEntry]
 
 
+class MediaWritten(ApiModel):
+    """The name the file was given, and the slot as it stands afterwards.
+
+    Those differ: a folder-named file is outranked by any table-named one, so a
+    write can succeed and change nothing about what resolves."""
+
+    written: str
+    media: dict[str, MediaEntry]
+
+
+class MediaRemoved(ApiModel):
+    """Folder-relative paths that went. Empty means there was nothing at that tier."""
+
+    removed: list[str]
+
+
 # --- Collections -----------------------------------------------------------
 
 class CollectionFilters(ApiModel):
