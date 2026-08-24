@@ -11,7 +11,7 @@ from typing import Callable, Optional
 
 from nicegui import context, events, run, ui
 
-from common.table_metadata import reorder_leading_article
+from common.table_metadata import reorder_leading_article, rom_zip_exists, rom_zip_filename
 from managerui.pages.table_dialog_context import TableDialogContext, default_context
 from managerui.pages.dnd_drop_zone import create_drop_zone, DropContext
 from managerui.services import plugin_profile_service, table_index_service, table_service
@@ -61,6 +61,8 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
         # Holds the VBS-indicator refresh callback (assigned when the panel below
         # is built) so the Extract VBS handler in the header can refresh it live.
         vbs_refresh_holder = {'fn': None}
+        # Same pattern for the ROM-status indicator, refreshed after a ROM upload.
+        rom_refresh_holder = {'fn': None}
 
         # Header
         with ui.row().classes('table-dialog-header w-full items-center gap-3'):
@@ -225,6 +227,8 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                 with client:
                                     update_status.set_text(f'ROM uploaded: {upload_name}')
                                     ui.notify('ROM uploaded', type='positive')
+                                    if rom_refresh_holder['fn']:
+                                        rom_refresh_holder['fn']()
                             except Exception as ex:
                                 logger.exception('ROM upload failed')
                                 with client:
@@ -314,6 +318,12 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         return (Path(table_path_str) / (Path(filename_for_vbs).stem + '.vbs')).is_file()
                     return False
 
+                def rom_is_present() -> bool:
+                    rom_name = (row_data.get('rom') or '').strip()
+                    if table_path_str and rom_name:
+                        return rom_zip_exists(table_path_str, rom_name)
+                    return False
+
                 with ui.grid(columns=2).classes('w-full gap-3'):
                     for key, label, icon in display_fields:
                         value = row_data.get(key, '')
@@ -343,6 +353,28 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
 
                         refresh_vbs_indicator()
                         vbs_refresh_holder['fn'] = refresh_vbs_indicator
+
+                    # ROM presence - only shown when a ROM is declared. Green when the
+                    # zip exists under pinmame/roms, red when not. Refreshed after upload.
+                    if (row_data.get('rom') or '').strip():
+                        with ui.row().classes('detail-row items-center gap-2 w-full'):
+                            ui.icon('memory', size='18px').style('color: var(--neon-purple);')
+                            ui.label('ROM Status').classes('detail-label')
+                            rom_indicator = ui.row().classes('items-center gap-1')
+
+                            def refresh_rom_indicator():
+                                rom_indicator.clear()
+                                with rom_indicator:
+                                    if rom_is_present():
+                                        ui.icon('check_circle', size='16px').classes('text-green-400')
+                                        ui.badge('Present', color='positive').props('rounded')
+                                    else:
+                                        ui.icon('cancel', size='16px').classes('text-red-400')
+                                        missing_name = rom_zip_filename(row_data.get('rom'))
+                                        ui.badge(f'Missing: {missing_name}', color='negative').props('rounded')
+
+                            refresh_rom_indicator()
+                            rom_refresh_holder['fn'] = refresh_rom_indicator
 
                     # Render list fields (authors, themes) - join lists with comma
                     for key, label, icon in list_fields:

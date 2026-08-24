@@ -139,6 +139,7 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "serum_exists": bool(getattr(table, "altColorExists", False)),
         "vni_exists": bool(getattr(table, "vniExists", False)),
         "alt_sound_exists": bool(getattr(table, "altSoundExists", False)),
+        "rom_exists": bool(getattr(table, "romExists", False)),
         "delete_nvram_on_close": vpinfe.get("deletedNVRamOnClose", False),
         "altlauncher": str(vpinfe.get("altlauncher", "") or "").strip(),
         "pluginprofile": str(vpinfe.get("pluginprofile", "") or "").strip(),

@@ -12,6 +12,7 @@ from common.info_restore import (
     restorable_backup,
 )
 from common.metaconfig import InvalidMetaConfigError, MetaConfig
+from common.table_metadata import rom_zip_exists, table_rom
 
 
 logger = logging.getLogger("vpinfe.common.tableparser")
@@ -115,6 +116,11 @@ class TableParser:
                 })
                 logger.error("Skipping table with unreadable metadata: %s", exc)
                 continue
+
+            rom_name = table_rom(table)
+            table.romExists = bool(
+                rom_name and "pinmame" in table_subdirs and rom_zip_exists(table_dir, rom_name)
+            )
 
             # Only a table a newer VPinFE upgraded has anything to put back, and only then
             # is a saved copy worth opening to check we can read it.

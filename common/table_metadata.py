@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import os
 from pathlib import Path
 from typing import Any, Dict
 
@@ -132,6 +133,34 @@ def table_year(table) -> str:
     meta = normalize_meta(getattr(table, "metaConfig", {}))
     value = first_meta_value(meta, ("Info", "Year"), ("VPSdb", "year"), default="")
     return str(value) if value else ""
+
+
+def table_rom(table) -> str:
+    meta = normalize_meta(getattr(table, "metaConfig", {}))
+    return str(first_meta_value(meta, ("VPXFile", "rom"), ("Info", "Rom"), default="") or "")
+
+
+def rom_zip_filename(rom_name: Any) -> str:
+    """Normalize a declared ROM name to the "<rom>.zip" filename PinMAME expects
+    under pinmame/roms, stripping any path and an existing .zip suffix."""
+    stem = Path(str(rom_name or "").strip()).name
+    if stem.lower().endswith(".zip"):
+        stem = stem[:-4]
+    return f"{stem}.zip" if stem else ""
+
+
+def rom_zip_exists(table_dir: Any, rom_name: Any) -> bool:
+    """Whether pinmame/roms holds the declared ROM's zip. Matched case-insensitively
+    since declared ROM names and on-disk zip filenames don't always agree on case."""
+    target = rom_zip_filename(rom_name)
+    if not target:
+        return False
+    roms_dir = Path(table_dir) / "pinmame" / "roms"
+    try:
+        with os.scandir(roms_dir) as entries:
+            return any(entry.name.lower() == target.lower() and entry.is_file() for entry in entries)
+    except OSError:
+        return False
 
 
 def table_rating(table) -> int:

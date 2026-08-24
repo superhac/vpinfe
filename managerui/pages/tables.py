@@ -849,6 +849,13 @@ def render_panel(tab=None):
                                 label="ALT-VPS"
                                 style="font-size: 10px; padding: 2px 6px;"
                             />
+                            <q-badge
+                                v-if="props.row.rom && !props.row.rom_exists"
+                                color="red-8"
+                                text-color="white"
+                                label="ROM MISSING"
+                                style="font-size: 10px; padding: 2px 6px;"
+                            />
                         </div>
                         <div
                             v-if="props.row.ipdb_id || props.row.vpsid || props.row.pinball_primer_tut"

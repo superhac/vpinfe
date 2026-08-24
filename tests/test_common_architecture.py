@@ -265,6 +265,45 @@ class TestCommonArchitecture(unittest.TestCase):
             self.assertTrue(table_to_row(by_name["With B2S (Bally 1990)"])["b2s_exists"])
             self.assertFalse(table_to_row(by_name["No B2S (Bally 1991)"])["b2s_exists"])
 
+    def test_tableparser_detects_rom_presence(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            def make_table(name: str, rom: str | None, rom_zip_name: str | None) -> None:
+                table_dir = root / name
+                table_dir.mkdir()
+                (table_dir / f"{name}.vpx").write_text("")
+                info = {"VPXFile": {"rom": rom}} if rom else {}
+                (table_dir / f"{name}.info").write_text(json.dumps(info))
+                if rom_zip_name:
+                    roms_dir = table_dir / "pinmame" / "roms"
+                    roms_dir.mkdir(parents=True)
+                    (roms_dir / rom_zip_name).write_text("")
+
+            # Declared ROM with a matching zip present.
+            make_table("Present ROM (Bally 1990)", "afm_113b", "afm_113b.zip")
+            # Declared ROM with no zip under pinmame/roms at all.
+            make_table("Missing ROM (Bally 1991)", "mm_109c", None)
+            # No ROM declared - absence is neutral, not "missing".
+            make_table("No ROM (Bally 1992)", None, None)
+            # Declared ROM whose zip exists but differs only in case.
+            make_table("Case Insensitive ROM (Bally 1993)", "TZ_92", "tz_92.ZIP")
+
+            parser = TableParser(root)
+            parser.loadTables()
+            by_name = {t.tableDirName: t for t in parser.getAllTables()}
+
+            self.assertTrue(by_name["Present ROM (Bally 1990)"].romExists)
+            self.assertFalse(by_name["Missing ROM (Bally 1991)"].romExists)
+            self.assertFalse(by_name["No ROM (Bally 1992)"].romExists)
+            self.assertTrue(by_name["Case Insensitive ROM (Bally 1993)"].romExists)
+
+            # table_to_row mirrors the flag for the UI
+            self.assertTrue(table_to_row(by_name["Present ROM (Bally 1990)"])["rom_exists"])
+            self.assertFalse(table_to_row(by_name["Missing ROM (Bally 1991)"])["rom_exists"])
+            self.assertFalse(table_to_row(by_name["No ROM (Bally 1992)"])["rom_exists"])
+            self.assertTrue(table_to_row(by_name["Case Insensitive ROM (Bally 1993)"])["rom_exists"])
+
 
 if __name__ == "__main__":
     unittest.main()

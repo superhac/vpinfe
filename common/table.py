@@ -16,6 +16,7 @@ class Table:
     altSoundExists: bool = False
     vniExists: bool = False
     b2sExists: bool = False
+    romExists: bool = False
 
     BGImagePath: str | None = None
     DMDImagePath: str | None = None
