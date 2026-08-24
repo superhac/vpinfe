@@ -470,6 +470,36 @@ def _tables_label(context: dict[str, Any]) -> str:
     return label + (f" - {len(gone)} not on disk" if gone else "")
 
 
+async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
+    """Drop a gone table's record, once the user says it is not coming back.
+
+    Confirmed because it is the only destructive thing on this surface, and the dialog
+    names the file rather than the id - the id is ours, the filename is what the user
+    recognises. The hub refuses the request outright if the .vpx is back, so a stale
+    panel cannot delete a table that returned while it was open.
+    """
+    filename = table.get("filename") or "this table"
+    with ui.dialog() as confirm, ui.card():
+        ui.label("Forget this table?").classes("hub-card-title")
+        ui.label(filename).classes("text-xs opacity-70 break-all")
+        ui.label("Its record goes; no file is deleted, because there is none. Put the "
+                 ".vpx back and refresh and it returns as a new table.").classes("text-xs")
+        with ui.row().classes("justify-end gap-2 w-full"):
+            ui.button("Cancel", on_click=lambda: confirm.submit(False)).props("flat")
+            ui.button("Forget", on_click=lambda: confirm.submit(True)).props("color=negative")
+
+    if not await confirm:
+        return
+    try:
+        await run.io_bound(context["library"].forget_table,
+                           context["game_id"], table.get("id") or "")
+    except Exception as exc:
+        ui.notify(f"Could not forget it: {exc}", type="negative")
+        return
+    ui.notify("Table forgotten", type="positive")
+    await context["rebuild"]()
+
+
 async def _tables_block(context: dict[str, Any]) -> None:
     for table in context["tables"]:
         with ui.row().classes("items-center gap-2 w-full px-3"):
@@ -480,6 +510,11 @@ async def _tables_block(context: dict[str, Any]) -> None:
                 # from a share that was late mounting, and that call is the user's.
                 name.classes(add="opacity-60")
                 ui.badge(f"gone since {since[:10]}", color="warning").props("outline")
+                ui.space()
+                ui.button(icon="delete_outline",
+                          on_click=lambda _, t=table: _forget_table(context, t)) \
+                    .props("flat dense size=sm color=warning") \
+                    .tooltip("Forget this table")
             else:
                 ui.badge(table.get("app") or "?", color="secondary").props("outline")
 

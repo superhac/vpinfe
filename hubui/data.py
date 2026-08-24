@@ -95,6 +95,14 @@ class Library:
         self.forget_media(game_id)
         return result
 
+    def forget_table(self, game_id: str, table_id: str) -> dict:
+        """Drop a gone table's record. The tables list is what changes, and the media
+        cache with it - a per-build read keyed on that table is now describing nothing."""
+        result = self._client.forget_table(game_id, table_id)
+        self.tables.pop(game_id, None)
+        self.forget_media(game_id)
+        return result
+
     def forget_media(self, game_id: str) -> None:
         """Every tier, not just the one written: a shared file changes what each build
         resolves, so leaving the per-build reads cached would show the old answer."""

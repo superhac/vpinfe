@@ -124,6 +124,14 @@ class HubClient:
         response.raise_for_status()
         return response.json()
 
+    def forget_table(self, game_id: str, table_id: str) -> dict:
+        """Drop the record of a table whose file is gone. The hub refuses if it is not."""
+        path = f"/games/{game_id}/tables/{table_id}"
+        _refuse_the_event_loop(path)
+        response = self._session.delete(f"{self._base}{path}", timeout=_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+
     def refresh_library(self) -> dict:
         """Ask the hub to look at the disk again. Returns the job to watch."""
         _refuse_the_event_loop("/library/refresh")

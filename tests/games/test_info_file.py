@@ -391,3 +391,64 @@ class AssetLedgerTests(TempTree):
         self.assertIn("medias/bg.png", saved["assets"])
         self.assertNotIn("Medias", saved,
                          "superseded and ours, so it must not survive as unmanaged")
+
+
+class ForgetTableTests(unittest.TestCase):
+    """Dropping the record of a table whose file is gone.
+
+    There is no file to delete - only the entry describing one - so the guard is that
+    the entry says it is absent. Putting the .vpx back and refreshing is the undo.
+    """
+
+    def setUp(self) -> None:
+        self._dir = TemporaryDirectory()
+        self.addCleanup(self._dir.cleanup)
+        self.info = Path(self._dir.name) / "T.info"
+
+    def _meta(self, default_id: str = "") -> MetaConfig:
+        self.info.write_text(json.dumps({
+            "Info": {"Title": "T"}, "User": {},
+            "vpinfe": {"game_id": "g", "default_table": default_id,
+                       "alt_vpsid": "USER-TYPED"},
+            "tables": {
+                "keep": {"id": "keep", "filename": "a.vpx", "file_hash": "h1"},
+                "gone": {"id": "gone", "filename": "b.vpx", "file_hash": "h2",
+                         "absent_since": "2026-08-23T18:24:08Z"},
+            },
+        }))
+        return MetaConfig(str(self.info))
+
+    def _stored(self) -> dict:
+        return json.loads(self.info.read_text())
+
+    def test_a_table_still_on_disk_is_refused(self) -> None:
+        """Its entry holds stats and match records, and hiding is what takes it
+        out of play."""
+        self.assertFalse(self._meta().forget_table("keep"))
+        self.assertIn("keep", self._stored()["tables"])
+
+    def test_an_absent_table_is_dropped(self) -> None:
+        self.assertTrue(self._meta().forget_table("gone"))
+        self.assertEqual(list(self._stored()["tables"]), ["keep"])
+
+    def test_an_unknown_id_is_refused(self) -> None:
+        self.assertFalse(self._meta().forget_table("nope"))
+
+    def test_forgetting_the_default_clears_it_and_parks_the_vps_override(self) -> None:
+        """The stored default is a table id, so leaving it would name a table nothing
+        describes - and the manual VPS match was claimed against that table."""
+        self._meta(default_id="gone").forget_table("gone")
+
+        vpinfe = self._stored()["vpinfe"]
+        self.assertEqual(vpinfe["default_table"], "")
+        self.assertEqual(vpinfe["alt_vpsid"], "")
+        self.assertEqual(vpinfe["alt_vpsid_previous"]["value"], "USER-TYPED")
+        self.assertEqual(vpinfe["alt_vpsid_previous"]["table"], "b.vpx")
+
+    def test_forgetting_another_table_leaves_the_default_alone(self) -> None:
+        self._meta(default_id="keep").forget_table("gone")
+
+        vpinfe = self._stored()["vpinfe"]
+        self.assertEqual(vpinfe["default_table"], "keep")
+        self.assertEqual(vpinfe["alt_vpsid"], "USER-TYPED",
+                         "adding or losing a peer is not a reason to drop the match")

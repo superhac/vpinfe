@@ -25,19 +25,27 @@ from common.games import (
     media_lookup,
     media_placement,
 )
-from common.games.game_metadata import set_game_rating, vpinfe_section
+from common.games.game_metadata import (
+    load_game_meta,
+    meta_file_path,
+    set_game_rating,
+    vpinfe_section,
+)
 from common.games.game_repository import (
     all_games,
     collections_by_game_id,
     game_to_row,
 )
+from common.games.info_file import MetaConfig
 from common.games.tables import (
+    ABSENT_SINCE_KEY,
     TABLE_ID_KEY,
     default_table,
     entry_for_filename,
     hidden_tables,
     is_parsed,
     recorded_default,
+    table_entries,
     table_filenames,
     table_names,
 )
@@ -494,6 +502,35 @@ def delete_table_media(game_id: str, table_id: str, kind: str) -> models.MediaRe
     except media_placement.UnplaceableError as exc:
         raise InvalidRequestError(str(exc)) from exc
     return {"removed": removed}
+
+
+@router.delete("/{game_id}/tables/{table_id}", summary="Forget a table that is gone",
+               dependencies=[requires(scopes.GAMES_WRITE)])
+def delete_table(game_id: str, table_id: str) -> models.TableForgotten:
+    """Drop the record of a table whose file is no longer there.
+
+    No file is deleted, because there is none - what goes is the entry describing it.
+    Refused while the .vpx is on disk: that entry describes something the user owns, and
+    the next refresh would mint it again anyway. Putting the file back and refreshing
+    brings the table back, under a new id.
+    """
+    game = _game_or_404(game_id)
+    config = load_game_meta(game)
+    entry = table_entries(config).get(table_id)
+    if not isinstance(entry, dict):
+        raise NotFoundError("This game has no such table",
+                            details={"game": getattr(game, "gameDirName", ""),
+                                     "table": table_id})
+    if not entry.get(ABSENT_SINCE_KEY):
+        raise ConflictError("That table's file is still on disk, so its record stands",
+                            details={"table": table_id,
+                                     "filename": entry.get("filename", "")})
+
+    meta = MetaConfig(str(meta_file_path(game)))
+    meta.forget_table(table_id)
+    # The scan's copy still describes the table that just went.
+    game.meta_config = load_game_meta(game)
+    return {"forgotten": table_id}
 
 
 @router.post("/{game_id}/launch", summary="Launch a game on this play host",

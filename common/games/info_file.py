@@ -19,12 +19,15 @@ from common.games.info_migration import (
     write_json_atomic,
 )
 from common.games.tables import (
+    ABSENT_SINCE_KEY,
+    DEFAULT_TABLE_KEY,
     DETECT_KEYS,
     TABLE_FILENAME_KEY,
     TABLE_ID_KEY,
     TABLES_KEY,
     adopted_entry,
     default_table,
+    entry_filename,
     entry_for_filename,
     entry_from_parsed,
     recorded_default,
@@ -373,6 +376,35 @@ class MetaConfig:
             if set(entry) <= {TABLE_ID_KEY, TABLE_FILENAME_KEY}:
                 settings.pop(entry.get(TABLE_ID_KEY), None)
         self.write_config()
+
+    def forget_table(self, table_id):
+        """Drop an absent table's record, once a person has decided it is not coming back.
+
+        Only an entry discovery has stamped absent. While the file is on disk that entry
+        is the record of a table the user owns, and `set_table_hidden` is what takes one
+        out of play without losing its stats and match records. Refusing the present case
+        is what keeps a stale id from deleting a table that is simply there.
+
+        There is no backup because there is a better undo: put the .vpx back and refresh,
+        and discovery mints the entry again - though with a *new* id, so a collection
+        that named this table by id does not reconnect to it.
+        """
+        entries = self._entries_by_id()
+        entry = entries.get(table_id)
+        if not isinstance(entry, dict) or not entry.get(ABSENT_SINCE_KEY):
+            return False
+
+        gone_name = entry_filename(entry)
+        entries.pop(table_id, None)
+        vpinfe = self.data.get(VPINFE_SECTION)
+        if isinstance(vpinfe, dict) and str(vpinfe.get(DEFAULT_TABLE_KEY, "")) == table_id:
+            # The stored default is a table id, so leaving it would name a table nothing
+            # describes. The manual VPS match went with that table - park it the way a
+            # replacement does, so the user's typed value can be offered back.
+            vpinfe[DEFAULT_TABLE_KEY] = ""
+            _park_alt_vpsid(vpinfe, gone_name)
+        self.write_config()
+        return True
 
     def game_file_value(self, filename, key, default=""):
         """One key off a specific table's entry."""

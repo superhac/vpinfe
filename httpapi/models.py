@@ -289,6 +289,13 @@ class TableList(ApiModel):
     tables: list[Table]
 
 
+class TableForgotten(ApiModel):
+    """The id whose record went. No file is named because none was touched - the entry
+    described a .vpx that is not on disk."""
+
+    forgotten: str
+
+
 class PlayRecord(ApiModel):
     """What a person did with this, in a consumer's units rather than the file's - the
     `.info` keeps LastRun as an epoch integer and RunTime in minutes."""
