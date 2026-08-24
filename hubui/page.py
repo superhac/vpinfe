@@ -118,22 +118,29 @@ async def hub_page() -> None:
     nav_rows: list[ui.row] = []
     destinations: dict[str, ui.row] = {}
 
-    def toggle_mini() -> None:
+    def set_mini(mini: bool) -> None:
         """Collapse the nav to an icon rail rather than hiding it.
 
         Hiding it entirely costs you the map; mini keeps every destination reachable
         and one click away, which is the point of a rail.
         """
-        state["mini"] = not state["mini"]
-        left.props(add="mini") if state["mini"] else left.props(remove="mini")
+        state["mini"] = mini
+        left.props(add="mini") if mini else left.props(remove="mini")
         for label in labels:
-            label.set_visibility(not state["mini"])
-        nav_icon.props(f'name={"menu" if state["mini"] else "menu_open"}')
+            label.set_visibility(not mini)
+        nav_icon.props(f'name={"menu" if mini else "menu_open"}')
         for row in nav_rows:
             # Centred on the rail: left-aligned icons under a 220px gutter look centred
             # and under a 57px one plainly are not.
-            row.classes(add="justify-center", remove="px-3") if state["mini"] \
+            row.classes(add="justify-center", remove="px-3") if mini \
                 else row.classes(add="px-3", remove="justify-center")
+
+    def toggle_mini() -> None:
+        """The nav's own control. Setting it by hand takes it out of Full's care: an
+        explicit choice outranks the one Full made on your behalf, so leaving Full
+        will not undo it."""
+        state.pop("nav_collapsed_by_full", None)
+        set_mini(not state["mini"])
 
 
     with ui.left_drawer(value=True).props(f"width={NAV_WIDE_PX} bordered") as left:
@@ -249,13 +256,26 @@ async def hub_page() -> None:
 
     def toggle_full() -> None:
         """The list never goes away - it steps back to the rail every panel here
-        collapses to, and this control is what brings it forward again."""
+        collapses to, and this control is what brings it forward again.
+
+        The nav goes to its rail with it. Full means "give this the screen", and
+        leaving the 220px gutter behind makes that two gestures instead of one - on a
+        1100px window it is the difference between reaching the work width and not.
+        Only the nav Full collapsed comes back, so a nav you had already put away
+        stays away.
+        """
         state["full"] = not state.get("full")
         splitter.classes(add="hub-full") if state["full"] \
             else splitter.classes(remove="hub-full")
         full_icon.props(f'icon={"close_fullscreen" if state["full"] else "open_in_full"}')
-        if state["full"] and not state["workbench"]:
-            show_workbench(True)
+        if state["full"]:
+            if not state["mini"]:
+                state["nav_collapsed_by_full"] = True
+                set_mini(True)
+            if not state["workbench"]:
+                show_workbench(True)
+        elif state.pop("nav_collapsed_by_full", None):
+            set_mini(False)
         asyncio.create_task(apply_mode())
 
     def _step(delta: int) -> None:
