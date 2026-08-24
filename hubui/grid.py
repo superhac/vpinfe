@@ -60,10 +60,11 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         "columnDefs": columns,
         "rowData": rows,
         "defaultColDef": DEFAULT_COL_DEF,
-        # enableClickSelection is required from AG Grid 33: without it a row click only
-        # takes focus, and with checkboxes off there is no way to select at all.
+        # Clicking a cell takes focus and nothing else. Click-selection in multiRow
+        # mode *replaces* the set, so a cell click would clear every checkbox a bulk
+        # action is about to read.
         "rowSelection": {"mode": "multiRow", "checkboxes": True,
-                         "headerCheckbox": True, "enableClickSelection": True},
+                         "headerCheckbox": True, "enableClickSelection": False},
         # The ":" prefix marks this as JavaScript. Without it AG Grid calls a string and
         # the grid dies as an empty table rather than an error.
         ":getRowId": "params => params.data.id",
@@ -71,9 +72,17 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         "selectionColumnDef": {"pinned": "left"},
         # The workbench follows the focused row, and focus is not selection: arrowing
         # must not disturb the checkboxes a bulk action reads.
+        #
+        # Marked on every fragment: AG Grid splits a row across the pinned and centre
+        # containers, each its own .ag-row.
         ":onCellFocused":
             "params => { const r = params.api.getDisplayedRowAtIndex(params.rowIndex); "
-            "if (r) emitEvent('hub_row_focus', r.data.id); }",
+            "if (r) emitEvent('hub_row_focus', r.data.id); "
+            "window.__hubFocusRow = params.rowIndex; "
+            "window.__hubMarkFocus && window.__hubMarkFocus(); }",
+        # Rows are recycled as you scroll, so the mark rides the wrong row without
+        # this.
+        ":onBodyScroll": "() => { window.__hubMarkFocus && window.__hubMarkFocus(); }",
         "suppressDragLeaveHidesColumns": True,
         "animateRows": False,
         # False deliberately: preventing the default stops the event reaching Quasar,
@@ -87,6 +96,17 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         auto_size_columns=False,
     ).classes("w-full grow min-h-0")
 
+    # Installed once per page. Idempotent, so a second grid does not stack it.
+    ui.run_javascript("""
+    window.__hubMarkFocus = () => {
+      const i = window.__hubFocusRow;
+      document.querySelectorAll('.ag-row.hub-row-focus')
+        .forEach(e => e.classList.remove('hub-row-focus'));
+      if (i === undefined || i === null) return;
+      document.querySelectorAll(`.ag-row[row-index="${i}"]`)
+        .forEach(e => e.classList.add('hub-row-focus'));
+    };
+    """)
     _restore(grid, scope, columns)
     _save_on_change(grid, scope)
     if on_select is not None:
