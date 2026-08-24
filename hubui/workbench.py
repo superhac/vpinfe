@@ -19,16 +19,56 @@ from typing import Any
 
 from nicegui import run, ui
 
-from hubui import mediamap
+from common.media_specs import media_family
+from hubui import mediamap, mediaview
 from hubui.data import Library
 
 # Which group a section belongs to, in the order they are shown.
 # Short, because the outline and the body would otherwise say the same three phrases
 # twice on one screen. What each group means is carried by the lens sitting in it and
 # by the sections themselves, not by shouting the scope.
-# Sections open when nobody has said otherwise. The map is the question people
+# Where the split sits until somebody drags it. Enough for a preview and the facts
+# under it without taking the map's room.
+DOCK_PX = 300
+
+# Dragged in the browser, reported once on release - a round trip per pointer move
+# would lag badly. Guarded, because the panel is rebuilt on every section change.
+_GRIP = """
+if (!window.__hubDockGrip) {
+  window.__hubDockGrip = true;
+  let drag = null;
+  document.addEventListener('pointerdown', (e) => {
+    const grip = e.target.closest && e.target.closest('.hub-dock-grip');
+    if (!grip) return;
+    const main = grip.closest('.hub-workbench-main');
+    const dock = main && main.querySelector('.hub-dock');
+    if (!dock) return;
+    e.preventDefault();
+    drag = { y: e.clientY, from: dock.getBoundingClientRect().height, main };
+    grip.setPointerCapture(e.pointerId);
+  });
+  document.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    e.preventDefault();
+    const room = drag.main.getBoundingClientRect().height;
+    // Both regions keep a floor, so a drag cannot leave either as a sliver.
+    const next = Math.min(room - 160, Math.max(140, drag.from - (e.clientY - drag.y)));
+    drag.main.style.setProperty('--dock-h', Math.round(next) + 'px');
+  });
+  const done = () => {
+    if (!drag) return;
+    const px = parseInt(drag.main.style.getPropertyValue('--dock-h'), 10);
+    drag = null;
+    if (px) emitEvent('hub_dock_px', px);
+  };
+  document.addEventListener('pointerup', done);
+  document.addEventListener('pointercancel', done);
+}
+"""
+
+# The section shown when nobody has said otherwise. The map is the question people
 # actually have about a game, and its shape answers before a label is read.
-DEFAULT_OPEN = frozenset({"media"})
+DEFAULT_SECTION = "media"
 
 # Below this the outline costs more than it gives: 132px of it against a 320px
 # workbench leaves the map too narrow to read, and the section headers are already
@@ -40,12 +80,6 @@ DEFAULT_OPEN = frozenset({"media"})
 # what you were aiming at.
 OUTLINE_FROM_PX = 520
 
-# Past this the workbench is for working rather than comparing, and the two want
-# opposite things: comparing wants several sections open and held still while the
-# selection moves, working wants one of them with the window to itself. So the outline
-# is a table of contents below this width and a selector above it - one control, doing
-# the job the width is for. Reported by the browser, since only it knows the width.
-WORK_FROM_PX = 900
 
 
 @dataclass(frozen=True)
@@ -56,25 +90,40 @@ class Section:
     because a heading that counts something has to count this game's - and, for the
     one section a lens governs, say which build it is counting. `build` is async
     because a section may need a fetch.
+
+    `icon` is what the selector shows when there is no room for the word. Every section
+    needs one, because a mode with no icon would simply vanish at that width.
     """
 
     key: str
     name: str
+    icon: str
     label: Callable[[dict[str, Any]], str]
     build: Callable[[dict[str, Any]], Any]
 
 
-def open_sections(state: dict[str, Any]) -> set[str]:
-    """The set this client has open, seeded once from the defaults."""
-    if "open_sections" not in state:
-        state["open_sections"] = set(DEFAULT_OPEN)
-    return state["open_sections"]
+def chosen_section(state: dict[str, Any]) -> str:
+    """The section this client is on, seeded once and kept across games.
+
+    Held across games so stepping down a list does not re-pick a section at every stop,
+    which is what looking at one kind across a library needs.
+    """
+    known = {section.key for section in SECTIONS}
+    if state.get("section") not in known:
+        state["section"] = DEFAULT_SECTION
+    return state["section"]
 
 
 async def build(container: ui.column, title: ui.column, library: Library,
                 game_id: str | None, state: dict[str, Any] | None = None) -> None:
     """Fill the panel, and the name that lives up in the panel's header row."""
     state = state if state is not None else {}
+    # Registered once: the height a drag settled on has to survive the rebuild that a
+    # section change causes, and the panel is what remembers it.
+    if not state.get("dock_grip_bound"):
+        state["dock_grip_bound"] = True
+        ui.on("hub_dock_px", lambda e: state.__setitem__("dock_px", int(e.args or 0))
+              if e.args else None)
     # Builds are serialised, and a superseded one gives up rather than drawing.
     # Without this the panel doubles: clearing happens before the tables fetch and the
     # drawing after it, so two builds that overlap both clear an empty container and
@@ -122,31 +171,28 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
             await build(container, title, library, game_id, state)
 
         context["rebuild"] = rebuild
-        work = state.get("mode") == "work"
-        opened = open_sections(state)
-        if work:
-            # Held across games, so a sweep does not re-pick it at every stop.
-            known = {section.key for section in SECTIONS}
-            if state.get("section") not in known:
-                state["section"] = "media"
-        entries: dict[str, ui.element] = {}
-        # The outline must not scroll with what it points at, so the row is the fixed
-        # frame and only the body column scrolls inside it.
-        with ui.row().classes("w-full grow min-h-0 no-wrap gap-0"):
-            _outline(entries, opened, context, work)
-            # A grid, so one rule decides whether the dock sits under the body or
-            # beside it. Under is a vertical split of the workbench; beside is the
-            # work layout. In both the dock is outside the scroll, which is what
-            # makes "always visible" true rather than usually true.
-            with ui.element("div").classes("grow min-w-0 h-full hub-workbench-main"):
+        section = chosen_section(state)
+        # Three regions, in reading order: which mode you are in, what that mode gives
+        # you to browse, and what you are working on. The outline must not scroll with
+        # what it points at, so this row is the fixed frame and only the body scrolls.
+        with ui.row().classes("w-full grow min-h-0 no-wrap gap-0 hub-workbench-frame"):
+            _outline(context, section)
+            # A grid, so one rule decides whether work sits under browse or beside it.
+            # Under is a vertical split; beside is what a wide window is for. In both
+            # it is outside the scroll, which makes "always visible" true rather than
+            # usually true.
+            # A stored height, not the dock's content height, or the divider moves
+            # with whatever kind of media you picked.
+            with ui.element("div").classes("grow min-w-0 h-full hub-workbench-main") \
+                    .style(f"--dock-h: {state.get('dock_px', DOCK_PX)}px"):
                 body = ui.column().classes("min-w-0 h-full overflow-auto gap-0 "
                                            "hub-workbench-body")
+                ui.element("div").classes("hub-dock-grip") \
+                    .tooltip("Drag to resize")
                 context["dock"] = ui.column().classes("min-w-0 gap-0 hub-dock")
         with body:
-            if work:
-                await _one_section(context, state["section"])
-            else:
-                await _stacked_sections(context, opened, entries)
+            await _one_section(context, section)
+        ui.run_javascript(_GRIP)
 
 
 async def _one_section(context: dict[str, Any], key: str) -> None:
@@ -161,76 +207,32 @@ async def _one_section(context: dict[str, Any], key: str) -> None:
     context["redraws"].append(relabel)
 
 
-async def _stacked_sections(context: dict[str, Any], opened: set[str],
-                            entries: dict[str, ui.element]) -> None:
-    """Every section, with the ones you opened still open.
+def _outline(context: dict[str, Any], chosen: str) -> None:
+    """Which mode the workbench is in. One meaning at every width.
 
-    Flat on purpose: ownership is a property of a section, not an axis to group by.
-    Said instead by the one section a lens governs, in its own heading.
+    It used to be a table of contents when narrow and a selector when wide, and that is
+    the only reason a width threshold ever existed: a control that changes meaning
+    partway across the range needs somebody to guess where. It picks the section now,
+    always - the stylesheet decides whether that reads as a column or a strip.
     """
-    for item in SECTIONS:
-        await _section(item, context, opened, entries)
-
-
-def _outline(entries: dict[str, ui.element], opened: set[str],
-             context: dict[str, Any], work: bool) -> None:
-    """Contents when comparing, a selector when working.
-
-    Below the work width it scrolls to a section and opens it, leaving everything else
-    where it was - which is what lets a side nav and several-sections-open coexist.
-    Above it, it picks the one section that gets the window.
-    """
-    with ui.column().classes("shrink-0 h-full overflow-auto gap-0 pr-1 hub-outline") \
-            .style("width:132px"):
+    with ui.column().classes("shrink-0 h-full overflow-auto gap-0 pr-1 hub-outline"):
         for section in SECTIONS:
-            item = ui.label(section.name).classes("hub-outline-item")
-            lit = (context["state"].get("section") == section.key if work
-                   else section.key in opened)
-            if lit:
+            item = ui.row().classes("items-center gap-2 no-wrap hub-outline-item")
+            if section.key == chosen:
                 item.classes(add="hub-outline-on")
-            item.on("click", lambda key=section.key: _choose(context, key, work))
-            entries[section.key] = item
+            with item:
+                ui.icon(section.icon, size="20px").classes("hub-outline-icon")
+                ui.label(section.name).classes("hub-outline-text")
+            # Carries the word when the width has taken it away, which is the whole
+            # reason the labels can go.
+            item.tooltip(section.name)
+            item.on("click", lambda key=section.key: _choose(context, key))
 
 
-def _choose(context: dict[str, Any], key: str, work: bool) -> None:
-    """Reveal it, or make it the one on screen - whichever the width is for."""
-    if not work:
-        _reveal(key)
-        return
+def _choose(context: dict[str, Any], key: str) -> None:
+    """Make it the section on screen."""
     context["state"]["section"] = key
     asyncio.create_task(context["rebuild"]())
-
-
-def _reveal(key: str) -> None:
-    """Scroll a section into view. Opening it is the expansion's own doing."""
-    ui.run_javascript(
-        f"document.getElementById('wb-{key}')"
-        "?.scrollIntoView({behavior:'smooth', block:'start'})")
-
-
-async def _section(section: Section, context: dict[str, Any], opened: set[str],
-                   entries: dict[str, ui.element]) -> None:
-    def remember(event: Any, key: str = section.key) -> None:
-        opened.add(key) if event.value else opened.discard(key)
-        # The outline reflects the sections; it does not drive them. Whichever way a
-        # section was toggled, both places have to agree afterwards.
-        item = entries.get(key)
-        if item is not None:
-            item.classes(add="hub-outline-on") if event.value \
-                else item.classes(remove="hub-outline-on")
-
-    expansion = ui.expansion(section.label(context), value=section.key in opened,
-                             on_value_change=remember).classes("w-full") \
-        .props(f"id=wb-{section.key}")
-    with expansion, ui.column().classes("w-full gap-0"):
-        await section.build(context)
-
-    async def relabel() -> None:
-        # So the scope in the heading is still true after the lens moves, and readable
-        # with the section shut - which is the whole reason it is in the heading.
-        expansion.text = section.label(context)
-
-    context["redraws"].append(relabel)
 
 
 def _title(target: ui.column, name: str, subtitle: str) -> None:
@@ -359,12 +361,47 @@ async def _media_block(context: dict[str, Any]) -> None:
         if dock is not None:
             dock.clear()
             kind = context["slot"]["kind"]
-            if kind and kind in entries:
-                with dock:
+            with dock:
+                if kind and kind in entries:
                     _slot(context, kind, entries[kind], draw)
+                else:
+                    # The region is reserved either way, so it says what it is for
+                    # rather than sitting there as an empty box. Named for what the
+                    # user is looking at - the user sees - rather than for the slot
+                    # they fill, which is our word and not theirs. No "above" or
+                    # "beside" either: this region moves depending on the width.
+                    with ui.column().classes("hub-dock-empty items-center gap-1"):
+                        ui.label("No media chosen").classes("hub-dock-empty-title")
+                        ui.label("Choose any media to see where it came from, "
+                                 "and to replace it.").classes("hub-help")
 
     context["redraws"].append(draw)
     await draw()
+
+
+def _preview(src: str, kind: str, label: str) -> None:
+    """Present the file with an element that can actually play it.
+
+    An <img> pointing at a .mp4 downloads the whole file and paints nothing - the slot
+    looked empty for a video that is there, and on a library that is not local the
+    fetch is long enough to read as the page having stopped. `preload="metadata"` is
+    what keeps the poster frame cheap: enough to show it, not the whole video.
+    """
+    family = media_family(kind)
+    if family == "video":
+        # `#t=0.1` for the same reason the map tiles use it: metadata alone can leave
+        # the frame blank, and an empty box behind a play button says nothing about
+        # what is in the file.
+        ui.html(f'<video src="{src}#t=0.1" preload="metadata" controls '
+                f'playsinline></video>')
+    elif family == "audio":
+        ui.html(f'<audio src="{src}" preload="metadata" controls></audio>')
+    elif family == "image":
+        ui.html(f'<img src="{src}">')
+    else:
+        # A rule sheet is a document; there is no element that previews one usefully
+        # in a panel this size, and a broken <img> would say it is missing.
+        ui.link(f"Open {label.lower()}", src, new_tab=True).classes("hub-help")
 
 
 def _pick_slot(context: dict[str, Any], kind: str, draw) -> None:
@@ -444,7 +481,15 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any], draw) -> No
         with ui.element("div").classes("hub-slot-body"):
             with ui.element("div").classes("hub-slot-preview"):
                 if entry.get("present"):
-                    ui.html(f'<img src="{_prefix(game_id, table_id)}/{kind}">')
+                    src = f"{_prefix(game_id, table_id)}/{kind}"
+                    _preview(src, kind, label)
+                    # Images only: a video here keeps its native controls, and those
+                    # already carry a full-screen button of their own.
+                    if media_family(kind) == "image":
+                        ui.button("Enlarge", icon="open_in_full",
+                                  on_click=lambda s=src, k=kind, la=label:
+                                      mediaview.open_viewer(s, k, la)) \
+                            .props("flat dense no-caps size=sm")
                 else:
                     ui.label(f"No {label.lower()} for this "
                              f"{'build' if table_id else 'game'}.").classes("hub-help")
@@ -461,19 +506,20 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any], draw) -> No
                 ui.label("Placed here, it is named for "
                          + ("this .vpx." if table_id else "the folder.")) \
                     .classes("hub-help")
-                with ui.row().classes("items-center gap-1 w-full").style("flex-wrap:wrap"):
+                with ui.row().classes("items-center gap-2 w-full").style("flex-wrap:wrap"):
                     if entry.get("present"):
                         ui.button("Remove", on_click=remove) \
-                            .props("flat dense no-caps size=sm")
+                            .props("flat dense no-caps size=sm") \
+                            .classes("hub-action hub-action--danger")
                     if move_label:
                         ui.button(move_label, on_click=retier) \
-                            .props("flat dense no-caps size=sm")
+                            .props("flat dense no-caps size=sm").classes("hub-action")
                     # Disabled rather than omitted, so what the slot is for is legible
                     # before either exists. Both parked in HUBUI section 10.
                     ui.button("Search sources").props("flat dense no-caps size=sm") \
-                        .set_enabled(False)
+                        .classes("hub-action").set_enabled(False)
                     ui.button("Capture").props("flat dense no-caps size=sm") \
-                        .set_enabled(False)
+                        .classes("hub-action").set_enabled(False)
                 # A disabled control with no reason reads as broken. One line, because
                 # a Quasar button that is disabled takes no pointer events and so can
                 # carry no tooltip.
@@ -571,14 +617,23 @@ async def _tables_block(context: dict[str, Any]) -> None:
 
 
 def _rows(target: Any, values: dict[str, str]) -> None:
+    """One fact per line: the name, then the value, however narrow the panel gets.
+
+    `no-wrap` keeps them on one line and `min-w-0` is what lets the value actually
+    shrink - a flex child refuses to go below its content width without it, so the row
+    stayed wide and wrapped instead of the value ellipsing.
+    """
     for label, value in values.items():
-        with target.row().classes("items-center gap-2 w-full px-3 py-0"):
-            target.label(label).classes("text-xs opacity-60 w-20")
-            target.label(str(value)).classes("text-xs truncate")
+        with target.row().classes("items-center gap-2 w-full no-wrap px-3 py-0"):
+            target.label(label).classes("text-xs opacity-60 shrink-0 w-20")
+            target.label(str(value)).classes("text-xs truncate grow min-w-0") \
+                .tooltip(str(value))
 
 
 SECTIONS: tuple[Section, ...] = (
-    Section("identity", "Identity", lambda _: "Identity", _identity_block),
-    Section("media", "Media", _media_label, _media_block),
-    Section("tables", "Tables", _tables_label, _tables_block),
+    Section("identity", "Identity", "badge", lambda _: "Identity", _identity_block),
+    Section("media", "Media", "perm_media", _media_label, _media_block),
+    # Layers, because what this section holds is the builds of one game stacked on each
+    # other - the same icon the app nav gives Media, for the section that is media.
+    Section("tables", "Tables", "layers", _tables_label, _tables_block),
 )

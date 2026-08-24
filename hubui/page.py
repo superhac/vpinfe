@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from nicegui import run, ui
@@ -19,7 +18,9 @@ HEADER_H_PX = 52
 
 NAV_WIDE_PX = 220
 WORKBENCH_WIDE_PX = 320
-WORKBENCH_MIN_PX = 260
+# What the panel needs to hold its three regions, not the smallest a pane can be.
+# Below this the honest move is the rail, which is one click away.
+WORKBENCH_MIN_PX = 320
 # Past the work width, so the divider reaches every mode on its own and Full is the far
 # end of one continuum rather than the only way in. Short of squeezing the list out -
 # that is Full's job, and Full has a control that brings it back.
@@ -115,7 +116,6 @@ async def hub_page() -> None:
                              "subject": "game"}
 
     labels: list[ui.label] = []
-    nav_rows: list[ui.row] = []
     destinations: dict[str, ui.row] = {}
 
     def set_mini(mini: bool) -> None:
@@ -129,11 +129,8 @@ async def hub_page() -> None:
         for label in labels:
             label.set_visibility(not mini)
         nav_icon.props(f'name={"menu" if mini else "menu_open"}')
-        for row in nav_rows:
-            # Centred on the rail: left-aligned icons under a 220px gutter look centred
-            # and under a 57px one plainly are not.
-            row.classes(add="justify-center", remove="px-3") if mini \
-                else row.classes(add="px-3", remove="justify-center")
+        # Centring the rail's icons is the stylesheet's job, under .q-drawer--mini:
+        # the padding that offsets them is !important, which no class here outranks.
 
     def toggle_mini() -> None:
         """The nav's own control. Setting it by hand takes it out of Full's care: an
@@ -158,9 +155,8 @@ async def hub_page() -> None:
             labels.append(ui.label("VPinFE Hub")
                           .classes("whitespace-nowrap hub-nav-title"))
         nav_header.tooltip("Show or hide the navigation")
-        nav_rows.append(nav_header)
         for key, label, icon in NAV_ITEMS:
-            _nav_item(key, label, icon, state, lambda: render(), labels, nav_rows,
+            _nav_item(key, label, icon, state, lambda: render(), labels,
                       destinations)
         ui.space()
         foot = ui.column().classes("items-center gap-1 px-3 py-3 w-full") \
@@ -178,7 +174,6 @@ async def hub_page() -> None:
                 # managerui and is never served, so an API consumer cannot ask. Left as
                 # a slot rather than reached for across the boundary.
                 labels.append(ui.label("").classes("text-xs hub-label"))
-        nav_rows.append(foot)
 
 
     splitter = ui.splitter(reverse=True, limits=(WORKBENCH_MIN_PX, WORKBENCH_MAX_PX),
@@ -199,17 +194,25 @@ async def hub_page() -> None:
             # toggle at its own size while that happens.
             workbench_title = ui.column().classes("gap-0 min-w-0 overflow-hidden")
             with ui.row().classes("items-center gap-1 shrink-0 no-wrap"):
-                # Stepping the list from in here, so a sweep does not need the grid on
-                # screen - which is the point of Full.
-                ui.button(icon="keyboard_arrow_up", on_click=lambda: _step(-1)) \
-                    .props("flat dense round size=sm").on("click.stop", lambda: None) \
-                    .tooltip("Previous game")
-                ui.button(icon="keyboard_arrow_down", on_click=lambda: _step(1)) \
-                    .props("flat dense round size=sm").on("click.stop", lambda: None) \
-                    .tooltip("Next game")
-                full_icon = ui.button(icon="open_in_full", on_click=lambda: toggle_full()) \
-                    .props("flat dense round size=sm").on("click.stop", lambda: None) \
-                    .tooltip("Give the workbench the whole window")
+                # Their own row so they can go with the panel: at the rail there is
+                # nothing to step through, and they do not fit beside a 57px header.
+                workbench_actions = ui.row() \
+                    .classes("items-center gap-1 shrink-0 no-wrap")
+                with workbench_actions:
+                    # Stepping the list from in here, so a sweep does not need the grid
+                    # on screen - which is the point of Full.
+                    ui.button(icon="keyboard_arrow_up", on_click=lambda: _step(-1)) \
+                        .props("flat dense round size=sm") \
+                        .on("click.stop", lambda: None).tooltip("Previous game")
+                    ui.button(icon="keyboard_arrow_down", on_click=lambda: _step(1)) \
+                        .props("flat dense round size=sm") \
+                        .on("click.stop", lambda: None).tooltip("Next game")
+                    full_icon = ui.button(icon="open_in_full",
+                                          on_click=lambda: toggle_full()) \
+                        .props("flat dense round size=sm") \
+                        .on("click.stop", lambda: None) \
+                        .tooltip("Give the workbench the whole window")
+                # Outside that row: it is the only way back once the rest have gone.
                 workbench_icon = ui.icon("menu_open", size="24px") \
                     .classes("opacity-70 shrink-0")
         workbench_header.tooltip("Show or hide the workbench")
@@ -240,6 +243,7 @@ async def hub_page() -> None:
                            else RAIL_PX)
         panel.set_visibility(shown)
         workbench_title.set_visibility(shown)
+        workbench_actions.set_visibility(shown)
         # justify-end, not justify-center: the header keeps its 18px right padding, and
         # centring inside a padded box put the icon 27px in. Held to the right, the
         # padding alone places it exactly where it sits when the panel is open.
@@ -276,7 +280,6 @@ async def hub_page() -> None:
                 show_workbench(True)
         elif state.pop("nav_collapsed_by_full", None):
             set_mini(False)
-        asyncio.create_task(apply_mode())
 
     def _step(delta: int) -> None:
         """Move the focused row, which is what the workbench follows. Sent as the key
@@ -289,50 +292,6 @@ async def hub_page() -> None:
             " if (c) { c.focus(); c.dispatchEvent(new KeyboardEvent('keydown', "
             "{key: '" + key + "', bubbles: true})); } })()")
 
-    async def apply_mode() -> None:
-        """Compare below the work width, work above it; Full is always work.
-
-        Read off the controls that set the width rather than measured in the browser,
-        so the mode cannot lag the thing that changed it.
-        """
-        mode = "work" if (state.get("full") or
-                          _splitter_px() >= workbench.WORK_FROM_PX) else "compare"
-        if mode == state.get("mode"):
-            return
-        state["mode"] = mode
-        await workbench.build(panel, workbench_title, library, state.get("game"), state)
-
-    async def on_window_resize(event: Any) -> None:
-        """The one case the controls cannot cover.
-
-        Resizing the window moves the workbench without touching the divider, so the
-        width it was told about goes stale - and a workbench at 500px still showing one
-        section because it was 1000px a moment ago is the wrong answer. The browser
-        sends what it actually measures, debounced, and only that case needs it.
-        """
-        try:
-            px = float(event.args or 0)
-        except (TypeError, ValueError):
-            return
-        mode = "work" if px >= workbench.WORK_FROM_PX else "compare"
-        if mode == state.get("mode"):
-            return
-        state["mode"] = mode
-        await workbench.build(panel, workbench_title, library, state.get("game"), state)
-
-    ui.on("hub_resize", on_window_resize)
-    ui.run_javascript(
-        "window.addEventListener('resize', () => { clearTimeout(window.__hubRz);"
-        " window.__hubRz = setTimeout(() => { const w ="
-        " document.querySelector('.hub-workbench');"
-        " if (w) emitEvent('hub_resize', w.clientWidth); }, 250); });")
-
-    def _splitter_px() -> float:
-        try:
-            return float(splitter.value or 0)
-        except (TypeError, ValueError):
-            return 0.0
-
     def remember_width(event: Any) -> None:
         """Keep the width a drag settled on. Quasar only reports it on release, which
         is exactly when it is worth keeping."""
@@ -342,7 +301,6 @@ async def hub_page() -> None:
             return
         if value > RAIL_PX:
             state["workbench_px"] = value
-        asyncio.create_task(apply_mode())
 
     splitter.on_value_change(remember_width)
 
@@ -391,7 +349,7 @@ async def hub_page() -> None:
                         .classes("hub-help hub-crumb-note")
             ui.button("Look for new tables", icon="refresh",
                       on_click=_look_for_new_tables) \
-                .props("flat dense no-caps size=sm").classes("shrink-0") \
+                .props("flat dense no-caps size=sm").classes("shrink-0 hub-action") \
                 .tooltip("Re-read the game folders and pick up anything added or removed")
             # Jobs is a header affordance, always visible, never a destination. Empty is
             # the normal state and it says so rather than showing a zero.
@@ -450,7 +408,7 @@ async def hub_page() -> None:
 
 
 def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
-              labels: list, rows: list, destinations: dict) -> None:
+              labels: list, destinations: dict) -> None:
     def choose() -> None:
         state["view"] = key
         state["device"] = None
@@ -464,7 +422,6 @@ def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
     # The tooltip is what makes the collapsed rail usable at all, and it costs nothing
     # while expanded.
     row.tooltip(label)
-    rows.append(row)
     destinations[key] = row
 
 

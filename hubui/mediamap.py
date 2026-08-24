@@ -15,6 +15,9 @@ from typing import Any
 
 from nicegui import ui
 
+from common.media_specs import media_family
+from hubui import mediaview
+
 # Top of the cabinet down to the floor. Kinds on the same row are the same screen shown
 # two ways - a still and its video - and share a row so the pair reads as one slot.
 CAB_STACK: tuple[tuple[str, ...], ...] = (
@@ -23,8 +26,9 @@ CAB_STACK: tuple[tuple[str, ...], ...] = (
     ("scoreview", "scoreview_video"),
     ("real_dmd", "real_dmd_color"),
     ("playfield", "playfield_video"),
-    ("playfield_fss",),
-    ("cab",),
+    # Paired, because a row splits its width between its tiles and a lone one takes
+    # the whole of it.
+    ("playfield_fss", "cab"),
 )
 
 # Everything that is not a surface on the machine.
@@ -36,17 +40,19 @@ EXTRAS = ("wheel", "logo", "flyer", "instruction_card", "rule_sheet",
 # the pane grows, which is the opposite of what widening it is for. With a ratio the
 # silhouette holds and the art gets bigger.
 #
-# These are shapes, not measurements. A real playfield is 9:16 and at that ratio the
-# tile would be taller than the pane; the values below keep portrait reading as portrait
-# and a score display reading as a strip, which is all the map has to say.
+# Measured from the files, not reasoned from the machine: the two disagree, and the file
+# is what the tile has to hold. A playfield is portrait in the cabinet and 1920x1080 on
+# disk; a cabinet is the reverse, a photo of one standing up.
 TILE_AR = {
     "topper": 5.0, "topper_video": 5.0,
     "backglass": 1.9, "backglass_video": 1.9,
-    "scoreview": 4.0, "scoreview_video": 4.0,
+    "scoreview": 3.0, "scoreview_video": 3.0,
     "real_dmd": 4.0, "real_dmd_color": 4.0,
-    "playfield": 0.7, "playfield_video": 0.7,
-    "playfield_fss": 0.7,
-    "cab": 1.5,
+    # docs/media_flow.md: an fss.png is "the same subject as a table.png photographed
+    # differently", so it takes the playfield's shape rather than one of its own.
+    "playfield": 1.78, "playfield_video": 1.78,
+    "playfield_fss": 1.78,
+    "cab": 0.71,
     "wheel": 1.0, "logo": 1.0,
     "flyer": 0.75,
     "instruction_card": 1.4, "rule_sheet": 1.4,
@@ -65,19 +71,53 @@ LABELS = {
     "topper_video": "Topper video", "loading": "Loading", "rule_sheet": "Rule sheet",
 }
 
-# Kinds an <img> cannot paint. A tile for one of these carries a glyph saying what it
-# holds, rather than an image element that resolves to nothing - a present video drawn
-# as a broken image reads as missing, which is the one thing this control must not do.
+# Kinds with no frame to show, which take a glyph instead - a present file drawn as a
+# broken image reads as missing, the one thing this control must not do.
 GLYPHS = {
     "audio": "graphic_eq",
     "audio_launch": "graphic_eq",
     "rule_sheet": "description",
-    "loading": "movie",
 }
 
 
 def _glyph_for(kind: str) -> str | None:
-    return GLYPHS.get(kind, "movie" if kind.endswith("_video") else None)
+    """The stand-in for a kind with nothing to show, or None if it has a frame.
+
+    Derived from the kind's extension family rather than its name: `loading` is video
+    and does not say so, so a `_video` suffix test gets that one wrong.
+    """
+    if kind in GLYPHS:
+        return GLYPHS[kind]
+    return {"audio": "graphic_eq", "doc": "description"}.get(media_family(kind))
+
+
+# `#t=0.1` is what makes a frame appear: metadata alone can paint nothing, but a media
+# fragment makes the browser seek there. Muted, or autoplay is refused.
+_TILE_VIDEO = ('<video src="{src}#t=0.1" preload="metadata" muted playsinline loop'
+               '></video>')
+
+# Delegated: NiceGUI strips inline handlers off raw HTML, and a server binding would
+# make a hover a round trip. The flag guards against a listener per rebuild.
+_HOVER = """
+if (!window.__hubTilePreview) {
+  window.__hubTilePreview = true;
+  const tileVideo = (el) => el && el.closest
+    ? el.closest('.hub-mediatile')?.querySelector('.hub-mediatile-art video') : null;
+  document.addEventListener('mouseover', (e) => {
+    const v = tileVideo(e.target);
+    if (v && v.paused) v.play().catch(() => {});
+  });
+  document.addEventListener('mouseout', (e) => {
+    const v = tileVideo(e.target);
+    if (!v) return;
+    // Moving between children of the same tile is not leaving it.
+    const tile = e.target.closest('.hub-mediatile');
+    if (e.relatedTarget && tile && tile.contains(e.relatedTarget)) return;
+    v.pause();
+    v.currentTime = 0.1;
+  });
+}
+"""
 
 
 def _state(entry: dict[str, Any]) -> str:
@@ -110,8 +150,19 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
                 pass
             elif glyph is not None:
                 ui.icon(glyph, size="18px").classes("text-primary opacity-80")
+            elif media_family(kind) == "video":
+                ui.html(_TILE_VIDEO.format(src=f"{prefix}/{kind}"))
             else:
                 ui.html(f'<img src="{prefix}/{kind}" loading="lazy">')
+            if state != "missing" and media_family(kind) in ("image", "video"):
+                # click.stop, or enlarging would also pick the tile and redraw the
+                # panel out from under the dialog.
+                ui.button(icon="open_in_full") \
+                    .props("flat dense round size=sm") \
+                    .classes("hub-mediatile-zoom") \
+                    .on("click.stop", lambda k=kind: mediaview.open_viewer(
+                        f"{prefix}/{k}", k, LABELS.get(k, k))) \
+                    .tooltip("Enlarge")
         ui.label(LABELS.get(kind, kind)).classes("hub-mediatile-cap")
     tile.tooltip(_tooltip(kind, entry))
 
@@ -141,12 +192,18 @@ def build(entries: dict[str, dict[str, Any]], prefix: str,
     `prefix` is where the art is fetched from, and it is what the lens changes: the
     game's shared media, or one build's. The map itself does not care which.
     """
-    with ui.column().classes("w-full gap-1 px-2 pb-2").style("max-width:640px"):
+    # Roughly the width browse gets once work takes its half, so the map fills it and
+    # any surplus falls to the right.
+    with ui.column().classes("w-full gap-1 pb-2").style(
+            "max-width: 760px; padding-left: var(--panel-gutter);"
+            " padding-right: var(--panel-gutter)"):
         for row in CAB_STACK:
             kinds = [kind for kind in row if kind in entries]
             if not kinds:
                 continue
-            with ui.row().classes("w-full gap-1 no-wrap items-end"):
+            # Stretch, so each tile fills the row and puts its caption at the foot of
+            # it - captions on one line whatever shapes sit above them.
+            with ui.row().classes("w-full gap-1 no-wrap items-stretch"):
                 for kind in kinds:
                     _tile(prefix, kind, entries[kind], on_pick, selected)
         extras = [kind for kind in EXTRAS if kind in entries]
@@ -157,6 +214,7 @@ def build(entries: dict[str, dict[str, Any]], prefix: str,
             with ui.element("div").classes("hub-mediatile-grid"):
                 for kind in extras:
                     _tile(prefix, kind, entries[kind], on_pick, selected)
+    ui.run_javascript(_HOVER)
 
 
 def summary(entries: dict[str, dict[str, Any]]) -> tuple[int, int, int]:
