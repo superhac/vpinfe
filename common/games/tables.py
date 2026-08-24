@@ -20,6 +20,13 @@ VPX_SUFFIX = ".vpx"
 # A missing entry means a table nothing has parsed, and a missing `hidden` means visible.
 TABLES_KEY = "tables"
 
+# When the file behind an entry was first not found. Absent while the file is there.
+# A timestamp rather than a bare flag because "gone for thirty seconds" and "gone for a
+# week" are the same fact to a flag and different answers to a person - the first is
+# almost always a share that has not mounted yet. Written by discovery, read by anyone
+# deciding whether a table can be offered or acted on.
+ABSENT_SINCE_KEY = "absent_since"
+
 # Minted on the first rebuild that sees the file, and outlives its name - see
 # `adopted_entry`, which is what carries it across a rename.
 TABLE_ID_KEY = "id"

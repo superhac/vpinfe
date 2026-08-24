@@ -10,8 +10,8 @@ from __future__ import annotations
 import json
 import unittest
 
-from common.games.library_discovery import ABSENT_SINCE_KEY, absent_since, discover
-from common.games.tables import entry_filename, table_entries
+from common.games.library_discovery import absent_since, discover
+from common.games.tables import ABSENT_SINCE_KEY, entry_filename, table_entries
 from tests.support.library import TempTree, fake_game, write_game
 
 FOLDER = "Cactus Canyon (Bally 1998)"

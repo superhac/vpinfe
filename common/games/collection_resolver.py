@@ -3,7 +3,7 @@
 Five steps, and the same answer whoever asks - the wheel and the API both arrive here:
 
     1. membership   filters, then members overriding them, then exclusions
-    2. visibility   drop hidden - library-wide, and it beats a named table
+    2. visibility   drop hidden and absent - library-wide, and it beats a named table
     3. selection    the table a member named, or the game's default
     4. order        the member array, or a computed sort
     5. limit        keep the first N rows, if the collection caps itself
@@ -36,6 +36,7 @@ from common.games.game_metadata import (
     vpinfe_section,
 )
 from common.games.tables import (
+    ABSENT_SINCE_KEY,
     TABLE_FILENAME_KEY,
     TABLE_ID_KEY,
     entry_filename,
@@ -101,6 +102,16 @@ def _user_value(game, key, fallback=0):
         return fallback
 
 
+def _offerable(entry) -> bool:
+    """Whether the play lens may hand this table to a frontend.
+
+    `hidden` is a choice - a patch base kept on disk without being playable. An
+    `absent_since` stamp is a fact - discovery looked and the file was not there. They
+    mean the same thing to a player: launching it would fail, so it is not offered.
+    """
+    return entry.get("hidden") is not True and not entry.get(ABSENT_SINCE_KEY)
+
+
 def visible_entries(game) -> list[dict]:
     """A game's offerable tables, the default first and the rest by filename.
 
@@ -108,9 +119,15 @@ def visible_entries(game) -> list[dict]:
     head of this list, and that is the game's own choice rather than directory order.
     """
     entries = table_entries(getattr(game, "meta_config", {}))
-    visible = [e for e in entries.values() if e.get("hidden") is not True]
-    if not visible:
+    # No entries at all is a folder no build has parsed, and the scan's .vpx stands in
+    # for it. Entries that are all unofferable is a different thing - the tables are
+    # known and withheld - so falling back there would hand back the very table that
+    # was hidden, or one whose file is gone.
+    if not entries:
         return _unparsed_entry(game)
+    visible = [e for e in entries.values() if _offerable(e)]
+    if not visible:
+        return []
 
     meta = getattr(game, "meta_config", {})
     chosen = recorded_default(vpinfe_section(meta), entries) or resolve_default_name(
@@ -138,10 +155,11 @@ def _unparsed_entry(game) -> list[dict]:
 
 
 def _named_table(game, table_id: str) -> dict | None:
-    """The table a member named, unless it is hidden. `hidden` is library-wide and beats
-    a member: it exists so a patch base can stay on disk without being playable."""
+    """The table a member named, unless it is hidden or its file is gone. Both are
+    library-wide and beat a member: `hidden` exists so a patch base can stay on disk
+    without being playable, and an absent file has nothing to launch."""
     entry = table_entries(getattr(game, "meta_config", {})).get(table_id)
-    if not isinstance(entry, dict) or entry.get("hidden") is True:
+    if not isinstance(entry, dict) or not _offerable(entry):
         return None
     return entry
 

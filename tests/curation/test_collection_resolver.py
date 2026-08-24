@@ -33,10 +33,12 @@ def _game(gid, title, tables, manufacturer="", rating=0, last_run=0, default="")
     )
 
 
-def _table(tid, filename, hidden=False):
+def _table(tid, filename, hidden=False, absent=False):
     entry = {"id": tid, "filename": filename}
     if hidden:
         entry["hidden"] = True
+    if absent:
+        entry["absent_since"] = "2026-08-23T18:24:08Z"
     return entry
 
 
@@ -281,12 +283,37 @@ class ResolverTests(TempTree):
 
 
 class VisibleEntryTests(unittest.TestCase):
+    """A scanned game always carries `fullPathVPXfile`, so every fixture here sets it.
+    Without it the unparsed-game fallback returns nothing and these tests pass whatever
+    the filter does - which is how a game with every table hidden went on being offered.
+    """
+
+    def _game_with_path(self, tables):
+        game = _game("x", "T", tables)
+        game.fullPathVPXfile = "/lib/T/a.vpx"
+        return game
+
     def test_a_game_with_no_tables_offers_nothing(self) -> None:
         self.assertEqual(visible_entries(_game("x", "Empty", {})), [])
 
     def test_every_table_hidden_offers_nothing(self) -> None:
-        game = _game("x", "All Hidden", {"a": _table("a", "a.vpx", hidden=True)})
+        game = self._game_with_path({"a": _table("a", "a.vpx", hidden=True)})
         self.assertEqual(visible_entries(game), [])
+
+    def test_every_table_absent_offers_nothing(self) -> None:
+        """The file is gone, so there is nothing to launch."""
+        game = self._game_with_path({"a": _table("a", "a.vpx", absent=True)})
+        self.assertEqual(visible_entries(game), [])
+
+    def test_an_absent_table_is_dropped_and_its_siblings_stay(self) -> None:
+        game = self._game_with_path({"a": _table("a", "a.vpx"),
+                                     "b": _table("b", "b.vpx", absent=True)})
+        self.assertEqual([e["filename"] for e in visible_entries(game)], ["a.vpx"])
+
+    def test_a_game_nothing_has_parsed_still_offers_the_scan_s_vpx(self) -> None:
+        """No tables section at all is the unparsed case, and it keeps its fallback."""
+        game = self._game_with_path({})
+        self.assertEqual([e["filename"] for e in visible_entries(game)], ["a.vpx"])
 
 
 if __name__ == "__main__":
