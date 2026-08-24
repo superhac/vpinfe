@@ -11,7 +11,7 @@ from typing import Callable, Optional
 
 from nicegui import context, events, run, ui
 
-from common.table_metadata import reorder_leading_article, rom_zip_exists, rom_zip_filename
+from common.table_metadata import reorder_leading_article, rom_zip_exists
 from managerui.pages.table_dialog_context import TableDialogContext, default_context
 from managerui.pages.dnd_drop_zone import create_drop_zone, DropContext
 from managerui.services import plugin_profile_service, table_index_service, table_service
@@ -333,6 +333,19 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                 ui.icon(icon, size='18px').style('color: var(--neon-purple);')
                                 ui.label(label).classes('detail-label')
                                 ui.label(display_value).classes('detail-value')
+                                if key == 'rom':
+                                    # Missing badge next to the ROM name, only when the zip
+                                    # isn't under pinmame/roms. Refreshed after ROM upload.
+                                    rom_missing_badge = ui.row().classes('items-center gap-1')
+
+                                    def refresh_rom_missing_badge():
+                                        rom_missing_badge.clear()
+                                        with rom_missing_badge:
+                                            if not rom_is_present():
+                                                ui.badge('Missing', color='negative').props('rounded')
+
+                                    refresh_rom_missing_badge()
+                                    rom_refresh_holder['fn'] = refresh_rom_missing_badge
 
                     # VBS script presence - green when an extracted .vbs exists, red when not.
                     # Wrapped in a refreshable container so Extract VBS updates it live.
@@ -353,28 +366,6 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
 
                         refresh_vbs_indicator()
                         vbs_refresh_holder['fn'] = refresh_vbs_indicator
-
-                    # ROM presence - only shown when a ROM is declared. Green when the
-                    # zip exists under pinmame/roms, red when not. Refreshed after upload.
-                    if (row_data.get('rom') or '').strip():
-                        with ui.row().classes('detail-row items-center gap-2 w-full'):
-                            ui.icon('memory', size='18px').style('color: var(--neon-purple);')
-                            ui.label('ROM Status').classes('detail-label')
-                            rom_indicator = ui.row().classes('items-center gap-1')
-
-                            def refresh_rom_indicator():
-                                rom_indicator.clear()
-                                with rom_indicator:
-                                    if rom_is_present():
-                                        ui.icon('check_circle', size='16px').classes('text-green-400')
-                                        ui.badge('Present', color='positive').props('rounded')
-                                    else:
-                                        ui.icon('cancel', size='16px').classes('text-red-400')
-                                        missing_name = rom_zip_filename(row_data.get('rom'))
-                                        ui.badge(f'Missing: {missing_name}', color='negative').props('rounded')
-
-                            refresh_rom_indicator()
-                            rom_refresh_holder['fn'] = refresh_rom_indicator
 
                     # Render list fields (authors, themes) - join lists with comma
                     for key, label, icon in list_fields:
