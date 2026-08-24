@@ -40,6 +40,73 @@ HEADER_GRADIENT = "linear-gradient(135deg, #b429f9 0%, #4a1e7c 50%, #0a0518 100%
 # The 2.x visual treatment, from manager.css: a synthwave grid over the page, and the
 # table's own row colours. AG Grid reads its palette from --ag-* custom properties, so
 # the brand values are mapped onto those rather than restyling any of its parts.
+# The design tokens. Everything below refers to these rather than to a hex or a pixel
+# count, so a decision about the palette or the type scale is made once.
+#
+# `--flair` is the trap: magenta measures 4.4:1 here, under the 4.5:1 text needs. It is
+# for fills, borders and selection. Text that must look interactive takes `--accent`.
+_TOKENS = """
+:root {
+  --ink: #eef9ff;        /* primary text            18.7:1 */
+  --ink-2: #cbb8ea;      /* secondary text          11.1:1 */
+  --ink-3: #9b8bbd;      /* help and hints           6.5:1 */
+  --accent: #00d9ff;     /* interactive text        11.8:1 */
+  --flair: #b429f9;      /* fills and borders only   4.4:1 */
+
+  --surface-0: #0a0518;
+  --surface-1: #150a2e;
+  --surface-2: #1a0f35;
+  --line: #2b1a4d;
+  --line-soft: #1f1338;
+
+  --fs-caption: 12px;
+  --fs-body: 14px;
+  --fs-subject: 16px;
+  --fs-title: 20px;
+  /* A stat, not prose - the one place a number is the content. */
+  --fs-display: 30px;
+
+  /* 44px where a finger is in scope; the hub is desk-first, so this is the floor. */
+  --target-min: 32px;
+
+  /* What a draggable divider looks like, wherever one appears - a border colour here
+     reads as an edge rather than a handle. */
+  --resize-line: rgba(255, 255, 255, 0.28);
+
+  /* The gutter a panel keeps from whatever it sits against. One value, so the browse
+     region and the work region do not each pick their own and land 4px apart. */
+  --panel-gutter: 16px;
+
+  /* Quiet, not invisible: a scrollbar says a region has more in it, so hiding one
+     hides that there is more to see. */
+  --scrollbar-size: 10px;
+  --scrollbar-thumb: rgba(155, 139, 189, 0.32);
+  --scrollbar-thumb-hover: rgba(155, 139, 189, 0.62);
+}
+
+/* Both engines: pseudo-elements for WebKit and Blink, properties for Firefox. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  /* Inset, so the thumb floats in the gutter rather than filling it. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover);
+                                  background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+"""
+
+
 _FLAIR = """
 /* The base colour goes on body alone. Painting it on .q-page-container too put an
    opaque element over body::before, which is where the grid lives - so the backdrop was
@@ -81,27 +148,61 @@ body::before {
   --ag-header-background-color: #0f0722;
   --ag-row-hover-color: #21173f;
   --ag-border-color: #2b1a4d;
-  --ag-header-foreground-color: #b89dd9;
-  --ag-foreground-color: #e8d5ff;
-  --ag-font-size: 13px;
+  --ag-header-foreground-color: var(--ink-2);
+  --ag-foreground-color: var(--ink);
+  --ag-font-size: var(--fs-body);
 
   /* Cyan carries selection and focus. Purple was doing every job at once, which is
      what made it read as flat - nothing stood out because everything was the accent. */
   /* Opaque, not a wash: a translucent selection composites over the two alternating
      bands differently, so a run of selected rows never reads as one block. */
   --ag-selected-row-background-color: #14314a;
-  --ag-range-selection-border-color: #00d9ff;
-  --ag-input-focus-border-color: #00d9ff;
-  --ag-checkbox-checked-color: #00d9ff;
+  --ag-range-selection-border-color: var(--accent);
+  --ag-input-focus-border-color: var(--accent);
+  --ag-checkbox-checked-color: var(--accent);
 }
 .ag-header { border-bottom: 1px solid rgba(0, 217, 255, 0.35) !important; }
-/* Set on the row, not through --ag-selected-row-background-color: that variable is not
-   honoured by AG Grid 34's theming, so selection was only ever the cyan bar and each
-   selected row kept whichever alternating band it sat on. */
+/* Two states, one colour: both answer "which one", and a second hue would read as a
+   third meaning. Selected is a fill, focused is a band, and a row can be both.
+   Set on the row, not --ag-selected-row-background-color, which AG Grid 34 ignores. */
 .ag-row-selected,
 .ag-row-selected.ag-row-odd {
   background-color: #14314a !important;
-  box-shadow: inset 3px 0 0 #00d9ff;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Focus follows the row, not the cell: nothing in a cell can be acted on. Drawn as
+   top and bottom lines because a row is three elements - pinned left, centre, pinned
+   right - and three outlines would show their edges through the middle of it. */
+/* Above the cells: a cell paints its own background over the row, so an inset shadow
+   on the row is set, computed, and invisible. */
+.ag-row.hub-row-focus { position: absolute; }
+.ag-row.hub-row-focus::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent);
+}
+/* Only the outer edges, or the verticals show where the fragments meet. The right one
+   is off screen when the columns are wider than the window - the row does continue. */
+.ag-pinned-left-cols-container .ag-row.hub-row-focus::after {
+  box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent),
+              inset 2px 0 0 var(--accent);
+}
+.ag-center-cols-container .ag-row.hub-row-focus::after {
+  box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent),
+              inset -2px 0 0 var(--accent);
+}
+/* If a column is ever pinned right, that fragment owns the right edge instead. */
+.ag-pinned-right-cols-container .ag-row.hub-row-focus::after {
+  box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent),
+              inset -2px 0 0 var(--accent);
+}
+/* The cell's own ring goes with it, or the row carries two. */
+.ag-cell-focus, .ag-cell-focus:focus, .ag-cell.ag-cell-focus {
+  border-color: transparent !important;
+  outline: none !important;
 }
 
 /* The 2.x aesthetic proper: content sits in rounded, bordered panels that glow rather
@@ -119,24 +220,24 @@ body::before {
 .q-menu .q-item {
   min-height: 30px;
   padding: 4px 12px;
-  font-size: 13px;
-  color: #e8d5ff;
+  font-size: var(--fs-body);
+  color: var(--ink);
 }
 .q-menu .q-item:hover { background: #2a1a4a; }
 .q-menu .q-separator { background: #3d2461; margin: 2px 0; }
 /* The menu reads like the top of the workbench: heading in the title's voice,
    entries in the subtitle's. */
 .hub-menu-header {
-  color: #eef9ff;
-  font-size: 16px;
+  color: var(--ink);
+  font-size: var(--fs-subject);
   text-shadow: 0 0 6px rgba(0, 217, 255, 0.45);
   min-height: 26px !important;
   padding: 4px 12px !important;
 }
 .q-menu .hub-menu-item,
 .q-menu .hub-menu-item .q-item__label {
-  color: #7fc9dd;
-  font-size: 11px;
+  color: var(--accent);
+  font-size: var(--fs-caption);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -149,7 +250,7 @@ body::before {
 .q-menu .q-checkbox.hub-menu-item:hover { background: #2a1a4a; }
 
 .q-menu .hub-menu-item:hover,
-.q-menu .hub-menu-item:hover .q-item__label { color: #00d9ff; }
+.q-menu .hub-menu-item:hover .q-item__label { color: var(--accent); }
 
 /* Tiles are deliberately plain: the art is the content, so the chrome around it stays
    quiet enough that an outlier stands out rather than the frame. */
@@ -164,8 +265,8 @@ body::before {
 }
 .hub-tile-missing { border-style: dashed; }
 .hub-tile-label {
-  font-size: 10px;
-  color: #7fc9dd;
+  font-size: var(--fs-caption);
+  color: var(--accent);
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -179,7 +280,7 @@ body::before {
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
 }
-.hub-label { color: #00d9ff; letter-spacing: 0.04em; }
+.hub-label { color: var(--accent); letter-spacing: 0.04em; }
 
 /* Nav in the 2.x idiom: a vertical gradient off the brand purple into the page black,
    caps with tracking, and cyan for the title. The gradient runs dark enough by the foot
@@ -197,17 +298,17 @@ body::before {
      0.06em, which read noticeably smaller and tighter than the nav beside it. */
   text-transform: uppercase;
   font-family: sans-serif;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 500;
   line-height: 24px;
   /* Sampled off the running 2.x nav, not read from manager.css: .nav-btn declares
      --ink-muted but never wins, and the items render at nicegui's default primary. The
      label above them is the only cyan in the panel. */
-  color: #5898d4;
+  color: var(--ink-2);
 }
-.q-drawer--left .cursor-pointer:hover .hub-nav-item { color: #8fc4f0; }
-.q-drawer--left .cursor-pointer:hover .q-icon { color: #8fc4f0; opacity: 1; }
-.q-drawer--left .q-icon { color: #5898d4; }
+.q-drawer--left .cursor-pointer:hover .hub-nav-item { color: var(--ink); }
+.q-drawer--left .cursor-pointer:hover .q-icon { color: var(--ink); opacity: 1; }
+.q-drawer--left .q-icon { color: var(--ink-2); }
 
 /* The row itself, also sampled: 48px tall on a 12px/16px pad with a 12px radius, so a
    highlighted row reads as a rounded block inset from the panel edge. */
@@ -217,6 +318,19 @@ body::before {
 .hub-nav-header {
   min-height: 59px;
   padding: 12px !important;
+}
+
+/* At the rail the row is the icon's whole world, so the wide state's side padding
+   pushes it off centre. Set here because that padding is !important and a utility
+   class cannot outrank it. */
+.q-drawer--mini .hub-nav-row,
+.q-drawer--mini .hub-nav-header {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-left: 0;
+  margin-right: 0;
+  max-width: 100%;
+  justify-content: center;
 }
 
 .hub-nav-row {
@@ -252,14 +366,14 @@ body::before {
 .hub-panel-header .hub-workbench-label { max-width: 100%; }
 
 .hub-workbench-title {
-  color: #eef9ff;
+  color: var(--ink);
   text-shadow: 0 0 6px rgba(0, 217, 255, 0.45);
 }
 .hub-workbench-label {
-  color: #00d9ff;
+  color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-size: 11px;
+  font-size: var(--fs-caption);
 }
 /* Tight: this panel carries a lot and the default expansion chrome is mostly air. */
 .hub-workbench .q-expansion-item {
@@ -272,12 +386,15 @@ body::before {
   background: rgba(26, 15, 53, 0.55);
 }
 .hub-workbench { overflow-x: hidden !important; }
-.hub-workbench-body { padding: 0 6px; }
+/* No gutter of its own: what it holds carries the shared one, and two would stack. */
+.hub-workbench-body { padding: 0; }
 .hub-workbench .q-expansion-item .q-item {
   min-height: 32px;
   padding: 2px 10px;
 }
-.hub-workbench .q-expansion-item .q-item__label { color: #9fd8e8; font-size: 12px; }
+.hub-workbench .q-expansion-item .q-item__label {
+  color: var(--accent); font-size: var(--fs-caption);
+}
 .hub-workbench .q-expansion-item__content { padding: 2px 0 6px; }
 /* nicegui puts a 16px flex gap on .nicegui-expansion-content, which double-spaced every
    line inside a section: 22px rows on a 38px pitch. Same default as the drawer's, in a
@@ -289,16 +406,16 @@ body::before {
   padding: 0 !important;
 }
 /* The panel toggles match: nav and workbench are the same control, same colour. */
-.hub-panel-header .q-icon { color: #5898d4; }
+.hub-panel-header .q-icon { color: var(--ink-2); }
 .hub-workbench .q-expansion-item__content .row { min-height: 22px; }
 .hub-nav-title {
   /* .manager-title, sampled: --ink with --glow-cyan behind it at 20px/900. The white
      comes from the near-white glyph and the colour from the halo, which is why a cyan
      glyph and a flat one both read wrong. */
   font-family: sans-serif;
-  font-size: 20px;
+  font-size: var(--fs-title);
   font-weight: 900;
-  color: #e8d5ff;
+  color: var(--ink);
   text-shadow: 0 0 4px rgba(0, 217, 255, 0.5), 0 0 8px rgba(0, 217, 255, 0.3);
 }
 
@@ -324,17 +441,19 @@ body::before {
   text-align: center;
   line-height: 1.25;
   font-family: sans-serif;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 600;
   letter-spacing: normal;
   text-transform: uppercase;
-  color: #e8d5ff !important;
+  color: var(--ink) !important;
 }
 .ag-header-cell-menu-button, .ag-header-icon { color: rgba(255,255,255,0.85) !important; }
 """
 
 
 def apply_flair() -> None:
+    # Tokens first: everything after this refers to them.
+    ui.add_css(_TOKENS)
     ui.add_css(_FLAIR)
     ui.add_css(_COMPONENTS)
 
@@ -352,6 +471,10 @@ _COMPONENTS = """
 .hub-mediatile {
   flex: 1 1 0;
   min-width: 0;
+  /* A column, so the caption sits at the foot of whatever height the row settles on
+     rather than at the foot of its own art. */
+  display: flex;
+  flex-direction: column;
   border: 1px solid #2b1a4d;
   border-radius: 6px;
   background: rgba(10, 5, 24, 0.55);
@@ -359,12 +482,63 @@ _COMPONENTS = """
 }
 /* Present is stated with a colour, missing with the absence of one. A library is mostly
    gaps, so making the gap loud would make the workbench unreadable. */
-.hub-mediatile--present { border-color: rgba(0, 217, 255, 0.55); }
+/* Status and selection cannot share a channel. Cyan answers "which one"; a filled
+   slot is shown by the art itself. Amber stays - "borrowed" looks filled and is a gap,
+   which is the one state the art cannot tell you. */
+.hub-mediatile--present { border-color: var(--line); }
 .hub-mediatile--borrowed { border-color: rgba(255, 176, 32, 0.65); }
 .hub-mediatile--missing { border-style: dashed; opacity: 0.55; }
-.hub-mediatile--on { box-shadow: 0 0 0 2px #b429f9; border-color: #b429f9; }
+.hub-mediatile--on {
+  box-shadow: 0 0 0 2px var(--accent); border-color: var(--accent);
+}
+
+/* Flat buttons are text, and Quasar gives them `primary` - the flair colour, at 4.4:1.
+   Element-qualified because that is what outranks Quasar's own .text-primary, which
+   matches ours and loads after it. */
+.q-btn--flat, .q-btn--flat .q-icon,
+button.q-btn--flat.text-primary, button.q-btn--flat.text-primary .q-btn__content {
+  color: var(--ink-2) !important;
+}
+.q-btn--flat:hover, .q-btn--flat:hover .q-icon,
+button.q-btn--flat.text-primary:hover,
+button.q-btn--flat.text-primary:hover .q-btn__content {
+  color: var(--ink) !important;
+}
+.q-btn--flat.text-negative, .q-btn--flat.text-negative .q-icon { color: #ff6b9d; }
+
+/* An action has to look like one, and colour alone never says so - it is silent to
+   anyone who cannot see the hue. The border is the affordance; hover fills it. */
+.hub-action.q-btn {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 10px !important;
+  background: rgba(255, 255, 255, 0.02);
+}
+.hub-action.q-btn:hover {
+  border-color: var(--accent);
+  background: rgba(0, 217, 255, 0.10);
+}
+/* A destructive action is still an action - it takes the same shape and says what it
+   is with colour on top, not instead. */
+.hub-action.hub-action--danger.q-btn { border-color: rgba(255, 107, 157, 0.45); }
+.hub-action.hub-action--danger.q-btn:hover {
+  border-color: #ff6b9d; background: rgba(255, 107, 157, 0.12);
+}
+
+/* `size=sm` writes an inline font-size, which no selector outranks. */
+.q-btn--dense .q-btn__content { font-size: var(--fs-caption) !important; }
+.q-btn--dense { font-size: var(--fs-caption) !important; }
+
+/* Every control clears the pointer floor - what is fine for a mouse is mean on a
+   trackpad. Dense rather than flat, because the toolbar tabs are `unelevated`. */
+.q-btn--dense, .hub-outline-item, .hub-lens-pill {
+  min-height: var(--target-min);
+}
 .hub-mediatile-art {
   width: 100%;
+  /* A backstop, not the layout. The ratio decides the shape; this stops a portrait
+     tile in a wide map from growing taller than the rows around it are worth. */
+  max-height: 240px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -372,22 +546,85 @@ _COMPONENTS = """
   border-radius: 4px;
   background: #06030f;
 }
-.hub-mediatile-art img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* NiceGUI wraps raw HTML in a plain div, and a percentage height resolves against
+   that - which has none. `display: contents` takes it out of layout so the media is
+   the flex child and 100% means the box it is actually in. */
+.hub-mediatile-art > div { display: contents; }
+.hub-mediatile-art img, .hub-mediatile-art video {
+  width: 100%; height: 100%; object-fit: contain;
+}
+/* On hover and over the art: the tile has no room for a control wanted occasionally.
+   Touch has no hover, and reaches this through the slot's own Enlarge. */
+.hub-mediatile-art { position: relative; }
+.hub-mediatile-zoom {
+  position: absolute; top: 2px; right: 2px; opacity: 0;
+  background: rgba(10, 5, 24, 0.7) !important; transition: opacity 120ms ease;
+}
+.hub-mediatile:hover .hub-mediatile-zoom { opacity: 1; }
+
+/* A panel over the page, sized by its content, so the media decides how big it is. */
+.hub-viewer-card {
+  background: #0b0520 !important;
+  max-width: 92vw; max-height: 88vh;
+  display: flex; flex-direction: column;
+  padding: 0 !important; overflow: hidden;
+  border: 1px solid #2b1a4d; border-radius: 10px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+.hub-viewer-bar {
+  flex: 0 0 auto; padding: 8px 12px;
+  background: rgba(11, 5, 32, 0.9); border-bottom: 1px solid #2b1a4d;
+}
+/* Darker than Quasar's default: the art being judged is often bright. */
+.q-dialog__backdrop { background: rgba(4, 2, 12, 0.78) !important; }
+/* The video's transport, in the bar so it stays upright while the picture turns. */
+.hub-viewer-transport { display: flex; align-items: center; gap: 10px; width: 100%; }
+.hub-viewer-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+  background: transparent; border: none; color: var(--ink-2);
+}
+.hub-viewer-btn:hover { background: rgba(180, 41, 249, 0.18); color: var(--ink); }
+.hub-viewer-btn .material-icons { font-size: var(--fs-title); }
+.hub-viewer-seek { flex: 1 1 auto; min-width: 0; accent-color: var(--accent); cursor: pointer; }
+.hub-viewer-clock {
+  font-size: var(--fs-caption); color: var(--ink-2); white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The stage owns the wheel and the drag, so a pinch magnifies the art rather than
+   asking the browser to zoom a page that has nothing to scroll. */
+.hub-viewer-stage {
+  overscroll-behavior: contain; touch-action: none;
+  user-select: none; -webkit-user-select: none;
+}
+.hub-viewer-stage img, .hub-viewer-stage video {
+  -webkit-user-drag: none; user-select: none;
+}
+
+.hub-viewer-stage {
+  /* Sized by the media. A rotated element reports its untransformed box, and the turn
+     is about its own centre, so that box is the right thing to centre on. */
+  flex: 1 1 auto; min-height: 0;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
 .hub-mediatile-cap {
+  /* Takes up the slack, so captions share a line whatever sits above them. */
+  margin-top: auto;
   display: block;
-  font-size: 10px;
+  font-size: var(--fs-caption);
   line-height: 1.3;
   text-align: center;
-  color: #cbb8ea;
+  color: var(--ink-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .hub-mediatile-group {
-  font-size: 10px;
+  font-size: var(--fs-caption);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #7d6ba3;
+  color: var(--ink-3);
   padding: 6px 0 2px;
 }
 .hub-mediatile-rule {
@@ -401,8 +638,8 @@ _COMPONENTS = """
 }
 
 /* --- section chrome -------------------------------------------------------------- */
-.hub-crumb { color: #cbb8ea; font-size: 13px; }
-.hub-crumb b { color: #eef9ff; font-weight: 600; }
+.hub-crumb { color: var(--ink-2); font-size: var(--fs-body); }
+.hub-crumb b { color: var(--ink); font-weight: 600; }
 .hub-card {
   border: 1px solid #2b1a4d;
   border-radius: 10px;
@@ -410,21 +647,21 @@ _COMPONENTS = """
   padding: 14px 16px;
 }
 .hub-card-title {
-  font-size: 11px;
+  font-size: var(--fs-caption);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #00d9ff;
+  color: var(--accent);
 }
-.hub-kpi { font-size: 30px; font-weight: 700; color: #eef9ff; line-height: 1.1; }
+.hub-kpi { font-size: var(--fs-display); font-weight: 700; color: var(--ink); line-height: 1.1; }
 /* The explanation under a control, not a tooltip on it. This is the whole legibility
    argument for the settings pages, so it gets a class rather than ad-hoc utilities. */
-.hub-help { font-size: 11px; color: #9b8bbd; line-height: 1.4; max-width: 62ch; }
-.hub-setting { font-size: 13px; color: #eef9ff; font-weight: 600; }
+.hub-help { font-size: var(--fs-caption); color: var(--ink-3); line-height: 1.4; max-width: 62ch; }
+.hub-setting { font-size: var(--fs-body); color: var(--ink); font-weight: 600; }
 .hub-group {
-  font-size: 10px;
+  font-size: var(--fs-caption);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #7d6ba3;
+  color: var(--ink-3);
   padding: 10px 8px 4px;
 }
 /* The outline: a table of contents down the side of the workbench. Quiet, because
@@ -434,16 +671,17 @@ _COMPONENTS = """
    .vpx name runs long and the whole one is a hover away. */
 .hub-lens { flex-wrap: wrap; }
 .hub-lens-label {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #7d6ba3;
+  font-size: var(--fs-caption); text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--ink-3);
 }
 .hub-lens-pill {
-  font-size: 11px; color: #cbb8ea; border: 1px solid #3d2461; border-radius: 7px;
+  font-size: var(--fs-caption); color: var(--ink-2); border: 1px solid #3d2461; border-radius: 7px;
   padding: 3px 9px; background: #150a2e; cursor: pointer; max-width: 150px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .hub-lens-pill:hover { border-color: #5f3a8c; }
 .hub-lens-on {
-  background: #251447; color: #eef9ff; border-color: #00d9ff;
+  background: #251447; color: var(--ink); border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(0, 217, 255, 0.35);
 }
 
@@ -459,21 +697,54 @@ _COMPONENTS = """
      at a fraction of what was asked for. On the row it resolves against the grid, which
      is a real height - and fit-content, because a percentage in minmax() makes the track
      that size outright, so the dock would hold 45% whether it needed it or not. */
-  grid-template-rows: minmax(0, 1fr) fit-content(45%);
+  /* A stored height, not fit-content, or the divider moves with whatever is in it.
+     The grip row is what you drag. */
+  grid-template-rows: minmax(0, 1fr) auto var(--dock-h, 300px);
   min-height: 0;
 }
 @container (min-width: 900px) {
   .hub-workbench-main {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    /* `auto` so the track follows the dock's own width. */
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: none;
   }
+  /* Half the workbench, so a wide window has no dead middle. The floor keeps it
+     usable where half is not much. */
+  .hub-dock { width: max(320px, 50cqw); }
+  .hub-dock-grip { display: none; }
 }
-/* Empty when nothing is picked, and it should take no room at all then. */
-.hub-dock:empty { display: none; }
+/* The handle between browse and work. Only where they are stacked - side by side the
+   split is the panel's own width, which the outer splitter already owns. */
+.hub-dock-grip {
+  /* The line is 1px; the rest is the room either side of it. */
+  height: 19px; cursor: row-resize; flex: 0 0 auto;
+  background: linear-gradient(180deg, transparent 0, transparent 9px,
+                              var(--resize-line) 9px, var(--resize-line) 10px,
+                              transparent 10px, transparent 19px);
+}
+.hub-dock-grip:hover {
+  background: linear-gradient(180deg, transparent 0, transparent 9px,
+                              var(--accent) 9px, var(--accent) 10px,
+                              transparent 10px, transparent 19px);
+}
+/* The work region keeps its room whether or not anything is in it: collapsing it
+   reflows browse under the cursor that just picked something. */
+/* Centred in the reserved room: text in the top corner reads as a mistake. */
+.hub-dock-empty {
+  margin: auto; text-align: center; padding: 16px; max-width: 34ch;
+}
+.hub-dock-empty-title { font-size: var(--fs-body); color: var(--ink-2); }
 .hub-dock {
-  border-top: 1px solid #2b1a4d;
-  padding-bottom: 8px;
+  /* Room on every side, or the panel's own border sits flush to the edge and loses
+     its right side under the scrollbar. No border-top: the grip is the divider. */
+  padding: 4px var(--panel-gutter) var(--panel-gutter);
   overflow: auto;
+  /* Named: the workbench is a container too, and what fits here depends on this
+     region's width rather than the panel's. */
+  container: dock / inline-size;
+  /* Reserved either way, so the inset does not shift when a scrollbar appears. */
+  scrollbar-gutter: stable;
 }
 @container (min-width: 900px) {
   .hub-dock { border-top: none; border-left: 1px solid #2b1a4d; }
@@ -487,7 +758,7 @@ _COMPONENTS = """
 /* The transfer stats go with it: they are the uploader's own progress readout, and
    what belongs on that strip is the name of the action. */
 .hub-slot .q-uploader__subtitle { display: none; }
-.hub-slot .q-uploader__title { font-size: 13px; font-weight: 500; color: #c9a6ff; }
+.hub-slot .q-uploader__title { font-size: var(--fs-body); font-weight: 500; color: var(--ink-2); }
 /* Quasar fills the header with the primary colour. Magenta reads as "selected" in this
    panel, and replacing a file is not the loudest thing on it. */
 .hub-slot .q-uploader__header {
@@ -497,8 +768,8 @@ _COMPONENTS = """
 /* The chosen section's heading when it has the window to itself - there is no
    expansion to click, so the name has to come from somewhere. */
 .hub-work-title {
-  font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
-  color: #00d9ff; padding: 8px 10px 4px;
+  font-size: var(--fs-caption); text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--accent); padding: 8px 10px 4px;
 }
 
 /* A form has nothing to choose, so it stays one column and leaves the rest alone
@@ -513,29 +784,61 @@ _COMPONENTS = """
 /* Docked under the map there is no height to spend: the preview goes small and beside
    the controls rather than above them, which is what keeps the actions on screen. In
    the column beside the map there is height and no width, so it stacks. */
-.hub-slot-body { display: flex; gap: 10px; align-items: flex-start; }
+.hub-slot-body {
+  display: flex; gap: 10px; align-items: flex-start;
+  /* Without this the row is sized by its contents and simply overhangs the panel -
+     which is what put a horizontal scrollbar under a 212px dock. */
+  min-width: 0;
+}
 .hub-slot-preview { flex: 0 0 auto; max-width: 34%; }
-.hub-slot-preview img {
+/* Audio has no frame to show, so it is the control itself and takes the width it is
+   given rather than being sized like a picture. */
+.hub-slot-preview audio { width: 100%; }
+.hub-slot-preview img, .hub-slot-preview video {
   max-width: 100%; max-height: 130px; object-fit: contain;
   border-radius: 4px; border: 1px solid #2b1a4d;
 }
 .hub-slot-details { flex: 1 1 auto; min-width: 0; }
+/* Too narrow for the preview beside the facts, so it goes above them. */
+@container dock (max-width: 320px) {
+  .hub-slot-body { display: block; }
+  .hub-slot-preview { max-width: 100%; margin-bottom: 8px; }
+}
+
 @container (min-width: 900px) {
   .hub-slot-body { display: block; }
   .hub-slot-preview { max-width: 100%; margin-bottom: 8px; }
-  .hub-slot-preview img { max-height: 240px; }
+  /* The one thing here with an appetite for width: at 240px a backglass in a half-window
+     panel is a thumbnail beside a lot of nothing, and judging art is what this view is
+     for. Capped against the viewport so the facts below it stay on screen. */
+  .hub-slot-preview img, .hub-slot-preview video { max-height: min(52vh, 520px); }
 }
 
-.hub-outline { border-right: 1px solid #1f1338; }
+/* Down, never across: in a column of modes a sideways bar means the items do not
+   fit, never that there is more to reach. */
+.hub-outline {
+  /* Widened with the gutter below, so the labels keep their room rather than paying
+     for it. */
+  border-right: 1px solid var(--line-soft); width: 152px;
+  overflow-x: hidden;
+}
+/* Narrow: still a column, now icons - the app nav does the same, so the control never
+   changes kind. A column also grows down the axis a narrow panel has spare. The word
+   lives on the tooltip. */
 /* The workbench measures itself, so the outline appears the moment the drag crosses
    the width rather than when the mouse comes up. */
 .hub-workbench { container-type: inline-size; }
-@container (max-width: 519px) { .hub-outline { display: none; } }
+
 /* The splitter measures in pixels, so shrinking the window used to come entirely out
    of the list: the workbench held its width and the list was left with a Name column
    too narrow to read and a toolbar wrapped one word per line. A floor here makes the
    workbench give way instead - it shrinks gracefully because everything in it is
    already sized by its own width, and the list has nowhere to go. */
+/* Said here rather than left to Quasar's default, so both dividers move together if
+   the value ever changes. */
+.q-splitter__separator { background-color: var(--resize-line) !important; }
+.q-splitter__separator:hover { background-color: var(--accent) !important; }
+
 .q-splitter__before { min-width: 380px; container-type: inline-size; }
 
 /* And when even that is tight, the parts that are commentary go before the parts that
@@ -554,25 +857,45 @@ _COMPONENTS = """
 
 /* The outline carries the grouping once it is there; the body only needs it when it
    is the only structure on screen. */
+/* Sized as navigation, because that is what it is. Still smaller and sentence-case
+   than the app nav: two uppercase columns would rank a game's sections with the app. */
+/* The app nav's gutter rhythm, so the two rails read as the same kind of control. */
 .hub-outline-item {
-  display: block;
-  font-size: 11px;
-  color: #cbb8ea;
-  padding: 4px 8px;
-  margin: 1px 4px;
-  border-radius: 5px;
+  display: flex;
+  font-size: var(--fs-body);
+  font-weight: 500;
+  color: var(--ink);
+  padding: 7px 16px;
+  margin: 2px 8px;
+  border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .hub-outline-item:hover { background: rgba(180, 41, 249, 0.14); }
-.hub-outline-on { background: rgba(180, 41, 249, 0.28); color: #eef9ff; }
+.hub-outline-on { background: rgba(0, 217, 255, 0.22); color: var(--ink); }
 
-.hub-index-item { border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 13px;
-                  color: #cbb8ea; }
+/* Below the base rules on purpose: same specificity, so source order decides. Above
+   them the wide padding wins and the items overflow the rail. */
+@container (max-width: 519px) {
+  .hub-outline { width: 48px; padding-right: 0; }
+  .hub-outline-text { display: none; }
+  .hub-outline-item {
+    /* Stretched to the rail, or the item is only as wide as its icon and centring
+       happens inside a 20px box that is itself sitting at the left edge. */
+    align-self: stretch;
+    justify-content: center;
+    padding: 6px 0; margin: 2px 4px;
+  }
+}
+
+.hub-index-item { border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: var(--fs-body);
+                  color: var(--ink-2); }
 .hub-index-item:hover { background: rgba(180, 41, 249, 0.14); }
-.hub-index-item.hub-index-on { background: rgba(180, 41, 249, 0.28); color: #eef9ff; }
+.hub-index-item.hub-index-on {
+  background: rgba(0, 217, 255, 0.22); color: var(--ink);
+}
 .hub-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); }
 .hub-bar > div { height: 100%; border-radius: 3px; background: #00d9ff; }
 """
