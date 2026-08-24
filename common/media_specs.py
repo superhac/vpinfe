@@ -257,6 +257,22 @@ def canonical_kind(kind: str) -> str:
     return MEDIA_KIND_ALIASES.get(name, name)
 
 
+_FAMILY_NAMES = {IMAGE_FAMILY: "image", VIDEO_FAMILY: "video",
+                 AUDIO_FAMILY: "audio", DOC_FAMILY: "doc"}
+
+
+def media_family(kind: str) -> str:
+    """What a kind's files are - "image", "video", "audio", "doc", or "" if unknown.
+
+    Asked by anything that has to choose an element to present one with. The kind's
+    name is not the answer: `loading` is video and says nothing about it, so a caller
+    testing for a `_video` suffix gets that one wrong.
+    """
+    spec = next((item for item in MEDIA_SPECS
+                 if item.kind == canonical_kind(kind)), None)
+    return _FAMILY_NAMES.get(spec.family, "") if spec else ""
+
+
 def media_filename_map(playfield_variant: str = "table") -> dict[str, str]:
     """Kind to the filename it resolves. The variant changes filenames, not kinds."""
     return {spec.kind: spec.filename(playfield_variant) for spec in MEDIA_SPECS}

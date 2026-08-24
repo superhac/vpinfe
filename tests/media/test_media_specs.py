@@ -5,7 +5,14 @@ from __future__ import annotations
 import os
 import unittest
 
-from common.media_specs import apply_media_specs, game_media_payload, media_filename_map
+from common.media_specs import (
+    MEDIA_SPECS,
+    apply_media_specs,
+    canonical_kind,
+    game_media_payload,
+    media_family,
+    media_filename_map,
+)
 from tests.support.library import fake_game
 
 
@@ -30,3 +37,39 @@ class MediaSpecTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MediaFamilyTests(unittest.TestCase):
+    """What a kind's files are, which is what decides the element that presents one.
+
+    Named for the bug it exists to stop: the workbench slot painted every present file
+    with an <img>, so a video downloaded in full and drew nothing.
+    """
+
+    def test_an_image_kind_is_an_image(self) -> None:
+        self.assertEqual(media_family("playfield"), "image")
+
+    def test_a_video_kind_is_a_video(self) -> None:
+        self.assertEqual(media_family("playfield_video"), "video")
+
+    def test_loading_is_video_despite_its_name(self) -> None:
+        """The reason this is derived from the family and not the spelling: a caller
+        testing for a `_video` suffix gets this one wrong."""
+        self.assertEqual(media_family("loading"), "video")
+
+    def test_audio_and_documents_are_themselves(self) -> None:
+        self.assertEqual(media_family("audio"), "audio")
+        self.assertEqual(media_family("rule_sheet"), "doc")
+
+    def test_an_alias_resolves_before_the_family_is_read(self) -> None:
+        self.assertEqual(media_family(canonical_kind("rulesheet")), "doc")
+
+    def test_an_unknown_kind_says_so_rather_than_guessing(self) -> None:
+        self.assertEqual(media_family("not_a_kind"), "")
+
+    def test_every_declared_kind_has_a_family(self) -> None:
+        """A kind with no family would fall through to the document branch and be
+        offered as a link, whatever it actually is."""
+        for spec in MEDIA_SPECS:
+            with self.subTest(kind=spec.kind):
+                self.assertNotEqual(media_family(spec.kind), "")
