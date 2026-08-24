@@ -455,6 +455,64 @@ async def _write_media(game, kind: str, stem: str, upload: UploadFile,
     return {"written": written.name, "media": {kind: entries[kind]}}
 
 
+@router.post("/{game_id}/media/{kind}/retier",
+             summary="Rename a placed file so it serves a different tier",
+             dependencies=[requires(scopes.GAMES_WRITE)])
+def retier_media(game_id: str, kind: str, body: models.MediaRetier,
+                 table: str = Query("", description="the build the file serves now")
+                 ) -> models.MediaWritten:
+    """Change who a file serves without sending it again.
+
+    The tier is the filename, so this is a rename. `table` says where the file is now
+    and the body says where it should go; either may be empty, which means the folder's
+    shared name.
+    """
+    game = _game_or_404(game_id)
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+    from_stem = _table_stem_or_404(game, table) if table else game_dir.name
+    to_stem = _table_stem_or_404(game, body.table) if body.table else game_dir.name
+    try:
+        written = media_placement.retier(game_dir, kind, from_stem, to_stem)
+    except media_placement.UnplaceableError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+
+    prefix = (f"/api/v1/games/{game_id}/tables/{body.table}/media" if body.table
+              else f"/api/v1/games/{game_id}/media")
+    stem = to_stem if body.table else None
+    entries = _media_entries(_resolved_media(game_dir, stem), game_dir, prefix)
+    return {"written": written.name, "media": {kind: entries[kind]}}
+
+
+def _displaced(game, kind: str, stem: str, filename: str) -> dict:
+    """What a place of `filename` would displace at `stem`'s tier."""
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+    try:
+        going = media_placement.displaced(game_dir, kind, stem, Path(filename).suffix)
+    except media_placement.UnplaceableError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    return {"displaced": sorted(str(path.relative_to(game_dir)) for path in going)}
+
+
+@router.get("/{game_id}/media/{kind}/displaced",
+            summary="What placing this file here would replace",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_game_media_displaced(game_id: str, kind: str,
+                             filename: str = Query(...)) -> models.MediaDisplaced:
+    """Asked before an upload, so a confirmation can name the files rather than warn
+    in the abstract - and so the bytes are not sent for a drop the user cancels."""
+    game = _game_or_404(game_id)
+    return _displaced(game, kind, Path(getattr(game, "fullPathGame", "")).name, filename)
+
+
+@router.get("/{game_id}/tables/{table_id}/media/{kind}/displaced",
+            summary="What placing this file for one build would replace",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_table_media_displaced(game_id: str, table_id: str, kind: str,
+                              filename: str = Query(...)) -> models.MediaDisplaced:
+    game = _game_or_404(game_id)
+    return _displaced(game, kind, _table_stem_or_404(game, table_id), filename)
+
+
 @router.put("/{game_id}/media/{kind}", summary="Place a file every table shares",
             dependencies=[requires(scopes.GAMES_WRITE)])
 async def put_game_media(game_id: str, kind: str,

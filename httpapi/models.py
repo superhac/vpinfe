@@ -446,6 +446,20 @@ class MediaWritten(ApiModel):
     media: dict[str, MediaEntry]
 
 
+class MediaRetier(ApiModel):
+    """Which build a file should serve after the move. An empty `table` means the
+    folder's shared name, which every table in it resolves."""
+
+    table: str = ""
+
+
+class MediaDisplaced(ApiModel):
+    """Folder-relative paths a place would overwrite or delete, answered before the
+    bytes are sent. Empty means the slot is free at that tier."""
+
+    displaced: list[str]
+
+
 class MediaRemoved(ApiModel):
     """Folder-relative paths that went. Empty means there was nothing at that tier."""
 

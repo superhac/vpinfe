@@ -386,10 +386,19 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any], draw) -> No
     label = mediamap.LABELS.get(kind, kind)
 
     async def place(event: Any) -> None:
+        name = event.file.name
+        try:
+            going = await run.io_bound(library.displaced_by, game_id, table_id,
+                                       kind, name)
+        except Exception as exc:
+            ui.notify(f"Could not check that slot: {exc}", type="negative")
+            return
+        if going and not await _confirm_replace(label, going):
+            return
+
         data = await event.file.read()
         try:
-            await run.io_bound(library.place_media, game_id, table_id, kind,
-                               event.file.name, data)
+            await run.io_bound(library.place_media, game_id, table_id, kind, name, data)
         except Exception as exc:
             ui.notify(f"Could not place it: {exc}", type="negative")
             return
@@ -406,6 +415,26 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any], draw) -> No
         ui.notify(f"Removed {gone} file(s)" if gone else
                   "Nothing to remove at this level", type="positive" if gone else "info")
         await draw()
+
+    # Widening only, and only from the build you are looking at. The other direction -
+    # a shared file becoming one build's - reads as a move but takes the file away from
+    # every other table in the folder, and in the shared lens there is no build in view
+    # to say which one would get it. That one needs a decision, not a default.
+    move_label = ""
+    if (entry.get("present") and table_id
+            and str(entry.get("via") or "") == "table"):
+        move_label = "Share with every table"
+
+    async def retier() -> None:
+        """The build's own file takes the folder's name, so every table resolves it."""
+        try:
+            await run.io_bound(library.retier_media, game_id, kind, table_id, "")
+        except Exception as exc:
+            ui.notify(f"Could not move it: {exc}", type="negative")
+            return
+        ui.notify("Shared with every table", type="positive")
+        for redraw in context["redraws"]:
+            await redraw()
 
     # Preview and details are separate boxes so one rule can put them side by side.
     # Docked under the map there is height for neither a tall preview nor a tall
@@ -435,6 +464,9 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any], draw) -> No
                 with ui.row().classes("items-center gap-1 w-full").style("flex-wrap:wrap"):
                     if entry.get("present"):
                         ui.button("Remove", on_click=remove) \
+                            .props("flat dense no-caps size=sm")
+                    if move_label:
+                        ui.button(move_label, on_click=retier) \
                             .props("flat dense no-caps size=sm")
                     # Disabled rather than omitted, so what the slot is for is legible
                     # before either exists. Both parked in HUBUI section 10.
@@ -468,6 +500,25 @@ def _tables_label(context: dict[str, Any]) -> str:
     gone = [table for table in tables if table.get("absent_since")]
     label = f"Tables ({len(tables)})"
     return label + (f" - {len(gone)} not on disk" if gone else "")
+
+
+async def _confirm_replace(label: str, going: list[str]) -> bool:
+    """Name what a drop would replace, and wait for a yes.
+
+    The files are listed rather than counted because the surprising case is the one a
+    count hides: a whole family goes at this tier, so a .mp4 dropped over a .png takes
+    the .png with it and the user never named that file.
+    """
+    with ui.dialog() as confirm, ui.card():
+        ui.label(f"Replace the {label.lower()} that is there?").classes("hub-card-title")
+        for path in going:
+            ui.label(path).classes("text-xs opacity-70 break-all")
+        ui.label("Replaced files are deleted, not kept.").classes("text-xs")
+        with ui.row().classes("justify-end gap-2 w-full"):
+            ui.button("Cancel", on_click=lambda: confirm.submit(False)).props("flat")
+            ui.button("Replace",
+                      on_click=lambda: confirm.submit(True)).props("color=negative")
+    return bool(await confirm)
 
 
 async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:

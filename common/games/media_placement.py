@@ -53,12 +53,42 @@ def target_name(kind: str, stem: str, extension: str) -> str:
     return f"{spec.token} {stem}{extension}"
 
 
+def _family_at_tier(game_dir: Path, kind: str, stem: str):
+    """Every file already serving this kind at this stem's tier, whatever its extension.
+
+    Both folders, because a library that predates `medias/` keeps its art beside the
+    .vpx and the resolver still reads it.
+    """
+    spec = _SPEC_BY_KIND[kind]
+    prefix = f"{spec.token} {stem}"
+    for extension in spec.family:
+        for folder in (game_dir / "medias", game_dir):
+            sibling = folder / f"{prefix}{extension}"
+            if sibling.exists():
+                yield sibling
+
+
+def displaced(game_dir: str | Path, kind: str, stem: str, extension: str) -> list[Path]:
+    """The files a `place` of this extension would overwrite or delete.
+
+    Answered without the bytes, so a caller can ask before a large upload starts and
+    still say what is about to go. It is not only the file with the same name: the
+    whole family at this tier goes, so dropping a .jpg over a .png removes the .png.
+    """
+    game_dir = Path(game_dir)
+    target = game_dir / "medias" / target_name(kind, stem, extension)
+    going = set(_family_at_tier(game_dir, kind, stem))
+    if target.exists():
+        going.add(target)
+    return sorted(going)
+
+
 def place(game_dir: str | Path, kind: str, stem: str, source: str | Path) -> Path:
     """Install `source` as this kind's file for `stem`, and return where it landed.
 
     Siblings in the same family and at the same tier go: they would otherwise sit
     behind the new file forever, waiting for a family order to change and surface a
-    file the user believed replaced.
+    file the user believed replaced. `displaced` reports the same set beforehand.
     """
     game_dir = Path(game_dir)
     source = Path(source)
@@ -67,18 +97,36 @@ def place(game_dir: str | Path, kind: str, stem: str, source: str | Path) -> Pat
     medias.mkdir(parents=True, exist_ok=True)
     target = medias / name
 
-    spec = _SPEC_BY_KIND[kind]
-    prefix = f"{spec.token} {stem}"
-    for extension in spec.family:
-        for folder in (medias, game_dir):
-            sibling = folder / f"{prefix}{extension}"
-            if sibling != target and sibling.exists():
-                try:
-                    sibling.unlink()
-                except OSError:
-                    logger.warning("Could not remove %s", sibling)
+    for sibling in list(_family_at_tier(game_dir, kind, stem)):
+        if sibling != target:
+            try:
+                sibling.unlink()
+            except OSError:
+                logger.warning("Could not remove %s", sibling)
 
     shutil.copy2(source, target)
+    return target
+
+
+def retier(game_dir: str | Path, kind: str, from_stem: str, to_stem: str) -> Path:
+    """Move a placed file to the other tier by renaming it, keeping its extension.
+
+    The tier is the filename, so changing who a file serves is a rename rather than a
+    re-upload. Routed through `place`, so a file arriving at the new tier displaces
+    what is there by exactly the rule a drop would.
+    """
+    game_dir = Path(game_dir)
+    sources = sorted(_family_at_tier(game_dir, kind, from_stem))
+    if not sources:
+        raise UnplaceableError(f"There is no {kind} file named for {from_stem}")
+
+    source = sources[0]
+    target = place(game_dir, kind, to_stem, source)
+    if source != target:
+        try:
+            source.unlink()
+        except OSError:
+            logger.warning("Placed %s but could not remove %s", target, source)
     return target
 
 

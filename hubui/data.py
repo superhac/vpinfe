@@ -84,6 +84,20 @@ class Library:
             self.table_media[key] = self._client.table_media(game_id, table_id)
         return self.table_media[key]
 
+    def retier_media(self, game_id: str, kind: str, from_table: str,
+                     to_table: str) -> dict:
+        """The file moves tier, so every tier's read is stale - the one it left and the
+        one it arrived at both resolve differently now."""
+        result = self._client.retier_media(game_id, kind, from_table, to_table)
+        self.forget_media(game_id)
+        return result
+
+    def displaced_by(self, game_id: str, table_id: str, kind: str,
+                     filename: str) -> list[str]:
+        """Never cached: it is asked to decide a write, and a stale answer would either
+        hide a replacement or invent one."""
+        return self._client.displaced_by(game_id, table_id, kind, filename)
+
     def place_media(self, game_id: str, table_id: str, kind: str,
                     filename: str, data: bytes) -> dict:
         result = self._client.place_media(game_id, table_id, kind, filename, data)

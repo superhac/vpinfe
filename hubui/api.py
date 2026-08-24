@@ -108,6 +108,26 @@ class HubClient:
         return (f"/games/{game_id}/tables/{table_id}/media/{kind}" if table_id
                 else f"/games/{game_id}/media/{kind}")
 
+    def retier_media(self, game_id: str, kind: str, from_table: str,
+                     to_table: str) -> dict:
+        """Rename a placed file so it serves the other tier. No bytes move."""
+        path = f"/games/{game_id}/media/{kind}/retier"
+        _refuse_the_event_loop(path)
+        response = self._session.post(f"{self._base}{path}", json={"table": to_table},
+                                      params={"table": from_table}, timeout=_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+
+    def displaced_by(self, game_id: str, table_id: str, kind: str,
+                     filename: str) -> list[str]:
+        """What placing `filename` here would replace, asked before the bytes go up."""
+        path = f"{self._media_path(game_id, table_id, kind)}/displaced"
+        _refuse_the_event_loop(path)
+        response = self._session.get(f"{self._base}{path}",
+                                     params={"filename": filename}, timeout=_TIMEOUT)
+        response.raise_for_status()
+        return list(response.json().get("displaced") or [])
+
     def place_media(self, game_id: str, table_id: str, kind: str,
                     filename: str, data: bytes) -> dict:
         path = self._media_path(game_id, table_id, kind)
