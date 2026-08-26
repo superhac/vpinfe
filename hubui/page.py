@@ -7,7 +7,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-from hubui import deeplink, games, sections, theme, workbench
+from hubui import deeplink, games, sections, theme, views, workbench
 from hubui import devices as devices_page
 from hubui import settings as settings_page
 from hubui.api import HubClient
@@ -402,8 +402,8 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                     games.build_tables(library.table_rows(), library, show_game, state,
                                        redraw)
                 else:
-                    games.build(library.game_rows(), library.kinds_present(), show_game,
-                                state, redraw)
+                    games.build(library.game_rows(), library.kinds_present(), library,
+                                show_game, state, redraw)
             elif view == "collections":
                 sections.collections(library)
             elif view == "media":
@@ -439,6 +439,11 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             asyncio.create_task(read_then_draw())
             return
         render()
+
+    # The saved views, read before anything draws: a grid asks for them while it is
+    # being built, which is on the loop, and the client refuses an HTTP call there.
+    await run.io_bound(library.warm, games.SCOPE + views.VIEWS_SUFFIX,
+                       f"{games.SCOPE}.tables" + views.VIEWS_SUFFIX)
 
     def go(view: str) -> None:
         state["view"] = view

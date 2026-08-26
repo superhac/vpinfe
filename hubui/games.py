@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from typing import Any
 
 from nicegui import run, ui
 
-from hubui import grid
+from hubui import grid, views
 from hubui.api import HubClient
 from hubui.data import TIER_LEGEND
+
+logger = logging.getLogger("vpinfe.hubui.games")
 
 SCOPE = "hubui.games.columns"
 
@@ -122,7 +125,7 @@ async def _launch(games: list[dict[str, Any]]) -> None:
     ui.notify(f"Launching {games[0].get('name')}", type="positive")
 
 
-def build(rows: list[dict[str, Any]], kinds: list[str],
+def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
           on_select: Callable[[dict | None], None],
           state: dict[str, Any] | None = None,
           rerender: Callable[[], None] | None = None) -> None:
@@ -145,15 +148,18 @@ def build(rows: list[dict[str, Any]], kinds: list[str],
         _subject_select(state, rerender, subject)
         search = ui.input(placeholder="Search games") \
             .props("dense outlined clearable").classes("w-64")
-        lens = ui.toggle(list(LENSES), value="Metadata").props("dense no-caps unelevated")
+        # The media preset is the library's own kinds, so it is only knowable here.
+        presets = {**LENSES, "Media": ["name", *[f"media_{kind}" for kind in kinds]]}
+        wire_views, lens = view_control(library, SCOPE, presets, all_fields)
         cells = ui.toggle(list(RENDERERS), value="Ticks").props("dense no-caps unelevated")
-        cells.bind_visibility_from(lens, "value", lambda value: value == "Media")
+        cells.bind_visibility_from(lens, "value", lambda value: value == "builtin:Media")
         columns_btn = ui.button(icon="view_column").props("flat round dense") \
             .tooltip("Choose columns")
         columns_menu = ui.menu()
         ui.space()
         legend = ui.label(TIER_LEGEND).classes("text-xs opacity-60")
-        legend.bind_visibility_from(lens, "value", lambda value: value == "Media")
+        legend.bind_visibility_from(lens, "value",
+                                    lambda value: value == "builtin:Media")
         # The selection count sits with the total: it is the same fact - how much am I
         # looking at - and it costs no vertical space of its own.
         count = ui.label(f"{len(rows)} games").classes("text-xs hub-label")
@@ -245,15 +251,6 @@ def build(rows: list[dict[str, Any]], kinds: list[str],
                            html_fields=[f"media_{k}" for k in kinds])
         context_menu = ui.context_menu()
 
-    def apply_lens() -> None:
-        if lens.value == "Media":
-            wanted = ["name", *[f"media_{kind}" for kind in kinds]]
-        else:
-            wanted = LENSES.get(lens.value or "", all_fields)
-        table.run_grid_method("setColumnsVisible", wanted, True)
-        table.run_grid_method("setColumnsVisible",
-                              [name for name in all_fields if name not in wanted], False)
-
     async def open_columns() -> None:
         """Every column with a checkbox, so a hidden one can be brought back.
 
@@ -295,7 +292,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str],
         table.run_grid_method("redrawRows")
 
     cells.on_value_change(apply_renderer)
-    lens.on_value_change(apply_lens)
+    wire_views(table)
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText", search.value or ""))
 
@@ -376,8 +373,8 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         _subject_select(state, rerender, state.get("subject", "table"))
         search = ui.input(placeholder="Search tables") \
             .props("dense outlined clearable").classes("w-64")
-        lens = ui.toggle(list(TABLE_LENSES), value="Identity") \
-            .props("dense no-caps unelevated")
+        wire_views, _ = view_control(library, f"{SCOPE}.tables",
+                                     TABLE_LENSES, fields)
         ui.space()
         ui.label(f"{len(built)} tables in {len({r['game_id'] for r in built})} games") \
             .classes("text-xs hub-label")
@@ -436,17 +433,198 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                     lambda r=row: act(library.forget_table, r["game_id"], r["id"],
                                       said="Record dropped"))
 
-    def apply_lens() -> None:
-        wanted = TABLE_LENSES.get(lens.value or "", fields)
-        table.run_grid_method("setColumnsVisible", wanted, True)
-        table.run_grid_method("setColumnsVisible",
-                              [f for f in fields if f not in wanted], False)
-
-    lens.on_value_change(apply_lens)
+    wire_views(table)
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                       search.value or ""))
-    apply_lens()
+
+
+def view_control(library: Any, scope: str, presets: dict[str, list[str]],
+                 all_fields: list[str]):
+    """The view picker and the two ways out of a modified one.
+
+    Built here in the toolbar and wired once the grid exists, because the widgets have
+    to sit above the grid and the behaviour needs the grid to talk to.
+
+    Returns `(wire, picker)`. Call `wire(table)` once the grid exists; the picker is
+    handed back so a caller can hang a binding off which view is showing.
+    """
+    custom, active = views.stored(library, scope)
+    known = views.builtins(presets) + custom
+    if active not in {view.id for view in known}:
+        active = known[0].id
+    held: dict[str, Any] = {"views": known, "active": active, "custom": custom}
+
+    picker = ui.select({view.id: _view_name(view) for view in known}, value=active,
+                       label="View").props("dense outlined") \
+        .classes("w-52 hub-view-picker")
+    revert = ui.button("Revert").props("flat dense no-caps size=sm")
+    save_as = ui.button("Save as\u2026").props("flat dense no-caps size=sm")
+    drop = ui.button(icon="delete_outline").props("flat dense round size=sm") \
+        .tooltip("Delete this view")
+    # Save as stays put. "Keep what I am looking at under a name" is always a sensible
+    # thing to want - a built-in makes a fine starting point - and hiding it until
+    # something drifts means nobody discovers that views can be saved at all.
+    for element in (revert, drop):
+        element.set_visibility(False)
+
+    def current() -> Any:
+        return next(v for v in held["views"] if v.id == held["active"])
+
+    def wire(table: ui.aggrid) -> None:
+        async def apply(view: Any) -> None:
+            """Put a view on the grid: which columns, sorted how, filtered to what."""
+            wanted = [f for f in view.columns if f in all_fields] or all_fields
+            table.run_grid_method("setColumnsVisible", wanted, True)
+            table.run_grid_method("setColumnsVisible",
+                                  [f for f in all_fields if f not in wanted], False)
+            # defaultState clears the sort on every column this view does not name,
+            # or an old sort would survive a switch and the view would be a lie.
+            table.run_grid_method("applyColumnState",
+                                  {"state": list(view.sort),
+                                   "defaultState": {"sort": None}})
+            # Always set, even to nothing: a built-in carries no filters, and clearing
+            # them is what makes going back to one a way out rather than a hope.
+            table.run_grid_method("setFilterModel", view.filters or None)
+            await _refresh()
+
+        async def _seen() -> tuple:
+            """What the grid is actually showing, in the terms a view is written in.
+
+            AG Grid's own generated columns - the checkbox, chiefly - are in the state
+            and are nobody's view, so they are dropped. Left in, every view reads as
+            modified the moment it is applied.
+            """
+            state = [entry for entry in
+                     (await table.run_grid_method("getColumnState") or [])
+                     if not str(entry.get("colId", "")).startswith("ag-Grid-")]
+            model = await table.run_grid_method("getFilterModel") or {}
+            shown = tuple(entry["colId"] for entry in state if not entry.get("hide"))
+            return shown, tuple(state), model
+
+        async def _refresh() -> None:
+            shown, sort, model = await _seen()
+            view = current()
+            changed = views.differs(view, shown, sort, model)
+            # On the picker rather than beside it: the drift is a fact about the view
+            # that is selected, so it belongs to the control that names it.
+            picker.props(add="suffix=modified") if changed \
+                else picker.props(remove="suffix")
+            revert.set_visibility(changed)
+            # Only where it means something: there is nothing to revert to until the
+            # screen has drifted, and nothing to delete unless the view is the user's.
+            drop.set_visibility(not view.builtin and not changed)
+
+        async def keep_views(active: str) -> None:
+            """Write the user's views. Off the loop - this is an HTTP call, and the
+            client refuses one made from a page's own handler."""
+            await run.io_bound(views.remember, library, scope, held["custom"], active)
+
+        async def pick(view_id: str) -> None:
+            held["active"] = view_id
+            await keep_views(view_id)
+            await apply(current())
+
+        async def save(name: str) -> None:
+            shown, sort, model = await _seen()
+            view = views.View(id=f"view:{name.strip().lower()}", name=name.strip(),
+                              builtin=False, columns=shown,
+                              sort=tuple(e for e in sort if e.get("sort")),
+                              filters=model)
+            held["custom"] = [v for v in held["custom"] if v.id != view.id] + [view]
+            held["views"] = views.builtins(presets) + held["custom"]
+            held["active"] = view.id
+            await keep_views(view.id)
+            picker.set_options({v.id: _view_name(v) for v in held["views"]},
+                               value=view.id)
+            await _refresh()
+            ui.notify(f"Saved the view \u201c{view.name}\u201d", type="positive")
+
+        async def delete() -> None:
+            view = current()
+            if view.builtin:
+                return
+            held["custom"] = [v for v in held["custom"] if v.id != view.id]
+            held["views"] = views.builtins(presets) + held["custom"]
+            held["active"] = held["views"][0].id
+            await keep_views(held["active"])
+            picker.set_options({v.id: _view_name(v) for v in held["views"]},
+                               value=held["active"])
+            await apply(current())
+
+        picker.on_value_change(lambda event: pick(event.value))
+        revert.on("click", lambda: apply(current()))
+        save_as.on("click", lambda: _ask_name(save))
+        drop.on("click", delete)
+        # The grid reports its own changes; the marker follows them rather than being
+        # recomputed on a timer that would outlive the grid.
+        for event in ("columnVisible", "sortChanged", "filterChanged"):
+            table.on(event, lambda: _refresh(), args=[])
+        ui.timer(0, lambda: apply(current()), once=True)
+
+    return wire, picker
+
+
+def _view_name(view: Any) -> str:
+    """Whatever it is called. A name somebody typed is shown as they typed it - the
+    built-ins come first in the list and only a view of theirs offers to be deleted,
+    which is enough to tell them apart without editing anybody's words."""
+    return view.name
+
+
+def _ask_name(save) -> None:
+    with ui.dialog() as dialog, ui.card():
+        ui.label("Save this view as").classes("hub-card-title")
+        # debounce=0 so the model is current the moment Save is pressed. Focus is put
+        # here by the script below - Quasar's autofocus does not land in this dialog.
+        name = ui.input(placeholder="Name this view") \
+            .props("outlined dense debounce=0").classes("w-72")
+
+        async def keep() -> None:
+            if not (name.value or "").strip():
+                # Said rather than ignored. A dialog that does nothing when you press
+                # the button reads as broken, and this one did.
+                name.props('error error-message="Give it a name"')
+                return
+            dialog.close()
+            await save(name.value)
+
+        with ui.row().classes("justify-end gap-2 w-full"):
+            ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
+            save_button = ui.button("Save", on_click=keep).props("no-caps")
+    # Focused when Quasar says the dialog has finished opening. Anything earlier is
+    # overridden by its own focus handling, whatever the delay.
+    dialog.on("show", lambda: ui.run_javascript(
+        f"document.getElementById('c{name.id}').focus()"))
+    dialog.open()
+    # Enter is bound in the browser rather than through an event handler: nicegui does
+    # not forward a keyup from a Quasar input inside a dialog, so nothing arrives to
+    # handle. Clicking the button is the same path the mouse takes, which is the point.
+    ui.run_javascript(f"""
+        (() => {{
+          // The dialog mounts after this runs, so the elements are waited for rather
+          // than assumed. Bounded, because a dialog that never appears must not leave
+          // a timer running behind it.
+          let tries = 0;
+          const wire = () => {{
+            const field = document.getElementById('c{name.id}');
+            const button = document.getElementById('c{save_button.id}');
+            if (!field || !button) {{
+              if (++tries < 40) setTimeout(wire, 25);
+              return;
+            }}
+            // On the dialog, not the field: Quasar's autofocus does not land, so
+            // focus can be on the dialog itself when the first key arrives and a
+            // listener on the input would never hear it.
+            const dialog = button.closest('.q-dialog') || field;
+            dialog.addEventListener('keyup', (event) => {{
+              if (event.key === 'Enter') button.click();
+            }});
+
+          }};
+          wire();
+        }})()
+    """)
 
 
 def _subject_stub(subject: str) -> None:

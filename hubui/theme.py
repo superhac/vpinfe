@@ -892,6 +892,14 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 .hub-mediatile-tier.hub-tier--table { background: rgba(40, 24, 8, 0.85); }
 
+/* The view has drifted from what it says it is, said on the control that names it.
+   Quiet - a modified view is an ordinary thing to be in, not a warning - but it has to
+   be visible or the picker is lying. */
+.hub-view-picker .q-field__suffix {
+  font-size: var(--fs-caption); color: var(--tier-table); opacity: 1;
+  padding-left: 6px;
+}
+
 /* A tick column is scanned, not read: centre it so the eye runs down one line. */
 .hub-tick { text-align: center; color: var(--accent); }
 

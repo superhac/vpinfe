@@ -62,6 +62,7 @@ class Library:
         # switch to it, and it is a second walk of every folder.
         self._table_rows: list[dict[str, Any]] | None = None
         self._overrides: dict[str, dict[str, Any]] = {}
+        self._prefs: dict[str, dict[str, Any]] = {}
 
     def load(self) -> None:
         started = time.perf_counter()
@@ -237,6 +238,30 @@ class Library:
         for entries in self.media.values():
             seen.update(entries)
         return sorted(seen)
+
+    def preferences(self, scope: str) -> dict[str, Any]:
+        """A stored preference, as it stands.
+
+        Cached, and deliberately does not fetch: this is read while a grid is being
+        built, which is on the event loop, where an HTTP call is refused. `warm` does
+        the reading, off the loop, before anything draws.
+        """
+        return self._prefs.get(scope) or {}
+
+    def warm(self, *scopes: str) -> None:
+        """Read these preferences. Off the event loop, once per session."""
+        for scope in scopes:
+            if scope not in self._prefs:
+                try:
+                    self._prefs[scope] = self._client.preferences(scope) or {}
+                except Exception:
+                    logger.warning("hub ui: could not read %s", scope, exc_info=True)
+                    self._prefs[scope] = {}
+
+    def put_preferences(self, scope: str, value: dict[str, Any]) -> None:
+        """Write it, and keep the cache honest without a round trip to prove it."""
+        self._client.put_preferences(scope, value)
+        self._prefs[scope] = value
 
     def game_rows(self) -> list[dict[str, Any]]:
         rows = []

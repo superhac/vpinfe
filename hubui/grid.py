@@ -1,4 +1,8 @@
-"""Grids the user can arrange, with the arrangement kept on the hub."""
+"""Grids, and the column layout the hub keeps for each.
+
+Layout only - width, order, pinning. Which columns are shown, how they are
+sorted and what is filtered belong to a view; see hubui/views.py.
+"""
 
 from __future__ import annotations
 
@@ -21,8 +25,11 @@ DEFAULT_COL_DEF: dict[str, Any] = {
 }
 
 # AG Grid's own column state is the stored payload: width, order, visibility, sort, pin.
-_SAVE_EVENTS = ("columnMoved", "columnResized", "columnVisible", "columnPinned",
-                "sortChanged")
+# Layout is the grid's, whatever view is showing; visibility, sort and filters are the
+# view's. Keeping them apart is what lets a built-in view be a constant - go back to one
+# and you get its definition, not a layout that drifted. See hubui/views.py.
+_SAVE_EVENTS = ("columnMoved", "columnResized", "columnPinned")
+_LAYOUT_FIELDS = ("colId", "width", "flex", "pinned")
 
 
 # Chrome measured at 50px; 9px/char is the widest average in the header font, so a
@@ -55,7 +62,7 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
           on_context: Callable[[dict | None], None] | None = None,
           on_header_context: Callable[[str | None], None] | None = None,
           html_fields: list[str] | None = None) -> ui.aggrid:
-    """A grid whose column arrangement is restored from, and saved to, the hub."""
+    """A grid whose column layout is restored from, and saved to, the hub."""
     grid = ui.aggrid({
         "columnDefs": columns,
         "rowData": rows,
@@ -142,9 +149,12 @@ def _restore(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]]) -> None
             logger.warning("hub ui: could not read column state for %s", scope, exc_info=True)
             return
         if stored:
-            # Only columns this grid still has: state for ones it lost collapses them all.
+            # Only columns this grid still has - state for ones it lost collapses them
+            # all - and only the layout fields, in as well as out: a payload written
+            # before views existed carries `hide`, which would override the view.
             known = {definition["field"] for definition in columns}
-            state = [entry for entry in stored if entry.get("colId") in known]
+            state = [{k: entry[k] for k in _LAYOUT_FIELDS if k in entry}
+                     for entry in stored if entry.get("colId") in known]
             if state:
                 grid.run_grid_method("applyColumnState",
                                      {"state": state, "applyOrder": True})
@@ -160,7 +170,11 @@ def _save_on_change(grid: ui.aggrid, scope: str) -> None:
     async def save() -> None:
         try:
             state = await grid.run_grid_method("getColumnState")
-            await run.io_bound(HubClient().put_preferences, scope, {"columns": state})
+            # Stripped to the layout: storing `hide` or `sort` would make a built-in
+            # drift, which is the one thing it must never do.
+            layout = [{k: entry[k] for k in _LAYOUT_FIELDS if k in entry}
+                      for entry in (state or [])]
+            await run.io_bound(HubClient().put_preferences, scope, {"columns": layout})
         except Exception:
             # A layout that fails to save is worth a log and nothing more - it must
             # never take down the grid the user is working in.
