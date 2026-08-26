@@ -28,6 +28,11 @@ UPLOADS_WRITE = "uploads:write"
 # on the caller's behalf, which is not the same permission as reading local games.
 VPS_READ = "vps:read"
 
+# Walking the machine's own directories to find artwork. Deliberately not games:read -
+# reading the library is a different permission from reading the disk it sits on, and
+# this one is bounded by an allowlist rather than by the library root.
+FILESYSTEM_READ = "filesystem:read"
+
 CONFIG_READ = "config:read"
 CONFIG_WRITE = "config:write"
 
@@ -58,7 +63,7 @@ CORE = frozenset({
     GAMES_READ, GAMES_WRITE, GAMES_EXPORT_FULL,
     COLLECTIONS_READ, COLLECTIONS_WRITE,
     PLAY_READ, LAUNCH_INVOKE,
-    UPLOADS_WRITE, VPS_READ,
+    UPLOADS_WRITE, VPS_READ, FILESYSTEM_READ,
     CONFIG_READ, CONFIG_WRITE,
     SYSTEM_READ, SYSTEM_ADMIN,
     EVENTS_SUBSCRIBE, JOBS_READ,

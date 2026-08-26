@@ -24,6 +24,7 @@
     "global_game_ini_override_mask": "",
     "global_ini_override": "",
     "library_refresh_minutes": "0",
+    "media_browse_dirs": "",
     "mute_audio": "false",
     "rar_tool_path": "",
     "splashscreen": "false",
@@ -63,6 +64,7 @@
     "level": "debug"
   },
   "media": {
+    "asset_sources": "",
     "default_missing_media_image": "",
     "realdmd_media_priority": "color",
     "thumb_cache_max_mb": "500",

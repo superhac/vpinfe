@@ -63,6 +63,7 @@ uses an old spelling both still load.
 | `global_game_ini_override_enabled` | bool | `false` | Global tableini Override Enabled |
 | `global_game_ini_override_mask` | string |  | Global tableini Override Mask |
 | `game_root_dir` | string |  | The folder holding your table folders, one folder per game. |
+| `media_browse_dirs` | list |  | Extra folders you can pick artwork from when adding media by hand. The game library is always available; anywhere else has to be listed here before the hub will read it. |
 | `vpx_ini_path` | string |  | Path to VPinballX.ini, which VPinFE reads for the key mappings the Remote page sends. |
 | `assets_dir` | string |  | Root folder for assets shared across games rather than owned by one, such as manufacturer logos. Served at /assets/ and defaults to assets/ under the VPinFE config dir. |
 | `rar_tool_path` | string |  | RAR Tool Path (unar/unrar, blank = auto-detect) |
@@ -107,6 +108,7 @@ uses an old spelling both still load.
 | --- | --- | --- | --- |
 | `default_missing_media_image` | string |  | Default Missing Media Image |
 | `thumb_cache_max_mb` | int | `500` | Thumbnail Cache Max (MB) |
+| `asset_sources` | list |  | Which online catalogs are searched for artwork. Empty means all of them. Names come from the sources list the hub reports. |
 | `wheelset` | string |  | Name of the wheel art set to use library-wide, a folder under a game's medias/wheels/. The reserved name logo shows each game's logo instead. Blank means plain wheels, and the active theme can override this with its own wheelSet option. |
 | `realdmd_media_priority` | choice (color, video, image) | `color` | Real DMD Priority |
 

@@ -281,12 +281,49 @@ class Table(ApiModel):
     hidden: bool
     available: bool
     absent_since: str | None = None
+    # Read out of the .vpx itself, so a table nobody has matched still says who built
+    # it and which revision it is. Both are advisory: a table's embedded metadata is
+    # only as careful as its author was, and a VPS match is the better answer wherever
+    # there is one. Empty is common and means nothing was recorded.
+    version: str = ""
+    authors: list[str] = []
     assets: dict[str, ResolvedAsset]
     dependencies: Dependencies
 
 
 class TableList(ApiModel):
     tables: list[Table]
+
+
+class TableRow(ApiModel):
+    """A table seen as a row in the library rather than as one game's child.
+
+    Carries its game's name and maker so the row can be read on its own. `rom` is the
+    resolved pinmame rom for this file, which is one of the few things that genuinely
+    differs between two tables of the same game.
+    """
+
+    id: str
+    game_id: str
+    game: str
+    manufacturer: str = ""
+    year: str = ""
+    filename: str
+    version: str = ""
+    authors: list[str] = []
+    rom: str = ""
+    default: bool = False
+    hidden: bool = False
+    available: bool = True
+    absent_since: str | None = None
+    app: str = ""
+
+
+class TableRowList(ApiModel):
+    total: int
+    offset: int
+    count: int
+    tables: list[TableRow]
 
 
 class TableForgotten(ApiModel):
@@ -430,6 +467,171 @@ class MediaEntry(ApiModel):
     via: str | None = None
     origin: str | None = None
     links: MediaEntryLinks
+
+
+class MediaTier(ApiModel):
+    """One tier that holds a file for this kind, and whether it is the one being used.
+
+    The losers are listed too, because they are the answer to the only hard question a
+    curator asks: art was replaced and nothing changed, which is always a more specific
+    file sitting above the one that was edited.
+    """
+
+    tier: str
+    file: str
+    wins: bool
+
+
+class MediaDetail(ApiModel):
+    """One slot in the detail curation needs and playing a game never asks for.
+
+    Its own route rather than more fields on MediaEntry: this costs a stat and an
+    image header read per candidate file, and the media list is on the path a frontend
+    walks every time the player changes game - on a library over the network that is
+    the difference between free and not. `width`/`height` are images only; reading a
+    video's frame size would mean a dependency on ffprobe that nothing else here needs.
+    """
+
+    kind: str
+    family: str
+    present: bool
+    file: str | None
+    via: str | None = None
+    origin: str | None = None
+    size_bytes: int | None = None
+    modified: str | None = None
+    width: int | None = None
+    height: int | None = None
+    tiers: list[MediaTier] = []
+    links: MediaEntryLinks
+
+
+class FilesystemRoot(ApiModel):
+    """A folder browsing may start from. `source` says why it is allowed - this game's
+    own folder, the game library, or a folder the owner listed - so a client can
+    explain the boundary rather than just enforcing it."""
+
+    path: str
+    name: str
+    source: str
+
+
+class FilesystemRootList(ApiModel):
+    roots: list[FilesystemRoot]
+
+
+class FilesystemEntry(ApiModel):
+    """One folder or media file. `family` is empty for a folder, which is also how a
+    client tells the two apart without reading `kind` twice."""
+
+    name: str
+    path: str
+    kind: str
+    family: str = ""
+    size_bytes: int | None = None
+
+
+class FilesystemListing(ApiModel):
+    """`parent` is null at a root, so a client knows where "up" stops without having
+    to know which folders are allowed."""
+
+    path: str
+    parent: str | None = None
+    entries: list[FilesystemEntry]
+
+
+class MediaSource(ApiModel):
+    """An online catalog. `kinds` is what it can serve, so a client can tell a source
+    with nothing for this slot from one that is switched off."""
+
+    id: str
+    name: str
+    url: str
+    enabled: bool
+    kinds: list[str]
+
+
+class MediaSourceList(ApiModel):
+    sources: list[MediaSource]
+
+
+class MediaOffer(ApiModel):
+    """One file a catalog will hand over. `size` is that source's own word for a
+    variant - "4k" against VPinMediaDB - and is empty for a source that publishes one
+    of a thing; only the source that produced it has to understand it again."""
+
+    source: str
+    name: str
+    url: str
+    kind: str
+    size: str = ""
+
+
+class MediaOfferList(ApiModel):
+    offers: list[MediaOffer]
+
+
+class MediaPlacement(ApiModel):
+    """One place a file could land for this kind, and what putting it there costs.
+
+    `table` is empty for the name every table in the folder resolves, and a table's id
+    for a name only that build resolves. It is what a write addresses, so a client
+    picks one of these rather than deciding a tier for itself.
+
+    `base` has no extension because the file decides that, and `displaces` does not
+    depend on it: a write takes the whole family at that tier, so a .jpg arriving over
+    a .png removes the .png and the answer is the same either way.
+    """
+
+    table: str
+    label: str
+    base: str
+    displaces: list[str]
+
+
+class MediaPlacementList(ApiModel):
+    """`extensions` is what this kind accepts, in the order the resolver tries them."""
+
+    placements: list[MediaPlacement]
+    extensions: list[str]
+
+
+class MediaImport(ApiModel):
+    """A file elsewhere on this machine to copy into the slot, as an absolute path,
+    and which build it should serve. Refused unless it is under a browsable root."""
+
+    path: str
+    table: str = ""
+
+
+class CatalogOption(ApiModel):
+    """One file vpinmediadb publishes for a kind. `size` is "" for the kinds it
+    carries at a single size, which is most of them."""
+
+    size: str
+    url: str
+    md5: str = ""
+
+
+class CatalogEntry(ApiModel):
+    """What vpinmediadb has for one VPS id, keyed by our media kinds. A kind it does
+    not carry is absent rather than empty - there is no topper in the catalog at all,
+    and offering an empty one would be a dead choice on a menu."""
+
+    vps_id: str
+    kinds: dict[str, list[CatalogOption]]
+
+
+class MediaFetch(ApiModel):
+    """Which source to take a file from, for which VPS entry, and at which size.
+
+    No URL. The hub follows only links a source produced for that id and kind, so a
+    caller can never point it at a host of their choosing."""
+
+    source: str
+    vps_id: str
+    size: str = ""
+    table: str = ""
 
 
 class MediaList(ApiModel):

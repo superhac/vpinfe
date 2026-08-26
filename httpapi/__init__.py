@@ -18,14 +18,17 @@ from . import (
     core_capabilities,
     devices,
     events,
+    filesystem,
     games,
     instance,
     jobs,
     library,
     manufacturers,
+    mediasources,
     play,
     preferences,
     scopes,
+    tables,
     uploads,
 )
 from .errors import (
@@ -94,6 +97,9 @@ def create_api_app() -> FastAPI:
     api.include_router(manufacturers.router)
     api.include_router(play.router)
     api.include_router(games.router)
+    api.include_router(tables.router)
+    api.include_router(filesystem.router)
+    api.include_router(mediasources.router)
     api.include_router(uploads.router)
     api.include_router(uploads.vps_router)
 

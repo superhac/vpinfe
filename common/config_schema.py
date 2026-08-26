@@ -296,6 +296,15 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             aliases=("gamerootdir",),
         ),
         ConfigOption(
+            "media_browse_dirs",
+            type="list",
+            default="",
+            label="Browsable Media Folders",
+            description="Extra folders you can pick artwork from when adding media by"
+                        " hand. The game library is always available; anywhere else has"
+                        " to be listed here before the hub will read it.",
+        ),
+        ConfigOption(
             "vpx_ini_path",
             type="string",
             default="",
@@ -503,6 +512,15 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             default="500",
             label="Thumbnail Cache Max (MB)",
             aliases=("thumbcachemaxmb",),
+        ),
+        ConfigOption(
+            "asset_sources",
+            type="list",
+            default="",
+            label="Online Artwork Sources",
+            description="Which online catalogs are searched for artwork. Empty means"
+                        " all of them. Names come from the sources list the hub"
+                        " reports.",
         ),
         ConfigOption(
             "wheelset",
