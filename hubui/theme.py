@@ -364,10 +364,18 @@ body::before {
    magenta to muddle rather than contrast; the panels are told apart by tone instead,
    the nav title at full neon and this one near-white with a softer halo. */
 .hub-workbench {
-  /* The nav's gradient with its accent band removed - same stops from #1a0f35 down, so
-     the two panels read as one surface treatment. The band stays exclusive to the nav
-     because it marks the product, and this panel has no identity to carry. */
-  background: linear-gradient(180deg, #1a0f35 0%, #150a2e 30%, #0f0722 100%) !important;
+  /* The nav's treatment, one step down in intensity: a band compressed into the header
+     row so the subject sits on its own ground rather than on the same flat field as the
+     list of what you can ask about it. It starts at the nav's *second* stop rather than
+     its neon, because the magenta is what marks the product and there is only one.
+     This panel had nothing to carry when the band was withheld from it; it carries the
+     selected game now, which is what changed.
+
+     16px of the workbench's own top padding sits above the header, so this starts at 0
+     rather than at the header's box, or the band would not reach the panel's edge.
+     88px is just past the header, the same way the nav's 90px is. */
+  background: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 46px, #1a0f35 88px,
+                              #150a2e 40%, #0f0722 100%) !important;
 }
 /* truncate only ellipsizes against a definite width. The column may shrink under
    min-w-0, but its labels have to be told to take that width or they overflow and get
