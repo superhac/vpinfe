@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from nicegui import ui
+from nicegui import run, ui
 
 from hubui import grid
 from hubui.api import HubClient
@@ -300,6 +300,19 @@ def build(rows: list[dict[str, Any]], kinds: list[str],
         lambda: table.run_grid_method("setGridOption", "quickFilterText", search.value or ""))
 
 
+# A tick where it is true and nothing where it is not, so a column of them is scanned
+# rather than read. The value stays boolean underneath, which is what lets the column
+# sort and filter - a column of "Yes"/"" strings would sort alphabetically and filter
+# as text.
+_TICK = {
+    ":valueFormatter": "params => params.value ? '\u2713' : ''",
+    "cellClass": "hub-tick",
+    # No filter override: the set filter is an AG Grid Enterprise module and this
+    # project is MIT-only. The community text filter reads a boolean fine.
+    ":cellRenderer": None,
+}
+
+
 # One row per launchable file. The game's name leads, because a filename alone does not
 # say what the thing is - and it is pinned, because scrolling right to see which game a
 # row belongs to is the failure this lens exists to fix.
@@ -309,42 +322,44 @@ TABLE_COLUMNS = [
     grid.column("author", "Author", 160),
     grid.column("rom", "ROM", 140),
     grid.column("app", "App", 90),
-    grid.column("status", "Status", 110),
+    # One column per fact rather than one word folding three together. "Status" cannot
+    # stay one column anyway - has an update, missing its rom and the rest are all
+    # status - and folded, a table that is both the default and hidden reads as only
+    # one of them. Each of these sorts and filters on its own, which is what a list is
+    # for. A summary column can be built later, deliberately, from these.
+    grid.column("default", "Default", 100, **_TICK),
+    grid.column("hidden", "Hidden", 95, **_TICK),
+    grid.column("missing", "Missing", 100, **_TICK),
     # Last and widest: it is the identifier of record, and the part that tells two
     # tables of one game apart sits at its end.
     grid.column("filename", "File", 420),
 ]
 
 TABLE_LENSES: dict[str, list[str]] = {
-    "Identity": ["game", "version", "author", "filename"],
-    "Files": ["game", "filename", "app", "status"],
-    "Play": ["game", "rom", "app", "status"],
+    # Default and Hidden ride in every preset: which table a game offers and whether it
+    # is offered at all are the questions this lens exists to answer, and a preset that
+    # hides them is a list of files.
+    "Identity": ["game", "version", "author", "default", "hidden", "filename"],
+    "Files": ["game", "filename", "app", "default", "hidden", "missing"],
+    "Play": ["game", "rom", "app", "default", "hidden"],
 }
 
 
 def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The API's tables, flattened for a grid.
 
-    `status` folds three flags into the one word a reader wants: a table is the game's
-    default, or it is hidden from the frontend, or its file is gone. Most are none of
-    those and say nothing, which is what keeps the column scannable.
+    `missing` rather than the API's `available`, so all three flags read the same way:
+    true is the notable state and the tick means "this row is one of those". Sorting or
+    filtering on a column where true means nothing is wrong is a trap.
     """
-    built = []
-    for row in rows:
-        if not row.get("available"):
-            status = "Missing"
-        elif row.get("hidden"):
-            status = "Hidden"
-        elif row.get("default"):
-            status = "Default"
-        else:
-            status = ""
-        built.append({**row, "status": status,
-                      "author": ", ".join(row.get("authors") or [])})
-    return built
+    return [{**row,
+             "missing": not row.get("available", True),
+             "author": ", ".join(row.get("authors") or [])}
+            for row in rows]
 
 
-def build_tables(rows: list[dict[str, Any]], on_select: Callable[[dict | None], None],
+def build_tables(rows: list[dict[str, Any]], library: Any,
+                 on_select: Callable[[dict | None], None],
                  state: dict[str, Any] | None = None,
                  rerender: Callable[[], None] | None = None) -> None:
     """The library seen by launchable file rather than by folder.
@@ -373,8 +388,53 @@ def build_tables(rows: list[dict[str, Any]], on_select: Callable[[dict | None], 
     by_id = {row["id"]: row for row in built}
     ui.on("hub_row_focus", lambda event: on_select(by_id.get(str(event.args))))
 
+    row_menu: dict[str, Any] = {}
+
+    def on_context(row: dict | None) -> None:
+        # The menu acts on the row under the cursor, not on the selection. Conflating
+        # the two is how people act on the wrong thing.
+        row_menu["row"] = row
+        _fill(row)
+
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        table = grid.build(TABLE_COLUMNS, built, f"{SCOPE}.tables", on_select)
+        table = grid.build(TABLE_COLUMNS, built, f"{SCOPE}.tables", on_select, on_context)
+        menu = ui.context_menu()
+
+    async def act(what: Callable, *args: Any, said: str = "") -> None:
+        try:
+            await run.io_bound(what, *args)
+        except Exception as exc:
+            ui.notify(f"Could not do that: {exc}", type="negative")
+            return
+        ui.notify(said, type="positive")
+        # Both lenses read tables, so the list is rebuilt rather than patched.
+        if rerender is not None:
+            rerender()
+
+    def _fill(row: dict | None) -> None:
+        menu.clear()
+        if not row:
+            return
+        with menu:
+            if not row.get("default"):
+                ui.menu_item(
+                    "Make this the game's default",
+                    lambda r=row: act(library.set_default_table, r["game_id"], r["id"],
+                                      said="Now this game's default"))
+            hidden = bool(row.get("hidden"))
+            ui.menu_item(
+                "Offer this in the frontend" if hidden else "Hide from the frontend",
+                lambda r=row, h=hidden: act(library.set_table_hidden, r["game_id"],
+                                            r["id"], not h,
+                                            said="Now offered" if h else "Hidden"))
+            # Only for a table whose file is gone. While it is on disk the record
+            # describes something the user owns, and hiding is what takes it out of
+            # play without losing its stats.
+            if not row.get("available"):
+                ui.menu_item(
+                    "Forget this table",
+                    lambda r=row: act(library.forget_table, r["game_id"], r["id"],
+                                      said="Record dropped"))
 
     def apply_lens() -> None:
         wanted = TABLE_LENSES.get(lens.value or "", fields)
