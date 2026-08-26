@@ -688,7 +688,7 @@ def _rows(target: Any, values: dict[str, str]) -> None:
 
 
 SECTIONS: tuple[Section, ...] = (
-    Section("identity", "Identity", "badge", lambda _: "Identity", _identity_block),
+    Section("details", "Details", "badge", lambda _: "Details", _identity_block),
     Section("media", "Media", "perm_media", _media_label, _media_block),
     # Layers, because what this section holds is the builds of one game stacked on each
     # other - the same icon the app nav gives Media, for the section that is media.
