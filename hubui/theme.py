@@ -1076,8 +1076,9 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* The row is the section's only name - there is no heading under it repeating the
    same words. */
-/* Sized as navigation, because that is what it is. Still smaller and sentence-case
-   than the app nav: two uppercase columns would rank a game's sections with the app. */
+/* Sized as navigation, because that is what it is. Title case and smaller than the
+   app nav: these are headings, so they take heading case - but not the nav's uppercase,
+   which would rank a game's sections with the app itself. */
 /* The app nav's gutter rhythm, so the two rails read as the same kind of control. */
 .hub-section-row {
   display: flex;

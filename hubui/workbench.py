@@ -176,11 +176,11 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
     title.clear()
     with container:
         if game_id is None:
-            _title(title, "Game details", "Select a game")
+            _title(title, "Game Details", "Select a game")
             return
         game = next((entry for entry in library.games if entry["id"] == game_id), None)
         if game is None:
-            _title(title, "Game details", "Not in this library")
+            _title(title, "Game Details", "Not in this library")
             return
         made = f"{game.get('manufacturer') or '?'} {game.get('year') or ''}"
         _title(title, game.get("name") or "", made)
@@ -747,8 +747,8 @@ def _rows(target: Any, values: dict[str, str]) -> None:
 SECTIONS: tuple[Section, ...] = (
     # The game first, then the file: a table belongs to a game, and reading down is
     # reading from the thing that contains to the thing contained.
-    Section("game_details", lambda _: "Game details", _game_block),
-    Section("table_details", lambda _: "Table details", _table_block,
+    Section("game_details", lambda _: "Game Details", _game_block),
+    Section("table_details", lambda _: "Table Details", _table_block,
             subjects=frozenset({"table"})),
     Section("media", _media_label, _media_block, dock=True),
     Section("tables", _tables_label, _tables_block),
