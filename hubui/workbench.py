@@ -278,6 +278,21 @@ def _media_scope(context: dict[str, Any]) -> str:
     return ""
 
 
+def _go_to_table(context: dict[str, Any], table_id: str) -> None:
+    """Follow a differing table into its own lens.
+
+    The way out of the game's view and into the file's, rather than a second editor
+    for one table's art embedded in a panel that is about the game.
+    """
+    if not table_id:
+        return
+    state = context["state"]
+    state["subject"] = "table"
+    state["table"] = table_id
+    deeplink.sync(state)
+    asyncio.create_task(context["rebuild"]())
+
+
 def _table_line(table: dict[str, Any]) -> str:
     """Which of a game's tables this is, in the fewest words that tell them apart.
 
@@ -310,11 +325,17 @@ async def _media_block(context: dict[str, Any]) -> None:
     async def draw() -> None:
         table_id = context["lens"]
         entries = await run.io_bound(library.media_for, game_id, table_id or None)
+        # Only from the game's lens. Looking at one table, the badge on a slot already
+        # says whose file it is, and marking the others would be noise about tables
+        # that are not the subject.
+        overrides = ({} if table_id else
+                     await run.io_bound(library.media_overrides, game_id))
         holder.clear()
         with holder:
             mediamap.build(entries, _prefix(game_id, table_id),
                            on_pick=lambda kind: _pick_slot(context, kind, draw),
-                           selected=context["slot"]["kind"])
+                           selected=context["slot"]["kind"],
+                           overrides=overrides)
         dock = context.get("dock")
         if dock is not None:
             dock.clear()
@@ -331,7 +352,8 @@ async def _media_block(context: dict[str, Any]) -> None:
                     logger.debug("No detail for %s", kind, exc_info=True)
             with dock:
                 if kind and kind in entries:
-                    _slot(context, kind, entries[kind], detail, draw)
+                    _slot(context, kind, entries[kind], detail, draw,
+                          (overrides or {}).get(kind) or [])
                 else:
                     # The region is reserved either way, so it says what it is for
                     # rather than sitting there as an empty box. Named for what the
@@ -409,7 +431,8 @@ def _spec(detail: dict[str, Any]) -> str:
 
 
 def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
-          detail: dict[str, Any] | None, draw) -> None:
+          detail: dict[str, Any] | None, draw,
+          differing: list[dict[str, Any]] | None = None) -> None:
     """One slot: the art at the size of the room, and what there is to know about it.
 
     The picture is the subject. Everything else is one line each underneath, because
@@ -507,6 +530,18 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                         ui.label(item.get("file") or "").classes("hub-slot-other-file")
                         tiers.badge(item.get("tier"))
 
+        # Only from the game's lens, and only when somebody differs. This is the whole
+        # of Model B in the panel: the shared file above, and who is not using it.
+        for other in (differing or []):
+            with ui.row().classes("items-center gap-2 w-full no-wrap hub-slot-differs"):
+                tiers.badge("table")
+                ui.label(_table_line(other) or other.get("filename") or "") \
+                    .classes("hub-slot-other-file").tooltip(other.get("file") or "")
+                ui.button(icon="arrow_forward", on_click=lambda o=other: _go_to_table(
+                    context, o.get("table") or "")) \
+                    .props("flat dense round size=sm").classes("shrink-0") \
+                    .tooltip("Open this table")
+
         with ui.row().classes("items-center gap-2 w-full hub-slot-actions") \
                 .style("flex-wrap:wrap"):
             ui.button("Replace" if present else "Add",
@@ -524,9 +559,21 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
 
 
 async def _identity_block(context: dict[str, Any]) -> None:
+    """Who this is - which is a different set of facts depending on what is selected.
+
+    The first view where the two subjects genuinely diverge. A game is a machine: the
+    VPS match, the theme, the year. A table is a file somebody built: its version, who
+    built it, which rom it drives. Showing the game's four rows while a table is
+    selected would answer a question nobody asked.
+    """
     game = context["game"]
+    chosen = next((t for t in context["tables"] if t.get("id") == context["lens"]),
+                  None)
     with ui.column().classes("gap-0 hub-form"):
-        _identity_rows(game)
+        if chosen is not None:
+            _table_rows(chosen)
+        else:
+            _identity_rows(game)
 
 
 def _identity_rows(game: dict[str, Any]) -> None:
@@ -535,6 +582,38 @@ def _identity_rows(game: dict[str, Any]) -> None:
         "ROM": game.get("rom") or "-",
         "Type": game.get("type") or "-",
         "Themes": ", ".join(game.get("themes") or []) or "-",
+    })
+
+
+def _table_rows(table: dict[str, Any]) -> None:
+    """One table's own facts.
+
+    The rom is the one it resolves to with any alias followed, which is the one that
+    has to exist - the declared name is shown beside it only when they differ, because
+    that is the case somebody has to reason about.
+    """
+    pinmame = (table.get("dependencies") or {}).get("pinmame") or {}
+    declared = str(pinmame.get("declared") or "")
+    effective = str(pinmame.get("effective") or "")
+    rom = effective or declared or "-"
+    if declared and effective and declared != effective:
+        rom = f"{effective}  (declared {declared})"
+
+    state = []
+    if table.get("default"):
+        state.append("the game's default")
+    if table.get("hidden"):
+        state.append("hidden from the frontend")
+    if not table.get("available"):
+        state.append("file not on disk")
+
+    _rows(ui, {
+        "File": table.get("filename") or "-",
+        "Version": table.get("version") or "-",
+        "Built by": ", ".join(table.get("authors") or []) or "-",
+        "ROM": rom,
+        "Runs with": table.get("app") or "-",
+        "Status": ", ".join(state) or "in play",
     })
 
 

@@ -399,7 +399,8 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                 sections.overview(library, devices, discovery, go)
             elif view == "games":
                 if state.get("subject") == "table":
-                    games.build_tables(library.table_rows(), show_game, state, redraw)
+                    games.build_tables(library.table_rows(), library, show_game, state,
+                                       redraw)
                 else:
                     games.build(library.game_rows(), library.kinds_present(), show_game,
                                 state, redraw)

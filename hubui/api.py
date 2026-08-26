@@ -123,6 +123,10 @@ class HubClient:
         """Where a file for this kind could land, and what each choice replaces."""
         return self._get(f"/games/{game_id}/media/{kind}/placements")
 
+    def media_overrides(self, game_id: str) -> dict:
+        """Kinds where a table has art of its own, keyed by kind."""
+        return self._get(f"/games/{game_id}/media/overrides").get("overrides") or {}
+
     def media_detail(self, game_id: str, table_id: str, kind: str) -> dict:
         """One slot in full - its file's size and shape, and every tier holding one."""
         return self._get(f"{self._media_path(game_id, table_id, kind)}/detail")
@@ -200,6 +204,24 @@ class HubClient:
         path = self._media_path(game_id, table_id, kind)
         _refuse_the_event_loop(path)
         response = self._session.delete(f"{self._base}{path}", timeout=_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+
+    def set_table_hidden(self, game_id: str, table_id: str, hidden: bool) -> dict:
+        """Offer this table in the frontend, or stop. The file is not touched."""
+        path = f"/games/{game_id}/tables/{table_id}/hidden"
+        _refuse_the_event_loop(path)
+        response = self._session.put(f"{self._base}{path}", json={"hidden": hidden},
+                                     timeout=_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+
+    def set_default_table(self, game_id: str, table_id: str) -> dict:
+        """Which table this game offers first. Empty clears the choice."""
+        path = f"/games/{game_id}/default_table"
+        _refuse_the_event_loop(path)
+        response = self._session.put(f"{self._base}{path}", json={"table": table_id},
+                                     timeout=_TIMEOUT)
         response.raise_for_status()
         return response.json()
 

@@ -847,6 +847,13 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   flex: 0 1 auto;
 }
 
+/* Who is not using the file above. Set off the same way the outranked files are,
+   because it is the same kind of fact: this slot is not the whole story. */
+.hub-slot-differs {
+  border-top: 1px solid var(--line-soft); margin-top: 6px; padding-top: 5px;
+  min-width: 0;
+}
+
 .hub-slot-actions { padding-top: 8px; }
 
 /* Room to judge the art when there is width to spare: at 240px a backglass in a
@@ -884,6 +891,18 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   background: rgba(10, 5, 24, 0.72);
 }
 .hub-mediatile-tier.hub-tier--table { background: rgba(40, 24, 8, 0.85); }
+
+/* A tick column is scanned, not read: centre it so the eye runs down one line. */
+.hub-tick { text-align: center; color: var(--accent); }
+
+/* One or more tables here use something else. A bar rather than a badge: the tile is
+   about a hundred pixels wide and already carries a tier badge and an enlarge, and a
+   third piece of text on it is not read by anybody. The count is in the tooltip and
+   the names are in the panel. */
+.hub-mediatile-differs {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: var(--tier-table); font-size: 0; overflow: hidden;
+}
 
 /* --- where a slot's file can come from ---------------------------------- */
 

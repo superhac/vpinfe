@@ -134,7 +134,8 @@ def _state(entry: dict[str, Any]) -> str:
 
 
 def _tile(prefix: str, kind: str, entry: dict[str, Any],
-          on_pick: Callable[[str], None] | None, selected: str | None) -> None:
+          on_pick: Callable[[str], None] | None, selected: str | None,
+          differing: int = 0) -> None:
     state = _state(entry)
     ratio = TILE_AR.get(kind, 1.6)
     tile = ui.element("div").classes(
@@ -159,6 +160,13 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
             # map harder to read than it is without any.
             if state != "missing" and tiers.key_of(entry.get("via")) != tiers.GAME:
                 tiers.badge(entry.get("via"), extra="hub-mediatile-tier")
+            # From the game's lens the resolver never looks at a table's own tier, so
+            # a slot one table differs on looks settled. This is the only thing that
+            # says otherwise.
+            if differing:
+                plural = "" if differing == 1 else "s"
+                ui.element("div").classes("hub-mediatile-differs") \
+                    .tooltip(f"{differing} table{plural} use something else here")
             if state != "missing" and media_family(kind) in ("image", "video"):
                 # click.stop, or enlarging would also pick the tile and redraw the
                 # panel out from under the dialog.
@@ -182,7 +190,8 @@ def _tooltip(kind: str, entry: dict[str, Any]) -> str:
 
 def build(entries: dict[str, dict[str, Any]], prefix: str,
           on_pick: Callable[[str], None] | None = None,
-          selected: str | None = None) -> None:
+          selected: str | None = None,
+          overrides: dict[str, list[dict[str, Any]]] | None = None) -> None:
     """Draw the map into the current container.
 
     `prefix` is where the art is fetched from, and it is what the lens changes: the
@@ -201,7 +210,8 @@ def build(entries: dict[str, dict[str, Any]], prefix: str,
             # it - captions on one line whatever shapes sit above them.
             with ui.row().classes("w-full gap-1 no-wrap items-stretch"):
                 for kind in kinds:
-                    _tile(prefix, kind, entries[kind], on_pick, selected)
+                    _tile(prefix, kind, entries[kind], on_pick, selected,
+                          len((overrides or {}).get(kind) or []))
         extras = [kind for kind in EXTRAS if kind in entries]
         if extras:
             # A rule, not a heading: the cabinet stack and everything else are
@@ -209,7 +219,8 @@ def build(entries: dict[str, dict[str, Any]], prefix: str,
             ui.element("div").classes("hub-mediatile-rule")
             with ui.element("div").classes("hub-mediatile-grid"):
                 for kind in extras:
-                    _tile(prefix, kind, entries[kind], on_pick, selected)
+                    _tile(prefix, kind, entries[kind], on_pick, selected,
+                          len((overrides or {}).get(kind) or []))
     ui.run_javascript(_HOVER)
 
 

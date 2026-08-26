@@ -61,6 +61,7 @@ class Library:
         # The by-file lens, read on first use rather than at load: most sessions never
         # switch to it, and it is a second walk of every folder.
         self._table_rows: list[dict[str, Any]] | None = None
+        self._overrides: dict[str, dict[str, Any]] = {}
 
     def load(self) -> None:
         started = time.perf_counter()
@@ -91,6 +92,12 @@ class Library:
         """Never cached: it reports conflicts, and a stale one would either hide a
         replacement or invent one."""
         return self._client.placements(game_id, kind)
+
+    def media_overrides(self, game_id: str) -> dict:
+        """Cached with the media it qualifies: both go stale on the same writes."""
+        if game_id not in self._overrides:
+            self._overrides[game_id] = self._client.media_overrides(game_id)
+        return self._overrides[game_id]
 
     def media_detail(self, game_id: str, table_id: str | None, kind: str) -> dict:
         """Never cached: it is read when a slot is opened, which is exactly when
@@ -153,6 +160,21 @@ class Library:
         self.forget_media(game_id)
         return result
 
+    def set_table_hidden(self, game_id: str, table_id: str, hidden: bool) -> dict:
+        result = self._client.set_table_hidden(game_id, table_id, hidden)
+        self._forget_tables(game_id)
+        return result
+
+    def set_default_table(self, game_id: str, table_id: str) -> dict:
+        result = self._client.set_default_table(game_id, table_id)
+        self._forget_tables(game_id)
+        return result
+
+    def _forget_tables(self, game_id: str) -> None:
+        """Both lenses read tables, so both go stale when one changes."""
+        self.tables.pop(game_id, None)
+        self._table_rows = None
+
     def forget_table(self, game_id: str, table_id: str) -> dict:
         """Drop a gone table's record. The tables list is what changes, and the media
         cache with it - a per-build read keyed on that table is now describing nothing."""
@@ -165,6 +187,7 @@ class Library:
         """Every tier, not just the one written: a shared file changes what each build
         resolves, so leaving the per-build reads cached would show the old answer."""
         self.media.pop(game_id, None)
+        self._overrides.pop(game_id, None)
         self._client.forget_media(game_id)
         for key in [k for k in self.table_media if k[0] == game_id]:
             self.table_media.pop(key, None)
