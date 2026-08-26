@@ -733,22 +733,23 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   /* Half the workbench, so a wide window has no dead middle. The floor keeps it
      usable where half is not much. */
   .hub-dock { width: max(320px, 50cqw); }
-  .hub-dock-grip { display: none; }
 }
 /* The handle between browse and work. Only where they are stacked - side by side the
    split is the panel's own width, which the outer splitter already owns. */
+/* A short centred handle, not a full-width rule. It used to draw a hairline right
+   across the panel, which is the same picture the section separators draw - so the
+   panel had three horizontal lines of the same weight meaning two different things,
+   and the band below the open section read as belonging to whatever was above it.
+   A stub you could put two fingers on says "drag me" and says nothing else. */
 .hub-dock-grip {
-  /* The line is 1px; the rest is the room either side of it. */
   height: 19px; cursor: row-resize; flex: 0 0 auto;
-  background: linear-gradient(180deg, transparent 0, transparent 9px,
-                              var(--resize-line) 9px, var(--resize-line) 10px,
-                              transparent 10px, transparent 19px);
+  display: flex; align-items: center; justify-content: center;
 }
-.hub-dock-grip:hover {
-  background: linear-gradient(180deg, transparent 0, transparent 9px,
-                              var(--accent) 9px, var(--accent) 10px,
-                              transparent 10px, transparent 19px);
+.hub-dock-grip::before {
+  content: ""; width: 44px; height: 4px; border-radius: 2px;
+  background: var(--resize-line);
 }
+.hub-dock-grip:hover::before { background: var(--accent); }
 /* The work region keeps its room whether or not anything is in it: collapsing it
    reflows browse under the cursor that just picked something. */
 /* Centred in the reserved room: text in the top corner reads as a mistake. */
@@ -769,6 +770,11 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 @container (min-width: 900px) {
   .hub-dock { border-top: none; border-left: 1px solid #2b1a4d; }
+  /* Below the grip's own rules on purpose: same specificity, so source order decides.
+     Above them this loses to the `display` they set, and the handle shows up floating
+     at the top of a layout where the dock is beside the map and there is nothing to
+     drag. */
+  .hub-dock-grip { display: none; }
 }
 
 /* A form has nothing to choose, so it stays one column and leaves the rest alone
