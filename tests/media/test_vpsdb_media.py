@@ -7,7 +7,12 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.online.vpsdb_cache import VPSDatabaseCache
-from common.online.vpsdb_media import VPSMediaDownloader
+from common.online.vpsdb_media import (
+    REMOTE_KEYS,
+    VPSMediaDownloader,
+    offered,
+    published_url,
+)
 from tests.support.library import fake_game
 
 
@@ -82,6 +87,80 @@ class OwnershipTests(unittest.TestCase):
                 dl.download_media("vps-1", dl.media_index["vps-1"], "wheel",
                                   str(wheel), str(wheel))
             self.assertTrue(fetch.called)
+
+
+class RemoteVocabularyTests(unittest.TestCase):
+    """The keys we index vpinmediadb's manifest with are its words, not ours.
+
+    A rename of our own media kinds once swept three of these in with them, and
+    nothing failed: `download_media` returns None for a key an entry does not carry,
+    so the whole symptom was art that never arrived. This is the guard - an entry
+    carrying the manifest's real vocabulary, and every kind in it expected to land.
+    """
+
+    # One entry in the shape vpinmdb.json actually publishes: resolution buckets
+    # holding bg/dmd/table/fss and the videos, the rest at the top level.
+    ENTRY = {
+        "1k": {"bg": "https://example.invalid/bg.png",
+               "dmd": "https://example.invalid/dmd.png",
+               "table": "https://example.invalid/table.png",
+               "dmd_video": "https://example.invalid/dmd.mp4",
+               "table_video": "https://example.invalid/table.mp4"},
+        "4k": {"table": "https://example.invalid/table4k.png"},
+        "wheel": "https://example.invalid/wheel.png",
+        "cab": "https://example.invalid/cab.png",
+        "flyer": "https://example.invalid/flyer.png",
+        "audio": "https://example.invalid/audio.mp3",
+        "realdmd": "https://example.invalid/realdmd.png",
+        "realdmd_color": "https://example.invalid/realdmd-color.png",
+    }
+
+    def _fetched(self) -> set[str]:
+        with TemporaryDirectory() as tmp:
+            game = fake_game(tmp, BGImagePath=None, DMDImagePath=None,
+                             WheelImagePath=None, CabImagePath=None,
+                             realDMDImagePath=None, realDMDColorImagePath=None,
+                             FlyerImagePath=None, PlayfieldImagePath=None,
+                             PlayfieldVideoPath=None, DMDVideoPath=None,
+                             AudioPath=None)
+            dl = VPSMediaDownloader({"vps-1": self.ENTRY}, playfieldvariant="table",
+                                    playfieldresolution="1k",
+                                    playfieldvideoresolution="1k")
+            with mock.patch.object(dl, "download_media_file") as fetch:
+                dl.download_media_for_game(game, "vps-1")
+            return {Path(call.args[2]).name for call in fetch.call_args_list}
+
+    def test_every_kind_the_manifest_offers_is_fetched(self) -> None:
+        self.assertEqual(
+            self._fetched(),
+            {"bg.png", "dmd.png", "wheel.png", "cab.png", "flyer.png", "audio.mp3",
+             "realdmd.png", "realdmd-color.png", "table.png", "dmd.mp4", "table.mp4"},
+        )
+
+    def test_the_manifests_words_are_pinned_against_a_rename_of_ours(self) -> None:
+        """The whole mapping, so changing one of our kind names fails here and says
+        why rather than quietly asking vpinmediadb for a key it has never had."""
+        self.assertEqual(REMOTE_KEYS, {
+            "backglass": "bg", "scoreview": "dmd", "scoreview_video": "dmd_video",
+            "playfield": "table", "playfield_fss": "fss",
+            "playfield_video": "table_video", "wheel": "wheel", "cab": "cab",
+            "flyer": "flyer", "audio": "audio", "real_dmd": "realdmd",
+            "real_dmd_color": "realdmd_color",
+        })
+
+    def test_a_kind_the_catalog_does_not_carry_is_absent_rather_than_empty(self) -> None:
+        """vpinmediadb has no topper at all. Reporting it as an option with nothing
+        behind it would put a dead choice in front of someone."""
+        self.assertNotIn("topper", offered({"vps-1": self.ENTRY}, "vps-1"))
+        self.assertIsNone(published_url({"vps-1": self.ENTRY}, "vps-1", "topper"))
+
+    def test_every_size_an_entry_carries_is_offered_largest_first(self) -> None:
+        """The configured resolution is right for an unattended refresh and wrong for
+        someone choosing a picture, so the catalog reports both."""
+        playfield = offered({"vps-1": self.ENTRY}, "vps-1")["playfield"]
+        self.assertEqual([item["size"] for item in playfield], ["4k", "1k"])
+        self.assertEqual(published_url({"vps-1": self.ENTRY}, "vps-1", "playfield")[0],
+                         "https://example.invalid/table4k.png")
 
 
 class RecordingTests(unittest.TestCase):

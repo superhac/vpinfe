@@ -15,6 +15,76 @@ from common.media_specs import default_media_path
 logger = logging.getLogger("vpinfe.common.online.vpsdb_media")
 
 
+# Where the manifest is published. One name for it, so the downloader and anything
+# browsing the catalog cannot end up pointed at different copies.
+MANIFEST_URL = "https://github.com/superhac/vpinmediadb/raw/refs/heads/main/vpinmdb.json"
+
+# Our media kinds against vpinmediadb's, and whether the entry files it under a
+# resolution. This is the manifest's vocabulary, not ours: it calls the backglass "bg"
+# and the score view "dmd", and a rename of our own windows to VPX's words once swept
+# those in with them. Nothing complained - `download_media` returns None for a key an
+# entry does not carry - so the whole symptom was art that never arrived, on the asset
+# vpinmediadb publishes for all but two of the games it knows.
+MANIFEST_KINDS: dict[str, tuple[str, bool]] = {
+    "backglass": ("bg", True),
+    "scoreview": ("dmd", True),
+    "scoreview_video": ("dmd_video", True),
+    "playfield": ("table", True),
+    "playfield_fss": ("fss", True),
+    "playfield_video": ("table_video", True),
+    "wheel": ("wheel", False),
+    "cab": ("cab", False),
+    "flyer": ("flyer", False),
+    "audio": ("audio", False),
+    "real_dmd": ("realdmd", False),
+    "real_dmd_color": ("realdmd_color", False),
+}
+
+REMOTE_KEYS = {kind: key for kind, (key, _) in MANIFEST_KINDS.items()}
+
+# The resolutions an entry files art under, largest first - which is the order to
+# offer them in, since the bigger one is the better one when it exists.
+MANIFEST_SIZES = ("4k", "1k")
+
+
+def offered(media_index: dict | None, vps_id: str) -> dict[str, list[dict]]:
+    """What vpinmediadb publishes for one VPS id: our kind -> the files, largest first.
+
+    Every size the entry actually carries, not the one the display is configured for.
+    The configured size is right for an unattended refresh and wrong for someone
+    standing at the screen choosing a picture.
+    """
+    entry = (media_index or {}).get(vps_id) or {}
+    found: dict[str, list[dict]] = {}
+    for kind, (key, bucketed) in MANIFEST_KINDS.items():
+        options = []
+        for size in (MANIFEST_SIZES if bucketed else ("",)):
+            source = entry.get(size) if bucketed else entry
+            if not isinstance(source, dict):
+                continue
+            url = source.get(key)
+            if url:
+                options.append({"size": size, "url": url,
+                                "md5": source.get(f"{key}_md5", "")})
+        if options:
+            found[kind] = options
+    return found
+
+
+def published_url(media_index: dict | None, vps_id: str, kind: str,
+                  size: str = "") -> tuple[str, str] | None:
+    """The URL and hash vpinmediadb publishes for one kind, or None.
+
+    The catalog is the only source of a URL this app will fetch. A caller names an
+    entry, a kind and a size; it never hands over a link of its own.
+    """
+    options = offered(media_index, vps_id).get(kind) or []
+    if not options:
+        return None
+    pick = next((item for item in options if item["size"] == size), options[0])
+    return pick["url"], pick["md5"]
+
+
 class VPSMediaDownloader:
     """Downloads a game's media from VPinMediaDB."""
 
@@ -97,14 +167,15 @@ class VPSMediaDownloader:
                 path, md5hash = result
                 meta_config.add_asset(path, "vpinmediadb", md5hash)
 
-        # The ledger is keyed by path now, so the kind no longer has to be passed along
-        # to be recorded - it was the same value as `key` at every call site anyway.
+        # `key` indexes the remote manifest, so it is vpinmediadb's word for the thing
+        # and not ours. They differ for three of them - see REMOTE_KEYS. The kind is no
+        # longer passed for the ledger, which is keyed by path.
         def process(metadata, key, filename, default_filename):
             record(self.download_media(game_id, metadata, key, filename, default_filename))
 
-        process(game_media.get("1k"), "backglass", game.BGImagePath,
+        process(game_media.get("1k"), REMOTE_KEYS["backglass"], game.BGImagePath,
                 str(default_media_path(game.fullPathGame, "backglass", self.playfieldvariant)))
-        process(game_media.get("1k"), "scoreview", game.DMDImagePath,
+        process(game_media.get("1k"), REMOTE_KEYS["scoreview"], game.DMDImagePath,
                 str(default_media_path(game.fullPathGame, "scoreview", self.playfieldvariant)))
         process(game_media, "wheel", game.WheelImagePath, str(default_media_path(game.fullPathGame, "wheel", self.playfieldvariant)))
         process(game_media, "cab", game.CabImagePath, str(default_media_path(game.fullPathGame, "cab", self.playfieldvariant)))
@@ -116,7 +187,10 @@ class VPSMediaDownloader:
         # a bg_video at any resolution, so the backglass video is yours to supply.
         # Nor is there an fss_video: under table type fss the playfield video is
         # simply not offered, and asking would quietly fetch nothing.
-        process(game_media.get(self.playfieldvideoresolution), "scoreview_video", game.DMDVideoPath, str(default_media_path(game.fullPathGame, "scoreview_video", self.playfieldvariant)))
+        scoreview_video = default_media_path(game.fullPathGame, "scoreview_video",
+                                             self.playfieldvariant)
+        process(game_media.get(self.playfieldvideoresolution),
+                REMOTE_KEYS["scoreview_video"], game.DMDVideoPath, str(scoreview_video))
         if self.playfieldvariant == "table":
             process(game_media.get(self.playfieldvideoresolution), "table_video", game.PlayfieldVideoPath, str(default_media_path(game.fullPathGame, "playfield_video", self.playfieldvariant)))
         process(game_media, "audio", game.AudioPath, str(default_media_path(game.fullPathGame, "audio", self.playfieldvariant)))

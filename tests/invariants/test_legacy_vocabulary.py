@@ -34,6 +34,12 @@ TRANSLATORS = {
     "common/config_access.py",        # reads either spelling
     "common/deprecations.py",         # the ledger of what was renamed
     "common/games/media_lookup.py",   # canonical_kind on the way in
+    # MANIFEST_KINDS. These are not our old names being spoken - they are
+    # vpinmediadb's current ones, which happen to collide with our old ones. That
+    # collision is the whole bug: a rename of our kinds swept the remote's keys in with
+    # them, and this file passed the check while doing it, because it was saying
+    # "backglass" where the manifest only answers to "bg".
+    "common/online/vpsdb_media.py",
 }
 
 # Old spellings, and what they are now. Only names that are unambiguous: `table` is left

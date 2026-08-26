@@ -5,6 +5,7 @@ import re
 from difflib import SequenceMatcher
 
 from common.config_access import MediaConfig
+from common.online import vpsdb_media
 from common.online.vpsdb_cache import VPinMediaDatabase, VPSDatabaseCache
 from common.online.vpsdb_media import VPSMediaDownloader
 from common.paths import CONFIG_DIR
@@ -24,7 +25,7 @@ class VPSdb:
 
     vpsUrlLastUpdate = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
     vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
-    vpinmdbUrl = "https://github.com/superhac/vpinmediadb/raw/refs/heads/main/vpinmdb.json"
+    vpinmdbUrl = vpsdb_media.MANIFEST_URL
 
     def __init__(self, rootGameDir, vpinfeConfigStore):
         logger.info("Initializing VPSdb")
