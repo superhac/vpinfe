@@ -62,6 +62,9 @@ _TOKENS = """
      across a dark panel, and --line-soft sits close enough to the background that it
      read as nothing at all. */
   --line-band: rgba(203, 184, 234, 0.22);
+  /* What a panel is, against the page under it. Named because two surfaces need to
+     agree on it now that the workbench paints itself in parts. */
+  --panel-ground: #150a2e;
 
   --fs-caption: 12px;
   --fs-body: 14px;
@@ -371,11 +374,21 @@ body::before {
      This panel had nothing to carry when the band was withheld from it; it carries the
      selected game now, which is what changed.
 
-     16px of the workbench's own top padding sits above the header, so this starts at 0
-     rather than at the header's box, or the band would not reach the panel's edge.
-     88px is just past the header, the same way the nav's 90px is. */
-  background: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 46px, #1a0f35 88px,
-                              #150a2e 40%, #0f0722 100%) !important;
+     And then it stops dead. Past the rows' top edge this paints nothing, so browse and
+     edit are open to the page - which is the depth model the grid already states: the
+     page is nearly black, panels step up. A panel-wide gradient made the whole surface
+     a lit thing; as a frame with windows cut in it, only the parts that are the panel
+     are lit.
+
+     Resolved to the panel's own ground by 72px and held flat to 80px, then cut. Fading
+     to transparent instead put the page - grid and all - behind the bottom of the band
+     and behind the rail beside it, which is not a window, and the edge where that met
+     the solid rail read as a mistake. The panel is opaque everywhere it is the panel.
+     80px is where the rows start; 16px of the workbench's own top padding sits above
+     the header, so this starts at 0 or the band would not reach the panel's edge. */
+  background: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 44px,
+                              var(--panel-ground) 72px, var(--panel-ground) 80px,
+                              rgba(0, 0, 0, 0) 80px) !important;
 }
 /* truncate only ellipsizes against a definite width. The column may shrink under
    min-w-0, but its labels have to be told to take that width or they overflow and get
@@ -498,7 +511,12 @@ _COMPONENTS = """
   flex-direction: column;
   border: 1px solid #2b1a4d;
   border-radius: 6px;
-  background: rgba(10, 5, 24, 0.55);
+  /* A step *up* from the ground, not down into it. This used to be the page colour at
+     55%, which darkened the panel's gradient into a recessed plate - but with browse
+     open to the page that same value composites to exactly the page and the tile has
+     no surface at all, leaving an empty slot as a bare 1px outline. A tile is a small
+     panel, and panels step up. */
+  background: rgba(26, 15, 53, 0.6);
   padding: 3px;
 }
 /* Present is stated with a colour, missing with the absence of one. A library is mostly
@@ -1041,6 +1059,10 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   /* Off the header. The name of what you are looking at and the list of what you can
      ask about it are two things, and butted together they read as one block. */
   margin-top: 12px;
+  /* The rail column is panel and everything right of it is open to the page. A hard
+     stop at the column's own width does that without a wrapper element to hang a
+     background on - the rows are grid children, so there is nothing else to paint. */
+  background: linear-gradient(90deg, var(--panel-ground) 0 152px, transparent 152px);
   display: grid;
   grid-template-columns: 152px minmax(0, 1fr);
   grid-template-rows: repeat(var(--rows, 4), max-content) minmax(0, 1fr);
@@ -1050,7 +1072,10 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .hub-section-work {
   grid-column: 2; grid-row: 1 / -1;
   min-width: 0; min-height: 0;
+  /* The window's two edges against the frame - left of it the rail, above it the
+     header. Without the top one the panel just stops in mid-air where the paint ends. */
   border-left: 1px solid var(--line-soft);
+  border-top: 1px solid var(--line-soft);
 }
 /* The workbench measures itself, so the layout changes the moment the drag crosses
    the width rather than when the mouse comes up. */
@@ -1102,7 +1127,15 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.hub-section-row:hover { background: rgba(180, 41, 249, 0.14); }
+/* The state tints go on background-image, never background. As `background` they are
+   the same property as the ground the bands paint on themselves, and a state selector
+   outranks the plain one - so hovering replaced an opaque band with a 14% wash and the
+   page showed through it, grid and all. As an image they layer over the ground instead
+   of standing in for it, and they still work where the band paints nothing and the
+   rail's strip is what shows through. */
+.hub-section-row:hover {
+  background-image: linear-gradient(rgba(180, 41, 249, 0.14), rgba(180, 41, 249, 0.14));
+}
 /* Carries the row's padding, so every pixel of the band picks the section. */
 .hub-section-hit { padding: 7px 16px; overflow: hidden; }
 /* Beside its content, not above it - so there is nothing for a chevron to point at
@@ -1113,23 +1146,29 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   transition: transform 120ms;
 }
 .hub-section-on .hub-section-caret { color: var(--ink); }
-.hub-section-on { background: rgba(0, 217, 255, 0.22); color: var(--ink); }
+.hub-section-on {
+  background-image: linear-gradient(rgba(0, 217, 255, 0.22), rgba(0, 217, 255, 0.22));
+  color: var(--ink);
+}
 
 /* Below the base rules on purpose: same specificity, so source order decides. */
 @container (max-width: 519px) {
   /* Column, and the open section takes what the rows leave - so the names stay put
      and the content scrolls under them rather than the whole panel sliding. */
-  .hub-sections { display: flex; flex-direction: column; }
+  .hub-sections { display: flex; flex-direction: column; background: none; }
+  /* background-color, so a state tint layered on background-image sits over it. */
+  .hub-section-row { background-color: var(--panel-ground); }
   /* Takes what it needs and no more, so a short section does not leave a void with
      the rows stranded at the bottom edge - and shrinks when it needs more than is
      there, which puts the scrolling inside it and keeps every row on screen. */
   .hub-section-work {
     flex: 0 1 auto;
     min-height: 0;
-    border-left: none;
-    /* Recessed and ruled off, so the open section's content is plainly inside it and
-       does not run on into the header of the section below. */
-    background: rgba(0, 0, 0, 0.22);
+    border-left: none; border-top: none;
+    /* Open to the page rather than tinted darker. The recess used to be a black wash
+       over the panel's gradient, which was an invented shade meaning nothing; the step
+       down to the page is a real one the rest of the app already uses. Still ruled off,
+       or the content runs on into the header of the section below. */
     border-bottom: 1px solid var(--line-band);
   }
   /* Bands, not words. Stacked rows have to look like something that opens: full
