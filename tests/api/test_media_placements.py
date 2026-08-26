@@ -101,5 +101,42 @@ class PlacementTests(TempTree):
             400)
 
 
+class OverrideTests(PlacementTests):
+    """What the game's own lens cannot otherwise see.
+
+    Resolving without a table stem never looks at the table tier, so a slot one table
+    differs on looks settled from the game's view. These are the only thing that says
+    otherwise, and the reason a curator can find the odd one out in a folder.
+    """
+
+    def _overrides(self) -> dict:
+        response = self.client.get(f"/games/{GAME_ID}/media/overrides")
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()["overrides"]
+
+    def test_nothing_of_its_own_means_nothing_reported(self) -> None:
+        self.assertEqual(self._overrides(), {})
+
+    def test_a_table_with_its_own_file_is_named(self) -> None:
+        (self.folder / "medias" / f"(Playfield) {FOLDER} - VR.png").write_bytes(b"\x89PNG")
+        found = self._overrides()
+
+        self.assertEqual(list(found), ["playfield"])
+        self.assertEqual([item["table"] for item in found["playfield"]], ["tbl0000002"])
+
+    def test_it_carries_what_tells_that_table_apart(self) -> None:
+        """The id is for following; the filename and version are for reading."""
+        (self.folder / "medias" / f"(Playfield) {FOLDER} - VR.png").write_bytes(b"\x89PNG")
+        item = self._overrides()["playfield"][0]
+
+        self.assertEqual(item["filename"], VR)
+        self.assertEqual(item["file"], f"(Playfield) {FOLDER} - VR.png")
+
+    def test_the_game_s_own_file_is_not_an_override_of_itself(self) -> None:
+        """A file every table shares is the thing being overridden, not an override."""
+        (self.folder / "medias" / f"(Playfield) {FOLDER}.png").write_bytes(b"\x89PNG")
+        self.assertEqual(self._overrides(), {})
+
+
 if __name__ == "__main__":
     unittest.main()

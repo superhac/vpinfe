@@ -295,6 +295,23 @@ class TableList(ApiModel):
     tables: list[Table]
 
 
+class LaunchApp(ApiModel):
+    """A program that plays a table, and the files it claims.
+
+    `settings_key` names where its binary is configured, so a client can ask whether
+    this machine can actually run one rather than assuming a path.
+    """
+
+    id: str
+    name: str
+    suffixes: list[str]
+    settings_key: str = ""
+
+
+class LaunchAppList(ApiModel):
+    apps: list[LaunchApp]
+
+
 class TableRow(ApiModel):
     """A table seen as a row in the library rather than as one game's child.
 
@@ -324,6 +341,20 @@ class TableRowList(ApiModel):
     offset: int
     count: int
     tables: list[TableRow]
+
+
+class TableVisibility(ApiModel):
+    """Whether the frontend should offer this table. Hiding never touches the file: a
+    patch base has to stay on disk, and a variant may be wanted back."""
+
+    hidden: bool
+
+
+class TableDefault(ApiModel):
+    """Which table a game offers first. Empty clears the choice, which puts it back to
+    being resolved from what is in the folder."""
+
+    table: str = ""
 
 
 class TableForgotten(ApiModel):
@@ -467,6 +498,25 @@ class MediaEntry(ApiModel):
     via: str | None = None
     origin: str | None = None
     links: MediaEntryLinks
+
+
+class MediaOverride(ApiModel):
+    """A table that has its own file for a kind the game also has one for.
+
+    Named per table rather than counted, because "which one" is the question - a game
+    with four tables and one odd backglass is looking for that one.
+    """
+
+    table: str
+    filename: str
+    version: str = ""
+    file: str
+
+
+class MediaOverrideList(ApiModel):
+    """Keyed by media kind. A kind no table overrides is absent rather than empty."""
+
+    overrides: dict[str, list[MediaOverride]]
 
 
 class MediaTier(ApiModel):

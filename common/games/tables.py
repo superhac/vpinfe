@@ -5,10 +5,14 @@ A folder can hold several .vpx, so everything asks here which one is the default
 
 from __future__ import annotations
 
+from common.games import apps
+
 from collections.abc import Iterable
 
 from common.timestamps import iso_from_asctime, iso_from_authored_date
 
+# Kept because callers outside this module still name it. Which extensions make a file
+# a table is `apps.table_suffixes()` now - this is one app's, not the answer.
 VPX_SUFFIX = ".vpx"
 
 # One entry per .vpx, keyed by the table's id so a rename rewrites one field:
@@ -125,7 +129,8 @@ def is_parsed(entry: dict | None) -> bool:
 
 def table_names(names: Iterable[str]) -> list[str]:
     """The tables in a folder listing, sorted case-insensitively."""
-    return sorted((n for n in names if n.lower().endswith(VPX_SUFFIX)), key=str.lower)
+    known = apps.table_suffixes()
+    return sorted((n for n in names if n.lower().endswith(known)), key=str.lower)
 
 
 def entry_filename(entry: dict | None) -> str:
@@ -211,7 +216,7 @@ def default_table(names: Iterable[str], folder_name: str = "", recorded: str = "
     stem = (folder_name or "").strip().lower()
     if stem:
         for name in candidates:
-            if name[: -len(VPX_SUFFIX)].lower() == stem:
+            if apps.strip_suffix(name).lower() == stem:
                 return name
 
     return candidates[0]

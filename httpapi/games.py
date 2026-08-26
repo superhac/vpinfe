@@ -20,6 +20,7 @@ from starlette.responses import FileResponse
 
 from common.config_access import MediaConfig
 from common.games import (
+    apps,
     asset_origin,
     asset_resolver,
     game_identity,
@@ -43,6 +44,7 @@ from common.games.tables import (
     ABSENT_SINCE_KEY,
     TABLE_ID_KEY,
     default_table,
+    entry_filename,
     entry_for_filename,
     hidden_tables,
     is_parsed,
@@ -222,8 +224,11 @@ def _tables(game, row: dict) -> list[dict]:
             # lenses describe the same table and a client cannot tell that they do -
             # filenames are not identity, which is why ids were minted in the first place.
             "id": str(described_entry.get(TABLE_ID_KEY, "") or ""),
-            "format": "vpx",
-            "app": "vpx",
+            # Which program plays it, from the registry rather than assumed. Today
+            # every table is Visual Pinball's; the point is that the next one is a
+            # registry entry and not a search for where ".vpx" was hard-coded.
+            "format": (apps.app_for(name) or apps.DEFAULT_APP).id,
+            "app": (apps.app_for(name) or apps.DEFAULT_APP).id,
             "filename": name,
             "version": str(described_entry.get("version", "") or ""),
             "authors": [str(a) for a in (described_entry.get("authors") or [])],
@@ -411,6 +416,53 @@ def _media_file_or_404(game, kind: str, table_stem: str | None):
     if path is None or not path.is_file():
         raise NotFoundError(f"This game has no {kind} media")
     return FileResponse(path)
+
+
+@router.get("/{game_id}/media/overrides",
+            summary="Kinds where a table has art of its own",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_media_overrides(game_id: str) -> models.MediaOverrideList:
+    """Where the game's art is not the whole story.
+
+    Asked from the game's own lens, which otherwise cannot see a table-specific file at
+    all: resolving without a table stem never looks at that tier. A curator scanning a
+    folder wants the odd one out, and the odd one out is invisible without this.
+
+    One walk for every kind and every table, because the caller is drawing a map of all
+    of them and twenty round trips to answer one question would be worse.
+    """
+    from common.media_specs import MEDIA_SPECS, media_candidates
+
+    game = _game_or_404(game_id)
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+    files, medias = _media_contents(game_dir)
+    variant, active_sets = _media_settings()
+
+    # What the game itself resolves, to compare against. A .vpx named after its folder
+    # makes its own tier and the game's the same filename, and then the same file - so
+    # without this it is reported as overriding itself, which is most single-table
+    # folders and the commonest shape there is.
+    shared = {spec.kind: next((item.path for item in media_candidates(
+        game_dir, files, medias, spec.kind, variant, None, active_sets)), None)
+        for spec in MEDIA_SPECS}
+
+    found: dict[str, list[dict]] = {}
+    for table in _tables(game, game_to_row(game)):
+        stem = Path(str(table.get("filename") or "")).stem
+        if not table.get("id") or not stem:
+            continue
+        for spec in MEDIA_SPECS:
+            own = next((item for item in media_candidates(
+                game_dir, files, medias, spec.kind, variant, stem, active_sets)
+                if item.tier == "table"), None)
+            if own is not None and own.path != shared.get(spec.kind):
+                found.setdefault(spec.kind, []).append({
+                    "table": table["id"],
+                    "filename": table.get("filename") or "",
+                    "version": table.get("version") or "",
+                    "file": own.path.name,
+                })
+    return {"overrides": found}
 
 
 @router.get("/{game_id}/media/{kind}", summary="One shared media file",
@@ -790,6 +842,65 @@ def delete_table_media(game_id: str, table_id: str, kind: str) -> models.MediaRe
     except media_placement.UnplaceableError as exc:
         raise InvalidRequestError(str(exc)) from exc
     return {"removed": removed}
+
+
+@router.put("/{game_id}/tables/{table_id}/hidden",
+            summary="Offer this table in the frontend, or stop offering it",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_table_hidden(game_id: str, table_id: str,
+                     body: models.TableVisibility) -> models.Table:
+    """Take a table out of play without taking it off disk.
+
+    The two are different acts and only one is reversible by itself: a hidden table is
+    still there with its stats and its match, and a patch base that stopped being
+    offered is exactly what this is for.
+    """
+    game = _game_or_404(game_id)
+    filename = _table_filename_or_404(game, table_id)
+    meta = MetaConfig(str(meta_file_path(game)))
+    meta.set_table_hidden(filename, bool(body.hidden))
+    game.meta_config = load_game_meta(game)
+    return _table_or_404(game, table_id)
+
+
+@router.put("/{game_id}/default_table", summary="Which table this game offers first",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_default_table(game_id: str, body: models.TableDefault) -> models.TableList:
+    """Record the choice, or clear it by naming nothing.
+
+    A game's default is the one a member naming only the game resolves to, so this is
+    the difference between a collection playing the VR build and the desktop one.
+    """
+    game = _game_or_404(game_id)
+    if body.table:
+        _table_filename_or_404(game, body.table)
+    meta = MetaConfig(str(meta_file_path(game)))
+    try:
+        meta.set_default_table(body.table)
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc), details={"table": body.table}) from exc
+    game.meta_config = load_game_meta(game)
+    return {"tables": _tables(game, game_to_row(game))}
+
+
+def _table_filename_or_404(game, table_id: str) -> str:
+    """The .vpx an id names, or a 404. Distinct from the media lens's stem lookup:
+    this one wants the name on disk, not the stem a file would be named after."""
+    entry = table_entries(load_game_meta(game)).get(table_id)
+    filename = entry_filename(entry) if isinstance(entry, dict) else ""
+    if not filename:
+        raise NotFoundError("This game has no such table",
+                            details={"game": getattr(game, "gameDirName", ""),
+                                     "table": table_id})
+    return filename
+
+
+def _table_or_404(game, table_id: str) -> dict:
+    found = next((t for t in _tables(game, game_to_row(game))
+                  if t.get("id") == table_id), None)
+    if found is None:
+        raise NotFoundError("This game has no such table", details={"table": table_id})
+    return found
 
 
 @router.delete("/{game_id}/tables/{table_id}", summary="Forget a table that is gone",

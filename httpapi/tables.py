@@ -24,6 +24,23 @@ logger = logging.getLogger("vpinfe.httpapi.tables")
 router = APIRouter(prefix="/tables", tags=["tables"])
 
 
+@router.get("/apps", summary="The programs that play a table",
+            dependencies=[requires(scopes.GAMES_READ)])
+def list_apps() -> models.LaunchAppList:
+    """What can launch something in this library, and which files each one claims.
+
+    One today. It is a route rather than a constant because a client showing an App
+    column should read the list rather than carry its own copy of it, and because the
+    day there are two is the day every hard-coded ".vpx" would have had to be found.
+    """
+    from common.games import apps
+
+    return {"apps": [{"id": app.id, "name": app.name,
+                      "suffixes": list(app.suffixes),
+                      "settings_key": app.settings_key}
+                     for app in apps.APPS]}
+
+
 @router.get("", summary="Every table in the library",
             dependencies=[requires(scopes.GAMES_READ)])
 def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),

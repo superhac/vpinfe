@@ -377,6 +377,24 @@ class MetaConfig:
                 settings.pop(entry.get(TABLE_ID_KEY), None)
         self.write_config()
 
+    def set_default_table(self, table_id):
+        """Record which of a game's tables is the one to offer first.
+
+        Stored as an id rather than a filename so the choice survives a rename, and
+        cleared by passing "" - absent means "resolve from what is in the folder",
+        which is the right answer until somebody has an opinion.
+        """
+        entries = self._entries_by_id()
+        wanted = str(table_id or "").strip()
+        if wanted and wanted not in entries:
+            raise ValueError(f"no table {wanted} in this game")
+        vpinfe = self.data.setdefault(VPINFE_SECTION, {})
+        if wanted:
+            vpinfe[DEFAULT_TABLE_KEY] = wanted
+        else:
+            vpinfe.pop(DEFAULT_TABLE_KEY, None)
+        self.write_config()
+
     def forget_table(self, table_id):
         """Drop an absent table's record, once a person has decided it is not coming back.
 
