@@ -346,7 +346,7 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         # The same two-line shape a selected game gets, so the header does not change
         # height or alignment as the selection comes and goes.
         with workbench_title:
-            ui.label("Game Details") \
+            ui.label("Game details") \
                 .classes("text-base hub-workbench-title leading-tight truncate")
             ui.label("Select a game").classes("text-xs hub-workbench-label leading-none truncate")
 

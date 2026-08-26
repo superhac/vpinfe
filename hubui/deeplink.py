@@ -25,7 +25,9 @@ _FIELDS = (
     ("view", lambda state: state.get("view") or ""),
     ("game", lambda state: state.get("game") or ""),
     ("table", lambda state: state.get("table") or ""),
-    ("section", lambda state: state.get("section") or ""),
+    # "none" rather than nothing: every section closed is somewhere you asked to be,
+    # and leaving it out of the address would reopen one on the next reload.
+    ("section", lambda state: _section(state)),
     ("slot", lambda state: _slot_kind(state)),
     ("settings", lambda state: state.get("settings_page") or ""),
 )
@@ -34,6 +36,15 @@ _FIELDS = (
 # somebody is meant to be able to read.
 _ONLY_ON = {"game": "games", "table": "games", "section": "games", "slot": "games",
             "settings": "settings"}
+
+
+# What the address calls a panel with nothing open.
+NO_SECTION = "none"
+
+
+def _section(state: dict[str, Any]) -> str:
+    chosen = state.get("section")
+    return NO_SECTION if chosen == "" else str(chosen or "")
 
 
 def _slot_kind(state: dict[str, Any]) -> str:
@@ -78,7 +89,9 @@ def apply(state: dict[str, Any], params: dict[str, str], *,
     # Every rail's keys, not one rail's: an address can name a table section while the
     # subject is still being worked out, and dropping it here would land on the default
     # and quietly ignore half the link.
-    if clean("section") in set(sections):
+    if clean("section") == NO_SECTION:
+        state["section"] = ""
+    elif clean("section") in set(sections):
         state["section"] = clean("section")
     if clean("slot"):
         state.setdefault("slot", {"kind": None})

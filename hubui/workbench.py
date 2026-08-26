@@ -44,7 +44,7 @@ if (!window.__hubDockGrip) {
   document.addEventListener('pointerdown', (e) => {
     const grip = e.target.closest && e.target.closest('.hub-dock-grip');
     if (!grip) return;
-    const main = grip.closest('.hub-workbench-main');
+    const main = grip.closest('.hub-section-work');
     const dock = main && main.querySelector('.hub-dock');
     if (!dock) return;
     e.preventDefault();
@@ -73,6 +73,9 @@ if (!window.__hubDockGrip) {
 # The section shown when nobody has said otherwise. The map is the question people
 # actually have about a game, and its shape answers before a label is read.
 DEFAULT_SECTION = "media"
+# Every section closed. Named, because it travels in the state and the address, and
+# "" appearing in either wants to be findable as a decision rather than as a blank.
+COLLAPSED = ""
 
 # Below this the outline costs more than it gives: 132px of it against a 320px
 # workbench leaves the map too narrow to read, and the section headers are already
@@ -90,18 +93,14 @@ OUTLINE_FROM_PX = 520
 class Section:
     """One block in the panel: what it is called and how to draw it.
 
-    `name` is the fixed word the outline shows; `label` takes the game's context
-    because a heading that counts something has to count this game's - and, for the
-    one section a lens governs, say which build it is counting. `build` is async
-    because a section may need a fetch.
+    One name, on the row that opens it. There is no second heading over the content,
+    because the row is the heading.
 
-    `icon` is what the selector shows when there is no room for the word. Every section
-    needs one, because a mode with no icon would simply vanish at that width.
+    `label` takes the context, since a name that counts something has to count this
+    game's. `build` is async because a section may need a fetch.
     """
 
     key: str
-    name: str
-    icon: str
     label: Callable[[dict[str, Any]], str]
     build: Callable[[dict[str, Any]], Any]
     # What this section is about. The rail is what the selected subject can be asked,
@@ -109,6 +108,11 @@ class Section:
     # for the other - rather than being present and answering a question nobody asked.
     # Keys stay unique across every rail, so `section=` in an address means one thing.
     subjects: frozenset[str] = frozenset({"game", "table"})
+    # Whether this section works on a picked thing beside its browse region. Only the
+    # one that has something to pick declares it: reserving the room everywhere left
+    # a section like Game details as four lines of text over an empty half-panel,
+    # with the sections under it pushed to the bottom edge.
+    dock: bool = False
 
 
 def sections_for(subject: str) -> tuple[Section, ...]:
@@ -119,6 +123,8 @@ def sections_for(subject: str) -> tuple[Section, ...]:
 def chosen_section(state: dict[str, Any], subject: str = "game") -> str:
     """The section this client is on, seeded once and kept across games.
 
+    "" when every section is closed, which is a place like any other.
+
     Held across games so stepping down a list does not re-pick a section at every stop,
     which is what looking at one kind across a library needs. Held across subjects too
     where it can be - but a section the new subject has no answer for is not one of
@@ -127,6 +133,10 @@ def chosen_section(state: dict[str, Any], subject: str = "game") -> str:
     """
     rail = sections_for(subject)
     known = {item.key for item in rail}
+    if state.get("section") == COLLAPSED:
+        # Asked for, so it is kept - including across a change of subject. Seeding a
+        # default here would reopen a section the user just shut.
+        return COLLAPSED
     if state.get("section") not in known:
         state["section"] = DEFAULT_SECTION if DEFAULT_SECTION in known else rail[0].key
     return state["section"]
@@ -166,11 +176,11 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
     title.clear()
     with container:
         if game_id is None:
-            _title(title, "Game Details", "Select a game")
+            _title(title, "Game details", "Select a game")
             return
         game = next((entry for entry in library.games if entry["id"] == game_id), None)
         if game is None:
-            _title(title, "Game Details", "Not in this library")
+            _title(title, "Game details", "Not in this library")
             return
         made = f"{game.get('manufacturer') or '?'} {game.get('year') or ''}"
         _title(title, game.get("name") or "", made)
@@ -210,63 +220,88 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
         # Three regions, in reading order: which mode you are in, what that mode gives
         # you to browse, and what you are working on. The outline must not scroll with
         # what it points at, so this row is the fixed frame and only the body scrolls.
-        with ui.row().classes("w-full grow min-h-0 no-wrap gap-0 hub-workbench-frame"):
-            _outline(context, section)
-            # A grid, so one rule decides whether work sits under browse or beside it.
-            # Under is a vertical split; beside is what a wide window is for. In both
-            # it is outside the scroll, which makes "always visible" true rather than
-            # usually true.
-            # A stored height, not the dock's content height, or the divider moves
-            # with whatever kind of media you picked.
-            with ui.element("div").classes("grow min-w-0 h-full hub-workbench-main") \
-                    .style(f"--dock-h: {state.get('dock_px', DOCK_PX)}px"):
-                body = ui.column().classes("min-w-0 h-full overflow-auto gap-0 "
-                                           "hub-workbench-body")
-                ui.element("div").classes("hub-dock-grip") \
-                    .tooltip("Drag to resize")
-                context["dock"] = ui.column().classes("min-w-0 gap-0 hub-dock")
-        with body:
-            await _one_section(context, section)
-        ui.run_javascript(_GRIP)
+        # One structure, presented two ways. Wide, the rows are a rail down the left
+        # and the work fills the column beside them. Narrow, they stack in order and
+        # the work falls under the row that opened it - an accordion, which is what a
+        # rail already is when everything is closed. The stylesheet decides which;
+        # nothing about the markup changes, so nothing has to be rebuilt on a drag.
+        rows = sections_for("table" if table_id else "game")
+        body = None
+        # The row count goes to the stylesheet because the wide layout needs a track
+        # per row and then one that takes the rest - CSS cannot count its own children.
+        with ui.element("div").classes("w-full grow min-h-0 hub-sections") \
+                .style(f"--rows: {len(rows)}"):
+            for item in rows:
+                _section_row(context, item, item.key == section)
+                if item.key != section:
+                    continue
+                # The work sits immediately after the row it belongs to, which is what
+                # makes the narrow case an accordion without a second layout.
+                work = ui.element("div").classes("min-w-0 hub-section-work")
+                if item.dock:
+                    work.classes(add="hub-has-dock")
+                    work.style(f"--dock-h: {state.get('dock_px', DOCK_PX)}px")
+                with work:
+                    body = ui.column().classes("min-w-0 overflow-auto gap-0 "
+                                               "hub-workbench-body")
+                    if item.dock:
+                        ui.element("div").classes("hub-dock-grip") \
+                            .tooltip("Drag to resize")
+                        context["dock"] = ui.column().classes("min-w-0 gap-0 hub-dock")
+                    else:
+                        context["dock"] = None
+        if body is not None:
+            with body:
+                await _one_section(context, section)
+            if context.get("dock") is not None:
+                ui.run_javascript(_GRIP)
 
 
 async def _one_section(context: dict[str, Any], key: str) -> None:
-    """The chosen section, with the window to itself."""
-    section = next(item for item in SECTIONS if item.key == key)
-    heading = ui.label(section.label(context)).classes("hub-work-title")
-    await section.build(context)
+    """The chosen section's content. No heading - the row that opened it is the
+    heading, and a second copy of the same words under it is furniture."""
+    await next(item for item in SECTIONS if item.key == key).build(context)
+
+
+def _section_row(context: dict[str, Any], section: Section, open_now: bool) -> None:
+    """One section's name, which is both the rail entry and the accordion header.
+
+    The name is text: a badge said nothing about a game's identity, and the sections
+    still to come would each need a picture that means only itself. Words already do.
+
+    The chevron is the exception, and it is not the same thing - it says the row opens,
+    which is a fact about the control rather than a label for the section. Without it
+    the stacked rows are four words with no sign that any of them do anything.
+    """
+    row = ui.row().classes("items-stretch gap-0 no-wrap hub-section-row")
+    if open_now:
+        row.classes(add="hub-section-on")
+    with row:
+        name = ui.row().classes("items-center grow min-w-0 hub-section-hit")
+        with name:
+            text = ui.label(section.label(context)).classes("hub-section-text truncate")
+        # Shown only where the rows stack, because only there does one open under
+        # another. Beside its content it would be pointing at nothing.
+        with ui.row().classes("items-center hub-section-caret"):
+            ui.icon("expand_more", size="18px")
+    # The whole band, name and chevron alike - a header that opens on the word but
+    # only closes on the arrow is a control with two rules to learn.
+    row.on("click", lambda key=section.key: _toggle(context, key))
 
     async def relabel() -> None:
-        heading.text = section.label(context)
+        # A count in the name has to follow the thing it counts.
+        text.text = section.label(context)
 
     context["redraws"].append(relabel)
 
 
-def _outline(context: dict[str, Any], chosen: str) -> None:
-    """Which mode the workbench is in. One meaning at every width.
-
-    It used to be a table of contents when narrow and a selector when wide, and that is
-    the only reason a width threshold ever existed: a control that changes meaning
-    partway across the range needs somebody to guess where. It picks the section now,
-    always - the stylesheet decides whether that reads as a column or a strip.
-    """
-    subject = "table" if context.get("lens") else "game"
-    with ui.column().classes("shrink-0 h-full overflow-auto gap-0 pr-1 hub-outline"):
-        for section in sections_for(subject):
-            item = ui.row().classes("items-center gap-2 no-wrap hub-outline-item")
-            if section.key == chosen:
-                item.classes(add="hub-outline-on")
-            with item:
-                ui.icon(section.icon, size="20px").classes("hub-outline-icon")
-                ui.label(section.name).classes("hub-outline-text")
-            # Carries the word when the width has taken it away, which is the whole
-            # reason the labels can go.
-            item.tooltip(section.name)
-            item.on("click", lambda key=section.key: _choose(context, key))
+def _toggle(context: dict[str, Any], key: str) -> None:
+    """Open this section, or close it if it is the one already open."""
+    _choose(context, COLLAPSED if context["state"].get("section") == key else key)
 
 
 def _choose(context: dict[str, Any], key: str) -> None:
-    """Make it the section on screen."""
+    """Make it the section on screen. "" closes every one of them."""
     context["state"]["section"] = key
     deeplink.sync(context["state"])
     asyncio.create_task(context["rebuild"]())
@@ -712,13 +747,9 @@ def _rows(target: Any, values: dict[str, str]) -> None:
 SECTIONS: tuple[Section, ...] = (
     # The game first, then the file: a table belongs to a game, and reading down is
     # reading from the thing that contains to the thing contained.
-    Section("game_details", "Game details", "badge",
-            lambda _: "Game details", _game_block),
-    Section("table_details", "Table details", "description",
-            lambda _: "Table details", _table_block,
+    Section("game_details", lambda _: "Game details", _game_block),
+    Section("table_details", lambda _: "Table details", _table_block,
             subjects=frozenset({"table"})),
-    Section("media", "Media", "perm_media", _media_label, _media_block),
-    # Layers, because what this section holds is the builds of one game stacked on each
-    # other - the same icon the app nav gives Media, for the section that is media.
-    Section("tables", "Tables", "layers", _tables_label, _tables_block),
+    Section("media", _media_label, _media_block, dock=True),
+    Section("tables", _tables_label, _tables_block),
 )

@@ -58,6 +58,10 @@ _TOKENS = """
   --surface-2: #1a0f35;
   --line: #2b1a4d;
   --line-soft: #1f1338;
+  /* Structure, not a hairline: the rule between stacked section bands has to be seen
+     across a dark panel, and --line-soft sits close enough to the background that it
+     read as nothing at all. */
+  --line-band: rgba(203, 184, 234, 0.22);
 
   --fs-caption: 12px;
   --fs-body: 14px;
@@ -392,8 +396,11 @@ body::before {
   background: rgba(26, 15, 53, 0.55);
 }
 .hub-workbench { overflow-x: hidden !important; }
-/* No gutter of its own: what it holds carries the shared one, and two would stack. */
-.hub-workbench-body { padding: 0; }
+/* No side gutter of its own: what it holds carries the shared one, and two would
+   stack. Top and bottom are the exception - the section row sits directly above and
+   the section's own edge directly below, and without this the content is flush to
+   both and reads as cut off at each end. */
+.hub-workbench-body { padding: 8px 0; }
 .hub-workbench .q-expansion-item .q-item {
   min-height: 32px;
   padding: 2px 10px;
@@ -537,7 +544,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* Every control clears the pointer floor - what is fine for a mouse is mean on a
    trackpad. Dense rather than flat, because the toolbar tabs are `unelevated`. */
-.q-btn--dense, .hub-outline-item {
+.q-btn--dense, .hub-section-row {
   min-height: var(--target-min);
 }
 .hub-mediatile-art {
@@ -702,7 +709,8 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    vertical split - the map scrolls, the controls do not, and picking a tile can never
    put them somewhere you have to go looking. Past the work width they sit side by
    side instead, which is what the room is for. */
-.hub-workbench-main {
+.hub-section-work { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
+.hub-has-dock {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   /* The cap goes on the row, not on the dock: a percentage max-height on a grid item
@@ -716,7 +724,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   min-height: 0;
 }
 @container (min-width: 900px) {
-  .hub-workbench-main {
+  .hub-has-dock {
     /* `auto` so the track follows the dock's own width. */
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: minmax(0, 1fr);
@@ -763,16 +771,11 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   .hub-dock { border-top: none; border-left: 1px solid #2b1a4d; }
 }
 
-/* The chosen section's heading when it has the window to itself - there is no
-   expansion to click, so the name has to come from somewhere. */
-.hub-work-title {
-  font-size: var(--fs-caption); text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--accent); padding: 8px 10px 4px;
-}
-
 /* A form has nothing to choose, so it stays one column and leaves the rest alone
-   rather than stretching four fields across the window. */
-.hub-form { max-width: 420px; }
+   rather than stretching four fields across the window. Up to 420px, not 420px: the
+   column it sits in aligns to the start, so without the width it takes its content's
+   and a long filename ran off the panel instead of ellipsizing inside it. */
+.hub-form { width: 100%; max-width: 420px; }
 
 /* The picked slot. The art is the subject and takes the room; the facts under it are
    a line each, which is what lets them be sentences rather than a table of fields. */
@@ -1011,18 +1014,31 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   background: transparent; border: 1px dashed var(--line); border-top: none;
 }
 
-/* Down, never across: in a column of modes a sideways bar means the items do not
-   fit, never that there is more to reach. */
-.hub-outline {
-  /* Widened with the gutter below, so the labels keep their room rather than paying
-     for it. */
-  border-right: 1px solid var(--line-soft); width: 152px;
-  overflow-x: hidden;
+/* One markup, two readings. Wide, the rows are a rail down the left and the open
+   section fills the column beside them. Narrow, they stack and the work falls under
+   the row that opened it. Same control, same meaning, no threshold to guess: a rail
+   with everything closed already looks like an accordion, so this is the same thing
+   drawn in the room available.
+
+   A track per row and then one that takes what is left, so the work spans the whole
+   height rather than stopping under the last row. The count comes in on --rows,
+   because CSS cannot count its own children. */
+.hub-sections {
+  /* Off the header. The name of what you are looking at and the list of what you can
+     ask about it are two things, and butted together they read as one block. */
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 152px minmax(0, 1fr);
+  grid-template-rows: repeat(var(--rows, 4), max-content) minmax(0, 1fr);
+  min-height: 0;
 }
-/* Narrow: still a column, now icons - the app nav does the same, so the control never
-   changes kind. A column also grows down the axis a narrow panel has spare. The word
-   lives on the tooltip. */
-/* The workbench measures itself, so the outline appears the moment the drag crosses
+.hub-section-row { grid-column: 1; }
+.hub-section-work {
+  grid-column: 2; grid-row: 1 / -1;
+  min-width: 0; min-height: 0;
+  border-left: 1px solid var(--line-soft);
+}
+/* The workbench measures itself, so the layout changes the moment the drag crosses
    the width rather than when the mouse comes up. */
 .hub-workbench { container-type: inline-size; }
 
@@ -1052,17 +1068,18 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .hub-full .q-splitter__after { width: auto !important; flex: 10000 1 0% !important; }
 .hub-full .q-splitter__separator { display: none; }
 
-/* The outline carries the grouping once it is there; the body only needs it when it
-   is the only structure on screen. */
+/* The row is the section's only name - there is no heading under it repeating the
+   same words. */
 /* Sized as navigation, because that is what it is. Still smaller and sentence-case
    than the app nav: two uppercase columns would rank a game's sections with the app. */
 /* The app nav's gutter rhythm, so the two rails read as the same kind of control. */
-.hub-outline-item {
+.hub-section-row {
   display: flex;
+  cursor: pointer;
   font-size: var(--fs-body);
   font-weight: 500;
   color: var(--ink);
-  padding: 7px 16px;
+  padding: 0;
   margin: 2px 8px;
   border-radius: 6px;
   cursor: pointer;
@@ -1070,21 +1087,50 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.hub-outline-item:hover { background: rgba(180, 41, 249, 0.14); }
-.hub-outline-on { background: rgba(0, 217, 255, 0.22); color: var(--ink); }
+.hub-section-row:hover { background: rgba(180, 41, 249, 0.14); }
+/* Carries the row's padding, so every pixel of the band picks the section. */
+.hub-section-hit { padding: 7px 16px; overflow: hidden; }
+/* Beside its content, not above it - so there is nothing for a chevron to point at
+   and the rail carries no picture at all. */
+.hub-section-caret {
+  display: none; color: var(--ink-2);
+  padding: 0 12px;
+  transition: transform 120ms;
+}
+.hub-section-on .hub-section-caret { color: var(--ink); }
+.hub-section-on { background: rgba(0, 217, 255, 0.22); color: var(--ink); }
 
-/* Below the base rules on purpose: same specificity, so source order decides. Above
-   them the wide padding wins and the items overflow the rail. */
+/* Below the base rules on purpose: same specificity, so source order decides. */
 @container (max-width: 519px) {
-  .hub-outline { width: 48px; padding-right: 0; }
-  .hub-outline-text { display: none; }
-  .hub-outline-item {
-    /* Stretched to the rail, or the item is only as wide as its icon and centring
-       happens inside a 20px box that is itself sitting at the left edge. */
-    align-self: stretch;
-    justify-content: center;
-    padding: 6px 0; margin: 2px 4px;
+  /* Column, and the open section takes what the rows leave - so the names stay put
+     and the content scrolls under them rather than the whole panel sliding. */
+  .hub-sections { display: flex; flex-direction: column; }
+  /* Takes what it needs and no more, so a short section does not leave a void with
+     the rows stranded at the bottom edge - and shrinks when it needs more than is
+     there, which puts the scrolling inside it and keeps every row on screen. */
+  .hub-section-work {
+    flex: 0 1 auto;
+    min-height: 0;
+    border-left: none;
+    /* Recessed and ruled off, so the open section's content is plainly inside it and
+       does not run on into the header of the section below. */
+    background: rgba(0, 0, 0, 0.22);
+    border-bottom: 1px solid var(--line-band);
   }
+  /* Bands, not words. Stacked rows have to look like something that opens: full
+     width, a rule under each, and the chevron on the right saying which way. Four
+     labels floating in a column said nothing about being controls at all. */
+  .hub-section-row {
+    flex: 0 0 auto;
+    margin: 0; border-radius: 0;
+    border-bottom: 1px solid var(--line-band);
+  }
+  .hub-section-hit { padding-left: var(--panel-gutter); }
+  .hub-section-caret { display: flex; }
+  /* Turned to point at what it opened, and the rule under the open row goes: the row
+     and its content are one block, so a line between them would cut it in half. */
+  .hub-section-on .hub-section-caret { transform: rotate(180deg); }
+  .hub-section-on { border-bottom-color: transparent; }
 }
 
 .hub-index-item { border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: var(--fs-body);
