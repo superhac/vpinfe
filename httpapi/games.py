@@ -8,7 +8,9 @@ game is not permanently one .vpx.
 from __future__ import annotations
 
 import logging
+import os
 import threading
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Body, File, Query, Request, UploadFile
@@ -53,7 +55,7 @@ from common.host import launch, launch_state, pinmame_catalog
 from common.media_specs import MEDIA_SPECS
 from common.paths import get_ini_config
 
-from . import models, scopes
+from . import filesystem, models, scopes
 from .auth import ForbiddenError, requires
 from .errors import ConflictError, FeatureUnavailableError, InvalidRequestError, NotFoundError
 
@@ -223,6 +225,8 @@ def _tables(game, row: dict) -> list[dict]:
             "format": "vpx",
             "app": "vpx",
             "filename": name,
+            "version": str(described_entry.get("version", "") or ""),
+            "authors": [str(a) for a in (described_entry.get("authors") or [])],
             "default": name == default,
             "hidden": name in hidden,
             "available": name in on_disk,
@@ -310,9 +314,12 @@ def get_games(game_id: str) -> models.TableList:
     return {"tables": _tables(game, game_to_row(game))}
 
 
-def _resolved_media(game_dir: Path, table_stem: str | None = None) -> dict:
-    """Every media kind against the folder as it is right now."""
-    import os
+def _media_contents(game_dir: Path) -> tuple[set[str], set[str]]:
+    """What is in the folder and in medias/, as the resolver wants it.
+
+    medias/ comes back with relative paths, because a media set is a subfolder and
+    the resolver matches it by "wheels/<set>/<name>".
+    """
 
     files, subdirs = _listing(game_dir)
     medias: set[str] = set()
@@ -326,12 +333,24 @@ def _resolved_media(game_dir: Path, table_stem: str | None = None) -> dict:
                                f"{rel}/{fname}".replace(os.sep, "/"))
         except OSError:
             medias = set()
+    return set(files), medias
+
+
+def _media_settings() -> tuple[str, dict[str, str] | None]:
+    """The playfield variant and any active media set, as the resolver takes them."""
     media_cfg = MediaConfig.from_config(get_ini_config())
     from common.media_specs import active_set_for
     wheelset = active_set_for("wheel", media_cfg.wheelset)
-    active_sets = {"wheel": wheelset} if wheelset else None
+    return media_cfg.playfield_variant, ({"wheel": wheelset} if wheelset else None)
+
+
+def _resolved_media(game_dir: Path, table_stem: str | None = None) -> dict:
+    """Every media kind against the folder as it is right now."""
     from common.media_specs import resolve_media_entries
-    return resolve_media_entries(game_dir, set(files), medias, media_cfg.playfield_variant,
+
+    files, medias = _media_contents(game_dir)
+    variant, active_sets = _media_settings()
+    return resolve_media_entries(game_dir, files, medias, variant,
                                  table_stem, active_sets)
 
 
@@ -453,6 +472,217 @@ async def _write_media(game, kind: str, stem: str, upload: UploadFile,
     await run_in_threadpool(media_placement.record_origin, game_dir, written)
     entries = _media_entries(_resolved_media(game_dir, table_stem), game_dir, prefix)
     return {"written": written.name, "media": {kind: entries[kind]}}
+
+
+def _file_facts(path: Path, kind: str) -> dict:
+    """Size, date and pixel size - what tells two candidates for a slot apart.
+
+    Every part is best-effort: a file that cannot be opened still has a name worth
+    showing, and a slot that reports nothing at all is worse than one missing a number.
+    """
+    from common.media_specs import media_family
+
+    facts: dict = {"size_bytes": None, "modified": None, "width": None, "height": None}
+    try:
+        stat = path.stat()
+    except OSError:
+        return facts
+    facts["size_bytes"] = stat.st_size
+    facts["modified"] = datetime.fromtimestamp(stat.st_mtime,
+                                               tz=UTC).isoformat()
+    if media_family(kind) == "image":
+        try:
+            from PIL import Image
+            with Image.open(path) as img:
+                facts["width"], facts["height"] = img.size
+        except Exception:
+            logger.debug("Could not read image size for %s", path, exc_info=True)
+    return facts
+
+
+def _media_detail(game, kind: str, table_stem: str | None, prefix: str) -> dict:
+    """One slot: the winner, what it is, and every tier that holds a file for it."""
+    from common.media_specs import MEDIA_SPECS, canonical_kind, media_candidates, media_family
+
+    kind = canonical_kind(kind)
+    if kind not in {spec.kind for spec in MEDIA_SPECS}:
+        raise InvalidRequestError("Unknown media kind",
+                                  details={"unknown": kind,
+                                           "known": sorted(spec.kind for spec in MEDIA_SPECS)})
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+    hit = _resolved_media(game_dir, table_stem).get(kind)
+    path = hit.path if hit is not None else None
+
+    files, medias = _media_contents(game_dir)
+    variant, active_sets = _media_settings()
+    candidates = media_candidates(game_dir, files, medias, kind, variant,
+                                  table_stem, active_sets)
+    return {
+        "kind": kind,
+        "family": media_family(kind),
+        "present": path is not None,
+        "file": path.name if path is not None else None,
+        "via": hit.tier if hit is not None else None,
+        "origin": (asset_origin.origin_of(asset_origin.ledger(game_dir), game_dir, path)
+                   or None) if path is not None else None,
+        "tiers": [{"tier": item.tier, "file": item.path.name,
+                   "wins": item.path == path}
+                  for item in candidates],
+        "links": {"self": f"{prefix}/{kind}" if path is not None else None},
+        **(_file_facts(path, kind) if path is not None else
+           {"size_bytes": None, "modified": None, "width": None, "height": None}),
+    }
+
+
+def _into_slot(game, kind: str, table_id: str, source: Path, game_id: str,
+               origin: str = "user") -> dict:
+    """Copy a file into the slot and answer with what now resolves.
+
+    Shared by every route that fills a slot from a file that already exists somewhere -
+    one on this machine, one the catalog published. Where the source is allowed to be
+    is each caller's own question; this one is only about the write.
+    """
+    known = {spec.kind for spec in MEDIA_SPECS}
+    if kind not in known:
+        raise InvalidRequestError("Unknown media kind",
+                                  details={"unknown": kind, "known": sorted(known)})
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+    table_stem = _table_stem_or_404(game, table_id) if table_id else game_dir.name
+    try:
+        written = media_placement.place(game_dir, kind, table_stem, source)
+    except media_placement.UnplaceableError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    # Recorded with who placed it, which is what lets a later media refresh tell its
+    # own art from something hand-placed and leave the latter alone.
+    media_placement.record_origin(game_dir, written, origin)
+    prefix = (f"/api/v1/games/{game_id}/tables/{table_id}/media" if table_id
+              else f"/api/v1/games/{game_id}/media")
+    entries = _media_entries(_resolved_media(game_dir, table_stem if table_id else None),
+                             game_dir, prefix)
+    return {"written": written.name, "media": {kind: entries[kind]}}
+
+
+def _placement(game_dir: Path, kind: str, spec, table_id: str, stem: str,
+               label: str) -> dict:
+    """One destination: what the file would be called there, and what it would take.
+
+    The extension is trimmed back off the name because the file decides it, and it is
+    only supplied here to satisfy the family check.
+    """
+    suffix = spec.family[0]
+    going = media_placement.displaced(game_dir, kind, stem, suffix)
+    return {"table": table_id, "label": label,
+            "base": media_placement.target_name(kind, stem, suffix)[:-len(suffix)],
+            "displaces": sorted(str(path.relative_to(game_dir)) for path in going)}
+
+
+@router.get("/{game_id}/media/{kind}/placements",
+            summary="Where a file for this kind could go, and what it would replace",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_placements(game_id: str, kind: str) -> models.MediaPlacementList:
+    """Every name this kind can take in this folder, with the cost of each.
+
+    The tier is a filename, so choosing where a file lands is choosing what it is
+    called - and that is a decision worth making at the moment of the write rather
+    than inferring from which lens somebody happened to leave open.
+
+    Answered without the file, because it can be: what a write displaces is the whole
+    family at that tier, which does not depend on the extension arriving.
+    """
+    spec = next((item for item in MEDIA_SPECS if item.kind == kind), None)
+    if spec is None:
+        raise InvalidRequestError("Unknown media kind",
+                                  details={"unknown": kind,
+                                           "known": sorted(item.kind for item in MEDIA_SPECS)})
+    game = _game_or_404(game_id)
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+
+    found = [_placement(game_dir, kind, spec, "", game_dir.name,
+                        "Shared by every table")]
+    for table in _tables(game, game_to_row(game)):
+        stem = Path(table["filename"]).stem
+        option = _placement(game_dir, kind, spec, table["id"], stem, table["filename"])
+        # A .vpx named after its folder makes the two tiers the same filename, and they
+        # are then the same file - the resolver finds it looking for either. Most
+        # single-table folders are like that, so this is the common case rather than a
+        # corner, and offering both would be two choices that do one thing.
+        if table.get("id") and option["base"] not in {item["base"] for item in found}:
+            found.append(option)
+    return {"placements": found, "extensions": list(spec.family)}
+
+
+@router.post("/{game_id}/media/{kind}/import",
+             summary="Put a file from this machine into a slot",
+             dependencies=[requires(scopes.GAMES_WRITE), requires(scopes.FILESYSTEM_READ)])
+def import_media(game_id: str, kind: str, body: models.MediaImport) -> models.MediaWritten:
+    """Copy artwork in from anywhere on this machine the hub is allowed to read.
+
+    Both scopes, because it is both things: it reads a file off the disk and it writes
+    a game's media, and holding one of those is not permission for the other.
+
+    A copy, not a move. The file is as likely to be a download somebody wants to keep
+    as a stray, and deciding that for them is not this operation's job.
+    """
+    game = _game_or_404(game_id)
+    source = filesystem.within_roots(body.path)
+    if not source.is_file():
+        raise InvalidRequestError("That is not a file", details={"path": body.path})
+    return _into_slot(game, kind, body.table, source, game_id)
+
+
+@router.post("/{game_id}/media/{kind}/fetch",
+             summary="Take a file from an online catalog into a slot",
+             dependencies=[requires(scopes.GAMES_WRITE), requires(scopes.VPS_READ)])
+def fetch_media(game_id: str, kind: str, body: models.MediaFetch) -> models.MediaWritten:
+    """Download what an online catalog publishes and put it in the slot.
+
+    A source and an id, never a URL: the only links this follows are ones a source
+    produced for that id and kind, which is what stops it being a way to make the hub
+    fetch whatever a caller likes. The id does not have to be this game's - a mod, or a
+    game the matcher got wrong, is exactly when the art has to come from another entry.
+    """
+    import tempfile
+
+    from common.http_client import download_file
+    from common.online import asset_sources
+
+    from .mediasources import enabled_ids
+
+    game = _game_or_404(game_id)
+    offer = asset_sources.url_for(body.source, kind, body.vps_id, body.size,
+                                  enabled_ids())
+    if offer is None:
+        raise NotFoundError("That source has no such art",
+                            details={"source": body.source, "vps_id": body.vps_id,
+                                     "kind": kind, "size": body.size})
+    with tempfile.TemporaryDirectory() as staging:
+        staged = Path(staging) / Path(offer.url).name
+        try:
+            download_file(offer.url, staged)
+        except Exception as exc:
+            raise FeatureUnavailableError(
+                f"Could not reach {body.source}: {exc}") from exc
+        # Stamped with the source, so a later refresh can tell its own art from
+        # somebody else's and leave the latter alone.
+        return _into_slot(game, kind, body.table, staged, game_id, offer.source)
+
+
+@router.get("/{game_id}/media/{kind}/detail", summary="One shared slot, in detail",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_game_media_detail(game_id: str, kind: str) -> models.MediaDetail:
+    """What a curator needs about a slot and a frontend never asks for - the file's
+    size and shape, and every tier holding one, not just the tier that won."""
+    game = _game_or_404(game_id)
+    return _media_detail(game, kind, None, f"/api/v1/games/{game_id}/media")
+
+
+@router.get("/{game_id}/tables/{table_id}/media/{kind}/detail",
+            summary="One build's slot, in detail",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_table_media_detail(game_id: str, table_id: str, kind: str) -> models.MediaDetail:
+    game = _game_or_404(game_id)
+    return _media_detail(game, kind, _table_stem_or_404(game, table_id),
+                         f"/api/v1/games/{game_id}/tables/{table_id}/media")
 
 
 @router.post("/{game_id}/media/{kind}/retier",

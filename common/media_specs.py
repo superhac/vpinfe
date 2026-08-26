@@ -381,6 +381,44 @@ TIER_DEFAULT = "default"    # "wheel.png"-style fixed name; where vpinmediadb wr
 TIER_FALLBACK = "fallback"  # borrowed from fallback_kind; reported as "fallback:<kind>"
 
 
+def _finder(game_dir: Path, game_contents: set[str], medias_contents: set[str]):
+    """Case-insensitive lookup of one companion filename, medias/ before the root."""
+    medias_dir = game_dir / "medias"
+    in_medias = {name.lower(): name for name in medias_contents}
+    in_root = {name.lower(): name for name in game_contents}
+
+    def find(name: str) -> Path | None:
+        hit = in_medias.get(name.lower())
+        if hit is not None:
+            return medias_dir / hit
+        hit = in_root.get(name.lower())
+        return game_dir / hit if hit is not None else None
+
+    return find
+
+
+def _tier_names(spec, folder_name: str, playfield_variant: str,
+                table_stem: str | None, active: str | None
+                ) -> tuple[list[str], list[str], list[str], list[str]]:
+    """What each tier would call this kind's file - table, game, set, default.
+
+    One builder for the resolver and for the candidate listing both, so the panel can
+    never name a tier the resolver does not look in.
+    """
+    # Tier outranks token preference: a table-specific alias still beats a
+    # folder-level preferred token, or "most specific wins" would not hold.
+    tokens = ((spec.token,) + spec.alt_tokens) if spec.token else ()
+    table_names = ([f"{token} {table_stem}{ext}"
+                    for token in tokens for ext in spec.family] if table_stem else [])
+    folder_names = [f"{token} {folder_name}{ext}"
+                    for token in tokens for ext in spec.family]
+    fixed_names = [f"{spec.stem(playfield_variant)}{ext}" for ext in spec.family]
+    set_names = ([f"{spec.kind}s/{active}/{name}"
+                  for name in table_names + folder_names + fixed_names]
+                 if active and active != "logo" else [])
+    return table_names, folder_names, set_names, fixed_names
+
+
 def resolve_media_entries(game_dir: str | Path, game_contents: set[str],
                           medias_contents: set[str],
                           playfield_variant: str = "table",
@@ -412,44 +450,18 @@ def resolve_media_entries(game_dir: str | Path, game_contents: set[str],
     reserved set name "logo" prefers the logo kind in that middle slot.
     """
     game_dir = Path(game_dir)
-    medias_dir = game_dir / "medias"
-    in_medias = {name.lower(): name for name in medias_contents}
-    in_root = {name.lower(): name for name in game_contents}
     folder_name = game_dir.name
-
-    def find(name: str) -> Path | None:
-        hit = in_medias.get(name.lower())
-        if hit is not None:
-            return medias_dir / hit
-        hit = in_root.get(name.lower())
-        if hit is not None:
-            return game_dir / hit
-        return None
+    find = _finder(game_dir, game_contents, medias_contents)
 
     resolved: dict[str, MediaHit] = {}
     virtual_pending: dict[str, Path | None] = {}
     for spec in MEDIA_SPECS:
-        # Tier outranks token preference: a table-specific alias still beats a
-        # folder-level preferred token, or "most specific wins" would not hold.
-        tokens = ((spec.token,) + spec.alt_tokens) if spec.token else ()
-        # Tier 1 and tier 2 are built separately rather than as one list: merged, the
-        # winner's tier is unknowable, and "why is this file the one being used" is the
-        # question a curation view exists to answer.
-        table_names: list[str] = []
-        if table_stem:
-            table_names = [f"{token} {table_stem}{ext}"
-                           for token in tokens for ext in spec.family]
-        folder_names = [f"{token} {folder_name}{ext}"
-                        for token in tokens for ext in spec.family]
-        user_names = table_names + folder_names
-        fixed_stem = spec.stem(playfield_variant)
-        fixed_names = [f"{fixed_stem}{ext}" for ext in spec.family]
-
         active = (active_sets or {}).get(spec.kind) if spec.supports_sets else None
-        set_names: list[str] = []
-        if active and active != "logo":
-            set_names = [f"{spec.kind}s/{active}/{name}"
-                         for name in user_names + fixed_names]
+        # Each tier keeps its own list rather than one merged one: merged, the winner's
+        # tier is unknowable, and "why is this file the one being used" is the question
+        # a curation view exists to answer.
+        table_names, folder_names, set_names, fixed_names = _tier_names(
+            spec, folder_name, playfield_variant, table_stem, active)
 
         first = lambda names: next(  # noqa: E731
             (path for name in names if (path := find(name)) is not None), None)
@@ -492,6 +504,49 @@ def resolve_media_entries(game_dir: str | Path, game_contents: set[str],
                 resolved[spec.kind] = MediaHit(borrowed.path,
                                                f"{TIER_FALLBACK}:{spec.fallback_kind}")
     return resolved
+
+
+
+class MediaCandidate(NamedTuple):
+    """A file that could serve a kind, and the tier whose name it carries."""
+    path: Path
+    tier: str
+
+
+def media_candidates(game_dir: str | Path, game_contents: set[str],
+                     medias_contents: set[str], kind: str,
+                     playfield_variant: str = "table",
+                     table_stem: str | None = None,
+                     active_sets: dict[str, str] | None = None
+                     ) -> list[MediaCandidate]:
+    """Every tier that holds a file for this kind, most specific first.
+
+    The resolver reports the winner, which is the right answer for playing a game and
+    the wrong one for curating one: "I replaced the artwork and nothing changed" is
+    always a more specific file sitting above the one that was edited, and that is only
+    visible if the losers are listed too. Cross-kind fallbacks are left out on purpose -
+    a borrowed file belongs to the kind it was named for, not to this one.
+    """
+    game_dir = Path(game_dir)
+    spec = next((item for item in MEDIA_SPECS
+                 if item.kind == canonical_kind(kind)), None)
+    if spec is None:
+        return []
+    find = _finder(game_dir, game_contents, medias_contents)
+    active = (active_sets or {}).get(spec.kind) if spec.supports_sets else None
+    table_names, folder_names, set_names, fixed_names = _tier_names(
+        spec, game_dir.name, playfield_variant, table_stem, active)
+    tiers = [(TIER_TABLE, table_names), (TIER_GAME, folder_names),
+             (f"{TIER_SET}:{active}", set_names), (TIER_DEFAULT, fixed_names)]
+
+    found: list[MediaCandidate] = []
+    for tier, names in tiers:
+        # One per tier, not one per extension: within a tier the resolver stops at the
+        # first hit, so a second file there is not a candidate for anything.
+        path = next((hit for name in names if (hit := find(name)) is not None), None)
+        if path is not None:
+            found.append(MediaCandidate(path, tier))
+    return found
 
 
 def resolve_media_by_table(game_dir: str | Path, game_contents: set[str],
