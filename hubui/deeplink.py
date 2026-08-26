@@ -75,6 +75,9 @@ def apply(state: dict[str, Any], params: dict[str, str], *,
     if str(params.get("table") or "").strip():
         state["table"] = str(params["table"]).strip()
         state["subject"] = "table"
+    # Every rail's keys, not one rail's: an address can name a table section while the
+    # subject is still being worked out, and dropping it here would land on the default
+    # and quietly ignore half the link.
     if clean("section") in set(sections):
         state["section"] = clean("section")
     if clean("slot"):

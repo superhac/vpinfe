@@ -104,17 +104,31 @@ class Section:
     icon: str
     label: Callable[[dict[str, Any]], str]
     build: Callable[[dict[str, Any]], Any]
+    # What this section is about. The rail is what the selected subject can be asked,
+    # so a section that only makes sense for one of them says so and is simply absent
+    # for the other - rather than being present and answering a question nobody asked.
+    # Keys stay unique across every rail, so `section=` in an address means one thing.
+    subjects: frozenset[str] = frozenset({"game", "table"})
 
 
-def chosen_section(state: dict[str, Any]) -> str:
+def sections_for(subject: str) -> tuple[Section, ...]:
+    """The rail for this subject, in order."""
+    return tuple(item for item in SECTIONS if subject in item.subjects)
+
+
+def chosen_section(state: dict[str, Any], subject: str = "game") -> str:
     """The section this client is on, seeded once and kept across games.
 
     Held across games so stepping down a list does not re-pick a section at every stop,
-    which is what looking at one kind across a library needs.
+    which is what looking at one kind across a library needs. Held across subjects too
+    where it can be - but a section the new subject has no answer for is not one of
+    those, and then the rail's own default is where you land rather than wherever the
+    list happens to start.
     """
-    known = {section.key for section in SECTIONS}
+    rail = sections_for(subject)
+    known = {item.key for item in rail}
     if state.get("section") not in known:
-        state["section"] = DEFAULT_SECTION
+        state["section"] = DEFAULT_SECTION if DEFAULT_SECTION in known else rail[0].key
     return state["section"]
 
 
@@ -187,10 +201,12 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
                    "slot": state["slot"]}
 
         async def rebuild() -> None:
-            await build(container, title, library, game_id, state)
+            # The subject has to survive a rebuild. Left off, every rail click fell
+            # back to the game and the table's own sections vanished under the cursor.
+            await build(container, title, library, game_id, state, table_id)
 
         context["rebuild"] = rebuild
-        section = chosen_section(state)
+        section = chosen_section(state, "table" if table_id else "game")
         # Three regions, in reading order: which mode you are in, what that mode gives
         # you to browse, and what you are working on. The outline must not scroll with
         # what it points at, so this row is the fixed frame and only the body scrolls.
@@ -234,8 +250,9 @@ def _outline(context: dict[str, Any], chosen: str) -> None:
     partway across the range needs somebody to guess where. It picks the section now,
     always - the stylesheet decides whether that reads as a column or a strip.
     """
+    subject = "table" if context.get("lens") else "game"
     with ui.column().classes("shrink-0 h-full overflow-auto gap-0 pr-1 hub-outline"):
-        for section in SECTIONS:
+        for section in sections_for(subject):
             item = ui.row().classes("items-center gap-2 no-wrap hub-outline-item")
             if section.key == chosen:
                 item.classes(add="hub-outline-on")
@@ -558,22 +575,27 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                     .props("flat dense no-caps size=sm").classes("hub-action")
 
 
-async def _identity_block(context: dict[str, Any]) -> None:
-    """Who this is - which is a different set of facts depending on what is selected.
+async def _game_block(context: dict[str, Any]) -> None:
+    """What the game is - the machine, not the file.
 
-    The first view where the two subjects genuinely diverge. A game is a machine: the
-    VPS match, the theme, the year. A table is a file somebody built: its version, who
-    built it, which rom it drives. Showing the game's four rows while a table is
-    selected would answer a question nobody asked.
+    Shown whichever subject is selected. A table belongs to a game, and the VPS match,
+    the manufacturer and the theme are as true while you are looking at one of its files
+    as they are otherwise. Substituting one for the other, which this used to do, threw
+    away half of what somebody was looking at.
     """
-    game = context["game"]
+    with ui.column().classes("gap-0 hub-form"):
+        _identity_rows(context["game"])
+
+
+async def _table_block(context: dict[str, Any]) -> None:
+    """What this table is - the file somebody built, and what it needs to run."""
     chosen = next((t for t in context["tables"] if t.get("id") == context["lens"]),
                   None)
     with ui.column().classes("gap-0 hub-form"):
-        if chosen is not None:
-            _table_rows(chosen)
-        else:
-            _identity_rows(game)
+        if chosen is None:
+            ui.label("No table selected").classes("hub-help")
+            return
+        _table_rows(chosen)
 
 
 def _identity_rows(game: dict[str, Any]) -> None:
@@ -688,7 +710,13 @@ def _rows(target: Any, values: dict[str, str]) -> None:
 
 
 SECTIONS: tuple[Section, ...] = (
-    Section("details", "Details", "badge", lambda _: "Details", _identity_block),
+    # The game first, then the file: a table belongs to a game, and reading down is
+    # reading from the thing that contains to the thing contained.
+    Section("game_details", "Game details", "badge",
+            lambda _: "Game details", _game_block),
+    Section("table_details", "Table details", "description",
+            lambda _: "Table details", _table_block,
+            subjects=frozenset({"table"})),
     Section("media", "Media", "perm_media", _media_label, _media_block),
     # Layers, because what this section holds is the builds of one game stacked on each
     # other - the same icon the app nav gives Media, for the section that is media.
