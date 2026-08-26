@@ -71,6 +71,12 @@ _TOKENS = """
 
   /* What a draggable divider looks like, wherever one appears - a border colour here
      reads as an edge rather than a handle. */
+  /* Who owns a media file. Amber is the only warm colour in this palette, which is
+     what makes "one table's own" legible at a glance in a map of twenty tiles; the
+     folder-wide case is the norm and stays quiet. Both measured against the surfaces
+     they sit on: 11.1:1 and 5.9:1. */
+  --tier-table: #ffc061;
+  --tier-quiet: var(--ink-3);
   --resize-line: rgba(255, 255, 255, 0.28);
 
   /* The gutter a panel keeps from whatever it sits against. One value, so the browse
@@ -531,7 +537,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* Every control clears the pointer floor - what is fine for a mouse is mean on a
    trackpad. Dense rather than flat, because the toolbar tabs are `unelevated`. */
-.q-btn--dense, .hub-outline-item, .hub-lens-pill {
+.q-btn--dense, .hub-outline-item {
   min-height: var(--target-min);
 }
 .hub-mediatile-art {
@@ -669,20 +675,27 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* The lens: which build the sections under it answer for. Pills rather than a
    dropdown so the choice and the alternatives are both visible, truncated because a
    .vpx name runs long and the whole one is a hover away. */
-.hub-lens { flex-wrap: wrap; }
+/* In the panel header now, so it wraps to the width it is given rather than to the
+   section it used to sit in. */
+/* The file, under the game it belongs to. Cut from the front for the same reason the
+   picker was: what tells two tables of one game apart is at the end. */
+.hub-workbench-table {
+  font-size: var(--fs-caption); color: var(--tier-table);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.hub-lens-select { max-width: 340px; margin-top: 2px; }
+.hub-lens-select .q-field__native {
+  font-size: var(--fs-caption); color: var(--ink-2);
+}
+/* The floating label is the word "Showing"; at rest it sits inside the control, so
+   it needs to read as a label and not as the value. */
+.hub-lens-select .q-field__label {
+  font-size: var(--fs-caption); color: var(--ink-3);
+}
+
 .hub-lens-label {
   font-size: var(--fs-caption); text-transform: uppercase;
   letter-spacing: 0.06em; color: var(--ink-3);
-}
-.hub-lens-pill {
-  font-size: var(--fs-caption); color: var(--ink-2); border: 1px solid #3d2461; border-radius: 7px;
-  padding: 3px 9px; background: #150a2e; cursor: pointer; max-width: 150px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.hub-lens-pill:hover { border-color: #5f3a8c; }
-.hub-lens-on {
-  background: #251447; color: var(--ink); border-color: var(--accent);
-  box-shadow: 0 0 0 1px rgba(0, 217, 255, 0.35);
 }
 
 /* Body and dock, and one rule for where the dock goes. Under the body it is a
@@ -750,21 +763,6 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   .hub-dock { border-top: none; border-left: 1px solid #2b1a4d; }
 }
 
-/* Quasar keeps the queued-file list at full height while it is empty, which is 60px of
-   nothing in a panel that has none to spare. Uploads are automatic, so the list only
-   ever flashes. What is left reads as a strip that still takes a drop. */
-.hub-slot .q-uploader { min-height: 0; }
-.hub-slot .q-uploader__list:empty { display: none; }
-/* The transfer stats go with it: they are the uploader's own progress readout, and
-   what belongs on that strip is the name of the action. */
-.hub-slot .q-uploader__subtitle { display: none; }
-.hub-slot .q-uploader__title { font-size: var(--fs-body); font-weight: 500; color: var(--ink-2); }
-/* Quasar fills the header with the primary colour. Magenta reads as "selected" in this
-   panel, and replacing a file is not the loudest thing on it. */
-.hub-slot .q-uploader__header {
-  background: rgba(43,26,77,0.5); border: 1px solid #2b1a4d; border-radius: 6px;
-}
-
 /* The chosen section's heading when it has the window to itself - there is no
    expansion to click, so the name has to come from somewhere. */
 .hub-work-title {
@@ -776,42 +774,214 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    rather than stretching four fields across the window. */
 .hub-form { max-width: 420px; }
 
-/* The picked slot, beside the map or under it depending on room. */
+/* The picked slot. The art is the subject and takes the room; the facts under it are
+   a line each, which is what lets them be sentences rather than a table of fields. */
 .hub-slot {
   border: 1px solid #2b1a4d; border-radius: 8px;
   background: linear-gradient(180deg, rgba(26,15,53,0.75) 0%, rgba(15,7,34,0.75) 100%);
-}
-/* Docked under the map there is no height to spend: the preview goes small and beside
-   the controls rather than above them, which is what keeps the actions on screen. In
-   the column beside the map there is height and no width, so it stacks. */
-.hub-slot-body {
-  display: flex; gap: 10px; align-items: flex-start;
-  /* Without this the row is sized by its contents and simply overhangs the panel -
-     which is what put a horizontal scrollbar under a 212px dock. */
+  display: flex; flex-direction: column; min-height: 0;
+  /* Without this the column is sized by its contents and overhangs the panel, which
+     is what put a horizontal scrollbar under a narrow dock. */
   min-width: 0;
 }
-.hub-slot-preview { flex: 0 0 auto; max-width: 34%; }
-/* Audio has no frame to show, so it is the control itself and takes the width it is
-   given rather than being sized like a picture. */
-.hub-slot-preview audio { width: 100%; }
-.hub-slot-preview img, .hub-slot-preview video {
-  max-width: 100%; max-height: 130px; object-fit: contain;
+
+/* Takes what is left after the text, down to nothing - so in a short dock the art
+   shrinks and the sentences stay on screen, rather than the actions going below
+   the fold. */
+.hub-slot-art {
+  /* min-height:0 is what lets this shrink at all: a flex item's floor is its content
+     by default, so the picture would push the facts under it off the panel instead of
+     giving up room. The floor that keeps it looking like a picture is on the blank
+     state, which has no content to be sized by. */
+  flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex;
+  align-items: center; justify-content: center;
+  padding: 4px 0 8px; position: relative;
+}
+/* On the art, the way the map's tiles do it - so the same gesture works in both
+   places and the title row is a title again. */
+.hub-slot-zoom {
+  position: absolute; top: 6px; right: 2px; opacity: 0;
+  background: rgba(10, 5, 24, 0.7) !important; transition: opacity 120ms ease;
+}
+.hub-slot-art:hover .hub-slot-zoom { opacity: 1; }
+.hub-slot-art img, .hub-slot-art video {
+  max-width: 100%; max-height: 100%; object-fit: contain;
   border-radius: 4px; border: 1px solid #2b1a4d;
 }
-.hub-slot-details { flex: 1 1 auto; min-width: 0; }
-/* Too narrow for the preview beside the facts, so it goes above them. */
-@container dock (max-width: 320px) {
-  .hub-slot-body { display: block; }
-  .hub-slot-preview { max-width: 100%; margin-bottom: 8px; }
+/* Audio has no frame, so it is the control itself and takes the width it is given
+   rather than being sized like a picture. */
+.hub-slot-art audio { width: 100%; }
+
+/* An empty slot is still the shape of the thing that goes in it: the outline holds
+   the same room the art would, so picking an empty slot does not resize the panel. */
+.hub-slot-blank {
+  width: 100%; height: 100%; min-height: 90px;
+  border: 1px dashed #2b1a4d; border-radius: 6px;
+  justify-content: center; color: var(--ink-3);
+}
+.hub-slot-blank-icon { font-size: 34px; opacity: 0.55; }
+
+.hub-slot-facts { min-width: 0; }
+/* The filename is the one identifier a user recognises, so it reads first and whole -
+   these names are long and the interesting half is usually the tail. */
+.hub-slot-file {
+  font-size: var(--fs-body); color: var(--ink-2); word-break: break-all;
+  line-height: 1.35;
 }
 
+/* The losers. Set apart by a rule rather than a heading weight, because the point is
+   that they are the same slot - not a new section. */
+.hub-slot-others {
+  border-top: 1px solid var(--line-soft); margin-top: 6px; padding-top: 5px;
+  min-width: 0;
+}
+.hub-slot-others-title {
+  font-size: var(--fs-caption); text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--ink-3); padding-bottom: 2px;
+}
+/* Shrinks but does not grow: given the width of a full-window panel, a growing
+   label would put the filename and the phrase that explains it at opposite ends. */
+.hub-slot-other-file {
+  font-size: var(--fs-caption); color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  flex: 0 1 auto;
+}
+
+.hub-slot-actions { padding-top: 8px; }
+
+/* Room to judge the art when there is width to spare: at 240px a backglass in a
+   half-window panel is a thumbnail beside a lot of nothing, and judging art is what
+   this view is for. */
 @container (min-width: 900px) {
-  .hub-slot-body { display: block; }
-  .hub-slot-preview { max-width: 100%; margin-bottom: 8px; }
-  /* The one thing here with an appetite for width: at 240px a backglass in a half-window
-     panel is a thumbnail beside a lot of nothing, and judging art is what this view is
-     for. Capped against the viewport so the facts below it stay on screen. */
-  .hub-slot-preview img, .hub-slot-preview video { max-height: min(52vh, 520px); }
+  .hub-slot-art { min-height: 200px; }
+  .hub-slot-art img, .hub-slot-art video { max-height: min(52vh, 520px); }
+}
+
+/* --- who owns a file, wherever a file is shown -------------------------- */
+
+.hub-tier {
+  font-size: 11px; letter-spacing: 0.04em; line-height: 1.5;
+  padding: 0 6px; border-radius: 999px; border: 1px solid transparent;
+  white-space: nowrap; flex: 0 0 auto; align-self: center;
+}
+/* Filled, because this is the exception in a folder and the one worth spotting. */
+.hub-tier--table {
+  color: var(--tier-table); border-color: rgba(255, 192, 97, 0.45);
+  background: rgba(255, 192, 97, 0.12);
+}
+/* Outlined and quiet: the common case should be readable, not loud. */
+.hub-tier--game { color: var(--tier-quiet); border-color: var(--line); }
+/* Dashed, because nothing is actually here - something else is filling in. */
+.hub-tier--standin {
+  color: var(--tier-quiet); border-style: dashed; border-color: var(--line);
+}
+/* Nothing to own. Shown only where a row has to line up with others that carry one. */
+.hub-tier--missing { color: var(--ink-3); border-color: transparent; opacity: 0.5; }
+
+/* On a map tile the badge sits over the art, top left, opposite the enlarge. */
+.hub-mediatile-tier {
+  position: absolute; top: 3px; left: 3px;
+  background: rgba(10, 5, 24, 0.72);
+}
+.hub-mediatile-tier.hub-tier--table { background: rgba(40, 24, 8, 0.85); }
+
+/* --- where a slot's file can come from ---------------------------------- */
+
+.hub-sources-card {
+  width: min(840px, 94vw); max-height: 84vh; gap: 6px;
+  background: var(--surface-1); border: 1px solid var(--line);
+}
+/* A row that navigates rather than acting: the whole thing is the target, so it says
+   so on hover instead of hiding a click behind a label. */
+.hub-source-row--folder { cursor: pointer; }
+/* One line for a folder: these names carry the maker and year and run long, and four
+   wrapped lines of one row makes a list of them unreadable. */
+.hub-source-row--folder .hub-source-name {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  word-break: normal; min-width: 0;
+}
+.hub-source-trail { word-break: break-word; padding-bottom: 2px; }
+.hub-source-row--folder:hover {
+  border-color: var(--accent); background: rgba(0, 217, 255, 0.06);
+}
+/* The one decision every way in feeds, so it sits above them rather than inside one.
+   Set off by a rule, because it is a different kind of thing from a tab. */
+.hub-destination {
+  padding: 8px 4px 10px; border-bottom: 1px solid var(--line-soft);
+}
+.hub-destination-name {
+  padding-top: 4px; word-break: break-all; font-family: inherit;
+}
+/* Stated before the write, not only in the confirm afterwards - but kept quiet,
+   because replacing a file is the ordinary case and not a warning. */
+.hub-destination-conflict {
+  font-size: var(--fs-caption); color: var(--ink-2); padding-top: 2px;
+}
+
+.hub-sources-panels { min-height: 260px; }
+/* Quasar paints its own ground on panels and on the tab bar. Left alone it is a pale
+   slab in the middle of a dark dialog. */
+.hub-sources-panels, .hub-sources-panels .q-tab-panel,
+.hub-sources-card .q-tabs { background: transparent; }
+.hub-sources-panels .q-tab-panel { padding: 12px 4px; }
+/* Five sources have to fit without a scroll arrow: an arrow on a tab bar means the
+   ways of doing this are hidden behind a control nobody looks for. */
+.hub-sources-card .q-tab { color: var(--ink-3); padding: 4px 10px; min-width: 0; }
+.hub-sources-card .q-tab--active { color: var(--accent); }
+.hub-sources-card .q-tab__indicator { background: var(--accent); }
+/* Every tab is a list of candidates, and the dialog is capped - so the list scrolls
+   inside it rather than the dialog growing past the window. */
+.hub-source-list { max-height: 52vh; overflow-y: auto; }
+/* A folder is a line, not a picture: it has no thumbnail, so it should not reserve
+   the height of one. */
+.hub-source-row--folder { padding: 5px 8px; }
+.hub-source-row {
+  border: 1px solid var(--line-soft); border-radius: 6px; padding: 6px 8px;
+}
+.hub-source-name {
+  font-size: var(--fs-body); color: var(--ink-2); word-break: break-all;
+  line-height: 1.3;
+}
+.hub-source-meta { word-break: break-all; }
+/* Big enough to judge the art by, which is the question the row exists to answer.
+   A backglass at 64px told you a file was an image and nothing else. */
+.hub-source-thumb {
+  flex: 0 0 auto; width: 132px; height: 99px; border-radius: 4px;
+  border: 1px solid var(--line); overflow: hidden; background: var(--surface-0);
+  display: flex; align-items: center; justify-content: center;
+}
+.hub-source-thumb img, .hub-source-thumb video {
+  max-width: 100%; max-height: 100%; object-fit: contain;
+}
+/* A kind with no frame to show - audio, a rule sheet - keeps the same footprint, so a
+   list of them does not step in and out as it scrolls. */
+.hub-source-thumb-glyph { font-size: 32px; color: var(--ink-3); }
+
+/* What a file already does for this game, when it does something. Not a warning:
+   using it again is legitimate, and the tag is there so nobody has to wonder. */
+.hub-source-tag {
+  font-size: var(--fs-caption); color: var(--accent); opacity: 0.85;
+}
+
+/* Quasar keeps the queued-file list at full height while it is empty. Uploads are
+   automatic here, so the list only ever flashes. */
+.hub-sources-card .q-uploader__list:empty { display: none; }
+.hub-sources-card .q-uploader { width: 100%; max-height: 220px; }
+.hub-sources-card .q-uploader__title {
+  font-size: var(--fs-body); font-weight: 500; color: var(--ink-2);
+}
+.hub-sources-card .q-uploader__subtitle { display: none; }
+/* Quasar fills the header with the primary colour. Magenta reads as "selected"
+   everywhere else in this UI, and this is a drop target, not a selection. */
+/* Element-qualified and forced, because Quasar sets the header's fill from the
+   primary colour with the same specificity a class selector has. */
+.hub-sources-card div.q-uploader__header {
+  background: rgba(43,26,77,0.6) !important; border-bottom: 1px solid var(--line);
+}
+.hub-sources-card .q-uploader { background: var(--surface-2); border: 1px solid var(--line); }
+/* The dashed target is the affordance; without a border the strip reads as a heading. */
+.hub-sources-card .q-uploader__list {
+  background: transparent; border: 1px dashed var(--line); border-top: none;
 }
 
 /* Down, never across: in a column of modes a sideways bar means the items do not

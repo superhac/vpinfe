@@ -13,15 +13,19 @@ above it; the rest are the game's whatever build you are looking at.
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from nicegui import run, ui
 
 from common.media_specs import media_family
-from hubui import mediamap, mediaview
+from hubui import deeplink, mediamap, mediasource, mediaview, tiers
 from hubui.data import Library
+
+logger = logging.getLogger("vpinfe.hubui.workbench")
 
 # Which group a section belongs to, in the order they are shown.
 # Short, because the outline and the body would otherwise say the same three phrases
@@ -115,8 +119,13 @@ def chosen_section(state: dict[str, Any]) -> str:
 
 
 async def build(container: ui.column, title: ui.column, library: Library,
-                game_id: str | None, state: dict[str, Any] | None = None) -> None:
-    """Fill the panel, and the name that lives up in the panel's header row."""
+                game_id: str | None, state: dict[str, Any] | None = None,
+                table_id: str = "") -> None:
+    """Fill the panel, and the name that lives up in the panel's header row.
+
+    `table_id` is the subject when the Tables lens is what selected it. Empty means the
+    game itself, which is what the Games lens selects.
+    """
     state = state if state is not None else {}
     # Registered once: the height a drag settled on has to survive the rebuild that a
     # section change causes, and the panel is what remembers it.
@@ -134,11 +143,11 @@ async def build(container: ui.column, title: ui.column, library: Library,
     async with lock:
         if state["build_seq"] != mine:
             return
-        await _draw(container, title, library, game_id, state)
+        await _draw(container, title, library, game_id, state, table_id)
 
 
 async def _draw(container: ui.column, title: ui.column, library: Library,
-                game_id: str | None, state: dict[str, Any]) -> None:
+                game_id: str | None, state: dict[str, Any], table_id: str = "") -> None:
     container.clear()
     title.clear()
     with container:
@@ -149,13 +158,20 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
         if game is None:
             _title(title, "Game Details", "Not in this library")
             return
-        _title(title, game.get("name") or "",
-               f"{game.get('manufacturer') or '?'} {game.get('year') or ''}")
+        made = f"{game.get('manufacturer') or '?'} {game.get('year') or ''}"
+        _title(title, game.get("name") or "", made)
 
         # Off the loop, always. This is an HTTP call to our own process: made on the
         # event loop it blocks the server from answering it, the request times out
         # after 15s, and the browser reports the socket as lost rather than slow.
         tables = await run.io_bound(library.tables_for, game_id)
+        # Named under the game once a file is the subject, so the header says which of
+        # the four you are looking at without a control to read.
+        chosen = next((t for t in tables if t.get("id") == table_id), None)
+        if chosen is not None:
+            with title:
+                ui.label(_table_line(chosen)).classes("hub-workbench-table") \
+                    .tooltip(str(chosen.get("filename") or ""))
         # `lens` is a table id or "" for the folder's shared files, and it resets per
         # game because a table id means nothing to the next one. `redraws` is how the
         # lens reaches the sections that follow it without rebuilding the panel.
@@ -163,8 +179,11 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
         # change rebuilds and would otherwise forget it. Kept across games too, which
         # is what sweeping one kind down a list needs.
         state.setdefault("slot", {"kind": None})
+        # The lens is the grid's selection, not a control in here. Under Games that is
+        # the game and the panel answers for shared files; under Tables it is one file
+        # and the panel answers for that.
         context = {"library": library, "game": game, "game_id": game_id,
-                   "tables": tables, "state": state, "lens": "", "redraws": [],
+                   "tables": tables, "state": state, "lens": table_id, "redraws": [],
                    "slot": state["slot"]}
 
         async def rebuild() -> None:
@@ -232,6 +251,7 @@ def _outline(context: dict[str, Any], chosen: str) -> None:
 def _choose(context: dict[str, Any], key: str) -> None:
     """Make it the section on screen."""
     context["state"]["section"] = key
+    deeplink.sync(context["state"])
     asyncio.create_task(context["rebuild"]())
 
 
@@ -254,98 +274,36 @@ def _media_label(context: dict[str, Any]) -> str:
 
 
 def _media_scope(context: dict[str, Any]) -> str:
-    """Which build this section is answering for, in its own heading.
+    """The lens used to be repeated here. The header states it now, once."""
+    return ""
 
-    The only section a lens governs, so the only one that says so. Silent for a
-    one-table folder: nothing to scope to, and nobody meets the concept.
+
+def _table_line(table: dict[str, Any]) -> str:
+    """Which of a game's tables this is, in the fewest words that tell them apart.
+
+    Version and author rather than the filename: the names of one game's tables share
+    forty characters and differ in two, so a header wide enough for the game is never
+    wide enough for the file. The filename is a hover away, and it is the grid's job.
     """
-    tables = [table for table in context["tables"] if table.get("id")]
-    if len(tables) < 2:
-        return ""
-    if not context["lens"]:
-        return " \u00b7 shared"
-    return " \u00b7 " + _ellipsize(
-        _short_names(tables).get(context["lens"], context["lens"]), 24)
+    version = str(table.get("version") or "").strip()
+    authors = ", ".join(str(a) for a in (table.get("authors") or []))
+    said = " \u00b7 ".join(part for part in (version, authors[:28]) if part)
+    return said or _tail(str(table.get("filename") or ""), 40)
 
 
-def _ellipsize(name: str, limit: int) -> str:
-    """Shorten from the middle: trimming either end alone makes two builds read alike."""
-    if len(name) <= limit:
-        return name
-    head = (limit - 1) // 2
-    return name[:head] + "\u2026" + name[len(name) - (limit - 1 - head):]
+def _tail(name: str, limit: int) -> str:
+    """A filename cut from the front, keeping the end.
 
-
-def _short_names(tables: list[dict[str, Any]]) -> dict[str, str]:
-    """What tells these builds apart, which is rarely the front of the name.
-
-    Files in one folder share a long head - game, maker, year - so trimming from the
-    right leaves every pill reading the same. The shared head comes off instead.
+    The tables in one game share a long prefix and differ at the tail - "(Williams
+    1993)12" against "(Williams 1993)lw" - so trimming the end trims the only half
+    that tells them apart.
     """
-    stems = {}
-    for table in tables:
-        name = table.get("filename") or table["id"]
-        stems[table["id"]] = name[:-4] if name.lower().endswith(".vpx") else name
-    values = list(stems.values())
-    head = values[0]
-    for value in values[1:]:
-        while head and not value.startswith(head):
-            head = head[:-1]
-    # Back to a word boundary, so no name starts mid-word.
-    head = head[:max(head.rfind(" "), head.rfind(")"), head.rfind("-")) + 1]
-    return {tid: (stem[len(head):].strip(" -_") or stem) for tid, stem in stems.items()}
-
-
-def _lens(context: dict[str, Any]) -> None:
-    """Which build the sections below answer for.
-
-    Only where a folder holds more than one. One table means one answer, so the
-    control never appears and nobody meets the concept - the common case by a long way.
-    """
-    tables = [table for table in context["tables"] if table.get("id")]
-    if len(tables) < 2:
-        return
-
-    pills: dict[str, ui.element] = {}
-    short = _short_names(tables)
-
-    async def pick(table_id: str) -> None:
-        # The picked slot survives the switch. Looking at the same kind across two
-        # builds is the reason to have a lens at all; closing the panel would make
-        # the comparison two clicks instead of none.
-        context["lens"] = table_id
-        for key, pill in pills.items():
-            pill.classes(add="hub-lens-on") if key == table_id \
-                else pill.classes(remove="hub-lens-on")
-        note.text = _lens_note(table_id)
-        for redraw in context["redraws"]:
-            await redraw()
-
-    with ui.row().classes("items-center gap-1 w-full px-3 pt-1 hub-lens"):
-        ui.label("Viewing as").classes("hub-lens-label")
-        for table_id in [""] + [t["id"] for t in tables]:
-            pill = ui.label(_ellipsize(short.get(table_id, "Shared"), 18)) \
-                .classes("hub-lens-pill")
-            if table_id == context["lens"]:
-                pill.classes(add="hub-lens-on")
-            pill.on("click", lambda tid=table_id: pick(tid))
-            # Still truncated where a tail is long; the whole filename is a hover away.
-            pill.tooltip(next((t.get("filename") or t["id"] for t in tables
-                               if t["id"] == table_id), "Every table in this game"))
-            pills[table_id] = pill
-    # After the control, not before it: this is the consequence of the pill you picked.
-    note = ui.label(_lens_note(context["lens"])).classes("hub-help px-3 pb-1")
-
-
-def _lens_note(table_id: str) -> str:
-    return ("Named for this .vpx. Only this table uses them." if table_id else
-            "Named for the folder. Every table in this game uses them.")
+    stem = name[:-4] if name.lower().endswith(".vpx") else name
+    return stem if len(stem) <= limit else "\u2026" + stem[-(limit - 1):]
 
 
 async def _media_block(context: dict[str, Any]) -> None:
     """The map, and whatever tile is picked out of it."""
-    # Inside the section it scopes, so there is no question what it applies to.
-    _lens(context)
     library, game_id = context["library"], context["game_id"]
     holder = ui.column().classes("w-full gap-0")
 
@@ -360,10 +318,20 @@ async def _media_block(context: dict[str, Any]) -> None:
         dock = context.get("dock")
         if dock is not None:
             dock.clear()
+            # Kept for the sources dialog, which says whether a file it is offering
+            # is already serving one of this game's slots.
+            context["media"] = entries
             kind = context["slot"]["kind"]
+            detail = None
+            if kind and kind in entries:
+                try:
+                    detail = await run.io_bound(library.media_detail, game_id,
+                                                table_id or None, kind)
+                except Exception:
+                    logger.debug("No detail for %s", kind, exc_info=True)
             with dock:
                 if kind and kind in entries:
-                    _slot(context, kind, entries[kind], draw)
+                    _slot(context, kind, entries[kind], detail, draw)
                 else:
                     # The region is reserved either way, so it says what it is for
                     # rather than sitting there as an empty box. Named for what the
@@ -372,8 +340,8 @@ async def _media_block(context: dict[str, Any]) -> None:
                     # "beside" either: this region moves depending on the width.
                     with ui.column().classes("hub-dock-empty items-center gap-1"):
                         ui.label("No media chosen").classes("hub-dock-empty-title")
-                        ui.label("Choose any media to see where it came from, "
-                                 "and to replace it.").classes("hub-help")
+                        ui.label("Select any media item to manage it") \
+                            .classes("hub-help")
 
     context["redraws"].append(draw)
     await draw()
@@ -408,39 +376,55 @@ def _pick_slot(context: dict[str, Any], kind: str, draw) -> None:
     """Clicking the picked tile again puts the panel away."""
     slot = context["slot"]
     slot["kind"] = None if slot["kind"] == kind else kind
+    deeplink.sync(context["state"])
     asyncio.create_task(draw())
 
 
-def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any], draw) -> None:
-    """One slot: what is there, how it got to be the one used, and what to do about it.
+# An empty slot still shows what shape of thing belongs in it. Not the map's glyph
+# rule, which returns nothing for a kind that normally has a frame to show - here
+# there is no frame, which is the point.
+_BLANK_ICON = {"image": "image", "video": "movie",
+               "audio": "graphic_eq", "doc": "description"}
 
-    The three facts are the whole point of the surface - does it resolve, how specific
-    is the match, where did the file come from - and this is where they stop being a
-    tooltip and become something you can act on.
+
+def _spec(detail: dict[str, Any]) -> str:
+    """Size, shape and date on one line - what tells two files of a kind apart when
+    both look right in a thumbnail."""
+    parts = []
+    if detail.get("width") and detail.get("height"):
+        parts.append(f"{detail['width']} \u00d7 {detail['height']}")
+    name = str(detail.get("file") or "")
+    if "." in name:
+        parts.append(name.rsplit(".", 1)[1].upper())
+    size = mediasource._size(detail.get("size_bytes"))
+    if size:
+        parts.append(size)
+    stamp = str(detail.get("modified") or "")
+    if stamp:
+        try:
+            parts.append(datetime.fromisoformat(stamp).astimezone().strftime("%d %b %Y"))
+        except ValueError:
+            pass
+    return " \u00b7 ".join(parts)
+
+
+def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
+          detail: dict[str, Any] | None, draw) -> None:
+    """One slot: the art at the size of the room, and what there is to know about it.
+
+    The picture is the subject. Everything else is one line each underneath, because
+    the questions this panel answers - what is this, why this one, what else is here -
+    are each a sentence, and a table of fields makes the reader do the joining.
     """
     library, game_id = context["library"], context["game_id"]
     table_id = context["lens"]
     label = mediamap.LABELS.get(kind, kind)
-
-    async def place(event: Any) -> None:
-        name = event.file.name
-        try:
-            going = await run.io_bound(library.displaced_by, game_id, table_id,
-                                       kind, name)
-        except Exception as exc:
-            ui.notify(f"Could not check that slot: {exc}", type="negative")
-            return
-        if going and not await _confirm_replace(label, going):
-            return
-
-        data = await event.file.read()
-        try:
-            await run.io_bound(library.place_media, game_id, table_id, kind, name, data)
-        except Exception as exc:
-            ui.notify(f"Could not place it: {exc}", type="negative")
-            return
-        ui.notify(f"{label} placed", type="positive")
-        await draw()
+    # The map already knows the slot; detail only adds to it. A failed read should
+    # cost the spec line, never the panel.
+    detail = detail or {}
+    present = bool(entry.get("present"))
+    file_name = detail.get("file") or entry.get("file") or ""
+    also_here = list(detail.get("tiers") or [])
 
     async def remove() -> None:
         try:
@@ -453,77 +437,90 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any], draw) -> No
                   "Nothing to remove at this level", type="positive" if gone else "info")
         await draw()
 
-    # Widening only, and only from the build you are looking at. The other direction -
-    # a shared file becoming one build's - reads as a move but takes the file away from
-    # every other table in the folder, and in the shared lens there is no build in view
+    # Widening only, and only from the table you are looking at. The other direction -
+    # a shared file becoming one table's - reads as a move but takes the file away from
+    # every other table in the folder, and in the shared lens there is no table in view
     # to say which one would get it. That one needs a decision, not a default.
-    move_label = ""
-    if (entry.get("present") and table_id
-            and str(entry.get("via") or "") == "table"):
-        move_label = "Share with every table"
+    can_share = present and table_id and str(entry.get("via") or "") == "table"
 
-    async def retier() -> None:
-        """The build's own file takes the folder's name, so every table resolves it."""
+    async def share() -> None:
+        """The table's own file takes the folder's name, so every table resolves it."""
         try:
             await run.io_bound(library.retier_media, game_id, kind, table_id, "")
         except Exception as exc:
             ui.notify(f"Could not move it: {exc}", type="negative")
             return
-        ui.notify("Shared with every table", type="positive")
+        ui.notify("Now used by all tables in this game", type="positive")
         for redraw in context["redraws"]:
             await redraw()
 
-    # Preview and details are separate boxes so one rule can put them side by side.
-    # Docked under the map there is height for neither a tall preview nor a tall
-    # column of controls, and stacking them is what put the actions below the fold.
     with ui.column().classes("w-full gap-1 hub-slot p-2"):
         ui.label(label).classes("hub-card-title")
-        with ui.element("div").classes("hub-slot-body"):
-            with ui.element("div").classes("hub-slot-preview"):
-                if entry.get("present"):
-                    src = f"{_prefix(game_id, table_id)}/{kind}"
-                    _preview(src, kind, label)
-                    # Images only: a video here keeps its native controls, and those
-                    # already carry a full-screen button of their own.
-                    if media_family(kind) == "image":
-                        ui.button("Enlarge", icon="open_in_full",
-                                  on_click=lambda s=src, k=kind, la=label:
-                                      mediaview.open_viewer(s, k, la)) \
-                            .props("flat dense no-caps size=sm")
-                else:
-                    ui.label(f"No {label.lower()} for this "
-                             f"{'build' if table_id else 'game'}.").classes("hub-help")
-            with ui.column().classes("hub-slot-details gap-1"):
-                if entry.get("present"):
-                    _rows(ui, {"File": entry.get("file") or "-",
-                               "Resolved": entry.get("via") or "-",
-                               "Origin": entry.get("origin") or "-"})
-                # Labelled, because an unlabelled uploader falls back to Quasar's byte
-                # counter - "0.0B / 0.00%" where the name of the action should be.
-                ui.upload(on_upload=place, auto_upload=True, max_files=1,
-                          label="Replace" if entry.get("present") else "Add a file") \
-                    .props("flat dense").classes("w-full")
-                ui.label("Placed here, it is named for "
-                         + ("this .vpx." if table_id else "the folder.")) \
+
+        with ui.element("div").classes("hub-slot-art"):
+            if present:
+                src = f"{_prefix(game_id, table_id)}/{kind}"
+                _preview(src, kind, label)
+                # On the picture, where the map puts it. Images only: a video keeps its
+                # native controls here, and those carry a full-screen button already.
+                if media_family(kind) == "image":
+                    ui.button(icon="open_in_full",
+                              on_click=lambda s=src, k=kind, la=label:
+                                  mediaview.open_viewer(s, k, la)) \
+                        .props("flat dense round size=sm") \
+                        .classes("hub-slot-zoom").tooltip("Enlarge")
+            else:
+                with ui.column().classes("hub-slot-blank items-center gap-1"):
+                    ui.icon(_BLANK_ICON.get(media_family(kind), "help_outline")) \
+                        .classes("hub-slot-blank-icon")
+
+        with ui.column().classes("w-full gap-0 hub-slot-facts"):
+            if present:
+                with ui.row().classes("items-start gap-2 w-full no-wrap"):
+                    ui.label(file_name).classes("hub-slot-file grow min-w-0")
+                    tiers.badge(detail.get("via") or entry.get("via"))
+                spec = _spec(detail)
+                if spec:
+                    ui.label(spec).classes("hub-help")
+                ui.label(tiers.sentence(detail.get("via") or entry.get("via"),
+                                        viewing_a_table=bool(table_id))) \
                     .classes("hub-help")
-                with ui.row().classes("items-center gap-2 w-full").style("flex-wrap:wrap"):
-                    if entry.get("present"):
-                        ui.button("Remove", on_click=remove) \
-                            .props("flat dense no-caps size=sm") \
-                            .classes("hub-action hub-action--danger")
-                    if move_label:
-                        ui.button(move_label, on_click=retier) \
-                            .props("flat dense no-caps size=sm").classes("hub-action")
-                    # Disabled rather than omitted, so what the slot is for is legible
-                    # before either exists. Both parked in HUBUI section 10.
-                    ui.button("Search sources").props("flat dense no-caps size=sm") \
-                        .classes("hub-action").set_enabled(False)
-                    ui.button("Capture").props("flat dense no-caps size=sm") \
-                        .classes("hub-action").set_enabled(False)
-                # A disabled control with no reason reads as broken. One line, because
-                # a Quasar button that is disabled takes no pointer events and so can
-                # carry no tooltip.
-                ui.label("Sources and capture are not built yet.").classes("hub-help")
+                origin = str(detail.get("origin") or entry.get("origin") or "")
+                # "unknown" is the ledger's honest answer and a useless line to read:
+                # most files predate the ledger, so it would be on nearly every slot.
+                if origin and origin not in ("unknown", "user"):
+                    ui.label(f"Came from {origin}").classes("hub-help")
+            else:
+                ui.label(f"No {label.lower()} for this "
+                         f"{'table' if table_id else 'game'}").classes("hub-help")
+
+        # Only when there is more than one, because with one the sentence above has
+        # already said where it is. Two is the case worth a list: the second file is
+        # why an edit appeared to do nothing.
+        if len(also_here) > 1:
+            with ui.column().classes("w-full gap-0 hub-slot-others"):
+                ui.label("Also in this folder").classes("hub-slot-others-title")
+                for item in also_here:
+                    if item.get("wins"):
+                        continue
+                    with ui.row().classes("items-center gap-2 w-full no-wrap"):
+                        ui.label(item.get("file") or "").classes("hub-slot-other-file")
+                        tiers.badge(item.get("tier"))
+
+        with ui.row().classes("items-center gap-2 w-full hub-slot-actions") \
+                .style("flex-wrap:wrap"):
+            ui.button("Replace" if present else "Add",
+                      icon="add_photo_alternate",
+                      on_click=lambda: mediasource.open_sources(context, kind, label,
+                                                                draw)) \
+                .props("flat dense no-caps size=sm").classes("hub-action")
+            if present:
+                ui.button("Remove", on_click=remove) \
+                    .props("flat dense no-caps size=sm") \
+                    .classes("hub-action hub-action--danger")
+            if can_share:
+                ui.button("Give to all tables", on_click=share) \
+                    .props("flat dense no-caps size=sm").classes("hub-action")
 
 
 async def _identity_block(context: dict[str, Any]) -> None:
@@ -546,25 +543,6 @@ def _tables_label(context: dict[str, Any]) -> str:
     gone = [table for table in tables if table.get("absent_since")]
     label = f"Tables ({len(tables)})"
     return label + (f" - {len(gone)} not on disk" if gone else "")
-
-
-async def _confirm_replace(label: str, going: list[str]) -> bool:
-    """Name what a drop would replace, and wait for a yes.
-
-    The files are listed rather than counted because the surprising case is the one a
-    count hides: a whole family goes at this tier, so a .mp4 dropped over a .png takes
-    the .png with it and the user never named that file.
-    """
-    with ui.dialog() as confirm, ui.card():
-        ui.label(f"Replace the {label.lower()} that is there?").classes("hub-card-title")
-        for path in going:
-            ui.label(path).classes("text-xs opacity-70 break-all")
-        ui.label("Replaced files are deleted, not kept.").classes("text-xs")
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button("Cancel", on_click=lambda: confirm.submit(False)).props("flat")
-            ui.button("Replace",
-                      on_click=lambda: confirm.submit(True)).props("color=negative")
-    return bool(await confirm)
 
 
 async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:

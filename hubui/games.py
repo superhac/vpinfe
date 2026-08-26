@@ -300,6 +300,95 @@ def build(rows: list[dict[str, Any]], kinds: list[str],
         lambda: table.run_grid_method("setGridOption", "quickFilterText", search.value or ""))
 
 
+# One row per launchable file. The game's name leads, because a filename alone does not
+# say what the thing is - and it is pinned, because scrolling right to see which game a
+# row belongs to is the failure this lens exists to fix.
+TABLE_COLUMNS = [
+    grid.column("game", "Game", 240, pinned="left"),
+    grid.column("version", "Version", 100),
+    grid.column("author", "Author", 160),
+    grid.column("rom", "ROM", 140),
+    grid.column("app", "App", 90),
+    grid.column("status", "Status", 110),
+    # Last and widest: it is the identifier of record, and the part that tells two
+    # tables of one game apart sits at its end.
+    grid.column("filename", "File", 420),
+]
+
+TABLE_LENSES: dict[str, list[str]] = {
+    "Identity": ["game", "version", "author", "filename"],
+    "Files": ["game", "filename", "app", "status"],
+    "Play": ["game", "rom", "app", "status"],
+}
+
+
+def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The API's tables, flattened for a grid.
+
+    `status` folds three flags into the one word a reader wants: a table is the game's
+    default, or it is hidden from the frontend, or its file is gone. Most are none of
+    those and say nothing, which is what keeps the column scannable.
+    """
+    built = []
+    for row in rows:
+        if not row.get("available"):
+            status = "Missing"
+        elif row.get("hidden"):
+            status = "Hidden"
+        elif row.get("default"):
+            status = "Default"
+        else:
+            status = ""
+        built.append({**row, "status": status,
+                      "author": ", ".join(row.get("authors") or [])})
+    return built
+
+
+def build_tables(rows: list[dict[str, Any]], on_select: Callable[[dict | None], None],
+                 state: dict[str, Any] | None = None,
+                 rerender: Callable[[], None] | None = None) -> None:
+    """The library seen by launchable file rather than by folder.
+
+    Its own builder rather than a branch inside the games grid: the columns, the lenses
+    and the row identity are all different, and the two sharing one function would be a
+    long argument about which subject each line is for.
+    """
+    state = state if state is not None else {}
+    built = table_rows(rows)
+    fields = [definition["field"] for definition in TABLE_COLUMNS]
+
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
+        _subject_select(state, rerender, state.get("subject", "table"))
+        search = ui.input(placeholder="Search tables") \
+            .props("dense outlined clearable").classes("w-64")
+        lens = ui.toggle(list(TABLE_LENSES), value="Identity") \
+            .props("dense no-caps unelevated")
+        ui.space()
+        ui.label(f"{len(built)} tables in {len({r['game_id'] for r in built})} games") \
+            .classes("text-xs hub-label")
+
+    # The workbench follows the focused row, the same way it does under Games - focus
+    # rather than selection, so arrowing down the list is a sweep and the checkboxes
+    # stay whatever a bulk action left them.
+    by_id = {row["id"]: row for row in built}
+    ui.on("hub_row_focus", lambda event: on_select(by_id.get(str(event.args))))
+
+    with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
+        table = grid.build(TABLE_COLUMNS, built, f"{SCOPE}.tables", on_select)
+
+    def apply_lens() -> None:
+        wanted = TABLE_LENSES.get(lens.value or "", fields)
+        table.run_grid_method("setColumnsVisible", wanted, True)
+        table.run_grid_method("setColumnsVisible",
+                              [f for f in fields if f not in wanted], False)
+
+    lens.on_value_change(apply_lens)
+    search.on_value_change(
+        lambda: table.run_grid_method("setGridOption", "quickFilterText",
+                                      search.value or ""))
+    apply_lens()
+
+
 def _subject_stub(subject: str) -> None:
     with ui.column().classes("w-full items-start gap-2 p-6"):
         ui.label(SUBJECTS.get(subject, subject)).classes("hub-card-title")

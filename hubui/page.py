@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from nicegui import run, ui
 
+from hubui import deeplink, games, sections, theme, workbench
 from hubui import devices as devices_page
-from hubui import games, sections, theme, workbench
 from hubui import settings as settings_page
 from hubui.api import HubClient
 from hubui.data import Library
@@ -81,7 +82,9 @@ def _read_hub() -> dict[str, Any]:
 
 
 @ui.page("/hub")
-async def hub_page() -> None:
+async def hub_page(view: str = "", game: str = "", table: str = "", section: str = "",
+                   slot: str = "", settings: str = "") -> None:
+    """The hub. Query parameters say where in it, so a place can be linked to."""
     # The palette and Quasar's dark mode are two separate switches. The toggle button
     # that used to own the second one is gone, so it is set here - without it the shell
     # renders light while the tokens stay dark.
@@ -114,6 +117,12 @@ async def hub_page() -> None:
     state: dict[str, Any] = {"view": "overview", "device": None, "mini": False,
                              "workbench": True, "settings_page": "general",
                              "subject": "game"}
+    # Before anything is built, so the first render is the place asked for rather than
+    # the front door followed by a jump.
+    deeplink.apply(state, {"view": view, "game": game, "table": table,
+                           "section": section, "slot": slot, "settings": settings},
+                   views=[key for key, _label, _icon in NAV_ITEMS],
+                   sections=[item.key for item in workbench.SECTIONS])
 
     labels: list[ui.label] = []
     destinations: dict[str, ui.row] = {}
@@ -145,16 +154,20 @@ async def hub_page() -> None:
         # (`manager-nav-header`). It is the panel's own chrome, so it costs nothing that
         # was not already the panel, and nothing floats over the grid.
         nav_header = ui.row() \
-            .classes("items-center gap-3 cursor-pointer w-full hub-nav-header") \
-            .on("click", lambda: toggle_mini())
+            .classes("items-center gap-3 w-full hub-nav-header")
         with nav_header:
-            nav_icon = ui.icon("menu_open", size="24px").classes("opacity-70")
+            # The icon is the control, not the bar it sits in. A whole clickable header
+            # collapses the panel when someone meant to click the name in it, and hangs
+            # the tooltip off the middle of a wide row where it points at nothing.
+            nav_icon = ui.icon("menu_open", size="24px") \
+                .classes("opacity-70 cursor-pointer hub-panel-toggle") \
+                .on("click", lambda: toggle_mini())
+            nav_icon.tooltip("Show or hide the navigation")
             # Larger and heavier than a nav item, like HA's own title. Row height may
             # differ from the items below - that is fine and expected; what has to stay
             # aligned is the icon column, which does not depend on the label's size.
             labels.append(ui.label("VPinFE Hub")
                           .classes("whitespace-nowrap hub-nav-title"))
-        nav_header.tooltip("Show or hide the navigation")
         for key, label, icon in NAV_ITEMS:
             _nav_item(key, label, icon, state, lambda: render(), labels,
                       destinations)
@@ -184,10 +197,9 @@ async def hub_page() -> None:
         # under it - same class list, same height and same gutter as the nav's header,
         # so neither the icon's inset from the edge nor its height can drift.
         workbench_header = ui.row() \
-            .classes("items-center gap-2 px-3 cursor-pointer w-full justify-between "
+            .classes("items-center gap-2 px-3 w-full justify-between "
                      "no-wrap hub-panel-header") \
-            .style(f"min-height:{HEADER_H_PX}px") \
-            .on("click", lambda: show_workbench(not state["workbench"]))
+            .style(f"min-height:{HEADER_H_PX}px")
         with workbench_header:
             # min-w-0 lets the column shrink below its content so the title truncates
             # instead of pushing the toggle onto a second line; shrink-0 keeps the
@@ -202,20 +214,18 @@ async def hub_page() -> None:
                     # Stepping the list from in here, so a sweep does not need the grid
                     # on screen - which is the point of Full.
                     ui.button(icon="keyboard_arrow_up", on_click=lambda: _step(-1)) \
-                        .props("flat dense round size=sm") \
-                        .on("click.stop", lambda: None).tooltip("Previous game")
+                        .props("flat dense round size=sm").tooltip("Previous game")
                     ui.button(icon="keyboard_arrow_down", on_click=lambda: _step(1)) \
-                        .props("flat dense round size=sm") \
-                        .on("click.stop", lambda: None).tooltip("Next game")
+                        .props("flat dense round size=sm").tooltip("Next game")
                     full_icon = ui.button(icon="open_in_full",
                                           on_click=lambda: toggle_full()) \
                         .props("flat dense round size=sm") \
-                        .on("click.stop", lambda: None) \
                         .tooltip("Give the workbench the whole window")
                 # Outside that row: it is the only way back once the rest have gone.
                 workbench_icon = ui.icon("menu_open", size="24px") \
-                    .classes("opacity-70 shrink-0")
-        workbench_header.tooltip("Show or hide the workbench")
+                    .classes("opacity-70 shrink-0 cursor-pointer hub-panel-toggle") \
+                    .on("click", lambda: show_workbench(not state["workbench"]))
+                workbench_icon.tooltip("Show or hide the workbench")
         # The scrolling belongs to the workbench's body column now, so the outline
         # beside it can stay put while that scrolls.
         panel = ui.column().classes("w-full gap-0 grow min-h-0 overflow-hidden")
@@ -305,17 +315,29 @@ async def hub_page() -> None:
     splitter.on_value_change(remember_width)
 
     async def show_game(row: dict | None) -> None:
+        """What the grid has selected is what the workbench is about.
+
+        Both lenses land here, and which one is showing decides what a row means: under
+        Games a row is a folder, under Tables it is one file inside one. That is the
+        whole of the subject question - there is no second control to keep in step,
+        because the list you are looking at is the control.
+        """
         # A selection is the only thing that opens the pane. Arriving at a section does
         # not, because there is nothing selected yet to be about.
         if row and not state["workbench"]:
             show_workbench(True)
-        state["game"] = (row or {}).get("id")
-        await workbench.build(panel, workbench_title, library, state["game"], state)
+        by_table = state.get("subject") == "table"
+        state["game"] = (row or {}).get("game_id" if by_table else "id")
+        state["table"] = (row or {}).get("id") if by_table else ""
+        await workbench.build(panel, workbench_title, library, state["game"], state,
+                              state["table"])
+        deeplink.sync(state)
 
     def open_device(device) -> None:
         state["view"] = "devices"
         state["device"] = device
         render()
+        deeplink.sync(state)
 
     def clear_workbench() -> None:
         """Empty the pane. Sync, so render() can call it without awaiting a rebuild."""
@@ -376,8 +398,11 @@ async def hub_page() -> None:
             if view == "overview":
                 sections.overview(library, devices, discovery, go)
             elif view == "games":
-                games.build(library.game_rows(), library.kinds_present(), show_game,
-                            state, render)
+                if state.get("subject") == "table":
+                    games.build_tables(library.table_rows(), show_game, state, redraw)
+                else:
+                    games.build(library.game_rows(), library.kinds_present(), show_game,
+                                state, redraw)
             elif view == "collections":
                 sections.collections(library)
             elif view == "media":
@@ -399,12 +424,40 @@ async def hub_page() -> None:
             else:
                 _placeholder(view)
 
+    def redraw() -> None:
+        """Render, first reading anything the new subject needs.
+
+        The by-file lens is a second walk of every folder, so it is read when somebody
+        asks for it rather than at startup - and off the loop, because render() runs on
+        it and the client refuses an HTTP call there.
+        """
+        if state.get("subject") == "table" and not library.has_table_rows():
+            async def read_then_draw() -> None:
+                await run.io_bound(library.load_tables)
+                render()
+            asyncio.create_task(read_then_draw())
+            return
+        render()
+
     def go(view: str) -> None:
         state["view"] = view
         render()
+        deeplink.sync(state)
 
+    # An address naming a game means the pane it opens, not just the section. Restored
+    # after the shell exists, because that is what show_game builds into - and through
+    # show_game rather than around it, so a link lands on exactly the state a click
+    # would have produced.
+    landing = state.get("game") if state["view"] == "games" else None
+    if state.get("subject") == "table":
+        await run.io_bound(library.load_tables)
     await workbench.build(panel, workbench_title, library, None, state)
     render()
+    if landing:
+        # Shaped as the lens in play expects it, so the one handler reads it the same
+        # way whether it came from a click or from the address bar.
+        await show_game({"game_id": landing, "id": state.get("table") or landing}
+                        if state.get("subject") == "table" else {"id": landing})
 
 
 def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
@@ -413,6 +466,7 @@ def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
         state["view"] = key
         state["device"] = None
         render()
+        deeplink.sync(state)
 
     row = ui.row().classes("items-center gap-3 cursor-pointer w-full hub-nav-row") \
         .on("click", choose)

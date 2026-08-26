@@ -14,6 +14,8 @@ from collections.abc import Callable
 
 from nicegui import ui
 
+from hubui import deeplink
+
 # group -> (key, label) - VPinFE first, because that is the thing being configured and
 # everything else is either downstream of it or somebody else's software.
 # An object's settings live with the object. What is left here is what belongs to the
@@ -133,6 +135,7 @@ def build(state: dict, rerender: Callable[[], None],
                     if key == current:
                         row.classes(add="hub-index-on")
                     row.on("click", lambda k=key: (state.update(settings_page=k),
+                                                   deeplink.sync(state),
                                                    rerender()))
             ui.label("Managed elsewhere").classes("hub-group")
             for label, section, why in ELSEWHERE:

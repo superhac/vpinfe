@@ -16,7 +16,7 @@ from typing import Any
 from nicegui import ui
 
 from common.media_specs import media_family
-from hubui import mediaview
+from hubui import mediaview, tiers
 
 # Top of the cabinet down to the floor. Kinds on the same row are the same screen shown
 # two ways - a still and its video - and share a row so the pair reads as one slot.
@@ -154,6 +154,11 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
                 ui.html(_TILE_VIDEO.format(src=f"{prefix}/{kind}"))
             else:
                 ui.html(f'<img src="{prefix}/{kind}" loading="lazy">')
+            # Only where a file is genuinely a table's own. Marking the other twenty
+            # tiles "All tables" would put a badge on every one of them and make the
+            # map harder to read than it is without any.
+            if state != "missing" and tiers.key_of(entry.get("via")) != tiers.GAME:
+                tiers.badge(entry.get("via"), extra="hub-mediatile-tier")
             if state != "missing" and media_family(kind) in ("image", "video"):
                 # click.stop, or enlarging would also pick the tile and redraw the
                 # panel out from under the dialog.
@@ -168,19 +173,10 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
 
 
 def _tooltip(kind: str, entry: dict[str, Any]) -> str:
-    """The three facts about a slot, in the order a curator asks them.
-
-    Does it resolve, how specific is the match, and where did the file come from.
-    Origin is not derivable from the tier - your own art at the fixed name reads as
-    `default` exactly like a download does.
-    """
+    """The file, and who uses it."""
     if not entry.get("present"):
         return f"No {LABELS.get(kind, kind).lower()}"
-    parts = [str(entry.get("file") or "")]
-    if entry.get("via"):
-        parts.append(f"resolved: {entry['via']}")
-    if entry.get("origin"):
-        parts.append(f"from: {entry['origin']}")
+    parts = [str(entry.get("file") or ""), tiers.phrase(entry.get("via"))]
     return "  ·  ".join(part for part in parts if part)
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from urllib.parse import urlencode
 
 import requests
 
@@ -58,6 +59,10 @@ class HubClient:
     def game(self, game_id: str) -> dict:
         return self._get(f"/games/{game_id}")
 
+    def all_tables(self) -> list[dict]:
+        """Every table in the library, one row each, with its game's name on it."""
+        return list(self._get("/tables").get("tables") or [])
+
     def tables(self, game_id: str) -> list[dict]:
         return self._get(f"/games/{game_id}/tables").get("tables", [])
 
@@ -103,10 +108,64 @@ class HubClient:
                                       json={}, timeout=_TIMEOUT)
         response.raise_for_status()
 
+    def _post(self, path: str, body: dict) -> dict:
+        _refuse_the_event_loop(path)
+        response = self._session.post(f"{self._base}{path}", json=body, timeout=_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+
     def _media_path(self, game_id: str, table_id: str, kind: str) -> str:
         """Which route places a file, which is the same thing as which tier it lands at."""
         return (f"/games/{game_id}/tables/{table_id}/media/{kind}" if table_id
                 else f"/games/{game_id}/media/{kind}")
+
+    def placements(self, game_id: str, kind: str) -> dict:
+        """Where a file for this kind could land, and what each choice replaces."""
+        return self._get(f"/games/{game_id}/media/{kind}/placements")
+
+    def media_detail(self, game_id: str, table_id: str, kind: str) -> dict:
+        """One slot in full - its file's size and shape, and every tier holding one."""
+        return self._get(f"{self._media_path(game_id, table_id, kind)}/detail")
+
+    def browse_roots(self, game_id: str = "") -> list[dict]:
+        """Where browsing this machine may start, this game's own folder included."""
+        query = "?" + urlencode({"game": game_id}) if game_id else ""
+        return list(self._get(f"/filesystem/roots{query}").get("roots") or [])
+
+    def browse(self, path: str) -> dict:
+        """One folder on this machine, as folders and media files."""
+        return self._get("/filesystem/entries?" + urlencode({"path": path}))
+
+    def browsed_file_url(self, path: str) -> str:
+        """Where the browser can fetch a file it is showing, so it can be looked at."""
+        return f"{self._base}/filesystem/file?" + urlencode({"path": path})
+
+    def import_media(self, game_id: str, table_id: str, kind: str, path: str) -> dict:
+        """Copy a file from elsewhere on this machine into the slot."""
+        return self._post(f"/games/{game_id}/media/{kind}/import",
+                          {"path": path, "table": table_id or ""})
+
+    def media_sources(self) -> list[dict]:
+        """The online catalogs this hub knows, and which are being asked."""
+        return list(self._get("/media-sources").get("sources") or [])
+
+    def media_offers(self, vps_id: str, kind: str) -> list[dict]:
+        """What every enabled catalog has for this game and kind."""
+        return list(self._get("/media-sources/offers?"
+                              + urlencode({"vps_id": vps_id, "kind": kind}))
+                    .get("offers") or [])
+
+    def search_vps(self, query: str, limit: int = 12) -> list[dict]:
+        """VPS entries by name, for taking art from a game other than this one."""
+        return list(self._get("/vps/search?" + urlencode({"q": query, "limit": limit}))
+                    .get("results") or [])
+
+    def fetch_media(self, game_id: str, table_id: str, kind: str, source: str,
+                    vps_id: str, size: str = "") -> dict:
+        """Pull a catalog's art into the slot. The hub resolves the link itself."""
+        return self._post(f"/games/{game_id}/media/{kind}/fetch",
+                          {"source": source, "vps_id": vps_id, "size": size,
+                           "table": table_id or ""})
 
     def retier_media(self, game_id: str, kind: str, from_table: str,
                      to_table: str) -> dict:

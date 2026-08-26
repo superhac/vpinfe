@@ -58,6 +58,9 @@ class Library:
         self.media: dict[str, dict[str, Any]] = {}
         self.table_media: dict[tuple[str, str], dict[str, Any]] = {}
         self.tables: dict[str, list[dict[str, Any]]] = {}
+        # The by-file lens, read on first use rather than at load: most sessions never
+        # switch to it, and it is a second walk of every folder.
+        self._table_rows: list[dict[str, Any]] | None = None
 
     def load(self) -> None:
         started = time.perf_counter()
@@ -83,6 +86,47 @@ class Library:
         if key not in self.table_media:
             self.table_media[key] = self._client.table_media(game_id, table_id)
         return self.table_media[key]
+
+    def placements(self, game_id: str, kind: str) -> dict:
+        """Never cached: it reports conflicts, and a stale one would either hide a
+        replacement or invent one."""
+        return self._client.placements(game_id, kind)
+
+    def media_detail(self, game_id: str, table_id: str | None, kind: str) -> dict:
+        """Never cached: it is read when a slot is opened, which is exactly when
+        someone has just changed the thing it describes."""
+        return self._client.media_detail(game_id, table_id or "", kind)
+
+    def browse_roots(self, game_id: str = "") -> list[dict]:
+        return self._client.browse_roots(game_id)
+
+    def browse(self, path: str) -> dict:
+        return self._client.browse(path)
+
+    def browsed_file_url(self, path: str) -> str:
+        return self._client.browsed_file_url(path)
+
+    def import_media(self, game_id: str, table_id: str | None, kind: str,
+                     path: str) -> dict:
+        result = self._client.import_media(game_id, table_id or "", kind, path)
+        self.forget_media(game_id)
+        return result
+
+    def media_sources(self) -> list[dict]:
+        return self._client.media_sources()
+
+    def media_offers(self, vps_id: str, kind: str) -> list[dict]:
+        return self._client.media_offers(vps_id, kind)
+
+    def search_vps(self, query: str, limit: int = 12) -> list[dict]:
+        return self._client.search_vps(query, limit)
+
+    def fetch_media(self, game_id: str, table_id: str | None, kind: str, source: str,
+                    vps_id: str, size: str = "") -> dict:
+        result = self._client.fetch_media(game_id, table_id or "", kind, source,
+                                          vps_id, size)
+        self.forget_media(game_id)
+        return result
 
     def retier_media(self, game_id: str, kind: str, from_table: str,
                      to_table: str) -> dict:
@@ -124,6 +168,24 @@ class Library:
         self._client.forget_media(game_id)
         for key in [k for k in self.table_media if k[0] == game_id]:
             self.table_media.pop(key, None)
+
+    def table_rows(self) -> list[dict[str, Any]]:
+        """The by-file lens as it stands, or empty if nobody has read it yet.
+
+        Deliberately does not fetch. This is read while a page is being drawn, which
+        is on the event loop, and an HTTP call there is refused - so the fetch is
+        `load_tables`, which a caller runs off the loop before it draws.
+        """
+        return self._table_rows or []
+
+    def has_table_rows(self) -> bool:
+        return self._table_rows is not None
+
+    def load_tables(self) -> list[dict[str, Any]]:
+        """Read the by-file lens. Off the event loop, once per session."""
+        if self._table_rows is None:
+            self._table_rows = self._client.all_tables()
+        return self._table_rows
 
     def tables_for(self, game_id: str) -> list[dict[str, Any]]:
         """Fetched when something asks, not with the library.
