@@ -81,7 +81,9 @@ def _read_hub() -> dict[str, Any]:
     }
 
 
-@ui.page("/hub")
+# The title is per page, not from ui.run: one process serves both this and the Manager
+# UI, so an app-wide title puts the other surface's name in this one's tab.
+@ui.page("/hub", title="VPinFE Hub")
 async def hub_page(view: str = "", game: str = "", table: str = "", section: str = "",
                    slot: str = "", settings: str = "") -> None:
     """The hub. Query parameters say where in it, so a place can be linked to."""
