@@ -403,6 +403,11 @@ class TableRow(ApiModel):
     version: str = ""
     authors: list[str] = []
     rom: str = ""
+    # Whether that rom is actually installed. **Null when the table declares none** -
+    # a table with no rom is not required to have one, and reporting that as missing
+    # would call every EM table broken. Absence of a declaration and absence of a file
+    # are different facts and stay apart.
+    rom_installed: bool | None = None
     default: bool = False
     hidden: bool = False
     available: bool = True

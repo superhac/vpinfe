@@ -22,33 +22,58 @@ from hubui.data import Library
 # matter of moving it and adding config rather than a rewrite. The description is not
 # decoration: it is what the row's finding says, and writing it forces the check to be
 # about something a person can act on.
-CHECKS: tuple[tuple[str, str, str, Callable[[dict, dict], bool]], ...] = (
+CHECKS: tuple[tuple[str, str, str, Callable[[dict, dict, dict], bool]], ...] = (
+    ("rom_missing", "Declared ROM is not installed",
+     "The table will not boot; PinMAME has nothing to load.",
+     lambda g, m, x: bool(x.get("rom_missing"))),
     ("no_playfield", "No playfield image",
      "The frontend has nothing to show for this game on the playfield screen.",
-     lambda g, m: not m.get("playfield", {}).get("present")),
+     lambda g, m, x: not m.get("playfield", {}).get("present")),
     ("no_backglass", "No backglass image",
      "A second screen will sit empty while this game is selected.",
-     lambda g, m: not m.get("backglass", {}).get("present")),
+     lambda g, m, x: not m.get("backglass", {}).get("present")),
     ("borrowed_wheel", "Wheel is standing in for something else",
      "A fallback is being used, so the wheel looks fine and is still missing.",
-     lambda g, m: str(m.get("wheel", {}).get("via") or "").startswith("fallback:")),
+     lambda g, m, x: str(m.get("wheel", {}).get("via") or "").startswith("fallback:")),
     ("no_media", "No media at all",
      "Nothing resolved for any kind. Usually a folder that was never populated.",
-     lambda g, m: not any(e.get("present") for e in m.values())),
+     lambda g, m, x: not any(e.get("present") for e in m.values())),
     ("no_year", "No year recorded",
      "Sorting and filtering by year will place this game arbitrarily.",
-     lambda g, m: not g.get("year")),
+     lambda g, m, x: not g.get("year")),
 )
+
+
+def rollups(library: Library) -> dict[str, dict[str, Any]]:
+    """Per-game facts a check needs that the game payload does not carry.
+
+    Whether a rom is installed is resolved per table, because two builds of one machine
+    can declare different ones. A game reads as missing a rom when any of its tables
+    declares one that PinMAME's audit says is not there.
+
+    `rom_installed` is three-valued and only `False` counts. `None` is "we could not
+    tell" - the audit needs a configured VPX binary, and the name match alone cannot
+    see a clone set's parent zip. Treating not-known as missing would report a whole
+    library as broken on any machine without VPX.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for row in library.table_rows():
+        fact = out.setdefault(str(row.get("game_id") or ""), {"rom_missing": False})
+        if row.get("rom_installed") is False:
+            fact["rom_missing"] = True
+    return out
 
 
 def findings(library: Library) -> dict[str, list[dict[str, Any]]]:
     """Run every check over the library. Keyed by check, so a section can show counts."""
     out: dict[str, list[dict[str, Any]]] = {key: [] for key, _, _, _ in CHECKS}
+    extra = rollups(library)
     for game in library.games:
         entries = library.media.get(game["id"], {})
+        facts = extra.get(game["id"], {})
         for key, _, _, predicate in CHECKS:
             try:
-                if predicate(game, entries):
+                if predicate(game, entries, facts):
                     out[key].append(game)
             except Exception:
                 # A check that throws is a broken check, not a broken library. It

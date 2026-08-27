@@ -77,6 +77,8 @@ def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
                 # few things that genuinely differs between two tables of one game.
                 "rom": str((table.get("dependencies") or {})
                            .get("pinmame", {}).get("effective", "") or ""),
+                "rom_installed": ((table.get("dependencies") or {})
+                                  .get("pinmame", {}).get("installed")),
                 "default": bool(table.get("default")),
                 "hidden": bool(table.get("hidden")),
                 "available": bool(table.get("available")),
