@@ -65,7 +65,7 @@ LABELS = {
     "scoreview": "Score view", "scoreview_video": "Score view video",
     "playfield": "Playfield", "playfield_video": "Playfield video",
     "playfield_fss": "Playfield FSS", "wheel": "Wheel", "logo": "Logo",
-    "cab": "Cabinet", "real_dmd": "Real DMD", "real_dmd_color": "Real DMD colour",
+    "cab": "Cabinet", "real_dmd": "Real DMD", "real_dmd_color": "Real DMD color",
     "flyer": "Flyer", "audio": "Audio", "audio_launch": "Launch audio",
     "instruction_card": "Instruction card", "topper": "Topper",
     "topper_video": "Topper video", "loading": "Loading", "rule_sheet": "Rule sheet",

@@ -72,7 +72,7 @@ def apply(state: dict[str, Any], params: dict[str, str], *,
           views: Iterable[str], sections: Iterable[str]) -> None:
     """Seed the state from an address somebody arrived on.
 
-    Only what is recognised: a link can be old or hand-typed, and neither should be an
+    Only what is recognized: a link can be old or hand-typed, and neither should be an
     error - what does not fit is dropped and the default stands. A game id is taken as
     given, because whether it exists is the library's question.
     """

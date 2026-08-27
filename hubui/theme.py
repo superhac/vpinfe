@@ -38,7 +38,7 @@ HEADER_GRADIENT = "linear-gradient(135deg, #b429f9 0%, #4a1e7c 50%, #0a0518 100%
 
 
 # The 2.x visual treatment, from manager.css: a synthwave grid over the page, and the
-# table's own row colours. AG Grid reads its palette from --ag-* custom properties, so
+# table's own row colors. AG Grid reads its palette from --ag-* custom properties, so
 # the brand values are mapped onto those rather than restyling any of its parts.
 # The design tokens. Everything below refers to these rather than to a hex or a pixel
 # count, so a decision about the palette or the type scale is made once.
@@ -76,9 +76,9 @@ _TOKENS = """
   /* 44px where a finger is in scope; the hub is desk-first, so this is the floor. */
   --target-min: 32px;
 
-  /* What a draggable divider looks like, wherever one appears - a border colour here
+  /* What a draggable divider looks like, wherever one appears - a border color here
      reads as an edge rather than a handle. */
-  /* Who owns a media file. Amber is the only warm colour in this palette, which is
+  /* Who owns a media file. Amber is the only warm color in this palette, which is
      what makes "one table's own" legible at a glance in a map of twenty tiles; the
      folder-wide case is the norm and stays quiet. Both measured against the surfaces
      they sit on: 11.1:1 and 5.9:1. */
@@ -121,7 +121,7 @@ _TOKENS = """
 
 
 _FLAIR = """
-/* The base colour goes on body alone. Painting it on .q-page-container too put an
+/* The base color goes on body alone. Painting it on .q-page-container too put an
    opaque element over body::before, which is where the grid lives - so the backdrop was
    still being drawn, just covered. */
 body { background: #0a0518; }
@@ -154,7 +154,7 @@ body::before {
 .nicegui-aggrid {
   /* Depth comes from the tonal range, not from saturation: the page is nearly black,
      panels step up, the grid sits between them. The row alternation is deliberately
-     narrow - #1a0f35 against #251447 read as two different colours rather than as
+     narrow - #1a0f35 against #251447 read as two different colors rather than as
      banding. */
   --ag-background-color: #140a2b;
   --ag-odd-row-background-color: #190e33;
@@ -175,7 +175,7 @@ body::before {
   --ag-checkbox-checked-color: var(--accent);
 }
 .ag-header { border-bottom: 1px solid rgba(0, 217, 255, 0.35) !important; }
-/* Two states, one colour: both answer "which one", and a second hue would read as a
+/* Two states, one color: both answer "which one", and a second hue would read as a
    third meaning. Selected is a fill, focused is a band, and a row can be both.
    Set on the row, not --ag-selected-row-background-color, which AG Grid 34 ignores. */
 .ag-row-selected,
@@ -185,7 +185,7 @@ body::before {
 }
 
 /* Focus follows the row, not the cell: nothing in a cell can be acted on. Drawn as
-   top and bottom lines because a row is three elements - pinned left, centre, pinned
+   top and bottom lines because a row is three elements - pinned left, center, pinned
    right - and three outlines would show their edges through the middle of it. */
 /* Above the cells: a cell paints its own background over the row, so an inset shadow
    on the row is set, computed, and invisible. */
@@ -334,7 +334,7 @@ body::before {
 }
 
 /* At the rail the row is the icon's whole world, so the wide state's side padding
-   pushes it off centre. Set here because that padding is !important and a utility
+   pushes it off center. Set here because that padding is !important and a utility
    class cannot outrank it. */
 .q-drawer--mini .hub-nav-row,
 .q-drawer--mini .hub-nav-header {
@@ -352,7 +352,7 @@ body::before {
   border-radius: 12px;
   margin: 2px 8px;
   /* w-full plus a horizontal margin overhangs on the right, which put the highlight
-     off-centre. 2.x's .nav-btn solves it the same way. */
+     off-center. 2.x's .nav-btn solves it the same way. */
   max-width: calc(100% - 16px);
 }
 /* The page you are on stays lit while you are on it - --surface-2 behind it and
@@ -392,7 +392,7 @@ body::before {
 }
 /* truncate only ellipsizes against a definite width. The column may shrink under
    min-w-0, but its labels have to be told to take that width or they overflow and get
-   cropped by the parent instead of ellipsised. */
+   cropped by the parent instead of ellipsized. */
 .hub-panel-header .hub-workbench-title,
 .hub-panel-header .hub-workbench-label { max-width: 100%; }
 
@@ -439,12 +439,12 @@ body::before {
   gap: 0 !important;
   padding: 0 !important;
 }
-/* The panel toggles match: nav and workbench are the same control, same colour. */
+/* The panel toggles match: nav and workbench are the same control, same color. */
 .hub-panel-header .q-icon { color: var(--ink-2); }
 .hub-workbench .q-expansion-item__content .row { min-height: 22px; }
 .hub-nav-title {
   /* .manager-title, sampled: --ink with --glow-cyan behind it at 20px/900. The white
-     comes from the near-white glyph and the colour from the halo, which is why a cyan
+     comes from the near-white glyph and the color from the halo, which is why a cyan
      glyph and a flat one both read wrong. */
   font-family: sans-serif;
   font-size: var(--fs-title);
@@ -511,7 +511,7 @@ _COMPONENTS = """
   flex-direction: column;
   border: 1px solid #2b1a4d;
   border-radius: 6px;
-  /* A step *up* from the ground, not down into it. This used to be the page colour at
+  /* A step *up* from the ground, not down into it. This used to be the page color at
      55%, which darkened the panel's gradient into a recessed plate - but with browse
      open to the page that same value composites to exactly the page and the tile has
      no surface at all, leaving an empty slot as a bare 1px outline. A tile is a small
@@ -519,7 +519,7 @@ _COMPONENTS = """
   background: rgba(26, 15, 53, 0.6);
   padding: 3px;
 }
-/* Present is stated with a colour, missing with the absence of one. A library is mostly
+/* Present is stated with a color, missing with the absence of one. A library is mostly
    gaps, so making the gap loud would make the workbench unreadable. */
 /* Status and selection cannot share a channel. Cyan answers "which one"; a filled
    slot is shown by the art itself. Amber stays - "borrowed" looks filled and is a gap,
@@ -531,7 +531,7 @@ _COMPONENTS = """
   box-shadow: 0 0 0 2px var(--accent); border-color: var(--accent);
 }
 
-/* Flat buttons are text, and Quasar gives them `primary` - the flair colour, at 4.4:1.
+/* Flat buttons are text, and Quasar gives them `primary` - the flair color, at 4.4:1.
    Element-qualified because that is what outranks Quasar's own .text-primary, which
    matches ours and loads after it. */
 .q-btn--flat, .q-btn--flat .q-icon,
@@ -545,7 +545,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 .q-btn--flat.text-negative, .q-btn--flat.text-negative .q-icon { color: #ff6b9d; }
 
-/* An action has to look like one, and colour alone never says so - it is silent to
+/* An action has to look like one, and color alone never says so - it is silent to
    anyone who cannot see the hue. The border is the affordance; hover fills it. */
 .hub-action.q-btn {
   border: 1px solid var(--line);
@@ -558,7 +558,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   background: rgba(0, 217, 255, 0.10);
 }
 /* A destructive action is still an action - it takes the same shape and says what it
-   is with colour on top, not instead. */
+   is with color on top, not instead. */
 .hub-action.hub-action--danger.q-btn { border-color: rgba(255, 107, 157, 0.45); }
 .hub-action.hub-action--danger.q-btn:hover {
   border-color: #ff6b9d; background: rgba(255, 107, 157, 0.12);
@@ -643,7 +643,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 .hub-viewer-stage {
   /* Sized by the media. A rotated element reports its untransformed box, and the turn
-     is about its own centre, so that box is the right thing to centre on. */
+     is about its own center, so that box is the right thing to center on. */
   flex: 1 1 auto; min-height: 0;
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
@@ -762,7 +762,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 /* The handle between browse and work. Only where they are stacked - side by side the
    split is the panel's own width, which the outer splitter already owns. */
-/* A short centred handle, not a full-width rule. It used to draw a hairline right
+/* A short centered handle, not a full-width rule. It used to draw a hairline right
    across the panel, which is the same picture the section separators draw - so the
    panel had three horizontal lines of the same weight meaning two different things,
    and the band below the open section read as belonging to whatever was above it.
@@ -778,7 +778,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .hub-dock-grip:hover::before { background: var(--accent); }
 /* The work region keeps its room whether or not anything is in it: collapsing it
    reflows browse under the cursor that just picked something. */
-/* Centred in the reserved room: text in the top corner reads as a mistake. */
+/* Centered in the reserved room: text in the top corner reads as a mistake. */
 .hub-dock-empty {
   margin: auto; text-align: center; padding: 16px; max-width: 34ch;
 }
@@ -857,7 +857,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .hub-slot-blank-icon { font-size: 34px; opacity: 0.55; }
 
 .hub-slot-facts { min-width: 0; }
-/* The filename is the one identifier a user recognises, so it reads first and whole -
+/* The filename is the one identifier a user recognizes, so it reads first and whole -
    these names are long and the interesting half is usually the tail. */
 .hub-slot-file {
   font-size: var(--fs-body); color: var(--ink-2); word-break: break-all;
@@ -935,7 +935,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   padding-left: 6px;
 }
 
-/* A tick column is scanned, not read: centre it so the eye runs down one line. */
+/* A tick column is scanned, not read: center it so the eye runs down one line. */
 .hub-tick { text-align: center; color: var(--accent); }
 
 /* One or more tables here use something else. A bar rather than a badge: the tile is
@@ -1033,10 +1033,10 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   font-size: var(--fs-body); font-weight: 500; color: var(--ink-2);
 }
 .hub-sources-card .q-uploader__subtitle { display: none; }
-/* Quasar fills the header with the primary colour. Magenta reads as "selected"
+/* Quasar fills the header with the primary color. Magenta reads as "selected"
    everywhere else in this UI, and this is a drop target, not a selection. */
 /* Element-qualified and forced, because Quasar sets the header's fill from the
-   primary colour with the same specificity a class selector has. */
+   primary color with the same specificity a class selector has. */
 .hub-sources-card div.q-uploader__header {
   background: rgba(43,26,77,0.6) !important; border-bottom: 1px solid var(--line);
 }

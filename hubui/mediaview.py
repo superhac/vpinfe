@@ -111,18 +111,18 @@ _VIEW = f"""
     }});
   }};
 
-  const centre = () => {{
+  const center = () => {{
     const b = stage.getBoundingClientRect();
     return {{ x: b.left + b.width / 2, y: b.top + b.height / 2 }};
   }};
 
   // Zoom about the pointer: whatever is under it stays under it. Derived from
-  // screen = centre + t + R(angle) * scale * q, which rearranges to this without
+  // screen = center + t + R(angle) * scale * q, which rearranges to this without
   // needing the rotation in the arithmetic.
   const zoomTo = (target, mx, my) => {{
     const next = Math.min(8, Math.max(1, target));
     if (next === st.scale) return;
-    const c = centre(), k = next / st.scale;
+    const c = center(), k = next / st.scale;
     st.tx = mx - c.x - k * (mx - c.x - st.tx);
     st.ty = my - c.y - k * (my - c.y - st.ty);
     st.scale = next;
@@ -222,7 +222,7 @@ def open_viewer(src: str, kind: str, label: str) -> None:
         return
 
     # A panel over a dimmed page rather than a takeover: the card is sized by what is
-    # in it, so the media being the content is what centres it.
+    # in it, so the media being the content is what centers it.
     with ui.dialog() as dialog, ui.card().classes("hub-viewer-card"):
         with ui.row().classes("items-center gap-2 w-full no-wrap hub-viewer-bar"):
             ui.label(label).classes("hub-card-title shrink-0")

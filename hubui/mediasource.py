@@ -75,7 +75,7 @@ class _Sources:
         # Where the picked entry's offers are drawn. Set when the online tab builds,
         # and read by a search result, which redraws them for a different game.
         self.online_body: Any = None
-        # The sources this hub knows, so an offer can be labelled with a name rather
+        # The sources this hub knows, so an offer can be labeled with a name rather
         # than an id. Read once when the tab opens.
         self._known_sources: list[dict[str, Any]] | None = None
         # Filled when the browser loads; the trail above a listing is written against

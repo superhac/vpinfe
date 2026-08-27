@@ -57,11 +57,11 @@ def build_detail(device: dict[str, Any], device_capabilities: list[str],
             for capability in device_capabilities:
                 state = capability_state(device, capability, local_device_id,
                                          local_capabilities)
-                colour, icon, label = _BADGE[state]
+                color, icon, label = _BADGE[state]
                 with ui.row().classes("items-center gap-2 w-full"):
-                    ui.icon(icon).classes(f"text-{colour}")
+                    ui.icon(icon).classes(f"text-{color}")
                     ui.label(capability.replace("_", " ")).classes("w-40")
-                    ui.badge(label, color=colour).props("outline")
+                    ui.badge(label, color=color).props("outline")
 
 
 def build_registry(registry: list[dict[str, Any]],

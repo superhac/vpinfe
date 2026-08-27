@@ -444,7 +444,7 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
     """The view picker and the two ways out of a modified one.
 
     Built here in the toolbar and wired once the grid exists, because the widgets have
-    to sit above the grid and the behaviour needs the grid to talk to.
+    to sit above the grid and the behavior needs the grid to talk to.
 
     Returns `(wire, picker)`. Call `wire(table)` once the grid exists; the picker is
     handed back so a caller can hang a binding off which view is showing.

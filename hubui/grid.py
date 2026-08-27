@@ -80,7 +80,7 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         # The workbench follows the focused row, and focus is not selection: arrowing
         # must not disturb the checkboxes a bulk action reads.
         #
-        # Marked on every fragment: AG Grid splits a row across the pinned and centre
+        # Marked on every fragment: AG Grid splits a row across the pinned and center
         # containers, each its own .ag-row.
         ":onCellFocused":
             "params => { const r = params.api.getDisplayedRowAtIndex(params.rowIndex); "

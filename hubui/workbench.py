@@ -686,7 +686,7 @@ async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
 
     Confirmed because it is the only destructive thing on this surface, and the dialog
     names the file rather than the id - the id is ours, the filename is what the user
-    recognises. The hub refuses the request outright if the .vpx is back, so a stale
+    recognizes. The hub refuses the request outright if the .vpx is back, so a stale
     panel cannot delete a table that returned while it was open.
     """
     filename = table.get("filename") or "this table"

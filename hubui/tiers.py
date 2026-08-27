@@ -25,7 +25,7 @@ MISSING = "missing"
 @dataclass(frozen=True)
 class Tier:
     """The forms a surface might need: `noun` for a badge, `phrase` for inline in
-    somebody else's sentence, `css` to colour it. Whole sentences are built rather
+    somebody else's sentence, `css` to color it. Whole sentences are built rather
     than stored, because two of them depend on what is being looked at."""
 
     key: str
