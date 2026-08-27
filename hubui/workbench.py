@@ -17,10 +17,12 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import PurePosixPath
 from typing import Any
 
 from nicegui import run, ui
 
+from common.games import apps
 from common.media_specs import media_family
 from hubui import deeplink, mediamap, mediasource, mediaview, tiers
 from hubui.data import Library
@@ -634,11 +636,15 @@ async def _table_block(context: dict[str, Any]) -> None:
 
 
 def _identity_rows(game: dict[str, Any]) -> None:
+    # The folder is the tail, not the whole path: the library root is the same for
+    # every game and repeating it costs the only column that has to hold a name.
+    folder = str(game.get("folder") or "")
     _rows(ui, {
         "VPS id": game.get("vps_id") or "-",
         "ROM": game.get("rom") or "-",
         "Type": game.get("type") or "-",
         "Themes": ", ".join(game.get("themes") or []) or "-",
+        "Folder": PurePosixPath(folder).name or folder or "-",
     })
 
 
@@ -656,22 +662,55 @@ def _table_rows(table: dict[str, Any]) -> None:
     if declared and effective and declared != effective:
         rom = f"{effective}  (declared {declared})"
 
-    state = []
-    if table.get("default"):
-        state.append("the game's default")
-    if table.get("hidden"):
-        state.append("hidden from the frontend")
-    if not table.get("available"):
-        state.append("file not on disk")
-
-    _rows(ui, {
+    # Three rows, not one Status. They are independent - a table can be the default
+    # and hidden and gone - so joining them made one sentence out of three different
+    # kinds of fact, and its no-flags fallback read "in play", which sounds like the
+    # table is running. The grid states them as three columns; this now agrees.
+    script = ((table.get("assets") or {}).get("script") or {})
+    features = table.get("features") or {}
+    rows: dict[str, Any] = {
         "File": table.get("filename") or "-",
         "Version": table.get("version") or "-",
         "Built by": ", ".join(table.get("authors") or []) or "-",
         "ROM": rom,
-        "Runs with": table.get("app") or "-",
-        "Status": ", ".join(state) or "in play",
-    })
+        "Runs with": apps.app_name(table.get("app")),
+        "Default": "Yes" if table.get("default") else "No",
+        "In frontend": "Hidden" if table.get("hidden") else "Shown",
+        "File on disk": "Yes" if table.get("available") else "Missing",
+        "Script": ("Extracted" if script.get("resolution") != "none"
+                   else "Not extracted"),
+        "File hash": table.get("file_hash") or "-",
+        "Script hash": table.get("vbs_hash") or "-",
+    }
+    if features:
+        rows["Uses"] = lambda: _feature_chips(features)
+    _rows(ui, rows)
+
+
+# Named for the thing, not for the .info key. PinMAME is left out: it is not a script
+# flourish like the rest, and the ROM row above already answers for it in detail.
+FEATURE_LABELS = {
+    "nfozzy": "nFozzy", "fleep": "Fleep", "ssf": "SSF", "lut": "LUT",
+    "scorbit": "Scorbit", "fastflips": "FastFlips", "flexdmd": "FlexDMD",
+}
+
+
+def _feature_chips(features: dict[str, Any]) -> None:
+    """What the table's script was seen to use.
+
+    Three states, because a table nobody has parsed yet answers null for every one of
+    them and that is not the same as answering no. Same forms as a media tier: filled
+    for what is here, quiet for what is not, dashed for not yet known.
+    """
+    with ui.element("div").classes("hub-chips"):
+        for key, label in FEATURE_LABELS.items():
+            present = features.get(key)
+            style = ("hub-tier--table" if present
+                     else "hub-tier--standin" if present is None
+                     else "hub-tier--game")
+            ui.label(label).classes(f"hub-tier {style}") \
+                .tooltip("In the script" if present else
+                         "Not parsed yet" if present is None else "Not used")
 
 
 def _tables_label(context: dict[str, Any]) -> str:

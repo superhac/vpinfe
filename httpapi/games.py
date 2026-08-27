@@ -24,6 +24,7 @@ from common.games import (
     asset_origin,
     asset_resolver,
     game_identity,
+    game_service,
     library_discovery,
     media_lookup,
     media_placement,
@@ -39,7 +40,7 @@ from common.games.game_repository import (
     collections_by_game_id,
     game_to_row,
 )
-from common.games.info_file import MetaConfig
+from common.games.info_file import VPINFE_SECTION, MetaConfig
 from common.games.tables import (
     ABSENT_SINCE_KEY,
     TABLE_ID_KEY,
@@ -64,6 +65,16 @@ from .errors import ConflictError, FeatureUnavailableError, InvalidRequestError,
 logger = logging.getLogger("vpinfe.httpapi.games")
 
 router = APIRouter(prefix="/games", tags=["games"])
+
+# What the script was seen to use, named for the thing rather than for the .info key
+# it sits under. Scorbit is spelled the way the product is - the Manager UI's
+# "Scorebit" label is the typo, not the key.
+FEATURE_KEYS = {
+    "nfozzy": "detect_nfozzy", "fleep": "detect_fleep", "ssf": "detect_ssf",
+    "lut": "detect_lut", "scorbit": "detect_scorbit",
+    "fastflips": "detect_fastflips", "flexdmd": "detect_flex",
+    "pinmame": "detect_pinmame",
+}
 
 
 def _catalog() -> dict:
@@ -99,6 +110,12 @@ def _resource(row: dict, game_id: str) -> dict:
         "version": row.get("version", ""),
         "rating": row.get("rating", 0),
         "collections": row.get("collections") or [],
+        "folder": str(row.get("game_dir", "") or ""),
+        "overrides": {
+            "alt_title": row.get("alt_title", ""),
+            "alt_vps_id": row.get("alt_vpsid", ""),
+            "frontend_dof_event": row.get("frontend_dof_event", ""),
+        },
         # Assets, not media: these are what the game needs to play as intended.
         # Media is the artwork VPinFE shows while browsing - see docs/conventions.md.
         # Summary from the scan; the detail endpoint recomputes and attributes files.
@@ -111,6 +128,21 @@ def _resource(row: dict, game_id: str) -> dict:
             "launch": f"{prefix}/launch",
             "rating": f"{prefix}/rating",
         },
+    }
+
+
+def _table_overrides(entry: dict, folder: dict) -> dict:
+    """One table's overrides, falling back to the folder's for a 2.x library."""
+    own = entry.get(VPINFE_SECTION) or {}
+
+    def pick(key, default=""):
+        value = own.get(key, folder.get(key, default))
+        return default if value in ("", None) else value
+
+    return {
+        "alt_launcher": str(pick("alt_launcher")),
+        "plugin_profile": str(pick("plugin_profile")),
+        "delete_nvram_on_close": bool(pick("delete_nvram_on_close", False)),
     }
 
 
@@ -209,6 +241,12 @@ def _tables(game, row: dict) -> list[dict]:
     aliases = asset_resolver.read_alias_map(str(game_dir))
     rom_files = asset_resolver.list_rom_files(str(game_dir))
 
+    # 2.x wrote these three at the folder, when a folder was one file. They are the
+    # table's now; a folder value is still read as the fallback, so a library written
+    # by 2.x keeps working and the one-table case - which is what 2.x had - is
+    # unchanged. Writes only ever land on the table.
+    folder_vpinfe = vpinfe_section(game.meta_config)
+
     def _tristate(value):
         """detect* flags are three-valued: yes, no, and never parsed."""
         if isinstance(value, bool):
@@ -232,6 +270,13 @@ def _tables(game, row: dict) -> list[dict]:
             "filename": name,
             "version": str(described_entry.get("version", "") or ""),
             "authors": [str(a) for a in (described_entry.get("authors") or [])],
+            "file_hash": str(described_entry.get("file_hash", "") or ""),
+            "vbs_hash": str(described_entry.get("vbs_hash", "") or ""),
+            # Tri-state throughout: a table nobody has parsed answers null for every
+            # feature, which is not the same as answering no to all of them.
+            "features": {name: _tristate(described_entry.get(key))
+                         for name, key in FEATURE_KEYS.items()},
+            "overrides": _table_overrides(described_entry, folder_vpinfe),
             "default": name == default,
             "hidden": name in hidden,
             "available": name in on_disk,
@@ -979,6 +1024,78 @@ def put_game_rating(game_id: str, payload: models.RatingRequest) -> models.Ratin
     """
     game = _game_or_404(game_id)
     return {"rating": set_game_rating(game, payload.rating)}
+
+
+# Which keys each level will accept. Declared rather than inferred, so sending a
+# table's key to the game route is refused instead of silently doing nothing - a
+# write that reports success and changes nothing is the worst of the options.
+_GAME_OVERRIDES = {"alt_title": "alt_title", "alt_vps_id": "alt_vpsid",
+                   "frontend_dof_event": "frontend_dof_event"}
+_TABLE_OVERRIDES = ("alt_launcher", "plugin_profile", "delete_nvram_on_close")
+
+
+def _sent(payload: models.OverridesPatch) -> dict:
+    """Only the fields the client actually sent. `None` is "leave alone"; `""` and
+    `false` are real values that clear an override."""
+    return {name: value for name, value in payload.model_dump().items()
+            if value is not None}
+
+
+@router.put("/{game_id}/overrides", summary="Set a game's overrides",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_game_overrides(game_id: str,
+                       payload: models.OverridesPatch) -> models.GameOverrides:
+    """What the user says about the machine, kept beside what VPS said.
+
+    A PATCH in effect: only what is sent is written, because the six overrides are
+    edited one field at a time and restating the others would make every save a race
+    with whatever another surface changed meanwhile.
+    """
+    game = _game_or_404(game_id)
+    changes = _sent(payload)
+    unknown = set(changes) - set(_GAME_OVERRIDES)
+    if unknown:
+        raise InvalidRequestError(
+            f"Not the game's to set: {', '.join(sorted(unknown))}. "
+            "These belong to a table - PUT the table's overrides instead.")
+
+    game_dir = Path(game.fullPathGame)
+    for name, value in changes.items():
+        if not game_service.update_vpinfe_setting(game_dir, _GAME_OVERRIDES[name],
+                                                  value):
+            raise ConflictError(f"Could not write {name}")
+    return _resource(game_to_row(_game_or_404(game_id)), game_id)["overrides"]
+
+
+@router.put("/{game_id}/tables/{table_id}/overrides",
+            summary="Set one table's overrides",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_table_overrides(game_id: str, table_id: str,
+                        payload: models.OverridesPatch) -> models.TableOverrides:
+    """What the user says about one launchable file.
+
+    Written onto the table's own entry, never onto the folder - a folder value is read
+    as a fallback for a 2.x library but is not where anything lands now.
+    """
+    game = _game_or_404(game_id)
+    changes = _sent(payload)
+    unknown = set(changes) - set(_TABLE_OVERRIDES)
+    if unknown:
+        raise InvalidRequestError(
+            f"Not a table's to set: {', '.join(sorted(unknown))}. "
+            "These belong to the game - PUT the game's overrides instead.")
+
+    game_dir = Path(game.fullPathGame)
+    entries = table_entries(load_game_meta(game))
+    if table_id not in entries:
+        raise NotFoundError(f"No table with id {table_id} in game {game_id}")
+    for name, value in changes.items():
+        if not game_service.update_table_vpinfe_setting(game_dir, table_id, name,
+                                                        value):
+            raise ConflictError(f"Could not write {name}")
+    fresh = table_entries(load_game_meta(_game_or_404(game_id)))
+    return _table_overrides(fresh.get(table_id) or {},
+                            vpinfe_section(_game_or_404(game_id).meta_config))
 
 
 @router.get("/{game_id}/archive", summary="Download the game folder as an archive",

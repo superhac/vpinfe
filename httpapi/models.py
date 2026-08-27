@@ -121,7 +121,7 @@ class DeviceAnnouncement(ApiModel):
     """What a device says about itself. The address is not here: the hub reads it off
     the socket, because a device behind a router does not know how it is reached.
 
-    `kind` is a closed set, so an unrecognised one is a 422 rather than a string stored
+    `kind` is a closed set, so an unrecognized one is a 422 rather than a string stored
     and handed to a consumer that switches on it.
 
     `device_id` is optional only for a device that cannot have one: a `vpx_mobile` entry
@@ -179,6 +179,54 @@ class GameLinks(ApiModel):
     rating: str
 
 
+class GameOverrides(ApiModel):
+    """What the user said, against what was discovered about the machine.
+
+    Kept beside the discovered values rather than written onto them: the fields VPS
+    supplies are rebuilt wholesale on every scan, so a value written on top does not
+    survive one. Empty means no override - the discovered value stands and is still
+    there to go back to.
+
+    These three are the game's because they are about the machine: its name, which VPS
+    record it is, and the effect it asks for when somebody browses to it. The ones that
+    govern a single file are on the table - see `TableOverrides`.
+    """
+
+    alt_title: str = ""
+    alt_vps_id: str = ""
+    frontend_dof_event: str = ""
+
+
+class TableOverrides(ApiModel):
+    """What the user said about one launchable file.
+
+    Per table, because each governs one file: which binary runs it, which ini it
+    launches with, and whose nvram is its own. One folder can hold a VPX table and a
+    Future Pinball one, and a single value cannot answer for both.
+    """
+
+    alt_launcher: str = ""
+    plugin_profile: str = ""
+    delete_nvram_on_close: bool = False
+
+
+class OverridesPatch(ApiModel):
+    """A change to some overrides. Every field is optional and only what is sent is
+    written, so a client can set one without restating the others. Sending `""` (or
+    false) clears an override, which is how a value goes back to what was discovered.
+
+    One model for both levels: the route decides which keys it accepts, and a key that
+    does not belong to that level is refused rather than quietly dropped.
+    """
+
+    alt_title: str | None = None
+    alt_vps_id: str | None = None
+    frontend_dof_event: str | None = None
+    alt_launcher: str | None = None
+    plugin_profile: str | None = None
+    delete_nvram_on_close: bool | None = None
+
+
 class GameResource(ApiModel):
     """A game: the pinball-machine concept, not a launchable file. vps_id correlates
     with VPSdb and anything keyed by it; `id` is what identifies the game here."""
@@ -195,6 +243,10 @@ class GameResource(ApiModel):
     version: str
     rating: int
     collections: list[str]
+    # The folder on disk. Reported because it is the one thing a user can act on
+    # outside VPinFE, and because two games can read identically without it.
+    folder: str = ""
+    overrides: GameOverrides = GameOverrides()
     assets: dict[str, AssetEntry]
     links: GameLinks
 
@@ -287,6 +339,14 @@ class Table(ApiModel):
     # there is one. Empty is common and means nothing was recorded.
     version: str = ""
     authors: list[str] = []
+    # Of the .vpx and of its script. The pair is how a client tells "the same table
+    # again" from "a different build with the same name", which no filename does.
+    file_hash: str = ""
+    vbs_hash: str = ""
+    # What the script was seen to use. Three-valued per feature: true, false, and
+    # null for a table nothing has parsed yet - which is not the same as "no".
+    features: dict[str, bool | None] = {}
+    overrides: TableOverrides = TableOverrides()
     assets: dict[str, ResolvedAsset]
     dependencies: Dependencies
 

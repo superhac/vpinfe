@@ -34,6 +34,16 @@ def app_for(filename: str) -> App | None:
                  if any(lowered.endswith(suffix) for suffix in app.suffixes)), None)
 
 
+def app_name(app_id: str | None) -> str:
+    """What to call an app on screen. Ids are for the wire; "vpx" shown to a user is
+    an identifier leaking through where "Visual Pinball X" is the name. An id nothing
+    claims is returned as it came, because inventing a name for it would be worse."""
+    wanted = str(app_id or "").strip()
+    if not wanted:
+        return "-"
+    return next((app.name for app in APPS if app.id == wanted), wanted)
+
+
 def table_suffixes() -> tuple[str, ...]:
     """Every extension that makes a file a table, for a folder listing to filter on."""
     return tuple(suffix for app in APPS for suffix in app.suffixes)
