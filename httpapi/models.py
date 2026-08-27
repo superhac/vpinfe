@@ -179,6 +179,41 @@ class GameLinks(ApiModel):
     rating: str
 
 
+class ConfigOptionInfo(ApiModel):
+    """One setting as a client should render it. `type` says how to read the value, not
+    how it is stored; `choices` is non-empty only for a choice."""
+
+    section: str
+    key: str
+    type: str
+    default: str
+    label: str
+    description: str = ""
+    choices: list[str] = []
+    writable: bool = True
+
+
+class ConfigSection(ApiModel):
+    section_name: str = Field(alias="name")
+    writable: bool = True
+    options: list[ConfigOptionInfo]
+
+
+class ConfigSchema(ApiModel):
+    """What this install has, not what a client thinks it has - a settings page built
+    from this cannot offer a setting the install does not carry."""
+
+    sections: list[ConfigSection]
+    count: int
+
+
+class ConfigValues(ApiModel):
+    """Values keyed section then key, typed as the store types them. A setting the file
+    omits answers its default, which is what the install is running on."""
+
+    values: dict[str, dict[str, object]]
+
+
 class GameOverrides(ApiModel):
     """What the user said, against what was discovered about the machine.
 

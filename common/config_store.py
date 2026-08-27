@@ -331,6 +331,26 @@ class ConfigStore:
                 self.config.set(section, config_schema.canonical(section, key),
                                 self._as_text(value))
 
+    def value(self, section: str, key: str):
+        """One setting, typed the way this store would write it back.
+
+        Public because the HTTP API needs what the Manager UI reached inside for. The
+        fallback is the schema's default rather than blank: a setting the file omits is
+        still what the install is running on, and answering "" would say the opposite.
+        """
+        from common.config_access import cfg_get
+        entry = config_schema.option(section, key)
+        raw = cfg_get(self, section, key, fallback=entry.default if entry else "")
+        return self._typed(section, key, raw)
+
+    def set_value(self, section: str, key: str, value) -> None:
+        """Stage one setting under its canonical name. `save()` writes the file."""
+        section = config_schema.canonical_section(section)
+        key = config_schema.canonical(section, key)
+        if not self.config.has_section(section):
+            self.config.add_section(section)
+        self.config.set(section, key, self._as_text(value))
+
     def save(self):
         # The first save after reading an ini keeps a copy and leaves the original alone:
         # a downgrade needs the file the older build reads.
