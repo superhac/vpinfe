@@ -23,6 +23,7 @@ from common.games.collection_resolver import (
     resolve_games,
     visible_entries,
 )
+from common.games.collection_store import MANUAL_ORDER
 from common.games.collections_service import (
     get_collections_manager,
     get_collections_metadata,
@@ -58,12 +59,12 @@ def _links(name: str) -> dict:
 def _resource_for(row: dict) -> dict:
     name = row["name"]
     filters = None
+    # From the `order` block, which is where the resolver reads it. The criteria carry a
+    # default for keys the collection never set, so reading the sort there reports
+    # "Alpha" for a collection that is ordered by anything else.
+    order = get_collections_manager().get_order(name)
     if row["is_filter"]:
         raw = get_collections_manager().get_filters(name)
-        # From the `order` block, which is where the resolver reads it. The criteria
-        # carry a default for keys the collection never set, so reading the sort there
-        # reports "Alpha" for a collection that is ordered by anything else.
-        order = get_collections_manager().get_order(name)
         filters = {
             "letter": raw.get("letter", "All"),
             "theme": raw.get("theme", "All"),
@@ -85,6 +86,12 @@ def _resource_for(row: dict) -> dict:
         "image": row.get("image") or None,
         "game_count": row.get("game_count"),
         "filters": filters,
+        # Read for every collection, not only a filter one: a manual collection is
+        # capped and ordered the same way, and reporting it only sometimes is how a
+        # client learns to ask twice.
+        "limit": get_collections_manager().get_limit(name),
+        "order_by": order["by"],
+        "direction": order["direction"],
         "links": _links(name),
     }
 
@@ -280,4 +287,101 @@ def remove_member(name: str, game_id: str) -> Response:
         if game_id not in manager.get_members(name):
             raise NotFoundError(f"{game_id} is not in {name}")
         manager.remove_member(name, game_id)
+    return Response(status_code=204)
+
+
+@router.patch("/{name}", summary="Change a collection",
+              dependencies=[requires(scopes.COLLECTIONS_WRITE)])
+def patch_collection(name: str,
+                     request: models.PatchCollectionRequest = Body(...),
+                     ) -> models.CollectionResource:
+    """Name, image, criteria, membership and cap, in one place.
+
+    A patch: only what is sent is written. Renaming should not require restating a
+    collection's criteria, and a client that has to send the whole thing back is a
+    client racing whatever else edited it meanwhile.
+    """
+    if request.games is not None and request.filters is not None:
+        raise InvalidRequestError(
+            "A collection is either filter-based or an explicit list of games, not both")
+
+    final = name
+    with get_collections_manager().mutate() as manager:
+        if name not in manager.get_collections_name():
+            raise NotFoundError(f"No collection named {name}")
+
+        if request.games is not None:
+            if manager.is_filter_based(name):
+                raise ConflictError(
+                    f"{name} is a filter collection - its membership comes from its "
+                    "criteria")
+            known = set(_catalog())
+            unknown = [game_id for game_id in request.games if game_id not in known]
+            if unknown:
+                raise InvalidRequestError("Unknown game ids", details={"ids": unknown})
+            manager.set_members(name, request.games)
+
+        if request.filters is not None:
+            f = request.filters
+            manager.make_filter_collection(
+                name,
+                {"letter": f.letter, "theme": f.theme, "game_type": f.game_type,
+                 "manufacturer": f.manufacturer, "year": f.year, "rating": f.rating,
+                 "rating_or_higher": "true" if f.rating_or_higher else "false",
+                 "played": f.played},
+                order={"by": f.order_by, "direction": f.direction})
+
+        if request.clear_limit:
+            manager.set_limit(name, None)
+        elif request.limit is not None:
+            if request.limit < 1:
+                raise InvalidRequestError("A cap of fewer than one game shows nothing")
+            manager.set_limit(name, request.limit)
+
+        if request.image is not None:
+            manager.set_image(name, request.image)
+
+        # Last, so every other edit above addressed the collection by the name it had.
+        if request.name is not None and request.name.strip() != name:
+            new_name = request.name.strip()
+            if not new_name:
+                raise InvalidRequestError("A collection needs a name")
+            if new_name in manager.get_collections_name():
+                raise ConflictError(f"A collection named {new_name} already exists")
+            manager.rename_collection(name, new_name)
+            final = new_name
+
+    return _resource_for(_row_or_404(final))
+
+
+@router.put("/{name}/order", summary="Set the order of a collection's games",
+            status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
+def set_order(name: str,
+              request: models.CollectionOrderRequest = Body(...)) -> Response:
+    """The whole list, in order, atomically.
+
+    Every id must already be a member: reordering is not a way to add one, and a list
+    that quietly added would make a dropped id indistinguishable from a new one. The
+    membership is compared as a set, so a caller that omits one is told rather than
+    silently removing it.
+    """
+    with get_collections_manager().mutate() as manager:
+        if name not in manager.get_collections_name():
+            raise NotFoundError(f"No collection named {name}")
+        if manager.is_filter_based(name):
+            raise ConflictError(
+                f"{name} is a filter collection - its order comes from its criteria")
+        members = list(manager.get_members(name))
+        sent = list(request.games)
+        if sorted(sent) != sorted(members):
+            missing = sorted(set(members) - set(sent))
+            extra = sorted(set(sent) - set(members))
+            raise InvalidRequestError(
+                "An order must list exactly the collection's members",
+                details={"missing": missing, "not_members": extra})
+        manager.set_members(name, sent)
+        # Setting an order is what makes the member array the order. Without this the
+        # resolver falls back to `title`, so the list would come back sorted and the
+        # call would have written something nothing reads.
+        manager.set_order(name, MANUAL_ORDER)
     return Response(status_code=204)

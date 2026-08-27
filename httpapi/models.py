@@ -874,6 +874,12 @@ class CollectionResource(ApiModel):
     image: str | None
     game_count: int | None
     filters: CollectionFilters | None
+    # The cap, and how the list is ordered. Both were settable and neither was reported,
+    # so a client could apply a cap and have no way to see that one was in force.
+    # `manual` order means the stored member array is the order.
+    limit: int | None = None
+    order_by: str = ""
+    direction: str = ""
     links: CollectionLinks
 
 
@@ -888,6 +894,38 @@ class CreateCollectionRequest(ApiModel):
     name: str
     filters: CollectionFilters | None = None
     games: list[str] = Field(default_factory=list)
+
+
+class PatchCollectionRequest(ApiModel):
+    """What a collection is, changed in place. Every field is optional and only what is
+    sent is written - a rename must not have to restate the criteria.
+
+    `games` replaces the whole membership, in the order given, because the order *is*
+    the membership for a manual collection. Refused on a filter collection, whose
+    membership comes from its criteria.
+
+    Sending `filters` turns a manual collection into a filter one, which discards a
+    hand-picked list - so it is only ever explicit, never a side effect of another edit.
+    """
+
+    name: str | None = None
+    image: str | None = None
+    filters: CollectionFilters | None = None
+    games: list[str] | None = None
+    limit: int | None = None
+    # Absent leaves the cap alone; `limit: null` cannot say "lift it" because absent and
+    # null are the same thing over JSON. This says it in a word.
+    clear_limit: bool = False
+
+
+class CollectionOrderRequest(ApiModel):
+    """The membership in the order it should be read.
+
+    A whole list rather than per-item positions: atomic, and neither side does index
+    arithmetic. Every id must already be a member - reordering is not a way to add.
+    """
+
+    games: list[str]
 
 
 # --- Jobs ------------------------------------------------------------------
