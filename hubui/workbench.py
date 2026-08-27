@@ -72,9 +72,13 @@ if (!window.__hubDockGrip) {
 }
 """
 
-# The section shown when nobody has said otherwise. The map is the question people
-# actually have about a game, and its shape answers before a label is read.
-DEFAULT_SECTION = "media"
+# Where a fresh client lands, per rail. Identity, because selecting a row is usually
+# navigation rather than curation: the first question a selection asks is what this is,
+# and the answer is also where the things you can do to it live.
+#
+# Per rail rather than one value, because a rail declares its own landing place - and a
+# table selected on purpose should not open on the machine that contains it.
+DEFAULT_SECTION = {"game": "game_details", "table": "table_details"}
 # Every section closed. Named, because it travels in the state and the address, and
 # "" appearing in either wants to be findable as a decision rather than as a blank.
 COLLAPSED = ""
@@ -146,7 +150,8 @@ def chosen_section(state: dict[str, Any], subject: str = "game") -> str:
         # default here would reopen a section the user just shut.
         return COLLAPSED
     if state.get("section") not in known:
-        state["section"] = DEFAULT_SECTION if DEFAULT_SECTION in known else rail[0].key
+        wanted = DEFAULT_SECTION.get(subject, "")
+        state["section"] = wanted if wanted in known else rail[0].key
     return state["section"]
 
 

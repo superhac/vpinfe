@@ -14,14 +14,14 @@ class ChosenSectionTests(unittest.TestCase):
     def test_a_fresh_client_lands_on_the_default(self) -> None:
         state: dict = {}
 
-        self.assertEqual(workbench.chosen_section(state), workbench.DEFAULT_SECTION)
+        self.assertEqual(workbench.chosen_section(state), workbench.DEFAULT_SECTION["game"])
 
     def test_a_section_the_subject_cannot_answer_falls_back(self) -> None:
         """Table details under a game is not a section to land on quietly."""
         state = {"section": "table_details"}
 
         self.assertEqual(workbench.chosen_section(state, "game"),
-                         workbench.DEFAULT_SECTION)
+                         workbench.DEFAULT_SECTION["game"])
 
     def test_closed_stays_closed(self) -> None:
         state = {"section": workbench.COLLAPSED}
@@ -68,7 +68,7 @@ class AddressTests(unittest.TestCase):
         state = self._seed({"view": "games", "game": "abc", "section": "nonsense"})
 
         self.assertEqual(workbench.chosen_section(state, "game"),
-                         workbench.DEFAULT_SECTION)
+                         workbench.DEFAULT_SECTION["game"])
 
 
 class SectionTests(unittest.TestCase):
@@ -91,3 +91,19 @@ class SectionTests(unittest.TestCase):
         docked = {item.key for item in workbench.SECTIONS if item.dock}
 
         self.assertEqual(docked, {"media"})
+
+
+class RailDefaultTests(unittest.TestCase):
+    """Each rail lands where it declares, not on whatever is first."""
+
+    def test_a_game_lands_on_the_game(self) -> None:
+        self.assertEqual(workbench.chosen_section({}, "game"), "game_details")
+
+    def test_a_table_lands_on_the_table(self) -> None:
+        """Selecting a file on purpose should not open on the machine holding it."""
+        self.assertEqual(workbench.chosen_section({}, "table"), "table_details")
+
+    def test_every_rail_declares_a_section_it_actually_has(self) -> None:
+        for subject, wanted in workbench.DEFAULT_SECTION.items():
+            keys = {item.key for item in workbench.sections_for(subject)}
+            self.assertIn(wanted, keys, f"{subject} lands nowhere")
