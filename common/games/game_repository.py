@@ -206,9 +206,15 @@ def game_to_row(game, collections_map: dict[str, list[str]] | None = None) -> di
         value = gf.get(key, None)
         return default if value in ("", None) else value
 
+    # What the name would be with no override. Kept beside the effective one because a
+    # surface offering to undo an override has to be able to say what it undoes to, and
+    # "name" has already resolved that away.
+    found_title = reorder_leading_article(
+        first_meta_value(meta, ("Info", "Title"), default=game_name) or "")
+
     row = {
-        "name": (str(vpinfe.get("alt_title", "") or "").strip()
-                 or reorder_leading_article(first_meta_value(meta, ("Info", "Title"), default=game_name) or "")),
+        "name": str(vpinfe.get("alt_title", "") or "").strip() or found_title,
+        "found_name": found_title,
         "filename": gf_name or Path(game.fullPathVPXfile).name,
         # vpsid and alt_vpsid correlate with VPSdb, VPinPlay and anything else keyed
         # by them. vpinfe_id is this install's own id (common/games/game_identity.py)

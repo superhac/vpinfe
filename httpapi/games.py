@@ -116,6 +116,10 @@ def _resource(row: dict, game_id: str) -> dict:
             "alt_vps_id": row.get("alt_vpsid", ""),
             "frontend_dof_event": row.get("frontend_dof_event", ""),
         },
+        "discovered": {
+            "name": row.get("found_name", ""),
+            "vps_id": row.get("vpsid", ""),
+        },
         # Assets, not media: these are what the game needs to play as intended.
         # Media is the artwork VPinFE shows while browsing - see docs/conventions.md.
         # Summary from the scan; the detail endpoint recomputes and attributes files.

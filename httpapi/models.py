@@ -197,6 +197,19 @@ class GameOverrides(ApiModel):
     frontend_dof_event: str = ""
 
 
+class GameDiscovered(ApiModel):
+    """What each overridable field would say with no override.
+
+    On the wire because a surface offering to undo an override has to name what it
+    undoes to, and the effective value has already resolved that away. Only the fields
+    something outside VPinFE supplies appear here - the rest are the user's alone and
+    have nothing underneath.
+    """
+
+    name: str = ""
+    vps_id: str = ""
+
+
 class TableOverrides(ApiModel):
     """What the user said about one launchable file.
 
@@ -247,6 +260,7 @@ class GameResource(ApiModel):
     # outside VPinFE, and because two games can read identically without it.
     folder: str = ""
     overrides: GameOverrides = GameOverrides()
+    discovered: GameDiscovered = GameDiscovered()
     assets: dict[str, AssetEntry]
     links: GameLinks
 
