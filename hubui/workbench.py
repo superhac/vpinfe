@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import PurePosixPath
@@ -88,6 +88,12 @@ COLLAPSED = ""
 # the layout a beat after you let go - which is exactly when you can no longer see
 # what you were aiming at.
 OUTLINE_FROM_PX = 520
+
+# Rows that are not a fact. A group's title and a group's actions both span the whole
+# grid, so every group keeps the one shared label column - the alignment a second grid
+# would break.
+HEADING = object()
+FULL = object()
 
 
 
@@ -621,7 +627,7 @@ async def _game_block(context: dict[str, Any]) -> None:
     away half of what somebody was looking at.
     """
     with ui.column().classes("gap-0 hub-form"):
-        _identity_rows(context["game"])
+        _identity_rows(context)
 
 
 async def _table_block(context: dict[str, Any]) -> None:
@@ -632,23 +638,117 @@ async def _table_block(context: dict[str, Any]) -> None:
         if chosen is None:
             ui.label("No table selected").classes("hub-help")
             return
-        _table_rows(chosen)
+        _table_rows(chosen, context)
 
 
-def _identity_rows(game: dict[str, Any]) -> None:
+async def _save_overrides(context: dict[str, Any], changes: dict[str, Any], *,
+                          table: bool) -> None:
+    """Write one field and rebuild. Off the loop: this is an HTTP call to our own
+    process, and made on the event loop it blocks the server from answering it."""
+    library = context["library"]
+    try:
+        if table:
+            await run.io_bound(library.set_table_overrides, context["game_id"],
+                               context["lens"], changes)
+        else:
+            await run.io_bound(library.set_game_overrides, context["game_id"], changes)
+    except Exception as exc:
+        ui.notify(f"Could not save: {exc}", type="negative")
+        return
+    await context["rebuild"]()
+
+
+def _override(effective: str, found: str | None, source: str,
+              save: Callable[[str], Any], *, shown: str | None = None,
+              hint: str = "") -> Callable[[], None]:
+    """One field the user may override, drawn into a fact row.
+
+    A field the whole time. The read state and the edit state are one element, so there
+    is nothing for the alignment to drift against and nothing moves on the first click.
+
+    `found` is what the field would say with no override, or None where nothing but the
+    user ever supplies one. Where there is a `found`, an amber revert appears exactly
+    when the value differs from it, and typing that value back clears the override -
+    so the mark's presence always means "this differs from the default".
+    """
+    current = effective if shown is None else shown
+
+    def draw() -> None:
+        with ui.element("div").classes("hub-fact-edit"):
+            field = ui.input(value=current).props("dense borderless") \
+                .classes("hub-edit-field")
+            if hint:
+                field.tooltip(hint)
+            icon = ui.icon("undo").classes("hub-revert")
+            if found is not None:
+                target = f'"{found}"' if found else "empty"
+                icon.tooltip(f"Revert to {target} - from {source}")
+            icon.visible = found is not None and current != found
+            held = {"value": current}
+
+            async def commit() -> None:
+                value = str(field.value or "").strip()
+                if value == held["value"]:
+                    return
+                held["value"] = value
+                # Sending the discovered value is how an override is cleared, so the
+                # two cases are one request rather than a delete and a write.
+                await save("" if found is not None and value == found else value)
+
+            def cancel() -> None:
+                field.value = held["value"]
+                field.run_method("blur")
+
+            async def revert() -> None:
+                held["value"] = found or ""
+                await save("")
+
+            field.on("blur", commit)
+            field.on("keydown.enter", lambda: field.run_method("blur"))
+            field.on("keydown.escape", cancel)
+            icon.on("click", revert)
+
+    return draw
+
+
+def _identity_rows(context: dict[str, Any]) -> None:
+    game = context["game"]
     # The folder is the tail, not the whole path: the library root is the same for
     # every game and repeating it costs the only column that has to hold a name.
     folder = str(game.get("folder") or "")
-    _rows(ui, {
-        "VPS id": game.get("vps_id") or "-",
-        "ROM": game.get("rom") or "-",
-        "Type": game.get("type") or "-",
-        "Themes": ", ".join(game.get("themes") or []) or "-",
-        "Folder": PurePosixPath(folder).name or folder or "-",
-    })
+    found = game.get("discovered") or {}
+    overrides = game.get("overrides") or {}
+
+    def save(key: str):
+        async def write(value: str) -> None:
+            await _save_overrides(context, {key: value}, table=False)
+        return write
+
+    _rows(ui, [
+        (HEADING, "The machine"),
+        ("Name", _override(game.get("name") or "", found.get("name") or "",
+                           "VPS", save("alt_title"))),
+        ("Made by", f"{game.get('manufacturer') or '?'} "
+                    f"{game.get('year') or ''}".strip()),
+        ("Type", game.get("type") or "-"),
+        ("Themes", ", ".join(game.get("themes") or []) or "-"),
+        ("ROM", game.get("rom") or "-"),
+        (HEADING, "Matched against"),
+        ("VPS id", _override(game.get("vps_id") or "", found.get("vps_id") or "",
+                             "VPS", save("alt_vps_id"),
+                             shown=overrides.get("alt_vps_id") or game.get("vps_id"))),
+        (HEADING, "On this cabinet"),
+        # Nothing supplies this but the user, so there is nothing to revert to - empty
+        # means the frontend's own default, which is what clearing it says.
+        ("DOF event", _override(overrides.get("frontend_dof_event") or "", None,
+                                "", save("frontend_dof_event"),
+                                hint="Empty uses the default effect")),
+        ("Folder", PurePosixPath(folder).name or folder or "-"),
+    ])
 
 
-def _table_rows(table: dict[str, Any]) -> None:
+def _table_rows(table: dict[str, Any],
+                context: dict[str, Any] | None = None) -> None:
     """One table's own facts.
 
     The rom is the one it resolves to with any alias followed, which is the one that
@@ -662,29 +762,226 @@ def _table_rows(table: dict[str, Any]) -> None:
     if declared and effective and declared != effective:
         rom = f"{effective}  (declared {declared})"
 
-    # Three rows, not one Status. They are independent - a table can be the default
-    # and hidden and gone - so joining them made one sentence out of three different
-    # kinds of fact, and its no-flags fallback read "in play", which sounds like the
-    # table is running. The grid states them as three columns; this now agrees.
+    # Grouped, and each group carries the actions that work on it. The groups are the
+    # ranking: a version is read constantly and a hash almost never.
     script = ((table.get("assets") or {}).get("script") or {})
     features = table.get("features") or {}
-    rows: dict[str, Any] = {
-        "File": table.get("filename") or "-",
-        "Version": table.get("version") or "-",
-        "Built by": ", ".join(table.get("authors") or []) or "-",
-        "ROM": rom,
-        "Runs with": apps.app_name(table.get("app")),
-        "Default": "Yes" if table.get("default") else "No",
-        "In frontend": "Hidden" if table.get("hidden") else "Shown",
-        "File on disk": "Yes" if table.get("available") else "Missing",
-        "Script": ("Extracted" if script.get("resolution") != "none"
-                   else "Not extracted"),
-        "File hash": table.get("file_hash") or "-",
-        "Script hash": table.get("vbs_hash") or "-",
-    }
+    overrides = (table.get("overrides") or {}) if context else {}
+
+    entries: list[tuple[Any, Any]] = []
+    if context is not None:
+        entries += _attention(table)
+
+    entries += [
+        (HEADING, "Identity"),
+        ("File", table.get("filename") or "-"),
+        ("Version", table.get("version") or "-"),
+        ("Author", ", ".join(table.get("authors") or []) or "-"),
+    ]
+    if context is not None:
+        entries += [(FULL, _play_action(context, table))]
+    entries += [
+        (HEADING, "Plays with"),
+        ("Application", apps.app_name(table.get("app"))),
+        ("ROM", _rom_state(pinmame, rom)),
+    ]
     if features:
-        rows["Uses"] = lambda: _feature_chips(features)
-    _rows(ui, rows)
+        # Under "Plays with", not a group of its own: nFozzy, SSF and FlexDMD are all
+        # answers to how this table plays, and the row label already says it.
+        entries += [("Features", lambda: _feature_chips(features))]
+    if context is not None:
+        entries += _table_override_rows(context, table, overrides)
+
+    entries += [(HEADING, "Status")]
+    if context is not None:
+        entries += _library_rows(context, table)
+    else:
+        entries += [
+            ("Default", "Yes" if table.get("default") else "No"),
+            ("In frontend", "Hidden" if table.get("hidden") else "Shown"),
+        ]
+    entries += [("File on disk",
+                 _state("Present", "on") if table.get("available")
+                 else _state("Missing", "bad"))]
+
+    # Last and quiet: identifiers are looked up, not read. They earn a place on the
+    # panel and not a place near the top of it.
+    entries += [
+        (HEADING, "Reference"),
+        ("VBScript", _state("Extracted", "on") if script.get("resolution") != "none"
+                     else _state("Not extracted", "off")),
+        ("File hash", table.get("file_hash") or "-"),
+        ("VBScript hash", table.get("vbs_hash") or "-"),
+    ]
+    _rows(ui, entries)
+
+
+def _state(text: str, level: str, beside: str = "") -> Callable[[], None]:
+    """A state the panel found and the user cannot set, as a chip.
+
+    The counterpart of the switch: a switch is a setting, a chip is a finding, and the
+    shape is what says which. The level is what the absence *costs* - `on` for the
+    affirmative, `off` where absence is the ordinary case, `warn` where it is worth
+    fixing, `bad` where it stops the table working. Each fact keeps its own words,
+    because a rom is installed, a script is extracted and a file is merely present.
+    """
+    def draw() -> None:
+        with ui.element("div").classes("hub-fact-edit"):
+            if beside:
+                ui.label(beside).classes("hub-fact-value truncate min-w-0") \
+                    .tooltip(beside)
+            ui.label(text).classes(f"hub-tier hub-tier--{level}")
+
+    return draw
+
+
+def _rom_state(pinmame: dict[str, Any], rom: str) -> Any:
+    """The rom, and whether it is actually there.
+
+    The chain resolves aliases and audits the install, so the name alone is half an
+    answer: what anybody wants of a rom is whether it will run.
+    """
+    installed = pinmame.get("installed")
+    if not pinmame.get("effective") or installed is None:
+        return rom
+    return _state("Installed" if installed else "Not installed",
+                  "on" if installed else "warn", beside=rom)
+
+
+def _attention(table: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """What is wrong with this table, before anything that is merely true about it.
+
+    A workbench leads with the thing you would act on. Only real faults: hidden and
+    not-default are choices somebody made, not problems, and listing them here would
+    teach the block to be ignored.
+    """
+    pinmame = (table.get("dependencies") or {}).get("pinmame") or {}
+    flex = (table.get("dependencies") or {}).get("flexdmd") or {}
+    faults = []
+    if not table.get("available"):
+        faults.append("The .vpx is not on disk")
+    if pinmame.get("effective") and pinmame.get("installed") is False:
+        faults.append(f"ROM {pinmame['effective']} is not installed")
+    if flex.get("detected") and not flex.get("installed"):
+        faults.append("The script uses FlexDMD, which is not installed")
+    if not faults:
+        return []
+
+    def draw() -> None:
+        with ui.element("div").classes("hub-attention"):
+            ui.icon("error_outline").classes("hub-attention-icon")
+            with ui.column().classes("gap-0 min-w-0"):
+                for fault in faults:
+                    ui.label(fault).classes("hub-attention-line")
+
+    return [(FULL, draw)]
+
+
+def _library_rows(context: dict[str, Any],
+                  table: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """Which table this game offers, and whether the frontend shows it.
+
+    Both are the user's to change, so the verb sits beside the fact it changes.
+    """
+    library, game_id = context["library"], context["game_id"]
+    table_id = str(table.get("id") or "")
+    is_default = bool(table.get("default"))
+    hidden = bool(table.get("hidden"))
+
+    async def act(call: Callable[..., Any], *args: Any, done: str = "") -> None:
+        try:
+            await run.io_bound(call, *args)
+        except Exception as exc:
+            ui.notify(f"Could not do that: {exc}", type="negative")
+            return
+        if done:
+            ui.notify(done, type="positive")
+        await context["rebuild"]()
+
+    def default_row() -> None:
+        # On but not off: exactly one table is the game's default, so this is turned on
+        # by turning another one on. Disabled rather than absent, or the row a table
+        # already holds would be the one row with no control in it.
+        _switch(is_default,
+                lambda _: act(library.set_default_table, game_id, table_id,
+                              done="Now the game's default"),
+                disabled=is_default,
+                hint=("This is the one the game offers" if is_default
+                      else "Offer this table first"))
+
+    def frontend_row() -> None:
+        _switch(not hidden,
+                lambda event: act(library.set_table_hidden, game_id, table_id,
+                                  not bool(event.value)),
+                hint="Offer this table in the frontend")
+
+    return [("Default table for game", default_row),
+            ("Frontend visible", frontend_row)]
+
+
+def _switch(value: bool, on_change: Callable[[Any], Any], *,
+            disabled: bool = False, hint: str = "") -> None:
+    """Every binary value on this panel, drawn the same way.
+
+    One control for one kind of value: a switch for a yes or no, a select where there
+    is a list to pick from. Mixing a checkbox, a text state and a button across three
+    booleans makes the reader work out three times what one convention would say once.
+    """
+    # Green, the same token a present chip takes: on means the same thing whether the
+    # panel found it or the user set it, and the control's shape already says which.
+    switch = ui.switch(value=value, on_change=on_change) \
+        .props("dense color=positive").classes("hub-fact-switch")
+    if disabled:
+        switch.disable()
+    if hint:
+        switch.tooltip(hint)
+
+
+def _play_action(context: dict[str, Any], table: dict[str, Any]) -> Callable[[], None]:
+    """Play this file, not the game's default - the panel is about this one."""
+    filename = str(table.get("filename") or "")
+
+    async def go() -> None:
+        try:
+            await run.io_bound(context["library"].launch, context["game_id"], filename)
+        except Exception as exc:
+            ui.notify(f"Could not launch: {exc}", type="negative")
+
+    def draw() -> None:
+        with ui.row().classes("items-center gap-2"):
+            button = ui.button("Play this table", icon="play_arrow", on_click=go) \
+                .props("flat dense no-caps size=sm").classes("hub-action")
+            if not table.get("available"):
+                button.disable()
+                button.tooltip("The .vpx is not on disk")
+
+    return draw
+
+
+def _table_override_rows(context: dict[str, Any], table: dict[str, Any],
+                         overrides: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """What the user says about this file. None of these has a discovered value - each
+    falls back to a setting that applies everywhere - so empty is the revert."""
+
+    def save(key: str):
+        async def write(value: Any) -> None:
+            await _save_overrides(context, {key: value}, table=True)
+        return write
+
+    async def toggle(event: Any) -> None:
+        await _save_overrides(context, {"delete_nvram_on_close": bool(event.value)},
+                              table=True)
+
+    def nvram() -> None:
+        _switch(bool(overrides.get("delete_nvram_on_close")), toggle,
+                hint="Remove the NVRAM file when this table exits")
+
+    return [
+        ("Launcher", _override(overrides.get("alt_launcher") or "", None, "",
+                               save("alt_launcher"),
+                               hint="Empty uses the configured Visual Pinball binary")),
+        ("Clear NVRAM on exit", nvram),
+    ]
 
 
 # Named for the thing, not for the .info key. PinMAME is left out: it is not a script
@@ -705,9 +1002,9 @@ def _feature_chips(features: dict[str, Any]) -> None:
     with ui.element("div").classes("hub-chips"):
         for key, label in FEATURE_LABELS.items():
             present = features.get(key)
-            style = ("hub-tier--table" if present
-                     else "hub-tier--standin" if present is None
-                     else "hub-tier--game")
+            style = ("hub-tier--on" if present
+                     else "hub-tier--unknown" if present is None
+                     else "hub-tier--off")
             ui.label(label).classes(f"hub-tier {style}") \
                 .tooltip("In the script" if present else
                          "Not parsed yet" if present is None else "Not used")
@@ -769,19 +1066,29 @@ async def _tables_block(context: dict[str, Any]) -> None:
                 ui.badge(table.get("app") or "?", color="secondary").props("outline")
 
 
-def _rows(target: Any, values: dict[str, str]) -> None:
-    """One fact per line: the name, then the value, however narrow the panel gets.
+def _rows(target: Any, entries: Sequence[tuple[Any, Any]]) -> None:
+    """The facts of one section, as (label, value) pairs.
 
     One grid for all of them, not a row each, so the label column is the width of the
     longest label - a fixed one is a guess that truncates as soon as the type grows.
     A row whose value is not text passes a callable and draws its own; it has to be in
     *this* grid, or it sizes a label column of its own and its value starts somewhere
-    else entirely.
+    else entirely. `HEADING` and `FULL` are the same story: a group's title and its
+    actions span both columns here rather than living in a grid of their own, which is
+    what keeps every group's values on one left edge.
+
     `min-w-0` is what lets the value shrink: a grid item refuses to go below its
     content width without it, and the row wraps instead of ellipsing.
     """
     with target.element("div").classes("hub-facts"):
-        for label, value in values.items():
+        for label, value in entries:
+            if label is HEADING:
+                target.label(str(value)).classes("hub-fact-heading")
+                continue
+            if label is FULL:
+                with target.element("div").classes("hub-fact-full"):
+                    value()
+                continue
             target.label(label).classes("hub-fact-label")
             if callable(value):
                 value()

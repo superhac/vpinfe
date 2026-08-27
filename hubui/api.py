@@ -102,15 +102,23 @@ class HubClient:
                                      json={"rating": rating}, timeout=_TIMEOUT)
         response.raise_for_status()
 
-    def launch(self, game_id: str) -> None:
+    def launch(self, game_id: str, file: str = "") -> None:
+        """`file` picks one of the game's tables; empty launches its default."""
         _refuse_the_event_loop(f"/games/{game_id}/launch")
         response = self._session.post(f"{self._base}/games/{game_id}/launch",
-                                      json={}, timeout=_TIMEOUT)
+                                      json={"file": file} if file else {},
+                                      timeout=_TIMEOUT)
         response.raise_for_status()
 
     def _post(self, path: str, body: dict) -> dict:
         _refuse_the_event_loop(path)
         response = self._session.post(f"{self._base}{path}", json=body, timeout=_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+
+    def _put(self, path: str, body: dict) -> dict:
+        _refuse_the_event_loop(path)
+        response = self._session.put(f"{self._base}{path}", json=body, timeout=_TIMEOUT)
         response.raise_for_status()
         return response.json()
 
@@ -224,6 +232,15 @@ class HubClient:
                                      timeout=_TIMEOUT)
         response.raise_for_status()
         return response.json()
+
+    def set_game_overrides(self, game_id: str, changes: dict) -> dict:
+        """What the user says about the machine. Only the keys sent are written, so
+        two surfaces editing different fields do not overwrite each other."""
+        return self._put(f"/games/{game_id}/overrides", changes)
+
+    def set_table_overrides(self, game_id: str, table_id: str, changes: dict) -> dict:
+        """What the user says about one file. Same patch shape as the game's."""
+        return self._put(f"/games/{game_id}/tables/{table_id}/overrides", changes)
 
     def forget_table(self, game_id: str, table_id: str) -> dict:
         """Drop the record of a table whose file is gone. The hub refuses if it is not."""

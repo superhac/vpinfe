@@ -171,6 +171,22 @@ class Library:
         self._forget_tables(game_id)
         return result
 
+    def launch(self, game_id: str, file: str = "") -> None:
+        """Play one of this game's tables. Empty file means the game's default."""
+        self._client.launch(game_id, file)
+
+    def set_game_overrides(self, game_id: str, changes: dict) -> dict:
+        """An override changes the name a game sorts under, so the whole list is stale,
+        not just this game's row."""
+        result = self._client.set_game_overrides(game_id, changes)
+        self.load()
+        return result
+
+    def set_table_overrides(self, game_id: str, table_id: str, changes: dict) -> dict:
+        result = self._client.set_table_overrides(game_id, table_id, changes)
+        self._forget_tables(game_id)
+        return result
+
     def _forget_tables(self, game_id: str) -> None:
         """Both lenses read tables, so both go stale when one changes."""
         self.tables.pop(game_id, None)

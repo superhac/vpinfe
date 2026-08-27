@@ -76,11 +76,8 @@ _TOKENS = """
   /* 44px where a finger is in scope; the hub is desk-first, so this is the floor. */
   --target-min: 32px;
 
-  /* One row of facts. A row of text is sized as text - the 40px a dense Quasar field
-     measures belongs to rows that *are* a field, and spending it on every row spread
-     six facts over the height of ten. Where an editable field lands it keeps its own
-     height, and because such a field is never a swapped-in box there is nothing to
-     jump. */
+  /* One row of facts, sized as text. A row that *is* a field keeps the field's own
+     height; since such a field is never a swapped-in box, nothing jumps. */
   --fact-row: 26px;
 
   /* What a draggable divider looks like, wherever one appears - a border color here
@@ -673,13 +670,6 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.hub-mediatile-group {
-  font-size: var(--fs-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ink-3);
-  padding: 6px 0 2px;
-}
 .hub-mediatile-rule {
   height: 1px; width: 100%; margin: 8px 0 5px; background: #1f1338;
 }
@@ -730,21 +720,6 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   font-size: var(--fs-caption); color: var(--tier-table);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
-.hub-lens-select { max-width: 340px; margin-top: 2px; }
-.hub-lens-select .q-field__native {
-  font-size: var(--fs-caption); color: var(--ink-2);
-}
-/* The floating label is the word "Showing"; at rest it sits inside the control, so
-   it needs to read as a label and not as the value. */
-.hub-lens-select .q-field__label {
-  font-size: var(--fs-caption); color: var(--ink-3);
-}
-
-.hub-lens-label {
-  font-size: var(--fs-caption); text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--ink-3);
-}
-
 /* Body and dock, and one rule for where the dock goes. Under the body it is a
    vertical split - the map scrolls, the controls do not, and picking a tile can never
    put them somewhere you have to go looking. Past the work width they sit side by
@@ -852,8 +827,79 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   display: flex; flex-wrap: wrap; gap: 4px; min-width: 0;
   min-height: var(--fact-row);
   align-content: center;
+  /* Room above and below, or a wrapped block runs into the rows either side of it -
+     the 26px pitch is a text row's, and this one is several. */
+  padding: 5px 0;
 }
 
+/* A value the user may set. The read state and the edit state are one element, so the
+   alignment cannot drift and nothing moves on the first click. */
+.hub-fact-edit { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* Actions line up down the panel's right edge instead of crowding whatever value they
+   happen to follow, so the eye finds the verbs in one column. */
+.hub-fact-edit .hub-action { margin-left: auto; }
+.hub-edit-field { flex: 1 1 auto; min-width: 0; }
+.hub-edit-field .q-field__control { min-height: var(--fact-row); }
+.hub-edit-field .q-field__native {
+  font-size: var(--fs-body); color: var(--ink); padding: 0;
+}
+/* A resting edge: it is what says a value can be changed, and what tells an empty one
+   from a blank row. Quiet enough not to make a form of the section. */
+.hub-edit-field .q-field__control::before {
+  border-bottom: 1px solid var(--line); transition: border-color 120ms;
+}
+.hub-edit-field:hover .q-field__control::before { border-bottom-color: var(--ink-3); }
+.hub-edit-field .q-field--focused .q-field__control::after {
+  border-bottom-color: var(--accent);
+}
+/* The way back, and the only mark an overridden row carries. Amber because that is
+   already this app's word for the exception worth spotting, so one mark says both what
+   the state is and what to do about it. */
+.hub-revert {
+  color: var(--tier-table); font-size: 16px; cursor: pointer; flex: 0 0 auto;
+  opacity: 0.8;
+}
+.hub-revert:hover { opacity: 1; }
+/* The one control for a yes or no. Its own height, which the row takes - a switch is
+   a control, and text rows are what the 26px pitch is for. */
+.hub-fact-switch .q-toggle__inner { font-size: 28px; }
+.hub-fact-switch.disabled { opacity: 0.65 !important; }
+
+/* A group's name, spanning the grid so every group keeps the one shared label column.
+
+   The rule and the space carry the break. The weight is what puts a group title above
+   the labels it governs, and uppercase with tracking is what tells it from one. */
+.hub-fact-heading {
+  grid-column: 1 / -1;
+  /* .hub-card-title's treatment: a heading inside a panel is cyan and uppercase
+     wherever one appears here, so a group's name is one too. */
+  font-size: var(--fs-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border-top: 1px solid var(--line-soft);
+  margin-top: 14px;
+  padding: 12px 0 4px;
+}
+/* The first group opens the section - there is nothing above it to be separated from,
+   and a rule there would read as the section's own top edge. */
+.hub-facts > .hub-fact-heading:first-child {
+  border-top: none; margin-top: 0; padding-top: 0;
+}
+/* Actions and the attention block: the width of the panel, not of a value. */
+.hub-fact-full { grid-column: 1 / -1; padding: 4px 0; min-width: 0; }
+
+/* What is wrong with this thing, before anything merely true about it. Amber, which is
+   already the exception color here - not red: none of these is an error, they are
+   things to go and fix. */
+.hub-attention {
+  display: flex; align-items: flex-start; gap: 8px; min-width: 0;
+  border: 1px solid rgba(255, 192, 97, 0.35);
+  background: rgba(255, 192, 97, 0.07);
+  border-radius: 6px; padding: 6px 10px;
+}
+.hub-attention-icon { color: var(--tier-table); font-size: 18px; flex: 0 0 auto; }
+.hub-attention-line { font-size: var(--fs-body); color: var(--ink); }
 /* The picked slot. The art is the subject and takes the room; the facts under it are
    a line each, which is what lets them be sentences rather than a table of fields. */
 .hub-slot {
@@ -964,6 +1010,37 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 /* Nothing to own. Shown only where a row has to line up with others that carry one. */
 .hub-tier--missing { color: var(--ink-3); border-color: transparent; opacity: 0.5; }
+
+/* Below .hub-tier, not above it. That base sets `border` as a shorthand, so a
+   border-color declared earlier is reset to transparent by it - equal
+   specificity, and source order decides. */
+/* Present, absent, and not yet known. A state chip is not a media tier: those answer
+   whose file this is, and their amber is the exception worth spotting. Green is
+   present here; amber is reserved for something to go and fix. */
+.hub-tier--on {
+  color: #00ff9f; border-color: rgba(0, 255, 159, 0.45);
+  background: rgba(0, 255, 159, 0.12);
+}
+.hub-tier--off {
+  color: var(--ink-2); border-color: rgba(155, 139, 189, 0.55);
+  background: rgba(155, 139, 189, 0.10);
+}
+.hub-tier--unknown {
+  color: var(--ink-2); border-style: dashed;
+  border-color: rgba(155, 139, 189, 0.55);
+  background: rgba(155, 139, 189, 0.06);
+}
+/* Broken, not merely absent: what this names stops the table working at all. The one
+   red on the panel, so it means exactly that and nothing softer. */
+.hub-tier--bad {
+  color: #ff6b9d; border-color: rgba(255, 107, 157, 0.45);
+  background: rgba(255, 107, 157, 0.12);
+}
+/* Dashed, because the thing it names is not there. */
+.hub-tier--warn {
+  color: var(--tier-table); border-style: dashed;
+  border-color: rgba(255, 192, 97, 0.45);
+}
 
 /* On a map tile the badge sits over the art, top left, opposite the enlarge. */
 .hub-mediatile-tier {
