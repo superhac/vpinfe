@@ -733,14 +733,21 @@ async def _tables_block(context: dict[str, Any]) -> None:
 def _rows(target: Any, values: dict[str, str]) -> None:
     """One fact per line: the name, then the value, however narrow the panel gets.
 
-    `no-wrap` keeps them on one line and `min-w-0` is what lets the value actually
-    shrink - a flex child refuses to go below its content width without it, so the row
-    stayed wide and wrapped instead of the value ellipsing.
+    One grid for all of them, not a row each, so the label column is the width of the
+    longest label - a fixed one is a guess that truncates as soon as the type grows.
+    A row whose value is not text passes a callable and draws its own; it has to be in
+    *this* grid, or it sizes a label column of its own and its value starts somewhere
+    else entirely.
+    `min-w-0` is what lets the value shrink: a grid item refuses to go below its
+    content width without it, and the row wraps instead of ellipsing.
     """
-    for label, value in values.items():
-        with target.row().classes("items-center gap-2 w-full no-wrap px-3 py-0"):
-            target.label(label).classes("text-xs opacity-60 shrink-0 w-20")
-            target.label(str(value)).classes("text-xs truncate grow min-w-0") \
+    with target.element("div").classes("hub-facts"):
+        for label, value in values.items():
+            target.label(label).classes("hub-fact-label")
+            if callable(value):
+                value()
+                continue
+            target.label(str(value)).classes("hub-fact-value truncate min-w-0") \
                 .tooltip(str(value))
 
 

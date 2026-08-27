@@ -76,6 +76,13 @@ _TOKENS = """
   /* 44px where a finger is in scope; the hub is desk-first, so this is the floor. */
   --target-min: 32px;
 
+  /* One row of facts. A row of text is sized as text - the 40px a dense Quasar field
+     measures belongs to rows that *are* a field, and spending it on every row spread
+     six facts over the height of ten. Where an editable field lands it keeps its own
+     height, and because such a field is never a swapped-in box there is nothing to
+     jump. */
+  --fact-row: 26px;
+
   /* What a draggable divider looks like, wherever one appears - a border color here
      reads as an edge rather than a handle. */
   /* Who owns a media file. Amber is the only warm color in this palette, which is
@@ -803,11 +810,42 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   .hub-dock-grip { display: none; }
 }
 
-/* A form has nothing to choose, so it stays one column and leaves the rest alone
-   rather than stretching four fields across the window. Up to 420px, not 420px: the
-   column it sits in aligns to the start, so without the width it takes its content's
-   and a long filename ran off the panel instead of ellipsizing inside it. */
-.hub-form { width: 100%; max-width: 420px; }
+/* Takes the panel. A 420px cap used to stop four fields stretching across a window,
+   but these are facts before they are fields, and it cropped a hash at 420px with the
+   rest of a 1100px panel left blank - which reads as broken, not as restraint. The
+   width still bounds it, so a long filename ellipsizes inside the panel rather than
+   running off it; there is simply more panel to use first. A cap belongs on an input,
+   where a 900px text box is genuinely useless, not on the text. */
+.hub-form { width: 100%; }
+
+/* The facts a section is *for*, so they read at body size like everything else. They
+   used to be captions - 12px label and 12px value, smaller than the section heading
+   above them, which ranked the content below its own title. */
+.hub-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  /* The edit control's height, not a comfortable reading height: a dense outlined
+     field measures --fact-row here, and a shorter read row means the first click into
+     one grows every row under it and the panel jumps. */
+  grid-auto-rows: minmax(var(--fact-row), auto);
+  align-items: center;
+  column-gap: 8px;
+  width: 100%;
+  padding: 0 12px;
+}
+/* Dimmed, not also shrunk. Two levers were doing one job and contrast is the one that
+   costs readability; --ink-2 is the documented secondary at 11.1:1. */
+.hub-fact-label { font-size: var(--fs-caption); color: var(--ink-2); }
+.hub-fact-value { font-size: var(--fs-body); color: var(--ink); }
+/* One line of chips sits on the same pitch as every other row, and a wrapped one grows
+   symmetrically around its label. The row carries the height rather than the label
+   carrying a nudge: two hand-tuned paddings here put this row 28px into a 26px rhythm
+   and moved the label whenever the chips wrapped. */
+.hub-chips {
+  display: flex; flex-wrap: wrap; gap: 4px; min-width: 0;
+  min-height: var(--fact-row);
+  align-content: center;
+}
 
 /* The picked slot. The art is the subject and takes the room; the facts under it are
    a line each, which is what lets them be sentences rather than a table of fields. */
