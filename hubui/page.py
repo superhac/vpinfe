@@ -254,6 +254,10 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         panel.set_visibility(shown)
         workbench_title.set_visibility(shown)
         workbench_actions.set_visibility(shown)
+        # A rail is panel the whole way down, with no window in it - the stylesheet
+        # stops cutting the band to transparent, or the page grid shows through 57px.
+        splitter.classes(remove="hub-rail") if shown \
+            else splitter.classes(add="hub-rail")
         # justify-end, not justify-center: the header keeps its 18px right padding, and
         # centring inside a padded box put the icon 27px in. Held to the right, the
         # padding alone places it exactly where it sits when the panel is open.

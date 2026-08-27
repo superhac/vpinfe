@@ -397,6 +397,13 @@ body::before {
                               var(--panel-ground) 72px, var(--panel-ground) 80px,
                               rgba(0, 0, 0, 0) 80px) !important;
 }
+/* Collapsed to the rail there is no window at all - the whole strip is panel, so it is
+   opaque like every other part that is. The band above is untouched; only the cut to
+   transparent goes, which is what let the page grid through a 57px strip. */
+.hub-rail .hub-workbench {
+  background: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 44px,
+                              var(--panel-ground) 72px) !important;
+}
 /* truncate only ellipsizes against a definite width. The column may shrink under
    min-w-0, but its labels have to be told to take that width or they overflow and get
    cropped by the parent instead of ellipsized. */
@@ -1110,6 +1117,14 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .hub-section-work {
   grid-column: 2; grid-row: 1 / -1;
   min-width: 0; min-height: 0;
+  /* Still open to the page, just quieter. The grid is a fixed lattice the page owns
+     and this content scrolls over it, so text lands on lines that move under it. A
+     wash of the page's own color knocks the lattice back without closing the window -
+     the alternative, a ground only under the text, is a card with an edge, and in Full
+     that edge is a 400px stripe down a very wide region.
+     Any alpha is a claim about what is behind it: this one is the page, and the tile
+     fills inside here are measured against this. */
+  background-color: rgba(10, 5, 24, 0.55);
   /* The window's two edges against the frame - left of it the rail, above it the
      header. Without the top one the panel just stops in mid-air where the paint ends. */
   border-left: 1px solid var(--line-soft);
@@ -1117,7 +1132,12 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 /* The workbench measures itself, so the layout changes the moment the drag crosses
    the width rather than when the mouse comes up. */
-.hub-workbench { container-type: inline-size; }
+/* Above the page grid, which is a fixed z-index:0 layer and therefore paints over
+   every unpositioned background beneath it - the band and the rail strip included, so
+   "opaque" was not opaque. .nicegui-aggrid lifts itself the same way for the same
+   reason. Being above it is also what lets the open region *dim* the grid rather than
+   sit behind it: what shows through there is now the work region's own alpha. */
+.hub-workbench { container-type: inline-size; position: relative; z-index: 1; }
 
 /* The splitter measures in pixels, so shrinking the window used to come entirely out
    of the list: the workbench held its width and the list was left with a Name column
