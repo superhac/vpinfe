@@ -360,6 +360,76 @@ Two game identifiers exist and are not interchangeable:
 - `vpsid` / `altvpsid` — correlation with VPSdb and services keyed by it. Note this
   identifies the VPS **game**, not which of its tables you have.
 
+## Hub UI
+
+The stylesheet is the design system. `hubui/theme.py` holds every token and every class the
+hub uses, and there is no second place a treatment is defined. **Grep it before inventing
+one** — a heading, a chip, a state, a control. Something that looks like it needs a new class
+usually has one already, and two spellings of the same idea is how a surface stops looking
+like one product.
+
+### One shape per kind of value
+
+A panel that shows facts uses the same control for the same kind of value, everywhere:
+
+| Value | Control |
+|---|---|
+| Binary the user can set | a switch, `color=positive` |
+| A list to pick from | a select |
+| A state the user cannot set | a chip |
+| Free text the user can set | a field, with a resting edge so it does not read as text |
+
+Mixing them — a checkbox here, a text state and a button there — makes the reader work out
+three times what one convention says once.
+
+### Chips say what the absence costs
+
+A chip's color is about consequence, not about whether something is merely true:
+
+- `hub-tier--on` — present, installed, in use
+- `hub-tier--off` — absent and unremarkable. Quiet, but filled and outlined enough to still
+  read as a chip
+- `hub-tier--unknown` — not determined yet, which is not the same as "no"
+- `hub-tier--warn` — absent and worth fixing
+- `hub-tier--bad` — absent and breaking
+
+Green is present. **Amber means go and fix this, and nothing softer.** Each fact keeps its own
+words: a rom is *Installed*, a script is *Extracted*, a file is *Present*. Do not flatten them
+to Yes/No.
+
+State chips are not media tiers. `hubui/tiers.py` answers "whose file is this", and its amber
+means the exception worth spotting in a map of twenty.
+
+### Type
+
+- **A heading inside a panel** is `.hub-card-title` — `--accent` cyan, uppercase,
+  `--fs-caption`, `0.08em`. Group headings take the same treatment plus a rule and space
+  above; the separation carries the break, not extra weight.
+- **Headings take title case. Sentences and phrases stay sentence case. The app nav is
+  uppercase, alone** — a second uppercase column would rank a page's sections with the
+  product.
+- **A value is a name or a state, not a sentence.** Names keep their own casing
+  (`Visual Pinball X`, `TAF_L7`); states are capitalized noun phrases. Show a display name
+  rather than an id — an id on screen is a leak.
+
+### Two traps that have both been walked into
+
+- **Source order decides between equal specificity.** `.hub-tier` sets `border` as a
+  *shorthand*, so a variant declaring `border-color` above it is silently reset to
+  transparent. When adding a property to a base rule, check what overrides it later, and put
+  the override below.
+- **A row whose value is not text must be drawn in the same grid as the rows around it.** A
+  second grid sizes a `max-content` label column of its own, and its values start somewhere
+  else entirely.
+
+### The page grid is above unpositioned backgrounds
+
+`body::before` is a fixed `z-index: 0` layer, so it paints over any background beneath it —
+"opaque" is not opaque until the element is lifted. A panel that must cover it takes
+`position: relative; z-index: 1`, as `.nicegui-aggrid` does. Being above it is also what lets
+a region *dim* the grid rather than sit behind it: what shows through is then the region's own
+alpha.
+
 ## Linting
 
 `ruff` handles formatting-adjacent rules, import order, PEP 8 naming and common bugs.
