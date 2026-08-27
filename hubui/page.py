@@ -415,7 +415,7 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             elif view == "extensions":
                 sections.extensions(devices)
             elif view == "settings":
-                settings_page.build(state, render, go)
+                settings_page.build(state, render, go, library)
             elif view == "devices":
                 if state["device"] is None:
                     devices_page.build_registry(devices, open_device)

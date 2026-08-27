@@ -233,6 +233,19 @@ class HubClient:
         response.raise_for_status()
         return response.json()
 
+    def config_schema(self) -> list[dict]:
+        """Every setting this install has, sectioned. Read from the install rather than
+        carried here, so a client cannot offer a setting the install does not have."""
+        return list(self._get("/config/schema").get("sections") or [])
+
+    def config_values(self) -> dict:
+        """What it is set to, typed - a bool arrives as a bool."""
+        return dict(self._get("/config").get("values") or {})
+
+    def put_config(self, changes: dict) -> dict:
+        """A patch, section then key. Refused whole if any key is unknown."""
+        return dict(self._put("/config", changes).get("values") or {})
+
     def set_game_overrides(self, game_id: str, changes: dict) -> dict:
         """What the user says about the machine. Only the keys sent are written, so
         two surfaces editing different fields do not overwrite each other."""

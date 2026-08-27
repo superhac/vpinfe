@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from nicegui import ui
+from nicegui import run, ui
 
 from hubui import deeplink
 
@@ -82,22 +82,133 @@ def _setting(label: str, help_text: str, control: Callable[[], None]) -> None:
         ui.label(help_text).classes("hub-help")
 
 
-def _general() -> None:
-    ui.label("General").classes("hub-card-title")
-    with ui.element("div").classes("hub-card w-full mt-2"):
-        _setting("Install name",
-                 "Shown wherever this install appears in a list, including on another "
-                 "hub. Defaults to the hostname.",
-                 lambda: ui.input(value="PinballPC").props("dense outlined")
-                 .classes("w-80"))
-        _setting("Confirm before exiting the frontend",
-                 "Off by default. Worth turning on for a cabinet where the exit button "
-                 "is easy to hit by accident.",
-                 lambda: ui.switch(value=False).props("dense"))
-        _setting("Send anonymous usage counts",
-                 "Never on unless you turn it on, and it never includes table names, "
-                 "file paths or anything about your library.",
-                 lambda: ui.switch(value=False).props("dense"))
+def _control(option: dict, value, on_change: Callable[[object], None]) -> None:
+    """The control a setting's type asks for.
+
+    Driven by the schema's `type`, never by the key's name: a setting added to
+    config_schema renders here without this file being touched, which is the whole
+    point of the schema being served rather than restated.
+    """
+    kind = option.get("type")
+    if kind == "bool":
+        ui.switch(value=bool(value), on_change=lambda e: on_change(bool(e.value))) \
+            .props("dense color=positive")
+        return
+    if kind == "choice" and option.get("choices"):
+        ui.select(list(option["choices"]), value=str(value or ""),
+                  on_change=lambda e: on_change(e.value)) \
+            .props("dense outlined options-dense").classes("w-80")
+        return
+    if kind == "int":
+        ui.number(value=value if value != "" else None, format="%d",
+                  on_change=lambda e: on_change(
+                      "" if e.value is None else int(e.value))) \
+            .props("dense outlined").classes("w-40")
+        return
+    if kind == "list":
+        # One line, comma separated, which is how the file holds it. A chip editor would
+        # be nicer and would need to know whether order matters; it does for some.
+        ui.input(value=", ".join(str(v) for v in (value or [])),
+                 on_change=lambda e: on_change(
+                     [p.strip() for p in str(e.value or "").split(",") if p.strip()])) \
+            .props("dense outlined").classes("w-full")
+        return
+    ui.input(value=str(value or ""), on_change=lambda e: on_change(e.value)) \
+        .props("dense outlined").classes("w-full")
+
+
+def _schema_page(library, rerender: Callable[[], None], title: str,
+                 section: str) -> None:
+    """A settings page built from what the install says it has.
+
+    Nothing here names a setting. The section is named; everything in it - label, help,
+    control, legal values - comes from the schema, so this page cannot drift from the
+    config file the way a hand-written one does.
+    """
+    ui.label(title).classes("hub-card-title")
+    body = ui.column().classes("w-full gap-0")
+    # Filled off the event loop. These calls go to our own process, so making them here
+    # blocks the server from answering them and the page waits for its own timeout.
+    ui.timer(0.01, lambda: _fill(library, rerender, body, title, section), once=True)
+
+
+async def _fill(library, rerender: Callable[[], None], body, title: str,
+                section: str) -> None:
+    try:
+        schema = await run.io_bound(library.config_schema)
+        values = await run.io_bound(library.config_values)
+    except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
+        with body:
+            ui.label(f"Could not read the settings: {exc}").classes("hub-help mt-2")
+        return
+
+    block = next((s for s in schema if s.get("name") == section), None)
+    if block is None:
+        with body:
+            ui.label(f"This install declares no [{section}] settings.") \
+                .classes("hub-help")
+        return
+
+    dirty: dict[str, object] = {}
+    current = dict(values.get(section) or {})
+    bar: dict[str, object] = {}
+
+    def refresh_bar() -> None:
+        holder = bar.get("holder")
+        if holder is None:
+            return
+        holder.clear()
+        if not dirty:
+            return
+        with holder:
+            with ui.row().classes("items-center gap-3 w-full hub-savebar"):
+                ui.label(f"{len(dirty)} unsaved change"
+                         + ("s" if len(dirty) != 1 else "")).classes("hub-setting")
+                ui.space()
+                ui.button("Discard", on_click=discard) \
+                    .props("flat dense no-caps").classes("hub-action")
+                ui.button("Save", icon="save", on_click=save) \
+                    .props("flat dense no-caps").classes("hub-action")
+
+    def mark(key: str, original, value) -> None:
+        if value == original:
+            dirty.pop(key, None)
+        else:
+            dirty[key] = value
+        refresh_bar()
+
+    async def save() -> None:
+        changes = dict(dirty)
+        try:
+            await run.io_bound(library.put_config, {section: changes})
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
+            ui.notify(f"Could not save: {exc}", type="negative")
+            return
+        current.update(changes)
+        dirty.clear()
+        refresh_bar()
+        ui.notify(f"Saved {len(changes)} setting"
+                  + ("s" if len(changes) != 1 else ""), type="positive")
+
+    def discard() -> None:
+        dirty.clear()
+        rerender()
+
+    with body:
+        ui.label(f"Read from this install. {len(block['options'])} settings in "
+                 f"[{section}].").classes("hub-help mt-1")
+        if not block.get("writable"):
+            ui.label("Read-only over HTTP.").classes("hub-help mt-1")
+        bar["holder"] = ui.element("div").classes("w-full")
+        with ui.element("div").classes("hub-card w-full mt-2"):
+            for option in block["options"]:
+                key = option["key"]
+                original = current.get(key, option.get("default"))
+                _setting(option.get("label") or key,
+                         option.get("description") or "",
+                         lambda o=option, k=key, v=original:
+                             _control(o, v, lambda new, k=k, v=v: mark(k, v, new)))
+    refresh_bar()
 
 
 def _checks_library() -> None:
@@ -115,14 +226,20 @@ def _checks_library() -> None:
                     ui.label(description).classes("hub-help")
 
 
+# A page is either built from the schema - naming only the section it shows - or
+# hand-written where it is not settings at all. Nothing in between: a page that half
+# reads the schema is a page that drifts from it.
+SCHEMA_PAGES: dict[str, tuple[str, str]] = {
+    "general": ("General", "general"),
+}
+
 PAGES: dict[str, Callable[[], None]] = {
-    "general": _general,
     "checks_library": _checks_library,
 }
 
 
 def build(state: dict, rerender: Callable[[], None],
-          go: Callable[[str], None] | None = None) -> None:
+          go: Callable[[str], None] | None = None, library=None) -> None:
     current = state.get("settings_page") or "general"
     with ui.row().classes("w-full h-full gap-4 no-wrap items-stretch"):
         index = ui.column().classes("gap-0 shrink-0 overflow-auto") \
@@ -144,8 +261,11 @@ def build(state: dict, rerender: Callable[[], None],
                 if go is not None and section != "settings":
                     item.on("click", lambda sec=section: go(sec))
         with ui.column().classes("grow min-w-0 overflow-auto"):
+            schema_page = SCHEMA_PAGES.get(current)
             page = PAGES.get(current)
-            if page is not None:
+            if schema_page is not None and library is not None:
+                _schema_page(library, rerender, *schema_page)
+            elif page is not None:
                 page()
             else:
                 label = next((lbl for _, items in INDEX for key, lbl in items

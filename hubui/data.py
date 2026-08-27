@@ -63,6 +63,7 @@ class Library:
         self._table_rows: list[dict[str, Any]] | None = None
         self._overrides: dict[str, dict[str, Any]] = {}
         self._prefs: dict[str, dict[str, Any]] = {}
+        self._config_schema: list[dict[str, Any]] | None = None
 
     def load(self) -> None:
         started = time.perf_counter()
@@ -174,6 +175,21 @@ class Library:
     def launch(self, game_id: str, file: str = "") -> None:
         """Play one of this game's tables. Empty file means the game's default."""
         self._client.launch(game_id, file)
+
+    def config_schema(self) -> list[dict]:
+        """Cached for the page's life: the schema is what this build declares, and it
+        cannot change while the process is up."""
+        if self._config_schema is None:
+            self._config_schema = self._client.config_schema()
+        return self._config_schema
+
+    def config_values(self) -> dict:
+        """Never cached - it is read when a settings page opens, which is exactly when
+        somebody may have just changed it from somewhere else."""
+        return self._client.config_values()
+
+    def put_config(self, changes: dict) -> dict:
+        return self._client.put_config(changes)
 
     def set_game_overrides(self, game_id: str, changes: dict) -> dict:
         """An override changes the name a game sorts under, so the whole list is stale,
