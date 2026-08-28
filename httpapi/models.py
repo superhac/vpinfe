@@ -916,6 +916,12 @@ class PatchCollectionRequest(ApiModel):
     # Absent leaves the cap alone; `limit: null` cannot say "lift it" because absent and
     # null are the same thing over JSON. This says it in a word.
     clear_limit: bool = False
+    # How the list is handed out. Settable here for every collection, not only through
+    # a filter block: a manual collection has an order too, and until this existed the
+    # only way to give it one was to arrange it, so `Title` was unreachable for it.
+    # `manual` means the stored member array and is refused where there is not one.
+    order_by: str | None = None
+    direction: str | None = None
 
 
 class CollectionOrderRequest(ApiModel):

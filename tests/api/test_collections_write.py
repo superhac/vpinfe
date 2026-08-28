@@ -25,6 +25,7 @@ class Manager:
         self.members = list(members)
         self.filter = is_filter
         self.order = None
+        self.direction = None
         self.limit = None
         self.image = None
         self.renamed_to = None
@@ -45,6 +46,10 @@ class Manager:
 
     def set_order(self, section, by, direction="asc", paging_group=None):
         self.order = by
+        self.direction = direction
+
+    def get_order(self, section):
+        return {"by": self.order or "title", "direction": self.direction or "asc"}
 
     def set_limit(self, section, limit):
         self.limit = limit
@@ -169,6 +174,65 @@ class PatchTests(Harness):
         self.use(manager)
         with self.assertRaises(NotFoundError):
             api.patch_collection("Coll", PatchCollectionRequest(name="x"))
+
+
+class PatchOrderTests(Harness):
+    """A collection's order, set without restating anything else.
+
+    Before this existed the only way a manual collection got an order was by being
+    arranged, so every other sort was unreachable for one - the field was on the
+    resource and there was no route that wrote it.
+    """
+
+    def test_the_order_is_written(self):
+        self.use(Manager(["g1"]))
+        api.patch_collection("Coll", PatchCollectionRequest(order_by="year",
+                                                            direction="desc"))
+        self.assertEqual(self.manager.order, "year")
+        self.assertEqual(self.manager.direction, "desc")
+
+    def test_a_direction_alone_keeps_the_field(self):
+        """Only what is sent is written, so a direction must not reset the sort."""
+        manager = Manager(["g1"])
+        manager.order = "rating"
+        self.use(manager)
+        api.patch_collection("Coll", PatchCollectionRequest(direction="desc"))
+        self.assertEqual(self.manager.order, "rating")
+        self.assertEqual(self.manager.direction, "desc")
+
+    def test_a_field_nothing_sorts_by_is_refused(self):
+        self.use(Manager(["g1"]))
+        with self.assertRaises(InvalidRequestError):
+            api.patch_collection("Coll", PatchCollectionRequest(order_by="sideways"))
+        self.assertIsNone(self.manager.order)
+
+    def test_manual_is_offered_where_there_is_an_arrangement(self):
+        self.use(Manager(["g1"]))
+        api.patch_collection("Coll", PatchCollectionRequest(order_by="manual"))
+        self.assertEqual(self.manager.order, "manual")
+
+    def test_a_filter_collection_has_no_arrangement_to_follow(self):
+        """`manual` is the stored member array, and a filter collection has none - so
+        the order would name something that does not exist."""
+        self.use(Manager(["g1"], is_filter=True))
+        with self.assertRaises(ConflictError):
+            api.patch_collection("Coll", PatchCollectionRequest(order_by="manual"))
+        self.assertIsNone(self.manager.order)
+
+    def test_an_order_beside_filters_is_the_one_that_wins(self):
+        """Sent together, the explicit order is the answer - not the one carried in
+        the filter block, which is where a filter collection's order also lives."""
+        self.use(Manager(["g1"]))
+        api.patch_collection("Coll", PatchCollectionRequest(
+            filters=api.models.CollectionFilters(order_by="title"),
+            order_by="last_played", direction="desc"))
+        self.assertEqual(self.manager.order, "last_played")
+        self.assertEqual(self.manager.direction, "desc")
+
+    def test_saying_nothing_about_order_writes_nothing(self):
+        self.use(Manager(["g1"]))
+        api.patch_collection("Coll", PatchCollectionRequest(name="Renamed"))
+        self.assertIsNone(self.manager.order)
 
 
 if __name__ == "__main__":

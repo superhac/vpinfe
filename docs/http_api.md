@@ -48,8 +48,10 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/collections/{name}/games` | Its games, resolved — works for both kinds |
 | POST | `/api/v1/collections` | Create one. `filters` makes it filter-based, `games` makes it manual |
 | DELETE | `/api/v1/collections/{name}` | Delete it |
+| PATCH | `/api/v1/collections/{name}` | Change one. Only what you send is written — a rename need not restate the rest |
 | PUT | `/api/v1/collections/{name}/games/{id}` | Add a game (idempotent) |
 | DELETE | `/api/v1/collections/{name}/games/{id}` | Remove a game |
+| PUT | `/api/v1/collections/{name}/order` | Arrange a manual collection. The whole ordered list, atomically |
 | GET | `/api/v1/jobs` | Slow work, running first. `?kind=` filters |
 | GET | `/api/v1/jobs/{id}` | One job — state, last progress, outcome |
 | GET | `/api/v1/library/entries` | The play lens over the whole library |
@@ -477,6 +479,17 @@ Membership is the game's own id, not its VPS id — a game with no VPSdb match s
 belongs to collections, which is why membership moved off the VPS id. The key on disk is
 still `vpsids` for files written before that migration, and `type` is still `vpsid` there;
 the wire uses the honest names.
+
+Every collection has an order, whichever kind it is: `order_by` names the field and
+`direction` says which way. `PATCH` sets both, and only what you send is written, so a
+direction on its own leaves the field alone. `order_by: "manual"` means the stored member
+array is the order — which only a manual collection has, so asking for it on a filter
+collection is a `409`. `PUT .../order` sends the whole arrangement at once and records
+`manual` as a side effect, because storing an arrangement nothing follows would be a
+write you cannot see.
+
+A cap is `limit`, and lifting one needs `clear_limit: true` rather than a null: absent and
+null are the same thing over JSON, so there would otherwise be no way to say it.
 
 Collection names are the identity, so they are URL-encoded in paths (`Last%20Played`).
 `Last Played` itself is a filter collection over the games with a play on record, ordered

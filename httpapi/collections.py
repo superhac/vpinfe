@@ -23,7 +23,11 @@ from common.games.collection_resolver import (
     resolve_games,
     visible_entries,
 )
-from common.games.collection_store import MANUAL_ORDER
+from common.games.collection_store import (
+    DEFAULT_DIRECTION,
+    MANUAL_ORDER,
+    SORT_LABELS,
+)
 from common.games.collections_service import (
     get_collections_manager,
     get_collections_metadata,
@@ -340,6 +344,24 @@ def patch_collection(name: str,
 
         if request.image is not None:
             manager.set_image(name, request.image)
+
+        # After `filters`, so an order sent alongside one is the explicit answer rather
+        # than being overwritten by the order inside the filter block.
+        if request.order_by is not None or request.direction is not None:
+            order = manager.get_order(name)
+            by = request.order_by or order["by"]
+            if by not in SORT_LABELS and by != MANUAL_ORDER:
+                raise InvalidRequestError(
+                    f"Nothing is ordered by {by}",
+                    details={"choices": [*SORT_LABELS, MANUAL_ORDER]})
+            # `manual` is the stored member array. A filter collection has none, so
+            # the order would name something that does not exist.
+            if by == MANUAL_ORDER and manager.is_filter_based(name):
+                raise ConflictError(
+                    f"{name} is a filter collection - it has no arrangement to follow")
+            manager.set_order(name, by,
+                              request.direction or order.get("direction")
+                              or DEFAULT_DIRECTION)
 
         # Last, so every other edit above addressed the collection by the name it had.
         if request.name is not None and request.name.strip() != name:
