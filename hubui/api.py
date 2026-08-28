@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from urllib.parse import urlencode
+from typing import Any
+from urllib.parse import quote, urlencode
 
 import requests
 
@@ -121,6 +122,67 @@ class HubClient:
         response = self._session.put(f"{self._base}{path}", json=body, timeout=_TIMEOUT)
         response.raise_for_status()
         return response.json()
+
+    def _patch(self, path: str, body: dict) -> dict:
+        _refuse_the_event_loop(path)
+        response = self._session.patch(f"{self._base}{path}", json=body,
+                                       timeout=_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+
+    def _delete(self, path: str) -> None:
+        _refuse_the_event_loop(path)
+        response = self._session.delete(f"{self._base}{path}", timeout=_TIMEOUT)
+        response.raise_for_status()
+
+    # --- collections ----------------------------------------------------------
+    # Addressed by name, which is what the routes take. A rename is therefore a move,
+    # and every caller here has to use the name the server last reported rather than
+    # one it remembered.
+
+    def collections(self) -> list[dict]:
+        return list(self._get("/collections").get("collections") or [])
+
+    def collection_games(self, name: str) -> list[dict]:
+        """The management lens: what is in it now, and why each one is there."""
+        return list(self._get(f"/collections/{quote(name, safe='')}/games")
+                    .get("games") or [])
+
+    def create_collection(self, name: str, filters: dict | None = None,
+                          games: list[str] | None = None) -> dict:
+        """Filters make a filter collection, games make a manual one. Never both -
+        the API refuses that rather than guessing which the caller meant."""
+        body: dict[str, Any] = {"name": name}
+        if filters is not None:
+            body["filters"] = filters
+        else:
+            body["games"] = games or []
+        return self._post("/collections", body)
+
+    def patch_collection(self, name: str, changes: dict) -> dict:
+        """Only what is sent is written, so a rename need not restate the criteria."""
+        return self._patch(f"/collections/{quote(name, safe='')}", changes)
+
+    def delete_collection(self, name: str) -> None:
+        self._delete(f"/collections/{quote(name, safe='')}")
+
+    def add_to_collection(self, name: str, game_id: str) -> None:
+        self._put_empty(f"/collections/{quote(name, safe='')}/games/{game_id}")
+
+    def remove_from_collection(self, name: str, game_id: str) -> None:
+        self._delete(f"/collections/{quote(name, safe='')}/games/{game_id}")
+
+    def set_collection_order(self, name: str, games: list[str]) -> None:
+        """The whole ordered list at once - atomic, and no index arithmetic here."""
+        self._put_empty(f"/collections/{quote(name, safe='')}/order",
+                        {"games": games})
+
+    def _put_empty(self, path: str, body: dict | None = None) -> None:
+        """A PUT that answers 204. `_put` would raise trying to read a body."""
+        _refuse_the_event_loop(path)
+        response = self._session.put(f"{self._base}{path}", json=body or {},
+                                     timeout=_TIMEOUT)
+        response.raise_for_status()
 
     def _media_path(self, game_id: str, table_id: str, kind: str) -> str:
         """Which route places a file, which is the same thing as which tier it lands at."""

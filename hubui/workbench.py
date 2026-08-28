@@ -23,6 +23,12 @@ from typing import Any
 from nicegui import run, ui
 
 from common.games import apps
+from common.games.collection_store import (
+    DEFAULT_ORDER_BY,
+    DIRECTION_LABELS,
+    MANUAL_ORDER,
+    SORT_LABELS,
+)
 from common.media_specs import media_family
 from hubui import deeplink, mediamap, mediasource, mediaview, tiers
 from hubui.data import Library
@@ -78,7 +84,8 @@ if (!window.__hubDockGrip) {
 #
 # Per rail rather than one value, because a rail declares its own landing place - and a
 # table selected on purpose should not open on the machine that contains it.
-DEFAULT_SECTION = {"game": "game_details", "table": "table_details"}
+DEFAULT_SECTION = {"game": "game_details", "table": "table_details",
+                   "collection": "collection_details"}
 # Every section closed. Named, because it travels in the state and the address, and
 # "" appearing in either wants to be findable as a decision rather than as a blank.
 COLLAPSED = ""
@@ -229,45 +236,103 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
             await build(container, title, library, game_id, state, table_id)
 
         context["rebuild"] = rebuild
-        section = chosen_section(state, "table" if table_id else "game")
-        # Three regions, in reading order: which mode you are in, what that mode gives
-        # you to browse, and what you are working on. The outline must not scroll with
-        # what it points at, so this row is the fixed frame and only the body scrolls.
-        # One structure, presented two ways. Wide, the rows are a rail down the left
-        # and the work fills the column beside them. Narrow, they stack in order and
-        # the work falls under the row that opened it - an accordion, which is what a
-        # rail already is when everything is closed. The stylesheet decides which;
-        # nothing about the markup changes, so nothing has to be rebuilt on a drag.
-        rows = sections_for("table" if table_id else "game")
-        body = None
-        # The row count goes to the stylesheet because the wide layout needs a track
-        # per row and then one that takes the rest - CSS cannot count its own children.
-        with ui.element("div").classes("w-full grow min-h-0 hub-sections") \
-                .style(f"--rows: {len(rows)}"):
-            for item in rows:
-                _section_row(context, item, item.key == section)
-                if item.key != section:
-                    continue
-                # The work sits immediately after the row it belongs to, which is what
-                # makes the narrow case an accordion without a second layout.
-                work = ui.element("div").classes("min-w-0 hub-section-work")
+        await _rail(context, "table" if table_id else "game", state)
+
+
+async def build_collection(container: ui.column, title: ui.column, library: Library,
+                           name: str | None, state: dict[str, Any] | None = None) -> None:
+    """The panel, for a collection rather than a game.
+
+    Its own entry point rather than a branch inside `build`: a collection has no game,
+    no tables and no media lens, so everything that build assembles for those would be
+    a chain of empty values threaded through to sections that never read them.
+    """
+    state = state if state is not None else {}
+    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
+    state["build_seq"] = mine = state.get("build_seq", 0) + 1
+    async with lock:
+        if state["build_seq"] != mine:
+            return
+        await _draw_collection(container, title, library, name, state)
+
+
+async def _draw_collection(container: ui.column, title: ui.column, library: Library,
+                           name: str | None, state: dict[str, Any]) -> None:
+    container.clear()
+    title.clear()
+    with container:
+        if not name:
+            _title(title, "Collection", "Select a collection")
+            return
+        # Read fresh rather than from the grid's copy: every control in here writes,
+        # and a rebuild that redrew the values it just changed from a stale row would
+        # show the edit undoing itself.
+        rows = await run.io_bound(library.load_collections)
+        row = next((entry for entry in rows if entry.get("name") == name), None)
+        if row is None:
+            _title(title, "Collection", "No longer in this hub")
+            return
+        kind = "Rule" if (row.get("type") or "") == "filter" else "Hand-picked"
+        _title(title, row.get("name") or "", kind)
+
+        members = await run.io_bound(library.collection_games, name)
+        axes = await run.io_bound(library.filter_axes)
+        context: dict[str, Any] = {"library": library, "collection": row,
+                                   "members": members, "axes": axes, "state": state,
+                                   "redraws": [], "dock": None}
+
+        async def rebuild() -> None:
+            await build_collection(container, title, library, name, state)
+
+        context["rebuild"] = rebuild
+        await _rail(context, "collection", state)
+
+
+async def _rail(context: dict[str, Any], subject: str,
+                state: dict[str, Any]) -> None:
+    """The rail and the open section, for whatever subject the panel is about.
+
+    Three regions, in reading order: which mode you are in, what that mode gives you to
+    browse, and what you are working on. The outline must not scroll with what it
+    points at, so this row is the fixed frame and only the body scrolls.
+
+    One structure, presented two ways. Wide, the rows are a rail down the left and the
+    work fills the column beside them. Narrow, they stack in order and the work falls
+    under the row that opened it - an accordion, which is what a rail already is when
+    everything is closed. The stylesheet decides which; nothing about the markup
+    changes, so nothing has to be rebuilt on a drag.
+    """
+    section = chosen_section(state, subject)
+    rows = sections_for(subject)
+    body = None
+    # The row count goes to the stylesheet because the wide layout needs a track
+    # per row and then one that takes the rest - CSS cannot count its own children.
+    with ui.element("div").classes("w-full grow min-h-0 hub-sections") \
+            .style(f"--rows: {len(rows)}"):
+        for item in rows:
+            _section_row(context, item, item.key == section)
+            if item.key != section:
+                continue
+            # The work sits immediately after the row it belongs to, which is what
+            # makes the narrow case an accordion without a second layout.
+            work = ui.element("div").classes("min-w-0 hub-section-work")
+            if item.dock:
+                work.classes(add="hub-has-dock")
+                work.style(f"--dock-h: {state.get('dock_px', DOCK_PX)}px")
+            with work:
+                body = ui.column().classes("min-w-0 overflow-auto gap-0 "
+                                           "hub-workbench-body")
                 if item.dock:
-                    work.classes(add="hub-has-dock")
-                    work.style(f"--dock-h: {state.get('dock_px', DOCK_PX)}px")
-                with work:
-                    body = ui.column().classes("min-w-0 overflow-auto gap-0 "
-                                               "hub-workbench-body")
-                    if item.dock:
-                        ui.element("div").classes("hub-dock-grip") \
-                            .tooltip("Drag to resize")
-                        context["dock"] = ui.column().classes("min-w-0 gap-0 hub-dock")
-                    else:
-                        context["dock"] = None
-        if body is not None:
-            with body:
-                await _one_section(context, section)
-            if context.get("dock") is not None:
-                ui.run_javascript(_GRIP)
+                    ui.element("div").classes("hub-dock-grip") \
+                        .tooltip("Drag to resize")
+                    context["dock"] = ui.column().classes("min-w-0 gap-0 hub-dock")
+                else:
+                    context["dock"] = None
+    if body is not None:
+        with body:
+            await _one_section(context, section)
+        if context.get("dock") is not None:
+            ui.run_javascript(_GRIP)
 
 
 async def _one_section(context: dict[str, Any], key: str) -> None:
@@ -1102,6 +1167,330 @@ def _rows(target: Any, entries: Sequence[tuple[Any, Any]]) -> None:
                 .tooltip(str(value))
 
 
+# --- collections ------------------------------------------------------------------
+# A collection's rail. Nothing here is shared with a game's: the two subjects have no
+# section in common, which is what section 11 means by the rail being a function of
+# (nav node, subject) rather than one list everything appears in.
+
+
+def _collection(context: dict[str, Any]) -> dict[str, Any]:
+    return context["collection"]
+
+
+async def _collection_details(context: dict[str, Any]) -> None:
+    """What the collection is, and how it hands its games out."""
+    row = _collection(context)
+    manual = (row.get("type") or "") == "manual"
+    # One control per row. Two side by side overflowed the value column at the panel's
+    # own width and wrapped out from under it, which is the whole reason the facts grid
+    # has one label column in the first place.
+    ordered = _order_control(context, row)
+    entries: list[tuple[Any, Any]] = [
+        (HEADING, "This list"),
+        ("Kind", "An explicit list of games" if manual
+         else "Built from the library by a rule"),
+        ("Ordered by", ordered["by"]),
+    ]
+    if (row.get("order_by") or DEFAULT_ORDER_BY) != MANUAL_ORDER:
+        # Not a setting that happens to be off: a direction on a hand-arranged list is
+        # not a question, so the row is absent rather than disabled.
+        entries.append(("Direction", ordered["direction"]))
+    entries.append(("Cap", _limit_control(context, row)))
+    with ui.column().classes("gap-0 hub-form"):
+        _rows(ui, entries)
+
+
+def _order_control(context: dict[str, Any],
+                   row: dict[str, Any]) -> dict[str, Callable[[], None]]:
+    """How the frontend hands this collection out, as two drawable rows.
+
+    `manual` is only offered where there is a member array to be the order - a filter
+    collection has no stored list, so "as arranged" would name something that does not
+    exist.
+    """
+    manual = (row.get("type") or "") == "manual"
+    choices = {MANUAL_ORDER: "As arranged", **SORT_LABELS} if manual else dict(SORT_LABELS)
+    current = row.get("order_by") or DEFAULT_ORDER_BY
+    held: dict[str, Any] = {"by": current if current in choices else DEFAULT_ORDER_BY,
+                            "direction": row.get("direction") or "asc"}
+
+    async def save() -> None:
+        await _patch(context, {"order_by": held["by"], "direction": held["direction"]})
+
+    # Each handler is a coroutine handed over whole. A lambda returning a *tuple* that
+    # happens to contain one - `lambda: (held.update(...), save())` - is not awaitable,
+    # so nicegui drops it and the control changes on screen while nothing is written.
+    def draw_by() -> None:
+        field = ui.select(choices, value=held["by"]).props("dense outlined") \
+            .classes("w-full min-w-0")
+
+        async def changed() -> None:
+            held["by"] = field.value
+            await save()
+
+        field.on_value_change(changed)
+
+    def draw_direction() -> None:
+        field = ui.select(DIRECTION_LABELS, value=held["direction"]) \
+            .props("dense outlined").classes("w-full min-w-0")
+
+        async def changed() -> None:
+            held["direction"] = field.value
+            await save()
+
+        field.on_value_change(changed)
+
+    return {"by": draw_by, "direction": draw_direction}
+
+
+def _limit_control(context: dict[str, Any],
+                   row: dict[str, Any]) -> Callable[[], None]:
+    """How many the frontend is handed. Empty means all of them.
+
+    Cleared with its own flag rather than by sending null: absent and null are the same
+    thing over JSON, so there would be no way to say "lift it".
+    """
+    limit = row.get("limit")
+
+    async def save(value) -> None:
+        if value in (None, ""):
+            await _patch(context, {"clear_limit": True})
+            return
+        try:
+            await _patch(context, {"limit": max(1, int(value))})
+        except (TypeError, ValueError):
+            ui.notify("A cap is a whole number of games", type="warning")
+
+    def draw() -> None:
+        field = ui.number(value=limit, min=1, format="%d", placeholder="All") \
+            .props("dense outlined clearable").classes("w-full min-w-0")
+        field.on_value_change(lambda: save(field.value))
+
+    return draw
+
+
+async def _patch(context: dict[str, Any], changes: dict[str, Any]) -> None:
+    library = context["library"]
+    try:
+        await run.io_bound(library.patch_collection, _collection(context)["name"],
+                           changes)
+    except Exception as exc:
+        ui.notify(f"Could not save: {exc}", type="negative")
+        return
+    await context["rebuild"]()
+
+
+def _members_label(context: dict[str, Any]) -> str:
+    got = context.get("members")
+    return "Games" if got is None else f"Games ({len(got)})"
+
+
+async def _collection_members(context: dict[str, Any]) -> None:
+    """What is in it now.
+
+    Resolved, never the stored array: a member naming a game this library does not have
+    resolves to nothing, and reporting the stored count instead would tell somebody
+    they have five games in a list that hands out none.
+    """
+    row = _collection(context)
+    manual = (row.get("type") or "") == "manual"
+    members = context.get("members") or []
+    stored = row.get("game_count")
+    with ui.column().classes("gap-0 hub-form w-full"):
+        if manual and stored is not None and stored != len(members):
+            ui.label(f"{stored} games are stored here but {len(members)} are in this "
+                     "library. The rest name games it does not have.") \
+                .classes("hub-help text-warning mb-2")
+        if not manual:
+            ui.label("These follow the rule. Edit the rule to change them.") \
+                .classes("hub-help mb-2")
+        if not members:
+            ui.label("Nothing in it yet." if manual
+                     else "The rule matches nothing right now.").classes("hub-help")
+        # Only where the order is the thing being read. Arrows on a list the frontend
+        # sorts by title would move something and change nothing anyone can see.
+        arrange = manual and (row.get("order_by") or "") == MANUAL_ORDER
+        for index, game in enumerate(members):
+            with ui.row().classes("items-center gap-2 w-full no-wrap py-1 "
+                                  "hub-index-item"):
+                ui.label(game.get("name") or "").classes("text-xs grow min-w-0 truncate")
+                if arrange:
+                    ui.button(icon="keyboard_arrow_up",
+                              on_click=lambda i=index: _move_member(context, members,
+                                                                    i, -1)) \
+                        .props("flat dense round size=sm") \
+                        .set_enabled(index > 0)
+                    ui.button(icon="keyboard_arrow_down",
+                              on_click=lambda i=index: _move_member(context, members,
+                                                                    i, 1)) \
+                        .props("flat dense round size=sm") \
+                        .set_enabled(index < len(members) - 1)
+                if manual:
+                    ui.button(icon="close",
+                              on_click=lambda g=game: _drop_member(context, g)) \
+                        .props("flat dense round size=sm").tooltip("Take out of this list")
+        if manual:
+            _add_member_control(context, members)
+
+
+def _add_member_control(context: dict[str, Any], members: list[dict]) -> None:
+    """Add by name, from what is not already in it.
+
+    A select rather than a dialog: adding several in a row is the normal case, and a
+    dialog per game turns that into a chore.
+    """
+    here = {game.get("id") for game in members}
+    choices = {game["id"]: game.get("name") or game["id"]
+               for game in context["library"].games if game["id"] not in here}
+    if not choices:
+        return
+    picker = ui.select(choices, with_input=True, label="Add a game") \
+        .props("dense outlined").classes("w-full mt-3")
+
+    async def add() -> None:
+        if not picker.value:
+            return
+        library = context["library"]
+        try:
+            await run.io_bound(library.add_to_collection,
+                               _collection(context)["name"], picker.value)
+        except Exception as exc:
+            ui.notify(f"Could not add it: {exc}", type="negative")
+            return
+        await context["rebuild"]()
+
+    picker.on_value_change(add)
+
+
+async def _move_member(context: dict[str, Any], members: list[dict],
+                       index: int, step: int) -> None:
+    """Move one game within the arrangement.
+
+    Sent as the whole ordered list, which is what the route takes - atomic, and no
+    index arithmetic on either side of the wire.
+    """
+    order = [game["id"] for game in members]
+    target = index + step
+    if not 0 <= target < len(order):
+        return
+    order[index], order[target] = order[target], order[index]
+    library = context["library"]
+    try:
+        await run.io_bound(library.set_collection_order,
+                           _collection(context)["name"], order)
+    except Exception as exc:
+        ui.notify(f"Could not move it: {exc}", type="negative")
+        return
+    await context["rebuild"]()
+
+
+async def _drop_member(context: dict[str, Any], game: dict[str, Any]) -> None:
+    library = context["library"]
+    try:
+        await run.io_bound(library.remove_from_collection,
+                           _collection(context)["name"], game["id"])
+    except Exception as exc:
+        ui.notify(f"Could not remove it: {exc}", type="negative")
+        return
+    await context["rebuild"]()
+
+
+async def _collection_rule(context: dict[str, Any]) -> None:
+    """The criteria, one control per axis, read from the registry rather than listed.
+
+    A new axis appears here the moment core declares one - section 2.15 makes the
+    registry the only place an axis is named, and a hand-written form here would be a
+    second place that goes stale.
+    """
+    row = _collection(context)
+    filters = dict(row.get("filters") or {})
+    axes = context.get("axes") or []
+    fields: dict[str, Any] = {}
+
+    async def save() -> None:
+        wanted = {name: control.value for name, control in fields.items()}
+        await _patch(context, {"filters": {**filters, **wanted}})
+
+    with ui.column().classes("gap-0 hub-form w-full"):
+        if (row.get("type") or "") == "manual":
+            # Offered, not done quietly: sending filters discards the hand-picked list,
+            # so it is only ever something somebody asked for.
+            ui.label("This list is hand-picked, so it has no rule.").classes("hub-help")
+            ui.label("Giving it one replaces the games in it with whatever the rule "
+                     "matches. The list itself is not kept.") \
+                .classes("hub-help text-warning mt-1 mb-2")
+            ui.button("Give it a rule instead",
+                      on_click=lambda: _patch(context, {"filters": {}})) \
+                .props("flat dense no-caps size=sm").classes("hub-action")
+            return
+        ui.label("A rule is applied to the library, never to another collection.") \
+            .classes("hub-help mb-2")
+        entries: list[tuple[Any, Any]] = []
+        for axis in axes:
+            name = axis.get("name") or ""
+            # The pair to `rating`, not an axis anybody sets on its own.
+            if name == "rating_or_higher":
+                continue
+            entries.append((_axis_label(axis), _axis_control(axis, filters, fields,
+                                                             save)))
+        _rows(ui, entries)
+
+
+def _axis_label(axis: dict[str, Any]) -> str:
+    """What to call an axis in a label column.
+
+    Its name, not its `summary`: the registry's summaries are sentences written to
+    explain an axis ("First letter of the title, as sorted"), and a column of sentences
+    is not a column of labels. The sentence is worth having, so it becomes the tooltip.
+    """
+    return str(axis.get("name") or "").replace("_", " ").capitalize()
+
+
+def _axis_control(axis: dict[str, Any], filters: dict[str, Any],
+                  fields: dict[str, Any], save: Callable[[], Any]) -> Callable[[], None]:
+    """One control per axis kind. "All" is unconstrained, which is the vocabulary the
+    filter engine already uses - kept rather than translated, so what a client sends is
+    what it sees."""
+    name = str(axis.get("name") or "")
+    kind = str(axis.get("kind") or "")
+    values = list(axis.get("values") or [])
+    summary = str(axis.get("summary") or "")
+
+    def draw() -> None:
+        if kind == "flag":
+            # Three states, not two: absent says nothing about play, true and false are
+            # both criteria. A switch could only ever say two of the three.
+            current = filters.get(name)
+            control = ui.select({"": "Any", "yes": "Yes", "no": "No"},
+                                value={True: "yes", False: "no"}.get(current, "")) \
+                .props("dense outlined").classes("w-full min-w-0")
+            fields[name] = _Mapped(control, {"": None, "yes": True, "no": False})
+        else:
+            control = ui.select(["All", *values],
+                                value=str(filters.get(name) or "All"),
+                                with_input=len(values) > 12) \
+                .props("dense outlined").classes("w-full min-w-0")
+            fields[name] = control
+        if summary:
+            control.tooltip(summary)
+        control.on_value_change(save)
+
+    return draw
+
+
+class _Mapped:
+    """A control whose stored value is not the one on screen. `.value` reads through
+    the map, so the caller collecting a filter block does not special-case a kind."""
+
+    def __init__(self, control: Any, mapping: dict[Any, Any]) -> None:
+        self._control = control
+        self._mapping = mapping
+
+    @property
+    def value(self) -> Any:
+        return self._mapping.get(self._control.value, self._control.value)
+
+
 SECTIONS: tuple[Section, ...] = (
     # The game first, then the file: a table belongs to a game, and reading down is
     # reading from the thing that contains to the thing contained.
@@ -1110,4 +1499,10 @@ SECTIONS: tuple[Section, ...] = (
             subjects=frozenset({"table"})),
     Section("media", _media_label, _media_block, dock=True),
     Section("tables", _tables_label, _tables_block),
+    Section("collection_details", lambda _: "Details", _collection_details,
+            subjects=frozenset({"collection"})),
+    Section("collection_members", _members_label, _collection_members,
+            subjects=frozenset({"collection"})),
+    Section("collection_rule", lambda _: "Rule", _collection_rule,
+            subjects=frozenset({"collection"})),
 )

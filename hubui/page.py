@@ -7,6 +7,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from hubui import collections as collections_page
 from hubui import deeplink, games, sections, theme, views, workbench
 from hubui import devices as devices_page
 from hubui import settings as settings_page
@@ -119,7 +120,7 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
 
     state: dict[str, Any] = {"view": "overview", "device": None, "mini": False,
                              "workbench": True, "settings_page": "general",
-                             "subject": "game"}
+                             "subject": "game", "collection": None}
     # Before anything is built, so the first render is the place asked for rather than
     # the front door followed by a jump.
     deeplink.apply(state, {"view": view, "game": game, "table": table,
@@ -172,7 +173,9 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             labels.append(ui.label("VPinFE Hub")
                           .classes("whitespace-nowrap hub-nav-title"))
         for key, label, icon in NAV_ITEMS:
-            _nav_item(key, label, icon, state, lambda: render(), labels,
+            # redraw, not render: a destination whose rows are read on demand has
+            # to read them before it draws, and arriving is when that is first true.
+            _nav_item(key, label, icon, state, lambda: redraw(), labels,
                       destinations)
         ui.space()
         foot = ui.column().classes("items-center gap-1 px-3 py-3 w-full") \
@@ -340,6 +343,15 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                               state["table"])
         deeplink.sync(state)
 
+    async def show_collection(row: dict | None) -> None:
+        """What the grid has selected is what the workbench is about - the same rule
+        Games follows, so the panel never needs a control of its own."""
+        if row and not state["workbench"]:
+            show_workbench(True)
+        state["collection"] = (row or {}).get("id")
+        await workbench.build_collection(panel, workbench_title, library,
+                                         state["collection"], state)
+
     def open_device(device) -> None:
         state["view"] = "devices"
         state["device"] = device
@@ -352,10 +364,14 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         panel.clear()
         # The same two-line shape a selected game gets, so the header does not change
         # height or alignment as the selection comes and goes.
+        # Named for whatever this page selects, or the empty panel on Collections
+        # would sit there asking for a game the page has none of.
+        heading, prompt = ("Collection", "Select a collection") \
+            if state["view"] == "collections" else ("Game Details", "Select a game")
         with workbench_title:
-            ui.label("Game Details") \
+            ui.label(heading) \
                 .classes("text-base hub-workbench-title leading-tight truncate")
-            ui.label("Select a game").classes("text-xs hub-workbench-label leading-none truncate")
+            ui.label(prompt).classes("text-xs hub-workbench-label leading-none truncate")
 
     def crumb() -> None:
         """Which section you are in, at the top of the content pane.
@@ -406,7 +422,8 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                     games.build(library.game_rows(), library.kinds_present(), library,
                                 show_game, state, redraw)
             elif view == "collections":
-                sections.collections(library)
+                collections_page.build(library.collections(), library, show_collection,
+                                       state, redraw)
             elif view == "media":
                 sections.media(library, lambda gid: show_game({"id": gid}))
             elif view == "extensions":
@@ -439,6 +456,12 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                 render()
             asyncio.create_task(read_then_draw())
             return
+        if state["view"] == "collections" and not library.has_collections():
+            async def read_collections_then_draw() -> None:
+                await run.io_bound(library.load_collections)
+                render()
+            asyncio.create_task(read_collections_then_draw())
+            return
         render()
 
     # The saved views, read before anything draws: a grid asks for them while it is
@@ -448,7 +471,9 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
 
     def go(view: str) -> None:
         state["view"] = view
-        render()
+        # redraw, not render: a destination whose data is read on demand has to read it
+        # before it draws, and arriving is exactly when that is first true.
+        redraw()
         deeplink.sync(state)
 
     # An address naming a game means the pane it opens, not just the section. Restored

@@ -58,6 +58,7 @@ class Library:
         self.media: dict[str, dict[str, Any]] = {}
         self.table_media: dict[tuple[str, str], dict[str, Any]] = {}
         self.tables: dict[str, list[dict[str, Any]]] = {}
+        self._collections: list[dict[str, Any]] | None = None
         # The by-file lens, read on first use rather than at load: most sessions never
         # switch to it, and it is a second walk of every folder.
         self._table_rows: list[dict[str, Any]] | None = None
@@ -236,6 +237,60 @@ class Library:
 
     def has_table_rows(self) -> bool:
         return self._table_rows is not None
+
+    # --- collections ----------------------------------------------------------
+    # Held, because render() runs on the event loop and the client refuses an HTTP call
+    # there - the same reason the by-file lens is warmed rather than fetched. Every
+    # write drops it, so what comes back next is the change and not the memory of it.
+
+    def has_collections(self) -> bool:
+        return self._collections is not None
+
+    def load_collections(self) -> list[dict[str, Any]]:
+        """Read the list. Off the event loop, and again after any write."""
+        if self._collections is None:
+            self._collections = self._client.collections()
+        return self._collections
+
+    def filter_axes(self) -> list[dict[str, Any]]:
+        """The axes a rule can be written on. Read from core's registry, never listed
+        here - section 2.15 makes that registry the only place an axis is named."""
+        return self._client.filter_axes()
+
+    def collections(self) -> list[dict[str, Any]]:
+        """What `load_collections` last read. Empty before the first read rather than
+        fetching here: this is called from render()."""
+        return self._collections or []
+
+    def collection_games(self, name: str) -> list[dict[str, Any]]:
+        """What a collection resolves to now. For a manual one that is its members
+        *that still exist* - a stored member naming a game this library does not have
+        resolves to nothing, which is why this can be shorter than `game_count`."""
+        return self._client.collection_games(name)
+
+    def create_collection(self, name: str, filters: dict | None = None) -> dict:
+        self._collections = None
+        return self._client.create_collection(name, filters=filters)
+
+    def patch_collection(self, name: str, changes: dict) -> dict:
+        self._collections = None
+        return self._client.patch_collection(name, changes)
+
+    def delete_collection(self, name: str) -> None:
+        self._collections = None
+        self._client.delete_collection(name)
+
+    def add_to_collection(self, name: str, game_id: str) -> None:
+        self._collections = None
+        self._client.add_to_collection(name, game_id)
+
+    def remove_from_collection(self, name: str, game_id: str) -> None:
+        self._collections = None
+        self._client.remove_from_collection(name, game_id)
+
+    def set_collection_order(self, name: str, games: list[str]) -> None:
+        self._collections = None
+        self._client.set_collection_order(name, games)
 
     def load_tables(self) -> list[dict[str, Any]]:
         """Read the by-file lens. Off the event loop, once per session."""

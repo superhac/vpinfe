@@ -255,59 +255,6 @@ def media(library: Library, go_game: Callable[[str], None]) -> None:
         show(chosen["kind"])
 
 
-# --- Collections -----------------------------------------------------------------
-
-AXES = ("manufacturer", "game_type", "year")
-
-
-def collections(library: Library) -> None:
-    rows = library.game_rows()
-    state = {"axis": "manufacturer", "value": ""}
-    # Filled once the Members card exists. The controls are built first and have to
-    # close over something, so the container arrives by reference rather than the
-    # controls being built twice.
-    holder: dict[str, Any] = {}
-
-    def resolve() -> None:
-        """Rule and result, side by side and live.
-
-        The count is the point: a filter whose effect you cannot see is a filter you
-        have to run to understand, which is the whole complaint about writing SQL.
-        """
-        target = holder.get("result")
-        if target is None:
-            return
-        target.clear()
-        value = (state["value"] or "").strip().lower()
-        hits = [row for row in rows
-                if value and value in str(row.get(state["axis"], "")).lower()]
-        with target:
-            if not value:
-                ui.label("Pick an axis and type a value.").classes("hub-help")
-                return
-            ui.label(f"{len(hits)} of {len(rows)} games").classes("hub-card-title mb-1")
-            for row in hits[:18]:
-                ui.label(row["name"]).classes("text-xs opacity-80 truncate")
-            if len(hits) > 18:
-                ui.label(f"...and {len(hits) - 18} more").classes("text-xs opacity-50")
-
-    with ui.row().classes("w-full gap-4 no-wrap items-start"):
-        with ui.element("div").classes("hub-card shrink-0").style("width:340px"):
-            ui.label("Rule").classes("hub-card-title")
-            ui.label("A filter collection is built from the library, never from another "
-                     "collection.").classes("hub-help mb-2")
-            ui.select(list(AXES), value=state["axis"],
-                      on_change=lambda e: (state.update(axis=e.value), resolve())) \
-                .props("dense outlined").classes("w-full")
-            ui.input("contains",
-                     on_change=lambda e: (state.update(value=e.value), resolve())) \
-                .props("dense outlined").classes("w-full")
-        with ui.element("div").classes("hub-card grow min-w-0"):
-            ui.label("Members").classes("hub-card-title")
-            holder["result"] = ui.column().classes("w-full gap-0 pt-1")
-    resolve()
-
-
 # --- Extensions ------------------------------------------------------------------
 
 def extensions(registry: list[dict]) -> None:
