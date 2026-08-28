@@ -45,16 +45,17 @@ NAV_ITEMS = (
     ("settings", "Settings", "tune"),
 )
 
-# Section title, and what one row is. The second half is the load-bearing part: a
-# section owns a subject, and a view is a preset of columns over it.
+# What the crumb calls each destination. A section owns a subject too, but that is a
+# fact about the data behind the page, not a caption for it - printing "one row is one
+# collection" over a page of cards described something that was not on the screen.
 SECTIONS = {
-    "overview": ("Overview", None),
-    "games": ("Games", "game"),
-    "collections": ("Collections", "collection"),
-    "media": ("Media", "media slot"),
-    "devices": ("Devices", "device"),
-    "extensions": ("Extensions", "extension"),
-    "settings": ("Settings", None),
+    "overview": "Overview",
+    "games": "Games",
+    "collections": "Collections",
+    "media": "Media",
+    "devices": "Devices",
+    "extensions": "Extensions",
+    "settings": "Settings",
 }
 
 
@@ -357,24 +358,18 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             ui.label("Select a game").classes("text-xs hub-workbench-label leading-none truncate")
 
     def crumb() -> None:
-        """Section and selection, in one line, at the top of the content pane.
+        """Which section you are in, at the top of the content pane.
 
-        It lives here rather than in an app header because each pane already owns its
-        own chrome in this shell, and adding a fourth band across the top would cost
-        height on every page to serve one line of text.
+        The section and nothing else - the selection is named in the workbench header,
+        which is the pane that is about it. This lives here rather than in an app
+        header because each pane already owns its own chrome in this shell, and adding
+        a fourth band across the top would cost height on every page to serve one line
+        of text.
         """
-        title, subject = SECTIONS.get(state["view"], (state["view"].title(), None))
-        # Games can be shown at more than one subject, so the crumb reads the live
-        # choice rather than the section's default - it is the sentence that tells the
-        # user what a row means, and it must not contradict the control above it.
-        if state["view"] == "games":
-            subject = games.SUBJECTS.get(state["subject"], subject).rstrip("s").lower()
+        title = SECTIONS.get(state["view"], state["view"].title())
         with ui.row().classes("items-center gap-2 w-full no-wrap pb-3"):
-            with ui.row().classes("items-center gap-2 grow min-w-0"):
-                ui.html(f"<span class='hub-crumb'>VPinFE &nbsp;/&nbsp; <b>{title}</b></span>")
-                if subject:
-                    ui.label(f"one row is one {subject}") \
-                        .classes("hub-help hub-crumb-note")
+            ui.html(f"<span class='hub-crumb'>VPinFE &nbsp;/&nbsp; <b>{title}</b></span>") \
+                .classes("grow min-w-0")
             ui.button("Look for new tables", icon="refresh",
                       on_click=_look_for_new_tables) \
                 .props("flat dense no-caps size=sm").classes("shrink-0 hub-action") \

@@ -1226,11 +1226,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .q-splitter__separator { background-color: var(--resize-line) !important; }
 .q-splitter__separator:hover { background-color: var(--accent) !important; }
 
-.q-splitter__before { min-width: 380px; container-type: inline-size; }
-
-/* And when even that is tight, the parts that are commentary go before the parts that
-   are the work. */
-@container (max-width: 560px) { .hub-crumb-note { display: none; } }
+.q-splitter__before { min-width: 380px; }
 
 /* Full: the workbench takes the window and the list steps back to a rail. Quasar puts
    an inline width on the pane it sizes, so this swaps which of the two flexes rather
