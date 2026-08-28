@@ -1,4 +1,4 @@
-"""The games grid: one row per game, with lenses over the same rows."""
+"""The games grid: one row per game, with views over the same rows."""
 
 from __future__ import annotations
 
@@ -28,12 +28,13 @@ COLUMNS = [
     grid.column("rating", "Rating", 90, type="numericColumn"),
 ]
 
-# Presets, not a replacement for the column picker: a lens sets which columns are
+# Presets, not a replacement for choosing columns: a view sets which columns are
 # shown, and anything the user changes afterwards is theirs and is what persists.
-LENSES: dict[str, list[str]] = {
+# Only fields that belong to a game. `rom` and `version` do not: game_repository reads
+# them from the default table, so at this grain they report one table's and call them
+# the game's. Tables is where that question is answered.
+GAME_VIEWS: dict[str, list[str]] = {
     "Metadata": ["name", "manufacturer", "year", "game_type", "themes", "rating"],
-    "Coverage": ["name", "coverage", "rating"],
-    "Files": ["name", "rom", "version"],
     # Media is built from the library's own kinds, so it is added at render time.
     "Media": [],
 }
@@ -51,24 +52,18 @@ def _two_line(header: str) -> str:
 # see whether the idea earns a registry: the same media field as a mark or as a picture.
 RENDERERS = ("Ticks", "Thumbnails")
 
-# What one row is. A section owns a subject and a view is a preset of columns over it -
-# which is why this is a separate control from the view toggle rather than four more
-# entries in it. Only `game` is built; the rest declare themselves so the shape of the
-# idea is visible before the work is done.
+# What one row is: three grains of the library the user owns - the folder, the
+# launchable file inside it, and the asset that resolved for it. Everything here has to
+# be something the workbench can answer for, which is what keeps a catalog out.
 SUBJECTS = {
     "game": "Games",
     "table": "Tables",
     "media_file": "Media files",
-    "vps": "VPS entries",
 }
 
 SUBJECT_STUBS = {
-    "table": "One row per .vpx file. The 15 games here that carry more than one table "
-             "collapse to a single row in Games and cannot be told apart there.",
     "media_file": "One row per file on disk, with the game it resolved to and the tier "
                   "it resolved at. This is where an orphaned file becomes visible.",
-    "vps": "One row per Virtual Pinball Spreadsheet entry, joined against this library, "
-           "so the footer can say how many are installed and how many are unmatched.",
 }
 
 
@@ -149,16 +144,15 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         search = ui.input(placeholder="Search games") \
             .props("dense outlined clearable").classes("w-64")
         # The media preset is the library's own kinds, so it is only knowable here.
-        presets = {**LENSES, "Media": ["name", *[f"media_{kind}" for kind in kinds]]}
-        wire_views, lens = view_control(library, SCOPE, presets, all_fields)
+        presets = {**GAME_VIEWS, "Media": ["name", *[f"media_{kind}" for kind in kinds]]}
+        wire_views, view_picker = view_control(library, SCOPE, presets, all_fields,
+                                              columns)
         cells = ui.toggle(list(RENDERERS), value="Ticks").props("dense no-caps unelevated")
-        cells.bind_visibility_from(lens, "value", lambda value: value == "builtin:Media")
-        columns_btn = ui.button(icon="view_column").props("flat round dense") \
-            .tooltip("Choose columns")
-        columns_menu = ui.menu()
+        cells.bind_visibility_from(view_picker, "value",
+                                   lambda value: value == "builtin:Media")
         ui.space()
         legend = ui.label(TIER_LEGEND).classes("text-xs opacity-60")
-        legend.bind_visibility_from(lens, "value",
+        legend.bind_visibility_from(view_picker, "value",
                                     lambda value: value == "builtin:Media")
         # The selection count sits with the total: it is the same fact - how much am I
         # looking at - and it costs no vertical space of its own.
@@ -251,32 +245,6 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                            html_fields=[f"media_{k}" for k in kinds])
         context_menu = ui.context_menu()
 
-    async def open_columns() -> None:
-        """Every column with a checkbox, so a hidden one can be brought back.
-
-        Hiding from the header menu with no counterpart here would be a one-way door -
-        the lens presets happen to restore visibility, but relying on that is not a way
-        back anyone would find.
-        """
-        current = await table.run_grid_method("getColumnState")
-        hidden = {c.get("colId") for c in current if c.get("hide")}
-        columns_menu.clear()
-        with columns_menu:
-            ui.item_label("Columns").props("header").classes("hub-menu-header")
-            ui.separator()
-            # An explicit column: the menu lays its children out inline otherwise, so
-            # twenty checkboxes wrap into a paragraph rather than a list.
-            with ui.column().classes("gap-0 w-full py-1"):
-                for definition in columns:
-                    field = definition["field"]
-                    label = str(definition.get("headerName") or field).replace("\n", " ")
-                    ui.checkbox(label, value=field not in hidden,
-                                on_change=lambda event, f=field: table.run_grid_method(
-                                    "setColumnsVisible", [f], event.value)) \
-                        .props("dense").classes("hub-menu-item w-full")
-
-    columns_btn.on_click(open_columns)
-
     def apply_renderer() -> None:
         """Redraw the media cells as marks or as pictures.
 
@@ -312,7 +280,7 @@ _TICK = {
 
 # One row per launchable file. The game's name leads, because a filename alone does not
 # say what the thing is - and it is pinned, because scrolling right to see which game a
-# row belongs to is the failure this lens exists to fix.
+# row belongs to is the failure this subject exists to fix.
 TABLE_COLUMNS = [
     grid.column("game", "Game", 240, pinned="left"),
     grid.column("version", "Version", 100),
@@ -332,14 +300,22 @@ TABLE_COLUMNS = [
     grid.column("filename", "File", 420),
 ]
 
-TABLE_LENSES: dict[str, list[str]] = {
+TABLE_VIEWS: dict[str, list[str]] = {
     # Default and Hidden ride in every preset: which table a game offers and whether it
-    # is offered at all are the questions this lens exists to answer, and a preset that
+    # is offered at all are the questions this view exists to answer, and a preset that
     # hides them is a list of files.
     "Identity": ["game", "version", "author", "default", "hidden", "filename"],
     "Files": ["game", "filename", "app", "default", "hidden", "missing"],
     "Play": ["game", "rom", "app", "default", "hidden"],
 }
+
+
+def _table_label(row: dict[str, Any]) -> str:
+    """What to call one table: version and author, never the filename - two tables of
+    one game differ in two characters out of forty."""
+    parts = [part for part in (row.get("author"), row.get("version")) if part]
+    return " \u00b7 ".join([row.get("game") or ""] + parts) if parts \
+        else (row.get("game") or row.get("filename") or "")
 
 
 def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -361,7 +337,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                  rerender: Callable[[], None] | None = None) -> None:
     """The library seen by launchable file rather than by folder.
 
-    Its own builder rather than a branch inside the games grid: the columns, the lenses
+    Its own builder rather than a branch inside the games grid: the columns, the views
     and the row identity are all different, and the two sharing one function would be a
     long argument about which subject each line is for.
     """
@@ -374,7 +350,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         search = ui.input(placeholder="Search tables") \
             .props("dense outlined clearable").classes("w-64")
         wire_views, _ = view_control(library, f"{SCOPE}.tables",
-                                     TABLE_LENSES, fields)
+                                     TABLE_VIEWS, fields, TABLE_COLUMNS)
         ui.space()
         ui.label(f"{len(built)} tables in {len({r['game_id'] for r in built})} games") \
             .classes("text-xs hub-label")
@@ -393,8 +369,16 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         row_menu["row"] = row
         _fill(row)
 
+    async def on_header_context(col_id: str | None) -> None:
+        # Asked of the grid rather than tracked here: the column can also be dragged in
+        # and out of the pinned area, and a local flag would then be wrong.
+        state_now = await table.run_grid_method("getColumnState") or []
+        entry = next((c for c in state_now if c.get("colId") == col_id), {})
+        _fill(None, col_id=col_id, pinned=bool(entry.get("pinned")))
+
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        table = grid.build(TABLE_COLUMNS, built, f"{SCOPE}.tables", on_select, on_context)
+        table = grid.build(TABLE_COLUMNS, built, f"{SCOPE}.tables", on_select,
+                           on_context, on_header_context)
         menu = ui.context_menu()
 
     async def act(what: Callable, *args: Any, said: str = "") -> None:
@@ -404,34 +388,64 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
             ui.notify(f"Could not do that: {exc}", type="negative")
             return
         ui.notify(said, type="positive")
-        # Both lenses read tables, so the list is rebuilt rather than patched.
+        # Both subjects read tables, so the list is rebuilt rather than patched.
         if rerender is not None:
             rerender()
 
-    def _fill(row: dict | None) -> None:
+    def _fill(row: dict | None, col_id: str | None = None,
+              pinned: bool = False) -> None:
+        """One menu, filled for whatever was right-clicked.
+
+        Two menus cannot both hang off the grid wrapper, and the wrapper sees every
+        right-click - so the header's entries and the row's share this one.
+        """
         menu.clear()
-        if not row:
-            return
         with menu:
-            if not row.get("default"):
+            if col_id and not col_id.startswith("ag-Grid-"):
+                header = next((definition.get("headerName")
+                               for definition in TABLE_COLUMNS
+                               if definition.get("field") == col_id), col_id)
+                ui.item_label(str(header).replace("\n", " ")).props("header") \
+                    .classes("hub-menu-header")
+                ui.separator()
+                # One entry that says what it will do, rather than two where one is
+                # always a no-op.
                 ui.menu_item(
-                    "Make this the game's default",
-                    lambda r=row: act(library.set_default_table, r["game_id"], r["id"],
-                                      said="Now this game's default"))
-            hidden = bool(row.get("hidden"))
-            ui.menu_item(
-                "Offer this in the frontend" if hidden else "Hide from the frontend",
-                lambda r=row, h=hidden: act(library.set_table_hidden, r["game_id"],
-                                            r["id"], not h,
-                                            said="Now offered" if h else "Hidden"))
-            # Only for a table whose file is gone. While it is on disk the record
-            # describes something the user owns, and hiding is what takes it out of
-            # play without losing its stats.
-            if not row.get("available"):
+                    "Unpin" if pinned else "Pin left",
+                    lambda c=col_id, p=pinned: table.run_grid_method(
+                        "applyColumnState",
+                        {"state": [{"colId": c, "pinned": None if p else "left"}]})) \
+                    .classes("hub-menu-item")
+                ui.menu_item("Hide column",
+                             lambda c=col_id: table.run_grid_method(
+                                 "setColumnsVisible", [c], False)) \
+                    .classes("hub-menu-item")
+            elif row:
+                ui.item_label(_table_label(row)).props("header") \
+                    .classes("hub-menu-header")
+                ui.separator()
+                if not row.get("default"):
+                    ui.menu_item(
+                        "Make this the game's default",
+                        lambda r=row: act(library.set_default_table, r["game_id"],
+                                          r["id"], said="Now this game's default")) \
+                        .classes("hub-menu-item")
+                hidden = bool(row.get("hidden"))
                 ui.menu_item(
-                    "Forget this table",
-                    lambda r=row: act(library.forget_table, r["game_id"], r["id"],
-                                      said="Record dropped"))
+                    "Offer this in the frontend" if hidden else "Hide from the frontend",
+                    lambda r=row, h=hidden: act(library.set_table_hidden, r["game_id"],
+                                                r["id"], not h,
+                                                said="Now offered" if h else "Hidden")) \
+                    .classes("hub-menu-item")
+                # Only for a table whose file is gone. While it is on disk the record
+                # describes something the user owns, and hiding is what takes it out of
+                # play without losing its stats.
+                if not row.get("available"):
+                    ui.menu_item(
+                        "Forget this table",
+                        lambda r=row: act(library.forget_table, r["game_id"], r["id"],
+                                          said="Record dropped")) \
+                        .classes("hub-menu-item")
 
     wire_views(table)
     search.on_value_change(
@@ -440,8 +454,8 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
 
 
 def view_control(library: Any, scope: str, presets: dict[str, list[str]],
-                 all_fields: list[str]):
-    """The view picker and the two ways out of a modified one.
+                 all_fields: list[str], columns: list[dict[str, Any]]):
+    """One control for how the rows are presented: which view, and what is in it.
 
     Built here in the toolbar and wired once the grid exists, because the widgets have
     to sit above the grid and the behavior needs the grid to talk to.
@@ -453,20 +467,18 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
     known = views.builtins(presets) + custom
     if active not in {view.id for view in known}:
         active = known[0].id
-    held: dict[str, Any] = {"views": known, "active": active, "custom": custom}
+    held: dict[str, Any] = {"views": known, "active": active, "custom": custom,
+                            "modified": False}
 
     picker = ui.select({view.id: _view_name(view) for view in known}, value=active,
                        label="View").props("dense outlined") \
         .classes("w-52 hub-view-picker")
-    revert = ui.button("Revert").props("flat dense no-caps size=sm")
-    save_as = ui.button("Save as\u2026").props("flat dense no-caps size=sm")
-    drop = ui.button(icon="delete_outline").props("flat dense round size=sm") \
-        .tooltip("Delete this view")
-    # Save as stays put. "Keep what I am looking at under a name" is always a sensible
-    # thing to want - a built-in makes a fine starting point - and hiding it until
-    # something drifts means nobody discovers that views can be saved at all.
-    for element in (revert, drop):
-        element.set_visibility(False)
+    # Inside the button, not beside it: a q-menu anchors to its parent, and as a
+    # sibling this one anchored to the toolbar row and opened 726px away.
+    menu_button = ui.button(icon="more_vert").props("flat dense round size=sm") \
+        .tooltip("Columns, and saving this view")
+    with menu_button:
+        menu = ui.menu()
 
     def current() -> Any:
         return next(v for v in held["views"] if v.id == held["active"])
@@ -510,10 +522,10 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
             # that is selected, so it belongs to the control that names it.
             picker.props(add="suffix=modified") if changed \
                 else picker.props(remove="suffix")
-            revert.set_visibility(changed)
-            # Only where it means something: there is nothing to revert to until the
-            # screen has drifted, and nothing to delete unless the view is the user's.
-            drop.set_visibility(not view.builtin and not changed)
+            # Recorded, not pushed at controls. The menu is built when it opens, so it
+            # reads this - which is one fewer thing to keep in step than a set of
+            # buttons that show and hide themselves.
+            held["modified"] = changed
 
         async def keep_views(active: str) -> None:
             """Write the user's views. Off the loop - this is an HTTP call, and the
@@ -552,10 +564,44 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
                                value=held["active"])
             await apply(current())
 
+        async def fill_menu() -> None:
+            """Everything about how this view looks, in one menu.
+
+            Built when it opens rather than kept in step: which columns are showing is
+            the grid's to answer, and a checklist rebuilt from it cannot go stale.
+            """
+            column_state = await table.run_grid_method("getColumnState") or []
+            hidden = {entry.get("colId") for entry in column_state if entry.get("hide")}
+            view = current()
+            menu.clear()
+            with menu:
+                ui.menu_item("Save as\u2026", lambda: _ask_name(save)) \
+                    .classes("hub-menu-item")
+                # Only where they mean something: there is nothing to revert to until
+                # the screen has drifted, and nothing to delete unless it is the
+                # user's own view.
+                if held["modified"]:
+                    ui.menu_item("Revert", lambda: apply(current())) \
+                        .classes("hub-menu-item")
+                if not view.builtin and not held["modified"]:
+                    ui.menu_item("Delete view", delete).classes("hub-menu-item")
+                ui.separator()
+                ui.item_label("Columns").props("header").classes("hub-menu-header")
+                # An explicit column: the menu lays its children out inline otherwise,
+                # so twenty checkboxes wrap into a paragraph rather than a list.
+                with ui.column().classes("gap-0 w-full py-1"):
+                    for definition in columns:
+                        field = definition["field"]
+                        label = str(definition.get("headerName") or field) \
+                            .replace("\n", " ")
+                        ui.checkbox(label, value=field not in hidden,
+                                    on_change=lambda event, f=field:
+                                    table.run_grid_method("setColumnsVisible",
+                                                          [f], event.value)) \
+                            .props("dense").classes("hub-menu-item w-full")
+
+        menu_button.on_click(fill_menu)
         picker.on_value_change(lambda event: pick(event.value))
-        revert.on("click", lambda: apply(current()))
-        save_as.on("click", lambda: _ask_name(save))
-        drop.on("click", delete)
         # The grid reports its own changes; the marker follows them rather than being
         # recomputed on a timer that would outlive the grid.
         for event in ("columnVisible", "sortChanged", "filterChanged"):
@@ -643,6 +689,7 @@ def _subject_select(state: dict[str, Any], rerender: Callable[[], None] | None,
         if rerender is not None:
             rerender()
 
-    ui.select(SUBJECTS, value=subject, label="Show",
+    # "Rows" rather than "Show", which was a synonym of the View control beside it.
+    ui.select(SUBJECTS, value=subject, label="Rows",
               on_change=lambda e: pick(e.value)) \
         .props("dense outlined").classes("w-40")
