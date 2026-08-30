@@ -8,7 +8,9 @@ from typing import Any
 
 from nicegui import run, ui
 
-from hubui import grid, views
+from common.labels import humanize
+from common.media_specs import media_label_map
+from hubui import game_tables, grid, views
 from hubui.api import HubClient
 from hubui.data import TIER_LEGEND
 
@@ -16,16 +18,42 @@ logger = logging.getLogger("vpinfe.hubui.games")
 
 SCOPE = "hubui.games.columns"
 
+# The groups are section 13's grain distinction, surfaced in the column picker: what
+# the row *is*, what it rolls up, and what it has. Media sits last because it is most
+# of the list and least of the use - and last is where it already was, so the grouping
+# names a seam that was there rather than moving anything.
+_GAME = "Game"
+_ASSETS = "Assets"
+_MEDIA = "Media"
+
+# What the games resource calls an asset is not always what `asset_registry` calls it -
+# `settings` is the table INI, and one `alt_color` covers both Serum and VNI. Named
+# here because the two vocabularies have not been reconciled, and a column headed
+# "Settings" says nothing about which file it means.
+_ASSET_LABELS = {
+    "settings": "Table INI",
+    "alt_color": "Alt Color",
+    "alt_sound": "AltSound",
+    # The `.directb2s`, which media also calls a backglass - one is the file that
+    # drives the second screen, the other is a picture of it. A column header has no
+    # group heading beside it, so the two cannot both be "Backglass".
+    "backglass": "B2S",
+}
+
 COLUMNS = [
-    grid.column("name", "Name", 280, pinned="left"),  # default; toggled from the toolbar
-    grid.column("manufacturer", "Manufacturer", 150),
-    grid.column("year", "Year", 80),
-    grid.column("game_type", "Type", 80),
-    grid.column("themes", "Themes", 200),
-    grid.column("rom", "ROM", 150),
-    grid.column("version", "Version", 90),
-    grid.column("coverage", "Assets", 90, type="numericColumn"),
-    grid.column("rating", "Rating", 90, type="numericColumn"),
+    grid.column("name", "Name", 280, pinned="left", group=_GAME),
+    # Always, including 1: it is the only thing saying the row collapses its tables,
+    # and it qualifies everything to its right. HUBUI section 13. "Table Count" rather
+    # than "Tables", which read as the tables themselves - this is a number about the
+    # game, and it belongs with the game's other facts.
+    grid.column("table_count", "Table Count", type="numericColumn", group=_GAME),
+    grid.column("manufacturer", "Manufacturer", group=_GAME),
+    grid.column("year", "Year", group=_GAME),
+    grid.column("game_type", "Type", group=_GAME),
+    grid.column("themes", "Themes", 200, group=_GAME),
+    # No ROM or Version here: ROM is an asset (`asset_registry`), Version has no
+    # game-level meaning, and both were the default table's shown as the game's.
+    grid.column("rating", "Rating", type="numericColumn", group=_GAME),
 ]
 
 # Presets, not a replacement for choosing columns: a view sets which columns are
@@ -34,18 +62,13 @@ COLUMNS = [
 # them from the default table, so at this grain they report one table's and call them
 # the game's. Tables is where that question is answered.
 GAME_VIEWS: dict[str, list[str]] = {
-    "Metadata": ["name", "manufacturer", "year", "game_type", "themes", "rating"],
+    "Metadata": ["name", "table_count", "manufacturer", "year", "game_type",
+                 "themes", "rating"],
     # Media is built from the library's own kinds, so it is added at render time.
     "Media": [],
 }
 
 _ALL = [definition["field"] for definition in COLUMNS]
-
-
-def _two_line(header: str) -> str:
-    """Break the last word onto its own line, so a long kind stays narrow."""
-    words = header.split()
-    return header if len(words) < 2 else " ".join(words[:-1]) + "\n" + words[-1]
 
 
 # A renderer is a way of drawing a field, chosen per column. Two here, hardcoded, to
@@ -67,6 +90,20 @@ SUBJECT_STUBS = {
 }
 
 
+def asset_columns(keys: list[str]) -> list[dict[str, Any]]:
+    """One column per asset kind, availability only.
+
+    A group rather than the single count that stood here, which was a count of *media*
+    under an Assets heading. What a reader wants is which of them a game has, and a
+    number cannot say that - the same argument that made media a group.
+    """
+    labels = {key: _ASSET_LABELS.get(key) or humanize(key) for key in keys}
+    width = max((grid.header_width(label) for label in labels.values()), default=92)
+    return [grid.column(f"asset_{key}", label, width, group=_ASSETS,
+                        cellStyle={"textAlign": "center"}, **_TICK)
+            for key, label in sorted(labels.items(), key=lambda kv: kv[1].lower())]
+
+
 def media_columns(kinds: list[str]) -> list[dict[str, Any]]:
     """One width for every kind, set by the widest line any of them needs.
 
@@ -74,10 +111,18 @@ def media_columns(kinds: list[str]) -> list[dict[str, Any]]:
     the columns should scan as a grid, so they are sized together rather than each to
     its own header.
     """
-    headers = {kind: _two_line(kind.replace("_", " ")) for kind in kinds}
+    # The registry's own label, never the key. `media_specs` carries the name a person
+    # reads for each kind - acronyms already cased - and deriving one from the key
+    # instead is what put "real dmd color" in the column picker.
+    labels = media_label_map()
+    # Ordered by what is shown, not by the key behind it. Sorting on the key put FSS
+    # between Playfield and Playfield Video, and DMD after Real DMD Color - a list that
+    # looks unsorted because it is sorted on something the reader cannot see.
+    headers = {kind: grid.two_line(labels.get(kind) or humanize(kind))
+               for kind in sorted(kinds, key=lambda k: labels.get(k, k).lower())}
     width = max((grid.header_width(header) for header in headers.values()), default=92)
     return [grid.column(f"media_{kind}", header, width,
-                        cellStyle={"textAlign": "center"})
+                        cellStyle={"textAlign": "center"}, group=_MEDIA)
             for kind, header in headers.items()]
 
 
@@ -134,7 +179,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
             _subject_select(state, rerender, subject)
         _subject_stub(subject)
         return
-    columns = COLUMNS + media_columns(kinds)
+    columns = COLUMNS + asset_columns(library.asset_keys()) + media_columns(kinds)
     all_fields = [definition["field"] for definition in columns]
     selected: list[dict[str, Any]] = []
     context_row: list[dict[str, Any]] = []
@@ -281,41 +326,49 @@ _TICK = {
 # One row per launchable file. The game's name leads, because a filename alone does not
 # say what the thing is - and it is pinned, because scrolling right to see which game a
 # row belongs to is the failure this subject exists to fix.
+_TABLE = "Table"
+_IN_PLAY = "In this library"
+
 TABLE_COLUMNS = [
-    grid.column("game", "Game", 240, pinned="left"),
-    grid.column("version", "Version", 100),
-    grid.column("author", "Author", 160),
-    grid.column("rom", "ROM", 140),
-    grid.column("app", "App", 90),
+    grid.column("game", "Game", 240, pinned="left", group=_GAME),
+    grid.column("version", "Version", group=_TABLE),
+    grid.column("author", "Author", 160, group=_TABLE),
+    grid.column("rom", "ROM", 110, group=_TABLE),
+    grid.column("app", "App", group=_TABLE),
     # One column per fact rather than one word folding three together. "Status" cannot
     # stay one column anyway - has an update, missing its rom and the rest are all
     # status - and folded, a table that is both the default and hidden reads as only
     # one of them. Each of these sorts and filters on its own, which is what a list is
     # for. A summary column can be built later, deliberately, from these.
-    grid.column("default", "Default", 100, **_TICK),
-    grid.column("hidden", "Hidden", 95, **_TICK),
-    grid.column("missing", "Missing", 100, **_TICK),
+    # Not a tick: a chosen default and a derived one are different facts.
+    grid.column("default_state", "Default", group=_IN_PLAY),
+    grid.column("hidden", "Hidden", group=_IN_PLAY, **_TICK),
+    grid.column("missing", "Missing", group=_IN_PLAY, **_TICK),
     # Last and widest: it is the identifier of record, and the part that tells two
     # tables of one game apart sits at its end.
-    grid.column("filename", "File", 420),
+    grid.column("filename", "File", 420, group=_TABLE),
 ]
 
 TABLE_VIEWS: dict[str, list[str]] = {
     # Default and Hidden ride in every preset: which table a game offers and whether it
     # is offered at all are the questions this view exists to answer, and a preset that
     # hides them is a list of files.
-    "Identity": ["game", "version", "author", "default", "hidden", "filename"],
-    "Files": ["game", "filename", "app", "default", "hidden", "missing"],
-    "Play": ["game", "rom", "app", "default", "hidden"],
+    "Identity": ["game", "version", "author", "default_state", "hidden",
+                 "filename"],
+    "Files": ["game", "filename", "app", "default_state", "hidden", "missing"],
+    "Play": ["game", "rom", "app", "default_state", "hidden"],
 }
 
 
 def _table_label(row: dict[str, Any]) -> str:
-    """What to call one table: version and author, never the filename - two tables of
-    one game differ in two characters out of forty."""
-    parts = [part for part in (row.get("author"), row.get("version")) if part]
-    return " \u00b7 ".join([row.get("game") or ""] + parts) if parts \
-        else (row.get("game") or row.get("filename") or "")
+    """A row menu's heading: the game, then which of its tables this is.
+
+    The pair, on one line, because a menu header has one. `subject` owns the second
+    half so this cannot drift from the header, the collection row and the panel.
+    """
+    said = game_tables.table_name(row)
+    game = row.get("game") or ""
+    return f"{game}{game_tables.JOIN}{said}" if game and said else (game or said)
 
 
 def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -327,7 +380,13 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     return [{**row,
              "missing": not row.get("available", True),
-             "author": ", ".join(row.get("authors") or [])}
+             "author": ", ".join(row.get("authors") or []),
+             # The word, not the flag, and always one of the two on the table that is
+             # the default. Blanking it where a game has one table made "not
+             # applicable" a third state read from an empty cell - and a column that
+             # is sometimes populated cannot be sorted or filtered on.
+             "default_state": (game_tables.default_state(row.get("default_kind") or "")
+                               or ("", ""))[0]}
             for row in rows]
 
 
@@ -424,11 +483,20 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                 ui.item_label(_table_label(row)).props("header") \
                     .classes("hub-menu-header")
                 ui.separator()
+                # Managed here, where every candidate for the game is visible at once.
                 if not row.get("default"):
                     ui.menu_item(
                         "Make this the game's default",
                         lambda r=row: act(library.set_default_table, r["game_id"],
                                           r["id"], said="Now this game's default")) \
+                        .classes("hub-menu-item")
+                elif (row.get("default_kind") or "") == game_tables.CHOSEN:
+                    # The way back, as every other override is marked. Clearing the
+                    # choice does not clear the default - it becomes Auto.
+                    ui.menu_item(
+                        "Let VPinFE pick the default",
+                        lambda r=row: act(library.set_default_table, r["game_id"], "",
+                                          said="Back to an automatic default")) \
                         .classes("hub-menu-item")
                 hidden = bool(row.get("hidden"))
                 ui.menu_item(
@@ -451,6 +519,26 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                       search.value or ""))
+
+
+def _by_group(columns: list[dict[str, Any]]) -> list[tuple[str, list[dict]]]:
+    """The columns bucketed by their group, groups in the order first declared.
+
+    By meaning rather than by position: File is deliberately the last column in the
+    Tables grid and is still a fact about the table, so a picker that mirrored column
+    order would print the Table heading twice with the play states between them. What
+    the picker answers is *which columns exist*; where they sit is the grid's business
+    and the user drags that themselves.
+    """
+    order: list[str] = []
+    groups: dict[str, list[dict]] = {}
+    for definition in columns:
+        heading = str(definition.get(grid.GROUP_KEY) or "")
+        if heading not in groups:
+            order.append(heading)
+            groups[heading] = []
+        groups[heading].append(definition)
+    return [(heading, groups[heading]) for heading in order]
 
 
 def view_control(library: Any, scope: str, presets: dict[str, list[str]],
@@ -584,21 +672,27 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
                     ui.menu_item("Revert", lambda: apply(current())) \
                         .classes("hub-menu-item")
                 if not view.builtin and not held["modified"]:
-                    ui.menu_item("Delete view", delete).classes("hub-menu-item")
+                    ui.menu_item("Delete view", delete) \
+                        .classes("hub-menu-item hub-menu-danger")
                 ui.separator()
-                ui.item_label("Columns").props("header").classes("hub-menu-header")
                 # An explicit column: the menu lays its children out inline otherwise,
                 # so twenty checkboxes wrap into a paragraph rather than a list.
-                with ui.column().classes("gap-0 w-full py-1"):
-                    for definition in columns:
-                        field = definition["field"]
-                        label = str(definition.get("headerName") or field) \
-                            .replace("\n", " ")
-                        ui.checkbox(label, value=field not in hidden,
-                                    on_change=lambda event, f=field:
-                                    table.run_grid_method("setColumnsVisible",
-                                                          [f], event.value)) \
-                            .props("dense").classes("hub-menu-item w-full")
+                with ui.column().classes("gap-0 w-full py-1 items-stretch"):
+                    for heading, group in _by_group(columns):
+                        # Named groups only. A grid whose columns declare none reads
+                        # as one list, which is right when there are eight of them.
+                        if heading:
+                            ui.item_label(heading).props("header") \
+                                .classes("hub-menu-header")
+                        for definition in group:
+                            field = definition["field"]
+                            label = str(definition.get("headerName") or field) \
+                                .replace("\n", " ")
+                            ui.checkbox(label, value=field not in hidden,
+                                        on_change=lambda event, f=field:
+                                        table.run_grid_method("setColumnsVisible",
+                                                              [f], event.value)) \
+                                .props("dense").classes("hub-menu-item w-full")
 
         menu_button.on_click(fill_menu)
         picker.on_value_change(lambda event: pick(event.value))

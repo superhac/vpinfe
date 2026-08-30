@@ -242,32 +242,327 @@ body::before {
 }
 .q-menu .q-item:hover { background: #2a1a4a; }
 .q-menu .q-separator { background: #3d2461; margin: 2px 0; }
-/* The menu reads like the top of the workbench: heading in the title's voice,
-   entries in the subtitle's. */
-.hub-menu-header {
-  color: var(--ink);
-  font-size: var(--fs-subject);
-  text-shadow: 0 0 6px rgba(0, 217, 255, 0.45);
-  min-height: 26px !important;
-  padding: 4px 12px !important;
+/* A picker over the whole library. Unconstrained, its menu is as wide as the longest
+   title in it - which in a library with one 130-character name is the whole window -
+   and it resizes and repositions itself as typing filters the list. Bounded here, so
+   it opens the same size every time and stays under the field it belongs to. */
+.hub-picker-popup {
+  max-height: 44vh;
+  /* A width, not a max-width. The menu is portalled to <body>, so a percentage is a
+     percentage of the window - and left to size itself it takes the longest title in
+     the library, which is how a 130-character name made it 1375px wide. Fixed, it
+     opens the same size every time; the names that do not fit ellipse. */
+  width: 340px;
+  max-width: 90vw;
 }
-.q-menu .hub-menu-item,
-.q-menu .hub-menu-item .q-item__label {
-  color: var(--accent);
+/* A collection's icon, and the drop target that replaces it. Small: it identifies the
+   collection in a wheel, it is not the content of this panel. */
+.hub-collection-icon {
+  width: 64px; height: 64px;
+  object-fit: contain;
+  border: 1px solid #2b1a4d;
+  border-radius: 8px;
+  background: var(--panel-ground);
+}
+.hub-upload .q-uploader { background: none; border: 1px dashed #3d2461; }
+
+/* The rule, said in words above the controls that set it. Roomier than help text
+   because it is the sentence somebody reads to check the rule says what they meant. */
+.hub-rule-sentence {
+  color: var(--ink-2);
+  font-size: var(--fs-body);
+  max-width: none;
+}
+
+/* Why a row is in the collection. Quiet where the answer is ordinary, amber where it
+   is something to go and fix - the same reading the rest of the app gives the colour. */
+.hub-member-chip {
+  font-size: var(--fs-caption);
+  letter-spacing: 0.04em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex: none;
+}
+/* The ordinary state, dimmed so a scan passes over it, and the one that wants
+   attention. Both are always present - what varies between rows is data, and reading it
+   from the absence of a mark cannot be told from a row that has no table at all. */
+.hub-chip-quiet { color: var(--ink-3); border: 1px solid #241640; }
+.hub-chip-warn { color: #f0b849; border: 1px solid #6b4a12; }
+
+/* The collection's icon in a media slot's art region. Contained, so a wide banner and a
+   square logo both sit in the same box. */
+.hub-slot-image { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* A collection's picture in the list. Small and contained: it identifies a row, it is
+   not the row. */
+.hub-collection-cell {
+  height: 30px; max-width: 44px;
+  object-fit: contain;
+  display: block;
+  margin: 3px auto;
+}
+
+/* Dynamic or Manual, the one control that converts between them. */
+.hub-kind-toggle { flex: none; }
+
+/* The grip on an arrangeable row. `grab` rather than `move`, because the row is being
+   picked up rather than pushed around, and `touch-action: none` or the browser scrolls
+   the panel instead of letting the pointer handler have the drag. */
+.hub-drag-handle {
+  cursor: grab;
+  touch-action: none;
+  font-size: 18px;
+  color: var(--ink-3);
+  flex: none;
+}
+.hub-drag-handle:hover { color: var(--accent); }
+/* Lifted, not swapped: the row leaves the flow and follows the pointer while the rest
+   of the list holds still. Swapping moved the rows you were aiming at, so the target
+   changed as you approached it. */
+.hub-member-row.hub-dragging {
+  position: fixed;
+  z-index: 8000;
+  background: #2a1a4a;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  cursor: grabbing;
+  pointer-events: none;
+}
+/* Where it would land. A band rather than an empty gap: the gap alone reads as the
+   list having lost a row. */
+.hub-drop-slot {
+  border-radius: 6px;
+  border: 1px dashed var(--accent);
+  background: rgba(0, 217, 255, 0.06);
+}
+/* The keyboard's equivalent of being lifted. */
+.hub-member-row.hub-grabbed {
+  background: #2a1a4a;
+  outline: 1px solid var(--accent);
+  border-radius: 6px;
+}
+.hub-drag-handle:focus-visible {
+  outline: 2px solid var(--accent);
+  border-radius: 4px;
+}
+
+/* --- one member of a collection ------------------------------------------------ */
+
+/* Two lines that are one answer: the game, and which of its tables this collection
+   holds. Tight leading and a step down in size and weight are what make the second
+   read as belonging to the first rather than as the next row. */
+.hub-member-row {
+  padding: 5px 10px;
+  border-radius: 6px;
+  line-height: 1.25;
+}
+.hub-member-name { font-size: var(--fs-body); color: var(--ink-2); }
+.hub-member-table {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  line-height: 1.2;
+  /* Not `.hub-help`, whose 62ch cap and looser leading are for prose. This is a
+     label under another label. */
+  padding-left: 1px;
+  /* Pulled up against the name. The first line sits in a flex row whose box is taller
+     than its text, and the leftover was reading as the space between two rows rather
+     than as the join between two halves of one. */
+  margin-top: -4px;
+}
+
+/* Which of the two this table is, said beside the table it qualifies rather than in the
+   chip slot at the row's edge - that slot is for what has happened to the row. Dimmer
+   than the identity it follows, so a scan reads the names and not the qualifier. */
+.hub-member-qualifier {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  opacity: 0.72;
+  white-space: nowrap;
+  flex: none;
+}
+
+/* The one row that is not what the list said it was. Read against the summary line
+   above, which is the legend - a glyph without one is a puzzle, and with one it is the
+   quietest mark available. Sized to the caption text it sits beside. */
+/* Leading, so every row's mark sits at the same x and the column can be scanned
+   without reading a word of it. A trailing mark lands after variable-length text and
+   is at a different place on every row, which is why it read as litter. */
+.hub-member-mark {
+  /* Big enough that ● and ◐ are told apart. They differ by half a fill, which at 11px
+     is two or three pixels - measured on screen, both read as the same dot. */
+  font-size: 15px;
+  line-height: 1;
+  color: var(--ink-2);
+  flex: none;
+  width: 16px;
+  text-align: center;
+}
+.hub-member-row:hover .hub-member-mark { color: var(--accent); }
+
+/* The table line doubles as the control that changes which table this member names.
+   The caret is the only added ink and it waits for a hover, so a list of forty rows
+   reads as text; on touch, where there is no hover, it is simply always there. */
+.hub-member-table-line { border-radius: 4px; padding-right: 2px; }
+.hub-member-table-line:hover { background: rgba(255, 255, 255, 0.06); }
+.hub-member-table-caret {
+  font-size: 15px;
+  color: var(--ink-3);
+  flex: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .hub-member-table-caret { opacity: 0; transition: opacity 120ms ease; }
+  .hub-member-row:hover .hub-member-table-caret,
+  .hub-member-table-line:focus-within .hub-member-table-caret { opacity: 1; }
+}
+/* Wraps rather than truncates: in the menu the whole point is telling two builds of
+   one game apart, and that is exactly what a cut-off tail hides. */
+/* Wraps rather than truncates: in this menu the whole point is telling two builds of
+   one game apart, and that is exactly what a cut-off tail hides. The uppercase opt-out
+   this used to carry is gone - no menu item is uppercase now. */
+.q-menu .hub-menu-item .hub-menu-table-name {
+  max-width: 30ch;
+  white-space: normal;
+}
+.hub-menu-check { font-size: 16px; color: var(--accent); }
+/* Which of a game's tables it offers. A radio rather than a glyph: a game has exactly
+   one default, that is what a radio means, and it reads as a control - which this one
+   is. Kept clear of the text glyphs in `game_tables.py`, whose question is a different
+   one, by being an icon and by living on a surface those never appear on. */
+.hub-default-mark {
+  font-size: 18px;
+  color: var(--ink-3);
+  flex: none;
+  transition: color 120ms ease;
+}
+.hub-default-mark--on { color: var(--accent); }
+.hub-default-mark.cursor-pointer:hover { color: var(--ink); }
+
+/* A tooltip belonging to the control that opened a menu would sit on top of it. */
+body.hub-menu-open .q-tooltip { display: none !important; }
+
+/* The key for those marks, in the header that does not scroll. */
+.hub-member-key {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  white-space: nowrap;
+  flex: none;
+}
+
+/* Alternating ground. Rows are two lines tall here, so where one ends is not obvious
+   from spacing alone - which is exactly when striping earns its keep. Kept very low
+   contrast: it separates, it does not decorate. */
+.hub-member-row:nth-child(even) { background: rgba(255, 255, 255, 0.055); }
+.hub-member-row:hover { background: #23143f; }
+
+/* The row's action appears under the cursor. A column of identical glyphs down a long
+   list is noise competing with the content, and the action is the same on every row.
+   `opacity`, never `display`: the space stays reserved, so nothing shifts under the
+   pointer as it arrives. `focus-within` so a keyboard reaches what a mouse does.
+   Except where the row is already flagged - those are few by definition and are the
+   ones somebody opened this panel to deal with, so their one action stays put.
+
+   Gated on the *input*, not on the width. Hiding an action behind hover on a device
+   that cannot hover makes it unreachable, and a touchscreen laptop is as wide as a
+   desk one - so the question is what the pointer can do, never how big the screen is.
+   Visible is the default; hover-to-reveal is the enhancement. */
+.hub-row-action { transition: opacity 120ms ease; }
+@media (hover: hover) and (pointer: fine) {
+  .hub-row-action { opacity: 0; }
+  .hub-member-row:hover .hub-row-action,
+  .hub-member-row:focus-within .hub-row-action { opacity: 1; }
+  .hub-member-row[data-origin="missing"] .hub-row-action,
+  .hub-member-row[data-origin="excluded"] .hub-row-action { opacity: 1; }
+}
+
+.hub-picker-popup .q-item__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* --- menus ---------------------------------------------------------------------
+
+   One language for every menu: the table-choice dropdown, the grid's header and cell
+   menus, the bulk actions, the View menu and the pickers. The rules had it backwards -
+   the group label was 16px and glowing while the thing you click was 11px uppercase
+   cyan, so the signpost shouted louder than the destination and every entry read as a
+   banner. Table names had to opt out of the uppercase to stay legible, which was the
+   symptom rather than the fix.
+
+   **The group label is chrome; the item is content.** */
+
+/* The same treatment as `.hub-group`, which is what the rest of the app uses to name a
+   group. Quiet, small, tracked - a signpost recedes. */
+.hub-menu-header {
+  color: var(--ink-3) !important;
   font-size: var(--fs-caption);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.1em;
+  min-height: 24px !important;
+  padding: 8px 12px 2px !important;
 }
-/* Each row on its own line, tight, label reading left to right after the box. */
+/* Body voice. You read an item and click it; sentence case is how a name stays a name,
+   which is what a menu over a library is full of. */
+.q-menu .hub-menu-item,
+.q-menu .hub-menu-item .q-item__label {
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  text-transform: none;
+  letter-spacing: normal;
+}
+/* Every item spans the menu. NiceGUI's column carries `items-start`, so an item in one
+   sized to its own text and the hover band stopped where the words did - measured at
+   121px inside a 247px menu. The band *is* the affordance; a colour change alone is
+   too weak to say "this row is the target". */
+.q-menu .hub-menu-item {
+  width: 100%;
+  min-height: 30px;
+  border-radius: 0;
+}
+.q-menu .hub-menu-item:hover,
+.q-menu .hub-menu-item:focus-visible {
+  background: #2a1a4a;
+}
+.q-menu .hub-menu-item:hover,
+.q-menu .hub-menu-item:hover .q-item__label,
+.q-menu .hub-menu-item:focus-visible,
+.q-menu .hub-menu-item:focus-visible .q-item__label { color: var(--ink); }
+
+/* Cyan is the current value and nothing else. Everything being accent-coloured is what
+   left it meaning nothing. */
+.q-menu .hub-menu-item.hub-menu-on,
+.q-menu .hub-menu-item.hub-menu-on .q-item__label { color: var(--accent); }
+
+/* One leading column, 16px, whatever fills it - glyph, icon or nothing. Items with no
+   mark still indent to it, so the labels line up down the menu. */
+.hub-menu-mark {
+  flex: none;
+  width: 16px;
+  font-size: 16px;
+  line-height: 1;
+  text-align: center;
+  color: var(--ink-3);
+}
+.q-menu .hub-menu-item:hover .hub-menu-mark { color: var(--ink); }
+.q-menu .hub-menu-item.hub-menu-on .hub-menu-mark { color: var(--accent); }
+
+/* The act, not the row, is what is destructive: the text carries it and the hover band
+   stays the ordinary one. A red row reads as an error that has already happened. */
+.q-menu .hub-menu-item.hub-menu-danger,
+.q-menu .hub-menu-item.hub-menu-danger .q-item__label { color: var(--warn); }
+.q-menu .hub-menu-item.hub-menu-danger:hover,
+.q-menu .hub-menu-item.hub-menu-danger:hover .q-item__label { color: #ff9d6b; }
+
+/* A checkbox item is an item: same band, same height, same leading column - the box
+   is what fills the mark slot. */
 .q-menu .q-checkbox.hub-menu-item {
   display: flex;
   padding: 2px 12px;
-  min-height: 26px;
+  min-height: 30px;
 }
-.q-menu .q-checkbox.hub-menu-item:hover { background: #2a1a4a; }
 
-.q-menu .hub-menu-item:hover,
-.q-menu .hub-menu-item:hover .q-item__label { color: var(--accent); }
+/* Between groups, never as decoration. */
+.q-menu .q-separator { margin: 4px 0; opacity: 0.5; }
 
 /* Tiles are deliberately plain: the art is the content, so the chrome around it stays
    quiet enough that an outlier stands out rather than the frame. */
@@ -493,6 +788,16 @@ body::before {
   color: var(--ink) !important;
 }
 .ag-header-cell-menu-button, .ag-header-icon { color: rgba(255,255,255,0.85) !important; }
+/* The filter button is the first child of the label container, so the container's
+   direction decides which side it lands on - and AG Grid reverses it for a numeric
+   column. That put the icon at the left edge on numbers and the right edge on
+   everything else, so the eye had to hunt for it per column. The icon sits right on
+   every column now; the header text stays right-aligned over its digits. */
+.ag-right-aligned-header .ag-cell-label-container { flex-direction: row-reverse; }
+/* And a gap, so the label never runs into the icon. On a left-aligned header the label
+   takes the slack and there is space anyway; on a right-aligned one the text ends flush
+   against it, which is where "Table Count" and "Rating" read as tight. */
+.ag-cell-label-container { gap: 8px; }
 """
 
 

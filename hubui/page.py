@@ -27,6 +27,17 @@ WORKBENCH_MIN_PX = 320
 # end of one continuum rather than the only way in. Short of squeezing the list out -
 # that is Full's job, and Full has a control that brings it back.
 WORKBENCH_MAX_PX = 1000
+# A collection is authored rather than swept: its rule and its result sit side by
+# side, and the dock only splits two-column past 900px. Per subject, which is what
+# section 5 says pane geometry should be - the width that suits a game grid does not
+# suit this.
+WORKBENCH_COLLECTION_PX = 900
+# Below a desk-sized window the nav gives up its labels rather than its fifth of the
+# screen. The rail already existed as a manual toggle and simply never fired on size;
+# width drives that same state rather than adding a second way to collapse, so a toggle
+# by hand still wins afterwards. Phone is not addressed - that needs a different shell,
+# and the phone-shaped job has its own surface.
+NAV_NARROW_PX = 1100
 # One rail width for both panels - they collapse to the same thing.
 RAIL_PX = 57
 
@@ -145,11 +156,22 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         # Centring the rail's icons is the stylesheet's job, under .q-drawer--mini:
         # the padding that offsets them is !important, which no class here outranks.
 
+    def on_window_width(width: int) -> None:
+        if state.get("nav_collapsed_by_full"):
+            return
+        wants_rail = width < NAV_NARROW_PX
+        if wants_rail != state["mini"] and wants_rail != state.get("nav_by_hand"):
+            set_mini(wants_rail)
+
+    ui.on("hub_window_px", lambda event: on_window_width(int(event.args or 0)))
+
     def toggle_mini() -> None:
         """The nav's own control. Setting it by hand takes it out of Full's care: an
         explicit choice outranks the one Full made on your behalf, so leaving Full
         will not undo it."""
         state.pop("nav_collapsed_by_full", None)
+        # Remembered, so a width change does not undo what was just asked for by hand.
+        state["nav_by_hand"] = not state["mini"]
         set_mini(not state["mini"])
 
 
@@ -348,6 +370,10 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         Games follows, so the panel never needs a control of its own."""
         if row and not state["workbench"]:
             show_workbench(True)
+        if row and not state.get("collection_width_set"):
+            # Once, on the first selection. Widening on every one would fight a drag.
+            state["collection_width_set"] = True
+            splitter.set_value(max(splitter.value or 0, WORKBENCH_COLLECTION_PX))
         state["collection"] = (row or {}).get("id")
         await workbench.build_collection(panel, workbench_title, library,
                                          state["collection"], state)
@@ -464,6 +490,32 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             return
         render()
 
+    # Reported once on load and on every settle after a resize. Debounced, because a
+    # drag fires this continuously and each one is a round trip.
+    ui.run_javascript("""
+    (() => {
+      let t = null;
+      const say = () => emitEvent('hub_window_px', window.innerWidth);
+      window.addEventListener('resize', () => {
+        clearTimeout(t);
+        t = setTimeout(say, 150);
+      });
+      say();
+    })()
+    """)
+
+    # A tooltip on the control that opened a menu sits on top of it. Watched once here
+    # rather than wired per menu: menus portal into the body, so one observer sees them
+    # all, and the alternative is remembering this on every menu ever added.
+    ui.run_javascript("""
+    (() => {
+      const open = () => document.querySelector('.q-menu') !== null;
+      const say = () => document.body.classList.toggle('hub-menu-open', open());
+      new MutationObserver(say).observe(document.body, {childList: true});
+      say();
+    })()
+    """)
+
     # The saved views, read before anything draws: a grid asks for them while it is
     # being built, which is on the loop, and the client refuses an HTTP call there.
     await run.io_bound(library.warm, games.SCOPE + views.VIEWS_SUFFIX,
@@ -481,8 +533,13 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
     # show_game rather than around it, so a link lands on exactly the state a click
     # would have produced.
     landing = state.get("game") if state["view"] == "games" else None
+    # An address that names a section has to read what that section needs, because the
+    # first draw goes straight to render() and only redraw() reads on the way in. Both
+    # of these drew empty from a link and filled in on the next click.
     if state.get("subject") == "table":
         await run.io_bound(library.load_tables)
+    if state["view"] == "collections":
+        await run.io_bound(library.load_collections)
     await workbench.build(panel, workbench_title, library, None, state)
     render()
     if landing:

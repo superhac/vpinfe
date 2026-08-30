@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import quote
 
 from nicegui import run, ui
 
@@ -22,44 +23,60 @@ logger = logging.getLogger("vpinfe.hubui.collections")
 
 SCOPE = "hubui.collections"
 
-# What a collection is called in the UI. The API's `type` is derived for display
-# (COLLECTIONS section 2.11), so this is the only place the word is chosen.
-KIND_LABELS = {"manual": "Manual", "filter": "Filter"}
+# What a collection is called on screen. The wire says `filter`; a reader says
+# **Dynamic** - it is the word for a list that changes under you, and "filter" names the
+# mechanism rather than the thing.
+KIND_LABELS = {"manual": "Manual", "filter": "Dynamic"}
+
+# A number filters as a number: greater-than, less-than, between. AG Grid's default
+# filter is the text one, which offers "contains" over a count - and `agNumberColumnFilter`
+# is community, unlike the set filter this project cannot use.
+_NUMERIC = {"type": "numericColumn", "filter": "agNumberColumnFilter"}
 
 COLUMNS = [
-    grid.column("name", "Name", 260, pinned="left"),
-    grid.column("kind", "Kind", 110),
+    # The icon leads. A collection is recognised by its picture in the wheel long
+    # before its name is read, and a list of collections that showed none of them was
+    # asking the reader to work from the least distinctive thing about each.
+    grid.column("icon", "", 56, pinned="left", sortable=False, filter=False),
+    grid.column("name", "Name", 240, pinned="left"),
+    grid.column("kind", "Kind"),
     # Right-aligned with the other number rather than left with the words: a count is
     # read against the counts above and below it.
-    grid.column("games", "Games", 100, type="numericColumn"),
+    # "Table Count", the same as the games grid: a count of tables, not the tables
+    # themselves. What it counts is what the collection hands out - one row per entry,
+    # and an entry is a table. The stored membership is a different number.
+    grid.column("count", "Table Count", **_NUMERIC),
     grid.column("order", "Order", 200),
-    grid.column("limit", "Limit", 90, type="numericColumn"),
+    # "Table Limit", paired with Table Count: a column header stands alone, so `Limit`
+    # invites "limit of what?". The panel keeps plain `Limit` - it sits under
+    # Presentation beside Ordered by and Paging, which supply the context a header has
+    # to carry for itself.
+    grid.column("limit", "Table Limit", **_NUMERIC),
 ]
 
 # One built-in, and the control stays: a view is how you save your own, and a grid with
 # nothing to start from is a grid nobody saves a view of.
 COLLECTION_VIEWS: dict[str, list[str]] = {
-    "Overview": ["name", "kind", "games", "order", "limit"],
+    "Overview": ["icon", "name", "kind", "count", "order", "limit"],
 }
 
 
 def rows(collections: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """One row per collection, in the words the grid shows.
 
-    `games` is blank for a filter collection rather than 0: its membership is not a
-    stored list, so there is no number to report until it is resolved, and 0 would read
-    as "empty" when the truth is "ask".
+    `count` is what the collection resolves to, which is its size. The stored
+    membership is a different number and lives in the panel.
     """
     built = []
     for row in collections:
-        count = row.get("game_count")
         built.append({
             "id": row.get("name") or "",
             "name": row.get("name") or "",
             "kind": KIND_LABELS.get(row.get("type") or "", row.get("type") or ""),
-            # None, not "": a numeric column renders an empty string as
-            # "Invalid Number", and blank is what "there is no number here" looks like.
-            "games": count,
+            "icon": _icon_cell(row),
+            # Zero is an answer here, not an absence: this is what the collection
+            # resolves to, and an empty collection resolves to none.
+            "count": int(row.get("count") or 0),
             "order": _order_line(row),
             "limit": row.get("limit") or None,
             # Kept whole on the row so the workbench does not refetch what the grid
@@ -67,6 +84,16 @@ def rows(collections: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "_raw": row,
         })
     return built
+
+
+def _icon_cell(row: dict[str, Any]) -> str:
+    """The collection's picture, or nothing. No placeholder: an icon column of grey
+    squares is louder than the few real pictures in it."""
+    if not row.get("image"):
+        return ""
+    name = quote(str(row.get("name") or ""), safe="")
+    return (f'<img src="/api/v1/collections/{name}/image" loading="lazy" '
+            f'class="hub-collection-cell">')
 
 
 def _order_line(row: dict[str, Any]) -> str:
@@ -77,7 +104,7 @@ def _order_line(row: dict[str, Any]) -> str:
     """
     by = row.get("order_by") or ""
     if by == "manual":
-        return "As arranged"
+        return "Manual"
     if not by:
         return ""
     direction = DIRECTION_LABELS.get(row.get("direction") or "", "")
@@ -111,10 +138,24 @@ def build(collections: list[dict[str, Any]], library: Any,
             .props("dense outlined clearable").classes("w-64")
         wire_views, _ = view_control(library, SCOPE, COLLECTION_VIEWS, fields, COLUMNS)
         ui.space()
-        ui.label(f"{len(built)} collections").classes("text-xs hub-label")
+        count = ui.label(f"{len(built)} collections").classes("text-xs hub-label")
+        bulk = ui.button(icon="more_vert").props("flat round dense") \
+            .tooltip("Actions for the selected collections")
+        with bulk, ui.menu():
+            ui.menu_item("Delete selected",
+                         lambda: _ask_delete_many(picked, library, act)) \
+                .classes("hub-menu-item hub-menu-danger")
+        bulk.set_visibility(False)
 
     by_id = {row["id"]: row for row in built}
     ui.on("hub_row_focus", lambda event: on_select(by_id.get(str(event.args))))
+    picked: list[dict[str, Any]] = []
+
+    def on_selected(rows_selected: list[dict[str, Any]]) -> None:
+        picked[:] = rows_selected
+        bulk.set_visibility(bool(rows_selected))
+        count.text = (f"{len(rows_selected)} of {len(built)} selected"
+                      if rows_selected else f"{len(built)} collections")
 
     def on_context(row: dict | None) -> None:
         # The menu acts on the row under the cursor, not on the selection.
@@ -126,7 +167,8 @@ def build(collections: list[dict[str, Any]], library: Any,
         _fill(None, col_id=col_id, pinned=bool(entry.get("pinned")))
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        table = grid.build(COLUMNS, built, SCOPE, None, on_context, on_header_context)
+        table = grid.build(COLUMNS, built, SCOPE, on_selected, on_context,
+                           on_header_context, html_fields=["icon"])
         menu = ui.context_menu()
 
     def _fill(row: dict | None, col_id: str | None = None,
@@ -153,10 +195,11 @@ def build(collections: list[dict[str, Any]], library: Any,
                 name = row["name"]
                 ui.item_label(name).props("header").classes("hub-menu-header")
                 ui.separator()
-                ui.menu_item("Rename", lambda n=name: _ask_rename(n, act)) \
-                    .classes("hub-menu-item")
+                # Renaming lives in the panel's Details, with the description it sits
+                # beside. One home per field: a name editable in two places is two
+                # answers, and this one is the collection's identity.
                 ui.menu_item("Delete", lambda n=name: _ask_delete(n, library, act)) \
-                    .classes("hub-menu-item")
+                    .classes("hub-menu-item hub-menu-danger")
 
     wire_views(table)
     search.on_value_change(
@@ -165,31 +208,24 @@ def build(collections: list[dict[str, Any]], library: Any,
 
 
 def _ask_new(library: Any, act: Callable) -> None:
-    """A name, and which kind it is.
+    """A name. Nothing else.
 
-    The kind is asked here because it cannot be changed later without discarding
-    something: turning a manual collection into a filter one throws away the list
-    somebody picked by hand, which the API only ever does when asked explicitly.
+    The kind used to be asked here and is not a question at creation: it is decided by
+    what the collection ends up holding, and changed in the panel where the games and
+    the rule both are. Asking up front made it a mode, which is what COLLECTIONS 2.11
+    removed.
     """
     with ui.dialog() as dialog, ui.card():
         ui.label("New collection").classes("hub-card-title")
         name = ui.input(placeholder="Name it") \
             .props("outlined dense debounce=0").classes("w-72")
-        kind = ui.toggle({"manual": "I pick the games", "filter": "It follows a rule"},
-                         value="manual").props("dense no-caps unelevated")
-        ui.label("A rule collection is built from the library, never from another "
-                 "collection.").classes("hub-help")
 
         async def keep() -> None:
             if not (name.value or "").strip():
                 name.props('error error-message="Give it a name"')
                 return
             dialog.close()
-            # An empty filter block is every game, which is the honest starting point
-            # for a rule nobody has written yet - and the Rule section is where it
-            # gets written.
-            await act(library.create_collection, name.value.strip(),
-                      {} if kind.value == "filter" else None,
+            await act(library.create_collection, name.value.strip(), None,
                       said=f"Created “{name.value.strip()}”")
 
         with ui.row().classes("justify-end gap-2 w-full"):
@@ -200,29 +236,33 @@ def _ask_new(library: Any, act: Callable) -> None:
     dialog.open()
 
 
-def _ask_rename(name: str, act: Callable) -> None:
+def _ask_delete_many(picked: list[dict], library: Any, act: Callable) -> None:
+    """Several at once, asked once. The games stay in the library either way."""
+    names = [row["name"] for row in picked]
+    if not names:
+        return
+
+    async def go_all() -> None:
+        for name in names:
+            await act(library.delete_collection, name, said=f"Deleted {name}")
+
     with ui.dialog() as dialog, ui.card():
-        ui.label(f"Rename “{name}”").classes("hub-card-title")
-        field = ui.input(value=name).props("outlined dense debounce=0").classes("w-72")
-
-        async def keep() -> None:
-            wanted = (field.value or "").strip()
-            if not wanted:
-                field.props('error error-message="Give it a name"')
-                return
-            dialog.close()
-            if wanted != name:
-                await act(_rename, name, wanted, said=f"Now “{wanted}”")
-
+        ui.label(f"Delete {len(names)} collections?").classes("hub-card-title")
+        for name in names[:8]:
+            ui.label(name).classes("hub-help")
+        if len(names) > 8:
+            ui.label(f"...and {len(names) - 8} more").classes("hub-help")
+        ui.label("The games stay in the library. Only the lists go.") \
+            .classes("hub-help mt-1")
         with ui.row().classes("justify-end gap-2 w-full"):
             ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
-            ui.button("Rename", on_click=keep).props("no-caps")
+
+            async def go() -> None:
+                dialog.close()
+                await go_all()
+
+            ui.button("Delete", on_click=go).props("no-caps color=negative")
     dialog.open()
-
-
-def _rename(old: str, new: str) -> None:
-    from hubui.api import HubClient
-    HubClient().patch_collection(old, {"name": new})
 
 
 def _ask_delete(name: str, library: Any, act: Callable) -> None:

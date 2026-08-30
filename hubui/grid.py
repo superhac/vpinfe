@@ -32,9 +32,11 @@ _SAVE_EVENTS = ("columnMoved", "columnResized", "columnPinned")
 _LAYOUT_FIELDS = ("colId", "width", "flex", "pinned")
 
 
-# Chrome measured at 50px; 9px/char is the widest average in the header font, so a
-# header never has to wrap.
-_HEADER_CHROME_PX = 58
+# Chrome measured at 50px, plus the 8px gap the theme puts between a header and its
+# filter icon; 9px/char is the widest average in the header font, so a header never has
+# to wrap. Counted here because a gap the width does not know about is a gap that
+# squeezes the text it was added to protect.
+_HEADER_CHROME_PX = 66
 _HEADER_CHAR_PX = 9
 
 
@@ -45,16 +47,44 @@ def header_width(header: str) -> int:
     line, not of the whole string.
     """
     longest = max((len(line) for line in header.split("\n")), default=0)
-    return longest * _HEADER_CHAR_PX + _HEADER_CHROME_PX
+    # No header, no floor: a column of pictures carries no text, no sort arrow and no
+    # filter button, so charging it for their chrome makes it wider than it needs.
+    return longest * _HEADER_CHAR_PX + _HEADER_CHROME_PX if longest else 0
 
 
-def column(field: str, header: str, width: int, **extra: Any) -> dict[str, Any]:
-    """A column that never starts narrower than its own header.
+def two_line(header: str) -> str:
+    """Break the last word onto its own line, so a long header stays a narrow column."""
+    words = header.split()
+    return header if len(words) < 2 else " ".join(words[:-1]) + "\n" + words[-1]
 
-    `width` is the preference, the header is the floor. Dragging narrower still works.
+
+def column(field: str, header: str, width: int = 0, **extra: Any) -> dict[str, Any]:
+    """A column sized to fit, which is its header unless the content needs more.
+
+    **Omit `width`.** Pass one only where the values are longer than the header - a
+    title, an author, a filename - and it is a floor, not a target. Every width used to
+    be hand-picked, so a column of one-digit counts was as wide as somebody guessed
+    rather than as wide as it needs to be. Dragging narrower still works, and what the
+    user drags to is what persists.
+
+    Every multi-word header wraps, here rather than at each call site: it was applied
+    only where the columns were generated, so `Table Count` and the asset headers sat
+    on one line beside media headers that did not.
     """
+    header = two_line(header)
     return {"field": field, "headerName": header,
             "width": max(width, header_width(header))} | extra
+
+
+# Ours, not AG Grid's: it names the group a column sits under in the column picker.
+# Carried on the definition so the list that declares the columns also declares their
+# order and their grouping, and stripped before the defs reach the grid.
+GROUP_KEY = "group"
+
+
+def for_grid(columns: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The definitions as AG Grid wants them, without our own keys."""
+    return [{k: v for k, v in column.items() if k != GROUP_KEY} for column in columns]
 
 
 def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
@@ -64,7 +94,7 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
           html_fields: list[str] | None = None) -> ui.aggrid:
     """A grid whose column layout is restored from, and saved to, the hub."""
     grid = ui.aggrid({
-        "columnDefs": columns,
+        "columnDefs": for_grid(columns),
         "rowData": rows,
         "defaultColDef": DEFAULT_COL_DEF,
         # Clicking a cell takes focus and nothing else. Click-selection in multiRow

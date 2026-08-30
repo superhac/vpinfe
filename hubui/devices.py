@@ -7,6 +7,8 @@ from typing import Any
 
 from nicegui import ui
 
+from common.labels import humanize
+
 # What a kind of device can do when nobody can ask it. A vpx_mobile device runs VPX and
 # not VPinFE, so it declares nothing, ever - the hub knows its abilities from the kind.
 IMPLIED_BY_KIND: dict[str, set[str]] = {
@@ -60,7 +62,7 @@ def build_detail(device: dict[str, Any], device_capabilities: list[str],
                 color, icon, label = _BADGE[state]
                 with ui.row().classes("items-center gap-2 w-full"):
                     ui.icon(icon).classes(f"text-{color}")
-                    ui.label(capability.replace("_", " ")).classes("w-40")
+                    ui.label(humanize(capability)).classes("w-40")
                     ui.badge(label, color=color).props("outline")
 
 
