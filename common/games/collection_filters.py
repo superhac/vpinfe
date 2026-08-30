@@ -106,7 +106,8 @@ class FilterAxis:
     tables and were previously resolved by accident.
 
     `name` is stored and `label` is shown, so a label can be reworded freely and a name
-    never can. Both rating axes label as "rating": they are one control.
+    never can - and the label is what a *reader* calls it, not a short form of the key.
+    Both rating axes label as "Rating": they are one control.
     """
 
     name: str
@@ -119,6 +120,12 @@ class FilterAxis:
     # A? - and paging to the next boundary can only ask this one. None where the axis
     # has no groups to page between.
     groups: Callable | None = None
+    # Whether a criterion may hold more than one value, which is an OR across them.
+    # Declared rather than inferred: the matcher has always split on commas, so every
+    # axis *looked* multi-valued while only some of them mean anything that way, and a
+    # control could not tell which. Rating is the case in point - two ratings at once
+    # says nothing the floor does not say better.
+    many: bool = False
 
     @property
     def is_table_scoped(self) -> bool:
@@ -126,28 +133,28 @@ class FilterAxis:
 
 
 AXES: tuple[FilterAxis, ...] = (
-    FilterAxis("letter", GAME_SCOPE, "letter", "letter",
+    FilterAxis("letter", GAME_SCOPE, "letter", "Letter",
                "First letter of the title, as sorted",
-               _match_letter, groups=letter_of),
-    FilterAxis("theme", GAME_SCOPE, "choice", "theme",
+               _match_letter, groups=letter_of, many=True),
+    FilterAxis("theme", GAME_SCOPE, "choice", "Theme",
                "Any theme the game is tagged with",
-               _match_theme),
-    FilterAxis("game_type", GAME_SCOPE, "choice", "type",
+               _match_theme, many=True),
+    FilterAxis("game_type", GAME_SCOPE, "choice", "Type",
                "Solid state, electro-mechanical and so on",
-               _match_game_type),
-    FilterAxis("manufacturer", GAME_SCOPE, "choice", "mfr",
+               _match_game_type, many=True),
+    FilterAxis("manufacturer", GAME_SCOPE, "choice", "Manufacturer",
                "Who made the machine",
-               _match_manufacturer),
-    FilterAxis("year", GAME_SCOPE, "choice", "year",
+               _match_manufacturer, many=True),
+    FilterAxis("year", GAME_SCOPE, "choice", "Year",
                "Year the machine was released",
-               _match_year, groups=lambda game: str(game_year(game))),
-    FilterAxis("rating", GAME_SCOPE, "rating", "rating",
+               _match_year, groups=lambda game: str(game_year(game)), many=True),
+    FilterAxis("rating", GAME_SCOPE, "rating", "Rating",
                "The rating the user gave the game",
                _match_rating, groups=lambda game: str(game_rating(game))),
-    FilterAxis("rating_or_higher", GAME_SCOPE, "rating", "rating",
+    FilterAxis("rating_or_higher", GAME_SCOPE, "rating", "Rating",
                "Read `rating` as a floor instead of a set",
                _match_rating_or_higher),
-    FilterAxis("played", GAME_SCOPE, "flag", "played",
+    FilterAxis("played", GAME_SCOPE, "flag", "Played",
                "Whether the game has ever been played",
                _match_played),
 )

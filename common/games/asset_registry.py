@@ -30,8 +30,17 @@ class AssetSpec:
     icon: str
     extensions: tuple[str, ...]     # lowercase; () for marker/folder-detected kinds
     requires_game: bool
+    # This asset needs a ROM to mean anything - a colour set or an alternative sound
+    # bank has nothing to attach to without one. A dependency between assets, and not
+    # the same question as `required_to_launch`.
     requires_rom: bool
     allow_multiple: bool
+    # Whether the table will not start without it. The line Chris drew: an asset is
+    # either required to launch or an experience enhancer, and until this existed the
+    # difference was undeclared - which is why the missing-ROM check had to be written
+    # by hand. It is what makes coverage mean anything: "4 of 13" reads the same today
+    # whether the absent one is a PUP pack or the ROM the table needs to run.
+    required_to_launch: bool = False
 
 
 def is_readme(name: str) -> bool:
@@ -42,7 +51,9 @@ def is_readme(name: str) -> bool:
 
 
 ASSET_SPECS = (
-    AssetSpec("table", "Table", "casino", (".vpx",), False, False, False),
+    # The file itself. Nothing launches without it.
+    AssetSpec("table", "Table", "casino", (".vpx",), False, False, False,
+              required_to_launch=True),
     AssetSpec("game_info", "Metadata", "description", (), True, False, False),
     AssetSpec("backglass", "Backglass", "wallpaper", (".directb2s",), True, False, False),
     AssetSpec("ini", "Table INI", "tune", (".ini",), True, False, False),
@@ -50,9 +61,14 @@ ASSET_SPECS = (
     # requires_game is doing real work here: applying it without the right base
     # produces a corrupt file rather than an error.
     AssetSpec("patch", "Table Patch", "difference", (".dif",), True, False, True),
-    AssetSpec("rom", "ROM", "memory", (), True, False, True),
+    # Required only where the table declares one - an EM table needs none, and
+    # calling it missing there would call every EM table broken. The flag says
+    # the kind can block a launch; whether it does is per table.
+    AssetSpec("rom", "ROM", "memory", (), True, False, True,
+              required_to_launch=True),
     AssetSpec("altcolor_serum", "Serum Color", "palette", (".crz", ".cromc"), True, True, True),
-    AssetSpec("altcolor_vni", "VNI/PAL Color", "palette", (".vni", ".pal", ".pac"), True, True, True),
+    AssetSpec("altcolor_vni", "VNI/PAL Color", "palette",
+              (".vni", ".pal", ".pac"), True, True, True),
     AssetSpec("altsound", "AltSound", "volume_up", (), True, True, False),
     AssetSpec("pup_pack", "PUP Pack", "video_library", (), True, False, False),
     AssetSpec("music", "Music", "music_note", (), True, False, False),
@@ -61,6 +77,16 @@ ASSET_SPECS = (
 )
 
 _SPECS_BY_KIND = {spec.kind: spec for spec in ASSET_SPECS}
+
+# The kinds whose absence stops a table running, as opposed to making it worse.
+REQUIRED_KINDS = frozenset(spec.kind for spec in ASSET_SPECS if spec.required_to_launch)
+
+
+def is_required_to_launch(kind: str) -> bool:
+    """Whether this kind of asset can stop a table launching. Unknown kinds are not:
+    a kind this build has never heard of cannot be something it depends on."""
+    spec = _SPECS_BY_KIND.get(kind)
+    return bool(spec and spec.required_to_launch)
 
 # Canonical media filenames (bg.png, dmd.mp4, audio.mp3, ...) -> media kind.
 _MEDIA_FILENAME_TO_KIND = {filename: kind for kind, filename in media_filename_map("table").items()}

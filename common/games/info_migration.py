@@ -165,9 +165,10 @@ def migrate(data: dict) -> dict:
         prior = tables.get(filename)
         prior = prior if isinstance(prior, dict) else {}
         tables[filename] = {**prior, **_table_entry(vpx_file, authors)}
-        # Every theme so far assumes one game means one table, so the file 2.x
-        # described stays the one a single-table consumer gets.
-        vpinfe.setdefault("default_table", filename)
+        # No default is recorded. 2.x described one table, so the resolver picks that
+        # one anyway - and writing it down would freeze an arbitrary pick as a choice,
+        # which is exactly what `recorded_default` says a rebuild must never do. It
+        # also made every migrated game report a user-chosen default it never had.
 
     migrated = {"Info": info, "User": user, "vpinfe": vpinfe, TABLES_KEY: tables}
     known = {*_DROPPED_SECTIONS, "Info", "User", "VPinFE", "vpinfe", TABLES_KEY}

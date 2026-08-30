@@ -162,8 +162,16 @@ class WhatSurvivesTests(unittest.TestCase):
         self.assertEqual(self.after["tables"]["Dr. Dude.vpx"]["authors"],
                          ["someone", "someone else"])
 
-    def test_the_described_file_becomes_the_default(self):
-        self.assertEqual(self.after["vpinfe"]["default_table"], "Dr. Dude.vpx")
+    def test_no_default_is_recorded(self):
+        """2.x described one table, so the resolver picks it anyway - and writing it
+        down would freeze an arbitrary pick as a choice, which is what
+        `recorded_default` says a rebuild must never do.
+
+        It also made every migrated game report a user-chosen default it never had:
+        the id re-key turns a seeded filename into a real table id, after which
+        "somebody chose this" is indistinguishable from "the migration wrote it".
+        """
+        self.assertNotIn("default_table", self.after["vpinfe"])
 
     def test_a_section_we_do_not_own_is_left_alone(self):
         after = migrate({**LEGACY, "SomeOtherTool": {"note": "keep me"}})

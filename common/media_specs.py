@@ -67,7 +67,7 @@ class MediaSpec:
 MEDIA_SPECS = (
     MediaSpec(
         "backglass",
-        label="BG",
+        label="Backglass",
         attr="BGImagePath",
         filename_template="bg.png",
         asset_group="1k",
@@ -86,7 +86,7 @@ MEDIA_SPECS = (
     # playfield falls back to when it has none.
     MediaSpec(
         "playfield",
-        label="Table",
+        label="Playfield",
         attr="PlayfieldImagePath",
         filename_template="{playfield_variant}.png",
         asset_group="table_resolution",
@@ -94,7 +94,7 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "playfield_fss",
-        label="FSS",
+        label="Playfield FSS",
         attr="FSSImagePath",
         filename_template="fss.png",
         token="(FSS)",
@@ -139,7 +139,7 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "playfield_video",
-        label="Table Video",
+        label="Playfield Video",
         attr="PlayfieldVideoPath",
         filename_template="{playfield_variant}.mp4",
         asset_group="table_video_resolution",
@@ -148,7 +148,7 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "backglass_video",
-        label="BG Video",
+        label="Backglass Video",
         attr="BGVideoPath",
         filename_template="bg.mp4",
         asset_group="table_video_resolution",

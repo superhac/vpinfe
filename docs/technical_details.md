@@ -59,7 +59,7 @@ uses an old spelling both still load.
 | --- | --- | --- | --- |
 | `vpx_bin_path` | string |  | Full path to the Visual Pinball executable VPinFE launches. |
 | `vpx_launch_env` | string |  | VPX Launch Environment |
-| `global_ini_override` | string |  | Global ini Override (/home/test/mysuper.ini) |
+| `global_ini_override` | string |  | Global INI Override (/home/test/mysuper.ini) |
 | `global_game_ini_override_enabled` | bool | `false` | Global tableini Override Enabled |
 | `global_game_ini_override_mask` | string |  | Global tableini Override Mask |
 | `game_root_dir` | string |  | The folder holding your table folders, one folder per game. |

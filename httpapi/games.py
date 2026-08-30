@@ -108,6 +108,10 @@ def _resource(row: dict, game_id: str) -> dict:
         "authors": row.get("authors") or [],
         "rom": row.get("rom", ""),
         "version": row.get("version", ""),
+        # How many tables this game offers, so a client can tell a row that collapses
+        # six from one that collapses one. `rom` and `version` above are read off the
+        # default table; this is what says whether there was a choice to make.
+        "table_count": int(row.get("table_count") or 0),
         "rating": row.get("rating", 0),
         "collections": row.get("collections") or [],
         "folder": str(row.get("game_dir", "") or ""),
@@ -235,9 +239,17 @@ def _tables(game, row: dict) -> list[dict]:
         return []
 
     # Same resolver the launcher and the metadata build use, so all three agree.
-    default = default_table(files or names, game_dir.name,
-                                recorded_default(vpinfe_section(game.meta_config),
-                                             described))
+    recorded = recorded_default(vpinfe_section(game.meta_config), described)
+    default = default_table(files or names, game_dir.name, recorded)
+    # Why this one, not only which one. `default_table` falls through a recorded choice,
+    # a filename matching the folder, then first alphabetically - which its own docstring
+    # calls "deterministic rather than correct". A reader does not care which of the last
+    # two happened; they care whether they chose it or we did (HUBUI section 13).
+    #
+    # "user" only where the recorded choice is what actually won: a recorded name whose
+    # table has since gone falls through to a derived pick, and calling that a choice
+    # would be a lie.
+    default_kind = "user" if recorded and recorded == default else "auto"
     hidden = hidden_tables(described)
 
     # Dependency context, once per request: the alias map and the rom listing are
@@ -282,6 +294,9 @@ def _tables(game, row: dict) -> list[dict]:
                          for name, key in FEATURE_KEYS.items()},
             "overrides": _table_overrides(described_entry, folder_vpinfe),
             "default": name == default,
+            # Empty on every table that is not the default: the kind is a fact about
+            # the one that is, not a field every row carries a blank for.
+            "default_kind": default_kind if name == default else "",
             "hidden": name in hidden,
             "available": name in on_disk,
             "absent_since": library_discovery.absent_since(described_entry) or None,

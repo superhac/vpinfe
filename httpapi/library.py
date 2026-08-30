@@ -43,7 +43,15 @@ def filters() -> models.FilterAxisList:
 
     available = GameListFilters(all_games()).available_options()
     return {"axes": [{"name": axis.name, "scope": axis.scope, "kind": axis.kind,
+                      # The name a reader sees, which the registry owns. Without it a
+                      # client derives one from the key and gets "Game type" where the
+                      # rest of the app says "Type" - section 2.15 puts the naming here.
+                      "label": axis.label,
                       "summary": axis.summary,
+                      # Whether the axis takes several values, which is an OR across
+                      # them. Declared here so a client renders the right control
+                      # without knowing which axes exist - section 2.15's whole point.
+                      "many": axis.many,
                       "values": available.get(_VALUES_FOR.get(axis.name))}
                      for axis in AXES]}
 
@@ -66,6 +74,36 @@ def entries() -> models.EntryList:
     from .collections import _entry_resource
 
     resolved = resolve(BUILTIN_ALL, get_collections_manager(), all_games())
+    return {"collection": "", "count": len(resolved),
+            "entries": [_entry_resource(entry) for entry in resolved]}
+
+
+@router.post("/preview", summary="What a rule would match, storing nothing",
+             dependencies=[requires(scopes.GAMES_READ)])
+def preview(request: models.PreviewRequest = Body(...)) -> models.EntryList:
+    """Resolve criteria against the library without writing them anywhere.
+
+    An unsaved rule is `builtin:all` plus its criteria, so this is the ordinary resolve
+    with nothing stored. A POST because criteria are a structure rather than a query
+    string: the registry grows, and several axes take a list.
+    """
+    from common.games.collection_resolver import resolve
+    from common.games.collection_store import BUILTIN_ALL
+    from common.games.collections_service import get_collections_manager
+    from common.games.game_repository import all_games
+
+    from .collections import _criteria_for, _entry_resource
+
+    manager = get_collections_manager()
+    # Set for this call and cleared after it, because the store object outlives the
+    # request and a leftover constraint would narrow the next reader's whole library.
+    try:
+        manager.set_view_filters(_criteria_for(request.filters))
+        resolved = resolve(BUILTIN_ALL, manager, all_games())
+    finally:
+        manager.set_view_filters(None)
+    if request.limit and request.limit > 0:
+        resolved = resolved[:request.limit]
     return {"collection": "", "count": len(resolved),
             "entries": [_entry_resource(entry) for entry in resolved]}
 

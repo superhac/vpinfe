@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 
 from common import input_registry
+from common.labels import humanize
 
 # What a page press groups by. `sort` takes the groups from whatever the list is ordered
 # by - the next letter, year or rating. `count` is a group of a fixed size, which is the
@@ -270,7 +271,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "global_ini_override",
             type="string",
             default="",
-            label="Global ini Override (/home/test/mysuper.ini)",
+            label="Global INI Override (/home/test/mysuper.ini)",
             aliases=("globalinioverride",),
         ),
         ConfigOption(
@@ -308,7 +309,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "vpx_ini_path",
             type="string",
             default="",
-            label="VPX Ini Path",
+            label="VPX INI Path",
             description="Path to VPinballX.ini, which VPinFE reads for the key mappings the Remote"
                         " page sends.",
             aliases=("vpxinipath",),
@@ -899,7 +900,7 @@ def label_for(key: str, section: str = "") -> str:
         entry = by_key(key)
     if entry is not None and entry.label:
         return entry.label
-    return str(key or "").replace("_", " ").title()
+    return humanize(key)
 
 
 def description_for(key: str, section: str = "") -> str:

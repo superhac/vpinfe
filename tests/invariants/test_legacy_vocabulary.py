@@ -72,6 +72,9 @@ RENAMED = {
 # per file and per name rather than allowlisted whole: everything else stays checked here.
 NOT_THE_ACTION = {
     "managerui/key_simulator.py": {"page_up", "page_down"},
+    # Three letters said as letters, so that `real_dmd_color` reads "Real DMD Color".
+    # The media kind is scoreview and this file never names a kind.
+    "common/labels.py": {"dmd"},
 }
 
 # `.claude` holds agent worktrees - a whole second checkout of this repo, at whatever

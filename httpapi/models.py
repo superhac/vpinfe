@@ -287,8 +287,11 @@ class GameResource(ApiModel):
     type: str
     themes: list[str]
     authors: list[str]
+    # Both read off the game's default table, so both are one of possibly several.
+    # `table_count` is what says whether there was a choice to make.
     rom: str
     version: str
+    table_count: int = 0
     rating: int
     collections: list[str]
     # The folder on disk. Reported because it is the one thing a user can act on
@@ -379,6 +382,12 @@ class Table(ApiModel):
     app: str
     filename: str
     default: bool
+    # Why it is the default, not only that it is: `user` where somebody chose it,
+    # `auto` where the resolver picked one - a filename matching the folder, else first
+    # alphabetically, which `default_table` itself calls "deterministic rather than
+    # correct". Empty on a table that is not the default. A reader needs the two apart:
+    # a choice does not move, and a derived pick changes when a table is installed.
+    default_kind: str = ""
     hidden: bool
     available: bool
     absent_since: str | None = None
@@ -444,6 +453,12 @@ class TableRow(ApiModel):
     # are different facts and stay apart.
     rom_installed: bool | None = None
     default: bool = False
+    # Why it is the default, not only that it is: `user` where somebody chose it,
+    # `auto` where the resolver picked one - a filename matching the folder, else first
+    # alphabetically, which `default_table` itself calls "deterministic rather than
+    # correct". Empty on a table that is not the default. A reader needs the two apart:
+    # a choice does not move, and a derived pick changes when a table is installed.
+    default_kind: str = ""
     hidden: bool = False
     available: bool = True
     absent_since: str | None = None
@@ -834,6 +849,11 @@ class MediaRemoved(ApiModel):
 
 # --- Collections -----------------------------------------------------------
 
+# What a many-valued criterion accepts on the way in. Reported as a list on the way
+# out, so a client reads one shape whatever it sent.
+MultiValue = str | list[str]
+
+
 class CollectionFilters(ApiModel):
     """A filter collection's criteria. "All" means unconstrained on that axis -
     the vocabulary the filter engine already uses, kept rather than translated so
@@ -844,11 +864,19 @@ class CollectionFilters(ApiModel):
     on disk - and there `order_by` is the direction. Carrying that up here gave one word
     two meanings on the wire; the disk keeps its spelling, the wire does not repeat it."""
 
-    letter: str = "All"
-    theme: str = "All"
-    game_type: str = "All"
-    manufacturer: str = "All"
-    year: str = "All"
+    # The many-valued axes accept a list and are always reported as one. A criterion
+    # has always been stored comma-joined and the matcher has always split it, so this
+    # is the contract catching up with the behaviour rather than a new capability - and
+    # a bare string typed the schema as single-valued, so no generated client could
+    # ever produce one. A list also carries a value containing a comma, which the
+    # joined form cannot.
+    letter: MultiValue = "All"
+    theme: MultiValue = "All"
+    game_type: MultiValue = "All"
+    manufacturer: MultiValue = "All"
+    year: MultiValue = "All"
+    # Single by declaration: two ratings at once say nothing that the floor does not
+    # say better.
     rating: str = "All"
     rating_or_higher: bool = False
     # Absent rather than false when the collection says nothing about play, because
@@ -864,14 +892,27 @@ class CollectionLinks(ApiModel):
 
 
 class CollectionResource(ApiModel):
-    """`type` is `manual` (an explicit list of games) or `filter` (criteria applied
-    at display time). `game_count` is null for a filter collection, whose membership
-    is not a stored list - ask /collections/{name}/games for its current members.
-    `filters` is set only for a filter collection."""
+    """`type` is derived, not stored: `filter` where the collection carries criteria,
+    `manual` where it does not. The two are not kinds - a collection may hold criteria,
+    hand-picked members and exclusions together, and `type` only says whether anything
+    about it is dynamic.
+
+    `game_count` counts the *stored* members, which is not what the collection resolves
+    to: criteria contribute rows that are not stored, and a member naming something
+    this library no longer has is counted and resolves to nothing. Ask
+    /collections/{name}/members for the stored membership with the state of each, or
+    /collections/{name}/games for what it currently resolves to."""
 
     name: str
     type: str
+    # What it is for, in the owner's words. The name has to be short and is the
+    # identity; this is where the reason lives.
+    description: str = ""
     image: str | None
+    # What it resolves to right now - its size, which is the number a reader means by
+    # "how big is this collection". `game_count` is the stored membership and the two
+    # differ by design: criteria contribute rows that are stored nowhere.
+    count: int = 0
     game_count: int | None
     filters: CollectionFilters | None
     # The cap, and how the list is ordered. Both were settable and neither was reported,
@@ -880,6 +921,11 @@ class CollectionResource(ApiModel):
     limit: int | None = None
     order_by: str = ""
     direction: str = ""
+    # Which boundary the frontend pages between. Empty means the collection says
+    # nothing and the player's own setting decides. Settable in the store since paging
+    # was built and on no wire model until now, so the Manager UI had a control for it
+    # that no API client could have.
+    paging_group: str = ""
     links: CollectionLinks
 
 
@@ -892,6 +938,7 @@ class CreateCollectionRequest(ApiModel):
     makes a manual one. Sending both is refused rather than guessed at."""
 
     name: str
+    description: str = ""
     filters: CollectionFilters | None = None
     games: list[str] = Field(default_factory=list)
 
@@ -909,6 +956,8 @@ class PatchCollectionRequest(ApiModel):
     """
 
     name: str | None = None
+    # "" clears it, which is why this is not a bare falsy check on the way in.
+    description: str | None = None
     image: str | None = None
     filters: CollectionFilters | None = None
     games: list[str] | None = None
@@ -922,6 +971,91 @@ class PatchCollectionRequest(ApiModel):
     # `manual` means the stored member array and is refused where there is not one.
     order_by: str | None = None
     direction: str | None = None
+    paging_group: str | None = None
+
+
+class PreviewRequest(ApiModel):
+    """Criteria to resolve against the library without storing anything.
+
+    What an unsaved rule is: `builtin:all` plus these criteria, which is the same
+    resolve every saved collection gets. Without it the only way to see what a rule
+    would match is to save it first, which makes every experiment live to whoever is
+    playing.
+    """
+
+    filters: CollectionFilters | None = None
+    limit: int | None = None
+
+
+class MemberTable(ApiModel):
+    """One table of a member game, and whether this collection holds it.
+
+    `origin` says which rule put it in or kept it out: `named` (a member names exactly
+    this table), `default` (the member names the game and this is what it resolves to),
+    `excluded`, `hidden`, or `missing` where the ref names a table the library does not
+    have.
+    """
+
+    id: str
+    # The fields a table is named from, not a name built here. One formatter, and it
+    # is the client's: a label computed on both sides is two that can disagree, which
+    # is how four surfaces ended up saying the same table four ways.
+    version: str = ""
+    authors: list[str] = Field(default_factory=list)
+    filename: str = ""
+    included: bool = True
+    origin: str = ""
+
+
+class CollectionMember(ApiModel):
+    """One line of a collection's stored membership, with why it is there.
+
+    Not the resolved list - the *stored* one. A member naming a game that is no longer
+    in the library resolves to nothing and vanishes from every other lens; here it is a
+    row with `origin: "missing"`, which is what lets an editor offer to clean it up.
+
+    `origin`: `named` (somebody put it here), `filter` (the criteria matched it),
+    `excluded` (kept out), `missing` (named, but not in this library).
+    """
+
+    game: str
+    name: str = ""
+    origin: str = ""
+    included: bool = True
+    tables: list[MemberTable] = Field(default_factory=list)
+
+
+class CollectionMemberList(ApiModel):
+    """`playable` counts the members that resolve to something launchable, which is
+    what the collection actually hands out."""
+
+    collection: str
+    count: int
+    playable: int
+    members: list[CollectionMember]
+
+
+class MemberRequest(ApiModel):
+    """Which table a member or an exclusion names, if it names one.
+
+    Absent or empty means the game: a member resolves to whichever table is its
+    default, and an exclusion removes the game entire. Naming a table holds the
+    collection to exactly that one - COLLECTIONS 2.10 and 2.12.
+    """
+
+    table: str = ""
+
+
+class MemberTableRequest(ApiModel):
+    """Which table a member should name from now on.
+
+    Empty `table` hands the game back its default, so the member follows a replacement
+    again. `was` names the ref being changed, which matters only where a game appears
+    more than once (COLLECTIONS 2.10); empty means the ref that names no table.
+    """
+
+    table: str = ""
+    was: str = ""
 
 
 class CollectionOrderRequest(ApiModel):
@@ -971,7 +1105,15 @@ class FilterAxis(ApiModel):
     name: str
     scope: str
     kind: str
+    # The name a reader sees. `name` is the stored key and never changes; this may be
+    # reworded freely, and a client that derives its own from the key gets "Game type"
+    # where the rest of the app says "Type".
+    label: str = ""
     summary: str
+    # Whether a criterion on this axis may hold several values, which is an OR across
+    # them. A client renders a multi-select from this rather than from a list of axis
+    # names it holds itself, which is what keeps adding an axis free.
+    many: bool = False
     values: list[str] | None = None
 
 
