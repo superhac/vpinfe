@@ -16,7 +16,7 @@ from typing import Any
 from nicegui import ui
 
 from common.media_specs import media_family
-from hubui import mediaview, tiers
+from hubui import media_ownership, mediaview
 
 # Top of the cabinet down to the floor. Kinds on the same row are the same screen shown
 # two ways - a still and its video - and share a row so the pair reads as one slot.
@@ -158,8 +158,9 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
             # Only where a file is genuinely a table's own. Marking the other twenty
             # tiles "All tables" would put a badge on every one of them and make the
             # map harder to read than it is without any.
-            if state != "missing" and tiers.key_of(entry.get("via")) != tiers.GAME:
-                tiers.badge(entry.get("via"), extra="hub-mediatile-tier")
+            shared = media_ownership.key_of(entry.get("via")) == media_ownership.GAME
+            if state != "missing" and not shared:
+                media_ownership.badge(entry.get("via"), extra="hub-mediatile-tier")
             # From the game's lens the resolver never looks at a table's own tier, so
             # a slot one table differs on looks settled. This is the only thing that
             # says otherwise.
@@ -184,7 +185,7 @@ def _tooltip(kind: str, entry: dict[str, Any]) -> str:
     """The file, and who uses it."""
     if not entry.get("present"):
         return f"No {LABELS.get(kind, kind).lower()}"
-    parts = [str(entry.get("file") or ""), tiers.phrase(entry.get("via"))]
+    parts = [str(entry.get("file") or ""), media_ownership.phrase(entry.get("via"))]
     return "  ·  ".join(part for part in parts if part)
 
 

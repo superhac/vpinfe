@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urlencode
 
@@ -150,13 +151,11 @@ class HubClient:
 
     def create_collection(self, name: str, filters: dict | None = None,
                           games: list[str] | None = None) -> dict:
-        """Filters make a filter collection, games make a manual one. Never both -
-        the API refuses that rather than guessing which the caller meant."""
-        body: dict[str, Any] = {"name": name}
+        """Criteria, hand-picked games, or both - they are combinable, and the kind is
+        derived from what ends up stored."""
+        body: dict[str, Any] = {"name": name, "games": games or []}
         if filters is not None:
             body["filters"] = filters
-        else:
-            body["games"] = games or []
         return self._post("/collections", body)
 
     def patch_collection(self, name: str, changes: dict) -> dict:
@@ -166,16 +165,69 @@ class HubClient:
     def delete_collection(self, name: str) -> None:
         self._delete(f"/collections/{quote(name, safe='')}")
 
-    def add_to_collection(self, name: str, game_id: str) -> None:
-        self._put_empty(f"/collections/{quote(name, safe='')}/games/{game_id}")
+    def add_to_collection(self, name: str, game_id: str, table: str = "") -> None:
+        """`table` holds the collection to exactly that table; without it the member
+        names the game and follows whichever table is its default."""
+        self._put_empty(f"/collections/{quote(name, safe='')}/games/{game_id}",
+                        {"table": table})
 
-    def remove_from_collection(self, name: str, game_id: str) -> None:
-        self._delete(f"/collections/{quote(name, safe='')}/games/{game_id}")
+    def set_member_table(self, name: str, game_id: str, table: str = "",
+                         was: str = "") -> None:
+        """Point an existing member at a different table, in place. `was` names the ref
+        to change where a game appears more than once; empty `table` gives it back its
+        default."""
+        self._put_empty(f"/collections/{quote(name, safe='')}/games/{game_id}/table",
+                        {"table": table, "was": was})
+
+    def remove_from_collection(self, name: str, game_id: str, table: str = "") -> None:
+        suffix = f"?table={quote(table, safe='')}" if table else ""
+        self._delete(f"/collections/{quote(name, safe='')}/games/{game_id}{suffix}")
 
     def set_collection_order(self, name: str, games: list[str]) -> None:
         """The whole ordered list at once - atomic, and no index arithmetic here."""
         self._put_empty(f"/collections/{quote(name, safe='')}/order",
                         {"games": games})
+
+    def collection_members(self, name: str) -> dict:
+        """Stored membership with the state of each: what is written down, not what
+        resolved. The only lens that reports a member naming something gone."""
+        return self._get(f"/collections/{quote(name, safe='')}/members")
+
+    def preview_filters(self, filters: dict | None, limit: int | None = None) -> dict:
+        """What a rule would match, storing nothing - so a rule can be built while its
+        result is on screen instead of every experiment landing on the frontend."""
+        body: dict[str, Any] = {"filters": filters or {}}
+        if limit:
+            body["limit"] = limit
+        return self._post("/library/preview", body)
+
+    def exclude_from_collection(self, name: str, game_id: str, table: str = "") -> None:
+        self._put_empty(f"/collections/{quote(name, safe='')}/excluded/{game_id}",
+                        {"table": table})
+
+    def unexclude_from_collection(self, name: str, game_id: str,
+                                  table: str = "") -> None:
+        suffix = f"?table={quote(table, safe='')}" if table else ""
+        self._delete(f"/collections/{quote(name, safe='')}/excluded/{game_id}{suffix}")
+
+    def keep_collection_result(self, name: str) -> dict:
+        """Replace the criteria with what they currently match. The list stops changing
+        under its owner, which is what makes it static."""
+        return self._post(
+            f"/collections/{quote(name, safe='')}/members/from_filters", {})
+
+    def set_collection_image(self, name: str, path: str) -> dict:
+        route = f"/collections/{quote(name, safe='')}/image"
+        _refuse_the_event_loop(route)
+        with open(path, "rb") as handle:
+            response = self._session.put(f"{self._base}{route}",
+                                         files={"file": (Path(path).name, handle)},
+                                         timeout=_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+
+    def clear_collection_image(self, name: str) -> None:
+        self._delete(f"/collections/{quote(name, safe='')}/image")
 
     def _put_empty(self, path: str, body: dict | None = None) -> None:
         """A PUT that answers 204. `_put` would raise trying to read a body."""

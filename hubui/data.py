@@ -268,6 +268,35 @@ class Library:
         resolves to nothing, which is why this can be shorter than `game_count`."""
         return self._client.collection_games(name)
 
+    def collection_members(self, name: str) -> dict:
+        """Stored membership and the state of each - the lens an editor needs. Not
+        cached: every write in the panel changes it."""
+        return self._client.collection_members(name)
+
+    def preview_filters(self, filters: dict | None, limit: int | None = None) -> dict:
+        """What a rule would match, storing nothing."""
+        return self._client.preview_filters(filters, limit)
+
+    def exclude_from_collection(self, name: str, game_id: str, table: str = "") -> None:
+        self._collections = None
+        self._client.exclude_from_collection(name, game_id, table)
+
+    def unexclude_from_collection(self, name: str, game_id: str, table: str = "") -> None:
+        self._collections = None
+        self._client.unexclude_from_collection(name, game_id, table)
+
+    def keep_collection_result(self, name: str) -> dict:
+        self._collections = None
+        return self._client.keep_collection_result(name)
+
+    def set_collection_image(self, name: str, path: str) -> dict:
+        self._collections = None
+        return self._client.set_collection_image(name, path)
+
+    def clear_collection_image(self, name: str) -> None:
+        self._collections = None
+        self._client.clear_collection_image(name)
+
     def create_collection(self, name: str, filters: dict | None = None) -> dict:
         self._collections = None
         return self._client.create_collection(name, filters=filters)
@@ -280,13 +309,18 @@ class Library:
         self._collections = None
         self._client.delete_collection(name)
 
-    def add_to_collection(self, name: str, game_id: str) -> None:
+    def add_to_collection(self, name: str, game_id: str, table: str = "") -> None:
         self._collections = None
-        self._client.add_to_collection(name, game_id)
+        self._client.add_to_collection(name, game_id, table)
 
-    def remove_from_collection(self, name: str, game_id: str) -> None:
+    def set_member_table(self, name: str, game_id: str, table: str = "",
+                         was: str = "") -> None:
         self._collections = None
-        self._client.remove_from_collection(name, game_id)
+        self._client.set_member_table(name, game_id, table, was)
+
+    def remove_from_collection(self, name: str, game_id: str, table: str = "") -> None:
+        self._collections = None
+        self._client.remove_from_collection(name, game_id, table)
 
     def set_collection_order(self, name: str, games: list[str]) -> None:
         self._collections = None
@@ -319,6 +353,18 @@ class Library:
         for entries in self.media.values():
             seen.update(kind for kind, entry in entries.items() if entry.get("present"))
         return [kind for kind in self.kinds() if kind in seen]
+
+    def asset_keys(self) -> list[str]:
+        """The asset kinds this library reports, in registry order where it knows them.
+
+        The games resource has an asset vocabulary of its own - `settings` for the
+        table INI, one `alt_color` covering Serum and VNI - so the keys are taken from
+        what it sends rather than from `asset_registry`.
+        """
+        seen: set[str] = set()
+        for game in self.games:
+            seen.update(game.get("assets") or {})
+        return sorted(seen)
 
     def kinds(self) -> list[str]:
         seen: set[str] = set()
@@ -355,7 +401,6 @@ class Library:
         for game in self.games:
             game_id = game["id"]
             entries = self.media.get(game_id, {})
-            present = sum(1 for entry in entries.values() if entry.get("present"))
             rows.append({
                 "id": game_id,
                 "name": game.get("name") or "",
@@ -364,11 +409,15 @@ class Library:
                 "game_type": game.get("type") or "",
                 "rom": game.get("rom") or "",
                 "version": game.get("version") or "",
+                "table_count": int(game.get("table_count") or 0),
                 "rating": game.get("rating") or 0,
                 "themes": ", ".join(game.get("themes") or []),
-                "assets": f"{present}/{len(entries)}" if entries else "-",
-                # Sortable companion to `assets`, which is a label and sorts as text.
-                "coverage": present,
+                # One field per asset kind, the same shape as media below. What used
+                # to sit here was a single "Assets" count computed from `entries` -
+                # the *media* map - so the column read as assets and counted media,
+                # beside a Media group showing the same thing per kind.
+                **{f"asset_{key}": bool(entry.get("present"))
+                   for key, entry in (game.get("assets") or {}).items()},
                 # One field per kind, so media reads as columns over game rows. Blank
                 # rather than a cross when absent: a sparse matrix stays scannable,
                 # a full one does not.
