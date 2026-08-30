@@ -8,7 +8,6 @@ packages, and two of the four copies had drifted apart.
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from common.games import game_index_service, game_repository
@@ -24,16 +23,17 @@ from common.games.collection_store import (  # noqa: F401  (import and export)
     SORT_LABELS,
 )
 from common.games.collections_service import (  # noqa: F401  (import and export)
+    IMAGE_EXTENSIONS,
     collection_icon_url,
     ensure_collection_icons_dir,
     get_collection_image,
     get_collections_manager,
+    save_collection_icon,
 )
 from managerui.paths import CONFIG_DIR
 
 COLLECTION_ICONS_DIR = CONFIG_DIR / "collection_icons"
 COLLECTION_IMAGE_KEY = "image"
-IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 
 
 
@@ -45,31 +45,6 @@ def list_collection_icons() -> list[str]:
         path.name for path in icon_dir.iterdir()
         if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
     )
-
-
-def _safe_icon_stem(filename: str) -> str:
-    stem = Path(filename).stem.strip()
-    stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("._-")
-    return stem or "collection"
-
-
-def save_collection_icon(filename: str, content: bytes) -> str:
-    suffix = Path(filename).suffix.lower()
-    if suffix not in IMAGE_EXTENSIONS:
-        raise ValueError("Collection image must be an image file")
-
-    icon_dir = ensure_collection_icons_dir()
-    stem = _safe_icon_stem(filename)
-    candidate = f"{stem}{suffix}"
-    target = icon_dir / candidate
-    counter = 1
-    while target.exists():
-        candidate = f"{stem}_{counter}{suffix}"
-        target = icon_dir / candidate
-        counter += 1
-
-    target.write_bytes(content)
-    return candidate
 
 
 def _validated_icon_filename(filename: str | None) -> str:

@@ -13,10 +13,14 @@ that migration - see common/tables/collection_store.py.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, Response
+import logging
+
+from fastapi import APIRouter, Body, File, Response, UploadFile
+from starlette.concurrency import run_in_threadpool
+from starlette.responses import FileResponse
 
 from common.games import game_identity
-from common.games.collection_filters import group_key, group_kind
+from common.games.collection_filters import UNCONSTRAINED, group_key, group_kind
 from common.games.collection_resolver import (
     UnresolvableCollectionError,
     resolve,
@@ -26,7 +30,9 @@ from common.games.collection_resolver import (
 from common.games.collection_store import (
     DEFAULT_DIRECTION,
     MANUAL_ORDER,
+    PAGING_GROUPS,
     SORT_LABELS,
+    normalize_paging_group,
 )
 from common.games.collections_service import (
     get_collections_manager,
@@ -49,7 +55,30 @@ from .auth import requires
 from .errors import ConflictError, InvalidRequestError, NotFoundError
 from .games import _catalog, _resource
 
+logger = logging.getLogger("vpinfe.httpapi.collections")
+
 router = APIRouter(prefix="/collections", tags=["collections"])
+
+
+def _many_out(value) -> list[str]:
+    """A stored criterion as the list a client reads.
+
+    Storage joins several values with a comma and the matcher splits them again, so
+    this is the same set said in the shape the schema declares. "All" is one value like
+    any other - it is the vocabulary for unconstrained, not an empty list.
+    """
+    if isinstance(value, list):
+        return [str(part).strip() for part in value if str(part).strip()]
+    parts = [part.strip() for part in str(value or "").split(",") if part.strip()]
+    return parts or [UNCONSTRAINED]
+
+
+def _many_in(value) -> str:
+    """A criterion as it is stored. A list joins; a string is already stored form."""
+    if isinstance(value, list):
+        joined = ",".join(str(part).strip() for part in value if str(part).strip())
+        return joined or UNCONSTRAINED
+    return str(value or UNCONSTRAINED)
 
 
 def _links(name: str) -> dict:
@@ -58,6 +87,19 @@ def _links(name: str) -> dict:
     encoded = quote(name, safe="")
     return {"self": f"/api/v1/collections/{encoded}",
             "games": f"/api/v1/collections/{encoded}/games"}
+
+
+def _resolved_count(name: str) -> int:
+    """How many entries this collection hands out. Resolved, because that is what its
+    size means - a rule's matches are stored nowhere and a stored member that names a
+    game this library lost resolves to nothing."""
+    try:
+        return len(resolve(name, get_collections_manager(), list(_catalog().values())))
+    except Exception:
+        # A collection this build cannot resolve still has to list. Its own routes say
+        # why; a number in a table is not the place to raise it.
+        logger.warning("could not size collection %r", name, exc_info=True)
+        return 0
 
 
 def _resource_for(row: dict) -> dict:
@@ -70,11 +112,11 @@ def _resource_for(row: dict) -> dict:
     if row["is_filter"]:
         raw = get_collections_manager().get_filters(name)
         filters = {
-            "letter": raw.get("letter", "All"),
-            "theme": raw.get("theme", "All"),
-            "game_type": raw.get("table_type", "All"),
-            "manufacturer": raw.get("manufacturer", "All"),
-            "year": raw.get("year", "All"),
+            "letter": _many_out(raw.get("letter", "All")),
+            "theme": _many_out(raw.get("theme", "All")),
+            "game_type": _many_out(raw.get("table_type", "All")),
+            "manufacturer": _many_out(raw.get("manufacturer", "All")),
+            "year": _many_out(raw.get("year", "All")),
             "rating": raw.get("rating", "All"),
             "rating_or_higher": str(raw.get("rating_or_higher", "false")).lower()
             in ("1", "true", "yes", "on"),
@@ -87,7 +129,9 @@ def _resource_for(row: dict) -> dict:
         # On the wire this is "manual"; on disk it is still "vpsid", from before
         # membership moved onto game ids. The honest name belongs in the contract.
         "type": "filter" if row["is_filter"] else "manual",
+        "description": get_collections_manager().get_description(name),
         "image": row.get("image") or None,
+        "count": _resolved_count(name),
         "game_count": row.get("game_count"),
         "filters": filters,
         # Read for every collection, not only a filter one: a manual collection is
@@ -96,6 +140,7 @@ def _resource_for(row: dict) -> dict:
         "limit": get_collections_manager().get_limit(name),
         "order_by": order["by"],
         "direction": order["direction"],
+        "paging_group": order.get("paging_group") or "",
         "links": _links(name),
     }
 
@@ -139,6 +184,95 @@ def collection_games(name: str) -> models.GameList:
                  for game in members]
     return {"total": len(resources), "offset": 0, "count": len(resources),
             "games": resources}
+
+
+@router.get("/{name}/members", summary="A collection's stored membership, and why",
+            dependencies=[requires(scopes.COLLECTIONS_READ)])
+def collection_members(name: str) -> models.CollectionMemberList:
+    """What is written down, not what resolved - which is the difference an editor
+    needs and every other lens hides.
+
+    `/games` and `/entries` both report what came *out* of the resolver, so a member
+    naming something this library no longer has simply is not in them. It stays in the
+    file, keeps being counted, and nothing can say so. Here it is a row with
+    `origin: "missing"`.
+
+    Nothing is pruned on the strength of this. A library on a share that was not
+    mounted at scan time reports every game missing, and a cleanup that ran on that
+    signal would empty every collection. Absence is not deletion.
+    """
+    _row_or_404(name)
+    manager = get_collections_manager()
+    catalog = _catalog()
+    excluded = manager.get_excluded_refs(name)
+    excluded_games = {r["game"] for r in excluded if not r.get("table")}
+    excluded_tables = {r["table"] for r in excluded if r.get("table")}
+
+    out = (excluded_games, excluded_tables)
+    members: list[dict] = []
+    named_games = set()
+    for ref in manager.get_member_refs(name):
+        named_games.add(ref["game"])
+        members.append(_member_row(ref["game"], "named", ref.get("table", ""),
+                                   catalog, out))
+    # Whatever the criteria matched and nobody named. Members come first because that
+    # is the order the resolver walks and the order the collection is handed out in.
+    try:
+        matched = resolve_games(name, manager, list(catalog.values()))
+    except UnresolvableCollectionError as exc:
+        raise ConflictError(str(exc), details={"unknown_filters": exc.axes}) from exc
+    for game in matched:
+        found = game_identity.game_id(game)
+        if found and found not in named_games:
+            members.append(_member_row(found, "filter", "", catalog, out))
+    # Exclusions last, and listed rather than silent: a row somebody took out is the
+    # one row they may want back, and nothing else reports it.
+    for ref in excluded:
+        members.append({**_member_row(ref["game"], "excluded",
+                                      ref.get("table", ""), catalog, out),
+                        "origin": "excluded", "included": False})
+    return {"collection": name, "count": len(members),
+            "playable": sum(1 for m in members if m["included"]),
+            "members": members}
+
+
+def _member_row(game_id: str, origin: str, named_table: str,
+                catalog: dict, excluded: tuple[set, set]) -> dict:
+    """One stored member, and what became of it.
+
+    At module level rather than nested in the route, because the contract test reads
+    every `return` inside an annotated endpoint as that endpoint's payload - and a
+    helper's rows are not the route's.
+    """
+    from common.games.game_repository import game_to_row
+
+    from .games import _tables
+    excluded_games, excluded_tables = excluded
+    game = catalog.get(game_id)
+    if game is None:
+        return {"game": game_id, "name": "", "origin": "missing",
+                "included": False, "tables": []}
+    known = _tables(game, game_to_row(game))
+    by_id = {str(t.get("id")): t for t in known}
+    chosen = named_table or (str(known[0].get("id")) if known else "")
+    tables = []
+    if named_table and named_table not in by_id:
+        # The game is here; the table it names is not. Reported rather than resolved
+        # to the default, which would quietly change what the collection holds.
+        tables.append({"id": named_table, "included": False, "origin": "missing"})
+    elif chosen:
+        table = by_id[chosen]
+        kept_out = ("excluded" if chosen in excluded_tables or game_id in excluded_games
+                    else "hidden" if table.get("hidden") else "")
+        tables.append({"id": chosen,
+                       "version": str(table.get("version") or ""),
+                       "authors": [str(a) for a in (table.get("authors") or [])],
+                       "filename": str(table.get("filename") or ""),
+                       "included": not kept_out,
+                       "origin": kept_out or ("named" if named_table else "default")})
+    return {"game": game_id, "name": str(game_to_row(game).get("name") or ""),
+            "origin": origin, "included": any(t["included"] for t in tables),
+            "tables": tables}
 
 
 def _entry_resource(entry, group=None) -> dict:
@@ -219,6 +353,34 @@ def collection_entries(name: str) -> models.EntryList:
                         for e in entries]}
 
 
+def _criteria_for(f) -> dict:
+    """A criteria block in the shape the store and the matcher read.
+
+    One translation, shared by what writes a collection and what previews one, so a
+    rule cannot resolve differently before and after it is saved. `game_type` is stored
+    as `table_type`, the spelling on disk from before the vocabulary alignment.
+    """
+    if f is None:
+        return {}
+    return {"letter": _many_in(f.letter), "theme": _many_in(f.theme),
+            "table_type": _many_in(f.game_type),
+            "manufacturer": _many_in(f.manufacturer), "year": _many_in(f.year),
+            "rating": f.rating,
+            "rating_or_higher": "true" if f.rating_or_higher else "false",
+            "played": f.played}
+
+
+def _write_filters(manager, name: str, f) -> None:
+    """Store a criteria block, and the order it carries.
+
+    One writer for create and patch, so the two cannot disagree about which keys a
+    block holds. `game_type` is stored as `table_type`, the spelling on disk from
+    before the vocabulary alignment.
+    """
+    manager.make_filter_collection(name, _criteria_for(f),
+                                   order={"by": f.order_by, "direction": f.direction})
+
+
 @router.post("", summary="Create a collection", status_code=201,
              dependencies=[requires(scopes.COLLECTIONS_WRITE)])
 def create_collection(response: Response,
@@ -227,26 +389,23 @@ def create_collection(response: Response,
     name = request.name.strip()
     if not name:
         raise InvalidRequestError("A collection needs a name")
-    if request.filters is not None and request.games:
-        raise InvalidRequestError(
-            "A collection is either filter-based or an explicit list of games, not both")
 
     with get_collections_manager().mutate() as manager:
         if name in manager.get_collections_name():
             raise ConflictError(f"A collection named {name} already exists")
 
+        # Criteria and hand-picked games together, if that is what was asked for.
+        # COLLECTIONS 2.11 makes them combinable and derives the kind from what is
+        # stored; refusing the pair was this API carrying 2.x's two kinds forward.
+        known = set(_catalog())
+        unknown = [game_id for game_id in request.games if game_id not in known]
+        if unknown:
+            raise InvalidRequestError("Unknown game ids", details={"ids": unknown})
+        manager.add_collection(name, request.games)
+        if request.description:
+            manager.set_description(name, request.description)
         if request.filters is not None:
-            f = request.filters
-            manager.add_filter_collection(
-                name, f.letter, f.theme, f.game_type, f.manufacturer, f.year,
-                f.rating, "true" if f.rating_or_higher else "false",
-                f.order_by, f.direction, played=f.played)
-        else:
-            known = set(_catalog())
-            unknown = [game_id for game_id in request.games if game_id not in known]
-            if unknown:
-                raise InvalidRequestError("Unknown game ids", details={"ids": unknown})
-            manager.add_collection(name, request.games)
+            _write_filters(manager, name, request.filters)
 
     response.headers["Location"] = _links(name)["self"]
     return _resource_for(_row_or_404(name))
@@ -262,36 +421,200 @@ def delete_collection(name: str) -> Response:
     return Response(status_code=204)
 
 
+def _one_table_of(game_id: str, table_id: str) -> None:
+    """Refuse a table that is not this game's. A ref naming a table of some other game
+    resolves to nothing and reads as a missing table forever after."""
+    if not table_id:
+        return
+    from common.games.game_repository import game_to_row
+
+    from .games import _tables
+    game = _catalog().get(game_id)
+    known = {str(t.get("id")) for t in _tables(game, game_to_row(game))} if game else set()
+    if table_id not in known:
+        raise NotFoundError(f"{game_id} has no table {table_id}")
+
+
 @router.put("/{name}/games/{game_id}", summary="Add a game to a collection",
             status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
-def add_member(name: str, game_id: str) -> Response:
+def add_member(name: str, game_id: str,
+               request: models.MemberRequest | None = Body(default=None)) -> Response:
     """Idempotent: adding a game that is already a member is a success, because the
-    caller's intent - that it be in there - is satisfied either way."""
+    caller's intent - that it be in there - is satisfied either way.
+
+    `table` names one of the game's tables and holds this collection to exactly that
+    one. Absent, the member names the game and resolves to whichever table is its
+    default, so the collection follows a replacement.
+
+    Works on any collection. Criteria and named members are combinable (COLLECTIONS
+    2.11) and a member overrides what the criteria say for that game.
+    """
     if game_id not in _catalog():
         raise NotFoundError(f"No game with id {game_id}")
+    table_id = (request.table if request else "") or ""
+    _one_table_of(game_id, table_id)
     with get_collections_manager().mutate() as manager:
         if name not in manager.get_collections_name():
             raise NotFoundError(f"No collection named {name}")
-        if manager.is_filter_based(name):
-            raise ConflictError(
-                f"{name} is a filter collection - its membership comes from its criteria")
-        manager.add_member(name, game_id)
+        manager.add_member(name, game_id, table_id)
+    return Response(status_code=204)
+
+
+@router.put("/{name}/games/{game_id}/table",
+            summary="Set which table a member names", status_code=204,
+            dependencies=[requires(scopes.COLLECTIONS_WRITE)])
+def set_member_table(name: str, game_id: str,
+                     request: models.MemberTableRequest = Body(...)) -> Response:
+    """Change which of a game's tables this collection holds, keeping its position.
+
+    The two tools of COLLECTIONS 2.12 are naming a table and excluding one; this is how
+    a caller reaches the first without deleting the member and adding it back, which
+    would send a curated row to the end of the list.
+    """
+    if game_id not in _catalog():
+        raise NotFoundError(f"No game with id {game_id}")
+    _one_table_of(game_id, request.table)
+    with get_collections_manager().mutate() as manager:
+        if name not in manager.get_collections_name():
+            raise NotFoundError(f"No collection named {name}")
+        try:
+            manager.set_member_table(name, game_id, request.table, request.was)
+        except ValueError as exc:
+            raise NotFoundError(str(exc)) from exc
     return Response(status_code=204)
 
 
 @router.delete("/{name}/games/{game_id}", summary="Remove a game from a collection",
                status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
-def remove_member(name: str, game_id: str) -> Response:
+def remove_member(name: str, game_id: str, table: str = "") -> Response:
+    """`table` removes one named ref; without it every ref naming this game goes."""
     with get_collections_manager().mutate() as manager:
         if name not in manager.get_collections_name():
             raise NotFoundError(f"No collection named {name}")
-        if manager.is_filter_based(name):
-            raise ConflictError(
-                f"{name} is a filter collection - its membership comes from its criteria")
-        if game_id not in manager.get_members(name):
+        refs = manager.get_member_refs(name)
+        here = [r for r in refs if r.get("game") == game_id
+                and (not table or r.get("table") == table)]
+        if not here:
             raise NotFoundError(f"{game_id} is not in {name}")
-        manager.remove_member(name, game_id)
+        manager.remove_member(name, game_id, table)
     return Response(status_code=204)
+
+
+@router.put("/{name}/excluded/{game_id}", summary="Exclude a game from a collection",
+            status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
+def add_exclusion(name: str, game_id: str,
+                  request: models.MemberRequest | None = Body(default=None)) -> Response:
+    """Take something out of what the criteria matched, and keep taking it out.
+
+    The other half of COLLECTIONS 2.12: naming a table freezes a choice, excluding one
+    says "everything except this" and still tracks whatever is added later. Neither
+    substitutes for the other, and until now only naming had a route.
+    """
+    if game_id not in _catalog():
+        raise NotFoundError(f"No game with id {game_id}")
+    table_id = (request.table if request else "") or ""
+    _one_table_of(game_id, table_id)
+    with get_collections_manager().mutate() as manager:
+        if name not in manager.get_collections_name():
+            raise NotFoundError(f"No collection named {name}")
+        manager.exclude(name, game_id, table_id)
+    return Response(status_code=204)
+
+
+@router.delete("/{name}/excluded/{game_id}", summary="Stop excluding a game",
+               status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
+def remove_exclusion(name: str, game_id: str, table: str = "") -> Response:
+    with get_collections_manager().mutate() as manager:
+        if name not in manager.get_collections_name():
+            raise NotFoundError(f"No collection named {name}")
+        excluded = manager.get_excluded_refs(name)
+        here = [r for r in excluded if r.get("game") == game_id
+                and (not table or r.get("table") == table)]
+        if not here:
+            raise NotFoundError(f"{game_id} is not excluded from {name}")
+        manager.unexclude(name, game_id, table)
+    return Response(status_code=204)
+
+
+@router.put("/{name}/image", summary="Set a collection's image",
+            dependencies=[requires(scopes.COLLECTIONS_WRITE)])
+async def set_image(name: str, file: UploadFile = File(...)
+                    ) -> models.CollectionResource:
+    """Upload an icon and hang it on this collection.
+
+    Stored under /api/v1 rather than only in the Manager UI's own static tree, which is
+    where collection icons used to live: the filename was on the resource and no client
+    outside that one process could either write one or fetch it back.
+    """
+    from common.games.collections_service import save_collection_icon
+    _row_or_404(name)
+    content = await file.read()
+    if not content:
+        raise InvalidRequestError("That file is empty")
+    try:
+        stored = await run_in_threadpool(save_collection_icon, file.filename or "", content)
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    with get_collections_manager().mutate() as manager:
+        manager.set_image(name, stored)
+    return _resource_for(_row_or_404(name))
+
+
+@router.delete("/{name}/image", summary="Clear a collection's image",
+               status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
+def clear_image(name: str) -> Response:
+    """The file stays on disk - another collection may be using it, and an icon nobody
+    references costs a few kilobytes against deleting one somebody still shows."""
+    _row_or_404(name)
+    with get_collections_manager().mutate() as manager:
+        manager.set_image(name, None)
+    return Response(status_code=204)
+
+
+@router.get("/{name}/image", summary="A collection's image",
+            dependencies=[requires(scopes.COLLECTIONS_READ)])
+def get_image(name: str) -> FileResponse:
+    from common.games.collections_service import collection_icon_path
+    row = _row_or_404(name)
+    here = collection_icon_path(row.get("image"))
+    if here is None:
+        raise NotFoundError(f"{name} has no image")
+    return FileResponse(here)
+
+
+@router.post("/{name}/members/from_filters",
+             summary="Keep what the criteria match, and drop the criteria",
+             dependencies=[requires(scopes.COLLECTIONS_WRITE)])
+def members_from_filters(name: str) -> models.CollectionResource:
+    """Criteria as a way of building a list rather than a rule to keep.
+
+    What it matches right now becomes the membership, naming each table it resolved to,
+    and the criteria are removed. The collection stops changing under its owner - which
+    is the whole difference between a list and a rule, and the reason `manual` order is
+    only offered once nothing is dynamic.
+
+    Exclusions go too. They said "everything except this" about a rule; with no rule
+    left there is nothing for them to except, and keeping them would silently subtract
+    from a list somebody now edits by hand.
+
+    The cap is applied and then lifted: it capped the rule's output, and re-applying it
+    to a list that is already that output would cut it a second time. Order is left
+    alone - it decides how the membership is handed out, not what is in it.
+    """
+    _row_or_404(name)
+    manager = get_collections_manager()
+    if not manager.has_filters(name):
+        raise ConflictError(f"{name} has no criteria to keep the result of")
+    entries = _resolved(name)
+    refs = [{"game": game_identity.game_id(entry.game),
+             "table": str(entry.table.get("id", ""))} for entry in entries]
+    with get_collections_manager().mutate() as writer:
+        writer.set_members(name, refs)
+        writer.clear_filters(name)
+        for ref in writer.get_excluded_refs(name):
+            writer.unexclude(name, ref["game"], ref.get("table", ""))
+        writer.set_limit(name, None)
+    return _resource_for(_row_or_404(name))
 
 
 @router.patch("/{name}", summary="Change a collection",
@@ -305,9 +628,6 @@ def patch_collection(name: str,
     collection's criteria, and a client that has to send the whole thing back is a
     client racing whatever else edited it meanwhile.
     """
-    if request.games is not None and request.filters is not None:
-        raise InvalidRequestError(
-            "A collection is either filter-based or an explicit list of games, not both")
 
     final = name
     with get_collections_manager().mutate() as manager:
@@ -315,10 +635,6 @@ def patch_collection(name: str,
             raise NotFoundError(f"No collection named {name}")
 
         if request.games is not None:
-            if manager.is_filter_based(name):
-                raise ConflictError(
-                    f"{name} is a filter collection - its membership comes from its "
-                    "criteria")
             known = set(_catalog())
             unknown = [game_id for game_id in request.games if game_id not in known]
             if unknown:
@@ -326,14 +642,7 @@ def patch_collection(name: str,
             manager.set_members(name, request.games)
 
         if request.filters is not None:
-            f = request.filters
-            manager.make_filter_collection(
-                name,
-                {"letter": f.letter, "theme": f.theme, "game_type": f.game_type,
-                 "manufacturer": f.manufacturer, "year": f.year, "rating": f.rating,
-                 "rating_or_higher": "true" if f.rating_or_higher else "false",
-                 "played": f.played},
-                order={"by": f.order_by, "direction": f.direction})
+            _write_filters(manager, name, request.filters)
 
         if request.clear_limit:
             manager.set_limit(name, None)
@@ -342,12 +651,16 @@ def patch_collection(name: str,
                 raise InvalidRequestError("A cap of fewer than one game shows nothing")
             manager.set_limit(name, request.limit)
 
+        if request.description is not None:
+            manager.set_description(name, request.description)
+
         if request.image is not None:
             manager.set_image(name, request.image)
 
         # After `filters`, so an order sent alongside one is the explicit answer rather
         # than being overwritten by the order inside the filter block.
-        if request.order_by is not None or request.direction is not None:
+        if (request.order_by is not None or request.direction is not None
+                or request.paging_group is not None):
             order = manager.get_order(name)
             by = request.order_by or order["by"]
             if by not in SORT_LABELS and by != MANUAL_ORDER:
@@ -356,12 +669,26 @@ def patch_collection(name: str,
                     details={"choices": [*SORT_LABELS, MANUAL_ORDER]})
             # `manual` is the stored member array. A filter collection has none, so
             # the order would name something that does not exist.
+            wanted_paging = request.paging_group
+            # Refused rather than normalised away. `normalize_paging_group` answers
+            # None for anything it cannot read, which would turn a typo into "follow
+            # the player" and report success - the same silent-accept this route was
+            # fixed for on order_by.
+            if wanted_paging and normalize_paging_group(wanted_paging) is None:
+                raise InvalidRequestError(
+                    f"Nothing pages by {wanted_paging}",
+                    details={"choices": list(PAGING_GROUPS)})
             if by == MANUAL_ORDER and manager.is_filter_based(name):
                 raise ConflictError(
                     f"{name} is a filter collection - it has no arrangement to follow")
             manager.set_order(name, by,
                               request.direction or order.get("direction")
-                              or DEFAULT_DIRECTION)
+                              or DEFAULT_DIRECTION,
+                              # "" is a value here - it says "follow the player" - so
+                              # it cannot fall back to what is stored the way the
+                              # other two do.
+                              request.paging_group if request.paging_group is not None
+                              else order.get("paging_group"))
 
         # Last, so every other edit above addressed the collection by the name it had.
         if request.name is not None and request.name.strip() != name:
@@ -384,7 +711,8 @@ def set_order(name: str,
 
     Every id must already be a member: reordering is not a way to add one, and a list
     that quietly added would make a dropped id indistinguishable from a new one. The
-    membership is compared as a set, so a caller that omits one is told rather than
+    list is one entry **per row**, so a game holding two named tables is named twice -
+    compared by content and by length, so a caller that omits one is told rather than
     silently removing it.
     """
     with get_collections_manager().mutate() as manager:
@@ -393,15 +721,39 @@ def set_order(name: str,
         if manager.is_filter_based(name):
             raise ConflictError(
                 f"{name} is a filter collection - its order comes from its criteria")
-        members = list(manager.get_members(name))
+        # Per ref, not per game: an order is over the rows, and section 2.10 lets one
+        # game hold several. `get_members` de-duplicates by design, so comparing
+        # against it read 7 where the collection has 8 rows and refused every move.
+        members = [ref["game"] for ref in manager.get_member_refs(name)]
         sent = list(request.games)
         if sorted(sent) != sorted(members):
             missing = sorted(set(members) - set(sent))
             extra = sorted(set(sent) - set(members))
+            # Counts, because the sets can match while the lists do not: a game named
+            # twice is one entry in both sets and two rows in the collection. Reported
+            # without them, such a request failed with both lists empty and the caller
+            # was told only that something was wrong.
             raise InvalidRequestError(
                 "An order must list exactly the collection's members",
-                details={"missing": missing, "not_members": extra})
-        manager.set_members(name, sent)
+                details={"missing": missing, "not_members": extra,
+                         "sent": len(sent), "members": len(members)})
+        # The stored refs, moved - not rebuilt from the ids sent. A member names a game
+        # and optionally one of its tables (COLLECTIONS section 2.10), and writing bare
+        # ids back is what `set_members` warns about: every table this collection had
+        # *named* is discarded, and a game holding two of them collapses to one entry.
+        # Measured before this: a three-ref tournament list came back as two bare games,
+        # on a 204.
+        #
+        # A game's own refs keep their relative order, and are dealt out one per
+        # occurrence: a game listed twice takes its first stored ref at the first
+        # position and its second at the second. That is the only reading a list of
+        # names allows, and it is the right one - the request cannot say which table
+        # goes where, but it does not have to, because their order among themselves is
+        # what it is asking to preserve.
+        grouped: dict[str, list[dict]] = {}
+        for ref in manager.get_member_refs(name):
+            grouped.setdefault(ref["game"], []).append(ref)
+        manager.set_members(name, [grouped[game].pop(0) for game in sent])
         # Setting an order is what makes the member array the order. Without this the
         # resolver falls back to `title`, so the list would come back sorted and the
         # call would have written something nothing reads.

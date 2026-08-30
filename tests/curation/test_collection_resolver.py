@@ -83,6 +83,63 @@ class ResolverTests(TempTree):
         self.assertEqual(self._ids(entries),
                          [("mm", "vpw"), ("afm", "a1"), ("mm", "jp")])
 
+    def test_changing_which_table_a_member_names_keeps_its_place(self) -> None:
+        """The reason this is a store method and not remove-then-add.
+
+        Curated order is the whole point of a manual collection, and rebuilding the ref
+        would send the row it edits to the end of the list.
+        """
+        self.collections.add_collection("Friday Night")
+        self.collections.set_order("Friday Night", "manual")
+        for member in ("mm", "afm", "taf"):
+            self.collections.add_member("Friday Night", member)
+
+        self.collections.set_member_table("Friday Night", "afm", "vr")
+
+        self.assertEqual(self._ids(resolve("Friday Night", self.collections,
+                                           self.games)),
+                         [("mm", "vpw"), ("afm", "vr"), ("taf", "t1")],
+                         "the middle row changed table without moving")
+
+    def test_a_member_can_be_handed_back_its_game_default(self) -> None:
+        """The return trip, which is what makes the control reversible."""
+        self.collections.add_collection("Friday Night")
+        self.collections.set_order("Friday Night", "manual")
+        self.collections.add_member("Friday Night", "mm", table_id="jp")
+        self.collections.add_member("Friday Night", "afm")
+
+        self.collections.set_member_table("Friday Night", "mm", "", was="jp")
+
+        entries = resolve("Friday Night", self.collections, self.games)
+        self.assertEqual(self._ids(entries), [("mm", "vpw"), ("afm", "a1")],
+                         "mm follows its default again, still first")
+        self.assertNotIn("table", self.collections.get_member_refs("Friday Night")[0],
+                         "and the key is gone rather than written empty")
+
+    def test_pointing_a_member_at_a_table_the_collection_already_names(self) -> None:
+        """Two refs naming one table is the duplicate 2.10 forbids, so the ref being
+        changed goes rather than the collection growing a copy."""
+        self.collections.add_collection("Friday Night")
+        self.collections.set_order("Friday Night", "manual")
+        self.collections.add_member("Friday Night", "mm", table_id="jp")
+        self.collections.add_member("Friday Night", "afm")
+        self.collections.add_member("Friday Night", "mm", table_id="vpw")
+
+        self.collections.set_member_table("Friday Night", "mm", "vpw", was="jp")
+
+        self.assertEqual(self._ids(resolve("Friday Night", self.collections,
+                                           self.games)),
+                         [("mm", "vpw"), ("afm", "a1")])
+
+    def test_changing_a_ref_that_is_not_there_is_refused(self) -> None:
+        """`was` has to name a ref that exists, or the caller is editing a row it has
+        not got and a silent append would look like it worked."""
+        self.collections.add_collection("Friday Night")
+        self.collections.add_member("Friday Night", "mm")
+
+        with self.assertRaises(ValueError):
+            self.collections.set_member_table("Friday Night", "mm", "jp", was="vpw")
+
     def test_a_named_table_and_a_named_game_sit_side_by_side(self) -> None:
         self.collections.add_collection("Friday Night")
         self.collections.set_order("Friday Night", "manual")

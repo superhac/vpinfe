@@ -15,7 +15,7 @@ from starlette.testclient import TestClient
 
 import httpapi
 from common.games.collection_store import CollectionStore
-from tests.support.library import TempTree, fake_game
+from tests.support.library import TempTree, fake_game, write_game
 
 GAME_ID = "aaaa1111"
 OTHER_ID = "bbbb2222"
@@ -71,10 +71,13 @@ class CollectionsApiTests(TempTree):
         body = response.json()
         self.assertEqual(response.status_code, 201)
         self.assertEqual(body["type"], "filter")
-        self.assertEqual(body["filters"]["manufacturer"], "Bally")
-        self.assertEqual(body["filters"]["year"], "1977")
-        self.assertIsNone(body["game_count"],
-                          "a filter collection has no stored member list to count")
+        # Reported as lists: the many-valued axes have always been stored comma-joined
+        # and split again by the matcher, and a bare string typed the schema as
+        # single-valued so no generated client could produce a second value.
+        self.assertEqual(body["filters"]["manufacturer"], ["Bally"])
+        self.assertEqual(body["filters"]["year"], ["1977"])
+        self.assertEqual(body["game_count"], 0,
+                         "the stored member list, which criteria do not replace")
 
     def test_the_reported_sort_is_the_one_the_collection_resolves_by(self) -> None:
         """Read off the `order` block, not the criteria: those carry a default for every
@@ -100,12 +103,17 @@ class CollectionsApiTests(TempTree):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["filters"]["order_by"], "play_count")
 
-    def test_asking_for_both_kinds_at_once_is_refused(self) -> None:
+    def test_criteria_and_named_games_are_stored_together(self) -> None:
+        """Not two kinds. COLLECTIONS 2.11 makes them combinable and the resolver
+        applies members over what the criteria matched, so a collection may follow a
+        rule and still hold something somebody put there by hand."""
         response = self.client.post("/collections", json={
-            "name": "Confused", "games": [GAME_ID], "filters": {"year": "1977"}})
+            "name": "Both", "games": [GAME_ID], "filters": {"year": "1977"}})
 
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["error"]["code"], "invalid_request")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["type"], "filter")
+        self.assertEqual(self.manager.get_members("Both"), [GAME_ID])
+        self.assertEqual(self.manager.get_filters("Both")["year"], "1977")
 
     def test_an_unknown_game_id_is_named_rather_than_stored(self) -> None:
         response = self.client.post("/collections",
@@ -150,14 +158,16 @@ class CollectionsApiTests(TempTree):
         self.assertEqual(again.status_code, 204)
         self.assertEqual(self.manager.get_members("Favourites"), [GAME_ID])
 
-    def test_a_filter_collections_membership_cannot_be_edited(self) -> None:
+    def test_a_collection_that_filters_can_still_be_added_to(self) -> None:
+        """A named member states what the collection holds for that game whether or not
+        the criteria matched it - which is what makes "add this one too" expressible."""
         self.client.post("/collections",
                          json={"name": "Smart", "filters": {"manufacturer": "Bally"}})
 
         response = self.client.put(f"/collections/Smart/games/{GAME_ID}")
 
-        self.assertEqual(response.status_code, 409)
-        self.assertIn("criteria", response.json()["error"]["message"])
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(self.manager.get_members("Smart"), [GAME_ID])
 
     def test_membership_of_an_unknown_game_or_collection_is_not_found(self) -> None:
         self.client.post("/collections", json={"name": "Favourites"})
@@ -296,3 +306,129 @@ class CollectionEntriesTests(CollectionsApiTests):
 
         self.assertEqual([e["table"]["id"] for e in entries], ["bb"])
         self.assertTrue(entries[0]["table"]["default"], "the resolved default")
+
+
+TABLED_ID = "Tabled000001"
+FOLDER = "Cactus Canyon (Bally 1998)"
+DESKTOP = f"{FOLDER}.vpx"
+VR = f"{FOLDER} - VR.vpx"
+TABLED_INFO = {
+    "Info": {"Name": "Cactus Canyon", "Manufacturer": "Bally"},
+    "VPinFE": {"game_id": TABLED_ID},
+    "tables": {
+        "tbl0000001": {"id": "tbl0000001", "filename": DESKTOP, "version": "1.0"},
+        "tbl0000002": {"id": "tbl0000002", "filename": VR, "version": "2.1"},
+    },
+}
+
+
+class MemberTableTests(TempTree):
+    """Which table a member names, changed in place.
+
+    Its own fixture because the table routes enumerate the folder: a game with no
+    directory behind it has no tables, so every id is refused before the collection
+    is reached.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.folder = write_game(self.root, FOLDER, info=TABLED_INFO, vpx=False,
+                                 files={DESKTOP: b"vpx", VR: b"vpx"})
+        game = fake_game(self.folder, FOLDER, meta=TABLED_INFO)
+        self.catalog = {TABLED_ID: game}
+
+        self.path = f"{self.root}/collections.ini"
+        open(self.path, "w").close()
+        manager = CollectionStore(self.path)
+        self.manager = manager
+        for target in ("httpapi.collections.get_collections_manager",
+                       "common.games.collections_service.get_collections_manager"):
+            patcher = patch(target, lambda: manager)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        for target in ("httpapi.collections._catalog", "httpapi.games._catalog"):
+            patcher = patch(target, lambda: self.catalog)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+        self.client = TestClient(httpapi.create_api_app(),
+                                 raise_server_exceptions=False)
+        self.client.post("/collections", json={"name": "Favourites"})
+
+    def _refs(self) -> list[dict]:
+        return self.manager.get_member_refs("Favourites")
+
+    def test_a_member_keeps_its_place_when_its_table_changes(self) -> None:
+        """The reason this is a route and not remove-then-add: curated order is what a
+        manual collection is for, and rebuilding the ref sends that row to the end."""
+        self.client.put(f"/collections/Favourites/games/{TABLED_ID}")
+
+        response = self.client.put(f"/collections/Favourites/games/{TABLED_ID}/table",
+                                   json={"table": "tbl0000002"})
+
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(self._refs(),
+                         [{"game": TABLED_ID, "table": "tbl0000002"}])
+
+    def test_a_member_can_be_handed_back_its_game_default(self) -> None:
+        """The return trip, which is what makes the control reversible."""
+        self.client.put(f"/collections/Favourites/games/{TABLED_ID}",
+                        json={"table": "tbl0000001"})
+
+        response = self.client.put(f"/collections/Favourites/games/{TABLED_ID}/table",
+                                   json={"table": "", "was": "tbl0000001"})
+
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(self._refs(), [{"game": TABLED_ID}],
+                         "the key is dropped rather than written empty")
+
+    def test_naming_a_table_of_some_other_game_is_refused(self) -> None:
+        """A ref pointing at a table this game has not got resolves to nothing and
+        reads as missing for good, so it is refused rather than stored."""
+        self.client.put(f"/collections/Favourites/games/{TABLED_ID}")
+
+        response = self.client.put(f"/collections/Favourites/games/{TABLED_ID}/table",
+                                   json={"table": "somebody-elses"})
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(self._refs(), [{"game": TABLED_ID}])
+
+    def test_a_game_named_twice_can_be_reordered(self) -> None:
+        """An order is over the rows, and section 2.10 lets one game hold several.
+
+        `get_members` de-duplicates by design, so an order compared against it counted
+        one row where the collection has two and refused every move in a collection
+        holding two tables of a game.
+        """
+        for table in ("tbl0000001", "tbl0000002"):
+            self.client.put(f"/collections/Favourites/games/{TABLED_ID}",
+                            json={"table": table})
+
+        response = self.client.put("/collections/Favourites/order",
+                                   json={"games": [TABLED_ID, TABLED_ID]})
+
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(self._refs(),
+                         [{"game": TABLED_ID, "table": "tbl0000001"},
+                          {"game": TABLED_ID, "table": "tbl0000002"}],
+                         "both refs survive, in their own order")
+
+    def test_an_order_missing_one_of_a_repeated_game_is_refused(self) -> None:
+        """Naming it once would drop the other ref, which is the silent removal the
+        route exists to refuse."""
+        for table in ("tbl0000001", "tbl0000002"):
+            self.client.put(f"/collections/Favourites/games/{TABLED_ID}",
+                            json={"table": table})
+
+        response = self.client.put("/collections/Favourites/order",
+                                   json={"games": [TABLED_ID]})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(len(self._refs()), 2, "and nothing was written")
+
+    def test_changing_a_member_that_is_not_there_is_not_found(self) -> None:
+        response = self.client.put(f"/collections/Favourites/games/{TABLED_ID}/table",
+                                   json={"table": "tbl0000001"})
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(self._refs(), [])

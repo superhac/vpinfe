@@ -28,6 +28,7 @@ from common.games.game_metadata import (
 )
 from common.games.game_parser import GameParser
 from common.games.info_migration import INFO_SCHEMA, schema_of
+from common.games.tables import table_entries
 from common.paths import COLLECTIONS_PATH, get_games_path, get_ini_config
 
 _LOCK = threading.Lock()
@@ -173,15 +174,17 @@ def get_missing_games(reload: bool = False) -> list[dict[str, str]]:
 def collections_by_game_id() -> dict[str, list[str]]:
     """Collection names keyed by the game id membership is recorded under.
 
-    Only explicit-membership collections. A filter collection has no member list to
-    key on - what belongs to it is decided per game when it is displayed.
+    Every collection that names this game, whether or not it also carries criteria:
+    COLLECTIONS 2.11 makes the two combinable, so a game hand-added to a collection
+    that also filters is a member of it and skipping those would under-report.
+
+    What criteria match is still decided per game at display time and is not here -
+    this is the stored membership, not the resolved one.
     """
     mapping: dict[str, list[str]] = {}
     try:
         collections = CollectionStore(str(COLLECTIONS_PATH))
         for collection_name in collections.get_collections_name():
-            if collections.is_filter_based(collection_name):
-                continue
             try:
                 for member_id in collections.get_members(collection_name):
                     mapping.setdefault(member_id, []).append(collection_name)
@@ -235,6 +238,10 @@ def game_to_row(game, collections_map: dict[str, list[str]] | None = None) -> di
         "authors": as_string_list(gf_value("authors", [])),
         "rom": gf_value("rom"),
         "version": gf_value("version"),
+        # How many tables this game offers. A game row collapses them, and this is
+        # the only thing that says so - which is what makes the by-table lens
+        # discoverable, and what qualifies the values above read off the default.
+        "table_count": len(table_entries(meta)),
         "filehash": gf_value("file_hash"),
         "vbshash": gf_value("vbs_hash"),
         "detectnfozzy": gf_value("detect_nfozzy"),

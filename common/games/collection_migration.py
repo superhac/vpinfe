@@ -83,6 +83,9 @@ def ensure_last_played(collections) -> bool:
             store.add_collection(LAST_PLAYED_NAME)
         store.make_filter_collection(LAST_PLAYED_NAME, LAST_PLAYED_FILTERS,
                                      order=LAST_PLAYED_ORDER, limit=LAST_PLAYED_LIMIT)
+        # This list was maintained by `track_game_play`, not curated, so it does not
+        # survive the conversion the way a hand-picked one does.
+        store.set_members(LAST_PLAYED_NAME, [])
         store.record_migration(LAST_PLAYED_MIGRATION)
 
     logger.info("%s %r: it now derives from the play dates in each .info",

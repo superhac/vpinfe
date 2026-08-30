@@ -78,6 +78,12 @@ MEMBER_TABLE_KEY = "table"
 # added next month does not appear. An exclusion still tracks - it does. Both are
 # wanted, and neither substitutes for the other.
 EXCLUDED_KEY = "excluded"
+# The criteria block. Its presence is what makes a collection a dynamic one.
+FILTERS_KEY = "filters"
+# What the collection is for, in the owner's words. Free to add: section 7's
+# extensibility table prices a new field on a collection at nothing, and a build that
+# does not know it leaves it alone.
+DESCRIPTION_KEY = "description"
 
 # How a collection is ordered, as its own block rather than mixed in with the criteria.
 #
@@ -342,12 +348,29 @@ class CollectionStore:
     def _stamp_schema(self, version: int = COLLECTIONS_SCHEMA) -> None:
         self._schema = version
 
-    def is_filter_based(self, section: str):
+    def has_filters(self, section: str) -> bool:
+        """Whether this collection carries criteria.
+
+        The block's presence, not the stored `type`: COLLECTIONS 2.11 derives the kind,
+        and a record either has criteria or it does not.
+        """
         record = self._record(section)
-        return bool(record) and record.get("type") == "filter"
+        return bool(record) and FILTERS_KEY in record
+
+    def is_filter_based(self, section: str):
+        """The name most callers use. Derived, so a collection changes kind by gaining
+        or losing criteria rather than by being told."""
+        return self.has_filters(section)
+
+    def clear_filters(self, section: str) -> None:
+        """Drop the criteria, leaving the membership. The second half of "keep the
+        result rather than the rule"."""
+        record = self._require_mutable(section)
+        record.pop(FILTERS_KEY, None)
+        record.pop("type", None)
 
     def get_filters(self, section: str):
-        if not self.is_filter_based(section):
+        if not self.has_filters(section):
             return None
         stored = self._require(section).get("filters") or {}
         # Defaults underneath, the file on top: the defaults are the nine criteria an ini
@@ -535,15 +558,17 @@ class CollectionStore:
     def make_filter_collection(self, section: str, filters: dict,
                                order: dict | None = None,
                                limit: int | None = None) -> None:
-        """Turn a collection into one that filters, keeping its name, icon and position.
+        """Give a collection criteria, keeping its name, icon, position and members.
 
-        Hand-picked membership goes with it: a named game overrides the criteria, so
-        one left behind would stay in the collection whatever the filter selects.
+        Membership stays: the two are combinable (COLLECTIONS 2.11). Dropping it here
+        made "add a rule" destructive.
         """
         record = self._require_mutable(section)
+        # Still written, and no longer read: `has_filters` derives the kind from the
+        # block's presence. Kept in the file so a build that predates that still reads
+        # the collection correctly.
         record["type"] = "filter"
-        record["filters"] = dict(filters)
-        record.pop("members", None)
+        record[FILTERS_KEY] = dict(filters)
         if order:
             self.set_order(section, order.get(ORDER_BY_KEY, DEFAULT_ORDER_BY),
                            order.get(ORDER_DIRECTION_KEY, DEFAULT_DIRECTION))
@@ -584,6 +609,29 @@ class CollectionStore:
             raise ValueError(f"'{member_id}' is not in collection '{section}'")
         record["members"] = keep
 
+    def set_member_table(self, section: str, member_id: str, table_id: str,
+                         was: str = "") -> None:
+        """Point an existing ref at a different table, keeping its position.
+
+        Remove-then-add would do the same to the file and put the row at the end, which
+        is the one thing a curated order cannot afford. `was` says which ref to move
+        when a game has several (COLLECTIONS 2.10); an empty `table_id` gives the game
+        back its default.
+        """
+        record = self._require_mutable(section)
+        members = _member_refs(record.get("members"))
+        wanted = _member_ref({MEMBER_GAME_KEY: member_id, MEMBER_TABLE_KEY: was})
+        at = next((i for i, m in enumerate(members) if m == wanted), None)
+        if at is None:
+            raise ValueError(
+                f"'{member_id}' does not name that table in collection '{section}'")
+        ref = _member_ref({MEMBER_GAME_KEY: member_id, MEMBER_TABLE_KEY: table_id})
+        # Already there under another position: the ref would be a duplicate, and
+        # 2.10 says a pairing appears once. Drop the one being changed instead.
+        members = [m for i, m in enumerate(members) if i != at and m != ref]
+        members.insert(min(at, len(members)), ref)
+        record["members"] = members
+
     def set_members(self, section: str, members) -> None:
         """Replace the membership outright, taking game ids or refs. For a caller where
         the order is the point, which is the Manager UI saving a whole edit.
@@ -602,10 +650,31 @@ class CollectionStore:
                 "Collection %r: replacing membership dropped the table named for %s; "
                 "those games contribute their default table now",
                 section, ", ".join(sorted(lost)))
-        record["members"] = replacement
+        if replacement:
+            record["members"] = replacement
+        else:
+            # Dropped rather than written empty, the same way `unexclude` drops an
+            # empty exclusion list: a key present in every record and meaning nothing
+            # is noise in the file.
+            record.pop("members", None)
 
     def __contains__(self, section: str) -> bool:
         return self._record(section) is not None
+
+    def get_description(self, section: str) -> str:
+        """What this collection is for, in the owner's words. Empty when unsaid."""
+        record = self._record(section)
+        return str((record or {}).get(DESCRIPTION_KEY, "") or "").strip()
+
+    def set_description(self, section: str, text: str | None) -> None:
+        """Say what it is for, or stop saying. Empty removes the key rather than
+        storing a blank, the same way an empty membership does."""
+        record = self._require_mutable(section)
+        cleaned = str(text or "").strip()
+        if cleaned:
+            record[DESCRIPTION_KEY] = cleaned
+        else:
+            record.pop(DESCRIPTION_KEY, None)
 
     def get_image(self, section: str) -> str:
         record = self._record(section)
@@ -667,8 +736,8 @@ class CollectionStore:
         known_ids = set(by_vps.values())
         moved = unresolved = 0
         for name in names:
-            if self.is_filter_based(name):
-                continue
+            # Every collection with a member list, criteria or not: a hand-added member
+            # of a filtering collection is stored the same way and migrates the same way.
             members = self.get_members(name)
             rewritten = []
             for member in members:
