@@ -49,9 +49,16 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/collections` | Create one. `filters` makes it filter-based, `games` makes it manual |
 | DELETE | `/api/v1/collections/{name}` | Delete it |
 | PATCH | `/api/v1/collections/{name}` | Change one. Only what you send is written — a rename need not restate the rest |
-| PUT | `/api/v1/collections/{name}/games/{id}` | Add a game (idempotent) |
-| DELETE | `/api/v1/collections/{name}/games/{id}` | Remove a game |
-| PUT | `/api/v1/collections/{name}/order` | Arrange a manual collection. The whole ordered list, atomically |
+| GET | `/api/v1/collections/{name}/members` | Its **stored** membership, and why each entry is there |
+| PUT | `/api/v1/collections/{name}/games/{id}` | Add a game (idempotent). `{"table": "…"}` names one of its tables |
+| DELETE | `/api/v1/collections/{name}/games/{id}` | Remove it. `?table=` removes one named table |
+| PUT | `/api/v1/collections/{name}/games/{id}/table` | Change which table it names, in place. `{"table": ""}` hands back the game's default; `was` picks the ref when a game appears twice |
+| PUT | `/api/v1/collections/{name}/excluded/{id}` | Keep a game out. `{"table": "…"}` keeps out one table |
+| DELETE | `/api/v1/collections/{name}/excluded/{id}` | Stop keeping it out |
+| POST | `/api/v1/collections/{name}/members/from_filters` | Keep what the criteria match, and drop the criteria |
+| PUT | `/api/v1/collections/{name}/order` | Arrange a collection. The whole ordered list, atomically - one entry per row, so a game holding two named tables is named twice |
+| PUT/GET/DELETE | `/api/v1/collections/{name}/image` | Its icon |
+| POST | `/api/v1/library/preview` | What a rule would match, storing nothing |
 | GET | `/api/v1/jobs` | Slow work, running first. `?kind=` filters |
 | GET | `/api/v1/jobs/{id}` | One job — state, last progress, outcome |
 | GET | `/api/v1/library/entries` | The play lens over the whole library |
@@ -465,20 +472,50 @@ recovers by itself.
 
 ## Collections
 
-Two kinds behind one resource. A **manual** collection stores an explicit list of game
-ids; a **filter** collection stores criteria and resolves to whatever matches when you ask.
-`type` says which, and `table_count` is null for a filter collection because there is no
-stored list to count — ask `/collections/{name}/games`, which answers the same question
-for both kinds and applies the collection's own ordering.
+**Not two kinds.** One collection may carry criteria, hand-picked members and exclusions
+at once, and they combine: criteria select, members override what the criteria said for
+that game, exclusions remove. `type` is **derived** — `filter` where the collection has
+criteria, `manual` where it does not — so adding a rule to a list, or keeping a rule's
+result, changes the kind by changing the collection rather than by being told.
 
-Editing membership only makes sense for the manual kind, so `PUT`/`DELETE` on a filter
-collection's games is a `409` rather than a silent no-op. Adding a game that is already a
-member is a success: the caller wanted it in there, and it is.
+Membership edits work on any collection. Adding a game that is already a member is a
+success: the caller wanted it in there, and it is.
+
+A member **names a game, or it names a table**. Without a table it resolves to whichever
+table is the game's default, so the collection follows a replacement; with one it holds
+to exactly that table. The same game may appear once per table named. Exclusions take the
+same shape with the opposite sign.
+
+Three lenses, and they answer different questions:
+
+| Route | Answers |
+|---|---|
+| `/collections/{name}/members` | what is **stored**, and why each entry is there — including one naming a game this library no longer has |
+| `/collections/{name}/games` | what it **resolves to**, by game; a game with nothing launchable still appears |
+| `/collections/{name}/entries` | what it resolves to, by table — the play lens, what a frontend shows |
+
+A member naming something that is gone is reported by the first and absent from the other
+two. Nothing prunes it: a library on a share that was not mounted at scan time reports
+every game missing, and cleaning up on that signal would empty every collection.
+
+`game_count` counts the stored members, which is not the size of the collection — criteria
+contribute rows that are stored nowhere.
 
 Membership is the game's own id, not its VPS id — a game with no VPSdb match still
 belongs to collections, which is why membership moved off the VPS id. The key on disk is
 still `vpsids` for files written before that migration, and `type` is still `vpsid` there;
 the wire uses the honest names.
+
+**Criteria may hold several values**, and several values on one axis is an OR across them.
+Send a list; you always get a list back. `GET /library/filters` says which axes take more
+than one — `many: true` — along with the values this library has, so a client can render
+the right control without holding a list of axis names itself. Across axes the criteria
+are an AND, and there is no ordering between them: the resolver is a conjunction, so their
+order cannot change the result.
+
+`POST /library/preview` resolves a criteria block against the library and stores nothing,
+which is what an unsaved rule is — `builtin:all` plus those criteria. It is how a rule can
+be built while its result is on screen instead of every experiment landing on the frontend.
 
 Every collection has an order, whichever kind it is: `order_by` names the field and
 `direction` says which way. `PATCH` sets both, and only what you send is written, so a

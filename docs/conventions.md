@@ -411,6 +411,62 @@ means the exception worth spotting in a map of twenty.
 - **A value is a name or a state, not a sentence.** Names keep their own casing
   (`Visual Pinball X`, `TAF_L7`); states are capitalized noun phrases. Show a display name
   rather than an id — an id on screen is a leak.
+- **A fragment takes no full stop.** Sentences are punctuated; labels, states, counts and
+  fragments are not. "Nothing in it yet." is a fragment wearing a period.
+- **The shortest true word wins.** A chip reads `Missing`, not "Not in this library"; the
+  sentence goes in the tooltip where it costs nothing.
+- **A badge on every row is not a badge** — where the badge is *constant*. A chip reading
+  the same thing on every row, or an action identical on all of them, says nothing and
+  comes off. This does **not** cover a state that varies per row: that is data, and hiding
+  its common value removes a column rather than removing noise. Show varying state on every
+  row and dim the ordinary value, so the scan still lands on the exception without meaning
+  being read from absence.
+- **Cut anything that only restates what is on screen.** Explanatory prose above a control
+  that already explains itself is filler, and filler is what makes a panel feel unfinished.
+- **Gate an affordance on the input, not on the width.** Hover-to-reveal is
+  `@media (hover: hover) and (pointer: fine)`, never a breakpoint: a touchscreen laptop
+  is as wide as a desk one, and hiding a control behind hover on a device that cannot
+  hover makes it unreachable. Visible is the default; revealing on hover is the
+  enhancement. Pair it with `:focus-within` or a keyboard never reaches it either.
+- **On screen, use the word a person would use.** The wire's `filter` is **Dynamic** to a
+  reader. A label names the thing, not the model.
+- **In a menu, the group label is chrome and the item is content.** One language for every
+  menu - dropdowns, grid header and cell menus, bulk actions, pickers:
+  - A **group header** takes `.hub-group`'s treatment: small, uppercase, tracked, `--ink-3`.
+    It is a signpost and recedes. Never larger or brighter than the items it labels.
+  - An **item** is body voice: sentence case, `--ink-2`, no letter-spacing. You read a
+    name and click it, and a name only survives in sentence case.
+  - **Hover and focus paint a full-width band.** A colour change alone is too weak to say
+    *this row is the target*, and an item that sizes to its own text draws the band to the
+    end of the words rather than the edge of the menu.
+  - **Accent is the current value and nothing else** - the chosen item, the checkmark. When
+    every item is accent-coloured the colour stops meaning anything.
+  - **One leading slot**, fixed width, for whatever marks the item; items with no mark
+    indent to it so the labels line up.
+  - **The trailing slot is state** - a checkmark, a count, a shortcut. Never a second action.
+  - A **destructive** item colours its *text*; the band stays the ordinary one. A red row
+    reads as an error that has already happened.
+  - **A separator divides groups**, never decorates.
+  - **An open menu suppresses tooltips.** The control that opened it usually has one, and
+    it lands on top of the menu.
+  - **Group a long picker by what the columns are about**, groups named in the user's
+    words. The grouping answers *which columns exist*; where a column sits is the grid's
+    own order and the user drags that - so a group is a bucket, not a run of neighbours.
+- **A label comes from the registry that owns the thing, never from its key.** Every
+  closed set here already carries one - `MediaSpec.label`, `AssetSpec.label`,
+  `config_schema.label_for` - and each has its acronyms cased once, correctly, in the one
+  place that knows how the word expands. Deriving a label with `key.replace("_", " ")` is
+  what put `real dmd color` in a column picker beside `Manufacturer`. Where a key must be
+  shown because nothing has named it, derive it as an explicit *fallback* after asking the
+  registry, the way `config_schema.label_for` does. `humanize()` in `common/labels.py` is that
+  fallback: it knows this project's acronyms, so `rom_audit` reads **ROM Audit**.
+- **A grid column is as wide as its header unless its values are longer.** Width is
+  derived, not chosen: pass one only for a title, an author or a path, and treat it as a
+  floor. A hand-picked number on a column of short values is a guess that outlives whoever
+  made it.
+- **Sort by what is shown, not by what is stored.** A list ordered on its keys while
+  displaying labels reads as unsorted, because the reader cannot see the thing it is
+  sorted on.
 
 ### Two traps that have both been walked into
 
