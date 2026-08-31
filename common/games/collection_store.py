@@ -26,6 +26,13 @@ from common.games.info_migration import (
 
 logger = logging.getLogger("vpinfe.common.games.collection_store")
 
+
+class DuplicateMemberError(ValueError):
+    """A second ref for a pairing the collection already holds. Its own type so a caller
+    can tell it from "no such member" and answer with a conflict rather than a not-found:
+    the difference between asking for something impossible and asking about something
+    absent."""
+
 # Every writer holds a whole copy of the file and `save` writes all of it, so two that
 # read before either saved lose one of the two edits. Callers each build their own store
 # - the theme's collection menu and the API are different objects reading the same path -
@@ -467,17 +474,23 @@ class CollectionStore:
             excluded.append(ref)
         record[EXCLUDED_KEY] = excluded
 
-    def unexclude(self, section: str, game_id: str, table_id: str = "") -> None:
-        """Undo an exclusion. Without a table, drops every exclusion naming this game -
-        including the per-table ones, since the game is wanted back whole."""
+    def unexclude(self, section: str, game_id: str,
+                  table_id: str | None = None) -> None:
+        """Undo an exclusion: one ref, or every exclusion naming this game.
+
+        `None` is every one of them - the game is wanted back whole. `""` is the *one*
+        exclusion that names no table, and an id is the one naming it. Those two were
+        the same value, which left an exclusion of a whole game impossible to undo
+        without also undoing the per-table ones somebody meant to keep.
+        """
         record = self._require_mutable(section)
         excluded = _member_refs(record.get(EXCLUDED_KEY))
-        if table_id:
-            keep = [e for e in excluded
-                    if not (e[MEMBER_GAME_KEY] == game_id
-                            and e.get(MEMBER_TABLE_KEY) == table_id)]
-        else:
+        if table_id is None:
             keep = [e for e in excluded if e[MEMBER_GAME_KEY] != game_id]
+        else:
+            gone = _member_ref({MEMBER_GAME_KEY: game_id,
+                                MEMBER_TABLE_KEY: table_id})
+            keep = [e for e in excluded if e != gone]
         if keep:
             record[EXCLUDED_KEY] = keep
         else:
@@ -585,26 +598,48 @@ class CollectionStore:
             raise ValueError("New name cannot be empty")
         record["name"] = new_name
 
-    def add_member(self, section: str, member_id: str, table_id: str = ""):
+    def add_member(self, section: str, member_id: str, table_id: str = "",
+                   after_table: str | None = None):
         """Add a game, or one specific table of it. Adding the same pairing twice is
-        a no-op; adding a second table of a game already present is not."""
+        a no-op; adding a second table of a game already present is not.
+
+        `after_table` puts the new ref directly after this game's ref naming that table
+        - `""` for the one naming none - and appending is what happens without it. It
+        exists because a second table added to the end of a long manual collection is
+        indistinguishable from nothing having happened.
+        """
         record = self._require_mutable(section)
         members = _member_refs(record.get("members"))
         ref = _member_ref({MEMBER_GAME_KEY: member_id, MEMBER_TABLE_KEY: table_id})
         if ref and ref not in members:
-            members.append(ref)
+            at = None
+            if after_table is not None:
+                sibling = _member_ref({MEMBER_GAME_KEY: member_id,
+                                       MEMBER_TABLE_KEY: after_table})
+                at = next((i for i, m in enumerate(members) if m == sibling), None)
+            if at is None:
+                members.append(ref)
+            else:
+                members.insert(at + 1, ref)
         record["members"] = members
 
-    def remove_member(self, section: str, member_id: str, table_id: str = ""):
-        """Remove a pairing, or every ref naming this game when no table is given."""
+    def remove_member(self, section: str, member_id: str,
+                      table_id: str | None = None):
+        """Remove one ref, or every ref naming this game.
+
+        `None` is every ref - what "remove this game" means. `""` is the *one* ref that
+        names no table, and an id is the one naming it. Those two used to be the same
+        value, so deleting the row that follows a game's default deleted every other
+        row for that game as well, silently.
+        """
         record = self._require_mutable(section)
         members = _member_refs(record.get("members"))
-        if table_id:
-            keep = [m for m in members
-                    if not (m[MEMBER_GAME_KEY] == member_id
-                            and m.get(MEMBER_TABLE_KEY) == table_id)]
-        else:
+        if table_id is None:
             keep = [m for m in members if m[MEMBER_GAME_KEY] != member_id]
+        else:
+            gone = _member_ref({MEMBER_GAME_KEY: member_id,
+                                MEMBER_TABLE_KEY: table_id})
+            keep = [m for m in members if m != gone]
         if len(keep) == len(members):
             raise ValueError(f"'{member_id}' is not in collection '{section}'")
         record["members"] = keep
@@ -626,10 +661,14 @@ class CollectionStore:
             raise ValueError(
                 f"'{member_id}' does not name that table in collection '{section}'")
         ref = _member_ref({MEMBER_GAME_KEY: member_id, MEMBER_TABLE_KEY: table_id})
-        # Already there under another position: the ref would be a duplicate, and
-        # 2.10 says a pairing appears once. Drop the one being changed instead.
-        members = [m for i, m in enumerate(members) if i != at and m != ref]
-        members.insert(min(at, len(members)), ref)
+        # Refused, not repaired. A pairing appears once (2.10), so pointing this ref at
+        # a table another already names cannot be stored - and the obvious repair, of
+        # dropping one of them, takes a row away without saying so. A caller that is
+        # told can offer a choice; a collection that quietly loses a row cannot.
+        if any(m == ref for i, m in enumerate(members) if i != at):
+            raise DuplicateMemberError(
+                f"'{member_id}' already names that table in collection '{section}'")
+        members[at] = ref
         record["members"] = members
 
     def set_members(self, section: str, members) -> None:

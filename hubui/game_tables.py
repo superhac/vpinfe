@@ -27,23 +27,26 @@ REFERENCE_WORDS = {
     GONE: ("Missing", "Not in this library"),
 }
 
-# Shared with the media glyphs in `data.py`, which ask the same question: ● is bound to
-# one table, ◐ belongs to the game. One thing to learn rather than two.
-GLYPHS = {
-    FIXED: "\u25cf",
-    FOLLOWS: "\u25d0",
-    GONE: "\u25cc",
+# Drawn, not typed. As characters these are not a matched pair: measured in the hub's
+# own font at 15px, ● is 9.4px across and ◐ is 15px, so the two states differed in size
+# as much as in fill and the smaller one read as a speck. A circle and a half-filled
+# circle built in CSS are the same diameter by construction, on every platform.
+MARKS = {
+    FIXED: "hub-mark--full",
+    FOLLOWS: "hub-mark--half",
+    GONE: "hub-mark--dashed",
 }
 
 # The legend, because a tooltip cannot be the only one - it does not exist on a touch
 # device. It names the two states; the difference between them is its own tooltip.
-KEY = "\u25cf User Defined    \u25d0 Game Default"
+KEY_WORDS = ((FIXED, "User Defined"), (FOLLOWS, "Game Default"))
 KEY_DETAIL = ("User defined stays on the table it names. Game default follows the "
               "game, so a replacement is picked up.")
 
 
-def glyph(state: str) -> str:
-    return GLYPHS.get(state, GLYPHS[FOLLOWS])
+def mark(state: str) -> str:
+    """The classes for one state's mark, base first."""
+    return f"hub-mark {MARKS.get(state, MARKS[FOLLOWS])}"
 
 
 # How a game's default was decided. The resolver has three steps; a reader only cares

@@ -84,6 +84,23 @@ if (!window.__hubDockGrip) {
 # Dragging one member to a new place. Pointer events, not HTML5 drag-and-drop, for the
 # reason the dock grip uses them: HTML5 drag fires no move events over its own source
 # and is inert on touch.
+# The dock is rebuilt on every write, so its scroll position has to be carried across
+# by hand. Remembered on the window rather than in the panel's state: the value changes
+# on every scroll frame and none of those are worth a round trip to Python.
+_KEEP_SCROLL = """
+(() => {
+  const dock = document.querySelector('.hub-dock');
+  if (!dock) return;
+  const held = window.__hubDockTop || (window.__hubDockTop = {});
+  const key = '%s';
+  if (held[key]) dock.scrollTop = held[key];
+  if (dock.dataset.scrollWired) return;
+  dock.dataset.scrollWired = '1';
+  dock.addEventListener('scroll', () => { held[key] = dock.scrollTop; },
+                        {passive: true});
+})()
+"""
+
 _ARRANGE = """
 (() => {
   const list = document.querySelector('.hub-member-list');
@@ -2024,8 +2041,11 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
         # The key, beside the count rather than above the rows: a legend the reader
         # scrolls away from stops being one, and this sits in the header that stays.
         if members or find:
-            ui.label(game_tables.KEY).classes("hub-member-key") \
-                .tooltip(game_tables.KEY_DETAIL)
+            with ui.row().classes("items-center gap-2 no-wrap hub-member-key") \
+                    .tooltip(game_tables.KEY_DETAIL):
+                for shown, word in game_tables.KEY_WORDS:
+                    ui.element("span").classes(game_tables.mark(shown))
+                    ui.label(word)
     if len(context.get("membership", {}).get("members") or []) > 8:
         name = _collection(context)["name"]
         box = ui.input(placeholder="Find in this collection") \
@@ -2058,15 +2078,37 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
         with ui.column().classes("gap-0 w-full"):
             for member in excluded:
                 _member_line(context, member)
+    # `kept`, not `members`: the excluded rows are drawn in their own group below, so
+    # the indices the browser reports are into this list. Sending `members` sent the
+    # excluded ones too - a game both named and excluded appeared twice, and the route
+    # refused the whole move.
+    #
+    # Handed to the listener through state rather than closed over, because the
+    # listener is registered **once**. Registering inside the draw added one on every
+    # rebuild, and NiceGUI answers a changed listener set by re-rendering the page -
+    # which is why a reorder flashed the grid and the logo in the nav, neither of which
+    # this panel touches.
+    held = context["state"]
+    held["member_move"] = (context, kept) if arrange else None
     if arrange:
-        # `kept`, not `members`: the excluded rows are drawn in their own group below,
-        # so the indices the browser reports are into this list. Sending `members` sent
-        # the excluded ones too - a game both named and excluded appeared twice, and
-        # the route refused the whole move.
-        ui.on("hub_member_moved",
-              lambda event: _reorder(context, kept, event.args))
+        if not held.get("member_move_bound"):
+            held["member_move_bound"] = True
+            ui.on("hub_member_moved", lambda event: _moved(held, event.args))
         ui.run_javascript(_ARRANGE)
     _add_control(context, members)
+    # A write rebuilds the panel, so the dock is a new element starting at the top -
+    # and changing a member's table sent a forty-row list back to the beginning. The
+    # position is remembered per collection, because arriving at a different one
+    # should start at the top rather than wherever the last one was left.
+    ui.run_javascript(_KEEP_SCROLL % _collection(context)["name"].replace("'", "\\'"))
+
+
+async def _moved(state: dict[str, Any], moved: Any) -> None:
+    """The list as it stands, read at the moment of the drop rather than captured when
+    the listener was made - one listener now serves every redraw of the panel."""
+    held = state.get("member_move")
+    if held:
+        await _reorder(held[0], held[1], moved)
 
 
 async def _reorder(context: dict[str, Any], members: list[dict], moved: Any) -> None:
@@ -2146,15 +2188,16 @@ def _table_choice(context: dict[str, Any], member: dict[str, Any], state: str,
     and the API has carried it since the member routes took a `table`. Nothing in the
     UI reached it, so every row read `Game Default` whatever the collection stored.
     """
-    with ui.row().classes("items-center gap-2 no-wrap hub-member-table-line") as line:
+    with ui.row().classes("items-center gap-2 no-wrap w-full min-w-0 "
+                          "hub-member-table-line") as line:
         # Leading the *table* line, because that is what it qualifies - which table
         # this entry uses. On the name line it would read as a mark about the game.
-        ui.label(game_tables.glyph(state)).classes("hub-member-mark") \
+        ui.element("span").classes(game_tables.mark(state)) \
             .tooltip(game_tables.reference_state(state)[1])
         # The same line, and the same tooltip, as a game's Tables section: version and
         # author on screen, the filename a hover away. One formatter, so the two
         # surfaces cannot drift apart.
-        ui.label(said).classes("hub-member-table truncate") \
+        ui.label(said).classes("hub-member-table truncate grow min-w-0") \
             .tooltip(str(table.get("filename") or ""))
         if not editable:
             return
@@ -2163,13 +2206,16 @@ def _table_choice(context: dict[str, Any], member: dict[str, Any], state: str,
         # Anchored inside the element it belongs to. Built as a sibling it lands
         # wherever the parent row happens to start, which put an earlier menu 726px
         # from the control that opened it.
-        with line, ui.menu().props('anchor="bottom left" self="top left"') as menu:
+        with line, ui.menu().props('anchor="bottom left" self="top left"'):
             holder = ui.column().classes("gap-0 w-full items-stretch")
-        line.on("click", lambda: _fill_table_menu(context, member, table, holder, menu))
+        # Filling only. The menu is a child of this line, so Quasar already opens and
+        # closes it on a click here - calling `open()` as well reopened it in the same
+        # gesture that closed it, which read as the menu refusing to shut.
+        line.on("click", lambda: _fill_table_menu(context, member, table, holder))
 
 
 async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
-                           table: dict[str, Any], holder: Any, menu: Any) -> None:
+                           table: dict[str, Any], holder: Any) -> None:
     """This game's tables, read when asked for rather than with every row.
 
     One read per game and it is cached, but doing it while drawing forty rows would be
@@ -2192,36 +2238,62 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
               for other in (context.get("membership") or {}).get("members") or []
               if str(other.get("game") or "") == game
               for t in other.get("tables") or []}
+    # Tables another of this game's rows already names. A pairing appears once (2.10),
+    # so pointing this row at one of them cannot be stored - it is shown and refused
+    # rather than hidden, because an entry that vanishes without a reason is the same
+    # puzzle as a row that vanishes without one.
+    taken: set[str] = set()
+    default_taken = False
+    for other in (context.get("membership") or {}).get("members") or []:
+        if other is member or str(other.get("game") or "") != game:
+            continue
+        if _member_state(other) == game_tables.FOLLOWS:
+            # Another row already follows this game, and a second bare ref is the same
+            # pairing twice. Offering it was an error the user could only find by
+            # picking it.
+            default_taken = True
+        else:
+            taken.update(str(t.get("id") or "") for t in other.get("tables") or [])
     holder.clear()
     with holder:
-        ui.item_label("Uses").props("header").classes("hub-menu-header")
+        # The question this group answers, not the verb on its own: "Uses" was the
+        # verb without its object, and a reader had to infer the subject.
+        ui.item_label("Which table").props("header").classes("hub-menu-header")
         _table_menu_item(context, member, "", named,
-                         game_tables.glyph(game_tables.FOLLOWS),
+                         game_tables.FOLLOWS,
                          game_tables.REFERENCE_WORDS[game_tables.FOLLOWS][0],
-                         chosen=not named)
+                         chosen=not named,
+                         blocked="Already in this collection" if default_taken else "")
         for one in choices:
             table_id = str(one.get("id") or "")
             _table_menu_item(context, member, table_id, named,
-                             game_tables.glyph(game_tables.FIXED),
-                             game_tables.table_name(one), chosen=table_id == named)
+                             game_tables.FIXED,
+                             game_tables.table_name(one), chosen=table_id == named,
+                             blocked="Already in this collection"
+                             if table_id in taken else "")
         # The tournament case: a collection holding two versions of one game, each
         # named (COLLECTIONS 2.10 and 2.12). Switching this row cannot express it -
         # that is one ref pointing somewhere else - so adding is its own verb.
         spare = [one for one in choices if str(one.get("id") or "") not in spoken]
         if spare:
             ui.separator()
-            ui.item_label("Add another").props("header").classes("hub-menu-header")
+            # What arrives, in the user's words. Not "another user defined" - every
+            # item here already wears the mark for it and the key says what that
+            # means, so the state in the heading would restate what is on screen.
+            ui.item_label("Add another table").props("header") \
+                .classes("hub-menu-header")
             for one in spare:
-                _add_table_item(context, game, one)
-    menu.open()
+                _add_table_item(context, game, one, after=named)
 
 
 def _table_menu_item(context: dict[str, Any], member: dict[str, Any], table_id: str,
-                     was: str, glyph: str, label: str, *, chosen: bool) -> None:
+                     was: str, state: str, label: str, *, chosen: bool,
+                     blocked: str = "") -> None:
     """One choice. The current one is marked and inert - a menu that lets you pick what
-    is already true reports a change that did not happen."""
+    is already true reports a change that did not happen - and so is one the collection
+    cannot hold, which says why instead of disappearing."""
     async def pick() -> None:
-        if chosen:
+        if chosen or blocked:
             return
         try:
             await run.io_bound(context["library"].set_member_table,
@@ -2232,23 +2304,38 @@ def _table_menu_item(context: dict[str, Any], member: dict[str, Any], table_id: 
             return
         await context["rebuild"]()
 
-    marked = "hub-menu-item hub-menu-on" if chosen else "hub-menu-item"
-    with ui.menu_item(on_click=pick).classes(marked), \
-            ui.row().classes("items-center gap-2 no-wrap w-full"):
-        ui.label(glyph).classes("hub-menu-mark")
+    marked = "hub-menu-item"
+    if chosen:
+        marked += " hub-menu-on"
+    elif blocked:
+        marked += " hub-menu-blocked"
+    item = ui.menu_item(on_click=pick).classes(marked)
+    if blocked:
+        # It stays open on a click it will not act on: closing would look like the
+        # choice was taken.
+        item.props("auto-close=false").tooltip(blocked)
+    with item, ui.row().classes("items-center gap-2 no-wrap w-full"):
+        ui.element("span").classes(f"hub-menu-mark {game_tables.mark(state)}")
         ui.label(label).classes("hub-menu-table-name grow min-w-0")
         if chosen:
             ui.icon("check").classes("hub-menu-check")
+        elif blocked:
+            ui.icon("block").classes("hub-menu-check hub-menu-blocked-mark")
 
 
-def _add_table_item(context: dict[str, Any], game: str,
-                    table: dict[str, Any]) -> None:
-    """A second ref for this game, naming another of its tables."""
+def _add_table_item(context: dict[str, Any], game: str, table: dict[str, Any],
+                    *, after: str) -> None:
+    """A second ref for this game, naming another of its tables.
+
+    Landed next to the row it was asked from, not at the end: in a forty-row collection
+    the end is off screen, and a new row you cannot see is indistinguishable from a
+    click that did nothing.
+    """
     async def add() -> None:
         try:
             await run.io_bound(context["library"].add_to_collection,
                                _collection(context)["name"], game,
-                               str(table.get("id") or ""))
+                               str(table.get("id") or ""), after)
         except Exception as exc:
             ui.notify(f"Could not add it: {exc}", type="negative")
             return
@@ -2260,7 +2347,7 @@ def _add_table_item(context: dict[str, Any], game: str,
         # with the same mark, so the pair read as one thing listed twice and the
         # heading was the only thing telling them apart - which a heading loses at a
         # glance (Chris, 2026-08-30). The mark carries the verb now.
-        ui.icon("add").classes("hub-menu-mark")
+        ui.icon("add").classes("hub-menu-add")
         ui.label(game_tables.table_name(table)).classes("hub-menu-table-name grow min-w-0")
 
 
@@ -2288,10 +2375,13 @@ def _member_action(context: dict[str, Any], member: dict[str, Any],
         ui.notify(said, type="positive")
         await context["rebuild"]()
 
+    # The ref this row *is*, not the table it resolves to. An exclusion naming no
+    # table resolves to one all the same, and sending that back matched nothing.
+    ref_table = str(member.get("ref_table") or "")
     if origin == "excluded":
         ui.button(icon="undo",
                   on_click=lambda: act(library.unexclude_from_collection, name, game,
-                                       table, said="Back in the list")) \
+                                       ref_table, said="Back in the list")) \
             .props("flat dense round size=sm").tooltip("Put this back")
     elif origin == "filter":
         ui.button(icon="close",
@@ -2299,9 +2389,12 @@ def _member_action(context: dict[str, Any], member: dict[str, Any],
                                        table, said="Taken out")) \
             .props("flat dense round size=sm").tooltip("Remove from this collection")
     else:
+        # The ref this row *is*, not the table it resolves to: a row that follows the
+        # game names no table, so its identity is "". Passing "" used to mean every
+        # ref for the game, which is how deleting one row deleted three.
         ui.button(icon="close",
                   on_click=lambda: act(library.remove_from_collection, name, game,
-                                       "", said="Removed")) \
+                                       ref_table, said="Removed")) \
             .props("flat dense round size=sm").tooltip("Remove from this collection")
 
 

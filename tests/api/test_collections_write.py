@@ -55,10 +55,18 @@ class Manager:
         return [m if isinstance(m, dict) else {"game": m} for m in self.members]
 
     # -- writes
-    def add_member(self, section, game_id, table_id=""):
+    def add_member(self, section, game_id, table_id="", after_table=None):
         ref = {"game": game_id} | ({"table": table_id} if table_id else {})
-        if ref not in self._refs():
+        if ref in self._refs():
+            return
+        at = None
+        if after_table is not None:
+            sibling = {"game": game_id} | ({"table": after_table} if after_table else {})
+            at = next((i for i, m in enumerate(self._refs()) if m == sibling), None)
+        if at is None:
             self.members.append(ref)
+        else:
+            self.members.insert(at + 1, ref)
 
     def remove_member(self, section, game_id, table_id=""):
         self.members = [r for r in self._refs()

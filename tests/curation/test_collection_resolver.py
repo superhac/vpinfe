@@ -14,7 +14,10 @@ from common.games.collection_resolver import (
     resolve_games,
     visible_entries,
 )
-from common.games.collection_store import CollectionStore
+from common.games.collection_store import (
+    CollectionStore,
+    DuplicateMemberError,
+)
 from tests.support.library import TempTree
 
 
@@ -116,20 +119,107 @@ class ResolverTests(TempTree):
         self.assertNotIn("table", self.collections.get_member_refs("Friday Night")[0],
                          "and the key is gone rather than written empty")
 
+    def test_a_second_table_lands_beside_the_row_it_was_asked_from(self) -> None:
+        """Not at the end. In a long manual collection the end is off screen, and a new
+        row nobody can see is indistinguishable from a click that did nothing."""
+        self.collections.add_collection("Friday Night")
+        self.collections.set_order("Friday Night", "manual")
+        self.collections.add_member("Friday Night", "mm", table_id="vpw")
+        self.collections.add_member("Friday Night", "afm")
+        self.collections.add_member("Friday Night", "taf")
+
+        self.collections.add_member("Friday Night", "mm", table_id="jp",
+                                    after_table="vpw")
+
+        self.assertEqual(self._ids(resolve("Friday Night", self.collections,
+                                           self.games)),
+                         [("mm", "vpw"), ("mm", "jp"), ("afm", "a1"), ("taf", "t1")])
+
+    def test_a_second_table_appends_when_no_sibling_is_named(self) -> None:
+        """Every caller before this one appended, and a collection with no curated
+        order does not care where a ref sits."""
+        self.collections.add_collection("Friday Night")
+        self.collections.set_order("Friday Night", "manual")
+        self.collections.add_member("Friday Night", "mm", table_id="vpw")
+        self.collections.add_member("Friday Night", "afm")
+
+        self.collections.add_member("Friday Night", "mm", table_id="jp")
+
+        self.assertEqual(self._ids(resolve("Friday Night", self.collections,
+                                           self.games)),
+                         [("mm", "vpw"), ("afm", "a1"), ("mm", "jp")])
+
+    def test_lifting_a_whole_game_exclusion_leaves_the_per_table_ones(self) -> None:
+        """`""` is the exclusion that names no table, not every exclusion for the game.
+        They were the same value, so an exclusion of a whole game could not be lifted
+        without also lifting per-table ones somebody meant to keep - and the UI, which
+        sends the table a row *resolves to*, matched no ref at all and lifted nothing."""
+        self.collections.add_collection("Friday Night")
+        self.collections.exclude("Friday Night", "mm")
+        self.collections.exclude("Friday Night", "mm", table_id="jp")
+
+        self.collections.unexclude("Friday Night", "mm", "")
+
+        self.assertEqual(self.collections.get_excluded_refs("Friday Night"),
+                         [{"game": "mm", "table": "jp"}])
+
+    def test_lifting_every_exclusion_for_a_game(self) -> None:
+        """Which is what "want this game back whole" means, and is now said with None."""
+        self.collections.add_collection("Friday Night")
+        self.collections.exclude("Friday Night", "mm")
+        self.collections.exclude("Friday Night", "mm", table_id="jp")
+        self.collections.exclude("Friday Night", "afm")
+
+        self.collections.unexclude("Friday Night", "mm", None)
+
+        self.assertEqual(self.collections.get_excluded_refs("Friday Night"),
+                         [{"game": "afm"}])
+
+    def test_removing_the_following_row_leaves_the_named_ones(self) -> None:
+        """`""` is the ref that names no table, not every ref for the game. It used to
+        be both, so deleting the row that follows a game's default silently deleted
+        every other row for that game with it."""
+        self.collections.add_collection("Friday Night")
+        self.collections.set_order("Friday Night", "manual")
+        self.collections.add_member("Friday Night", "mm")
+        self.collections.add_member("Friday Night", "mm", table_id="jp")
+        self.collections.add_member("Friday Night", "mm", table_id="vpw")
+
+        self.collections.remove_member("Friday Night", "mm", "")
+
+        self.assertEqual(self._ids(resolve("Friday Night", self.collections,
+                                           self.games)),
+                         [("mm", "jp"), ("mm", "vpw")])
+
+    def test_removing_a_game_with_no_table_named_takes_every_row(self) -> None:
+        """Which is what "remove this game" means, and is now said with `None`."""
+        self.collections.add_collection("Friday Night")
+        self.collections.add_member("Friday Night", "mm")
+        self.collections.add_member("Friday Night", "mm", table_id="jp")
+        self.collections.add_member("Friday Night", "afm")
+
+        self.collections.remove_member("Friday Night", "mm", None)
+
+        self.assertEqual(self._ids(resolve("Friday Night", self.collections,
+                                           self.games)), [("afm", "a1")])
+
     def test_pointing_a_member_at_a_table_the_collection_already_names(self) -> None:
-        """Two refs naming one table is the duplicate 2.10 forbids, so the ref being
-        changed goes rather than the collection growing a copy."""
+        """Refused, not repaired. Two refs naming one table is the duplicate 2.10
+        forbids, and the obvious repair - dropping one - takes a row away without
+        saying so, which is the removal nobody can explain."""
         self.collections.add_collection("Friday Night")
         self.collections.set_order("Friday Night", "manual")
         self.collections.add_member("Friday Night", "mm", table_id="jp")
         self.collections.add_member("Friday Night", "afm")
         self.collections.add_member("Friday Night", "mm", table_id="vpw")
 
-        self.collections.set_member_table("Friday Night", "mm", "vpw", was="jp")
+        with self.assertRaises(DuplicateMemberError):
+            self.collections.set_member_table("Friday Night", "mm", "vpw", was="jp")
 
         self.assertEqual(self._ids(resolve("Friday Night", self.collections,
                                            self.games)),
-                         [("mm", "vpw"), ("afm", "a1")])
+                         [("mm", "jp"), ("afm", "a1"), ("mm", "vpw")],
+                         "and the collection is untouched")
 
     def test_changing_a_ref_that_is_not_there_is_refused(self) -> None:
         """`was` has to name a ref that exists, or the caller is editing a row it has

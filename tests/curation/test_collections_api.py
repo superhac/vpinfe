@@ -426,6 +426,20 @@ class MemberTableTests(TempTree):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(len(self._refs()), 2, "and nothing was written")
 
+    def test_naming_a_table_another_row_already_uses_is_refused(self) -> None:
+        """A conflict, not a merge. The collection holds the pairing once (2.10), and
+        merging would drop a row without anything on the wire saying which."""
+        for table in ("tbl0000001", "tbl0000002"):
+            self.client.put(f"/collections/Favourites/games/{TABLED_ID}",
+                            json={"table": table})
+
+        response = self.client.put(
+            f"/collections/Favourites/games/{TABLED_ID}/table",
+            json={"table": "tbl0000002", "was": "tbl0000001"})
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(len(self._refs()), 2, "and both rows are still there")
+
     def test_changing_a_member_that_is_not_there_is_not_found(self) -> None:
         response = self.client.put(f"/collections/Favourites/games/{TABLED_ID}/table",
                                    json={"table": "tbl0000001"})

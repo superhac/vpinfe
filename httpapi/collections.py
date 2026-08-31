@@ -32,6 +32,7 @@ from common.games.collection_store import (
     MANUAL_ORDER,
     PAGING_GROUPS,
     SORT_LABELS,
+    DuplicateMemberError,
     normalize_paging_group,
 )
 from common.games.collections_service import (
@@ -251,7 +252,7 @@ def _member_row(game_id: str, origin: str, named_table: str,
     game = catalog.get(game_id)
     if game is None:
         return {"game": game_id, "name": "", "origin": "missing",
-                "included": False, "tables": []}
+                "included": False, "ref_table": named_table, "tables": []}
     known = _tables(game, game_to_row(game))
     by_id = {str(t.get("id")): t for t in known}
     chosen = named_table or (str(known[0].get("id")) if known else "")
@@ -272,6 +273,12 @@ def _member_row(game_id: str, origin: str, named_table: str,
                        "origin": kept_out or ("named" if named_table else "default")})
     return {"game": game_id, "name": str(game_to_row(game).get("name") or ""),
             "origin": origin, "included": any(t["included"] for t in tables),
+            # The table *this ref names*, empty when it names none - which is not the
+            # same as the table it resolves to, reported under `tables`. A client that
+            # cannot tell the two apart cannot address one row: it was sending the
+            # resolved table back, which matched no ref and left a whole-game exclusion
+            # impossible to lift.
+            "ref_table": named_table,
             "tables": tables}
 
 
@@ -446,6 +453,9 @@ def add_member(name: str, game_id: str,
     one. Absent, the member names the game and resolves to whichever table is its
     default, so the collection follows a replacement.
 
+    `after_table` puts the new ref beside a sibling instead of at the end, which is
+    what makes a second table of one game visibly arrive.
+
     Works on any collection. Criteria and named members are combinable (COLLECTIONS
     2.11) and a member overrides what the criteria say for that game.
     """
@@ -453,10 +463,11 @@ def add_member(name: str, game_id: str,
         raise NotFoundError(f"No game with id {game_id}")
     table_id = (request.table if request else "") or ""
     _one_table_of(game_id, table_id)
+    after = request.after_table if request else None
     with get_collections_manager().mutate() as manager:
         if name not in manager.get_collections_name():
             raise NotFoundError(f"No collection named {name}")
-        manager.add_member(name, game_id, table_id)
+        manager.add_member(name, game_id, table_id, after)
     return Response(status_code=204)
 
 
@@ -479,6 +490,11 @@ def set_member_table(name: str, game_id: str,
             raise NotFoundError(f"No collection named {name}")
         try:
             manager.set_member_table(name, game_id, request.table, request.was)
+        except DuplicateMemberError as exc:
+            # A conflict, not a miss: the collection already holds that pairing and
+            # 2.10 allows it once. Refused rather than merged, because merging drops a
+            # row and nothing on the wire could say which one went.
+            raise ConflictError(str(exc)) from exc
         except ValueError as exc:
             raise NotFoundError(str(exc)) from exc
     return Response(status_code=204)
@@ -486,14 +502,18 @@ def set_member_table(name: str, game_id: str,
 
 @router.delete("/{name}/games/{game_id}", summary="Remove a game from a collection",
                status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
-def remove_member(name: str, game_id: str, table: str = "") -> Response:
-    """`table` removes one named ref; without it every ref naming this game goes."""
+def remove_member(name: str, game_id: str, table: str | None = None) -> Response:
+    """`?table=` removes exactly one row, `?table=` with no value the one that names no
+    table, and omitting it entirely removes every ref naming this game.
+
+    Absent and empty were the same thing until 2026-08-30, so deleting the row that
+    follows a game's default took every other row for that game with it."""
     with get_collections_manager().mutate() as manager:
         if name not in manager.get_collections_name():
             raise NotFoundError(f"No collection named {name}")
         refs = manager.get_member_refs(name)
         here = [r for r in refs if r.get("game") == game_id
-                and (not table or r.get("table") == table)]
+                and (table is None or (r.get("table") or "") == table)]
         if not here:
             raise NotFoundError(f"{game_id} is not in {name}")
         manager.remove_member(name, game_id, table)
@@ -523,13 +543,18 @@ def add_exclusion(name: str, game_id: str,
 
 @router.delete("/{name}/excluded/{game_id}", summary="Stop excluding a game",
                status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
-def remove_exclusion(name: str, game_id: str, table: str = "") -> Response:
+def remove_exclusion(name: str, game_id: str, table: str | None = None) -> Response:
+    """`?table=abc` lifts one exclusion, `?table=` with no value the one that names no
+    table, and omitting it lifts every exclusion naming this game.
+
+    Absent and empty were the same until 2026-08-30, which left an exclusion of a whole
+    game impossible to lift on its own."""
     with get_collections_manager().mutate() as manager:
         if name not in manager.get_collections_name():
             raise NotFoundError(f"No collection named {name}")
         excluded = manager.get_excluded_refs(name)
         here = [r for r in excluded if r.get("game") == game_id
-                and (not table or r.get("table") == table)]
+                and (table is None or (r.get("table") or "") == table)]
         if not here:
             raise NotFoundError(f"{game_id} is not excluded from {name}")
         manager.unexclude(name, game_id, table)

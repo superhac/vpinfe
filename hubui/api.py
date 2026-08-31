@@ -165,11 +165,13 @@ class HubClient:
     def delete_collection(self, name: str) -> None:
         self._delete(f"/collections/{quote(name, safe='')}")
 
-    def add_to_collection(self, name: str, game_id: str, table: str = "") -> None:
+    def add_to_collection(self, name: str, game_id: str, table: str = "",
+                          after_table: str | None = None) -> None:
         """`table` holds the collection to exactly that table; without it the member
-        names the game and follows whichever table is its default."""
+        names the game and follows whichever table is its default. `after_table` puts
+        the new ref beside its sibling rather than at the end of the list."""
         self._put_empty(f"/collections/{quote(name, safe='')}/games/{game_id}",
-                        {"table": table})
+                        {"table": table, "after_table": after_table})
 
     def set_member_table(self, name: str, game_id: str, table: str = "",
                          was: str = "") -> None:
@@ -179,8 +181,11 @@ class HubClient:
         self._put_empty(f"/collections/{quote(name, safe='')}/games/{game_id}/table",
                         {"table": table, "was": was})
 
-    def remove_from_collection(self, name: str, game_id: str, table: str = "") -> None:
-        suffix = f"?table={quote(table, safe='')}" if table else ""
+    def remove_from_collection(self, name: str, game_id: str,
+                               table: str | None = None) -> None:
+        """`None` removes every ref naming this game; a string - including "" for the
+        ref that names no table - removes exactly that one."""
+        suffix = "" if table is None else f"?table={quote(table, safe='')}"
         self._delete(f"/collections/{quote(name, safe='')}/games/{game_id}{suffix}")
 
     def set_collection_order(self, name: str, games: list[str]) -> None:
@@ -206,8 +211,10 @@ class HubClient:
                         {"table": table})
 
     def unexclude_from_collection(self, name: str, game_id: str,
-                                  table: str = "") -> None:
-        suffix = f"?table={quote(table, safe='')}" if table else ""
+                                  table: str | None = None) -> None:
+        """`None` lifts every exclusion naming this game; a string - including "" for
+        the one that names no table - lifts exactly that one."""
+        suffix = "" if table is None else f"?table={quote(table, safe='')}"
         self._delete(f"/collections/{quote(name, safe='')}/excluded/{game_id}{suffix}")
 
     def keep_collection_result(self, name: str) -> dict:

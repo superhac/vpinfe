@@ -10,18 +10,31 @@ from hubui.api import HubClient
 
 logger = logging.getLogger("vpinfe.hubui")
 
-# One character per resolution tier, so a cell says *why* this file is the one being
-# used, not merely that something is. Filled reads as more specific. Blank is missing,
+# One mark per resolution tier, so a cell says *why* this file is the one being used,
+# not merely that something is. More fill reads as more specific. Blank is missing,
 # because a sparse matrix is scannable and a full one is not.
-TIER_GLYPHS = {
-    "table": "\u25cf",      # this table's own file
-    "game": "\u25d0",       # named for the folder, shared by the game's tables
-    "default": "\u25cb",    # the fixed-name slot, where vpinmediadb writes
+#
+# Drawn rather than typed, and sharing `.hub-mark` with the reference marks in
+# `game_tables.py`. As characters these were not a matched set - ● measures 9.4px in
+# this font where ◐ measures 15 - so a column of them was ragged and the smaller ones
+# read as specks. The shapes are shared; the meanings are each vocabulary's own.
+TIER_MARKS = {
+    "table": "hub-mark--full",      # this table's own file
+    "game": "hub-mark--half",       # named for the folder, shared by the game's tables
+    "default": "",                  # the fixed-name slot, where vpinmediadb writes
 }
-SET_GLYPH = "\u25c8"
-FALLBACK_GLYPH = "\u25cc"
+SET_MARK = "hub-mark--set"
+FALLBACK_MARK = "hub-mark--dashed"
 
-TIER_LEGEND = "\u25cf table  \u25d0 game  \u25cb default  \u25c8 set  \u25cc borrowed"
+TIER_LEGEND = (("hub-mark--full", "table"), ("hub-mark--half", "game"),
+               ("", "default"), ("hub-mark--set", "set"),
+               ("hub-mark--dashed", "borrowed"))
+
+
+def mark_html(shape: str) -> str:
+    """One mark as a cell's worth of HTML. The media columns are html fields already,
+    which is what makes a drawn mark free here."""
+    return '<span class="hub-mark ' + shape + '"></span>'
 
 
 def _thumb(game_id: str, kind: str, entry: dict) -> str:
@@ -36,12 +49,12 @@ def _glyph(entry: dict) -> str:
         return ""
     tier = entry.get("via") or ""
     if tier.startswith("set:"):
-        return SET_GLYPH
+        return mark_html(SET_MARK)
     if tier.startswith("fallback:"):
-        return FALLBACK_GLYPH
+        return mark_html(FALLBACK_MARK)
     # A present file whose tier we cannot name still shows as present rather than
     # vanishing - an unknown tier is a gap in our knowledge, not an absent file.
-    return TIER_GLYPHS.get(tier, "\u2713")
+    return mark_html(TIER_MARKS.get(tier, "hub-mark--full"))
 
 
 class Library:
@@ -281,7 +294,8 @@ class Library:
         self._collections = None
         self._client.exclude_from_collection(name, game_id, table)
 
-    def unexclude_from_collection(self, name: str, game_id: str, table: str = "") -> None:
+    def unexclude_from_collection(self, name: str, game_id: str,
+                                  table: str | None = None) -> None:
         self._collections = None
         self._client.unexclude_from_collection(name, game_id, table)
 
@@ -309,16 +323,18 @@ class Library:
         self._collections = None
         self._client.delete_collection(name)
 
-    def add_to_collection(self, name: str, game_id: str, table: str = "") -> None:
+    def add_to_collection(self, name: str, game_id: str, table: str = "",
+                          after_table: str | None = None) -> None:
         self._collections = None
-        self._client.add_to_collection(name, game_id, table)
+        self._client.add_to_collection(name, game_id, table, after_table)
 
     def set_member_table(self, name: str, game_id: str, table: str = "",
                          was: str = "") -> None:
         self._collections = None
         self._client.set_member_table(name, game_id, table, was)
 
-    def remove_from_collection(self, name: str, game_id: str, table: str = "") -> None:
+    def remove_from_collection(self, name: str, game_id: str,
+                               table: str | None = None) -> None:
         self._collections = None
         self._client.remove_from_collection(name, game_id, table)
 

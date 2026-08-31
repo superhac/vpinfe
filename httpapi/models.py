@@ -1022,6 +1022,11 @@ class CollectionMember(ApiModel):
     name: str = ""
     origin: str = ""
     included: bool = True
+    # The table *this row names*, empty when it names none. Not the table it resolves
+    # to, which is under `tables` - a row naming no table still resolves to one. It is
+    # the row's identity: without it a client cannot address one row of a game that has
+    # several, and sending the resolved table back matches no ref at all.
+    ref_table: str = ""
     tables: list[MemberTable] = Field(default_factory=list)
 
 
@@ -1044,6 +1049,11 @@ class MemberRequest(ApiModel):
     """
 
     table: str = ""
+    # Where the new ref goes: directly after this game's ref naming this table, with
+    # "" meaning the one that names none. Absent appends, which is what every caller
+    # did before this existed. A second table landing at the end of a long collection
+    # is indistinguishable from nothing having happened.
+    after_table: str | None = None
 
 
 class MemberTableRequest(ApiModel):

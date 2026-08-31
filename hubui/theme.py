@@ -365,10 +365,6 @@ body::before {
   /* Not `.hub-help`, whose 62ch cap and looser leading are for prose. This is a
      label under another label. */
   padding-left: 1px;
-  /* Pulled up against the name. The first line sits in a flex row whose box is taller
-     than its text, and the leftover was reading as the space between two rows rather
-     than as the join between two halves of one. */
-  margin-top: -4px;
 }
 
 /* Which of the two this table is, said beside the table it qualifies rather than in the
@@ -388,6 +384,42 @@ body::before {
 /* Leading, so every row's mark sits at the same x and the column can be scanned
    without reading a word of it. A trailing mark lands after variable-length text and
    is at a different place on every row, which is why it read as litter. */
+/* One diameter for every state: the circle is drawn here rather than borrowed from the
+   font, where ● and ◐ are different sizes and no font-size makes them agree. Colour
+   comes from `currentColor`, so a mark follows whatever text it sits beside. */
+.hub-mark {
+  /* `inline-block` so it also works in a grid cell, which is not a flex row. */
+  display: inline-block;
+  vertical-align: middle;
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  box-sizing: border-box;
+}
+/* Named for the *shape*, not for what it means. Two vocabularies use these - which
+   table an entry points at, and where a media file resolved from - and section 13 is
+   explicit that they share the shapes and not the nouns. A modifier called `--fixed`
+   would have carried one vocabulary's meaning into the other's screens. */
+.hub-mark--full { background: currentColor; }
+/* Half filled, and the fill runs to the circle's own centre rather than to the edge of
+   its outline. */
+.hub-mark--half {
+  background: linear-gradient(to right, currentColor 50%, transparent 50%);
+}
+.hub-mark--dashed { border-style: dashed; opacity: 0.7; }
+/* A square on its corner: the odd one out on purpose, because the state it marks is
+   the one that is not a degree of the others. */
+/* The legend for those marks, sitting on the toolbar beside the count. */
+.hub-tier-key .hub-mark { margin-right: 3px; }
+
+.hub-mark--set {
+  border-radius: 0;
+  background: currentColor;
+  transform: rotate(45deg) scale(0.82);
+}
+
 .hub-member-mark {
   /* Big enough that ● and ◐ are told apart. They differ by half a fill, which at 11px
      is two or three pixels - measured on screen, both read as the same dot. */
@@ -403,7 +435,21 @@ body::before {
 /* The table line doubles as the control that changes which table this member names.
    The caret is the only added ink and it waits for a hover, so a list of forty rows
    reads as text; on touch, where there is no hover, it is simply always there. */
-.hub-member-table-line { border-radius: 4px; padding-right: 2px; }
+/* The second half of the pair, and it takes the pair's quieter colour: the mark draws
+   itself in `currentColor`, so without this it inherited white from the row and came
+   out brighter than the name above it.
+
+   Not pulled up at all. The -4px this carried was tuned when the line held nothing but
+   text; it now carries an 11px mark that makes the line taller, so any pull at all put
+   the line over the name. A hairline of daylight is what makes the two read as a pair
+   rather than as one crowded block. */
+.hub-member-table-line {
+  border-radius: 4px;
+  padding-right: 2px;
+  margin-top: 1px;
+  color: var(--ink-3);
+}
+.hub-member-row:hover .hub-member-table-line .hub-mark { color: var(--accent); }
 .hub-member-table-line:hover { background: rgba(255, 255, 255, 0.06); }
 .hub-member-table-caret {
   font-size: 15px;
@@ -425,6 +471,18 @@ body::before {
   white-space: normal;
 }
 .hub-menu-check { font-size: 16px; color: var(--accent); }
+/* Offered, and refused. Dimmed rather than removed: an entry that is simply absent is
+   the same puzzle as a row that vanishes, which is what this state exists to avoid. */
+.q-menu .hub-menu-item.hub-menu-blocked,
+.q-menu .hub-menu-item.hub-menu-blocked .q-item__label,
+.q-menu .hub-menu-item.hub-menu-blocked:hover,
+.q-menu .hub-menu-item.hub-menu-blocked:hover .q-item__label {
+  color: var(--ink-3);
+  opacity: 0.55;
+  cursor: default;
+  background: transparent;
+}
+.hub-menu-blocked-mark { color: var(--ink-3) !important; font-size: 15px; }
 /* Which of a game's tables it offers. A radio rather than a glyph: a game has exactly
    one default, that is what a radio means, and it reads as a control - which this one
    is. Kept clear of the text glyphs in `game_tables.py`, whose question is a different
@@ -533,9 +591,9 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 .q-menu .hub-menu-item.hub-menu-on,
 .q-menu .hub-menu-item.hub-menu-on .q-item__label { color: var(--accent); }
 
-/* One leading column, 16px, whatever fills it - glyph, icon or nothing. Items with no
+/* One leading column, 16px, whatever fills it - mark, icon or nothing. Items with no
    mark still indent to it, so the labels line up down the menu. */
-.hub-menu-mark {
+.hub-menu-mark, .hub-menu-add {
   flex: none;
   width: 16px;
   font-size: 16px;
@@ -543,7 +601,11 @@ body.hub-menu-open .q-tooltip { display: none !important; }
   text-align: center;
   color: var(--ink-3);
 }
-.q-menu .hub-menu-item:hover .hub-menu-mark { color: var(--ink); }
+/* A drawn mark keeps its own diameter and is centred in that column rather than
+   stretched across it - the column's 16px made an 11px circle into an oval. */
+.q-menu .hub-menu-mark.hub-mark { width: 11px; margin: 0 2.5px; }
+.q-menu .hub-menu-item:hover .hub-menu-mark,
+.q-menu .hub-menu-item:hover .hub-menu-add { color: var(--ink); }
 .q-menu .hub-menu-item.hub-menu-on .hub-menu-mark { color: var(--accent); }
 
 /* The act, not the row, is what is destructive: the text carries it and the hover band

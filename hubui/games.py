@@ -10,7 +10,7 @@ from nicegui import run, ui
 
 from common.labels import humanize
 from common.media_specs import media_label_map
-from hubui import game_tables, grid, views
+from hubui import data, game_tables, grid, views
 from hubui.api import HubClient
 from hubui.data import TIER_LEGEND
 
@@ -196,7 +196,9 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         cells.bind_visibility_from(view_picker, "value",
                                    lambda value: value == "builtin:Media")
         ui.space()
-        legend = ui.label(TIER_LEGEND).classes("text-xs opacity-60")
+        legend = ui.html("".join(
+            f'{data.mark_html(shape)} <span>{word}</span>&nbsp;&nbsp;'
+            for shape, word in TIER_LEGEND)).classes("text-xs opacity-60 hub-tier-key")
         legend.bind_visibility_from(view_picker, "value",
                                     lambda value: value == "builtin:Media")
         # The selection count sits with the total: it is the same fact - how much am I
