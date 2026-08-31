@@ -5,10 +5,9 @@ A folder can hold several .vpx, so everything asks here which one is the default
 
 from __future__ import annotations
 
-from common.games import apps
-
 from collections.abc import Iterable
 
+from common.games import apps
 from common.timestamps import iso_from_asctime, iso_from_authored_date
 
 # Kept because callers outside this module still name it. Which extensions make a file

@@ -94,7 +94,10 @@ def bundle_paths(game_dir: Path, *, everything: bool = False,
     if everything:
         for path in sorted(game_dir.rglob("*")):
             if path.is_file():
-                yield path, str(path.relative_to(game_dir))
+                # Zip entry names are forward-slashed by the format's own spec, so
+                # `str` on a Windows path would write an archive other tools read as
+                # one long filename with backslashes in it.
+                yield path, path.relative_to(game_dir).as_posix()
         return
 
     chosen = choose_table(game_dir, table)
@@ -123,7 +126,7 @@ def bundle_paths(game_dir: Path, *, everything: bool = False,
             if name.lower() in BUNDLE_DIRS:
                 for path in sorted(entry.rglob("*")):
                     if path.is_file():
-                        yield path, str(path.relative_to(game_dir))
+                        yield path, path.relative_to(game_dir).as_posix()
             continue
 
         lower = name.lower()

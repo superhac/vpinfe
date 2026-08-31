@@ -689,7 +689,11 @@ def _placement(game_dir: Path, kind: str, spec, table_id: str, stem: str,
     going = media_placement.displaced(game_dir, kind, stem, suffix)
     return {"table": table_id, "label": label,
             "base": media_placement.target_name(kind, stem, suffix)[:-len(suffix)],
-            "displaces": sorted(str(path.relative_to(game_dir)) for path in going)}
+            # `as_posix`, never `str`: a relative path on the wire is forward-slashed
+            # whatever host built it. `str(WindowsPath)` gave clients "medias\\bg.png"
+            # on Windows and "medias/bg.png" everywhere else, for the same library.
+            "displaces": sorted(path.relative_to(game_dir).as_posix()
+                                for path in going)}
 
 
 @router.get("/{game_id}/media/{kind}/placements",
@@ -836,7 +840,9 @@ def _displaced(game, kind: str, stem: str, filename: str) -> dict:
         going = media_placement.displaced(game_dir, kind, stem, Path(filename).suffix)
     except media_placement.UnplaceableError as exc:
         raise InvalidRequestError(str(exc)) from exc
-    return {"displaced": sorted(str(path.relative_to(game_dir)) for path in going)}
+    # Forward-slashed on the wire whatever host built it - see `_placements`.
+    return {"displaced": sorted(path.relative_to(game_dir).as_posix()
+                                for path in going)}
 
 
 @router.get("/{game_id}/media/{kind}/displaced",

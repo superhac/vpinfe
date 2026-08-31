@@ -17,7 +17,6 @@ by the art not changing is the worst way to learn it.
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 from pathlib import Path
 
@@ -158,7 +157,11 @@ def remove(game_dir: str | Path, kind: str, stem: str) -> list[str]:
             if path.exists():
                 try:
                     path.unlink()
-                    removed.append(os.path.relpath(str(path), str(game_dir)))
+                    # Forward-slashed: this list is an API payload, and
+                    # `os.path.relpath` answers in the host's separator - so the same
+                    # library reported "medias/bg.png" on Linux and "medias\\bg.png"
+                    # on Windows. `path` is always built under `game_dir` just above.
+                    removed.append(path.relative_to(game_dir).as_posix())
                 except OSError:
                     logger.warning("Could not remove %s", path)
     return removed
