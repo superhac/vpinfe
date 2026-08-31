@@ -49,12 +49,12 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/collections` | Create one. `filters` makes it filter-based, `games` makes it manual |
 | DELETE | `/api/v1/collections/{name}` | Delete it |
 | PATCH | `/api/v1/collections/{name}` | Change one. Only what you send is written — a rename need not restate the rest |
-| GET | `/api/v1/collections/{name}/members` | Its **stored** membership, and why each entry is there |
-| PUT | `/api/v1/collections/{name}/games/{id}` | Add a game (idempotent). `{"table": "…"}` names one of its tables |
-| DELETE | `/api/v1/collections/{name}/games/{id}` | Remove it. `?table=` removes one named table |
+| GET | `/api/v1/collections/{name}/members` | Its **stored** membership, and why each entry is there. `ref_table` is the table a row *names* (empty when it names none) — its identity, and not the table it resolves to |
+| PUT | `/api/v1/collections/{name}/games/{id}` | Add a game (idempotent). `{"table": "…"}` names one of its tables; `{"after_table": "…"}` puts the new row beside that sibling instead of at the end |
+| DELETE | `/api/v1/collections/{name}/games/{id}` | Remove one row: `?table=abc` the one naming it, `?table=` the one naming none. Omit it entirely to remove every row for the game |
 | PUT | `/api/v1/collections/{name}/games/{id}/table` | Change which table it names, in place. `{"table": ""}` hands back the game's default; `was` picks the ref when a game appears twice |
 | PUT | `/api/v1/collections/{name}/excluded/{id}` | Keep a game out. `{"table": "…"}` keeps out one table |
-| DELETE | `/api/v1/collections/{name}/excluded/{id}` | Stop keeping it out |
+| DELETE | `/api/v1/collections/{name}/excluded/{id}` | Lift one exclusion: `?table=abc` the one naming it, `?table=` the one naming none. Omit it entirely to lift every exclusion for the game |
 | POST | `/api/v1/collections/{name}/members/from_filters` | Keep what the criteria match, and drop the criteria |
 | PUT | `/api/v1/collections/{name}/order` | Arrange a collection. The whole ordered list, atomically - one entry per row, so a game holding two named tables is named twice |
 | PUT/GET/DELETE | `/api/v1/collections/{name}/image` | Its icon |

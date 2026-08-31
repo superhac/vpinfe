@@ -464,6 +464,22 @@ means the exception worth spotting in a map of twenty.
   derived, not chosen: pass one only for a title, an author or a path, and treat it as a
   floor. A hand-picked number on a column of short values is a guess that outlives whoever
   made it.
+- **A path on the wire or in a file is forward-slashed, whatever host built it.**
+  `str()` on a `Path` and `os.path.relpath` both answer in the host's separator, so the
+  same library described itself as `medias/bg.png` on Linux and `medias\bg.png` on
+  Windows — and clients, archives and `.info` keys all have to agree across machines.
+  Use `.as_posix()`, or `.replace(os.sep, "/")` where the value is already a string.
+  `tests/invariants/test_wire_paths.py` enforces this, because the mistake is invisible
+  on the machine that makes it — only Windows CI ever says so, an hour later.
+- **Empty is not absent.** Where a field can legitimately hold "nothing" *and* be left
+  out, those are two different answers and need two different values — `str | None`, not
+  `str`. Collapsing them into `""` is how "the row that names no table" became "every row
+  for this game", so deleting one row deleted three, and how an exclusion covering a whole
+  game could not be lifted on its own. If a caller can mean both, the type has to let it
+  say which.
+- **A row's identity is what it *names*, never what it resolves to.** They look the same
+  on screen — a row naming no table still shows one — so a client that is handed only the
+  resolved value cannot address the row it is looking at. Report the identity alongside it.
 - **Sort by what is shown, not by what is stored.** A list ordered on its keys while
   displaying labels reads as unsorted, because the reader cannot see the thing it is
   sorted on.
