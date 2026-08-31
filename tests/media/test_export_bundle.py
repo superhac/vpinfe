@@ -117,7 +117,10 @@ class BundleTests(unittest.TestCase):
             names = self._names(_library(tmp), everything=True)
 
         self.assertIn(OTHER, names)
-        self.assertIn(str(Path("medias") / "wheel.png"), names)
+        # Forward-slashed, not `Path`: a zip entry name is forward-slashed by the
+        # format's own spec, so building the expectation with the host separator asked
+        # for "medias\\wheel.png" on Windows and passed everywhere else.
+        self.assertIn("medias/wheel.png", names)
 
     def test_a_caller_may_pick_the_table(self) -> None:
         with TemporaryDirectory() as tmp:
