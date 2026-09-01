@@ -9,6 +9,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.games import asset_registry
 from common.labels import humanize
 from common.media_specs import media_label_map
 from hubui import features as table_features
@@ -31,8 +32,11 @@ _MEDIA = "Media"
 # `settings` is the table INI, and one `alt_color` covers both Serum and VNI. Named
 # here because the two vocabularies have not been reconciled, and a column headed
 # "Settings" says nothing about which file it means.
+# Only where this surface has to differ from the registry's own label. Everything
+# else asks `asset_registry`, which is where a kind's acronyms are cased once.
+# `alt_color` and `alt_sound` are here because the games resource still names them
+# its own way - one `alt_color` covering the registry's Serum and VNI.
 _ASSET_LABELS = {
-    "settings": "Table INI",
     "alt_color": "Alt Color",
     "alt_sound": "AltSound",
     # The `.directb2s`, which media also calls a backglass - one is the file that
@@ -40,6 +44,16 @@ _ASSET_LABELS = {
     # group heading beside it, so the two cannot both be "Backglass".
     "backglass": "B2S",
 }
+
+
+def _asset_label(key: str) -> str:
+    """The registry's word for a kind, then this surface's override, then humanize."""
+    if key in _ASSET_LABELS:
+        return _ASSET_LABELS[key]
+    try:
+        return asset_registry.spec_for(key).label
+    except KeyError:
+        return humanize(key)
 # Five stars, filled to the value, and they are the control as well as the picture -
 # which is what lets the row menu drop its "Rate" item. A rating is one number a person
 # reads at a glance and sets in one click; a menu to open a dialog to pick a number is
@@ -176,7 +190,7 @@ def asset_columns(keys: list[str]) -> list[dict[str, Any]]:
     under an Assets heading. What a reader wants is which of them a game has, and a
     number cannot say that - the same argument that made media a group.
     """
-    labels = {key: _ASSET_LABELS.get(key) or humanize(key) for key in keys}
+    labels = {key: _asset_label(key) for key in keys}
     width = max((grid.header_width(label) for label in labels.values()), default=92)
     return [grid.column(f"asset_{key}", label, width, group=_ASSETS,
                         cellStyle={"textAlign": "center"},

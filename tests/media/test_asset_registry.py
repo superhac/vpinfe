@@ -84,6 +84,25 @@ class AssetRegistryTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             spec_for("nonexistent")
 
+    def test_the_kinds_vpx_resolves_are_declared_here(self):
+        """They were declared only in `asset_resolver`, so an uploaded .vbs was a file
+        the registry had never heard of. None is required to launch: a table whose
+        script lives inside the .vpx runs, and a sidecar is an override."""
+        for kind in ("script", "pov", "scv"):
+            with self.subTest(kind=kind):
+                self.assertTrue(spec_for(kind).requires_game)
+                self.assertFalse(spec_for(kind).required_to_launch)
+        self.assertEqual(classify_bare_extension("Table.vbs").kind, "script")
+
+    def test_the_resolver_reads_its_extensions_from_here(self):
+        """One declaration per kind: adding an extension to a spec must not have to be
+        remembered in a second list that decides what a table launches with."""
+        from common.games.asset_resolver import VPX_ASSET_KINDS
+
+        for kind in VPX_ASSET_KINDS:
+            with self.subTest(kind=kind.key):
+                self.assertEqual(kind.extension, spec_for(kind.key).extensions[0])
+
 
 if __name__ == "__main__":
     unittest.main()

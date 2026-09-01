@@ -38,7 +38,7 @@ class LaunchLensTests(unittest.TestCase):
     def test_nothing_resolves_to_none(self) -> None:
         resolved = res.resolve_for_table(BIGUS, FOLDER, [BIGUS])
 
-        for kind in ("backglass", "settings", "script", "pov", "scv"):
+        for kind in ("backglass", "ini", "script", "pov", "scv"):
             self.assertEqual(resolved[kind], {"resolution": "none"})
 
     def test_matching_is_case_insensitive_like_vpx(self) -> None:
@@ -56,13 +56,13 @@ class LaunchLensTests(unittest.TestCase):
 
         self.assertEqual(resolved["pov"], {"resolution": "none"})
 
-    def test_settings_fall_back_to_the_folder_name(self) -> None:
+    def test_the_table_ini_falls_back_to_the_folder_name(self) -> None:
         """GetSettingsFileName step 3: <folder-name>.ini, case-insensitively."""
         files = [BIGUS, f"{FOLDER}.INI"]
 
         resolved = res.resolve_for_table(BIGUS, FOLDER, files)
 
-        self.assertEqual(resolved["settings"]["resolution"], "shared")
+        self.assertEqual(resolved["ini"]["resolution"], "shared")
 
 
 class InventoryLensTests(unittest.TestCase):
@@ -89,7 +89,7 @@ class InventoryLensTests(unittest.TestCase):
     def test_an_empty_folder_reports_empty_lists_for_every_kind(self) -> None:
         inv = res.inventory(FOLDER, [], [])
 
-        for kind in ("backglass", "settings", "script", "pov", "scv"):
+        for kind in ("backglass", "ini", "script", "pov", "scv"):
             self.assertEqual(inv[kind], {"files": []})
 
 

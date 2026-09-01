@@ -12,6 +12,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from common.games.asset_registry import spec_for
+
 
 # Asset kinds resolved by naming rule. `folder_fallback` mirrors VPX: the table's .ini
 # and the backglass fall back to a folder-named file; a .pov is stem-only.
@@ -22,12 +24,15 @@ class AssetKind:
     folder_fallback: bool
 
 
-VPX_ASSET_KINDS = (
-    AssetKind("backglass", ".directb2s", True),
-    AssetKind("settings", ".ini", True),
-    AssetKind("script", ".vbs", False),
-    AssetKind("pov", ".pov", False),
-    AssetKind("scv", ".scv", True),
+# Which kinds VPX resolves per table, and whether a folder-named file stands in. That
+# is this module's own knowledge; the extension is the registry's, so a kind has one
+# declaration and adding an extension to it does not have to be remembered twice.
+_PER_TABLE = (("backglass", True), ("ini", True), ("script", False),
+              ("pov", False), ("scv", True))
+
+VPX_ASSET_KINDS = tuple(
+    AssetKind(kind, spec_for(kind).extensions[0], folder_fallback)
+    for kind, folder_fallback in _PER_TABLE
 )
 
 RESOLUTION_DEDICATED = "dedicated"

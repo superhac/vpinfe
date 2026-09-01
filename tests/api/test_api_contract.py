@@ -175,7 +175,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertIn("assets", game)
         self.assertNotIn("media", game, "these were mislabelled as media")
         self.assertEqual(set(game["assets"]),
-                         {"backglass", "settings", "script", "pov", "scv",
+                         {"backglass", "ini", "script", "pov", "scv",
                           "pup_pack", "alt_color", "alt_sound", "music"})
 
     def test_assets_present_in_the_folder_are_reported(self) -> None:
@@ -183,7 +183,7 @@ class ApiContractTests(unittest.TestCase):
         assets = self.probe["table_get"]["json"]["assets"]
 
         self.assertTrue(assets["backglass"]["present"])
-        self.assertTrue(assets["settings"]["present"])
+        self.assertTrue(assets["ini"]["present"])
         self.assertTrue(assets["music"]["present"])
         self.assertFalse(assets["pup_pack"]["present"], "the fixture has none")
         # The inventory lens attributes each file to the build it serves.
@@ -194,7 +194,7 @@ class ApiContractTests(unittest.TestCase):
         entry = self.probe["table_files"]["json"]["tables"][0]
 
         self.assertEqual(entry["assets"]["backglass"]["resolution"], "dedicated")
-        self.assertEqual(entry["assets"]["settings"]["resolution"], "dedicated")
+        self.assertEqual(entry["assets"]["ini"]["resolution"], "dedicated")
         # The wire model makes the shape uniform: an unresolved kind still
         # carries file, explicitly null.
         self.assertEqual(entry["assets"]["pov"], {"resolution": "none", "file": None})

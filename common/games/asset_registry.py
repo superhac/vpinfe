@@ -61,6 +61,14 @@ ASSET_SPECS = (
     # requires_game is doing real work here: applying it without the right base
     # produces a corrupt file rather than an error.
     AssetSpec("patch", "Table Patch", "difference", (".dif",), True, False, True),
+    # The three VPX resolves per table by naming rule. They were declared only in
+    # asset_resolver, which carried its own copy of their extensions - so a kind was
+    # a launch fact there and nothing here, and an uploaded .vbs classified as
+    # nothing at all. None is required to launch: a table whose script is inside the
+    # .vpx runs, and the sidecar is an override.
+    AssetSpec("script", "Table Script", "code", (".vbs",), True, False, False),
+    AssetSpec("pov", "Point of View", "3d_rotation", (".pov",), True, False, False),
+    AssetSpec("scv", "Scoreview", "scoreboard", (".scv",), True, False, False),
     # Required only where the table declares one - an EM table needs none, and
     # calling it missing there would call every EM table broken. The flag says
     # the kind can block a launch; whether it does is per table.
