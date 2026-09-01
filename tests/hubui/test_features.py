@@ -52,9 +52,9 @@ class StateTests(unittest.TestCase):
         self.assertEqual(features.state_for(features.UNKNOWN).glyph_class,
                          "hub-unknown")
 
-    def test_the_legend_names_all_three(self) -> None:
-        """Including the one drawn as nothing - it is the state a reader is least able
-        to work out from the grid."""
+    def test_the_vocabulary_keeps_all_three(self) -> None:
+        """The legend is a narrower list - only what is drawn - but a caller mapping a
+        value has to be able to reach every state."""
         self.assertEqual(set(features.STATES),
                          {features.IN_SCRIPT, features.UNUSED, features.UNKNOWN})
 

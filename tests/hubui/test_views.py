@@ -211,8 +211,15 @@ class FeatureLegendTests(unittest.TestCase):
         leaves out on purpose. So the third line explained nothing, on every visit."""
         rows = [{"feature_ssf": True, "feature_lut": False}]
 
-        self.assertEqual(table_features.states_in(rows),
-                         [table_features.IN_SCRIPT, table_features.UNUSED])
+        self.assertEqual(table_features.states_in(rows), [table_features.IN_SCRIPT])
+
+    def test_a_state_that_draws_nothing_is_not_in_the_legend(self) -> None:
+        """It read as blank space with a name beside it. `media_ownership` leaves
+        Missing out for the same reason - a blank cell is not something anybody looks
+        up - and the binary views should not differ from the matrix they sit beside."""
+        rows = [{"feature_ssf": True, "feature_lut": False}]
+
+        self.assertNotIn(table_features.UNUSED, table_features.states_in(rows))
 
     def test_it_comes_back_the_moment_a_table_is_unparsed(self) -> None:
         """Reachable, not impossible: discovery leaves a table with a filename and an
@@ -224,6 +231,9 @@ class FeatureLegendTests(unittest.TestCase):
         self.assertIn(table_features.UNKNOWN, table_features.states_in(rows))
 
     def test_it_keeps_the_vocabulary_s_own_order(self) -> None:
+        """Whatever order the rows arrive in, the legend reads the way the vocabulary
+        is declared - so it does not shuffle when a library changes."""
         rows = [{"feature_ssf": None}, {"feature_lut": False}, {"feature_nfozzy": True}]
 
-        self.assertEqual(table_features.states_in(rows), list(table_features.STATES))
+        self.assertEqual(table_features.states_in(rows),
+                         [table_features.IN_SCRIPT, table_features.UNKNOWN])

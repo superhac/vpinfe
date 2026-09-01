@@ -24,18 +24,20 @@ UNKNOWN = "unknown"
 
 
 def states_in(rows) -> list[str]:
-    """The states this library actually shows, in the vocabulary's own order.
+    """The states this library draws, in the vocabulary's own order.
 
-    A legend names what a reader can see. `unknown` is reachable but rare - only
-    between discovery finding a table and the parse job reaching it - so listing it
-    always would explain a mark that is not on screen.
+    A legend names what a reader can see. Two things are not that: a state that draws
+    nothing - `media_ownership` leaves Missing out for the same reason, a blank cell is
+    not something anybody looks up - and a state the library does not contain, which
+    `unknown` is except between discovery finding a table and the parse job reaching it.
     """
     seen = set()
     for row in rows:
         for key in LABELS:
             if f"feature_{key}" in row:
                 seen.add(state_of(row.get(f"feature_{key}")).key)
-    return [key for key in STATES if key in seen]
+    return [key for key in STATES
+            if key in seen and (_STATES[key].glyph or _STATES[key].mark)]
 
 
 @dataclass(frozen=True)
