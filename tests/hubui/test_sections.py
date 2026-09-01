@@ -97,6 +97,23 @@ class SectionTests(unittest.TestCase):
 
         self.assertEqual(docked, {"media", "collection_contents"})
 
+    def test_a_key_means_one_section_across_every_rail(self) -> None:
+        """The rail is per subject; the key namespace is not.
+
+        `section=` in an address is resolved before a subject is settled - `deeplink`
+        is handed every rail's keys, not one rail's - so two sections sharing a key
+        would make a link mean whichever one the reader happened to be on. Section 11
+        called this out and the `subjects` field is what answered it: a section says
+        which rails it appears in rather than a rail owning a namespace.
+
+        Asserted rather than left to the docstring, because the pressure arrives with
+        the next rail: Assets, the Tag Editor and the VPS section each want a short
+        noun somebody has already used.
+        """
+        keys = [item.key for item in workbench.SECTIONS]
+
+        self.assertEqual(sorted(keys), sorted(set(keys)))
+
 
 class RailDefaultTests(unittest.TestCase):
     """Each rail lands where it declares, not on whatever is first."""
