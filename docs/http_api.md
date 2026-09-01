@@ -78,6 +78,8 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/games/{id}/launch` | Launch a game here. Optional `{"file": "..."}` picks which table |
 | PUT | `/api/v1/games/{id}/rating` | Rate a game, `{"rating": 0-5}`. `0` is unrated |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/rating` | Rate one table, same body. Refines the game's rather than replacing it; returns the table |
+| POST | `/api/v1/games/{id}/tables/{table_id}/script` | Extract the table's script to a `<table>.vbs` beside it. **VPX then runs that instead of the one inside the .vpx.** Needs Visual Pinball on the machine called, like `/launch`; `501` where there is none |
+| DELETE | `/api/v1/games/{id}/tables/{table_id}/script` | Remove the sidecar, putting the table back on its own script. `404` if there is none |
 | POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
 | POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |
 | GET | `/api/v1/uploads/{id}` | Session summary → `{"file_count", "total_bytes"}` |

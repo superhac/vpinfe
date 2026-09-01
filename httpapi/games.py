@@ -938,6 +938,89 @@ def put_table_hidden(game_id: str, table_id: str,
     return _table_or_404(game, table_id)
 
 
+@router.post("/{game_id}/tables/{table_id}/script",
+             summary="Extract this table's script beside it",
+             dependencies=[requires(scopes.GAMES_WRITE)])
+def extract_table_script(game_id: str, table_id: str) -> models.Table:
+    """Write the table's script out as a `<table>.vbs` next to the .vpx.
+
+    **This changes which script the table runs.** VPX loads a sidecar in place of the
+    one inside the .vpx, so extracting is how a table is patched - and it is why the
+    hub reports the script as internal or external rather than as merely extracted.
+
+    Runs the configured launcher with `-extractvbs`, so it answers for the machine it
+    is called on, the same as `/launch`: a hub with no VPX installed cannot do this.
+    """
+    game = _game_or_404(game_id)
+    filename = _table_filename_or_404(game, table_id)
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+    if not (game_dir / filename).is_file():
+        raise NotFoundError("That table's file is not on disk",
+                            details={"table": table_id})
+    launcher = _table_overrides(
+        entry_for_filename(table_entries(game.meta_config), filename)[1] or {},
+        vpinfe_section(game.meta_config)).get("alt_launcher", "")
+    # Asked before the work rather than read out of the failure: with the table's file
+    # accounted for, every remaining launcher error means this machine cannot do it,
+    # which is 501 and the answer /launch already gives - not a missing resource.
+    from common.config_access import SettingsConfig
+    binary, _source, configured = launch.get_effective_launcher(
+        SettingsConfig.from_config(get_ini_config()).vpx_bin_path,
+        {VPINFE_SECTION: {"alt_launcher": launcher}})
+    if not binary or not Path(binary).exists():
+        # The label a person reads in Settings, and the section it is really in: the
+        # key is `general.vpx_bin_path`, and `Settings` is its 2.x alias.
+        raise FeatureUnavailableError(
+            "Extracting a script runs Visual Pinball, and this machine has none. "
+            + (f"General - VPX Executable Path points at {configured or binary}, "
+               "which is not there." if (configured or binary)
+               else "Set General - VPX Executable Path in Settings."))
+    try:
+        game_service.extract_vbs(game_dir, filename, launcher)
+    except Exception as exc:
+        raise InvalidRequestError(f"Could not extract the script: {exc}") from exc
+    return _table_or_404(game, table_id)
+
+
+@router.delete("/{game_id}/tables/{table_id}/script",
+               summary="Remove the script beside this table",
+               dependencies=[requires(scopes.GAMES_WRITE)])
+def delete_table_script(game_id: str, table_id: str) -> models.Table:
+    """Take the sidecar away, which puts the table back on the script inside its .vpx.
+
+    Whatever the sidecar held goes with it - a patch, an edit - and nothing else knows
+    what was in it, which is why the surface asks first.
+    """
+    game = _game_or_404(game_id)
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+    script = game_dir / f"{_table_stem_or_404(game, table_id)}.vbs"
+    if not script.is_file():
+        raise NotFoundError("This table has no script beside it",
+                            details={"table": table_id})
+    script.unlink()
+    return _table_or_404(game, table_id)
+
+
+@router.put("/{game_id}/tables/{table_id}/rating", summary="Rate one table",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_table_rating(game_id: str, table_id: str,
+                     payload: models.RatingRequest) -> models.Table:
+    """A table's own rating, which refines the game's rather than replacing it.
+
+    INFO-SCHEMA section 8.1 left this open on one question - how a user sets a table's
+    rating when the wheel shows one entry per game. The hub's Tables grid is the answer:
+    the row you rate is the file. Additive on both lenses, as that section says.
+
+    Returns the table rather than the rating, because a client that just rated one is
+    about to redraw the row.
+    """
+    game = _game_or_404(game_id)
+    filename = _table_filename_or_404(game, table_id)
+    set_table_rating(game, filename, payload.rating)
+    game.meta_config = load_game_meta(game)
+    return _table_or_404(game, table_id)
+
+
 @router.put("/{game_id}/default_table", summary="Which table this game offers first",
             dependencies=[requires(scopes.GAMES_WRITE)])
 def put_default_table(game_id: str, body: models.TableDefault) -> models.TableList:

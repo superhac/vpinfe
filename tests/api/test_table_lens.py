@@ -131,6 +131,55 @@ class HiddenTests(_Lens):
         self.assertEqual(by_id, {"tbl0000001": False, "tbl0000002": True})
 
 
+class TableScriptTests(_Lens):
+    """The sidecar script. VPX runs a `<table>.vbs` in place of the one inside the .vpx,
+    so this is not housekeeping - it decides which script the table plays with."""
+
+    def _vbs(self):
+        return self.folder / f"{VR[:-4]}.vbs"
+
+    def test_a_sidecar_is_reported_as_the_script_that_resolves(self) -> None:
+        self._vbs().write_text("' patched", encoding="utf-8")
+
+        table = next(t for t in self._rows() if t["id"] == "tbl0000002")
+        detail = self.client.get(f"/games/{GAME_ID}/tables").json()["tables"]
+        script = next(t["assets"]["script"] for t in detail if t["id"] == table["id"])
+        self.assertEqual(script["resolution"], "dedicated")
+
+    def test_deleting_it_puts_the_table_back_on_its_own_script(self) -> None:
+        self._vbs().write_text("' patched", encoding="utf-8")
+
+        response = self.client.delete(f"/games/{GAME_ID}/tables/tbl0000002/script")
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(self._vbs().exists())
+        self.assertEqual(response.json()["assets"]["script"]["resolution"], "none")
+
+    def test_deleting_one_that_is_not_there_is_refused(self) -> None:
+        """Not silently fine: a client that thinks it removed something did not."""
+        response = self.client.delete(f"/games/{GAME_ID}/tables/tbl0000002/script")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_the_other_table_keeps_its_own(self) -> None:
+        """Stem-named, with no folder fallback - one table's sidecar is not the
+        game's."""
+        self._vbs().write_text("' patched", encoding="utf-8")
+        (self.folder / f"{DESKTOP[:-4]}.vbs").write_text("' other", encoding="utf-8")
+
+        self.client.delete(f"/games/{GAME_ID}/tables/tbl0000002/script")
+
+        self.assertTrue((self.folder / f"{DESKTOP[:-4]}.vbs").is_file())
+
+    def test_extracting_where_there_is_no_launcher_says_so(self) -> None:
+        """501, the answer /launch gives for the same condition: the table is fine, the
+        machine cannot do the work. A 404 would say the table was not found."""
+        response = self.client.post(f"/games/{GAME_ID}/tables/tbl0000002/script")
+
+        self.assertEqual(response.status_code, 501, response.text)
+        self.assertEqual(response.json()["error"]["code"], "feature_unavailable")
+
+
 class TableRatingTests(_Lens):
     """A table's own rating - INFO-SCHEMA section 8.1's open UI call, answered by the
     hub's Tables grid: the row you rate is the file."""
