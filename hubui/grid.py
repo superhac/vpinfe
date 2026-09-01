@@ -88,6 +88,13 @@ if (!window.HubChoiceFilter) {
           mark.className = choice.mark;
           row.appendChild(mark);
         }
+        // A state drawn as a character rather than a shape - presence is a tick here.
+        if (choice.glyph) {
+          const tick = document.createElement('span');
+          tick.className = 'hub-tick';
+          tick.textContent = choice.glyph;
+          row.appendChild(tick);
+        }
         const word = document.createElement('span');
         word.textContent = choice.label;
         row.appendChild(word);

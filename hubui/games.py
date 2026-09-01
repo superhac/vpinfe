@@ -575,10 +575,13 @@ _TICK = {
 }
 
 
-# One column per feature, drawn as a mark. Not used draws nothing at all, so what a
-# reader sees down a column is the tables that have it and the tables nobody has read.
+# One column per feature. Not used draws nothing at all, so what a reader sees down a
+# column is the tables that have it - and, where a scan is mid-flight, the ones nobody
+# has read yet. A tick for the plain yes, the same as the asset and media columns; the
+# shaped circle is kept for the state that is neither yes nor no.
 _FEATURE_MARKS = {
     key: {"mark": table_features.state_for(key).mark,
+          "glyph": table_features.state_for(key).glyph,
           "noun": table_features.state_for(key).noun,
           "why": table_features.state_for(key).why}
     for key in table_features.STATES
@@ -590,9 +593,13 @@ _FEATURE_RENDERER = (
     " const v = params.value;"
     " const t = m[v === null || v === undefined ? '" + table_features.UNKNOWN
     + "' : (v ? '" + table_features.IN_SCRIPT + "' : '" + table_features.UNUSED + "')];"
-    " if (!t || !t.mark) return '';"
-    " return '<span class=\"hub-mark ' + t.mark + '\" title=\"' + t.noun"
-    " + ' \u2014 ' + t.why + '\"></span>'; }"
+    " if (!t) return '';"
+    " const why = t.noun + ' \u2014 ' + t.why;"
+    " if (t.glyph) return '<span class=\"hub-tick\" title=\"' + why + '\">'"
+    " + t.glyph + '</span>';"
+    " if (!t.mark) return '';"
+    " return '<span class=\"hub-mark ' + t.mark + '\" title=\"' + why"
+    " + '\"></span>'; }"
 )
 
 # The value is a boolean and null, so the funnel offers the three words rather than a
@@ -600,7 +607,7 @@ _FEATURE_RENDERER = (
 # reads an absent value that way, which is what makes "not parsed yet" pickable.
 _FEATURE_CHOICES = [
     {"value": True, "label": table_features.state_for(table_features.IN_SCRIPT).noun,
-     "mark": f"hub-mark {table_features.state_for(table_features.IN_SCRIPT).mark}"},
+     "glyph": table_features.state_for(table_features.IN_SCRIPT).glyph},
     {"value": False, "label": table_features.state_for(table_features.UNUSED).noun},
     {"value": "", "label": table_features.state_for(table_features.UNKNOWN).noun,
      "mark": f"hub-mark {table_features.state_for(table_features.UNKNOWN).mark}"},
@@ -745,8 +752,11 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
             for key in table_features.states_in(built):
                 state = table_features.state_for(key)
                 with ui.row().classes("items-center gap-1 no-wrap").tooltip(state.why):
-                    ui.element("span").classes(f"hub-mark {state.mark}".strip()
-                                               if state.mark else "hub-mark-none")
+                    if state.glyph:
+                        ui.label(state.glyph).classes("hub-tick")
+                    else:
+                        ui.element("span").classes(f"hub-mark {state.mark}".strip()
+                                                   if state.mark else "hub-mark-none")
                     ui.label(state.noun)
         legend.bind_visibility_from(view_picker, "value",
                                     lambda value: value == "builtin:Features")

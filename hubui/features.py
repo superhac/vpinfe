@@ -48,13 +48,17 @@ class State:
     chip: str
     mark: str
     why: str
+    # A character where the state is a plain yes. Presence is a tick across this hub -
+    # the asset and media columns beside these say it that way - and the shaped circles
+    # are for a vocabulary with more than two answers to tell apart.
+    glyph: str = ""
 
 
 # Not used draws nothing: most tables use most of these not at all, and a mark on every
 # one would bury the two states worth seeing.
 _STATES = {
-    IN_SCRIPT: State(IN_SCRIPT, "In the script", "hub-tier--on", "hub-mark--full",
-                     "The script uses it"),
+    IN_SCRIPT: State(IN_SCRIPT, "In the script", "hub-tier--on", "",
+                     "The script uses it", glyph="\u2713"),
     UNUSED: State(UNUSED, "Not used", "hub-tier--off", "",
                   "The script does not use it"),
     UNKNOWN: State(UNKNOWN, "Not parsed yet", "hub-tier--unknown", "hub-mark--dashed",

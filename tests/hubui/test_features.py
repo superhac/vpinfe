@@ -18,11 +18,24 @@ class StateTests(unittest.TestCase):
         self.assertEqual(features.key_of(True), features.IN_SCRIPT)
         self.assertEqual(features.key_of(False), features.UNUSED)
 
+    def _drawn(self, key: str) -> str:
+        state = features.state_for(key)
+        return state.glyph or state.mark
+
     def test_not_used_draws_nothing(self) -> None:
-        """The state most cells are in carries no mark, or the matrix is solid ink and
-        the two states worth seeing are lost in it."""
-        self.assertEqual(features.state_for(features.UNUSED).mark, "")
-        self.assertTrue(features.state_for(features.IN_SCRIPT).mark)
+        """The state most cells are in draws nothing at all, or the matrix is solid ink
+        and the two states worth seeing are lost in it."""
+        self.assertEqual(self._drawn(features.UNUSED), "")
+        self.assertTrue(self._drawn(features.IN_SCRIPT))
+        self.assertTrue(self._drawn(features.UNKNOWN))
+
+    def test_presence_is_a_tick_and_the_third_state_is_not(self) -> None:
+        """A plain yes is a tick, the same as the asset and media columns beside these.
+        The shaped circle is kept for the answer that is neither yes nor no, so the
+        exception looks different in kind rather than in degree."""
+        self.assertEqual(features.state_for(features.IN_SCRIPT).glyph, "\u2713")
+        self.assertEqual(features.state_for(features.IN_SCRIPT).mark, "")
+        self.assertEqual(features.state_for(features.UNKNOWN).glyph, "")
         self.assertTrue(features.state_for(features.UNKNOWN).mark)
 
     def test_the_legend_names_all_three(self) -> None:
