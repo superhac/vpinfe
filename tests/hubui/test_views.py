@@ -2,7 +2,7 @@
 
 import unittest
 
-from hubui import data, game_tables, games
+from hubui import data, game_tables, games, media_ownership, workbench
 
 
 class BuiltinViewTests(unittest.TestCase):
@@ -43,3 +43,44 @@ class GameRowTests(unittest.TestCase):
 
         self.assertNotIn("rom", row)
         self.assertNotIn("version", row)
+
+
+class AssetSectionTests(unittest.TestCase):
+    """The Assets section: what it counts, and the one kind that takes no tier."""
+
+    def _context(self, resolved, folder):
+        return {"game": {"assets": folder}, "lens": "t1",
+                "tables": [{"id": "t1", "assets": resolved}]}
+
+    def test_the_count_matches_the_rows_drawn(self) -> None:
+        """The folder reports a backglass the table resolves too, and the body skips
+        what the table already answered - so counting both said four over two rows."""
+        label = workbench._assets_label(self._context(
+            {"backglass": {"resolution": "dedicated"},
+             "ini": {"resolution": "shared"},
+             "script": {"resolution": "none"}},
+            {"backglass": {"present": True}, "ini": {"present": True},
+             "music": {"present": True}, "pup_pack": {"present": False}}))
+
+        self.assertEqual(label, "Assets (3)")
+
+    def test_nothing_here_says_so_without_a_number(self) -> None:
+        label = workbench._assets_label(self._context(
+            {"backglass": {"resolution": "none"}}, {"music": {"present": False}}))
+
+        self.assertEqual(label, "Assets")
+
+    def test_a_script_inside_the_vpx_is_not_missing(self) -> None:
+        """The ordinary table runs the script in its own .vpx. Reading the resolver's
+        `none` through the media tiers would render that as Missing and call every one
+        of them broken, which is why the script keeps SCRIPT_WORDS."""
+        internal = game_tables.word_for(game_tables.SCRIPT_WORDS, False)
+
+        self.assertEqual(internal, "Internal")
+        self.assertNotEqual(internal, media_ownership.for_resolution("none").noun)
+
+    def test_a_resolution_maps_onto_the_tier_that_means_it(self) -> None:
+        for resolution, noun in (("dedicated", "This table"), ("shared", "All tables"),
+                                 ("none", "Missing"), (None, "Missing")):
+            with self.subTest(resolution=resolution):
+                self.assertEqual(media_ownership.for_resolution(resolution).noun, noun)

@@ -75,6 +75,7 @@ def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
                 "authors": table.get("authors") or [],
                 "rating": int(table.get("rating") or 0),
                 "features": table.get("features") or {},
+                "assets": table.get("assets") or {},
                 # The rom this file actually resolves to, alias followed. One of the
                 # few things that genuinely differs between two tables of one game.
                 "rom": str((table.get("dependencies") or {})

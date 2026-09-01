@@ -23,7 +23,7 @@ from urllib.parse import quote
 
 from nicegui import run, ui
 
-from common.games import apps
+from common.games import apps, asset_registry
 from common.games.collection_filters import UNCONSTRAINED
 from common.games.collection_store import (
     DEFAULT_ORDER_BY,
@@ -1036,7 +1036,6 @@ def _table_rows(table: dict[str, Any],
 
     # Grouped by what a fact is about, one vocabulary shared with the views and the
     # grid. HUBUI section 14. Each group carries the actions that work on it.
-    script = ((table.get("assets") or {}).get("script") or {})
     features = table.get("features") or {}
     overrides = (table.get("overrides") or {}) if context else {}
 
@@ -1052,10 +1051,6 @@ def _table_rows(table: dict[str, Any],
         ("Version", table.get("version") or "-"),
         ("Author", ", ".join(table.get("authors") or []) or "-"),
         ("Hash", table.get("file_hash") or "-"),
-        # Here until Assets exists to hold them. A sidecar script is a file you can
-        # add and remove, which is an asset, not a reference number.
-        ("Script", _script_row(context, table, script)),
-        ("Script hash", table.get("vbs_hash") or "-"),
     ]
 
     # Its own group. These say what the table implements, which is not the same
@@ -1074,7 +1069,7 @@ def _table_rows(table: dict[str, Any],
         ("File", _state(game_tables.word_for(game_tables.FILE_WORDS, not present),
                         "on" if present else "bad")),
         ("Application", apps.app_name(table.get("app"))),
-        ("ROM", _rom_state(pinmame, rom)),
+        ("ROM", _rom_state(pinmame, rom, context=context)),
     ]
     if context is not None:
         entries += _table_override_rows(context, table, overrides)
@@ -1113,47 +1108,151 @@ def _state(text: str, level: str, beside: str = "") -> Callable[[], None]:
     return draw
 
 
-def _script_row(context: dict[str, Any] | None, table: dict[str, Any],
-                script: dict[str, Any]) -> Any:
-    """Which script this table runs, and the way to change which one.
+def _assets_label(context: dict[str, Any]) -> str:
+    """Counts what is here, not what could be: a denominator over sixteen registry
+    kinds would call every ordinary game mostly empty."""
+    game = context["game"]
+    chosen = next((item for item in context["tables"]
+                   if item.get("id") == context["lens"]), None)
+    resolved = (chosen or {}).get("assets") or {}
+    have = sum(1 for state in resolved.values()
+               if state.get("resolution") != "none")
+    # Skipping what the table already answered, exactly as the body does. The folder
+    # reports a backglass this table resolves too, so counting both said four where
+    # two rows were drawn - a header disagreeing with the list under it.
+    have += sum(1 for kind, state in (game.get("assets") or {}).items()
+                if kind not in resolved and state.get("present"))
+    return f"Assets ({have})" if have else "Assets"
 
-    Both words are quiet: neither state is a fault, and green here would say a sidecar
-    is better than the script the table shipped with. The tooltip carries the part that
-    matters, which is that a sidecar is what actually runs.
+
+async def _assets_block(context: dict[str, Any]) -> None:
+    """Every asset this game holds, and whose each one is.
+
+    Two levels in one list, because somebody asking what a table has does not care
+    which of them the filesystem answers at. The five VPX resolves by naming rule are
+    the table's and carry a tier; the rest belong to the folder and carry presence.
+    The tiers are `media_ownership`'s - the question is the same one, which file wins.
     """
-    external = script.get("resolution") != "none"
-    word = game_tables.word_for(game_tables.SCRIPT_WORDS, external)
-    why = ("A .vbs beside the table, and VPX runs it instead of the one inside"
-           if external else "The table runs the script inside its own .vpx")
+    game = context["game"]
+    chosen = next((item for item in context["tables"]
+                   if item.get("id") == context["lens"]), None)
+    resolved = (chosen or {}).get("assets") or {}
+    folder = game.get("assets") or {}
+
+    entries: list[tuple[Any, Any]] = []
+    if chosen is not None:
+        entries += [(HEADING, "This table")]
+        for kind, state in sorted(resolved.items()):
+            entries.append((_asset_name(kind),
+                            _resolved_row(context, chosen, kind, state)))
+            if kind == "script" and state.get("resolution") != "none":
+                digest = str(chosen.get("vbs_hash") or "")
+                # The hash travels with the asset rather than sitting in a group of
+                # identifiers. Only where there is a sidecar to have one.
+                if digest:
+                    entries.append(("Script hash", digest))
+        pinmame = (chosen.get("dependencies") or {}).get("pinmame") or {}
+        if pinmame.get("effective") or pinmame.get("declared"):
+            entries.append((_asset_name("rom"), _rom_state(
+                pinmame, str(pinmame.get("effective")
+                             or pinmame.get("declared") or "-"))))
+
+    entries += [(HEADING, "The game folder")]
+    for kind, state in sorted(folder.items()):
+        # Already answered above, and more precisely: the table's own lookup says
+        # which file wins, where the folder can only say one is somewhere in it.
+        if kind in resolved:
+            continue
+        entries.append((_asset_name(kind), _present_row(bool(state.get("present")))))
+
+    with ui.column().classes("gap-0 hub-form"):
+        _rows(ui, entries)
+
+
+def _asset_name(kind: str) -> str:
+    """A kind's own word for itself. `asset_registry` cases the acronyms once."""
+    try:
+        return asset_registry.spec_for(kind).label
+    except KeyError:
+        return humanize(kind)
+
+
+def _resolved_row(context: dict[str, Any], table: dict[str, Any], kind: str,
+                  state: dict[str, Any]) -> Any:
+    """Whose file this is, the file itself, and the one act that changes it."""
+    external = state.get("resolution") != "none"
+    name = str(state.get("file") or "")
 
     def draw() -> None:
         with ui.element("div").classes("hub-fact-edit"):
-            ui.label(word).classes("hub-tier hub-tier--off").tooltip(why)
-            if context is None:
-                return
-            if external:
-                ui.button("Delete", on_click=lambda: _drop_script(context, table)) \
-                    .props("flat dense no-caps size=sm") \
-                    .classes("hub-action hub-action--inline hub-action--danger")
+            # The script takes no tier. Its absence is not a gap - a table running the
+            # script inside its own .vpx is the ordinary table - and "Missing" here
+            # would call every one of them broken. `SCRIPT_WORDS` asks the question
+            # that has no wrong answer: which script runs.
+            if kind == "script":
+                word = game_tables.word_for(game_tables.SCRIPT_WORDS, external)
+                why = ("A .vbs beside the table, and VPX runs it instead of the one "
+                       "inside" if external
+                       else "The table runs the script inside its own .vpx")
+                ui.label(word).classes("hub-tier hub-tier--off").tooltip(why)
             else:
-                ui.button("Extract", on_click=lambda: _extract_script(context, table)) \
-                    .props("flat dense no-caps size=sm") \
-                    .classes("hub-action hub-action--inline")
+                tier = media_ownership.for_resolution(state.get("resolution"))
+                ui.label(tier.noun).classes(f"hub-tier {tier.css}").tooltip(tier.why)
+            if name:
+                ui.label(name).classes("hub-slot-file truncate").tooltip(name)
+            if kind == "script":
+                _script_actions(context, table, external)
 
     return draw
 
 
-def _rom_state(pinmame: dict[str, Any], rom: str) -> Any:
+def _present_row(present: bool) -> Any:
+    """A folder-level kind, which is either there or not. No tier: nothing resolves it
+    per table, and a tier would imply it could."""
+    return _state("Present" if present else "Missing", "on" if present else "off")
+
+
+def _script_actions(context: dict[str, Any], table: dict[str, Any],
+                    external: bool) -> None:
+    """Extract a sidecar, or drop one. Section 14.4: the script is managed here and
+    Launch only reports it."""
+    if external:
+        ui.button("Delete", on_click=lambda: _drop_script(context, table)) \
+            .props("flat dense no-caps size=sm") \
+            .classes("hub-action hub-action--inline hub-action--danger")
+    else:
+        ui.button("Extract", on_click=lambda: _extract_script(context, table)) \
+            .props("flat dense no-caps size=sm") \
+            .classes("hub-action hub-action--inline")
+
+
+def _rom_state(pinmame: dict[str, Any], rom: str,
+               context: dict[str, Any] | None = None) -> Any:
     """The rom, and whether it is actually there.
 
     The chain resolves aliases and audits the install, so the name alone is half an
     answer: what anybody wants of a rom is whether it will run.
+
+    A missing one carries the way *to* the fix rather than the fix. Section 14.3:
+    Launch reports and Assets manages, so a finding jumps to where the act lives.
     """
     installed = pinmame.get("installed")
     if not pinmame.get("effective") or installed is None:
         return rom
-    return _state("Installed" if installed else "Not installed",
+    chip = _state("Installed" if installed else "Not installed",
                   "on" if installed else "warn", beside=rom)
+    if installed or context is None:
+        return chip
+
+    def draw() -> None:
+        chip()
+        ui.button("Assets", icon="chevron_right",
+                  on_click=lambda: _choose(context, "assets")) \
+            .props("flat dense no-caps size=sm") \
+            .classes("hub-action hub-action--inline") \
+            .tooltip("Where a rom is managed")
+
+    return draw
 
 
 def _attention(table: dict[str, Any]) -> list[tuple[Any, Any]]:
@@ -2542,6 +2641,9 @@ SECTIONS: tuple[Section, ...] = (
     Section("table_details", lambda _: "Table Details", _table_block,
             subjects=frozenset({"table"})),
     Section("media", _media_label, _media_block, dock=True),
+    # Beside Media, not under Details: both answer "what does this game hold", one
+    # for what a screen shows and one for what a launch needs.
+    Section("assets", _assets_label, _assets_block),
     Section("tables", _tables_label, _tables_block),
     # Two, not three. A rule and what it matches are one thing to look at, so the rule
     # sits in the browse region and the result in the dock beside it.

@@ -81,8 +81,23 @@ def key_of(via: str | None) -> str:
     return MISSING
 
 
+# What the asset resolver calls the same three states. It answers `dedicated` /
+# `shared` / `none` where media answers a `via`, and the question is identical - which
+# file wins for this table - so the words are these and not a second set.
+_RESOLUTIONS = {"dedicated": TABLE, "shared": GAME, "none": MISSING}
+
+
+def key_of_resolution(resolution: str | None) -> str:
+    """Which tier an `asset_resolver` resolution is."""
+    return _RESOLUTIONS.get(str(resolution or ""), MISSING)
+
+
 def of(via: str | None) -> Tier:
     return _TIERS[key_of(via)]
+
+
+def for_resolution(resolution: str | None) -> Tier:
+    return _TIERS[key_of_resolution(resolution)]
 
 
 def noun(via: str | None) -> str:

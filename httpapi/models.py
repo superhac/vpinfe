@@ -454,6 +454,10 @@ class TableRow(ApiModel):
     # What the script was seen to use, three-valued per feature: true, false, and null
     # for a table nothing has parsed - which is not the same as no.
     features: dict[str, bool | None] = {}
+    # What this table would use per kind, the launch lens `GET .../tables` already
+    # answers for a single game. The list projection named its fields by hand and
+    # left this one out, so a client showing assets had to ask per game.
+    assets: dict[str, ResolvedAsset] = {}
     rom: str = ""
     # Whether that rom is actually installed. **Null when the table declares none** -
     # a table with no rom is not required to have one, and reporting that as missing
