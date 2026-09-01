@@ -31,7 +31,7 @@ from common.games.collection_store import (
     MANUAL_ORDER,
     SORT_LABELS,
 )
-from common.labels import humanize
+from common.labels import field_label, humanize
 from common.media_specs import media_family
 from hubui import confirm, deeplink, game_tables, media_ownership, mediamap, mediasource, mediaview
 from hubui import features as table_features
@@ -1008,7 +1008,7 @@ def _identity_rows(context: dict[str, Any]) -> None:
             await _save_overrides(context, {key: value}, table=False)
         return write
 
-    _rows(ui, [
+    entries: list[tuple[Any, Any]] = [
         (HEADING, game_tables.MACHINE),
         ("Name", _override(game.get("name") or "", found.get("name") or "",
                            "VPS", save("alt_title"))),
@@ -1023,7 +1023,7 @@ def _identity_rows(context: dict[str, Any]) -> None:
                              "VPS", save("alt_vps_id"),
                              shown=overrides.get("alt_vps_id") or game.get("vps_id"))),
         ("Folder", PurePosixPath(folder).name or folder or "-"),
-    ])
+    ]
 
     record = game.get("user") or {}
 
@@ -1045,22 +1045,23 @@ def _identity_rows(context: dict[str, Any]) -> None:
         await _write(context, context["library"].reset_play_record,
                      context["game_id"])
 
-    _rows(ui, [(HEADING, game_tables.PLAY)]
-          + _play_rows(context, record, rating=int(game.get("rating") or 0),
-                       on_rate=rate, on_reset=reset,
-                       favorite=lambda: _switch(bool(record.get("favorite")), favorite,
-                                                hint="Yours, and the frontend can "
-                                                     "filter on it"))
-          )
+    entries += [(HEADING, game_tables.PLAY)]
+    entries += _play_rows(context, record, rating=int(game.get("rating") or 0),
+                          on_rate=rate, on_reset=reset,
+                          favorite=lambda: _switch(bool(record.get("favorite")),
+                                                   favorite,
+                                                   hint="Yours, and the frontend can "
+                                                        "filter on it"))
 
-    _rows(ui, [
+    entries += [
         (HEADING, game_tables.FRONTEND),
         # Nothing supplies this but the user, so there is nothing to revert to - empty
         # means the frontend's own default, which is what clearing it says.
         ("DOF event", _override(overrides.get("frontend_dof_event") or "", None,
                                 "", save("frontend_dof_event"),
                                 hint="Empty uses the default effect")),
-    ])
+    ]
+    _rows(ui, entries)
 
 
 def _table_rows(table: dict[str, Any],
@@ -1763,7 +1764,7 @@ def _rows(target: Any, entries: Sequence[tuple[Any, Any]]) -> None:
                 with target.element("div").classes("hub-fact-full"):
                     value()
                 continue
-            target.label(label).classes("hub-fact-label")
+            target.label(field_label(str(label))).classes("hub-fact-label")
             if callable(value):
                 value()
                 continue

@@ -3,6 +3,7 @@
 import unittest
 
 from common.games import asset_registry
+from common.labels import field_label
 from hubui import (
     data,
     game_tables,
@@ -172,3 +173,29 @@ class PlayGroupTests(unittest.TestCase):
 
         self.assertNotIn(workbench.FULL, labels(nothing))
         self.assertIn(workbench.FULL, labels(played))
+
+
+class LabelCasingTests(unittest.TestCase):
+    """One casing rule for every label the hub shows."""
+
+    def test_acronyms_stay_acronyms(self) -> None:
+        for text, said in (("vps_id", "VPS ID"), ("rom", "ROM"),
+                           ("dof_event", "DOF Event"),
+                           ("Clear NVRAM on exit", "Clear NVRAM on Exit")):
+            with self.subTest(text=text):
+                self.assertEqual(field_label(text), said)
+
+    def test_a_small_word_stays_down_unless_it_leads_or_closes(self) -> None:
+        """`AssetSpec` writes "Point of View" by hand, so a rule producing "Point Of
+        View" would disagree with the registry it is the fallback for."""
+        self.assertEqual(field_label("point_of_view"), "Point of View")
+        self.assertEqual(field_label("Made by"), "Made By")
+        self.assertEqual(field_label("of the year"), "Of the Year")
+
+    def test_it_takes_a_key_or_a_phrase(self) -> None:
+        self.assertEqual(field_label("last_played"), "Last Played")
+        self.assertEqual(field_label("Last played"), "Last Played")
+
+    def test_an_apostrophe_does_not_start_a_word(self) -> None:
+        """`str.title` would give "Author'S"."""
+        self.assertEqual(field_label("author's notes"), "Author's Notes")

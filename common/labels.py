@@ -20,12 +20,47 @@ ACRONYMS = frozenset({
 _WORDS = re.compile(r"[^\W_]+(?:'[^\W_]+)*", re.UNICODE)
 
 
-def _word(word: str) -> str:
-    return word.upper() if word.lower() in ACRONYMS else word[:1].upper() + word[1:]
+# Words a title leaves lowercase unless they lead or close it. "Point of View" is the
+# house style already - `AssetSpec` writes it by hand - so a rule that produced "Point
+# Of View" would disagree with the registry it is the fallback for.
+SMALL_WORDS = frozenset({
+    "a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "nor",
+    "of", "on", "onto", "or", "over", "per", "so", "the", "to", "up", "via", "vs",
+    "with", "yet",
+})
+
+
+def field_label(text: str) -> str:
+    """A label as a person reads it: title case, acronyms as acronyms.
+
+    One rule for every label the hub shows - a panel's fact, a column header, a picker
+    entry - applied where they all pass rather than at each call site, so a hand-typed
+    one cannot drift from the rest.
+
+    Takes a key or a phrase, so `vps_id` and `VPS ID` both come back `VPS ID`.
+    """
+    said = str(text or "").replace("_", " ")
+    found = list(_WORDS.finditer(said))
+    last = len(found) - 1
+    out, at = [], 0
+    for place, match in enumerate(found):
+        out.append(said[at:match.start()])
+        out.append(_titled(match.group(0), lead_or_close=place in (0, last)))
+        at = match.end()
+    out.append(said[at:])
+    return "".join(out).strip()
+
+
+def _titled(word: str, *, lead_or_close: bool) -> str:
+    """One word of a title. A small word stays down unless it leads or closes."""
+    if word.lower() in ACRONYMS:
+        return word.upper()
+    if word.lower() in SMALL_WORDS and not lead_or_close:
+        return word.lower()
+    return word[:1].upper() + word[1:].lower()
 
 
 def humanize(key: str) -> str:
-    """`real_dmd_color` -> `Real DMD Color`. Word by word rather than `str.title`,
-    which capitalizes after an apostrophe: "author's" would come back "Author'S"."""
-    return _WORDS.sub(lambda m: _word(m.group(0)),
-                      str(key or "").replace("_", " ")).strip()
+    """`real_dmd_color` -> `Real DMD Color`. The older name, kept for the callers that
+    read it; one rule now, so a column picker and a panel cannot case a word two ways."""
+    return field_label(key)
