@@ -116,3 +116,28 @@ class LaunchRollupTests(unittest.TestCase):
         works tells a reader nothing."""
         self.assertEqual(game_tables.word_for(game_tables.LAUNCH_WORDS, True), "Blocked")
         self.assertEqual(game_tables.word_for(game_tables.LAUNCH_WORDS, False), "Ready")
+
+
+class TableRowShapeTests(unittest.TestCase):
+    """A grid row has to answer every column that reads it."""
+
+    def test_a_row_carries_every_field_a_column_names(self) -> None:
+        """A column whose field the row lacks renders blank and says nothing - there
+        is no error to see. It happened: patching a row-menu write from the game's own
+        sub-resource, which describes a table rather than where it sits in a library,
+        blanked Game, Manufacturer, Year and ROM on the rows just acted on.
+        """
+        wire = {
+            "id": "t1", "game_id": "g1", "game": "Addams Family, The",
+            "manufacturer": "Bally", "year": "1992",
+            "filename": "taf.vpx", "version": "2.1", "authors": ["g5k"],
+            "rating": 0, "features": {}, "assets": {},
+            "rom": "TAF_L7", "rom_installed": True, "launchable": True,
+            "default": True, "default_kind": "user", "hidden": False,
+            "available": True, "absent_since": None, "app": "vpx",
+        }
+
+        row = games.table_rows([wire])[0]
+
+        named = {definition["field"] for definition in games.TABLE_COLUMNS}
+        self.assertEqual(sorted(named - set(row)), [])

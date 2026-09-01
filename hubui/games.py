@@ -828,7 +828,13 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                 rerender()
             return
 
-        fresh = table_rows(await run.io_bound(library.tables_for, game_id))
+        # From the by-file lens, which is what the grid was built from. The game's own
+        # sub-resource describes a table and not where it sits in a library, so it
+        # carries no game name, manufacturer, year or resolved rom - patching from it
+        # blanked four columns on exactly the rows that had just been acted on.
+        rows_now = await run.io_bound(library.load_tables)
+        fresh = table_rows([item for item in rows_now
+                            if item.get("game_id") == game_id])
         if gone:
             table.run_grid_method("applyTransaction", {"remove": [{"id": row["id"]}]})
             by_id.pop(row["id"], None)
