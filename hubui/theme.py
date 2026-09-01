@@ -473,19 +473,19 @@ body::before {
   line-height: 13px;
   color: var(--ink-3);
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.75;
   transition: opacity 90ms ease-out, color 90ms ease-out;
 }
-/* Revealed by the pointer where there is one, and by the keyboard either way. Gated on
-   the input rather than on the surface: the panel has no `.ag-row` to hover, and a
-   touchscreen has no hover at all - where it cannot happen the way back is simply
-   there, or it is unreachable. `docs/conventions.md`. */
+/* Visible is the default and hiding is the exception, which only a grid earns: 147 rows
+   of dismissals is the clutter this hides from, and a panel showing one rating has no
+   such problem. So it hides inside a row, and only where there is a pointer to bring it
+   back - a touch device would otherwise have no way to clear at all.
+   `docs/conventions.md`: gate an affordance on the input, never on the surface. */
 @media (hover: hover) and (pointer: fine) {
-  .ag-row:hover .hub-star-clear,
-  .hub-stars:hover .hub-star-clear { opacity: 0.75; }
+  .ag-row .hub-star-clear { opacity: 0; }
+  .ag-row:hover .hub-star-clear { opacity: 0.75; }
 }
-@media (hover: none) { .hub-star-clear { opacity: 0.75; } }
-.hub-stars:focus-within .hub-star-clear { opacity: 0.75; }
+.hub-stars:focus-within .hub-star-clear { opacity: 1; }
 .hub-star-clear:hover { opacity: 1; color: var(--ink-1); }
 /* In the filter, the stars are a picture of a value and not a control. */
 .hub-filter-row .hub-star { cursor: pointer; margin-right: -1px; }

@@ -1351,7 +1351,10 @@ def _stars(value: int, on_pick: Callable[[int], Any]) -> Callable[[], None]:
                     .on("click", lambda _, n=n: on_pick(n)) \
                     .tooltip(f"{n} of 5")
             if value:
-                ui.element("span").classes("hub-star-clear") \
+                # The character is the control. An empty span with the x in a tooltip
+                # measured 0 wide and could not be clicked by anybody with a mouse -
+                # and a synthetic click passed on it, which is why it took an eye.
+                ui.label("\u00d7").classes("hub-star-clear") \
                     .on("click", lambda _: on_pick(0)) \
                     .tooltip("Clear rating")
 
