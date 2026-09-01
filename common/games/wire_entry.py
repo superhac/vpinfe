@@ -58,6 +58,11 @@ class WireGame:
             # what gets read here.
             "User": {
                 "Rating": user.get("rating", game.get("rating", 0)) or 0,
+                # A filter collection on either resolves on a player as well as on the
+                # hub, which is the whole point of this lens - so an axis reading the
+                # play record has to find it here too.
+                "Favorite": bool(user.get("favorite")),
+                "Tags": list(user.get("tags") or []),
                 "StartCount": user.get("play_count", 0) or 0,
                 # Back to the epoch integer the key is specced as, because that is what
                 # the sort reads it as.

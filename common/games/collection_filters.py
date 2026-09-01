@@ -23,12 +23,14 @@ from common.games.game_metadata import (
     game_last_run,
     game_manufacturer,
     game_rating,
+    game_tags,
     game_themes,
     game_title,
     game_type,
     game_year,
     get_meta_value,
     normalize_rating,
+    play_record,
 )
 from common.values import is_truthy
 
@@ -61,6 +63,18 @@ def _match_letter(criterion, game, table) -> bool:
 
 def _match_theme(criterion, game, table) -> bool:
     return bool(_values(criterion) & set(game_themes(game)))
+
+
+def _match_tag(criterion, game, table) -> bool:
+    """Any of the tags asked for. Case-sensitive, because the tags are: two spellings
+    are two tags until somebody merges them, and matching across them would hide the
+    duplicate the tag editor exists to find."""
+    return bool(_values(criterion) & set(game_tags(game)))
+
+
+def _match_favorite(criterion, game, table) -> bool:
+    return is_truthy(criterion) == bool(play_record(
+        getattr(game, "meta_config", {})).get("favorite"))
 
 
 def _match_game_type(criterion, game, table) -> bool:
@@ -120,6 +134,13 @@ class FilterAxis:
     # A? - and paging to the next boundary can only ask this one. None where the axis
     # has no groups to page between.
     groups: Callable | None = None
+    # Where this axis's values come from, so `available_options` and the API derive them
+    # rather than each keeping a list beside a registry whose point is one declaration.
+    # `values_key` is the name they are reported under - `game_type` answers as `types`,
+    # so pluralising the axis name would be a rule with an exception - and it reaches
+    # themes through `frontend/api.py`, which is why the spellings do not move.
+    values_of: Callable | None = None
+    values_key: str = ""
     # Whether a criterion may hold more than one value, which is an OR across them.
     # Declared rather than inferred: the matcher has always split on commas, so every
     # axis *looked* multi-valued while only some of them mean anything that way, and a
@@ -135,19 +156,26 @@ class FilterAxis:
 AXES: tuple[FilterAxis, ...] = (
     FilterAxis("letter", GAME_SCOPE, "letter", "Letter",
                "First letter of the title, as sorted",
-               _match_letter, groups=letter_of, many=True),
+               _match_letter, groups=letter_of, many=True,
+               values_of=lambda game: [letter_of(game)], values_key="letters"),
     FilterAxis("theme", GAME_SCOPE, "choice", "Theme",
                "Any theme the game is tagged with",
-               _match_theme, many=True),
+               _match_theme, many=True,
+               values_of=game_themes, values_key="themes"),
     FilterAxis("game_type", GAME_SCOPE, "choice", "Type",
                "Solid state, electro-mechanical and so on",
-               _match_game_type, many=True),
+               _match_game_type, many=True,
+               values_of=lambda game: [game_type(game)], values_key="types"),
     FilterAxis("manufacturer", GAME_SCOPE, "choice", "Manufacturer",
                "Who made the machine",
-               _match_manufacturer, many=True),
+               _match_manufacturer, many=True,
+               values_of=lambda game: [game_manufacturer(game)],
+               values_key="manufacturers"),
     FilterAxis("year", GAME_SCOPE, "choice", "Year",
                "Year the machine was released",
-               _match_year, groups=lambda game: str(game_year(game)), many=True),
+               _match_year, groups=lambda game: str(game_year(game)), many=True,
+               values_of=lambda game: [str(game_year(game) or "")],
+               values_key="years"),
     FilterAxis("rating", GAME_SCOPE, "rating", "Rating",
                "The rating the user gave the game",
                _match_rating, groups=lambda game: str(game_rating(game))),
@@ -157,6 +185,15 @@ AXES: tuple[FilterAxis, ...] = (
     FilterAxis("played", GAME_SCOPE, "flag", "Played",
                "Whether the game has ever been played",
                _match_played),
+    FilterAxis("favorite", GAME_SCOPE, "flag", "Favorite",
+               "Whether the user marked the game a favorite",
+               _match_favorite),
+    # The user's own words, so the values are whatever this library holds - the same
+    # shape as `theme`, which is where they come from for everybody else.
+    FilterAxis("tags", GAME_SCOPE, "choice", "Tags",
+               "Any tag the user put on the game",
+               _match_tag, many=True,
+               values_of=game_tags, values_key="tags"),
 )
 
 AXES_BY_NAME = {axis.name: axis for axis in AXES}
@@ -297,16 +334,18 @@ class GameListFilters:
     def available_options(self) -> dict[str, list[str]]:
         """Every choice axis and the values this library actually holds.
 
-        One answer for the frontend and the API both, so a filter offered on one
-        surface is a filter the other can resolve.
+        One answer for the frontend and the API both, so a filter offered on one surface
+        is a filter the other can resolve - and derived from `AXES`, so an axis that
+        declares where its values come from needs no second entry anywhere.
         """
-        return {
-            "letters": self.get_available_letters(),
-            "themes": self.get_available_themes(),
-            "types": self.get_available_types(),
-            "manufacturers": self.get_available_manufacturers(),
-            "years": self.get_available_years(),
-        }
+        found: dict[str, set[str]] = {}
+        for axis in AXES:
+            if not (axis.values_of and axis.values_key):
+                continue
+            seen = found.setdefault(axis.values_key, set())
+            for game in self.games:
+                seen.update(str(value) for value in axis.values_of(game) if value)
+        return {key: sorted(values) for key, values in found.items()}
 
     def _get_game_name(self, game):
         """Get game name from either JSON or legacy format."""

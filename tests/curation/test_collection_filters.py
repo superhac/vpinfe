@@ -36,6 +36,8 @@ AXIS_SNAPSHOT = {
     "rating": ("game", "rating"),
     "rating_or_higher": ("game", "rating"),
     "played": ("game", "flag"),
+    "favorite": ("game", "flag"),
+    "tags": ("game", "choice"),
 }
 
 

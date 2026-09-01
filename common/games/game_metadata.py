@@ -153,6 +153,48 @@ def game_title(game) -> str:
     return reorder_leading_article(raw)
 
 
+def game_tags(game) -> list[str]:
+    """The user's own words for a game. A set on the way out: `Tags` is a JSON list and
+    nothing has stopped one holding the same word twice."""
+    meta = normalize_meta(getattr(game, "meta_config", {}))
+    said = section(meta, "User").get("Tags") or []
+    if not isinstance(said, list):
+        said = [said]
+    seen, out = set(), []
+    for tag in (str(item).strip() for item in said):
+        if tag and tag not in seen:
+            seen.add(tag)
+            out.append(tag)
+    return out
+
+
+def normalize_tag(text: str) -> str:
+    """One tag, as it is stored. Trimmed, and internal runs collapsed - `Wide  Body `
+    must not become a second tag. Case is left alone on purpose: Chris, 2026-09-01,
+    the picker surfaces close matches and the user decides."""
+    return " ".join(str(text or "").split())
+
+
+def set_game_tags(game, tags) -> list[str]:
+    """Write the whole set, returning what was stored.
+
+    A whole-value write, like the rating: the set is the resource. Normalized and
+    de-duplicated here rather than at a call site, so every writer agrees.
+    """
+    stored: list[str] = []
+    seen: set[str] = set()
+    for tag in tags or []:
+        said = normalize_tag(tag)
+        if said and said not in seen:
+            seen.add(said)
+            stored.append(said)
+    config = load_game_meta(game)
+    get_or_create_user_meta(config)["Tags"] = stored
+    persist_game_meta(game, config)
+    game.meta_config = config
+    return stored
+
+
 def game_themes(game) -> list[str]:
     meta = normalize_meta(getattr(game, "meta_config", {}))
     value = get_meta_value(meta, "Info", "Themes", None)

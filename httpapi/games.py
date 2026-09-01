@@ -37,6 +37,7 @@ from common.games.game_metadata import (
     reset_table_play_record,
     set_game_favorite,
     set_game_rating,
+    set_game_tags,
     set_table_rating,
     table_play_record,
     table_rating,
@@ -1150,6 +1151,19 @@ def put_game_rating(game_id: str, payload: models.RatingRequest) -> models.Ratin
     """
     game = _game_or_404(game_id)
     return {"rating": set_game_rating(game, payload.rating)}
+
+
+@router.put("/{game_id}/tags", summary="The tags on a game",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_game_tags(game_id: str, payload: models.TagsRequest) -> models.Tags:
+    """Set the whole set, the way the rating sets a whole value.
+
+    Not a bag: a repeat is dropped, so sending the same tag twice is the same request
+    twice. Case is left alone - two spellings stay two tags until somebody merges them,
+    and folding them here would hide the duplicate rather than let it be found.
+    """
+    game = _game_or_404(game_id)
+    return {"tags": set_game_tags(game, payload.tags)}
 
 
 @router.delete("/{game_id}/play_record", summary="Reset a game's play counters",

@@ -140,6 +140,14 @@ class HubClient:
                                      json={"favorite": favorite}, timeout=_TIMEOUT)
         self._answered(response)
 
+    def set_tags(self, game_id: str, tags: list[str]) -> None:
+        """The whole set. What comes back is what was stored, which may differ - the
+        hub trims and drops repeats."""
+        _refuse_the_event_loop(f"/games/{game_id}/tags")
+        response = self._session.put(f"{self._base}/games/{game_id}/tags",
+                                     json={"tags": list(tags)}, timeout=_TIMEOUT)
+        self._answered(response)
+
     def reset_play_record(self, game_id: str, table_id: str = "") -> None:
         """Clear the counters, keeping what was entered. A table's record is its own."""
         path = (f"/games/{game_id}/tables/{table_id}/play_record" if table_id

@@ -1202,6 +1202,17 @@ class FavoriteRequest(ApiModel):
     favorite: bool
 
 
+class TagsRequest(ApiModel):
+    tags: list[str]
+
+
+class Tags(ApiModel):
+    """What was stored, which is not always what was sent: each is trimmed and internal
+    whitespace collapsed, and the set keeps the first spelling of a repeat."""
+
+    tags: list[str]
+
+
 class Favorite(ApiModel):
     favorite: bool
 

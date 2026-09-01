@@ -19,16 +19,6 @@ from .errors import ConflictError
 
 router = APIRouter(prefix="/library", tags=["library"])
 
-# Which values answer for which axis. Stated, not derived: `game_type`/`types` do not
-# correspond, so pluralising the name would be a rule with an exception.
-_VALUES_FOR = {
-    "letter": "letters",
-    "theme": "themes",
-    "game_type": "types",
-    "manufacturer": "manufacturers",
-    "year": "years",
-}
-
 
 @router.get("/filters", summary="What this library can be filtered on",
             dependencies=[requires(scopes.GAMES_READ)])
@@ -52,7 +42,7 @@ def filters() -> models.FilterAxisList:
                       # them. Declared here so a client renders the right control
                       # without knowing which axes exist - section 2.15's whole point.
                       "many": axis.many,
-                      "values": available.get(_VALUES_FOR.get(axis.name))}
+                      "values": available.get(axis.values_key)}
                      for axis in AXES]}
 
 

@@ -1055,12 +1055,18 @@ def _identity_rows(context: dict[str, Any]) -> None:
                      context["game_id"])
 
     entries += [(HEADING, game_tables.PLAY)]
+    async def retag(chosen: list[str]) -> None:
+        await _write(context, context["library"].set_game_tags,
+                     context["game_id"], chosen)
+
     entries += _play_rows(context, record, rating=int(game.get("rating") or 0),
                           on_rate=rate, on_reset=reset,
                           favorite=lambda: _switch(bool(record.get("favorite")),
                                                    favorite,
                                                    hint="Yours, and the frontend can "
-                                                        "filter on it"))
+                                                        "filter on it"),
+                          tags=_tag_picker(list(record.get("tags") or []),
+                                           context["library"].tags(), retag))
 
     entries += [
         (HEADING, game_tables.FRONTEND),
@@ -1346,7 +1352,8 @@ def _played_for(seconds: int) -> str:
 def _play_rows(context: dict[str, Any], record: dict[str, Any], *,
                rating: int, on_rate: Callable[[int], Any],
                on_reset: Callable[[], Any],
-               favorite: Callable[[], None] | None = None) -> list[tuple[Any, Any]]:
+               favorite: Callable[[], None] | None = None,
+               tags: Callable[[], None] | None = None) -> list[tuple[Any, Any]]:
     """What somebody thinks of this, and what they have done with it.
 
     Two kinds in one group and the controls say which: rating and favorite are opinions
@@ -1356,6 +1363,8 @@ def _play_rows(context: dict[str, Any], record: dict[str, Any], *,
     rows: list[tuple[Any, Any]] = [("Rating", stars.draw(rating, on_rate))]
     if favorite is not None:
         rows.append(("Favorite", favorite))
+    if tags is not None:
+        rows.append(("Tags", tags))
     rows += [
         ("Last played", _played_when(record.get("last_played"))),
         ("Times played", str(int(record.get("play_count") or 0) or "Never")),
@@ -1365,6 +1374,30 @@ def _play_rows(context: dict[str, Any], record: dict[str, Any], *,
                                    ("last_played", "play_count", "play_time_seconds")):
         rows.append((FULL, _reset_action(on_reset)))
     return rows
+
+
+def _tag_picker(held: list[str], known: list[str],
+                on_change: Callable[[list[str]], Any]) -> Callable[[], None]:
+    """The tags on this game, and the ones the library already knows.
+
+    The same control a multi-valued filter axis uses - chips for what is set, and the
+    text input once the list outgrows a glance, which is section 5's rule about a list
+    longer than a screen being typed into rather than scrolled. Typing filters the known
+    ones, so a tag somebody already used is the easy thing to pick; a new one is added
+    on Enter, and `add-unique` is what makes a repeat impossible.
+
+    Case is not folded. Two spellings are two tags until somebody merges them, and
+    folding here would hide the duplicate instead of letting it be found.
+    """
+    def draw() -> None:
+        control = ui.select(known, multiple=True, value=list(held),
+                            with_input=True, new_value_mode="add-unique") \
+            .props('dense outlined use-chips hide-dropdown-icon '
+                   'popup-content-class="hub-picker-popup"') \
+            .classes("w-full min-w-0")
+        control.on_value_change(lambda: on_change(list(control.value or [])))
+
+    return draw
 
 
 def _reset_action(on_reset: Callable[[], Any]) -> Callable[[], None]:

@@ -21,15 +21,17 @@ from tests.support.library import TempTree, fake_game, write_game
 # Varied on every axis the filters and sorts read, so a comparison can actually
 # distinguish orders rather than pass on a library where everything ties.
 LIBRARY = (
-    # name, manufacturer, year, type, themes, rating, created, last run, secs, plays
+    # name, manufacturer, year, type, themes, rating, created, last run, secs, plays,
+    # favorite, tags. The last two vary across the four, or a filter on either agrees
+    # between the hub and the wire by matching nothing on both sides.
     ("The Addams Family (Bally 1992)", "Bally", "1992", "SS", ["Movie"],
-     3, 300.0, 1700000000, 120, 3),
+     3, 300.0, 1700000000, 120, 3, True, ["Wide Body"]),
     ("Attack from Mars (Bally 1995)", "Bally", "1995", "SS", ["Space", "Aliens"],
-     5, 100.0, 1600000000, 900, 11),
+     5, 100.0, 1600000000, 900, 11, False, ["Wide Body", "Needs Work"]),
     ("Medieval Madness (Williams 1997)", "Williams", "1997", "SS", ["Fantasy"],
-     4, 200.0, 1800000000, 45, 7),
+     4, 200.0, 1800000000, 45, 7, True, []),
     ("Space Invaders (Bally 1980)", "Bally", "1980", "EM", ["Space"],
-     0, 50.0, 0, 0, 0),
+     0, 50.0, 0, 0, 0, False, ["Needs Work"]),
 )
 
 FILTERS = (
@@ -42,6 +44,11 @@ FILTERS = (
     {"rating_or_higher": "1", "rating": "3"},
     {"played": True},
     {"played": False},
+    {"favorite": True},
+    {"favorite": False},
+    {"tags": "Wide Body"},
+    {"tags": "Wide Body,Needs Work"},
+    {"tags": "Nothing Is Tagged This"},
     {"manufacturer": "Bally", "theme": "Space"},
     {"theme": "Nothing Is Tagged This"},
     {},
@@ -64,11 +71,12 @@ class WireEntryTests(TempTree):
         super().setUp()
         games = []
         for (name, manufacturer, year, kind, themes,
-             rating, created, last_run, seconds, plays) in LIBRARY:
+             rating, created, last_run, seconds, plays, favorite, tags) in LIBRARY:
             meta = {
                 "Info": {"Title": name.split(" (")[0], "Manufacturer": manufacturer,
                          "Year": year, "Type": kind, "Themes": themes},
-                "User": {"Rating": rating, "LastRun": last_run, "StartCount": plays},
+                "User": {"Rating": rating, "LastRun": last_run, "StartCount": plays,
+                         "Favorite": favorite, "Tags": tags},
                 "vpinfe": {"game_id": name[:10].replace(" ", ""),
                            "run_time_seconds": seconds},
             }
