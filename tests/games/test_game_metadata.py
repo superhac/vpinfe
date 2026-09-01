@@ -77,3 +77,34 @@ class FavoriteTests(unittest.TestCase):
         self.assertIs(gm.play_record({"User": {"Favorite": 0}})["favorite"], False)
         self.assertIs(gm.play_record({"User": {"Favorite": 1}})["favorite"], True)
         self.assertIs(gm.play_record({"User": {"Favorite": True}})["favorite"], True)
+
+
+class ThemeListTests(unittest.TestCase):
+    """However a writer wrote them down, they come back as themes."""
+
+    def test_a_repr_of_a_list_is_two_themes_not_one(self) -> None:
+        """The testbed carries a folder for exactly this - its manifest calls it
+        "legacy Themes stored as a repr string". The parse existed for `VPSdb.theme`
+        and the newer `Info.Themes` branch was added without it, so one file read two
+        ways and the filter axis offered "['Fantasy', 'Magic']" as a theme somebody
+        could pick."""
+        game = SimpleNamespace(
+            meta_config={"Info": {"Themes": "['Fantasy', 'Magic']"}})
+
+        self.assertEqual(gm.game_themes(game), ["Fantasy", "Magic"])
+
+    def test_the_legacy_field_reads_the_same_way(self) -> None:
+        game = SimpleNamespace(meta_config={"VPSdb": {"theme": "['Space']"}})
+
+        self.assertEqual(gm.game_themes(game), ["Space"])
+
+    def test_a_plain_string_is_one_theme(self) -> None:
+        game = SimpleNamespace(meta_config={"Info": {"Themes": "Fantasy"}})
+
+        self.assertEqual(gm.game_themes(game), ["Fantasy"])
+
+    def test_something_that_only_looks_like_a_list_is_left_alone(self) -> None:
+        """Inventing a parse for it would be worse than showing what is there."""
+        game = SimpleNamespace(meta_config={"Info": {"Themes": "[broken"}})
+
+        self.assertEqual(gm.game_themes(game), ["[broken"])

@@ -10,7 +10,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-from common.games import asset_registry
+from common.games import apps, asset_registry
 from common.labels import humanize
 from common.media_specs import media_label_map
 from hubui import features as table_features
@@ -648,6 +648,9 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{**row,
              "missing": not row.get("available", True),
              "author": ", ".join(row.get("authors") or []),
+             # The name, not the id: `app_name` says why, and the column has to sort
+             # and filter on what a reader can see rather than on what is stored.
+             "app": apps.app_name(row.get("app")),
              # One field per feature: a grid column reads a field, and the payload's
              # nested dict would have every column reaching into the same object.
              # `.get` rather than a default of False - a table nobody parsed answers
