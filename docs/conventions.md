@@ -368,6 +368,13 @@ one** — a heading, a chip, a state, a control. Something that looks like it ne
 usually has one already, and two spellings of the same idea is how a surface stops looking
 like one product.
 
+**And grep the surface next door.** The class is half the answer; the other half is how the
+neighbouring vocabulary already decided the same question — which shape means "nothing here",
+which color means "present", whether a legend names a blank. Those live in the module that
+owns the fact (`hubui/media_ownership.py`, `hubui/features.py`, `hubui/game_tables.py`) and in
+this file, not in the stylesheet. **The tell is proposing a *new* treatment at all**: if the
+hub already shows this kind of fact anywhere, the answer exists and the job is to find it.
+
 ### One shape per kind of value
 
 A panel that shows facts uses the same control for the same kind of value, everywhere:
@@ -476,11 +483,81 @@ to Yes/No.
 State chips are not media tiers. `hubui/media_ownership.py` answers "whose file is this", and its amber
 means the exception worth spotting in a map of twenty.
 
+### Marks, and what color one is
+
+**A binary fact is a tick; a fact with more answers is a shaped circle.** Presence is a
+checkmark wherever the hub says it — asset columns, media columns, feature columns — and the
+circles (`.hub-mark--full`, `--outline`, `--set`, `--dashed`) are for a vocabulary with more
+than two answers to tell apart, where a reader has to distinguish them at a glance. A fact
+that stops having three answers moves to a tick; one that gains a third moves the other way.
+
+**A tick is `--positive`, never `--accent`.** Green is present, and accent is the current
+value — a matrix of hundreds of true cells is the clearest case there is of a color losing
+its meaning by being everywhere. Accent belongs to the *chosen* one: the menu checkmark, the
+default mark, the lit star, the media tile in use. Those are different facts and take
+different colors, which is the whole distinction:
+
+| the fact | the rule |
+|---|---|
+| this thing is **present** | green (`--positive`) |
+| this is the one **chosen** | accent |
+| absent and worth fixing | amber, and nothing softer |
+
+*Accent is doing more than that today* — headings, focus, hover — so read the rule as what
+new work should follow, not as a description of every existing use.
+
+**Do not borrow a shape that already means something else.** The marks are deliberately
+shared across vocabularies, named for the shape rather than the meaning, so the words differ
+and the drawings do not. That only works while each vocabulary keeps to shapes whose existing
+sense it can live with: a dashed circle means **Missing** in media ownership, so a table
+nobody has parsed cannot wear one — it is not missing. Where no shape fits, a character often
+says it outright; `?` needs no legend at all.
+
+**Nothing explains a blank.** A state drawn as nothing gets no legend entry — a blank cell is
+not something anybody looks up, and a legend line beside empty space reads as a mark that
+failed to render. The legend names what is drawn, and only that.
+
+**A legend names the states the library has**, not every state the vocabulary declares. Build
+it from the rows on screen: a state that never occurs is a line spent on every visit
+explaining something invisible, and one that appears mid-scan explains itself the moment it
+does.
+
+**A filter offers the marks the grid draws.** If a cell renders nothing for a state, its entry
+in the funnel carries no mark either — otherwise the filter promises a drawing that is never
+on screen. The choice itself stays: what it loses is a picture, not the ability to pick it.
+
+### One control per fact, and one way back
+
+**A control that sets a value does not also unset it.** Clicking the third star of a
+three-star rating used to clear it, so one click meant set or unset depending on a number the
+user was not looking at — and nothing appeared to happen, because the pointer was left over a
+star that had gone dark. A star sets; an explicit `×` clears.
+
+**The way back is only offered where there is something to undo**, and it is not a further
+degree of the same scale — so it sits beside the control rather than inside it.
+
+**A hover-revealed control is revealed by the thing it belongs to.** Keying it to a container
+one surface has and another does not is how the same control ends up invisible in half the
+app. Gate it on the input, never on the surface: hover where there is a pointer,
+`:focus-within` for a keyboard, and simply visible where hover cannot happen.
+
+**An element with no text has no size.** A control whose glyph lives only in a tooltip
+measures zero and cannot be clicked — and a scripted click still passes on it, because a click
+driven at a selector does not care whether the thing is visible. Put the character in the
+element.
+
 ### Type
 
 - **A heading inside a panel** is `.hub-card-title` — `--accent` cyan, uppercase,
   `--fs-caption`, `0.08em`. Group headings take the same treatment plus a rule and space
   above; the separation carries the break, not extra weight.
+- **Every label takes title case, with acronyms as acronyms** — a panel's fact, a column
+  header, a picker entry. Small words stay down unless they lead or close it, because the
+  registries already write "Point of View" by hand and a rule producing "Point Of View" would
+  disagree with the thing it is the fallback for. `common/labels.py` is that rule and there is
+  one of it: `humanize` and `field_label` are the same function under two names, so a column
+  picker and a panel cannot case a word two ways. **Apply it where labels pass, not at each
+  call site** — three spellings arrived in one file by each caller typing its own.
 - **Headings take title case. Sentences and phrases stay sentence case. The app nav is
   uppercase, alone** — a second uppercase column would rank a page's sections with the
   product.
@@ -512,15 +589,15 @@ means the exception worth spotting in a map of twenty.
     It is a signpost and recedes. Never larger or brighter than the items it labels.
   - An **item** is body voice: sentence case, `--ink-2`, no letter-spacing. You read a
     name and click it, and a name only survives in sentence case.
-  - **Hover and focus paint a full-width band.** A colour change alone is too weak to say
+  - **Hover and focus paint a full-width band.** A color change alone is too weak to say
     *this row is the target*, and an item that sizes to its own text draws the band to the
     end of the words rather than the edge of the menu.
   - **Accent is the current value and nothing else** - the chosen item, the checkmark. When
-    every item is accent-coloured the colour stops meaning anything.
+    every item is accent-colored the color stops meaning anything.
   - **One leading slot**, fixed width, for whatever marks the item; items with no mark
     indent to it so the labels line up.
   - **The trailing slot is state** - a checkmark, a count, a shortcut. Never a second action.
-  - A **destructive** item colours its *text*; the band stays the ordinary one. A red row
+  - A **destructive** item colors its *text*; the band stays the ordinary one. A red row
     reads as an error that has already happened.
   - **A separator divides groups**, never decorates.
   - **An open menu suppresses tooltips.** The control that opened it usually has one, and
@@ -528,6 +605,14 @@ means the exception worth spotting in a map of twenty.
   - **Group a long picker by what the columns are about**, groups named in the user's
     words. The grouping answers *which columns exist*; where a column sits is the grid's
     own order and the user drags that - so a group is a bucket, not a run of neighbours.
+- **A group name is declared once and read by every surface that shows it.** The panel draws
+  them as headings and a grid's built-in views are named for them, so crossing from one to the
+  other is not a translation. Two lists of the same words is how four group names became three
+  vocabularies for one set of facts.
+- **One fact block is one grid.** A stack of facts is drawn in a single grid so the groups
+  separate and the label column is the width of the longest label across all of them. Splitting
+  it into a call per group loses the separation and gives each group its own column width, and
+  the second is the harder one to see.
 - **A label comes from the registry that owns the thing, never from its key.** Every
   closed set here already carries one - `MediaSpec.label`, `AssetSpec.label`,
   `config_schema.label_for` - and each has its acronyms cased once, correctly, in the one
