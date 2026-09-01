@@ -11,6 +11,7 @@ from hubui import (
     media_ownership,
     workbench,
 )
+from hubui import features as table_features
 
 
 class BuiltinViewTests(unittest.TestCase):
@@ -199,3 +200,30 @@ class LabelCasingTests(unittest.TestCase):
     def test_an_apostrophe_does_not_start_a_word(self) -> None:
         """`str.title` would give "Author'S"."""
         self.assertEqual(field_label("author's notes"), "Author's Notes")
+
+
+class FeatureLegendTests(unittest.TestCase):
+    """A legend names what a reader can actually see."""
+
+    def test_a_settled_library_does_not_explain_a_mark_it_never_shows(self) -> None:
+        """Measured on 166 real tables: every one of the seven displayed features is
+        true or false, and every null belongs to pinmame - which this vocabulary
+        leaves out on purpose. So the third line explained nothing, on every visit."""
+        rows = [{"feature_ssf": True, "feature_lut": False}]
+
+        self.assertEqual(table_features.states_in(rows),
+                         [table_features.IN_SCRIPT, table_features.UNUSED])
+
+    def test_it_comes_back_the_moment_a_table_is_unparsed(self) -> None:
+        """Reachable, not impossible: discovery leaves a table with a filename and an
+        id, and parsing is a separate job because reading one is a full file read. In
+        that window the flags are null, and calling that "Not used" would give an
+        unparsed table a clean bill of health it has not earned."""
+        rows = [{"feature_ssf": True}, {"feature_ssf": None}]
+
+        self.assertIn(table_features.UNKNOWN, table_features.states_in(rows))
+
+    def test_it_keeps_the_vocabulary_s_own_order(self) -> None:
+        rows = [{"feature_ssf": None}, {"feature_lut": False}, {"feature_nfozzy": True}]
+
+        self.assertEqual(table_features.states_in(rows), list(table_features.STATES))

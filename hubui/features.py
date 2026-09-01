@@ -23,6 +23,21 @@ UNUSED = "unused"
 UNKNOWN = "unknown"
 
 
+def states_in(rows) -> list[str]:
+    """The states this library actually shows, in the vocabulary's own order.
+
+    A legend names what a reader can see. `unknown` is reachable but rare - only
+    between discovery finding a table and the parse job reaching it - so listing it
+    always would explain a mark that is not on screen.
+    """
+    seen = set()
+    for row in rows:
+        for key in LABELS:
+            if f"feature_{key}" in row:
+                seen.add(state_of(row.get(f"feature_{key}")).key)
+    return [key for key in STATES if key in seen]
+
+
 @dataclass(frozen=True)
 class State:
     """`noun` for a legend or a filter, `chip` to name it where there is room, `mark`

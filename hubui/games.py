@@ -734,12 +734,15 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         wire_views, view_picker = view_control(library, f"{SCOPE}.tables",
                                                TABLE_VIEWS, fields, TABLE_COLUMNS)
         ui.space()
-        # Every glyph column carries a legend (HUBUI section 6), and this one names all
-        # three states - including the one drawn as nothing, which is the state a reader
-        # is least able to work out from the grid.
+        # Every glyph column carries a legend (HUBUI section 6), including the state
+        # drawn as nothing, which is the one a reader is least able to work out from
+        # the grid. The states this library actually has, though: a table is unparsed
+        # only between discovery finding it and the enrichment job reaching it, so a
+        # line explaining a mark nobody can see is spent on every visit for a window
+        # most people never look through.
         with ui.row().classes("items-center gap-3 no-wrap text-xs opacity-60 "
                               "hub-tier-key") as legend:
-            for key in table_features.STATES:
+            for key in table_features.states_in(built):
                 state = table_features.state_for(key)
                 with ui.row().classes("items-center gap-1 no-wrap").tooltip(state.why):
                     ui.element("span").classes(f"hub-mark {state.mark}".strip()
