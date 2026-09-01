@@ -75,10 +75,21 @@ _TOKENS = """
 
   /* 44px where a finger is in scope; the hub is desk-first, so this is the floor. */
   --target-min: 32px;
+  /* An action that sits beside a value rather than owning its row - see
+     `.hub-action--inline`. Below the floor deliberately, and raised back to it where the
+     pointer is a finger. */
+  --target-inline: 22px;
+  /* A field sits in the fact rhythm rather than standing above it. Raised on touch
+     with the rest, below. */
+  --field-h: 26px;
 
   /* One row of facts, sized as text. A row that *is* a field keeps the field's own
      height; since such a field is never a swapped-in box, nothing jumps. */
-  --fact-row: 26px;
+  /* The row, not the value: every kind of value - text, a chip, a field, a switch -
+     centres in a box this tall, so the air around one does not depend on which kind it
+     is. At 26 a text value sat 21px in 26 while a chip carried its own padding and read
+     roomier, which is the mismatch a reader sees as inconsistent spacing. */
+  --fact-row: 30px;
 
   /* What a draggable divider looks like, wherever one appears - a border color here
      reads as an edge rather than a handle. */
@@ -403,16 +414,147 @@ body::before {
    explicit that they share the shapes and not the nouns. A modifier called `--fixed`
    would have carried one vocabulary's meaning into the other's screens. */
 .hub-mark--full { background: currentColor; }
+/* The base circle, named so a caller can say which end of the ramp it means rather
+   than passing an empty string and hoping. */
+.hub-mark--outline { background: transparent; }
 /* Half filled, and the fill runs to the circle's own centre rather than to the edge of
    its outline. */
 .hub-mark--half {
   background: linear-gradient(to right, currentColor 50%, transparent 50%);
 }
-.hub-mark--dashed { border-style: dashed; opacity: 0.7; }
+/* Drawn rather than bordered. `border-style: dashed` picks its own dash length from the
+   border width, which on a 34px circumference put three chunky dashes on the circle -
+   the same declaration that reads as a proper dashed edge on a tile, because a tile has
+   the perimeter for it. The gradient is an exact eight, at any size. */
+.hub-mark--dashed {
+  border-color: transparent;
+  background: repeating-conic-gradient(currentColor 0 22.5deg,
+                                       transparent 22.5deg 45deg);
+  -webkit-mask: radial-gradient(circle at center, transparent 0 4px, #000 4px);
+  mask: radial-gradient(circle at center, transparent 0 4px, #000 4px);
+  opacity: 0.7;
+}
 /* A square on its corner: the odd one out on purpose, because the state it marks is
    the one that is not a degree of the others. */
 /* The legend for those marks, sitting on the toolbar beside the count. */
 .hub-tier-key .hub-mark { margin-right: 3px; }
+/* A state drawn as nothing still needs its place in the legend, or the reader is left
+   matching three words against two marks. It holds a mark's width and stays empty. */
+.hub-mark-none { display: inline-block; width: 11px; margin-right: 3px; }
+
+/* Five stars that are also the control. Sized to the row rather than to a dialog: this
+   is the compact form of the same five, and a star big enough to admire is a column
+   wide enough to hurt. */
+.hub-stars-cell { padding-left: 10px !important; }
+.hub-stars { display: inline-flex; gap: 2px; line-height: 0; }
+.hub-star {
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+  background: var(--ink-3);
+  /* One shape, filled or not, so the two states cannot differ in size the way ★ and ☆
+     do in a font - the same trap the media marks were drawn to avoid. */
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%,
+                     50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  opacity: 0.35;
+  transition: opacity 90ms ease-out, background 90ms ease-out;
+}
+.hub-star--on { background: var(--accent); opacity: 1; }
+.ag-row:hover .hub-star { opacity: 0.6; }
+.ag-row:hover .hub-star--on { opacity: 1; }
+.hub-star:hover { opacity: 1; background: var(--accent); }
+/* The way back to unrated. Beside the stars rather than in them, because it is not a
+   sixth degree of the same scale - and only on a row the pointer is over, so a rated
+   library does not read as a column of dismissals. */
+.hub-star-clear {
+  margin-left: 5px;
+  font-size: 13px;
+  line-height: 13px;
+  color: var(--ink-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 90ms ease-out, color 90ms ease-out;
+}
+.ag-row:hover .hub-star-clear { opacity: 0.75; }
+.hub-star-clear:hover { opacity: 1; color: var(--ink-1); }
+/* In the filter, the stars are a picture of a value and not a control. */
+.hub-filter-row .hub-star { cursor: pointer; margin-right: -1px; }
+
+/* One confirmation, wherever something cannot be undone. Narrow enough to read in one
+   line of sight, and the named files are quiet and breakable - a path is looked at, not
+   read. */
+.hub-confirm { min-width: 320px; max-width: 460px; }
+/* The question is a sentence and takes sentence case. It used to wear `.hub-card-title`,
+   which is the section-heading treatment - uppercase, tracked, accent - so every dialog
+   opened by shouting its question. Weight and size carry it instead. */
+.hub-confirm-title {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.hub-confirm-line {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  word-break: break-all;
+}
+
+/* The state picker inside a column's filter. The same words and marks as the legend,
+   because a filter that named the states differently would be a third vocabulary. */
+.hub-filter { padding: 6px 4px; min-width: 148px; }
+.hub-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--ink-1);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.hub-filter-row:hover { background: rgba(255, 255, 255, 0.06); }
+.hub-filter-row input { accent-color: var(--accent); cursor: pointer; margin: 0; }
+
+/* A media cell holds one thing - a mark or a picture - so it centres that thing rather
+   than leaving it on the text baseline. A picture on the baseline sat 1px below the top
+   of a 60px row and 7px above the bottom. */
+.ag-cell.hub-media-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* AG Grid wraps a renderer's HTML in a bare <span> of its own, and that span - not the
+   art - is what the cell centres. On a line box sized for the row it stood 76px tall in
+   a 59px cell, so centring hung the picture 8px above the cell and the clip took the top
+   off the enlarge. Zero line height makes it the height of what it holds. */
+.hub-media-cell > * {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+/* The art and the control that enlarges it. Relative on the art rather than the cell,
+   so the button sits on the picture's own corner - on the cell's it floats out over
+   the whitespace beside a narrow one. */
+.hub-cell-art { position: relative; display: inline-flex; line-height: 0; }
+.hub-cell-zoom {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 14px;
+  padding: 2px;
+  border-radius: 4px;
+  color: var(--ink-1);
+  background: rgba(10, 5, 24, 0.72);
+  cursor: pointer;
+  /* Hidden until the row is under the cursor: twenty of these showing at once is a
+     column of buttons, and the pictures are what the row is for. */
+  opacity: 0;
+  transition: opacity 90ms ease-out;
+}
+.ag-row:hover .hub-cell-zoom { opacity: 0.75; }
+.hub-cell-zoom:hover { opacity: 1; background: rgba(10, 5, 24, 0.9); }
 
 .hub-mark--set {
   border-radius: 0;
@@ -456,6 +598,12 @@ body::before {
   color: var(--ink-3);
   flex: none;
 }
+/* Where the pointer is a finger, the one control that sits below the target floor takes
+   it back. `pointer` is the primary device, not the presence of a touchscreen: a laptop
+   with both reports `fine` and is still being driven with a trackpad. */
+@media (pointer: coarse) {
+  :root { --target-inline: var(--target-min); --field-h: var(--target-min); }
+}
 @media (hover: hover) and (pointer: fine) {
   .hub-member-table-caret { opacity: 0; transition: opacity 120ms ease; }
   .hub-member-row:hover .hub-member-table-caret,
@@ -471,6 +619,23 @@ body::before {
   white-space: normal;
 }
 .hub-menu-check { font-size: 16px; color: var(--accent); }
+/* What Game Default resolves to today, under the words that name it. A step down in
+   size and colour, the same way a member row's table line sits under its game. */
+.q-menu .hub-menu-item .hub-menu-sub {
+  font-size: var(--fs-caption);
+  /* A step below `--ink-3`, where the ramp stops: this is the only text on the menu
+     nobody has to read - the label above carries the choice, and this answers "which
+     one is that today". Opacity rather than a new ink, so it stays a step below
+     whatever colour the row wears, chosen or not.
+     0.85 and no further: measured over the menu's ground that is 4.58:1, and 0.72 -
+     which looked right - came out at 3.64 and under AA for normal text. The palette
+     states its ratios on purpose; dimming is not a licence to leave the ramp. */
+  color: var(--ink-3);
+  opacity: 0.85;
+  line-height: 1.2;
+  max-width: 30ch;
+  white-space: normal;
+}
 /* Offered, and refused. Dimmed rather than removed: an entry that is simply absent is
    the same puzzle as a row that vanishes, which is what this state exists to avoid. */
 .q-menu .hub-menu-item.hub-menu-blocked,
@@ -935,6 +1100,29 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   border-color: var(--accent);
   background: rgba(0, 217, 255, 0.10);
 }
+/* The same control at the chip's scale, for an action that sits beside a state rather
+   than after a field. The edge stays - without one it reads as a second value, and this
+   panel is worked in rather than read - but the type comes down: measured beside a chip
+   at 11px/400 the panel button sat at 12px/500 and was the louder half of the pair. */
+.hub-action--inline.q-btn {
+  font-weight: 400;
+  padding: 3px 8px !important;
+  /* Hugs the chip it sits beside rather than taking the pointer floor every other
+     control clears. The exception is deliberate and it is the only one: this verb is a
+     second control on a row that already has a value, and a box half again the height
+     of the state it changes reads as the row's subject. A finger gets the floor back,
+     below. */
+  min-height: var(--target-inline);
+  line-height: 1;
+}
+.hub-action--inline .q-btn__content {
+  font-size: var(--fs-caption) !important;
+  /* A verb never wraps. The value column is 177px, and "Choose this one" broke across
+     three lines and took the row to 49px in a 26px rhythm. */
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
 /* A destructive action is still an action - it takes the same shape and says what it
    is with color on top, not instead. */
 .hub-action.hub-action--danger.q-btn { border-color: rgba(255, 107, 157, 0.45); }
@@ -1173,9 +1361,9 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .hub-facts {
   display: grid;
   grid-template-columns: max-content 1fr;
-  /* The edit control's height, not a comfortable reading height: a dense outlined
-     field measures --fact-row here, and a shorter read row means the first click into
-     one grows every row under it and the panel jumps. */
+  /* One box per row, whatever the value is, so nothing grows when a field or a chip
+     lands in a row that had text. `auto` above the floor is for content that wraps -
+     a line of chips takes two rows' worth and keeps its label centred on them. */
   grid-auto-rows: minmax(var(--fact-row), auto);
   align-items: center;
   column-gap: 8px;
@@ -1202,22 +1390,40 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* A value the user may set. The read state and the edit state are one element, so the
    alignment cannot drift and nothing moves on the first click. */
 .hub-fact-edit { display: flex; align-items: center; gap: 8px; min-width: 0; }
-/* Actions line up down the panel's right edge instead of crowding whatever value they
-   happen to follow, so the eye finds the verbs in one column. */
-.hub-fact-edit .hub-action { margin-left: auto; }
+/* An action follows the value it acts on. It used to be pushed to the panel's right
+   edge for a column of verbs, which assumed the value fills the row: a stretching field
+   ends near that edge, but a chip is 60px wide and the verb landed a panel-width away
+   from the state it changes - further the wider the pane was dragged. Fields still line
+   up under this, because they stretch to the same width. */
 .hub-edit-field { flex: 1 1 auto; min-width: 0; }
-.hub-edit-field .q-field__control { min-height: var(--fact-row); }
+/* The same edge as an action, because it is the same kind of thing: something you can
+   act on. A single bottom rule was meant to be the quiet version of this and read as a
+   section divider instead - full width, between two rows, which is what a divider is. */
+.hub-edit-field .q-field__control {
+  /* Quasar's 40px was tolerable as an underline and is a lump as a box: the row rhythm
+     is 26px, and a field that stands 14px above it makes its own row taller than every
+     fact around it. Below the pointer floor, and raised back on touch with the inline
+     action - the two exceptions are the same exception. */
+  min-height: var(--field-h);
+  height: var(--field-h);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0 8px;
+  transition: border-color 120ms, background 120ms;
+}
+.hub-edit-field .q-field__control::before,
+.hub-edit-field .q-field__control::after { border: none; }
+.hub-edit-field:hover .q-field__control {
+  border-color: var(--accent);
+  background: rgba(0, 217, 255, 0.06);
+}
+.hub-edit-field .q-field--focused .q-field__control {
+  border-color: var(--accent);
+  background: rgba(0, 217, 255, 0.10);
+}
 .hub-edit-field .q-field__native {
   font-size: var(--fs-body); color: var(--ink); padding: 0;
-}
-/* A resting edge: it is what says a value can be changed, and what tells an empty one
-   from a blank row. Quiet enough not to make a form of the section. */
-.hub-edit-field .q-field__control::before {
-  border-bottom: 1px solid var(--line); transition: border-color 120ms;
-}
-.hub-edit-field:hover .q-field__control::before { border-bottom-color: var(--ink-3); }
-.hub-edit-field .q-field--focused .q-field__control::after {
-  border-bottom-color: var(--accent);
 }
 /* The way back, and the only mark an overridden row carries. Amber because that is
    already this app's word for the exception worth spotting, so one mark says both what

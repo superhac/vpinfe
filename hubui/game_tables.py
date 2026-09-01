@@ -17,23 +17,23 @@ FIXED = "fixed"
 GONE = "missing"
 
 # The state's name, then the line behind it. Both answer "which table plays?", in the
-# same shape so they read as a pair; what the difference *costs* is the legend's job.
-# Short because this is read down a long list, where a sentence per row is noise. It
-# goes on the table line rather than in the chip slot, which belongs to states about
-# the row itself.
+# same shape so they read as a pair. Short because this is read down a long list, where
+# a sentence per row is noise.
 REFERENCE_WORDS = {
     FOLLOWS: ("Game Default", "Whichever table the game offers"),
     FIXED: ("User Defined", "Only this table"),
     GONE: ("Missing", "Not in this library"),
 }
 
-# Drawn, not typed. As characters these are not a matched pair: measured in the hub's
-# own font at 15px, ● is 9.4px across and ◐ is 15px, so the two states differed in size
-# as much as in fill and the smaller one read as a speck. A circle and a half-filled
-# circle built in CSS are the same diameter by construction, on every platform.
+# Drawn, not typed: as characters these are not a matched pair. Measured in the hub's
+# own font at 15px, ● is 9.4px across and ◐ is 15px, so the smaller state read as a
+# speck. CSS circles are the same diameter by construction.
+#
+# Full and outline are the two ends of the ramp - the clearest pair there is, and this
+# vocabulary has only two states to spend. HUBUI section 13 carries the rest.
 MARKS = {
     FIXED: "hub-mark--full",
-    FOLLOWS: "hub-mark--half",
+    FOLLOWS: "hub-mark--outline",
     GONE: "hub-mark--dashed",
 }
 
@@ -49,15 +49,33 @@ def mark(state: str) -> str:
     return f"hub-mark {MARKS.get(state, MARKS[FOLLOWS])}"
 
 
-# How a game's default was decided. The resolver has three steps; a reader only cares
-# whether they chose it or we did.
+# How a game's default was decided, said as a state rather than as an actor: "User"
+# named who acted. The pair differs in kind - a decision, or the absence of one - and
+# the second of each is what it costs the reader, which is the part they act on.
 CHOSEN = "user"
 DERIVED = "auto"
 
 DEFAULT_WORDS = {
-    CHOSEN: ("User", "Somebody chose this table as the game's default."),
-    DERIVED: ("Auto", "Picked for this game because nothing was chosen."),
+    CHOSEN: ("Chosen", "Stays on this table"),
+    DERIVED: ("Automatic", "May move when the library changes"),
 }
+
+# One name and one direction per fact, read by the column, the panel, the funnel and the
+# row menu. Notable is first; docs/conventions.md has why.
+HIDDEN_WORDS = ("Hidden", "Offered")
+FILE_WORDS = ("Missing", "Present")
+# Which script runs, not how the file got there: VPX loads a `<table>.vbs` sidecar in
+# place of the one inside the .vpx, so the sidecar is an override and "Extracted" named
+# only its provenance. External is the notable half - it is the table running something
+# other than what its author shipped.
+SCRIPT_WORDS = ("External", "Internal")
+
+
+def word_for(pair: tuple[str, str], notable: bool) -> str:
+    """A fact's own word for the state it is in, notable first. A helper for a one-line
+    lookup because the one line is where it goes wrong: `pair[not present]` at a call
+    site put "Missing" on a file that was on disk."""
+    return pair[0] if notable else pair[1]
 
 
 def table_name(table: dict[str, Any]) -> str:

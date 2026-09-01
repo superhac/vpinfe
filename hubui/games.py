@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
 from typing import Any
@@ -10,9 +11,9 @@ from nicegui import run, ui
 
 from common.labels import humanize
 from common.media_specs import media_label_map
-from hubui import data, game_tables, grid, views
+from hubui import features as table_features
+from hubui import game_tables, grid, media_ownership, mediaview, views, workbench
 from hubui.api import HubClient
-from hubui.data import TIER_LEGEND
 
 logger = logging.getLogger("vpinfe.hubui.games")
 
@@ -39,6 +40,61 @@ _ASSET_LABELS = {
     # group heading beside it, so the two cannot both be "Backglass".
     "backglass": "B2S",
 }
+# Five stars, filled to the value, and they are the control as well as the picture -
+# which is what lets the row menu drop its "Rate" item. A rating is one number a person
+# reads at a glance and sets in one click; a menu to open a dialog to pick a number is
+# three acts for that.
+#
+# Clicking the star a rating already stands on clears it. That is how every star widget
+# behaves, and the alternative is a sixth control on a column this narrow.
+def _stars(subject: str) -> str:
+    game = "row.id" if subject == "game" else "(row.game_id || '')"
+    table = "''" if subject == "game" else "row.id"
+    return (
+        "params => {"
+        " const row = params.data || {}; const held = Number(params.value) || 0;"
+        " let out = '<span class=\"hub-stars\" data-game=\"' + " + game
+        + " + '\" data-table=\"' + " + table + " + '\">';"
+        " for (let n = 1; n <= 5; n++) {"
+        "  out += '<span class=\"hub-star' + (n <= held ? ' hub-star--on' : '')"
+        "  + '\" data-value=\"' + (n === held ? 0 : n) + '\" title=\"'"
+        "  + (n === held ? 'Clear' : n + ' of 5') + '\"></span>';"
+        " }"
+        # Only where there is something to clear: an X on every unrated game would be a
+        # column of controls, so it appears where it has work to do.
+        " if (held) { out += '<span class=\"hub-star-clear\" data-value=\"0\"'"
+        "  + ' title=\"Clear rating\">\u00d7</span>'; }"
+        " return out + '</span>'; }"
+    )
+
+
+# Filtering by a rating means picking one, not typing it: the value is a number and the
+# cell is five stars, so AG Grid's text box was asking the reader to guess that "3" is
+# what a three-star row holds. Unrated leads, because "which of these have I not judged
+# yet" is the question this column is opened for.
+_RATING_CHOICES = ([{"value": 0, "label": "Unrated"}]
+                   + [{"value": n, "label": "", "mark": "hub-star hub-star--on",
+                       "repeat": n} for n in range(1, 6)])
+
+
+# Delegated once, in the capture phase for the same reason the enlarge is: the cell's
+# own click would move the focused row, and rating a row you can see is not a request
+# to go and look at it.
+_STARS_JS = """
+if (!window.__hubStars) {
+  window.__hubStars = true;
+  document.addEventListener('click', (e) => {
+    const star = e.target.closest && e.target.closest('.hub-stars [data-value]');
+    if (!star) return;
+    e.stopPropagation();
+    const box = star.closest('.hub-stars');
+    emitEvent('hub_rate', {game: box.dataset.game, table: box.dataset.table,
+                           value: Number(star.dataset.value)});
+  }, true);
+}
+"""
+
+
 
 COLUMNS = [
     grid.column("name", "Name", 280, pinned="left", group=_GAME),
@@ -53,7 +109,12 @@ COLUMNS = [
     grid.column("themes", "Themes", 200, group=_GAME),
     # No ROM or Version here: ROM is an asset (`asset_registry`), Version has no
     # game-level meaning, and both were the default table's shown as the game's.
-    grid.column("rating", "Rating", type="numericColumn", group=_GAME),
+    # Named for whose rating it is, because the tables grid has one too and "Rating"
+    # in two places invites the reader to assume they are the same number.
+    grid.column("rating", "Game Rating", group=_GAME,
+                cellClass="hub-stars-cell",
+                **grid.choice_filter(_RATING_CHOICES),
+                **{":cellRenderer": _stars("game")}),
 ]
 
 # Presets, not a replacement for choosing columns: a view sets which columns are
@@ -61,11 +122,20 @@ COLUMNS = [
 # Only fields that belong to a game. `rom` and `version` do not: game_repository reads
 # them from the default table, so at this grain they report one table's and call them
 # the game's. Tables is where that question is answered.
+# Which part of a game a view is about, so a row lands there rather than on Details
+# and one more click. Only where the view leaves no doubt - the rest open wherever the
+# panel was, which is what stepping down a list needs.
+VIEW_SECTIONS = {"builtin:Media": "media"}
+
 GAME_VIEWS: dict[str, list[str]] = {
     "Metadata": ["name", "table_count", "manufacturer", "year", "game_type",
                  "themes", "rating"],
-    # Media is built from the library's own kinds, so it is added at render time.
+    # Media and Assets are built from what the library reports it has, so both are
+    # filled at render time. Two views, not one: they answer different questions - what
+    # a game looks like, and what it needs to play as intended - and a matrix that mixes
+    # them is neither.
     "Media": [],
+    "Assets": [],
 }
 
 _ALL = [definition["field"] for definition in COLUMNS]
@@ -90,6 +160,12 @@ SUBJECT_STUBS = {
 }
 
 
+# An asset column asks whether the game has one, and "Missing" is the word the media
+# vocabulary already uses for the same absence.
+_HAS_CHOICES = [{"value": True, "label": "Present"},
+                {"value": False, "label": "Missing"}]
+
+
 def asset_columns(keys: list[str]) -> list[dict[str, Any]]:
     """One column per asset kind, availability only.
 
@@ -100,8 +176,83 @@ def asset_columns(keys: list[str]) -> list[dict[str, Any]]:
     labels = {key: _ASSET_LABELS.get(key) or humanize(key) for key in keys}
     width = max((grid.header_width(label) for label in labels.values()), default=92)
     return [grid.column(f"asset_{key}", label, width, group=_ASSETS,
-                        cellStyle={"textAlign": "center"}, **_TICK)
+                        cellStyle={"textAlign": "center"},
+                        **{**_TICK, **grid.choice_filter(_HAS_CHOICES)})
             for key, label in sorted(labels.items(), key=lambda kv: kv[1].lower())]
+
+
+# Word -> how to draw it, derived from the vocabulary rather than restated. The cell
+# holds the word and the mark is drawn from it here; `hubui/data.py` has why.
+_MARK_BY_WORD = {
+    tier.noun: {"mark": tier.mark, "why": tier.why}
+    for tier in (media_ownership.tier_for(key) for key in media_ownership.STATES)
+}
+
+# What the funnel offers on a media column, in the legend's own words and marks. The
+# value is what the cell holds - "" for missing, which is a blank cell and so a choice
+# like any other rather than the one state the filter cannot express.
+_STATE_CHOICES = [
+    {"value": "" if key == media_ownership.MISSING
+     else media_ownership.tier_for(key).noun,
+     "label": media_ownership.tier_for(key).noun,
+     "mark": f"hub-mark {media_ownership.tier_for(key).mark}"}
+    for key in media_ownership.STATES
+]
+
+
+# One renderer for both presentations, choosing on a flag rather than on the value.
+# The alternative - swapping the column's renderer - cannot work: the ":" prefix that
+# marks a string as JavaScript is resolved when the grid is built, so a definition
+# pushed through `setGridOption` later arrives as a literal string.
+#
+# With the pictures on, a kind that has no picture - audio, video, a rule sheet - keeps
+# its mark rather than emptying: the file is there either way, and a column that goes
+# blank when you ask to see the art reads as one that lost its files.
+_MARK_RENDERER = (
+    "params => {"
+    " const kind = params.colDef.field.slice(6);"
+    " if (window.__hubThumbs) {"
+    " const row = params.data || {}; const art = row['thumb_' + kind];"
+    " if (art) return '<span class=\"hub-cell-art\">' + art"
+    " + '<i class=\"material-icons hub-cell-zoom\" title=\"Enlarge\" data-game=\"'"
+    " + row.id + '\" data-kind=\"' + kind + '\">open_in_full</i></span>'; }"
+    " const m = " + json.dumps(_MARK_BY_WORD) + ";"
+    " const t = m[params.value]; if (!t) return '';"
+    " const tip = params.value + ' \u2014 ' + t.why;"
+    " return '<span class=\"hub-mark ' + t.mark + '\" title=\"' + tip"
+    " + '\"></span>'; }"
+)
+
+
+# Delegated and installed once: NiceGUI strips inline handlers off raw HTML, and a
+# renderer runs again on every scroll. The click is taken in the *capture* phase,
+# because AG Grid's handler sits between the cell and the document - stopping the event
+# on the way back up is too late, and enlarging would also pick the slot.
+_CELL_MEDIA = """
+if (!window.__hubCellMedia) {
+  window.__hubCellMedia = true;
+  const clip = (el) => el && el.closest
+    ? el.closest('.hub-media-cell')?.querySelector('video') : null;
+  document.addEventListener('mouseover', (e) => {
+    const v = clip(e.target);
+    if (v && v.paused) v.play().catch(() => {});
+  });
+  document.addEventListener('mouseout', (e) => {
+    const v = clip(e.target);
+    if (!v) return;
+    const cell = e.target.closest('.hub-media-cell');
+    if (e.relatedTarget && cell && cell.contains(e.relatedTarget)) return;
+    v.pause();
+    v.currentTime = 0.1;
+  });
+  document.addEventListener('click', (e) => {
+    const zoom = e.target.closest && e.target.closest('.hub-cell-zoom');
+    if (!zoom) return;
+    e.stopPropagation();
+    emitEvent('hub_media_zoom', {game: zoom.dataset.game, kind: zoom.dataset.kind});
+  }, true);
+}
+"""
 
 
 def media_columns(kinds: list[str]) -> list[dict[str, Any]]:
@@ -122,7 +273,9 @@ def media_columns(kinds: list[str]) -> list[dict[str, Any]]:
                for kind in sorted(kinds, key=lambda k: labels.get(k, k).lower())}
     width = max((grid.header_width(header) for header in headers.values()), default=92)
     return [grid.column(f"media_{kind}", header, width,
-                        cellStyle={"textAlign": "center"}, group=_MEDIA)
+                        cellClass="hub-media-cell", group=_MEDIA,
+                        **grid.choice_filter(_STATE_CHOICES),
+                        **{":cellRenderer": _MARK_RENDERER})
             for kind, header in headers.items()]
 
 
@@ -189,16 +342,25 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         search = ui.input(placeholder="Search games") \
             .props("dense outlined clearable").classes("w-64")
         # The media preset is the library's own kinds, so it is only knowable here.
-        presets = {**GAME_VIEWS, "Media": ["name", *[f"media_{kind}" for kind in kinds]]}
+        presets = {**GAME_VIEWS,
+                   "Media": ["name", *[f"media_{kind}" for kind in kinds]],
+                   "Assets": ["name", *[f"asset_{key}" for key in library.asset_keys()]]}
         wire_views, view_picker = view_control(library, SCOPE, presets, all_fields,
                                               columns)
         cells = ui.toggle(list(RENDERERS), value="Ticks").props("dense no-caps unelevated")
         cells.bind_visibility_from(view_picker, "value",
                                    lambda value: value == "builtin:Media")
         ui.space()
-        legend = ui.html("".join(
-            f'{data.mark_html(shape)} <span>{word}</span>&nbsp;&nbsp;'
-            for shape, word in TIER_LEGEND)).classes("text-xs opacity-60 hub-tier-key")
+        # Read from the vocabulary rather than restated here, and each entry carries
+        # its own explanation on hover - a legend that names a state without saying
+        # what it means is half a legend.
+        with ui.row().classes("items-center gap-3 no-wrap text-xs opacity-60 "
+                              "hub-tier-key") as legend:
+            for key in media_ownership.LEGEND:
+                tier = media_ownership.tier_for(key)
+                with ui.row().classes("items-center gap-1 no-wrap").tooltip(tier.why):
+                    ui.element("span").classes(f"hub-mark {tier.mark}")
+                    ui.label(tier.noun)
         legend.bind_visibility_from(view_picker, "value",
                                     lambda value: value == "builtin:Media")
         # The selection count sits with the total: it is the same fact - how much am I
@@ -223,10 +385,61 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     by_id = {row["id"]: row for row in rows}
 
     def focused(event) -> Any:
-        """The row the keyboard or a click landed on, which is what is being looked at."""
-        return on_select(by_id.get(str(event.args)))
+        """The row the keyboard or a click landed on, and the part of it in question.
+
+        A media cell is a question about one slot, so the panel opens there - out of a
+        collapsed panel too, because clicking a picture is asking to see it. A view only
+        names its section: reopening a panel somebody shut would fight them every row.
+        """
+        row = by_id.get(grid.focused_row(event))
+        column = grid.focused_column(event)
+        if row and column.startswith("media_"):
+            state["section"] = "media"
+            state.setdefault("slot", {"kind": None})["kind"] = column[len("media_"):]
+        elif row and state.get("section") != workbench.COLLAPSED:
+            section = VIEW_SECTIONS.get(str(view_picker.value or ""))
+            if section:
+                state["section"] = section
+        return on_select(row)
+
+    def zoom_media(event) -> None:
+        """Enlarge the file a cell is showing - the same viewer the media map opens."""
+        args = event.args if isinstance(event.args, dict) else {}
+        game_id, kind = str(args.get("game") or ""), str(args.get("kind") or "")
+        if game_id and kind:
+            mediaview.open_viewer(f"/api/v1/games/{game_id}/media/{kind}", kind,
+                                  media_label_map().get(kind, kind))
+
+    async def rate_row(event) -> None:
+        """Set a rating from the stars, and redraw the one row that changed.
+
+        A whole-grid refresh would cost the scroll position and the selection for one
+        number - and the row is the only thing that knows it changed.
+        """
+        args = event.args if isinstance(event.args, dict) else {}
+        game_id, table_id = str(args.get("game") or ""), str(args.get("table") or "")
+        value = int(args.get("value") or 0)
+        if not game_id:
+            return
+        client = HubClient()
+        try:
+            if table_id:
+                await run.io_bound(client.rate_table, game_id, table_id, value)
+            else:
+                await run.io_bound(client.rate, game_id, value)
+        except Exception as exc:
+            ui.notify(f"Could not save that rating: {exc}", type="negative")
+            return
+        row = by_id.get(table_id or game_id)
+        if row is not None:
+            row["rating"] = value
+            table.run_grid_method("applyTransaction", {"update": [row]})
 
     ui.on("hub_row_focus", focused)
+    ui.on("hub_media_zoom", zoom_media)
+    ui.on("hub_rate", rate_row)
+    ui.run_javascript(_CELL_MEDIA)
+    ui.run_javascript(_STARS_JS)
 
     def on_context(row: dict | None) -> None:
         # The row menu acts on the row under the cursor, which is not necessarily the
@@ -278,7 +491,6 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                 ui.item_label(row.get("name") or "").props("header") \
                     .classes("hub-menu-header")
                 ui.separator()
-                ui.menu_item("Rate", lambda: _rate(context_row)).classes("hub-menu-item")
                 ui.menu_item("Launch", lambda: _launch(context_row)).classes("hub-menu-item")
 
     # The menu hangs off a wrapper, not off the grid: ui.aggrid's Vue template is a bare
@@ -287,23 +499,30 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     # The wrapper has to carry the flex chain too, not just anchor the menu: as a plain
     # block it collapsed to its content height and the grid inside it never filled.
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
+        # No `html_fields` for the media columns: NiceGUI answers that by installing a
+        # renderer of its own, and these columns bring theirs. The cell's value is a
+        # word now, so a column left to render itself would print it - which is the
+        # accident this replaces, not the intent.
         table = grid.build(columns, rows, SCOPE, on_select_rows, on_context,
-                           on_header_context,
-                           html_fields=[f"media_{k}" for k in kinds])
+                           on_header_context)
         context_menu = ui.context_menu()
 
     def apply_renderer() -> None:
         """Redraw the media cells as marks or as pictures.
 
-        The field is the same either way; only its presentation changes. Rows carry
-        both, so this is a redraw - no refetch, and filters and sort survive it.
+        The *renderer* changes; the value never does. Swapping the picture into the
+        value left the filter matching whichever presentation was showing, so filtering
+        by "All tables" broke the moment the thumbnails came on.
         """
         thumbs = cells.value == "Thumbnails"
-        for row, source in zip(table.options["rowData"], rows, strict=True):
-            for kind in kinds:
-                row[f"media_{kind}"] = source[f"thumb_{kind}" if thumbs else f"media_{kind}"]
-        table.run_grid_method("setGridOption", "rowHeight", 60 if thumbs else 42)
-        table.update()
+        height = 60 if thumbs else 42
+        ui.run_javascript(f"window.__hubThumbs = {str(thumbs).lower()}")
+        table.run_grid_method("setGridOption", "rowHeight", height)
+        # The same number twice, because AG Grid keeps two: the option lays the row out,
+        # `--ag-row-height` is what its stylesheet derives a cell's line height from and
+        # it does not follow the option. Left behind, every cell in a taller row - the
+        # name as much as the picture - drew against a 39px line box and sat high in it.
+        table.style(f"--ag-row-height: {height}px")
         table.run_grid_method("redrawRows")
 
     cells.on_value_change(apply_renderer)
@@ -316,13 +535,68 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
 # rather than read. The value stays boolean underneath, which is what lets the column
 # sort and filter - a column of "Yes"/"" strings would sort alphabetically and filter
 # as text.
+# The community text filter does not read a boolean fine, which is what this used to
+# say: it offers a select reading "Choose one / True / False" - "Choose one" twice, since
+# the placeholder is also the first option, and the two words that follow are the wire's,
+# not a person's. Two choices in the column's own terms instead.
+def _two(words: tuple[str, str]) -> list[dict[str, Any]]:
+    """A fact's own pair as the funnel's two choices, true first - which is the notable
+    state, because that is the direction every one of these columns reads."""
+    return [{"value": True, "label": words[0]}, {"value": False, "label": words[1]}]
+
+
 _TICK = {
     ":valueFormatter": "params => params.value ? '\u2713' : ''",
     "cellClass": "hub-tick",
-    # No filter override: the set filter is an AG Grid Enterprise module and this
-    # project is MIT-only. The community text filter reads a boolean fine.
     ":cellRenderer": None,
+    # Yes and No, because the column's own header is the noun: "Hidden" answers yes or
+    # no, and a pair naming the thing again would read as "Hidden: Present". A column
+    # whose subject has better words passes its own.
+    **grid.choice_filter([{"value": True, "label": "Yes"},
+                          {"value": False, "label": "No"}]),
 }
+
+
+# One column per feature, drawn as a mark. Not used draws nothing at all, so what a
+# reader sees down a column is the tables that have it and the tables nobody has read.
+_FEATURE_MARKS = {
+    key: {"mark": table_features.state_for(key).mark,
+          "noun": table_features.state_for(key).noun,
+          "why": table_features.state_for(key).why}
+    for key in table_features.STATES
+}
+
+_FEATURE_RENDERER = (
+    "params => {"
+    " const m = " + json.dumps(_FEATURE_MARKS) + ";"
+    " const v = params.value;"
+    " const t = m[v === null || v === undefined ? '" + table_features.UNKNOWN
+    + "' : (v ? '" + table_features.IN_SCRIPT + "' : '" + table_features.UNUSED + "')];"
+    " if (!t || !t.mark) return '';"
+    " return '<span class=\"hub-mark ' + t.mark + '\" title=\"' + t.noun"
+    " + ' \u2014 ' + t.why + '\"></span>'; }"
+)
+
+# The value is a boolean and null, so the funnel offers the three words rather than a
+# text box somebody has to know to type "true" into. Null arrives as "" - the component
+# reads an absent value that way, which is what makes "not parsed yet" pickable.
+_FEATURE_CHOICES = [
+    {"value": True, "label": table_features.state_for(table_features.IN_SCRIPT).noun,
+     "mark": f"hub-mark {table_features.state_for(table_features.IN_SCRIPT).mark}"},
+    {"value": False, "label": table_features.state_for(table_features.UNUSED).noun},
+    {"value": "", "label": table_features.state_for(table_features.UNKNOWN).noun,
+     "mark": f"hub-mark {table_features.state_for(table_features.UNKNOWN).mark}"},
+]
+
+_FEATURES = "Features"
+
+FEATURE_COLUMNS = [
+    grid.column(f"feature_{key}", label, group=_FEATURES,
+                cellClass="hub-media-cell",
+                **grid.choice_filter(_FEATURE_CHOICES),
+                **{":cellRenderer": _FEATURE_RENDERER})
+    for key, label in table_features.LABELS.items()
+]
 
 
 # One row per launchable file. The game's name leads, because a filename alone does not
@@ -343,22 +617,41 @@ TABLE_COLUMNS = [
     # one of them. Each of these sorts and filters on its own, which is what a list is
     # for. A summary column can be built later, deliberately, from these.
     # Not a tick: a chosen default and a derived one are different facts.
-    grid.column("default_state", "Default", group=_IN_PLAY),
-    grid.column("hidden", "Hidden", group=_IN_PLAY, **_TICK),
-    grid.column("missing", "Missing", group=_IN_PLAY, **_TICK),
+    grid.column("default_state", "Default", group=_IN_PLAY,
+                **grid.choice_filter(
+                    [{"value": word, "label": word}
+                     for word, _why in game_tables.DEFAULT_WORDS.values()]
+                    + [{"value": "", "label": "Not the default"}])),
+    grid.column("rating", "Table Rating", group=_TABLE,
+                cellClass="hub-stars-cell",
+                **grid.choice_filter(_RATING_CHOICES),
+                **{":cellRenderer": _stars("table")}),
+    # Each column's own words, not a generic pair: "Hidden: Yes" is a question about a
+    # question, where "Hidden / Offered" is the fact and its opposite.
+    grid.column("hidden", "Hidden", group=_IN_PLAY,
+                **{**_TICK, **grid.choice_filter(
+                    _two(game_tables.HIDDEN_WORDS))}),
+    grid.column("missing", "Missing", group=_IN_PLAY,
+                **{**_TICK, **grid.choice_filter(
+                    _two(game_tables.FILE_WORDS))}),
     # Last and widest: it is the identifier of record, and the part that tells two
     # tables of one game apart sits at its end.
     grid.column("filename", "File", 420, group=_TABLE),
+    *FEATURE_COLUMNS,
 ]
 
 TABLE_VIEWS: dict[str, list[str]] = {
     # Default and Hidden ride in every preset: which table a game offers and whether it
     # is offered at all are the questions this view exists to answer, and a preset that
     # hides them is a list of files.
-    "Identity": ["game", "version", "author", "default_state", "hidden",
+    "Identity": ["game", "version", "author", "rating", "default_state", "hidden",
                  "filename"],
     "Files": ["game", "filename", "app", "default_state", "hidden", "missing"],
-    "Play": ["game", "rom", "app", "default_state", "hidden"],
+    "Play": ["game", "rom", "app", "rating", "default_state", "hidden"],
+    # Its own view, not seven more columns on Play: this is a matrix, the same shape as
+    # Media on the games grid, and Play stays a list somebody can read across.
+    "Features": ["game", "version", "author",
+                 *[f"feature_{key}" for key in table_features.LABELS]],
 }
 
 
@@ -383,6 +676,12 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{**row,
              "missing": not row.get("available", True),
              "author": ", ".join(row.get("authors") or []),
+             # One field per feature: a grid column reads a field, and the payload's
+             # nested dict would have every column reaching into the same object.
+             # `.get` rather than a default of False - a table nobody parsed answers
+             # null for all seven, and inventing False here would lose that.
+             **{f"feature_{key}": (row.get("features") or {}).get(key)
+                for key in table_features.LABELS},
              # The word, not the flag, and always one of the two on the table that is
              # the default. Blanking it where a game has one table made "not
              # applicable" a third state read from an empty cell - and a column that
@@ -410,9 +709,22 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         _subject_select(state, rerender, state.get("subject", "table"))
         search = ui.input(placeholder="Search tables") \
             .props("dense outlined clearable").classes("w-64")
-        wire_views, _ = view_control(library, f"{SCOPE}.tables",
-                                     TABLE_VIEWS, fields, TABLE_COLUMNS)
+        wire_views, view_picker = view_control(library, f"{SCOPE}.tables",
+                                               TABLE_VIEWS, fields, TABLE_COLUMNS)
         ui.space()
+        # Every glyph column carries a legend (HUBUI section 6), and this one names all
+        # three states - including the one drawn as nothing, which is the state a reader
+        # is least able to work out from the grid.
+        with ui.row().classes("items-center gap-3 no-wrap text-xs opacity-60 "
+                              "hub-tier-key") as legend:
+            for key in table_features.STATES:
+                state = table_features.state_for(key)
+                with ui.row().classes("items-center gap-1 no-wrap").tooltip(state.why):
+                    ui.element("span").classes(f"hub-mark {state.mark}".strip()
+                                               if state.mark else "hub-mark-none")
+                    ui.label(state.noun)
+        legend.bind_visibility_from(view_picker, "value",
+                                    lambda value: value == "builtin:Features")
         ui.label(f"{len(built)} tables in {len({r['game_id'] for r in built})} games") \
             .classes("text-xs hub-label")
 
@@ -420,7 +732,35 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     # rather than selection, so arrowing down the list is a sweep and the checkboxes
     # stay whatever a bulk action left them.
     by_id = {row["id"]: row for row in built}
-    ui.on("hub_row_focus", lambda event: on_select(by_id.get(str(event.args))))
+    async def rate_row(event) -> None:
+        """Set a rating from the stars, and redraw the one row that changed.
+
+        A whole-grid refresh would cost the scroll position and the selection for one
+        number - and the row is the only thing that knows it changed.
+        """
+        args = event.args if isinstance(event.args, dict) else {}
+        game_id, table_id = str(args.get("game") or ""), str(args.get("table") or "")
+        value = int(args.get("value") or 0)
+        if not game_id:
+            return
+        client = HubClient()
+        try:
+            if table_id:
+                await run.io_bound(client.rate_table, game_id, table_id, value)
+            else:
+                await run.io_bound(client.rate, game_id, value)
+        except Exception as exc:
+            ui.notify(f"Could not save that rating: {exc}", type="negative")
+            return
+        row = by_id.get(table_id or game_id)
+        if row is not None:
+            row["rating"] = value
+            table.run_grid_method("applyTransaction", {"update": [row]})
+
+    ui.on("hub_row_focus",
+          lambda event: on_select(by_id.get(grid.focused_row(event))))
+    ui.on("hub_rate", rate_row)
+    ui.run_javascript(_STARS_JS)
 
     row_menu: dict[str, Any] = {}
 
@@ -488,21 +828,21 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                 # Managed here, where every candidate for the game is visible at once.
                 if not row.get("default"):
                     ui.menu_item(
-                        "Make this the game's default",
+                        "Make default",
                         lambda r=row: act(library.set_default_table, r["game_id"],
                                           r["id"], said="Now this game's default")) \
                         .classes("hub-menu-item")
                 elif (row.get("default_kind") or "") == game_tables.CHOSEN:
-                    # The way back, as every other override is marked. Clearing the
-                    # choice does not clear the default - it becomes Auto.
+                    # The way back. Clearing the choice does not clear the default - it
+                    # becomes automatic, which is what the panel's chip then reads.
                     ui.menu_item(
-                        "Let VPinFE pick the default",
+                        "Clear choice",
                         lambda r=row: act(library.set_default_table, r["game_id"], "",
                                           said="Back to an automatic default")) \
                         .classes("hub-menu-item")
                 hidden = bool(row.get("hidden"))
                 ui.menu_item(
-                    "Offer this in the frontend" if hidden else "Hide from the frontend",
+                    "Unhide" if hidden else "Hide",
                     lambda r=row, h=hidden: act(library.set_table_hidden, r["game_id"],
                                                 r["id"], not h,
                                                 said="Now offered" if h else "Hidden")) \

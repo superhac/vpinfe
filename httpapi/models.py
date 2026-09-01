@@ -451,6 +451,9 @@ class TableRow(ApiModel):
     authors: list[str] = []
     # This table's own rating, not its game's. 0 is unrated, which is most of them.
     rating: int = 0
+    # What the script was seen to use, three-valued per feature: true, false, and null
+    # for a table nothing has parsed - which is not the same as no.
+    features: dict[str, bool | None] = {}
     rom: str = ""
     # Whether that rom is actually installed. **Null when the table declares none** -
     # a table with no rom is not required to have one, and reporting that as missing

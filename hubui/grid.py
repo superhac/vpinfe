@@ -52,6 +52,92 @@ def header_width(header: str) -> int:
     return longest * _HEADER_CHAR_PX + _HEADER_CHROME_PX if longest else 0
 
 
+# A picker in the funnel, where AG Grid's text box would be: on a column of marks that
+# box asks the reader to know the word behind a circle, and on a boolean it offers
+# "Choose one / True / False". The set filter that would fix it is Enterprise; a custom
+# filter is not, and community takes any class implementing the interface.
+#
+# `choices` is [{value, label, mark, repeat}], the value being what the cell holds - so
+# a blank cell is a choice like any other rather than the one state a filter cannot
+# express.
+CHOICE_FILTER = "window.HubChoiceFilter"
+
+_CHOICE_FILTER_JS = """
+if (!window.HubChoiceFilter) {
+  window.HubChoiceFilter = class {
+    init(params) {
+      this.params = params;
+      this.picked = new Set();
+      this.boxes = new Map();
+      this.gui = document.createElement('div');
+      this.gui.className = 'hub-filter';
+      for (const choice of params.choices || []) {
+        const row = document.createElement('label');
+        row.className = 'hub-filter-row';
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.addEventListener('change', () => {
+          box.checked ? this.picked.add(choice.value) : this.picked.delete(choice.value);
+          this.params.filterChangedCallback();
+        });
+        row.appendChild(box);
+        // `repeat` draws the mark more than once, which is how a rating says three
+        // rather than saying "3" beside a picture of one star.
+        for (let n = 0; n < (choice.mark ? (choice.repeat || 1) : 0); n++) {
+          const mark = document.createElement('span');
+          mark.className = choice.mark;
+          row.appendChild(mark);
+        }
+        const word = document.createElement('span');
+        word.textContent = choice.label;
+        row.appendChild(word);
+        this.boxes.set(choice.value, box);
+        this.gui.appendChild(row);
+      }
+    }
+    getGui() { return this.gui; }
+    isFilterActive() { return this.picked.size > 0; }
+    doesFilterPass(params) {
+      const held = this.params.getValue(params.node);
+      // A cell with nothing in it is the "missing" choice, whose value is "".
+      return this.picked.has(held === null || held === undefined ? '' : held);
+    }
+    getModel() { return this.picked.size ? {values: [...this.picked]} : null; }
+    setModel(model) {
+      this.picked = new Set((model && model.values) || []);
+      for (const [value, box] of this.boxes) box.checked = this.picked.has(value);
+    }
+  };
+}
+"""
+
+
+def install_filters() -> None:
+    """Put the filter component on the page. Once per page, before any grid is built."""
+    ui.add_body_html(f"<script>{_CHOICE_FILTER_JS}</script>")
+
+
+def choice_filter(choices: list[dict[str, Any]]) -> dict[str, Any]:
+    """Column options that filter by picking a state rather than by typing one."""
+    return {":filter": CHOICE_FILTER, "filterParams": {"choices": choices}}
+
+
+def focused_row(event: Any) -> str:
+    """The row id out of a focus event, and `focused_column` the column it landed in.
+
+    The column travels with it because a cell is a more specific place than a row: the
+    Games grid opens the workbench on the part of the game the column is about. Older
+    payloads were the bare id, so both read either shape.
+    """
+    args = event.args
+    return str((args.get("id") if isinstance(args, dict) else args) or "")
+
+
+def focused_column(event: Any) -> str:
+    args = event.args
+    return str((args.get("col") if isinstance(args, dict) else "") or "")
+
+
 def two_line(header: str) -> str:
     """Break the last word onto its own line, so a long header stays a narrow column."""
     words = header.split()
@@ -114,7 +200,8 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         # containers, each its own .ag-row.
         ":onCellFocused":
             "params => { const r = params.api.getDisplayedRowAtIndex(params.rowIndex); "
-            "if (r) emitEvent('hub_row_focus', r.data.id); "
+            "if (r) emitEvent('hub_row_focus', "
+            "{id: r.data.id, col: params.column && params.column.getColId()}); "
             "window.__hubFocusRow = params.rowIndex; "
             "window.__hubMarkFocus && window.__hubMarkFocus(); }",
         # Rows are recycled as you scroll, so the mark rides the wrong row without

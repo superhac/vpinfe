@@ -8,7 +8,7 @@ from typing import Any
 from nicegui import run, ui
 
 from hubui import collections as collections_page
-from hubui import deeplink, games, sections, theme, views, workbench
+from hubui import deeplink, games, grid, sections, theme, views, workbench
 from hubui import devices as devices_page
 from hubui import settings as settings_page
 from hubui.api import HubClient
@@ -106,6 +106,7 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
     ui.dark_mode(True)
     theme.apply_colors(dark=True)
     theme.apply_flair()
+    grid.install_filters()
     # The shell takes the viewport once, here, and every height below it is flex. The
     # old layout gave each pane its own calc(100vh - N) against chrome that later
     # changed, so a pane collapsed the moment the header it was subtracting went away.

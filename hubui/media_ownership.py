@@ -24,22 +24,43 @@ MISSING = "missing"
 
 @dataclass(frozen=True)
 class Tier:
-    """The forms a surface might need: `noun` for a badge, `phrase` for inline in
-    somebody else's sentence, `css` to color it. Whole sentences are built rather
-    than stored, because two of them depend on what is being looked at."""
+    """The forms a surface might need: `noun` for a badge or a cell, `phrase` for
+    inline in somebody else's sentence, `css` to color it, `mark` to draw it, `why`
+    to explain it on hover. Whole sentences are built rather than stored, because two
+    of them depend on what is being looked at."""
 
     key: str
     noun: str
     phrase: str
     css: str
+    mark: str
+    why: str
 
 
+# The marks are a ramp by specificity: filled is bound to one table, hollow is the
+# least specific, and a stand-in is the odd one out so it does not read as a degree of
+# the others.
 _TIERS = {
-    TABLE: Tier(TABLE, "This table", "just this table", "hub-tier--table"),
-    GAME: Tier(GAME, "All tables", "shared by every table", "hub-tier--game"),
-    STAND_IN: Tier(STAND_IN, "Stand-in", "standing in for it", "hub-tier--standin"),
-    MISSING: Tier(MISSING, "Missing", "not here", "hub-tier--missing"),
+    TABLE: Tier(TABLE, "This table", "just this table", "hub-tier--table",
+                "hub-mark--full", "A file named for this table, and only it uses it"),
+    GAME: Tier(GAME, "All tables", "shared by every table", "hub-tier--game",
+               "hub-mark--outline", "A file the whole game shares"),
+    STAND_IN: Tier(STAND_IN, "Stand-in", "standing in for it", "hub-tier--standin",
+                   "hub-mark--set", "Something else is filling this slot"),
+    MISSING: Tier(MISSING, "Missing", "not here", "hub-tier--missing",
+                  "hub-mark--dashed", "Nothing here"),
 }
+
+# Most specific first. `LEGEND` omits Missing, which a legend does not need - a blank
+# cell is not a state anybody looks up - and `STATES` is all four, for a caller that
+# has to map every one.
+STATES = (TABLE, GAME, STAND_IN, MISSING)
+LEGEND = (TABLE, GAME, STAND_IN)
+
+
+def tier_for(key: str) -> Tier:
+    """The entry for a state that is already named, which a legend walks."""
+    return _TIERS[key]
 
 
 def key_of(via: str | None) -> str:

@@ -6,55 +6,54 @@ import logging
 import time
 from typing import Any
 
+from common.media_specs import media_family
+from hubui import media_ownership
 from hubui.api import HubClient
 
 logger = logging.getLogger("vpinfe.hubui")
 
-# One mark per resolution tier, so a cell says *why* this file is the one being used,
-# not merely that something is. More fill reads as more specific. Blank is missing,
-# because a sparse matrix is scannable and a full one is not.
+# The cell holds the *word*, never the mark. What a cell is worth filtering and sorting
+# on is the state; how it is drawn is the column's business. Holding the drawn mark made
+# the text filter match `<span class="hub-mark hub-mark--full">` - so typing "full" found
+# rows and typing "All tables" found none.
 #
-# Drawn rather than typed, and sharing `.hub-mark` with the reference marks in
-# `game_tables.py`. As characters these were not a matched set - ● measures 9.4px in
-# this font where ◐ measures 15 - so a column of them was ragged and the smaller ones
-# read as specks. The shapes are shared; the meanings are each vocabulary's own.
-TIER_MARKS = {
-    "table": "hub-mark--full",      # this table's own file
-    "game": "hub-mark--half",       # named for the folder, shared by the game's tables
-    "default": "",                  # the fixed-name slot, where vpinmediadb writes
-}
-SET_MARK = "hub-mark--set"
-FALLBACK_MARK = "hub-mark--dashed"
-
-TIER_LEGEND = (("hub-mark--full", "table"), ("hub-mark--half", "game"),
-               ("", "default"), ("hub-mark--set", "set"),
-               ("hub-mark--dashed", "borrowed"))
+# The words are `media_ownership`'s, which is the module that owns them. The grid used to
+# keep its own five - splitting the folder-named file from the fixed-name slot - and that
+# split is about our filename conventions rather than anything a reader has a concept
+# for, which is the argument that module already makes.
 
 
-def mark_html(shape: str) -> str:
-    """One mark as a cell's worth of HTML. The media columns are html fields already,
-    which is what makes a drawn mark free here."""
-    return '<span class="hub-mark ' + shape + '"></span>'
+# A video shows the frame at `#t=0.1` - metadata alone paints nothing, and the fragment
+# is what makes the browser seek. Muted, or a hover cannot start it. `mediamap.py` uses
+# the same two elements for the same reason; the sizing is the cell's.
+_ART = "height:52px;max-width:100%;object-fit:contain"
+_PICTURE = f'<img src="{{src}}" loading="lazy" style="{_ART}">'
+_VIDEO = (f'<video src="{{src}}#t=0.1" preload="metadata" muted playsinline loop'
+          f' style="{_ART}"></video>')
 
 
 def _thumb(game_id: str, kind: str, entry: dict) -> str:
-    if not entry.get("present"):
+    """The art for a cell, and nothing where the kind has none: audio and rule sheets
+    drew a broken icon while every present file was asked to be an `<img>`. The kind's
+    name is not the test - `loading` is a video."""
+    family = media_family(kind)
+    if not entry.get("present") or family not in ("image", "video"):
         return ""
-    return (f'<img src="/api/v1/games/{game_id}/media/{kind}" loading="lazy" '
-            f'style="height:52px;max-width:100%;object-fit:contain">')
+    src = f"/api/v1/games/{game_id}/media/{kind}"
+    return (_VIDEO if family == "video" else _PICTURE).format(src=src)
 
 
 def _glyph(entry: dict) -> str:
+    """The word for this cell: what the filter matches and the sort orders on.
+
+    Blank when nothing is there - a sparse matrix stays scannable and a column of
+    "Missing" says nothing. A present file whose tier we cannot name still reads as
+    present rather than vanishing: an unknown tier is a gap in our knowledge, not an
+    absent file.
+    """
     if not entry.get("present"):
         return ""
-    tier = entry.get("via") or ""
-    if tier.startswith("set:"):
-        return mark_html(SET_MARK)
-    if tier.startswith("fallback:"):
-        return mark_html(FALLBACK_MARK)
-    # A present file whose tier we cannot name still shows as present rather than
-    # vanishing - an unknown tier is a gap in our knowledge, not an absent file.
-    return mark_html(TIER_MARKS.get(tier, "hub-mark--full"))
+    return media_ownership.noun(entry.get("via"))
 
 
 class Library:

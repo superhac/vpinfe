@@ -148,7 +148,8 @@ def build(collections: list[dict[str, Any]], library: Any,
         bulk.set_visibility(False)
 
     by_id = {row["id"]: row for row in built}
-    ui.on("hub_row_focus", lambda event: on_select(by_id.get(str(event.args))))
+    ui.on("hub_row_focus",
+          lambda event: on_select(by_id.get(grid.focused_row(event))))
     picked: list[dict[str, Any]] = []
 
     def on_selected(rows_selected: list[dict[str, Any]]) -> None:

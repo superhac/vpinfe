@@ -104,6 +104,14 @@ class HubClient:
                                      json={"rating": rating}, timeout=_TIMEOUT)
         response.raise_for_status()
 
+    def rate_table(self, game_id: str, table_id: str, rating: int) -> None:
+        """One table's own rating, which refines its game's rather than replacing it."""
+        _refuse_the_event_loop(f"/games/{game_id}/tables/{table_id}/rating")
+        response = self._session.put(
+            f"{self._base}/games/{game_id}/tables/{table_id}/rating",
+            json={"rating": rating}, timeout=_TIMEOUT)
+        self._answered(response)
+
     def launch(self, game_id: str, file: str = "") -> None:
         """`file` picks one of the game's tables; empty launches its default."""
         _refuse_the_event_loop(f"/games/{game_id}/launch")

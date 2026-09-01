@@ -180,6 +180,24 @@ class TableScriptTests(_Lens):
         self.assertEqual(response.json()["error"]["code"], "feature_unavailable")
 
 
+class TableFeatureTests(_Lens):
+    """The library-wide rows list their fields by hand, so anything the hub reads there
+    has to be named or it is silently dropped - which is how `rating` read as 0 twice."""
+
+    def test_a_row_carries_what_the_script_uses(self) -> None:
+        row = self._rows()[0]
+
+        self.assertIn("features", row)
+        self.assertIn("ssf", row["features"])
+
+    def test_a_table_nobody_parsed_answers_null_not_false(self) -> None:
+        """Three states. False here would report a clean bill of health for a script
+        nothing has read."""
+        row = self._rows()[0]
+
+        self.assertIsNone(row["features"]["ssf"])
+
+
 class TableRatingTests(_Lens):
     """A table's own rating - INFO-SCHEMA section 8.1's open UI call, answered by the
     hub's Tables grid: the row you rate is the file."""
