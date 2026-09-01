@@ -33,6 +33,7 @@ from common.games import (
 from common.games.game_metadata import (
     load_game_meta,
     meta_file_path,
+    set_game_favorite,
     set_game_rating,
     set_table_rating,
     table_rating,
@@ -131,6 +132,7 @@ def _resource(row: dict, game_id: str) -> dict:
         # Media is the artwork VPinFE shows while browsing - see docs/conventions.md.
         # Summary from the scan; the detail endpoint recomputes and attributes files.
         "assets": _asset_summary(row),
+        "user": row.get("user") or {},
         "links": {
             "self": prefix,
             "tables": f"{prefix}/tables",
@@ -1144,6 +1146,21 @@ def put_game_rating(game_id: str, payload: models.RatingRequest) -> models.Ratin
     """
     game = _game_or_404(game_id)
     return {"rating": set_game_rating(game, payload.rating)}
+
+
+@router.put("/{game_id}/favorite", summary="Mark a game a favorite",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_game_favorite(game_id: str, payload: models.FavoriteRequest) -> models.Favorite:
+    """Set `User.Favorite` on a game.
+
+    A whole-value PUT, for the reason the rating gives: the flag is the resource, and
+    sending it twice is the same request rather than a toggle that races itself.
+
+    The field has been in the .info since the initial checkin with nothing ever writing
+    it. This is the producer, and it writes a real boolean.
+    """
+    game = _game_or_404(game_id)
+    return {"favorite": set_game_favorite(game, payload.favorite)}
 
 
 # Which keys each level will accept. Declared rather than inferred, so sending a

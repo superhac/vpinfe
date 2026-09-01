@@ -166,7 +166,7 @@ def build_runtime_submission_meta(game, user_state: dict) -> dict:
     user.update(
         {
             "Rating": 0,
-            "Favorite": 0,
+            "Favorite": False,
             "LastRun": user_state.get("LastRun"),
             "StartCount": user_state.get("StartCount", 0),
             "RunTime": user_state.get("RunTime", 0),

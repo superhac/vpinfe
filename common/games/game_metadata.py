@@ -254,6 +254,23 @@ def table_rating(table: dict) -> int:
     return normalize_rating((table.get("user") or {}).get("rating", 0))
 
 
+def set_game_favorite(game, favorite: Any) -> bool:
+    """Write `User.Favorite`, returning what was stored.
+
+    A real boolean. The field has been in the tree since the initial checkin and
+    every write until now was a zero-fill, so `0` is the only value any .info has
+    ever held - and the reader coerces, so an old one still reads false.
+
+    Re-read from disk first, for the reason `set_game_rating` gives.
+    """
+    stored = bool(favorite)
+    config = load_game_meta(game)
+    get_or_create_user_meta(config)["Favorite"] = stored
+    persist_game_meta(game, config)
+    game.meta_config = config
+    return stored
+
+
 def set_table_rating(game, filename: str, rating: Any) -> int:
     """Write one table's rating, returning what was stored.
 
@@ -336,7 +353,7 @@ def base_game_vps_id(game) -> str:
 def get_or_create_user_meta(config: dict[str, Any]) -> dict[str, Any]:
     user = config.setdefault("User", {})
     user.setdefault("Rating", 0)
-    user.setdefault("Favorite", 0)
+    user.setdefault("Favorite", False)
     user.setdefault("LastRun", None)
     user.setdefault("StartCount", 0)
     user.setdefault("RunTime", 0)

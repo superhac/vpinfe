@@ -22,6 +22,7 @@ from common.games.game_metadata import (
     default_table,
     first_meta_value,
     normalize_rating,
+    play_record,
     reorder_leading_article,
     section,
     vpinfe_section,
@@ -268,6 +269,10 @@ def game_to_row(game, collections_map: dict[str, list[str]] | None = None) -> di
         "alt_vpsid": str(vpinfe.get("alt_vpsid", "") or "").strip(),
         "frontend_dof_event": str(vpinfe.get("frontend_dof_event", "") or "").strip(),
         "rating": normalize_rating(user.get("Rating", 0)),
+        # The whole play record beside the flat rating. The rating shipped alone and
+        # readers hold it; this is where the rest of what a person did with a game
+        # lives, and it reached only the play lens until now.
+        "user": play_record(meta),
         "collections": [],
     }
     if collections_map is not None:

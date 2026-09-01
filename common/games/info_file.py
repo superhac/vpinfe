@@ -207,7 +207,7 @@ class MetaConfig:
 
         user = self.data.get("User", {
             "Rating": 0,
-            "Favorite": 0,
+            "Favorite": False,
             "LastRun": None,
             "StartCount": 0,
             "RunTime": 0,
@@ -216,7 +216,7 @@ class MetaConfig:
         if not isinstance(user, dict):
             user = {}
         user.setdefault("Rating", 0)
-        user.setdefault("Favorite", 0)
+        user.setdefault("Favorite", False)
         user.setdefault("LastRun", None)
         user.setdefault("StartCount", 0)
         user.setdefault("RunTime", 0)

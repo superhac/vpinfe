@@ -171,7 +171,7 @@ def _ensure_game_user_state(profile_key: str, game_key: str) -> dict[str, Any]:
         game_key,
         {
             "Rating": 0,
-            "Favorite": 0,
+            "Favorite": False,
             "LastRun": None,
             "StartCount": 0,
             "RunTime": 0,

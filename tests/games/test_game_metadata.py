@@ -1,7 +1,14 @@
 import unittest
 from types import SimpleNamespace
+from unittest import mock
 
-from common.games.game_metadata import as_string_list, game_themes, game_title, game_type
+from common.games import game_metadata as gm
+from common.games.game_metadata import (
+    as_string_list,
+    game_themes,
+    game_title,
+    game_type,
+)
 
 
 class AsStringListTests(unittest.TestCase):
@@ -44,3 +51,29 @@ class LegacyMetadataFieldTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FavoriteTests(unittest.TestCase):
+    """A real boolean, and a producer at last."""
+
+    def test_it_is_written_as_a_boolean(self) -> None:
+        """The .info is JSON and the vpinfe block beside this one already stores real
+        booleans; `Favorite: 0` was an INI-era habit carried into a format that has
+        true. Nothing had ever written a non-zero, so no value on disk is at risk."""
+        written = {}
+        game = SimpleNamespace(meta_config={"User": {"Favorite": 0}})
+
+        with mock.patch.object(gm, "load_game_meta", return_value=game.meta_config), \
+             mock.patch.object(gm, "persist_game_meta",
+                               side_effect=lambda g, c: written.update(c)):
+            stored = gm.set_game_favorite(game, True)
+
+        self.assertIs(stored, True)
+        self.assertIs(written["User"]["Favorite"], True)
+
+    def test_an_old_zero_still_reads_false(self) -> None:
+        """Every .info in the world holds 0, because the zero-fill was the only writer
+        there has ever been. The reader coerces, so they do not need migrating."""
+        self.assertIs(gm.play_record({"User": {"Favorite": 0}})["favorite"], False)
+        self.assertIs(gm.play_record({"User": {"Favorite": 1}})["favorite"], True)
+        self.assertIs(gm.play_record({"User": {"Favorite": True}})["favorite"], True)

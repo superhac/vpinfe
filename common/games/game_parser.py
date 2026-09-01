@@ -299,5 +299,3 @@ class GameParser:
     def getMissingGames(self):
         return [dict(row) for row in self.missing_games]
 
-    def isFavorite(self, Game):
-        return vpinfe_section(Game.meta_config).get("favorite", "").lower() == "true"

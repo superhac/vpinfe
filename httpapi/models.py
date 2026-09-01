@@ -275,6 +275,18 @@ class OverridesPatch(ApiModel):
     delete_nvram_on_close: bool | None = None
 
 
+class PlayRecord(ApiModel):
+    """What a person did with this, in a consumer's units rather than the file's - the
+    `.info` keeps LastRun as an epoch integer and RunTime in minutes."""
+
+    rating: int = 0
+    favorite: bool = False
+    tags: list[str] = Field(default_factory=list)
+    last_played: str | None = None
+    play_count: int = 0
+    play_time_seconds: int = 0
+
+
 class GameResource(ApiModel):
     """A game: the pinball-machine concept, not a launchable file. vps_id correlates
     with VPSdb and anything keyed by it; `id` is what identifies the game here."""
@@ -300,6 +312,10 @@ class GameResource(ApiModel):
     overrides: GameOverrides = GameOverrides()
     discovered: GameDiscovered = GameDiscovered()
     assets: dict[str, AssetEntry]
+    # The play record - rating, favorite, tags and the counters. It reached only the
+    # play lens (`EntryGame`), so the surface that manages a library could not show
+    # what somebody thought of a game or how much they had played it.
+    user: PlayRecord = Field(default_factory=PlayRecord)
     links: GameLinks
 
 
@@ -510,18 +526,6 @@ class TableForgotten(ApiModel):
     described a .vpx that is not on disk."""
 
     forgotten: str
-
-
-class PlayRecord(ApiModel):
-    """What a person did with this, in a consumer's units rather than the file's - the
-    `.info` keeps LastRun as an epoch integer and RunTime in minutes."""
-
-    rating: int = 0
-    favorite: bool = False
-    tags: list[str] = Field(default_factory=list)
-    last_played: str | None = None
-    play_count: int = 0
-    play_time_seconds: int = 0
 
 
 class TablePlayRecord(ApiModel):
@@ -1188,6 +1192,14 @@ class RatingRequest(ApiModel):
 
 class Rating(ApiModel):
     rating: int
+
+
+class FavoriteRequest(ApiModel):
+    favorite: bool
+
+
+class Favorite(ApiModel):
+    favorite: bool
 
 
 class LaunchRequest(ApiModel):
