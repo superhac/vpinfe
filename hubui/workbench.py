@@ -1043,8 +1043,9 @@ def _table_rows(table: dict[str, Any],
     if context is not None:
         entries += _attention(table)
 
-    # What this file is. "Filename" rather than "File", which named the filename here
-    # and the on-disk state under Status - one word, two facts, both on screen.
+    # What this file is. "Filename" rather than the group's own word, which named the
+    # filename here and the on-disk state under Status - one word, two facts, both on
+    # screen at once.
     entries += [
         (HEADING, game_tables.FILE),
         ("Filename", table.get("filename") or "-"),
@@ -1067,8 +1068,9 @@ def _table_rows(table: dict[str, Any],
     present = bool(table.get("available"))
     entries += [
         ("Will run", _launch_state(table.get("launchable"))),
-        ("File", _state(game_tables.word_for(game_tables.FILE_WORDS, not present),
-                        "on" if present else "bad")),
+        (game_tables.FILE,
+         _state(game_tables.word_for(game_tables.FILE_WORDS, not present),
+                "on" if present else "bad")),
         ("Application", apps.app_name(table.get("app"))),
         ("ROM", _rom_state(pinmame, rom, context=context)),
     ]
@@ -1083,7 +1085,8 @@ def _table_rows(table: dict[str, Any],
     else:
         said = game_tables.default_state(table.get("default_kind") or "")
         entries += [
-            ("Default", said[0] if table.get("default") and said else "No"),
+            (game_tables.DEFAULT_LABEL,
+             said[0] if table.get("default") and said else "No"),
             ("Hidden", game_tables.word_for(game_tables.HIDDEN_WORDS,
                                             bool(table.get("hidden")))),
         ]
@@ -1366,7 +1369,7 @@ def _library_rows(context: dict[str, Any],
                                   bool(event.value)),
                 hint="Keep this table out of the frontend")
 
-    return [("Default", default_row), ("Hidden", hidden_row)]
+    return [(game_tables.DEFAULT_LABEL, default_row), ("Hidden", hidden_row)]
 
 
 def _switch(value: bool, on_change: Callable[[Any], Any], *,

@@ -634,7 +634,7 @@ TABLE_COLUMNS = [
     # one of them. Each of these sorts and filters on its own, which is what a list is
     # for. A summary column can be built later, deliberately, from these.
     # Not a tick: a chosen default and a derived one are different facts.
-    grid.column("default_state", "Default", group=_IN_PLAY,
+    grid.column("default_state", game_tables.DEFAULT_LABEL, group=_IN_PLAY,
                 **grid.choice_filter(
                     [{"value": word, "label": word}
                      for word, _why in game_tables.DEFAULT_WORDS.values()]
@@ -653,7 +653,7 @@ TABLE_COLUMNS = [
                     _two(game_tables.FILE_WORDS))}),
     # Last and widest: it is the identifier of record, and the part that tells two
     # tables of one game apart sits at its end.
-    grid.column("filename", "File", 420, group=_TABLE),
+    grid.column("filename", game_tables.FILE, 420, group=_TABLE),
     *FEATURE_COLUMNS,
 ]
 

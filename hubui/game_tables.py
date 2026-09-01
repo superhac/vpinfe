@@ -14,7 +14,9 @@ JOIN = " · "
 # grid's built-in views are named for them, so crossing between the two is not a
 # translation. Only the groups that have rows.
 MACHINE = "Machine"
-FILE = "File"
+# "Table File", not "File": a panel that also shows a table ini, a script and a rom
+# left a reader asking which file. Chris, 2026-09-01, with `Default Table` below.
+FILE = "Table File"
 FEATURES = "Features"
 LAUNCH = "Launch"
 FRONTEND = "Frontend"
@@ -83,6 +85,11 @@ SCRIPT_WORDS = ("External", "Internal")
 # Three-valued, so the unknown has its own word: a table nothing has parsed cannot be
 # called ready and has not been found wanting either.
 LAUNCH_WORDS = ("Blocked", "Ready")
+
+# The label, not the state - "Default" alone left a reader asking "default what?" on a
+# panel that also has a default launcher and a default view. Named here so the grid and
+# the workbench cannot answer it differently. Chris, 2026-09-01.
+DEFAULT_LABEL = "Default Table"
 LAUNCH_UNKNOWN = "Unknown"
 
 
