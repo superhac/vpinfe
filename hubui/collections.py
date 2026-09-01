@@ -16,7 +16,7 @@ from urllib.parse import quote
 from nicegui import run, ui
 
 from common.games.collection_store import DIRECTION_LABELS, SORT_LABELS
-from hubui import grid, views
+from hubui import confirm, grid, views
 from hubui.games import view_control
 
 logger = logging.getLogger("vpinfe.hubui.collections")
@@ -237,51 +237,27 @@ def _ask_new(library: Any, act: Callable) -> None:
     dialog.open()
 
 
-def _ask_delete_many(picked: list[dict], library: Any, act: Callable) -> None:
+async def _ask_delete_many(picked: list[dict], library: Any, act: Callable) -> None:
     """Several at once, asked once. The games stay in the library either way."""
     names = [row["name"] for row in picked]
     if not names:
         return
-
-    async def go_all() -> None:
+    # Eight, then a count: the list is here to say which ones, and a hundred names is
+    # a dialog nobody reads to the end of.
+    shown = names[:8] + ([f"...and {len(names) - 8} more"] if len(names) > 8 else [])
+    if await confirm.ask(f"Delete {len(names)} collections?",
+                         detail="The games stay in the library. Only the lists go.",
+                         lines=shown):
         for name in names:
             await act(library.delete_collection, name, said=f"Deleted {name}")
 
-    with ui.dialog() as dialog, ui.card():
-        ui.label(f"Delete {len(names)} collections?").classes("hub-card-title")
-        for name in names[:8]:
-            ui.label(name).classes("hub-help")
-        if len(names) > 8:
-            ui.label(f"...and {len(names) - 8} more").classes("hub-help")
-        ui.label("The games stay in the library. Only the lists go.") \
-            .classes("hub-help mt-1")
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
 
-            async def go() -> None:
-                dialog.close()
-                await go_all()
-
-            ui.button("Delete", on_click=go).props("no-caps color=negative")
-    dialog.open()
-
-
-def _ask_delete(name: str, library: Any, act: Callable) -> None:
+async def _ask_delete(name: str, library: Any, act: Callable) -> None:
     """Asked, because a manual collection is somebody's hand-picked list and there is
     no undo behind this."""
-    with ui.dialog() as dialog, ui.card():
-        ui.label(f"Delete “{name}”?").classes("hub-card-title")
-        ui.label("The games stay in the library. Only the list goes.") \
-            .classes("hub-help")
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
-
-            async def go() -> None:
-                dialog.close()
-                await act(library.delete_collection, name, said=f"Deleted {name}")
-
-            ui.button("Delete", on_click=go).props("no-caps color=negative")
-    dialog.open()
+    if await confirm.ask(f"Delete “{name}”?",
+                         detail="The games stay in the library. Only the list goes."):
+        await act(library.delete_collection, name, said=f"Deleted {name}")
 
 
 def stored_views(library: Any) -> tuple[list[views.View], str]:

@@ -382,6 +382,82 @@ A panel that shows facts uses the same control for the same kind of value, every
 Mixing them — a checkbox here, a text state and a button there — makes the reader work out
 three times what one convention says once.
 
+**The row is the box, not the value.** Every value centres in a row of `--fact-row`
+whatever it holds, so the air around one does not depend on its kind. At 26px a text
+value sat 21px in the row while a chip carried its own padding and read roomier — the
+same rhythm, felt as two. Content that wraps is the only thing that grows a row.
+
+**A failed write shows what the hub said, never what HTTP said.** `raise_for_status`
+discards the body, so "No Visual Pinball on this machine…" reached a user as
+`501 Server Error: Not Implemented for url: /api/v1/games/…/script` — a status line and
+our own route. `HubClient` raises `HubError` carrying the API's message, and a surface
+shows that.
+
+### One name and one direction per fact
+
+A fact keeps **one name and one polarity on every surface**. The surface picks the
+control — a column, a switch, a chip, a menu verb — never the vocabulary.
+
+Three facts about a table were being described three ways, two of them inverted:
+`Hidden` in the grid was `Frontend visible` in the panel (flipped again on its way to the
+API) and "Hide from the frontend" in the row menu; `Missing` in the grid was `File on
+disk: Present` in the panel. Crossing between two surfaces meant turning the question
+over twice, and the column picker offered a third set of words for the same columns.
+
+- The **name** is the fact, in the shortest true word: `Default`, `Hidden`, `File`.
+- The **direction** is notable-true, which is the grid's rule — a tick on every ordinary
+  row says nothing. A switch reading "on means restricted" is fine; `Clear NVRAM on exit`
+  already does.
+- The **words belong to the module that owns the fact**, and every surface reads them:
+  `hubui/game_tables.py`, `hubui/media_ownership.py`, `hubui/features.py`.
+- A **menu item is a verb that produces the state word** — `Hide`, `Clear choice` — not a
+  sentence explaining the mechanism.
+- **Never index a word pair by a boolean at the call site.** Ask the vocabulary for the
+  word; a `pair[not present]` is how a file that was on disk came to read `Missing`.
+
+A control that cannot hold every state of its fact is the tell that the vocabulary is
+about to drift: a switch stood for a three-state default — chosen, automatic, not the
+default — so it said something else, and the drift started there.
+
+### An action sits with what it acts on
+
+A verb in a panel follows the value it changes — same column, one gap after it. It is not
+pushed to the panel's edge for a tidy column of verbs: that assumes the value fills the
+row, and a chip does not, so the verb ends a panel-width from the state it changes and
+drifts further as the pane is widened. Fields still line up under this rule, because they
+stretch to the same width.
+
+- **One action per fact.** A second belongs in the row's context menu.
+- **The verb produces the state word** — `Chosen` is cleared by "Clear choice" and
+  reached by "Choose this one". A verb naming a mechanism ("Let VPinFE pick the default")
+  is a sentence, and a menu item is a name you read and click.
+- **Weight follows the target.** An action on a *field* or a *section* takes
+  `.hub-action`; one sitting beside a **state** takes `.hub-action--inline`, the same
+  control at the chip's type scale. It keeps its resting edge: a verb with no edge reads
+  as a second value, and this panel is worked in rather than read. What made the pair
+  feel wrong was the type, not the border — 12px/500 beside a chip at 11px/400.
+  It hugs the chip at `--target-inline` rather than taking `--target-min`, which is the
+  only place in the hub below the pointer floor; `@media (pointer: coarse)` gives the
+  floor back where the pointer is a finger.
+- **Section actions sit in their own strip** under the content, as a media slot's do.
+  Position is then what tells a row action from a section one.
+
+### One confirmation, and one field
+
+- **Anything that cannot be undone asks first, through `hubui/confirm.py`.** Four dialogs
+  had been written to the same shape with different spellings — one awaited a bool and
+  one took a callback, the buttons swapped `no-caps`, the help lines used two classes.
+  The question is a sentence in sentence case (never the section-heading treatment: a
+  dialog that shouts its question is not asking), the detail line says the consequence,
+  and named files are listed where a count would hide which ones. The confirm button is
+  **the verb that does the thing**, never "OK", so it reads without the question.
+  A dialog that collects a *value* — a name, a rating — is not this and keeps its own shape.
+- **A text field carries a full edge, like an action.** It reads as something you can act
+  on, and it hovers and focuses the same way. A single bottom rule was the quiet version
+  of that idea and read as a section divider — full width, between two rows, which is
+  exactly what a divider is. It sits at `--field-h`, in the fact rhythm rather than above
+  it, and `@media (pointer: coarse)` raises it with the inline action.
+
 ### Chips say what the absence costs
 
 A chip's color is about consequence, not about whether something is merely true:
@@ -397,7 +473,7 @@ Green is present. **Amber means go and fix this, and nothing softer.** Each fact
 words: a rom is *Installed*, a script is *Extracted*, a file is *Present*. Do not flatten them
 to Yes/No.
 
-State chips are not media tiers. `hubui/tiers.py` answers "whose file is this", and its amber
+State chips are not media tiers. `hubui/media_ownership.py` answers "whose file is this", and its amber
 means the exception worth spotting in a map of twenty.
 
 ### Type

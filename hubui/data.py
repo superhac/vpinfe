@@ -221,6 +221,17 @@ class Library:
         self.tables.pop(game_id, None)
         self._table_rows = None
 
+    def extract_script(self, game_id: str, table_id: str) -> None:
+        """The tables read is now wrong: the sidecar is what the next read reports."""
+        self._client.extract_script(game_id, table_id)
+        self.tables.pop(game_id, None)
+        self._table_rows = None
+
+    def delete_script(self, game_id: str, table_id: str) -> None:
+        self._client.delete_script(game_id, table_id)
+        self.tables.pop(game_id, None)
+        self._table_rows = None
+
     def forget_table(self, game_id: str, table_id: str) -> dict:
         """Drop a gone table's record. The tables list is what changes, and the media
         cache with it - a per-build read keyed on that table is now describing nothing."""

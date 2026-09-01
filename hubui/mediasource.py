@@ -19,7 +19,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.media_specs import media_family
-from hubui import mediamap, mediaview
+from hubui import confirm, mediamap, mediaview
 
 logger = logging.getLogger("vpinfe.hubui.mediasource")
 
@@ -47,16 +47,9 @@ async def confirm_replace(label: str, going: list[str]) -> bool:
     count hides: a whole family goes at this tier, so a .mp4 arriving over a .png takes
     the .png with it and the user never named that file.
     """
-    with ui.dialog() as confirm, ui.card():
-        ui.label(f"Replace the {label.lower()} that is there?").classes("hub-card-title")
-        for path in going:
-            ui.label(path).classes("text-xs opacity-70 break-all")
-        ui.label("Replaced files are deleted, not kept.").classes("text-xs")
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button("Cancel", on_click=lambda: confirm.submit(False)).props("flat")
-            ui.button("Replace",
-                      on_click=lambda: confirm.submit(True)).props("color=negative")
-    return bool(await confirm)
+    return await confirm.ask(f"Replace the {label.lower()} that is there?",
+                             detail="Replaced files are deleted, not kept.",
+                             lines=going, confirm="Replace")
 
 
 class _Sources:

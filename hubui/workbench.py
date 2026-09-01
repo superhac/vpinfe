@@ -33,7 +33,8 @@ from common.games.collection_store import (
 )
 from common.labels import humanize
 from common.media_specs import media_family
-from hubui import deeplink, game_tables, media_ownership, mediamap, mediasource, mediaview
+from hubui import confirm, deeplink, game_tables, media_ownership, mediamap, mediasource, mediaview
+from hubui import features as table_features
 from hubui.data import Library
 
 logger = logging.getLogger("vpinfe.hubui.workbench")
@@ -1066,20 +1067,22 @@ def _table_rows(table: dict[str, Any],
     if context is not None:
         entries += _library_rows(context, table)
     else:
+        said = game_tables.default_state(table.get("default_kind") or "")
         entries += [
-            ("Default", "Yes" if table.get("default") else "No"),
-            ("In frontend", "Hidden" if table.get("hidden") else "Shown"),
+            ("Default", said[0] if table.get("default") and said else "No"),
+            ("Hidden", game_tables.word_for(game_tables.HIDDEN_WORDS,
+                                            bool(table.get("hidden")))),
         ]
-    entries += [("File on disk",
-                 _state("Present", "on") if table.get("available")
-                 else _state("Missing", "bad"))]
+    present = bool(table.get("available"))
+    entries += [("File", _state(game_tables.word_for(game_tables.FILE_WORDS,
+                                                     not present),
+                                "on" if present else "bad"))]
 
     # Last and quiet: identifiers are looked up, not read. They earn a place on the
     # panel and not a place near the top of it.
     entries += [
         (HEADING, "Reference"),
-        ("VBScript", _state("Extracted", "on") if script.get("resolution") != "none"
-                     else _state("Not extracted", "off")),
+        ("VBScript", _script_row(context, table, script)),
         ("File hash", table.get("file_hash") or "-"),
         ("VBScript hash", table.get("vbs_hash") or "-"),
     ]
@@ -1101,6 +1104,36 @@ def _state(text: str, level: str, beside: str = "") -> Callable[[], None]:
                 ui.label(beside).classes("hub-fact-value truncate min-w-0") \
                     .tooltip(beside)
             ui.label(text).classes(f"hub-tier hub-tier--{level}")
+
+    return draw
+
+
+def _script_row(context: dict[str, Any] | None, table: dict[str, Any],
+                script: dict[str, Any]) -> Any:
+    """Which script this table runs, and the way to change which one.
+
+    Both words are quiet: neither state is a fault, and green here would say a sidecar
+    is better than the script the table shipped with. The tooltip carries the part that
+    matters, which is that a sidecar is what actually runs.
+    """
+    external = script.get("resolution") != "none"
+    word = game_tables.word_for(game_tables.SCRIPT_WORDS, external)
+    why = ("A .vbs beside the table, and VPX runs it instead of the one inside"
+           if external else "The table runs the script inside its own .vpx")
+
+    def draw() -> None:
+        with ui.element("div").classes("hub-fact-edit"):
+            ui.label(word).classes("hub-tier hub-tier--off").tooltip(why)
+            if context is None:
+                return
+            if external:
+                ui.button("Delete", on_click=lambda: _drop_script(context, table)) \
+                    .props("flat dense no-caps size=sm") \
+                    .classes("hub-action hub-action--inline hub-action--danger")
+            else:
+                ui.button("Extract", on_click=lambda: _extract_script(context, table)) \
+                    .props("flat dense no-caps size=sm") \
+                    .classes("hub-action hub-action--inline")
 
     return draw
 
@@ -1169,24 +1202,54 @@ def _library_rows(context: dict[str, Any],
         await context["rebuild"]()
 
     def default_row() -> None:
-        # On but not off: exactly one table is the game's default, so this is turned on
-        # by turning another one on. Disabled rather than absent, or the row a table
-        # already holds would be the one row with no control in it.
-        _switch(is_default,
-                lambda _: act(library.set_default_table, game_id, table_id,
-                              done="Now the game's default"),
-                disabled=is_default,
-                hint=("This is the one the game offers" if is_default
-                      else "Offer this table first"))
+        """The state, and the one act that changes it.
 
-    def frontend_row() -> None:
-        _switch(not hidden,
+        A switch stood here and could not tell the truth: the fact has three states -
+        the default because somebody chose it, the default because nothing did, and not
+        the default - so a two-state control had to say something else, and said
+        "Default table for game" while the grid said "User". The chip is the finding and
+        the button is the act, which is the panel's own convention.
+        """
+        said = game_tables.default_state(table.get("default_kind") or "")
+        with ui.element("div").classes("hub-fact-edit"):
+            if is_default and said:
+                # No colour: green in this panel means installed, present, extracted -
+                # facts whose absence costs you a working table. A game has a default
+                # either way, so the word carries it and the palette keeps its meaning.
+                ui.label(said[0]).classes("hub-tier hub-tier--off").tooltip(said[1])
+            if not is_default:
+                ui.button("Make default",
+                          on_click=lambda: act(library.set_default_table, game_id,
+                                               table_id,
+                                               done="Now the game's default")) \
+                    .props("flat dense no-caps size=sm") \
+                    .classes("hub-action hub-action--inline")
+            elif (table.get("default_kind") or "") == game_tables.DERIVED:
+                # The way to stop it moving. Nothing else in the UI could pin the table
+                # a game had already landed on, so an automatic default stayed at the
+                # mercy of the next table installed.
+                ui.button("Choose",
+                          on_click=lambda: act(library.set_default_table, game_id,
+                                               table_id, done="Chosen")) \
+                    .props("flat dense no-caps size=sm") \
+                    .classes("hub-action hub-action--inline")
+            else:
+                ui.button("Clear choice",
+                          on_click=lambda: act(library.set_default_table, game_id, "",
+                                               done="Back to an automatic default")) \
+                    .props("flat dense no-caps size=sm") \
+                    .classes("hub-action hub-action--inline")
+
+    def hidden_row() -> None:
+        # On is hidden, the same direction the column and the funnel read it. It used to
+        # be "Frontend visible" and inverted the value on its way to the API, so the two
+        # surfaces asked opposite questions about one flag.
+        _switch(hidden,
                 lambda event: act(library.set_table_hidden, game_id, table_id,
-                                  not bool(event.value)),
-                hint="Offer this table in the frontend")
+                                  bool(event.value)),
+                hint="Keep this table out of the frontend")
 
-    return [("Default table for game", default_row),
-            ("Frontend visible", frontend_row)]
+    return [("Default", default_row), ("Hidden", hidden_row)]
 
 
 def _switch(value: bool, on_change: Callable[[Any], Any], *,
@@ -1256,28 +1319,13 @@ def _table_override_rows(context: dict[str, Any], table: dict[str, Any],
 
 # Named for the thing, not for the .info key. PinMAME is left out: it is not a script
 # flourish like the rest, and the ROM row above already answers for it in detail.
-FEATURE_LABELS = {
-    "nfozzy": "nFozzy", "fleep": "Fleep", "ssf": "SSF", "lut": "LUT",
-    "scorbit": "Scorbit", "fastflips": "FastFlips", "flexdmd": "FlexDMD",
-}
-
-
 def _feature_chips(features: dict[str, Any]) -> None:
-    """What the table's script was seen to use.
-
-    Three states, because a table nobody has parsed yet answers null for every one of
-    them and that is not the same as answering no. Same forms as a media tier: filled
-    for what is here, quiet for what is not, dashed for not yet known.
-    """
+    """What the table's script was seen to use, named where there is room for names -
+    the grid draws the same three states as marks."""
     with ui.element("div").classes("hub-chips"):
-        for key, label in FEATURE_LABELS.items():
-            present = features.get(key)
-            style = ("hub-tier--on" if present
-                     else "hub-tier--unknown" if present is None
-                     else "hub-tier--off")
-            ui.label(label).classes(f"hub-tier {style}") \
-                .tooltip("In the script" if present else
-                         "Not parsed yet" if present is None else "Not used")
+        for key, label in table_features.LABELS.items():
+            state = table_features.state_of(features.get(key))
+            ui.label(label).classes(f"hub-tier {state.chip}").tooltip(state.noun)
 
 
 def _tables_label(context: dict[str, Any]) -> str:
@@ -1285,6 +1333,41 @@ def _tables_label(context: dict[str, Any]) -> str:
     gone = [table for table in tables if table.get("absent_since")]
     label = f"Tables ({len(tables)})"
     return label + (f" - {len(gone)} not on disk" if gone else "")
+
+
+async def _script_act(context: dict[str, Any], call: Any, table_id: str,
+                      done: str, failed: str) -> None:
+    """Run one script act and redraw. The panel is showing which script runs, so it is
+    exactly what the act changes."""
+    try:
+        await run.io_bound(call, context["game_id"], table_id)
+    except Exception as exc:
+        ui.notify(f"{failed}: {exc}", type="negative")
+        return
+    ui.notify(done, type="positive")
+    await context["rebuild"]()
+
+
+async def _extract_script(context: dict[str, Any], table: dict[str, Any]) -> None:
+    """Not confirmed: it writes a new file and takes nothing away, and the way back is
+    the Delete beside it."""
+    await _script_act(context, context["library"].extract_script,
+                      table.get("id") or "", "Extracted - the table now runs the .vbs",
+                      "Could not extract the script")
+
+
+async def _drop_script(context: dict[str, Any], table: dict[str, Any]) -> None:
+    """Confirmed: whatever the sidecar held goes with it, and a patched table quietly
+    becomes an unpatched one."""
+    if not await confirm.ask(
+            "Delete the script beside this table?",
+            detail="The table goes back to the script inside its .vpx. Anything the "
+                   "sidecar held - a patch, an edit - goes with it.",
+            lines=[f"{Path(table.get('filename') or '').stem}.vbs"]):
+        return
+    await _script_act(context, context["library"].delete_script,
+                      table.get("id") or "", "Deleted - the table runs its own script",
+                      "Could not delete the script")
 
 
 async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -1295,17 +1378,11 @@ async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
     recognizes. The hub refuses the request outright if the .vpx is back, so a stale
     panel cannot delete a table that returned while it was open.
     """
-    filename = table.get("filename") or "this table"
-    with ui.dialog() as confirm, ui.card():
-        ui.label("Forget this table?").classes("hub-card-title")
-        ui.label(filename).classes("text-xs opacity-70 break-all")
-        ui.label("Its record goes; no file is deleted, because there is none. Put the "
-                 ".vpx back and refresh and it returns as a new table.").classes("text-xs")
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button("Cancel", on_click=lambda: confirm.submit(False)).props("flat")
-            ui.button("Forget", on_click=lambda: confirm.submit(True)).props("color=negative")
-
-    if not await confirm:
+    if not await confirm.ask(
+            "Forget this table?",
+            detail="Its record goes; no file is deleted, because there is none. Put the "
+                   ".vpx back and refresh and it returns as a new table.",
+            lines=[table.get("filename") or "this table"], confirm="Forget"):
         return
     try:
         await run.io_bound(context["library"].forget_table,
@@ -2192,8 +2269,11 @@ def _table_choice(context: dict[str, Any], member: dict[str, Any], state: str,
                           "hub-member-table-line") as line:
         # Leading the *table* line, because that is what it qualifies - which table
         # this entry uses. On the name line it would read as a mark about the game.
+        # The word the key uses, not a second phrasing of it: hovering a mark and
+        # reading the legend should not teach two different names for one state. What
+        # the difference *costs* stays on the key's own tooltip.
         ui.element("span").classes(game_tables.mark(state)) \
-            .tooltip(game_tables.reference_state(state)[1])
+            .tooltip(game_tables.reference_state(state)[0])
         # The same line, and the same tooltip, as a game's Tables section: version and
         # author on screen, the filename a hover away. One formatter, so the two
         # surfaces cannot drift apart.
@@ -2254,6 +2334,10 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
             default_taken = True
         else:
             taken.update(str(t.get("id") or "") for t in other.get("tables") or [])
+    # What following this game gets you today. Shown on every game, including one with
+    # a single table where it can only be that table: the rule stays the rule, and an
+    # exception is one more thing for a reader to know.
+    offers = next((one for one in choices if one.get("default")), None)
     holder.clear()
     with holder:
         # The question this group answers, not the verb on its own: "Uses" was the
@@ -2263,7 +2347,8 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
                          game_tables.FOLLOWS,
                          game_tables.REFERENCE_WORDS[game_tables.FOLLOWS][0],
                          chosen=not named,
-                         blocked="Already in this collection" if default_taken else "")
+                         blocked="Already in this collection" if default_taken else "",
+                         under=game_tables.table_name(offers) if offers else "")
         for one in choices:
             table_id = str(one.get("id") or "")
             _table_menu_item(context, member, table_id, named,
@@ -2277,10 +2362,12 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
         spare = [one for one in choices if str(one.get("id") or "") not in spoken]
         if spare:
             ui.separator()
-            # What arrives, in the user's words. Not "another user defined" - every
-            # item here already wears the mark for it and the key says what that
-            # means, so the state in the heading would restate what is on screen.
-            ui.item_label("Add another table").props("header") \
+            # "Insert", because it lands beside the row it was asked from rather than
+            # at the end - and naming the game because this is the confusing half of
+            # the menu, where being explicit beats being short (Chris, 2026-08-31).
+            # Not "another user defined": every item here wears the mark for that and
+            # the key says what it means, so the state would restate what is on screen.
+            ui.item_label("Insert another table from this game").props("header") \
                 .classes("hub-menu-header")
             for one in spare:
                 _add_table_item(context, game, one, after=named)
@@ -2288,10 +2375,16 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
 
 def _table_menu_item(context: dict[str, Any], member: dict[str, Any], table_id: str,
                      was: str, state: str, label: str, *, chosen: bool,
-                     blocked: str = "") -> None:
+                     blocked: str = "", under: str = "") -> None:
     """One choice. The current one is marked and inert - a menu that lets you pick what
     is already true reports a change that did not happen - and so is one the collection
-    cannot hold, which says why instead of disappearing."""
+    cannot hold, which says why instead of disappearing.
+
+    `under` names what this entry resolves to today, which only Game Default needs: from
+    a row pinned to some other table, choosing it was a blind pick, and the two entries
+    read as different destinations when what actually differs is what happens when a new
+    table arrives.
+    """
     async def pick() -> None:
         if chosen or blocked:
             return
@@ -2316,7 +2409,10 @@ def _table_menu_item(context: dict[str, Any], member: dict[str, Any], table_id: 
         item.props("auto-close=false").tooltip(blocked)
     with item, ui.row().classes("items-center gap-2 no-wrap w-full"):
         ui.element("span").classes(f"hub-menu-mark {game_tables.mark(state)}")
-        ui.label(label).classes("hub-menu-table-name grow min-w-0")
+        with ui.column().classes("gap-0 grow min-w-0"):
+            ui.label(label).classes("hub-menu-table-name")
+            if under:
+                ui.label(under).classes("hub-menu-sub")
         if chosen:
             ui.icon("check").classes("hub-menu-check")
         elif blocked:

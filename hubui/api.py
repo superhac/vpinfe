@@ -25,6 +25,10 @@ def hub_base_url() -> str:
     return (network.hub_url or f"http://127.0.0.1:{network.hub_port}").rstrip("/")
 
 
+class HubError(RuntimeError):
+    """What the hub said went wrong, in its own words - which is what a surface shows."""
+
+
 class HubClient:
     """An ordinary consumer of /api/v1, over HTTP rather than by import.
 
@@ -38,10 +42,27 @@ class HubClient:
         self._media: dict[str, dict] = {}
         self._discovery: dict | None = None
 
+    def _answered(self, response: Any) -> None:
+        """Raise what the hub said, not what HTTP said.
+
+        `raise_for_status` throws away the body, so a considered message - "No Visual
+        Pinball on this machine..." - reached the panel as "501 Server Error: Not
+        Implemented for url: ...", which names our own route at a user and tells them
+        nothing. Every write in this client goes through here for that reason.
+        """
+        if response.ok:
+            return
+        said = ""
+        try:
+            said = str(((response.json() or {}).get("error") or {}).get("message") or "")
+        except ValueError:
+            said = ""
+        raise HubError(said or f"The hub answered {response.status_code}")
+
     def _get(self, path: str) -> dict:
         _refuse_the_event_loop(path)
         response = self._session.get(f"{self._base}{path}", timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return response.json()
 
     def discovery(self) -> dict:
@@ -96,13 +117,13 @@ class HubClient:
         _refuse_the_event_loop(f"/preferences/{scope}")
         response = self._session.put(f"{self._base}/preferences/{scope}",
                                      json=value, timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
 
     def rate(self, game_id: str, rating: int) -> None:
         _refuse_the_event_loop(f"/games/{game_id}/rating")
         response = self._session.put(f"{self._base}/games/{game_id}/rating",
                                      json={"rating": rating}, timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
 
     def rate_table(self, game_id: str, table_id: str, rating: int) -> None:
         """One table's own rating, which refines its game's rather than replacing it."""
@@ -112,37 +133,51 @@ class HubClient:
             json={"rating": rating}, timeout=_TIMEOUT)
         self._answered(response)
 
+    def extract_script(self, game_id: str, table_id: str) -> None:
+        """Write the sidecar, which is also what makes the table run it."""
+        _refuse_the_event_loop(f"/games/{game_id}/tables/{table_id}/script")
+        response = self._session.post(
+            f"{self._base}/games/{game_id}/tables/{table_id}/script", timeout=_TIMEOUT)
+        self._answered(response)
+
+    def delete_script(self, game_id: str, table_id: str) -> None:
+        """Take the sidecar away, putting the table back on its own script."""
+        _refuse_the_event_loop(f"/games/{game_id}/tables/{table_id}/script")
+        response = self._session.delete(
+            f"{self._base}/games/{game_id}/tables/{table_id}/script", timeout=_TIMEOUT)
+        self._answered(response)
+
     def launch(self, game_id: str, file: str = "") -> None:
         """`file` picks one of the game's tables; empty launches its default."""
         _refuse_the_event_loop(f"/games/{game_id}/launch")
         response = self._session.post(f"{self._base}/games/{game_id}/launch",
                                       json={"file": file} if file else {},
                                       timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
 
     def _post(self, path: str, body: dict) -> dict:
         _refuse_the_event_loop(path)
         response = self._session.post(f"{self._base}{path}", json=body, timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return response.json()
 
     def _put(self, path: str, body: dict) -> dict:
         _refuse_the_event_loop(path)
         response = self._session.put(f"{self._base}{path}", json=body, timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return response.json()
 
     def _patch(self, path: str, body: dict) -> dict:
         _refuse_the_event_loop(path)
         response = self._session.patch(f"{self._base}{path}", json=body,
                                        timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return response.json()
 
     def _delete(self, path: str) -> None:
         _refuse_the_event_loop(path)
         response = self._session.delete(f"{self._base}{path}", timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
 
     # --- collections ----------------------------------------------------------
     # Addressed by name, which is what the routes take. A rename is therefore a move,
@@ -238,7 +273,7 @@ class HubClient:
             response = self._session.put(f"{self._base}{route}",
                                          files={"file": (Path(path).name, handle)},
                                          timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return response.json()
 
     def clear_collection_image(self, name: str) -> None:
@@ -249,7 +284,7 @@ class HubClient:
         _refuse_the_event_loop(path)
         response = self._session.put(f"{self._base}{path}", json=body or {},
                                      timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
 
     def _media_path(self, game_id: str, table_id: str, kind: str) -> str:
         """Which route places a file, which is the same thing as which tier it lands at."""
@@ -315,7 +350,7 @@ class HubClient:
         _refuse_the_event_loop(path)
         response = self._session.post(f"{self._base}{path}", json={"table": to_table},
                                       params={"table": from_table}, timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return response.json()
 
     def displaced_by(self, game_id: str, table_id: str, kind: str,
@@ -325,7 +360,7 @@ class HubClient:
         _refuse_the_event_loop(path)
         response = self._session.get(f"{self._base}{path}",
                                      params={"filename": filename}, timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return list(response.json().get("displaced") or [])
 
     def place_media(self, game_id: str, table_id: str, kind: str,
@@ -334,14 +369,14 @@ class HubClient:
         _refuse_the_event_loop(path)
         response = self._session.put(f"{self._base}{path}",
                                      files={"file": (filename, data)}, timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return response.json()
 
     def remove_media(self, game_id: str, table_id: str, kind: str) -> dict:
         path = self._media_path(game_id, table_id, kind)
         _refuse_the_event_loop(path)
         response = self._session.delete(f"{self._base}{path}", timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return response.json()
 
     def set_table_hidden(self, game_id: str, table_id: str, hidden: bool) -> dict:
@@ -350,7 +385,7 @@ class HubClient:
         _refuse_the_event_loop(path)
         response = self._session.put(f"{self._base}{path}", json={"hidden": hidden},
                                      timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return response.json()
 
     def set_default_table(self, game_id: str, table_id: str) -> dict:
@@ -359,7 +394,7 @@ class HubClient:
         _refuse_the_event_loop(path)
         response = self._session.put(f"{self._base}{path}", json={"table": table_id},
                                      timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return response.json()
 
     def config_schema(self) -> list[dict]:
@@ -389,14 +424,14 @@ class HubClient:
         path = f"/games/{game_id}/tables/{table_id}"
         _refuse_the_event_loop(path)
         response = self._session.delete(f"{self._base}{path}", timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return response.json()
 
     def refresh_library(self) -> dict:
         """Ask the hub to look at the disk again. Returns the job to watch."""
         _refuse_the_event_loop("/library/refresh")
         response = self._session.post(f"{self._base}/library/refresh", timeout=_TIMEOUT)
-        response.raise_for_status()
+        self._answered(response)
         return response.json()
 
     def devices(self) -> list[dict]:
