@@ -515,6 +515,16 @@ body::before {
   white-space: nowrap;
 }
 .hub-filter-row:hover { background: rgba(255, 255, 255, 0.06); }
+/* The leading slot, wide enough for a mark and present whether or not there is one -
+   a choice that draws nothing in the grid indents to here rather than shifting its
+   label left of every other. A rating draws five, so it grows rather than clipping. */
+.hub-filter-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 11px;
+  flex: none;
+}
 .hub-filter-row input { accent-color: var(--accent); cursor: pointer; margin: 0; }
 
 /* A media cell holds one thing - a mark or a picture - so it centres that thing rather

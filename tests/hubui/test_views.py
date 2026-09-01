@@ -237,3 +237,25 @@ class FeatureLegendTests(unittest.TestCase):
 
         self.assertEqual(table_features.states_in(rows),
                          [table_features.IN_SCRIPT, table_features.UNKNOWN])
+
+
+class FunnelChoiceTests(unittest.TestCase):
+    """A funnel offers the marks the grid actually draws."""
+
+    def _by_label(self, choices):
+        return {choice["label"]: choice for choice in choices}
+
+    def test_missing_offers_no_mark_because_the_cell_draws_none(self) -> None:
+        """The media cell holds "" for Missing and the renderer returns nothing, so a
+        glyph in the funnel would promise a mark that is never on screen."""
+        choices = self._by_label(games._STATE_CHOICES)
+
+        self.assertEqual(choices["Missing"]["mark"], "")
+        self.assertTrue(choices["This table"]["mark"])
+
+    def test_every_state_is_still_offered(self) -> None:
+        """Dropping the mark is not dropping the choice - Missing is the one people
+        filter to most, and it stays pickable."""
+        self.assertEqual({choice["label"] for choice in games._STATE_CHOICES},
+                         {media_ownership.tier_for(key).noun
+                          for key in media_ownership.STATES})

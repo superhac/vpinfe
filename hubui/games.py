@@ -209,11 +209,15 @@ _MARK_BY_WORD = {
 # What the funnel offers on a media column, in the legend's own words and marks. The
 # value is what the cell holds - "" for missing, which is a blank cell and so a choice
 # like any other rather than the one state the filter cannot express.
+#
+# And no mark on Missing: the cell draws nothing for it, so a glyph here would offer a
+# mark the grid never puts on screen. Same reason the legend leaves it out.
 _STATE_CHOICES = [
     {"value": "" if key == media_ownership.MISSING
      else media_ownership.tier_for(key).noun,
      "label": media_ownership.tier_for(key).noun,
-     "mark": f"hub-mark {media_ownership.tier_for(key).mark}"}
+     "mark": ("" if key == media_ownership.MISSING
+              else f"hub-mark {media_ownership.tier_for(key).mark}")}
     for key in media_ownership.STATES
 ]
 

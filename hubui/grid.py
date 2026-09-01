@@ -81,20 +81,25 @@ if (!window.HubChoiceFilter) {
           this.params.filterChangedCallback();
         });
         row.appendChild(box);
+        // One leading slot, always, so an item that draws nothing indents to where the
+        // marks are and every label starts on the same edge. `docs/conventions.md`.
+        const slot = document.createElement('span');
+        slot.className = 'hub-filter-mark';
         // `repeat` draws the mark more than once, which is how a rating says three
         // rather than saying "3" beside a picture of one star.
         for (let n = 0; n < (choice.mark ? (choice.repeat || 1) : 0); n++) {
           const mark = document.createElement('span');
           mark.className = choice.mark;
-          row.appendChild(mark);
+          slot.appendChild(mark);
         }
         // A state drawn as a character rather than a shape - presence is a tick here.
         if (choice.glyph) {
           const tick = document.createElement('span');
           tick.className = choice.glyphClass || 'hub-tick';
           tick.textContent = choice.glyph;
-          row.appendChild(tick);
+          slot.appendChild(tick);
         }
+        row.appendChild(slot);
         const word = document.createElement('span');
         word.textContent = choice.label;
         row.appendChild(word);
