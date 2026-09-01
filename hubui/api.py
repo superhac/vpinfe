@@ -133,6 +133,20 @@ class HubClient:
             json={"rating": rating}, timeout=_TIMEOUT)
         self._answered(response)
 
+    def set_favorite(self, game_id: str, favorite: bool) -> None:
+        """A game's favorite flag. Games only - you favorite a machine, not a build."""
+        _refuse_the_event_loop(f"/games/{game_id}/favorite")
+        response = self._session.put(f"{self._base}/games/{game_id}/favorite",
+                                     json={"favorite": favorite}, timeout=_TIMEOUT)
+        self._answered(response)
+
+    def reset_play_record(self, game_id: str, table_id: str = "") -> None:
+        """Clear the counters, keeping what was entered. A table's record is its own."""
+        path = (f"/games/{game_id}/tables/{table_id}/play_record" if table_id
+                else f"/games/{game_id}/play_record")
+        _refuse_the_event_loop(path)
+        self._answered(self._session.delete(f"{self._base}{path}", timeout=_TIMEOUT))
+
     def extract_script(self, game_id: str, table_id: str) -> None:
         """Write the sidecar, which is also what makes the table run it."""
         _refuse_the_event_loop(f"/games/{game_id}/tables/{table_id}/script")

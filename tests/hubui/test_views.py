@@ -141,3 +141,34 @@ class TableRowShapeTests(unittest.TestCase):
 
         named = {definition["field"] for definition in games.TABLE_COLUMNS}
         self.assertEqual(sorted(named - set(row)), [])
+
+
+class PlayGroupTests(unittest.TestCase):
+    """The play record, in the units somebody reads it in."""
+
+    def test_play_time_uses_the_largest_unit_that_is_still_true(self) -> None:
+        """41,400 seconds is not a length anybody pictures."""
+        cases = [(0, "None"), (45, "45 sec"), (1020, "17 min"), (5340, "89 min"),
+                 (5400, "1 hr 30 min"), (7200, "2 hr")]
+        for seconds, said in cases:
+            with self.subTest(seconds=seconds):
+                self.assertEqual(workbench._played_for(seconds), said)
+
+    def test_never_played_says_so_rather_than_showing_nothing(self) -> None:
+        """An empty cell is not a state. Section 8: a value is a name or a state."""
+        self.assertEqual(workbench._played_when(None), "Never")
+        self.assertEqual(workbench._played_when(""), "Never")
+        self.assertEqual(workbench._played_when("not a date"), "Never")
+
+    def test_reset_is_offered_only_where_there_is_something_to_clear(self) -> None:
+        """An act offered on a record of nothing is a button that cannot do anything."""
+        nothing = {"last_played": None, "play_count": 0, "play_time_seconds": 0}
+        played = {"last_played": None, "play_count": 3, "play_time_seconds": 0}
+        noop = lambda *a: None  # noqa: E731
+
+        def labels(record):
+            return [row[0] for row in workbench._play_rows(
+                {}, record, rating=0, on_rate=noop, on_reset=noop)]
+
+        self.assertNotIn(workbench.FULL, labels(nothing))
+        self.assertIn(workbench.FULL, labels(played))

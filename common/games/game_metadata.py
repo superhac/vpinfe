@@ -284,6 +284,39 @@ def set_table_rating(game, filename: str, rating: Any) -> int:
     return normalize_rating(rating)
 
 
+def reset_game_play_record(game) -> dict[str, Any]:
+    """Put a game's counters back to nothing, leaving what was entered alone.
+
+    Rating, favorite and tags are opinions somebody set; the counters are a record of
+    what happened. Resetting is the common correction - a table launched twenty times
+    while it was being tested reads as a favourite forever otherwise - and it is the
+    one that needs no arithmetic from the user.
+    """
+    config = load_game_meta(game)
+    user = get_or_create_user_meta(config)
+    user["LastRun"] = None
+    user["StartCount"] = 0
+    user["RunTime"] = 0
+    # The seconds are the record and `User.RunTime` is the minutes VPX keeps, so
+    # zeroing the minutes alone leaves `run_time_seconds` answering for a reset game.
+    vpinfe_section(config).pop("run_time_seconds", None)
+    persist_game_meta(game, config)
+    game.meta_config = config
+    return play_record(config)
+
+
+def reset_table_play_record(game, filename: str) -> dict[str, Any]:
+    """The same, for one table's own counters."""
+    config = load_game_meta(game)
+    entry = get_or_create_table_user(config, filename)
+    entry["last_run"] = None
+    entry["start_count"] = 0
+    entry["run_time_seconds"] = 0
+    persist_game_meta(game, config)
+    game.meta_config = config
+    return {"last_played": None, "play_count": 0, "play_time_seconds": 0}
+
+
 def table_play_record(table: dict) -> dict[str, Any]:
     """One table's own play record. Counters only - a rating is entered rather than
     accumulated, so it sits beside this record and not in it."""

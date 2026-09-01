@@ -33,9 +33,12 @@ from common.games import (
 from common.games.game_metadata import (
     load_game_meta,
     meta_file_path,
+    reset_game_play_record,
+    reset_table_play_record,
     set_game_favorite,
     set_game_rating,
     set_table_rating,
+    table_play_record,
     table_rating,
     vpinfe_section,
 )
@@ -308,6 +311,7 @@ def _tables(game, row: dict) -> list[dict]:
             # The table's own rating, which this lens has to carry as well as the play
             # lens - a hub reads tables here and would otherwise see every one unrated.
             "rating": table_rating(described_entry),
+            "user": table_play_record(described_entry),
             "available": name in on_disk,
             "absent_since": library_discovery.absent_since(described_entry) or None,
             "assets": asset_resolver.resolve_for_table(name, game_dir.name, files),
@@ -1146,6 +1150,31 @@ def put_game_rating(game_id: str, payload: models.RatingRequest) -> models.Ratin
     """
     game = _game_or_404(game_id)
     return {"rating": set_game_rating(game, payload.rating)}
+
+
+@router.delete("/{game_id}/play_record", summary="Reset a game's play counters",
+               dependencies=[requires(scopes.GAMES_WRITE)])
+def reset_play_record(game_id: str) -> models.PlayRecord:
+    """Put the counters back to nothing, leaving rating, favorite and tags alone.
+
+    A DELETE, because what it removes is a record of what happened - and reset is the
+    correction people actually want. A table launched twenty times while somebody was
+    testing it reads as a favourite forever otherwise. Setting a count to a number is
+    the migration case and is not this.
+    """
+    game = _game_or_404(game_id)
+    return reset_game_play_record(game)
+
+
+@router.delete("/{game_id}/tables/{table_id}/play_record",
+               summary="Reset one table's play counters",
+               dependencies=[requires(scopes.GAMES_WRITE)])
+def reset_table_record(game_id: str, table_id: str) -> models.TablePlayRecord:
+    """One table's counters. The game's total is not touched: they are two records of
+    two things, and a game played on one build has still been played."""
+    game = _game_or_404(game_id)
+    filename = _table_filename_or_404(game, table_id)
+    return reset_table_play_record(game, filename)
 
 
 @router.put("/{game_id}/favorite", summary="Mark a game a favorite",

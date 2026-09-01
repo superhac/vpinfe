@@ -180,6 +180,35 @@ class Library:
         self._forget_tables(game_id)
         return result
 
+    def set_game_rating(self, game_id: str, rating: int) -> None:
+        self._client.rate(game_id, rating)
+        self._forget_game(game_id)
+
+    def set_table_rating(self, game_id: str, table_id: str, rating: int) -> None:
+        self._client.rate_table(game_id, table_id, rating)
+        self._forget_tables(game_id)
+
+    def set_game_favorite(self, game_id: str, favorite: bool) -> None:
+        self._client.set_favorite(game_id, favorite)
+        self._forget_game(game_id)
+
+    def reset_play_record(self, game_id: str, table_id: str = "") -> None:
+        self._client.reset_play_record(game_id, table_id)
+        if table_id:
+            self._forget_tables(game_id)
+        else:
+            self._forget_game(game_id)
+
+    def _forget_game(self, game_id: str) -> None:
+        """Re-read one game in place. The list is held for the page's life, so a write
+        that changed a game and left the copy alone would report the old answer until
+        something else refreshed it."""
+        fresh = self._client.game(game_id)
+        for index, game in enumerate(self.games):
+            if game.get("id") == game_id:
+                self.games[index] = fresh
+                return
+
     def set_default_table(self, game_id: str, table_id: str) -> dict:
         result = self._client.set_default_table(game_id, table_id)
         self._forget_tables(game_id)

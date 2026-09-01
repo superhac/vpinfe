@@ -83,6 +83,7 @@ def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
                 "rom_installed": ((table.get("dependencies") or {})
                                   .get("pinmame", {}).get("installed")),
                 "launchable": table.get("launchable"),
+                "user": table.get("user") or {},
                 "default": bool(table.get("default")),
                 "default_kind": str(table.get("default_kind") or ""),
                 "hidden": bool(table.get("hidden")),

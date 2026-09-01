@@ -19,6 +19,7 @@ MACHINE = "Machine"
 FILE = "Table File"
 FEATURES = "Features"
 LAUNCH = "Launch"
+PLAY = "Play"
 FRONTEND = "Frontend"
 
 # What a reference points at: whichever table the game offers, or exactly one. `GONE` is

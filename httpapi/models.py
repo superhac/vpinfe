@@ -377,6 +377,14 @@ class Dependencies(ApiModel):
     flexdmd: FlexDmdState
 
 
+class TablePlayRecord(ApiModel):
+    """One table's own play record. Counters only - nothing sets a per-table rating."""
+
+    last_played: str | None = None
+    play_count: int = 0
+    play_time_seconds: int = 0
+
+
 class Table(ApiModel):
     """A launchable artifact.
 
@@ -429,6 +437,9 @@ class Table(ApiModel):
     # the rom it is built from: null is a table nothing has parsed, and only false is
     # a fault. Computed here so a second client does not have to re-derive it.
     launchable: bool | None = None
+    # This table's own counters. The game's record is the headline; a table that has
+    # been played and a sibling that has not is the thing a game's total cannot say.
+    user: TablePlayRecord = Field(default_factory=TablePlayRecord)
     dependencies: Dependencies
 
 
@@ -487,6 +498,7 @@ class TableRow(ApiModel):
     # Whether every required-to-launch asset resolves. Three-valued like the rom it is
     # built from: null is a table nothing has parsed, and only false is a fault.
     launchable: bool | None = None
+    user: TablePlayRecord = Field(default_factory=TablePlayRecord)
     default: bool = False
     # Why it is the default, not only that it is: `user` where somebody chose it,
     # `auto` where the resolver picked one - a filename matching the folder, else first
@@ -526,14 +538,6 @@ class TableForgotten(ApiModel):
     described a .vpx that is not on disk."""
 
     forgotten: str
-
-
-class TablePlayRecord(ApiModel):
-    """One table's own play record. Counters only - nothing sets a per-table rating."""
-
-    last_played: str | None = None
-    play_count: int = 0
-    play_time_seconds: int = 0
 
 
 class EntryGame(ApiModel):

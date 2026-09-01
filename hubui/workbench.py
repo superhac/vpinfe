@@ -912,6 +912,19 @@ async def _table_block(context: dict[str, Any]) -> None:
         _table_rows(chosen, context)
 
 
+async def _write(context: dict[str, Any], call: Callable[..., Any],
+                 *args: Any) -> None:
+    """One write, off the loop, then redraw. Off the loop because this is an HTTP call
+    to our own process: made on the event loop it blocks the server from answering it,
+    and the browser reports the socket as lost rather than slow."""
+    try:
+        await run.io_bound(call, *args)
+    except Exception as exc:
+        ui.notify(f"Could not save: {exc}", type="negative")
+        return
+    await context["rebuild"]()
+
+
 async def _save_overrides(context: dict[str, Any], changes: dict[str, Any], *,
                           table: bool) -> None:
     """Write one field and rebuild. Off the loop: this is an HTTP call to our own
@@ -1010,6 +1023,37 @@ def _identity_rows(context: dict[str, Any]) -> None:
                              "VPS", save("alt_vps_id"),
                              shown=overrides.get("alt_vps_id") or game.get("vps_id"))),
         ("Folder", PurePosixPath(folder).name or folder or "-"),
+    ])
+
+    record = game.get("user") or {}
+
+    async def rate(value: int) -> None:
+        await _write(context, context["library"].set_game_rating,
+                     context["game_id"], value)
+
+    async def favorite(event: Any) -> None:
+        await _write(context, context["library"].set_game_favorite,
+                     context["game_id"], bool(event.value))
+
+    async def reset() -> None:
+        if not await confirm.ask(
+                "Reset this game's play record?",
+                detail="Its rating, favorite and tags are kept. The counters cannot "
+                       "be recovered.",
+                confirm="Reset"):
+            return
+        await _write(context, context["library"].reset_play_record,
+                     context["game_id"])
+
+    _rows(ui, [(HEADING, game_tables.PLAY)]
+          + _play_rows(context, record, rating=int(game.get("rating") or 0),
+                       on_rate=rate, on_reset=reset,
+                       favorite=lambda: _switch(bool(record.get("favorite")), favorite,
+                                                hint="Yours, and the frontend can "
+                                                     "filter on it"))
+          )
+
+    _rows(ui, [
         (HEADING, game_tables.FRONTEND),
         # Nothing supplies this but the user, so there is nothing to revert to - empty
         # means the frontend's own default, which is what clearing it says.
@@ -1077,6 +1121,31 @@ def _table_rows(table: dict[str, Any],
     if context is not None:
         entries += _table_override_rows(context, table, overrides)
         entries += [(FULL, _play_action(context, table))]
+
+    # What somebody thinks of this file, and what they have done with it. The game's
+    # record is the headline; a table that has been played while its sibling has not
+    # is the thing the game's total cannot say.
+    if context is not None:
+        record = table.get("user") or {}
+        table_id = str(table.get("id") or "")
+
+        async def rate(value: int) -> None:
+            await _write(context, context["library"].set_table_rating,
+                         context["game_id"], table_id, value)
+
+        async def reset() -> None:
+            if not await confirm.ask(
+                    "Reset this table's play record?",
+                    detail="Its rating is kept, and the game's own record is not "
+                           "touched. The counters cannot be recovered.",
+                    confirm="Reset"):
+                return
+            await _write(context, context["library"].reset_play_record,
+                         context["game_id"], table_id)
+
+        entries += [(HEADING, game_tables.PLAY)]
+        entries += _play_rows(context, record, rating=int(table.get("rating") or 0),
+                              on_rate=rate, on_reset=reset)
 
     # What the frontend does with it. Settings, where Launch above is findings.
     entries += [(HEADING, game_tables.FRONTEND)]
@@ -1240,6 +1309,82 @@ def _launch_state(launchable: bool | None) -> Any:
         return _state(game_tables.LAUNCH_UNKNOWN, "unknown")
     return _state(game_tables.word_for(game_tables.LAUNCH_WORDS, not launchable),
                   "on" if launchable else "bad")
+
+
+def _played_when(stamp: str | None) -> str:
+    """A date, not a timestamp. Nobody reads a play record to the second."""
+    if not stamp:
+        return "Never"
+    try:
+        return datetime.fromisoformat(stamp).astimezone().strftime("%d %b %Y")
+    except ValueError:
+        return "Never"
+
+
+def _played_for(seconds: int) -> str:
+    """Play time in the largest unit that is still true, because the number is read at
+    a glance and 41,400 seconds is not a length anybody pictures."""
+    if seconds < 60:
+        return "None" if not seconds else f"{seconds} sec"
+    minutes = seconds // 60
+    if minutes < 90:
+        return f"{minutes} min"
+    hours, rest = divmod(minutes, 60)
+    return f"{hours} hr {rest} min" if rest else f"{hours} hr"
+
+
+def _stars(value: int, on_pick: Callable[[int], Any]) -> Callable[[], None]:
+    """Five stars, and they are the control as well as the picture.
+
+    Clicking the star a rating already stands on clears it - which is how every star
+    widget behaves, and the alternative is a sixth control for a value that has a
+    natural way to say nothing.
+    """
+    def draw() -> None:
+        with ui.element("div").classes("hub-stars"):
+            for n in range(1, 6):
+                lit = " hub-star--on" if n <= value else ""
+                ui.element("span").classes(f"hub-star{lit}") \
+                    .on("click", lambda _, n=n: on_pick(0 if n == value else n)) \
+                    .tooltip("Clear the rating" if n == value else f"{n} of 5")
+
+    return draw
+
+
+def _play_rows(context: dict[str, Any], record: dict[str, Any], *,
+               rating: int, on_rate: Callable[[int], Any],
+               on_reset: Callable[[], Any],
+               favorite: Callable[[], None] | None = None) -> list[tuple[Any, Any]]:
+    """What somebody thinks of this, and what they have done with it.
+
+    Two kinds in one group and the controls say which: rating and favorite are opinions
+    somebody sets, the counters are a record of what happened. Only the record can be
+    reset, and the act sits under it rather than beside a row it does not belong to.
+    """
+    rows: list[tuple[Any, Any]] = [("Rating", _stars(rating, on_rate))]
+    if favorite is not None:
+        rows.append(("Favorite", favorite))
+    rows += [
+        ("Last played", _played_when(record.get("last_played"))),
+        ("Times played", str(int(record.get("play_count") or 0) or "Never")),
+        ("Play time", _played_for(int(record.get("play_time_seconds") or 0))),
+    ]
+    if context is not None and any(record.get(key) for key in
+                                   ("last_played", "play_count", "play_time_seconds")):
+        rows.append((FULL, _reset_action(on_reset)))
+    return rows
+
+
+def _reset_action(on_reset: Callable[[], Any]) -> Callable[[], None]:
+    """Only where there is something to clear. An act offered on a record of nothing
+    is a button that cannot do anything."""
+    def draw() -> None:
+        with ui.element("div").classes("hub-slot-actions"):
+            ui.button("Reset play record", icon="restart_alt",
+                      on_click=on_reset).props("flat dense no-caps size=sm") \
+                .classes("hub-action")
+
+    return draw
 
 
 def _rom_state(pinmame: dict[str, Any], rom: str,
