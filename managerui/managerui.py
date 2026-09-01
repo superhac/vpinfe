@@ -444,12 +444,19 @@ def _manager_ui_urls(port: int) -> list[str]:
         urls.append(f"http://{ip}:{port}")
     return urls
 
+# The route is named /favicon.ico whatever the file is; the browser reads the content
+# type. One route covers every page, the Hub included - none of them set their own.
+_FAVICON = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "static", "img", "vpinfe-favicon.svg")
+
+
 def _run_ui():
     STORAGE_SECRET = "verysecret" # The storage is just to keep the active tab between sessions. Nothing sensitive.
     logger.info("Using NiceGUI storage path: %s", _NICEGUI_STORAGE_PATH)
     logger.info("Starting Manager UI on host=%s port=%s", _ui_bind, _ui_port)
     logger.info("Manager UI expected URLs: %s", ", ".join(_manager_ui_urls(_ui_port)))
     ui.run(title='VPinFE Manager UI',
+           favicon=_FAVICON,
            host=_ui_bind,
            port=_ui_port,
            reload=False,
