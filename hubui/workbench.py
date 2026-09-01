@@ -996,25 +996,26 @@ def _identity_rows(context: dict[str, Any]) -> None:
         return write
 
     _rows(ui, [
-        (HEADING, "The machine"),
+        (HEADING, game_tables.MACHINE),
         ("Name", _override(game.get("name") or "", found.get("name") or "",
                            "VPS", save("alt_title"))),
         ("Made by", f"{game.get('manufacturer') or '?'} "
                     f"{game.get('year') or ''}".strip()),
         ("Type", game.get("type") or "-"),
         ("Themes", ", ".join(game.get("themes") or []) or "-"),
-        ("ROM", game.get("rom") or "-"),
-        (HEADING, "Matched against"),
+        # The match belongs with what it identifies. It had a group to itself called
+        # "Matched against", which grouped provenance that each row already carries -
+        # the revert mark appears exactly when a value differs from what was found.
         ("VPS ID", _override(game.get("vps_id") or "", found.get("vps_id") or "",
                              "VPS", save("alt_vps_id"),
                              shown=overrides.get("alt_vps_id") or game.get("vps_id"))),
-        (HEADING, "On this cabinet"),
+        ("Folder", PurePosixPath(folder).name or folder or "-"),
+        (HEADING, game_tables.FRONTEND),
         # Nothing supplies this but the user, so there is nothing to revert to - empty
         # means the frontend's own default, which is what clearing it says.
         ("DOF event", _override(overrides.get("frontend_dof_event") or "", None,
                                 "", save("frontend_dof_event"),
                                 hint="Empty uses the default effect")),
-        ("Folder", PurePosixPath(folder).name or folder or "-"),
     ])
 
 
@@ -1033,8 +1034,8 @@ def _table_rows(table: dict[str, Any],
     if declared and effective and declared != effective:
         rom = f"{effective}  (declared {declared})"
 
-    # Grouped, and each group carries the actions that work on it. The groups are the
-    # ranking: a version is read constantly and a hash almost never.
+    # Grouped by what a fact is about, one vocabulary shared with the views and the
+    # grid. HUBUI section 14. Each group carries the actions that work on it.
     script = ((table.get("assets") or {}).get("script") or {})
     features = table.get("features") or {}
     overrides = (table.get("overrides") or {}) if context else {}
@@ -1043,27 +1044,44 @@ def _table_rows(table: dict[str, Any],
     if context is not None:
         entries += _attention(table)
 
+    # What this file is. "Filename" rather than "File", which named the filename here
+    # and the on-disk state under Status - one word, two facts, both on screen.
     entries += [
-        (HEADING, "Identity"),
-        ("File", table.get("filename") or "-"),
+        (HEADING, game_tables.FILE),
+        ("Filename", table.get("filename") or "-"),
         ("Version", table.get("version") or "-"),
         ("Author", ", ".join(table.get("authors") or []) or "-"),
+        ("Hash", table.get("file_hash") or "-"),
+        # Here until Assets exists to hold them. A sidecar script is a file you can
+        # add and remove, which is an asset, not a reference number.
+        ("Script", _script_row(context, table, script)),
+        ("Script hash", table.get("vbs_hash") or "-"),
     ]
-    if context is not None:
-        entries += [(FULL, _play_action(context, table))]
+
+    # Its own group. These say what the table implements, which is not the same
+    # question as what plays it - the group they shared could not be named honestly.
+    if features:
+        # The chips span the row: the heading already says Features, and a row
+        # labelled for its own group is the File/Filename collision again.
+        entries += [(HEADING, game_tables.FEATURES),
+                    (FULL, lambda: _feature_chips(features))]
+
+    # Can it run, and how. The dependencies are shown as evidence, never managed
+    # here: a finding jumps to where it is fixed. HUBUI section 14.3.
+    entries += [(HEADING, game_tables.LAUNCH)]
+    present = bool(table.get("available"))
     entries += [
-        (HEADING, "Plays with"),
+        ("File", _state(game_tables.word_for(game_tables.FILE_WORDS, not present),
+                        "on" if present else "bad")),
         ("Application", apps.app_name(table.get("app"))),
         ("ROM", _rom_state(pinmame, rom)),
     ]
-    if features:
-        # Under "Plays with", not a group of its own: nFozzy, SSF and FlexDMD are all
-        # answers to how this table plays, and the row label already says it.
-        entries += [("Features", lambda: _feature_chips(features))]
     if context is not None:
         entries += _table_override_rows(context, table, overrides)
+        entries += [(FULL, _play_action(context, table))]
 
-    entries += [(HEADING, "Status")]
+    # What the frontend does with it. Settings, where Launch above is findings.
+    entries += [(HEADING, game_tables.FRONTEND)]
     if context is not None:
         entries += _library_rows(context, table)
     else:
@@ -1073,19 +1091,6 @@ def _table_rows(table: dict[str, Any],
             ("Hidden", game_tables.word_for(game_tables.HIDDEN_WORDS,
                                             bool(table.get("hidden")))),
         ]
-    present = bool(table.get("available"))
-    entries += [("File", _state(game_tables.word_for(game_tables.FILE_WORDS,
-                                                     not present),
-                                "on" if present else "bad"))]
-
-    # Last and quiet: identifiers are looked up, not read. They earn a place on the
-    # panel and not a place near the top of it.
-    entries += [
-        (HEADING, "Reference"),
-        ("VBScript", _script_row(context, table, script)),
-        ("File hash", table.get("file_hash") or "-"),
-        ("VBScript hash", table.get("vbs_hash") or "-"),
-    ]
     _rows(ui, entries)
 
 

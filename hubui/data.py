@@ -433,8 +433,9 @@ class Library:
                 "manufacturer": game.get("manufacturer") or "",
                 "year": game.get("year") or "",
                 "game_type": game.get("type") or "",
-                "rom": game.get("rom") or "",
-                "version": game.get("version") or "",
+                # No rom or version: both were the default table's reported as the
+                # game's, the columns that showed them are gone, and nothing has read
+                # them since. HUBUI section 14.2a.
                 "table_count": int(game.get("table_count") or 0),
                 "rating": game.get("rating") or 0,
                 "themes": ", ".join(game.get("themes") or []),

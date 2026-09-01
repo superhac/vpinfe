@@ -10,6 +10,15 @@ from typing import Any
 
 JOIN = " · "
 
+# The groups a fact belongs to, spelled once: the panel draws them as headings and the
+# grid's built-in views are named for them, so crossing between the two is not a
+# translation. Only the groups that have rows.
+MACHINE = "Machine"
+FILE = "File"
+FEATURES = "Features"
+LAUNCH = "Launch"
+FRONTEND = "Frontend"
+
 # What a reference points at: whichever table the game offers, or exactly one. `GONE` is
 # not a third kind - it is either of the two, naming something absent.
 FOLLOWS = "default"

@@ -128,8 +128,11 @@ COLUMNS = [
 VIEW_SECTIONS = {"builtin:Media": "media"}
 
 GAME_VIEWS: dict[str, list[str]] = {
-    "Metadata": ["name", "table_count", "manufacturer", "year", "game_type",
-                 "themes", "rating"],
+    # Named for the workbench group it matches. HUBUI section 14: a view and a panel
+    # group about the same facts carry the same word, so crossing between the grid and
+    # the panel is not a translation.
+    game_tables.MACHINE: ["name", "table_count", "manufacturer", "year", "game_type",
+                "themes", "rating"],
     # Media and Assets are built from what the library reports it has, so both are
     # filled at render time. Two views, not one: they answer different questions - what
     # a game looks like, and what it needs to play as intended - and a matrix that mixes
@@ -644,13 +647,17 @@ TABLE_VIEWS: dict[str, list[str]] = {
     # Default and Hidden ride in every preset: which table a game offers and whether it
     # is offered at all are the questions this view exists to answer, and a preset that
     # hides them is a list of files.
-    "Identity": ["game", "version", "author", "rating", "default_state", "hidden",
-                 "filename"],
-    "Files": ["game", "filename", "app", "default_state", "hidden", "missing"],
-    "Play": ["game", "rom", "app", "rating", "default_state", "hidden"],
+    #
+    # Named for the workbench groups. "Files" and "Play" were one question asked twice -
+    # both were app and on-disk state, which is whether this thing runs - so they are
+    # Launch, once. HUBUI section 14.
+    game_tables.FILE: ["game", "version", "author", "rating", "default_state",
+                       "hidden", "filename"],
+    game_tables.LAUNCH: ["game", "filename", "app", "rom", "default_state", "hidden",
+                         "missing"],
     # Its own view, not seven more columns on Play: this is a matrix, the same shape as
     # Media on the games grid, and Play stays a list somebody can read across.
-    "Features": ["game", "version", "author",
+    game_tables.FEATURES: ["game", "version", "author",
                  *[f"feature_{key}" for key in table_features.LABELS]],
 }
 
