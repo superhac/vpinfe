@@ -158,7 +158,9 @@ AXES: tuple[FilterAxis, ...] = (
                "First letter of the title, as sorted",
                _match_letter, groups=letter_of, many=True,
                values_of=lambda game: [letter_of(game)], values_key="letters"),
-    FilterAxis("theme", GAME_SCOPE, "choice", "Theme",
+    # The label a reader sees; `name` is stored and never moves. "Theme" alone reads as
+    # the frontend's in a list of rules that has no game in front of it.
+    FilterAxis("theme", GAME_SCOPE, "choice", "Game Theme",
                "Any theme the game is tagged with",
                _match_theme, many=True,
                values_of=game_themes, values_key="themes"),

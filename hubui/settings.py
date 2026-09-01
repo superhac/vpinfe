@@ -38,7 +38,7 @@ INDEX: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
 ELSEWHERE: tuple[tuple[str, str, str], ...] = (
     ("Displays, input, launchers", "devices",
      "They belong to one device, and only make sense with that device named."),
-    ("Themes", "settings",
+    ("Frontend themes", "settings",
      "A theme carries its own settings; they are shown with the theme."),
     ("Media sources", "media",
      "A source is a thing you add and remove, not a preference."),

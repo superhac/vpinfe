@@ -195,36 +195,28 @@ def set_game_tags(game, tags) -> list[str]:
     return stored
 
 
-def _theme_list(value) -> list[str]:
-    """Themes however they were written down.
-
-    A list, a plain string, or a repr of a list - a legacy writer stored the last of
-    those, so `"['Fantasy', 'Magic']"` has to come back as two themes rather than as one
-    theme with brackets in its name. The parse was already here for `VPSdb.theme` and
-    the newer `Info.Themes` branch was added without it, so the same file read one way
-    and not the other.
-    """
-    if isinstance(value, list):
-        return [str(item) for item in value]
-    said = str(value or "").strip()
-    if not said:
-        return []
-    if said.startswith("[") and said.endswith("]"):
-        try:
-            parsed = ast.literal_eval(said)
-        except (ValueError, SyntaxError):
-            return [said]
-        if isinstance(parsed, list):
-            return [str(item) for item in parsed]
-    return [said]
-
-
 def game_themes(game) -> list[str]:
+    """The game's themes. `Info.Themes` is ours and is a JSON list, so a scalar there is
+    a bad value and stays visible as one - `as_string_list` has the reasoning, and this
+    reads the same way it does. `VPSdb.theme` is scraped 2.x data where the repr form
+    genuinely occurred, so that one is parsed."""
     meta = normalize_meta(getattr(game, "meta_config", {}))
     value = get_meta_value(meta, "Info", "Themes", None)
     if value:
-        return _theme_list(value)
-    return _theme_list(get_meta_value(meta, "VPSdb", "theme", ""))
+        return as_string_list(value)
+
+    legacy = get_meta_value(meta, "VPSdb", "theme", "")
+    if not legacy:
+        return []
+    if isinstance(legacy, list):
+        return legacy
+    try:
+        parsed = ast.literal_eval(str(legacy))
+        if isinstance(parsed, list):
+            return parsed
+    except (ValueError, SyntaxError):
+        pass
+    return [legacy]
 
 
 def game_type(game) -> str:

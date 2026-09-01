@@ -82,16 +82,15 @@ class FavoriteTests(unittest.TestCase):
 class ThemeListTests(unittest.TestCase):
     """However a writer wrote them down, they come back as themes."""
 
-    def test_a_repr_of_a_list_is_two_themes_not_one(self) -> None:
-        """The testbed carries a folder for exactly this - its manifest calls it
-        "legacy Themes stored as a repr string". The parse existed for `VPSdb.theme`
-        and the newer `Info.Themes` branch was added without it, so one file read two
-        ways and the filter axis offered "['Fantasy', 'Magic']" as a theme somebody
-        could pick."""
+    def test_a_repr_in_our_own_field_stays_visible(self) -> None:
+        """`Info.Themes` is ours and is a JSON list, so a repr string there is a bad
+        value rather than a format. `as_string_list` decided that deliberately - parsing
+        it would mean inventing a syntax the file does not have - so the odd value shows
+        as it is, and the .info is what gets fixed."""
         game = SimpleNamespace(
             meta_config={"Info": {"Themes": "['Fantasy', 'Magic']"}})
 
-        self.assertEqual(gm.game_themes(game), ["Fantasy", "Magic"])
+        self.assertEqual(gm.game_themes(game), ["['Fantasy', 'Magic']"])
 
     def test_the_legacy_field_reads_the_same_way(self) -> None:
         game = SimpleNamespace(meta_config={"VPSdb": {"theme": "['Space']"}})

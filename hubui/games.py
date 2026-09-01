@@ -80,7 +80,10 @@ COLUMNS = [
     grid.column("manufacturer", "Manufacturer", group=_GAME),
     grid.column("year", "Year", group=_GAME),
     grid.column("game_type", "Type", group=_GAME),
-    grid.column("themes", "Themes", 200, group=_GAME),
+    # Qualified for the reason Game Rating is: the hub has a *frontend* theme and will
+    # have a hub one, so "Themes" in a column header is three things one screen apart.
+    # The panel says "Themes" plainly, because a group headed Machine has said which.
+    grid.column("themes", "Game Themes", 200, group=_GAME),
     # No ROM or Version here: ROM is an asset (`asset_registry`), Version has no
     # game-level meaning, and both were the default table's shown as the game's.
     # Named for whose rating it is, because the tables grid has one too and "Rating"
