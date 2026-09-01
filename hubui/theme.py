@@ -476,14 +476,14 @@ body::before {
   opacity: 0.75;
   transition: opacity 90ms ease-out, color 90ms ease-out;
 }
-/* Visible is the default and hiding is the exception, which only a grid earns: 147 rows
-   of dismissals is the clutter this hides from, and a panel showing one rating has no
-   such problem. So it hides inside a row, and only where there is a pointer to bring it
-   back - a touch device would otherwise have no way to clear at all.
-   `docs/conventions.md`: gate an affordance on the input, never on the surface. */
+/* On the stars, in both places: the pointer is already there when somebody means to
+   change a rating, and a row-wide reveal put it on screen for anyone crossing the grid.
+   It is only rendered where there is a rating, so this hides nothing a reader needs.
+   Gated on the input, never on the surface (`docs/conventions.md`) - a touch device
+   cannot hover, so there it is simply there, and a keyboard reaches it by focus. */
 @media (hover: hover) and (pointer: fine) {
-  .ag-row .hub-star-clear { opacity: 0; }
-  .ag-row:hover .hub-star-clear { opacity: 0.75; }
+  .hub-star-clear { opacity: 0; }
+  .hub-stars:hover .hub-star-clear { opacity: 0.75; }
 }
 .hub-stars:focus-within .hub-star-clear { opacity: 1; }
 .hub-star-clear:hover { opacity: 1; color: var(--ink-1); }
