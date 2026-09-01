@@ -131,5 +131,49 @@ class HiddenTests(_Lens):
         self.assertEqual(by_id, {"tbl0000001": False, "tbl0000002": True})
 
 
+class TableRatingTests(_Lens):
+    """A table's own rating - INFO-SCHEMA section 8.1's open UI call, answered by the
+    hub's Tables grid: the row you rate is the file."""
+
+    def test_rating_a_table_stores_it_against_that_table(self) -> None:
+        response = self.client.put(f"/games/{GAME_ID}/tables/tbl0000002/rating",
+                                   json={"rating": 4})
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["rating"], 4)
+
+    def test_the_other_table_is_untouched(self) -> None:
+        self.client.put(f"/games/{GAME_ID}/tables/tbl0000002/rating", json={"rating": 4})
+
+        by_id = {row["id"]: row["rating"] for row in self._rows()}
+        self.assertEqual(by_id, {"tbl0000001": 0, "tbl0000002": 4})
+
+    def test_zero_clears_it(self) -> None:
+        self.client.put(f"/games/{GAME_ID}/tables/tbl0000002/rating", json={"rating": 4})
+        body = self.client.put(f"/games/{GAME_ID}/tables/tbl0000002/rating",
+                               json={"rating": 0}).json()
+
+        self.assertEqual(body["rating"], 0)
+
+    def test_a_rating_outside_the_scale_is_refused(self) -> None:
+        """Refused rather than clamped, the same as a game's - storing 5 for a caller
+        that sent 9 hides its bug."""
+        response = self.client.put(f"/games/{GAME_ID}/tables/tbl0000002/rating",
+                                   json={"rating": 9})
+
+        self.assertEqual(response.status_code, 422)
+
+    def test_it_survives_a_reread_and_leaves_the_play_counters_alone(self) -> None:
+        """The rating shares the table's `user` block with the counters, so writing one
+        must not disturb the other - the block is created by whichever comes first."""
+        self.client.put(f"/games/{GAME_ID}/tables/tbl0000002/rating", json={"rating": 2})
+
+        stored = json.loads((self.folder / f"{FOLDER}.info").read_text())
+        user = stored["tables"]["tbl0000002"]["user"]
+        self.assertEqual(user["rating"], 2)
+        self.assertEqual(user["start_count"], 0)
+        self.assertIsNone(user["last_run"])
+
+
 if __name__ == "__main__":
     unittest.main()

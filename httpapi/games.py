@@ -33,6 +33,8 @@ from common.games.game_metadata import (
     load_game_meta,
     meta_file_path,
     set_game_rating,
+    set_table_rating,
+    table_rating,
     vpinfe_section,
 )
 from common.games.game_repository import (
@@ -298,6 +300,9 @@ def _tables(game, row: dict) -> list[dict]:
             # the one that is, not a field every row carries a blank for.
             "default_kind": default_kind if name == default else "",
             "hidden": name in hidden,
+            # The table's own rating, which this lens has to carry as well as the play
+            # lens - a hub reads tables here and would otherwise see every one unrated.
+            "rating": table_rating(described_entry),
             "available": name in on_disk,
             "absent_since": library_discovery.absent_since(described_entry) or None,
             "assets": asset_resolver.resolve_for_table(name, game_dir.name, files),

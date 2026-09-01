@@ -95,6 +95,8 @@ def table_of(entry: dict[str, Any]) -> dict[str, Any]:
         "hidden": table.get("hidden") is True,
         "default": table.get("default") is True,
         "user": {
+            # Stored beside the counters, which is where `set_table_rating` writes it.
+            "rating": int(table.get("rating", 0) or 0),
             "last_run": user.get("last_played"),
             "start_count": user.get("play_count", 0) or 0,
             "run_time_seconds": user.get("play_time_seconds", 0) or 0,

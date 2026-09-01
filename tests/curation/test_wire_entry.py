@@ -144,6 +144,10 @@ class WireEntryTests(TempTree):
         original = {
             "id": "Tbl1111111", "filename": "AFM.vpx", "version": "1.2",
             "rom": "afm_113b", "file_hash": "3a77427e", "default": True, "hidden": False,
+            # The table's own rating, which has to survive the trip like anything else -
+            # it is stored in the same `user` block as the counters but reported beside
+            # them, because it is entered rather than accumulated.
+            "rating": 4,
             "release_date": "1995-06-01", "authors": ["Someone"],
             "detects": {"nfozzy": True, "fleep": False, "ssf": True, "lut": False,
                         "scorbit": False, "fastflips": False, "flex": False,

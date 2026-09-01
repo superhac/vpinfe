@@ -244,8 +244,32 @@ def play_record(meta: Any) -> dict[str, Any]:
     }
 
 
+def table_rating(table: dict) -> int:
+    """One table's own rating, and 0 for the many that have none.
+
+    The game's is the headline (INFO-SCHEMA section 8.1: both levels, game primary), so
+    an unrated table is the normal case rather than a gap - it means "the game's rating
+    stands", never "nobody liked it".
+    """
+    return normalize_rating((table.get("user") or {}).get("rating", 0))
+
+
+def set_table_rating(game, filename: str, rating: Any) -> int:
+    """Write one table's rating, returning what was stored.
+
+    Re-read from disk first, for the reason `set_game_rating` gives: two surfaces write
+    the same `.info`, and the one holding the older copy would otherwise win.
+    """
+    config = load_game_meta(game)
+    get_or_create_table_user(config, filename)["rating"] = normalize_rating(rating)
+    persist_game_meta(game, config)
+    game.meta_config = config
+    return normalize_rating(rating)
+
+
 def table_play_record(table: dict) -> dict[str, Any]:
-    """One table's own play record. Counters only - nothing sets a per-table rating."""
+    """One table's own play record. Counters only - a rating is entered rather than
+    accumulated, so it sits beside this record and not in it."""
     user = table.get("user") or {}
     return {
         "last_played": user.get("last_run") or None,
@@ -281,6 +305,8 @@ def table_descriptor(table: dict, *, default_id: str = "") -> dict[str, Any]:
         "file_hash": str(table.get("file_hash", "") or ""),
         "default": bool(default_id) and table.get(TABLE_ID_KEY) == default_id,
         "hidden": table.get("hidden") is True,
+        # Top level, where the game's rating is too, so the two lenses read alike.
+        "rating": table_rating(table),
         "release_date": parsed("release_date"),
         "authors": table.get("authors") or [],
         "detects": {key.removeprefix("detect_"): bool(table.get(key, False))
@@ -346,8 +372,9 @@ def get_or_create_vpinfe_meta(config: dict[str, Any]) -> dict[str, Any]:
 def get_or_create_table_user(config: dict[str, Any], filename: str) -> dict[str, Any]:
     """One table's play record, created on its first launch.
 
-    Counters only. A per-table rating and favorite are in the design but nothing
-    sets them, and storing a field no producer fills invites a reader to trust it.
+    The counters are written here; `rating` is written by `set_table_rating` and is the
+    only entered value in the block. Favorite is still in the design with no producer,
+    and storing a field nothing fills invites a reader to trust it.
     """
     entries = rekey_by_id(config.setdefault(TABLES_KEY, {}))
     config[TABLES_KEY] = entries

@@ -389,6 +389,9 @@ class Table(ApiModel):
     # a choice does not move, and a derived pick changes when a table is installed.
     default_kind: str = ""
     hidden: bool
+    # The table's own, 0 where it has none - which is most of them. The game's rating is
+    # the headline and this refines it, so 0 means "the game's stands", not "poor".
+    rating: int = 0
     available: bool
     absent_since: str | None = None
     # Read out of the .vpx itself, so a table nobody has matched still says who built
@@ -446,6 +449,8 @@ class TableRow(ApiModel):
     filename: str
     version: str = ""
     authors: list[str] = []
+    # This table's own rating, not its game's. 0 is unrated, which is most of them.
+    rating: int = 0
     rom: str = ""
     # Whether that rom is actually installed. **Null when the table declares none** -
     # a table with no rom is not required to have one, and reporting that as missing

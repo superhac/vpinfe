@@ -313,6 +313,7 @@
           "hidden": false,
           "id": "afmtable01",
           "path": "/library/Attack from Mars (Bally 1995)/Attack from Mars (Bally 1995).vpx",
+          "rating": 0,
           "release_date": null,
           "rom": "afm_113b",
           "user": {
@@ -371,6 +372,7 @@
           "hidden": false,
           "id": "",
           "path": "/library/Bare Table (Gottlieb 1980)/Bare Table (Gottlieb 1980).vpx",
+          "rating": 0,
           "release_date": null,
           "rom": "",
           "user": {
@@ -431,6 +433,7 @@
           "hidden": false,
           "id": "cngtable01",
           "path": "/library/Congo (Williams 1995)/Congo (Williams 1995).vpx",
+          "rating": 0,
           "release_date": null,
           "rom": "",
           "user": {
@@ -492,6 +495,7 @@
           "hidden": false,
           "id": "mmtable001",
           "path": "/library/Medieval Madness (Williams 1997)/Medieval Madness (Williams 1997).vpx",
+          "rating": 0,
           "release_date": null,
           "rom": "",
           "user": {
