@@ -45,6 +45,7 @@ dist/
 .vscode/
 .idea/
 *.local.md
+.playwright-mcp/
 
 # Virtual environments
 .venv/
