@@ -224,7 +224,48 @@ def load_roms() -> dict:
         return json.load(f)
 
 
-roms = load_roms()
+class _Roms(dict):
+    """The rom map, read the first time something asks for it.
+
+    Read at import before this: importing the module raised `FileNotFoundError` wherever
+    `roms.json` was not on disk yet, which is any test that patches this module and any
+    caller that only wants the parsing helpers. `tests/theming` could never pass on its
+    own for that reason, so `tools/testfor.py` could not report the one suite it picks
+    for a change here - a tool nobody can trust the green of is not a tool.
+
+    A dict subclass rather than a function, because the module-level name is read
+    directly at four call sites and by anything that imported it.
+    """
+
+    _read = False
+
+    def _ready(self) -> None:
+        if not self._read:
+            self._read = True
+            super().update(load_roms())
+
+    def __getitem__(self, key):
+        self._ready()
+        return super().__getitem__(key)
+
+    def get(self, key, default=None):
+        self._ready()
+        return super().get(key, default)
+
+    def __contains__(self, key) -> bool:
+        self._ready()
+        return super().__contains__(key)
+
+    def keys(self):
+        self._ready()
+        return super().keys()
+
+    def items(self):
+        self._ready()
+        return super().items()
+
+
+roms = _Roms()
 
 
 def get_default_initials() -> str:
