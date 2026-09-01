@@ -9,6 +9,7 @@ from hubui import (
     game_tables,
     games,
     media_ownership,
+    stars,
     workbench,
 )
 from hubui import features as table_features
@@ -259,3 +260,34 @@ class FunnelChoiceTests(unittest.TestCase):
         self.assertEqual({choice["label"] for choice in games._STATE_CHOICES},
                          {media_ownership.tier_for(key).noun
                           for key in media_ownership.STATES})
+
+
+class StarControlTests(unittest.TestCase):
+    """One control, drawn twice - so the two drawings have to agree."""
+
+    def test_both_renderers_draw_the_same_control(self) -> None:
+        """A grid cell is rendered by AG Grid in the browser and a panel row from
+        elements on the server, so they cannot be one call. Everything they draw comes
+        from the module's constants, which is what stops them drifting again - the clear
+        had a body in one and not the other, and cleared on a different gesture."""
+        js = stars.renderer("game")
+
+        for token in (stars.BOX, stars.STAR, stars.LIT, stars.CLEAR_CLASS, stars.CLEAR):
+            with self.subTest(token=token):
+                self.assertIn(token, js)
+        self.assertIn(f"n <= {stars.MOST}", js)
+
+    def test_the_clear_carries_the_character(self) -> None:
+        """In a tooltip it measures zero and cannot be clicked - and a scripted click
+        passes on it anyway, so only an eye catches it."""
+        self.assertEqual(stars.CLEAR, "×")
+        self.assertIn(f">{stars.CLEAR}</span>", stars.renderer("game"))
+
+    def test_only_a_rated_row_offers_the_clear(self) -> None:
+        """Guarded in the renderer, or an unrated library is a column of dismissals."""
+        self.assertIn("if (held)", stars.renderer("game"))
+
+    def test_the_listener_reads_the_box_class(self) -> None:
+        """One delegated listener for every star in the app; if the class it looks for
+        drifts from the one drawn, every click stops arriving and nothing errors."""
+        self.assertIn(f".{stars.BOX} [data-value]", stars.CLICK_JS)

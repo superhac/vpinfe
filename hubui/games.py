@@ -14,7 +14,7 @@ from common.games import asset_registry
 from common.labels import humanize
 from common.media_specs import media_label_map
 from hubui import features as table_features
-from hubui import game_tables, grid, media_ownership, mediaview, views, workbench
+from hubui import game_tables, grid, media_ownership, mediaview, stars, views, workbench
 from hubui.api import HubClient
 
 logger = logging.getLogger("vpinfe.hubui.games")
@@ -62,56 +62,14 @@ def _asset_label(key: str) -> str:
 #
 # Clicking the star a rating already stands on clears it. That is how every star widget
 # behaves, and the alternative is a sixth control on a column this narrow.
-def _stars(subject: str) -> str:
-    game = "row.id" if subject == "game" else "(row.game_id || '')"
-    table = "''" if subject == "game" else "row.id"
-    return (
-        "params => {"
-        " const row = params.data || {}; const held = Number(params.value) || 0;"
-        " let out = '<span class=\"hub-stars\" data-game=\"' + " + game
-        + " + '\" data-table=\"' + " + table + " + '\">';"
-        " for (let n = 1; n <= 5; n++) {"
-        "  out += '<span class=\"hub-star' + (n <= held ? ' hub-star--on' : '')"
-        "  + '\" data-value=\"' + n + '\" title=\"' + n + ' of 5\"></span>';"
-        " }"
-        # The only way back to unrated - clicking the star a rating stood on used to do
-        # it too, and one control that both sets and unsets the same value is a guess
-        # about which the click meant. Chris, 2026-09-01. Only where there is something
-        # to clear: an X on every unrated game would be a column of controls.
-        " if (held) { out += '<span class=\"hub-star-clear\" data-value=\"0\"'"
-        "  + ' title=\"Clear rating\">\u00d7</span>'; }"
-        " return out + '</span>'; }"
-    )
-
-
-# Filtering by a rating means picking one, not typing it: the value is a number and the
-# cell is five stars, so AG Grid's text box was asking the reader to guess that "3" is
-# what a three-star row holds. Unrated leads, because "which of these have I not judged
-# yet" is the question this column is opened for.
 _RATING_CHOICES = ([{"value": 0, "label": "Unrated"}]
-                   + [{"value": n, "label": "", "mark": "hub-star hub-star--on",
+                   + [{"value": n, "label": "", "mark": f"{stars.STAR} {stars.LIT}",
                        "repeat": n} for n in range(1, 6)])
 
 
 # Delegated once, in the capture phase for the same reason the enlarge is: the cell's
 # own click would move the focused row, and rating a row you can see is not a request
 # to go and look at it.
-_STARS_JS = """
-if (!window.__hubStars) {
-  window.__hubStars = true;
-  document.addEventListener('click', (e) => {
-    const star = e.target.closest && e.target.closest('.hub-stars [data-value]');
-    if (!star) return;
-    e.stopPropagation();
-    const box = star.closest('.hub-stars');
-    emitEvent('hub_rate', {game: box.dataset.game, table: box.dataset.table,
-                           value: Number(star.dataset.value)});
-  }, true);
-}
-"""
-
-
-
 COLUMNS = [
     grid.column("name", "Name", 280, pinned="left", group=_GAME),
     # Always, including 1: it is the only thing saying the row collapses its tables,
@@ -130,7 +88,7 @@ COLUMNS = [
     grid.column("rating", "Game Rating", group=_GAME,
                 cellClass="hub-stars-cell",
                 **grid.choice_filter(_RATING_CHOICES),
-                **{":cellRenderer": _stars("game")}),
+                **{":cellRenderer": stars.renderer("game")}),
 ]
 
 # Presets, not a replacement for choosing columns: a view sets which columns are
@@ -433,36 +391,13 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
             mediaview.open_viewer(f"/api/v1/games/{game_id}/media/{kind}", kind,
                                   media_label_map().get(kind, kind))
 
-    async def rate_row(event) -> None:
-        """Set a rating from the stars, and redraw the one row that changed.
-
-        A whole-grid refresh would cost the scroll position and the selection for one
-        number - and the row is the only thing that knows it changed.
-        """
-        args = event.args if isinstance(event.args, dict) else {}
-        game_id, table_id = str(args.get("game") or ""), str(args.get("table") or "")
-        value = int(args.get("value") or 0)
-        if not game_id:
-            return
-        client = HubClient()
-        try:
-            if table_id:
-                await run.io_bound(client.rate_table, game_id, table_id, value)
-            else:
-                await run.io_bound(client.rate, game_id, value)
-        except Exception as exc:
-            ui.notify(f"Could not save that rating: {exc}", type="negative")
-            return
-        row = by_id.get(table_id or game_id)
-        if row is not None:
-            row["rating"] = value
-            table.run_grid_method("applyTransaction", {"update": [row]})
+    rate_row = stars.rating_handler(by_id, lambda: table, HubClient)
 
     ui.on("hub_row_focus", focused)
     ui.on("hub_media_zoom", zoom_media)
     ui.on("hub_rate", rate_row)
     ui.run_javascript(_CELL_MEDIA)
-    ui.run_javascript(_STARS_JS)
+    ui.run_javascript(stars.CLICK_JS)
 
     def on_context(row: dict | None) -> None:
         # The row menu acts on the row under the cursor, which is not necessarily the
@@ -658,7 +593,7 @@ TABLE_COLUMNS = [
     grid.column("rating", "Table Rating", group=_TABLE,
                 cellClass="hub-stars-cell",
                 **grid.choice_filter(_RATING_CHOICES),
-                **{":cellRenderer": _stars("table")}),
+                **{":cellRenderer": stars.renderer("table")}),
     # Each column's own words, not a generic pair: "Hidden: Yes" is a question about a
     # question, where "Hidden / Offered" is the fact and its opposite.
     grid.column("hidden", "Hidden", group=_IN_PLAY,
@@ -775,35 +710,12 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     # rather than selection, so arrowing down the list is a sweep and the checkboxes
     # stay whatever a bulk action left them.
     by_id = {row["id"]: row for row in built}
-    async def rate_row(event) -> None:
-        """Set a rating from the stars, and redraw the one row that changed.
-
-        A whole-grid refresh would cost the scroll position and the selection for one
-        number - and the row is the only thing that knows it changed.
-        """
-        args = event.args if isinstance(event.args, dict) else {}
-        game_id, table_id = str(args.get("game") or ""), str(args.get("table") or "")
-        value = int(args.get("value") or 0)
-        if not game_id:
-            return
-        client = HubClient()
-        try:
-            if table_id:
-                await run.io_bound(client.rate_table, game_id, table_id, value)
-            else:
-                await run.io_bound(client.rate, game_id, value)
-        except Exception as exc:
-            ui.notify(f"Could not save that rating: {exc}", type="negative")
-            return
-        row = by_id.get(table_id or game_id)
-        if row is not None:
-            row["rating"] = value
-            table.run_grid_method("applyTransaction", {"update": [row]})
+    rate_row = stars.rating_handler(by_id, lambda: table, HubClient)
 
     ui.on("hub_row_focus",
           lambda event: on_select(by_id.get(grid.focused_row(event))))
     ui.on("hub_rate", rate_row)
-    ui.run_javascript(_STARS_JS)
+    ui.run_javascript(stars.CLICK_JS)
 
     row_menu: dict[str, Any] = {}
 

@@ -33,7 +33,16 @@ from common.games.collection_store import (
 )
 from common.labels import field_label, humanize
 from common.media_specs import media_family
-from hubui import confirm, deeplink, game_tables, media_ownership, mediamap, mediasource, mediaview
+from hubui import (
+    confirm,
+    deeplink,
+    game_tables,
+    media_ownership,
+    mediamap,
+    mediasource,
+    mediaview,
+    stars,
+)
 from hubui import features as table_features
 from hubui.data import Library
 
@@ -1334,33 +1343,6 @@ def _played_for(seconds: int) -> str:
     return f"{hours} hr {rest} min" if rest else f"{hours} hr"
 
 
-def _stars(value: int, on_pick: Callable[[int], Any]) -> Callable[[], None]:
-    """Five stars, and they are the control as well as the picture.
-
-    A star sets, and the explicit clear beside them unsets - the same control the grid
-    has, because a rating is set in both places and one that clears differently in each
-    is two controls. Clicking the star a rating already stood on used to clear it, which
-    made one click mean set or unset depending on a value the user was not looking at.
-    Chris, 2026-09-01: the x is the intuitive one.
-    """
-    def draw() -> None:
-        with ui.element("div").classes("hub-stars"):
-            for n in range(1, 6):
-                lit = " hub-star--on" if n <= value else ""
-                ui.element("span").classes(f"hub-star{lit}") \
-                    .on("click", lambda _, n=n: on_pick(n)) \
-                    .tooltip(f"{n} of 5")
-            if value:
-                # The character is the control. An empty span with the x in a tooltip
-                # measured 0 wide and could not be clicked by anybody with a mouse -
-                # and a synthetic click passed on it, which is why it took an eye.
-                ui.label("\u00d7").classes("hub-star-clear") \
-                    .on("click", lambda _: on_pick(0)) \
-                    .tooltip("Clear rating")
-
-    return draw
-
-
 def _play_rows(context: dict[str, Any], record: dict[str, Any], *,
                rating: int, on_rate: Callable[[int], Any],
                on_reset: Callable[[], Any],
@@ -1371,7 +1353,7 @@ def _play_rows(context: dict[str, Any], record: dict[str, Any], *,
     somebody sets, the counters are a record of what happened. Only the record can be
     reset, and the act sits under it rather than beside a row it does not belong to.
     """
-    rows: list[tuple[Any, Any]] = [("Rating", _stars(rating, on_rate))]
+    rows: list[tuple[Any, Any]] = [("Rating", stars.draw(rating, on_rate))]
     if favorite is not None:
         rows.append(("Favorite", favorite))
     rows += [
