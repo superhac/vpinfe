@@ -48,21 +48,23 @@ class State:
     chip: str
     mark: str
     why: str
-    # A character where the state is a plain yes. Presence is a tick across this hub -
-    # the asset and media columns beside these say it that way - and the shaped circles
-    # are for a vocabulary with more than two answers to tell apart.
+    # How the state is drawn, and coloured. Characters, not the shaped circles: a
+    # dashed one already means Missing in the media tiers, and a table nobody has read
+    # is not a missing one.
     glyph: str = ""
+    glyph_class: str = ""
 
 
 # Not used draws nothing: most tables use most of these not at all, and a mark on every
 # one would bury the two states worth seeing.
 _STATES = {
     IN_SCRIPT: State(IN_SCRIPT, "In the script", "hub-tier--on", "",
-                     "The script uses it", glyph="\u2713"),
+                     "The script uses it", glyph="\u2713", glyph_class="hub-tick"),
     UNUSED: State(UNUSED, "Not used", "hub-tier--off", "",
                   "The script does not use it"),
-    UNKNOWN: State(UNKNOWN, "Not parsed yet", "hub-tier--unknown", "hub-mark--dashed",
-                   "Nothing has read this table's script"),
+    UNKNOWN: State(UNKNOWN, "Not parsed yet", "hub-tier--unknown", "",
+                   "Nothing has read this table's script", glyph="?",
+                   glyph_class="hub-unknown"),
 }
 
 # All three, unlike a media legend: "not used" is drawn as nothing, so it is exactly the

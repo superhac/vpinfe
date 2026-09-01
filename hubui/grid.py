@@ -91,7 +91,7 @@ if (!window.HubChoiceFilter) {
         // A state drawn as a character rather than a shape - presence is a tick here.
         if (choice.glyph) {
           const tick = document.createElement('span');
-          tick.className = 'hub-tick';
+          tick.className = choice.glyphClass || 'hub-tick';
           tick.textContent = choice.glyph;
           row.appendChild(tick);
         }

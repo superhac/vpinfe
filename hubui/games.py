@@ -582,6 +582,7 @@ _TICK = {
 _FEATURE_MARKS = {
     key: {"mark": table_features.state_for(key).mark,
           "glyph": table_features.state_for(key).glyph,
+          "cls": table_features.state_for(key).glyph_class,
           "noun": table_features.state_for(key).noun,
           "why": table_features.state_for(key).why}
     for key in table_features.STATES
@@ -595,7 +596,7 @@ _FEATURE_RENDERER = (
     + "' : (v ? '" + table_features.IN_SCRIPT + "' : '" + table_features.UNUSED + "')];"
     " if (!t) return '';"
     " const why = t.noun + ' \u2014 ' + t.why;"
-    " if (t.glyph) return '<span class=\"hub-tick\" title=\"' + why + '\">'"
+    " if (t.glyph) return '<span class=\"' + t.cls + '\" title=\"' + why + '\">'"
     " + t.glyph + '</span>';"
     " if (!t.mark) return '';"
     " return '<span class=\"hub-mark ' + t.mark + '\" title=\"' + why"
@@ -607,10 +608,12 @@ _FEATURE_RENDERER = (
 # reads an absent value that way, which is what makes "not parsed yet" pickable.
 _FEATURE_CHOICES = [
     {"value": True, "label": table_features.state_for(table_features.IN_SCRIPT).noun,
-     "glyph": table_features.state_for(table_features.IN_SCRIPT).glyph},
+     "glyph": table_features.state_for(table_features.IN_SCRIPT).glyph,
+     "glyphClass": table_features.state_for(table_features.IN_SCRIPT).glyph_class},
     {"value": False, "label": table_features.state_for(table_features.UNUSED).noun},
     {"value": "", "label": table_features.state_for(table_features.UNKNOWN).noun,
-     "mark": f"hub-mark {table_features.state_for(table_features.UNKNOWN).mark}"},
+     "glyph": table_features.state_for(table_features.UNKNOWN).glyph,
+     "glyphClass": table_features.state_for(table_features.UNKNOWN).glyph_class},
 ]
 
 _FEATURES = "Features"
@@ -753,7 +756,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                 state = table_features.state_for(key)
                 with ui.row().classes("items-center gap-1 no-wrap").tooltip(state.why):
                     if state.glyph:
-                        ui.label(state.glyph).classes("hub-tick")
+                        ui.label(state.glyph).classes(state.glyph_class)
                     else:
                         ui.element("span").classes(f"hub-mark {state.mark}".strip()
                                                    if state.mark else "hub-mark-none")

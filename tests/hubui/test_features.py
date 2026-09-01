@@ -29,14 +29,28 @@ class StateTests(unittest.TestCase):
         self.assertTrue(self._drawn(features.IN_SCRIPT))
         self.assertTrue(self._drawn(features.UNKNOWN))
 
-    def test_presence_is_a_tick_and_the_third_state_is_not(self) -> None:
-        """A plain yes is a tick, the same as the asset and media columns beside these.
-        The shaped circle is kept for the answer that is neither yes nor no, so the
-        exception looks different in kind rather than in degree."""
+    def test_both_drawn_states_are_characters(self) -> None:
+        """A tick for the plain yes, the same as the asset and media columns beside
+        these, and a question mark for the answer nobody has - which says itself, where
+        a shape needs a legend to say it."""
         self.assertEqual(features.state_for(features.IN_SCRIPT).glyph, "\u2713")
-        self.assertEqual(features.state_for(features.IN_SCRIPT).mark, "")
-        self.assertEqual(features.state_for(features.UNKNOWN).glyph, "")
-        self.assertTrue(features.state_for(features.UNKNOWN).mark)
+        self.assertEqual(features.state_for(features.UNKNOWN).glyph, "?")
+
+    def test_no_feature_state_borrows_a_media_tier_shape(self) -> None:
+        """A dashed circle already means Missing in `media_ownership`, and a table
+        nobody has read is not a missing one. Shapes are shared across vocabularies on
+        purpose, so the one that would be wrong has to be kept out deliberately."""
+        for key in features.STATES:
+            with self.subTest(state=key):
+                self.assertEqual(features.state_for(key).mark, "")
+
+    def test_present_is_green_and_unread_is_quiet(self) -> None:
+        """`docs/conventions.md`: green is present, and accent is the current value and
+        nothing else - so a tick on every true cell of a matrix cannot be accent. An
+        unread table is not a fault and must not be coloured as one."""
+        self.assertEqual(features.state_for(features.IN_SCRIPT).glyph_class, "hub-tick")
+        self.assertEqual(features.state_for(features.UNKNOWN).glyph_class,
+                         "hub-unknown")
 
     def test_the_legend_names_all_three(self) -> None:
         """Including the one drawn as nothing - it is the state a reader is least able

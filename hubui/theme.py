@@ -51,6 +51,7 @@ _TOKENS = """
   --ink-2: #cbb8ea;      /* secondary text          11.1:1 */
   --ink-3: #9b8bbd;      /* help and hints           6.5:1 */
   --accent: #00d9ff;     /* interactive text        11.8:1 */
+  --positive: #00ff9f;   /* present, installed, in use */
   --flair: #b429f9;      /* fills and borders only   4.4:1 */
 
   --surface-0: #0a0518;
@@ -1591,7 +1592,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    whose file this is, and their amber is the exception worth spotting. Green is
    present here; amber is reserved for something to go and fix. */
 .hub-tier--on {
-  color: #00ff9f; border-color: rgba(0, 255, 159, 0.45);
+  color: var(--positive); border-color: rgba(0, 255, 159, 0.45);
   background: rgba(0, 255, 159, 0.12);
 }
 .hub-tier--off {
@@ -1631,7 +1632,12 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 
 /* A tick column is scanned, not read: center it so the eye runs down one line. */
-.hub-tick { text-align: center; color: var(--accent); }
+/* Green, not accent. `docs/conventions.md`: green is present, and accent is the current
+   value and nothing else - spending it on every true cell in a matrix is how it stops
+   meaning anything. `.hub-unknown` is the answer that is neither yes nor no, so it is
+   quiet: an unread table is not a fault and must not read as one. */
+.hub-tick { text-align: center; color: var(--positive); }
+.hub-unknown { text-align: center; color: var(--ink-3); font-weight: 600; }
 
 /* One or more tables here use something else. A bar rather than a badge: the tile is
    about a hundred pixels wide and already carries a tier badge and an enlarge, and a
