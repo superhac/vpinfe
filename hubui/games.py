@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 from collections.abc import Callable
@@ -803,16 +804,42 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                            on_context, on_header_context)
         menu = ui.context_menu()
 
-    async def act(what: Callable, *args: Any, said: str = "") -> None:
+    async def act(what: Callable, *args: Any, said: str = "",
+                  row: dict[str, Any] | None = None, gone: bool = False) -> None:
+        """Run one row-menu act, then put only what changed back on screen.
+
+        Rebuilding the page was the whole answer here, and it reads as the grid
+        flashing: scroll position, focus and the open panel all go, for a write that
+        touched one game's rows. `getRowId` is already the row's id - section 6 has it
+        so selection survives a refresh - which is exactly what a transaction needs.
+
+        The whole game's rows, not the one acted on: a default moves, so the row that
+        held it stops being the default in the same write.
+        """
         try:
             await run.io_bound(what, *args)
         except Exception as exc:
             ui.notify(f"Could not do that: {exc}", type="negative")
             return
         ui.notify(said, type="positive")
-        # Both subjects read tables, so the list is rebuilt rather than patched.
-        if rerender is not None:
-            rerender()
+        game_id = str((row or {}).get("game_id") or "")
+        if not game_id:
+            if rerender is not None:
+                rerender()
+            return
+
+        fresh = table_rows(await run.io_bound(library.tables_for, game_id))
+        if gone:
+            table.run_grid_method("applyTransaction", {"remove": [{"id": row["id"]}]})
+            by_id.pop(row["id"], None)
+        by_id.update({item["id"]: item for item in fresh})
+        if fresh:
+            table.run_grid_method("applyTransaction", {"update": fresh})
+        # The panel is about one of these rows and would otherwise still show what the
+        # write changed. `on_select` redraws the workbench alone, not the page.
+        answer = on_select(None if gone else by_id.get(row["id"]))
+        if inspect.isawaitable(answer):
+            await answer
 
     def _fill(row: dict | None, col_id: str | None = None,
               pinned: bool = False) -> None:
@@ -851,7 +878,8 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                     ui.menu_item(
                         "Make default",
                         lambda r=row: act(library.set_default_table, r["game_id"],
-                                          r["id"], said="Now this game's default")) \
+                                          r["id"], said="Now this game's default",
+                                          row=r)) \
                         .classes("hub-menu-item")
                 elif (row.get("default_kind") or "") == game_tables.CHOSEN:
                     # The way back. Clearing the choice does not clear the default - it
@@ -859,14 +887,16 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                     ui.menu_item(
                         "Clear choice",
                         lambda r=row: act(library.set_default_table, r["game_id"], "",
-                                          said="Back to an automatic default")) \
+                                          said="Back to an automatic default",
+                                          row=r)) \
                         .classes("hub-menu-item")
                 hidden = bool(row.get("hidden"))
                 ui.menu_item(
                     "Unhide" if hidden else "Hide",
                     lambda r=row, h=hidden: act(library.set_table_hidden, r["game_id"],
                                                 r["id"], not h,
-                                                said="Now offered" if h else "Hidden")) \
+                                                said="Now offered" if h else "Hidden",
+                                                row=r)) \
                     .classes("hub-menu-item")
                 # Only for a table whose file is gone. While it is on disk the record
                 # describes something the user owns, and hiding is what takes it out of
@@ -875,7 +905,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                     ui.menu_item(
                         "Forget this table",
                         lambda r=row: act(library.forget_table, r["game_id"], r["id"],
-                                          said="Record dropped")) \
+                                          said="Record dropped", row=r, gone=True)) \
                         .classes("hub-menu-item")
 
     wire_views(table)
