@@ -26,12 +26,23 @@ from common.games.info_file import ALT_VPSID_PREVIOUS_KEY
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Where the parked value is allowed to be named at all: the module that writes it, and
-# whatever surfaces it to a person. Nothing in resolution, matching or any payload.
+# whatever carries it to a person. Nothing in resolution or matching, and nothing in a
+# payload anybody resolves from - the VPinPlay submission, a collection's membership, a
+# media lookup. Those are what a stale claim would poison.
 MAY_NAME_IT = {
     "common/games/info_file.py",          # writes it
 }
-# Added when the Manager UI grows the confirm-or-discard control it exists for.
-MAY_SURFACE_IT: set[str] = set()
+# Amended 2026-09-01, for the control this was parked to make possible.
+#
+# The note here read "added when the Manager UI grows the confirm-or-discard control",
+# and said nothing in *any* payload - which assumed the surface would read the .info
+# directly. hubui reads the API, so the only way a person can be offered the value back
+# is for the management resource to carry it. That is allowed; resolving through it is
+# not, and everything below still asserts the difference.
+MAY_SURFACE_IT = {
+    "common/games/game_repository.py",    # carries it on the row
+    "httpapi/games.py",                   # and onto the management resource
+}
 
 
 def _sources():

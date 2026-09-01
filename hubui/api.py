@@ -148,6 +148,26 @@ class HubClient:
                                      json={"tags": list(tags)}, timeout=_TIMEOUT)
         self._answered(response)
 
+    def vps_search(self, term: str, limit: int = 40) -> list[dict]:
+        """Catalog entries matching every word, already in a neutral order. No score
+        comes back and none is wanted - the ranker was measured and retired."""
+        _refuse_the_event_loop("/vps/search")
+        response = self._session.get(f"{self._base}/vps/search",
+                                     params={"q": term, "limit": limit},
+                                     timeout=_TIMEOUT)
+        self._answered(response)
+        return list(response.json().get("results") or [])
+
+    def vps_entry(self, vps_id: str) -> dict:
+        """What a game is matched to, so a surface shows the match and not its id."""
+        _refuse_the_event_loop("/vps/entry")
+        response = self._session.get(
+            f"{self._base}/vps/entry/{quote(vps_id, safe='')}", timeout=_TIMEOUT)
+        if response.status_code == 404:
+            return {}
+        self._answered(response)
+        return dict(response.json() or {})
+
     def merge_tags(self, sources: list[str], into: str) -> int:
         """Across the library: a tag is a word the library holds, not a game's."""
         _refuse_the_event_loop("/library/tags/merge")

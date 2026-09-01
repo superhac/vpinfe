@@ -501,6 +501,10 @@ body::before {
    line of sight, and the named files are quiet and breakable - a path is looked at, not
    read. */
 .hub-confirm { min-width: 320px; max-width: 460px; }
+/* A picker is a list to read down, not a question to answer, so it takes the room a
+   list needs and caps its height rather than growing past the window. */
+.hub-picker-dialog { min-width: 520px; max-width: 640px; }
+.hub-picker-dialog .hub-source-list { max-height: 42vh; overflow-y: auto; }
 /* The question is a sentence and takes sentence case. It used to wear `.hub-card-title`,
    which is the section-heading treatment - uppercase, tracked, accent - so every dialog
    opened by shouting its question. Weight and size carry it instead. */

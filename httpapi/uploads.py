@@ -256,6 +256,28 @@ def import_upload(upload_id: str,
     return report
 
 
+@vps_router.get("/entry/{vps_id}", summary="One VPSdb entry",
+                dependencies=[requires(scopes.VPS_READ)])
+def vps_entry(vps_id: str) -> models.VpsSearchResult:
+    """What a game is matched to, so a surface can show the match rather than its id.
+
+    Under `/entry/` rather than `/{vps_id}` so it cannot swallow `/search`, and so a
+    later verb here does not have to be a reserved word.
+    """
+    from common.games.game_service import load_vpsdb
+
+    found = next((e for e in load_vpsdb() if str(e.get("id") or "") == vps_id), None)
+    if found is None:
+        raise NotFoundError("No such VPS entry", details={"vps_id": vps_id})
+    return {
+        "vps_id": found.get("id"), "name": found.get("name"),
+        "manufacturer": found.get("manufacturer"), "year": found.get("year"),
+        "type": found.get("type"), "folder_name": vps_folder_name(found),
+        "releases": len(found.get("tableFiles") or []),
+        "url": f"https://virtualpinballspreadsheet.github.io/?game={found.get('id')}",
+    }
+
+
 @vps_router.get("/search", summary="Search VPSdb", dependencies=[requires(scopes.VPS_READ)])
 def search_vps(q: str = "", limit: int = 20) -> models.VpsSearchResults:
     from common.games.game_service import search_vpsdb
@@ -269,6 +291,8 @@ def search_vps(q: str = "", limit: int = 20) -> models.VpsSearchResults:
                 "year": e.get("year"),
                 "type": e.get("type"),
                 "folder_name": vps_folder_name(e),
+                "releases": len(e.get("tableFiles") or []),
+                "url": f"https://virtualpinballspreadsheet.github.io/?game={e.get('id')}",
             }
             for e in search_vpsdb(q, limit=limit)
         ]

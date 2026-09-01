@@ -128,6 +128,9 @@ def _resource(row: dict, game_id: str) -> dict:
             "alt_vps_id": row.get("alt_vpsid", ""),
             "frontend_dof_event": row.get("frontend_dof_event", ""),
         },
+        # Surfacing it, never resolving through it: `tests/invariants/test_parked_override`
+        # asserts the difference, and this file is on its allowlist for that reason.
+        "parked_vps_id": _parked_match(row),
         "discovered": {
             "name": row.get("found_name", ""),
             "vps_id": row.get("vpsid", ""),
@@ -161,6 +164,16 @@ def _table_overrides(entry: dict, folder: dict) -> dict:
         "plugin_profile": str(pick("plugin_profile")),
         "delete_nvram_on_close": bool(pick("delete_nvram_on_close", False)),
     }
+
+
+def _parked_match(row: dict) -> dict | None:
+    """A superseded manual match, for the surface that offers it back."""
+    parked = row.get("alt_vpsid_previous")
+    if not isinstance(parked, dict) or not str(parked.get("value") or "").strip():
+        return None
+    return {"value": str(parked["value"]).strip(),
+            "table": str(parked.get("table") or ""),
+            "set_aside": str(parked.get("set_aside") or "")}
 
 
 def _asset_summary(row: dict) -> dict:

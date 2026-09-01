@@ -151,16 +151,30 @@ def load_vpsdb() -> list[dict]:
 
 
 def search_vpsdb(term: str, limit: int = 50) -> list[dict]:
-    term = (term or "").strip().lower()
-    if not term:
+    """Catalog entries matching every word, in a neutral order.
+
+    Every word has to appear somewhere in the name, maker or year, so "attack bally"
+    narrows rather than widens - which is what a person typing two words means.
+
+    Sorted before the window is taken, and by name then year. Two reasons, and the
+    second is the one that mattered: this used to stop at `limit` in catalog order, so
+    the answer somebody wanted could be cut off by where it happened to sit in the file.
+    And there is no ranking, deliberately - a match scorer was measured here and retired
+    for being confidently wrong more than half the time, so an order that implies "best
+    first" would carry a confidence the evidence does not support.
+    """
+    wanted = [word for word in (term or "").strip().lower().split() if word]
+    if not wanted:
         return []
-    results = []
+    found = []
     for item in load_vpsdb():
-        if term in (item.get("name") or "").lower():
-            results.append(item)
-        if len(results) >= limit:
-            break
-    return results
+        haystack = " ".join(str(item.get(key) or "")
+                            for key in ("name", "manufacturer", "year")).lower()
+        if all(word in haystack for word in wanted):
+            found.append(item)
+    found.sort(key=lambda item: (str(item.get("name") or "").lower(),
+                                 str(item.get("year") or "")))
+    return found[:limit]
 
 
 def ensure_dir(path: Path) -> None:

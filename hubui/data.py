@@ -74,6 +74,7 @@ class Library:
         # The by-file lens, read on first use rather than at load: most sessions never
         # switch to it, and it is a second walk of every folder.
         self._table_rows: list[dict[str, Any]] | None = None
+        self._vps_entries: dict[str, dict[str, Any]] = {}
         self._overrides: dict[str, dict[str, Any]] = {}
         self._prefs: dict[str, dict[str, Any]] = {}
         self._config_schema: list[dict[str, Any]] | None = None
@@ -439,6 +440,16 @@ class Library:
                  # would say nothing, and this is the row people are looking for.
                  "duplicate": keys[" ".join(tag.split()).casefold()] > 1}
                 for tag, count in sorted(counts.items(), key=lambda kv: kv[0].lower())]
+
+    def vps_search(self, term: str, limit: int = 40) -> list[dict]:
+        return self._client.vps_search(term, limit)
+
+    def vps_entry(self, vps_id: str) -> dict:
+        """Held for the page's life: the catalog does not change while it is open, and
+        a panel redraw would otherwise re-read the same entry on every keystroke."""
+        if vps_id not in self._vps_entries:
+            self._vps_entries[vps_id] = self._client.vps_entry(vps_id)
+        return self._vps_entries[vps_id]
 
     def merge_tags(self, sources: list[str], into: str) -> int:
         """Rename is one source into a new name; merge is several into one."""

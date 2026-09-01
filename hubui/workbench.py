@@ -1026,12 +1026,6 @@ def _identity_rows(context: dict[str, Any]) -> None:
                     f"{game.get('year') or ''}".strip()),
         ("Type", game.get("type") or "-"),
         ("Themes", ", ".join(game.get("themes") or []) or "-"),
-        # The match belongs with what it identifies. It had a group to itself called
-        # "Matched against", which grouped provenance that each row already carries -
-        # the revert mark appears exactly when a value differs from what was found.
-        ("VPS ID", _override(game.get("vps_id") or "", found.get("vps_id") or "",
-                             "VPS", save("alt_vps_id"),
-                             shown=overrides.get("alt_vps_id") or game.get("vps_id"))),
         ("Folder", PurePosixPath(folder).name or folder or "-"),
     ]
 
@@ -1409,6 +1403,182 @@ def _reset_action(on_reset: Callable[[], Any]) -> Callable[[], None]:
             ui.button("Reset play record", icon="restart_alt",
                       on_click=on_reset).props("flat dense no-caps size=sm") \
                 .classes("hub-action")
+
+    return draw
+
+
+def _vps_label(context: dict[str, Any]) -> str:
+    game = context["game"]
+    return "VPS" if game.get("vps_id") else "VPS - not matched"
+
+
+async def _vps_block(context: dict[str, Any]) -> None:
+    """What this game is matched to in the catalog, and the way to change it.
+
+    The match drives metadata, media lookup and update tracking, and until now the only
+    way to set it was typing an eight-character id into a text field. Section 15.
+
+    It does not judge the match. A ranker was measured and retired for being confidently
+    wrong more than half the time, so nothing here says a match looks wrong or offers a
+    better one - it shows what is bound and lets somebody go looking when they choose.
+    """
+    game = context["game"]
+    library = context["library"]
+    vps_id = str(game.get("vps_id") or "")
+    chosen = bool((game.get("overrides") or {}).get("alt_vps_id"))
+
+    entries: list[tuple[Any, Any]] = []
+    parked = game.get("parked_vps_id") or {}
+    if parked.get("value"):
+        entries.append((FULL, _parked_match(context, parked)))
+
+    if not vps_id:
+        entries += [("Entry", _state("Not matched", "warn"))]
+    else:
+        found = await run.io_bound(library.vps_entry, vps_id)
+        entries += [
+            # The entry as a person reads it. The id is how the wire addresses it and
+            # is the one thing a reader cannot check a match against.
+            ("Entry", _vps_entry_row(found, vps_id)),
+            ("Match", _state("Set by you" if chosen else "Discovered",
+                             "on" if chosen else "off")),
+        ]
+        if found.get("releases"):
+            entries.append(("Releases", str(found["releases"])))
+    entries.append((FULL, _change_match(context)))
+
+    with ui.column().classes("gap-0 hub-form"):
+        _rows(ui, entries)
+
+
+def _vps_entry_row(found: dict[str, Any], vps_id: str) -> Callable[[], None]:
+    """The matched machine, named the way somebody can check it - and a way out to the
+    catalog, so a reader is not asked to search for what is already identified."""
+    def draw() -> None:
+        with ui.element("div").classes("hub-fact-edit"):
+            said = str(found.get("name") or "")
+            made = " ".join(str(found.get(k) or "") for k in ("manufacturer", "year"))
+            ui.label(f"{said} - {made.strip()}" if said else vps_id) \
+                .classes("hub-fact-value truncate min-w-0").tooltip(vps_id)
+            if found.get("url"):
+                ui.link(target=str(found["url"]), new_tab=True) \
+                    .classes("hub-action hub-action--inline").tooltip("Open on VPS") \
+                    .props("no-caps") \
+                    .set_text("View")
+
+    return draw
+
+
+def _change_match(context: dict[str, Any]) -> Callable[[], None]:
+    """One verb on this section, which is the only act it offers."""
+    def draw() -> None:
+        with ui.element("div").classes("hub-slot-actions"):
+            ui.button("Change match...", icon="search",
+                      on_click=lambda: _pick_a_match(context)) \
+                .props("flat dense no-caps size=sm").classes("hub-action")
+
+    return draw
+
+
+async def _pick_a_match(context: dict[str, Any]) -> None:
+    """Search the catalog and bind one entry, or clear the binding.
+
+    Presented in the order the catalog answers in - by name, then year - and with no
+    mark of quality on any row. Section 15.2: sorting by "best match" is a claim, and
+    the measurement that would have to support it says the opposite.
+
+    The query starts as the game's name because that is where somebody would start
+    typing, and it is visible and editable rather than a filter applied behind them.
+    """
+    game = context["game"]
+    library = context["library"]
+
+    with ui.dialog().props("persistent") as dialog, \
+            ui.card().classes("hub-confirm hub-picker-dialog"):
+        ui.label("Match this game to VPS").classes("hub-confirm-title")
+        ui.label("Nothing here ranks the results - pick the machine you have.") \
+            .classes("hub-help")
+        field = ui.input(value=str(game.get("name") or "")) \
+            .props("dense autofocus clearable").classes("hub-edit-field w-full")
+        found = ui.column().classes("w-full gap-0 hub-source-list")
+
+        async def look() -> None:
+            said = str(field.value or "").strip()
+            rows = await run.io_bound(library.vps_search, said, 40) if said else []
+            found.clear()
+            with found:
+                if not said:
+                    ui.label("Type a name, a maker or a year").classes("hub-help")
+                    return
+                if not rows:
+                    ui.label(f"Nothing in the catalog matches “{said}”") \
+                        .classes("hub-help")
+                    return
+                for row in rows:
+                    _match_row(row, dialog)
+
+        field.on("keydown.enter", look)
+        ui.button("Search", on_click=look).props("flat dense no-caps size=sm") \
+            .classes("hub-action")
+        with ui.row().classes("justify-end gap-2 w-full"):
+            ui.button("Clear match", on_click=lambda: dialog.submit("")) \
+                .props("flat no-caps")
+            ui.button("Cancel", on_click=lambda: dialog.submit(None)).props("flat no-caps")
+        await look()
+
+    picked = await dialog
+    if picked is None:
+        return
+    await _write(context, library.set_game_overrides, context["game_id"],
+                 {"alt_vps_id": str(picked)})
+
+
+def _match_row(row: dict[str, Any], dialog: Any) -> None:
+    """One candidate, in the fields somebody picks by and nothing else."""
+    with ui.row().classes("items-center gap-2 w-full no-wrap hub-member-row") \
+            .on("click", lambda: dialog.submit(str(row.get("vps_id") or ""))):
+        ui.label(str(row.get("name") or "")).classes("hub-member-name grow min-w-0 truncate")
+        made = " ".join(str(row.get(k) or "") for k in ("manufacturer", "year")).strip()
+        if made:
+            ui.label(made).classes("hub-member-qualifier")
+        count = int(row.get("releases") or 0)
+        if count:
+            ui.label(f"{count} release{'' if count == 1 else 's'}") \
+                .classes("hub-member-chip hub-tier hub-tier--off")
+
+
+def _parked_match(context: dict[str, Any], parked: dict[str, Any]) -> Callable[[], None]:
+    """A match the user made, set aside when the table it was claimed against changed.
+
+    Not a suggestion and not a warning - it is their own statement handed back, which is
+    why it can sit here at all while nothing else on this section judges a match.
+    """
+    async def restore() -> None:
+        await _write(context, context["library"].set_game_overrides,
+                     context["game_id"], {"alt_vps_id": str(parked.get("value") or "")})
+
+    async def discard() -> None:
+        if not await confirm.ask(
+                "Discard the match you made earlier?",
+                detail="It is not in use either way. Discarding means looking it up "
+                       "again if you want it back.",
+                confirm="Discard"):
+            return
+        await _write(context, context["library"].set_game_overrides,
+                     context["game_id"], {"alt_vps_id_previous": ""})
+
+    def draw() -> None:
+        with ui.element("div").classes("hub-attention w-full"):
+            said = str(parked.get("table") or "")
+            ui.label("You matched this by hand before "
+                     + (f"“{said}” was replaced" if said else "the table changed")) \
+                .classes("hub-attention-line")
+            with ui.row().classes("items-center gap-2"):
+                ui.button("Restore", on_click=restore) \
+                    .props("flat dense no-caps size=sm").classes("hub-action")
+                ui.button("Discard", on_click=discard) \
+                    .props("flat dense no-caps size=sm") \
+                    .classes("hub-action hub-action--danger")
 
     return draw
 
@@ -2863,6 +3033,10 @@ SECTIONS: tuple[Section, ...] = (
     Section("game_details", lambda _: "Game Details", _game_block),
     Section("table_details", lambda _: "Table Details", _table_block,
             subjects=frozenset({"table"})),
+    # Beside the game's own facts: the match is how this game is identified, and the
+    # section exists so that is something a person can see and change rather than an
+    # opaque id in a text field.
+    Section("vps", _vps_label, _vps_block, subjects=frozenset({"game", "table"})),
     Section("media", _media_label, _media_block, dock=True),
     # Beside Media, not under Details: both answer "what does this game hold", one
     # for what a screen shows and one for what a launch needs.

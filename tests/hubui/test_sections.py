@@ -145,3 +145,21 @@ class TablesBlockTests(unittest.TestCase):
 
     def test_a_game_still_lands_on_details_where_they_now_live(self) -> None:
         self.assertEqual(workbench.chosen_section({}, "game"), "game_details")
+
+
+class VpsSectionTests(unittest.TestCase):
+    """The match is a place on both subjects, and the id is not the label."""
+
+    def test_both_rails_offer_it(self) -> None:
+        """A game's match identifies the machine, which a table belongs to - so it is
+        answerable whichever of the two is selected."""
+        for subject in ("game", "table"):
+            with self.subTest(subject=subject):
+                keys = {item.key for item in workbench.sections_for(subject)}
+                self.assertIn("vps", keys)
+
+    def test_an_unmatched_game_says_so_in_the_rail(self) -> None:
+        """Not matched is a state, not an empty section - and the rail is where it is
+        seen without opening anything."""
+        self.assertEqual(workbench._vps_label({"game": {}}), "VPS - not matched")
+        self.assertEqual(workbench._vps_label({"game": {"vps_id": "abc"}}), "VPS")

@@ -267,6 +267,8 @@ def game_to_row(game, collections_map: dict[str, list[str]] | None = None) -> di
         "plugin_profile": str(vpinfe.get("plugin_profile", "") or "").strip(),
         "alt_title": str(vpinfe.get("alt_title", "") or "").strip(),
         "alt_vpsid": str(vpinfe.get("alt_vpsid", "") or "").strip(),
+        # Carried, not resolved. The one surface that shows it is the VPS section.
+        "alt_vpsid_previous": vpinfe.get("alt_vpsid_previous"),
         "frontend_dof_event": str(vpinfe.get("frontend_dof_event", "") or "").strip(),
         "rating": normalize_rating(user.get("Rating", 0)),
         # The whole play record beside the flat rating. The rating shipped alone and
