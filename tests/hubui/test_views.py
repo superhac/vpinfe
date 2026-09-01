@@ -2,7 +2,14 @@
 
 import unittest
 
-from hubui import data, game_tables, games, media_ownership, workbench
+from common.games import asset_registry
+from hubui import (
+    data,
+    game_tables,
+    games,
+    media_ownership,
+    workbench,
+)
 
 
 class BuiltinViewTests(unittest.TestCase):
@@ -84,3 +91,28 @@ class AssetSectionTests(unittest.TestCase):
                                  ("none", "Missing"), (None, "Missing")):
             with self.subTest(resolution=resolution):
                 self.assertEqual(media_ownership.for_resolution(resolution).noun, noun)
+
+
+class LaunchRollupTests(unittest.TestCase):
+    """One answer to "will this run", and the trap it has to avoid."""
+
+    def test_an_em_table_declaring_no_rom_is_ready(self) -> None:
+        """The trap: reading REQUIRED_KINDS as a checklist every table must satisfy
+        calls every EM table broken. Required-ness is the kind's; whether it applies
+        is the table's."""
+        self.assertIs(asset_registry.launchable(True, False, None), True)
+
+    def test_a_declared_rom_that_is_not_installed_blocks(self) -> None:
+        self.assertIs(asset_registry.launchable(True, True, False), False)
+
+    def test_an_unparsed_table_is_unknown_rather_than_broken(self) -> None:
+        self.assertIsNone(asset_registry.launchable(True, True, None))
+
+    def test_a_file_that_is_gone_blocks_whatever_the_rom_says(self) -> None:
+        self.assertIs(asset_registry.launchable(False, True, True), False)
+
+    def test_the_ordinary_state_is_the_quiet_one(self) -> None:
+        """Notable first, like every other pair: a word on every row saying the table
+        works tells a reader nothing."""
+        self.assertEqual(game_tables.word_for(game_tables.LAUNCH_WORDS, True), "Blocked")
+        self.assertEqual(game_tables.word_for(game_tables.LAUNCH_WORDS, False), "Ready")

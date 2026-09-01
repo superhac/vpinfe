@@ -409,6 +409,10 @@ class Table(ApiModel):
     features: dict[str, bool | None] = {}
     overrides: TableOverrides = TableOverrides()
     assets: dict[str, ResolvedAsset]
+    # Whether every required-to-launch asset resolves for this file. Three-valued like
+    # the rom it is built from: null is a table nothing has parsed, and only false is
+    # a fault. Computed here so a second client does not have to re-derive it.
+    launchable: bool | None = None
     dependencies: Dependencies
 
 
@@ -464,6 +468,9 @@ class TableRow(ApiModel):
     # would call every EM table broken. Absence of a declaration and absence of a file
     # are different facts and stay apart.
     rom_installed: bool | None = None
+    # Whether every required-to-launch asset resolves. Three-valued like the rom it is
+    # built from: null is a table nothing has parsed, and only false is a fault.
+    launchable: bool | None = None
     default: bool = False
     # Why it is the default, not only that it is: `user` where somebody chose it,
     # `auto` where the resolver picked one - a filename matching the folder, else first

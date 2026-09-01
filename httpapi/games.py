@@ -22,6 +22,7 @@ from common.config_access import MediaConfig
 from common.games import (
     apps,
     asset_origin,
+    asset_registry,
     asset_resolver,
     game_identity,
     game_service,
@@ -337,6 +338,10 @@ def _tables(game, row: dict) -> list[dict]:
             flex = asset_resolver.flexdmd_state(subdirs, None)
         chain["nvram"] = asset_resolver.nvram_state(str(game_dir), chain["effective"])
         entry["dependencies"] = {"pinmame": chain, "flexdmd": flex}
+        # One answer to "will this run", from the kinds declared required rather than
+        # from the two a client happens to be shown.
+        entry["launchable"] = asset_registry.launchable(
+            entry["available"], bool(chain.get("declared")), chain.get("installed"))
         entries.append(entry)
     return entries
 

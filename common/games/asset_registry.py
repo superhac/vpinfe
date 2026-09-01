@@ -90,6 +90,24 @@ _SPECS_BY_KIND = {spec.kind: spec for spec in ASSET_SPECS}
 REQUIRED_KINDS = frozenset(spec.kind for spec in ASSET_SPECS if spec.required_to_launch)
 
 
+def launchable(available: bool, rom_declared: bool, rom_installed: bool | None) -> bool | None:
+    """Whether every required-to-launch asset resolves for one table.
+
+    Three-valued, and the middle one is the point: `None` is "cannot tell", which is a
+    table nothing has parsed yet. Only `False` is a fault.
+
+    Required-ness is a property of the *kind* and whether it applies is per table -
+    `rom` is required only where the table declares one, and an EM table declares
+    none. Reading `REQUIRED_KINDS` as a checklist every table must satisfy would call
+    every EM table broken, which is the same trap the missing-rom check had to avoid.
+    """
+    if not available:
+        return False
+    if not rom_declared:
+        return True
+    return rom_installed
+
+
 def is_required_to_launch(kind: str) -> bool:
     """Whether this kind of asset can stop a table launching. Unknown kinds are not:
     a kind this build has never heard of cannot be something it depends on."""

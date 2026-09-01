@@ -189,6 +189,16 @@ class ApiContractTests(unittest.TestCase):
         # The inventory lens attributes each file to the build it serves.
         self.assertEqual(assets["backglass"]["files"][0]["binding"], "dedicated")
 
+    def test_a_table_says_whether_it_will_run(self) -> None:
+        """The rollup over every required-to-launch kind, on the wire rather than
+        re-derived per client. It is computed in `_tables` and reaches nobody unless
+        the response model declares it - which is how it shipped as null on a table
+        whose file was present and whose rom was installed."""
+        entry = self.probe["table_files"]["json"]["tables"][0]
+
+        self.assertIn("launchable", entry)
+        self.assertIs(entry["launchable"], True)
+
     def test_a_table_reports_what_it_would_use_on_launch(self) -> None:
         """The launch lens: resolved assets and the pinmame chain, per table."""
         entry = self.probe["table_files"]["json"]["tables"][0]

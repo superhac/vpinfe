@@ -1066,6 +1066,7 @@ def _table_rows(table: dict[str, Any],
     entries += [(HEADING, game_tables.LAUNCH)]
     present = bool(table.get("available"))
     entries += [
+        ("Will run", _launch_state(table.get("launchable"))),
         ("File", _state(game_tables.word_for(game_tables.FILE_WORDS, not present),
                         "on" if present else "bad")),
         ("Application", apps.app_name(table.get("app"))),
@@ -1224,6 +1225,18 @@ def _script_actions(context: dict[str, Any], table: dict[str, Any],
         ui.button("Extract", on_click=lambda: _extract_script(context, table)) \
             .props("flat dense no-caps size=sm") \
             .classes("hub-action hub-action--inline")
+
+
+def _launch_state(launchable: bool | None) -> Any:
+    """The rollup, above the dependencies it is built from.
+
+    Its inputs stay on screen underneath: a bare "Blocked" with no reason is a state
+    somebody has to go hunting behind, and the row that explains it is the next one.
+    """
+    if launchable is None:
+        return _state(game_tables.LAUNCH_UNKNOWN, "unknown")
+    return _state(game_tables.word_for(game_tables.LAUNCH_WORDS, not launchable),
+                  "on" if launchable else "bad")
 
 
 def _rom_state(pinmame: dict[str, Any], rom: str,

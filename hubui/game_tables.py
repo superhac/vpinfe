@@ -78,6 +78,12 @@ FILE_WORDS = ("Missing", "Present")
 # only its provenance. External is the notable half - it is the table running something
 # other than what its author shipped.
 SCRIPT_WORDS = ("External", "Internal")
+# Whether every required asset resolves. Notable first, like the pairs above, because
+# the ordinary table runs - a word on every row that says so tells a reader nothing.
+# Three-valued, so the unknown has its own word: a table nothing has parsed cannot be
+# called ready and has not been found wanting either.
+LAUNCH_WORDS = ("Blocked", "Ready")
+LAUNCH_UNKNOWN = "Unknown"
 
 
 def word_for(pair: tuple[str, str], notable: bool) -> str:
