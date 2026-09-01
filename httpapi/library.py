@@ -46,6 +46,31 @@ def filters() -> models.FilterAxisList:
                      for axis in AXES]}
 
 
+@router.post("/tags/merge", summary="Fold tags into one",
+             dependencies=[requires(scopes.GAMES_WRITE)])
+def merge_tags(payload: models.TagMerge) -> models.TagSweep:
+    """Rename is one source into a name nothing uses; merge is several into one.
+
+    Across the library, because a tag is not owned by a game - it is a word the library
+    holds, and half of them renamed is a worse state than either.
+    """
+    from common.games.game_metadata import retag_library
+    from common.games.game_repository import all_games
+
+    return {"changed": retag_library(all_games(), payload.sources, payload.into)}
+
+
+@router.delete("/tags/{tag}", summary="Remove a tag from every game",
+               dependencies=[requires(scopes.GAMES_WRITE)])
+def delete_tag(tag: str) -> models.TagSweep:
+    """The vocabulary is derived, so a tag no game carries has ceased to exist - there
+    is nothing else to delete."""
+    from common.games.game_metadata import retag_library
+    from common.games.game_repository import all_games
+
+    return {"changed": retag_library(all_games(), [tag], "")}
+
+
 @router.get("/entries", summary="The entries the whole library resolves to",
             dependencies=[requires(scopes.GAMES_READ)])
 def entries() -> models.EntryList:

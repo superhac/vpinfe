@@ -1206,6 +1206,20 @@ class TagsRequest(ApiModel):
     tags: list[str]
 
 
+class TagMerge(ApiModel):
+    """`sources` fold into `into`. Renaming is one source into a name nothing uses."""
+
+    sources: list[str]
+    into: str
+
+
+class TagSweep(ApiModel):
+    """How many games changed - not how many carried a source, since one that already
+    held the survivor is not a change."""
+
+    changed: int
+
+
 class Tags(ApiModel):
     """What was stored, which is not always what was sent: each is trimmed and internal
     whitespace collapsed, and the set keeps the first spelling of a repeat."""

@@ -195,6 +195,37 @@ def set_game_tags(game, tags) -> list[str]:
     return stored
 
 
+def retag_library(games, sources, into: str = "") -> int:
+    """Rename, merge and delete are one sweep, and this is it.
+
+    Renaming is merging one tag into a name nothing uses; deleting is merging into
+    nothing. Writing them as three would be three chances to disagree about ordering
+    and about what happens when a game already carries the survivor.
+
+    Returns how many games changed. Order is kept, and the survivor lands where the
+    first of the sources was rather than at the end - a merge should not reshuffle a
+    list somebody arranged.
+    """
+    wanted = {normalize_tag(name) for name in sources if normalize_tag(name)}
+    survivor = normalize_tag(into)
+    if not wanted or survivor in wanted and len(wanted) == 1:
+        return 0
+    touched = 0
+    for game in games:
+        held = game_tags(game)
+        if not any(tag in wanted for tag in held):
+            continue
+        out: list[str] = []
+        for tag in held:
+            said = survivor if tag in wanted else tag
+            if said and said not in out:
+                out.append(said)
+        if out != held:
+            set_game_tags(game, out)
+            touched += 1
+    return touched
+
+
 def game_themes(game) -> list[str]:
     """The game's themes. `Info.Themes` is ours and is a JSON list, so a scalar there is
     a bad value and stays visible as one - `as_string_list` has the reasoning, and this

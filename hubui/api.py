@@ -148,6 +148,22 @@ class HubClient:
                                      json={"tags": list(tags)}, timeout=_TIMEOUT)
         self._answered(response)
 
+    def merge_tags(self, sources: list[str], into: str) -> int:
+        """Across the library: a tag is a word the library holds, not a game's."""
+        _refuse_the_event_loop("/library/tags/merge")
+        response = self._session.post(f"{self._base}/library/tags/merge",
+                                      json={"sources": list(sources), "into": into},
+                                      timeout=_TIMEOUT)
+        self._answered(response)
+        return int(response.json().get("changed") or 0)
+
+    def delete_tag(self, tag: str) -> int:
+        _refuse_the_event_loop("/library/tags")
+        response = self._session.delete(f"{self._base}/library/tags/{quote(tag, safe='')}",
+                                        timeout=_TIMEOUT)
+        self._answered(response)
+        return int(response.json().get("changed") or 0)
+
     def reset_play_record(self, game_id: str, table_id: str = "") -> None:
         """Clear the counters, keeping what was entered. A table's record is its own."""
         path = (f"/games/{game_id}/tables/{table_id}/play_record" if table_id

@@ -107,3 +107,55 @@ class ThemeListTests(unittest.TestCase):
         game = SimpleNamespace(meta_config={"Info": {"Themes": "[broken"}})
 
         self.assertEqual(gm.game_themes(game), ["[broken"])
+
+
+class RetagTests(unittest.TestCase):
+    """Rename, merge and delete are one sweep."""
+
+    def _library(self, taglists):
+        return [SimpleNamespace(meta_config={"User": {"Tags": list(t)}})
+                for t in taglists]
+
+    def _run(self, taglists, sources, into):
+        games = self._library(taglists)
+
+        def write(game, tags):
+            game.meta_config["User"]["Tags"] = list(tags)
+            return list(tags)
+
+        with mock.patch.object(gm, "set_game_tags", side_effect=write):
+            changed = gm.retag_library(games, sources, into)
+        return changed, [g.meta_config["User"]["Tags"] for g in games]
+
+    def test_two_spellings_fold_into_one(self) -> None:
+        changed, out = self._run([["sci-fi"], ["Sci-Fi"], ["Other"]],
+                                 ["sci-fi", "Sci-Fi"], "Sci-Fi")
+
+        self.assertEqual(out, [["Sci-Fi"], ["Sci-Fi"], ["Other"]])
+        self.assertEqual(changed, 1, "the game already holding the survivor did not change")
+
+    def test_rename_is_one_source_into_a_new_name(self) -> None:
+        _, out = self._run([["Wide Body"], ["Other"]], ["Wide Body"], "Widebody")
+
+        self.assertEqual(out, [["Widebody"], ["Other"]])
+
+    def test_delete_is_a_merge_into_nothing(self) -> None:
+        _, out = self._run([["Wide Body", "Other"]], ["Wide Body"], "")
+
+        self.assertEqual(out, [["Other"]])
+
+    def test_the_survivor_keeps_the_place_the_source_had(self) -> None:
+        """A merge should not reshuffle a list somebody arranged."""
+        _, out = self._run([["A", "sci-fi", "Z"]], ["sci-fi"], "Sci-Fi")
+
+        self.assertEqual(out, [["A", "Sci-Fi", "Z"]])
+
+    def test_a_game_holding_both_ends_with_one(self) -> None:
+        _, out = self._run([["sci-fi", "Sci-Fi"]], ["sci-fi"], "Sci-Fi")
+
+        self.assertEqual(out, [["Sci-Fi"]])
+
+    def test_renaming_a_tag_to_itself_writes_nothing(self) -> None:
+        changed, out = self._run([["Wide Body"]], ["Wide Body"], "Wide Body")
+
+        self.assertEqual((changed, out), (0, [["Wide Body"]]))

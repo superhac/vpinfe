@@ -10,6 +10,7 @@ from hubui import (
     games,
     media_ownership,
     stars,
+    tageditor,
     workbench,
 )
 from hubui import features as table_features
@@ -291,3 +292,29 @@ class StarControlTests(unittest.TestCase):
         """One delegated listener for every star in the app; if the class it looks for
         drifts from the one drawn, every click stops arriving and nothing errors."""
         self.assertIn(f".{stars.BOX} [data-value]", stars.CLICK_JS)
+
+
+class TagEditorTests(unittest.TestCase):
+    """What the editor leads with: the spellings that are one word."""
+
+    def _rows(self, pairs):
+        return [{"tag": tag, "games": count, "same": " ".join(tag.split()).casefold()}
+                for tag, count in pairs]
+
+    def test_only_words_spelled_more_than_one_way_are_grouped(self) -> None:
+        """A tag nobody has spelled twice is not something to act on, and listing it
+        would bury the ones that are."""
+        groups = tageditor.rows_by_key(
+            self._rows([("Sci-Fi", 2), ("sci-fi", 1), ("Wide Body", 4)]))
+
+        self.assertEqual([[r["tag"] for r in g] for g in groups], [["Sci-Fi", "sci-fi"]])
+
+    def test_the_most_used_spelling_leads_because_it_is_the_survivor(self) -> None:
+        groups = tageditor.rows_by_key(self._rows([("sci-fi", 1), ("Sci-Fi", 9)]))
+
+        self.assertEqual(groups[0][0]["tag"], "Sci-Fi")
+
+    def test_whitespace_alone_makes_two_spellings_one_word(self) -> None:
+        groups = tageditor.rows_by_key(self._rows([("Wide Body", 1), ("wide  body", 1)]))
+
+        self.assertEqual(len(groups), 1)

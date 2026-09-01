@@ -417,6 +417,50 @@ class Library:
             seen.update((game.get("user") or {}).get("tags") or [])
         return sorted(seen, key=str.lower)
 
+    def tag_rows(self) -> list[dict[str, Any]]:
+        """One row per tag: what it is, how many games carry it, and which tags it may
+        be a spelling of.
+
+        `same` is the case- and space-insensitive key. Entry does not fold case on
+        purpose, so this is where two spellings of one word become findable - which is
+        the whole reason the editor exists rather than being a rename box.
+        """
+        counts: dict[str, int] = {}
+        for game in self.games:
+            for tag in (game.get("user") or {}).get("tags") or []:
+                counts[tag] = counts.get(tag, 0) + 1
+        keys: dict[str, int] = {}
+        for tag in counts:
+            keys[" ".join(tag.split()).casefold()] = \
+                keys.get(" ".join(tag.split()).casefold(), 0) + 1
+        return [{"id": tag, "tag": tag, "games": count,
+                 "same": " ".join(tag.split()).casefold(),
+                 # Only where there is another spelling of it - a mark on every row
+                 # would say nothing, and this is the row people are looking for.
+                 "duplicate": keys[" ".join(tag.split()).casefold()] > 1}
+                for tag, count in sorted(counts.items(), key=lambda kv: kv[0].lower())]
+
+    def merge_tags(self, sources: list[str], into: str) -> int:
+        """Rename is one source into a new name; merge is several into one."""
+        changed = self._client.merge_tags(sources, into)
+        self._forget_games()
+        return changed
+
+    def delete_tag(self, tag: str) -> int:
+        changed = self._client.delete_tag(tag)
+        self._forget_games()
+        return changed
+
+    def _forget_games(self) -> None:
+        """Re-read the whole list, for a write that touched more of it than one game.
+
+        The list is held for the page's life and `_forget_game` replaces one entry, so a
+        sweep across the library left every copy stale - the write landed and the screen
+        showed what it had before. The third time that shape has bitten: a cached list
+        needs telling whenever something other than it does the writing.
+        """
+        self.games = self._client.games()
+
     def set_game_tags(self, game_id: str, tags: list[str]) -> None:
         self._client.set_tags(game_id, tags)
         self._forget_game(game_id)

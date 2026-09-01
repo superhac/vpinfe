@@ -8,7 +8,7 @@ from typing import Any
 from nicegui import run, ui
 
 from hubui import collections as collections_page
-from hubui import deeplink, games, grid, sections, theme, views, workbench
+from hubui import deeplink, games, grid, sections, tageditor, theme, views, workbench
 from hubui import devices as devices_page
 from hubui import settings as settings_page
 from hubui.api import HubClient
@@ -445,6 +445,9 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                 if state.get("subject") == "table":
                     games.build_tables(library.table_rows(), library, show_game, state,
                                        redraw)
+                elif state.get("subject") == tageditor.SUBJECT:
+                    games.subject_bar(state, redraw)
+                    tageditor.build(library.tag_rows(), library, redraw)
                 else:
                     games.build(library.game_rows(), library.kinds_present(), library,
                                 show_game, state, redraw)

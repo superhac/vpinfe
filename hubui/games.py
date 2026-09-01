@@ -132,6 +132,10 @@ SUBJECTS = {
     "game": "Games",
     "table": "Tables",
     "media_file": "Media files",
+    # A grain of the library the user owns, like the others - and reached from the tag
+    # control as well, because managing the vocabulary is a thing you need occasionally
+    # rather than a place you go.
+    "tag": "Tags",
 }
 
 SUBJECT_STUBS = {
@@ -1103,6 +1107,14 @@ def _ask_name(save) -> None:
           wire();
         }})()
     """)
+
+
+def subject_bar(state: dict[str, Any], rerender: Callable[[], None] | None) -> None:
+    """The Rows control on its own, for a subject that brings its own page. The toolbar
+    is the games grid's; what every subject shares is the one control that says which
+    of them you are looking at."""
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
+        _subject_select(state, rerender, str(state.get("subject") or ""))
 
 
 def _subject_stub(subject: str) -> None:
