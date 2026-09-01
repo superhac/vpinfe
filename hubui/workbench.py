@@ -908,6 +908,7 @@ async def _game_block(context: dict[str, Any]) -> None:
     """
     with ui.column().classes("gap-0 hub-form"):
         _identity_rows(context)
+        _tables_block(context)
 
 
 async def _table_block(context: dict[str, Any]) -> None:
@@ -1618,13 +1619,6 @@ def _feature_chips(features: dict[str, Any]) -> None:
             ui.label(label).classes(f"hub-tier {state.chip}").tooltip(state.noun)
 
 
-def _tables_label(context: dict[str, Any]) -> str:
-    tables = context["tables"]
-    gone = [table for table in tables if table.get("absent_since")]
-    label = f"Tables ({len(tables)})"
-    return label + (f" - {len(gone)} not on disk" if gone else "")
-
-
 async def _script_act(context: dict[str, Any], call: Any, table_id: str,
                       done: str, failed: str) -> None:
     """Run one script act and redraw. The panel is showing which script runs, so it is
@@ -1684,16 +1678,27 @@ async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
     await context["rebuild"]()
 
 
-async def _tables_block(context: dict[str, Any]) -> None:
+def _tables_block(context: dict[str, Any]) -> None:
     """This game's tables, and which one it offers first.
 
-    Version and author, never the filename - this is the section whose whole job is
+    A block inside Game Details rather than a rail entry of its own: most games hold one
+    table, so "Tables (1)" was a place you went to read a single row, and the rail holds
+    places. Section 7 already names this shape - a sub-table, a related collection with
+    its own columns.
+
+    Version and author, never the filename - this is the block whose whole job is
     telling them apart, and filenames cannot. HUBUI section 13.
     """
     tables = context["tables"]
-    several = len(tables) > 1
+    if not tables:
+        return
+    showing = str(context.get("lens") or "")
+    # Only where there is a choice to describe. A count beside one row says nothing.
+    said = f"Tables ({len(tables)})" if len(tables) > 1 else "Table"
+    ui.label(said).classes("hub-card-title hub-fact-heading")
     for table in tables:
         since = str(table.get("absent_since") or "")
+        here = str(table.get("id") or "") == showing
         with ui.column().classes("gap-0 w-full hub-member-row"):
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
                 # On every row, and leading. `docs/conventions.md`: show varying state
@@ -1704,28 +1709,60 @@ async def _tables_block(context: dict[str, Any]) -> None:
                 name = ui.label(game_tables.table_name(table)) \
                     .classes("hub-member-name grow min-w-0 truncate") \
                     .tooltip(str(table.get("filename") or ""))
+                # Which of them the panel beside this is about. Without it the block
+                # repeats the grid you are already looking at; with it, it is where
+                # you are - this game has two, you are on one, that one is default.
+                if here:
+                    name.classes(add="hub-member-name--here")
                 if since:
                     # Stated, not judged: how long it has been gone is what tells a
                     # deletion from a share that was late mounting, and that call is
                     # the user's.
                     name.classes(add="opacity-60")
-                    ui.label("Missing").classes("hub-member-chip hub-chip-warn") \
+                    ui.label(game_tables.word_for(game_tables.FILE_WORDS, True)) \
+                        .classes("hub-member-chip hub-tier hub-tier--warn") \
                         .tooltip(f"Not on disk since {since[:10]}")
-                    with ui.element("div").classes("hub-row-action"):
-                        ui.button(icon="delete_outline",
-                                  on_click=lambda _, t=table: _forget_table(context, t)) \
-                            .props("flat dense round size=sm color=warning") \
-                            .tooltip("Forget this table")
                 elif table.get("default"):
                     # Qualifies *the default*, so it belongs only where there is one -
                     # the mark has already said which row that is, and "how was it
                     # decided" is not a question a non-default table answers.
-                    said = game_tables.default_state(table.get("default_kind") or "")
-                    if said:
-                        ui.label(said[0]).classes("hub-member-chip hub-chip-quiet") \
-                            .tooltip(said[1])
-                if not several and not since:
-                    ui.badge(table.get("app") or "?", color="secondary").props("outline")
+                    say = game_tables.default_state(table.get("default_kind") or "")
+                    if say:
+                        ui.label(say[0]).classes("hub-member-chip hub-chip-quiet") \
+                            .tooltip(say[1])
+                # On every row that has one, because which program plays a file is
+                # exactly what separates a VPX build from a Future Pinball one - it
+                # used to appear only where the game had a single table, which is when
+                # it distinguishes nothing.
+                app = apps.app_name(table.get("app"))
+                if app:
+                    ui.label(app).classes("hub-member-chip hub-tier hub-tier--off")
+                with ui.element("div").classes("hub-row-action"):
+                    if since:
+                        ui.button(icon="delete_outline",
+                                  on_click=lambda _, t=table: _forget_table(context, t)) \
+                            .props("flat dense round size=sm color=warning") \
+                            .tooltip("Forget this table")
+                    else:
+                        _launch_button(context, table)
+
+
+def _launch_button(context: dict[str, Any], table: dict[str, Any]) -> None:
+    """Play this one. The row names the table, so the act on it is unambiguous - which
+    is what lets Game Details offer a launch without inventing a game-level one whose
+    target would be implicit."""
+    filename = str(table.get("filename") or "")
+
+    async def go() -> None:
+        try:
+            await run.io_bound(context["library"].launch, context["game_id"], filename)
+        except Exception as exc:
+            ui.notify(f"Could not launch: {exc}", type="negative")
+
+    button = ui.button(icon="play_arrow", on_click=go) \
+        .props("flat dense round size=sm").tooltip("Play this table")
+    if not table.get("available"):
+        button.disable()
 
 
 def _default_mark(context: dict[str, Any], table: dict[str, Any], *,
@@ -2830,7 +2867,6 @@ SECTIONS: tuple[Section, ...] = (
     # Beside Media, not under Details: both answer "what does this game hold", one
     # for what a screen shows and one for what a launch needs.
     Section("assets", _assets_label, _assets_block),
-    Section("tables", _tables_label, _tables_block),
     # Two, not three. A rule and what it matches are one thing to look at, so the rule
     # sits in the browse region and the result in the dock beside it.
     Section("collection_details", lambda _: "Details", _collection_details,

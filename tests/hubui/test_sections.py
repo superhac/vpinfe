@@ -59,9 +59,9 @@ class AddressTests(unittest.TestCase):
         self.assertEqual(workbench.chosen_section(state, "game"), workbench.COLLAPSED)
 
     def test_an_open_section_survives_the_round_trip(self) -> None:
-        state = self._seed({"view": "games", "game": "abc", "section": "tables"})
+        state = self._seed({"view": "games", "game": "abc", "section": "assets"})
 
-        self.assertEqual(workbench.chosen_section(state, "game"), "tables")
+        self.assertEqual(workbench.chosen_section(state, "game"), "assets")
 
     def test_a_section_nobody_has_falls_back_rather_than_erroring(self) -> None:
         """Addresses get hand-typed and go stale; neither is an error."""
@@ -129,3 +129,19 @@ class RailDefaultTests(unittest.TestCase):
         for subject, wanted in workbench.DEFAULT_SECTION.items():
             keys = {item.key for item in workbench.sections_for(subject)}
             self.assertIn(wanted, keys, f"{subject} lands nowhere")
+
+
+class TablesBlockTests(unittest.TestCase):
+    """A game's tables are a block inside Game Details, not a place of their own."""
+
+    def test_no_rail_offers_tables_as_a_section(self) -> None:
+        """Most games hold one, so "Tables (1)" was a rail entry you went to in order to
+        read a single row - and the rail holds places. Section 7 already names the shape
+        it takes instead: a sub-table, a related collection with its own columns."""
+        for subject in ("game", "table"):
+            with self.subTest(subject=subject):
+                keys = {item.key for item in workbench.sections_for(subject)}
+                self.assertNotIn("tables", keys)
+
+    def test_a_game_still_lands_on_details_where_they_now_live(self) -> None:
+        self.assertEqual(workbench.chosen_section({}, "game"), "game_details")

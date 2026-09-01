@@ -364,11 +364,18 @@ body::before {
 /* Two lines that are one answer: the game, and which of its tables this collection
    holds. Tight leading and a step down in size and weight are what make the second
    read as belonging to the first rather than as the next row. */
+/* A *member* is a row in a list belonging to the selected subject - a collection's
+   games, a game's tables. The word is collections' and the classes are shared on
+   purpose: the two lists are the same shape and one treatment is the point. */
 .hub-member-row {
   padding: 5px 10px;
   border-radius: 6px;
   line-height: 1.25;
 }
+/* The row the panel beside this is about. Weight, not colour: accent is the chosen one
+   and the default mark already spends it on this list, so a second accent here would
+   have two meanings in one row. */
+.hub-member-name--here { color: var(--ink); font-weight: 600; }
 .hub-member-name { font-size: var(--fs-body); color: var(--ink-2); }
 .hub-member-table {
   font-size: var(--fs-caption);
