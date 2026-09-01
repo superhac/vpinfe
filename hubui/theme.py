@@ -476,7 +476,16 @@ body::before {
   opacity: 0;
   transition: opacity 90ms ease-out, color 90ms ease-out;
 }
-.ag-row:hover .hub-star-clear { opacity: 0.75; }
+/* Revealed by the pointer where there is one, and by the keyboard either way. Gated on
+   the input rather than on the surface: the panel has no `.ag-row` to hover, and a
+   touchscreen has no hover at all - where it cannot happen the way back is simply
+   there, or it is unreachable. `docs/conventions.md`. */
+@media (hover: hover) and (pointer: fine) {
+  .ag-row:hover .hub-star-clear,
+  .hub-stars:hover .hub-star-clear { opacity: 0.75; }
+}
+@media (hover: none) { .hub-star-clear { opacity: 0.75; } }
+.hub-stars:focus-within .hub-star-clear { opacity: 0.75; }
 .hub-star-clear:hover { opacity: 1; color: var(--ink-1); }
 /* In the filter, the stars are a picture of a value and not a control. */
 .hub-filter-row .hub-star { cursor: pointer; margin-right: -1px; }

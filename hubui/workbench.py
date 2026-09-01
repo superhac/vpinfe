@@ -1337,17 +1337,23 @@ def _played_for(seconds: int) -> str:
 def _stars(value: int, on_pick: Callable[[int], Any]) -> Callable[[], None]:
     """Five stars, and they are the control as well as the picture.
 
-    Clicking the star a rating already stands on clears it - which is how every star
-    widget behaves, and the alternative is a sixth control for a value that has a
-    natural way to say nothing.
+    A star sets, and the explicit clear beside them unsets - the same control the grid
+    has, because a rating is set in both places and one that clears differently in each
+    is two controls. Clicking the star a rating already stood on used to clear it, which
+    made one click mean set or unset depending on a value the user was not looking at.
+    Chris, 2026-09-01: the x is the intuitive one.
     """
     def draw() -> None:
         with ui.element("div").classes("hub-stars"):
             for n in range(1, 6):
                 lit = " hub-star--on" if n <= value else ""
                 ui.element("span").classes(f"hub-star{lit}") \
-                    .on("click", lambda _, n=n: on_pick(0 if n == value else n)) \
-                    .tooltip("Clear the rating" if n == value else f"{n} of 5")
+                    .on("click", lambda _, n=n: on_pick(n)) \
+                    .tooltip(f"{n} of 5")
+            if value:
+                ui.element("span").classes("hub-star-clear") \
+                    .on("click", lambda _: on_pick(0)) \
+                    .tooltip("Clear rating")
 
     return draw
 

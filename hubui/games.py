@@ -72,11 +72,12 @@ def _stars(subject: str) -> str:
         + " + '\" data-table=\"' + " + table + " + '\">';"
         " for (let n = 1; n <= 5; n++) {"
         "  out += '<span class=\"hub-star' + (n <= held ? ' hub-star--on' : '')"
-        "  + '\" data-value=\"' + (n === held ? 0 : n) + '\" title=\"'"
-        "  + (n === held ? 'Clear' : n + ' of 5') + '\"></span>';"
+        "  + '\" data-value=\"' + n + '\" title=\"' + n + ' of 5\"></span>';"
         " }"
-        # Only where there is something to clear: an X on every unrated game would be a
-        # column of controls, so it appears where it has work to do.
+        # The only way back to unrated - clicking the star a rating stood on used to do
+        # it too, and one control that both sets and unsets the same value is a guess
+        # about which the click meant. Chris, 2026-09-01. Only where there is something
+        # to clear: an X on every unrated game would be a column of controls.
         " if (held) { out += '<span class=\"hub-star-clear\" data-value=\"0\"'"
         "  + ' title=\"Clear rating\">\u00d7</span>'; }"
         " return out + '</span>'; }"
