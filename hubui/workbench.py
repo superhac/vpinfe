@@ -1919,7 +1919,130 @@ def _tables_block(context: dict[str, Any]) -> None:
                             .props("flat dense round size=sm color=warning") \
                             .tooltip("Forget this table")
                     else:
+                        _release_button(context, table)
                         _launch_button(context, table)
+            _release_line(table)
+
+
+def _release_line(table: dict[str, Any]) -> None:
+    """Which build of the machine this file is, once somebody has said.
+
+    Nothing at all until then, which is the honest reading of an absent record: no
+    matcher has examined this and none exists, so a row that read "not matched" would
+    be reporting a search that never happened.
+
+    Drawn from what the row already carries. Reaching for the release list here put a
+    blocking hub call inside a synchronous draw, and the rows after it never appeared.
+    """
+    source = table.get("source") or {}
+    if not source.get("vps_file_id"):
+        return
+    version = str(source.get("version") or "")
+    made_by = ", ".join(str(name) for name in (source.get("authors") or [])[:3])
+    told = " \u00b7 ".join(part for part in (version, made_by) if part)
+    with ui.row().classes("items-center gap-2 w-full no-wrap hub-member-table-line"):
+        ui.label(told or "A build the catalog no longer lists").classes("hub-help truncate")
+
+
+def _release_button(context: dict[str, Any], table: dict[str, Any]) -> None:
+    """The way to say which build this file is.
+
+    Shown whether or not one is recorded, because with nothing recorded there is
+    otherwise no way in: the row says nothing about its release until somebody has
+    answered, so the affordance cannot be the answer.
+    """
+    entry = str(context["game"].get("vps_id") or "")
+    button = ui.button(icon="link",
+                       on_click=lambda: _pick_a_release(context, table)) \
+        .props("flat dense round size=sm")
+    if entry:
+        button.tooltip("Which release this is")
+        return
+    # A release belongs to an entry, so there is nothing to choose among until the
+    # game is matched. Said on the control rather than in a dialog that opens empty.
+    button.disable()
+    button.tooltip("Match the game to VPS first, then its releases can be named")
+
+
+async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> None:
+    """Bind this table to one of the entry's builds, or take the binding back.
+
+    Ordered as VPSdb holds them and marked with nothing: a scorer over this exact
+    question was measured at chance. What the panel does offer is the file's own
+    version and authors, which is not a ranking - it is the user's own data, put where
+    they can compare it against the list rather than remembering it.
+    """
+    library = context["library"]
+    entry = str(context["game"].get("vps_id") or "")
+    bound = str((table.get("source") or {}).get("vps_file_id") or "")
+    releases = await run.io_bound(_releases_of, context, entry)
+
+    with ui.dialog().props("persistent") as dialog, \
+            ui.card().classes("hub-confirm hub-picker-dialog"):
+        ui.label("Which release is this table?").classes("hub-confirm-title")
+        _yours(table)
+        found = ui.column().classes("w-full gap-0 hub-source-list")
+        with found:
+            if not releases:
+                ui.label("VPS lists no builds for this machine").classes("hub-help")
+            for item in releases:
+                _release_row(item, dialog, bound)
+        with ui.row().classes("justify-end gap-2 w-full"):
+            if bound:
+                ui.button("Clear", on_click=lambda: dialog.submit("")) \
+                    .props("flat no-caps")
+            ui.button("Cancel", on_click=lambda: dialog.submit(None)) \
+                .props("flat no-caps")
+
+    picked = await dialog
+    if picked is None:
+        return
+    await _write(context, library.set_table_source, context["game_id"],
+                 str(table.get("id") or ""), str(picked))
+
+
+def _yours(table: dict[str, Any]) -> None:
+    """What this file says about itself, so the list is compared against something.
+
+    A `.vpx` carries a version and its authors and VPS names releases by the same two,
+    which is the only honest handle here - VPS records a filename on 3% of them.
+    """
+    said = str(table.get("version") or "")
+    made_by = ", ".join(str(name) for name in (table.get("authors") or [])[:4])
+    told = " \u00b7 ".join(part for part in (said, made_by) if part)
+    ui.label(f"This file says {told}" if told
+             else "This file records no version or author to compare") \
+        .classes("hub-help")
+
+
+def _release_row(release: dict[str, Any], dialog: Any, bound: str) -> None:
+    """One build, with its picture - VPS has one for 95% of them, against 39% of the
+    machines they belong to, so here the art is the ordinary case and not the exception."""
+    said = str(release.get("vps_file_id") or "")
+    meta = [str(release.get("format") or "")]
+    made_by = ", ".join(str(name) for name in (release.get("authors") or [])[:3])
+    if made_by:
+        meta.append(made_by)
+    stamp = str(release.get("updated_at") or "")[:10]
+    if stamp:
+        meta.append(stamp)
+    name = str(release.get("version") or "") or "No version given"
+    if said == bound:
+        name = f"{name}  \u2713"
+    candidates.choice(str(release.get("img_url") or ""), name,
+                      " \u00b7 ".join(part for part in meta if part),
+                      lambda: dialog.submit(said), glyph="casino")
+
+
+def _releases_of(context: dict[str, Any], vps_id: str) -> list[dict[str, Any]]:
+    """The entry's builds, for the picker only - this blocks, so it belongs on a worker
+    thread and never in a draw."""
+    if not vps_id:
+        return []
+    try:
+        return list(context["library"].vps_releases(vps_id))
+    except Exception:
+        return []
 
 
 def _launch_button(context: dict[str, Any], table: dict[str, Any]) -> None:

@@ -720,7 +720,12 @@ body.hub-menu-open .q-tooltip { display: none !important; }
    that cannot hover makes it unreachable, and a touchscreen laptop is as wide as a
    desk one - so the question is what the pointer can do, never how big the screen is.
    Visible is the default; hover-to-reveal is the enhancement. */
-.hub-row-action { transition: opacity 120ms ease; }
+/* A row of verbs, not a column: with one button the default flow was enough, and the
+   second one wrapped under the first at panel width. */
+.hub-row-action {
+  transition: opacity 120ms ease;
+  display: flex; align-items: center; flex: 0 0 auto;
+}
 @media (hover: hover) and (pointer: fine) {
   .hub-row-action { opacity: 0; }
   .hub-member-row:hover .hub-row-action,

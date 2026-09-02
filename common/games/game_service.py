@@ -154,6 +154,22 @@ def load_vpsdb() -> list[dict]:
 _NOT_A_WORD = re.compile(r"\W+", re.UNICODE)
 
 
+def find_vps_release(vps_file_id: str) -> dict:
+    """One build of one machine, by its own id, across the whole catalog.
+
+    Scanned rather than indexed: this answers a single table's "which build am I" on a
+    page draw, not a sweep. Build an index here the day something asks it per row.
+    """
+    wanted = (vps_file_id or "").strip()
+    if not wanted:
+        return {}
+    for entry in load_vpsdb():
+        for release in (entry.get("tableFiles") or []):
+            if str(release.get("id") or "") == wanted:
+                return release
+    return {}
+
+
 def _plain(text: str) -> str:
     """Lowercased, with every run of punctuation as a space, for comparing names."""
     return _NOT_A_WORD.sub(" ", text.lower()).strip()

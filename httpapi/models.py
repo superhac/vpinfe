@@ -398,6 +398,35 @@ class TablePlayRecord(ApiModel):
     play_time_seconds: int = 0
 
 
+class TableSource(ApiModel):
+    """Which upstream release a table is, and what established that.
+
+    `confirmed_by` is a closed set with no value meaning "I guessed" - `user` where a
+    person picked from a list, `declared` where whatever delivered the bytes said which
+    record it fetched, `construction` where we built the file ourselves. Anything that
+    inferred an identity sends nothing and the file stays unclaimed.
+
+    A patched file also stores what it was built from. That is not published here: no
+    consumer reads it, and a field carrying null on every table is one a reader is
+    invited to trust as a discriminator.
+    """
+
+    vps_file_id: str = ""
+    confirmed_by: str = ""
+    # The release named, resolved here because the catalog is already open on this side
+    # and the alternative is a client fetching every build of the machine to render one
+    # row. Empty where the id names nothing the catalog still holds.
+    version: str = ""
+    authors: list[str] = []
+
+
+class TableSourceRequest(ApiModel):
+    """An empty id unbinds. There is no field for how sure the caller is: the basis is
+    what the endpoint records, and this one always records a person."""
+
+    vps_file_id: str = ""
+
+
 class Table(ApiModel):
     """A launchable artifact.
 
@@ -425,6 +454,10 @@ class Table(ApiModel):
     # correct". Empty on a table that is not the default. A reader needs the two apart:
     # a choice does not move, and a derived pick changes when a table is installed.
     default_kind: str = ""
+    # Null on almost every table, and that is the honest answer rather than a gap:
+    # nothing has looked, which is a different state from having looked and found
+    # nothing. Only a matcher can produce the second, and there is no matcher.
+    source: TableSource | None = None
     hidden: bool
     # The table's own, 0 where it has none - which is most of them. The game's rating is
     # the headline and this refines it, so 0 means "the game's stands", not "poor".
@@ -1416,3 +1449,26 @@ class VpsSearchResult(ApiModel):
 
 class VpsSearchResults(ApiModel):
     results: list[VpsSearchResult]
+
+
+class VpsRelease(ApiModel):
+    """One build of a machine, as VPSdb lists it.
+
+    Every field is as optional as the catalog is. `img_url` is the exception worth
+    naming: it is present on 95% of releases where it is on 39% of the entries above,
+    so a surface over releases can lay out around having a picture.
+    """
+
+    vps_file_id: str
+    version: str = ""
+    authors: list[str] = []
+    format: str = ""
+    features: list[str] = []
+    comment: str = ""
+    img_url: str = ""
+    updated_at: str = ""
+    url: str = ""
+
+
+class VpsReleases(ApiModel):
+    releases: list[VpsRelease]

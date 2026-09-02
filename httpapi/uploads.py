@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Body, File, Form, UploadFile
 from starlette.concurrency import run_in_threadpool
 
+from common import timestamps
 from common.games import identity_claims
 from common.games.asset_registry import spec_for
 from common.uploads import upload_session_service
@@ -288,6 +290,56 @@ def vps_entry(vps_id: str) -> models.VpsSearchResult:
     if found is None:
         raise NotFoundError("No such VPS entry", details={"vps_id": vps_id})
     return _vps_resource(found)
+
+
+def _release_resource(release: dict) -> dict:
+    """One build of a machine, in what somebody would recognise their own copy by.
+
+    Version and authors, because that is what a `.vpx` carries and so what a person can
+    compare against. Not a filename: VPS records one on 3% of releases, so a surface
+    built around matching names would be empty almost always.
+    """
+    urls = [str(item.get("url") or "") for item in (release.get("urls") or [])]
+    return {
+        "vps_file_id": str(release.get("id") or ""),
+        "version": str(release.get("version") or ""),
+        "authors": [str(name) for name in (release.get("authors") or [])],
+        "format": str(release.get("tableFormat") or ""),
+        "features": [str(word) for word in (release.get("features") or [])],
+        "comment": str(release.get("comment") or ""),
+        # On 95% of releases, against 39% of the entries they belong to - so unlike the
+        # entry list, a surface here can lead with the picture.
+        "img_url": str(release.get("imgUrl") or ""),
+        "updated_at": _as_iso(release.get("updatedAt")),
+        "url": next((link for link in urls if link), ""),
+    }
+
+
+def _as_iso(stamp: Any) -> str:
+    """VPS keeps epoch milliseconds; everything else here is ISO 8601 UTC seconds."""
+    try:
+        return timestamps.epoch_to_iso(int(stamp) // 1000)
+    except (TypeError, ValueError):
+        return ""
+
+
+@vps_router.get("/entry/{vps_id}/releases", summary="The builds VPSdb lists for one entry",
+                dependencies=[requires(scopes.VPS_READ)])
+def vps_releases(vps_id: str) -> models.VpsReleases:
+    """Every build of this machine, in the order VPSdb holds them.
+
+    Deliberately unordered by anything resembling quality or likeness. A scorer over
+    exactly this question was measured at chance and confidently wrong more than half
+    the time, so an order implying "yours is probably this one" would carry a
+    confidence the evidence does not support.
+    """
+    from common.games.game_service import load_vpsdb
+
+    found = next((e for e in load_vpsdb() if str(e.get("id") or "") == vps_id), None)
+    if found is None:
+        raise NotFoundError("No such VPS entry", details={"vps_id": vps_id})
+    return {"releases": [_release_resource(item)
+                         for item in (found.get("tableFiles") or [])]}
 
 
 @vps_router.get("/search", summary="Search VPSdb", dependencies=[requires(scopes.VPS_READ)])

@@ -133,6 +133,14 @@ class HubClient:
             json={"rating": rating}, timeout=_TIMEOUT)
         self._answered(response)
 
+    def set_table_source(self, game_id: str, table_id: str, vps_file_id: str) -> None:
+        """Bind one table to the release somebody says it is. Empty unbinds."""
+        _refuse_the_event_loop(f"/games/{game_id}/tables/{table_id}/source")
+        response = self._session.put(
+            f"{self._base}/games/{game_id}/tables/{table_id}/source",
+            json={"vps_file_id": vps_file_id}, timeout=_TIMEOUT)
+        self._answered(response)
+
     def set_favorite(self, game_id: str, favorite: bool) -> None:
         """A game's favorite flag. Games only - you favorite a machine, not a build."""
         _refuse_the_event_loop(f"/games/{game_id}/favorite")
@@ -167,6 +175,17 @@ class HubClient:
             return {}
         self._answered(response)
         return dict(response.json() or {})
+
+    def vps_releases(self, vps_id: str) -> list[dict]:
+        """Every build VPSdb lists for one entry, in the order it holds them."""
+        _refuse_the_event_loop("/vps/entry/releases")
+        response = self._session.get(
+            f"{self._base}/vps/entry/{quote(vps_id, safe='')}/releases",
+            timeout=_TIMEOUT)
+        if response.status_code == 404:
+            return []
+        self._answered(response)
+        return list((response.json() or {}).get("releases") or [])
 
     def merge_tags(self, sources: list[str], into: str) -> int:
         """Across the library: a tag is a word the library holds, not a game's."""

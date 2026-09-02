@@ -75,6 +75,7 @@ class Library:
         # switch to it, and it is a second walk of every folder.
         self._table_rows: list[dict[str, Any]] | None = None
         self._vps_entries: dict[str, dict[str, Any]] = {}
+        self._vps_releases: dict[str, list[dict[str, Any]]] = {}
         self._overrides: dict[str, dict[str, Any]] = {}
         self._prefs: dict[str, dict[str, Any]] = {}
         self._config_schema: list[dict[str, Any]] | None = None
@@ -443,6 +444,17 @@ class Library:
 
     def vps_search(self, term: str, limit: int = 40) -> list[dict]:
         return self._client.vps_search(term, limit)
+
+    def set_table_source(self, game_id: str, table_id: str, vps_file_id: str) -> None:
+        self._client.set_table_source(game_id, table_id, vps_file_id)
+        self._forget_games()
+
+    def vps_releases(self, vps_id: str) -> list[dict]:
+        """Held like the entry is: the catalog does not change while the page is open,
+        and the picker is reopened per table on a game that has several."""
+        if vps_id not in self._vps_releases:
+            self._vps_releases[vps_id] = self._client.vps_releases(vps_id)
+        return self._vps_releases[vps_id]
 
     def vps_entry(self, vps_id: str) -> dict:
         """Held for the page's life: the catalog does not change while it is open, and

@@ -39,8 +39,10 @@ from common.games.game_metadata import (
     set_game_rating,
     set_game_tags,
     set_table_rating,
+    set_table_source,
     table_play_record,
     table_rating,
+    table_source,
     vpinfe_section,
 )
 from common.games.game_repository import (
@@ -48,6 +50,7 @@ from common.games.game_repository import (
     collections_by_game_id,
     game_to_row,
 )
+from common.games.game_service import find_vps_release
 from common.games.info_file import VPINFE_SECTION, MetaConfig
 from common.games.tables import (
     ABSENT_SINCE_KEY,
@@ -242,6 +245,22 @@ def _table_settings(game_dir: Path) -> dict:
     return {}
 
 
+def _named_source(described_entry: dict) -> dict | None:
+    """A table's binding with the release named, or None where there is no binding.
+
+    The catalog is already loaded here and the client's alternative is asking for the
+    whole release list to resolve one id, so the naming happens on this side.
+    """
+    source = table_source(described_entry)
+    if not source.get("vps_file_id"):
+        return source or None
+    release = find_vps_release(str(source["vps_file_id"]))
+    if release:
+        source["version"] = str(release.get("version") or "")
+        source["authors"] = [str(name) for name in (release.get("authors") or [])]
+    return source
+
+
 def _tables(game, row: dict) -> list[dict]:
     """The game's launchable artifacts.
 
@@ -321,6 +340,12 @@ def _tables(game, row: dict) -> list[dict]:
             "features": {name: _tristate(described_entry.get(key))
                          for name, key in FEATURE_KEYS.items()},
             "overrides": _table_overrides(described_entry, folder_vpinfe),
+            # Which upstream release this file is, where anything has established it.
+            # Absent on almost every table and that is the honest answer: nothing has
+            # looked, which is a different state from having looked and found nothing.
+            # Named, not just identified - a client showing the bare id would be putting
+            # an id on screen, and would need a second round trip to avoid it.
+            "source": _named_source(described_entry),
             "default": name == default,
             # Empty on every table that is not the default: the kind is a fact about
             # the one that is, not a field every row carries a blank for.
@@ -1048,6 +1073,25 @@ def put_table_rating(game_id: str, table_id: str,
     game = _game_or_404(game_id)
     filename = _table_filename_or_404(game, table_id)
     set_table_rating(game, filename, payload.rating)
+    game.meta_config = load_game_meta(game)
+    return _table_or_404(game, table_id)
+
+
+@router.put("/{game_id}/tables/{table_id}/source", summary="Say which release a table is",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_table_source(game_id: str, table_id: str,
+                     payload: models.TableSourceRequest) -> models.Table:
+    """Bind one table to the upstream release somebody says it is, or unbind it.
+
+    A person picking from a list, never a guess: the identifier this records was
+    retired at chance and is confidently wrong more often than not, so nothing here
+    proposes an answer. An empty id takes the claim back.
+
+    Returns the table, because a client that just bound one is about to redraw the row.
+    """
+    game = _game_or_404(game_id)
+    filename = _table_filename_or_404(game, table_id)
+    set_table_source(game, filename, payload.vps_file_id)
     game.meta_config = load_game_meta(game)
     return _table_or_404(game, table_id)
 

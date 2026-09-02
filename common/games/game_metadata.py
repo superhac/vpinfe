@@ -496,6 +496,62 @@ def get_or_create_vpinfe_meta(config: dict[str, Any]) -> dict[str, Any]:
     return config.setdefault(VPINFE_SECTION, {})
 
 
+# What put an identity on a file. A closed set with no value meaning "I guessed": a
+# caller that inferred one sends nothing and the file joins the manual queue.
+CONFIRMED_BY_USER = "user"
+SOURCE_KEY = "source"
+
+
+def table_source(entry: dict[str, Any] | None) -> dict[str, Any]:
+    """Which upstream release a table is, as far as anything has established.
+
+    Absent is the ordinary answer and means nobody has looked, not that the lookup
+    failed. Those are different states and only a matcher can produce the second.
+    """
+    found = (entry or {}).get(SOURCE_KEY) or {}
+    return dict(found) if isinstance(found, dict) else {}
+
+
+def set_table_source(game, filename: str, vps_file_id: str) -> dict[str, Any]:
+    """Record that somebody says this table is that release, or take it back.
+
+    Merged into whatever `source` already holds rather than replacing it: a patched
+    file's `base` and `patch` say how the bytes were made, and which upstream record
+    they are is a different question about the same file.
+
+    `confirmed_by` becomes `user` because that is what happened - a person picked from
+    a list nothing ordered. An explicit re-match overrides a stronger basis on purpose;
+    the ranking governs automatic writes, not somebody correcting one.
+    """
+    config = load_game_meta(game)
+    entries = rekey_by_id(config.setdefault(TABLES_KEY, {}))
+    config[TABLES_KEY] = entries
+    found_id, entry = entry_for_filename(entries, filename)
+    if not entry:
+        found_id = new_id()
+        entry = {TABLE_ID_KEY: found_id, TABLE_FILENAME_KEY: filename}
+        entries[found_id] = entry
+
+    source = dict(entry.get(SOURCE_KEY) or {})
+    wanted = str(vps_file_id or "").strip()
+    if wanted:
+        source["vps_file_id"] = wanted
+        source["confirmed_by"] = CONFIRMED_BY_USER
+    else:
+        # Unbinding takes back the claim and nothing else. A file we built still has a
+        # base and a patch, and forgetting those would make it unrebuildable.
+        source.pop("vps_file_id", None)
+        source.pop("confirmed_by", None)
+    if source:
+        entry[SOURCE_KEY] = source
+    else:
+        entry.pop(SOURCE_KEY, None)
+
+    persist_game_meta(game, config)
+    game.meta_config = config
+    return dict(source)
+
+
 def get_or_create_table_user(config: dict[str, Any], filename: str) -> dict[str, Any]:
     """One table's play record, created on its first launch.
 
