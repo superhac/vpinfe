@@ -1509,6 +1509,18 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 .hub-attention-icon { color: var(--tier-table); font-size: 18px; flex: 0 0 auto; }
 .hub-attention-line { font-size: var(--fs-body); color: var(--ink); }
+/* One detail against its replacement. The old value is struck rather than merely dim:
+   it is not a lesser version of the new one, it is the wrong machine's. */
+.hub-diff-field {
+  font-size: var(--fs-caption); color: var(--ink-3);
+  flex: 0 0 auto; min-width: 72px;
+}
+.hub-diff-was {
+  font-size: var(--fs-caption); color: var(--ink-3);
+  text-decoration: line-through; flex: 0 1 auto;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hub-diff-arrow { font-size: 14px; color: var(--ink-3); flex: 0 0 auto; }
 /* The picked slot. The art is the subject and takes the room; the facts under it are
    a line each, which is what lets them be sentences rather than a table of fields. */
 .hub-slot {

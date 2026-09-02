@@ -1446,10 +1446,56 @@ async def _vps_block(context: dict[str, Any]) -> None:
         ]
         if found.get("releases"):
             entries.append(("Releases", str(found["releases"])))
+        differs = await run.io_bound(library.vps_details, context["game_id"])
+        if differs:
+            entries.append((FULL, _details_differ(context, differs)))
     entries.append((FULL, _change_match(context)))
 
     with ui.column().classes("gap-0 hub-form"):
         _rows(ui, entries)
+
+
+# What the catalog calls these against what a person does. Only where the two differ:
+# `Manufacturer` needs no translating and a map that repeats it is a map nobody trusts.
+DETAIL_WORDS = {"Title": "Name", "IPDBId": "IPDB", "PinballPrimerTut": "Tutorial",
+                "Themes": "Theme"}
+
+
+def _details_differ(context: dict[str, Any],
+                    differs: list[dict[str, Any]]) -> Callable[[], None]:
+    """The game's details against the entry's, where they have come apart.
+
+    Absent the whole time until somebody corrects a match, which is the only thing that
+    parts them: the details were written from the entry, so they agree with it until
+    the entry changes underneath them. Measured on a real library - across 71 matched
+    games, not one field disagreed.
+
+    Adopting is one act over all of them rather than a choice per field. They are one
+    machine's facts, and taking this one's year beside that one's maker would describe
+    no machine at all.
+    """
+    async def adopt() -> None:
+        await _write(context, context["library"].adopt_vps_details,
+                     context["game_id"])
+
+    def draw() -> None:
+        # The block lays its children out in a row, so the stack goes in a column of
+        # its own - the same shape the fault list beside an icon uses.
+        with ui.element("div").classes("hub-attention w-full"), \
+                ui.column().classes("gap-1 min-w-0 grow"):
+            ui.label("This game still describes the machine it was matched to before") \
+                .classes("hub-attention-line")
+            for item in differs:
+                said = str(item.get("field") or "")
+                with ui.row().classes("items-baseline gap-2 w-full no-wrap"):
+                    ui.label(DETAIL_WORDS.get(said, said)).classes("hub-diff-field")
+                    ui.label(str(item.get("ours") or "-")).classes("hub-diff-was")
+                    ui.icon("arrow_forward").classes("hub-diff-arrow")
+                    ui.label(str(item.get("theirs") or "-")).classes("hub-help truncate")
+            ui.button("Use the entry's details", on_click=adopt) \
+                .props("flat dense no-caps size=sm").classes("hub-action")
+
+    return draw
 
 
 def _vps_entry_row(found: dict[str, Any], vps_id: str) -> Callable[[], None]:

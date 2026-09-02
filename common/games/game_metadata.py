@@ -552,6 +552,61 @@ def set_table_source(game, filename: str, vps_file_id: str) -> dict[str, Any]:
     return dict(source)
 
 
+# What the entry describes, as opposed to which entry it is. Adopting rewrites the
+# first and leaves the second alone: `Info.VPSId` is what VPS supplied, and the field a
+# surface offers to revert a corrected match to. Overwriting it would destroy the
+# baseline the undo needs.
+DESCRIBED_BY_VPS = ("Title", "Manufacturer", "Year", "Type", "Themes", "IPDBId",
+                    "PinballPrimerTut")
+
+
+def vps_details_differ(config: dict[str, Any], vps_entry: dict[str, Any]) -> dict[str, Any]:
+    """Which described fields disagree with the entry, as {field: (ours, theirs)}.
+
+    Empty for a game whose details came from the entry it is still matched to, which is
+    every game that has never been re-matched. Correcting a match is what fills this:
+    the details go on describing the machine the game used to be.
+    """
+    from common.games.info_file import info_from_vps
+
+    theirs = info_from_vps(vps_entry)
+    ours = section(config, "Info")
+    found = {}
+    for field in DESCRIBED_BY_VPS:
+        mine, yours = ours.get(field), theirs.get(field)
+        if _as_said(mine) != _as_said(yours):
+            found[field] = (mine, yours)
+    return found
+
+
+def _as_said(value: Any) -> Any:
+    """Compared as a person reads them: 1992 and "1992" are the same year, and themes
+    differ by what is in them rather than by the order VPS happens to list them."""
+    if isinstance(value, list):
+        return sorted(str(item).strip().lower() for item in value)
+    return str(value if value is not None else "").strip().lower()
+
+
+def adopt_vps_details(game, vps_entry: dict[str, Any]) -> dict[str, Any]:
+    """Make the game's details describe the entry it is matched to.
+
+    Everything the entry describes, in one act rather than field by field: they are one
+    machine's facts and a library holding this one's year beside that one's maker
+    describes no machine at all.
+    """
+    config = load_game_meta(game)
+    fresh = vps_details_differ(config, vps_entry)
+    info = config.setdefault("Info", {})
+    for field, (_, theirs) in fresh.items():
+        if theirs in ("", [], None) and field in ("IPDBId", "PinballPrimerTut"):
+            info.pop(field, None)
+        else:
+            info[field] = theirs
+    persist_game_meta(game, config)
+    game.meta_config = config
+    return {field: theirs for field, (_, theirs) in fresh.items()}
+
+
 def get_or_create_table_user(config: dict[str, Any], filename: str) -> dict[str, Any]:
     """One table's play record, created on its first launch.
 

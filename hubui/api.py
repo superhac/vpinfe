@@ -133,6 +133,22 @@ class HubClient:
             json={"rating": rating}, timeout=_TIMEOUT)
         self._answered(response)
 
+    def vps_details(self, game_id: str) -> list[dict]:
+        """Which of the game's details disagree with its entry - empty for a game
+        nobody has re-matched, which is nearly all of them."""
+        _refuse_the_event_loop(f"/games/{game_id}/vps_details")
+        response = self._session.get(f"{self._base}/games/{game_id}/vps_details",
+                                     timeout=_TIMEOUT)
+        self._answered(response)
+        return list((response.json() or {}).get("differs") or [])
+
+    def adopt_vps_details(self, game_id: str) -> None:
+        """Take the entry's details, all of them - they are one machine's facts."""
+        _refuse_the_event_loop(f"/games/{game_id}/vps_details")
+        response = self._session.put(f"{self._base}/games/{game_id}/vps_details",
+                                     timeout=_TIMEOUT)
+        self._answered(response)
+
     def set_table_source(self, game_id: str, table_id: str, vps_file_id: str) -> None:
         """Bind one table to the release somebody says it is. Empty unbinds."""
         _refuse_the_event_loop(f"/games/{game_id}/tables/{table_id}/source")

@@ -142,6 +142,56 @@ class InvalidMetaConfigError(ValueError):
         super().__init__(f"Invalid game metadata file: {path} ({reason})")
 
 
+PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
+
+
+def _primer_tutorial(vpsdata):
+    """The primer link among an entry's tutorials, or "" where it lists none."""
+    if not isinstance(vpsdata, dict):
+        return ""
+    for tutorial in vpsdata.get("tutorialFiles", []):
+        if not isinstance(tutorial, dict):
+            continue
+        direct = tutorial.get("url")
+        if isinstance(direct, str) and direct.startswith(PINBALL_PRIMER_PREFIX):
+            return direct
+        for entry in tutorial.get("urls", []):
+            if not isinstance(entry, dict):
+                continue
+            nested = entry.get("url")
+            if isinstance(nested, str) and nested.startswith(PINBALL_PRIMER_PREFIX):
+                return nested
+    return ""
+
+
+def info_from_vps(vps_entry):
+    """The `Info` block for one catalog entry.
+
+    Info is wholly what VPS knows about the machine. Rom and Authors used to be copied
+    in from the parsed .vpx and were per-table values all along - they live on their
+    own tables entry now.
+
+    A function rather than a method because associating a folder is no longer the only
+    time it is needed: correcting a match leaves every one of these describing the
+    machine the game used to be, and adopting the entry's details has to build the same
+    block the association would have built.
+    """
+    entry = vps_entry or {}
+    info = {
+        "IPDBId": parse_qs(urlparse(entry.get("ipdbUrl", "")).query).get("id", [""])[0],
+        "Title": entry.get("name", ""),
+        "Manufacturer": entry.get("manufacturer", ""),
+        "Year": entry.get("year", ""),
+        "Type": entry.get("type", ""),
+        "Themes": entry.get("theme", []),
+        "VPSId": entry.get("id", ""),
+    }
+    tutorial = _primer_tutorial(entry)
+    if tutorial:
+        info["PinballPrimerTut"] = tutorial
+    return info
+
+
 class MetaConfig:
     """One game's `.info`, upgraded to the current schema as it is read."""
 
@@ -186,24 +236,7 @@ class MetaConfig:
         """
         Build the .info JSON structure
         """
-        pinball_primer_tutorial = self._find_pinball_primer_tutorial(
-            configdata.get("vpsdata", {})
-        )
-
-        # Info is wholly what VPS knows about the machine. Rom and Authors used to be
-        # copied in from the parsed .vpx and were per-table values all along - they
-        # live on their own tables entry now.
-        info = {
-            "IPDBId": parse_qs(urlparse(configdata.get("vpsdata", {}).get("ipdbUrl", "")).query).get("id", [""])[0],
-            "Title": configdata.get("vpsdata", {}).get("name", ""),
-            "Manufacturer": configdata.get("vpsdata", {}).get("manufacturer", ""),
-            "Year": configdata.get("vpsdata", {}).get("year", ""),
-            "Type": configdata.get("vpsdata", {}).get("type", ""),
-            "Themes": configdata.get("vpsdata", {}).get("theme", []),
-            "VPSId": configdata.get("vpsdata", {}).get("id", ""),
-        }
-        if pinball_primer_tutorial:
-            info["PinballPrimerTut"] = pinball_primer_tutorial
+        info = info_from_vps(configdata.get("vpsdata", {}))
 
         user = self.data.get("User", {
             "Rating": 0,
@@ -530,25 +563,7 @@ class MetaConfig:
         return relative.replace(os.sep, "/")
 
     def _find_pinball_primer_tutorial(self, vpsdata):
-        if not isinstance(vpsdata, dict):
-            return ""
-
-        for tutorial in vpsdata.get("tutorialFiles", []):
-            if not isinstance(tutorial, dict):
-                continue
-
-            direct_url = tutorial.get("url")
-            if isinstance(direct_url, str) and direct_url.startswith(self.PINBALL_PRIMER_PREFIX):
-                return direct_url
-
-            for entry in tutorial.get("urls", []):
-                if not isinstance(entry, dict):
-                    continue
-                nested_url = entry.get("url")
-                if isinstance(nested_url, str) and nested_url.startswith(self.PINBALL_PRIMER_PREFIX):
-                    return nested_url
-
-        return ""
+        return _primer_tutorial(vpsdata)
 
     def _migrate_vpinfe(self):
         """Apply the VPinFE section schema migration to the loaded data, in memory."""

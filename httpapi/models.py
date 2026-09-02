@@ -1427,6 +1427,23 @@ class ImportRequest(PlanRequest):
 
 # --- VPS -------------------------------------------------------------------
 
+class VpsFieldDiff(ApiModel):
+    """One detail the game and its entry disagree about, both sides as one line each -
+    a year is a number and themes are a list, and a comparison wants neither shape."""
+
+    field: str
+    ours: str
+    theirs: str
+
+
+class VpsDetails(ApiModel):
+    """Empty for a game whose details came from the entry it is still matched to,
+    which is every game nobody has re-matched: the details were written from the entry,
+    so they agree with it by construction."""
+
+    differs: list[VpsFieldDiff] = []
+
+
 class VpsSearchResult(ApiModel):
     """Straight off a VPSdb entry, so every field is as optional as that data is."""
 

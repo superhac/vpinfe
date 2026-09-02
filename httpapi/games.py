@@ -31,6 +31,8 @@ from common.games import (
     media_placement,
 )
 from common.games.game_metadata import (
+    adopt_vps_details,
+    game_vps_id,
     load_game_meta,
     meta_file_path,
     reset_game_play_record,
@@ -44,6 +46,7 @@ from common.games.game_metadata import (
     table_rating,
     table_source,
     vpinfe_section,
+    vps_details_differ,
 )
 from common.games.game_repository import (
     all_games,
@@ -1094,6 +1097,65 @@ def put_table_source(game_id: str, table_id: str,
     set_table_source(game, filename, payload.vps_file_id)
     game.meta_config = load_game_meta(game)
     return _table_or_404(game, table_id)
+
+
+def _entry_for(game) -> dict:
+    """The catalog entry this game is matched to, effective id first."""
+    from common.games.game_service import load_vpsdb
+
+    wanted = game_vps_id(game)
+    if not wanted:
+        return {}
+    return next((e for e in load_vpsdb() if str(e.get("id") or "") == wanted), {})
+
+
+@router.get("/{game_id}/vps_details", summary="Where the game's details and its entry disagree",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_vps_details(game_id: str) -> models.VpsDetails:
+    """Empty for a game whose details came from the entry it is still matched to.
+
+    Which is every game that has never been re-matched: the details were written from
+    the entry, so they agree with it by construction. Correcting a match is what fills
+    this, and it fills it completely - the details go on describing the machine the
+    game used to be.
+    """
+    game = _game_or_404(game_id)
+    entry = _entry_for(game)
+    if not entry:
+        return {"differs": []}
+    found = vps_details_differ(load_game_meta(game), entry)
+    return {"differs": [{"field": field, "ours": _said(ours), "theirs": _said(theirs)}
+                        for field, (ours, theirs) in found.items()]}
+
+
+def _said(value) -> str:
+    """One line a person reads, whatever the field holds - a year is a number and
+    themes are a list, and a caller rendering a comparison wants neither shape."""
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+    return str(value if value is not None else "")
+
+
+@router.put("/{game_id}/vps_details", summary="Take the entry's details",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_vps_details(game_id: str) -> models.VpsDetails:
+    """Make the game's details describe the entry it is matched to.
+
+    All of them together: they are one machine's facts, and a library holding this
+    one's year beside that one's maker describes no machine at all. `Info.VPSId` is not
+    among them - it is what VPS supplied, and the value a surface offers to revert a
+    corrected match to.
+
+    Returns the disagreement that is left, which is none - a client that just adopted
+    is about to redraw the panel, and this is what it would ask for next.
+    """
+    game = _game_or_404(game_id)
+    entry = _entry_for(game)
+    if not entry:
+        raise NotFoundError("This game is matched to no VPS entry",
+                            details={"game_id": game_id})
+    adopt_vps_details(game, entry)
+    return get_vps_details(game_id)
 
 
 @router.put("/{game_id}/default_table", summary="Which table this game offers first",

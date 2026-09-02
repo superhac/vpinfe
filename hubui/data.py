@@ -445,6 +445,14 @@ class Library:
     def vps_search(self, term: str, limit: int = 40) -> list[dict]:
         return self._client.vps_search(term, limit)
 
+    def vps_details(self, game_id: str) -> list[dict]:
+        """Where this game's details disagree with the entry it is matched to."""
+        return self._client.vps_details(game_id)
+
+    def adopt_vps_details(self, game_id: str) -> None:
+        self._client.adopt_vps_details(game_id)
+        self._forget_games()
+
     def set_table_source(self, game_id: str, table_id: str, vps_file_id: str) -> None:
         self._client.set_table_source(game_id, table_id, vps_file_id)
         self._forget_games()
