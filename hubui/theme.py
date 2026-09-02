@@ -1197,6 +1197,11 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* On hover and over the art: the tile has no room for a control wanted occasionally.
    Touch has no hover, and reaches this through the slot's own Enlarge. */
 .hub-mediatile-art { position: relative; }
+/* An empty slot the catalog can fill. Quiet: it is information, not a warning - a
+   library is allowed to be missing a topper, and amber here would shout on every
+   second tile. */
+.hub-mediatile-offered { color: var(--ink-3); opacity: 0.7; }
+.hub-mediatile:hover .hub-mediatile-offered { opacity: 1; color: var(--accent); }
 .hub-mediatile-zoom {
   position: absolute; top: 2px; right: 2px; opacity: 0;
   background: rgba(10, 5, 24, 0.7) !important; transition: opacity 120ms ease;

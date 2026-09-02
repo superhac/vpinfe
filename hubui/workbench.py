@@ -671,12 +671,13 @@ async def _media_block(context: dict[str, Any]) -> None:
         # that are not the subject.
         overrides = ({} if table_id else
                      await run.io_bound(library.media_overrides, game_id))
+        offered = await run.io_bound(_offered_media, context)
         holder.clear()
         with holder:
             mediamap.build(entries, _prefix(game_id, table_id),
                            on_pick=lambda kind: _pick_slot(context, kind, draw),
                            selected=context["slot"]["kind"],
-                           overrides=overrides)
+                           overrides=overrides, offered=offered)
         dock = context.get("dock")
         if dock is not None:
             dock.clear()
@@ -733,6 +734,19 @@ def _preview(src: str, kind: str, label: str) -> None:
         # A rule sheet is a document; there is no element that previews one usefully
         # in a panel this size, and a broken <img> would say it is missing.
         ui.link(f"Open {label.lower()}", src, new_tab=True).classes("hub-help")
+
+
+def _offered_media(context: dict[str, Any]) -> dict[str, int]:
+    """What the catalog lists for this game's empty slots.
+
+    Swallowed on failure rather than taken as zero being reported: the map is about the
+    library, and a catalog that cannot be reached should mark nothing rather than say
+    the catalog has nothing.
+    """
+    try:
+        return context["library"].offered_media(context["game_id"])
+    except Exception:
+        return {}
 
 
 def _pick_slot(context: dict[str, Any], kind: str, draw) -> None:

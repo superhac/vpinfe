@@ -1188,6 +1188,7 @@ def get_vps_state(game_id: str) -> models.VpsState:
         kinds.append({
             "kind": kind.listed_as,
             "ours": list(kind.ours),
+            "held_in": kind.held_in,
             "held": _we_hold(kind, inventory, media),
             "listed": len(records),
             "obtainable": sum(1 for word in answers

@@ -135,7 +135,7 @@ def _state(entry: dict[str, Any]) -> str:
 
 def _tile(prefix: str, kind: str, entry: dict[str, Any],
           on_pick: Callable[[str], None] | None, selected: str | None,
-          differing: int = 0) -> None:
+          differing: int = 0, offered: int = 0) -> None:
     state = _state(entry)
     ratio = TILE_AR.get(kind, 1.6)
     tile = ui.element("div").classes(
@@ -148,7 +148,15 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
         with ui.element("div").classes("hub-mediatile-art") \
                 .style(f"aspect-ratio:{ratio}"):
             if state == "missing":
-                pass
+                # The catalog has one and this slot does not, which is the only pairing
+                # worth a mark: on a filled slot it would say somebody could replace
+                # this, which is true of all of them. Counted as files, so a kind the
+                # catalog holds only as a folder to browse marks nothing.
+                if offered:
+                    ui.icon("cloud_download", size="16px") \
+                        .classes("hub-mediatile-offered") \
+                        .tooltip(f"{offered} in the catalog"
+                                 if offered > 1 else "One in the catalog")
             elif glyph is not None:
                 ui.icon(glyph, size="18px").classes("text-primary opacity-80")
             elif media_family(kind) == "video":
@@ -192,11 +200,16 @@ def _tooltip(kind: str, entry: dict[str, Any]) -> str:
 def build(entries: dict[str, dict[str, Any]], prefix: str,
           on_pick: Callable[[str], None] | None = None,
           selected: str | None = None,
-          overrides: dict[str, list[dict[str, Any]]] | None = None) -> None:
+          overrides: dict[str, list[dict[str, Any]]] | None = None,
+          offered: dict[str, int] | None = None) -> None:
     """Draw the map into the current container.
 
     `prefix` is where the art is fetched from, and it is what the lens changes: the
     game's shared media, or one build's. The map itself does not care which.
+
+    `offered` is how many files the catalog lists per kind. It only ever marks an empty
+    slot: on a slot that is filled it would be saying somebody could replace this,
+    which is true of every slot and so says nothing.
     """
     # Roughly the width browse gets once work takes its half, so the map fills it and
     # any surplus falls to the right.
@@ -212,7 +225,8 @@ def build(entries: dict[str, dict[str, Any]], prefix: str,
             with ui.row().classes("w-full gap-1 no-wrap items-stretch"):
                 for kind in kinds:
                     _tile(prefix, kind, entries[kind], on_pick, selected,
-                          len((overrides or {}).get(kind) or []))
+                          len((overrides or {}).get(kind) or []),
+                          (offered or {}).get(kind, 0))
         extras = [kind for kind in EXTRAS if kind in entries]
         if extras:
             # A rule, not a heading: the cabinet stack and everything else are
@@ -221,7 +235,8 @@ def build(entries: dict[str, dict[str, Any]], prefix: str,
             with ui.element("div").classes("hub-mediatile-grid"):
                 for kind in extras:
                     _tile(prefix, kind, entries[kind], on_pick, selected,
-                          len((overrides or {}).get(kind) or []))
+                          len((overrides or {}).get(kind) or []),
+                          (offered or {}).get(kind, 0))
     ui.run_javascript(_HOVER)
 
 

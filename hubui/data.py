@@ -445,6 +445,21 @@ class Library:
     def vps_search(self, term: str, limit: int = 40) -> list[dict]:
         return self._client.vps_search(term, limit)
 
+    def offered_media(self, game_id: str) -> dict[str, int]:
+        """How many files the catalog lists for each of our media kinds, counting only
+        the ones that are a file. A kind the catalog has only as a folder to browse
+        answers zero, which is the whole reason the count is not `listed`."""
+        offered: dict[str, int] = {}
+        for kind in self._client.vps_state(game_id):
+            # Media only. `backglass` names a picture here and a .directb2s among the
+            # assets, and it is the second that VPS lists - counted against the tile it
+            # would have marked the wrong thing with the wrong number.
+            if kind.get("held_in") != "media":
+                continue
+            for name in (kind.get("ours") or []):
+                offered[name] = int(kind.get("obtainable") or 0)
+        return offered
+
     def vps_details(self, game_id: str) -> list[dict]:
         """Where this game's details disagree with the entry it is matched to."""
         return self._client.vps_details(game_id)

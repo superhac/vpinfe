@@ -1440,6 +1440,10 @@ class VpsKindState(ApiModel):
 
     kind: str
     ours: list[str] = []
+    # Which inventory answers whether one is here - `asset` or `media`. On the wire
+    # because the two vocabularies share names for different things: `backglass` is a
+    # .directb2s among assets and a picture among media, and VPS lists the first.
+    held_in: str = ""
     held: bool = False
     listed: int = 0
     obtainable: int = 0

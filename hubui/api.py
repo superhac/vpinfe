@@ -133,6 +133,14 @@ class HubClient:
             json={"rating": rating}, timeout=_TIMEOUT)
         self._answered(response)
 
+    def vps_state(self, game_id: str) -> list[dict]:
+        """Per kind: what this game holds, and what the catalog lists for it."""
+        _refuse_the_event_loop(f"/games/{game_id}/vps_state")
+        response = self._session.get(f"{self._base}/games/{game_id}/vps_state",
+                                     timeout=_TIMEOUT)
+        self._answered(response)
+        return list((response.json() or {}).get("kinds") or [])
+
     def vps_details(self, game_id: str) -> list[dict]:
         """Which of the game's details disagree with its entry - empty for a game
         nobody has re-matched, which is nearly all of them."""
