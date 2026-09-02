@@ -72,6 +72,20 @@ def parse_additional_chromium_options(raw_options: str) -> list[str]:
     return shlex.split(raw_options, comments=False, posix=True)
 
 
+def parsed_or_none(raw_options: str, setting: str) -> list[str]:
+    """The flags a setting asks for, or none of them.
+
+    An unbalanced quote is a typo in a text field, and the cost of raising on one is
+    the whole frontend: nothing above catches it, so every window goes and the user
+    sees a black screen rather than a bad setting.
+    """
+    try:
+        return parse_additional_chromium_options(raw_options)
+    except ValueError as exc:
+        logger.warning("Ignoring invalid %s value: %s", setting, exc)
+        return []
+
+
 def get_builtin_chromium_options(
     window_name: str = "<window>",
     url: str = "<url>",
@@ -398,14 +412,11 @@ class ChromiumManager:
                 user_data_dir=user_data_dir,
                 mute_audio=mute_audio,
                 include_default_options=include_default_options,
-                exclude_options=parse_additional_chromium_options(exclude_options),
+                exclude_options=parsed_or_none(exclude_options,
+                                               "general.chrome_options_exclude"),
             ),
         ]
-        try:
-            extra_args = parse_additional_chromium_options(additional_options)
-        except ValueError as exc:
-            logger.warning("Ignoring invalid Settings.chromeoptions value: %s", exc)
-            extra_args = []
+        extra_args = parsed_or_none(additional_options, "general.chrome_options")
         if extra_args:
             logger.debug("Adding Chromium options for '%s': %s", window_name, extra_args)
             args.extend(extra_args)
@@ -514,16 +525,22 @@ class ChromiumManager:
             if window_name == "table":
                 time.sleep(0.5)
 
-            self.launch_window(
-                window_name,
-                url,
-                monitor,
-                screen_id,
-                mute_audio=(window_name != "table"),
-                additional_options=settings.chrome_options,
-                include_default_options=not settings.disable_default_chrome_options,
-                exclude_options=cfg_get(iniconfig, "Settings", "chromeoptionsexclude", ""),
-            )
+            # One window failing is one window. Unwrapped, whatever went wrong on the
+            # backglass took the playfield with it and the cabinet showed nothing.
+            try:
+                self.launch_window(
+                    window_name,
+                    url,
+                    monitor,
+                    screen_id,
+                    mute_audio=(window_name != "table"),
+                    additional_options=settings.chrome_options,
+                    include_default_options=not settings.disable_default_chrome_options,
+                    exclude_options=cfg_get(iniconfig, "Settings",
+                                            "chromeoptionsexclude", ""),
+                )
+            except Exception:
+                logger.exception("Could not launch the %s window", window_name)
 
         logger.info("Launched %s browser windows", len(self._processes))
 
