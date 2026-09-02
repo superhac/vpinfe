@@ -15,9 +15,8 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Body, File, Response, UploadFile
+from fastapi import APIRouter, Body, File, Request, Response, UploadFile
 from starlette.concurrency import run_in_threadpool
-from starlette.responses import FileResponse
 
 from common.games import game_identity
 from common.games.collection_filters import UNCONSTRAINED, group_key, group_kind
@@ -54,7 +53,7 @@ from common.values import is_truthy
 from . import models, scopes
 from .auth import requires
 from .errors import ConflictError, InvalidRequestError, NotFoundError
-from .games import _catalog, _resource
+from .games import _catalog, _resource, revalidating_file
 
 logger = logging.getLogger("vpinfe.httpapi.collections")
 
@@ -598,13 +597,14 @@ def clear_image(name: str) -> Response:
 
 @router.get("/{name}/image", summary="A collection's image",
             dependencies=[requires(scopes.COLLECTIONS_READ)])
-def get_image(name: str) -> FileResponse:
+def get_image(name: str, request: Request):
     from common.games.collections_service import collection_icon_path
     row = _row_or_404(name)
     here = collection_icon_path(row.get("image"))
     if here is None:
         raise NotFoundError(f"{name} has no image")
-    return FileResponse(here)
+    # Named for the collection, not the file: a new image changes what this serves.
+    return revalidating_file(here, request)
 
 
 @router.post("/{name}/members/from_filters",

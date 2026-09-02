@@ -17,7 +17,7 @@ from pathlib import Path
 from fastapi import APIRouter, Body, File, Query, Request, UploadFile
 from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, Response
 
 from common.config_access import MediaConfig
 from common.games import (
@@ -535,7 +535,8 @@ def get_game_media(game_id: str) -> models.MediaList:
     return {"media": _media_entries(_resolved_media(game_dir, None), game_dir, prefix)}
 
 
-def _media_file_or_404(game, kind: str, table_stem: str | None):
+def _media_file_or_404(game, kind: str, table_stem: str | None,
+                       request: Request | None = None):
     known = {spec.kind for spec in MEDIA_SPECS}
     if kind not in known:
         raise InvalidRequestError("Unknown media kind",
@@ -545,7 +546,32 @@ def _media_file_or_404(game, kind: str, table_stem: str | None):
     path = hit.path if hit is not None else None
     if path is None or not path.is_file():
         raise NotFoundError(f"This game has no {kind} media")
-    return FileResponse(path)
+    return revalidating_file(path, request)
+
+
+def revalidating_file(path: Path, request) -> Response:
+    """A file that is always asked about and rarely re-sent.
+
+    These URLs name a slot rather than a file, so a replacement changes the bytes
+    behind an unchanged address; without `no-cache` a browser guesses freshness from
+    Last-Modified and can serve stale art for days.
+
+    The 304 is not optional with it. Starlette answers conditional requests only from
+    `StaticFiles`, so a bare `FileResponse` re-sends the whole file every time - which
+    on a media map of thirteen tiles turns "sometimes stale" into megabytes per draw.
+    """
+    # Stat here and hand it over: FileResponse only fills in etag and last-modified
+    # when it is given one, otherwise they appear while the response is being sent -
+    # too late to compare against.
+    response = FileResponse(path, stat_result=path.stat(),
+                            headers={"Cache-Control": "no-cache"})
+    sent = request.headers.get("if-none-match") if request is not None else ""
+    etag = response.headers.get("etag", "")
+    if sent and etag and etag in [tag.strip().removeprefix("W/")
+                                  for tag in sent.split(",")]:
+        return Response(status_code=304,
+                        headers={"Cache-Control": "no-cache", "ETag": etag})
+    return response
 
 
 @router.get("/{game_id}/media/overrides",
@@ -597,8 +623,8 @@ def get_media_overrides(game_id: str) -> models.MediaOverrideList:
 
 @router.get("/{game_id}/media/{kind}", summary="One shared media file",
             dependencies=[requires(scopes.GAMES_READ)])
-def get_game_media_file(game_id: str, kind: str):
-    return _media_file_or_404(_game_or_404(game_id), kind, None)
+def get_game_media_file(game_id: str, kind: str, request: Request):
+    return _media_file_or_404(_game_or_404(game_id), kind, None, request)
 
 
 @router.get("/{game_id}/tables/{table_id}/media", summary="One table's media",
@@ -619,9 +645,11 @@ def get_table_media(game_id: str, table_id: str) -> models.MediaList:
 
 @router.get("/{game_id}/tables/{table_id}/media/{kind}", summary="One table's media file",
             dependencies=[requires(scopes.GAMES_READ)])
-def get_table_media_file(game_id: str, table_id: str, kind: str):
+def get_table_media_file(game_id: str, table_id: str, kind: str,
+                         request: Request):
     game = _game_or_404(game_id)
-    return _media_file_or_404(game, kind, _table_stem_or_404(game, table_id))
+    return _media_file_or_404(game, kind, _table_stem_or_404(game, table_id),
+                              request)
 
 
 async def _write_media(game, kind: str, stem: str, upload: UploadFile,

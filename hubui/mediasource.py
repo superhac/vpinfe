@@ -468,7 +468,10 @@ class _Sources:
         async def take() -> None:
             if not await self.confirmed(str(offer.get("name") or "")):
                 return
-            ui.notify(f"Fetching from {source_name}...", type="ongoing")
+            # Held: an ongoing notification never times out, so one nothing dismisses
+            # outlives the answer it was waiting for.
+            fetching = ui.notification(f"Fetching from {source_name}...",
+                                       spinner=True, timeout=None)
             try:
                 await run.io_bound(self.library.fetch_media, self.game_id,
                                    self.destination, self.kind, offer["source"],
@@ -476,6 +479,8 @@ class _Sources:
             except Exception as exc:
                 ui.notify(f"Could not fetch it: {exc}", type="negative")
                 return
+            finally:
+                fetching.dismiss()
             await self.finish(f"{self.label} saved from {source_name}")
 
         # The source is the first thing on the row, because with several of them the

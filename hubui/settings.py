@@ -318,12 +318,15 @@ async def _vps_foot(library, rerender: Callable[[], None], body) -> None:
         return
 
     async def now() -> None:
-        ui.notify("Checking VPSdb...", type="ongoing")
+        # Held: an ongoing notification never times out on its own.
+        checking = ui.notification("Checking VPSdb...", spinner=True, timeout=None)
         try:
             done = await run.io_bound(library.sync_vps)
         except Exception as exc:  # noqa: BLE001
             ui.notify(f"Could not check: {exc}", type="negative")
             return
+        finally:
+            checking.dismiss()
         # "Already current" is the ordinary outcome and says itself; a positive toast
         # for it would make the rare one look the same as the common one.
         ui.notify("Catalog updated" if done.get("changed") else "Already up to date",
