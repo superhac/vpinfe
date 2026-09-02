@@ -201,7 +201,8 @@ def build(entries: dict[str, dict[str, Any]], prefix: str,
           on_pick: Callable[[str], None] | None = None,
           selected: str | None = None,
           overrides: dict[str, list[dict[str, Any]]] | None = None,
-          offered: dict[str, int] | None = None) -> None:
+          offered: dict[str, int] | None = None,
+          kept: set[str] | None = None) -> None:
     """Draw the map into the current container.
 
     `prefix` is where the art is fetched from, and it is what the lens changes: the
@@ -210,7 +211,13 @@ def build(entries: dict[str, dict[str, Any]], prefix: str,
     `offered` is how many files the catalog lists per kind. It only ever marks an empty
     slot: on a slot that is filled it would be saying somebody could replace this,
     which is true of every slot and so says nothing.
+
+    `kept` is the kinds this library collects. A kind switched off is not drawn at all -
+    not as an empty tile, which is the map saying "you are missing this" about something
+    nobody wants.
     """
+    if kept is not None:
+        entries = {kind: entry for kind, entry in entries.items() if kind in kept}
     # Roughly the width browse gets once work takes its half, so the map fills it and
     # any surplus falls to the right.
     with ui.column().classes("w-full gap-1 pb-2").style(

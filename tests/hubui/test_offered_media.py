@@ -11,6 +11,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import Mock
 
+from common.media_specs import media_label_map
 from hubui.data import Library
 
 STATE = [
@@ -58,3 +59,49 @@ class OfferedMediaTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KeptKindsTests(unittest.TestCase):
+    """What the hub asks for before it enumerates anything.
+
+    Stored as what is hidden, read as what is kept. That direction is the point: a kind
+    added in a later version is in nobody's hidden list, so it arrives switched on.
+    """
+
+    def _library(self, general: dict) -> Library:
+        library = Library.__new__(Library)
+        library._client = Mock(config_values=Mock(return_value={"general": general}))
+        library._kept = None
+        return library
+
+    def test_a_hidden_kind_is_not_kept(self) -> None:
+        kept = self._library({"hidden_media_kinds": ["topper"]}).kept_kinds()
+
+        self.assertNotIn("topper", kept["media"])
+        self.assertIn("wheel", kept["media"])
+
+    def test_a_kind_nobody_hid_is_kept(self) -> None:
+        """Including every kind a config written by an older build never mentioned."""
+        kept = self._library({}).kept_kinds()
+
+        self.assertEqual(kept["media"], set(media_label_map()))
+
+    def test_the_rom_can_be_hidden(self) -> None:
+        """An EM table declares none, and required-ness belongs to the kind while
+        whether it applies belongs to the table."""
+        kept = self._library({"hidden_asset_kinds": ["rom"]}).kept_kinds()
+
+        self.assertNotIn("rom", kept["asset"])
+
+    def test_the_comma_string_the_ini_holds_reads_the_same(self) -> None:
+        kept = self._library({"hidden_media_kinds": "topper, wheel"}).kept_kinds()
+
+        self.assertNotIn("topper", kept["media"])
+        self.assertNotIn("wheel", kept["media"])
+
+    def test_hiding_a_kind_this_build_never_heard_of_changes_nothing(self) -> None:
+        """A config written by a newer build must not subtract a name from a set that
+        does not contain it and leave the reader short."""
+        kept = self._library({"hidden_media_kinds": ["nonesuch"]}).kept_kinds()
+
+        self.assertEqual(kept["media"], set(media_label_map()))

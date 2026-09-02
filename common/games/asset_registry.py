@@ -87,6 +87,13 @@ ASSET_SPECS = (
 _SPECS_BY_KIND = {spec.kind: spec for spec in ASSET_SPECS}
 
 # The kinds whose absence stops a table running, as opposed to making it worse.
+# The `.vpx` is the library rather than an accessory to it, so it is the one kind there
+# is no sense in a library saying it does not collect. Everything else is optional
+# including the ROM: an EM table declares none, and an all-EM library never wants the
+# column. Not `REQUIRED_KINDS` - required-ness belongs to a kind and whether it applies
+# belongs to a table, which is the distinction `launchable` exists to keep.
+ALWAYS_KEPT = frozenset({"table"})
+
 REQUIRED_KINDS = frozenset(spec.kind for spec in ASSET_SPECS if spec.required_to_launch)
 
 

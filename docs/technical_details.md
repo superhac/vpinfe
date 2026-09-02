@@ -63,6 +63,8 @@ uses an old spelling both still load.
 | `global_game_ini_override_enabled` | bool | `false` | Global tableini Override Enabled |
 | `global_game_ini_override_mask` | string |  | Global tableini Override Mask |
 | `game_root_dir` | string |  | The folder holding your table folders, one folder per game. |
+| `hidden_media_kinds` | list |  | Kinds of artwork this library does not collect. The hub stops showing and counting them; the files stay where they are. |
+| `hidden_asset_kinds` | list |  | Kinds of supporting file this library does not collect - an all-EM library has no ROMs. A table that will not launch still says so. |
 | `media_browse_dirs` | list |  | Extra folders you can pick artwork from when adding media by hand. The game library is always available; anywhere else has to be listed here before the hub will read it. |
 | `vpx_ini_path` | string |  | Path to VPinballX.ini, which VPinFE reads for the key mappings the Remote page sends. |
 | `assets_dir` | string |  | Root folder for assets shared across games rather than owned by one, such as manufacturer logos. Served at /assets/ and defaults to assets/ under the VPinFE config dir. |

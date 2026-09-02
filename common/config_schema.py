@@ -297,6 +297,23 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             aliases=("gamerootdir",),
         ),
         ConfigOption(
+            "hidden_media_kinds",
+            type="list",
+            default="",
+            label="Media kinds to hide",
+            description="Kinds of artwork this library does not collect. The hub stops"
+                        " showing and counting them; the files stay where they are.",
+        ),
+        ConfigOption(
+            "hidden_asset_kinds",
+            type="list",
+            default="",
+            label="Asset kinds to hide",
+            description="Kinds of supporting file this library does not collect - an"
+                        " all-EM library has no ROMs. A table that will not launch still"
+                        " says so.",
+        ),
+        ConfigOption(
             "media_browse_dirs",
             type="list",
             default="",

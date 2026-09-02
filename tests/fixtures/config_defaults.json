@@ -23,6 +23,8 @@
     "global_game_ini_override_enabled": "false",
     "global_game_ini_override_mask": "",
     "global_ini_override": "",
+    "hidden_asset_kinds": "",
+    "hidden_media_kinds": "",
     "library_refresh_minutes": "0",
     "media_browse_dirs": "",
     "mute_audio": "false",

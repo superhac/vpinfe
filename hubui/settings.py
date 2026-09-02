@@ -14,6 +14,8 @@ from collections.abc import Callable
 
 from nicegui import run, ui
 
+from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
+from common.media_specs import media_label_map
 from hubui import deeplink
 
 # group -> (key, label) - VPinFE first, because that is the thing being configured and
@@ -21,8 +23,16 @@ from hubui import deeplink
 # An object's settings live with the object. What is left here is what belongs to the
 # install as a whole and has no other owner - which is the only rule that keeps this
 # section from becoming the bucket everything lands in. See ELSEWHERE.
+# What switching one off does, and the two things it deliberately does not do. Said
+# where it applies to every switch on the page rather than repeated under each.
+KEPT_NOTE = ("What this library collects. Turning one off stops the hub showing and "
+             "counting it; the files stay where they are, and a table that will not "
+             "launch still says so.")
+
+
 INDEX: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
     ("VPinFE", (("general", "General"), ("library", "Library"),
+                ("media_kinds", "Media kinds"), ("asset_kinds", "Asset kinds"),
                 ("appearance", "Appearance"), ("startup", "Startup"))),
     ("Validation", (("checks_library", "Library checks"),
                     ("checks_media", "Media checks"),
@@ -118,7 +128,7 @@ def _control(option: dict, value, on_change: Callable[[object], None]) -> None:
 
 
 def _schema_page(library, rerender: Callable[[], None], title: str,
-                 section: str) -> None:
+                 section: str, note: str = "") -> None:
     """A settings page built from what the install says it has.
 
     Nothing here names a setting. The section is named; everything in it - label, help,
@@ -126,6 +136,8 @@ def _schema_page(library, rerender: Callable[[], None], title: str,
     config file the way a hand-written one does.
     """
     ui.label(title).classes("hub-card-title")
+    if note:
+        ui.label(note).classes("hub-help mt-1")
     body = ui.column().classes("w-full gap-0")
     # Filled off the event loop. These calls go to our own process, so making them here
     # blocks the server from answering them and the page waits for its own timeout.
@@ -211,6 +223,54 @@ async def _fill(library, rerender: Callable[[], None], body, title: str,
     refresh_bar()
 
 
+def _kind_page(library, rerender: Callable[[], None], title: str, key: str,
+               kinds: Callable[[], dict[str, str]]) -> None:
+    """A switch per kind of file, over one list of the ones that are hidden.
+
+    Stored as what is *off*. A stored list of what is kept would make every kind added
+    in a later version invisible in any library that had ever saved this page, which is
+    the opposite of what somebody switching one off asked for.
+    """
+    ui.label(title).classes("hub-card-title")
+    ui.label(KEPT_NOTE).classes("hub-help mt-1")
+    body = ui.column().classes("w-full gap-0")
+    ui.timer(0.01, lambda: _fill_kinds(library, rerender, body, key, kinds()),
+             once=True)
+
+
+async def _fill_kinds(library, rerender: Callable[[], None], body, key: str,
+                      kinds: dict[str, str]) -> None:
+    try:
+        values = await run.io_bound(library.config_values)
+    except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
+        with body:
+            ui.label(f"Could not read the settings: {exc}").classes("hub-help mt-2")
+        return
+
+    general = dict(values.get("general") or {})
+    raw = general.get(key) or []
+    hidden = set(str(item).strip() for item in
+                 (raw.split(",") if isinstance(raw, str) else raw) if str(item).strip())
+
+    async def flip(kind: str, shown: bool) -> None:
+        wanted = hidden - {kind} if shown else hidden | {kind}
+        try:
+            await run.io_bound(library.put_config,
+                               {"general": {key: sorted(wanted)}})
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(f"Could not save that: {exc}", type="negative")
+            return
+        rerender()
+
+    with body, ui.element("div").classes("hub-card w-full mt-2"):
+        for kind, label in sorted(kinds.items(), key=lambda pair: pair[1]):
+            with ui.row().classes("items-center gap-3 w-full no-wrap hub-setting-row"):
+                ui.switch(value=kind not in hidden,
+                          on_change=lambda e, k=kind: flip(k, bool(e.value))) \
+                    .props("dense color=positive")
+                ui.label(label).classes("hub-setting")
+
+
 def _checks_library() -> None:
     ui.label("Library checks").classes("hub-card-title")
     ui.label("Each check runs over every game. Turn one off here to silence it "
@@ -229,8 +289,23 @@ def _checks_library() -> None:
 # A page is either built from the schema - naming only the section it shows - or
 # hand-written where it is not settings at all. Nothing in between: a page that half
 # reads the schema is a page that drifts from it.
-SCHEMA_PAGES: dict[str, tuple[str, str]] = {
-    "general": ("General", "general"),
+# key -> (title, section, the one thing the page cannot say row by row). A note said
+# once beats the same sentence under thirty-five switches, which is what a generated
+# per-option description turns into.
+SCHEMA_PAGES: dict[str, tuple[str, str, str]] = {
+    "general": ("General", "general", ""),
+}
+
+# The two kind pages are not schema pages. What they switch is a *list* in the config,
+# and the switches themselves come from the two registries - which `common/` may not
+# import, because nothing in it may reach up into a domain package. The hub may, so the
+# rendering lives on this side of that line.
+KIND_PAGES: dict[str, tuple[str, str, Callable[[], dict[str, str]]]] = {
+    "media_kinds": ("Media kinds", "hidden_media_kinds",
+                    lambda: dict(media_label_map())),
+    "asset_kinds": ("Asset kinds", "hidden_asset_kinds",
+                    lambda: {spec.kind: spec.label for spec in ASSET_SPECS
+                             if spec.kind not in ALWAYS_KEPT}),
 }
 
 PAGES: dict[str, Callable[[], None]] = {
@@ -262,8 +337,11 @@ def build(state: dict, rerender: Callable[[], None],
                     item.on("click", lambda sec=section: go(sec))
         with ui.column().classes("grow min-w-0 overflow-auto"):
             schema_page = SCHEMA_PAGES.get(current)
+            kind_page = KIND_PAGES.get(current)
             page = PAGES.get(current)
-            if schema_page is not None and library is not None:
+            if kind_page is not None and library is not None:
+                _kind_page(library, rerender, *kind_page)
+            elif schema_page is not None and library is not None:
                 _schema_page(library, rerender, *schema_page)
             elif page is not None:
                 page()

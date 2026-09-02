@@ -24,6 +24,7 @@ from urllib.parse import quote
 from nicegui import run, ui
 
 from common.games import apps, asset_registry
+from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
 from common.games.collection_filters import UNCONSTRAINED
 from common.games.collection_store import (
     DEFAULT_ORDER_BY,
@@ -45,6 +46,7 @@ from hubui import (
     stars,
 )
 from hubui import features as table_features
+from hubui.api import HubError
 from hubui.data import Library
 
 logger = logging.getLogger("vpinfe.hubui.workbench")
@@ -672,12 +674,13 @@ async def _media_block(context: dict[str, Any]) -> None:
         overrides = ({} if table_id else
                      await run.io_bound(library.media_overrides, game_id))
         offered = await run.io_bound(_offered_media, context)
+        kept = await run.io_bound(_kept_kinds, context, "media")
         holder.clear()
         with holder:
             mediamap.build(entries, _prefix(game_id, table_id),
                            on_pick=lambda kind: _pick_slot(context, kind, draw),
                            selected=context["slot"]["kind"],
-                           overrides=overrides, offered=offered)
+                           overrides=overrides, offered=offered, kept=kept)
         dock = context.get("dock")
         if dock is not None:
             dock.clear()
@@ -734,6 +737,25 @@ def _preview(src: str, kind: str, label: str) -> None:
         # A rule sheet is a document; there is no element that previews one usefully
         # in a panel this size, and a broken <img> would say it is missing.
         ui.link(f"Open {label.lower()}", src, new_tab=True).classes("hub-help")
+
+
+def _kept_kinds(context: dict[str, Any], family: str) -> set[str] | None:
+    """The kinds this library collects, or None where the answer cannot be had.
+
+    None rather than an empty set, and the difference matters: filtering to an empty
+    set blanks the surface, which is what a config the hub could not read would
+    otherwise do. Empty is folded into None for the same reason - a library keeping no
+    kinds at all is not a state anybody can be in, and every way of reaching it here is
+    a failure to read rather than an answer.
+
+    Narrow on purpose. A blanket except here swallowed a missing attribute and the
+    filter silently did nothing, which looks exactly like a library that keeps
+    everything - the one failure this cannot afford to be quiet about.
+    """
+    try:
+        return set(context["library"].kept_kinds()[family]) or None
+    except (HubError, OSError):
+        return None
 
 
 def _offered_media(context: dict[str, Any]) -> dict[str, int]:
@@ -1231,12 +1253,17 @@ async def _assets_block(context: dict[str, Any]) -> None:
     which of them the filesystem answers at. The five VPX resolves by naming rule are
     the table's and carry a tier; the rest belong to the folder and carry presence.
     The tiers are `media_ownership`'s - the question is the same one, which file wins.
+
+    Kinds the library does not collect are left out entirely. A row saying an EM table
+    has no ROM is not a fact about that table, it is the list answering a question this
+    library never asked.
     """
     game = context["game"]
     chosen = next((item for item in context["tables"]
                    if item.get("id") == context["lens"]), None)
-    resolved = (chosen or {}).get("assets") or {}
-    folder = game.get("assets") or {}
+    kept = await run.io_bound(_kept_kinds, context, "asset")
+    resolved = _only_kept((chosen or {}).get("assets") or {}, kept)
+    folder = _only_kept(game.get("assets") or {}, kept)
 
     entries: list[tuple[Any, Any]] = []
     if chosen is not None:
@@ -1266,6 +1293,15 @@ async def _assets_block(context: dict[str, Any]) -> None:
 
     with ui.column().classes("gap-0 hub-form"):
         _rows(ui, entries)
+
+
+def _only_kept(states: dict[str, Any], kept: set[str] | None) -> dict[str, Any]:
+    """Drop what the library does not collect. `table` is never in the toggles and so
+    is never dropped - the .vpx is the library rather than an accessory to it."""
+    if kept is None:
+        return states
+    return {kind: state for kind, state in states.items()
+            if kind in kept or kind in _ALWAYS_KEPT}
 
 
 def _asset_name(kind: str) -> str:

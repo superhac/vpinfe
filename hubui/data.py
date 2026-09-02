@@ -6,7 +6,8 @@ import logging
 import time
 from typing import Any
 
-from common.media_specs import media_family
+from common.games.asset_registry import ASSET_SPECS
+from common.media_specs import media_family, media_label_map
 from hubui import media_ownership
 from hubui.api import HubClient
 
@@ -56,6 +57,15 @@ def _glyph(entry: dict) -> str:
     return media_ownership.noun(entry.get("via"))
 
 
+def _listed(section: dict, key: str) -> set[str]:
+    """One of the hidden-kind lists, however the config layer handed it over - a list
+    from JSON, or the comma string the ini holds."""
+    value = section.get(key) or []
+    if isinstance(value, str):
+        value = value.split(",")
+    return {str(item).strip() for item in value if str(item).strip()}
+
+
 class Library:
     """Games, their media and their tables, fetched once per page load.
 
@@ -79,6 +89,7 @@ class Library:
         self._overrides: dict[str, dict[str, Any]] = {}
         self._prefs: dict[str, dict[str, Any]] = {}
         self._config_schema: list[dict[str, Any]] | None = None
+        self._kept: dict[str, set[str]] | None = None
 
     def load(self) -> None:
         started = time.perf_counter()
@@ -233,6 +244,7 @@ class Library:
         return self._client.config_values()
 
     def put_config(self, changes: dict) -> dict:
+        self._kept = None
         return self._client.put_config(changes)
 
     def set_game_overrides(self, game_id: str, changes: dict) -> dict:
@@ -444,6 +456,30 @@ class Library:
 
     def vps_search(self, term: str, limit: int = 40) -> list[dict]:
         return self._client.vps_search(term, limit)
+
+    def kept_kinds(self) -> dict[str, set[str]]:
+        """Which kinds of file this library collects, as {"media": {...}, "asset": {...}}.
+
+        A library that keeps no toppers should not be told about toppers - not counted
+        against them, not shown an empty tile, not offered one from the catalog. This
+        answers what to enumerate; it never answers what exists. A file already on disk
+        still resolves, and a table that will not launch still will not.
+
+        Derived by subtracting what is hidden from what this build knows, because that
+        is the direction that survives an upgrade: a kind added later is in nobody's
+        hidden list, so it arrives switched on.
+
+        Held for the page's life and dropped on a write, like the schema beside it: it
+        is read on every panel draw and changes only when somebody changes it.
+        """
+        if self._kept is None:
+            general = (self.config_values() or {}).get("general") or {}
+            self._kept = {
+                "media": set(media_label_map()) - _listed(general, "hidden_media_kinds"),
+                "asset": ({spec.kind for spec in ASSET_SPECS}
+                          - _listed(general, "hidden_asset_kinds")),
+            }
+        return self._kept
 
     def offered_media(self, game_id: str) -> dict[str, int]:
         """How many files the catalog lists for each of our media kinds, counting only
