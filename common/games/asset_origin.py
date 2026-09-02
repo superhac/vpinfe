@@ -29,9 +29,10 @@ def _key(game_dir: Path, path: Path) -> str:
         return path.name
 
 
-def ledger(game_dir: str | Path) -> dict[str, str]:
-    """Every recorded path in this folder, and the host that placed it. Read straight
-    from the file: MetaConfig migrates and can rewrite, and this wants one section."""
+def sources(game_dir: str | Path) -> dict[str, dict]:
+    """Every recorded path in this folder and the `source` block against it. Read
+    straight from the file: MetaConfig migrates and can rewrite, and this wants one
+    section."""
     game_dir = Path(game_dir)
     info = game_dir / f"{game_dir.name}.info"
     try:
@@ -44,10 +45,18 @@ def ledger(game_dir: str | Path) -> dict[str, str]:
     out = {}
     for key, entry in entries.items():
         source = (entry or {}).get("source") if isinstance(entry, dict) else None
-        host = str((source or {}).get("host", "") or "").strip()
-        if host:
-            out[str(key)] = host
+        if isinstance(source, dict):
+            out[str(key)] = source
     return out
+
+
+def ledger(game_dir: str | Path) -> dict[str, str]:
+    """Every recorded path, and the host that placed it. Paths whose entry names no
+    host are left out, so a file bound to a record by hand and placed by nobody does
+    not read as having an origin."""
+    return {key: str(source.get("host", "") or "").strip()
+            for key, source in sources(game_dir).items()
+            if str(source.get("host", "") or "").strip()}
 
 
 def origin_of(recorded: dict[str, str], game_dir: str | Path, path: Path | None) -> str:
@@ -56,3 +65,18 @@ def origin_of(recorded: dict[str, str], game_dir: str | Path, path: Path | None)
     if path is None:
         return ""
     return recorded.get(_key(Path(game_dir), path), UNKNOWN)
+
+
+def match_of(recorded: dict[str, dict], game_dir: str | Path,
+             path: Path | None) -> str:
+    """Which VPS record somebody said this file is, or "" for nobody has said. Absent
+    rather than "unmatched" - only a matcher can claim a look came back empty."""
+    if path is None:
+        return ""
+    source = recorded.get(_key(Path(game_dir), path)) or {}
+    return str(source.get("vps_file_id", "") or "")
+
+
+def path_of(game_dir: str | Path, path: Path | None) -> str:
+    """The ledger's key for a file, which is how anything addresses one."""
+    return "" if path is None else _key(Path(game_dir), path)

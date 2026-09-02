@@ -148,6 +148,75 @@ def scan(response: Response,
     return jobs_api.resource(job)
 
 
+@router.get("/watching", summary="Since when a catalog change counts as new",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_watching() -> models.Watching:
+    """Empty means nobody has answered yet, and until they do nothing is reported as
+    new. Answering with everything the catalog has ever published would make the first
+    look useless, which is the whole reason this is asked rather than assumed."""
+    from common.games import watching
+
+    return {"since": watching.since()}
+
+
+@router.put("/watching", summary="Start watching from here",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_watching(payload: models.WatchingRequest) -> models.Watching:
+    """One mechanism for both answers a first run offers: review everything is the
+    beginning of time, start clean is now. There is no separate mode."""
+    from common.games import watching
+
+    watching.set_since(payload.since or watching.FROM_THE_BEGINNING)
+    return {"since": watching.since()}
+
+
+@router.post("/watching/acknowledge", summary="Dismiss one catalog change",
+             dependencies=[requires(scopes.GAMES_WRITE)])
+def acknowledge(payload: models.AcknowledgeRequest) -> models.Acknowledged:
+    """Sparse by design: only what somebody actually dismissed is stored, so starting
+    clean costs one timestamp rather than a record per game per kind."""
+    from common.games import watching
+
+    watching.acknowledge(payload.game_id, payload.kind, payload.vps_file_id)
+    return {"ok": True}
+
+
+@router.get("/vps_state", summary="What the catalog lists across the whole library",
+            dependencies=[requires(scopes.GAMES_READ)])
+def library_vps_state() -> models.LibraryVpsState:
+    """The last rollup counted, and when. Never live: counting it resolves media for
+    every game, which was measured at 650ms over 149 folders and is CPU rather than
+    disk, so a request that did it would be seconds slow on any real library.
+
+    `computed` empty means it has never run. That is not the same as every count
+    being zero, and a consumer that reads it as "you own none of these" would say so
+    about a library it has never looked at.
+    """
+    from common.games import library_vps_state as rollup
+
+    return rollup.stored() or {"computed": "", "games": 0, "matched": 0, "kinds": []}
+
+
+@router.post("/vps_state", summary="Count it again", status_code=202,
+             dependencies=[requires(scopes.GAMES_READ)])
+def recount_vps_state(response: Response) -> models.JobResource:
+    """Accepted, not done. Read-only work, so it takes its own job kind and may run
+    beside a scan rather than queueing behind one."""
+    from common.games import library_vps_state as rollup
+
+    from .games import _catalog, vps_state_of
+
+    try:
+        job = job_registry.submit(
+            job_registry.KIND_VPS_ROLLUP,
+            lambda job: rollup.recompute(_catalog(), vps_state_of, job.reporter()))
+    except job_registry.JobBusyError as exc:
+        raise ConflictError(str(exc)) from exc
+
+    response.headers["Location"] = f"/api/v1/jobs/{job.id}"
+    return jobs_api.resource(job)
+
+
 @router.post("/refresh", summary="Find tables added or removed on disk", status_code=202,
              dependencies=[requires(scopes.GAMES_WRITE)])
 def refresh(response: Response) -> models.JobResource:

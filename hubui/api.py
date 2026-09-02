@@ -179,6 +179,15 @@ class HubClient:
             json={"vps_file_id": vps_file_id}, timeout=_TIMEOUT)
         self._answered(response)
 
+    def set_asset_source(self, game_id: str, path: str, vps_file_id: str) -> None:
+        """Bind one file to the VPS record somebody says it is. Empty unbinds. The path
+        is the ledger's own key - folder-relative, forward slashes."""
+        _refuse_the_event_loop(f"/games/{game_id}/asset_source")
+        response = self._session.put(
+            f"{self._base}/games/{game_id}/asset_source",
+            json={"path": path, "vps_file_id": vps_file_id}, timeout=_TIMEOUT)
+        self._answered(response)
+
     def set_favorite(self, game_id: str, favorite: bool) -> None:
         """A game's favorite flag. Games only - you favorite a machine, not a build."""
         _refuse_the_event_loop(f"/games/{game_id}/favorite")
@@ -214,12 +223,13 @@ class HubClient:
         self._answered(response)
         return dict(response.json() or {})
 
-    def vps_releases(self, vps_id: str) -> list[dict]:
-        """Every build VPSdb lists for one entry, in the order it holds them."""
+    def vps_releases(self, vps_id: str, listed_as: str = "tableFiles") -> list[dict]:
+        """One kind of record VPSdb lists for an entry, in the order it holds them.
+        `listed_as` is VPS's own key, because one of theirs can be two of ours."""
         _refuse_the_event_loop("/vps/entry/releases")
         response = self._session.get(
             f"{self._base}/vps/entry/{quote(vps_id, safe='')}/releases",
-            timeout=_TIMEOUT)
+            params={"listed_as": listed_as}, timeout=_TIMEOUT)
         if response.status_code == 404:
             return []
         self._answered(response)

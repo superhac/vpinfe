@@ -44,7 +44,7 @@ CATALOG = [{
 class VpsStateTests(TempTree):
     def setUp(self) -> None:
         super().setUp()
-        folder = write_game(
+        self.folder = folder = write_game(
             self.root, FOLDER, info=copy.deepcopy(INFO), vpx=False,
             files={f"{FOLDER}.vpx": b"vpx", f"{FOLDER}.directb2s": b"b2s"},
             medias={"wheel.png": b"\x89PNG"})
@@ -102,6 +102,40 @@ class VpsStateTests(TempTree):
     def test_one_of_theirs_can_be_two_of_ours(self) -> None:
         self.assertEqual(self._state()["altColorFiles"]["ours"],
                          ["altcolor_serum", "altcolor_vni"])
+
+    def _bind(self, path: str, record: str) -> None:
+        response = self.client.put(f"/games/{GAME_ID}/asset_source",
+                                   json={"path": path, "vps_file_id": record})
+        self.assertEqual(response.status_code, 200, response.text)
+
+    def test_nothing_is_identified_until_somebody_says_so(self) -> None:
+        """Holding a backglass and knowing which published backglass it is are
+        different facts, and only the second can produce an exact update."""
+        state = self._state()
+
+        self.assertTrue(state["b2sFiles"]["held"])
+        self.assertFalse(state["b2sFiles"]["identified"])
+
+    def test_binding_a_file_identifies_its_kind(self) -> None:
+        self._bind(f"{FOLDER}.directb2s", "b1")
+
+        self.assertTrue(self._state()["b2sFiles"]["identified"])
+
+    def test_a_binding_identifies_only_the_kind_that_lists_it(self) -> None:
+        """A record id is in one kind's list, so the id alone places it - nothing has
+        to know which file in the folder was bound."""
+        self._bind(f"{FOLDER}.directb2s", "b1")
+        state = self._state()
+
+        self.assertTrue(state["b2sFiles"]["identified"])
+        self.assertFalse(state["romFiles"]["identified"])
+        self.assertFalse(state["wheelArtFiles"]["identified"])
+
+    def test_unbinding_takes_the_identification_back(self) -> None:
+        self._bind(f"{FOLDER}.directb2s", "b1")
+        self._bind(f"{FOLDER}.directb2s", "")
+
+        self.assertFalse(self._state()["b2sFiles"]["identified"])
 
     def test_a_game_matched_to_nothing_says_so(self) -> None:
         with patch("common.games.game_service.load_vpsdb", return_value=[]):

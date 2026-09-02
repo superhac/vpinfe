@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body, File, Form, UploadFile
+from fastapi import APIRouter, Body, File, Form, Query, UploadFile
 from starlette.concurrency import run_in_threadpool
 
 from common import timestamps
@@ -325,21 +325,32 @@ def _as_iso(stamp: Any) -> str:
 
 @vps_router.get("/entry/{vps_id}/releases", summary="The builds VPSdb lists for one entry",
                 dependencies=[requires(scopes.VPS_READ)])
-def vps_releases(vps_id: str) -> models.VpsReleases:
-    """Every build of this machine, in the order VPSdb holds them.
+def vps_releases(vps_id: str,
+                 listed_as: str = Query("tableFiles")) -> models.VpsReleases:
+    """Every record of one kind this machine has, in the order VPSdb holds them.
 
     Deliberately unordered by anything resembling quality or likeness. A scorer over
     exactly this question was measured at chance and confidently wrong more than half
     the time, so an order implying "yours is probably this one" would carry a
     confidence the evidence does not support.
+
+    `listed_as` is VPS's own key, not ours: one of theirs is two of ours, so a local
+    kind cannot address this. `tableFiles` is not in the kind map on purpose - which
+    build a `.vpx` is gets answered by binding a release - so it is named separately.
     """
     from common.games.game_service import load_vpsdb
+    from common.online import vps_kinds
 
+    if listed_as != "tableFiles" and listed_as not in vps_kinds.BY_LISTING:
+        raise InvalidRequestError(
+            "VPSdb lists no such kind",
+            details={"listed_as": listed_as,
+                     "known": ["tableFiles", *sorted(vps_kinds.BY_LISTING)]})
     found = next((e for e in load_vpsdb() if str(e.get("id") or "") == vps_id), None)
     if found is None:
         raise NotFoundError("No such VPS entry", details={"vps_id": vps_id})
     return {"releases": [_release_resource(item)
-                         for item in (found.get("tableFiles") or [])]}
+                         for item in (found.get(listed_as) or [])]}
 
 
 @vps_router.get("/sync", summary="When the catalog was last checked",

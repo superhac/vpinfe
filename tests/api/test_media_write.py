@@ -11,12 +11,15 @@ caller names a tier or learns what one is.
 from __future__ import annotations
 
 import io
+import json
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from starlette.testclient import TestClient
 
 import httpapi
+from common.online import asset_sources
 from tests.support.library import TempTree, fake_game, write_game
 
 GAME_ID = "Placed00001"
@@ -137,6 +140,75 @@ class MediaWriteTests(TempTree):
             f"/games/{GAME_ID}/tables/tbl0000009/media/wheel", files=_png())
 
         self.assertEqual(response.status_code, 404)
+
+    # --- filled from a catalog, rather than from a file the caller sent ---------
+
+    def _fetch(self, md5: str) -> None:
+        offer = asset_sources.Offer(source="vpinmediadb", name="wheel.png",
+                                    url="https://example.invalid/wheel.png",
+                                    kind="wheel", size="", md5=md5)
+
+        def staged(url: str, path) -> None:
+            Path(path).write_bytes(b"\x89PNGfetched")
+
+        with patch("common.online.asset_sources.url_for", return_value=offer), \
+                patch("common.http_client.download_file", staged):
+            response = self.client.post(
+                f"/games/{GAME_ID}/media/wheel/fetch",
+                json={"source": "vpinmediadb", "vps_id": "abc", "size": ""})
+        self.assertEqual(response.status_code, 200, response.text)
+
+    def _recorded(self) -> dict:
+        info = json.loads((self.folder / f"{FOLDER}.info").read_text())
+        return info["assets"][f"medias/(Wheel) {FOLDER}.png"]["source"]
+
+    def test_the_catalog_s_hash_is_recorded_beside_the_source(self) -> None:
+        # Without it nothing can prove this art is still the published art, so a later
+        # refresh has to leave it alone - the same fetch through the bulk downloader
+        # has always stored one.
+        self._fetch("d41d8cd98f00b204e9800998ecf8427e")
+
+        self.assertEqual(self._recorded(),
+                         {"host": "vpinmediadb",
+                          "hash": "d41d8cd98f00b204e9800998ecf8427e"})
+
+    def test_a_source_that_publishes_no_hash_still_records_itself(self) -> None:
+        self._fetch("")
+
+        self.assertEqual(self._recorded(), {"host": "vpinmediadb"})
+
+    def test_a_slot_is_revalidated_rather_than_assumed_fresh(self) -> None:
+        """The URL names a slot, so a replacement changes the bytes without changing
+        the address. With no directive a browser picks its own freshness from the
+        file's age and can show art that has been replaced."""
+        self.client.put(f"/games/{GAME_ID}/media/wheel", files=_png())
+        response = self.client.get(f"/games/{GAME_ID}/media/wheel")
+
+        self.assertEqual(response.headers["cache-control"], "no-cache")
+
+    def test_revalidating_an_unchanged_file_sends_no_bytes(self) -> None:
+        """`no-cache` asks every time, so the answer has to be cheap. Starlette
+        answers conditional requests only from StaticFiles, and without this a media
+        map of thirteen tiles re-downloads all of them on every draw."""
+        self.client.put(f"/games/{GAME_ID}/media/wheel", files=_png())
+        etag = self.client.get(f"/games/{GAME_ID}/media/wheel").headers["etag"]
+
+        again = self.client.get(f"/games/{GAME_ID}/media/wheel",
+                                headers={"If-None-Match": etag})
+
+        self.assertEqual(again.status_code, 304)
+        self.assertEqual(again.content, b"")
+
+    def test_a_replaced_file_is_sent_in_full(self) -> None:
+        """The other half: a stale etag must not be answered with 304."""
+        self.client.put(f"/games/{GAME_ID}/media/wheel", files=_png())
+        stale = self.client.get(f"/games/{GAME_ID}/media/wheel").headers["etag"]
+        self.client.put(f"/games/{GAME_ID}/media/wheel", files=_png(b"different"))
+
+        again = self.client.get(f"/games/{GAME_ID}/media/wheel",
+                                headers={"If-None-Match": stale})
+
+        self.assertEqual(again.status_code, 200)
 
 
 if __name__ == "__main__":

@@ -552,6 +552,44 @@ def set_table_source(game, filename: str, vps_file_id: str) -> dict[str, Any]:
     return dict(source)
 
 
+def set_asset_source(game, path: str, vps_file_id: str) -> dict[str, Any]:
+    """Record that somebody says the file at this path is that VPS record, or take it
+    back. The assets ledger's twin of `set_table_source`.
+
+    No `host_item_id`: that rule governs what a caller may assert over HTTP, and a
+    person pointing at a record is not claiming to know which of its files they hold.
+    """
+    from common.games.asset_origin import ASSETS_KEY
+
+    config = load_game_meta(game)
+    key = str(path or "").strip().replace("\\", "/").strip("/")
+    if not key:
+        raise ValueError("An asset source needs the path it is about")
+    entries = config.setdefault(ASSETS_KEY, {})
+    entry = entries.setdefault(key, {})
+
+    source = dict(entry.get(SOURCE_KEY) or {})
+    wanted = str(vps_file_id or "").strip()
+    if wanted:
+        source["vps_file_id"] = wanted
+        source["confirmed_by"] = CONFIRMED_BY_USER
+    else:
+        # Unbinding takes back the claim and nothing else - the host that placed the
+        # file and the hash it published are facts about the file, not about the match.
+        source.pop("vps_file_id", None)
+        source.pop("confirmed_by", None)
+    if source:
+        entry[SOURCE_KEY] = source
+    else:
+        # An entry with no source left says nothing the folder does not, and leaving it
+        # would read as "examined, nothing found" - which is a different state.
+        entries.pop(key, None)
+
+    persist_game_meta(game, config)
+    game.meta_config = config
+    return dict(source)
+
+
 # What the entry describes, as opposed to which entry it is. Adopting rewrites the
 # first and leaves the second alone: `Info.VPSId` is what VPS supplied, and the field a
 # surface offers to revert a corrected match to. Overwriting it would destroy the

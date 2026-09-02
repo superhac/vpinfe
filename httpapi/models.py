@@ -427,6 +427,28 @@ class TableSourceRequest(ApiModel):
     vps_file_id: str = ""
 
 
+class AssetSourceRequest(ApiModel):
+    """Which VPS record the file at `path` is. `path` is folder-relative, as the ledger
+    keys it; an empty id unbinds. Same basis rule as `TableSourceRequest`."""
+
+    path: str
+    vps_file_id: str = ""
+
+
+class AssetSource(ApiModel):
+    """One ledger entry's `source`, after a write.
+
+    `host` and `hash` say who placed the file and what they published it as; the other
+    two say which upstream record it is. The pair come apart in both directions - a
+    hand-placed file can be matched, a downloaded one can be unidentified.
+    """
+
+    host: str = ""
+    hash: str = ""
+    vps_file_id: str = ""
+    confirmed_by: str = ""
+
+
 class Table(ApiModel):
     """A launchable artifact.
 
@@ -697,8 +719,13 @@ class MediaEntry(ApiModel):
 
     present: bool
     file: str | None
+    # Folder-relative, as the ledger keys it. A name cannot be the address: the same
+    # name resolves in two places and which is not a client's to guess.
+    path: str | None = None
     via: str | None = None
     origin: str | None = None
+    # Null means nobody has said, not that a look came back empty.
+    matched_to: str | None = None
     links: MediaEntryLinks
 
 
@@ -748,8 +775,10 @@ class MediaDetail(ApiModel):
     family: str
     present: bool
     file: str | None
+    path: str | None = None
     via: str | None = None
     origin: str | None = None
+    matched_to: str | None = None
     size_bytes: int | None = None
     modified: str | None = None
     width: int | None = None
@@ -1445,6 +1474,15 @@ class VpsKindState(ApiModel):
     # .directb2s among assets and a picture among media, and VPS lists the first.
     held_in: str = ""
     held: bool = False
+    # Whether anything here is bound to one of this kind's records. Without it only
+    # the vague transition can be reported, which measures four times noisier.
+    identified: bool = False
+    # The two transitions, and the only fields here measured against a stored
+    # baseline rather than derived. `updated` is the record you hold having moved;
+    # `new_upstream` counts ones you are not bound to, which is the honest claim when
+    # nothing knows which you have. Both silent until watching has been started.
+    updated: bool = False
+    new_upstream: int = 0
     listed: int = 0
     obtainable: int = 0
     why_not: list[str] = []
@@ -1456,6 +1494,55 @@ class VpsState(ApiModel):
 
     matched: bool = False
     kinds: list[VpsKindState] = []
+
+
+class Watching(ApiModel):
+    """When this install started counting a catalog change as new. Empty is a real
+    third state - not answered - and is why nothing is reported until it is."""
+
+    since: str = ""
+
+
+class WatchingRequest(ApiModel):
+    """An empty `since` means review everything, which is the beginning of time rather
+    than the empty string: absent has to keep meaning nobody has answered."""
+
+    since: str = ""
+
+
+class AcknowledgeRequest(ApiModel):
+    """Dismissing one record, for one game and kind."""
+
+    game_id: str
+    kind: str
+    vps_file_id: str
+
+
+class LibraryVpsKindTally(ApiModel):
+    """One kind, counted in games rather than files. Games, because the question the
+    rollup exists to answer is about the collection: a kind held by no game at all is
+    a category the collector never engaged with, not a gap in one."""
+
+    kind: str
+    ours: list[str] = []
+    held_in: str = ""
+    holding: int = 0
+    identified: int = 0
+    listed: int = 0
+    obtainable: int = 0
+    updated: int = 0
+    new_upstream: int = 0
+
+
+class LibraryVpsState(ApiModel):
+    """The rollup, as last counted. `computed` empty means never - which is not the
+    same as every count being zero, and reading it as such would report a library
+    nobody has looked at as one holding nothing."""
+
+    computed: str = ""
+    games: int = 0
+    matched: int = 0
+    kinds: list[LibraryVpsKindTally] = []
 
 
 class VpsFieldDiff(ApiModel):

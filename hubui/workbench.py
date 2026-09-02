@@ -34,6 +34,7 @@ from common.games.collection_store import (
 )
 from common.labels import field_label, humanize
 from common.media_specs import media_family
+from common.online import vps_kinds
 from hubui import (
     candidates,
     confirm,
@@ -898,6 +899,12 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                 # most files predate the ledger, so it would be on nearly every slot.
                 if origin and origin not in ("unknown", "user"):
                     ui.label(f"Came from {origin}").classes("hub-help")
+                # Only when somebody has said - "not matched" is true of nearly every
+                # file, and the button below is where the unanswered case belongs.
+                named = _match_line(context, kind,
+                                    detail.get("matched_to") or entry.get("matched_to"))
+                if named:
+                    ui.label(named).classes("hub-help")
             else:
                 ui.label(f"No {label.lower()} for this "
                          f"{'table' if table_id else 'game'}").classes("hub-help")
@@ -935,6 +942,9 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                                                                 draw)) \
                 .props("flat dense no-caps size=sm").classes("hub-action")
             if present:
+                # Beside the acts on the bytes: a slot holding nothing has no identity.
+                _match_button(context, kind, label,
+                              detail if detail.get("path") else entry, draw)
                 ui.button("Remove", on_click=remove) \
                     .props("flat dense no-caps size=sm") \
                     .classes("hub-action hub-action--danger")
@@ -2066,6 +2076,129 @@ def _release_button(context: dict[str, Any], table: dict[str, Any]) -> None:
     # game is matched. Said on the control rather than in a dialog that opens empty.
     button.disable()
     button.tooltip("Match the game to VPS first, then its releases can be named")
+
+
+def _listed_as(kind: str, inventory: str) -> Any:
+    """What VPSdb calls this kind, when it is asking about the right inventory.
+
+    `backglass` is a picture among media and a `.directb2s` among assets, and VPS
+    lists the second. Matching by name alone offered a media slot the assets that
+    view is explicitly not about.
+    """
+    listed = vps_kinds.BY_OURS.get(kind)
+    return listed if listed is not None and listed.held_in == inventory else None
+
+
+def _match_line(context: dict[str, Any], kind: str, matched_to: Any) -> str:
+    """What the bound record is called. Resolved here because the catalog is already
+    open on this side and an id is not something to put on screen."""
+    said = str(matched_to or "")
+    listed = _listed_as(kind, vps_kinds.MEDIA)
+    if not said or listed is None:
+        return ""
+    vps_id = str(context["game"].get("vps_id") or "")
+    for record in _records_of(context, vps_id, listed.listed_as):
+        if str(record.get("vps_file_id") or "") == said:
+            told = " · ".join(part for part in (
+                str(record.get("version") or ""),
+                ", ".join(str(name) for name in (record.get("authors") or [])[:2]),
+            ) if part)
+            return f"Matched to {told}" if told else "Matched to a published file"
+    # Worth saying: it is why no update will ever be reported for this file.
+    return "Matched to a file the catalog no longer lists"
+
+
+def _match_button(context: dict[str, Any], kind: str, label: str,
+                  entry: dict[str, Any], redraw: Callable[[], None]) -> None:
+    """The way to say which VPS record one file is. Only for media kinds VPSdb lists -
+    a picker over a kind nothing publishes opens empty every time."""
+    listed = _listed_as(kind, vps_kinds.MEDIA)
+    if listed is None:
+        return
+    path = str(entry.get("path") or "")
+    if not path:
+        return
+    bound = str(entry.get("matched_to") or "")
+    button = ui.button("Change match" if bound else "Match",
+                       on_click=lambda: _pick_a_record(context, listed.listed_as,
+                                                       label, path, bound, redraw)) \
+        .props("flat dense no-caps size=sm").classes("hub-action")
+    if context["game"].get("vps_id"):
+        button.tooltip("Which published file this is")
+        return
+    # The records belong to an entry, so there is nothing to choose among until the
+    # game is matched. Said on the control rather than in a dialog that opens empty.
+    button.disable()
+    button.tooltip("Match the game to VPS first, then its files can be named")
+
+
+async def _pick_a_record(context: dict[str, Any], listed_as: str, label: str,
+                         path: str, bound: str,
+                         redraw: Callable[[], None]) -> None:
+    """Bind one file to a record VPSdb publishes, or take the binding back.
+
+    The assets ledger's twin of `_pick_a_release`, unordered for the same reason: the
+    scorer that would rank these was measured at chance.
+    """
+    library = context["library"]
+    vps_id = str(context["game"].get("vps_id") or "")
+    records = await run.io_bound(_records_of, context, vps_id, listed_as)
+
+    with ui.dialog().props("persistent") as dialog, \
+            ui.card().classes("hub-confirm hub-picker-dialog"):
+        ui.label(f"Which published {label.lower()} is this?") \
+            .classes("hub-confirm-title")
+        ui.label(path).classes("hub-help")
+        with ui.column().classes("w-full gap-0 hub-source-list"):
+            if not records:
+                ui.label(f"VPS lists no {label.lower()} for this machine") \
+                    .classes("hub-help")
+            for item in records:
+                _record_row(item, dialog, bound)
+        with ui.row().classes("justify-end gap-2 w-full"):
+            if bound:
+                ui.button("Clear", on_click=lambda: dialog.submit("")) \
+                    .props("flat no-caps")
+            ui.button("Cancel", on_click=lambda: dialog.submit(None)) \
+                .props("flat no-caps")
+
+    picked = await dialog
+    if picked is None:
+        return
+    await _write(context, library.set_asset_source, context["game_id"], path,
+                 str(picked))
+    redraw()
+
+
+def _record_row(record: dict[str, Any], dialog: Any, bound: str) -> None:
+    """One published file, by the two things a person can compare against their own."""
+    said = str(record.get("vps_file_id") or "")
+    meta = []
+    made_by = ", ".join(str(name) for name in (record.get("authors") or [])[:3])
+    if made_by:
+        meta.append(made_by)
+    stamp = str(record.get("updated_at") or "")[:10]
+    if stamp:
+        meta.append(stamp)
+    name = str(record.get("version") or "") or "No version given"
+    if said == bound:
+        name = f"{name}  ✓"
+    candidates.choice(str(record.get("img_url") or ""), name,
+                      " · ".join(meta), lambda: dialog.submit(said),
+                      glyph="inventory_2")
+
+
+def _records_of(context: dict[str, Any], vps_id: str,
+                listed_as: str) -> list[dict[str, Any]]:
+    """One kind's records for an entry. Blocks, so it belongs on a worker thread."""
+    if not vps_id:
+        return []
+    try:
+        return list(context["library"].vps_releases(vps_id, listed_as))
+    except Exception:
+        logger.warning("hub ui: could not read %s for %s", listed_as, vps_id,
+                       exc_info=True)
+        return []
 
 
 async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> None:

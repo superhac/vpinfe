@@ -40,6 +40,8 @@ FAILED = "failed"
 # Well-known kinds. Named here because both the Manager UI and the API start this
 # work and the exclusivity rule only means anything if they agree on the name.
 KIND_LIBRARY_SCAN = "library.scan"
+# Its own kind, not the scan's: this only reads, so it may run beside anything.
+KIND_VPS_ROLLUP = "library.vps_rollup"
 
 # Finished jobs a client can still ask about. Small on purpose: this is a courtesy
 # for the caller who missed the last event, not a history feature.

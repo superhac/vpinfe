@@ -42,6 +42,12 @@ def refresh(reporter: JobReporter | None = None) -> dict:
         reporter.progress(2, 3, "Reading new tables")
     read = enrich(games, reporter)
 
+    # Stamped here because this is the pass that knows a game is new. A game added
+    # next year must not arrive holding a year of upstream activity it was not around
+    # for - and a read path that stamped would make asking the question change it.
+    from common.games import game_identity, watching
+    watching.note_games(game_identity.ensure_unique_ids(games))
+
     result = {"games": len(games), **{f"discovered_{k}": v for k, v in found.items()},
               **{f"enriched_{k}": v for k, v in read.items()}}
     if reporter:

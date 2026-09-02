@@ -41,3 +41,7 @@ KINDS = (
 )
 
 BY_LISTING = {kind.listed_as: kind for kind in KINDS}
+
+# Our kind to theirs. Many of ours map onto one of theirs - Serum and VNI are both
+# `altColorFiles` - so this direction is many-to-one and the reverse is not a lookup.
+BY_OURS = {ours: kind for kind in KINDS for ours in kind.ours}

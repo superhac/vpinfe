@@ -38,6 +38,7 @@ from common.games.game_metadata import (
     meta_file_path,
     reset_game_play_record,
     reset_table_play_record,
+    set_asset_source,
     set_game_favorite,
     set_game_rating,
     set_game_tags,
@@ -497,13 +498,18 @@ def _media_entries(resolved: dict, game_dir: Path, prefix: str) -> dict:
     different question with a different source: the .info ledger, read once per
     request here rather than once per kind. Neither answer implies the other.
     """
-    recorded = asset_origin.ledger(game_dir)
+    recorded = asset_origin.sources(game_dir)
+    hosts = {key: str(source.get("host", "") or "").strip()
+             for key, source in recorded.items()
+             if str(source.get("host", "") or "").strip()}
     return {
         key: {
             "present": hit.path is not None,
             "file": hit.path.name if hit.path is not None else None,
+            "path": asset_origin.path_of(game_dir, hit.path) or None,
             "via": hit.tier,
-            "origin": asset_origin.origin_of(recorded, game_dir, hit.path) or None,
+            "origin": asset_origin.origin_of(hosts, game_dir, hit.path) or None,
+            "matched_to": asset_origin.match_of(recorded, game_dir, hit.path) or None,
             "links": {"self": f"{prefix}/{key}"} if hit.path is not None else {"self": None},
         }
         for key, hit in resolved.items()
@@ -727,14 +733,20 @@ def _media_detail(game, kind: str, table_stem: str | None, prefix: str) -> dict:
     variant, active_sets = _media_settings()
     candidates = media_candidates(game_dir, files, medias, kind, variant,
                                   table_stem, active_sets)
+    recorded = asset_origin.sources(game_dir)
+    hosts = {key: str(source.get("host", "") or "").strip()
+             for key, source in recorded.items()
+             if str(source.get("host", "") or "").strip()}
     return {
         "kind": kind,
         "family": media_family(kind),
         "present": path is not None,
         "file": path.name if path is not None else None,
+        "path": asset_origin.path_of(game_dir, path) or None,
         "via": hit.tier if hit is not None else None,
-        "origin": (asset_origin.origin_of(asset_origin.ledger(game_dir), game_dir, path)
+        "origin": (asset_origin.origin_of(hosts, game_dir, path)
                    or None) if path is not None else None,
+        "matched_to": asset_origin.match_of(recorded, game_dir, path) or None,
         "tiers": [{"tier": item.tier, "file": item.path.name,
                    "wins": item.path == path}
                   for item in candidates],
@@ -745,7 +757,7 @@ def _media_detail(game, kind: str, table_stem: str | None, prefix: str) -> dict:
 
 
 def _into_slot(game, kind: str, table_id: str, source: Path, game_id: str,
-               origin: str = "user") -> dict:
+               origin: str = "user", md5: str = "") -> dict:
     """Copy a file into the slot and answer with what now resolves.
 
     Shared by every route that fills a slot from a file that already exists somewhere -
@@ -764,7 +776,7 @@ def _into_slot(game, kind: str, table_id: str, source: Path, game_id: str,
         raise InvalidRequestError(str(exc)) from exc
     # Recorded with who placed it, which is what lets a later media refresh tell its
     # own art from something hand-placed and leave the latter alone.
-    media_placement.record_origin(game_dir, written, origin)
+    media_placement.record_origin(game_dir, written, origin, md5)
     prefix = (f"/api/v1/games/{game_id}/tables/{table_id}/media" if table_id
               else f"/api/v1/games/{game_id}/media")
     entries = _media_entries(_resolved_media(game_dir, table_stem if table_id else None),
@@ -876,9 +888,11 @@ def fetch_media(game_id: str, kind: str, body: models.MediaFetch) -> models.Medi
         except Exception as exc:
             raise FeatureUnavailableError(
                 f"Could not reach {body.source}: {exc}") from exc
-        # Stamped with the source, so a later refresh can tell its own art from
-        # somebody else's and leave the latter alone.
-        return _into_slot(game, kind, body.table, staged, game_id, offer.source)
+        # Stamped with the source and the source's own hash. Without the hash this art
+        # is indistinguishable from hand-placed later, so a refresh would leave it
+        # untouched forever - the bulk downloader has always recorded one.
+        return _into_slot(game, kind, body.table, staged, game_id,
+                          offer.source, offer.md5)
 
 
 @router.get("/{game_id}/media/{kind}/detail", summary="One shared slot, in detail",
@@ -1129,6 +1143,25 @@ def put_table_source(game_id: str, table_id: str,
     return _table_or_404(game, table_id)
 
 
+@router.put("/{game_id}/asset_source", summary="Say which VPS record one file is",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_asset_source(game_id: str,
+                     payload: models.AssetSourceRequest) -> models.AssetSource:
+    """Bind one media or asset file to the upstream record somebody says it is.
+
+    Addressed by path rather than by kind and tier, because the ledger is keyed by path
+    and a folder can hold several files of one kind. The path is not required to resolve
+    to anything: binding a file the resolver currently passes over is legitimate, and
+    refusing it would make the tier rules govern what may be recorded.
+    """
+    game = _game_or_404(game_id)
+    try:
+        source = set_asset_source(game, payload.path, payload.vps_file_id)
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    return source
+
+
 def _entry_for(game) -> dict:
     """The catalog entry this game is matched to, effective id first."""
     from common.games.game_service import load_vpsdb
@@ -1199,13 +1232,55 @@ def get_vps_state(game_id: str) -> models.VpsState:
     file is yours to take. A host can hold something this account may not see, and
     nothing on this side can tell that without asking.
     """
-    game = _game_or_404(game_id)
+    return vps_state_of(_game_or_404(game_id), game_id)
+
+
+def _moved_since(records: list, baseline: str, dismissed: set) -> list:
+    """The records that changed upstream after this game's baseline.
+
+    No baseline means nobody has said when to start watching, and everything ever
+    published is not a useful first answer. A record with no `updatedAt` is never
+    reported: 48 in the catalog have none, and guessing is worse than silence.
+    """
+    from common import timestamps
+
+    start = timestamps.iso_to_epoch(baseline) if baseline else None
+    if start is None:
+        return []
+    moved = []
+    for record in records:
+        if str(record.get("id") or "") in dismissed:
+            continue
+        stamp = record.get("updatedAt")
+        try:
+            when = int(stamp) / 1000
+        except (TypeError, ValueError):
+            continue
+        if when > start:
+            moved.append(record)
+    return moved
+
+
+def vps_state_of(game, game_id: str = "") -> dict:
+    """One game's state, apart from the route, so the library-wide rollup counts the
+    same answer this serves rather than forming a second opinion of its own.
+
+    `game_id` addresses the media links and selects this game's watching baseline.
+    """
+    from common.games import watching
+
     entry = _entry_for(game)
     game_dir = Path(game.fullPathGame)
     inventory = _inventory_assets(game_dir)
     prefix = f"/api/v1/games/{game_id}/media"
     media = _media_entries(_resolved_media(game_dir, None), game_dir, prefix)
     shared = _crowded_links()
+    # A record id is only in one kind's list, so the ids alone place every binding.
+    bound = {str(source.get("vps_file_id") or "")
+             for source in asset_origin.sources(game_dir).values()}
+    bound.discard("")
+    baseline = watching.since_for(game_id)
+    dismissed = watching.acknowledged(game_id) if game_id else {}
 
     kinds = []
     for kind in vps_kinds.KINDS:
@@ -1213,11 +1288,18 @@ def get_vps_state(game_id: str) -> models.VpsState:
         answers = [obtainability.best_of(
             [link.get("url") for link in (record.get("urls") or [])], shared)
             for record in records]
+        moved = _moved_since(records, baseline,
+                             dismissed.get(kind.listed_as) or set())
         kinds.append({
             "kind": kind.listed_as,
             "ours": list(kind.ours),
             "held_in": kind.held_in,
             "held": _we_hold(kind, inventory, media),
+            "identified": any(str(record.get("id") or "") in bound
+                              for record in records),
+            "updated": any(str(record.get("id") or "") in bound for record in moved),
+            "new_upstream": sum(1 for record in moved
+                                if str(record.get("id") or "") not in bound),
             "listed": len(records),
             "obtainable": sum(1 for word in answers
                               if word == obtainability.AVAILABLE),
