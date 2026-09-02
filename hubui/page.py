@@ -74,7 +74,7 @@ NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None,
 
 NAV_ITEMS = tuple(item for _parent, items in NAV_GROUPS for item in items)
 
-# What the crumb calls each destination. A section owns a subject too, but that is a
+# What the header calls each destination. A section owns a subject too, but that is a
 # fact about the data behind the page, not a caption for it - printing "one row is one
 # collection" over a page of cards described something that was not on the screen.
 SECTIONS = {
@@ -323,10 +323,11 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
 
 
     with splitter.before:
-        # 2.x's own 24px. It is dead space by the numbers, but it is what separates the
-        # content from the two panels either side and lets the backdrop read as a
-        # backdrop rather than a hairline.
-        content = ui.column().classes("w-full h-full gap-0 p-6")
+        # 2.x's own 24px at the sides and bottom, which is what separates the content
+        # from the two panels either side and lets the backdrop read as a backdrop.
+        # None at the top: the header band starts there, and it is the thing that has
+        # to line up with the other two panes' headers.
+        content = ui.column().classes("w-full h-full gap-0 px-6 pb-6")
 
     def toggle_full() -> None:
         """The list never goes away - it steps back to the rail every panel here
@@ -427,19 +428,24 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                 .classes("text-base hub-workbench-title leading-tight truncate")
             ui.label(prompt).classes("text-xs hub-workbench-label leading-none truncate")
 
-    def crumb() -> None:
-        """Which section you are in, at the top of the content pane.
+    def page_header() -> None:
+        """The page's name, and the actions that belong to the page rather than a row.
 
-        The section and nothing else - the selection is named in the workbench header,
-        which is the pane that is about it. This lives here rather than in an app
-        header because each pane already owns its own chrome in this shell, and adding
-        a fourth band across the top would cost height on every page to serve one line
-        of text.
+        The name and nothing else - the selection is named in the workbench header,
+        which is the pane that is about it. Here rather than in an app header because
+        each pane already owns its chrome, and a fourth band would cost height on every
+        page for one line.
         """
         title = SECTIONS.get(state["view"], state["view"].title())
-        with ui.row().classes("items-center gap-2 w-full no-wrap pb-3"):
-            ui.html(f"<span class='hub-crumb'>VPinFE &nbsp;/&nbsp; <b>{title}</b></span>") \
-                .classes("grow min-w-0")
+        # The band the other two panes' headers use, so the page name sits in a fixed
+        # rhythm rather than at whatever height its text makes. Not aligned *across*
+        # panes - the nav's band is taller than its minimum and starts inside its own
+        # padding, and matching that would be a magic number against an accident.
+        # The title carries the buttons' 32px line height so the band centres one
+        # height: centring boxes of different heights aligns boxes, not baselines.
+        with ui.row().classes("items-center gap-2 w-full no-wrap") \
+                .style(f"min-height:{HEADER_H_PX}px"):
+            ui.label(title).classes("grow min-w-0 truncate hub-page-title")
             ui.button("Look for new tables", icon="refresh",
                       on_click=_look_for_new_tables) \
                 .props("flat dense no-caps size=sm").classes("shrink-0 hub-action") \
@@ -464,7 +470,7 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                 else row.classes(remove="hub-nav-active")
         content.clear()
         with content:
-            crumb()
+            page_header()
             view = state["view"]
             if view == "overview":
                 sections.overview(library, devices, discovery, go)

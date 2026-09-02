@@ -1308,8 +1308,22 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 
 /* --- section chrome -------------------------------------------------------------- */
-.hub-crumb { color: var(--ink-2); font-size: var(--fs-body); }
-.hub-crumb b { color: var(--ink); font-weight: 600; }
+/* The page's own name. It replaced a slash-delimited pair whose first half was a
+   constant and whose second was the only real segment - a breadcrumb shape over
+   something with no path in it, and nothing was clickable.
+
+   The first text in the hub above body size: every other heading here is 12px
+   uppercase, so this is the top of the scale rather than another rung on it. No glow -
+   that belongs to the workbench title, which names the thing you selected. */
+.hub-page-title {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  color: var(--ink);
+  /* 32px, which is the height of the small buttons beside it. Centring in the band
+     aligns boxes, and boxes of different heights put their text on different
+     baselines - matching the height is what actually puts them on one line. */
+  line-height: 32px;
+}
 .hub-card {
   border: 1px solid #2b1a4d;
   border-radius: 10px;
