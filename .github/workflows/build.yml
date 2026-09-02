@@ -114,8 +114,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          pip install -r requirements.txt -r requirements-build.txt
 
       - name: Create Chromium directories (Linux/macOS)
         if: runner.os != 'Windows'
@@ -128,10 +127,15 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path chromium\linux,chromium\windows,chromium\mac
 
+      # All four downloads below are Chromium 152.0.7977.x. The snapshot buckets do not
+      # build at the same positions - Windows is the nearest below the other two - so the
+      # numbers differ while the browser does not. Keep them on one version when bumping:
+      # a theme is written against what the bundled browser supports, and a capability
+      # that exists on one platform and not another is invisible to whoever wrote it.
       - name: Download Linux Chromium
         if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
-          wget -O chromium/linux/chrome.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F1568190%2Fchrome-linux.zip?generation=1768270474193258&alt=media"
+          wget -O chromium/linux/chrome.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F1669021%2Fchrome-linux.zip?generation=1785190995992284&alt=media"
           unzip -q chromium/linux/chrome.zip -d chromium/linux
           mv chromium/linux/chrome-linux chromium/linux/chrome
           chmod +x chromium/linux/chrome/chrome
@@ -139,15 +143,15 @@ jobs:
       - name: Download ARM Linux Chromium
         if: runner.os == 'Linux' && runner.arch == 'ARM64'
         run: |
-          wget -O chromium/linux/chrome.tar.xz "https://github.com/ungoogled-software/ungoogled-chromium-portablelinux/releases/download/144.0.7559.109-1/ungoogled-chromium-144.0.7559.109-1-arm64_linux.tar.xz"
+          wget -O chromium/linux/chrome.tar.xz "https://github.com/ungoogled-software/ungoogled-chromium-portablelinux/releases/download/152.0.7977.64-1/ungoogled-chromium-152.0.7977.64-1-arm64_linux.tar.xz"
           tar xvf chromium/linux/chrome.tar.xz -C chromium/linux/
-          mv chromium/linux/ungoogled-chromium-144.0.7559.109-1-arm64_linux chromium/linux/chrome
+          mv chromium/linux/ungoogled-chromium-152.0.7977.64-1-arm64_linux chromium/linux/chrome
           chmod +x chromium/linux/chrome/chrome
 
       - name: Download Windows Chromium
         if: runner.os == 'Windows'
         run: |
-          pwsh -Command "Invoke-WebRequest -Uri 'https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win_x64%2F1568195%2Fchrome-win.zip?generation=1768274160162696&alt=media' -OutFile 'chromium/windows/chrome.zip' -UseBasicParsing"
+          pwsh -Command "Invoke-WebRequest -Uri 'https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win_x64%2F1668971%2Fchrome-win.zip?generation=1785191094860934&alt=media' -OutFile 'chromium/windows/chrome.zip' -UseBasicParsing"
           pwsh -Command "Expand-Archive -Path 'chromium/windows/chrome.zip' -DestinationPath 'chromium/windows'"
           pwsh -Command "Remove-Item 'chromium/windows/chrome.zip'"
 
@@ -155,7 +159,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           mkdir -p chromium
-          curl -L -o chrome-mac.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac_Arm%2F1582847%2Fchrome-mac.zip?generation=1770766943434586&alt=media"
+          curl -L -o chrome-mac.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac_Arm%2F1669021%2Fchrome-mac.zip?generation=1785190481571679&alt=media"
           unzip -q chrome-mac.zip
           mv chrome-mac/Chromium.app chromium/Chromium.app
           rm -rf chrome-mac chrome-mac.zip
