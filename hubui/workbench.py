@@ -34,6 +34,7 @@ from common.games.collection_store import (
 from common.labels import field_label, humanize
 from common.media_specs import media_family
 from hubui import (
+    candidates,
     confirm,
     deeplink,
     game_tables,
@@ -1534,17 +1535,21 @@ async def _pick_a_match(context: dict[str, Any]) -> None:
 
 
 def _match_row(row: dict[str, Any], dialog: Any) -> None:
-    """One candidate, in the fields somebody picks by and nothing else."""
-    with ui.row().classes("items-center gap-2 w-full no-wrap hub-member-row") \
-            .on("click", lambda: dialog.submit(str(row.get("vps_id") or ""))):
-        ui.label(str(row.get("name") or "")).classes("hub-member-name grow min-w-0 truncate")
-        made = " ".join(str(row.get(k) or "") for k in ("manufacturer", "year")).strip()
-        if made:
-            ui.label(made).classes("hub-member-qualifier")
-        count = int(row.get("releases") or 0)
-        if count:
-            ui.label(f"{count} release{'' if count == 1 else 's'}") \
-                .classes("hub-member-chip hub-tier hub-tier--off")
+    """One candidate, with the machine's photograph where the catalog has one.
+
+    Named twice over - by the maker and year that tell two machines of one name apart,
+    and by the picture, which settles it faster than either. The release count rides in
+    the same line: it says which entry the world actually builds for, and it is not a
+    judgement of the match, which nothing here makes.
+    """
+    said = [" ".join(str(row.get(k) or "") for k in ("manufacturer", "year")).strip()]
+    count = int(row.get("releases") or 0)
+    if count:
+        said.append(f"{count} release{'' if count == 1 else 's'}")
+    candidates.choice(str(row.get("img_url") or ""), str(row.get("name") or ""),
+                      " \u00b7 ".join(part for part in said if part),
+                      lambda: dialog.submit(str(row.get("vps_id") or "")),
+                      glyph="videogame_asset")
 
 
 def _parked_match(context: dict[str, Any], parked: dict[str, Any]) -> Callable[[], None]:
