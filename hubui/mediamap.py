@@ -15,7 +15,7 @@ from typing import Any
 
 from nicegui import ui
 
-from common.media_specs import media_family
+from common.media_specs import media_family, media_label_map
 from hubui import media_ownership, mediaview
 
 # Top of the cabinet down to the floor. Kinds on the same row are the same screen shown
@@ -58,17 +58,6 @@ TILE_AR = {
     "instruction_card": 1.4, "rule_sheet": 1.4,
     "loading": 1.78,
     "audio": 4.0, "audio_launch": 4.0,
-}
-
-LABELS = {
-    "backglass": "Backglass", "backglass_video": "Backglass video",
-    "scoreview": "Score view", "scoreview_video": "Score view video",
-    "playfield": "Playfield", "playfield_video": "Playfield video",
-    "playfield_fss": "Playfield FSS", "wheel": "Wheel", "logo": "Logo",
-    "cab": "Cabinet", "real_dmd": "Real DMD", "real_dmd_color": "Real DMD color",
-    "flyer": "Flyer", "audio": "Audio", "audio_launch": "Launch audio",
-    "instruction_card": "Instruction card", "topper": "Topper",
-    "topper_video": "Topper video", "loading": "Loading", "rule_sheet": "Rule sheet",
 }
 
 # Kinds with no frame to show, which take a glyph instead - a present file drawn as a
@@ -183,16 +172,16 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
                     .props("flat dense round size=sm") \
                     .classes("hub-mediatile-zoom") \
                     .on("click.stop", lambda k=kind: mediaview.open_viewer(
-                        f"{prefix}/{k}", k, LABELS.get(k, k))) \
+                        f"{prefix}/{k}", k, media_label_map().get(k, k))) \
                     .tooltip("Enlarge")
-        ui.label(LABELS.get(kind, kind)).classes("hub-mediatile-cap")
+        ui.label(media_label_map().get(kind, kind)).classes("hub-mediatile-cap")
     tile.tooltip(_tooltip(kind, entry))
 
 
 def _tooltip(kind: str, entry: dict[str, Any]) -> str:
     """The file, and who uses it."""
     if not entry.get("present"):
-        return f"No {LABELS.get(kind, kind).lower()}"
+        return f"No {media_label_map().get(kind, kind).lower()}"
     parts = [str(entry.get("file") or ""), media_ownership.phrase(entry.get("via"))]
     return "  ·  ".join(part for part in parts if part)
 

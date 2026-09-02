@@ -33,7 +33,7 @@ from common.games.collection_store import (
     SORT_LABELS,
 )
 from common.labels import field_label, humanize
-from common.media_specs import media_family
+from common.media_specs import media_family, media_label_map
 from common.online import vps_kinds
 from hubui import (
     candidates,
@@ -827,7 +827,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
     """
     library, game_id = context["library"], context["game_id"]
     table_id = context["lens"]
-    label = mediamap.LABELS.get(kind, kind)
+    label = media_label_map().get(kind, kind)
     # The map already knows the slot; detail only adds to it. A failed read should
     # cost the spec line, never the panel.
     detail = detail or {}

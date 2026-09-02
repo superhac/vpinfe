@@ -13,6 +13,7 @@ from typing import Any
 
 from nicegui import ui
 
+from common.media_specs import media_label_map
 from hubui import mediamap
 from hubui.data import Library
 
@@ -143,12 +144,6 @@ def overview(library: Library, registry: list[dict], discovery: dict,
 # --- Media -----------------------------------------------------------------------
 
 # Strawman only. The real thing reads the registry that the asset search would use.
-SOURCES = (
-    ("VPinMediaDB", "github.com/superhac/vpinmediadb", True, True),
-    ("Local uploads", "this install", True, True),
-)
-
-
 def media(library: Library, go_game: Callable[[str], None]) -> None:
     """Coverage, and the work that follows from it.
 
@@ -182,8 +177,8 @@ def media(library: Library, go_game: Callable[[str], None]) -> None:
         target.clear()
         _, ok, borrowed, gap = next(k for k in kinds if k[0] == kind)
         with target:
-            ui.label(mediamap.LABELS.get(kind, kind)).classes("hub-card-title")
-            ui.label(f"{len(gap)} games have no {mediamap.LABELS.get(kind, kind).lower()}. "
+            ui.label(media_label_map().get(kind, kind)).classes("hub-card-title")
+            ui.label(f"{len(gap)} games have no {media_label_map().get(kind, kind).lower()}. "
                      f"{ok} resolved" + (f", {borrowed} borrowed." if borrowed else "."))\
                 .classes("hub-help mb-2")
             with ui.row().classes("gap-2 mb-3"):
@@ -221,27 +216,13 @@ def media(library: Library, go_game: Callable[[str], None]) -> None:
                 row.on("click", pick)
                 with row:
                     with ui.row().classes("items-center gap-2 w-full no-wrap"):
-                        ui.label(mediamap.LABELS.get(kind, kind)) \
+                        ui.label(media_label_map().get(kind, kind)) \
                             .classes("text-xs grow min-w-0 truncate")
                         ui.label(str(len(gap))).classes("text-xs opacity-60 shrink-0")
                     _bar(ok / total if total else 0)
                 rows_by_kind[kind] = row
         with ui.element("div").classes("hub-card grow min-w-0"):
             holder["work"] = ui.column().classes("w-full gap-0")
-
-    ui.label("Sources").classes("hub-group mt-4")
-    with ui.element("div").classes("hub-card w-full"):
-        ui.label("Where the asset search looks. Results carry the source they came from, "
-                 "so a file can always be traced back.").classes("hub-help mb-2")
-        for name, location, enabled, provided in SOURCES:
-            with ui.row().classes("items-center gap-3 w-full no-wrap py-1"):
-                ui.checkbox(value=enabled).props("dense")
-                with ui.column().classes("gap-0 grow min-w-0"):
-                    ui.label(name).classes("hub-setting")
-                    ui.label(location).classes("hub-help")
-                if provided:
-                    ui.badge("built in").props("outline")
-        ui.button("Add source", icon="add").props("flat dense no-caps").classes("mt-2")
 
     ui.label("Recorder").classes("hub-group mt-4")
     with ui.element("div").classes("hub-card w-full"):

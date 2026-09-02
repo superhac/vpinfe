@@ -19,8 +19,8 @@ from typing import Any
 from nicegui import run, ui
 
 from common import labels
-from common.media_specs import media_family
-from hubui import candidates, confirm, media_ownership, mediamap
+from common.media_specs import media_family, media_label_map
+from hubui import candidates, confirm, media_ownership
 
 logger = logging.getLogger("vpinfe.hubui.mediasource")
 
@@ -343,7 +343,7 @@ class _Sources:
         """
         for kind, entry in (self.context.get("media") or {}).items():
             if entry.get("file") == name:
-                return f"already the {mediamap.LABELS.get(kind, kind).lower()}"
+                return f"already the {media_label_map().get(kind, kind).lower()}"
         return ""
 
     # --- from the online catalogs --------------------------------------------
