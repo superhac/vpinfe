@@ -11,6 +11,7 @@ import logging
 import os
 import threading
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, Body, File, Query, Request, UploadFile
@@ -70,6 +71,7 @@ from common.games.tables import (
 )
 from common.host import launch, launch_state, pinmame_catalog
 from common.media_specs import MEDIA_SPECS
+from common.online import obtainability, vps_kinds
 from common.paths import get_ini_config
 
 from . import filesystem, models, scopes
@@ -1107,6 +1109,93 @@ def _entry_for(game) -> dict:
     if not wanted:
         return {}
     return next((e for e in load_vpsdb() if str(e.get("id") or "") == wanted), {})
+
+
+@lru_cache(maxsize=1)
+def _crowded_links_for(size: int) -> frozenset[str]:
+    """The links standing behind enough records to be somewhere to browse.
+
+    Keyed on the catalog's length, which is a cheap stand-in for "the snapshot has been
+    replaced" - the alternative is walking 17,000 URLs on every request to answer a
+    question about the corpus that changes only when the corpus does.
+    """
+    from common.games.game_service import load_vpsdb
+
+    return obtainability.crowded(
+        link.get("url")
+        for entry in load_vpsdb()
+        for kind in vps_kinds.BY_LISTING
+        for record in (entry.get(kind) or [])
+        for link in (record.get("urls") or []))
+
+
+def _crowded_links() -> frozenset[str]:
+    from common.games.game_service import load_vpsdb
+
+    return _crowded_links_for(len(load_vpsdb()))
+
+
+# The inventory still answers for colour and sound under the flat names it used before
+# the asset registry existed. Translated here rather than in the kind table, which
+# names the registry's kinds because those are the real ones.
+_INVENTORY_NAME = {"altcolor_serum": "alt_color", "altcolor_vni": "alt_color",
+                   "altsound": "alt_sound"}
+
+
+def _we_hold(kind, inventory: dict, media: dict) -> bool:
+    """Whether this game has any of what the entry is offering.
+
+    Any, not all: a kind maps to more than one of ours where VPS draws the line in a
+    different place, and holding either Serum or VNI is holding a colourisation.
+    """
+    for name in kind.ours:
+        if kind.held_in == vps_kinds.MEDIA:
+            if (media.get(name) or {}).get("present"):
+                return True
+        elif (inventory.get(_INVENTORY_NAME.get(name, name)) or {}).get("present"):
+            return True
+    return False
+
+
+@router.get("/{game_id}/vps_state", summary="What the catalog lists for this game, kind by kind",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_vps_state(game_id: str) -> models.VpsState:
+    """Per kind: whether we hold one, how many the entry lists, and whether any of
+    those is a file rather than a page.
+
+    State, not findings. Which of these is worth telling somebody about is a judgement
+    the surface makes with the library in front of it, and a producer deciding it here
+    would be baking in the judgement the measurements say we make badly.
+
+    `obtainable` is the honest word: it says the catalog lists a file, never that the
+    file is yours to take. A host can hold something this account may not see, and
+    nothing on this side can tell that without asking.
+    """
+    game = _game_or_404(game_id)
+    entry = _entry_for(game)
+    game_dir = Path(game.fullPathGame)
+    inventory = _inventory_assets(game_dir)
+    prefix = f"/api/v1/games/{game_id}/media"
+    media = _media_entries(_resolved_media(game_dir, None), game_dir, prefix)
+    shared = _crowded_links()
+
+    kinds = []
+    for kind in vps_kinds.KINDS:
+        records = list(entry.get(kind.listed_as) or []) if entry else []
+        answers = [obtainability.best_of(
+            [link.get("url") for link in (record.get("urls") or [])], shared)
+            for record in records]
+        kinds.append({
+            "kind": kind.listed_as,
+            "ours": list(kind.ours),
+            "held": _we_hold(kind, inventory, media),
+            "listed": len(records),
+            "obtainable": sum(1 for word in answers
+                              if word == obtainability.AVAILABLE),
+            "why_not": sorted({word for word in answers
+                               if word != obtainability.AVAILABLE}),
+        })
+    return {"matched": bool(entry), "kinds": kinds}
 
 
 @router.get("/{game_id}/vps_details", summary="Where the game's details and its entry disagree",

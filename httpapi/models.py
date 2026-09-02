@@ -1427,6 +1427,33 @@ class ImportRequest(PlanRequest):
 
 # --- VPS -------------------------------------------------------------------
 
+class VpsKindState(ApiModel):
+    """One kind of file, for one game: what we hold and what the catalog lists.
+
+    `obtainable` counts the records pointing at a file rather than a page, and says
+    the catalog lists one - never that it is yours to take. A host can hold something
+    this account may not see, and nothing here can tell without asking it.
+
+    `why_not` names what the rest are, so a consumer can say "a folder to browse"
+    rather than reporting them as missing downloads.
+    """
+
+    kind: str
+    ours: list[str] = []
+    held: bool = False
+    listed: int = 0
+    obtainable: int = 0
+    why_not: list[str] = []
+
+
+class VpsState(ApiModel):
+    """State, not findings: which of it is worth surfacing is the consumer's call, made
+    with the library in front of it."""
+
+    matched: bool = False
+    kinds: list[VpsKindState] = []
+
+
 class VpsFieldDiff(ApiModel):
     """One detail the game and its entry disagree about, both sides as one line each -
     a year is a number and themes are a list, and a comparison wants neither shape."""

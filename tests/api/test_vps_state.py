@@ -1,0 +1,117 @@
+"""What the catalog lists for one game, kind by kind, against what the game holds.
+
+State rather than findings: which of it is worth telling somebody about is a judgement
+the surface makes with the library in front of it. A producer deciding that here would
+bake in exactly the judgement the measurements say we make badly.
+"""
+
+from __future__ import annotations
+
+import copy
+import unittest
+from unittest.mock import patch
+
+from starlette.testclient import TestClient
+
+import httpapi
+from tests.support.library import TempTree, fake_game, write_game
+
+GAME_ID = "State00001"
+FOLDER = "Attack from Mars (Bally 1995)"
+ENTRY = "9Paf7-CL"
+
+INFO = {
+    "Info": {"Title": "Attack from Mars", "VPSId": ENTRY},
+    "vpinfe": {"game_id": GAME_ID},
+    "tables": {"tbl0000001": {"id": "tbl0000001", "filename": f"{FOLDER}.vpx"}},
+}
+
+FILE = "https://vpuniverse.com/files/file/{}-a-thing"
+FOLDER_LINK = "https://mega.nz/#F!p3hREDgB!pEWMJvVQ7t3Sv_TmrxdU-w"
+
+CATALOG = [{
+    "id": ENTRY, "name": "Attack from Mars", "manufacturer": "Bally", "year": 1995,
+    "b2sFiles": [{"id": "b1", "urls": [{"url": FILE.format(1)}]}],
+    "romFiles": [{"id": "r1", "urls": [{"url": FILE.format(2)}]}],
+    # Both of this one's links are the same folder, which is the pov case at scale.
+    "povFiles": [{"id": "p1", "urls": [{"url": FOLDER_LINK}]},
+                 {"id": "p2", "urls": [{"url": FOLDER_LINK}]}],
+    "wheelArtFiles": [{"id": "w1", "urls": [{"url": FILE.format(3)}]}],
+    "topperFiles": [],
+}]
+
+
+class VpsStateTests(TempTree):
+    def setUp(self) -> None:
+        super().setUp()
+        folder = write_game(
+            self.root, FOLDER, info=copy.deepcopy(INFO), vpx=False,
+            files={f"{FOLDER}.vpx": b"vpx", f"{FOLDER}.directb2s": b"b2s"},
+            medias={"wheel.png": b"\x89PNG"})
+        game = fake_game(folder, FOLDER, meta=copy.deepcopy(INFO))
+        for target, value in (("common.games.game_service.load_vpsdb", CATALOG),):
+            patcher = patch(target, return_value=copy.deepcopy(value))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        patcher = patch("httpapi.games._catalog", return_value={GAME_ID: game})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        # Keyed on the catalog's length, and every test here uses one entry.
+        from httpapi.games import _crowded_links_for
+        _crowded_links_for.cache_clear()
+        self.client = TestClient(httpapi.create_api_app(),
+                                 raise_server_exceptions=False)
+
+    def _state(self) -> dict[str, dict]:
+        response = self.client.get(f"/games/{GAME_ID}/vps_state")
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertTrue(body["matched"])
+        return {item["kind"]: item for item in body["kinds"]}
+
+    def test_every_mapped_kind_is_reported(self) -> None:
+        """Including the ones the entry lists nothing for: a consumer can only say
+        "you own no toppers" if it can see the kind at all."""
+        state = self._state()
+
+        self.assertEqual(state["topperFiles"]["listed"], 0)
+        self.assertIn("altSoundFiles", state)
+
+    def test_what_the_game_holds_is_reported(self) -> None:
+        state = self._state()
+
+        self.assertTrue(state["b2sFiles"]["held"])
+        self.assertTrue(state["wheelArtFiles"]["held"])
+        self.assertFalse(state["romFiles"]["held"])
+
+    def test_a_folder_is_listed_but_not_obtainable(self) -> None:
+        """The whole point. Two records, both a folder, so the catalog lists two and
+        offers none - reporting them as gettable would send somebody rummaging."""
+        pov = self._state()["povFiles"]
+
+        self.assertEqual(pov["listed"], 2)
+        self.assertEqual(pov["obtainable"], 0)
+        self.assertEqual(pov["why_not"], ["collection"])
+
+    def test_a_file_is_obtainable_and_says_nothing_more(self) -> None:
+        rom = self._state()["romFiles"]
+
+        self.assertEqual((rom["listed"], rom["obtainable"]), (1, 1))
+        self.assertEqual(rom["why_not"], [])
+
+    def test_one_of_theirs_can_be_two_of_ours(self) -> None:
+        self.assertEqual(self._state()["altColorFiles"]["ours"],
+                         ["altcolor_serum", "altcolor_vni"])
+
+    def test_a_game_matched_to_nothing_says_so(self) -> None:
+        with patch("common.games.game_service.load_vpsdb", return_value=[]):
+            body = self.client.get(f"/games/{GAME_ID}/vps_state").json()
+
+        self.assertFalse(body["matched"])
+        self.assertEqual(sum(item["listed"] for item in body["kinds"]), 0)
+        # Still every kind, so a consumer's rollup does not silently lose a column.
+        self.assertTrue(body["kinds"])
+
+
+if __name__ == "__main__":
+    unittest.main()
