@@ -6,6 +6,7 @@ import inspect
 import json
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from nicegui import run, ui
@@ -13,8 +14,8 @@ from nicegui import run, ui
 from common.games import apps, asset_registry
 from common.labels import humanize
 from common.media_specs import media_label_map
+from hubui import confirm, game_tables, grid, media_ownership, mediaview, stars, views, workbench
 from hubui import features as table_features
-from hubui import game_tables, grid, media_ownership, mediaview, stars, views, workbench
 from hubui.api import HubClient
 
 logger = logging.getLogger("vpinfe.hubui.games")
@@ -771,6 +772,17 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                            on_context, on_header_context, view_of=showing)
         menu = ui.context_menu()
 
+    async def drop_script(row: dict[str, Any]) -> None:
+        """Asked, because a patched table quietly becomes an unpatched one."""
+        if not await confirm.ask(
+                "Delete the script beside this table?",
+                detail="The table goes back to the script inside its .vpx. Anything the "
+                       "sidecar held - a patch, an edit - goes with it.",
+                lines=[f"{Path(str(row.get('filename') or '')).stem}.vbs"]):
+            return
+        await act(library.delete_script, row["game_id"], row["id"],
+                  said="Deleted - the table runs its own script", row=row)
+
     async def act(what: Callable, *args: Any, said: str = "",
                   row: dict[str, Any] | None = None, gone: bool = False) -> None:
         """Run one row-menu act, then put only what changed back on screen.
@@ -871,6 +883,22 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                                                 said="Now offered" if h else "Hidden",
                                                 row=r)) \
                     .classes("hub-menu-item")
+                # The script sidecar. VPX loads a `<table>.vbs` beside the .vpx in
+                # preference to the one inside it, so this is per table and belongs on
+                # the row rather than only on the panel that was carrying it.
+                script = (row.get("assets") or {}).get("script") or {}
+                if (script.get("resolution") or "") == "dedicated":
+                    ui.menu_item(
+                        "Delete script",
+                        lambda r=row: drop_script(r)) \
+                        .classes("hub-menu-item hub-menu-danger")
+                else:
+                    ui.menu_item(
+                        "Extract script",
+                        lambda r=row: act(library.extract_script, r["game_id"],
+                                          r["id"], said="Extracted - this table now "
+                                          "runs the .vbs", row=r)) \
+                        .classes("hub-menu-item")
                 # Only for a table whose file is gone. While it is on disk the record
                 # describes something the user owns, and hiding is what takes it out of
                 # play without losing its stats.
