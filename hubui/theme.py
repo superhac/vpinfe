@@ -42,9 +42,6 @@ HEADER_GRADIENT = "linear-gradient(135deg, #b429f9 0%, #4a1e7c 50%, #0a0518 100%
 # the brand values are mapped onto those rather than restyling any of its parts.
 # The design tokens. Everything below refers to these rather than to a hex or a pixel
 # count, so a decision about the palette or the type scale is made once.
-#
-# `--flair` is the trap: magenta measures 4.4:1 here, under the 4.5:1 text needs. It is
-# for fills, borders and selection. Text that must look interactive takes `--accent`.
 _TOKENS = """
 :root {
   --ink: #eef9ff;        /* primary text            18.7:1 */
@@ -52,12 +49,18 @@ _TOKENS = """
   --ink-3: #9b8bbd;      /* help and hints           6.5:1 */
   --accent: #00d9ff;     /* interactive text        11.8:1 */
   --positive: #00ff9f;   /* present, installed, in use */
-  --flair: #b429f9;      /* fills and borders only   4.4:1 */
+  /* Fills, borders and gradients only: magenta measures 4.4:1, under the 4.5:1 text
+     needs. Text that must look interactive takes --accent. */
+  --flair: #b429f9;
+  --danger: #ff6b9d;     /* destructive, and absent in a way that costs you */
 
   --surface-0: #0a0518;
   --surface-1: #150a2e;
   --surface-2: #1a0f35;
   --line: #2b1a4d;
+  /* The visible edge, against --line's hairline: a menu, a dropped-file target and a
+     panel header all need to be seen as an edge rather than felt as one. */
+  --line-strong: #3d2461;
   --line-soft: #1f1338;
   /* Structure, not a hairline: the rule between stacked section bands has to be seen
      across a dark panel, and --line-soft sits close enough to the background that it
@@ -69,7 +72,6 @@ _TOKENS = """
 
   --fs-caption: 12px;
   --fs-body: 14px;
-  --fs-subject: 16px;
   --fs-title: 20px;
   /* A stat, not prose - the one place a number is the content. */
   --fs-display: 30px;
@@ -241,7 +243,7 @@ body::before {
    16px gutters, which reads as a system menu dropped into the page. */
 .q-menu {
   background: #1a0f35 !important;
-  border: 1px solid #3d2461;
+  border: 1px solid var(--line-strong);
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
   min-width: 168px;
@@ -253,7 +255,7 @@ body::before {
   color: var(--ink);
 }
 .q-menu .q-item:hover { background: #2a1a4a; }
-.q-menu .q-separator { background: #3d2461; margin: 2px 0; }
+.q-menu .q-separator { background: var(--line-strong); margin: 2px 0; }
 /* A picker over the whole library. Unconstrained, its menu is as wide as the longest
    title in it - which in a library with one 130-character name is the whole window -
    and it resizes and repositions itself as typing filters the list. Bounded here, so
@@ -276,7 +278,7 @@ body::before {
   border-radius: 8px;
   background: var(--panel-ground);
 }
-.hub-upload .q-uploader { background: none; border: 1px dashed #3d2461; }
+.hub-upload .q-uploader { background: none; border: 1px dashed var(--line-strong); }
 
 /* The rule, said in words above the controls that set it. Roomier than help text
    because it is the sentence somebody reads to check the rule says what they meant. */
@@ -493,7 +495,7 @@ body::before {
   .hub-stars:hover .hub-star-clear { opacity: 0.75; }
 }
 .hub-stars:focus-within .hub-star-clear { opacity: 1; }
-.hub-star-clear:hover { opacity: 1; color: var(--ink-1); }
+.hub-star-clear:hover { opacity: 1; color: var(--ink); }
 /* In the filter, the stars are a picture of a value and not a control. */
 .hub-filter-row .hub-star { cursor: pointer; margin-right: -1px; }
 
@@ -530,7 +532,7 @@ body::before {
   padding: 5px 8px;
   border-radius: 4px;
   cursor: pointer;
-  color: var(--ink-1);
+  color: var(--ink);
   font-size: 13px;
   white-space: nowrap;
 }
@@ -576,7 +578,7 @@ body::before {
   font-size: 14px;
   padding: 2px;
   border-radius: 4px;
-  color: var(--ink-1);
+  color: var(--ink);
   background: rgba(10, 5, 24, 0.72);
   cursor: pointer;
   /* Hidden until the row is under the cursor: twenty of these showing at once is a
@@ -812,7 +814,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 /* The act, not the row, is what is destructive: the text carries it and the hover band
    stays the ordinary one. A red row reads as an error that has already happened. */
 .q-menu .hub-menu-item.hub-menu-danger,
-.q-menu .hub-menu-item.hub-menu-danger .q-item__label { color: var(--warn); }
+.q-menu .hub-menu-item.hub-menu-danger .q-item__label { color: var(--danger); }
 .q-menu .hub-menu-item.hub-menu-danger:hover,
 .q-menu .hub-menu-item.hub-menu-danger:hover .q-item__label { color: #ff9d6b; }
 
@@ -851,7 +853,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 
 .hub-panel {
   background: #1a0f35;
-  border: 1px solid #3d2461;
+  border: 1px solid var(--line-strong);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
 }
@@ -865,7 +867,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
      row rather than spread down the rail. The title is near-white with a glow and
      carries purple fine; the items are #5898d4 and do not, so the ground under them
      has to be dark. 90px is just past the 59px header. */
-  background: linear-gradient(180deg, #b429f9 0px, #4a1e7c 60px, #1a0f35 90px,
+  background: linear-gradient(180deg, var(--flair) 0px, #4a1e7c 60px, #1a0f35 90px,
                               #0f0722 100%) !important;
 }
 .hub-nav-item {
@@ -1054,7 +1056,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 }
 
 .nicegui-aggrid {
-  border: 1px solid #3d2461;
+  border: 1px solid var(--line-strong);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
@@ -1062,8 +1064,8 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 .ag-header {
   /* 2.x's --header-gradient in full - I had been running it to #4a1e7c and stopping,
      which lost the fade to near-black at the far end. */
-  background: linear-gradient(135deg, #b429f9 0%, #4a1e7c 50%, #0a0518 100%) !important;
-  border-bottom: 1px solid #3d2461 !important;
+  background: linear-gradient(135deg, var(--flair) 0%, #4a1e7c 50%, #0a0518 100%) !important;
+  border-bottom: 1px solid var(--line-strong) !important;
 }
 /* Sampled from 2.x's th: --ink at 12px/600, uppercase, no added tracking. */
 .ag-header-cell-text {
@@ -1153,7 +1155,7 @@ button.q-btn--flat.text-primary:hover,
 button.q-btn--flat.text-primary:hover .q-btn__content {
   color: var(--ink) !important;
 }
-.q-btn--flat.text-negative, .q-btn--flat.text-negative .q-icon { color: #ff6b9d; }
+.q-btn--flat.text-negative, .q-btn--flat.text-negative .q-icon { color: var(--danger); }
 
 /* An action has to look like one, and color alone never says so - it is silent to
    anyone who cannot see the hue. The border is the affordance; hover fills it. */
@@ -1194,7 +1196,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    is with color on top, not instead. */
 .hub-action.hub-action--danger.q-btn { border-color: rgba(255, 107, 157, 0.45); }
 .hub-action.hub-action--danger.q-btn:hover {
-  border-color: #ff6b9d; background: rgba(255, 107, 157, 0.12);
+  border-color: var(--danger); background: rgba(255, 107, 157, 0.12);
 }
 
 /* `size=sm` writes an inline font-size, which no selector outranks. */
@@ -1704,7 +1706,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* Broken, not merely absent: what this names stops the table working at all. The one
    red on the panel, so it means exactly that and nothing softer. */
 .hub-tier--bad {
-  color: #ff6b9d; border-color: rgba(255, 107, 157, 0.45);
+  color: var(--danger); border-color: rgba(255, 107, 157, 0.45);
   background: rgba(255, 107, 157, 0.12);
 }
 /* Dashed, because the thing it names is not there. */
