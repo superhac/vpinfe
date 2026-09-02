@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from pathlib import Path
 
 from common import jobs
@@ -150,11 +151,23 @@ def load_vpsdb() -> list[dict]:
     return _vpsdb_cache
 
 
+_NOT_A_WORD = re.compile(r"\W+", re.UNICODE)
+
+
+def _plain(text: str) -> str:
+    """Lowercased, with every run of punctuation as a space, for comparing names."""
+    return _NOT_A_WORD.sub(" ", text.lower()).strip()
+
+
 def search_vpsdb(term: str, limit: int = 50) -> list[dict]:
     """Catalog entries matching every word, in a neutral order.
 
     Every word has to appear somewhere in the name, maker or year, so "attack bally"
     narrows rather than widens - which is what a person typing two words means.
+
+    Punctuation is not a word and does not have to line up. A library title is stored
+    with its article moved for sorting - "Addams Family, The" - and that comma made the
+    game's own name fail to find the game, which is the query a surface seeds by default.
 
     Sorted before the window is taken, and by name then year. Two reasons, and the
     second is the one that mattered: this used to stop at `limit` in catalog order, so
@@ -163,13 +176,13 @@ def search_vpsdb(term: str, limit: int = 50) -> list[dict]:
     for being confidently wrong more than half the time, so an order that implies "best
     first" would carry a confidence the evidence does not support.
     """
-    wanted = [word for word in (term or "").strip().lower().split() if word]
+    wanted = _plain(term or "").split()
     if not wanted:
         return []
     found = []
     for item in load_vpsdb():
-        haystack = " ".join(str(item.get(key) or "")
-                            for key in ("name", "manufacturer", "year")).lower()
+        haystack = _plain(" ".join(str(item.get(key) or "")
+                                   for key in ("name", "manufacturer", "year")))
         if all(word in haystack for word in wanted):
             found.append(item)
     found.sort(key=lambda item: (str(item.get("name") or "").lower(),
