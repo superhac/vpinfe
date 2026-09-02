@@ -56,6 +56,9 @@ _TOKENS = """
      needs. Text that must look interactive takes --accent. */
   --flair: #b429f9;
   --danger: #ff6b9d;     /* destructive, and absent in a way that costs you */
+  /* Hover lifts the same hue. It used to move to orange, which was a transposition of
+     the resting value rather than a decision. */
+  --danger-hover: #ff8fb8;
 
   --surface-0: #0a0518;
   --surface-1: #150a2e;
@@ -72,6 +75,11 @@ _TOKENS = """
   /* What a panel is, against the page under it. Named because two surfaces need to
      agree on it now that the workbench paints itself in parts. */
   --panel-ground: #150a2e;
+  /* A row you are pointing at, and the place you are actually on. Two steps, because
+     they are two states - and the second has to be the louder one. It was not: the
+     nav's current entry sat below the hover it competes with. */
+  --surface-hover: #2a1a4a;
+  --surface-current: #332057;
 
   --fs-caption: 12px;
   --fs-body: 14px;
@@ -180,7 +188,7 @@ body::before {
   --ag-background-color: #140a2b;
   --ag-odd-row-background-color: #190e33;
   --ag-header-background-color: #0f0722;
-  --ag-row-hover-color: #21173f;
+  --ag-row-hover-color: var(--surface-hover);
   --ag-border-color: var(--line);
   --ag-header-foreground-color: var(--ink-2);
   --ag-foreground-color: var(--ink);
@@ -257,7 +265,7 @@ body::before {
   font-size: var(--fs-body);
   color: var(--ink);
 }
-.q-menu .q-item:hover { background: #2a1a4a; }
+.q-menu .q-item:hover { background: var(--surface-hover); }
 .q-menu .q-separator { background: var(--line-strong); margin: 2px 0; }
 /* A picker over the whole library. Unconstrained, its menu is as wide as the longest
    title in it - which in a library with one 130-character name is the whole window -
@@ -305,7 +313,7 @@ body::before {
    attention. Both are always present - what varies between rows is data, and reading it
    from the absence of a mark cannot be told from a row that has no table at all. */
 .hub-chip-quiet { color: var(--ink-3); border: 1px solid #241640; }
-.hub-chip-warn { color: #f0b849; border: 1px solid #6b4a12; }
+.hub-chip-warn { color: var(--tier-table); border: 1px solid rgba(255, 192, 97, 0.45); }
 
 /* The collection's icon in a media slot's art region. Contained, so a wide banner and a
    square logo both sit in the same box. */
@@ -340,7 +348,7 @@ body::before {
 .hub-member-row.hub-dragging {
   position: fixed;
   z-index: 8000;
-  background: #2a1a4a;
+  background: var(--surface-hover);
   border-radius: 6px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   cursor: grabbing;
@@ -355,7 +363,7 @@ body::before {
 }
 /* The keyboard's equivalent of being lifted. */
 .hub-member-row.hub-grabbed {
-  background: #2a1a4a;
+  background: var(--surface-hover);
   outline: 1px solid var(--accent);
   border-radius: 6px;
 }
@@ -712,7 +720,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
    from spacing alone - which is exactly when striping earns its keep. Kept very low
    contrast: it separates, it does not decorate. */
 .hub-member-row:nth-child(even) { background: rgba(255, 255, 255, 0.055); }
-.hub-member-row:hover { background: #23143f; }
+.hub-member-row:hover { background: var(--surface-hover); }
 
 /* The row's action appears under the cursor. A column of identical glyphs down a long
    list is noise competing with the content, and the action is the same on every row.
@@ -785,7 +793,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 }
 .q-menu .hub-menu-item:hover,
 .q-menu .hub-menu-item:focus-visible {
-  background: #2a1a4a;
+  background: var(--surface-hover);
 }
 .q-menu .hub-menu-item:hover,
 .q-menu .hub-menu-item:hover .q-item__label,
@@ -819,7 +827,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 .q-menu .hub-menu-item.hub-menu-danger,
 .q-menu .hub-menu-item.hub-menu-danger .q-item__label { color: var(--danger); }
 .q-menu .hub-menu-item.hub-menu-danger:hover,
-.q-menu .hub-menu-item.hub-menu-danger:hover .q-item__label { color: #ff9d6b; }
+.q-menu .hub-menu-item.hub-menu-danger:hover .q-item__label { color: var(--danger-hover); }
 
 /* A checkbox item is an item: same band, same height, same leading column - the box
    is what fills the mark slot. */
@@ -835,7 +843,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 /* Tiles are deliberately plain: the art is the content, so the chrome around it stays
    quiet enough that an outlier stands out rather than the frame. */
 .hub-tile { cursor: pointer; padding: 4px; border-radius: 8px; }
-.hub-tile:hover { background: #2a1a4a; }
+.hub-tile:hover { background: var(--surface-hover); }
 .hub-tile-art {
   width: 100%;
   object-fit: contain;
@@ -956,7 +964,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 /* The page you are on stays lit while you are on it - --surface-2 behind it and
    --glow-purple around it, which is what 2.x does. */
 .hub-nav-active {
-  background: #251447;
+  background: var(--surface-current);
   box-shadow: 0 0 4px rgba(180, 41, 249, 0.5), 0 0 8px rgba(180, 41, 249, 0.3);
 }
 
