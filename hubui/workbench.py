@@ -773,9 +773,16 @@ def _offered_media(context: dict[str, Any]) -> dict[str, int]:
 
 
 def _pick_slot(context: dict[str, Any], kind: str, draw) -> None:
-    """Clicking the picked tile again puts the panel away."""
+    """Pick a slot to see the detail of. Clicking the picked one again does nothing.
+
+    It used to put the panel away, which made one control mean two things and cost the
+    selection to a mis-click. The detail sits beside the map rather than over it, so
+    there is nothing to dismiss - a slot stays picked until another is.
+    """
     slot = context["slot"]
-    slot["kind"] = None if slot["kind"] == kind else kind
+    if slot["kind"] == kind:
+        return
+    slot["kind"] = kind
     deeplink.sync(context["state"])
     asyncio.create_task(draw())
 
