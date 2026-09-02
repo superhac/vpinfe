@@ -631,7 +631,8 @@ def _go_to_table(context: dict[str, Any], table_id: str) -> None:
     if not table_id:
         return
     state = context["state"]
-    state["subject"] = "table"
+    # The Tables grid is a place now, so going to one file is going there - section 16.1.
+    state["view"] = "tables"
     state["table"] = table_id
     deeplink.sync(state)
     asyncio.create_task(context["rebuild"]())

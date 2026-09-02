@@ -34,8 +34,13 @@ _FIELDS = (
 
 # Only where they mean something. A slot on the devices page is noise in an address
 # somebody is meant to be able to read.
-_ONLY_ON = {"game": "games", "table": "games", "section": "games", "slot": "games",
-            "settings": "settings"}
+# A value may belong to more than one place: a game, its section and its slot are as
+# meaningful on the Tables grid as on the Games one, because both answer for a game in
+# the workbench beside them. Left as a single name each, a table's section vanished from
+# the address the moment Tables became a place of its own.
+_ONLY_ON = {"game": ("games", "tables"), "table": ("games", "tables"),
+            "section": ("games", "tables"), "slot": ("games", "tables"),
+            "settings": ("settings",)}
 
 
 # What the address calls a panel with nothing open.
@@ -58,7 +63,7 @@ def query(state: dict[str, Any]) -> str:
     """The address for this state, without the path."""
     view = state.get("view") or ""
     return urlencode([(name, read(state)) for name, read in _FIELDS
-                      if _ONLY_ON.get(name, view) == view and read(state)])
+                      if view in _ONLY_ON.get(name, (view,)) and read(state)])
 
 
 def sync(state: dict[str, Any]) -> None:
@@ -85,10 +90,9 @@ def apply(state: dict[str, Any], params: dict[str, str], *,
         state["game"] = str(params["game"]).strip()
     if str(params.get("table") or "").strip():
         state["table"] = str(params["table"]).strip()
-        state["subject"] = "table"
     # Every rail's keys, not one rail's: an address can name a table section while the
-    # subject is still being worked out, and dropping it here would land on the default
-    # and quietly ignore half the link.
+    # place it belongs to is still being read, and dropping it here would land on the
+    # default and quietly ignore half the link.
     if clean("section") == NO_SECTION:
         state["section"] = ""
     elif clean("section") in set(sections):

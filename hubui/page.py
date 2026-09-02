@@ -18,7 +18,9 @@ from hubui.data import Library
 # whatever their labels do. Left to the text, one was 52px and the other 22px.
 HEADER_H_PX = 52
 
-NAV_WIDE_PX = 220
+# Wide enough for the longest label at the nested indent, with the scrollbar the
+# rail now needs: "Collections" indented is the widest thing in here.
+NAV_WIDE_PX = 252
 WORKBENCH_WIDE_PX = 320
 # What the panel needs to hold its three regions, not the smallest a pane can be.
 # Below this the honest move is the rail, which is one click away.
@@ -47,15 +49,30 @@ RAIL_PX = 57
 # under Settings > Diagnostics with the rest of the troubleshooting surface, and Gallery
 # is gone - the media map in the details pane answers "what is missing here" and the
 # Media section answers "what is missing anywhere", which is what it was reaching for.
-NAV_ITEMS = (
-    ("overview", "Overview", "space_dashboard"),
-    ("games", "Games", "sports_esports"),
-    ("collections", "Collections", "collections_bookmark"),
-    ("media", "Media", "perm_media"),
-    ("devices", "Devices", "devices"),
-    ("extensions", "Extensions", "extension"),
-    ("settings", "Settings", "tune"),
+# Grouped, because four of these are what the library holds and the rest are not.
+# HUBUI section 16.1: a subject is a place, not transient state - so Tables and Tags are
+# rail entries rather than a mode a dropdown puts the Games page into. `casino` is the
+# asset registry's own icon for a table; the rail should not invent a second one.
+# Library is a rail entry like the rest, with the four it holds nested under it - not a
+# bare heading, which would be the one thing in this rail that is not a place. It is a
+# disclosure rather than a destination: a row that both navigated and collapsed would
+# make one click mean two things, and the children are the destinations.
+NAV_PARENT = ("library", "Library", "inventory_2")
+
+NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None,
+                        tuple[tuple[str, str, str], ...]], ...] = (
+    (None, (("overview", "Overview", "space_dashboard"),)),
+    (NAV_PARENT, (("games", "Games", "sports_esports"),
+                  ("tables", "Tables", "casino"),
+                  ("collections", "Collections", "collections_bookmark"),
+                  ("tags", "Tags", "sell"))),
+    (None, (("media", "Media", "perm_media"),
+            ("devices", "Devices", "devices"),
+            ("extensions", "Extensions", "extension"),
+            ("settings", "Settings", "tune"))),
 )
+
+NAV_ITEMS = tuple(item for _parent, items in NAV_GROUPS for item in items)
 
 # What the crumb calls each destination. A section owns a subject too, but that is a
 # fact about the data behind the page, not a caption for it - printing "one row is one
@@ -63,6 +80,8 @@ NAV_ITEMS = (
 SECTIONS = {
     "overview": "Overview",
     "games": "Games",
+    "tables": "Tables",
+    "tags": "Tags",
     "collections": "Collections",
     "media": "Media",
     "devices": "Devices",
@@ -132,7 +151,7 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
 
     state: dict[str, Any] = {"view": "overview", "device": None, "mini": False,
                              "workbench": True, "settings_page": "general",
-                             "subject": "game", "collection": None}
+                             "collection": None}
     # Before anything is built, so the first render is the place asked for rather than
     # the front door followed by a jump.
     deeplink.apply(state, {"view": view, "game": game, "table": table,
@@ -195,11 +214,19 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             # aligned is the icon column, which does not depend on the label's size.
             labels.append(ui.label("VPinFE Hub")
                           .classes("whitespace-nowrap hub-nav-title"))
-        for key, label, icon in NAV_ITEMS:
-            # redraw, not render: a destination whose rows are read on demand has
-            # to read them before it draws, and arriving is when that is first true.
-            _nav_item(key, label, icon, state, lambda: redraw(), labels,
-                      destinations)
+        for parent, items in NAV_GROUPS:
+            held: list[ui.row] = []
+            if parent is not None:
+                _nav_parent(parent, state, labels, held)
+            for key, label, icon in items:
+                # redraw, not render: a destination whose rows are read on demand has
+                # to read them before it draws, and arriving is when that is first true.
+                _nav_item(key, label, icon, state, lambda: redraw(), labels,
+                          destinations, nested=parent is not None, held=held)
+            if parent is not None:
+                # After the children exist: the caret leads `held`, and a group left
+                # closed last time has to draw closed rather than open and then blink.
+                _show_group(state[f"{parent[0]}_open"], held[0], held)
         ui.space()
         foot = ui.column().classes("items-center gap-1 px-3 py-3 w-full") \
             .style("border-top:1px solid rgba(255,255,255,0.10)")
@@ -350,16 +377,16 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
     async def show_game(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about.
 
-        Both lenses land here, and which one is showing decides what a row means: under
-        Games a row is a folder, under Tables it is one file inside one. That is the
-        whole of the subject question - there is no second control to keep in step,
-        because the list you are looking at is the control.
+        Both grids land here, and which one you are on decides what a row means: under
+        Games a row is a folder, under Tables it is one file inside one. There is no
+        control to keep in step - the place you are in is the answer, which is what
+        section 16.1 bought by making a subject a rail entry rather than a dropdown.
         """
         # A selection is the only thing that opens the pane. Arriving at a section does
         # not, because there is nothing selected yet to be about.
         if row and not state["workbench"]:
             show_workbench(True)
-        by_table = state.get("subject") == "table"
+        by_table = state["view"] == "tables"
         state["game"] = (row or {}).get("game_id" if by_table else "id")
         state["table"] = (row or {}).get("id") if by_table else ""
         await workbench.build(panel, workbench_title, library, state["game"], state,
@@ -442,15 +469,13 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             if view == "overview":
                 sections.overview(library, devices, discovery, go)
             elif view == "games":
-                if state.get("subject") == "table":
-                    games.build_tables(library.table_rows(), library, show_game, state,
-                                       redraw)
-                elif state.get("subject") == tageditor.SUBJECT:
-                    games.subject_bar(state, redraw)
-                    tageditor.build(library.tag_rows(), library, redraw)
-                else:
-                    games.build(library.game_rows(), library.kinds_present(), library,
-                                show_game, state, redraw)
+                games.build(library.game_rows(), library.kinds_present(), library,
+                            show_game, state, redraw)
+            elif view == "tables":
+                games.build_tables(library.table_rows(), library, show_game, state,
+                                   redraw)
+            elif view == "tags":
+                tageditor.build(library.tag_rows(), library, redraw)
             elif view == "collections":
                 collections_page.build(library.collections(), library, show_collection,
                                        state, redraw)
@@ -480,7 +505,7 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         asks for it rather than at startup - and off the loop, because render() runs on
         it and the client refuses an HTTP call there.
         """
-        if state.get("subject") == "table" and not library.has_table_rows():
+        if state["view"] == "tables" and not library.has_table_rows():
             async def read_then_draw() -> None:
                 await run.io_bound(library.load_tables)
                 render()
@@ -536,11 +561,12 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
     # after the shell exists, because that is what show_game builds into - and through
     # show_game rather than around it, so a link lands on exactly the state a click
     # would have produced.
-    landing = state.get("game") if state["view"] == "games" else None
+    landing = (state.get("game")
+               if state["view"] in ("games", "tables") else None)
     # An address that names a section has to read what that section needs, because the
     # first draw goes straight to render() and only redraw() reads on the way in. Both
     # of these drew empty from a link and filled in on the next click.
-    if state.get("subject") == "table":
+    if state["view"] == "tables":
         await run.io_bound(library.load_tables)
     if state["view"] == "collections":
         await run.io_bound(library.load_collections)
@@ -550,26 +576,71 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         # Shaped as the lens in play expects it, so the one handler reads it the same
         # way whether it came from a click or from the address bar.
         await show_game({"game_id": landing, "id": state.get("table") or landing}
-                        if state.get("subject") == "table" else {"id": landing})
+                        if state["view"] == "tables" else {"id": landing})
+
+
+def _nav_parent(parent: tuple[str, str, str], state: dict[str, Any],
+                labels: list, held: list) -> None:
+    """The row a group of entries sits under, which opens and closes them.
+
+    A disclosure, not a place: it has no page of its own, so a click that navigated
+    would have to pick one of its children and the caret would then mean something
+    different from the row it sits on.
+    """
+    key, label, icon = parent
+    state.setdefault(f"{key}_open", True)
+
+    def toggle() -> None:
+        state[f"{key}_open"] = not state[f"{key}_open"]
+        _show_group(state[f"{key}_open"], caret, held)
+
+    row = ui.row().classes("items-center gap-3 cursor-pointer w-full no-wrap "
+                           "hub-nav-row").on("click", toggle)
+    with row:
+        ui.icon(icon, size="24px").classes("opacity-70 shrink-0")
+        labels.append(ui.label(label).classes("hub-nav-item whitespace-nowrap"))
+        ui.space()
+        caret = ui.icon("expand_more", size="20px").classes("opacity-60 shrink-0")
+        labels.append(caret)
+    row.tooltip(label)
+    # Applied after the children exist, from the shell that owns the loop.
+    held.append(caret)
+
+
+def _show_group(open_now: bool, caret: Any, held: list) -> None:
+    """Rows in, caret with them. The caret joins `labels` so it goes when the rail
+    collapses to icons - there is nothing to disclose in a column of glyphs."""
+    caret.props(f'name={"expand_more" if open_now else "chevron_right"}')
+    for row in held:
+        if row is not caret:
+            row.set_visibility(open_now)
 
 
 def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
-              labels: list, destinations: dict) -> None:
+              labels: list, destinations: dict, nested: bool = False,
+              held: list | None = None) -> None:
     def choose() -> None:
         state["view"] = key
         state["device"] = None
         render()
         deeplink.sync(state)
 
-    row = ui.row().classes("items-center gap-3 cursor-pointer w-full hub-nav-row") \
+    row = ui.row().classes("items-center gap-3 cursor-pointer w-full no-wrap "
+                           "hub-nav-row" + (" hub-nav-row--nested" if nested else "")) \
         .on("click", choose)
     with row:
-        ui.icon(icon, size="24px").classes("opacity-70")
-        labels.append(ui.label(label).classes("hub-nav-item"))
+        ui.icon(icon, size="24px").classes("opacity-70 shrink-0")
+        # `no-wrap` on the row and nowrap on the label. A rail entry is one line by
+        # definition, and the rail scrolls once there are enough of them - which takes a
+        # scrollbar's width off every row and was enough to break "Collections" in two.
+        labels.append(ui.label(label)
+                      .classes("hub-nav-item whitespace-nowrap"))
     # The tooltip is what makes the collapsed rail usable at all, and it costs nothing
     # while expanded.
     row.tooltip(label)
     destinations[key] = row
+    if held is not None and nested:
+        held.append(row)
 
 
 def _placeholder(view: str) -> None:

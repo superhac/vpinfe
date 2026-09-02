@@ -128,21 +128,6 @@ RENDERERS = ("Ticks", "Thumbnails")
 # What one row is: three grains of the library the user owns - the folder, the
 # launchable file inside it, and the asset that resolved for it. Everything here has to
 # be something the workbench can answer for, which is what keeps a catalog out.
-SUBJECTS = {
-    "game": "Games",
-    "table": "Tables",
-    "media_file": "Media files",
-    # A grain of the library the user owns, like the others - and reached from the tag
-    # control as well, because managing the vocabulary is a thing you need occasionally
-    # rather than a place you go.
-    "tag": "Tags",
-}
-
-SUBJECT_STUBS = {
-    "media_file": "One row per file on disk, with the game it resolved to and the tier "
-                  "it resolved at. This is where an orphaned file becomes visible.",
-}
-
 
 # An asset column asks whether the game has one, and "Missing" is the word the media
 # vocabulary already uses for the same absence.
@@ -311,22 +296,12 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
           state: dict[str, Any] | None = None,
           rerender: Callable[[], None] | None = None) -> None:
     state = state if state is not None else {}
-    subject = state.get("subject", "game")
-    if subject != "game":
-        # Stop before the grid, not after it. A toolbar of controls acting on a table
-        # that is not there is worse than an empty page.
-        with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
-                              "hub-panel"):
-            _subject_select(state, rerender, subject)
-        _subject_stub(subject)
-        return
     columns = COLUMNS + asset_columns(library.asset_keys()) + media_columns(kinds)
     all_fields = [definition["field"] for definition in columns]
     selected: list[dict[str, Any]] = []
     context_row: list[dict[str, Any]] = []
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
-        _subject_select(state, rerender, subject)
         search = ui.input(placeholder="Search games") \
             .props("dense outlined clearable").classes("w-64")
         # The media preset is the library's own kinds, so it is only knowable here.
@@ -730,7 +705,6 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     fields = [definition["field"] for definition in table_columns]
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
-        _subject_select(state, rerender, state.get("subject", "table"))
         search = ui.input(placeholder="Search tables") \
             .props("dense outlined clearable").classes("w-64")
         presets = {**TABLE_VIEWS,
@@ -1164,33 +1138,3 @@ def _ask_name(save) -> None:
           wire();
         }})()
     """)
-
-
-def subject_bar(state: dict[str, Any], rerender: Callable[[], None] | None) -> None:
-    """The Rows control on its own, for a subject that brings its own page. The toolbar
-    is the games grid's; what every subject shares is the one control that says which
-    of them you are looking at."""
-    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
-        _subject_select(state, rerender, str(state.get("subject") or ""))
-
-
-def _subject_stub(subject: str) -> None:
-    with ui.column().classes("w-full items-start gap-2 p-6"):
-        ui.label(SUBJECTS.get(subject, subject)).classes("hub-card-title")
-        ui.label(SUBJECT_STUBS.get(subject, "")).classes("hub-help")
-        ui.label("Not built. The grid, the views and the details pane are the same "
-                 "machinery - what a new subject needs is a field registry entry and a "
-                 "reader, not a new page.").classes("hub-help mt-2 opacity-70")
-
-
-def _subject_select(state: dict[str, Any], rerender: Callable[[], None] | None,
-                    subject: str) -> None:
-    def pick(value: str) -> None:
-        state["subject"] = value
-        if rerender is not None:
-            rerender()
-
-    # "Rows" rather than "Show", which was a synonym of the View control beside it.
-    ui.select(SUBJECTS, value=subject, label="Rows",
-              on_change=lambda e: pick(e.value)) \
-        .props("dense outlined").classes("w-40")

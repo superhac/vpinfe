@@ -922,6 +922,32 @@ body.hub-menu-open .q-tooltip { display: none !important; }
      off-center. 2.x's .nav-btn solves it the same way. */
   max-width: calc(100% - 16px);
 }
+/* Nested under a parent entry, indented by the icon column so the children line up
+   under the parent's label rather than under its icon. Collapsed to the mini rail the
+   indent goes with the labels - there is nothing left to line up with. */
+.hub-nav-row--nested {
+  padding-left: 32px !important;
+  /* Subordinate, not just shifted: a child that matches its parent in height, icon and
+     type is a sibling wearing an indent. 38px against 48, 19px against 24, caption
+     against body - each one step down, none of them a different treatment. */
+  min-height: 38px;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.hub-nav-row--nested .q-icon { font-size: 19px !important; }
+.hub-nav-row--nested .hub-nav-item {
+  font-size: var(--fs-caption);
+  line-height: 20px;
+}
+/* Collapsed to icons there is no parent to line up under and no room to step down. */
+.q-drawer--mini .hub-nav-row--nested {
+  padding-left: 0 !important;
+  min-height: 48px;
+}
+.q-drawer--mini .hub-nav-row--nested .q-icon { font-size: 24px !important; }
+
 /* The page you are on stays lit while you are on it - --surface-2 behind it and
    --glow-purple around it, which is what 2.x does. */
 .hub-nav-active {
