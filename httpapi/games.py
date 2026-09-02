@@ -107,7 +107,11 @@ def _resource(row: dict, game_id: str) -> dict:
     return {
         "id": game_id,
         # Correlation with VPSdb, VPinPlay and the like - not this table's identity.
-        "vps_id": row.get("vpsid", ""),
+        # The effective id, not the discovered one: `alt_vpsid` is somebody saying the
+        # match was wrong, and every other field here is already the value in force -
+        # `name` is the alt title the moment one is set. `discovered` below is what an
+        # undo reverts to, and is the only place the superseded id belongs.
+        "vps_id": row.get("alt_vpsid", "") or row.get("vpsid", ""),
         "name": row.get("name", ""),
         "manufacturer": row.get("manufacturer", ""),
         "year": str(row.get("year") or ""),
