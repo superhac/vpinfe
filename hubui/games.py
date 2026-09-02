@@ -462,7 +462,12 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         # `--ag-row-height` is what its stylesheet derives a cell's line height from and
         # it does not follow the option. Left behind, every cell in a taller row - the
         # name as much as the picture - drew against a 39px line box and sat high in it.
-        table.style(f"--ag-row-height: {height}px")
+        # Set on the node, never with `.style()`: mutating the element makes nicegui
+        # rebuild the grid from `columnDefs`, losing every imperative call - which is
+        # a view's columns, widths, sort and filters.
+        ui.run_javascript(
+            f"getElement({table.id}).$el.style.setProperty("
+            f"'--ag-row-height', '{height}px')")
         table.run_grid_method("redrawRows")
 
     cells.on_value_change(apply_renderer)
