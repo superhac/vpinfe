@@ -187,7 +187,7 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             # collapses the panel when someone meant to click the name in it, and hangs
             # the tooltip off the middle of a wide row where it points at nothing.
             nav_icon = ui.icon("menu_open", size="24px") \
-                .classes("opacity-70 cursor-pointer hub-panel-toggle") \
+                .classes("opacity-70 shrink-0 cursor-pointer hub-panel-toggle") \
                 .on("click", lambda: toggle_mini())
             nav_icon.tooltip("Show or hide the navigation")
             # Larger and heavier than a nav item, like HA's own title. Row height may

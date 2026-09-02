@@ -893,6 +893,11 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 .hub-nav-header {
   min-height: 59px;
   padding: 12px !important;
+  /* Quasar's .row wraps, and the title's width is whatever `sans-serif` resolves to on
+     the machine. Where that lands on a wider face the label dropped under the icon and
+     took the header to 90px. Nothing in here may shrink below its own width either, or
+     the brand ellipses instead. */
+  flex-wrap: nowrap;
 }
 
 /* At the rail the row is the icon's whole world, so the wide state's side padding
