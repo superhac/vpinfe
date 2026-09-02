@@ -59,14 +59,15 @@ class TokenTests(unittest.TestCase):
 
 class LiteralTests(unittest.TestCase):
     """A ratchet, not a gate. The stylesheet still carries scores of unnamed colors -
-    `#2b1a4d` appears thirteen times and *is* `--line` - and naming them is the
-    tokenizing pass, not this. What this holds is the direction: the count comes down
+    22 of them were colors that already had a token - `#2b1a4d` is `--line`, thirteen
+    times - and those are named now. What is left needs a name invented for it, which is
+    a decision per color rather than a substitution. What this holds is the direction: the count comes down
     and never up, so the pass can land in pieces without the ground moving.
 
     Lower CEILING as it falls. Raising it is the thing to notice.
     """
 
-    CEILING = 25
+    CEILING = 18
 
     def test_no_new_color_is_typed_rather_than_named(self) -> None:
         found = sorted(set(HEX.findall(theme._FLAIR + theme._COMPONENTS)))

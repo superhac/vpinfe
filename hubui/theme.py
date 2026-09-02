@@ -13,7 +13,10 @@ DARK: dict[str, str] = {
     "secondary": "#00d9ff",
     "accent": "#ff0a78",
     "positive": "#00ff9f",
-    "negative": "#ff0a78",
+    # Darker than the accent it used to share. Quasar fills an error toast with this
+    # and writes white on it: at #ff0a78 that measured 3.77:1, under the 4.5:1 that
+    # 14px needs, on the surface that reports failure.
+    "negative": "#e00068",
     "warning": "#ffd93d",
     "info": "#00d9ff",
     "dark": "#1a0f35",
@@ -142,7 +145,7 @@ _FLAIR = """
 /* The base color goes on body alone. Painting it on .q-page-container too put an
    opaque element over body::before, which is where the grid lives - so the backdrop was
    still being drawn, just covered. */
-body { background: #0a0518; }
+body { background: var(--surface-0); }
 
 /* nicegui gives .q-drawer__content 16px of padding and a 16px flex gap - the source of
    the workbench's 54px top gap, not anything the rows were doing. Scoped to the
@@ -158,7 +161,7 @@ body { background: #0a0518; }
    means the icon does not move horizontally when the workbench collapses. */
 .hub-workbench .hub-panel-header { padding-right: 18px !important; }
 .q-page-container, .q-page { background: transparent !important; }
-.q-drawer { background: #150a2e !important; }
+.q-drawer { background: var(--panel-ground) !important; }
 
 body::before {
   content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
@@ -172,13 +175,13 @@ body::before {
 .nicegui-aggrid {
   /* Depth comes from the tonal range, not from saturation: the page is nearly black,
      panels step up, the grid sits between them. The row alternation is deliberately
-     narrow - #1a0f35 against #251447 read as two different colors rather than as
+     narrow - var(--surface-2) against #251447 read as two different colors rather than as
      banding. */
   --ag-background-color: #140a2b;
   --ag-odd-row-background-color: #190e33;
   --ag-header-background-color: #0f0722;
   --ag-row-hover-color: #21173f;
-  --ag-border-color: #2b1a4d;
+  --ag-border-color: var(--line);
   --ag-header-foreground-color: var(--ink-2);
   --ag-foreground-color: var(--ink);
   --ag-font-size: var(--fs-body);
@@ -242,7 +245,7 @@ body::before {
 /* Menus in the app's own idiom, and tight: Quasar's default item is 48px tall with
    16px gutters, which reads as a system menu dropped into the page. */
 .q-menu {
-  background: #1a0f35 !important;
+  background: var(--surface-2) !important;
   border: 1px solid var(--line-strong);
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
@@ -274,7 +277,7 @@ body::before {
 .hub-collection-icon {
   width: 64px; height: 64px;
   object-fit: contain;
-  border: 1px solid #2b1a4d;
+  border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel-ground);
 }
@@ -838,7 +841,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
   object-fit: contain;
   border-radius: 6px;
   background: #140a2b;
-  border: 1px solid #2b1a4d;
+  border: 1px solid var(--line);
 }
 .hub-tile-missing { border-style: dashed; }
 .hub-tile-label {
@@ -852,7 +855,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 }
 
 .hub-panel {
-  background: #1a0f35;
+  background: var(--surface-2);
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
@@ -867,7 +870,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
      row rather than spread down the rail. The title is near-white with a glow and
      carries purple fine; the items are #5898d4 and do not, so the ground under them
      has to be dark. 90px is just past the 59px header. */
-  background: linear-gradient(180deg, var(--flair) 0px, #4a1e7c 60px, #1a0f35 90px,
+  background: linear-gradient(180deg, var(--flair) 0px, #4a1e7c 60px, var(--surface-2) 90px,
                               #0f0722 100%) !important;
 }
 .hub-nav-item {
@@ -1010,7 +1013,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 }
 /* Tight: this panel carries a lot and the default expansion chrome is mostly air. */
 .hub-workbench .q-expansion-item {
-  border: 1px solid #2b1a4d;
+  border: 1px solid var(--line);
   border-radius: 8px;
   /* Vertical margin only. A horizontal margin on a w-full child overhangs by exactly
      its own width, which is where the workbench's 6px of horizontal scroll came from; the
@@ -1064,7 +1067,8 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 .ag-header {
   /* 2.x's --header-gradient in full - I had been running it to #4a1e7c and stopping,
      which lost the fade to near-black at the far end. */
-  background: linear-gradient(135deg, var(--flair) 0%, #4a1e7c 50%, #0a0518 100%) !important;
+  background: linear-gradient(135deg, var(--flair) 0%, #4a1e7c 50%,
+              var(--surface-0) 100%) !important;
   border-bottom: 1px solid var(--line-strong) !important;
 }
 /* Sampled from 2.x's th: --ink at 12px/600, uppercase, no added tracking. */
@@ -1121,7 +1125,7 @@ _COMPONENTS = """
      rather than at the foot of its own art. */
   display: flex;
   flex-direction: column;
-  border: 1px solid #2b1a4d;
+  border: 1px solid var(--line);
   border-radius: 6px;
   /* A step *up* from the ground, not down into it. This used to be the page color at
      55%, which darkened the panel's gradient into a recessed plate - but with browse
@@ -1247,12 +1251,12 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   max-width: 92vw; max-height: 88vh;
   display: flex; flex-direction: column;
   padding: 0 !important; overflow: hidden;
-  border: 1px solid #2b1a4d; border-radius: 10px;
+  border: 1px solid var(--line); border-radius: 10px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
 }
 .hub-viewer-bar {
   flex: 0 0 auto; padding: 8px 12px;
-  background: rgba(11, 5, 32, 0.9); border-bottom: 1px solid #2b1a4d;
+  background: rgba(11, 5, 32, 0.9); border-bottom: 1px solid var(--line);
 }
 /* Darker than Quasar's default: the art being judged is often bright. */
 .q-dialog__backdrop { background: rgba(4, 2, 12, 0.78) !important; }
@@ -1300,7 +1304,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   text-overflow: ellipsis;
 }
 .hub-mediatile-rule {
-  height: 1px; width: 100%; margin: 8px 0 5px; background: #1f1338;
+  height: 1px; width: 100%; margin: 8px 0 5px; background: var(--line-soft);
 }
 .hub-mediatile-grid {
   display: grid;
@@ -1327,7 +1331,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   line-height: 32px;
 }
 .hub-card {
-  border: 1px solid #2b1a4d;
+  border: 1px solid var(--line);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(26,15,53,0.75) 0%, rgba(15,7,34,0.75) 100%);
   padding: 14px 16px;
@@ -1427,7 +1431,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   scrollbar-gutter: stable;
 }
 @container (min-width: 900px) {
-  .hub-dock { border-top: none; border-left: 1px solid #2b1a4d; }
+  .hub-dock { border-top: none; border-left: 1px solid var(--line); }
   /* Below the grip's own rules on purpose: same specificity, so source order decides.
      Above them this loses to the `display` they set, and the handle shows up floating
      at the top of a layout where the dock is beside the map and there is nothing to
@@ -1576,7 +1580,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* The picked slot. The art is the subject and takes the room; the facts under it are
    a line each, which is what lets them be sentences rather than a table of fields. */
 .hub-slot {
-  border: 1px solid #2b1a4d; border-radius: 8px;
+  border: 1px solid var(--line); border-radius: 8px;
   background: linear-gradient(180deg, rgba(26,15,53,0.75) 0%, rgba(15,7,34,0.75) 100%);
   display: flex; flex-direction: column; min-height: 0;
   /* Without this the column is sized by its contents and overhangs the panel, which
@@ -1605,7 +1609,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .hub-slot-art:hover .hub-slot-zoom { opacity: 1; }
 .hub-slot-art img, .hub-slot-art video {
   max-width: 100%; max-height: 100%; object-fit: contain;
-  border-radius: 4px; border: 1px solid #2b1a4d;
+  border-radius: 4px; border: 1px solid var(--line);
 }
 /* Audio has no frame, so it is the control itself and takes the width it is given
    rather than being sized like a picture. */
@@ -1615,7 +1619,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    the same room the art would, so picking an empty slot does not resize the panel. */
 .hub-slot-blank {
   width: 100%; height: 100%; min-height: 90px;
-  border: 1px dashed #2b1a4d; border-radius: 6px;
+  border: 1px dashed var(--line); border-radius: 6px;
   justify-content: center; color: var(--ink-3);
 }
 .hub-slot-blank-icon { font-size: 34px; opacity: 0.55; }
@@ -1849,7 +1853,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    scroll, and anything drawn inside a scrolling box is clipped by it. */
 .hub-thumb-peek {
   background: #0b0520 !important; padding: 4px !important;
-  border: 1px solid #2b1a4d; border-radius: 6px;
+  border: 1px solid var(--line); border-radius: 6px;
   max-width: none !important;
 }
 /* Slightly larger, not a viewer. Big enough and it covers the rows either side of the
@@ -2047,5 +2051,5 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   background: rgba(0, 217, 255, 0.22); color: var(--ink);
 }
 .hub-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); }
-.hub-bar > div { height: 100%; border-radius: 3px; background: #00d9ff; }
+.hub-bar > div { height: 100%; border-radius: 3px; background: var(--accent); }
 """
