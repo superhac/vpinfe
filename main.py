@@ -297,6 +297,14 @@ shutdown.exit_if_requested(logger)
 
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()
+
+# The catalog everything VPS-shaped reads from - matching, release lists, what a kind is
+# offered from. It was only ever downloaded by a Manager UI page, so a hub that never
+# opened one answered from whatever snapshot it started with.
+if not config_store.is_new:
+    from common.online.vpsdb_sync import start_watch as _watch_vpsdb
+
+    _watch_vpsdb(config_store, _shutdown_event)
 # Feedback hardware follows game lifecycle events from here on, so both launch
 # paths get the same behavior without either of them knowing about DOF.
 from common.host import peripherals

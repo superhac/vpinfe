@@ -124,11 +124,11 @@ uses an old spelling both still load.
 
 ### `vpsdb`
 
-Runtime state written by VPinFE, not shown in the Manager UI.
-
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `last` | string |  |  |
+| `checked` | string |  |  |
+| `refresh` | choice (never, daily, weekly, monthly) | `daily` | How often to ask VPSdb whether it has changed. |
 
 ### `state`
 

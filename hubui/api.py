@@ -133,6 +133,20 @@ class HubClient:
             json={"rating": rating}, timeout=_TIMEOUT)
         self._answered(response)
 
+    def vps_sync_state(self) -> dict:
+        """How fresh the local catalog is, and whether a check is owed."""
+        _refuse_the_event_loop("/vps/sync")
+        response = self._session.get(f"{self._base}/vps/sync", timeout=_TIMEOUT)
+        self._answered(response)
+        return dict(response.json() or {})
+
+    def sync_vps(self) -> dict:
+        """Check now, whatever the schedule says. The catalog is about 7 MB."""
+        _refuse_the_event_loop("/vps/sync")
+        response = self._session.post(f"{self._base}/vps/sync", timeout=_TIMEOUT * 6)
+        self._answered(response)
+        return dict(response.json() or {})
+
     def vps_state(self, game_id: str) -> list[dict]:
         """Per kind: what this game holds, and what the catalog lists for it."""
         _refuse_the_event_loop(f"/games/{game_id}/vps_state")

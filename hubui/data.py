@@ -457,6 +457,14 @@ class Library:
     def vps_search(self, term: str, limit: int = 40) -> list[dict]:
         return self._client.vps_search(term, limit)
 
+    def vps_sync_state(self) -> dict:
+        return self._client.vps_sync_state()
+
+    def sync_vps(self) -> dict:
+        """Not cached and nothing invalidated here: the catalog is read per request by
+        whatever asks for it, so a new copy is picked up on the next read."""
+        return self._client.sync_vps()
+
     def kept_kinds(self) -> dict[str, set[str]]:
         """Which kinds of file this library collects, as {"media": {...}, "asset": {...}}.
 

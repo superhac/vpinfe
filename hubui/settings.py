@@ -35,6 +35,12 @@ KEPT_NOTE = ("What this library collects. Turning one off stops the hub showing 
 SOURCES_NOTE = ("Which online catalogs are searched for artwork. All of them, until "
                 "you turn one off.")
 
+# Everything VPS-shaped reads the local copy - matching, release lists, what a kind is
+# offered from - so this page is how fresh all of those answers are.
+VPS_NOTE = ("Matching, release lists and what the catalog offers are read from a copy "
+            "kept on this machine. Checking is cheap; the copy is only downloaded when "
+            "it has actually changed.")
+
 
 INDEX: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
     ("VPinFE", (("general", "General"), ("library", "Library"),
@@ -74,7 +80,6 @@ STUBS = {
                "running.",
     "checks_media": "Checks about media presence, resolution and fallbacks.",
     "checks_script": "Checks that read the table script.",
-    "vps": "Matching against the spreadsheet, and what an update notification means.",
     "vpinplay": "The account a score is submitted under.",
     "webhooks": "Endpoints told when something changes here.",
     "logs": "This install's log, filtered.",
@@ -147,6 +152,9 @@ def _schema_page(library, rerender: Callable[[], None], title: str,
     # Filled off the event loop. These calls go to our own process, so making them here
     # blocks the server from answering them and the page waits for its own timeout.
     ui.timer(0.01, lambda: _fill(library, rerender, body, title, section), once=True)
+    if section in FOOTERS:
+        foot = ui.column().classes("w-full gap-0")
+        ui.timer(0.01, lambda: FOOTERS[section](library, rerender, foot), once=True)
 
 
 async def _fill(library, rerender: Callable[[], None], body, title: str,
@@ -212,8 +220,10 @@ async def _fill(library, rerender: Callable[[], None], body, title: str,
         rerender()
 
     with body:
-        ui.label(f"Read from this install. {len(block['options'])} settings in "
-                 f"[{section}].").classes("hub-help mt-1")
+        found = len(block["options"])
+        ui.label(f"Read from this install. {found} setting"
+                 f"{'' if found == 1 else 's'} in [{section}]."
+                 ).classes("hub-help mt-1")
         if not block.get("writable"):
             ui.label("Read-only over HTTP.").classes("hub-help mt-1")
         bar["holder"] = ui.element("div").classes("w-full")
@@ -293,6 +303,48 @@ async def _fill_kinds(library, rerender: Callable[[], None], body, section: str,
                 ui.label(label).classes("hub-setting")
 
 
+async def _vps_foot(library, rerender: Callable[[], None], body) -> None:
+    """When the catalog was last asked, and the way to ask now.
+
+    A schedule is a setting and the schema renders it; "do it now" is not a setting and
+    has nowhere in a schema page to live, so a page may carry a foot for the one thing
+    that is an act rather than a value.
+    """
+    try:
+        state = await run.io_bound(library.vps_sync_state)
+    except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
+        with body:
+            ui.label(f"Could not read the sync state: {exc}").classes("hub-help mt-2")
+        return
+
+    async def now() -> None:
+        ui.notify("Checking VPSdb...", type="ongoing")
+        try:
+            done = await run.io_bound(library.sync_vps)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(f"Could not check: {exc}", type="negative")
+            return
+        # "Already current" is the ordinary outcome and says itself; a positive toast
+        # for it would make the rare one look the same as the common one.
+        ui.notify("Catalog updated" if done.get("changed") else "Already up to date",
+                  type="positive" if done.get("changed") else "info")
+        rerender()
+
+    when = str(state.get("checked") or "")
+    with body, ui.element("div").classes("hub-card w-full mt-2"):
+        with ui.row().classes("items-center gap-3 w-full no-wrap"):
+            ui.label("Last checked").classes("hub-setting")
+            ui.label(when.replace("T", " ").replace("Z", " UTC") if when
+                     else "Never").classes("hub-help")
+            ui.space()
+            ui.button("Check now", icon="sync", on_click=now) \
+                .props("flat dense no-caps size=sm").classes("hub-action")
+
+
+# section -> what to draw under its settings. Only where a page has an act in it.
+FOOTERS: dict[str, Callable] = {"vpsdb": _vps_foot}
+
+
 def _checks_library() -> None:
     ui.label("Library checks").classes("hub-card-title")
     ui.label("Each check runs over every game. Turn one off here to silence it "
@@ -316,6 +368,7 @@ def _checks_library() -> None:
 # per-option description turns into.
 SCHEMA_PAGES: dict[str, tuple[str, str, str]] = {
     "general": ("General", "general", ""),
+    "vps": ("Virtual Pinball Spreadsheet", "vpsdb", VPS_NOTE),
 }
 
 # The two kind pages are not schema pages. What they switch is a *list* in the config,

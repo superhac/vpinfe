@@ -342,6 +342,33 @@ def vps_releases(vps_id: str) -> models.VpsReleases:
                          for item in (found.get("tableFiles") or [])]}
 
 
+@vps_router.get("/sync", summary="When the catalog was last checked",
+                dependencies=[requires(scopes.VPS_READ)])
+def vps_sync_state() -> models.VpsSyncState:
+    """What a surface needs to say how fresh the answers it is giving are."""
+    from common.online import vpsdb_sync
+    from common.paths import get_ini_config
+
+    config = get_ini_config()
+    return {"schedule": vpsdb_sync.schedule(config),
+            "checked": vpsdb_sync.checked_at(config),
+            "due": vpsdb_sync.due(config)}
+
+
+@vps_router.post("/sync", summary="Check VPSdb for a newer catalog now",
+                 dependencies=[requires(scopes.GAMES_WRITE)])
+async def vps_sync() -> models.VpsSyncResult:
+    """Asked for, so it ignores the schedule - a manual sync that answered "not due"
+    would be reporting a rule back to the person overriding it.
+
+    The check is one line and the catalog is about 7 MB, so this is off the loop.
+    """
+    from common.online import vpsdb_sync
+    from common.paths import get_ini_config
+
+    return await run_in_threadpool(vpsdb_sync.sync, get_ini_config(), True)
+
+
 @vps_router.get("/search", summary="Search VPSdb", dependencies=[requires(scopes.VPS_READ)])
 def search_vps(q: str = "", limit: int = 20) -> models.VpsSearchResults:
     from common.games.game_service import search_vpsdb

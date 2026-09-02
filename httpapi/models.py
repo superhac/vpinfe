@@ -1499,6 +1499,28 @@ class VpsSearchResults(ApiModel):
     results: list[VpsSearchResult]
 
 
+class VpsSyncState(ApiModel):
+    """How fresh the local catalog is. `checked` is when it was last asked, which is not
+    when it last changed - asking is cheap and the answer is usually "no"."""
+
+    schedule: str = "daily"
+    checked: str = ""
+    due: bool = False
+
+
+class VpsSyncResult(ApiModel):
+    """`checked` false means the schedule said not yet; it is not a failure. `changed`
+    is the one a surface reports, because a check that found nothing new is the ordinary
+    outcome and worth saying quietly."""
+
+    checked: bool = False
+    ok: bool = False
+    changed: bool = False
+    version: str = ""
+    at: str = ""
+    reason: str = ""
+
+
 class VpsRelease(ApiModel):
     """One build of a machine, as VPSdb lists it.
 

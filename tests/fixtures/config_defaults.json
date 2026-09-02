@@ -106,7 +106,9 @@
     "user_id": ""
   },
   "vpsdb": {
-    "last": ""
+    "checked": "",
+    "last": "",
+    "refresh": "daily"
   },
   "windows.backglass": {
     "media_priority": "video",

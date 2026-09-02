@@ -597,6 +597,23 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             default="",
             internal=True,
         ),
+        # When the catalog was last asked, not when it last changed - `last` above is
+        # the version we hold. Without this the only way to know a check is due is to
+        # make one, which is the check.
+        ConfigOption(
+            "checked",
+            type="string",
+            default="",
+            internal=True,
+        ),
+        ConfigOption(
+            "refresh",
+            type="choice",
+            default="daily",
+            choices=("never", "daily", "weekly", "monthly"),
+            label="Check For Catalog Updates",
+            description="How often to ask VPSdb whether it has changed.",
+        ),
     ),
     *in_section(
         "state",
