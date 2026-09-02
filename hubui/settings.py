@@ -11,6 +11,7 @@ That single habit is what makes a dense settings page readable.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 from nicegui import run, ui
 
@@ -29,10 +30,16 @@ KEPT_NOTE = ("What this library collects. Turning one off stops the hub showing 
              "counting it; the files stay where they are, and a table that will not "
              "launch still says so.")
 
+# Every source that ships is listed, switched off included: "why is that catalog not
+# coming up" is answered by seeing it sitting there off.
+SOURCES_NOTE = ("Which online catalogs are searched for artwork. All of them, until "
+                "you turn one off.")
+
 
 INDEX: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
     ("VPinFE", (("general", "General"), ("library", "Library"),
                 ("media_kinds", "Media kinds"), ("asset_kinds", "Asset kinds"),
+                ("media_sources", "Media sources"),
                 ("appearance", "Appearance"), ("startup", "Startup"))),
     ("Validation", (("checks_library", "Library checks"),
                     ("checks_media", "Media checks"),
@@ -50,8 +57,6 @@ ELSEWHERE: tuple[tuple[str, str, str], ...] = (
      "They belong to one device, and only make sense with that device named."),
     ("Frontend themes", "settings",
      "A theme carries its own settings; they are shown with the theme."),
-    ("Media sources", "media",
-     "A source is a thing you add and remove, not a preference."),
     ("Extension settings", "extensions",
      "Each extension declares its own; hubui renders what it declares."),
     ("Collection rules", "collections",
@@ -223,50 +228,67 @@ async def _fill(library, rerender: Callable[[], None], body, title: str,
     refresh_bar()
 
 
-def _kind_page(library, rerender: Callable[[], None], title: str, key: str,
-               kinds: Callable[[], dict[str, str]]) -> None:
-    """A switch per kind of file, over one list of the ones that are hidden.
+def _kind_page(library, rerender: Callable[[], None], title: str, note: str,
+               section: str, key: str, items: Callable[[Any], dict[str, str]],
+               mode: str) -> None:
+    """A switch per thing, over one list in the config.
 
-    Stored as what is *off*. A stored list of what is kept would make every kind added
-    in a later version invisible in any library that had ever saved this page, which is
-    the opposite of what somebody switching one off asked for.
+    Not a schema page. What it switches is a *list*, and the switches themselves come
+    from a registry or from the hub - which `common/` may not reach for, because nothing
+    in it may import a domain package. The hub may, so the rendering lives here.
     """
     ui.label(title).classes("hub-card-title")
-    ui.label(KEPT_NOTE).classes("hub-help mt-1")
+    ui.label(note).classes("hub-help mt-1")
     body = ui.column().classes("w-full gap-0")
-    ui.timer(0.01, lambda: _fill_kinds(library, rerender, body, key, kinds()),
+    ui.timer(0.01,
+             lambda: _fill_kinds(library, rerender, body, section, key, items, mode),
              once=True)
 
 
-async def _fill_kinds(library, rerender: Callable[[], None], body, key: str,
-                      kinds: dict[str, str]) -> None:
+def _listed(value) -> set[str]:
+    """A stored list, however the config layer hands it over - a list from JSON, or the
+    comma string the ini holds."""
+    if isinstance(value, str):
+        value = value.split(",")
+    return {str(item).strip() for item in (value or []) if str(item).strip()}
+
+
+async def _fill_kinds(library, rerender: Callable[[], None], body, section: str,
+                      key: str, items: Callable[[Any], dict[str, str]],
+                      mode: str) -> None:
     try:
         values = await run.io_bound(library.config_values)
+        known = await run.io_bound(items, library)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         with body:
             ui.label(f"Could not read the settings: {exc}").classes("hub-help mt-2")
         return
 
-    general = dict(values.get("general") or {})
-    raw = general.get(key) or []
-    hidden = set(str(item).strip() for item in
-                 (raw.split(",") if isinstance(raw, str) else raw) if str(item).strip())
+    stored = _listed((values.get(section) or {}).get(key))
+    # An `enabled` list reads empty as everything, so what is on is the whole set until
+    # somebody turns one off.
+    on = (set(known) - stored) if mode == "hidden" else (stored or set(known))
 
-    async def flip(kind: str, shown: bool) -> None:
-        wanted = hidden - {kind} if shown else hidden | {kind}
+    async def flip(name: str, wanted_on: bool) -> None:
+        after = (on | {name}) if wanted_on else (on - {name})
+        if mode == "hidden":
+            store = sorted(set(known) - after)
+        else:
+            # Everything on stores nothing, which is what keeps a source added later
+            # switched on rather than quietly excluded.
+            store = [] if after >= set(known) else sorted(after)
         try:
-            await run.io_bound(library.put_config,
-                               {"general": {key: sorted(wanted)}})
+            await run.io_bound(library.put_config, {section: {key: store}})
         except Exception as exc:  # noqa: BLE001
             ui.notify(f"Could not save that: {exc}", type="negative")
             return
         rerender()
 
     with body, ui.element("div").classes("hub-card w-full mt-2"):
-        for kind, label in sorted(kinds.items(), key=lambda pair: pair[1]):
+        for name, label in sorted(known.items(), key=lambda pair: pair[1]):
             with ui.row().classes("items-center gap-3 w-full no-wrap hub-setting-row"):
-                ui.switch(value=kind not in hidden,
-                          on_change=lambda e, k=kind: flip(k, bool(e.value))) \
+                ui.switch(value=name in on,
+                          on_change=lambda e, n=name: flip(n, bool(e.value))) \
                     .props("dense color=positive")
                 ui.label(label).classes("hub-setting")
 
@@ -300,12 +322,19 @@ SCHEMA_PAGES: dict[str, tuple[str, str, str]] = {
 # and the switches themselves come from the two registries - which `common/` may not
 # import, because nothing in it may reach up into a domain package. The hub may, so the
 # rendering lives on this side of that line.
-KIND_PAGES: dict[str, tuple[str, str, Callable[[], dict[str, str]]]] = {
-    "media_kinds": ("Media kinds", "hidden_media_kinds",
-                    lambda: dict(media_label_map())),
-    "asset_kinds": ("Asset kinds", "hidden_asset_kinds",
-                    lambda: {spec.kind: spec.label for spec in ASSET_SPECS
-                             if spec.kind not in ALWAYS_KEPT}),
+# key -> (title, note, config section, config key, what to switch, how the list reads).
+# `hidden` stores what is off; `enabled` stores what is on and reads empty as all - the
+# shape `asset_sources` already ships with. Both leave an empty list meaning "everything",
+# so a kind or a source added in a later version arrives switched on either way.
+KIND_PAGES: dict[str, tuple[str, str, str, str, Callable[[Any], dict[str, str]], str]] = {
+    "media_kinds": ("Media kinds", KEPT_NOTE, "general", "hidden_media_kinds",
+                    lambda _: dict(media_label_map()), "hidden"),
+    "asset_kinds": ("Asset kinds", KEPT_NOTE, "general", "hidden_asset_kinds",
+                    lambda _: {spec.kind: spec.label for spec in ASSET_SPECS
+                               if spec.kind not in ALWAYS_KEPT}, "hidden"),
+    "media_sources": ("Media sources", SOURCES_NOTE, "media", "asset_sources",
+                      lambda library: {s["id"]: s["name"]
+                                       for s in library.media_sources()}, "enabled"),
 }
 
 PAGES: dict[str, Callable[[], None]] = {

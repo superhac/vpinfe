@@ -333,8 +333,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         presets = {**GAME_VIEWS,
                    "Media": ["name", *[f"media_{kind}" for kind in kinds]],
                    "Assets": ["name", *[f"asset_{key}" for key in library.asset_keys()]]}
-        wire_views, view_picker = view_control(library, SCOPE, presets, all_fields,
-                                              columns)
+        wire_views, view_picker, showing = view_control(library, SCOPE, presets,
+                                                        all_fields, columns)
         cells = ui.toggle(list(RENDERERS), value="Ticks").props("dense no-caps unelevated")
         cells.bind_visibility_from(view_picker, "value",
                                    lambda value: value == "builtin:Media")
@@ -469,7 +469,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         # word now, so a column left to render itself would print it - which is the
         # accident this replaces, not the intent.
         table = grid.build(columns, rows, SCOPE, on_select_rows, on_context,
-                           on_header_context)
+                           on_header_context, view_of=showing)
         context_menu = ui.context_menu()
 
     def apply_renderer() -> None:
@@ -615,6 +615,35 @@ TABLE_COLUMNS = [
     *FEATURE_COLUMNS,
 ]
 
+# The kinds `resolve_for_table` answers for. Not `library.asset_keys()`, which is the
+# folder's set - a PUP pack belongs to the game and has no per-table answer.
+TABLE_ASSET_KEYS = ("backglass", "ini", "script", "pov", "scv")
+
+
+def table_asset_columns(keys: list[str]) -> list[dict[str, Any]]:
+    """One column per asset kind, for the tables grid, saying *whose* file answers.
+
+    Not the games grid's tick. Five kinds resolve per table - `.directb2s`, `.ini`,
+    `.vbs`, `.pov`, `.scv` - so the honest answer here has three values, not two: this
+    table's own file, the game's, or none. `conventions.md`: a binary fact is a tick, a
+    fact with more answers is a shaped circle, and these carry the media map's own
+    marks because it is the same question about a different file.
+
+    This is the surface a recorded defect was waiting for: the games grid reports these
+    from a folder scan, so a game whose only `.directb2s` is named for one table reads
+    "has one" while its sibling launches without a backglass.
+    """
+    labels = {key: _asset_label(key) for key in keys}
+    headers = {key: grid.two_line(label)
+               for key, label in sorted(labels.items(), key=lambda kv: kv[1].lower())}
+    width = max((grid.header_width(header) for header in headers.values()), default=92)
+    return [grid.column(f"asset_{key}", header, width,
+                        cellClass="hub-media-cell", group=_ASSETS,
+                        **grid.choice_filter(_STATE_CHOICES),
+                        **{":cellRenderer": _MARK_RENDERER})
+            for key, header in headers.items()]
+
+
 TABLE_VIEWS: dict[str, list[str]] = {
     # Default and Hidden ride in every preset: which table a game offers and whether it
     # is offered at all are the questions this view exists to answer, and a preset that
@@ -645,6 +674,13 @@ def _table_label(row: dict[str, Any]) -> str:
     return f"{game}{game_tables.JOIN}{said}" if game and said else (game or said)
 
 
+def _resolved_word(entry: dict[str, Any] | None) -> str:
+    """A per-table asset resolution as the tier word a cell draws from. Empty for none,
+    which is what a blank cell means everywhere else in these matrices."""
+    tier = media_ownership.for_resolution((entry or {}).get("resolution"))
+    return "" if tier.key == media_ownership.MISSING else tier.noun
+
+
 def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The API's tables, flattened for a grid.
 
@@ -654,6 +690,11 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     return [{**row,
              "missing": not row.get("available", True),
+             # Whose file answers for this table, in the media map's own words - the
+             # cell holds the word and the mark is drawn from it, the way media cells
+             # do. Five kinds resolve per table; the rest belong to the folder.
+             **{f"asset_{key}": _resolved_word((row.get("assets") or {}).get(key))
+                for key in TABLE_ASSET_KEYS},
              "author": ", ".join(row.get("authors") or []),
              # The name, not the id: `app_name` says why, and the column has to sort
              # and filter on what a reader can see rather than on what is stored.
@@ -685,14 +726,18 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     """
     state = state if state is not None else {}
     built = table_rows(rows)
-    fields = [definition["field"] for definition in TABLE_COLUMNS]
+    table_columns = TABLE_COLUMNS + table_asset_columns(list(TABLE_ASSET_KEYS))
+    fields = [definition["field"] for definition in table_columns]
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
         _subject_select(state, rerender, state.get("subject", "table"))
         search = ui.input(placeholder="Search tables") \
             .props("dense outlined clearable").classes("w-64")
-        wire_views, view_picker = view_control(library, f"{SCOPE}.tables",
-                                               TABLE_VIEWS, fields, TABLE_COLUMNS)
+        presets = {**TABLE_VIEWS,
+                   _ASSETS: ["game", "version", "author",
+                             *[f"asset_{key}" for key in TABLE_ASSET_KEYS]]}
+        wire_views, view_picker, showing = view_control(library, f"{SCOPE}.tables",
+                                                        presets, fields, table_columns)
         ui.space()
         # Every glyph column carries a legend (HUBUI section 6), including the state
         # drawn as nothing, which is the one a reader is least able to work out from
@@ -743,8 +788,8 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         _fill(None, col_id=col_id, pinned=bool(entry.get("pinned")))
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        table = grid.build(TABLE_COLUMNS, built, f"{SCOPE}.tables", on_select,
-                           on_context, on_header_context)
+        table = grid.build(table_columns, built, f"{SCOPE}.tables", on_select,
+                           on_context, on_header_context, view_of=showing)
         menu = ui.context_menu()
 
     async def act(what: Callable, *args: Any, said: str = "",
@@ -801,7 +846,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         with menu:
             if col_id and not col_id.startswith("ag-Grid-"):
                 header = next((definition.get("headerName")
-                               for definition in TABLE_COLUMNS
+                               for definition in table_columns
                                if definition.get("field") == col_id), col_id)
                 ui.item_label(str(header).replace("\n", " ")).props("header") \
                     .classes("hub-menu-header")
@@ -890,8 +935,9 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
     Built here in the toolbar and wired once the grid exists, because the widgets have
     to sit above the grid and the behavior needs the grid to talk to.
 
-    Returns `(wire, picker)`. Call `wire(table)` once the grid exists; the picker is
-    handed back so a caller can hang a binding off which view is showing.
+    Returns `(wire, picker, showing)`. Call `wire(table)` once the grid exists; the
+    picker is handed back so a caller can hang a binding off which view is showing, and
+    `showing()` answers the same question for the grid's own geometry.
     """
     custom, active = views.stored(library, scope)
     known = views.builtins(presets) + custom
@@ -915,7 +961,9 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
 
     def wire(table: ui.aggrid) -> None:
         async def apply(view: Any) -> None:
-            """Put a view on the grid: which columns, sorted how, filtered to what."""
+            """Put a view on the grid: which columns, sorted how, filtered to what -
+            and then this view's own widths, which the grid does not carry across a
+            switch."""
             wanted = [f for f in view.columns if f in all_fields] or all_fields
             table.run_grid_method("setColumnsVisible", wanted, True)
             table.run_grid_method("setColumnsVisible",
@@ -928,6 +976,8 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
             # Always set, even to nothing: a built-in carries no filters, and clearing
             # them is what makes going back to one a way out rather than a hope.
             table.run_grid_method("setFilterModel", view.filters or None)
+            # After visibility, because `applyOrder` only orders what is showing.
+            await grid.apply_layout(table, scope, columns, lambda: held["active"])
             await _refresh()
 
         async def _seen() -> tuple:
@@ -969,7 +1019,14 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
 
         async def save(name: str) -> None:
             shown, sort, model = await _seen()
-            view = views.View(id=f"view:{name.strip().lower()}", name=name.strip(),
+            # Saving over a name replaces that view and keeps its id, so anything
+            # keyed to it survives. A new name mints a new id - never a slug of the
+            # name, or renaming would orphan the view's own geometry.
+            wanted = name.strip()
+            standing = next((v for v in held["custom"]
+                             if v.name.strip().lower() == wanted.lower()), None)
+            view = views.View(id=standing.id if standing else views.mint_id(),
+                              name=wanted,
                               builtin=False, columns=shown,
                               sort=tuple(e for e in sort if e.get("sort")),
                               filters=model)
@@ -1044,7 +1101,7 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
             table.on(event, lambda: _refresh(), args=[])
         ui.timer(0, lambda: apply(current()), once=True)
 
-    return wire, picker
+    return wire, picker, lambda: held["active"]
 
 
 def _view_name(view: Any) -> str:

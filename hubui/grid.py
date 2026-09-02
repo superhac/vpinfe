@@ -25,9 +25,10 @@ DEFAULT_COL_DEF: dict[str, Any] = {
 }
 
 # AG Grid's own column state is the stored payload: width, order, visibility, sort, pin.
-# Layout is the grid's, whatever view is showing; visibility, sort and filters are the
-# view's. Keeping them apart is what lets a built-in view be a constant - go back to one
-# and you get its definition, not a layout that drifted. See hubui/views.py.
+# Layout belongs to the *view*, not to the grid: a tick column wants to be narrow and a
+# name column wants to be wide, and they are the same column under two views. Visibility,
+# sort and filters are the view's too - what keeps a built-in a constant is that none of
+# it is stored against the built-in's definition. See hubui/views.py.
 _SAVE_EVENTS = ("columnMoved", "columnResized", "columnPinned")
 _LAYOUT_FIELDS = ("colId", "width", "flex", "pinned")
 
@@ -189,8 +190,13 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
           on_select: Callable[[dict | None], None] | None = None,
           on_context: Callable[[dict | None], None] | None = None,
           on_header_context: Callable[[str | None], None] | None = None,
-          html_fields: list[str] | None = None) -> ui.aggrid:
-    """A grid whose column layout is restored from, and saved to, the hub."""
+          html_fields: list[str] | None = None,
+          view_of: Callable[[], str] | None = None) -> ui.aggrid:
+    """A grid whose column layout is restored from, and saved to, the hub.
+
+    `view_of` names the view showing now. Given one, geometry is stored per view - the
+    grid outlives a view change, so without it every view shares one set of widths.
+    """
     grid = ui.aggrid({
         "columnDefs": for_grid(columns),
         "rowData": rows,
@@ -243,8 +249,8 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         .forEach(e => e.classList.add('hub-row-focus'));
     };
     """)
-    _restore(grid, scope, columns)
-    _save_on_change(grid, scope)
+    _restore(grid, scope, columns, view_of)
+    _save_on_change(grid, scope, view_of)
     if on_select is not None:
         async def changed() -> None:
             rows = await grid.get_selected_rows()
@@ -268,46 +274,80 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
     return grid
 
 
-def _restore(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]]) -> None:
+def layout_scope(scope: str, view_of: Callable[[], str] | None) -> str:
+    """Where this grid's geometry lives, which is per view.
+
+    Falls back to the bare scope when no view is known - a grid without views keeps the
+    one layout it always had.
+    """
+    showing = (view_of() if view_of else "") or ""
+    return f"{scope}::{showing}" if showing else scope
+
+
+async def apply_layout(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]],
+                       view_of: Callable[[], str] | None = None) -> None:
+    """Put the showing view's geometry on the grid.
+
+    Called on gridReady and again on every view change, because the grid outlives a
+    view: switching without this leaves the last view's widths on the new one's columns.
+    """
     from hubui.api import HubClient
 
-    async def apply() -> None:
-        try:
-            stored = (await run.io_bound(HubClient().preferences, scope)).get("columns")
-        except Exception:
-            logger.warning("hub ui: could not read column state for %s", scope, exc_info=True)
-            return
-        if stored:
-            # Only columns this grid still has - state for ones it lost collapses them
-            # all - and only the layout fields, in as well as out: a payload written
-            # before views existed carries `hide`, which would override the view.
-            known = {definition["field"] for definition in columns}
-            state = [{k: entry[k] for k in _LAYOUT_FIELDS if k in entry}
-                     for entry in stored if entry.get("colId") in known]
-            if state:
-                grid.run_grid_method("applyColumnState",
-                                     {"state": state, "applyOrder": True})
+    where = layout_scope(scope, view_of)
+    try:
+        stored = (await run.io_bound(HubClient().preferences, where)).get("columns")
+    except Exception:
+        logger.warning("hub ui: could not read column state for %s", where, exc_info=True)
+        return
+    # Only the layout fields, in as well as out: a payload written before views existed
+    # carries `hide`, which would override the view.
+    saved = {entry["colId"]: {k: entry[k] for k in _LAYOUT_FIELDS if k in entry}
+             for entry in (stored or []) if entry.get("colId")}
+    # Every column this grid has gets a definite width, not only the ones with one
+    # stored: a view with no geometry of its own must go back to the definitions rather
+    # than keep the last view's. `defaultState: {"width": None}` reads as if it would do
+    # this and does not - measured, a 505px name column survived the switch.
+    #
+    # Pinning is deliberately not reset. It is set by the column definition rather than
+    # by a layout, and forcing it here unpins the selection column.
+    state = []
+    for definition in columns:
+        field_id = definition["field"]
+        want = dict(saved.get(field_id) or {})
+        want.setdefault("colId", field_id)
+        want.setdefault("width", definition.get("width"))
+        if want.get("width") is None:
+            want.pop("width", None)
+        state.append(want)
+    # Ordered only where the view has an order of its own; otherwise the definitions'.
+    grid.run_grid_method("applyColumnState",
+                         {"state": state, "applyOrder": bool(saved)})
 
+
+def _restore(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]],
+             view_of: Callable[[], str] | None) -> None:
     # gridReady rather than a timer: a timer outlives the grid when the view changes,
     # and firing under a cleared container raises "parent slot has been deleted".
-    grid.on("gridReady", apply)
+    grid.on("gridReady", lambda: apply_layout(grid, scope, columns, view_of))
 
 
-def _save_on_change(grid: ui.aggrid, scope: str) -> None:
+def _save_on_change(grid: ui.aggrid, scope: str,
+                    view_of: Callable[[], str] | None) -> None:
     from hubui.api import HubClient
 
     async def save() -> None:
+        where = layout_scope(scope, view_of)
         try:
             state = await grid.run_grid_method("getColumnState")
             # Stripped to the layout: storing `hide` or `sort` would make a built-in
             # drift, which is the one thing it must never do.
             layout = [{k: entry[k] for k in _LAYOUT_FIELDS if k in entry}
                       for entry in (state or [])]
-            await run.io_bound(HubClient().put_preferences, scope, {"columns": layout})
+            await run.io_bound(HubClient().put_preferences, where, {"columns": layout})
         except Exception:
             # A layout that fails to save is worth a log and nothing more - it must
             # never take down the grid the user is working in.
-            logger.warning("hub ui: could not save column state for %s", scope, exc_info=True)
+            logger.warning("hub ui: could not save column state for %s", where, exc_info=True)
 
     for event in _SAVE_EVENTS:
         # A resize fires per pixel. nicegui's own throttle, so no timer outlives the

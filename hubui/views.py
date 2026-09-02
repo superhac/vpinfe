@@ -15,6 +15,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from common.games.ids import new_id
+
 logger = logging.getLogger("vpinfe.hubui.views")
 
 # Where the user's own views live, beside the layout the grid saves for itself.
@@ -32,6 +34,16 @@ class View:
     columns: tuple[str, ...] = ()
     sort: tuple[dict[str, Any], ...] = ()
     filters: dict[str, Any] = field(default_factory=dict)
+
+
+def mint_id() -> str:
+    """A new custom view's id.
+
+    Minted rather than derived from the name, which is what it used to be. An id that is
+    a slug of the name changes when the name does, and anything keyed to it - geometry,
+    most of all - is orphaned by a rename. The name is a label; this is the identity.
+    """
+    return f"view:{new_id()}"
 
 
 def builtins(presets: dict[str, list[str]]) -> list[View]:
