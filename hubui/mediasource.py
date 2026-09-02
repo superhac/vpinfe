@@ -18,8 +18,9 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common import labels
 from common.media_specs import media_family
-from hubui import confirm, mediamap, mediaview
+from hubui import candidates, confirm, media_ownership, mediamap
 
 logger = logging.getLogger("vpinfe.hubui.mediasource")
 
@@ -81,7 +82,8 @@ class _Sources:
         self.placed_at: dict[str, Any] | None = None
         self.chosen_extension = ""
         self.filename_note: Any = None
-        self.conflict_note: Any = None
+        self._marks: dict[str, Any] = {}
+        self._own_id = ""
 
     async def load_placements(self) -> None:
         """Where a file could land here, so it can be chosen rather than inferred."""
@@ -104,17 +106,42 @@ class _Sources:
         return str((self.placed_at or {}).get("table") or "")
 
     def _destination_row(self) -> None:
-        """The one decision every way in shares, so it is made once and above them."""
+        """The one decision every way in shares, so it is made once and above them.
+
+        Every option on screen rather than behind a select: there are rarely more than
+        a few, and what they differ by is the name the file gets - which a closed
+        control shows one of at a time.
+        """
         if not self.placements:
             return
-        options = {item["table"]: _placement_label(item) for item in self.placements}
         with ui.column().classes("w-full gap-0 hub-destination"):
-            picker = ui.select(options, value=self.destination, label="Save it as") \
-                .props("outlined dense").classes("w-full")
+            ui.label("Save it as").classes("hub-card-title")
+            for item in self.placements:
+                self._placement_choice(item)
             self.filename_note = ui.label("").classes("hub-help hub-destination-name")
-            self.conflict_note = ui.label("").classes("hub-destination-conflict")
-        picker.on_value_change(lambda event: self._choose_placement(event.value))
         self._describe_placement()
+
+    def _placement_choice(self, item: dict[str, Any]) -> None:
+        """One name the file could be given, under the scope that name carries.
+
+        The chip is the media map's own, so the choice made here is labelled with the
+        words the map will use about the file afterwards.
+        """
+        table = str(item.get("table") or "")
+        row = ui.row().classes("items-start gap-2 w-full no-wrap hub-placement")
+        with row:
+            mark = ui.icon("radio_button_unchecked").classes("hub-placement-mark")
+            media_ownership.badge_for(
+                media_ownership.TABLE if table else media_ownership.GAME)
+            with ui.column().classes("gap-0 min-w-0 grow"):
+                ui.label(str(item.get("base") or "")).classes("hub-placement-name")
+                going = list(item.get("displaces") or [])
+                if going:
+                    ui.label(f"Replaces {len(going)} file"
+                             f"{'s' if len(going) != 1 else ''} already there") \
+                        .classes("hub-destination-conflict")
+        self._marks[table] = mark
+        row.on("click", lambda t=table: self._choose_placement(t))
 
     def _choose_placement(self, table: str) -> None:
         self.placed_at = next((item for item in self.placements
@@ -122,19 +149,17 @@ class _Sources:
         self._describe_placement()
 
     def _describe_placement(self) -> None:
-        """The exact filename, and what picking it would cost."""
-        chosen = self.placed_at or {}
-        base = str(chosen.get("base") or "")
-        # The extension comes from the file, which on the upload tab is not chosen
-        # yet - so the kind's usual one stands in and is marked as a guess.
-        suffix = self.chosen_extension or (self.extensions[0] if self.extensions else "")
-        self.filename_note.text = (f"{base}{suffix}" if self.chosen_extension
-                                   else f"{base}{suffix}  (extension follows the file)")
-        going = list(chosen.get("displaces") or [])
-        self.conflict_note.text = (
-            f"Replaces {len(going)} file{'s' if len(going) != 1 else ''} already there"
-            if going else "")
-        self.conflict_note.set_visibility(bool(going))
+        """Which name is taken, and the one thing the name on screen cannot say."""
+        for table, mark in self._marks.items():
+            picked = table == self.destination
+            mark.props(f'name={"radio_button_checked" if picked else
+                                "radio_button_unchecked"}')
+            mark.classes(replace="hub-placement-mark"
+                         + (" hub-placement-mark--on" if picked else ""))
+        # The extension comes from the file, which on the upload tab is not chosen yet.
+        self.filename_note.text = (
+            f"Saved as {self.chosen_extension}" if self.chosen_extension
+            else "The extension follows the file you choose")
 
     def note_extension(self, filename: str) -> None:
         """The picked file's extension, so the name shown is the name it will get."""
@@ -179,37 +204,10 @@ class _Sources:
 
     def candidate(self, src: str, name: str, meta: str, tag: str,
                   take: Callable) -> None:
-        """One file you could put in the slot: what it looks like, and what it is.
-
-        A thumbnail this size is the point of the row - the question being answered is
-        whether the art is any good, and that is not a question a filename answers. The
-        enlarge is for when the thumbnail is not enough, which for a playfield it
-        usually is not.
-        """
-        family = media_family(self.kind)
-        with ui.row().classes("items-center gap-3 w-full no-wrap hub-source-row"):
-            with ui.element("div").classes("hub-source-thumb"):
-                if src and family == "video":
-                    ui.html(f'<video src="{src}#t=0.1" preload="metadata" muted '
-                            f'playsinline></video>')
-                elif src and family == "image":
-                    ui.html(f'<img src="{src}" loading="lazy">')
-                else:
-                    ui.icon({"audio": "graphic_eq"}.get(family, "description")) \
-                        .classes("hub-source-thumb-glyph")
-            with ui.column().classes("gap-0 min-w-0 grow"):
-                ui.label(name).classes("hub-source-name")
-                if meta:
-                    ui.label(meta).classes("hub-help")
-                if tag:
-                    ui.label(tag).classes("hub-source-tag")
-            if src and family in ("image", "video"):
-                ui.button(icon="open_in_full",
-                          on_click=lambda: mediaview.open_viewer(src, self.kind, name)) \
-                    .props("flat dense round size=sm").classes("shrink-0") \
-                    .tooltip("Enlarge")
-            ui.button("Use", on_click=take).props("flat dense no-caps size=sm") \
-                .classes("hub-action shrink-0")
+        """A candidate row carrying what this dialog knows: how to draw a file of the
+        kind being replaced."""
+        candidates.row(src, name, meta, tag, take,
+                       family=media_family(self.kind))
 
     # --- from the computer you are looking at this from ----------------------
 
@@ -315,7 +313,7 @@ class _Sources:
     def _folder_link(self, label: str, path: str, listing: ui.column,
                      up: bool = False) -> None:
         row = ui.row().classes("items-center gap-2 w-full no-wrap hub-source-row "
-                               "hub-source-row--folder")
+                               "hub-source-row--pick hub-source-row--folder")
         with row:
             ui.icon("arrow_upward" if up else "folder").classes("shrink-0")
             ui.label(label).classes("hub-source-name")
@@ -356,14 +354,22 @@ class _Sources:
         Any other entry because the match is not always right and not always there: a
         mod, a table the identifier missed, or a game whose art someone simply prefers.
         Locking this to the game's own id would make the common repair impossible.
+
+        What is on offer comes first and the search under it, because borrowing another
+        game's art is the rare errand and the files are what the tab is for. The search
+        opens holding this game's name, which is both a starting point to edit and the
+        answer to what the list above is showing.
         """
         body.clear()
         game = self.context["game"]
+        self._own_id = str(game.get("vps_id") or "")
         with body:
-            search = ui.input(placeholder="Take it from another game - search by name") \
+            self.online_head = ui.label("").classes("hub-card-title")
+            self.online_body = ui.column().classes("w-full gap-1 hub-source-offers")
+            ui.label("Search another game").classes("hub-card-title hub-source-under")
+            search = ui.input(value=str(game.get("name") or "")) \
                 .props("outlined dense clearable").classes("w-full")
-            results = ui.column().classes("w-full gap-1")
-            self.online_body = ui.column().classes("w-full gap-1")
+            results = ui.column().classes("w-full gap-1 hub-source-found")
         search.on("keydown.enter",
                   lambda: self._search_games(results, search.value or ""))
         # Read for the names, which label the rows. Not announced up front - every row
@@ -372,7 +378,7 @@ class _Sources:
             self._known_sources = await run.io_bound(self.library.media_sources)
         except Exception:
             self._known_sources = []
-        await self._show_offers(self.online_body, game.get("vps_id") or "",
+        await self._show_offers(self.online_body, self._own_id,
                                 game.get("name") or "this game")
 
     def _searched(self) -> str:
@@ -403,19 +409,34 @@ class _Sources:
                 self._game_choice(item)
 
     def _game_choice(self, item: dict[str, Any]) -> None:
-        name = " ".join(str(part) for part in
-                        (item.get("name"), item.get("manufacturer"), item.get("year"))
-                        if part)
-        row = ui.row().classes("items-center gap-2 w-full no-wrap hub-source-row "
-                               "hub-source-row--folder")
-        with row:
-            ui.icon("videogame_asset").classes("shrink-0")
-            ui.label(name).classes("hub-source-name")
-        row.on("click", lambda i=item: self._show_offers(
-            self.online_body, i.get("vps_id") or "", i.get("name") or "that game"))
+        """One machine the search found, with its photograph where VPS has one.
+
+        Art rather than a line of text because this list is answering "which machine do
+        I mean", and the photograph settles that faster than a name that differs from
+        the one you know it by.
+        """
+        made = " ".join(str(part) for part in
+                        (item.get("manufacturer"), item.get("year")) if part)
+        candidates.choice(item.get("img_url") or "",
+                          str(item.get("name") or ""), made,
+                          lambda i=item: self._show_offers(
+                              self.online_body, i.get("vps_id") or "",
+                              i.get("name") or "that game"),
+                          glyph="videogame_asset")
 
     async def _show_offers(self, body: ui.column, vps_id: str, name: str) -> None:
+        """The files one game is offered, under a heading that names that game.
+
+        Named because this list and the search above it drift apart: you search for
+        something else, and the files below go on being the ones you were already
+        looking at. Nothing said which game they belonged to.
+        """
         body.clear()
+        # Named only when it is not this game's own: a heading that says the obvious on
+        # every visit stops being read by the time it matters.
+        found_online = labels.plural(self.label) + " found online"
+        self.online_head.text = (found_online if vps_id == self._own_id
+                                 else f"{found_online} for {name}")
         if not vps_id:
             with body:
                 ui.label("This game has no VPS id, so there is nothing to look up. "
@@ -431,11 +452,9 @@ class _Sources:
         with body:
             if not found:
                 where = self._searched()
-                ui.label(f"No {self.label.lower()} for {name} in {where}"
-                         if where else
+                ui.label(f"Nothing in {where}" if where else
                          "No online sources are switched on").classes("hub-help")
                 return
-            ui.label(f"From {name}:").classes("hub-help")
             named = {item["id"]: item["name"]
                      for item in (self._known_sources or [])}
             for offer in found:

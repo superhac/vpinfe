@@ -1685,16 +1685,17 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   background: var(--surface-1); border: 1px solid var(--line);
 }
 /* A row that navigates rather than acting: the whole thing is the target, so it says
-   so on hover instead of hiding a click behind a label. */
-.hub-source-row--folder { cursor: pointer; }
-/* One line for a folder: these names carry the maker and year and run long, and four
-   wrapped lines of one row makes a list of them unreadable. */
-.hub-source-row--folder .hub-source-name {
+   so on hover instead of hiding a click behind a label. Separate from --folder, which
+   is one of these and also a row with no picture in it. */
+.hub-source-row--pick { cursor: pointer; }
+/* One line: these names carry the maker and year and run long, and four wrapped lines
+   of one row makes a list of them unreadable. */
+.hub-source-row--pick .hub-source-name {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   word-break: normal; min-width: 0;
 }
 .hub-source-trail { word-break: break-word; padding-bottom: 2px; }
-.hub-source-row--folder:hover {
+.hub-source-row--pick:hover {
   border-color: var(--accent); background: rgba(0, 217, 255, 0.06);
 }
 /* The one decision every way in feeds, so it sits above them rather than inside one.
@@ -1710,6 +1711,23 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .hub-destination-conflict {
   font-size: var(--fs-caption); color: var(--ink-2); padding-top: 2px;
 }
+/* One name the file could take. The whole row is the target: the mark is small and
+   the name is the part being read, so asking for the mark would be a worse target
+   than the thing it belongs to. */
+.hub-placement { padding: 4px 2px; cursor: pointer; border-radius: 4px; }
+.hub-placement:hover { background: rgba(255, 255, 255, 0.04); }
+.hub-placement-mark { font-size: 18px; color: var(--ink-3); margin-top: 1px; }
+/* Accent, because this is the one chosen - which is what accent is for. */
+.hub-placement-mark--on { color: var(--accent); }
+/* These are filenames and they run long. Wrapped rather than trimmed: what tells two
+   of them apart sits in the middle, so an ellipsis at either end can eat it. */
+.hub-placement-name {
+  font-size: var(--fs-body); color: var(--ink-2);
+  word-break: break-word; line-height: 1.3;
+}
+/* A second heading in a panel that opened with one needs the air, or the list above
+   reads as belonging to it. */
+.hub-source-under { padding-top: 10px; }
 
 .hub-sources-panels { min-height: 260px; }
 /* Quasar paints its own ground on panels and on the tab bar. Left alone it is a pale
@@ -1725,6 +1743,11 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* Every tab is a list of candidates, and the dialog is capped - so the list scrolls
    inside it rather than the dialog growing past the window. */
 .hub-source-list { max-height: 52vh; overflow-y: auto; }
+/* The online tab stacks two of these, and they are not equals: the games are how you
+   get to the files, and the files are what you came for. Uncapped, a long search
+   pushed the files off the bottom of the dialog with nothing to scroll. */
+.hub-source-found { max-height: 26vh; overflow-y: auto; }
+.hub-source-offers { max-height: 40vh; overflow-y: auto; }
 /* A folder is a line, not a picture: it has no thumbnail, so it should not reserve
    the height of one. */
 .hub-source-row--folder { padding: 5px 8px; }
@@ -1742,6 +1765,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   flex: 0 0 auto; width: 132px; height: 99px; border-radius: 4px;
   border: 1px solid var(--line); overflow: hidden; background: var(--surface-0);
   display: flex; align-items: center; justify-content: center;
+  position: relative;
 }
 .hub-source-thumb img, .hub-source-thumb video {
   max-width: 100%; max-height: 100%; object-fit: contain;
@@ -1749,6 +1773,26 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* A kind with no frame to show - audio, a rule sheet - keeps the same footprint, so a
    list of them does not step in and out as it scrolls. */
 .hub-source-thumb-glyph { font-size: 32px; color: var(--ink-3); }
+
+/* A bigger look at a thumbnail, on hover. These rows live inside a dialog, and opening
+   a second dialog over the first to glance at a picture is a lot of ceremony - so this
+   is a preview and not the viewer. It rides in a tooltip because the lists around it
+   scroll, and anything drawn inside a scrolling box is clipped by it. */
+.hub-thumb-peek {
+  background: #0b0520 !important; padding: 4px !important;
+  border: 1px solid #2b1a4d; border-radius: 6px;
+  max-width: none !important;
+}
+/* Slightly larger, not a viewer. Big enough and it covers the rows either side of the
+   one being pointed at, which is the list you are reading. */
+.hub-thumb-peek img, .hub-thumb-peek video {
+  display: block; max-width: 300px; max-height: 40vh;
+}
+/* Recognising a machine is a smaller question than judging a piece of art, and this
+   list is the long one - a dozen results at the full size is most of a screen. The
+   enlarge is what covers the case where the small picture is not enough. */
+.hub-source-thumb--small { width: 76px; height: 57px; }
+.hub-source-thumb--small .hub-source-thumb-glyph { font-size: 22px; }
 
 /* What a file already does for this game, when it does something. Not a warning:
    using it again is legitimate, and the tag is there so nobody has to wonder. */

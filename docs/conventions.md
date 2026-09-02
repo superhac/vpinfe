@@ -389,7 +389,16 @@ A panel that shows facts uses the same control for the same kind of value, every
 Mixing them — a checkbox here, a text state and a button there — makes the reader work out
 three times what one convention says once.
 
-**The row is the box, not the value.** Every value centres in a row of `--fact-row`
+**A select hides its options, which is right until the options are the information.** Where
+the choice is between named things a reader already knows — a theme, a sort order, a table —
+one line showing the current answer is what a panel wants. Where the label of each option is
+itself the thing being decided, a closed control shows one at a time and makes the reader
+open it to compare. Then the set goes on screen whole, as radios: the media source dialog
+picks the *filename* a file will be saved under, and the two candidates differ in the middle
+of a long name. Reading them against each other is the choice. The test is not how many
+options there are — it is whether the reader has to hold one in their head to judge the next.
+
+**The row is the box, not the value.** Every value centers in a row of `--fact-row`
 whatever it holds, so the air around one does not depend on its kind. At 26px a text
 value sat 21px in the row while a chip carried its own padding and read roomier — the
 same rhythm, felt as two. Content that wraps is the only thing that grows a row.

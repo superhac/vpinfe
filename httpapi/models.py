@@ -1406,6 +1406,9 @@ class VpsSearchResult(ApiModel):
     # How many builds exist for this machine. Context for choosing which machine you
     # have, not a choice in itself - the release is a later question.
     releases: int = 0
+    # A photograph of the machine, where VPS has one - it does for 39% of entries, so
+    # a consumer cannot lay out around it being there.
+    img_url: str = ""
     # The entry on VPS, so a surface can link out rather than making somebody search
     # for what it has already identified.
     url: str = ""

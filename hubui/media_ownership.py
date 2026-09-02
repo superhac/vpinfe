@@ -129,7 +129,16 @@ def sentence(via: str | None, *, viewing_a_table: bool = False) -> str:
     return ""
 
 
+def _chip(tier: Tier, extra: str) -> ui.element:
+    return ui.label(tier.noun).classes(f"hub-tier {tier.css} {extra}".strip())
+
+
 def badge(via: str | None, *, extra: str = "") -> ui.element:
     """The one visual mark for who owns a file, wherever a file is shown."""
-    tier = of(via)
-    return ui.label(tier.noun).classes(f"hub-tier {tier.css} {extra}".strip())
+    return _chip(of(via), extra)
+
+
+def badge_for(key: str, *, extra: str = "") -> ui.element:
+    """The same mark for a state named outright rather than read off a resolver -
+    a chooser saying what a file *would* be has no `via` to derive it from."""
+    return _chip(tier_for(key), extra)

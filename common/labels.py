@@ -30,6 +30,29 @@ SMALL_WORDS = frozenset({
 })
 
 
+# Labels naming a substance rather than a countable thing. "Audios" is not a word, and
+# these are the only media kinds a plural would be reached for.
+MASS = frozenset({"audio"})
+
+_SIBILANT = ("s", "x", "z", "ch", "sh")
+
+
+def plural(label: str) -> str:
+    """A label naming more than one of its thing, for a heading over a list of them.
+
+    Two rules, which is all the media kinds need: a mass noun does not count, and a
+    sibilant takes -es. Anything harder belongs in the registry that owns the label.
+    """
+    last = label.rsplit(" ", 1)[-1].lower()
+    if not label or last in MASS:
+        return label
+    # An acronym takes a plain s whatever it ends in: "FSSes" reads as a word and it
+    # is not one.
+    if last in ACRONYMS or last.endswith(_SIBILANT):
+        return label + ("s" if last in ACRONYMS else "es")
+    return label + "s"
+
+
 def field_label(text: str) -> str:
     """A label as a person reads it: title case, acronyms as acronyms.
 
