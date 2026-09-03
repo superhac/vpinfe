@@ -191,7 +191,11 @@ body::before {
   --ag-row-hover-color: var(--surface-hover);
   --ag-border-color: var(--line);
   --ag-header-foreground-color: var(--ink-2);
-  --ag-foreground-color: var(--ink);
+  /* The body reads at --ink-2, not --ink. A grid is most of the text on screen - 85% of
+     it here - and the top of the ink scale applied to all of it is what made the hub
+     relentless rather than crisp. The name column keeps --ink below, so the thing you
+     scan for is still the brightest thing in the row. */
+  --ag-foreground-color: var(--ink-2);
   --ag-font-size: var(--fs-body);
 
   /* Cyan carries selection and focus. Purple was doing every job at once, which is
@@ -203,6 +207,10 @@ body::before {
   --ag-input-focus-border-color: var(--accent);
   --ag-checkbox-checked-color: var(--accent);
 }
+
+/* The identifier a row is scanned by stays at the top of the ink scale; everything
+   beside it supports it. Pinned left is where both grids put that column. */
+.ag-pinned-left-cols-container .ag-cell { color: var(--ink); }
 .ag-header { border-bottom: 1px solid rgba(0, 217, 255, 0.35) !important; }
 /* Two states, one color: both answer "which one", and a second hue would read as a
    third meaning. Selected is a fill, focused is a band, and a row can be both.
@@ -263,7 +271,7 @@ body::before {
   min-height: 30px;
   padding: 4px 12px;
   font-size: var(--fs-body);
-  color: var(--ink);
+  color: var(--ink-2);
 }
 .q-menu .q-item:hover { background: var(--surface-hover); }
 .q-menu .q-separator { background: var(--line-strong); margin: 2px 0; }
@@ -1529,6 +1537,22 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   border-color: var(--accent);
   background: rgba(0, 217, 255, 0.10);
 }
+/* What you typed is data, like a grid cell, so it rests at --ink-2 rather than the
+   pure white Quasar leaves it at. A settings page is mostly long file paths in wide
+   boxes, and at 18.8:1 - brighter than the top of our own scale - that is the loudest
+   thing on the page while being the part you are not currently reading.
+
+   The field you are actually in comes up to --ink. That is the one you are working on,
+   and it is the only one that needs to be. */
+.q-field__native,
+.q-field__input { color: var(--ink-2); }
+.q-field--focused .q-field__native,
+.q-field--focused .q-field__input { color: var(--ink); }
+/* Not a value - a prompt for one. It reads as the quiet step everything explanatory
+   takes, rather than as dimmed white. */
+.q-field__native::placeholder,
+.q-field__input::placeholder { color: var(--ink-3) !important; opacity: 1; }
+
 .hub-edit-field .q-field__native {
   font-size: var(--fs-body); color: var(--ink); padding: 0;
 }
@@ -2002,7 +2026,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   cursor: pointer;
   font-size: var(--fs-body);
   font-weight: 500;
-  color: var(--ink);
+  color: var(--ink-2);
   padding: 0;
   margin: 2px 8px;
   border-radius: 6px;
