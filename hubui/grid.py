@@ -157,7 +157,8 @@ def two_line(header: str) -> str:
     return header if len(words) < 2 else " ".join(words[:-1]) + "\n" + words[-1]
 
 
-def column(field: str, header: str, width: int = 0, **extra: Any) -> dict[str, Any]:
+def column(field: str, header: str, width: int = 0, help: str = "",
+           **extra: Any) -> dict[str, Any]:
     """A column sized to fit, which is its header unless the content needs more.
 
     **Omit `width`.** Pass one only where the values are longer than the header - a
@@ -171,8 +172,12 @@ def column(field: str, header: str, width: int = 0, **extra: Any) -> dict[str, A
     on one line beside media headers that did not.
     """
     header = two_line(header)
+    # `help` earns its place only where the header does not already say it. What the
+    # column is, and what its values mean - a line that restates the header is a
+    # tooltip charged for nothing.
+    tip = {"headerTooltip": help} if help else {}
     return {"field": field, "headerName": header,
-            "width": max(width, header_width(header))} | extra
+            "width": max(width, header_width(header))} | tip | extra
 
 
 # Ours, not AG Grid's: it names the group a column sits under in the column picker.
@@ -272,6 +277,34 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
                 lambda event: on_header_context((event.args or {}).get("colId")),
                 args=["colId"])
     return grid
+
+
+def column_menu(menu: Any, table: Any, columns: list[dict[str, Any]],
+                col_id: str | None, pinned: bool) -> bool:
+    """Fill a context menu with what can be done to a column, or answer False.
+
+    The header half of every grid's menu, in one place. It was written out per grid and
+    two of them simply never got it, which is how a grid ends up without pinning that
+    every other one has.
+    """
+    if not col_id or col_id.startswith("ag-Grid-"):
+        return False
+    header = next((definition.get("headerName") for definition in columns
+                   if definition.get("field") == col_id), col_id)
+    ui.item_label(str(header).replace("\n", " ")).props("header") \
+        .classes("hub-menu-header")
+    ui.separator()
+    # One entry that says what it will do, rather than two where one is always a no-op.
+    ui.menu_item("Unpin" if pinned else "Pin left",
+                 lambda: table.run_grid_method(
+                     "applyColumnState",
+                     {"state": [{"colId": col_id,
+                                 "pinned": None if pinned else "left"}]})) \
+        .classes("hub-menu-item")
+    ui.menu_item("Hide column",
+                 lambda: table.run_grid_method("setColumnsVisible", [col_id], False)) \
+        .classes("hub-menu-item")
+    return True
 
 
 def layout_scope(scope: str, view_of: Callable[[], str] | None) -> str:

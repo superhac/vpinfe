@@ -72,24 +72,38 @@ _RATING_CHOICES = ([{"value": 0, "label": "Unrated"}]
 # own click would move the focused row, and rating a row you can see is not a request
 # to go and look at it.
 COLUMNS = [
-    grid.column("name", "Name", 280, pinned="left", group=_GAME),
+    grid.column("name", "Name", 280, pinned="left", group=_GAME,
+                help="The machine, as your library names it.\n"
+                     "One row is one game folder, however many tables are in it."),
     # Always, including 1: it is the only thing saying the row collapses its tables,
     # and it qualifies everything to its right. HUBUI section 13. "Table Count" rather
     # than "Tables", which read as the tables themselves - this is a number about the
     # game, and it belongs with the game's other facts.
-    grid.column("table_count", "Table Count", type="numericColumn", group=_GAME),
-    grid.column("manufacturer", "Manufacturer", group=_GAME),
-    grid.column("year", "Year", group=_GAME),
-    grid.column("game_type", "Type", group=_GAME),
+    grid.column("table_count", "Table Count", type="numericColumn", group=_GAME,
+                help="How many .vpx files this game folder holds.\n"
+                     "More than one means several builds of the same machine, and\n"
+                     "everything to the right is the folder's answer rather than\n"
+                     "any one build's. The Tables page separates them."),
+    grid.column("manufacturer", "Manufacturer", group=_GAME,
+                help="Who made the machine."),
+    grid.column("year", "Year", group=_GAME,
+                help="The year the machine was released."),
+    grid.column("game_type", "Type", group=_GAME,
+                help="What kind of machine it is - solid state, electro-mechanical,\n"
+                     "pure mechanical, or an original with no real counterpart."),
     # Qualified for the reason Game Rating is: the hub has a *frontend* theme and will
     # have a hub one, so "Themes" in a column header is three things one screen apart.
     # The panel says "Themes" plainly, because a group headed Machine has said which.
-    grid.column("themes", "Game Themes", 200, group=_GAME),
+    grid.column("themes", "Game Themes", 200, group=_GAME,
+                help="What the machine is about - its subject, not the hub's look.\n"
+                     "Comes from the catalog, and a machine can carry several."),
     # No ROM or Version here: ROM is an asset (`asset_registry`), Version has no
     # game-level meaning, and both were the default table's shown as the game's.
     # Named for whose rating it is, because the tables grid has one too and "Rating"
     # in two places invites the reader to assume they are the same number.
     grid.column("rating", "Game Rating", group=_GAME,
+                help="Your rating for the machine, 0 to 5. Click a star to set it.\n"
+                     "Separate from a table's rating, which is per build.",
                 cellClass="hub-stars-cell",
                 **grid.choice_filter(_RATING_CHOICES),
                 **{":cellRenderer": stars.renderer("game")}),
@@ -295,7 +309,8 @@ async def _launch(games: list[dict[str, Any]]) -> None:
 def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
           on_select: Callable[[dict | None], None],
           state: dict[str, Any] | None = None,
-          rerender: Callable[[], None] | None = None) -> None:
+          rerender: Callable[[], None] | None = None,
+          rescan: Callable[[], Any] | None = None) -> None:
     state = state if state is not None else {}
     columns = COLUMNS + asset_columns(library.asset_keys()) + media_columns(kinds)
     all_fields = [definition["field"] for definition in columns]
@@ -330,6 +345,11 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         # The selection count sits with the total: it is the same fact - how much am I
         # looking at - and it costs no vertical space of its own.
         count = ui.label(f"{len(rows)} games").classes("text-xs hub-label")
+        if rescan is not None:
+            ui.button(icon="refresh", on_click=rescan) \
+                .props("flat dense round size=sm").classes("shrink-0") \
+                .tooltip("Read the library from disk again and pick up anything "
+                         "added, changed or removed - tables, media and assets")
         actions = ui.button(icon="more_vert").props("flat round dense") \
             .tooltip("Actions for the selected games")
         with actions:
@@ -562,11 +582,21 @@ _TABLE = "Table"
 _IN_PLAY = "In this library"
 
 TABLE_COLUMNS = [
-    grid.column("game", "Game", 240, pinned="left", group=_GAME),
-    grid.column("version", "Version", group=_TABLE),
-    grid.column("author", "Author", 160, group=_TABLE),
-    grid.column("rom", "ROM", 110, group=_TABLE),
-    grid.column("app", "App", group=_TABLE),
+    grid.column("game", "Game", 240, pinned="left", group=_GAME,
+                help="The machine this build is of. Several rows share one when a\n"
+                     "folder holds more than one .vpx."),
+    grid.column("version", "Version", group=_TABLE,
+                help="The build's own version, as its author set it.\n"
+                     "Blank where the file does not carry one."),
+    grid.column("author", "Author", 160, group=_TABLE,
+                help="Who built this table. Several names where it was a\n"
+                     "collaboration."),
+    grid.column("rom", "ROM", 110, group=_TABLE,
+                help="The PinMAME rom this build actually resolves to, aliases\n"
+                     "followed. Blank on a table that drives no emulator - an\n"
+                     "electro-mechanical machine needs none."),
+    grid.column("app", "App", group=_TABLE,
+                help="What plays this file."),
     # One column per fact rather than one word folding three together. "Status" cannot
     # stay one column anyway - has an update, missing its rom and the rest are all
     # status - and folded, a table that is both the default and hidden reads as only
@@ -574,25 +604,40 @@ TABLE_COLUMNS = [
     # for. A summary column can be built later, deliberately, from these.
     # Not a tick: a chosen default and a derived one are different facts.
     grid.column("default_state", game_tables.DEFAULT_LABEL, group=_IN_PLAY,
+                help="Which build the frontend offers when it can show only one.\n\n"
+                     "Chosen - you picked it.\n"
+                     "Automatic - nobody picked, so one was derived. It moves if\n"
+                     "the folder changes.",
                 **grid.choice_filter(
                     [{"value": word, "label": word}
                      for word, _why in game_tables.DEFAULT_WORDS.values()]
                     + [{"value": "", "label": "Not the default"}])),
     grid.column("rating", "Table Rating", group=_TABLE,
+                help="Your rating for this build, 0 to 5. Click a star to set it.\n"
+                     "Separate from the machine's rating.",
                 cellClass="hub-stars-cell",
                 **grid.choice_filter(_RATING_CHOICES),
                 **{":cellRenderer": stars.renderer("table")}),
     # Each column's own words, not a generic pair: "Hidden: Yes" is a question about a
     # question, where "Hidden / Offered" is the fact and its opposite.
     grid.column("hidden", "Hidden", group=_IN_PLAY,
+                help="Ticked where the frontend does not offer this build.\n"
+                     "The file stays where it is - hiding never deletes anything,\n"
+                     "and a patch base has to stay on disk.",
                 **{**_TICK, **grid.choice_filter(
                     _two(game_tables.HIDDEN_WORDS))}),
     grid.column("missing", "Missing", group=_IN_PLAY,
+                help="Ticked where the library describes this table but the file is\n"
+                     "not on disk. A share that has not mounted looks like this, so\n"
+                     "the entry is kept rather than removed.",
                 **{**_TICK, **grid.choice_filter(
                     _two(game_tables.FILE_WORDS))}),
     # Last and widest: it is the identifier of record, and the part that tells two
     # tables of one game apart sits at its end.
-    grid.column("filename", game_tables.FILE, 420, group=_TABLE),
+    grid.column("filename", game_tables.FILE, 420, group=_TABLE,
+                help="The .vpx itself. The identifier of record, and what tells\n"
+                     "two builds of one machine apart - which is usually at the\n"
+                     "end of the name, so this column is last and widest."),
     *FEATURE_COLUMNS,
 ]
 
@@ -698,7 +743,8 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def build_tables(rows: list[dict[str, Any]], library: Any,
                  on_select: Callable[[dict | None], None],
                  state: dict[str, Any] | None = None,
-                 rerender: Callable[[], None] | None = None) -> None:
+                 rerender: Callable[[], None] | None = None,
+                 rescan: Callable[[], Any] | None = None) -> None:
     """The library seen by launchable file rather than by folder.
 
     Its own builder rather than a branch inside the games grid: the columns, the views
@@ -740,6 +786,11 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                                     lambda value: value == "builtin:Features")
         ui.label(f"{len(built)} tables in {len({r['game_id'] for r in built})} games") \
             .classes("text-xs hub-label")
+        if rescan is not None:
+            ui.button(icon="refresh", on_click=rescan) \
+                .props("flat dense round size=sm").classes("shrink-0") \
+                .tooltip("Read the library from disk again and pick up anything "
+                         "added, changed or removed - tables, media and assets")
 
     # The workbench follows the focused row, the same way it does under Games - focus
     # rather than selection, so arrowing down the list is a sweep and the checkboxes
@@ -956,6 +1007,11 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
     picker = ui.select({view.id: _view_name(view) for view in known}, value=active,
                        label="View").props("dense outlined") \
         .classes("w-52 hub-view-picker")
+    # The selected view's own words for what it is for, on the control that names it.
+    # A view the user saved carries none - they named it, which is their description -
+    # so the tooltip goes rather than hovering an empty bubble.
+    with picker:
+        purpose = ui.tooltip("")
     # Inside the button, not beside it: a q-menu anchors to its parent, and as a
     # sibling this one anchored to the toolbar row and opened 726px away.
     menu_button = ui.button(icon="more_vert").props("flat dense round size=sm") \
@@ -971,6 +1027,8 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
             """Put a view on the grid: which columns, sorted how, filtered to what -
             and then this view's own widths, which the grid does not carry across a
             switch."""
+            purpose.text = getattr(view, "help", "") or ""
+            purpose.set_visibility(bool(purpose.text))
             wanted = [f for f in view.columns if f in all_fields] or all_fields
             table.run_grid_method("setColumnsVisible", wanted, True)
             table.run_grid_method("setColumnsVisible",

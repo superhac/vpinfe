@@ -38,6 +38,9 @@ class View:
     columns: tuple[str, ...] = ()
     sort: tuple[dict[str, Any], ...] = ()
     filters: dict[str, Any] = field(default_factory=dict)
+    # A built-in's own words for what it is for. A view the user saved has none: they
+    # named it, which is their description of it.
+    help: str = ""
 
 
 def mint_id() -> str:
@@ -58,6 +61,10 @@ class Preset:
     columns: tuple[str, ...] = ()
     sort: tuple[dict[str, Any], ...] = ()
     filters: dict[str, Any] = field(default_factory=dict)
+    # What the view is for: the job somebody opens it to do. Not a restatement of the
+    # filter - a reader can see which rows are here; what they cannot see is why this
+    # was worth building a view for.
+    help: str = ""
 
 
 def builtins(presets: dict[str, list[str] | Preset]) -> list[View]:
@@ -65,7 +72,8 @@ def builtins(presets: dict[str, list[str] | Preset]) -> list[View]:
     return [View(id=f"builtin:{name}", name=name, builtin=True,
                  columns=tuple(preset.columns if isinstance(preset, Preset) else preset),
                  sort=tuple(preset.sort) if isinstance(preset, Preset) else (),
-                 filters=dict(preset.filters) if isinstance(preset, Preset) else {})
+                 filters=dict(preset.filters) if isinstance(preset, Preset) else {},
+                 help=preset.help if isinstance(preset, Preset) else "")
             for name, preset in presets.items()]
 
 

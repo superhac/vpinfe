@@ -38,20 +38,30 @@ COLUMNS = [
     # before its name is read, and a list of collections that showed none of them was
     # asking the reader to work from the least distinctive thing about each.
     grid.column("icon", "", 56, pinned="left", sortable=False, filter=False),
-    grid.column("name", "Name", 240, pinned="left"),
-    grid.column("kind", "Kind"),
+    grid.column("name", "Name", 240, pinned="left",
+                help="What you called the collection. It is what the frontend shows\n"
+                     "when it offers this collection to pick from."),
+    grid.column("kind", "Kind",
+                help="How the collection decides what is in it.\n\n"
+                     "Fixed - you put the tables in yourself, and they stay.\n"
+                     "Dynamic - a rule chooses, so it keeps up with the library."),
     # Right-aligned with the other number rather than left with the words: a count is
     # read against the counts above and below it.
     # "Table Count", the same as the games grid: a count of tables, not the tables
     # themselves. What it counts is what the collection hands out - one row per entry,
     # and an entry is a table. The stored membership is a different number.
-    grid.column("count", "Table Count", **_NUMERIC),
-    grid.column("order", "Order", 200),
+    grid.column("count", "Table Count", **_NUMERIC,
+                help="How many tables the collection hands out right now.\n"
+                     "A dynamic one changes as the library does."),
+    grid.column("order", "Order", 200,
+                help="The order the frontend walks the collection in."),
     # "Table Limit", paired with Table Count: a column header stands alone, so `Limit`
     # invites "limit of what?". The panel keeps plain `Limit` - it sits under
     # Presentation beside Ordered by and Paging, which supply the context a header has
     # to carry for itself.
-    grid.column("limit", "Table Limit", **_NUMERIC),
+    grid.column("limit", "Table Limit", **_NUMERIC,
+                help="The most tables this collection will hand out.\n"
+                     "Blank means no cap - everything the rule matches."),
 ]
 
 # One built-in, and the control stays: a view is how you save your own, and a grid with
