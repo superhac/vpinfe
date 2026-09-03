@@ -9,10 +9,14 @@ needs the state to be true regardless of who started it.
 
 from __future__ import annotations
 
+import logging
+import subprocess
 import threading
 from dataclasses import dataclass
 
 from common import events
+
+logger = logging.getLogger("vpinfe.common.host.launch_state")
 
 # Who asked. The frontend ignores its own; nothing else needs to care.
 SOURCE_FRONTEND = "frontend"
@@ -34,6 +38,11 @@ class LaunchState:
 
 
 _state = LaunchState()
+
+# The running table's process, so something other than the thread that launched it can
+# end it. Deliberately not a field on LaunchState: that is serialized into every
+# `play.state_changed` payload, and a Popen is not something to put on the wire.
+_process: subprocess.Popen | None = None
 
 
 def current() -> LaunchState:
@@ -69,4 +78,44 @@ def set_launching(game_name: str | None, *, source: str) -> LaunchState:
 
 def clear() -> LaunchState:
     """Record that nothing is launching. Safe to call when nothing was."""
+    global _process
+    with _lock:
+        _process = None
     return _replace(LaunchState())
+
+
+def attach(process: subprocess.Popen) -> None:
+    """Hold the launched table's process. Released by `clear()`."""
+    global _process
+    with _lock:
+        _process = process
+
+
+def stop(timeout: float = 5.0) -> bool:
+    """Close the running table. Returns whether there was one to close.
+
+    Terminate then kill, as `dof_service.close` does, so VPX has `timeout` to write its
+    NVRAM before it is taken. The launching thread is blocked in `process.wait()` and
+    unblocks on its own, so the state is cleared, `table.exited` is announced and the
+    play session is recorded by the same `finally` an ordinary quit runs - closing a
+    table from here and closing it from the cabinet take one path.
+    """
+    with _lock:
+        process = _process
+    # The wait below must not hold the lock: the launching thread takes it in `clear()`
+    # the moment the process dies, and holding it here would deadlock against that.
+    if process is None or process.poll() is not None:
+        return False
+
+    logger.info("Closing the running table")
+    process.terminate()
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        logger.warning("The table did not close in %ss; killing it", timeout)
+        process.kill()
+        try:
+            process.wait(timeout=2.0)
+        except subprocess.TimeoutExpired:
+            logger.error("The table's process survived a kill")
+    return True

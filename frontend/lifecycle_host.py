@@ -1,8 +1,11 @@
 """Binds the lifecycle vocabulary to the things that actually start and stop.
 
-Every stop and restart ends the same way: `run_frontend_loop` returns and `main.py` runs
-`shutdown_services`. Reaching for the browser directly is what used to skip it, so the
-performers here only ever make that loop return.
+Every stop and restart of this process ends the same way: `run_frontend_loop` returns and
+`main.py` runs `shutdown_services`. Reaching for the browser directly is what used to skip
+it, so those performers only ever make that loop return.
+
+Stopping a table is the exception and does not touch the loop: the table is a child of
+this install rather than a part of it, and closing one leaves VPinFE and its windows up.
 """
 
 from __future__ import annotations
@@ -11,7 +14,7 @@ import logging
 
 from common import events, lifecycle
 from common.config_access import cfg_bool
-from common.host import system_actions
+from common.host import launch_state, system_actions
 
 logger = logging.getLogger("vpinfe.frontend.lifecycle")
 
@@ -106,11 +109,15 @@ def install(*, config_store, config_dir, frontend_browser, shutdown_event,
         system_actions.reboot_system()
         stop_app(request)
 
+    def stop_table(_request):
+        launch_state.stop()
+
     lifecycle.register_performer(lifecycle.APP, lifecycle.STOP, stop_app)
     lifecycle.register_performer(lifecycle.APP, lifecycle.RESTART, restart_app)
     lifecycle.register_performer(lifecycle.FRONTEND, lifecycle.STOP, stop_frontend)
     lifecycle.register_performer(lifecycle.SYSTEM, lifecycle.STOP, stop_system)
     lifecycle.register_performer(lifecycle.SYSTEM, lifecycle.RESTART, restart_system)
+    lifecycle.register_performer(lifecycle.TABLE, lifecycle.STOP, stop_table)
 
     # Only registered when the caller knows how to open windows. An instance that cannot
     # reports "nothing performs this" rather than silently going dark.

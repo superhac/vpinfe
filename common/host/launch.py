@@ -243,6 +243,7 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
             text=True,
             env=_launch_env(settings),
         )
+        launch_state.attach(process)
         started_at = time.time()
         profile = get_active_profile()
         if profile is not None:

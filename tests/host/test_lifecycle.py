@@ -24,6 +24,7 @@ class LifecycleTests(unittest.TestCase):
             (lifecycle.APP, lifecycle.RESTART),
             (lifecycle.SYSTEM, lifecycle.STOP),
             (lifecycle.SYSTEM, lifecycle.RESTART),
+            (lifecycle.TABLE, lifecycle.STOP),
         ):
             lifecycle.register_performer(
                 scope, action, lambda request: self.done.append(request.pair))

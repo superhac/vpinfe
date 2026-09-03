@@ -1,8 +1,36 @@
+import subprocess
 import threading
 import unittest
 
 from common import events
 from common.host import launch_state
+
+
+class FakeProcess:
+    """A launched table, as much of one as stopping it needs."""
+
+    def __init__(self, *, stops_when_asked: bool = True) -> None:
+        self.stops_when_asked = stops_when_asked
+        self.terminated = False
+        self.killed = False
+        self.alive = True
+
+    def poll(self):
+        return None if self.alive else 0
+
+    def terminate(self) -> None:
+        self.terminated = True
+        if self.stops_when_asked:
+            self.alive = False
+
+    def kill(self) -> None:
+        self.killed = True
+        self.alive = False
+
+    def wait(self, timeout=None):
+        if self.alive:
+            raise subprocess.TimeoutExpired("vpx", timeout)
+        return 0
 
 
 class LaunchStateTests(unittest.TestCase):
@@ -79,6 +107,73 @@ class LaunchStateTests(unittest.TestCase):
             t.join()
 
         self.assertEqual(errors, [])
+
+
+class LaunchStateStopTests(unittest.TestCase):
+    """Closing the table somebody else launched."""
+
+    def setUp(self) -> None:
+        launch_state.clear()
+        events.clear()
+        self.addCleanup(events.clear)
+        self.addCleanup(launch_state.clear)
+
+    def test_stopping_nothing_says_so(self) -> None:
+        self.assertFalse(launch_state.stop())
+
+    def test_a_running_table_is_asked_first(self) -> None:
+        process = FakeProcess()
+        launch_state.attach(process)
+
+        self.assertTrue(launch_state.stop())
+        self.assertTrue(process.terminated)
+        self.assertFalse(process.killed, "it went when asked, so nothing to kill")
+
+    def test_a_table_that_will_not_go_is_killed(self) -> None:
+        process = FakeProcess(stops_when_asked=False)
+        launch_state.attach(process)
+
+        with self.assertLogs("vpinfe.common.host.launch_state", level="WARNING"):
+            self.assertTrue(launch_state.stop(timeout=0.01))
+
+        self.assertTrue(process.killed)
+
+    def test_a_table_that_already_exited_is_not_stopped_again(self) -> None:
+        """The launching thread clears in a finally, but a stop can race it."""
+        process = FakeProcess()
+        process.alive = False
+        launch_state.attach(process)
+
+        self.assertFalse(launch_state.stop())
+        self.assertFalse(process.terminated)
+
+    def test_clearing_releases_the_process(self) -> None:
+        process = FakeProcess()
+        launch_state.attach(process)
+
+        launch_state.clear()
+
+        self.assertFalse(launch_state.stop())
+        self.assertFalse(process.terminated)
+
+    def test_the_state_can_be_read_while_a_table_is_being_stopped(self) -> None:
+        """The lock is released before the wait. Holding it would deadlock against the
+        launching thread, which takes it in `clear()` the moment the process dies."""
+        process = FakeProcess()
+        read_back = []
+
+        original_wait = process.wait
+
+        def wait_and_read(timeout=None):
+            read_back.append(launch_state.current().launching)
+            return original_wait(timeout)
+
+        process.wait = wait_and_read
+        launch_state.set_launching("Medieval Madness", source=launch_state.SOURCE_API)
+        launch_state.attach(process)
+
+        self.assertTrue(launch_state.stop())
+        self.assertEqual(read_back, [True])
 
 
 class LaunchStateEventTests(unittest.TestCase):

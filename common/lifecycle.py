@@ -1,9 +1,9 @@
 """Starting, stopping and restarting things, however the request arrives.
 
-    scope     frontend   app        system
-    start     yes        -          -
-    stop      yes        yes        poweroff
-    restart   yes        yes        yes
+    scope     frontend   app        system     table
+    start     yes        -          -          -
+    stop      yes        yes        poweroff   yes
+    restart   yes        yes        yes        -
 
 Two axes rather than four verbs, so reboot is `restart` at system scope and an instance
 started headless can open its windows without being restarted.
@@ -24,6 +24,7 @@ logger = logging.getLogger("vpinfe.common.lifecycle")
 FRONTEND = "frontend"       # the Chromium windows; VPinFE keeps running
 APP = "app"                 # VPinFE itself
 SYSTEM = "system"           # the machine
+TABLE = "table"             # the table being played; VPinFE and the frontend keep running
 
 # What happens to it.
 START = "start"
@@ -37,6 +38,9 @@ _ALLOWED = {
     (FRONTEND, START), (FRONTEND, STOP), (FRONTEND, RESTART),
     (APP, STOP), (APP, RESTART),
     (SYSTEM, STOP), (SYSTEM, RESTART),
+    # Stop only: starting a table is a launch, which needs to know which one, and
+    # restarting one is that launch again.
+    (TABLE, STOP),
 }
 
 # Where a request came from. Not a category: a confirm has to reach the person who asked.
@@ -90,6 +94,7 @@ _DESCRIPTIONS = {
     (APP, RESTART): "Restart VPinFE",
     (SYSTEM, STOP): "Power off this machine",
     (SYSTEM, RESTART): "Reboot this machine",
+    (TABLE, STOP): "Close the table that is running",
 }
 
 
