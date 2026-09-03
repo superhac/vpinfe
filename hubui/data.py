@@ -84,8 +84,10 @@ class Library:
         # The by-file lens, read on first use rather than at load: most sessions never
         # switch to it, and it is a second walk of every folder.
         self._table_rows: list[dict[str, Any]] | None = None
-        # The by-file lens over media, read the same way and for the same reason.
+        # The by-file lenses over media and assets, read the same way and for the same
+        # reason.
         self._media_rows: list[dict[str, Any]] | None = None
+        self._asset_rows: list[dict[str, Any]] | None = None
         self._vps_entries: dict[str, dict[str, Any]] = {}
         self._vps_releases: dict[tuple[str, str], list[dict[str, Any]]] = {}
         self._overrides: dict[str, dict[str, Any]] = {}
@@ -262,9 +264,11 @@ class Library:
         return result
 
     def _forget_tables(self, game_id: str) -> None:
-        """Both lenses read tables, so both go stale when one changes."""
+        """Every lens over tables goes stale when one changes - including assets, whose
+        rows are files a script extract or delete adds and removes."""
         self.tables.pop(game_id, None)
         self._table_rows = None
+        self._asset_rows = None
 
     def extract_script(self, game_id: str, table_id: str) -> None:
         """The tables read is now wrong: the sidecar is what the next read reports."""
@@ -430,6 +434,29 @@ class Library:
 
     def has_media_rows(self) -> bool:
         return self._media_rows is not None
+
+    def load_asset_rows(self) -> list[dict[str, Any]]:
+        """Read the asset lens, and the kept kinds it is filtered by. Off the loop."""
+        if self._asset_rows is None:
+            self._asset_rows = self._client.all_assets()
+        self.kept_kinds()
+        return self._asset_rows
+
+    def asset_rows(self) -> list[dict[str, Any]]:
+        """The asset lens, filtered to the kinds this library collects.
+
+        `alt_color` is the games resource's name for the two the registry declares
+        separately, so it is kept while either of those is.
+        """
+        kept = self.kept_kinds()["asset"]
+        pairs = {"alt_color": ("altcolor_serum", "altcolor_vni"),
+                 "alt_sound": ("altsound",)}
+        return [row for row in (self._asset_rows or [])
+                if (row.get("kind") in kept
+                    or any(name in kept for name in pairs.get(row.get("kind"), ())))]
+
+    def has_asset_rows(self) -> bool:
+        return self._asset_rows is not None
 
     def tables_for(self, game_id: str) -> list[dict[str, Any]]:
         """Fetched when something asks, not with the library.

@@ -683,6 +683,17 @@ async def _media_block(context: dict[str, Any]) -> None:
                            on_pick=lambda kind: _pick_slot(context, kind, draw),
                            selected=context["slot"]["kind"],
                            overrides=overrides, offered=offered, kept=kept)
+        # A slot arrived at by link can be anywhere in a map of twenty tiles, including
+        # below the fold - and a selection you cannot see is not one. `nearest` moves
+        # the least that makes it visible, so a tile already on screen does not jolt
+        # the map, and clicking one never scrolls at all.
+        if context["slot"]["kind"]:
+            ui.run_javascript("""
+            requestAnimationFrame(() => {
+              const tile = document.querySelector('.hub-mediatile--on');
+              if (tile) tile.scrollIntoView({block: 'nearest', inline: 'nearest'});
+            });
+            """)
         dock = context.get("dock")
         if dock is not None:
             dock.clear()
@@ -913,15 +924,22 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
         # Only when there is more than one, because with one the sentence above has
         # already said where it is. Two is the case worth a list: the second file is
         # why an edit appeared to do nothing.
+        #
+        # Labelled for what they are rather than for the tier their names put them at.
+        # A losing file's tier says who *would* use it, and nothing does - so a file
+        # sitting under the one in use read "All tables" here while the media lens
+        # called the same file Unused, which is one of them being wrong.
         if len(also_here) > 1:
             with ui.column().classes("w-full gap-0 hub-slot-others"):
-                ui.label("Also in this folder").classes("hub-slot-others-title")
+                ui.label("Here but not used").classes("hub-slot-others-title")
                 for item in also_here:
                     if item.get("wins"):
                         continue
                     with ui.row().classes("items-center gap-2 w-full no-wrap"):
                         ui.label(item.get("file") or "").classes("hub-slot-other-file")
-                        media_ownership.badge(item.get("tier"))
+                        media_ownership.badge(media_ownership.UNUSED)
+                ui.label("Each of these resolves again if the file above it goes.") \
+                    .classes("hub-help")
 
         # Only from the game's lens, and only when somebody differs. This is the whole
         # of Model B in the panel: the shared file above, and who is not using it.

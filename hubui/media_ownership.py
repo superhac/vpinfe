@@ -49,6 +49,17 @@ def source_names() -> list[str]:
 
 
 # One .vpx owns it; the game owns it; something else is standing in; nothing is here.
+# Two ways a file answers for nobody, and they differ in what you would do about it.
+# An ORPHAN names a table the folder does not have: nothing will ever look for that
+# name, so it is dead. UNUSED is correctly named and covered by something more specific
+# - it is the fallback, and deleting it is giving up a safety net rather than tidying.
+#
+# Neither is one of `STATES`. The matrices resolve per kind and can produce neither, so
+# offering them as filter choices there would be states the grid cannot draw. Only a
+# lens that enumerates files can.
+ORPHAN = "orphan"
+UNUSED = "unused"
+
 TABLE = "table"
 GAME = "game"
 STAND_IN = "stand_in"
@@ -82,6 +93,13 @@ _TIERS = {
                    "hub-mark--set", "Something else is filling this slot"),
     MISSING: Tier(MISSING, "Missing", "not here", "hub-tier--missing",
                   "hub-mark--dashed", "Nothing here"),
+    ORPHAN: Tier(ORPHAN, "Orphan", "named for a table that is gone",
+                 "hub-tier--missing", "hub-mark--dashed",
+                 "Named for a table this folder does not have, so nothing can use it"),
+    UNUSED: Tier(UNUSED, "Unused", "covered by something more specific",
+                 "hub-tier--standin", "hub-mark--set",
+                 "Correctly named, but something more specific wins for every table. "
+                 "It resolves again if that file goes"),
 }
 
 # Most specific first. `LEGEND` omits Missing, which a legend does not need - a blank
@@ -97,14 +115,19 @@ def tier_for(key: str) -> Tier:
 
 
 def key_of(via: str | None) -> str:
-    """Which of the four a resolver tier is.
+    """Which state a resolver tier is, in this vocabulary.
 
     `game` and `default` are one state: both are the folder's and every table in it
     uses them. What separates them is which filename convention they follow, which is
     ours and not the user's. `set` and `fallback` are one state too - either way the
     file serving this slot was named for something other than this slot.
+
+    The two the resolver never says are passed through, because the file lenses do say
+    them: a file can be here and answer for nobody, which is not a tier at all.
     """
     via = str(via or "")
+    if via in (ORPHAN, UNUSED):
+        return via
     if via == TABLE:
         return TABLE
     if via in (GAME, "default"):

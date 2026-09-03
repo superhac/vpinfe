@@ -90,6 +90,10 @@ class HubClient:
         """Every media file in the library, one row each, and one per file it lacks."""
         return self._get("/media").get("media", [])
 
+    def all_assets(self) -> list[dict]:
+        """Every asset file in the library, one row each, and one per file it lacks."""
+        return self._get("/assets").get("assets", [])
+
     def tables(self, game_id: str) -> list[dict]:
         return self._get(f"/games/{game_id}/tables").get("tables", [])
 
@@ -555,6 +559,18 @@ class HubClient:
         response = self._session.delete(f"{self._base}{path}", timeout=_TIMEOUT)
         self._answered(response)
         return response.json()
+
+    def update_check(self) -> dict:
+        """Whether a newer build is published. Reaches the network on the hub's side."""
+        return self._get("/update")
+
+    def job(self, job_id: str) -> dict:
+        """One run of slow work, for watching a particular one to its end."""
+        return self._get(f"/jobs/{job_id}")
+
+    def jobs(self) -> list[dict]:
+        """Runs of slow work, running first. Read on a timer while one is going."""
+        return self._get("/jobs").get("jobs", [])
 
     def refresh_library(self) -> dict:
         """Ask the hub to look at the disk again. Returns the job to watch."""

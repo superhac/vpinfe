@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
 from nicegui import run, ui
@@ -27,17 +26,21 @@ logger = logging.getLogger("vpinfe.hubui.media")
 
 SCOPE = "hubui.media.columns"
 
+_ORPHAN = media_ownership.tier_for(media_ownership.ORPHAN).noun
+_UNUSED = media_ownership.tier_for(media_ownership.UNUSED).noun
+_MISSING = media_ownership.tier_for(media_ownership.MISSING).noun
+
+# Why a file on disk is not the one being used, blank while it is doing its job. The
+# blank is a choice like any other in the funnel, and it needs a word there because
+# "match the empty ones" is not something a checkbox can say by being unlabelled.
+_REASON = {media_ownership.ORPHAN: _ORPHAN, media_ownership.UNUSED: _UNUSED}
+_REASON_CHOICES = ([{"value": "", "label": "In use"}]
+                   + [{"value": word, "label": word}
+                      for word in (_MISSING, _ORPHAN, _UNUSED)])
+
 _SOURCE_CHOICES = ([{"value": name, "label": name}
                     for name in media_ownership.source_names()]
                    + [{"value": "", "label": "No file"}])
-
-# The states a row can be in. A stand-in is not one of them: it is another slot's file
-# being borrowed, so the slot it borrows for is empty and says separately what is
-# covering it.
-PRESENT_STATES = (media_ownership.TABLE, media_ownership.GAME)
-_STATE_CHOICES = [{"value": media_ownership.tier_for(key).noun,
-                   "label": media_ownership.tier_for(key).noun}
-                  for key in (*PRESENT_STATES, media_ownership.MISSING)]
 
 
 def _standing_in(via: str) -> str:
@@ -54,96 +57,119 @@ def _standing_in(via: str) -> str:
     return ""
 
 
-def _where(path: str) -> str:
-    """The folder a file sits in - `medias/`, or the game folder itself in a library
-    old enough to keep its art beside the .vpx."""
-    if not path:
-        return ""
-    parent = str(Path(path).parent)
-    return "Game folder" if parent == "." else parent
-
 
 def rows(found: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The API's media, flattened for a grid.
 
-    `state` carries the word rather than the tier: one column read across needs no
-    legend, where twenty columns of marks did.
+    Three facts kept apart, because one column carrying two of them is what made a row
+    read as a contradiction: `used_by` counts tables and only ever describes a file,
+    `reason` speaks only when a file is not the one being used, and `path` says which
+    file, name and folder together.
     """
-    built = []
-    for row in found:
-        present = bool(row.get("present"))
-        state = (media_ownership.noun(row.get("via")) if present
-                 else media_ownership.tier_for(media_ownership.MISSING).noun)
-        built.append({**row,
-                      "state": state,
-                      "source": media_ownership.source_name(str(row.get("origin") or "")),
-                      "match": str(row.get("matched_to") or ""),
-                      "where": _where(str(row.get("path") or "")),
-                      "covered_by": _standing_in(str(row.get("standing_in") or "")),
-                      # Named, not counted: the use of the column is knowing which file
-                      # is sitting underneath, and a "1" answers nothing.
-                      "hidden_files": ", ".join(row.get("shadowed") or [])})
-    return built
+    return [{**row,
+             # One path, not a name and a folder: `medias/` or the game folder is two
+             # values across a whole library, which is a column that says the same
+             # thing on nearly every row.
+             "path": row.get("path") or "",
+             "used_by": row.get("serves"),
+             "reason": _REASON.get(str(row.get("via") or ""),
+                                   "" if row.get("present") else _MISSING),
+             "source": media_ownership.source_name(str(row.get("origin") or "")),
+             "match": str(row.get("matched_to") or ""),
+             "covered_by": _standing_in(str(row.get("standing_in") or ""))}
+            for row in found]
 
+
+# The groups the column picker offers, the way Games and Tables already group theirs.
+_FILE = "File"
+_GAME = "Game"
+_SOURCE = "Source"
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.column("game", "Game", 200),
-    grid.column("label", "Kind", 160),
-    grid.column("state", "State", **grid.choice_filter(_STATE_CHOICES)),
-    grid.column("table_file", "Table", 180),
-    grid.column("serves", "Serves", type="numericColumn"),
-    grid.column("file", "File", 220),
-    grid.column("where", "Where", 110),
-    # Wider than the word: this is the column Sources sorts on, so its header carries
-    # a sort badge and a funnel beside the label and `header_width` only measures text.
-    grid.column("source", "Source", 165, **grid.choice_filter(_SOURCE_CHOICES)),
-    grid.column("match", "Match", 140),
-    grid.column("covered_by", "Covered by", 120),
-    grid.column("hidden_files", "Hidden", 180),
-    grid.column("manufacturer", "Maker", 140),
-    grid.column("year", "Year"),
+    grid.column("game", "Game", 200, pinned="left", group=_GAME,
+                help="The game folder this file belongs to."),
+    grid.column("label", "Kind", 160, group=_FILE,
+                help="Which of the twenty media kinds this row is about - the wheel,\n"
+                     "the playfield, the backglass and so on."),
+    grid.column("used_by", "Used by", type="numericColumn", group=_FILE,
+                help="How many of this game's tables actually load this file.\n\n"
+                     "0 - nothing loads it.\n"
+                     "Blank - there is no file to load."),
+    grid.column("reason", "Unused reason", 150, group=_FILE,
+                **grid.choice_filter(_REASON_CHOICES),
+                help="Why this file is not the one being used. Blank while it is.\n\n"
+                     "Missing - no file at all.\n"
+                     "Orphan - named for a table this folder does not have, so "
+                     "nothing will ever look for it again. Safe to delete.\n"
+                     "Unused - correctly named, but something more specific wins. "
+                     "It is the fallback, and it resolves again the moment the file "
+                     "covering it goes."),
+    grid.column("table_file", "Table", 200, group=_FILE,
+                help="The .vpx this file is named for.\n\n"
+                     "Blank - named for the folder, so every table falls back to it."),
+    grid.column("path", "Path", 300, group=_FILE,
+                help="Where the file sits, relative to the game folder.\n"
+                     "Art placed since 2.x lives in medias/."),
+    grid.column("source", "Source", 165, group=_SOURCE,
+                **grid.choice_filter(_SOURCE_CHOICES),
+                help="Who put the file here, as far as anything recorded it.\n\n"
+                     "Unknown - nothing recorded it. True of anything placed before "
+                     "the ledger or by another tool, which is most files.\n"
+                     "Blank - there is no file."),
+    grid.column("match", "Match", 140, group=_SOURCE,
+                help="The VPS file somebody said this art is for.\n\n"
+                     "Blank - nobody has said, which is not the same as there being "
+                     "no match to make."),
+    grid.column("covered_by", "Covered by", 130, group=_FILE,
+                help="What the cabinet shows for this kind while there is no file of "
+                     "its own - a set, or another kind standing in.\n"
+                     "That file belongs to the other kind, which is why this row "
+                     "still reads as missing."),
+    grid.column("manufacturer", "Manufacturer", 150, group=_GAME,
+                help="Who made the machine."),
+    grid.column("year", "Year", group=_GAME, help="The year the machine was released."),
 ]
 
-_MISSING = media_ownership.tier_for(media_ownership.MISSING).noun
 _ALL = [definition["field"] for definition in COLUMNS]
 
-# A built-in may filter where its name is what somebody would predict the filter from.
-# Gaps is the empty slots and Files is the ones holding something, which is each name
-# doing what it says. Sources promises no subset, so it filters nothing and sorts
-# instead - the unattributed group together and stay countable.
+# A built-in may filter where its name is what somebody would predict the filter from,
+# and says in `help` what it is for rather than what it filters - a reader can see which
+# rows are here; what they cannot see is why this was worth building a view for.
 VIEWS: dict[str, list[str] | views.Preset] = {
-    # State is in here although every row reads "Missing", which normally makes a
-    # column worth deleting. It is the filtered column: left out, the funnel that says
-    # rows are being hidden is on a header nobody can see, and a view that quietly
-    # drops 475 rows is the one thing a reader cannot recover from.
-    # Serves and Covered by are not here. Both are blank or constant on a library of
-    # single-table folders with no sets, which is nearly every library and every row of
-    # this one - and a column that reads the same all the way down is furniture. They
-    # are in Everything, where somebody looking for them will find them.
-    "Gaps": views.Preset(
-        columns=("game", "label", "state", "manufacturer", "year"),
+    "Missing": views.Preset(
+        columns=("game", "label", "reason", "manufacturer", "year"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
-        filters={"state": {"values": [_MISSING]}}),
-    "Files": views.Preset(
-        columns=("game", "label", "state", "table_file", "file", "where",
-                 "hidden_files"),
+        filters={"reason": {"values": [_MISSING]}},
+        help="The art you do not have. Filter to one kind and you have the shopping "
+             "list for it - select the rows and fetch them from the catalogs in one "
+             "go."),
+    "Orphans": views.Preset(
+        columns=("game", "label", "reason", "table_file", "path"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
-        filters={"state": {"values": [media_ownership.tier_for(key).noun
-                                      for key in PRESENT_STATES]}}),
-    # Filtered to what is here, for the same reason as Files and predictable from the
-    # name the same way: a slot with no file came from nowhere, so it is not a row this
-    # view is about. Sorted so Unknown leads, which is the gap somebody opens this to
-    # close - and it leads on its own, because alphabetically it comes first.
+        filters={"reason": {"values": [_ORPHAN]}},
+        help="Art left behind when a table was renamed, replaced by a new version or "
+             "deleted. Nothing will ever look for these names again, so this is the "
+             "list that is safe to clear out."),
+    "Unused": views.Preset(
+        columns=("game", "label", "reason", "used_by", "path", "source"),
+        sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
+        filters={"reason": {"values": [_UNUSED]}},
+        help="Files nothing loads because something more specific always wins - the "
+             "catalog art still sitting under the art you made yourself. Worth "
+             "clearing if you want the space, but each one is a fallback that comes "
+             "back the moment the file covering it goes."),
     "Sources": views.Preset(
-        columns=("game", "label", "state", "file", "source", "match"),
-        # `sortIndex` spelled out: applying a state without one lets the grid number
-        # them in column order, so the sort it reports back is not the one declared and
-        # the view reads as modified the moment it is picked.
+        columns=("game", "label", "used_by", "path", "source", "match"),
         sort=({"colId": "source", "sort": "asc", "sortIndex": 0},
               {"colId": "game", "sort": "asc", "sortIndex": 1}),
-        filters={"state": {"values": [media_ownership.tier_for(key).noun
-                                      for key in PRESENT_STATES]}}),
-    "Everything": _ALL,
+        filters={"reason": {"values": [""]}},
+        help="Where your art came from, with the unattributed first. Use it to see how "
+             "much of the library you assembled yourself, and to bind files to their "
+             "VPS records so updates can be tracked later."),
+    "Everything": views.Preset(
+        columns=tuple(_ALL),
+        help="Every row, nothing hidden. The way out of any other view, and where you "
+             "build a filter of your own worth saving."),
 }
 
 
@@ -204,7 +230,8 @@ async def fill(picked: list[dict[str, Any]], library: Any,
 def build(found: list[dict[str, Any]], library: Any,
           on_select: Callable[[dict | None], None],
           state: dict[str, Any] | None = None,
-          rerender: Callable[[], None] | None = None) -> None:
+          rerender: Callable[[], None] | None = None,
+          rescan: Callable[[], Any] | None = None) -> None:
     """The media lens: one row per file, and one per file that is not there."""
     state = state if state is not None else {}
     built = rows(found)
@@ -231,6 +258,11 @@ def build(found: list[dict[str, Any]], library: Any,
                                                     _ALL, COLUMNS)
         ui.space()
         count = ui.label(said(0)).classes("text-xs hub-label")
+        if rescan is not None:
+            ui.button(icon="refresh", on_click=rescan) \
+                .props("flat dense round size=sm").classes("shrink-0") \
+                .tooltip("Read the library from disk again and pick up anything "
+                         "added, changed or removed - tables, media and assets")
         actions = ui.button(icon="more_vert").props("flat round dense") \
             .tooltip("Actions for the selected media")
 
@@ -258,8 +290,19 @@ def build(found: list[dict[str, Any]], library: Any,
     ui.on("hub_row_focus",
           lambda event: on_select(by_id.get(grid.focused_row(event))))
 
+    async def on_header_context(col_id: str | None) -> None:
+        # Asked of the grid rather than tracked here: a column can also be dragged in
+        # and out of the pinned area, and a local flag would then be wrong.
+        state_now = await table.run_grid_method("getColumnState") or []
+        entry = next((c for c in state_now if c.get("colId") == col_id), {})
+        menu.clear()
+        with menu:
+            grid.column_menu(menu, table, COLUMNS, col_id, bool(entry.get("pinned")))
+
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        table = grid.build(COLUMNS, built, SCOPE, on_select_rows, view_of=showing)
+        table = grid.build(COLUMNS, built, SCOPE, on_select_rows,
+                           on_header_context=on_header_context, view_of=showing)
+        menu = ui.context_menu()
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                       search.value or ""))
