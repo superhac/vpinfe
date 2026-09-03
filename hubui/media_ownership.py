@@ -1,10 +1,14 @@
-"""Who owns a media file, in one vocabulary.
+"""What a surface says about a media file, in one vocabulary.
 
-Six surfaces said this five different ways before this existed, because each new one
-invented its own words. The names are the resolver's own: a *table* is one .vpx, a
-*game* is the folder holding them. Its five tiers collapse to four states here, since
-two of the distinctions are about our filename conventions and not about anything a
-user has a concept for.
+Two axes, and they answer different questions. **Tier** is whose file it is: the names
+are the resolver's own, where a *table* is one .vpx and a *game* is the folder holding
+them, and its five tiers collapse to four states here since two of the distinctions are
+about our filename conventions and not about anything a user has a concept for.
+**Source** is who put it there, which nothing about the file itself can say - only a
+record can.
+
+Six surfaces said the first of these five different ways before this existed, because
+each new one invented its own words.
 """
 
 from __future__ import annotations
@@ -14,6 +18,35 @@ from dataclasses import dataclass
 from nicegui import ui
 
 from common.media_specs import media_label_map
+
+# Who placed a file, where the answer is not a catalog. "Unknown" is honest and common:
+# anything predating the ledger, or placed with another tool, leaves no record.
+YOU = "You"
+UNKNOWN = "Unknown"
+
+
+def source_name(origin: str) -> str:
+    """The word for who put a file here.
+
+    A catalog is named by the registry that owns it rather than by the id it is stored
+    under, so the screen says VPinMediaDB where the ledger says vpinmediadb.
+    """
+    if not origin:
+        return ""
+    if origin == "user":
+        return YOU
+    if origin == UNKNOWN.lower():
+        return UNKNOWN
+    from common.online import asset_sources
+    return {source.id: source.name
+            for source in asset_sources.BUILT_IN}.get(origin, origin)
+
+
+def source_names() -> list[str]:
+    """Every source a file could report, for a filter that offers them all."""
+    from common.online import asset_sources
+    return sorted({source.name for source in asset_sources.BUILT_IN} | {YOU, UNKNOWN})
+
 
 # One .vpx owns it; the game owns it; something else is standing in; nothing is here.
 TABLE = "table"

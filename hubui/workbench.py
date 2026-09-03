@@ -898,7 +898,8 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                 # "unknown" is the ledger's honest answer and a useless line to read:
                 # most files predate the ledger, so it would be on nearly every slot.
                 if origin and origin not in ("unknown", "user"):
-                    ui.label(f"Came from {origin}").classes("hub-help")
+                    ui.label(f"Source: {media_ownership.source_name(origin)}") \
+                        .classes("hub-help")
                 # Only when somebody has said - "not matched" is true of nearly every
                 # file, and the button below is where the unanswered case belongs.
                 named = _match_line(context, kind,
