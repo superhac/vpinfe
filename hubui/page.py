@@ -123,21 +123,6 @@ _NAV_CLICK = """
 """
 
 
-# Why an install cannot replace itself, in words rather than the updater's own keys.
-# It reports them for a caller to branch on; a person reading a tooltip needs the
-# sentence, and "source_build" is not one.
-_WHY_NOT = {
-    "source_build": "This build runs from source, so it updates with a git pull "
-                    "rather than from here.",
-    "non_release_build": "This build was not published as a release, so there is "
-                         "nothing to replace it with.",
-    "unsupported_architecture": "No published build matches this machine's "
-                                "architecture.",
-    "macos_not_supported_yet": "Updating in place is not built for macOS yet.",
-    "unsupported_platform": "Updating in place is not built for this platform.",
-}
-
-
 # What the panel says when nothing is selected, per page. Named for what *that* page
 # selects: three of them select something and the rest do not, and one asking for a game
 # on a page with no games is the panel describing a different screen.
@@ -227,6 +212,10 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
 
     labels: list[ui.label] = []
     destinations: dict[str, ui.row] = {}
+    # Deliberately not in `labels`: a badge has to survive the collapse to the icon
+    # rail, because once the label has gone it is the only thing left that can say an
+    # entry wants attention.
+    badges: dict[str, ui.label] = {}
 
     def set_mini(mini: bool) -> None:
         """Collapse the nav to an icon rail rather than hiding it.
@@ -294,7 +283,8 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                     # has to read them before it draws, and arriving is when that is
                     # first true.
                     _nav_item(key, label, icon, state, lambda: redraw(), labels,
-                              destinations, nested=parent is not None, held=held)
+                              destinations, badges,
+                              nested=parent is not None, held=held)
                 if parent is not None:
                     # After the children exist: the caret leads `held`, and a group left
                     # closed last time has to draw closed rather than open and blink.
@@ -318,14 +308,12 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             job_line.set_visibility(False)
             labels.append(job_text)
             with ui.column().classes("gap-0 items-center w-full"):
+                # Which build this is. Identity rather than state, so it is always
+                # true and always shown. Whether a newer one exists is a device's
+                # business and is said on the Devices entry, which is one place for it
+                # rather than two that can disagree.
                 labels.append(ui.label(_version(discovery.get("app_version")))
                               .classes("text-xs opacity-70"))
-                # Amber, which this theme reserves for something to go and fix. The
-                # accent would make it one more lit thing in a rail that is already
-                # lit; the point of the line is that it is worth acting on.
-                update_line = ui.label("").classes("text-xs cursor-pointer hub-update")
-                update_line.set_visibility(False)
-                labels.append(update_line)
 
     async def _watch_jobs() -> None:
         """Say what is running, and stop asking once nothing is.
@@ -354,27 +342,28 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
     job_timer = ui.timer(2.0, _watch_jobs, active=True)
 
     async def _look_for_update() -> None:
-        """Say so when there is a newer build, once per page load.
+        """Mark Devices when there is a newer build, once per page load.
 
         Off the loop and never fatal: a hub with no internet is not a broken hub, and a
-        version line that cannot say whether it is current says nothing rather than
+        rail that cannot say whether a build is current says nothing rather than
         claiming it is.
         """
         try:
             found = await run.io_bound(HubClient().update_check)
         except Exception:
             return
+        state["update"] = found
         if not found.get("update_available"):
             return
-        update_line.text = f"{_version(found.get('latest_version'))} available"
-        update_line.set_visibility(True)
-        # Where updating happens rather than doing it here: replacing the running build
-        # is its own act, and this line's job is to say there is something to go and do.
-        update_line.on("click", lambda: go("settings"))
-        update_line.tooltip("Open Settings to update"
-                            if found.get("update_supported")
-                            else _WHY_NOT.get(str(found.get("support_reason") or ""),
-                                              "This install cannot update itself"))
+        badge = badges.get("devices")
+        if badge is None:
+            return
+        # A count, because the entry stands for every device this hub knows and only
+        # one of them has been asked yet. Naming the version here would be a second
+        # copy of what the device's own page says.
+        badge.text = "1"
+        badge.set_visibility(True)
+        badge.tooltip("1 device has an update waiting")
 
     ui.timer(0.1, _look_for_update, once=True)
 
@@ -685,7 +674,7 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                     devices_page.build_detail(state["device"], device_capabilities,
                                               discovery.get("install_id"),
                                               local_capabilities,
-                                              library, render)
+                                              library, render, state.get("update"))
             else:
                 _placeholder(view)
 
@@ -835,7 +824,7 @@ def _show_group(open_now: bool, caret: Any, held: list) -> None:
 
 
 def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
-              labels: list, destinations: dict, nested: bool = False,
+              labels: list, destinations: dict, badges: dict, nested: bool = False,
               held: list | None = None) -> None:
     def choose() -> None:
         state["view"] = key
@@ -854,7 +843,14 @@ def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
                  "hub-nav-row" + (" hub-nav-row--nested" if nested else "")) \
         .on("click", choose)
     with row:
-        ui.icon(icon, size="24px").classes("opacity-70 shrink-0")
+        # The badge is positioned against the icon rather than the row, so it sits on the
+        # same corner whether the rail is open or collapsed - the icon is the one part of
+        # an entry that is in both states, and the label is not.
+        with ui.element("div").classes("hub-nav-mark"):
+            ui.icon(icon, size="24px").classes("opacity-70 shrink-0")
+            badge = ui.label("").classes("hub-nav-badge")
+            badge.set_visibility(False)
+            badges[key] = badge
         # `no-wrap` on the row and nowrap on the label. A rail entry is one line by
         # definition, and the rail scrolls once there are enough of them - which takes a
         # scrollbar's width off every row and was enough to break "Collections" in two.

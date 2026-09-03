@@ -564,6 +564,16 @@ class HubClient:
         """Whether a newer build is published. Reaches the network on the hub's side."""
         return self._get("/update")
 
+    def perform_update(self, *, stop_table: bool = False) -> dict:
+        """Take the published build. The hub goes down to do it, so this is the last
+        call that install answers - a failure afterwards is the update working."""
+        return self._post("/update", {"stop_table": stop_table})
+
+    def play_state(self) -> dict:
+        """What the play host is doing. `launching` stays true for as long as a table
+        is up, not just while it is starting."""
+        return self._get("/play/state")
+
     def job(self, job_id: str) -> dict:
         """One run of slow work, for watching a particular one to its end."""
         return self._get(f"/jobs/{job_id}")

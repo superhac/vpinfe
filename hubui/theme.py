@@ -755,6 +755,39 @@ body::before {
 }
 .hub-update:hover { text-decoration: underline; }
 
+/* The icon of a rail entry, as a box a badge can be hung on. The badge belongs to the
+   icon rather than the row because the icon is in both states and the label is not. */
+.hub-nav-mark {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+/* How many of something are waiting behind a rail entry, on the icon's upper right in
+   both states. Same warm as .hub-update and for the same reason: it is the one thing in
+   a lit rail worth acting on. A count only - what it is about is on the page it leads
+   to. */
+.hub-nav-badge {
+  background: var(--warm);
+  /* The darkest surface rather than the ink: on a filled warm chip the text has to
+     read against the fill, and --ink is chosen to read against a dark ground. */
+  color: var(--surface-0);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  min-width: 15px;
+  text-align: center;
+  /* On the icon's upper right, and it may not overhang far: the rail's body scrolls, so
+     anything past the row's box is clipped once the rail is collapsed - which is exactly
+     where the badge is the only thing left saying the entry wants attention. */
+  position: absolute;
+  top: -4px;
+  right: -4px;
+}
+
 /* A tooltip belonging to the control that opened a menu would sit on top of it. */
 body.hub-menu-open .q-tooltip { display: none !important; }
 

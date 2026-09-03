@@ -256,6 +256,15 @@ class Library:
         and a cached copy would hand it the value it just replaced."""
         return self._client.devices()
 
+    def discovery(self) -> dict:
+        return self._client.discovery()
+
+    def play_state(self) -> dict:
+        return self._client.play_state()
+
+    def perform_update(self, *, stop_table: bool = False) -> dict:
+        return self._client.perform_update(stop_table=stop_table)
+
     def set_game_overrides(self, game_id: str, changes: dict) -> dict:
         """An override changes the name a game sorts under, so the whole list is stale,
         not just this game's row."""
