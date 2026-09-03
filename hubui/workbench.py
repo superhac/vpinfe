@@ -44,6 +44,7 @@ from hubui import (
     mediamap,
     mediasource,
     mediaview,
+    panel,
     stars,
 )
 from hubui import features as table_features
@@ -290,11 +291,10 @@ COLLAPSED = ""
 # what you were aiming at.
 OUTLINE_FROM_PX = 520
 
-# Rows that are not a fact. A group's title and a group's actions both span the whole
-# grid, so every group keeps the one shared label column - the alignment a second grid
-# would break.
-HEADING = object()
-FULL = object()
+# The panel's own vocabulary, which this surface no longer keeps a second copy of.
+# Still named here because the call sites below read better for it.
+HEADING = panel.HEADING
+FULL = panel.FULL
 
 
 
@@ -1247,23 +1247,7 @@ def _table_rows(table: dict[str, Any],
     _rows(ui, entries)
 
 
-def _state(text: str, level: str, beside: str = "") -> Callable[[], None]:
-    """A state the panel found and the user cannot set, as a chip.
-
-    The counterpart of the switch: a switch is a setting, a chip is a finding, and the
-    shape is what says which. The level is what the absence *costs* - `on` for the
-    affirmative, `off` where absence is the ordinary case, `warn` where it is worth
-    fixing, `bad` where it stops the table working. Each fact keeps its own words,
-    because a rom is installed, a script is extracted and a file is merely present.
-    """
-    def draw() -> None:
-        with ui.element("div").classes("hub-fact-edit"):
-            if beside:
-                ui.label(beside).classes("hub-fact-value truncate min-w-0") \
-                    .tooltip(beside)
-            ui.label(text).classes(f"hub-tier hub-tier--{level}")
-
-    return draw
+_state = panel.state
 
 
 def _assets_label(context: dict[str, Any]) -> str:
@@ -1853,20 +1837,8 @@ def _library_rows(context: dict[str, Any],
 
 def _switch(value: bool, on_change: Callable[[Any], Any], *,
             disabled: bool = False, hint: str = "") -> None:
-    """Every binary value on this panel, drawn the same way.
-
-    One control for one kind of value: a switch for a yes or no, a select where there
-    is a list to pick from. Mixing a checkbox, a text state and a button across three
-    booleans makes the reader work out three times what one convention would say once.
-    """
-    # Green, the same token a present chip takes: on means the same thing whether the
-    # panel found it or the user set it, and the control's shape already says which.
-    switch = ui.switch(value=value, on_change=on_change) \
-        .props("dense color=positive").classes("hub-fact-switch")
-    if disabled:
-        switch.disable()
-    if hint:
-        switch.tooltip(hint)
+    """The panel's switch, drawn where it is called rather than handed back."""
+    panel.switch(value, on_change, disabled=disabled, hint=hint)()
 
 
 def _play_action(context: dict[str, Any], table: dict[str, Any]) -> Callable[[], None]:
@@ -2357,34 +2329,16 @@ async def _make_default(context: dict[str, Any], table: dict[str, Any]) -> None:
 
 
 def _rows(target: Any, entries: Sequence[tuple[Any, Any]]) -> None:
-    """The facts of one section, as (label, value) pairs.
+    """The panel's fact list, with this surface's labels cased on the way in.
 
-    One grid for all of them, not a row each, so the label column is the width of the
-    longest label - a fixed one is a guess that truncates as soon as the type grows.
-    A row whose value is not text passes a callable and draws its own; it has to be in
-    *this* grid, or it sizes a label column of its own and its value starts somewhere
-    else entirely. `HEADING` and `FULL` are the same story: a group's title and its
-    actions span both columns here rather than living in a grid of their own, which is
-    what keeps every group's values on one left edge.
-
-    `min-w-0` is what lets the value shrink: a grid item refuses to go below its
-    content width without it, and the row wraps instead of ellipsing.
+    The pane writes them as prose - `Made by`, `Last played` - so the casing rule is
+    applied here rather than inside the list, where it would also reach labels a
+    registry has already settled and turn `RAR Tool Path` into `Rar Tool Path`.
     """
-    with target.element("div").classes("hub-facts"):
-        for label, value in entries:
-            if label is HEADING:
-                target.label(str(value)).classes("hub-fact-heading")
-                continue
-            if label is FULL:
-                with target.element("div").classes("hub-fact-full"):
-                    value()
-                continue
-            target.label(field_label(str(label))).classes("hub-fact-label")
-            if callable(value):
-                value()
-                continue
-            target.label(str(value)).classes("hub-fact-value truncate min-w-0") \
-                .tooltip(str(value))
+    panel.facts(target, [(entry[0] if entry[0] in (panel.HEADING, panel.FULL,
+                                                   panel.ASIDE)
+                          else field_label(str(entry[0])), entry[1])
+                         for entry in entries])
 
 
 # --- collections ------------------------------------------------------------------

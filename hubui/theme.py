@@ -105,6 +105,15 @@ _TOKENS = """
      roomier, which is the mismatch a reader sees as inconsistent spacing. */
   --fact-row: 30px;
 
+  /* How far a label column may grow before a long label wraps instead. One long label
+     should cost its own row two lines, not push every control on the page away from the
+     label naming it. The pane's labels sit under this and never wrap. */
+  --label-max: 200px;
+  /* The floor under a select, for the caret and the longest option name a set happens
+     to hold. Text stretches because what you type has no length; a closed list of named
+     things does not. */
+  --select-min: 200px;
+
   /* What a draggable divider looks like, wherever one appears - a border color here
      reads as an edge rather than a handle. */
   /* The one warm color in this palette, and the reason both uses below read at a
@@ -1084,6 +1093,17 @@ body.hub-menu-open .q-tooltip { display: none !important; }
   letter-spacing: 0.06em;
   font-size: var(--fs-caption);
 }
+/* The same name, drawn above the content instead of in a header beside it. The rule is
+   what makes it read as a heading rather than as the first line of the page; the gutter
+   matches .hub-facts so the name sits on the labels' left edge. */
+.hub-panel-heading {
+  display: block;
+  /* Or the rule is the width of the word and reads as an underline on it. */
+  width: 100%;
+  padding: 0 12px 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
 /* Tight: this panel carries a lot and the default expansion chrome is mostly air. */
 .hub-workbench .q-expansion-item {
   border: 1px solid var(--line);
@@ -1525,7 +1545,12 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    above them, which ranked the content below its own title. */
 .hub-facts {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  /* Capped, and low enough that the cap is the common case rather than the exception.
+     One long label should cost its own row two lines, not move every control on the
+     page away from the label naming it - and the eye crossing a gutter to reach a
+     control is the thing that made a settings page hard to read. The pane's labels sit
+     under this and never wrap. */
+  grid-template-columns: fit-content(var(--label-max)) 1fr;
   /* One box per row, whatever the value is, so nothing grows when a field or a chip
      lands in a row that had text. `auto` above the floor is for content that wraps -
      a line of chips takes two rows' worth and keeps its label centred on them. */
@@ -1535,9 +1560,12 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   width: 100%;
   padding: 0 12px;
 }
-/* Dimmed, not also shrunk. Two levers were doing one job and contrast is the one that
-   costs readability; --ink-2 is the documented secondary at 11.1:1. */
-.hub-fact-label { font-size: var(--fs-caption); color: var(--ink-2); }
+/* Dimmed, not also shrunk - which this file has said for a while and only half did. The
+   value moved to body size and the label stayed a caption, so a label was a size below
+   the value it names and only one step of grey from the help under it. Contrast is the
+   lever: --ink-2 is the documented secondary at 11.1:1, and the help is --ink-3 at the
+   caption size, so the three read as three. */
+.hub-fact-label { font-size: var(--fs-body); color: var(--ink-2); line-height: 1.3; }
 .hub-fact-value { font-size: var(--fs-body); color: var(--ink); }
 /* One line of chips sits on the same pitch as every other row, and a wrapped one grows
    symmetrically around its label. The row carries the height rather than the label
@@ -1579,6 +1607,18 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 .hub-edit-field .q-field__control::before,
 .hub-edit-field .q-field__control::after { border: none; }
+/* No cap. 56ch was tried and cropped "/Users/.../VPinballX/10.8/VPinballX.ini" with room
+   to spare beside it, which is the failure this file already describes: a cropped value
+   reads as broken, not as restraint. A settings page is mostly long paths, so the width
+   is what it is for. */
+/* A whole number, sized for one. In a full-width box the value reads as something that
+   might be long, and a page of them is a column of mostly empty boxes. */
+.hub-edit-narrow { width: 96px; flex: 0 0 auto; }
+/* A closed list of named things, sized to the names rather than to the panel. Text
+   stretches because what you type has no length; a set of options does, and "daily" in
+   a 1100px box says the answer might be a sentence. The floor is for the caret and the
+   longest name the set happens to hold, not a target. */
+.hub-edit-select { flex: 0 1 auto; min-width: var(--select-min); }
 .hub-edit-field:hover .q-field__control {
   border-color: var(--accent);
   background: rgba(0, 217, 255, 0.06);
@@ -1642,6 +1682,11 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 /* Actions and the attention block: the width of the panel, not of a value. */
 .hub-fact-full { grid-column: 1 / -1; padding: 4px 0; min-width: 0; }
+/* A line about the control above it, so it sits under the control and not under the
+   label - across both columns it starts at the label's edge and reads as a caption for
+   the label instead. Tight to what it explains and loose to the next row, which is what
+   groups the two without a rule between them. */
+.hub-fact-aside { grid-column: 2; padding: 0 0 8px; min-width: 0; }
 
 /* What is wrong with this thing, before anything merely true about it. Amber, which is
    already the exception color here - not red: none of these is an error, they are
@@ -2013,13 +2058,20 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   /* The rail column is panel and everything right of it is open to the page. A hard
      stop at the column's own width does that without a wrapper element to hang a
      background on - the rows are grid children, so there is nothing else to paint. */
-  background: linear-gradient(90deg, var(--panel-ground) 0 152px, transparent 152px);
+  /* One lever for the rail's width, because the same control serves a narrow pane and
+     a full-width page and the number appears three times here. */
+  --rail-w: 152px;
+  background: linear-gradient(90deg, var(--panel-ground) 0 var(--rail-w),
+                              transparent var(--rail-w));
   display: grid;
-  grid-template-columns: 152px minmax(0, 1fr);
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
   grid-template-rows: repeat(var(--rows, 4), max-content) minmax(0, 1fr);
   min-height: 0;
 }
 .hub-section-row { grid-column: 1; }
+/* A rail long enough to need grouping says what a run of rows is about. `.hub-group`
+   carries the treatment - this only puts it in the rail's column. */
+.hub-rail-group { grid-column: 1; }
 .hub-section-work {
   grid-column: 2; grid-row: 1 / -1;
   min-width: 0; min-height: 0;

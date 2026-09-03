@@ -1,0 +1,267 @@
+"""The panel: a rail of named destinations, one open, and the facts beside it.
+
+The side pane draws it about a game; Settings draws it about the install. Both render
+through here, so a treatment is changed in one place rather than in each surface that
+happens to show the same kind of value.
+
+Every control constructor returns the callable `facts` takes as a value, so it drops
+into an entry list as the second half of a pair.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
+from typing import Any
+
+from nicegui import ui
+
+# Rows that are not a fact. A group's title and an action strip span both columns, so
+# every group keeps the one shared label width.
+HEADING = object()
+FULL = object()
+# The value column alone, for a line that belongs to the control above it rather than
+# to the row. Across both columns it starts at the label's edge and reads as a caption
+# for the label instead.
+ASIDE = object()
+
+# A rail row that names the rows under it rather than opening anything.
+GROUP = object()
+
+# The rail's width. A lever rather than a literal: the pane is narrow and Settings is
+# not, and both rails are the same control.
+RAIL_PX = 152
+
+
+def header(name: str) -> None:
+    """What the content under it is about, where the rail row is too far away to say it."""
+    ui.label(name).classes("text-base hub-workbench-title hub-panel-heading")
+
+
+def facts(target: Any, entries: Sequence[tuple[Any, Any]]) -> None:
+    """The facts of one section, as (label, value) pairs.
+
+    One list for all of them, not a row each, so the label column is the width of the
+    longest label. A row whose value is not text passes a callable and draws its own;
+    it has to be in *this* list, or it sizes a label column of its own and its value
+    starts somewhere else entirely.
+
+    `min-w-0` is what lets a value shrink: a grid item refuses to go below its content
+    width without it, and the row wraps instead of ellipsing.
+    """
+    with target.element("div").classes("hub-facts"):
+        for label, value in entries:
+            if label is HEADING:
+                target.label(str(value)).classes("hub-fact-heading")
+                continue
+            if label is FULL:
+                with target.element("div").classes("hub-fact-full"):
+                    value()
+                continue
+            if label is ASIDE:
+                with target.element("div").classes("hub-fact-aside"):
+                    value()
+                continue
+            # As given. A label that came from a registry is already the answer, and
+            # re-casing it is how "RAR Tool Path" reached a user as "Rar Tool Path" -
+            # the casing rule is a fallback for a bare key, not a filter over finished
+            # words. A surface that writes its labels in prose cases them on the way in.
+            target.label(str(label)).classes("hub-fact-label")
+            _draw_value(target, value)
+
+
+def _draw_value(target: Any, value: Any) -> None:
+    if callable(value):
+        value()
+        return
+    target.label(str(value)).classes("hub-fact-value truncate min-w-0") \
+        .tooltip(str(value))
+
+
+def sections(entries: Sequence[tuple[Any, ...]], current: str,
+             on_pick: Callable[[str], Any], *, rail_px: int = RAIL_PX) -> Any:
+    """The rail and the region it opens into, returning the region.
+
+    `entries` are `(key, label)` with an optional third element for a hint, or
+    `(GROUP, name)` for a heading over the rows that follow it. The row count goes to
+    the stylesheet because the wide layout needs a track per row and then one that
+    takes the rest, and CSS cannot count its own children.
+    """
+    frame = ui.element("div").classes("w-full grow min-h-0 hub-sections") \
+        .style(f"--rows: {len(entries)}; --rail-w: {rail_px}px")
+    with frame:
+        for entry in entries:
+            key, label = entry[0], entry[1]
+            hint = entry[2] if len(entry) > 2 else ""
+            if key is GROUP:
+                ui.label(label).classes("hub-group hub-rail-group")
+                continue
+            _rail_row(str(key), label, str(key) == current, on_pick, hint)
+        work = ui.element("div").classes("min-w-0 hub-section-work")
+    return work
+
+
+def _rail_row(key: str, label: str, open_now: bool,
+              on_pick: Callable[[str], Any], hint: str = "") -> None:
+    """One destination's name, which is both the rail entry and the accordion header.
+
+    The chevron says the row opens, which is a fact about the control rather than a
+    label for the destination. Without it the stacked rows are words with no sign that
+    any of them do anything.
+    """
+    row = ui.row().classes("items-stretch gap-0 no-wrap hub-section-row")
+    if open_now:
+        row.classes(add="hub-section-on")
+    if hint:
+        row.tooltip(hint)
+    with row:
+        with ui.row().classes("items-center grow min-w-0 hub-section-hit"):
+            ui.label(label).classes("hub-section-text truncate")
+        with ui.row().classes("items-center hub-section-caret"):
+            ui.icon("expand_more", size="18px")
+    # The whole band, name and chevron alike - a header that opens on the word but only
+    # closes on the arrow is a control with two rules to learn.
+    row.on("click", lambda: on_pick(key))
+
+
+def switch(value: bool, on_change: Callable[[Any], Any], *,
+           disabled: bool = False, hint: str = "") -> Callable[[], None]:
+    """Every binary value the user can set, drawn the same way."""
+    def draw() -> None:
+        # Green, the same token a present chip takes: on means the same thing whether
+        # the panel found it or the user set it, and the shape already says which.
+        control = ui.switch(value=value, on_change=on_change) \
+            .props("dense color=positive").classes("hub-fact-switch")
+        if disabled:
+            control.disable()
+        if hint:
+            control.tooltip(hint)
+
+    return draw
+
+
+def state(text: str, level: str, *, beside: str = "") -> Callable[[], None]:
+    """A state the panel found and the user cannot set, as a chip.
+
+    The counterpart of the switch: a switch is a setting, a chip is a finding, and the
+    shape is what says which. `level` is what the absence costs - `on`, `off`, `unknown`,
+    `warn`, `bad`.
+    """
+    def draw() -> None:
+        with ui.element("div").classes("hub-fact-edit"):
+            if beside:
+                ui.label(beside).classes("hub-fact-value truncate min-w-0") \
+                    .tooltip(beside)
+            ui.label(text).classes(f"hub-tier hub-tier--{level}")
+
+    return draw
+
+
+def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
+          placeholder: str = "", disabled: bool = False) -> Callable[[], None]:
+    """Free text the user can set.
+
+    Written when you leave it, and `debounce=0` is what makes that safe: nicegui's model
+    is only current if every keystroke reaches it, and reading it on blur without that
+    gets whatever the last sync happened to hold. Several lines settle as you stop
+    typing instead, because a paragraph has no natural moment of leaving.
+    """
+    def draw() -> None:
+        with ui.element("div").classes("hub-fact-edit"):
+            if lines:
+                control = ui.textarea(placeholder=placeholder)
+                control.value = value
+                control.props(f"dense borderless rows={lines} debounce=800") \
+                    .classes("hub-edit-field")
+                control.on_value_change(lambda: on_save(control.value or ""))
+            else:
+                control = ui.input(placeholder=placeholder)
+                control.value = value
+                control.props("dense borderless debounce=0") \
+                    .classes("hub-edit-field")
+                control.on("blur", lambda: on_save(control.value or ""))
+            if disabled:
+                control.disable()
+
+    return draw
+
+
+def select(options: Any, value: str, on_change: Callable[[Any], Any], *,
+           disabled: bool = False) -> Callable[[], None]:
+    """A list to pick from, where the reader already knows what the names mean.
+
+    Where the label of each option is itself the thing being decided, the set goes on
+    screen whole as radios instead - a closed control makes the reader open it to
+    compare.
+    """
+    def draw() -> None:
+        with ui.element("div").classes("hub-fact-edit"):
+            control = ui.select(options, value=value, on_change=on_change) \
+                .props("dense borderless options-dense") \
+                .classes("hub-edit-field hub-edit-select")
+            if disabled:
+                control.disable()
+
+    return draw
+
+
+def number(value: Any, on_change: Callable[[Any], Any], *,
+           disabled: bool = False) -> Callable[[], None]:
+    """A whole number. Narrow, because a four-digit box in a full-width field says the
+    value might be long."""
+    def draw() -> None:
+        with ui.element("div").classes("hub-fact-edit"):
+            control = ui.number(value=value if value != "" else None, format="%d",
+                                on_change=on_change) \
+                .props("dense borderless").classes("hub-edit-field hub-edit-narrow")
+            if disabled:
+                control.disable()
+
+    return draw
+
+
+def action(label: str, on_click: Callable[[], Any], *, icon: str = "",
+           inline: bool = False, danger: bool = False, hint: str = "",
+           enabled: bool = True) -> Callable[[], None]:
+    """A verb, which follows the value it acts on.
+
+    Weight follows the target: an action on a field or a section takes `.hub-action`;
+    one sitting beside a state takes `.hub-action--inline`, the same control at the
+    chip's type scale.
+    """
+    def draw() -> None:
+        classes = "hub-action--inline" if inline else "hub-action"
+        if danger:
+            classes = f"hub-action {classes} hub-action--danger"
+        control = ui.button(label, icon=icon or None, on_click=on_click) \
+            .props("flat dense no-caps size=sm").classes(classes)
+        if not enabled:
+            control.disable()
+        if hint:
+            control.tooltip(hint)
+
+    return draw
+
+
+def note(text: str) -> tuple[Any, Callable[[], None]]:
+    """The sentence under a control that says what it does.
+
+    Written out rather than left to a tooltip, and only where the label cannot carry
+    the meaning on its own: a config key's name says what it is called, not what
+    turning it off costs. Help you have to already suspect you need is not help.
+    """
+    def draw() -> None:
+        ui.label(text).classes("hub-help")
+
+    return (ASIDE, draw)
+
+
+def intro(text: str) -> tuple[Any, Callable[[], None]]:
+    """What a whole page cannot say row by row, said once above the rows.
+
+    The width of the panel, because it is not about any one control - which is the
+    difference between this and `note`.
+    """
+    def draw() -> None:
+        ui.label(text).classes("hub-help")
+
+    return (FULL, draw)
