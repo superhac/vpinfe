@@ -160,10 +160,14 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
           placeholder: str = "", disabled: bool = False) -> Callable[[], None]:
     """Free text the user can set.
 
-    Written when you leave it, and `debounce=0` is what makes that safe: nicegui's model
-    is only current if every keystroke reaches it, and reading it on blur without that
-    gets whatever the last sync happened to hold. Several lines settle as you stop
-    typing instead, because a paragraph has no natural moment of leaving.
+    Written when you leave it or when you press Enter, and `debounce=0` is what makes
+    that safe: nicegui's model is only current if every keystroke reaches it, and reading
+    it without that gets whatever the last sync happened to hold. Several lines settle as
+    you stop typing instead, because a paragraph has no natural moment of leaving - and
+    Enter belongs to the text there rather than to finishing it.
+
+    Enter blurs rather than saving on the spot, so there is one write path and not two
+    that can both fire on the way out. Leaving is what saves; Enter is a way of leaving.
     """
     def draw() -> None:
         with ui.element("div").classes("hub-fact-edit"):
@@ -179,6 +183,7 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
                 control.props("dense borderless debounce=0") \
                     .classes("hub-edit-field")
                 control.on("blur", lambda: on_save(control.value or ""))
+                control.on("keydown.enter", lambda: control.run_method("blur"))
             if disabled:
                 control.disable()
 
