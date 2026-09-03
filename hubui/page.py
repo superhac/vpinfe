@@ -10,6 +10,7 @@ from nicegui import run, ui
 from hubui import collections as collections_page
 from hubui import deeplink, games, grid, sections, tageditor, theme, views, workbench
 from hubui import devices as devices_page
+from hubui import media as media_page
 from hubui import settings as settings_page
 from hubui.api import HubClient
 from hubui.data import Library
@@ -62,12 +63,14 @@ NAV_PARENT = ("library", "Library", "inventory_2")
 NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None,
                         tuple[tuple[str, str, str], ...]], ...] = (
     (None, (("overview", "Overview", "space_dashboard"),)),
+    # Media sits with the grains of the library it is one of, ahead of the two that
+    # organize it rather than being part of it.
     (NAV_PARENT, (("games", "Games", "sports_esports"),
                   ("tables", "Tables", "casino"),
+                  ("media", "Media", "perm_media"),
                   ("collections", "Collections", "collections_bookmark"),
                   ("tags", "Tags", "sell"))),
-    (None, (("media", "Media", "perm_media"),
-            ("devices", "Devices", "devices"),
+    (None, (("devices", "Devices", "devices"),
             ("extensions", "Extensions", "extension"),
             ("settings", "Settings", "tune"))),
 )
@@ -97,11 +100,11 @@ EMPTY_PANE = {
     "games": ("Game Details", "Select a game"),
     "tables": ("Table Details", "Select a table"),
     "collections": ("Collection", "Select a collection"),
-    "media": ("Game Details", "Select a game"),
+    "media": ("Media", "Select a kind of media"),
 }
 
-# The pages the pane has a role on. Media is one of them: its coverage list hands a
-# game to the panel rather than navigating. Everywhere else it is hidden outright -
+# The pages the pane has a role on. Media is one of them: a row is one game's slot, so
+# the panel opens on it the way it does for a game. Everywhere else it is hidden -
 # `render` adds `hub-no-pane` - and the user's own open/closed and width are left alone,
 # so coming back to a page that selects something restores what they arranged.
 WORKBENCH_VIEWS = frozenset(EMPTY_PANE)
@@ -411,6 +414,24 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                               state["table"])
         deeplink.sync(state)
 
+    async def show_slot(row: dict | None) -> None:
+        """A media row is one slot of one game, so the panel opens on that slot.
+
+        The row says which lens it belongs to - a shared file has no table, a file
+        named for one carries it - so this needs no control and cannot disagree with
+        the grid. The same landing the Games grid uses for a media cell.
+        """
+        if row and not state["workbench"]:
+            show_workbench(True)
+        state["game"] = (row or {}).get("game_id")
+        state["table"] = (row or {}).get("table") or ""
+        if row:
+            state["section"] = "media"
+            state.setdefault("slot", {"kind": None})["kind"] = row.get("kind")
+        await workbench.build(panel, workbench_title, library, state["game"], state,
+                              state["table"])
+        deeplink.sync(state)
+
     async def show_collection(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about - the same rule
         Games follows, so the panel never needs a control of its own."""
@@ -504,7 +525,8 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                 collections_page.build(library.collections(), library, show_collection,
                                        state, redraw)
             elif view == "media":
-                sections.media(library, lambda gid: show_game({"id": gid}))
+                media_page.build(library.media_rows(), library, show_slot, state,
+                                 redraw)
             elif view == "extensions":
                 sections.extensions(devices)
             elif view == "settings":
@@ -540,6 +562,12 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                 await run.io_bound(library.load_collections)
                 render()
             asyncio.create_task(read_collections_then_draw())
+            return
+        if state["view"] == "media" and not library.has_media_rows():
+            async def read_media_then_draw() -> None:
+                await run.io_bound(library.load_media_rows)
+                render()
+            asyncio.create_task(read_media_then_draw())
             return
         render()
 
@@ -594,6 +622,8 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         await run.io_bound(library.load_tables)
     if state["view"] == "collections":
         await run.io_bound(library.load_collections)
+    if state["view"] == "media":
+        await run.io_bound(library.load_media_rows)
     await workbench.build(panel, workbench_title, library, None, state)
     render()
     if landing:

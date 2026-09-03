@@ -84,6 +84,8 @@ class Library:
         # The by-file lens, read on first use rather than at load: most sessions never
         # switch to it, and it is a second walk of every folder.
         self._table_rows: list[dict[str, Any]] | None = None
+        # The by-file lens over media, read the same way and for the same reason.
+        self._media_rows: list[dict[str, Any]] | None = None
         self._vps_entries: dict[str, dict[str, Any]] = {}
         self._vps_releases: dict[tuple[str, str], list[dict[str, Any]]] = {}
         self._overrides: dict[str, dict[str, Any]] = {}
@@ -291,6 +293,10 @@ class Library:
         self._client.forget_media(game_id)
         for key in [k for k in self.table_media if k[0] == game_id]:
             self.table_media.pop(key, None)
+        # The media lens is the same files counted the other way, so a write that
+        # changes one changes it too. Dropped whole rather than by game: a placement
+        # can add or remove a row, not only alter one.
+        self._media_rows = None
 
     def table_rows(self) -> list[dict[str, Any]]:
         """The by-file lens as it stands, or empty if nobody has read it yet.
@@ -400,6 +406,30 @@ class Library:
         if self._table_rows is None:
             self._table_rows = self._client.all_tables()
         return self._table_rows
+
+    def load_media_rows(self) -> list[dict[str, Any]]:
+        """Read the media lens. Off the event loop, once per session.
+
+        The kept kinds are read here too, because `media_rows` filters on them while
+        the page is drawing - which is on the loop, where the config call is refused.
+        """
+        if self._media_rows is None:
+            self._media_rows = self._client.all_media()
+        self.kept_kinds()
+        return self._media_rows
+
+    def media_rows(self) -> list[dict[str, Any]]:
+        """The media lens as it stands, filtered to the kinds this library collects.
+
+        Filtered here rather than in the API, which serves every kind either way: a
+        file already on disk still resolves and a theme asking for a topper still gets
+        one. What a library says it does not collect governs what it is shown.
+        """
+        kept = self.kept_kinds()["media"]
+        return [row for row in (self._media_rows or []) if row.get("kind") in kept]
+
+    def has_media_rows(self) -> bool:
+        return self._media_rows is not None
 
     def tables_for(self, game_id: str) -> list[dict[str, Any]]:
         """Fetched when something asks, not with the library.

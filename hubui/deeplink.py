@@ -38,8 +38,10 @@ _FIELDS = (
 # meaningful on the Tables grid as on the Games one, because both answer for a game in
 # the workbench beside them. Left as a single name each, a table's section vanished from
 # the address the moment Tables became a place of its own.
-_ONLY_ON = {"game": ("games", "tables"), "table": ("games", "tables"),
-            "section": ("games", "tables"), "slot": ("games", "tables"),
+# Media selects a game, a table and a slot the same way the other two do - a row there
+# is one game's slot - so leaving it out would drop the whole selection in silence.
+_PANEL = ("games", "tables", "media")
+_ONLY_ON = {"game": _PANEL, "table": _PANEL, "section": _PANEL, "slot": _PANEL,
             "settings": ("settings",)}
 
 

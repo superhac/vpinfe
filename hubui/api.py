@@ -86,6 +86,10 @@ class HubClient:
         """Every table in the library, one row each, with its game's name on it."""
         return list(self._get("/tables").get("tables") or [])
 
+    def all_media(self) -> list[dict]:
+        """Every media file in the library, one row each, and one per file it lacks."""
+        return self._get("/media").get("media", [])
+
     def tables(self, game_id: str) -> list[dict]:
         return self._get(f"/games/{game_id}/tables").get("tables", [])
 

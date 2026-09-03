@@ -1,7 +1,7 @@
 """Strawman sections, built to be argued with.
 
-Overview, Media, Collections and Extensions exist here to show how the shell holds
-together, not as finished pages. Where a page could use real library data it does -
+Overview and Extensions exist here to show how the shell holds together, not as
+finished pages. Where a page could use real library data it does -
 a mock number proves nothing, and the checks below are the validator registry in
 embryo: each one is a name, a sentence a person can read, and a predicate.
 """
@@ -14,7 +14,6 @@ from typing import Any
 from nicegui import ui
 
 from common.media_specs import media_label_map
-from hubui import mediamap
 from hubui.data import Library
 
 # name, one-line description, predicate over (game, media entries).
@@ -124,6 +123,24 @@ def overview(library: Library, registry: list[dict], discovery: dict,
             ui.label(str(discovery.get("app_version") or "?")).classes("hub-kpi")
             ui.label("no update endpoint yet").classes("text-xs opacity-60")
 
+    ui.label("Coverage by kind").classes("hub-group mt-4")
+    with ui.element("div").classes("hub-card w-full"):
+        # A filter says which games lack a topper. Nothing in a grid says "you have no
+        # toppers at all" without filtering twenty kinds one at a time, which is the
+        # one thing a rollup does that a lens cannot.
+        kept = library.kept_kinds()["media"]
+        counts = [(kind, sum(1 for entries in library.media.values()
+                             if entries.get(kind, {}).get("present")))
+                  for kind in library.kinds() if kind in kept]
+        for kind, held in sorted(counts, key=lambda item: item[1]):
+            with ui.row().classes("items-center gap-3 w-full no-wrap py-1"):
+                ui.label(media_label_map().get(kind, kind)) \
+                    .classes("hub-setting w-40 shrink-0")
+                with ui.element("div").classes("grow min-w-0"):
+                    _bar(held / len(library.games) if library.games else 0)
+                ui.label(f"{held} of {len(library.games)}") \
+                    .classes("text-xs opacity-60 shrink-0")
+
     ui.label("What needs attention").classes("hub-group mt-4")
     with ui.element("div").classes("hub-card w-full"):
         for key, name, description, _ in CHECKS:
@@ -139,101 +156,6 @@ def overview(library: Library, registry: list[dict], discovery: dict,
                 ui.button("Show", on_click=lambda k=key: go("games")) \
                     .props("flat dense no-caps size=sm").classes("shrink-0") \
                     .set_enabled(bool(games))
-
-
-# --- Media -----------------------------------------------------------------------
-
-# Strawman only. The real thing reads the registry that the asset search would use.
-def media(library: Library, go_game: Callable[[str], None]) -> None:
-    """Coverage, and the work that follows from it.
-
-    A bar chart of what is missing is a report, and a report is not a tool. Picking a
-    kind here produces the list of games missing it, which is the thing you would
-    otherwise assemble by hand before you could do anything about it.
-    """
-    kinds: list[tuple[str, int, int, list[dict]]] = []
-    for kind in library.kinds():
-        ok = borrowed = 0
-        gap: list[dict] = []
-        for game in library.games:
-            state = mediamap._state(library.media[game["id"]].get(kind, {}))
-            if state == "present":
-                ok += 1
-            elif state == "borrowed":
-                borrowed += 1
-            else:
-                gap.append(game)
-        kinds.append((kind, ok, borrowed, gap))
-    kinds.sort(key=lambda k: -len(k[3]))
-    holder: dict[str, Any] = {}
-    rows_by_kind: dict[str, Any] = {}
-    chosen = {"kind": kinds[0][0] if kinds else None}
-
-    def show(kind: str) -> None:
-        chosen["kind"] = kind
-        target = holder.get("work")
-        if target is None:
-            return
-        target.clear()
-        _, ok, borrowed, gap = next(k for k in kinds if k[0] == kind)
-        with target:
-            ui.label(media_label_map().get(kind, kind)).classes("hub-card-title")
-            ui.label(f"{len(gap)} games have no {media_label_map().get(kind, kind).lower()}. "
-                     f"{ok} resolved" + (f", {borrowed} borrowed." if borrowed else "."))\
-                .classes("hub-help mb-2")
-            with ui.row().classes("gap-2 mb-3"):
-                ui.button(f"Search sources for {len(gap)}", icon="travel_explore") \
-                    .props("dense no-caps unelevated").set_enabled(False)
-                ui.button("Show in Games", icon="list").props("flat dense no-caps") \
-                    .set_enabled(False)
-            if not gap:
-                ui.label("Nothing missing. Every game resolved this kind.") \
-                    .classes("hub-help")
-            for game in gap[:60]:
-                ui.label(game.get("name") or "").classes("text-xs opacity-80 truncate") \
-                    .on("click", lambda g=game: go_game(g["id"])) \
-                    .classes("cursor-pointer")
-            if len(gap) > 60:
-                ui.label(f"...and {len(gap) - 60} more").classes("text-xs opacity-50")
-
-    with ui.row().classes("w-full gap-4 no-wrap items-start"):
-        with ui.element("div").classes("hub-card shrink-0").style("width:330px"):
-            ui.label("Gaps by kind").classes("hub-card-title")
-            ui.label("Worst first. Pick one to see which games it affects.") \
-                .classes("hub-help mb-2")
-            for kind, ok, borrowed, gap in kinds:
-                total = ok + borrowed + len(gap)
-                row = ui.element("div").classes("hub-index-item w-full")
-                if kind == chosen["kind"]:
-                    row.classes(add="hub-index-on")
-
-                def pick(k=kind) -> None:
-                    for other in rows_by_kind.values():
-                        other.classes(remove="hub-index-on")
-                    rows_by_kind[k].classes(add="hub-index-on")
-                    show(k)
-
-                row.on("click", pick)
-                with row:
-                    with ui.row().classes("items-center gap-2 w-full no-wrap"):
-                        ui.label(media_label_map().get(kind, kind)) \
-                            .classes("text-xs grow min-w-0 truncate")
-                        ui.label(str(len(gap))).classes("text-xs opacity-60 shrink-0")
-                    _bar(ok / total if total else 0)
-                rows_by_kind[kind] = row
-        with ui.element("div").classes("hub-card grow min-w-0"):
-            holder["work"] = ui.column().classes("w-full gap-0")
-
-    ui.label("Recorder").classes("hub-group mt-4")
-    with ui.element("div").classes("hub-card w-full"):
-        ui.label("Capture playfield, backglass and score-display media from a player "
-                 "while it runs the game, for the kinds nobody has published.") \
-            .classes("hub-help")
-        ui.label("Not built. Gated on what VPX Standalone can capture on Linux and "
-                 "macOS - a Windows-only path is the wrong shape for this platform.") \
-            .classes("hub-help mt-1 text-warning")
-    if chosen["kind"]:
-        show(chosen["kind"])
 
 
 # --- Extensions ------------------------------------------------------------------
