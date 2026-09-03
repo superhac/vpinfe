@@ -273,6 +273,31 @@ def media_family(kind: str) -> str:
     return _FAMILY_NAMES.get(spec.family, "") if spec else ""
 
 
+def spec_named(filename: str) -> tuple[str, str] | None:
+    """A spec-named file read back as `(kind, stem)`, or None if it is not one.
+
+    The reverse of the naming rule `media_placement.target_name` writes, so a file this
+    project put down can be read back and asked who it was for. Alt tokens are accepted
+    the way resolution accepts them; a video and its still share a token and are told
+    apart by the extension, which is why the family is part of the match.
+
+    Nothing else is a spec name. A file the user called something of their own is not a
+    defect and must not be reported as one, so it answers None rather than a guess.
+    """
+    name = Path(filename).name
+    stem, dot, extension = name.rpartition(".")
+    if not dot:
+        return None
+    extension = f".{extension.lower()}"
+    for spec in MEDIA_SPECS:
+        if extension not in spec.family:
+            continue
+        for token in (spec.token, *spec.alt_tokens):
+            if token and stem.lower().startswith(f"{token.lower()} "):
+                return spec.kind, stem[len(token) + 1:]
+    return None
+
+
 def media_filename_map(playfield_variant: str = "table") -> dict[str, str]:
     """Kind to the filename it resolves. The variant changes filenames, not kinds."""
     return {spec.kind: spec.filename(playfield_variant) for spec in MEDIA_SPECS}

@@ -612,6 +612,10 @@ class MediaSlot(ApiModel):
     present: bool = False
     file: str | None = None
     path: str | None = None
+    # Why this file is the one being used, or why it is not being used at all:
+    # "orphan" names a table the folder does not have, and "unused" is correctly named
+    # but covered by something more specific - the fallback, which resolves again the
+    # moment what covers it is removed.
     via: str | None = None
     # Who put the file here, as far as the .info ledger recorded. "unknown" is the
     # honest answer for anything placed before the ledger or by another tool.
@@ -622,10 +626,44 @@ class MediaSlot(ApiModel):
     # present, but a curator reading "Missing" against a machine that shows something
     # needs to know why.
     standing_in: str = ""
-    # Files at this row's own scope hidden behind the one that won. A shared write
-    # clears only the spec-named family at its stem, so a catalog's fixed-name file
-    # survives underneath and resurfaces if the winner is removed.
-    shadowed: list[str] = []
+
+
+class AssetSlot(ApiModel):
+    """One asset file the library holds, or the absence of one.
+
+    `binding` is who the file answers for: "table" where it is named for one .vpx,
+    "game" where it is the folder-named file every table falls back to, "orphaned"
+    where it is named for a table that is not there, and "none" on the row that stands
+    for a file the folder does not have.
+    """
+
+    id: str
+    game_id: str
+    game: str
+    manufacturer: str = ""
+    year: str = ""
+    kind: str
+    label: str
+    table: str = ""
+    table_file: str = ""
+    vps_id: str = ""
+    binding: str
+    present: bool = False
+    # How many tables this file answers for. Null on a file named for one table, and
+    # **0 on a folder-named file for a kind VPX resolves stem-only** - a `.vbs` or a
+    # `.pov` named for the folder is inert, which is a thing worth being able to see.
+    serves: int | None = None
+    file: str | None = None
+    path: str | None = None
+    origin: str | None = None
+    matched_to: str | None = None
+
+
+class AssetSlotList(ApiModel):
+    total: int
+    offset: int
+    count: int
+    assets: list[AssetSlot]
 
 
 class MediaSlotList(ApiModel):
@@ -1249,6 +1287,27 @@ class JobResource(ApiModel):
     started_at: float
     finished_at: float | None
     links: JobLinks
+
+
+class UpdateCheck(ApiModel):
+    """Whether a newer build is published, and whether this install can take it.
+
+    `update_supported` is not the same question as `update_available`: a build that
+    cannot replace itself - one run from source, or on a platform with no published
+    asset - still wants to be told a newer version exists. `support_reason` says which
+    case it is, so a client offers a link where it cannot offer a button.
+    """
+
+    update_available: bool = False
+    current_version: str | None = None
+    latest_version: str | None = None
+    update_supported: bool = False
+    support_reason: str | None = None
+    triplet: str | None = None
+    asset_name: str | None = None
+    # Set when the check could not be made at all. Not knowing is its own answer and is
+    # never reported as "no update".
+    error: str | None = None
 
 
 class JobList(ApiModel):
