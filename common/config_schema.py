@@ -97,6 +97,14 @@ class ConfigOption:
     # Runtime state that happens to live in the config file - a last-played pointer, a
     # cache marker. Nobody sets these, so nothing should offer them as settings.
     internal: bool = False
+    # What this string names on disk, when it names something: `file`, `dir`, or `exe`.
+    # Declared rather than inferred from the key - `vpx_bin_path` and `vpx_ini_path` end
+    # the same way and want different answers, and a surface that guesses from a name is
+    # one rename away from validating the wrong thing.
+    path: str = ""
+
+
+PATH_KINDS = ("file", "dir", "exe")
 
 
 def in_section(section: str, *options: ConfigOption) -> tuple[ConfigOption, ...]:
@@ -259,6 +267,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ConfigOption(
             "vpx_bin_path",
             type="string",
+            path="exe",
             default="",
             label="VPX Executable Path",
             description="Full path to the Visual Pinball executable VPinFE launches.",
@@ -274,6 +283,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ConfigOption(
             "global_ini_override",
             type="string",
+            path="file",
             default="",
             label="Global INI Override",
             description="Path to an ini to use instead of the default, for example"
@@ -297,6 +307,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ConfigOption(
             "game_root_dir",
             type="string",
+            path="dir",
             default="",
             label="Tables Directory",
             description="The folder holding your table folders, one folder per game.",
@@ -331,6 +342,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ConfigOption(
             "vpx_ini_path",
             type="string",
+            path="file",
             default="",
             label="VPX INI Path",
             description="Path to VPinballX.ini, which VPinFE reads for the key mappings the Remote"
@@ -340,6 +352,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ConfigOption(
             "assets_dir",
             type="string",
+            path="dir",
             default="",
             label="Shared Assets Directory",
             description="Root folder for assets shared across games rather than owned by one, such"
@@ -350,6 +363,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ConfigOption(
             "rar_tool_path",
             type="string",
+            path="exe",
             default="",
             label="RAR Tool Path",
             description="Path to unar or unrar. Blank auto-detects one on this"
@@ -430,7 +444,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     ),
     # How the frontend behaves, as against `themes`, which is what is installed. Both of
     # these were in `general` beside genuinely global settings, on a Manager UI page
-    # nobody looks at for wheel behaviour.
+    # nobody looks at for wheel behavior.
     *in_section(
         "frontend",
         # How far a page press moves the wheel. Not in `input`, which is which button

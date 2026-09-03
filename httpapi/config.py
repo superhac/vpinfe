@@ -18,7 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from common import config_schema
+from common import config_schema, path_checks
 from common.paths import get_ini_config
 
 from . import models, scopes
@@ -46,6 +46,9 @@ def _describe(option: config_schema.ConfigOption) -> dict[str, Any]:
         "description": option.description,
         "choices": list(option.choices),
         "writable": option.section not in READ_ONLY_SECTIONS,
+        # So a client knows which strings name something on disk without matching on the
+        # key. Empty for everything that is only text.
+        "path": option.path,
     }
 
 
@@ -67,6 +70,28 @@ def get_schema() -> models.ConfigSchema:
             "options": [o for o in options if o["section"] == name],
         })
     return {"sections": sections, "count": len(options)}
+
+
+@router.get("/paths", summary="Whether each path setting finds anything",
+            dependencies=[requires(scopes.CONFIG_READ)])
+def get_path_checks() -> models.ConfigPathChecks:
+    """Every path setting, checked against this machine's disk.
+
+    All of them in one answer rather than one call per field: a settings page wants the
+    whole column at once, and the alternative is six requests that each stat one file.
+
+    The caller names no path. It asks about settings, and the install answers about the
+    values it holds - so this cannot be used to ask whether a file exists somewhere a
+    caller is not otherwise allowed to look.
+    """
+    store = get_ini_config()
+    checks = []
+    for option in path_checks.path_options():
+        state, reason = path_checks.check_option(
+            option, store.value(option.section, option.key))
+        checks.append({"section": option.section, "key": option.key,
+                       "path": option.path, "state": state, "reason": reason})
+    return {"checks": checks}
 
 
 @router.get("", summary="What this install is set to",

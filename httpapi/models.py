@@ -209,6 +209,9 @@ class ConfigOptionInfo(ApiModel):
     description: str = ""
     choices: list[str] = []
     writable: bool = True
+    # What this string names on disk, when it names something: file, dir or exe. Empty
+    # for everything that is only text, so a client need not match on the key's name.
+    path: str = ""
 
 
 class ConfigSection(ApiModel):
@@ -223,6 +226,25 @@ class ConfigSchema(ApiModel):
 
     sections: list[ConfigSection]
     count: int
+
+
+class ConfigPathCheck(ApiModel):
+    """One path setting against this machine's disk.
+
+    `state` is `unset` when the value is blank, which is not a failure - most of these
+    are optional and blank means the default. `reason` is written for the person who
+    typed it and says what was found, because the path is right there to compare against.
+    """
+
+    section: str
+    key: str
+    path: str
+    state: str
+    reason: str = ""
+
+
+class ConfigPathChecks(ApiModel):
+    checks: list[ConfigPathCheck]
 
 
 class ConfigValues(ApiModel):

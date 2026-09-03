@@ -372,14 +372,21 @@ def get_effective_launcher(default_launcher: str, meta_config=None):
     if not configured_value:
         return None, source_key, configured_value
 
-    launcher_path = Path(configured_value).expanduser()
+    return resolve_launcher_path(configured_value), source_key, configured_value
 
-    # macOS App bundle support (same behavior as vpxbinpath handling)
+
+def resolve_launcher_path(configured_value: str) -> Path:
+    """The file a configured launcher actually runs.
+
+    On macOS what a person picks is `VPinballX.app`, which is a directory - so anything
+    asking whether the setting names a program has to walk into the bundle first, or it
+    reports the one right answer as a mistake. Shared with the settings check for exactly
+    that reason: two copies of this rule is one drifting away from what launches.
+    """
+    launcher_path = Path(str(configured_value or "").strip()).expanduser()
     if sys.platform == "darwin" and launcher_path.suffix.lower() == ".app":
-        app_name = launcher_path.stem
-        launcher_path = launcher_path / "Contents" / "MacOS" / app_name
-
-    return launcher_path, source_key, configured_value
+        launcher_path = launcher_path / "Contents" / "MacOS" / launcher_path.stem
+    return launcher_path
 
 
 def parse_launch_env_overrides(raw_value: str) -> dict[str, str]:

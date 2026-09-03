@@ -157,7 +157,8 @@ def state(text: str, level: str, *, beside: str = "") -> Callable[[], None]:
 
 
 def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
-          placeholder: str = "", disabled: bool = False) -> Callable[[], None]:
+          placeholder: str = "", disabled: bool = False,
+          status: Callable[[Any], Any] | None = None) -> Callable[[], None]:
     """Free text the user can set.
 
     Written when you leave it or when you press Enter, and `debounce=0` is what makes
@@ -168,6 +169,10 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
 
     Enter blurs rather than saving on the spot, so there is one write path and not two
     that can both fire on the way out. Leaving is what saves; Enter is a way of leaving.
+
+    `status` draws inside the control's own append slot rather than after it, which is
+    where Quasar puts an input's state and where a reader already looks for one - a mark
+    in the next grid column would read as a fact about the row, not about the value.
     """
     def draw() -> None:
         with ui.element("div").classes("hub-fact-edit"):
@@ -184,8 +189,40 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
                     .classes("hub-edit-field")
                 control.on("blur", lambda: on_save(control.value or ""))
                 control.on("keydown.enter", lambda: control.run_method("blur"))
+                if status is not None:
+                    with control.add_slot("append"):
+                        status(control)
             if disabled:
                 control.disable()
+
+    return draw
+
+
+# A state a value is in, as the mark and the color that say so. `unset` draws nothing:
+# an optional setting left blank is a choice, and a mark on every empty field is a page
+# full of marks that mean nothing.
+_VALUE_STATES = {
+    "ok": ("check_circle", "positive"),
+    "missing": ("cancel", "negative"),
+    "wrong_kind": ("cancel", "negative"),
+    "not_executable": ("error", "warning"),
+}
+
+
+def value_state(state: str, reason: str = "") -> Callable[[Any], None]:
+    """The mark that says whether a value is good, for `field(status=...)`.
+
+    A tick and a cross rather than a chip: this is about the text in the box beside it,
+    and a chip in the append slot would be a second control where a mark is wanted.
+    """
+    def draw(_control) -> None:
+        pair = _VALUE_STATES.get(state)
+        if pair is None:
+            return
+        icon, color = pair
+        mark = ui.icon(icon, size="18px").classes(f"text-{color} hub-value-state")
+        if reason:
+            mark.tooltip(reason)
 
     return draw
 

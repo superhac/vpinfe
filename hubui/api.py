@@ -539,6 +539,11 @@ class HubClient:
         """What it is set to, typed - a bool arrives as a bool."""
         return dict(self._get("/config").get("values") or {})
 
+    def config_path_checks(self) -> list[dict]:
+        """Whether each path setting finds anything on the machine holding it. Stats the
+        disk, so it is answered by that install and not worked out from the value."""
+        return list(self._get("/config/paths").get("checks") or [])
+
     def put_config(self, changes: dict) -> dict:
         """A patch, section then key. Refused whole if any key is unknown."""
         return dict(self._put("/config", changes).get("values") or {})

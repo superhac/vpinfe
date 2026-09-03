@@ -11,6 +11,7 @@ says what it is called, not what turning it off costs.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from typing import Any
 
@@ -20,6 +21,8 @@ from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.labels import humanize
 from common.media_specs import media_label_map
 from hubui import deeplink, panel
+
+logger = logging.getLogger("vpinfe.hubui.settings")
 
 # Wider than the pane's rail: these are page names rather than section names, and
 # "Virtual Pinball Spreadsheet" ellipses at the pane's width.
@@ -107,7 +110,8 @@ async def _write(library, section: str, key: str, value: Any) -> bool:
 
 
 def _control(library, section: str, option: dict, value: Any,
-             writable: bool) -> Callable[[], None]:
+             writable: bool, rerender: Callable[[], None] | None = None,
+             checks: dict[tuple[str, str], dict] | None = None) -> Callable[[], None]:
     """The control a setting's type asks for.
 
     Driven by the schema's `type`, never by the key's name: a setting added to
@@ -139,6 +143,20 @@ def _control(library, section: str, option: dict, value: Any,
             lambda text: _write(library, section, key,
                                 [p.strip() for p in text.split(",") if p.strip()]),
             disabled=off)
+    if option.get("path"):
+        # A path is the one setting that can be well-formed and still wrong, and it fails
+        # much later - at launch, as a file-not-found. Re-checked after a write rather
+        # than guessed at here: the answer is about this machine's disk, not the text.
+        found = (checks or {}).get((section, key)) or {}
+
+        async def save_path(text: str) -> None:
+            if await _write(library, section, key, text) and rerender is not None:
+                rerender()
+
+        return panel.field(
+            str(value or ""), save_path, disabled=off,
+            status=panel.value_state(str(found.get("state") or ""),
+                                     str(found.get("reason") or "")))
     return panel.field(
         str(value or ""),
         lambda text: _write(library, section, key, text), disabled=off)
@@ -168,6 +186,16 @@ async def _fill(library, rerender: Callable[[], None], body, section: str,
             panel.facts(ui, [panel.intro(f"Could not read the settings: {exc}")])
         return
 
+    # Whether each path setting finds anything. One call for the whole page rather than
+    # one per field, and never fatal: a page that cannot say whether a path is good is
+    # still a page, and the fields stay usable without their marks.
+    checks: dict[tuple[str, str], dict] = {}
+    try:
+        for found in await run.io_bound(library.config_path_checks):
+            checks[(found.get("section", ""), found.get("key", ""))] = found
+    except Exception:  # noqa: BLE001
+        logger.info("Could not check the path settings", exc_info=True)
+
     block = next((s for s in schema if s.get("name") == section), None)
     if block is None:
         with body:
@@ -187,7 +215,8 @@ async def _fill(library, rerender: Callable[[], None], body, section: str,
         # The schema's label, or the key humanized as an explicit fallback where nothing
         # has named it - never the schema's label put through that same rule again.
         entries.append((option.get("label") or humanize(option["key"]),
-                        _control(library, section, option, value, writable)))
+                        _control(library, section, option, value, writable,
+                                 rerender, checks)))
         if option.get("description"):
             entries.append(panel.note(option["description"]))
 

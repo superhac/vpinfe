@@ -251,6 +251,11 @@ class Library:
         self._kept = None
         return self._client.put_config(changes)
 
+    def config_path_checks(self) -> list[dict]:
+        """Never cached: it is re-read after a write to say whether the new value is any
+        good, and a cached answer would be about the value it replaced."""
+        return self._client.config_path_checks()
+
     def devices(self) -> list[dict]:
         """Never cached: the page holding a device reads this back after changing it,
         and a cached copy would hand it the value it just replaced."""
