@@ -136,7 +136,8 @@ def build(collections: list[dict[str, Any]], library: Any,
             .props("flat dense no-caps size=sm").classes("shrink-0 hub-action")
         search = ui.input(placeholder="Search collections") \
             .props("dense outlined clearable").classes("w-64")
-        wire_views, _ = view_control(library, SCOPE, COLLECTION_VIEWS, fields, COLUMNS)
+        wire_views, _picker, showing = view_control(library, SCOPE, COLLECTION_VIEWS,
+                                                    fields, COLUMNS)
         ui.space()
         count = ui.label(f"{len(built)} collections").classes("text-xs hub-label")
         bulk = ui.button(icon="more_vert").props("flat round dense") \
@@ -169,7 +170,7 @@ def build(collections: list[dict[str, Any]], library: Any,
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
         table = grid.build(COLUMNS, built, SCOPE, on_selected, on_context,
-                           on_header_context, html_fields=["icon"])
+                           on_header_context, html_fields=["icon"], view_of=showing)
         menu = ui.context_menu()
 
     def _fill(row: dict | None, col_id: str | None = None,
