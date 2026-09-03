@@ -2214,9 +2214,6 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .hub-index-item { border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: var(--fs-body);
                   color: var(--ink-2); }
 .hub-index-item:hover { background: rgba(180, 41, 249, 0.14); }
-.hub-index-item.hub-index-on {
-  background: rgba(0, 217, 255, 0.22); color: var(--ink);
-}
 .hub-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); }
 .hub-bar > div { height: 100%; border-radius: 3px; background: var(--accent); }
 """

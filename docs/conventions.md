@@ -375,6 +375,33 @@ owns the fact (`hubui/media_ownership.py`, `hubui/features.py`, `hubui/game_tabl
 this file, not in the stylesheet. **The tell is proposing a *new* treatment at all**: if the
 hub already shows this kind of fact anywhere, the answer exists and the job is to find it.
 
+### The panel is a shape, not a place
+
+A rail of named destinations, one of them open and addressable, and a list of facts about
+one subject. That is the panel, and it is the same whether it sits in the details pane or
+fills the content column. Settings is this shape with the install as its subject; it had
+been built as a language of its own, and the two were eight treatments apart before anyone
+put them side by side — a save bar against per-fact writes, a label over its control
+against a label beside it, and two classes used on screen that the stylesheet never
+defined.
+
+**The rail row is the heading.** No title over the content: the lit row already says where
+you are, and a second copy of the words under it is furniture. A rail long enough to need
+grouping takes group headings; a short one does not.
+
+**One implementation, in `hubui/panel.py`.** The fact list and one constructor per kind of
+value live there, and every surface renders through it. Reaching for `ui.switch` or
+`ui.input` directly forks the design system — which is how the same field ended up with a
+resting edge on one surface and Quasar's default on another. Every constructor hands back
+the callable the fact list takes as a value, so a control drops into an entry list as the
+second half of a pair.
+
+**Help belongs to the control, not to the row.** A config key is the one place that carries
+an explanation on screen rather than in a tooltip: its name says what it is called, not what
+turning it off costs. It sits in the value column under the control it explains — across
+both columns it starts at the label's edge and reads as a caption for the label. What a
+whole page cannot say row by row is said once, above the rows, at the panel's width.
+
 ### One shape per kind of value
 
 A panel that shows facts uses the same control for the same kind of value, everywhere:
@@ -473,6 +500,18 @@ stretch to the same width.
   of that idea and read as a section divider — full width, between two rows, which is
   exactly what a divider is. It sits at `--field-h`, in the fact rhythm rather than above
   it, and `@media (pointer: coarse)` raises it with the inline action.
+
+### A value is written when it is set
+
+No save bar. A control that changes a value writes it, and anything that cannot be undone
+asks first. Two answers had shipped — the pane wrote on change or on blur, Settings
+collected edits into a dirty set behind Save and Discard — so whether an edit had taken
+effect depended on which surface you were on.
+
+Free text settles on blur, with `debounce=0`: nicegui's model is only current if every
+keystroke reaches it, and reading it on blur without that gets whatever the last sync
+happened to hold. Several lines settle as you stop typing instead, because a paragraph has
+no natural moment of leaving. Everything else writes on change.
 
 ### Chips say what the absence costs
 
