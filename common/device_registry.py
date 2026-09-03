@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -85,7 +85,13 @@ class Device:
     # an entry written before installs sent one, or a device that cannot be dialed back.
     port: int = 0
     first_seen: str = ""
+    # When it last announced itself, which is once per startup. An install that has been
+    # up for a week said so a week ago, so this is not how recently it was there.
     last_seen: str = ""
+    # When it was last known to be there, by either route - it announced, or the hub
+    # asked and got an answer. The one that means "available", and the only one of the
+    # three that a device being switched off ever stops advancing.
+    last_reachable: str = ""
     extra: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
@@ -93,6 +99,7 @@ class Device:
                 "display_name": self.display_name,
                 "roles": list(self.roles), "address": self.address, "port": self.port,
                 "first_seen": self.first_seen, "last_seen": self.last_seen,
+                "last_reachable": self.last_reachable,
                 **self.extra}
 
     @classmethod
@@ -101,7 +108,7 @@ class Device:
         if not device_id:
             return None
         known = {"device_id", "kind", "display_name", "roles", "address", "port",
-                 "first_seen", "last_seen"}
+                 "first_seen", "last_seen", "last_reachable"}
         roles = raw.get("roles") or []
         return cls(
             device_id=device_id,
@@ -115,6 +122,7 @@ class Device:
             port=_as_port(raw.get("port")),
             first_seen=str(raw.get("first_seen", "") or ""),
             last_seen=str(raw.get("last_seen", "") or ""),
+            last_reachable=str(raw.get("last_reachable", "") or ""),
             # Anything a newer build wrote is carried through rather than dropped, so a
             # downgrade does not silently strip fields it does not understand.
             extra={k: v for k, v in raw.items() if k not in known},
@@ -178,11 +186,38 @@ class DeviceRegistry:
                 port=port or (existing.port if existing else 0),
                 first_seen=existing.first_seen if existing and existing.first_seen else now,
                 last_seen=now,
+                # Announcing proves it was there, so it counts as being seen. The two
+                # timestamps differ in what moves them, not in what they prove: this one
+                # advances from either direction, and `last_seen` only when it pushed.
+                last_reachable=now,
                 extra=existing.extra if existing else {},
             )
             self._save(list(devices.values()))
             if existing is None:
                 logger.info("DeviceRegistry: new device %s (%s)", wanted, display_name or "unnamed")
+            return devices[wanted]
+
+    def record_reachable(self, device_id: str, *, when: str = "") -> Device | None:
+        """Note that the hub got an answer out of this device just now.
+
+        The pull half. A device announcing itself is the push half and `record` writes
+        the same field, because both prove the same thing - that it was there. What
+        differs is who asked: an install announces once at startup, and a hub can ask
+        any time it wants to know, which is what stops the answer aging for a week while
+        the machine sits there running.
+        """
+        wanted = (device_id or "").strip()
+        if not wanted:
+            return None
+        with self._lock:
+            devices = {p.device_id: p for p in self._load()}
+            existing = devices.get(wanted)
+            if existing is None:
+                # Probing something not in the registry is a caller bug, not a discovery
+                # path: an entry is created by announcing or by a person adding one.
+                return None
+            devices[wanted] = replace(existing, last_reachable=when or utc_now_iso())
+            self._save(list(devices.values()))
             return devices[wanted]
 
     def forget(self, device_id: str) -> bool:

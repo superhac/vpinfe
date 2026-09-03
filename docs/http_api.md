@@ -70,6 +70,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/devices` | The devices this hub has been told about |
 | PUT | `/api/v1/devices` | Announce a device to this hub (idempotent). `port` is declared by the device — the hub reads the address off the socket, which never says what that machine listens on |
 | GET | `/api/v1/devices/{id}` | One device |
+| POST | `/api/v1/devices/probe` | Ask every device whether it is there, and record the ones that answer. `unaskable` means there was nothing to dial, which is not the same as down |
 | DELETE | `/api/v1/devices/{id}` | Forget one |
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library game count. The reference for logo packs and alias maps |
 | GET | `/api/v1/games` | List games (`q`, `limit`, `offset`) |

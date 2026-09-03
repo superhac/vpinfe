@@ -111,13 +111,38 @@ class DeviceResource(ApiModel):
     # is every entry written before an install sent one.
     port: int = 0
     first_seen: str = ""
+    # When it last announced itself, which is once per startup.
     last_seen: str = ""
+    # When it was last known to be there, by either route - it announced, or the hub
+    # asked and got an answer. This is the one that means "available".
+    last_reachable: str = ""
     links: DeviceLinks
 
 
 class DeviceList(ApiModel):
     count: int
     devices: list[DeviceResource]
+
+
+class DeviceProbe(ApiModel):
+    """What one device said when asked.
+
+    `state` is `answering`, `unreachable`, or `unaskable` - the last meaning there was
+    nothing to dial, which a device being switched off never causes and switching it on
+    never fixes. `what` is the product on the other end, written for a person.
+    """
+
+    device_id: str
+    state: str
+    what: str = ""
+    reason: str = ""
+    roles: list[str] = Field(default_factory=list)
+    install_id: str = ""
+    display_name: str = ""
+
+
+class DeviceProbeList(ApiModel):
+    probes: list[DeviceProbe]
 
 
 class DeviceAnnouncement(ApiModel):

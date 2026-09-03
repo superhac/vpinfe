@@ -18,8 +18,9 @@ import logging
 
 from fastapi import APIRouter, Body, Request, Response
 
-from common import device_registry
+from common import device_client, device_registry, install_identity
 from common.device_registry import get_device_registry
+from common.paths import get_ini_config
 
 from . import models, scopes
 from .auth import requires
@@ -99,6 +100,33 @@ def announce(request: Request,
     if device is None:
         raise InvalidRequestError("A device needs a device id")
     return _resource(device)
+
+
+@router.post("/probe", summary="Ask every device whether it is there",
+             dependencies=[requires(scopes.DEVICES_WRITE)])
+async def probe_devices() -> models.DeviceProbeList:
+    """Dial each device and report what answered, recording the ones that did.
+
+    A write, because it advances each answering device's `last_reachable` - the pull
+    half of that timestamp, where an announcement is the push half. Both prove the same
+    thing; a hub can ask any time, and an install only says so at startup.
+
+    One device at a time, off the loop. A machine that is off costs its own short
+    timeout and nobody else's answer.
+    """
+    from starlette.concurrency import run_in_threadpool
+
+    registry = get_device_registry()
+    local_id = install_identity.install_id(get_ini_config())
+    results = []
+    for device in registry.devices():
+        entry = device.as_dict()
+        client = device_client.for_device(entry, local_id)
+        found = await run_in_threadpool(device_client.probe, client)
+        if found.get("state") == device_client.ANSWERING:
+            await run_in_threadpool(registry.record_reachable, device.device_id)
+        results.append({"device_id": device.device_id, **found})
+    return {"probes": results}
 
 
 @router.delete("/{device_id}", summary="Forget a device", status_code=204,

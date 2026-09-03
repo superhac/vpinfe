@@ -19,6 +19,10 @@ from typing import Any
 
 logger = logging.getLogger("vpinfe.common.device_client")
 
+# A probe runs once per device on a page load, so a machine that is off should cost a
+# moment rather than the whole listing. Much shorter than the ordinary call timeout.
+_PROBE_TIMEOUT = 3
+
 
 @dataclass(frozen=True)
 class Display:
@@ -99,9 +103,39 @@ class LocalDevice:
 
         return launch_state.current().as_dict()
 
+    def probe(self) -> dict[str, Any]:
+        """Always answering: this is the process being asked."""
+        from common.app_version import get_version
+
+        return {"state": ANSWERING, "what": f"VPinFE {get_version()}", "reason": ""}
+
 
 class NotThisDeviceError(RuntimeError):
     """Asked of a remote device something only the machine itself can answer."""
+
+
+# What a probe found. `unreachable` and `unknown` are different answers: one means the
+# hub asked and got nothing, the other that there was nothing to ask - an entry with no
+# port, which a device being switched off never causes and switching it on never fixes.
+ANSWERING = "answering"
+UNREACHABLE = "unreachable"
+UNASKABLE = "unaskable"
+
+
+def probe(client) -> dict[str, Any]:
+    """Whether a device answers, and what is on the other end.
+
+    One shape for both kinds, because a row shows one of them at a time: `state`, and a
+    `what` written for a person - the product and version for an install, and the bare
+    fact of answering for a phone, which is all VPX Mobile's file listing proves.
+    """
+    if client is None:
+        return {"state": UNASKABLE, "what": "",
+                "reason": "This device has not said which port it answers on."}
+    try:
+        return client.probe()
+    except Exception as exc:  # noqa: BLE001 - not answering is an answer
+        return {"state": UNREACHABLE, "what": "", "reason": str(exc)}
 
 
 class RemoteDevice:
@@ -164,6 +198,53 @@ class RemoteDevice:
         return dict(http_client.post_json(
             self._url("/update"), {"stop_table": stop_table}) or {})
 
+    def probe(self) -> dict[str, Any]:
+        """Discovery, which is the cheapest call that proves who answered.
+
+        Short timeout on purpose: this runs once per device on a page load, and a
+        machine that is off should cost a moment rather than the whole listing.
+        """
+        from common import http_client
+
+        said = dict(http_client.get_json(self._url(""), timeout=_PROBE_TIMEOUT) or {})
+        name = str(said.get("name") or "VPinFE")
+        version = str(said.get("app_version") or "")
+        return {"state": ANSWERING,
+                "what": f"{name} {version}".strip(),
+                "roles": list(said.get("roles") or []),
+                "install_id": str(said.get("install_id") or ""),
+                "display_name": str(said.get("display_name") or ""),
+                "reason": ""}
+
+
+class MobileDevice:
+    """A phone running VPX Mobile, which is not VPinFE and never answers as one.
+
+    It speaks the file transfer protocol the 2.x Mobile page sends over and nothing
+    else, so the questions a hub can put to it are a much shorter list - and the ones it
+    cannot answer raise rather than returning a shape that looks like an answer.
+    """
+
+    def __init__(self, base_url: str) -> None:
+        self.base_url = base_url.rstrip("/")
+
+    def __getattr__(self, name: str):
+        def refuse(*_args, **_kwargs):
+            raise NotThisDeviceError(
+                f"A VPX Mobile device does not answer {name}")
+        return refuse
+
+    def probe(self) -> dict[str, Any]:
+        """Its file listing, which is the only thing it offers that proves it is there.
+
+        There is no version to report: the protocol carries no identity, so what a
+        person gets told is the bare fact - something is answering VPX Mobile there.
+        """
+        from common import http_client
+
+        http_client.get_json(f"{self.base_url}/files", timeout=_PROBE_TIMEOUT)
+        return {"state": ANSWERING, "what": "VPX Mobile", "reason": ""}
+
 
 _local = LocalDevice()
 
@@ -181,6 +262,8 @@ def for_device(device: dict[str, Any], local_device_id: str | None = None):
     else needs both halves of an address - a device that announced itself from before
     ports were recorded has no port, and there is nothing to dial.
     """
+    from common import device_registry
+
     device_id = str(device.get("device_id") or "")
     if local_device_id and device_id == local_device_id:
         return local()
@@ -189,4 +272,9 @@ def for_device(device: dict[str, Any], local_device_id: str | None = None):
     port = int(device.get("port") or 0)
     if not address or not port:
         return None
+    # By kind, because these speak different protocols entirely: a phone runs VPX Mobile
+    # and has never heard of /api/v1, so asking it as though it had would report every
+    # phone as unreachable.
+    if str(device.get("kind") or "") == device_registry.KIND_VPX_MOBILE:
+        return MobileDevice(f"http://{address}:{port}")
     return RemoteDevice(f"http://{address}:{port}")

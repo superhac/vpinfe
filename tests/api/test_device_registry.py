@@ -137,6 +137,67 @@ class DeviceRegistryTests(unittest.TestCase):
         self.assertEqual(self.registry.devices(), [])
 
 
+class LastReachableTests(unittest.TestCase):
+    """When a device was last known to be there, from either direction.
+
+    Announcing is the push half and a probe is the pull half, and both prove the same
+    thing. `last_seen` is not the same question: an install announces once at startup,
+    so it stops moving while the machine sits there running.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.registry = DeviceRegistry(Path(self.tmp.name) / "devices.json")
+
+    def _at(self, device_id: str) -> str:
+        return self.registry.get(device_id).last_reachable
+
+    def test_announcing_counts_as_being_seen(self) -> None:
+        self.registry.record("Aaaa111111")
+
+        self.assertTrue(self._at("Aaaa111111"), "it just told us it was there")
+
+    def test_a_probe_moves_it_without_a_new_announcement(self) -> None:
+        """The whole reason for the pull half: an install that has been up for a week
+        announced once, at the start of it."""
+        self.registry.record("Aaaa111111")
+        announced = self.registry.get("Aaaa111111").last_seen
+
+        self.registry.record_reachable("Aaaa111111", when="2099-01-01T00:00:00Z")
+
+        device = self.registry.get("Aaaa111111")
+        self.assertEqual(device.last_reachable, "2099-01-01T00:00:00Z")
+        self.assertEqual(device.last_seen, announced, "it has not announced again")
+
+    def test_a_device_that_stops_answering_keeps_the_last_time_it_did(self) -> None:
+        """Which is what makes it worth sorting on - the value is the age."""
+        self.registry.record("Aaaa111111")
+        self.registry.record_reachable("Aaaa111111", when="2026-01-01T00:00:00Z")
+
+        self.assertEqual(self._at("Aaaa111111"), "2026-01-01T00:00:00Z")
+
+    def test_probing_something_the_registry_never_heard_of_adds_nothing(self) -> None:
+        """An entry is created by announcing or by a person, never by being probed."""
+        self.assertIsNone(self.registry.record_reachable("Nope111111"))
+        self.assertEqual(self.registry.devices(), [])
+
+    def test_re_announcing_does_not_lose_an_earlier_probe(self) -> None:
+        self.registry.record_reachable("Aaaa111111")
+        self.registry.record("Aaaa111111")
+
+        self.assertTrue(self._at("Aaaa111111"))
+
+    def test_an_entry_written_before_this_field_reads_as_never_reached(self) -> None:
+        self.registry.record("Aaaa111111")
+        raw = json.loads(self.registry.path.read_text(encoding="utf-8"))
+        for entry in raw["devices"]:
+            entry.pop("last_reachable", None)
+        self.registry.path.write_text(json.dumps(raw), encoding="utf-8")
+
+        self.assertEqual(self._at("Aaaa111111"), "")
+
+
 class DeviceRegistryStorageTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = TemporaryDirectory()

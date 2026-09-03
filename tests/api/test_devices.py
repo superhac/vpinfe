@@ -207,6 +207,45 @@ class DeviceRegistryApiTests(TempTree):
         device = self.client.get(f"/devices/{CAB['device_id']}").json()
         self.assertEqual(device["port"], 0)
 
+    def test_probing_reports_a_state_for_every_device(self) -> None:
+        """Including the ones it cannot dial: a listing that silently drops those is a
+        listing that says a device is fine because nothing asked it."""
+        self.client.put("/devices", json=CAB)
+        self.client.put("/devices", json=DESK)
+
+        probes = self.client.post("/devices/probe").json()["probes"]
+
+        self.assertEqual({p["device_id"] for p in probes},
+                         {CAB["device_id"], DESK["device_id"]})
+
+    def test_a_device_with_no_port_cannot_be_asked_rather_than_being_down(self) -> None:
+        """Two different facts. Switching the machine on does not fix this one."""
+        self.client.put("/devices", json=CAB)
+
+        probe = self.client.post("/devices/probe").json()["probes"][0]
+
+        self.assertEqual(probe["state"], "unaskable")
+        self.assertIn("port", probe["reason"])
+
+    def test_a_device_that_does_not_answer_is_unreachable(self) -> None:
+        # Port 9 discards whatever it is sent, so nothing answers on it.
+        self.client.put("/devices", json={**CAB, "port": 9})
+
+        probe = self.client.post("/devices/probe").json()["probes"][0]
+
+        self.assertEqual(probe["state"], "unreachable")
+
+    def test_a_device_that_never_answered_has_no_reachable_time_from_a_probe(self) -> None:
+        """It has one from announcing - that is the push half - but a failed probe must
+        not advance it, or the value stops meaning anything."""
+        self.client.put("/devices", json={**CAB, "port": 9})
+        announced = self.client.get(f"/devices/{CAB['device_id']}").json()["last_reachable"]
+
+        self.client.post("/devices/probe")
+
+        after = self.client.get(f"/devices/{CAB['device_id']}").json()["last_reachable"]
+        self.assertEqual(after, announced)
+
     def test_announcing_again_without_a_port_keeps_the_one_it_gave(self) -> None:
         """A device is the same device however many times it reconnects, and an
         announcement that omits a field is not the device withdrawing it."""
