@@ -23,7 +23,7 @@ uses an old spelling both still load.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `screen_id` | int |  | Backglass Monitor ID |
-| `window_override` | string |  | Backglass Window Override (x,y,width,height) |
+| `window_override` | string |  | Position and size for this window, as x,y,width,height. Empty means no override. |
 | `media_priority` | choice (video, image) | `video` | Backglass Media Priority |
 
 ### `windows.scoreview`
@@ -31,7 +31,7 @@ uses an old spelling both still load.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `screen_id` | int |  | DMD Monitor ID |
-| `window_override` | string |  | DMD Window Override (x,y,width,height) |
+| `window_override` | string |  | Position and size for this window, as x,y,width,height. Empty means no override. |
 | `media_priority` | choice (video, image) | `video` | DMD Media Priority |
 
 ### `windows.playfield`
@@ -59,7 +59,7 @@ uses an old spelling both still load.
 | --- | --- | --- | --- |
 | `vpx_bin_path` | string |  | Full path to the Visual Pinball executable VPinFE launches. |
 | `vpx_launch_env` | string |  | VPX Launch Environment |
-| `global_ini_override` | string |  | Global INI Override (/home/test/mysuper.ini) |
+| `global_ini_override` | string |  | Path to an ini to use instead of the default, for example /home/test/mysuper.ini. Empty means no override. |
 | `global_game_ini_override_enabled` | bool | `false` | Global tableini Override Enabled |
 | `global_game_ini_override_mask` | string |  | Global tableini Override Mask |
 | `game_root_dir` | string |  | The folder holding your table folders, one folder per game. |
@@ -68,7 +68,7 @@ uses an old spelling both still load.
 | `media_browse_dirs` | list |  | Extra folders you can pick artwork from when adding media by hand. The game library is always available; anywhere else has to be listed here before the hub will read it. |
 | `vpx_ini_path` | string |  | Path to VPinballX.ini, which VPinFE reads for the key mappings the Remote page sends. |
 | `assets_dir` | string |  | Root folder for assets shared across games rather than owned by one, such as manufacturer logos. Served at /assets/ and defaults to assets/ under the VPinFE config dir. |
-| `rar_tool_path` | string |  | RAR Tool Path (unar/unrar, blank = auto-detect) |
+| `rar_tool_path` | string |  | Path to unar or unrar. Blank auto-detects one on this machine. |
 | `vpx_log_delete_on_start` | bool | `false` | Delete VPinball Log On Table Start |
 | `theme` | string | `Revolution` | Active Theme |
 | `startup_collection` | string |  | Default Startup Collection |

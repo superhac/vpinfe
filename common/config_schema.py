@@ -123,7 +123,9 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "window_override",
             type="string",
             default="",
-            label="Backglass Window Override (x,y,width,height)",
+            label="Backglass Window Override",
+            description="Position and size for this window, as x,y,width,height."
+                        " Empty means no override.",
             legacy=(("Displays", "bg_window_override"), ("Displays", "bgwindowoverride")),
         ),
         ConfigOption(
@@ -148,7 +150,9 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "window_override",
             type="string",
             default="",
-            label="DMD Window Override (x,y,width,height)",
+            label="DMD Window Override",
+            description="Position and size for this window, as x,y,width,height."
+                        " Empty means no override.",
             legacy=(("Displays", "dmd_window_override"), ("Displays", "dmdwindowoverride")),
         ),
         ConfigOption(
@@ -271,7 +275,9 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "global_ini_override",
             type="string",
             default="",
-            label="Global INI Override (/home/test/mysuper.ini)",
+            label="Global INI Override",
+            description="Path to an ini to use instead of the default, for example"
+                        " /home/test/mysuper.ini. Empty means no override.",
             aliases=("globalinioverride",),
         ),
         ConfigOption(
@@ -345,7 +351,9 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "rar_tool_path",
             type="string",
             default="",
-            label="RAR Tool Path (unar/unrar, blank = auto-detect)",
+            label="RAR Tool Path",
+            description="Path to unar or unrar. Blank auto-detects one on this"
+                        " machine.",
             aliases=("rartoolpath",),
         ),
         ConfigOption(
