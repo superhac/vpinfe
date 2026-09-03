@@ -90,6 +90,23 @@ SECTIONS = {
 }
 
 
+# What the panel says when nothing is selected, per page. Named for what *that* page
+# selects: three of them select something and the rest do not, and one asking for a game
+# on a page with no games is the panel describing a different screen.
+EMPTY_PANE = {
+    "games": ("Game Details", "Select a game"),
+    "tables": ("Table Details", "Select a table"),
+    "collections": ("Collection", "Select a collection"),
+    "media": ("Game Details", "Select a game"),
+}
+
+# The pages the pane has a role on. Media is one of them: its coverage list hands a
+# game to the panel rather than navigating. Everywhere else it is hidden outright -
+# `render` adds `hub-no-pane` - and the user's own open/closed and width are left alone,
+# so coming back to a page that selects something restores what they arranged.
+WORKBENCH_VIEWS = frozenset(EMPTY_PANE)
+
+
 def _read_hub() -> dict[str, Any]:
     """Every blocking call the page needs, made once off the event loop.
 
@@ -419,10 +436,7 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         panel.clear()
         # The same two-line shape a selected game gets, so the header does not change
         # height or alignment as the selection comes and goes.
-        # Named for whatever this page selects, or the empty panel on Collections
-        # would sit there asking for a game the page has none of.
-        heading, prompt = ("Collection", "Select a collection") \
-            if state["view"] == "collections" else ("Game Details", "Select a game")
+        heading, prompt = EMPTY_PANE.get(state["view"], ("Game Details", "Select a game"))
         with workbench_title:
             ui.label(heading) \
                 .classes("text-base hub-workbench-title leading-tight truncate")
@@ -458,12 +472,16 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
     def render() -> None:
         # A game shown beside a different destination is stale by definition.
         clear_workbench()
-        # ...and so is an open pane. Changing section collapses it: the pane is about
-        # the selection, the selection did not survive the move, and a pane left open
-        # describing nothing is worse than one the next click reopens.
-        if state.get("_last_view") != state["view"]:
-            state["_last_view"] = state["view"]
-            show_workbench(False)
+        # The pane is not closed with it. It was, on the grounds that one left open
+        # describes nothing - but it has an empty state now, and `clear_workbench`
+        # names it for whichever page you have arrived at. Its width and whether it is
+        # open are how the workspace is arranged, and rearranging it on every move
+        # between sections is the shell taking a decision back.
+        #
+        # On a page with no subject it goes entirely, rail included. Nothing there can
+        # fill it, so the strip would be a control that reopens an empty panel.
+        splitter.classes(remove="hub-no-pane") if state["view"] in WORKBENCH_VIEWS \
+            else splitter.classes(add="hub-no-pane")
         # The page you are on stays lit while you are on it.
         for key, row in destinations.items():
             row.classes(add="hub-nav-active") if key == state["view"] \

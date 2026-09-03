@@ -1975,6 +1975,18 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* Hidden, not squeezed. A grid at 57px is not a rail - it is a grid with its toolbar
    wrapped into a column of single words. Nothing is stranded by this: the control that
    brings it back sits in the workbench header, which is always on screen. */
+/* No subject on this page, so no pane - not even the rail. A rail is a pane you can
+   bring back; there is nothing here to bring, and a strip whose only control reopens
+   an empty panel is a control charged for nothing. The user's own open/closed and
+   width are untouched, so returning to a page that has a subject restores them. */
+.hub-no-pane .q-splitter__after { display: none !important; }
+.hub-no-pane .q-splitter__separator { display: none !important; }
+.hub-no-pane .q-splitter__before {
+  width: auto !important;
+  flex: 10000 1 0% !important;
+  min-width: 0 !important;
+}
+
 .hub-full .q-splitter__before { display: none !important; min-width: 0 !important; }
 .hub-full .q-splitter__after { width: auto !important; flex: 10000 1 0% !important; }
 .hub-full .q-splitter__separator { display: none; }
