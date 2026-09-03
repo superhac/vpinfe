@@ -72,7 +72,7 @@ uses an old spelling both still load.
 | `vpx_log_delete_on_start` | bool | `false` | Delete VPinball Log On Table Start |
 | `theme` | string | `Revolution` | Active Theme |
 | `startup_collection` | string |  | Default Startup Collection |
-| `library_refresh_minutes` | int | `0` | How often to look for tables added or removed on disk, in minutes. Zero never looks, which is the default because a check re-reads every game folder - fine locally, real traffic on a network share. The Hub can always be asked to look now. |
+| `library_refresh_minutes` | int | `0` | How often to re-read the library from disk, in minutes. It picks up everything, not just tables - media and assets added or removed beside them too. Zero never does, which is the default because a read walks every game folder: fine locally, real traffic on a network share. The hub can always be asked to read it now. |
 | `auto_update_media_on_startup` | bool | `false` | Auto Update Media On Startup |
 | `splashscreen` | bool | `false` | Enable splashscreen |
 | `mute_audio` | bool | `false` | Mute Frontend Audio |

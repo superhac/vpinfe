@@ -371,11 +371,13 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "library_refresh_minutes",
             type="int",
             default="0",
-            label="Check For New Tables Every",
-            description="How often to look for tables added or removed on disk, in"
-                        " minutes. Zero never looks, which is the default because a"
-                        " check re-reads every game folder - fine locally, real traffic"
-                        " on a network share. The Hub can always be asked to look now.",
+            label="Re-read The Library Every",
+            description="How often to re-read the library from disk, in minutes. It"
+                        " picks up everything, not just tables - media and assets added"
+                        " or removed beside them too. Zero never does, which is the"
+                        " default because a read walks every game folder: fine locally,"
+                        " real traffic on a network share. The hub can always be asked"
+                        " to read it now.",
         ),
         ConfigOption(
             "auto_update_media_on_startup",

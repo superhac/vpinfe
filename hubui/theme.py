@@ -107,11 +107,15 @@ _TOKENS = """
 
   /* What a draggable divider looks like, wherever one appears - a border color here
      reads as an edge rather than a handle. */
-  /* Who owns a media file. Amber is the only warm color in this palette, which is
-     what makes "one table's own" legible at a glance in a map of twenty tiles; the
-     folder-wide case is the norm and stays quiet. Both measured against the surfaces
-     they sit on: 11.1:1 and 5.9:1. */
-  --tier-table: #ffc061;
+  /* The one warm color in this palette, and the reason both uses below read at a
+     glance: nothing else here is warm. Named for what it is rather than for either
+     use, so the second one did not have to invent a second amber.
+     Measured against the surfaces it sits on: 11.1:1 and 5.9:1. */
+  --warm: #ffc061;
+
+  /* Who owns a media file. Amber is what makes "one table's own" legible in a map of
+     twenty tiles; the folder-wide case is the norm and stays quiet. */
+  --tier-table: var(--warm);
   --tier-quiet: var(--ink-3);
   --resize-line: rgba(255, 255, 255, 0.28);
 
@@ -170,6 +174,26 @@ body { background: var(--surface-0); }
 .hub-workbench .hub-panel-header { padding-right: 18px !important; }
 .q-page-container, .q-page { background: transparent !important; }
 .q-drawer { background: var(--panel-ground) !important; }
+
+/* The rail is three bands and only the middle one scrolls. The drawer's own content is
+   the flex column; left to itself it scrolls whole, which took the title and the
+   version off the top and bottom as soon as the entries outgrew the height. */
+.q-drawer--left .q-drawer__content {
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.q-drawer--left .hub-nav-header,
+.q-drawer--left .hub-nav-body ~ * { flex: none; }
+.hub-nav-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+}
+/* A rail entry is an anchor so the browser can offer it in a new tab, and an anchor
+   arrives underlined and in the link color. It is a place in a list of places, and it
+   is lit by `hub-nav-active` when you are on it - a rule already answering "which one
+   is this", which an underline under every one of them would not help with. */
+a.hub-nav-row, a.hub-nav-row:hover, a.hub-nav-row:visited {
+  text-decoration: none;
+  color: inherit;
+}
 
 body::before {
   content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
@@ -713,8 +737,34 @@ body::before {
 .hub-default-mark--on { color: var(--accent); }
 .hub-default-mark.cursor-pointer:hover { color: var(--ink); }
 
+/* Something to go and do, in the colour this theme keeps for exactly that. The rail is
+   already a lit surface, so the accent would make this one more glowing thing in it
+   rather than the one worth acting on. */
+.hub-update {
+  color: var(--warm);
+  font-weight: 600;
+}
+.hub-update:hover { text-decoration: underline; }
+
 /* A tooltip belonging to the control that opened a menu would sit on top of it. */
 body.hub-menu-open .q-tooltip { display: none !important; }
+
+/* The grid's own tooltip, which is where a column explains itself. AG Grid renders the
+   text verbatim, so `pre-line` is what makes a newline in the help a line on screen -
+   an explanation that names three states runs three lines or it runs together.
+   Widened past the default, which wraps a sentence into a column two words across. */
+.ag-tooltip {
+  white-space: pre-line;
+  max-width: 340px;
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: var(--fs-caption);
+  line-height: 1.45;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
 
 /* The key for those marks, in the header that does not scroll. */
 .hub-member-key {
@@ -1646,8 +1696,22 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   background: rgba(10, 5, 24, 0.7) !important; transition: opacity 120ms ease;
 }
 .hub-slot-art:hover .hub-slot-zoom { opacity: 1; }
+/* The preview wraps its element in a div of its own, and that wrapper is what broke
+   fitting the art. Flex shrinks this box when the panel is short, but shrinking a box
+   does not shrink what is inside it - and the picture's `max-height: 100%` resolved
+   against the wrapper, which has no height of its own, so it meant nothing and the art
+   came out cropped top and bottom.
+
+   `display: contents` takes the wrapper out of layout without taking the picture out
+   of the document, so the picture is the flex item and flex-shrink applies to it
+   directly. Nothing else tried worked: clamping the wrapper moved the overflow down a
+   level, positioning it collapsed this box - which is sized by its content - and a
+   size container cannot be one without a definite height, which is the thing missing.
+   Excludes the blank state, which is a column that lays itself out. */
+.hub-slot-art > div:not(.hub-slot-zoom):not(.hub-slot-blank) { display: contents; }
 .hub-slot-art img, .hub-slot-art video {
   max-width: 100%; max-height: 100%; object-fit: contain;
+  min-height: 0; flex: 0 1 auto;
   border-radius: 4px; border: 1px solid var(--line);
 }
 /* Audio has no frame, so it is the control itself and takes the width it is given

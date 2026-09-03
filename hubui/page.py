@@ -7,6 +7,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from hubui import assets as assets_page
 from hubui import collections as collections_page
 from hubui import deeplink, games, grid, sections, tageditor, theme, views, workbench
 from hubui import devices as devices_page
@@ -44,9 +45,9 @@ NAV_NARROW_PX = 1100
 # One rail width for both panels - they collapse to the same thing.
 RAIL_PX = 57
 
-# Every entry is a place, not a thing. Jobs used to sit here and does not any more:
-# it is transient, it belongs in the header where it is visible from every page, and a
-# rail slot is too expensive for something that is empty most of the time. Logs moved
+# Every entry is a place, not a thing. Jobs used to sit here and does not any more: it
+# is transient, and it belongs in the rail's foot, which is visible from every page and
+# costs nothing while there is nothing to say. Logs moved
 # under Settings > Diagnostics with the rest of the troubleshooting surface, and Gallery
 # is gone - the media map in the details pane answers "what is missing here" and the
 # Media section answers "what is missing anywhere", which is what it was reaching for.
@@ -68,6 +69,7 @@ NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None,
     (NAV_PARENT, (("games", "Games", "sports_esports"),
                   ("tables", "Tables", "casino"),
                   ("media", "Media", "perm_media"),
+                  ("assets", "Assets", "widgets"),
                   ("collections", "Collections", "collections_bookmark"),
                   ("tags", "Tags", "sell"))),
     (None, (("devices", "Devices", "devices"),
@@ -87,9 +89,52 @@ SECTIONS = {
     "tags": "Tags",
     "collections": "Collections",
     "media": "Media",
+    "assets": "Assets",
     "devices": "Devices",
     "extensions": "Extensions",
     "settings": "Settings",
+}
+
+
+def _version(said: Any) -> str:
+    """A version as a person writes one.
+
+    The tag already carries its own "v", and a build that is not a release carries a
+    word instead - so prefixing unconditionally produced "vv2.6.1" from one and
+    "vdev-local" from the other.
+    """
+    text = str(said or "").strip() or "?"
+    return text if not text[:1].isdigit() else f"v{text}"
+
+
+# A plain left click on a rail entry navigates in place; anything else is the browser's.
+# Captured on the document because the rows are rebuilt, and a listener per row would
+# have to be re-attached every time one is.
+_NAV_CLICK = """
+(() => {
+  document.addEventListener('click', (event) => {
+    const link = event.target.closest && event.target.closest('a.hub-nav-row');
+    if (!link) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey ||
+        event.shiftKey || event.altKey) return;
+    event.preventDefault();
+  }, true);
+})()
+"""
+
+
+# Why an install cannot replace itself, in words rather than the updater's own keys.
+# It reports them for a caller to branch on; a person reading a tooltip needs the
+# sentence, and "source_build" is not one.
+_WHY_NOT = {
+    "source_build": "This build runs from source, so it updates with a git pull "
+                    "rather than from here.",
+    "non_release_build": "This build was not published as a release, so there is "
+                         "nothing to replace it with.",
+    "unsupported_architecture": "No published build matches this machine's "
+                                "architecture.",
+    "macos_not_supported_yet": "Updating in place is not built for macOS yet.",
+    "unsupported_platform": "Updating in place is not built for this platform.",
 }
 
 
@@ -101,6 +146,7 @@ EMPTY_PANE = {
     "tables": ("Table Details", "Select a table"),
     "collections": ("Collection", "Select a collection"),
     "media": ("Media", "Select a kind of media"),
+    "assets": ("Assets", "Select a kind of file"),
 }
 
 # The pages the pane has a role on. Media is one of them: a row is one game's slot, so
@@ -234,20 +280,25 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             # aligned is the icon column, which does not depend on the label's size.
             labels.append(ui.label("VPinFE Hub")
                           .classes("whitespace-nowrap hub-nav-title"))
+        # The destinations scroll; the header and the foot do not. Without this the
+        # drawer is one scroll box, so the title and the version scrolled away with the
+        # rows - which is the two pieces of chrome that should always be reachable.
+        nav_body = ui.column().classes("w-full gap-0 hub-nav-body")
         for parent, items in NAV_GROUPS:
             held: list[ui.row] = []
-            if parent is not None:
-                _nav_parent(parent, state, labels, held)
-            for key, label, icon in items:
-                # redraw, not render: a destination whose rows are read on demand has
-                # to read them before it draws, and arriving is when that is first true.
-                _nav_item(key, label, icon, state, lambda: redraw(), labels,
-                          destinations, nested=parent is not None, held=held)
-            if parent is not None:
-                # After the children exist: the caret leads `held`, and a group left
-                # closed last time has to draw closed rather than open and then blink.
-                _show_group(state[f"{parent[0]}_open"], held[0], held)
-        ui.space()
+            with nav_body:
+                if parent is not None:
+                    _nav_parent(parent, state, labels, held)
+                for key, label, icon in items:
+                    # redraw, not render: a destination whose rows are read on demand
+                    # has to read them before it draws, and arriving is when that is
+                    # first true.
+                    _nav_item(key, label, icon, state, lambda: redraw(), labels,
+                              destinations, nested=parent is not None, held=held)
+                if parent is not None:
+                    # After the children exist: the caret leads `held`, and a group left
+                    # closed last time has to draw closed rather than open and blink.
+                    _show_group(state[f"{parent[0]}_open"], held[0], held)
         foot = ui.column().classes("items-center gap-1 px-3 py-3 w-full") \
             .style("border-top:1px solid rgba(255,255,255,0.10)")
         with foot:
@@ -256,13 +307,106 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             # scaling it down there would be worse than dropping it.
             labels.append(ui.image(theme.LOGO).classes("w-28 h-28 mx-auto"))
         with foot:
-            with ui.column().classes("gap-0"):
-                labels.append(ui.label(f"v{discovery.get('app_version') or '?'}")
+            # What the install is doing, when it is doing anything. Silent otherwise:
+            # a line that reads "No active jobs" spends a permanent slot to report
+            # nothing, and the one it replaced said that even while a scan ran.
+            job_line = ui.row().classes("items-center justify-center gap-2 w-full "
+                                        "no-wrap hub-job")
+            with job_line:
+                ui.spinner(size="16px").classes("shrink-0")
+                job_text = ui.label("").classes("text-xs min-w-0 truncate")
+            job_line.set_visibility(False)
+            labels.append(job_text)
+            with ui.column().classes("gap-0 items-center w-full"):
+                labels.append(ui.label(_version(discovery.get("app_version")))
                               .classes("text-xs opacity-70"))
-                # Update availability is not on the API: check_for_app_updates lives in
-                # managerui and is never served, so an API consumer cannot ask. Left as
-                # a slot rather than reached for across the boundary.
-                labels.append(ui.label("").classes("text-xs hub-label"))
+                # Amber, which this theme reserves for something to go and fix. The
+                # accent would make it one more lit thing in a rail that is already
+                # lit; the point of the line is that it is worth acting on.
+                update_line = ui.label("").classes("text-xs cursor-pointer hub-update")
+                update_line.set_visibility(False)
+                labels.append(update_line)
+
+    async def _watch_jobs() -> None:
+        """Say what is running, and stop asking once nothing is.
+
+        Polled rather than subscribed: the job event stream is per job and this needs
+        to notice one starting that this client did not start. A timer that only runs
+        while something is running costs nothing the rest of the time.
+        """
+        try:
+            running = [job for job in await run.io_bound(HubClient().jobs)
+                       if job.get("state") == "running"]
+        except Exception:
+            job_line.set_visibility(False)
+            return
+        job_line.set_visibility(bool(running))
+        if not running:
+            job_timer.active = False
+            return
+        job = running[0]
+        said = str(job.get("message") or "").strip() or str(job.get("kind") or "")
+        pct = int(job.get("pct") or 0)
+        job_text.text = f"{said} {pct}%" if pct else said
+
+    # Idle until something starts it. `_rescan` turns it on; so does the
+    # first draw, once, in case a job was already running when this page opened.
+    job_timer = ui.timer(2.0, _watch_jobs, active=True)
+
+    async def _look_for_update() -> None:
+        """Say so when there is a newer build, once per page load.
+
+        Off the loop and never fatal: a hub with no internet is not a broken hub, and a
+        version line that cannot say whether it is current says nothing rather than
+        claiming it is.
+        """
+        try:
+            found = await run.io_bound(HubClient().update_check)
+        except Exception:
+            return
+        if not found.get("update_available"):
+            return
+        update_line.text = f"{_version(found.get('latest_version'))} available"
+        update_line.set_visibility(True)
+        # Where updating happens rather than doing it here: replacing the running build
+        # is its own act, and this line's job is to say there is something to go and do.
+        update_line.on("click", lambda: go("settings"))
+        update_line.tooltip("Open Settings to update"
+                            if found.get("update_supported")
+                            else _WHY_NOT.get(str(found.get("support_reason") or ""),
+                                              "This install cannot update itself"))
+
+    ui.timer(0.1, _look_for_update, once=True)
+
+    async def _rescan() -> None:
+        """Scan, and say what came of it however long it took.
+
+        The footer line reports a scan while it runs, which on a library worth scanning
+        is most of the time - but a small one finishes in a tenth of a second and no
+        poll will ever catch it. So the outcome is reported here, from the job the
+        refresh handed back, and the line is for watching a long one rather than for
+        knowing it happened.
+        """
+        job = await _read_the_library()
+        if job is None:
+            return
+        job_timer.active = True
+        client = HubClient()
+        for _ in range(150):
+            await asyncio.sleep(0.2)
+            try:
+                found = await run.io_bound(client.job, str(job.get("id") or ""))
+            except Exception:
+                return
+            if found.get("state") == "running":
+                continue
+            if found.get("state") == "failed":
+                ui.notify(f"The scan failed: {found.get('error') or 'no reason given'}",
+                          type="negative")
+            else:
+                ui.notify("The library is up to date", type="positive")
+                redraw()
+            return
 
 
     splitter = ui.splitter(reverse=True, limits=(WORKBENCH_MIN_PX, WORKBENCH_MAX_PX),
@@ -415,18 +559,20 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         deeplink.sync(state)
 
     async def show_slot(row: dict | None) -> None:
-        """A media row is one slot of one game, so the panel opens on that slot.
+        """A row in the file lenses is one kind of file for one game, so the panel
+        opens on the section that answers for it.
 
-        The row says which lens it belongs to - a shared file has no table, a file
-        named for one carries it - so this needs no control and cannot disagree with
-        the grid. The same landing the Games grid uses for a media cell.
+        The row says which table it belongs to - a shared file has none, a file named
+        for one carries it - so this needs no control and cannot disagree with the
+        grid. The section comes from the place you are in, the way it does everywhere
+        else: the same landing the Games grid produces for a media cell.
         """
         if row and not state["workbench"]:
             show_workbench(True)
         state["game"] = (row or {}).get("game_id")
         state["table"] = (row or {}).get("table") or ""
         if row:
-            state["section"] = "media"
+            state["section"] = state["view"]
             state.setdefault("slot", {"kind": None})["kind"] = row.get("kind")
         await workbench.build(panel, workbench_title, library, state["game"], state,
                               state["table"])
@@ -464,12 +610,15 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             ui.label(prompt).classes("text-xs hub-workbench-label leading-none truncate")
 
     def page_header() -> None:
-        """The page's name, and the actions that belong to the page rather than a row.
+        """The page's name, and nothing else.
 
-        The name and nothing else - the selection is named in the workbench header,
-        which is the pane that is about it. Here rather than in an app header because
-        each pane already owns its chrome, and a fourth band would cost height on every
-        page for one line.
+        It used to carry two controls that belonged to neither the page nor a row: a
+        library rescan, which is about the library and so shows in the library's own
+        toolbar, and a jobs readout, which is about the whole install and lives in the
+        rail's foot. Both drew on Settings and Devices, where neither meant anything.
+
+        Here rather than in an app header because each pane already owns its chrome,
+        and a fourth band would cost height on every page for one line.
         """
         title = SECTIONS.get(state["view"], state["view"].title())
         # The band the other two panes' headers use, so the page name sits in a fixed
@@ -481,14 +630,6 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         with ui.row().classes("items-center gap-2 w-full no-wrap") \
                 .style(f"min-height:{HEADER_H_PX}px"):
             ui.label(title).classes("grow min-w-0 truncate hub-page-title")
-            ui.button("Look for new tables", icon="refresh",
-                      on_click=_look_for_new_tables) \
-                .props("flat dense no-caps size=sm").classes("shrink-0 hub-action") \
-                .tooltip("Re-read the game folders and pick up anything added or removed")
-            # Jobs is a header affordance, always visible, never a destination. Empty is
-            # the normal state and it says so rather than showing a zero.
-            ui.button("No active jobs", icon="pending_actions") \
-                .props("flat dense no-caps size=sm").classes("shrink-0 opacity-70")
 
     def render() -> None:
         # A game shown beside a different destination is stale by definition.
@@ -515,10 +656,10 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                 sections.overview(library, devices, discovery, go)
             elif view == "games":
                 games.build(library.game_rows(), library.kinds_present(), library,
-                            show_game, state, redraw)
+                            show_game, state, redraw, rescan=_rescan)
             elif view == "tables":
                 games.build_tables(library.table_rows(), library, show_game, state,
-                                   redraw)
+                                   redraw, rescan=_rescan)
             elif view == "tags":
                 tageditor.build(library.tag_rows(), library, redraw)
             elif view == "collections":
@@ -526,7 +667,10 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                                        state, redraw)
             elif view == "media":
                 media_page.build(library.media_rows(), library, show_slot, state,
-                                 redraw)
+                                 redraw, rescan=_rescan)
+            elif view == "assets":
+                assets_page.build(library.asset_rows(), library, show_slot, state,
+                                  redraw, rescan=_rescan)
             elif view == "extensions":
                 sections.extensions(devices)
             elif view == "settings":
@@ -569,7 +713,15 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                 render()
             asyncio.create_task(read_media_then_draw())
             return
+        if state["view"] == "assets" and not library.has_asset_rows():
+            async def read_assets_then_draw() -> None:
+                await run.io_bound(library.load_asset_rows)
+                render()
+            asyncio.create_task(read_assets_then_draw())
+            return
         render()
+
+    ui.run_javascript(_NAV_CLICK)
 
     # Reported once on load and on every settle after a resize. Debounced, because a
     # drag fires this continuously and each one is a round trip.
@@ -613,8 +765,10 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
     # after the shell exists, because that is what show_game builds into - and through
     # show_game rather than around it, so a link lands on exactly the state a click
     # would have produced.
+    # The four that select a game. Collections has a pane too and is not one of them:
+    # what its address names is a collection, which lands by its own route below.
     landing = (state.get("game")
-               if state["view"] in ("games", "tables") else None)
+               if state["view"] in ("games", "tables", "media", "assets") else None)
     # An address that names a section has to read what that section needs, because the
     # first draw goes straight to render() and only redraw() reads on the way in. Both
     # of these drew empty from a link and filled in on the next click.
@@ -624,13 +778,21 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         await run.io_bound(library.load_collections)
     if state["view"] == "media":
         await run.io_bound(library.load_media_rows)
+    if state["view"] == "assets":
+        await run.io_bound(library.load_asset_rows)
     await workbench.build(panel, workbench_title, library, None, state)
     render()
     if landing:
         # Shaped as the lens in play expects it, so the one handler reads it the same
-        # way whether it came from a click or from the address bar.
-        await show_game({"game_id": landing, "id": state.get("table") or landing}
-                        if state["view"] == "tables" else {"id": landing})
+        # way whether it came from a click or from the address bar. The file lenses
+        # take the row shape they hand out, which carries the table rather than
+        # standing in for it - a shared file has none, and the address says so too.
+        if state["view"] in ("media", "assets"):
+            await show_slot({"game_id": landing, "table": state.get("table") or "",
+                             "kind": (state.get("slot") or {}).get("kind") or ""})
+        else:
+            await show_game({"game_id": landing, "id": state.get("table") or landing}
+                            if state["view"] == "tables" else {"id": landing})
 
 
 def _nav_parent(parent: tuple[str, str, str], state: dict[str, Any],
@@ -648,6 +810,8 @@ def _nav_parent(parent: tuple[str, str, str], state: dict[str, Any],
         state[f"{key}_open"] = not state[f"{key}_open"]
         _show_group(state[f"{key}_open"], caret, held)
 
+    # A row rather than a link: this one opens and closes the entries under it and has
+    # no page of its own, so there is no address for a browser to be offered.
     row = ui.row().classes("items-center gap-3 cursor-pointer w-full no-wrap "
                            "hub-nav-row").on("click", toggle)
     with row:
@@ -656,7 +820,6 @@ def _nav_parent(parent: tuple[str, str, str], state: dict[str, Any],
         ui.space()
         caret = ui.icon("expand_more", size="20px").classes("opacity-60 shrink-0")
         labels.append(caret)
-    row.tooltip(label)
     # Applied after the children exist, from the shell that owns the loop.
     held.append(caret)
 
@@ -679,8 +842,15 @@ def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
         render()
         deeplink.sync(state)
 
-    row = ui.row().classes("items-center gap-3 cursor-pointer w-full no-wrap "
-                           "hub-nav-row" + (" hub-nav-row--nested" if nested else "")) \
+    # An anchor, not a div. A destination has an address - it is in the bar the moment
+    # you arrive at one - and a row that only listens for a click hides that from the
+    # browser, so "open in a new tab", middle-click and copy-link-address are all dead
+    # on a list of places. The click handler still does the navigating; `_NAV_CLICK`
+    # stops the browser following the href on a plain click and leaves every modified
+    # one alone.
+    row = ui.link(target=f"/hub?view={key}") \
+        .classes("items-center gap-3 cursor-pointer w-full no-wrap flex "
+                 "hub-nav-row" + (" hub-nav-row--nested" if nested else "")) \
         .on("click", choose)
     with row:
         ui.icon(icon, size="24px").classes("opacity-70 shrink-0")
@@ -689,9 +859,6 @@ def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
         # scrollbar's width off every row and was enough to break "Collections" in two.
         labels.append(ui.label(label)
                       .classes("hub-nav-item whitespace-nowrap"))
-    # The tooltip is what makes the collapsed rail usable at all, and it costs nothing
-    # while expanded.
-    row.tooltip(label)
     destinations[key] = row
     if held is not None and nested:
         held.append(row)
@@ -703,12 +870,18 @@ def _placeholder(view: str) -> None:
         ui.label(f"{view.title()} is not built yet").classes("text-sm opacity-60")
 
 
-async def _look_for_new_tables() -> None:
-    """Start a refresh and say so; watching it is the jobs affordance's job."""
+async def _read_the_library() -> dict | None:
+    """Start a re-read of the library and hand back the job to watch.
+
+    Not "look for new tables": the scan re-reads every grain of the library - the
+    tables, the media beside them and the assets they launch with - and naming it for
+    one of the four was 2.x's framing from when the library was only tables.
+    """
     try:
-        await run.io_bound(HubClient().refresh_library)
+        job = await run.io_bound(HubClient().refresh_library)
     except Exception as exc:
         # Already running is the ordinary case here, not a failure worth a trace.
         ui.notify(f"Could not start: {exc}", type="warning")
-        return
-    ui.notify("Looking for tables added or removed", type="positive")
+        return None
+    ui.notify("Reading the library from disk", type="positive")
+    return job
