@@ -788,20 +788,6 @@ body::before {
   right: -4px;
 }
 
-/* A rail inside a rail - a device's own settings, which are sections of a section. Inset
-   and edged so the two read as nested rather than as one long list that changed meaning
-   halfway down: the outer rail is what this device can be asked, the inner one is what
-   that answer is divided into. */
-.hub-section-work .hub-sections {
-  margin-left: 12px;
-  margin-top: 0;
-  padding-left: 12px;
-  border-left: 1px solid var(--line);
-}
-/* The inner rail's own column keeps the panel ground, so the nesting reads as a second
-   rail rather than as an indent someone forgot to remove. */
-.hub-section-work .hub-section-row { margin-left: 0; }
-
 /* The dot that says a device answered, before its name in the devices rail. Its own
    class rather than a mark: the mark vocabulary is about a library's coverage, and this
    is about whether a machine is switched on. */

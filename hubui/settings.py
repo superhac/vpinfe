@@ -448,10 +448,37 @@ def build(state: dict, rerender: Callable[[], None],
                              panel.intro("Not built.")])
 
 
-# The sections a device's page offers. Not every section an install declares belongs
-# on another machine's page: `install` is its identity and is edited in Details, and
-# `themes` is read-only over HTTP wherever it is served from.
-DEVICE_SKIP = frozenset({"install", "themes"})
+# `install` and `themes` appear on no page below, deliberately: the first is the device's
+# identity and is edited in Details, and the second is read-only over HTTP wherever it is
+# served from.
+# A device's pages, in the shape this page uses for the hub's own: grouped, named in a
+# person's words, one page per topic rather than one per config section. Several sections
+# can back one page - a machine's screens are four of them - because how the config file
+# is divided is not how somebody looks for a setting.
+#
+# group -> ((page key, label, sections it draws), ...)
+DEVICE_INDEX: tuple[tuple[str, tuple[tuple[str, str, tuple[str, ...]], ...]], ...] = (
+    ("Machine", (
+        ("displays", "Displays",
+         ("displays", "windows.playfield", "windows.backglass", "windows.scoreview")),
+        ("input", "Input", ("input",)),
+        ("feedback", "Feedback Devices", ("dof", "libdmdutil")),
+    )),
+    ("VPinFE", (
+        ("general", "General", ("general",)),
+        ("frontend", "Frontend", ("frontend",)),
+        ("media", "Media", ("media",)),
+    )),
+    ("Integrations", (
+        ("vps", "Virtual Pinball Spreadsheet", ("vpsdb",)),
+        ("vpinplay", "VPinPlay", ("vpinplay",)),
+        ("mobile", "VPX Mobile", ("mobile",)),
+    )),
+    ("Diagnostics", (
+        ("logs", "Logs", ("logger",)),
+        ("network", "Network", ("network",)),
+    )),
+)
 
 
 def section_rows(source, section: str, options: list[dict], values: dict,
@@ -479,44 +506,37 @@ def section_rows(source, section: str, options: list[dict], values: dict,
     return entries
 
 
-def build_device_settings(source, context: dict[str, Any],
-                          schema: list[dict], values: dict) -> None:
-    """A device's own settings, in the shape this install's Settings uses.
+def build_device_page(source, context: dict[str, Any], schema: list[dict],
+                      values: dict, sections: tuple[str, ...]) -> None:
+    """One page of a device's settings, drawn exactly as this install's are.
 
-    Its own rail of sections, because a device declares as many as an install does and
-    one flat page of them is the thing Settings stopped being. Path checks are not
-    fetched: they are answered by the machine holding the path, and asking this one
-    about another machine's disk would put a red cross on a file that is perfectly
-    fine over there.
+    Several config sections can make one page - a machine's screens are four of them -
+    with a heading each where there is more than one. How the config file is divided is
+    not how somebody looks for a setting, which is why the pages are declared rather
+    than taken from the schema's own shape.
+
+    Path checks are not fetched. The machine holding a path answers for it, and asking
+    this one about another machine's disk would put a red cross on a file that is
+    perfectly fine over there.
     """
-    blocks = [block for block in schema
-              if block.get("name") not in DEVICE_SKIP and block.get("options")]
-    if not blocks:
-        panel.facts(ui, [panel.intro("This device declares no settings.")])
-        return
-
-    picked = str(context.get("device_section") or blocks[0].get("name") or "")
-    if picked not in {str(b.get("name")) for b in blocks}:
-        picked = str(blocks[0].get("name"))
-
-    async def pick(name: str) -> None:
-        context["device_section"] = name
-        rebuild = context.get("rebuild")
-        if rebuild is not None:
-            await rebuild()
-
     def rerender() -> None:
         rebuild = context.get("rebuild")
         if rebuild is not None:
             ui.timer(0.01, rebuild, once=True)
 
-    # A device's sections are the config's own, not this page's - so most of them have
-    # no entry in INDEX and would read as `windows.backglass`. The schema does not name
-    # a section, only its options, so the key is humanized where nothing has named it.
-    entries = [(str(block.get("name")), _section_label(str(block.get("name"))))
-               for block in blocks]
-    work = panel.sections(entries, picked, lambda name: pick(name), rail_px=RAIL_PX)
-    block = next(b for b in blocks if str(b.get("name")) == picked)
-    with work:
-        panel.facts(ui, section_rows(source, picked, block["options"], values,
-                                     bool(block.get("writable")), rerender))
+    blocks = [block for block in schema
+              if str(block.get("name")) in sections and block.get("options")]
+    if not blocks:
+        panel.facts(ui, [panel.intro("This device declares nothing on this page.")])
+        return
+
+    entries: list[tuple[Any, Any]] = []
+    for block in blocks:
+        name = str(block.get("name"))
+        # A heading only where the page draws more than one section: over a page that
+        # is one section it would name the page a second time.
+        if len(blocks) > 1:
+            entries.append((panel.HEADING, _section_label(name)))
+        entries += section_rows(source, name, block["options"], values,
+                                bool(block.get("writable")), rerender)
+    panel.facts(ui, entries)

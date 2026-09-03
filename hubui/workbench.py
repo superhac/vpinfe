@@ -49,6 +49,7 @@ from hubui import (
 )
 from hubui import devices as devices_page
 from hubui import features as table_features
+from hubui import settings as settings_page
 from hubui.api import HubError
 from hubui.data import Library
 
@@ -323,6 +324,10 @@ class Section:
     # a section like Game details as four lines of text over an empty half-panel,
     # with the sections under it pushed to the bottom edge.
     dock: bool = False
+    # A heading over the run of sections it starts. Empty for a rail short enough to
+    # read without one, which is every subject but a device - that one carries a whole
+    # install's settings and is the length section 9a says wants grouping.
+    group: str = ""
 
 
 def sections_for(subject: str) -> tuple[Section, ...]:
@@ -576,9 +581,16 @@ async def _rail(context: dict[str, Any], subject: str,
     body = None
     # The row count goes to the stylesheet because the wide layout needs a track
     # per row and then one that takes the rest - CSS cannot count its own children.
+    # Headings take a track of their own, so the count is rows plus the number of
+    # distinct groups - CSS cannot count its own children.
+    tracks = len(rows) + len({item.group for item in rows if item.group})
     with ui.element("div").classes("w-full grow min-h-0 hub-sections") \
-            .style(f"--rows: {len(rows)}"):
+            .style(f"--rows: {tracks}"):
+        heading = ""
         for item in rows:
+            if item.group and item.group != heading:
+                ui.label(item.group).classes("hub-group hub-rail-group")
+            heading = item.group
             _section_row(context, item, item.key == section)
             if item.key != section:
                 continue
@@ -2440,14 +2452,27 @@ async def _device_details(context: dict[str, Any]) -> None:
         _rows(ui, await devices_page.detail_groups(context))
 
 
-async def _device_settings(context: dict[str, Any]) -> None:
-    """That device's own settings, rendered from the schema it serves.
+def _device_setting_sections() -> tuple[Section, ...]:
+    """One section per page of a device's settings, from the index Settings declares.
 
-    The same page Settings draws for this install, against another machine's schema -
-    so a device running a newer build gets its new settings rendered here without this
-    hub knowing they exist.
+    Built from that declaration rather than from the schema directly, so a device's
+    pages carry the same names, the same grouping and the same order as the hub's own -
+    which is the whole point: two views of one schema that read as one product.
+
+    A page whose sections the device does not declare draws nothing and says so. Left
+    in rather than filtered out, because the rail is built once for the subject and a
+    rail that changed shape per device would be a different map every time.
     """
-    await devices_page.settings_block(context)
+    out = []
+    for group, pages in settings_page.DEVICE_INDEX:
+        for key, label, sections in pages:
+            out.append(Section(
+                f"device_{key}",
+                (lambda name: lambda _: name)(label),
+                (lambda names: lambda context: devices_page.settings_page_block(
+                    context, names))(sections),
+                subjects=frozenset({"device"}), group=group))
+    return tuple(out)
 
 
 async def _collection_details(context: dict[str, Any]) -> None:
@@ -3473,12 +3498,12 @@ SECTIONS: tuple[Section, ...] = (
     # A device, in reading order: what it is, whether it is there, what it is running,
     # what it can be asked to do, and what this hub holds about it. Settings comes from
     # the device's own schema, so it is the same page Settings draws for this install.
-    # Two, not six. Section 14.7 threw out a rail entry that opened one row, and five of
-    # the six here were between one and five - so what a device is arrives as groups in
-    # one section, read down in one go. Settings keeps its own entry because it is a
-    # place rather than a group: a rail of its own, and much the largest thing here.
+    # What a device is, as groups in one section - section 14.7 threw out a rail entry
+    # that opened one row, and five of the six this replaced held three or fewer.
     Section("device_details", lambda _: "Device Details", _device_details,
             subjects=frozenset({"device"})),
-    Section("device_settings", lambda _: "Settings", _device_settings,
-            subjects=frozenset({"device"})),
+    # Then that device's settings, one rail entry per page and grouped exactly as the
+    # hub's own Settings groups them. A rail inside a rail was the alternative and it
+    # bought nothing: these are places, so they belong in the rail that holds places.
+    *_device_setting_sections(),
 )

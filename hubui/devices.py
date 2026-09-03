@@ -548,12 +548,13 @@ def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     return out
 
 
-async def settings_block(context: dict[str, Any]) -> None:
-    """That device's own settings, rendered from the schema it serves.
+async def settings_page_block(context: dict[str, Any],
+                              sections: tuple[str, ...]) -> None:
+    """One page of a device's settings, drawn from the schema that device serves.
 
     Whoever holds the settings answers for them: this install through the hub's own
     client, another machine through the client that reaches it. Both expose the same
-    three calls, so this page is one page and not two that drift.
+    three calls, so a page here and the same page under Settings are one page.
 
     A device that cannot be reached says so rather than drawing an empty form - a
     settings page with nothing in it reads as a device with no settings.
@@ -564,12 +565,25 @@ async def settings_block(context: dict[str, Any]) -> None:
         panel.facts(ui, [panel.intro(UNREACHABLE_NOTE)])
         return
 
-    try:
-        schema = await run.io_bound(source.config_schema)
-        values = await run.io_bound(source.config_values)
-    except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
+    # Read once per panel build rather than per page: every page wants the same two
+    # answers, and asking a machine across the network per rail click is a page that
+    # gets slower the more you look at it.
+    if "device_config" not in context:
+        try:
+            context["device_config"] = (
+                await run.io_bound(source.config_schema),
+                await run.io_bound(source.config_values))
+        except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
+            context["device_config"] = None
+            logger.info("Could not read settings on %s", device_label(device),
+                        exc_info=True)
+            panel.facts(ui, [panel.intro(
+                f"Could not read the settings on {device_label(device)}: {exc}")])
+            return
+    if context["device_config"] is None:
         panel.facts(ui, [panel.intro(
-            f"Could not read the settings on {device_label(device)}: {exc}")])
+            f"Could not read the settings on {device_label(device)}.")])
         return
 
-    settings_page.build_device_settings(source, context, schema, values)
+    schema, values = context["device_config"]
+    settings_page.build_device_page(source, context, schema, values, sections)
