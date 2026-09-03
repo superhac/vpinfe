@@ -43,6 +43,9 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/docs` | Swagger UI |
 | GET | `/api/v1/events` | Subscribe to the event stream (SSE). `?events=` filters by name |
 | GET | `/api/v1/play/state` | What this play host is doing. The snapshot you take once; `play.state_changed` on the stream is how you hear about it after that |
+| POST | `/api/v1/play/stop` | Close the table this play host is running. `stopped` is false when there was nothing to close, which is an answer rather than a failure |
+| GET | `/api/v1/update` | Whether a newer build is published, and whether this install can take it. `update_supported` is the second question, and `support_reason` says which case it is |
+| POST | `/api/v1/update` | Stage the published build and go down to take it. 501 when this install cannot replace itself, 409 when a table is running and `stop_table` was not set |
 | GET | `/api/v1/collections` | List collections |
 | GET | `/api/v1/collections/{name}` | One collection |
 | GET | `/api/v1/collections/{name}/games` | Its games, resolved — works for both kinds |

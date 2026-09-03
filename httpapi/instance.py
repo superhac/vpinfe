@@ -9,16 +9,18 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks, Body
 
-from common import device_registry, install_identity
+from common import device_client, device_registry, install_identity, lifecycle
 from common.app_version import get_version
 from common.config_access import NetworkConfig
 from common.device_registry import get_device_registry
+from common.host import launch_state
 from common.paths import get_ini_config
 
 from . import capabilities, models, scopes
 from .auth import requires
+from .errors import ConflictError, FeatureUnavailableError
 
 logger = logging.getLogger("vpinfe.httpapi.instance")
 
@@ -145,4 +147,68 @@ def build_router(prefix: str, api_version: str) -> APIRouter:
                     "update_supported": False, "support_reason": "check failed",
                     "triplet": None, "asset_name": None}
 
+    @router.post("/update", summary="Take the published build", status_code=202,
+                 dependencies=[requires(scopes.SYSTEM_ADMIN)])
+    async def perform_update(
+            background: BackgroundTasks,
+            # Optional so a caller with nothing to say can post an empty body; the
+            # defaults are what that means.
+            payload: models.UpdateRequest | None = Body(default=None),
+    ) -> models.UpdateStarted:
+        """Stage the published build, then go down so the staged updater can apply it.
+
+        Order matters: the download happens before anything is stopped, so a failed or
+        unavailable update costs nobody their game. Only once there is a verified
+        package does a running table get closed.
+
+        `support_reason` is returned as the detail rather than a sentence, because the
+        sentences a person reads belong to the surface showing them and restating them
+        here would be a second copy to keep true.
+        """
+        from starlette.concurrency import run_in_threadpool
+
+        from common.online.app_updater import (
+            force_exit_after_handoff,
+            get_install_context,
+            launch_prepared_update,
+            prepare_update,
+        )
+
+        wanted = payload or models.UpdateRequest()
+        context = await run_in_threadpool(get_install_context)
+        if not context["supported"]:
+            raise FeatureUnavailableError("This install cannot replace itself",
+                                          details={"support_reason": context["reason"]})
+
+        playing = launch_state.current()
+        if playing.launching and not wanted.stop_table:
+            raise ConflictError("A table is running",
+                                details={"game_name": playing.game_name})
+
+        prepared = await run_in_threadpool(prepare_update)
+
+        stopped_table = None
+        if playing.launching:
+            if device_client.local().request(
+                    lifecycle.TABLE, lifecycle.STOP,
+                    origin=lifecycle.Origin(lifecycle.SURFACE_API),
+                    reason="making way for an update"):
+                stopped_table = playing.game_name
+
+        await run_in_threadpool(lambda: launch_prepared_update(prepared))
+        force_exit_after_handoff()
+        # After the response: the staged updater waits on this pid, and quitting inside
+        # the handler would take the process down before the caller was told anything.
+        background.add_task(_quit_for_update)
+        return {"latest_version": prepared["latest_version"],
+                "stopped_table": stopped_table}
+
     return router
+
+
+def _quit_for_update() -> None:
+    """Go down the ordinary way, so the services shut down and the windows close."""
+    device_client.local().request(
+        lifecycle.APP, lifecycle.STOP,
+        origin=lifecycle.Origin(lifecycle.SURFACE_API),
+        reason="an update is staged")

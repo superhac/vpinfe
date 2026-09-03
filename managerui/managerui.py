@@ -12,7 +12,6 @@ import asyncio
 import os
 import socket
 import threading
-import time
 
 from nicegui import app, context, ui
 
@@ -21,6 +20,7 @@ from common.online.app_updater import (
     check_for_updates as check_for_app_updates,
 )
 from common.online.app_updater import (
+    force_exit_after_handoff,
     launch_prepared_update,
     prepare_update,
 )
@@ -70,15 +70,6 @@ _update_action_state = {
     'busy': False,
 }
 
-
-def _force_exit_after_update(delay_seconds: int = 8) -> None:
-    """Ensure the old process does not linger after handing off to the updater."""
-    def _worker():
-        time.sleep(delay_seconds)
-        logger.warning("Forcing process exit after update handoff; graceful shutdown did not complete in %ss", delay_seconds)
-        os._exit(0)
-
-    threading.Thread(target=_worker, daemon=True, name="update-force-exit").start()
 
 def check_for_updates() -> dict:
     global _update_check_cache
@@ -168,7 +159,7 @@ def header():
                     await run.io_bound(lambda: launch_prepared_update(prepared))
                     with page_client:
                         ui.notify('Update staged. Restarting VPinFE...', type='positive')
-                        _force_exit_after_update()
+                        force_exit_after_handoff()
                         await app_control.quit_app()
                 except Exception as e:
                     with page_client:

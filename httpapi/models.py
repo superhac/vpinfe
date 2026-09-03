@@ -1319,6 +1319,24 @@ class UpdateCheck(ApiModel):
     error: str | None = None
 
 
+class UpdateRequest(ApiModel):
+    """`stop_table` is the caller saying their user was asked and answered. Default
+    false, so a request that says nothing never takes a table away from somebody."""
+
+    stop_table: bool = False
+
+
+class UpdateStarted(ApiModel):
+    """The update is staged and this install is going down to take it.
+
+    Answered before the handoff completes, because completing it means this process is
+    gone. A client's next request failing is the update working.
+    """
+
+    latest_version: str
+    stopped_table: str | None = None
+
+
 class JobList(ApiModel):
     jobs: list[JobResource]
 

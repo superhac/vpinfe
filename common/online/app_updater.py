@@ -11,6 +11,8 @@ import shlex
 import shutil
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 import requests
@@ -699,6 +701,22 @@ set EXIT_CODE=%ERRORLEVEL%
 echo [Updater] Bootstrap launched PowerShell with exit code %EXIT_CODE% >> "{stable_log_path}"
 exit /b %EXIT_CODE%
 """
+
+
+def force_exit_after_handoff(delay_seconds: int = 8) -> None:
+    """Stop this process lingering after the updater has been handed the install.
+
+    The staged script waits on this pid before it swaps any files, so a shutdown that
+    hangs does not delay the update - it prevents it. Every surface that hands off wants
+    this, so it lives beside the handoff rather than in whichever UI called it.
+    """
+    def _worker():
+        time.sleep(delay_seconds)
+        logger.warning("Forcing process exit after update handoff; graceful shutdown "
+                       "did not complete in %ss", delay_seconds)
+        os._exit(0)
+
+    threading.Thread(target=_worker, daemon=True, name="update-force-exit").start()
 
 
 def launch_prepared_update(prepared: dict) -> None:
