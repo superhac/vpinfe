@@ -1,9 +1,13 @@
 """Views: a named set of columns, a sort and a filter over one grid.
 
-Two kinds. **Built-ins are constants** - read-only, no filters, and nothing about them
-survives a reload, which is what makes going back to one a reliable way out rather than
-a convention. **Custom views** are the user's and carry filters, so every filter in the
-product is one somebody deliberately named.
+Two kinds. **Built-ins are constants** - read-only, and nothing about them survives a
+reload, which is what makes going back to one a reliable way out rather than a
+convention. **Custom views** are the user's.
+
+A built-in may filter, on one condition: its name has to be what somebody would predict
+the filter from. "Gaps" showing only what is missing is the view doing what it says; a
+filter a reader cannot derive from the name is a grid that lost rows. The funnel shows
+what is applied either way, and picking another view clears it.
 
 Physical layout - width, order, pinning - is the grid's, not a view's. See
 `grid._LAYOUT_FIELDS`.
@@ -46,12 +50,23 @@ def mint_id() -> str:
     return f"view:{new_id()}"
 
 
-def builtins(presets: dict[str, list[str]]) -> list[View]:
-    """The read-only starting points a grid declares. No filters, by rule: a built-in
-    that hid rows is the one thing nobody could escape by picking a built-in."""
+@dataclass(frozen=True)
+class Preset:
+    """A built-in that wants more than columns. Grids declaring only columns pass a
+    plain list and never meet this."""
+
+    columns: tuple[str, ...] = ()
+    sort: tuple[dict[str, Any], ...] = ()
+    filters: dict[str, Any] = field(default_factory=dict)
+
+
+def builtins(presets: dict[str, list[str] | Preset]) -> list[View]:
+    """The read-only starting points a grid declares."""
     return [View(id=f"builtin:{name}", name=name, builtin=True,
-                 columns=tuple(fields))
-            for name, fields in presets.items()]
+                 columns=tuple(preset.columns if isinstance(preset, Preset) else preset),
+                 sort=tuple(preset.sort) if isinstance(preset, Preset) else (),
+                 filters=dict(preset.filters) if isinstance(preset, Preset) else {})
+            for name, preset in presets.items()]
 
 
 def to_record(view: View) -> dict[str, Any]:

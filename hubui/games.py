@@ -980,8 +980,9 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
             table.run_grid_method("applyColumnState",
                                   {"state": list(view.sort),
                                    "defaultState": {"sort": None}})
-            # Always set, even to nothing: a built-in carries no filters, and clearing
-            # them is what makes going back to one a way out rather than a hope.
+            # Always set, even to nothing: a view that filters nothing has to clear
+            # what the last one filtered, which is what makes picking one a way out
+            # rather than a hope.
             table.run_grid_method("setFilterModel", view.filters or None)
             # After visibility, because `applyOrder` only orders what is showing.
             await grid.apply_layout(table, scope, columns, lambda: held["active"])
