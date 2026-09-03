@@ -81,10 +81,11 @@ def sections(entries: Sequence[tuple[Any, ...]], current: str,
              on_pick: Callable[[str], Any], *, rail_px: int = RAIL_PX) -> Any:
     """The rail and the region it opens into, returning the region.
 
-    `entries` are `(key, label)` with an optional third element for a hint, or
-    `(GROUP, name)` for a heading over the rows that follow it. The row count goes to
-    the stylesheet because the wide layout needs a track per row and then one that
-    takes the rest, and CSS cannot count its own children.
+    `entries` are `(key, label)` with an optional third element for a hint and a fourth
+    for a mark drawn before the name, or `(GROUP, name)` for a heading over the rows
+    that follow it. The row count goes to the stylesheet because the wide layout needs a
+    track per row and then one that takes the rest, and CSS cannot count its own
+    children.
     """
     frame = ui.element("div").classes("w-full grow min-h-0 hub-sections") \
         .style(f"--rows: {len(entries)}; --rail-w: {rail_px}px")
@@ -92,21 +93,26 @@ def sections(entries: Sequence[tuple[Any, ...]], current: str,
         for entry in entries:
             key, label = entry[0], entry[1]
             hint = entry[2] if len(entry) > 2 else ""
+            mark = entry[3] if len(entry) > 3 else None
             if key is GROUP:
                 ui.label(label).classes("hub-group hub-rail-group")
                 continue
-            _rail_row(str(key), label, str(key) == current, on_pick, hint)
+            _rail_row(str(key), label, str(key) == current, on_pick, hint, mark)
         work = ui.element("div").classes("min-w-0 hub-section-work")
     return work
 
 
 def _rail_row(key: str, label: str, open_now: bool,
-              on_pick: Callable[[str], Any], hint: str = "") -> None:
+              on_pick: Callable[[str], Any], hint: str = "",
+              mark: Callable[[], None] | None = None) -> None:
     """One destination's name, which is both the rail entry and the accordion header.
 
     The chevron says the row opens, which is a fact about the control rather than a
     label for the destination. Without it the stacked rows are words with no sign that
     any of them do anything.
+
+    `mark` draws before the name, where a state about the destination itself goes - a
+    device answering is a fact about that device and not about the row being open.
     """
     row = ui.row().classes("items-stretch gap-0 no-wrap hub-section-row")
     if open_now:
@@ -114,7 +120,11 @@ def _rail_row(key: str, label: str, open_now: bool,
     if hint:
         row.tooltip(hint)
     with row:
-        with ui.row().classes("items-center grow min-w-0 hub-section-hit"):
+        # `no-wrap`, or a mark plus a long name is two lines and one taller row. The
+        # label ellipses instead, which is what `truncate` was already there to do.
+        with ui.row().classes("items-center grow min-w-0 no-wrap hub-section-hit"):
+            if mark is not None:
+                mark()
             ui.label(label).classes("hub-section-text truncate")
         with ui.row().classes("items-center hub-section-caret"):
             ui.icon("expand_more", size="18px")

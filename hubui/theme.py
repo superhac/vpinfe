@@ -788,6 +788,16 @@ body::before {
   right: -4px;
 }
 
+/* The dot that says a device answered, before its name in the devices rail. Its own
+   class rather than a mark: the mark vocabulary is about a library's coverage, and this
+   is about whether a machine is switched on. */
+.hub-reach-dot { margin-right: 8px; }
+
+/* The sort control above the devices rail. Aligned to the rail rather than the page, so
+   it reads as belonging to the list it orders. */
+.hub-devices-bar { padding: 8px 12px 0 12px; }
+.hub-devices-sort { min-width: 120px; }
+
 /* A tooltip belonging to the control that opened a menu would sit on top of it. */
 body.hub-menu-open .q-tooltip { display: none !important; }
 

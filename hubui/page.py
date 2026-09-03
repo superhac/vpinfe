@@ -370,6 +370,18 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             if found.get("update_available"):
                 waiting.append(devices_page.device_label(entry))
 
+        # Which of them answered, on the same pass. The rail draws a dot per device from
+        # this, and the registry's own "last seen" advances for the ones that did - a
+        # hub asking is the pull half of that timestamp.
+        try:
+            found = {p.get("device_id"): p
+                     for p in await run.io_bound(HubClient().probe_devices)}
+            state["device_reach"] = found
+            if state.get("view") == "devices":
+                render()
+        except Exception:
+            logger.info("Could not probe the devices", exc_info=True)
+
         badge = badges.get("devices")
         if badge is None or not waiting:
             return
@@ -596,12 +608,6 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         await workbench.build_collection(panel, workbench_title, library,
                                          state["collection"], state)
 
-    def open_device(device) -> None:
-        state["view"] = "devices"
-        state["device"] = device
-        render()
-        deeplink.sync(state)
-
     def clear_workbench() -> None:
         """Empty the pane. Sync, so render() can call it without awaiting a rebuild."""
         workbench_title.clear()
@@ -681,16 +687,9 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             elif view == "settings":
                 settings_page.build(state, render, go, library)
             elif view == "devices":
-                if state["device"] is None:
-                    devices_page.build_registry(devices, open_device)
-                else:
-                    ui.button("All devices", icon="arrow_back",
-                              on_click=lambda: open_device(None)) \
-                        .props("flat dense no-caps").classes("ml-2 mt-2")
-                    devices_page.build_detail(state["device"], device_capabilities,
-                                              discovery.get("install_id"),
-                                              local_capabilities,
-                                              library, render, state.get("update"))
+                devices_page.build(state, devices, device_capabilities,
+                                   discovery.get("install_id"), local_capabilities,
+                                   library, render)
             else:
                 _placeholder(view)
 
@@ -844,7 +843,6 @@ def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
               held: list | None = None) -> None:
     def choose() -> None:
         state["view"] = key
-        state["device"] = None
         render()
         deeplink.sync(state)
 

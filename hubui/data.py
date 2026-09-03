@@ -270,6 +270,12 @@ class Library:
     def perform_update(self, *, stop_table: bool = False) -> dict:
         return self._client.perform_update(stop_table=stop_table)
 
+    def forget_device(self, device_id: str) -> None:
+        self._client.forget_device(device_id)
+
+    def probe_devices(self) -> list[dict]:
+        return self._client.probe_devices()
+
     def set_game_overrides(self, game_id: str, changes: dict) -> dict:
         """An override changes the name a game sorts under, so the whole list is stale,
         not just this game's row."""

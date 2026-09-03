@@ -569,6 +569,22 @@ class HubClient:
         """Whether a newer build is published. Reaches the network on the hub's side."""
         return self._get("/update")
 
+    def forget_device(self, device_id: str) -> None:
+        """Drop a device from this hub's registry. It answers 204, so nothing is read."""
+        _refuse_the_event_loop(f"/devices/{device_id}")
+        response = self._session.delete(f"{self._base}/devices/{quote(device_id)}",
+                                        timeout=_TIMEOUT)
+        self._answered(response)
+
+    def probe_devices(self) -> list[dict]:
+        """Ask every device whether it is there. Slower than an ordinary read - it dials
+        each one - so the timeout is the number of them times their own."""
+        _refuse_the_event_loop("/devices/probe")
+        response = self._session.post(f"{self._base}/devices/probe",
+                                      timeout=_TIMEOUT * 4)
+        self._answered(response)
+        return list((response.json() or {}).get("probes") or [])
+
     def perform_update(self, *, stop_table: bool = False) -> dict:
         """Take the published build. The hub goes down to do it, so this is the last
         call that install answers - a failure afterwards is the update working."""
