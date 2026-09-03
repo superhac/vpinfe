@@ -954,12 +954,19 @@ body.hub-menu-open .q-tooltip { display: none !important; }
   font-size: var(--fs-caption);
   line-height: 20px;
 }
-/* Collapsed to icons there is no parent to line up under and no room to step down. */
+/* Collapsed to icons there is no parent to line up under, so the indent goes - but the
+   step down stays. A child keeps its smaller icon in the rail, which is the only thing
+   left that can say it is one. Row height does not follow it: the rail's rhythm is one
+   height, and the icons centre in it either way. */
 .q-drawer--mini .hub-nav-row--nested {
   padding-left: 0 !important;
   min-height: 48px;
 }
-.q-drawer--mini .hub-nav-row--nested .q-icon { font-size: 24px !important; }
+
+/* The parent row holds a spacer to push its caret right. Collapsed, the label and the
+   caret are hidden but the spacer is not - and a zero-width flex item still earns the
+   row's gap, so the icon sat 6px left of every other one in the rail. */
+.q-drawer--mini .hub-nav-row .q-space { display: none; }
 
 /* The page you are on stays lit while you are on it - --surface-2 behind it and
    --glow-purple around it, which is what 2.x does. */
