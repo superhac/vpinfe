@@ -119,4 +119,30 @@ def build_router(prefix: str, api_version: str) -> APIRouter:
     def health() -> models.Health:
         return {"status": "ok"}
 
+    @router.get("/update", summary="Whether a newer build is published",
+                dependencies=[requires(scopes.INSTANCE_READ)])
+    async def update() -> models.UpdateCheck:
+        """What this install could become, and whether it can get there itself.
+
+        Served because a client cannot otherwise ask: the check lives under common/ and
+        2.x calls it in-process, which any consumer over HTTP - this project's own hub
+        included - has no way to do. `update_supported` is false for an install that
+        cannot replace itself, and `support_reason` says why, so a caller offers the
+        right thing rather than a button that fails.
+
+        Reaches the network, so it runs off the loop. Never raises: not knowing whether
+        an update exists is not a reason to fail a request, and `error` carries it.
+        """
+        from starlette.concurrency import run_in_threadpool
+
+        from common.online.app_updater import check_for_updates
+        try:
+            return await run_in_threadpool(check_for_updates)
+        except Exception as exc:
+            logger.warning("Could not check for updates: %s", exc)
+            return {"update_available": False, "error": str(exc),
+                    "current_version": get_version(), "latest_version": None,
+                    "update_supported": False, "support_reason": "check failed",
+                    "triplet": None, "asset_name": None}
+
     return router
