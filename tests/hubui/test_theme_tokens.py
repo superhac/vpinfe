@@ -58,11 +58,11 @@ class TokenTests(unittest.TestCase):
 
 
 class LiteralTests(unittest.TestCase):
-    """A ratchet, not a gate. The stylesheet still carries scores of unnamed colors -
-    22 of them were colors that already had a token - `#2b1a4d` is `--line`, thirteen
-    times - and those are named now. What is left needs a name invented for it, which is
-    a decision per color rather than a substitution. What this holds is the direction: the count comes down
-    and never up, so the pass can land in pieces without the ground moving.
+    """A ratchet, not a gate.
+
+    The colors that already had a token are named. What is left has none, and each
+    needs a name invented for it rather than a substitution - so the pass lands in
+    pieces. This holds the direction while it does: the count comes down and never up.
 
     Lower CEILING as it falls. Raising it is the thing to notice.
     """
