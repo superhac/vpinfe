@@ -587,6 +587,54 @@ class TableRowList(ApiModel):
     tables: list[TableRow]
 
 
+class MediaSlot(ApiModel):
+    """One media file the library holds, or the absence of one.
+
+    `table` is empty on the **shared** row - the file every table in the folder falls
+    through to - and names a table on the rows that have a file of their own. Absence
+    is only ever reported on the shared row: an empty table row would assert that a
+    table-specific file ought to exist.
+    """
+
+    id: str
+    game_id: str
+    game: str
+    manufacturer: str = ""
+    year: str = ""
+    kind: str
+    label: str
+    table: str = ""
+    table_file: str = ""
+    vps_id: str = ""
+    # How many tables fall through to this file. **Null on a table row**, which serves
+    # the one it is named for - not 1, because the question does not apply.
+    serves: int | None = None
+    present: bool = False
+    file: str | None = None
+    path: str | None = None
+    via: str | None = None
+    # Who put the file here, as far as the .info ledger recorded. "unknown" is the
+    # honest answer for anything placed before the ledger or by another tool.
+    origin: str | None = None
+    matched_to: str | None = None
+    # What is filling this slot on the cabinet while the slot itself is empty - a set,
+    # or a cross-kind fallback. Another slot's file, so it does not make this row
+    # present, but a curator reading "Missing" against a machine that shows something
+    # needs to know why.
+    standing_in: str = ""
+    # Files at this row's own scope hidden behind the one that won. A shared write
+    # clears only the spec-named family at its stem, so a catalog's fixed-name file
+    # survives underneath and resurfaces if the winner is removed.
+    shadowed: list[str] = []
+
+
+class MediaSlotList(ApiModel):
+    total: int
+    offset: int
+    count: int
+    media: list[MediaSlot]
+
+
 class TableVisibility(ApiModel):
     """Whether the frontend should offer this table. Hiding never touches the file: a
     patch base has to stay on disk, and a variant may be wanted back."""

@@ -25,6 +25,7 @@ from . import (
     jobs,
     library,
     manufacturers,
+    media,
     mediasources,
     play,
     preferences,
@@ -100,6 +101,7 @@ def create_api_app() -> FastAPI:
     api.include_router(play.router)
     api.include_router(games.router)
     api.include_router(tables.router)
+    api.include_router(media.router)
     api.include_router(filesystem.router)
     api.include_router(mediasources.router)
     api.include_router(uploads.router)
