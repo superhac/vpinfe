@@ -8,6 +8,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common import device_client
 from common.labels import humanize
 
 from . import confirm, panel
@@ -33,6 +34,11 @@ _CHIP = {
 # Why the name of a device that is not this one cannot be edited here. The install owns
 # its own name, and the hub holds a copy of what it last reported.
 REMOTE_NAME_NOTE = "This name belongs to that install, and only it can change it."
+
+# A device the hub has no way to call back. Not the same as one that is down, and it says
+# which: an install announces the port it answers on, and this one never did.
+UNREACHABLE_NOTE = ("This device has not said which port it answers on, so it cannot be "
+                    "asked. It will once it has announced itself again.")
 
 # Why an install cannot replace itself, in the words a person reads. The API answers with
 # the reason's name; the sentence for it belongs to whatever is showing it.
@@ -142,6 +148,18 @@ async def _fill_detail(body, device: dict[str, Any], device_capabilities: list[s
         if rerender is not None:
             rerender()
 
+    # Local or remote, one interface. None means there is nothing to dial - a device that
+    # announced itself before ports were recorded, which is not the same as one that is
+    # down and must not read like it.
+    client = device_client.for_device(device, local_device_id)
+    if update is None and client is not None:
+        try:
+            update = await run.io_bound(client.update_check)
+        except Exception:  # noqa: BLE001 - unreachable is a state on the page, not a 500
+            logger.info("Could not ask %s what it is running",
+                        device_label(device), exc_info=True)
+            update = None
+
     rows: list[tuple[Any, Any]] = [
         ("Name", panel.field(stored, rename,
                              placeholder=_hostname_placeholder(device, is_local),
@@ -149,7 +167,7 @@ async def _fill_detail(body, device: dict[str, Any], device_capabilities: list[s
     ]
     if not is_local:
         rows.append(panel.note(REMOTE_NAME_NOTE))
-    rows.extend(_software_rows(device, is_local, library, update))
+    rows.extend(_software_rows(device, is_local, client, update))
     rows.append((panel.HEADING, "Capabilities"))
     for capability in device_capabilities:
         state = capability_state(device, capability, local_device_id,
@@ -160,17 +178,19 @@ async def _fill_detail(body, device: dict[str, Any], device_capabilities: list[s
         panel.facts(ui, rows)
 
 
-def _software_rows(device: dict[str, Any], is_local: bool, library: Any,
+def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
                    update: dict[str, Any] | None) -> list[tuple[Any, Any]]:
     """What this device is running, and whether it can take what is published.
 
-    A device that is not this one gets the heading and an unknown: the hub holds what it
-    reported, and nothing has asked it what it is running. Saying "up to date" there
-    would be a guess wearing a fact.
+    A device with no answer gets the heading and an unknown - one that announced itself
+    before ports were recorded cannot be reached, and one that is not answering has not
+    said. Either way "up to date" would be a guess wearing a fact.
     """
     rows: list[tuple[Any, Any]] = [(panel.HEADING, "Software")]
-    if not is_local or not update:
+    if not update:
         rows.append(("Version", panel.state("Not known", "unknown")))
+        if not is_local and client is None:
+            rows.append(panel.note(UNREACHABLE_NOTE))
         return rows
 
     current = str(update.get("current_version") or "unknown")
@@ -189,28 +209,27 @@ def _software_rows(device: dict[str, Any], is_local: bool, library: Any,
     rows.append(("Version", panel.state(f"{latest} available", "warn", beside=current)))
     rows.append((
         "",
-        panel.action(f"Update to {latest}", lambda: _confirm_update(library, update),
+        panel.action(f"Update to {latest}",
+                     lambda: _confirm_update(client, device_label(device), update),
                      icon="system_update_alt", inline=True),
     ))
     return rows
 
 
-async def _confirm_update(library: Any, update: dict[str, Any]) -> None:
-    """Ask before replacing the running application, naming which install it is.
+async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> None:
+    """Ask before replacing an install, naming which one it is.
 
-    The name is the point of the question. The hub can be open on one machine while it
-    drives another, and "Update to v3.1" does not say which one goes down - an update
-    replaces the install the hub is running on, whichever screen was used to ask.
+    The name is the point of the question. An update replaces the machine it runs on,
+    which may not be the one this page is open on - "Update to v3.1" does not say which
+    one goes down, and by the time it has, saying so is too late.
     """
     latest = str(update.get("latest_version") or "the published build")
     try:
-        where = await run.io_bound(library.discovery)
-        playing = await run.io_bound(library.play_state)
+        playing = await run.io_bound(client.play_state)
     except Exception as exc:  # noqa: BLE001 - a dialog that cannot say what it will do
-        ui.notify(f"Could not check what that install is doing: {exc}", type="negative")
+        ui.notify(f"Could not check what {name} is doing: {exc}", type="negative")
         return
 
-    name = str((where or {}).get("display_name") or "this install")
     running = str((playing or {}).get("game_name") or "") if (
         playing or {}).get("launching") else ""
 
@@ -225,18 +244,18 @@ async def _confirm_update(library: Any, update: dict[str, Any]) -> None:
             confirm="Stop the table and update" if running else "Update",
             danger=bool(running)):
         return
-    await _start_update(library, bool(running))
+    await _start_update(client, name, bool(running))
 
 
-async def _start_update(library: Any, stop_table: bool) -> None:
+async def _start_update(client: Any, name: str, stop_table: bool) -> None:
     try:
-        await run.io_bound(lambda: library.perform_update(stop_table=stop_table))
+        await run.io_bound(lambda: client.perform_update(stop_table=stop_table))
     except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
         ui.notify(f"Could not start the update: {exc}", type="negative")
         return
-    # Nothing to redraw towards: the install answering this page is the one going down,
-    # so the next thing this client does is fail until it comes back.
-    ui.notify("Update staged. VPinFE is restarting to apply it.", type="positive")
+    # Nothing to redraw towards. Updating this install takes the page's own server down;
+    # updating another leaves it up but knowing nothing new until that device is back.
+    ui.notify(f"Update staged. {name} is restarting to apply it.", type="positive")
 
 
 def _hostname_placeholder(device: dict[str, Any], is_local: bool) -> str:

@@ -37,6 +37,21 @@ def put_json(url: str, payload: Any, *, timeout: int = DEFAULT_TIMEOUT,
         return None
 
 
+def post_json(url: str, payload: Any = None, *, timeout: int = DEFAULT_TIMEOUT,
+              headers: dict[str, str] | None = None) -> Any:
+    """POST a JSON body and read the answer back.
+
+    An empty answer is None rather than an error: a 202 that says a thing was started
+    need not describe it, and one route here goes down as its own response is sent.
+    """
+    response = requests.post(url, json=payload, timeout=timeout, headers=headers)
+    response.raise_for_status()
+    try:
+        return response.json()
+    except json.JSONDecodeError:
+        return None
+
+
 def get_text(url: str, *, timeout: int = DEFAULT_TIMEOUT, headers: dict[str, str] | None = None) -> str:
     response = requests.get(url, timeout=timeout, headers=headers)
     response.raise_for_status()

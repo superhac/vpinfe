@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 from nicegui import run, ui
 
+from common import device_client
 from hubui import assets as assets_page
 from hubui import collections as collections_page
 from hubui import deeplink, games, grid, sections, tageditor, theme, views, workbench
@@ -15,6 +17,8 @@ from hubui import media as media_page
 from hubui import settings as settings_page
 from hubui.api import HubClient
 from hubui.data import Library
+
+logger = logging.getLogger("vpinfe.hubui.page")
 
 # Both panel headers are pinned to this, so the two toggles sit at the same height
 # whatever their labels do. Left to the text, one was 52px and the other 22px.
@@ -342,28 +346,40 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
     job_timer = ui.timer(2.0, _watch_jobs, active=True)
 
     async def _look_for_update() -> None:
-        """Mark Devices when there is a newer build, once per page load.
+        """Mark Devices with how many of them have an update, once per page load.
 
-        Off the loop and never fatal: a hub with no internet is not a broken hub, and a
-        rail that cannot say whether a build is current says nothing rather than
-        claiming it is.
+        Off the loop and never fatal: a hub with no internet is not a broken hub, a
+        device that is asleep is not a broken device, and a rail that cannot say whether
+        a build is current says nothing rather than claiming it is. Asked one device at
+        a time because one that is down should cost its own answer and nobody else's.
         """
-        try:
-            found = await run.io_bound(HubClient().update_check)
-        except Exception:
-            return
-        state["update"] = found
-        if not found.get("update_available"):
-            return
+        waiting: list[str] = []
+        for entry in devices:
+            client = device_client.for_device(entry, discovery.get("install_id"))
+            if client is None:
+                continue
+            try:
+                found = await run.io_bound(client.update_check)
+            except Exception:
+                logger.info("Could not ask %s what it is running",
+                            devices_page.device_label(entry), exc_info=True)
+                continue
+            if entry.get("device_id") == discovery.get("install_id"):
+                # Kept so the device's own page does not ask a second time on arrival.
+                state["update"] = found
+            if found.get("update_available"):
+                waiting.append(devices_page.device_label(entry))
+
         badge = badges.get("devices")
-        if badge is None:
+        if badge is None or not waiting:
             return
-        # A count, because the entry stands for every device this hub knows and only
-        # one of them has been asked yet. Naming the version here would be a second
-        # copy of what the device's own page says.
-        badge.text = "1"
+        # A count, not a version: the entry stands for every device, and which build each
+        # one is going to is on its own page. The tooltip names them while it still can,
+        # because "3" on its own does not say which three.
+        badge.text = str(len(waiting))
         badge.set_visibility(True)
-        badge.tooltip("1 device has an update waiting")
+        badge.tooltip(f"Update waiting: {', '.join(waiting)}" if len(waiting) <= 3
+                      else f"{len(waiting)} devices have an update waiting")
 
     ui.timer(0.1, _look_for_update, once=True)
 
