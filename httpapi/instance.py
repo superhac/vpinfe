@@ -37,13 +37,25 @@ def mint_identity() -> None:
     """
     try:
         config = get_ini_config()
-        device_id = install_identity.ensure_id(config)
+        install_identity.ensure_id(config)
     except Exception as exc:
         logger.warning("Could not mint this install's identity: %s", exc)
         return
+    record_self()
+
+
+def record_self() -> None:
+    """Put what this install currently calls itself into its own registry entry.
+
+    Called again whenever the name changes, not only at startup. A registry entry is a
+    copy of what an install reported, which for a remote device goes stale by design -
+    but this install can say so the moment it is renamed, and every screen listing
+    devices reads the registry rather than asking each one.
+    """
     try:
+        config = get_ini_config()
         get_device_registry().record(
-            device_id,
+            install_identity.install_id(config),
             kind=device_registry.KIND_VPINFE,
             display_name=install_identity.display_name(config),
             roles=install_identity.roles(config),

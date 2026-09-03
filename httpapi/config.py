@@ -130,4 +130,10 @@ def put_values(values: dict[str, dict[str, Any]] = Body(...)) -> models.ConfigVa
     except Exception as exc:  # noqa: BLE001 - the caller gets the reason, not a 500
         logger.exception("Could not write the settings file")
         raise ConflictError(f"Could not write the settings file: {exc}") from exc
+
+    if any(section == "install" and key == "display_name" for section, key, _ in staged):
+        # The registry holds a copy of what each install reported. This one just changed
+        # what it reports, and every screen listing devices reads the copy.
+        from .instance import record_self
+        record_self()
     return get_values()

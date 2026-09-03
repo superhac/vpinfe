@@ -684,7 +684,8 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                         .props("flat dense no-caps").classes("ml-2 mt-2")
                     devices_page.build_detail(state["device"], device_capabilities,
                                               discovery.get("install_id"),
-                                              local_capabilities)
+                                              local_capabilities,
+                                              library, render)
             else:
                 _placeholder(view)
 

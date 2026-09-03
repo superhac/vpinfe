@@ -251,6 +251,11 @@ class Library:
         self._kept = None
         return self._client.put_config(changes)
 
+    def devices(self) -> list[dict]:
+        """Never cached: the page holding a device reads this back after changing it,
+        and a cached copy would hand it the value it just replaced."""
+        return self._client.devices()
+
     def set_game_overrides(self, game_id: str, changes: dict) -> dict:
         """An override changes the name a game sorts under, so the whole list is stale,
         not just this game's row."""
