@@ -215,6 +215,60 @@ class RetiredValueTests(ConfigStoreTests):
         self.assertEqual(self._payload()["settings"]["frontend"]["paging_group"], "count")
 
 
+class RetiredRoleTests(ConfigStoreTests):
+    """`player` became `device`, and a list of roles had no migration.
+
+    Worse than the value rename above, which still resolved on read: roles are filtered
+    against a known set, so a retired word is dropped rather than understood - an install
+    written before the rename quietly stopped claiming to be a device at all.
+    """
+
+    def _roles(self) -> list[str]:
+        return self._payload()["settings"]["install"]["roles"]
+
+    def test_a_json_written_before_the_rename_is_corrected_in_place(self) -> None:
+        store = ConfigStore(str(self.ini))
+        store.config.set("install", "roles", "hub,player")
+        store.save()
+
+        ConfigStore(str(self.ini))
+
+        self.assertEqual(self._roles(), ["hub", "device"])
+
+    def test_an_ini_is_converted_in_the_current_vocabulary(self) -> None:
+        self.ini.write_text("[install]\nroles = player\n", encoding="utf-8")
+
+        ConfigStore(str(self.ini))
+
+        self.assertEqual(self._roles(), ["device"])
+
+    def test_the_order_is_kept(self) -> None:
+        """The schema's own default reads hub first, so a rename must not reshuffle."""
+        self.ini.write_text("[install]\nroles = player,hub\n", encoding="utf-8")
+
+        ConfigStore(str(self.ini))
+
+        self.assertEqual(self._roles(), ["device", "hub"])
+
+    def test_current_roles_are_left_alone(self) -> None:
+        self.ini.write_text("[install]\nroles = hub,device\n", encoding="utf-8")
+
+        ConfigStore(str(self.ini))
+
+        self.assertEqual(self._roles(), ["hub", "device"])
+
+    def test_a_renamed_role_survives_being_read_back(self) -> None:
+        """The point of the migration: install_identity drops what it does not know, so
+        before this the install reported one role where it had said two."""
+        from common import install_identity
+
+        self.ini.write_text("[install]\nroles = hub,player\n", encoding="utf-8")
+
+        store = ConfigStore(str(self.ini))
+
+        self.assertEqual(install_identity.roles(store), ["hub", "device"])
+
+
 class ConfirmSwitchTests(ConfigStoreTests):
     """`frontend.confirm` was a list of scopes and is a switch.
 

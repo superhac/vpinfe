@@ -67,6 +67,14 @@ _RENAMED_VALUES = {
     ('frontend', 'paging_group'): config_schema.PAGING_GROUP_ALIASES,
 }
 
+# The same, for a setting that holds several values at once. Separate because a list is
+# rewritten item by item and a choice is replaced whole, and because an unmigrated item
+# here is not a stale spelling that still resolves - `roles` is filtered against a known
+# set, so a retired word is dropped and the install stops claiming what it dropped.
+_RENAMED_LIST_VALUES = {
+    ('install', 'roles'): {'player': 'device'},
+}
+
 
 # (section, old key, new key) - see the migration in _migrate below.
 _RENAMED_KEYS = (
@@ -221,6 +229,20 @@ class ConfigStore:
             if current in aliases:
                 announce('ini-renamed-values', f'{section}.{key}={current}')
                 self.config.set(section, key, aliases[current])
+                changed = True
+
+        # A retired word inside a list. Unlike the choice above this one does not resolve
+        # on read: `roles` is filtered against a known set, so an install written before
+        # the rename silently stopped claiming the role rather than claiming it under the
+        # old name. Order is kept, because the schema's default reads hub first.
+        for (section, key), aliases in _RENAMED_LIST_VALUES.items():
+            if not self.config.has_option(section, key):
+                continue
+            items = [v.strip() for v in self.config.get(section, key).split(',')]
+            renamed = [aliases.get(v.lower(), v) for v in items if v]
+            if renamed != [v for v in items if v]:
+                announce('ini-renamed-values', f'{section}.{key}')
+                self.config.set(section, key, ','.join(renamed))
                 changed = True
 
         # `frontend.confirm` was a list of scopes and is a switch now. Anything naming a
