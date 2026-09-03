@@ -103,6 +103,7 @@ class LocalDevice:
 
         return launch_state.current().as_dict()
 
+
     def probe(self) -> dict[str, Any]:
         """Always answering: this is the process being asked."""
         from common.app_version import get_version
@@ -197,6 +198,28 @@ class RemoteDevice:
 
         return dict(http_client.post_json(
             self._url("/update"), {"stop_table": stop_table}) or {})
+
+    def config_schema(self) -> list[dict[str, Any]]:
+        """What that install says its settings are. Read from the device rather than
+        assumed, so one running a newer build offers what it actually has."""
+        from common import http_client
+
+        return list((http_client.get_json(self._url("/config/schema"))
+                     or {}).get("sections") or [])
+
+    def config_values(self) -> dict[str, Any]:
+        from common import http_client
+
+        return dict((http_client.get_json(self._url("/config"))
+                     or {}).get("values") or {})
+
+    def put_config(self, changes: dict[str, Any]) -> dict[str, Any]:
+        """Write to another machine's config. The capability model allows it and this
+        is the first thing to exercise it."""
+        from common import http_client
+
+        return dict((http_client.put_json(self._url("/config"), changes)
+                     or {}).get("values") or {})
 
     def probe(self) -> dict[str, Any]:
         """Discovery, which is the cheapest call that proves who answered.

@@ -47,6 +47,7 @@ from hubui import (
     panel,
     stars,
 )
+from hubui import devices as devices_page
 from hubui import features as table_features
 from hubui.api import HubError
 from hubui.data import Library
@@ -448,6 +449,59 @@ async def build_collection(container: ui.column, title: ui.column, library: Libr
         if state["build_seq"] != mine:
             return
         await _draw_collection(container, title, library, name, state)
+
+
+async def build_device(container: ui.column, title: ui.column, library: Library,
+                       device: dict[str, Any] | None, state: dict[str, Any],
+                       local_device_id: str | None = None,
+                       device_capabilities: list[str] | None = None,
+                       local_capabilities: set[str] | None = None) -> None:
+    """The panel, for a device rather than a game.
+
+    Its own entry point for the same reason a collection has one: a device has no game,
+    no tables and no media lens, so everything `build` assembles would be a chain of
+    empty values threaded through to sections that never read them.
+    """
+    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
+    state["build_seq"] = mine = state.get("build_seq", 0) + 1
+    async with lock:
+        if state["build_seq"] != mine:
+            return
+        await _draw_device(container, title, library, device, state, local_device_id,
+                           device_capabilities or [], local_capabilities or set())
+
+
+async def _draw_device(container: ui.column, title: ui.column, library: Library,
+                       device: dict[str, Any] | None, state: dict[str, Any],
+                       local_device_id: str | None,
+                       device_capabilities: list[str],
+                       local_capabilities: set[str]) -> None:
+    if not device:
+        _blank(container, title, "Device", "Select a device")
+        return
+
+    container.clear()
+    title.clear()
+    with container:
+        _title(title, devices_page.device_label(device),
+               devices_page.KIND_LABELS.get(str(device.get("kind") or "vpinfe"),
+                                            "VPinFE"))
+        reach = (state.get("device_reach") or {}).get(str(device.get("device_id") or ""))
+        context: dict[str, Any] = {
+            "library": library, "device": device, "state": state,
+            "local_device_id": local_device_id,
+            "device_capabilities": device_capabilities,
+            "local_capabilities": local_capabilities,
+            "reach": reach, "redraws": [], "dock": None,
+        }
+
+        async def rebuild() -> None:
+            await build_device(container, title, library, device, state,
+                               local_device_id, device_capabilities,
+                               local_capabilities)
+
+        context["rebuild"] = rebuild
+        await _rail(context, "device", state)
 
 
 def _blank(container: ui.column, title: ui.column, heading: str, said: str) -> None:
@@ -2365,6 +2419,57 @@ def _is_dynamic(row: dict[str, Any]) -> bool:
     return (row.get("type") or "") == "filter"
 
 
+# --- Device sections --------------------------------------------------------
+#
+# Each is a thin adapter: the rows themselves are `hubui/devices.py`'s, because what a
+# device is and what may be asked of it belongs with the device, not with the panel that
+# draws it. The panel's job here is the rail and the frame.
+
+def _device(context: dict[str, Any]) -> dict[str, Any]:
+    return context.get("device") or {}
+
+
+async def _device_details(context: dict[str, Any]) -> None:
+    """What it is called, and what it is."""
+    with ui.column().classes("gap-0 hub-form"):
+        _rows(ui, await devices_page.details_rows(context))
+
+
+async def _device_connection(context: dict[str, Any]) -> None:
+    """Whether it is there, what answered, and when it last was."""
+    with ui.column().classes("gap-0 hub-form"):
+        _rows(ui, devices_page.connection_rows(_device(context),
+                                               context.get("reach")))
+
+
+async def _device_software(context: dict[str, Any]) -> None:
+    """What it is running, and whether it can take what is published."""
+    with ui.column().classes("gap-0 hub-form"):
+        _rows(ui, await devices_page.software_rows(context))
+
+
+async def _device_capabilities(context: dict[str, Any]) -> None:
+    """What it can be asked to do."""
+    with ui.column().classes("gap-0 hub-form"):
+        _rows(ui, devices_page.capability_rows(context))
+
+
+async def _device_settings(context: dict[str, Any]) -> None:
+    """That device's own settings, rendered from the schema it serves.
+
+    The same page Settings draws for this install, against another machine's schema -
+    so a device running a newer build gets its new settings rendered here without this
+    hub knowing they exist.
+    """
+    await devices_page.settings_block(context)
+
+
+async def _device_entry(context: dict[str, Any]) -> None:
+    """What this hub holds about it, which is the only part a hub owns."""
+    with ui.column().classes("gap-0 hub-form"):
+        _rows(ui, devices_page.entry_rows(context))
+
+
 async def _collection_details(context: dict[str, Any]) -> None:
     """What the collection is, rather than what is in it."""
     row = _collection(context)
@@ -3385,4 +3490,19 @@ SECTIONS: tuple[Section, ...] = (
             subjects=frozenset({"collection"})),
     Section("collection_contents", _contents_label, _collection_contents,
             subjects=frozenset({"collection"}), dock=True),
+    # A device, in reading order: what it is, whether it is there, what it is running,
+    # what it can be asked to do, and what this hub holds about it. Settings comes from
+    # the device's own schema, so it is the same page Settings draws for this install.
+    Section("device_details", lambda _: "Details", _device_details,
+            subjects=frozenset({"device"})),
+    Section("device_connection", lambda _: "Connection", _device_connection,
+            subjects=frozenset({"device"})),
+    Section("device_software", lambda _: "Software", _device_software,
+            subjects=frozenset({"device"})),
+    Section("device_capabilities", lambda _: "Capabilities", _device_capabilities,
+            subjects=frozenset({"device"})),
+    Section("device_settings", lambda _: "Settings", _device_settings,
+            subjects=frozenset({"device"})),
+    Section("device_entry", lambda _: "This Entry", _device_entry,
+            subjects=frozenset({"device"})),
 )

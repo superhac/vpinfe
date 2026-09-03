@@ -387,6 +387,19 @@ def _page_label(key: str) -> str:
                 key)
 
 
+def _section_label(key: str) -> str:
+    """What to call a config section on screen.
+
+    This page's own name for it where there is one, so a device's Settings and the
+    hub's agree; otherwise the key made readable. `windows.playfield` is two words
+    joined by a dot, and humanize alone leaves the dot in.
+    """
+    named = _page_label(key)
+    if named != key:
+        return named
+    return " ".join(humanize(part) for part in key.split("."))
+
+
 def _rail_entries() -> list[tuple[Any, str, str]]:
     """The rail: every page, grouped, then where the rest of them live.
 
@@ -433,3 +446,77 @@ def build(state: dict, rerender: Callable[[], None],
         else:
             panel.facts(ui, [panel.intro(STUBS.get(current, "Not designed yet.")),
                              panel.intro("Not built.")])
+
+
+# The sections a device's page offers. Not every section an install declares belongs
+# on another machine's page: `install` is its identity and is edited in Details, and
+# `themes` is read-only over HTTP wherever it is served from.
+DEVICE_SKIP = frozenset({"install", "themes"})
+
+
+def section_rows(source, section: str, options: list[dict], values: dict,
+                 writable: bool, rerender: Callable[[], None],
+                 checks: dict[tuple[str, str], dict] | None = None,
+                ) -> list[tuple[Any, Any]]:
+    """One section's settings as fact rows, from whatever is serving them.
+
+    `source` is anything with `put_config` - the hub's own client for this install, or
+    the client that reaches another machine. Which is the whole reason a device's
+    settings page and this one are one page: the schema decides the controls and the
+    source decides where the write lands.
+    """
+    current = dict(values.get(section) or {})
+    entries: list[tuple[Any, Any]] = []
+    if not writable:
+        entries.append(panel.intro("Read-only on this install."))
+    for option in options:
+        value = current.get(option["key"], option.get("default"))
+        entries.append((option.get("label") or humanize(option["key"]),
+                        _control(source, section, option, value, writable,
+                                 rerender, checks)))
+        if option.get("description"):
+            entries.append(panel.note(option["description"]))
+    return entries
+
+
+def build_device_settings(source, context: dict[str, Any],
+                          schema: list[dict], values: dict) -> None:
+    """A device's own settings, in the shape this install's Settings uses.
+
+    Its own rail of sections, because a device declares as many as an install does and
+    one flat page of them is the thing Settings stopped being. Path checks are not
+    fetched: they are answered by the machine holding the path, and asking this one
+    about another machine's disk would put a red cross on a file that is perfectly
+    fine over there.
+    """
+    blocks = [block for block in schema
+              if block.get("name") not in DEVICE_SKIP and block.get("options")]
+    if not blocks:
+        panel.facts(ui, [panel.intro("This device declares no settings.")])
+        return
+
+    picked = str(context.get("device_section") or blocks[0].get("name") or "")
+    if picked not in {str(b.get("name")) for b in blocks}:
+        picked = str(blocks[0].get("name"))
+
+    async def pick(name: str) -> None:
+        context["device_section"] = name
+        rebuild = context.get("rebuild")
+        if rebuild is not None:
+            await rebuild()
+
+    def rerender() -> None:
+        rebuild = context.get("rebuild")
+        if rebuild is not None:
+            ui.timer(0.01, rebuild, once=True)
+
+    # A device's sections are the config's own, not this page's - so most of them have
+    # no entry in INDEX and would read as `windows.backglass`. The schema does not name
+    # a section, only its options, so the key is humanized where nothing has named it.
+    entries = [(str(block.get("name")), _section_label(str(block.get("name"))))
+               for block in blocks]
+    work = panel.sections(entries, picked, lambda name: pick(name), rail_px=RAIL_PX)
+    block = next(b for b in blocks if str(b.get("name")) == picked)
+    with work:
+        panel.facts(ui, section_rows(source, picked, block["options"], values,
+                                     bool(block.get("writable")), rerender))

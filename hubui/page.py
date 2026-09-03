@@ -136,6 +136,7 @@ EMPTY_PANE = {
     "collections": ("Collection", "Select a collection"),
     "media": ("Media", "Select a kind of media"),
     "assets": ("Assets", "Select a kind of file"),
+    "devices": ("Device", "Select a device"),
 }
 
 # The pages the pane has a role on. Media is one of them: a row is one game's slot, so
@@ -595,6 +596,31 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                               state["table"])
         deeplink.sync(state)
 
+    async def show_device(row: dict | None) -> None:
+        """What the grid has selected is what the workbench is about - the same rule
+        every other subject follows, so the panel needs no control of its own."""
+        if row and not state["workbench"]:
+            show_workbench(True)
+        state["device_id"] = (row or {}).get("id")
+        chosen = next((d for d in devices
+                       if str(d.get("device_id")) == state["device_id"]), None)
+        await workbench.build_device(panel, workbench_title, library, chosen, state,
+                                     discovery.get("install_id"), device_capabilities,
+                                     local_capabilities)
+        deeplink.sync(state)
+
+    async def _probe_devices() -> None:
+        """Ask every device again, on demand. The page's own pass runs once on load;
+        this is for when you have just gone and switched one on."""
+        try:
+            found = {p.get("device_id"): p
+                     for p in await run.io_bound(HubClient().probe_devices)}
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
+            ui.notify(f"Could not ask the devices: {exc}", type="negative")
+            return
+        state["device_reach"] = found
+        render()
+
     async def show_collection(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about - the same rule
         Games follows, so the panel never needs a control of its own."""
@@ -687,9 +713,8 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             elif view == "settings":
                 settings_page.build(state, render, go, library)
             elif view == "devices":
-                devices_page.build(state, devices, device_capabilities,
-                                   discovery.get("install_id"), local_capabilities,
-                                   library, render)
+                devices_page.build(devices, library, state, show_device,
+                                   probe=_probe_devices)
             else:
                 _placeholder(view)
 

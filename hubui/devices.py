@@ -11,7 +11,8 @@ from nicegui import run, ui
 from common import device_client
 from common.labels import humanize
 
-from . import confirm, panel
+from . import confirm, grid, panel, views
+from . import settings as settings_page
 
 logger = logging.getLogger("vpinfe.hubui.devices")
 
@@ -59,26 +60,6 @@ CANNOT_UPDATE = "This install cannot update itself."
 FORGET_NOTE = ("Forgetting a device removes the hub's entry for it. Nothing on that "
                "machine changes, and it comes back the next time it announces itself.")
 
-# The rail's groups. By kind always, because the two are different things that answer
-# different questions - a flat list would mix what can be asked with what can only be
-# sent to. Ordered, so the groups do not move about as devices come and go.
-KIND_GROUPS: tuple[tuple[str, str], ...] = (
-    ("vpinfe", "VPinFE Installs"),
-    ("vpx_mobile", "VPX Mobile"),
-)
-
-# How the rail is ordered, within every group at once. Last seen leads because the
-# question a registry raises is which of these is still out there.
-SORTS: tuple[tuple[str, str], ...] = (
-    ("last_seen", "Last seen"),
-    ("name", "Name"),
-)
-DEFAULT_SORT = "last_seen"
-
-# Wider than the pane's rail, for the same reason Settings is: these are names people
-# chose, and a hostname is longer than a section heading.
-RAIL_PX = 210
-
 # What a probe found, as the mark on a rail row and the chip on the page. Green for
 # answering, because that is the one a person scans the rail for.
 _REACH = {
@@ -86,41 +67,6 @@ _REACH = {
     device_client.UNREACHABLE: ("Not answering", "bad", "negative"),
     device_client.UNASKABLE: ("Cannot be asked", "unknown", "grey"),
 }
-
-
-def sorted_devices(devices: list[dict[str, Any]], sort: str) -> list[dict[str, Any]]:
-    """The rail's order, applied inside every group rather than across them.
-
-    Newest first under last seen, because the interesting end of that list is what is
-    still out there; A-Z under name, because that is what alphabetical means. A device
-    that has never been reached sorts last either way rather than first - an empty
-    timestamp is the smallest string there is, and it would otherwise lead.
-    """
-    if sort == "name":
-        return sorted(devices, key=lambda d: device_label(d).lower())
-    return sorted(devices, key=lambda d: (not d.get("last_reachable"),
-                                          _reverse(str(d.get("last_reachable") or "")),
-                                          device_label(d).lower()))
-
-
-def _reverse(stamp: str) -> tuple:
-    """Newest first out of an ascending sort, without a reverse flag - the other keys in
-    the tuple want ascending, and one flag cannot say two things."""
-    return tuple(-ord(ch) for ch in stamp)
-
-
-def grouped_devices(devices: list[dict[str, Any]], sort: str) -> list[tuple[str, str, list]]:
-    """(kind, heading, devices) for each group that has anything in it.
-
-    An empty group is left out: a heading over nothing tells a reader the hub is missing
-    something rather than that they have not added one.
-    """
-    out = []
-    for kind, heading in KIND_GROUPS:
-        held = [d for d in devices if str(d.get("kind") or "vpinfe") == kind]
-        if held:
-            out.append((kind, heading, sorted_devices(held, sort)))
-    return out
 
 
 def capability_state(device: dict[str, Any], capability: str,
@@ -152,113 +98,6 @@ def device_label(device: dict[str, Any]) -> str:
     return (str(device.get("display_name") or "").strip()
             or str(device.get("address") or "").strip()
             or "Device")
-
-
-def build_detail(device: dict[str, Any], device_capabilities: list[str],
-          local_device_id: str | None, local_capabilities: set[str],
-          library: Any = None, rerender: Callable[[], None] | None = None,
-          update: dict[str, Any] | None = None,
-          reach: dict[str, Any] | None = None) -> None:
-    with ui.column().classes("w-full p-4 gap-3"):
-        with ui.row().classes("items-center gap-3"):
-            ui.icon("sports_esports", size="28px").classes("text-primary")
-            with ui.column().classes("gap-0"):
-                ui.label(device_label(device)).classes("text-lg")
-                ui.label(f"{device.get('kind', 'vpinfe')} · {device.get('address') or '-'}") \
-                    .classes("text-xs opacity-70")
-
-        ui.separator()
-        body = ui.column().classes("w-full gap-0")
-        # The stored name is read over HTTP, and this runs on the event loop that would
-        # answer it. Same reason the settings pages fill themselves on a timer.
-        ui.timer(0.01, lambda: _fill_detail(
-            body, device, device_capabilities, local_device_id, local_capabilities,
-            library, rerender, update, reach), once=True)
-
-
-async def _fill_detail(body, device: dict[str, Any], device_capabilities: list[str],
-                       local_device_id: str | None, local_capabilities: set[str],
-                       library: Any, rerender: Callable[[], None] | None,
-                       update: dict[str, Any] | None = None,
-                       reach: dict[str, Any] | None = None) -> None:
-    is_local = device.get("device_id") == local_device_id
-    editable = is_local and library is not None
-
-    # What the install has been told to call itself, which is not what it reports: the
-    # reported name already fell back to the hostname, so showing that as the value
-    # leaves nothing to tell a chosen name from a defaulted one.
-    stored = ""
-    if editable:
-        try:
-            values = await run.io_bound(library.config_values)
-            stored = str(((values or {}).get("install") or {}).get("display_name") or "")
-        except Exception:  # noqa: BLE001 - an unreadable name is an empty field, not a 500
-            editable = False
-
-    async def rename(value: str) -> None:
-        try:
-            await run.io_bound(library.put_config,
-                               {"install": {"display_name": value.strip()}})
-        except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(f"Could not save that: {exc}", type="negative")
-            return
-        # Read back rather than assumed: an emptied field falls back to the hostname,
-        # and only the install knows what that is. Mutated in place because this dict is
-        # what the page is holding - rebinding it here would redraw the old one.
-        try:
-            fresh = await run.io_bound(library.devices)
-            for entry in fresh:
-                if entry.get("device_id") == device.get("device_id"):
-                    device.update(entry)
-                    break
-        except Exception:  # noqa: BLE001 - the write landed; the heading catches up later
-            logger.warning("Could not re-read the device after renaming it",
-                           exc_info=True)
-        # The name is the heading of the page it was typed on.
-        if rerender is not None:
-            rerender()
-
-    # Local or remote, one interface. None means there is nothing to dial - a device that
-    # announced itself before ports were recorded, which is not the same as one that is
-    # down and must not read like it.
-    client = device_client.for_device(device, local_device_id)
-    if update is None and client is not None:
-        try:
-            update = await run.io_bound(client.update_check)
-        except Exception:  # noqa: BLE001 - unreachable is a state on the page, not a 500
-            logger.info("Could not ask %s what it is running",
-                        device_label(device), exc_info=True)
-            update = None
-
-    rows: list[tuple[Any, Any]] = [
-        ("Name", panel.field(stored, rename,
-                             placeholder=_hostname_placeholder(device, is_local),
-                             disabled=not editable)),
-    ]
-    if not is_local:
-        rows.append(panel.note(REMOTE_NAME_NOTE))
-    rows.extend(_connection_rows(device, reach))
-    rows.extend(_software_rows(device, is_local, client, update))
-    rows.append((panel.HEADING, "Capabilities"))
-    for capability in device_capabilities:
-        state = capability_state(device, capability, local_device_id,
-                                 local_capabilities)
-        text, level = _CHIP[state]
-        rows.append((humanize(capability), panel.state(text, level)))
-    if not is_local and library is not None:
-        rows.append((panel.HEADING, "This entry"))
-        rows.append(panel.note(FORGET_NOTE))
-        def forget_action() -> None:
-            # In the fact rhythm's own wrapper, or the button takes the whole value
-            # column - a destructive verb drawn as a full-width bar reads as a banner.
-            with ui.element("div").classes("hub-fact-edit"):
-                panel.action("Forget this device",
-                             lambda: _confirm_forget(library, device, rerender),
-                             icon="delete_outline", inline=True, danger=True)()
-
-        rows.append(("", forget_action))
-    with body:
-        panel.facts(ui, rows)
 
 
 def _connection_rows(device: dict[str, Any],
@@ -400,84 +239,316 @@ def _hostname_placeholder(device: dict[str, Any], is_local: bool) -> str:
     return str(device.get("display_name") or "").strip() or "This machine's hostname"
 
 
-def _reach_mark(state: str) -> Callable[[], None]:
-    """The dot on a rail row that says a device is there.
 
-    Before the name rather than after it, because it is a fact about the device and the
-    rail is scanned down its left edge. Nothing at all where the state is not known yet:
-    the probes land after the first draw, and a grey dot on every row while they run
-    reads as an answer.
+
+# --- The grid ---------------------------------------------------------------
+
+SCOPE = "hubui.devices.columns"
+
+KIND_LABELS = {"vpinfe": "VPinFE", "vpx_mobile": "VPX Mobile"}
+
+_KIND_CHOICES = [{"value": label, "label": label} for label in KIND_LABELS.values()]
+_STATE_CHOICES = [{"value": text, "label": text} for text, _l, _c in _REACH.values()]
+
+COLUMNS: list[dict[str, Any]] = [
+    grid.column("name", "Name", 200, pinned="left",
+                help="What this device calls itself, or the address it answered from\n"
+                     "where it has never reported a name."),
+    grid.column("kind", "Kind", 120, **grid.choice_filter(_KIND_CHOICES),
+                help="A VPinFE install answers for itself. A VPX Mobile device runs\n"
+                     "VPX and not VPinFE, so the hub holds everything known about it."),
+    grid.column("state", "State", 140, **grid.choice_filter(_STATE_CHOICES),
+                help="Whether it answered when the hub last asked.\n\n"
+                     "Answering - it is there.\n"
+                     "Not answering - the hub asked and got nothing.\n"
+                     "Cannot be asked - it has never said which port it answers on,\n"
+                     "which switching the machine on does not fix."),
+    grid.column("what", "Running", 160,
+                help="What answered. A VPinFE install reports its version; a phone\n"
+                     "reports nothing beyond being there."),
+    grid.column("address", "Address", 150,
+                help="Where the hub reaches it. Read off the socket it announced from,\n"
+                     "never claimed in the announcement."),
+    grid.column("last_seen", "Last seen", 170,
+                help="When it was last known to be there - it announced, or the hub\n"
+                     "asked and got an answer. Not the same as when it last started."),
+    grid.column("roles", "Roles", 130,
+                help="What that install serves: the shared library half (hub), the\n"
+                     "machine games launch on (device), or both."),
+]
+
+_ALL = [definition["field"] for definition in COLUMNS]
+
+VIEWS: dict[str, list[str] | views.Preset] = {
+    "All devices": views.Preset(
+        columns=("name", "kind", "state", "what", "last_seen"),
+        sort=({"colId": "state", "sort": "asc", "sortIndex": 0},
+              {"colId": "name", "sort": "asc", "sortIndex": 1}),
+        help="Every device this hub has met. Sorted so that anything not answering "
+             "is at the top, because that is what you opened this page to find out."),
+    "Answering": views.Preset(
+        columns=("name", "kind", "what", "address", "roles"),
+        sort=({"colId": "name", "sort": "asc", "sortIndex": 0},),
+        filters={"state": {"values": [_REACH[device_client.ANSWERING][0]]}},
+        help="What is switched on and reachable right now."),
+    "Not answering": views.Preset(
+        columns=("name", "kind", "state", "address", "last_seen"),
+        sort=({"colId": "last_seen", "sort": "asc", "sortIndex": 0},),
+        filters={"state": {"values": [_REACH[device_client.UNREACHABLE][0],
+                                      _REACH[device_client.UNASKABLE][0]]}},
+        help="Devices the hub could not reach, oldest first - so the ones that have "
+             "been gone longest, and are most likely worth forgetting, lead."),
+    "Everything": views.Preset(
+        columns=tuple(_ALL),
+        help="Every row and every column. The way out of any other view, and where "
+             "you build a filter of your own worth saving."),
+}
+
+
+def rows(devices: list[dict[str, Any]],
+         reach: dict[str, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """One row per device, flattened for a grid.
+
+    The probe's answer is folded in rather than fetched per row: it arrives once for
+    the whole registry, and a column that asked per row would dial every machine again
+    each time the grid redrew.
     """
-    def draw() -> None:
-        found = _REACH.get(state)
-        if found is None:
+    found = reach or {}
+    out = []
+    for device in devices:
+        device_id = str(device.get("device_id") or "")
+        probe = found.get(device_id) or {}
+        state = _REACH.get(str(probe.get("state") or ""))
+        out.append({
+            "id": device_id,
+            "name": device_label(device),
+            "kind": KIND_LABELS.get(str(device.get("kind") or "vpinfe"), "VPinFE"),
+            # Blank until the probes land, rather than a word meaning "not yet": a
+            # grid filter over "Checking" is a filter over how fast the page loaded.
+            "state": state[0] if state else "",
+            "what": str(probe.get("what") or ""),
+            "address": str(device.get("address") or ""),
+            "last_seen": _when(str(device.get("last_reachable") or "")),
+            "roles": ", ".join(str(r) for r in (device.get("roles") or [])),
+        })
+    return out
+
+
+def _when(stamp: str) -> str:
+    """A timestamp as a person reads one. Sortable as text because it stays ISO order -
+    the grid sorts the string, and the string is still year-first."""
+    return stamp.replace("T", " ").replace("Z", "") if stamp else ""
+
+
+def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
+          on_select: Callable[[dict | None], None],
+          probe: Callable[[], Any] | None = None) -> None:
+    """Devices as a grid, so the selected row is what the workbench answers for.
+
+    The same shape every other subject uses. Kind and reachability are columns rather
+    than groups, which is what lets one question - "which of these is not answering" -
+    be a sort, a filter and a saved view instead of a fixed arrangement.
+    """
+    # Deferred: `games` imports `workbench`, and `workbench` imports this module for
+    # the device sections - so taking the view control at import time closes the loop.
+    # Only `build` needs it, and by then every module is loaded.
+    from .games import view_control
+
+    built = rows(found, state.get("device_reach"))
+    away = sum(1 for row in built if row["state"]
+               and row["state"] != _REACH[device_client.ANSWERING][0])
+    on_screen = {"rows": len(built)}
+
+    def said() -> str:
+        if on_screen["rows"] != len(built):
+            return f"{on_screen['rows']} of {len(built)} devices"
+        return f"{len(built)} devices, {away} not answering" if away \
+            else f"{len(built)} devices"
+
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
+        search = ui.input(placeholder="Search devices") \
+            .props("dense outlined clearable").classes("w-64")
+        _wire_views, _picker, showing = view_control(library, SCOPE, VIEWS,
+                                                    _ALL, COLUMNS)
+        ui.space()
+        count = ui.label(said()).classes("text-xs hub-label")
+        if probe is not None:
+            ui.button(icon="refresh", on_click=probe) \
+                .props("flat dense round size=sm").classes("shrink-0") \
+                .tooltip("Ask every device whether it is there")
+
+    by_id = {row["id"]: row for row in built}
+    ui.on("hub_row_focus",
+          lambda event: on_select(by_id.get(grid.focused_row(event))))
+
+    async def on_header_context(col_id: str | None) -> None:
+        state_now = await table.run_grid_method("getColumnState") or []
+        entry = next((c for c in state_now if c.get("colId") == col_id), {})
+        menu.clear()
+        with menu:
+            grid.column_menu(menu, table, COLUMNS, col_id, bool(entry.get("pinned")))
+
+    with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
+        table = grid.build(COLUMNS, built, SCOPE,
+                           on_header_context=on_header_context, view_of=showing)
+        menu = ui.context_menu()
+    search.on_value_change(
+        lambda: table.run_grid_method("setGridOption", "quickFilterText",
+                                      search.value or ""))
+
+    async def counted() -> None:
+        on_screen["rows"] = await table.run_grid_method("getDisplayedRowCount") or 0
+        count.text = said()
+
+    table.on("rowDataUpdated", counted)
+    table.on("filterChanged", counted)
+
+
+# --- Panel sections ---------------------------------------------------------
+#
+# One function per section of the workbench rail. They take the panel's context and
+# hand back fact rows, because what a device is and what may be asked of it belongs
+# with the device rather than with the panel that draws it.
+
+def _client_for(context: dict[str, Any]):
+    return device_client.for_device(_of(context), context.get("local_device_id"))
+
+
+def _of(context: dict[str, Any]) -> dict[str, Any]:
+    return context.get("device") or {}
+
+
+def _is_local(context: dict[str, Any]) -> bool:
+    return _of(context).get("device_id") == context.get("local_device_id")
+
+
+async def details_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """What it is called, and what kind of thing it is."""
+    device = _of(context)
+    library = context.get("library")
+    editable = _is_local(context) and library is not None
+
+    # What the install has been told to call itself, which is not what it reports: the
+    # reported name already fell back to the hostname, so showing that as the value
+    # leaves nothing to tell a chosen name from a defaulted one.
+    stored = ""
+    if editable:
+        try:
+            values = await run.io_bound(library.config_values)
+            stored = str(((values or {}).get("install") or {}).get("display_name") or "")
+        except Exception:  # noqa: BLE001 - an unreadable name is an empty field, not a 500
+            editable = False
+
+    async def rename(value: str) -> None:
+        try:
+            await run.io_bound(library.put_config,
+                               {"install": {"display_name": value.strip()}})
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
+            ui.notify(f"Could not save that: {exc}", type="negative")
             return
-        label, _level, color = found
-        ui.icon("circle", size="9px") \
-            .classes(f"text-{color} shrink-0 hub-reach-dot").tooltip(label)
+        rebuild = context.get("rebuild")
+        if rebuild is not None:
+            await rebuild()
 
-    return draw
+    rows_out: list[tuple[Any, Any]] = [
+        ("Name", panel.field(stored, rename,
+                             placeholder=_hostname_placeholder(device,
+                                                               _is_local(context)),
+                             disabled=not editable)),
+    ]
+    if not _is_local(context):
+        rows_out.append(panel.note(REMOTE_NAME_NOTE))
+    rows_out.append(("Kind", KIND_LABELS.get(str(device.get("kind") or "vpinfe"),
+                                             "VPinFE")))
+    rows_out.append(("Roles", ", ".join(str(r) for r in (device.get("roles") or []))
+                     or "Not reported"))
+    return rows_out
 
 
-def build(state: dict[str, Any], devices: list[dict[str, Any]],
-          device_capabilities: list[str], local_device_id: str | None,
-          local_capabilities: set[str], library: Any,
-          rerender: Callable[[], None]) -> None:
-    """Devices as a rail and one open page, which is the shape Settings already uses.
+def connection_rows(device: dict[str, Any],
+                    reach: dict[str, Any] | None) -> list[tuple[Any, Any]]:
+    return _connection_rows(device, reach)
 
-    A rail rather than a list-then-detail: every device stays visible while you look at
-    one, so comparing two is reading rather than navigating - and there is no back
-    button to charge for arriving.
+
+async def software_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """What it is running. Asked of the device rather than read from the registry,
+    which holds no version at all."""
+    device = _of(context)
+    client = _client_for(context)
+    update = context.get("update")
+    if update is None and client is not None:
+        try:
+            update = await run.io_bound(client.update_check)
+        except Exception:  # noqa: BLE001 - unreachable is a state, not a 500
+            logger.info("Could not ask %s what it is running",
+                        device_label(device), exc_info=True)
+            update = None
+        context["update"] = update
+    return _software_rows(device, _is_local(context), client, update)
+
+
+def capability_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
+    device = _of(context)
+    out: list[tuple[Any, Any]] = []
+    for capability in context.get("device_capabilities") or []:
+        state = capability_state(device, capability,
+                                 context.get("local_device_id"),
+                                 context.get("local_capabilities") or set())
+        text, level = _CHIP[state]
+        out.append((humanize(capability), panel.state(text, level)))
+    return out or [panel.intro("This device declares nothing.")]
+
+
+def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """What this hub holds about the device, which is the only part a hub owns."""
+    device = _of(context)
+    library = context.get("library")
+    out: list[tuple[Any, Any]] = [
+        ("First seen", _when(str(device.get("first_seen") or "")) or "Not known"),
+        ("Announced", _when(str(device.get("last_seen") or "")) or "Never"),
+    ]
+    if _is_local(context) or library is None:
+        out.append(panel.note(
+            "This is the install you are reading the hub from, so its entry is not "
+            "something to forget."))
+        return out
+
+    def forget_action() -> None:
+        # In the fact rhythm's own wrapper, or the button takes the whole value column -
+        # a destructive verb drawn as a full-width bar reads as a banner.
+        with ui.element("div").classes("hub-fact-edit"):
+            panel.action("Forget this device",
+                         lambda: _confirm_forget(library, device,
+                                                 context.get("rebuild")),
+                         icon="delete_outline", inline=True, danger=True)()
+
+    out.append(panel.note(FORGET_NOTE))
+    out.append(("", forget_action))
+    return out
+
+
+async def settings_block(context: dict[str, Any]) -> None:
+    """That device's own settings, rendered from the schema it serves.
+
+    Whoever holds the settings answers for them: this install through the hub's own
+    client, another machine through the client that reaches it. Both expose the same
+    three calls, so this page is one page and not two that drift.
+
+    A device that cannot be reached says so rather than drawing an empty form - a
+    settings page with nothing in it reads as a device with no settings.
     """
-    sort = str(state.get("device_sort") or DEFAULT_SORT)
-    groups = grouped_devices(devices, sort)
-    known = [d for _kind, _heading, held in groups for d in held]
-    if not known:
-        with ui.column().classes("w-full p-4 gap-2"):
-            panel.facts(ui, [panel.intro(
-                "No devices yet. An install announces itself to the hub it reads its "
-                "library from, and this one is the hub.")])
+    device = _of(context)
+    source = context.get("library") if _is_local(context) else _client_for(context)
+    if source is None:
+        panel.facts(ui, [panel.intro(UNREACHABLE_NOTE)])
         return
 
-    current = str(state.get("device_id") or "")
-    if current not in {str(d.get("device_id")) for d in known}:
-        current = str(known[0].get("device_id") or "")
-        state["device_id"] = current
+    try:
+        schema = await run.io_bound(source.config_schema)
+        values = await run.io_bound(source.config_values)
+    except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
+        panel.facts(ui, [panel.intro(
+            f"Could not read the settings on {device_label(device)}: {exc}")])
+        return
 
-    def pick(device_id: str) -> None:
-        state["device_id"] = device_id
-        rerender()
-
-    def set_sort(value: str) -> None:
-        state["device_sort"] = value
-        rerender()
-
-    with ui.row().classes("items-center gap-2 w-full no-wrap hub-devices-bar"):
-        ui.label("Sort").classes("text-xs opacity-70")
-        picker = ui.select({key: label for key, label in SORTS}, value=sort) \
-            .props("dense borderless options-dense").classes("hub-devices-sort")
-        picker.on_value_change(lambda: set_sort(str(picker.value or DEFAULT_SORT)))
-
-    entries: list[tuple[Any, ...]] = []
-    for _kind, heading, held in groups:
-        entries.append((panel.GROUP, heading))
-        for device in held:
-            found = (state.get("device_reach") or {}).get(str(device.get("device_id")))
-            entries.append((str(device.get("device_id")), device_label(device),
-                            _reach_hint(device, found),
-                            _reach_mark(str((found or {}).get("state") or ""))))
-
-    work = panel.sections(entries, current, pick, rail_px=RAIL_PX)
-    chosen = next((d for d in known if str(d.get("device_id")) == current), known[0])
-    with work:
-        build_detail(chosen, device_capabilities, local_device_id, local_capabilities,
-                     library, rerender,
-                     reach=(state.get("device_reach") or {}).get(current))
-
-
-def _reach_hint(device: dict[str, Any], found: dict[str, Any] | None) -> str:
-    """The rail row's tooltip: what answered, or when it was last there."""
-    if found and found.get("state") == device_client.ANSWERING:
-        return str(found.get("what") or "Answering")
-    when = str(device.get("last_reachable") or "")
-    return f"Last seen {when}" if when else "Never seen"
+    settings_page.build_device_settings(source, context, schema, values)
