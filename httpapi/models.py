@@ -150,6 +150,15 @@ class PlayState(ApiModel):
     source: str | None
 
 
+class PlayStopped(ApiModel):
+    """`stopped` is false when there was nothing to stop, which is an answer rather
+    than a failure - a caller racing the player closing it themselves is right either
+    way. `game_name` is what was closed, so a UI can say so."""
+
+    stopped: bool
+    game_name: str | None
+
+
 # --- Games -----------------------------------------------------------------
 
 class AssetFileBinding(ApiModel):
@@ -1054,7 +1063,7 @@ class CollectionFilters(ApiModel):
 
     # The many-valued axes accept a list and are always reported as one. A criterion
     # has always been stored comma-joined and the matcher has always split it, so this
-    # is the contract catching up with the behaviour rather than a new capability - and
+    # is the contract catching up with the behavior rather than a new capability - and
     # a bare string typed the schema as single-valued, so no generated client could
     # ever produce one. A list also carries a value containing a comma, which the
     # joined form cannot.

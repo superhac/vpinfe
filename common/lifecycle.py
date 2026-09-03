@@ -48,6 +48,9 @@ SURFACE_FRONTEND = "frontend"
 SURFACE_MANAGER_UI = "manager_ui"
 SURFACE_SIGNAL = "signal"
 SURFACE_EXTENSION = "extension"
+# An HTTP caller. Never answerable: the request is already over by the time anything
+# here could ask, so whoever called put the question to their user before calling.
+SURFACE_API = "api"
 
 
 @dataclass(frozen=True)

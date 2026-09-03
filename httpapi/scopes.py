@@ -22,6 +22,9 @@ COLLECTIONS_WRITE = "collections:write"
 # Play host. Reading what is happening is not the same as causing it to happen.
 PLAY_READ = "play:read"
 LAUNCH_INVOKE = "launch:invoke"
+# Ending a table someone may be mid-game on. Not launch:invoke - starting a table for
+# somebody and taking one away from them are not the same permission.
+PLAY_STOP = "play:stop"
 
 UPLOADS_WRITE = "uploads:write"
 # Separate from games:read on purpose: this one makes an outbound call to VPSdb
@@ -62,7 +65,7 @@ CORE = frozenset({
     INSTANCE_READ,
     GAMES_READ, GAMES_WRITE, GAMES_EXPORT_FULL,
     COLLECTIONS_READ, COLLECTIONS_WRITE,
-    PLAY_READ, LAUNCH_INVOKE,
+    PLAY_READ, LAUNCH_INVOKE, PLAY_STOP,
     UPLOADS_WRITE, VPS_READ, FILESYSTEM_READ,
     CONFIG_READ, CONFIG_WRITE,
     SYSTEM_READ, SYSTEM_ADMIN,
