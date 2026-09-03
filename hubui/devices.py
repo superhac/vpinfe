@@ -108,8 +108,8 @@ def _connection_rows(device: dict[str, Any],
     is the fact, and how long that has been true is what decides whether it is worth
     doing something about.
     """
-    rows: list[tuple[Any, Any]] = [(panel.HEADING, "Connection")]
-    rows.append(("Address", str(device.get("address") or "") or "Not known"))
+    rows: list[tuple[Any, Any]] = [
+        ("Address", str(device.get("address") or "") or "Not known")]
 
     found = _REACH.get(str((reach or {}).get("state") or ""))
     if found is None:
@@ -122,8 +122,8 @@ def _connection_rows(device: dict[str, Any],
         if level != "on" and reason:
             rows.append(panel.note(reason))
 
-    when = str(device.get("last_reachable") or "")
-    rows.append(("Last seen", when or "Never"))
+    rows.append(("Last seen",
+                 _when(str(device.get("last_reachable") or "")) or "Never"))
     return rows
 
 
@@ -422,7 +422,28 @@ def _is_local(context: dict[str, Any]) -> bool:
     return _of(context).get("device_id") == context.get("local_device_id")
 
 
-async def details_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
+async def detail_groups(context: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """Everything about a device, as one list of groups.
+
+    One section rather than five, because four of the five held three rows or fewer and
+    a rail entry that opens one row is a click charged for nothing. The groups are
+    headings inside it, which is what the panel already does everywhere else.
+    """
+    rows_out: list[tuple[Any, Any]] = [(panel.HEADING, "Identity")]
+    rows_out += await _identity_rows(context)
+    rows_out.append((panel.HEADING, "Connection"))
+    rows_out += _connection_rows(_of(context), context.get("reach"))
+    rows_out += await software_rows(context)
+    caps = capability_rows(context)
+    if caps:
+        rows_out.append((panel.HEADING, "Capabilities"))
+        rows_out += caps
+    rows_out.append((panel.HEADING, "This entry"))
+    rows_out += entry_rows(context)
+    return rows_out
+
+
+async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     """What it is called, and what kind of thing it is."""
     device = _of(context)
     library = context.get("library")

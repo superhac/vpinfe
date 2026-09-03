@@ -2430,28 +2430,14 @@ def _device(context: dict[str, Any]) -> dict[str, Any]:
 
 
 async def _device_details(context: dict[str, Any]) -> None:
-    """What it is called, and what it is."""
+    """Everything a device is, in groups, read down in one go.
+
+    Descriptive, then operational, then what this hub holds about it - which is section
+    14.2's order for the same reason it gives: what a thing *is* comes before what can
+    be done to it, and the record we keep of it is nobody's first question.
+    """
     with ui.column().classes("gap-0 hub-form"):
-        _rows(ui, await devices_page.details_rows(context))
-
-
-async def _device_connection(context: dict[str, Any]) -> None:
-    """Whether it is there, what answered, and when it last was."""
-    with ui.column().classes("gap-0 hub-form"):
-        _rows(ui, devices_page.connection_rows(_device(context),
-                                               context.get("reach")))
-
-
-async def _device_software(context: dict[str, Any]) -> None:
-    """What it is running, and whether it can take what is published."""
-    with ui.column().classes("gap-0 hub-form"):
-        _rows(ui, await devices_page.software_rows(context))
-
-
-async def _device_capabilities(context: dict[str, Any]) -> None:
-    """What it can be asked to do."""
-    with ui.column().classes("gap-0 hub-form"):
-        _rows(ui, devices_page.capability_rows(context))
+        _rows(ui, await devices_page.detail_groups(context))
 
 
 async def _device_settings(context: dict[str, Any]) -> None:
@@ -2462,12 +2448,6 @@ async def _device_settings(context: dict[str, Any]) -> None:
     hub knowing they exist.
     """
     await devices_page.settings_block(context)
-
-
-async def _device_entry(context: dict[str, Any]) -> None:
-    """What this hub holds about it, which is the only part a hub owns."""
-    with ui.column().classes("gap-0 hub-form"):
-        _rows(ui, devices_page.entry_rows(context))
 
 
 async def _collection_details(context: dict[str, Any]) -> None:
@@ -3493,16 +3473,12 @@ SECTIONS: tuple[Section, ...] = (
     # A device, in reading order: what it is, whether it is there, what it is running,
     # what it can be asked to do, and what this hub holds about it. Settings comes from
     # the device's own schema, so it is the same page Settings draws for this install.
-    Section("device_details", lambda _: "Details", _device_details,
-            subjects=frozenset({"device"})),
-    Section("device_connection", lambda _: "Connection", _device_connection,
-            subjects=frozenset({"device"})),
-    Section("device_software", lambda _: "Software", _device_software,
-            subjects=frozenset({"device"})),
-    Section("device_capabilities", lambda _: "Capabilities", _device_capabilities,
+    # Two, not six. Section 14.7 threw out a rail entry that opened one row, and five of
+    # the six here were between one and five - so what a device is arrives as groups in
+    # one section, read down in one go. Settings keeps its own entry because it is a
+    # place rather than a group: a rail of its own, and much the largest thing here.
+    Section("device_details", lambda _: "Device Details", _device_details,
             subjects=frozenset({"device"})),
     Section("device_settings", lambda _: "Settings", _device_settings,
-            subjects=frozenset({"device"})),
-    Section("device_entry", lambda _: "This Entry", _device_entry,
             subjects=frozenset({"device"})),
 )
