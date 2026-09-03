@@ -107,6 +107,9 @@ class DeviceResource(ApiModel):
     display_name: str = ""
     roles: list[str] = Field(default_factory=list)
     address: str = ""
+    # With the address, what it takes to reach this device. 0 means it never said, which
+    # is every entry written before an install sent one.
+    port: int = 0
     first_seen: str = ""
     last_seen: str = ""
     links: DeviceLinks
@@ -129,6 +132,11 @@ class DeviceAnnouncement(ApiModel):
     a `vpinfe` install is an error - an install knows what it is called.
 
     `address` is read for a `vpx_mobile` entry and ignored for the rest. See the handler.
+
+    `port` is the other half of being reachable, and unlike the address the device is the
+    only party that knows it - the socket says where a request came from, never what that
+    machine listens on. Without it a hub has half an address and can only ever read what
+    a device chose to tell it.
     """
 
     device_id: str = ""
@@ -136,6 +144,7 @@ class DeviceAnnouncement(ApiModel):
     display_name: str = ""
     roles: list[str] = Field(default_factory=list)
     address: str = ""
+    port: int = 0
 
 
 # --- Play ------------------------------------------------------------------

@@ -68,7 +68,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/library/filters` | Every filter axis, with the values this library holds |
 | POST | `/api/v1/library/scan` | Rebuild game metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
 | GET | `/api/v1/devices` | The devices this hub has been told about |
-| PUT | `/api/v1/devices` | Announce a device to this hub (idempotent) |
+| PUT | `/api/v1/devices` | Announce a device to this hub (idempotent). `port` is declared by the device — the hub reads the address off the socket, which never says what that machine listens on |
 | GET | `/api/v1/devices/{id}` | One device |
 | DELETE | `/api/v1/devices/{id}` | Forget one |
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library game count. The reference for logo packs and alias maps |

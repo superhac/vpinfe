@@ -40,7 +40,7 @@ MIGRATIONS_KEY = "migrations"
 
 # What a device is, as a closed set. A VPinFE install runs our code and answers for
 # itself; a phone running VPX Mobile never does, and the hub holds everything known
-# about it. Closed because a consumer switches on this - an unrecognised value would
+# about it. Closed because a consumer switches on this - an unrecognized value would
 # reach a UI as a device it has no idea how to talk to.
 KIND_VPINFE = "vpinfe"
 KIND_VPX_MOBILE = "vpx_mobile"
@@ -80,8 +80,9 @@ class Device:
     display_name: str = ""
     roles: tuple[str, ...] = ()
     address: str = ""
-    # Only a device the hub dials needs one. An install announces itself and is reached
-    # on the port discovery reports, so this stays 0 for a vpinfe entry.
+    # Declared by the device, because the socket a hub reads the address off says where a
+    # request came from and never what that machine listens on. 0 means it did not say -
+    # an entry written before installs sent one, or a device that cannot be dialed back.
     port: int = 0
     first_seen: str = ""
     last_seen: str = ""

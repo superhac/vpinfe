@@ -191,6 +191,31 @@ class DeviceRegistryApiTests(TempTree):
 
         self.assertEqual(links["devices"], "/api/v1/devices")
 
+    def test_an_install_says_which_port_it_answers_on(self) -> None:
+        """The socket says where a request came from, never what that machine listens
+        on, so this is the only way a hub gets the other half of an address."""
+        self.client.put("/devices", json={**CAB, "port": 8001})
+
+        device = self.client.get(f"/devices/{CAB['device_id']}").json()
+        self.assertEqual(device["port"], 8001)
+
+    def test_a_device_that_says_no_port_is_recorded_without_one(self) -> None:
+        """Every entry written before installs sent one. Half an address is not an
+        address, and 0 is what says so."""
+        self.client.put("/devices", json=CAB)
+
+        device = self.client.get(f"/devices/{CAB['device_id']}").json()
+        self.assertEqual(device["port"], 0)
+
+    def test_announcing_again_without_a_port_keeps_the_one_it_gave(self) -> None:
+        """A device is the same device however many times it reconnects, and an
+        announcement that omits a field is not the device withdrawing it."""
+        self.client.put("/devices", json={**CAB, "port": 8001})
+        self.client.put("/devices", json=CAB)
+
+        device = self.client.get(f"/devices/{CAB['device_id']}").json()
+        self.assertEqual(device["port"], 8001)
+
 
 if __name__ == "__main__":
     unittest.main()

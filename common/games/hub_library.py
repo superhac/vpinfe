@@ -60,9 +60,12 @@ def announce_to_hub(hub_url: str, config, *, timeout: int = http_client.DEFAULT_
     two are the same value; a device that is not an install has no `install_id` at all.
 
     The address is not sent. The hub reads it off the socket, which is the only party that
-    knows how this device was actually reached.
+    knows how this device was actually reached. The port is the other way round: the socket
+    says where a request came from, never what that machine listens on, so the device is the
+    only one who can say it. Both halves are needed before a hub can ask a device anything.
     """
     from common import install_identity
+    from common.config_access import NetworkConfig
 
     # Minted here if this install has none. Announcing is the first thing that needs an
     # identity, and it runs before the API starts - which is the other place that mints
@@ -79,7 +82,8 @@ def announce_to_hub(hub_url: str, config, *, timeout: int = http_client.DEFAULT_
             urljoin(hub_url.rstrip("/") + "/", "api/v1/devices"),
             {"device_id": install_id,
              "display_name": install_identity.display_name(config),
-             "roles": install_identity.roles(config)},
+             "roles": install_identity.roles(config),
+             "port": NetworkConfig.from_config(config).hub_port},
             timeout=timeout)
     except Exception:
         logger.debug("Could not announce this device to %s", hub_url, exc_info=True)

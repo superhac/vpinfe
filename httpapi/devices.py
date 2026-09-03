@@ -91,6 +91,10 @@ def announce(request: Request,
         display_name=payload.display_name.strip(),
         roles=tuple(payload.roles),
         address=address,
+        # Declared, unlike the address: the socket says where a request came from, never
+        # what that machine listens on. A device that does not say stays at 0, which is
+        # what it has always been - a hub reads what it was told and dials nobody.
+        port=payload.port,
     )
     if device is None:
         raise InvalidRequestError("A device needs a device id")
