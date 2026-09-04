@@ -103,7 +103,7 @@ rather than matching a version number against a document.
   "name": "VPinFE",
   "install_id": "7Kq2mVx9Ab",
   "display_name": "basement cab",
-  "roles": ["hub", "device"],
+  "features": ["library", "frontend", "devices"],
   "api_version": "v1",
   "app_version": "2.5.0",
   "capabilities": [],
@@ -135,8 +135,9 @@ install. Address an install by it and nothing else — `display_name` is for sho
 person, defaults to the machine's hostname, and is meant to be renamed, so anything
 resolving through it breaks the first time somebody does.
 
-`roles` says which halves this install serves. It defaults to both, which is what a
-desktop install and a standalone cabinet are.
+`features` says what this install is for: `library` curates the game library, `frontend`
+launches games on that machine, and `devices` manages the other installs on the network.
+It defaults to all three, which is what a desktop install and a standalone cabinet are.
 
 ## Conventions
 
@@ -330,7 +331,7 @@ from httpapi import capabilities
 
 capabilities.declare(capabilities.Capability(
     name="peripherals",
-    residency=[capabilities.RESIDENCY_DEVICE],
+    feature="frontend",
     description="DOF and real-DMD output",
     is_available=lambda: (dof_configured(), "DOF is not configured"),
 ))
@@ -340,17 +341,18 @@ capabilities.declare(capabilities.Capability(
 user changes a setting. Return `(False, reason)` rather than a bare `False` — the reason is
 shown to users, so say what's missing and how to fix it.
 
-`residency` records which roles a capability lives in: `hub` for the shared,
-machine-independent half — the library, metadata, and work not tied to a screen — and
-`device` for things true only of the machine they came from, where games launch and
-hardware lives. Neither name implies hardware: a laptop someone plays on is a device in
-full.
+`feature` records which feature switches a capability on, and a capability whose feature
+is switched off is not served at all — it is absent from discovery rather than listed as
+unavailable. "I don't do that" and "I do that and it's broken" are different answers, and
+only the second is something to act on.
 
-It's a list because some capabilities belong to both — the event stream carries library
-events and launch events alike. Listing both means each role serves its own, not that one
-capability spans the two: if the hub and the device are ever separate machines, they
-each have an event stream, carrying their own events. Test for a role with
-`"device" in residency`, which reads the same whether a capability has one or two.
+It is null for infrastructure. The event stream carries library events and launch events
+alike, and jobs report progress for whatever ran them, so neither belongs to a feature and
+no feature switch can take them away.
+
+Do not confuse it with `available`. `feature` is what the operator chose; `available` is
+whether the thing actually works given that choice. An install with `frontend` on and no
+launcher configured declares `launch` and reports it unavailable, with a reason.
 
 ## Launching
 
@@ -580,7 +582,7 @@ is a `422`, because a consumer switches on this to decide what it can ask of an 
 Omitted, it is `vpinfe`.
 
 A device announces itself with `PUT /devices` on startup, sending its `device_id`,
-`display_name` and `roles`. Announcing twice is one device heard from twice: `first_seen`
+`display_name` and `features`. Announcing twice is one device heard from twice: `first_seen`
 survives, everything else is refreshed, because the install owns those and the registry is
 a copy that goes stale by design.
 

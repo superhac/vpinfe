@@ -35,12 +35,12 @@ class ApiModel(BaseModel):
 class CapabilityInfo(ApiModel):
     """One capability as discovery reports it. `reason` is set only when unavailable.
 
-    Residency is a list: naming both roles means each serves its own copy, not that
-    one capability spans the two.
+    `feature` is the switch that turns it on, or null for infrastructure that is present
+    wherever the API is.
     """
 
     name: str
-    residency: list[str]
+    feature: str | None = None
     description: str
     available: bool
     reason: str | None
@@ -76,7 +76,7 @@ class Discovery(ApiModel):
     name: str
     install_id: str
     display_name: str
-    roles: list[str]
+    features: list[str]
     api_version: str
     app_version: str
     capabilities: list[CapabilityInfo]
@@ -98,14 +98,15 @@ class DeviceLinks(ApiModel):
 
 
 class DeviceResource(ApiModel):
-    """One device a hub has seen. `display_name` and `roles` are what that install last
+    """One device this install has seen. `display_name` and `features` are what that
+    install last
     reported about itself, cached so the registry reads without asking every device - they
     go stale by design, because the install owns them."""
 
     device_id: str
     kind: str
     display_name: str = ""
-    roles: list[str] = Field(default_factory=list)
+    features: list[str] = Field(default_factory=list)
     address: str = ""
     # With the address, what it takes to reach this device. 0 means it never said, which
     # is every entry written before an install sent one.
@@ -136,7 +137,7 @@ class DeviceProbe(ApiModel):
     state: str
     what: str = ""
     reason: str = ""
-    roles: list[str] = Field(default_factory=list)
+    features: list[str] = Field(default_factory=list)
     install_id: str = ""
     display_name: str = ""
 
@@ -167,7 +168,7 @@ class DeviceAnnouncement(ApiModel):
     device_id: str = ""
     kind: Literal["vpinfe", "vpx_mobile"] = "vpinfe"
     display_name: str = ""
-    roles: list[str] = Field(default_factory=list)
+    features: list[str] = Field(default_factory=list)
     address: str = ""
     port: int = 0
 

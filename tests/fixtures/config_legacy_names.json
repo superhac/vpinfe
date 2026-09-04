@@ -1084,5 +1084,11 @@
     "hub_bind",
     "network",
     "http_bind"
+  ],
+  [
+    "install",
+    "roles",
+    "install",
+    "features"
   ]
 ]

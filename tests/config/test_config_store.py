@@ -227,15 +227,15 @@ class RetiredValueTests(ConfigStoreTests):
 
 
 class RetiredRoleTests(ConfigStoreTests):
-    """`player` became `device`, and a list of roles had no migration.
+    """`install.roles` became `install.features`, and one role expands into two.
 
-    Worse than the value rename above, which still resolved on read: roles are filtered
-    against a known set, so a retired word is dropped rather than understood - an install
-    written before the rename quietly stopped claiming to be a device at all.
+    Not a key rename and not a value rename: `hub` meant the library and the device list
+    together. An install that said only `device` must land on `frontend` alone - falling
+    through to the default would hand a cab a library it never had.
     """
 
-    def _roles(self) -> list[str]:
-        return self._payload()["settings"]["install"]["roles"]
+    def _features(self) -> list[str]:
+        return self._payload()["settings"]["install"]["features"]
 
     def test_a_json_written_before_the_rename_is_corrected_in_place(self) -> None:
         store = ConfigStore(str(self.ini))
@@ -244,40 +244,57 @@ class RetiredRoleTests(ConfigStoreTests):
 
         ConfigStore(str(self.ini))
 
-        self.assertEqual(self._roles(), ["hub", "device"])
+        self.assertEqual(self._features(), ["library", "frontend", "devices"])
 
-    def test_an_ini_is_converted_in_the_current_vocabulary(self) -> None:
+    def test_a_cab_does_not_inherit_a_library_it_never_had(self) -> None:
+        """The one that matters. `device` alone becomes `frontend` alone, not everything -
+        the default is every feature, and falling through to it would be silent."""
+        self.ini.write_text("[install]\nroles = device\n", encoding="utf-8")
+
+        ConfigStore(str(self.ini))
+
+        self.assertEqual(self._features(), ["frontend"])
+
+    def test_the_two_era_spelling_arrives_at_the_same_place(self) -> None:
+        """`player` named the launching install before `device` did."""
         self.ini.write_text("[install]\nroles = player\n", encoding="utf-8")
 
         ConfigStore(str(self.ini))
 
-        self.assertEqual(self._roles(), ["device"])
+        self.assertEqual(self._features(), ["frontend"])
 
-    def test_the_order_is_kept(self) -> None:
-        """The schema's own default reads hub first, so a rename must not reshuffle."""
+    def test_one_role_expands_into_two_features(self) -> None:
+        """`hub` was the shared library and the list of other installs at once."""
+        self.ini.write_text("[install]\nroles = hub\n", encoding="utf-8")
+
+        ConfigStore(str(self.ini))
+
+        self.assertEqual(self._features(), ["library", "devices"])
+
+    def test_the_order_is_the_schema_order_however_it_was_written(self) -> None:
         self.ini.write_text("[install]\nroles = player,hub\n", encoding="utf-8")
 
         ConfigStore(str(self.ini))
 
-        self.assertEqual(self._roles(), ["device", "hub"])
+        self.assertEqual(self._features(), ["library", "frontend", "devices"])
 
-    def test_current_roles_are_left_alone(self) -> None:
-        self.ini.write_text("[install]\nroles = hub,device\n", encoding="utf-8")
+    def test_current_features_are_left_alone(self) -> None:
+        self.ini.write_text("[install]\nfeatures = frontend\n", encoding="utf-8")
 
         ConfigStore(str(self.ini))
 
-        self.assertEqual(self._roles(), ["hub", "device"])
+        self.assertEqual(self._features(), ["frontend"])
 
-    def test_a_renamed_role_survives_being_read_back(self) -> None:
+    def test_a_migrated_install_survives_being_read_back(self) -> None:
         """The point of the migration: install_identity drops what it does not know, so
-        before this the install reported one role where it had said two."""
+        without this an install reported every feature where it had asked for one."""
         from common import install_identity
 
-        self.ini.write_text("[install]\nroles = hub,player\n", encoding="utf-8")
+        self.ini.write_text("[install]\nroles = device\n", encoding="utf-8")
 
         store = ConfigStore(str(self.ini))
 
-        self.assertEqual(install_identity.roles(store), ["hub", "device"])
+        self.assertEqual(install_identity.features(store), ["frontend"])
 
 
 class ConfirmSwitchTests(ConfigStoreTests):

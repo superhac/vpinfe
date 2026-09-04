@@ -17,12 +17,16 @@ logger = logging.getLogger("vpinfe.common.install_identity")
 ID_SECTION = "install"
 ID_KEY = "id"
 
-HUB = "hub"
-DEVICE = "device"
-ROLES = (HUB, DEVICE)
+# What an install is *meant* to do, chosen deliberately. Roles said this before and said
+# it badly: `hub` and `device` were trying to name both what an install does and what
+# kind of thing it is, and neither word survived the second job.
+LIBRARY = "library"
+FRONTEND = "frontend"
+DEVICES = "devices"
+FEATURES = (LIBRARY, FRONTEND, DEVICES)
 
-# What every 2.x install and every desktop install already is.
-DEFAULT_ROLES = (HUB, DEVICE)
+# What every 2.x install and every desktop install already is: all of them.
+DEFAULT_FEATURES = FEATURES
 
 
 def install_id(config) -> str:
@@ -68,16 +72,21 @@ def _hostname() -> str:
     return name or "VPinFE"
 
 
-def roles(config) -> list[str]:
-    """The roles this install serves, in a stable order. Empty or unrecognized falls back
-    to both, never to none: a typo must not decide this machine stopped launching games."""
-    configured = [role.strip().lower() for role in cfg_list(config, ID_SECTION, "roles")]
-    known = [role for role in ROLES if role in configured]
-    unknown = sorted(set(configured) - set(ROLES))
+def features(config) -> list[str]:
+    """What this install is meant to do, in a stable order.
+
+    Empty or unrecognized falls back to all of them, never to none: a typo must not
+    decide this machine stopped launching games, and an install with no features has an
+    empty nav and no way to fix itself from inside.
+    """
+    configured = [name.strip().lower()
+                  for name in cfg_list(config, ID_SECTION, "features")]
+    known = [name for name in FEATURES if name in configured]
+    unknown = sorted(set(configured) - set(FEATURES))
     if unknown:
-        logger.warning("Ignoring unknown install roles: %s", ", ".join(unknown))
-    return known or list(DEFAULT_ROLES)
+        logger.warning("Ignoring unknown install features: %s", ", ".join(unknown))
+    return known or list(DEFAULT_FEATURES)
 
 
-def has_role(config, role: str) -> bool:
-    return role in roles(config)
+def has_feature(config, feature: str) -> bool:
+    return feature in features(config)

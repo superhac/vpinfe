@@ -6,17 +6,18 @@ Nothing is declared until the endpoints backing it land. See docs/http_api.md.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-# Residency: which roles a capability lives in. Listing both means each role serves
-# its own, not that one capability spans the two - so if the hub and the device are
-# ever separate machines, both have it. Clients hold no residency at all.
-RESIDENCY_HUB = "hub"
-RESIDENCY_DEVICE = "device"
+from common import install_identity
 
-RESIDENCIES = frozenset({RESIDENCY_HUB, RESIDENCY_DEVICE})
+# Which feature switches a capability on. One value or none, not a list: residency was
+# a list of places, which only meant something while `hub` and `device` were places.
+# Infrastructure belongs to no feature - `events` and `jobs` are there wherever the API
+# is - so this is nullable, and that is what ruled out simply rewriting residency in
+# feature words.
+FEATURES = frozenset(install_identity.FEATURES)
 
 
 @dataclass(frozen=True)
@@ -25,18 +26,14 @@ class Capability:
     answer stays honest after a config change; return (False, reason), not bare False."""
 
     name: str
-    residency: Sequence[str]
+    feature: str | None = None
     description: str = ""
     is_available: Callable[[], bool | tuple[bool, str]] | None = None
 
     def __post_init__(self) -> None:
-        # A bare string would iterate into single characters and reach discovery
-        # looking like a list of nine residencies, so it is rejected by name.
-        if isinstance(self.residency, str) or not self.residency:
-            raise ValueError(f"{self.name}: residency is a non-empty list of {sorted(RESIDENCIES)}")
-        unknown = sorted(set(self.residency) - RESIDENCIES)
-        if unknown:
-            raise ValueError(f"{self.name}: unknown residency {unknown}")
+        if self.feature is not None and self.feature not in FEATURES:
+            raise ValueError(f"{self.name}: unknown feature {self.feature!r}, "
+                             f"expected one of {sorted(FEATURES)} or None")
 
     def resolve(self) -> dict[str, Any]:
         available, reason = True, None
@@ -52,7 +49,7 @@ class Capability:
                     available = bool(result)
         return {
             "name": self.name,
-            "residency": list(self.residency),
+            "feature": self.feature,
             "description": self.description,
             "available": available,
             "reason": reason,
@@ -68,9 +65,26 @@ def declare(capability: Capability) -> Capability:
     return capability
 
 
+def _enabled_features() -> frozenset[str]:
+    """What this install is meant to do. Read per request, not at import, so switching a
+    feature off does not need a restart to be believed."""
+    try:
+        from common.paths import get_ini_config
+
+        return frozenset(install_identity.features(get_ini_config()))
+    except Exception:  # a config that cannot be read must not empty discovery
+        return frozenset(install_identity.FEATURES)
+
+
 def declared() -> list[dict[str, Any]]:
     """Every declared capability, sorted by name for a stable payload."""
-    return [_CAPABILITIES[name].resolve() for name in sorted(_CAPABILITIES)]
+    on = _enabled_features()
+    # A capability whose feature is switched off is not served at all - not listed as
+    # unavailable. "I do not do that" and "I do that and it is broken" are different
+    # answers, and only the second is a problem somebody should act on.
+    return [_CAPABILITIES[name].resolve() for name in sorted(_CAPABILITIES)
+            if _CAPABILITIES[name].feature is None
+            or _CAPABILITIES[name].feature in on]
 
 
 def clear() -> None:

@@ -58,7 +58,7 @@ def record_self() -> None:
             install_identity.install_id(config),
             kind=device_registry.KIND_VPINFE,
             display_name=install_identity.display_name(config),
-            roles=install_identity.roles(config),
+            features=install_identity.features(config),
         )
     except Exception as exc:
         # A registry that cannot be written must not stop the API starting: the entry is
@@ -74,11 +74,11 @@ def _identity() -> dict:
         return {
             "install_id": install_identity.install_id(config),
             "display_name": install_identity.display_name(config),
-            "roles": install_identity.roles(config),
+            "features": install_identity.features(config),
         }
     except Exception as exc:
         logger.warning("Could not read this install's identity: %s", exc)
-        return {"install_id": "", "display_name": "", "roles": []}
+        return {"install_id": "", "display_name": "", "features": []}
 
 
 def _services() -> dict:

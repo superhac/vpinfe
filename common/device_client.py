@@ -223,7 +223,7 @@ class RemoteDevice:
         version = str(said.get("app_version") or "")
         return {"state": ANSWERING,
                 "what": f"{name} {version}".strip(),
-                "roles": list(said.get("roles") or []),
+                "features": list(said.get("features") or []),
                 "install_id": str(said.get("install_id") or ""),
                 "display_name": str(said.get("display_name") or ""),
                 "reason": ""}

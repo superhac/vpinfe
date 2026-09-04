@@ -82,7 +82,7 @@ def announce_to_hub(hub_url: str, config, *, timeout: int = http_client.DEFAULT_
             urljoin(hub_url.rstrip("/") + "/", "api/v1/devices"),
             {"device_id": install_id,
              "display_name": install_identity.display_name(config),
-             "roles": install_identity.roles(config),
+             "features": install_identity.features(config),
              "port": NetworkConfig.from_config(config).http_port},
             timeout=timeout)
     except Exception:

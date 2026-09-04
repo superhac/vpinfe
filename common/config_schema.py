@@ -616,12 +616,15 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                         " safe.",
         ),
         ConfigOption(
-            "roles",
+            "features",
             type="list",
-            default="hub,device",
-            label="Roles",
-            description="What this install serves: the shared library half (hub), the"
-                        " machine games launch on (device), or both.",
+            default="library,frontend,devices",
+            label="Features",
+            description="What this install is for: curating the game library (library),"
+                        " launching games on this machine (frontend), and managing the"
+                        " other installs on your network (devices). Each one it has"
+                        " decides what the Console shows.",
+            aliases=("roles",),
         ),
     ),
     *in_section(

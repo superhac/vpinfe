@@ -23,6 +23,7 @@ from urllib.parse import quote
 
 from nicegui import run, ui
 
+from common import install_identity
 from common.games import apps, asset_registry
 from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
 from common.games.collection_filters import UNCONSTRAINED
@@ -334,10 +335,10 @@ class Section:
     # read without one, which is every subject but a device - that one carries a whole
     # install's settings and is the length section 9a says wants grouping.
     group: str = ""
-    # Which install role this section answers for, empty meaning any. A device-only cab
-    # reads another install's library and has none of its own, so it is not offered pages about
-    # one; the field the filter reads is the one the install already declares.
-    role: str = ""
+    # Which feature this section answers for, empty meaning any. An install with no
+    # library reads another install's and has none of its own, so it is not offered pages
+    # about one; the field the filter reads is what the install already declares.
+    feature: str = ""
 
 
 def sections_for(subject: str) -> tuple[Section, ...]:
@@ -593,7 +594,8 @@ async def _rail(context: dict[str, Any], subject: str,
     """
     rows = sections_for(subject)
     if subject == "device":
-        rows = _for_roles(rows, (context.get("device") or {}).get("roles"))
+        rows = _for_features(rows,
+                             (context.get("device") or {}).get("features"))
     section = chosen_section(state, subject, rows)
     # A section this device has no answer for is not a place to land: a cab that reads
     # another install's library never offers Media Kinds, so keeping it open from the last
@@ -645,10 +647,11 @@ async def _one_section(context: dict[str, Any], key: str) -> None:
     await next(item for item in SECTIONS if item.key == key).build(context)
 
 
-def _for_roles(rows: tuple[Section, ...], roles) -> tuple[Section, ...]:
-    """The sections this device can answer for. An empty role means any install."""
-    held = {str(role).strip().lower() for role in (roles or [])} or {"hub", "device"}
-    return tuple(item for item in rows if not item.role or item.role in held)
+def _for_features(rows: tuple[Section, ...], features) -> tuple[Section, ...]:
+    """The sections this install can answer for. An empty feature means any install."""
+    held = ({str(f).strip().lower() for f in (features or [])}
+            or set(install_identity.FEATURES))
+    return tuple(item for item in rows if not item.feature or item.feature in held)
 
 
 def _section_row(context: dict[str, Any], section: Section, open_now: bool,
@@ -2490,19 +2493,20 @@ def _device_setting_sections() -> tuple[Section, ...]:
     pages carry the same names, the same grouping and the same order wherever they are
     drawn - which is the whole point: one settings surface, not two that drift.
 
-    Every page for every role is built, and the rail filters by what a device declares
+    Every page for every feature is built, and the rail filters by what an install declares
     when it draws. A rail assembled per device would be a different map each time.
     """
     out = []
-    for group, page in settings_page.pages_for_roles(("hub", "device")):
-        key, label, kind, sections, role = page
+    for group, page in settings_page.pages_for_features(
+            install_identity.FEATURES):
+        key, label, kind, sections, feature = page
         out.append(Section(
             f"device_{key}",
             (lambda name: lambda _: name)(label),
             (lambda page_key, k, names: lambda context:
                 devices_page.settings_page_block(context, page_key, k, names)
              )(key, kind, sections),
-            subjects=frozenset({"device"}), group=group, role=role))
+            subjects=frozenset({"device"}), group=group, feature=feature))
     return tuple(out)
 
 

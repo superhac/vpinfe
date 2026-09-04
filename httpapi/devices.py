@@ -9,7 +9,7 @@ What it buys now is attribution: an event carries the `install_id` it happened o
 what turns it into a name someone recognizes.
 
 The registry is a cache of what each install last reported about itself. It goes stale by
-design - the install owns its own name and roles, and this is a copy.
+design - the install owns its own name and features, and this is a copy.
 """
 
 from __future__ import annotations
@@ -90,7 +90,7 @@ def announce(request: Request,
         device_id,
         kind=payload.kind,
         display_name=payload.display_name.strip(),
-        roles=tuple(payload.roles),
+        features=tuple(payload.features),
         address=address,
         # Declared, unlike the address: the socket says where a request came from, never
         # what that machine listens on. A device that does not say stays at 0, which is

@@ -8,7 +8,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-from common import device_client
+from common import device_client, install_identity
 from console import assets as assets_page
 from console import collections as collections_page
 from console import deeplink, games, grid, sections, tageditor, theme, views, workbench
@@ -168,8 +168,11 @@ def _read_hub() -> dict[str, Any]:
         "library": library,
         "discovery": client.discovery(),
         "devices": client.devices(),
+        # What a device can be asked about, which is what the frontend feature turns on.
+        # Infrastructure carries no feature and is not a fact about a particular machine,
+        # so it is not offered as a per-device row.
         "device_capabilities": [entry["name"] for entry in capabilities
-                                if "device" in (entry.get("residency") or [])],
+                                if entry.get("feature") == install_identity.FRONTEND],
         "local_capabilities": {entry["name"] for entry in capabilities},
     }
 

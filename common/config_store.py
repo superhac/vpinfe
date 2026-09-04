@@ -71,6 +71,9 @@ _RENAMED_VALUES = {
 # rewritten item by item and a choice is replaced whole, and because an unmigrated item
 # here is not a stale spelling that still resolves - `roles` is filtered against a known
 # set, so a retired word is dropped and the install stops claiming what it dropped.
+# A retired word inside a list. `player` named the install that launches games before
+# `device` did; both are now the `frontend` feature, which the roles migration below
+# expands - this pass only normalizes the spelling first so one map handles it.
 _RENAMED_LIST_VALUES = {
     ('install', 'roles'): {'player': 'device'},
 }
@@ -245,6 +248,32 @@ class ConfigStore:
             if renamed != [v for v in items if v]:
                 announce('ini-renamed-values', f'{section}.{key}')
                 self.config.set(section, key, ','.join(renamed))
+                changed = True
+
+        # `install.roles` became `install.features`, and one role expands into two
+        # features - `hub` was the library and the device list together, `device` was the
+        # frontend - so neither _RENAMED_KEYS nor _RENAMED_LIST_VALUES can carry it.
+        #
+        # Written against the *value* rather than the old key on purpose. `roles` is an
+        # alias, so the pass above has already moved it under `features` by the time this
+        # runs, and matching on the key would silently never fire. An install that said
+        # only `device` must not fall through to the default, which is everything - that
+        # would hand a cab a library it never had.
+        if self.config.has_option('install', 'features'):
+            was = [v.strip().lower()
+                   for v in self.config.get('install', 'features').split(',') if v.strip()]
+            spread = {'hub': ('library', 'devices'), 'device': ('frontend',),
+                      'player': ('frontend',)}
+            if any(role in spread for role in was):
+                now: list[str] = []
+                for role in was:
+                    for feature in spread.get(role, (role,)):
+                        if feature not in now:
+                            now.append(feature)
+                announce('ini-roles-to-features', ','.join(was))
+                order = ('library', 'frontend', 'devices')
+                self.config.set('install', 'features',
+                                ','.join(f for f in order if f in now))
                 changed = True
 
         # `frontend.confirm` was a list of scopes and is a switch now. Anything naming a

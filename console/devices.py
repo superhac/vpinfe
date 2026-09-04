@@ -57,6 +57,13 @@ CANNOT_UPDATE = "This install cannot update itself."
 
 # What forgetting a device does, said before it is done. The registry is a record of what
 # this install has met, not a permission list, so this removes a row and nothing else.
+# The key is what an install declares; this is what a person reads.
+_FEATURE_LABELS = {
+    "library": "Library",
+    "frontend": "Frontend",
+    "devices": "Device Management",
+}
+
 FORGET_NOTE = ("Forgetting a device removes this install's entry for it. Nothing on that "
                "machine changes, and it comes back the next time it announces itself.")
 
@@ -277,9 +284,9 @@ COLUMNS: list[dict[str, Any]] = [
     grid.column("last_seen", "Last seen", 170,
                 help="When it was last known to be there - it announced, or this install\n"
                      "asked and got an answer. Not the same as when it last started."),
-    grid.column("roles", "Roles", 130,
-                help="What that install serves: the shared library half, the\n"
-                     "machine games launch on (device), or both."),
+    grid.column("features", "Features", 150,
+                help="What that install is for: curating the library, launching\n"
+                     "games on that machine, or managing the others."),
 ]
 
 # `self` is out: it is a sort key, not a column somebody picks.
@@ -299,7 +306,7 @@ VIEWS: dict[str, list[str] | views.Preset] = {
         help="Every device this install has met. Sorted so that anything not answering "
              "is at the top, because that is what you opened this page to find out."),
     "Answering": views.Preset(
-        columns=("name", "kind", "what", "address", "roles"),
+        columns=("name", "kind", "what", "address", "features"),
         sort=(_SELF_FIRST, {"colId": "name", "sort": "asc", "sortIndex": 1}),
         filters={"state": {"values": [_REACH[device_client.ANSWERING][0]]}},
         help="What is switched on and reachable right now."),
@@ -343,7 +350,8 @@ def rows(devices: list[dict[str, Any]],
             "what": str(probe.get("what") or ""),
             "address": str(device.get("address") or ""),
             "last_seen": _when(str(device.get("last_reachable") or "")),
-            "roles": ", ".join(str(r) for r in (device.get("roles") or [])),
+            "features": ", ".join(_FEATURE_LABELS.get(str(f), str(f))
+                                  for f in (device.get("features") or [])),
         })
     return out
 
@@ -501,7 +509,8 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
         rows_out.append(panel.note(REMOTE_NAME_NOTE))
     rows_out.append(("Kind", KIND_LABELS.get(str(device.get("kind") or "vpinfe"),
                                              "VPinFE")))
-    rows_out.append(("Roles", ", ".join(str(r) for r in (device.get("roles") or []))
+    rows_out.append(("Features", ", ".join(_FEATURE_LABELS.get(str(f), str(f))
+                                           for f in (device.get("features") or []))
                      or "Not reported"))
     return rows_out
 

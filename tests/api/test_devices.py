@@ -21,8 +21,8 @@ except ImportError:  # pragma: no cover
     TestClient = None
 
 CAB = {"device_id": "Aaaa111111", "display_name": "basement cab",
-       "roles": ["hub", "device"]}
-DESK = {"device_id": "Bbbb222222", "display_name": "desktop", "roles": ["device"]}
+       "features": ["hub", "device"]}
+DESK = {"device_id": "Bbbb222222", "display_name": "desktop", "features": ["device"]}
 PHONE = {"device_id": "Pppp444444", "display_name": "iPhone",
          "kind": "vpx_mobile", "address": "192.168.1.50"}
 
@@ -52,7 +52,7 @@ class DeviceRegistryApiTests(TempTree):
         body = response.json()
         self.assertEqual(body["device_id"], CAB["device_id"])
         self.assertEqual(body["display_name"], CAB["display_name"])
-        self.assertEqual(body["roles"], CAB["roles"])
+        self.assertEqual(body["features"], CAB["features"])
         self.assertTrue(body["first_seen"])
         self.assertEqual(body["links"]["self"], "/api/v1/devices/Aaaa111111")
 

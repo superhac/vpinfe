@@ -69,44 +69,47 @@ def declare_core() -> None:
     """Declare the capabilities this build actually serves."""
     capabilities.declare(capabilities.Capability(
         name="library",
-        residency=[capabilities.RESIDENCY_HUB],
+        feature=capabilities.install_identity.LIBRARY,
         description="Game inventory, identity, metadata and media",
     ))
     capabilities.declare(capabilities.Capability(
         name="uploads",
-        residency=[capabilities.RESIDENCY_HUB],
+        feature=capabilities.install_identity.LIBRARY,
         description="Upload sessions and the asset import pipeline",
     ))
     capabilities.declare(capabilities.Capability(
         name="play",
-        residency=[capabilities.RESIDENCY_DEVICE],
+        feature=capabilities.install_identity.FRONTEND,
         description="Launch lifecycle state for this machine",
     ))
     capabilities.declare(capabilities.Capability(
         name="launch",
-        residency=[capabilities.RESIDENCY_DEVICE],
+        feature=capabilities.install_identity.FRONTEND,
         description="Starting a game on this machine",
         is_available=_launch_available,
     ))
     capabilities.declare(capabilities.Capability(
         name="peripherals",
-        residency=[capabilities.RESIDENCY_DEVICE],
+        feature=capabilities.install_identity.FRONTEND,
         description="DOF, real-DMD and other attached hardware",
         is_available=_peripherals_available,
     ))
     capabilities.declare(capabilities.Capability(
         name="rom_audit",
-        residency=[capabilities.RESIDENCY_DEVICE],
+        feature=capabilities.install_identity.LIBRARY,
         description="ROM set verification through the VPX install's own PinMAME",
         is_available=_rom_audit_available,
     ))
     capabilities.declare(capabilities.Capability(
         name="events",
-        residency=[capabilities.RESIDENCY_HUB, capabilities.RESIDENCY_DEVICE],
         description="Game lifecycle, play state and job progress as they happen",
     ))
     capabilities.declare(capabilities.Capability(
         name="jobs",
-        residency=[capabilities.RESIDENCY_HUB],
         description="Slow work runs in the background and reports progress",
+    ))
+    capabilities.declare(capabilities.Capability(
+        name="devices",
+        feature=capabilities.install_identity.DEVICES,
+        description="The other VPinFE installs and phones on your network",
     ))

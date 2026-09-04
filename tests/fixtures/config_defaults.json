@@ -52,7 +52,7 @@
   "install": {
     "display_name": "",
     "id": "",
-    "roles": "hub,device"
+    "features": "library,frontend,devices"
   },
   "libdmdutil": {
     "enabled": "false",

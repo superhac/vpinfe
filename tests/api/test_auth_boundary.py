@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from starlette.testclient import TestClient
 
 import httpapi
-from httpapi import auth, capabilities, scopes
+from httpapi import auth, scopes
 
 
 def _client(app=None) -> TestClient:
@@ -146,11 +146,11 @@ class RouteDeclarationTests(unittest.TestCase):
 
 
 class CapabilityTests(unittest.TestCase):
-    def test_discovery_reports_residency_for_each_capability(self) -> None:
+    def test_discovery_reports_the_feature_behind_each_capability(self) -> None:
         declared = {c["name"]: c for c in _client().get("/").json()["capabilities"]}
 
-        self.assertEqual(declared["library"]["residency"], [capabilities.RESIDENCY_HUB])
-        self.assertEqual(declared["play"]["residency"], [capabilities.RESIDENCY_DEVICE])
+        self.assertEqual(declared["library"]["feature"], "library")
+        self.assertEqual(declared["play"]["feature"], "frontend")
 
     def test_an_unavailable_capability_says_why(self) -> None:
         """The reason is shown to users, so 'no' on its own is not good enough."""

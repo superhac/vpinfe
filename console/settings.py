@@ -17,6 +17,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common import install_identity
 from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.labels import humanize
 from common.media_specs import media_label_map
@@ -282,7 +283,7 @@ PAGES: dict[str, Callable[[], None]] = {
 def _page_label(key: str) -> str:
     """A page's name, from the one place it is written."""
     return next((label for _group, pages in DEVICE_INDEX
-                 for item, label, _kind, _sections, _role in pages if item == key), key)
+                 for item, label, _kind, _sections, _feature in pages if item == key), key)
 
 
 def _section_label(key: str) -> str:
@@ -292,7 +293,7 @@ def _section_label(key: str) -> str:
     `windows.playfield` is two words joined by a dot, and humanize alone leaves the dot.
     """
     named = next((label for _group, pages in DEVICE_INDEX
-                  for _item, label, _kind, sections, _role in pages
+                  for _item, label, _kind, sections, _feature in pages
                   if sections == (key,)), "")
     return named or " ".join(humanize(part) for part in key.split("."))
 
@@ -305,35 +306,35 @@ def _section_label(key: str) -> str:
 # can back one page - a machine's screens are four of them - because how the config file
 # is divided is not how somebody looks for a setting.
 #
-# group -> ((page key, label, kind, sections it draws, role), ...)
-# `role` filters; empty means any install. `kind` picks the renderer.
+# group -> ((page key, label, kind, sections it draws, feature), ...)
+# `feature` filters; empty means any install. `kind` picks the renderer.
 SCHEMA_PAGE, KIND_PAGE, BUILT_PAGE = "schema", "kind", "built"
 
 DevicePage = tuple[str, str, str, tuple[str, ...], str]
 
 DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
     ("Library", (
-        ("media_kinds", "Media Kinds", KIND_PAGE, (), "hub"),
-        ("asset_kinds", "Asset Kinds", KIND_PAGE, (), "hub"),
-        ("media_sources", "Media Sources", KIND_PAGE, (), "hub"),
-        ("checks_library", "Library Checks", BUILT_PAGE, (), "hub"),
+        ("media_kinds", "Media Kinds", KIND_PAGE, (), "library"),
+        ("asset_kinds", "Asset Kinds", KIND_PAGE, (), "library"),
+        ("media_sources", "Media Sources", KIND_PAGE, (), "library"),
+        ("checks_library", "Library Checks", BUILT_PAGE, (), "library"),
     )),
     ("Hardware", (
         ("displays", "Displays", SCHEMA_PAGE,
          ("displays", "windows.playfield", "windows.backglass", "windows.scoreview"),
-         "device"),
-        ("input", "Input", SCHEMA_PAGE, ("input",), "device"),
-        ("feedback", "Peripherals", SCHEMA_PAGE, ("dof", "libdmdutil"), "device"),
+         "frontend"),
+        ("input", "Input", SCHEMA_PAGE, ("input",), "frontend"),
+        ("feedback", "Peripherals", SCHEMA_PAGE, ("dof", "libdmdutil"), "frontend"),
     )),
     ("VPinFE", (
         ("general", "General", SCHEMA_PAGE, ("general",), ""),
-        ("frontend", "Frontend", SCHEMA_PAGE, ("frontend",), "device"),
-        ("media", "Media", SCHEMA_PAGE, ("media",), "hub"),
+        ("frontend", "Frontend", SCHEMA_PAGE, ("frontend",), "frontend"),
+        ("media", "Media", SCHEMA_PAGE, ("media",), "library"),
     )),
     ("Integrations", (
-        ("vps", "Virtual Pinball Spreadsheet", SCHEMA_PAGE, ("vpsdb",), "hub"),
+        ("vps", "Virtual Pinball Spreadsheet", SCHEMA_PAGE, ("vpsdb",), "library"),
         ("vpinplay", "VPinPlay", SCHEMA_PAGE, ("vpinplay",), ""),
-        ("mobile", "VPX Mobile", SCHEMA_PAGE, ("mobile",), "hub"),
+        ("mobile", "VPX Mobile", SCHEMA_PAGE, ("mobile",), "devices"),
     )),
     ("Diagnostics", (
         ("logs", "Logs", SCHEMA_PAGE, ("logger",), ""),
@@ -342,9 +343,10 @@ DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
 )
 
 
-def pages_for_roles(roles) -> list[tuple[str, DevicePage]]:
-    """(group, page) for every page the roles a device serves can answer for."""
-    held = {str(role).strip().lower() for role in (roles or [])} or {"hub", "device"}
+def pages_for_features(features) -> list[tuple[str, DevicePage]]:
+    """(group, page) for every page the features an install has can answer for."""
+    held = ({str(f).strip().lower() for f in (features or [])}
+            or set(install_identity.FEATURES))
     return [(group, page) for group, pages in DEVICE_INDEX for page in pages
             if not page[4] or page[4] in held]
 

@@ -70,7 +70,7 @@ def _known_kind(raw: Any) -> str:
 class Device:
     """One device a hub has seen.
 
-    `display_name` and `roles` are what that install last reported, cached so a registry
+    `display_name` and `features` are what that install last reported, cached so a registry
     can be read without asking every device. They go stale by design - the install owns
     them, this is a copy.
     """
@@ -78,7 +78,7 @@ class Device:
     device_id: str
     kind: str = KIND_VPINFE
     display_name: str = ""
-    roles: tuple[str, ...] = ()
+    features: tuple[str, ...] = ()
     address: str = ""
     # Declared by the device, because the socket a hub reads the address off says where a
     # request came from and never what that machine listens on. 0 means it did not say -
@@ -97,7 +97,7 @@ class Device:
     def as_dict(self) -> dict[str, Any]:
         return {"device_id": self.device_id, "kind": self.kind,
                 "display_name": self.display_name,
-                "roles": list(self.roles), "address": self.address, "port": self.port,
+                "features": list(self.features), "address": self.address, "port": self.port,
                 "first_seen": self.first_seen, "last_seen": self.last_seen,
                 "last_reachable": self.last_reachable,
                 **self.extra}
@@ -107,9 +107,13 @@ class Device:
         device_id = str(raw.get("device_id", "") or "").strip()
         if not device_id:
             return None
-        known = {"device_id", "kind", "display_name", "roles", "address", "port",
+        known = {"device_id", "kind", "display_name", "features", "roles", "address", "port",
                  "first_seen", "last_seen", "last_reachable"}
-        roles = raw.get("roles") or []
+        # `roles` is what entries written before the feature model called this. Read
+        # rather than migrated: the words differ too - an install that said hub meant the
+        # library and the device list - and this is a cache the install refreshes itself,
+        # so a stale entry corrects on its next announcement rather than on a rewrite.
+        declared = raw.get("features") or raw.get("roles") or []
         return cls(
             device_id=device_id,
             # An entry stored before kind existed, or by a build that knows a kind this
@@ -117,7 +121,7 @@ class Device:
             # still a real device and losing it is worse than mislabelling it.
             kind=_known_kind(raw.get("kind")),
             display_name=str(raw.get("display_name", "") or ""),
-            roles=tuple(str(r) for r in roles if str(r).strip()),
+            features=tuple(str(f) for f in declared if str(f).strip()),
             address=str(raw.get("address", "") or ""),
             port=_as_port(raw.get("port")),
             first_seen=str(raw.get("first_seen", "") or ""),
@@ -156,7 +160,7 @@ class DeviceRegistry:
     # -- writing -------------------------------------------------------------
 
     def record(self, device_id: str, *, kind: str = "", display_name: str = "",
-               roles=(), address: str = "", port: int = 0) -> Device | None:
+               features=(), address: str = "", port: int = 0) -> Device | None:
         """Note that a device exists, or that a known one has been heard from.
 
         `first_seen` is kept from the existing entry: a device is the same device
@@ -181,7 +185,8 @@ class DeviceRegistry:
                 device_id=wanted,
                 kind=kind or (existing.kind if existing else KIND_VPINFE),
                 display_name=display_name or (existing.display_name if existing else ""),
-                roles=tuple(str(r) for r in roles) or (existing.roles if existing else ()),
+                features=(tuple(str(f) for f in features)
+                          or (existing.features if existing else ())),
                 address=address or (existing.address if existing else ""),
                 port=port or (existing.port if existing else 0),
                 first_seen=existing.first_seen if existing and existing.first_seen else now,

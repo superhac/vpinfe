@@ -31,11 +31,11 @@ class DeviceRegistryTests(unittest.TestCase):
 
     def test_recording_a_device_makes_it_known(self) -> None:
         self.registry.record("Aaaa111111", display_name="basement cab",
-                           roles=("hub", "device"))
+                           features=("hub", "device"))
 
         device = self.registry.get("Aaaa111111")
         self.assertEqual(device.display_name, "basement cab")
-        self.assertEqual(device.roles, ("hub", "device"))
+        self.assertEqual(device.features, ("hub", "device"))
         self.assertTrue(self.registry.knows("Aaaa111111"))
 
     def test_a_device_heard_from_twice_is_still_one_device(self) -> None:
@@ -77,14 +77,14 @@ class DeviceRegistryTests(unittest.TestCase):
         `first_seen` that silently resets on every record would still look equal.
         """
         pinned = "2020-01-01T00:00:00Z"
-        self.registry.record("Aaaa111111", display_name="a", roles=("device",),
+        self.registry.record("Aaaa111111", display_name="a", features=("device",),
                            address="192.168.1.10")
         self._rewrite_first_seen("Aaaa111111", pinned)
 
-        later = self.registry.record("Aaaa111111", display_name="b", roles=("hub",),
+        later = self.registry.record("Aaaa111111", display_name="b", features=("hub",),
                                    address="192.168.1.99")
 
-        self.assertEqual((later.display_name, later.roles, later.address),
+        self.assertEqual((later.display_name, later.features, later.address),
                          ("b", ("hub",), "192.168.1.99"))
         self.assertEqual(later.first_seen, pinned, "a re-record must not move it")
         self.assertNotEqual(later.last_seen, pinned, "but last_seen is now")
@@ -247,7 +247,7 @@ class DeviceRegistryStorageTests(unittest.TestCase):
 class DeviceTests(unittest.TestCase):
     def test_a_device_round_trips_through_its_dict(self) -> None:
         device = Device(device_id="Aaaa111111", display_name="cab",
-                        roles=("hub", "device"), address="192.168.1.10",
+                        features=("hub", "device"), address="192.168.1.10",
                         first_seen="2026-01-01T00:00:00Z", last_seen="2026-01-02T00:00:00Z")
 
         self.assertEqual(Device.from_dict(device.as_dict()), device)

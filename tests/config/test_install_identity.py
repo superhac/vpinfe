@@ -80,43 +80,46 @@ class DisplayNameTests(unittest.TestCase):
         self.assertEqual(cfg_get(self.store, "install", "display_name"), "")
 
 
-class RoleTests(unittest.TestCase):
+class FeatureTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.store = ConfigStore(os.path.join(self.tmp.name, "vpinfe.ini"))
 
-    def _roles(self, value: str) -> list[str]:
-        cfg_set(self.store, "install", "roles", value)
-        return install_identity.roles(self.store)
+    def _features(self, value: str) -> list[str]:
+        cfg_set(self.store, "install", "features", value)
+        return install_identity.features(self.store)
 
-    def test_an_install_serves_both_roles_by_default(self) -> None:
+    def test_an_install_has_every_feature_by_default(self) -> None:
         """Every 2.x install and every desktop user, so nobody has to set it."""
-        self.assertEqual(install_identity.roles(self.store), ["hub", "device"])
+        self.assertEqual(install_identity.features(self.store),
+                         ["library", "frontend", "devices"])
 
-    def test_one_role_can_be_declared_on_its_own(self) -> None:
-        self.assertEqual(self._roles("device"), ["device"])
-        self.assertEqual(self._roles("hub"), ["hub"])
+    def test_one_feature_can_be_declared_on_its_own(self) -> None:
+        self.assertEqual(self._features("frontend"), ["frontend"])
+        self.assertEqual(self._features("library"), ["library"])
+        self.assertEqual(self._features("devices"), ["devices"])
 
-    def test_roles_read_the_same_however_they_were_written(self) -> None:
-        for written in ("device,hub", " hub , device ", "HUB,Device"):
+    def test_features_read_the_same_however_they_were_written(self) -> None:
+        for written in ("frontend,library", " library , frontend ", "LIBRARY,Frontend"):
             with self.subTest(written=written):
-                self.assertEqual(self._roles(written), ["hub", "device"])
+                self.assertEqual(self._features(written), ["library", "frontend"])
 
     def test_a_typo_leaves_the_install_doing_what_it_did(self) -> None:
-        """Falling back to both, not to none: a misspelling must not decide that this
-        machine has stopped launching games."""
-        self.assertEqual(self._roles("wat"), ["hub", "device"])
-        self.assertEqual(self._roles(""), ["hub", "device"])
+        """Falling back to everything, not to nothing: a misspelling must not decide that
+        this machine has stopped launching games, and an install with no features has an
+        empty nav and no way to fix itself from inside."""
+        self.assertEqual(self._features("wat"), ["library", "frontend", "devices"])
+        self.assertEqual(self._features(""), ["library", "frontend", "devices"])
 
-    def test_a_recognized_role_survives_an_unrecognized_one(self) -> None:
-        self.assertEqual(self._roles("hub,wat"), ["hub"])
+    def test_a_recognized_feature_survives_an_unrecognized_one(self) -> None:
+        self.assertEqual(self._features("library,wat"), ["library"])
 
-    def test_has_role_answers_for_one(self) -> None:
-        cfg_set(self.store, "install", "roles", "hub")
+    def test_has_feature_answers_for_one(self) -> None:
+        cfg_set(self.store, "install", "features", "library")
 
-        self.assertTrue(install_identity.has_role(self.store, "hub"))
-        self.assertFalse(install_identity.has_role(self.store, "device"))
+        self.assertTrue(install_identity.has_feature(self.store, "library"))
+        self.assertFalse(install_identity.has_feature(self.store, "frontend"))
 
 
 if __name__ == "__main__":

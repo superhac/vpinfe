@@ -107,8 +107,8 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(payload["name"], "VPinFE")
         self.assertIn("install_id", payload)
         self.assertIn("display_name", payload)
-        self.assertEqual(payload["roles"], ["hub", "device"],
-                         "an unconfigured install serves both, as 2.x did")
+        self.assertEqual(payload["features"], ["library", "frontend", "devices"],
+                         "an unconfigured install does everything, as 2.x did")
 
     def test_asking_who_this_is_does_not_write_to_the_config(self) -> None:
         """Minting happens once at startup. A GET that wrote would make every reader a
@@ -124,12 +124,12 @@ class DiscoveryTests(unittest.TestCase):
         self._isolated()
         capabilities.declare(capabilities.Capability(
             name="library",
-            residency=[capabilities.RESIDENCY_HUB],
+            feature="library",
             description="Table inventory",
         ))
         capabilities.declare(capabilities.Capability(
             name="peripherals",
-            residency=[capabilities.RESIDENCY_DEVICE],
+            feature="frontend",
             is_available=lambda: (False, "No DOF hardware detected"),
         ))
 
@@ -139,34 +139,26 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(names, sorted(names), "sorted by name for a stable payload")
 
         by_name = {c["name"]: c for c in declared}
-        self.assertEqual(by_name["library"]["residency"], ["hub"])
+        self.assertEqual(by_name["library"]["feature"], "library")
         self.assertTrue(by_name["library"]["available"])
         self.assertIsNone(by_name["library"]["reason"])
         self.assertFalse(by_name["peripherals"]["available"])
         self.assertEqual(by_name["peripherals"]["reason"], "No DOF hardware detected")
 
-    def test_a_capability_can_live_in_both_roles(self) -> None:
-        """Both means each role serves its own, not that one spans the two."""
+    def test_infrastructure_belongs_to_no_feature(self) -> None:
+        """`events` and `jobs` are present wherever the API is, so they name no feature
+        and no feature switch can take them away."""
         self._isolated()
-        capabilities.declare(capabilities.Capability(
-            name="events",
-            residency=[capabilities.RESIDENCY_HUB, capabilities.RESIDENCY_DEVICE],
-        ))
+        capabilities.declare(capabilities.Capability(name="events"))
 
         declared = self.client.get("/").json()["capabilities"]
 
-        self.assertEqual(declared[0]["residency"], ["hub", "device"])
+        self.assertIsNone(declared[0]["feature"])
 
-    def test_a_bare_string_residency_is_refused(self) -> None:
-        """It would iterate into single characters and reach discovery as seven of them."""
+    def test_an_unknown_feature_is_refused(self) -> None:
+        """A typo would declare a capability nothing can ever switch on."""
         with self.assertRaises(ValueError):
-            capabilities.Capability(name="library", residency=capabilities.RESIDENCY_HUB)
-
-    def test_an_unknown_or_empty_residency_is_refused(self) -> None:
-        with self.assertRaises(ValueError):
-            capabilities.Capability(name="library", residency=["somewhere-else"])
-        with self.assertRaises(ValueError):
-            capabilities.Capability(name="library", residency=[])
+            capabilities.Capability(name="library", feature="somewhere-else")
 
     def test_launch_declares_whether_this_machine_can_do_it(self) -> None:
         """Reading play state works without a launcher; starting a game does not.
@@ -174,7 +166,7 @@ class DiscoveryTests(unittest.TestCase):
         declared = {c["name"]: c for c in self.client.get("/").json()["capabilities"]}
 
         self.assertIn("launch", declared)
-        self.assertEqual(declared["launch"]["residency"], ["device"])
+        self.assertEqual(declared["launch"]["feature"], "frontend")
         self.assertIsNotNone(declared["launch"].get("available"))
 
     def test_a_broken_availability_probe_does_not_break_discovery(self) -> None:
@@ -183,7 +175,7 @@ class DiscoveryTests(unittest.TestCase):
 
         self._isolated()
         capabilities.declare(capabilities.Capability(
-            name="flaky", residency=[capabilities.RESIDENCY_DEVICE], is_available=_explode))
+            name="flaky", feature="frontend", is_available=_explode))
 
         response = self.client.get("/")
         declared = response.json()["capabilities"]

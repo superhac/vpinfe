@@ -421,11 +421,12 @@ class EndpointTests(unittest.TestCase):
     def test_discovery_links_to_the_stream(self) -> None:
         self.assertEqual(self.client.get("/").json()["links"]["events"], "/api/v1/events")
 
-    def test_discovery_declares_the_stream_in_both_roles(self) -> None:
-        """It carries library events and launch events alike."""
+    def test_discovery_declares_the_stream_for_every_install(self) -> None:
+        """It carries library events and launch events alike, so it belongs to no
+        feature and no feature switch can take it away."""
         declared = {c["name"]: c for c in self.client.get("/").json()["capabilities"]}
 
-        self.assertEqual(declared["events"]["residency"], ["hub", "device"])
+        self.assertIsNone(declared["events"]["feature"])
 
     def test_building_the_app_declares_the_play_state_snapshot(self) -> None:
         """A theme subscribing mid-launch has to be told there is one."""
