@@ -2127,6 +2127,11 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   grid-template-columns: var(--rail-w) minmax(0, 1fr);
   grid-template-rows: repeat(var(--rows, 4), max-content) minmax(0, 1fr);
   min-height: 0;
+  /* A rail taller than the panel is otherwise cut off with no way to reach the rest -
+     a device carries thirteen entries and a short window loses the last five. The work
+     travels with it, because the two are one grid and only a wrapper around the rows
+     could scroll them alone. */
+  overflow-y: auto;
 }
 .hub-section-row { grid-column: 1; }
 /* A rail long enough to need grouping says what a run of rows is about. `.hub-group`
