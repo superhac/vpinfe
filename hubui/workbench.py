@@ -593,16 +593,31 @@ async def _rail(context: dict[str, Any], subject: str,
     body = None
     # The row count goes to the stylesheet because the wide layout needs a track
     # per row and then one that takes the rest - CSS cannot count its own children.
-    # Headings take a track of their own, so the count is rows plus the number of
-    # distinct groups - CSS cannot count its own children.
-    tracks = len(rows) + len({item.group for item in rows if item.group})
+    # Which run of rows is open. The one holding the section you are on, so arriving
+    # anywhere shows its neighbours and nothing else.
+    # The group holding the section you are on. Derived rather than stored, so the two
+    # cannot disagree - picking a group picks a section, and the section says which
+    # group is open.
+    open_group = next((item.group for item in rows if item.key == section), "")
+
+    # Headings take a track of their own, and a closed group contributes only its
+    # heading - CSS cannot count its own children.
+    shown = [item for item in rows
+             if not item.group or item.group == open_group]
+    tracks = len(shown) + len({item.group for item in rows if item.group})
     with ui.element("div").classes("w-full grow min-h-0 hub-sections") \
             .style(f"--rows: {tracks}"):
         heading = ""
         for item in rows:
             if item.group and item.group != heading:
-                ui.label(item.group).classes("hub-group hub-rail-group")
+                _rail_group(item.group, item.group == open_group, state, context,
+                            first_key=_first_in_group(rows, item.group))
             heading = item.group
+            # A group that is not the open one keeps its heading and drops its rows. The
+            # rail is a map you read, and thirteen rows of it left the section they open
+            # about two lines of the panel.
+            if item.group and item.group != open_group:
+                continue
             _section_row(context, item, item.key == section)
             if item.key != section:
                 continue
@@ -632,6 +647,36 @@ async def _one_section(context: dict[str, Any], key: str) -> None:
     """The chosen section's content. No heading - the row that opened it is the
     heading, and a second copy of the same words under it is furniture."""
     await next(item for item in SECTIONS if item.key == key).build(context)
+
+
+def _first_in_group(rows: tuple[Section, ...], group: str) -> str:
+    return next((item.key for item in rows if item.group == group), "")
+
+
+def _rail_group(name: str, open_now: bool, state: dict[str, Any],
+                context: dict[str, Any], first_key: str = "") -> None:
+    """A heading that opens the run of rows under it.
+
+    A disclosure rather than a place, which is what the nav's own parent row is. Which
+    group is open is not stored: it is the group holding the section you are on, so the
+    rail and the panel cannot disagree about where you are.
+    """
+    async def toggle() -> None:
+        # Opening a group opens its first page, so the rail and the panel stay in step:
+        # a group whose rows are shown while the panel answers for a row in another is
+        # two places at once.
+        if first_key:
+            state["section"] = first_key
+        rebuild = context.get("rebuild")
+        if rebuild is not None:
+            await rebuild()
+
+    row = ui.row().classes("items-center gap-2 cursor-pointer no-wrap w-full "
+                           "hub-group hub-rail-group").on("click", toggle)
+    with row:
+        ui.label(name).classes("grow min-w-0 truncate")
+        ui.icon("expand_less" if open_now else "expand_more", size="16px") \
+            .classes("shrink-0 opacity-60")
 
 
 def _for_roles(rows: tuple[Section, ...], roles) -> tuple[Section, ...]:

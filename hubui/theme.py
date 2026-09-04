@@ -2132,6 +2132,10 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* A rail long enough to need grouping says what a run of rows is about. `.hub-group`
    carries the treatment - this only puts it in the rail's column. */
 .hub-rail-group { grid-column: 1; }
+/* A heading that opens a run of rows is a control, so it takes the row's own hit area
+   and says so on hover. The type stays the heading's - it names a group either way. */
+.hub-rail-group { padding: 6px 16px; margin: 0; }
+.hub-rail-group:hover { color: var(--ink); background: var(--surface-hover); }
 .hub-section-work {
   grid-column: 2; grid-row: 1 / -1;
   min-width: 0; min-height: 0;
