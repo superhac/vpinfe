@@ -206,8 +206,12 @@ def _read_hub() -> dict[str, Any]:
 # UI, so an app-wide title puts the other surface's name in this one's tab.
 # Both, because the bare host is what somebody types and /console is what a link
 # carries. One function serves them so there is no redirect to lose a query string.
-@ui.page("/", title="VPinFE Console")
-@ui.page("/console", title="VPinFE Console")
+#
+# Five minutes to reconnect, not the default three seconds: a suspended background tab
+# goes quiet for longer than that, and a page deleted under one comes back as a reload.
+# On each route, because the timeout is the page's and these are two pages.
+@ui.page("/", title="VPinFE Console", reconnect_timeout=300)
+@ui.page("/console", title="VPinFE Console", reconnect_timeout=300)
 async def console_page(view: str = "", game: str = "", table: str = "", section: str = "",
                    slot: str = "", settings: str = "") -> None:
     """The Console. Query parameters say where in it, so a place can be linked to."""
@@ -229,7 +233,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # reload loop and a page whose handlers were never wired, not as a slow page.
     with ui.column().classes("w-full h-full items-center justify-center gap-3") as loading:
         ui.spinner(size="lg").classes("text-primary")
-        ui.label("Starting the Console").classes("text-sm opacity-60")
+        ui.label("Loading the Console").classes("text-sm opacity-60")
 
     await ui.context.client.connected()
     loaded = await run.io_bound(_read_hub)

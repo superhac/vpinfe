@@ -7,7 +7,7 @@ import time
 from typing import Any
 
 from common.games.asset_registry import ASSET_SPECS
-from common.media_specs import media_family, media_label_map
+from common.media_specs import MEDIA_SPECS, media_family, media_label_map
 from console import media_ownership
 from console.api import ApiClient
 
@@ -22,6 +22,12 @@ logger = logging.getLogger("vpinfe.console")
 # keep its own five - splitting the folder-named file from the fixed-name slot - and that
 # split is about our filename conventions rather than anything a reader has a concept
 # for, which is the argument that module already makes.
+
+
+# A media slot, and what one nothing serves looks like. The fields the per-game read
+# returns, less its `links` block, which nothing here draws.
+_MEDIA_ABSENT: dict[str, Any] = {"present": False, "file": None, "path": None,
+                                 "via": None, "origin": None, "matched_to": None}
 
 
 # A video shows the frame at `#t=0.1` - metadata alone paints nothing, and the fragment
@@ -104,11 +110,25 @@ class Library:
         """
         started = time.perf_counter()
         self.games = self._client.games()
-        for game in self.games:
-            self.media[game["id"]] = self._client.media(game["id"])
+        self.media = self._shared_media()
         self.kept_kinds()
         logger.info("console: read %d games in %.2fs", len(self.games),
                     time.perf_counter() - started)
+
+    def _shared_media(self) -> dict[str, dict[str, Any]]:
+        """Every game's shared media, from one listing rather than a call per game.
+
+        Seeded absent because the listing reports no shared row where every table owns
+        that kind. Taken as-is, such a folder would leave the kind out of the coverage
+        totals altogether instead of counting it as the gap the per-game read calls it.
+        """
+        rows = [row for row in self._client.all_media() if not row.get("table")]
+        media = {game["id"]: {spec.kind: dict(_MEDIA_ABSENT) for spec in MEDIA_SPECS}
+                 for game in self.games}
+        for row in rows:
+            slots = media.setdefault(row["game_id"], {})
+            slots[row["kind"]] = {field: row.get(field) for field in _MEDIA_ABSENT}
+        return media
 
     def media_for(self, game_id: str, table_id: str | None) -> dict[str, Any]:
         """The shared media, or one build's. `None` is the game, which is already read.
