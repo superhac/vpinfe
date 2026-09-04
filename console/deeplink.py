@@ -42,7 +42,7 @@ _FIELDS = (
 # is one game's slot - so leaving it out would drop the whole selection in silence.
 _PANEL = ("games", "tables", "media", "assets")
 _ONLY_ON = {"game": _PANEL, "table": _PANEL, "section": _PANEL, "slot": _PANEL,
-            "settings": ("settings",)}
+            "settings": ("system",)}
 
 
 # What the address calls a panel with nothing open.

@@ -83,21 +83,24 @@ def sections(entries: Sequence[tuple[Any, ...]], current: str,
 
     `entries` are `(key, label)` with an optional third element for a hint and a fourth
     for a mark drawn before the name, or `(GROUP, name)` for a heading over the rows
-    that follow it. The row count goes to the stylesheet because the wide layout needs a
-    track per row and then one that takes the rest, and CSS cannot count its own
-    children.
+    that follow it.
+
+    Two regions, not loose rows: the rail scrolls on its own and the open page beside it
+    holds still. Left loose, every row takes a grid track of its own and the region they
+    are meant to sit beside gets whatever is left, which on a long index is a few lines.
     """
     frame = ui.element("div").classes("w-full grow min-h-0 console-sections") \
-        .style(f"--rows: {len(entries)}; --rail-w: {rail_px}px")
+        .style(f"--rail-w: {rail_px}px")
     with frame:
-        for entry in entries:
-            key, label = entry[0], entry[1]
-            hint = entry[2] if len(entry) > 2 else ""
-            mark = entry[3] if len(entry) > 3 else None
-            if key is GROUP:
-                ui.label(label).classes("console-group console-rail-group")
-                continue
-            _rail_row(str(key), label, str(key) == current, on_pick, hint, mark)
+        with ui.element("div").classes("min-h-0 console-section-rail"):
+            for entry in entries:
+                key, label = entry[0], entry[1]
+                hint = entry[2] if len(entry) > 2 else ""
+                mark = entry[3] if len(entry) > 3 else None
+                if key is GROUP:
+                    ui.label(label).classes("console-group console-rail-group")
+                    continue
+                _rail_row(str(key), label, str(key) == current, on_pick, hint, mark)
         work = ui.element("div").classes("min-w-0 console-section-work")
     return work
 

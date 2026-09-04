@@ -14,6 +14,7 @@ from console import collections as collections_page
 from console import deeplink, games, grid, sections, tageditor, theme, views, workbench
 from console import devices as devices_page
 from console import media as media_page
+from console import settings as settings_page
 from console.api import ApiClient
 from console.data import Library
 
@@ -69,25 +70,45 @@ RAIL_PX = 57
 # make one click mean two things, and the children are the destinations.
 NAV_PARENT = ("library", "Library", "inventory_2")
 
-NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None,
-                        tuple[tuple[str, str, str], ...]], ...] = (
-    (None, (("overview", "Overview", "space_dashboard"),)),
+# Which feature each destination answers for, empty meaning every install. An install
+# without a feature does not show its section at all - not greyed and not empty, absent -
+# because a section for something this machine is not for is a place with nothing in it.
+# Overview and Extensions name none: one is the front door and the other is what this
+# install has loaded, and neither belongs to a feature any more than jobs do.
+NavItem = tuple[str, str, str, str]
+
+NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] = (
+    (None, (("overview", "Overview", "space_dashboard", ""),)),
     # Media sits with the grains of the library it is one of, ahead of the two that
     # organize it rather than being part of it.
-    (NAV_PARENT, (("games", "Games", "sports_esports"),
-                  ("tables", "Tables", "casino"),
-                  ("media", "Media", "perm_media"),
-                  ("assets", "Assets", "widgets"),
-                  ("collections", "Collections", "collections_bookmark"),
-                  ("tags", "Tags", "sell"))),
-    # No Settings entry. Every setting belongs to a device, this one included, so Devices
-    # is where they are - a second word leading to the same pages is a second answer that
-    # goes stale. `?view=settings` still lands, on the device it was always about.
-    (None, (("devices", "Devices", "devices"),
-            ("extensions", "Extensions", "extension"))),
+    (NAV_PARENT, (("games", "Games", "sports_esports", install_identity.LIBRARY),
+                  ("tables", "Tables", "casino", install_identity.LIBRARY),
+                  ("media", "Media", "perm_media", install_identity.LIBRARY),
+                  ("assets", "Assets", "widgets", install_identity.LIBRARY),
+                  ("collections", "Collections", "collections_bookmark",
+                   install_identity.LIBRARY),
+                  ("tags", "Tags", "sell", install_identity.LIBRARY))),
+    # System last, and it is the one entry that is always here. Every other section
+    # exists because a feature is enabled; this is where features are switched on, so an
+    # install with none of them still has a way to fix itself from inside.
+    (None, (("devices", "Devices", "devices", install_identity.DEVICES),
+            ("extensions", "Extensions", "extension", ""),
+            ("system", "System", "settings", ""))),
 )
 
-NAV_ITEMS = tuple(item for _parent, items in NAV_GROUPS for item in items)
+
+
+def nav_for(features) -> list[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]]]:
+    """The rail this install has. A group whose entries have all gone goes with them -
+    a disclosure with nothing under it is a control that does nothing."""
+    held = ({str(name).strip().lower() for name in (features or [])}
+            or set(install_identity.FEATURES))
+    out = []
+    for parent, items in NAV_GROUPS:
+        kept = tuple(item for item in items if not item[3] or item[3] in held)
+        if kept:
+            out.append((parent, kept))
+    return out
 
 # What the header calls each destination. A section owns a subject too, but that is a
 # fact about the data behind the page, not a caption for it - printing "one row is one
@@ -102,6 +123,7 @@ SECTIONS = {
     "assets": "Assets",
     "devices": "Devices",
     "extensions": "Extensions",
+    "system": "System",
 }
 
 
@@ -216,24 +238,24 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     device_capabilities = loaded["device_capabilities"]
     local_capabilities = loaded["local_capabilities"]
 
+    # The rail this install has, read once: it decides what is drawn and which addresses
+    # resolve, and those two disagreeing is a link that lands on a blank page.
+    nav_groups = nav_for(discovery.get("features"))
+    nav_items = [item for _parent, items in nav_groups for item in items]
+
     state: dict[str, Any] = {"view": "overview", "device": None, "mini": False,
-                             "workbench": True, "settings_page": "general",
+                             "workbench": True, "settings_page": "",
                              "collection": None}
     # Before anything is built, so the first render is the place asked for rather than
     # the front door followed by a jump.
     deeplink.apply(state, {"view": view, "game": game, "table": table,
                            "section": section, "slot": slot, "settings": settings},
-                   views=[key for key, _label, _icon in NAV_ITEMS],
+                   views=[key for key, _label, _icon, _feature in nav_items],
                    sections=[item.key for item in workbench.SECTIONS])
     # An address written when Settings was a place still resolves. It was always about
-    # this device's settings, so it lands there - on the page it named, where that page
-    # is now a section of the device rail.
+    # this install's own settings, and System is where those are.
     if view == "settings":
-        state["view"] = "devices"
-        # The device is left to the landing below, which falls back to this install -
-        # naming it here as well was two answers to one question and the wrong one won.
-        if state.get("settings_page"):
-            state["section"] = f"device_{state['settings_page']}"
+        state["view"] = "system"
 
     labels: list[ui.label] = []
     destinations: dict[str, ui.row] = {}
@@ -298,12 +320,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         # drawer is one scroll box, so the title and the version scrolled away with the
         # rows - which is the two pieces of chrome that should always be reachable.
         nav_body = ui.column().classes("w-full gap-0 console-nav-body")
-        for parent, items in NAV_GROUPS:
+        for parent, items in nav_groups:
             held: list[ui.row] = []
             with nav_body:
                 if parent is not None:
                     _nav_parent(parent, state, labels, held)
-                for key, label, icon in items:
+                for key, label, icon, _feature in items:
                     # redraw, not render: a destination whose rows are read on demand
                     # has to read them before it draws, and arriving is when that is
                     # first true.
@@ -745,6 +767,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 devices_page.build(devices, library, state, show_device,
                                    probe=_probe_devices,
                                    local_device_id=discovery.get("install_id"))
+            elif view == "system":
+                settings_page.build_system(library, state, redraw, discovery)
             else:
                 _placeholder(view)
 

@@ -7,6 +7,10 @@ its preferences even though it throws the rest of the app away to show it.
 Everything on a page is drawn through `console/panel.py`. A config control is the one
 place that carries its explanation beneath it rather than in a tooltip: a key's name
 says what it is called, not what turning it off costs.
+
+One settings grammar, wherever a page is reached from. `build_system` draws this
+install's own and the device panel draws another machine's, from one declaration and
+through one renderer - what differs is only which install answers.
 """
 
 from __future__ import annotations
@@ -351,6 +355,46 @@ def pages_for_features(features) -> list[tuple[str, DevicePage]]:
             if not page[4] or page[4] in held]
 
 
+# What a person calls each feature. The key names the thing and the label says what you
+# do with it, which is why `devices` reads as Device Management on screen.
+FEATURE_LABELS = {
+    install_identity.LIBRARY: "Library",
+    install_identity.FRONTEND: "Frontend",
+    install_identity.DEVICES: "Device Management",
+}
+
+# What switching one on gets you. The name says which feature; this says what the install
+# then does, which is the half a person switching it on is actually choosing between.
+FEATURE_NOTES = {
+    install_identity.LIBRARY: "Curate the game library on this machine.",
+    install_identity.FRONTEND: "Launch games on this machine.",
+    install_identity.DEVICES: "Manage the other VPinFE installs on your network.",
+}
+
+# Why the last one cannot be switched off here. An install with no features stored reads
+# as all of them rather than as none, so a screen that let you reach empty would be
+# showing a state the config layer does not hold.
+LAST_FEATURE_NOTE = "An install has to be for something. Turn another one on first."
+
+IDENTITY = "identity"
+
+# System's floor, and the one page in it that is not feature-derived: this is where
+# features are switched on, so an install with none still has a way to fix itself from
+# inside. Not a schema page - `features` is a list in the file and a closed set of three
+# on screen, and a comma-separated text field is the wrong control for that.
+IDENTITY_PAGE: DevicePage = (IDENTITY, "Identity", BUILT_PAGE, ("install",), "")
+
+# What the Identity page's group is called. This install, as against the Library group
+# below it, which is about the games rather than about the machine.
+IDENTITY_GROUP = "This install"
+
+
+def system_pages(features) -> list[tuple[str, DevicePage]]:
+    """This install's own index: identity first, then whatever its features can answer
+    for."""
+    return [(IDENTITY_GROUP, IDENTITY_PAGE), *pages_for_features(features)]
+
+
 def build_library_page(library, rerender: Callable[[], None], key: str,
                        kind: str) -> None:
     """A library page, drawn where a device's rail asks for it.
@@ -441,3 +485,123 @@ async def build_device_page(source, context: dict[str, Any], schema: list[dict],
         if foot is not None and source is context.get("library"):
             entries += await foot(source, rerender)
     panel.facts(ui, entries)
+
+
+
+def build_system(library, state: dict[str, Any], redraw: Callable[[], None],
+                 discovery: dict[str, Any]) -> None:
+    """This install's own configuration: the index, and the page it opens.
+
+    Its own entry point rather than a section of the device panel, because it is about
+    the install you are reading the Console from and needs nothing selected to be about
+    one.
+    """
+    pages = system_pages(discovery.get("features"))
+    known = {page[0]: page for _group, page in pages}
+    chosen = str(state.get("settings_page") or "")
+    # A page this install has no answer for is not a place to land: an address written
+    # while `library` was on still names Media Kinds after it has been switched off.
+    if chosen not in known:
+        chosen = pages[0][1][0]
+    state["settings_page"] = chosen
+
+    entries: list[tuple[Any, ...]] = []
+    heading = ""
+    for group, page in pages:
+        if group != heading:
+            entries.append((panel.GROUP, group))
+            heading = group
+        entries.append((page[0], page[1]))
+
+    def pick(key: str) -> None:
+        state["settings_page"] = key
+        redraw()
+
+    work = panel.sections(entries, chosen, pick, rail_px=RAIL_PX)
+    with work:
+        body = ui.column().classes("min-w-0 overflow-auto gap-0 console-workbench-body")
+    # On a timer, because a page reads the schema and the values over HTTP and the draw
+    # it is part of runs on the event loop, where the client refuses a call.
+    ui.timer(0.01,
+             lambda: _draw_system_page(library, redraw, body, known[chosen], discovery),
+             once=True)
+
+
+async def _draw_system_page(library, redraw: Callable[[], None], body,
+                            page: DevicePage, discovery: dict[str, Any]) -> None:
+    key, _label, kind, sections, _feature = page
+    if key == IDENTITY:
+        with body:
+            await _identity_page(library, str(discovery.get("display_name") or ""),
+                                 redraw)
+        return
+    if kind != SCHEMA_PAGE:
+        with body:
+            build_library_page(library, redraw, key, kind)
+        return
+    try:
+        schema = await run.io_bound(library.config_schema)
+        values = await run.io_bound(library.config_values)
+    except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
+        with body:
+            panel.facts(ui, [panel.intro(f"Could not read the settings: {exc}")])
+        return
+    with body:
+        await build_device_page(library, {"library": library, "rebuild": redraw},
+                                schema, values, sections)
+
+
+async def _identity_page(library, reported: str,
+                         redraw: Callable[[], None]) -> None:
+    """What this install is called, and what it is for."""
+    try:
+        values = await run.io_bound(library.config_values)
+    except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
+        panel.facts(ui, [panel.intro(f"Could not read the settings: {exc}")])
+        return
+    held = dict(values.get("install") or {})
+    on = _listed(held.get("features"))
+
+    async def rename(text: str) -> None:
+        await _write(library, "install", "display_name", text.strip())
+
+    async def flip(name: str, wanted_on: bool) -> None:
+        after = (on | {name}) if wanted_on else (on - {name})
+        if not after:
+            # Redrawn rather than reloaded: nothing was written, and a reload takes the
+            # notification saying why with it before it can be read.
+            ui.notify(LAST_FEATURE_NOTE, type="warning")
+            redraw()
+            return
+        # In the order the install declares them, so the file reads the same however the
+        # switches were thrown.
+        if await _write(library, "install", "features",
+                        [name for name in install_identity.FEATURES if name in after]):
+            _take_the_page_again()
+
+    entries: list[tuple[Any, Any]] = [
+        # The name it reports with nothing set is its hostname, so the placeholder is
+        # that answer rather than the word for it.
+        ("Name", panel.field(str(held.get("display_name") or ""), rename,
+                             placeholder=reported)),
+        panel.note("What this install is called where one is listed. Nothing is "
+                   "addressed by it, so renaming is safe."),
+        (panel.HEADING, "Features"),
+        panel.intro("What this install is for. Each one decides what the Console shows "
+                    "and what this machine answers for."),
+    ]
+    for name in install_identity.FEATURES:
+        entries.append((FEATURE_LABELS[name], panel.switch(
+            name in on, lambda event, key=name: flip(key, bool(event.value)))))
+        entries.append(panel.note(FEATURE_NOTES[name]))
+    panel.facts(ui, entries)
+
+
+def _take_the_page_again() -> None:
+    """Reload, because what just changed decides how the page is built.
+
+    Features pick the nav sections, this index, and the capabilities the shell read on
+    the way in. Redrawing under them would leave all three describing the install as it
+    was, and the address already carries where you are standing.
+    """
+    ui.navigate.reload()

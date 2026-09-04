@@ -57,13 +57,6 @@ CANNOT_UPDATE = "This install cannot update itself."
 
 # What forgetting a device does, said before it is done. The registry is a record of what
 # this install has met, not a permission list, so this removes a row and nothing else.
-# The key is what an install declares; this is what a person reads.
-_FEATURE_LABELS = {
-    "library": "Library",
-    "frontend": "Frontend",
-    "devices": "Device Management",
-}
-
 FORGET_NOTE = ("Forgetting a device removes this install's entry for it. Nothing on that "
                "machine changes, and it comes back the next time it announces itself.")
 
@@ -356,7 +349,7 @@ def rows(devices: list[dict[str, Any]],
             "what": str(probe.get("what") or ""),
             "address": str(device.get("address") or ""),
             "last_seen": _when(str(device.get("last_reachable") or "")),
-            "features": ", ".join(_FEATURE_LABELS.get(str(f), str(f))
+            "features": ", ".join(settings_page.FEATURE_LABELS.get(str(f), str(f))
                                   for f in (device.get("features") or [])),
         })
     return out
@@ -515,7 +508,7 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
         rows_out.append(panel.note(REMOTE_NAME_NOTE))
     rows_out.append(("Kind", KIND_LABELS.get(str(device.get("kind") or "vpinfe"),
                                              "VPinFE")))
-    rows_out.append(("Features", ", ".join(_FEATURE_LABELS.get(str(f), str(f))
+    rows_out.append(("Features", ", ".join(settings_page.FEATURE_LABELS.get(str(f), str(f))
                                            for f in (device.get("features") or []))
                      or "Not reported"))
     return rows_out
