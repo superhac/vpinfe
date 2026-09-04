@@ -26,7 +26,12 @@ HEADER_H_PX = 52
 # Wide enough for the longest label at the nested indent, with the scrollbar the
 # rail now needs: "Collections" indented is the widest thing in here.
 NAV_WIDE_PX = 252
-WORKBENCH_WIDE_PX = 320
+# Past the width where the panel stops being a rail beside its work and becomes an
+# accordion. Opening into the accordion made the stacked reading the one everybody sees
+# first, when it is the fallback for a pane squeezed down on purpose. 640 rather than
+# the breakpoint itself: at the breakpoint the labels wrap and a path field shows about
+# a dozen characters, which is a rail beside a column too thin to work in.
+WORKBENCH_WIDE_PX = 640
 # What the panel needs to hold its three regions, not the smallest a pane can be.
 # Below this the honest move is the rail, which is one click away.
 WORKBENCH_MIN_PX = 320
