@@ -370,6 +370,22 @@ socket for anything announcing itself and taken from the body for a phone, becau
 is registered by a person rather than by itself. Covered by `tests/api/test_devices.py` and
 `tests/theming/test_separation.py`, which runs two live installs against a live library.
 
+**PAR-90 — An install can be asked what it is doing and told what to do.** New:
+`GET /api/v1/logs` reads this install's own log, and `GET/POST /api/v1/actions` serve the
+lifecycle vocabulary that 2.x only ever reached from the Manager UI in-process. Two new
+capabilities, `logs` and `actions`. Purely additive; every existing route is untouched.
+*Why:* a control plane that can see a fleet and not read one machine's log sends you to
+an SSH session, and the one lifecycle verb reachable over HTTP was closing a table -
+which meant the Devices surface could offer exactly that and nothing else. Served from
+`common/lifecycle.py` rather than restated, so a pair added there appears without either
+side being touched, and what the vocabulary allows is reported separately from what this
+install has wired up: a headless one owns no frontend windows, and a button that reports
+success while nothing happened is worse than one that is greyed. An action that takes the
+process or the machine down answers before it goes, the same order `POST /update` uses.
+Closing a table goes through the play route's own handler, which checks first, so asking
+to close one when none is running says so. Covered by `tests/api/test_actions.py` and
+`tests/api/test_logs.py`.
+
 **PAR-89 — An install announces itself on the local network.** 3.0 registers an mDNS
 service, `_vpinfe._tcp.local.`, carrying its id, name, features and version, and browses
 for the same. New dependency: `zeroconf`. Users may see a firewall prompt on Windows the

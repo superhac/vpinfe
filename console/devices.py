@@ -57,6 +57,34 @@ CANNOT_UPDATE = "This install cannot update itself."
 
 # What forgetting a device does, said before it is done. The registry is a record of what
 # this install has met, not a permission list, so this removes a row and nothing else.
+# How many records to ask for. Enough to see what led to something without handing over
+# a 2MB file to a panel; the path is on the page for anyone who wants the rest.
+LOG_LIMIT = 200
+
+# What each level is worth noticing. Only the two that mean something went wrong are
+# colored - a column where every row is lit says nothing about any of them.
+_LOG_LEVELS = {
+    "ERROR": "console-log-bad",
+    "CRITICAL": "console-log-bad",
+    "WARNING": "console-log-warn",
+}
+
+# What an icon says about a verb, where the verb alone reads as either direction.
+_ACTION_ICONS = {
+    ("table", "stop"): "stop_circle",
+    ("frontend", "start"): "launch",
+    ("frontend", "stop"): "close",
+    ("frontend", "restart"): "refresh",
+    ("app", "stop"): "power_settings_new",
+    ("app", "restart"): "restart_alt",
+    ("system", "stop"): "power_settings_new",
+    ("system", "restart"): "restart_alt",
+}
+
+# Said once over the list rather than under each. Which machine this happens on is the
+# thing a fleet surface has to be clear about.
+ACTIONS_NOTE = "These happen on this device, not on the install you are reading from."
+
 FORGET_NOTE = ("Forgetting a device removes this install's entry for it. Nothing on that "
                "machine changes, and it comes back the next time it announces itself.")
 
@@ -619,6 +647,113 @@ def capability_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
         text, level = _CHIP[state]
         out.append((humanize(capability), panel.state(text, level)))
     return out or [panel.intro("This device declares nothing.")]
+
+
+# What a lifecycle action costs, which is what decides whether it is asked about twice.
+# Closing a table loses a game in progress; the rest lose the whole machine for a while.
+_HEAVY = {"app", "system"}
+
+
+async def action_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """What this device can be told to do, and what it will not answer for.
+
+    Every pair the build has, greyed where nothing over there performs it - two installs
+    showing different buttons look like different products, and the reason is the answer
+    to somebody asking why.
+    """
+    client = _client_for(context)
+    if client is None:
+        return [panel.intro(UNREACHABLE_NOTE)]
+    try:
+        offered = await run.io_bound(client.actions)
+    except device_client.TooOldError as exc:
+        return [panel.intro(str(exc))]
+    except Exception as exc:  # noqa: BLE001 - unreachable is a state, not a 500
+        logger.info("Could not ask %s what it does", device_label(_of(context)),
+                    exc_info=True)
+        return [panel.intro(f"Could not ask {device_label(_of(context))}: {exc}")]
+    if not offered:
+        return [panel.intro("This device offers nothing to do.")]
+
+    rows_out: list[tuple[Any, Any]] = [panel.intro(ACTIONS_NOTE)]
+    for entry in offered:
+        rows_out.append(("", _action_control(context, entry)))
+        if not entry.get("available") and entry.get("reason"):
+            rows_out.append(panel.note(str(entry["reason"])))
+    return rows_out
+
+
+def _action_control(context: dict[str, Any],
+                    entry: dict[str, Any]) -> Callable[[], None]:
+    """One verb, asked about first where it costs the machine."""
+    scope = str(entry.get("scope") or "")
+    action = str(entry.get("action") or "")
+    label = str(entry.get("label") or f"{action} the {scope}")
+
+    async def go() -> None:
+        if scope in _HEAVY and not await confirm.ask(
+                f"{label}?",
+                detail=f"This happens on {device_label(_of(context))}, now.",
+                confirm=label):
+            return
+        client = _client_for(context)
+        try:
+            done = await run.io_bound(client.perform_action, scope, action)
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
+            ui.notify(f"Could not do that: {exc}", type="negative")
+            return
+        # A machine on its way down answers before it goes, so "performed" here means
+        # the work was handed over rather than finished.
+        ui.notify(f"{label}" if done.get("performed") else f"{label} did not happen",
+                  type="positive" if done.get("performed") else "warning")
+
+    def draw() -> None:
+        with ui.element("div").classes("console-fact-edit"):
+            panel.action(label, go, icon=_ACTION_ICONS.get((scope, action), "play_arrow"),
+                         inline=True, danger=scope in _HEAVY,
+                         enabled=bool(entry.get("available")))()
+
+    return draw
+
+
+async def log_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """The tail of that install's own log.
+
+    Read from the machine that holds it, which is the only party that has it. Records
+    rather than lines, so a traceback arrives under the message that caused it instead
+    of as a dozen rows carrying no level of their own.
+    """
+    client = _client_for(context)
+    if client is None:
+        return [panel.intro(UNREACHABLE_NOTE)]
+    try:
+        found = await run.io_bound(client.logs, LOG_LIMIT)
+    except device_client.TooOldError as exc:
+        return [panel.intro(str(exc))]
+    except Exception as exc:  # noqa: BLE001 - unreachable is a state, not a 500
+        logger.info("Could not read the log on %s", device_label(_of(context)),
+                    exc_info=True)
+        return [panel.intro(f"Could not read the log: {exc}")]
+
+    records = list(found.get("records") or [])
+    if not records:
+        return [panel.intro("Nothing has been written to the log on this device.")]
+    return [(panel.FULL, lambda: _log_lines(records, str(found.get("path") or "")))]
+
+
+def _log_lines(records: list[dict[str, Any]], path: str) -> None:
+    """Newest last, the way a log reads and the way `tail` shows one."""
+    with ui.column().classes("w-full gap-0 console-log"):
+        for record in records:
+            with ui.row().classes("items-baseline gap-2 w-full no-wrap console-log-row"):
+                ui.label(str(record.get("when") or "")).classes("console-log-when")
+                level = str(record.get("level") or "")
+                ui.label(level).classes(
+                    "console-log-level " + _LOG_LEVELS.get(level, "console-log-plain"))
+                ui.label(str(record.get("logger") or "")).classes("console-log-source")
+            ui.label(str(record.get("message") or "")).classes("console-log-message")
+    if path:
+        ui.label(path).classes("console-log-path")
 
 
 def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:

@@ -125,6 +125,63 @@ class DeviceList(ApiModel):
     devices: list[DeviceResource]
 
 
+class Action(ApiModel):
+    """One thing an install can be told to do to itself.
+
+    `available` is whether anything on this build performs it, which is not the same as
+    whether the vocabulary has it: a headless install owns no frontend windows.
+    """
+
+    scope: str
+    action: str
+    label: str
+    available: bool = True
+    reason: str = ""
+
+
+class ActionList(ApiModel):
+    count: int
+    actions: list[Action]
+
+
+class ActionRequest(ApiModel):
+    """Which one, and why - the reason travels into the log and to every other surface,
+    so "restarted from the Console" reads better afterwards than "restarted"."""
+
+    scope: str
+    action: str
+    reason: str = ""
+
+
+class ActionResult(ApiModel):
+    """`performed` is false where the request was declined or nothing did it. For an
+    action that takes this process or the machine down it means the work was handed
+    over, because a process that is stopping cannot report that it stopped."""
+
+    scope: str
+    action: str
+    what: str
+    performed: bool
+
+
+class LogRecord(ApiModel):
+    """One thing that was logged. `message` carries its continuation lines, so a
+    traceback arrives whole rather than as a dozen rows with no level."""
+
+    when: str
+    level: str
+    logger_name: str = Field(alias="logger")
+    message: str
+
+
+class LogRecords(ApiModel):
+    count: int
+    records: list[LogRecord]
+    # Where the file is, so somebody can go and read the rest of it. Empty on an install
+    # started with file logging off.
+    path: str = ""
+
+
 class DiscoveredInstall(ApiModel):
     """One install heard announcing itself on this network.
 

@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import (
+    actions,
     assets,
     auth,
     capabilities,
@@ -25,6 +26,7 @@ from . import (
     instance,
     jobs,
     library,
+    logs,
     manufacturers,
     media,
     mediasources,
@@ -96,6 +98,8 @@ def create_api_app() -> FastAPI:
     api.include_router(jobs.router)
     api.include_router(library.router)
     api.include_router(devices.router)
+    api.include_router(actions.router)
+    api.include_router(logs.router)
     api.include_router(preferences.router)
     api.include_router(config.router)
     api.include_router(manufacturers.router)

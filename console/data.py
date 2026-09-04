@@ -283,6 +283,17 @@ class Library:
     def probe_devices(self) -> list[dict]:
         return self._client.probe_devices()
 
+    def actions(self) -> list[dict]:
+        """Never cached: whether a thing can be done depends on what is running."""
+        return self._client.actions()
+
+    def perform_action(self, scope: str, action: str, reason: str = "") -> dict:
+        return self._client.perform_action(scope, action, reason)
+
+    def logs(self, limit: int = 200, level: str = "", contains: str = "") -> dict:
+        """Never cached, obviously: the whole question is what has happened since."""
+        return self._client.logs(limit, level, contains)
+
     def discovered_installs(self) -> list[dict]:
         """Never cached: what is on the network is the question, and an answer from when
         the page opened is the one thing it must not be."""

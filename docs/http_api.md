@@ -75,6 +75,9 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/devices/{id}` | One device |
 | POST | `/api/v1/devices/probe` | Ask every device whether it is there, and record the ones that answer. `unaskable` means there was nothing to dial, which is not the same as down |
 | DELETE | `/api/v1/devices/{id}` | Forget one |
+| GET | `/api/v1/actions` | What this install can be asked to do to itself. Every pair the build has, with `available` saying which are wired up here |
+| POST | `/api/v1/actions` | Do one. `{"scope","action","reason"}`. One that takes this process or the machine down answers before it goes, so `performed` means the work was handed over |
+| GET | `/api/v1/logs` | Recent records from this install's own log, oldest last (`limit`, `level`, `contains`). A record carries its continuation lines, so a traceback arrives whole |
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library game count. The reference for logo packs and alias maps |
 | GET | `/api/v1/games` | List games (`q`, `limit`, `offset`) |
 | GET | `/api/v1/games/{id}` | One game |

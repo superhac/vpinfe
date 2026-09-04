@@ -6,9 +6,11 @@ it gets back, so a wrong answer here is a hub asking the wrong machine.
 
 from __future__ import annotations
 
+import types
 import unittest
+from unittest.mock import patch
 
-from common import device_client, lifecycle
+from common import device_client, http_client, lifecycle
 
 LOCAL = "Aaaa111111"
 CAB = {"device_id": "Bbbb222222", "address": "192.168.1.50", "port": 8001}
@@ -69,11 +71,44 @@ class RemoteRefusalTests(unittest.TestCase):
         with self.assertRaises(device_client.NotThisDeviceError):
             self.device.bindings(None)
 
-    def test_a_lifecycle_action_with_no_route_is_refused(self) -> None:
-        """Stopping a table has one; quitting another machine's app does not, and
-        pretending otherwise would fail as a timeout instead of as a sentence."""
+    def test_something_that_is_not_a_lifecycle_action_is_refused(self) -> None:
+        """Refused here rather than dialled: an unknown pair would fail as a timeout on
+        a machine that was never going to answer for it, instead of as a sentence."""
         with self.assertRaises(device_client.NotThisDeviceError):
-            self.device.request(lifecycle.APP, lifecycle.STOP)
+            self.device.request("toaster", "toast")
+
+    def test_every_pair_the_vocabulary_has_is_routed(self) -> None:
+        """Quitting another machine's app had no route at all until the actions route
+        existed, so the fleet surface could offer exactly one verb."""
+        for scope, action in lifecycle.offered():
+            with self.subTest(pair=(scope, action)):
+                with patch.object(http_client, "post_json",
+                                  return_value={"performed": True, "stopped": True}):
+                    self.assertTrue(self.device.request(scope, action))
+
+    def test_a_route_an_older_install_lacks_is_said_in_words(self) -> None:
+        """It answers everything it knows about and 404s the rest, which is not a
+        failure - and a person should not be shown an HTTP status and a URL for it."""
+        import requests
+
+        gone = requests.HTTPError("nope")
+        gone.response = types.SimpleNamespace(status_code=404)
+        with patch.object(http_client, "get_json", side_effect=gone):
+            with self.assertRaises(device_client.TooOldError):
+                self.device.actions()
+            with self.assertRaises(device_client.TooOldError):
+                self.device.logs()
+
+    def test_a_real_failure_is_still_a_real_failure(self) -> None:
+        """Only a missing route is translated. A machine that broke while answering has
+        something worth reading in its own error."""
+        import requests
+
+        broke = requests.HTTPError("server fell over")
+        broke.response = types.SimpleNamespace(status_code=500)
+        with patch.object(http_client, "get_json", side_effect=broke):
+            with self.assertRaises(requests.HTTPError):
+                self.device.actions()
 
     def test_a_remote_device_never_asks_the_person_to_confirm(self) -> None:
         """The confirm belongs on the surface that asked, which is not that machine."""

@@ -2480,6 +2480,18 @@ async def _device_capabilities(context: dict[str, Any]) -> None:
         _rows(ui, devices_page.capability_rows(context))
 
 
+async def _device_logs(context: dict[str, Any]) -> None:
+    """What it has been writing down."""
+    with ui.column().classes("gap-0 console-form"):
+        _rows(ui, await devices_page.log_rows(context))
+
+
+async def _device_actions(context: dict[str, Any]) -> None:
+    """What it can be told to do to itself."""
+    with ui.column().classes("gap-0 console-form"):
+        _rows(ui, await devices_page.action_rows(context))
+
+
 async def _collection_details(context: dict[str, Any]) -> None:
     """What the collection is, rather than what is in it."""
     row = _collection(context)
@@ -3500,14 +3512,21 @@ SECTIONS: tuple[Section, ...] = (
             subjects=frozenset({"collection"})),
     Section("collection_contents", _contents_label, _collection_contents,
             subjects=frozenset({"collection"}), dock=True),
-    # A device, in reading order: what it is, what it is running, and what it can be
-    # asked for. Its settings are not here at all - they are a door in Details into that
-    # install's own Console, because a build's settings belong to that build and
-    # rendering them from here meant fetching its schema over HTTP.
+    # A device, in reading order: what it is, what it is running, what it can be asked
+    # for, what it has written down, and what it can be told to do. Its settings are not
+    # here at all - they are a door in Details into that install's own Console, because a
+    # build's settings belong to that build and rendering them from here meant fetching
+    # its schema over HTTP.
     Section("device_details", lambda _: "Details", _device_details,
             subjects=frozenset({"device"})),
     Section("device_software", lambda _: "Software", _device_software,
             subjects=frozenset({"device"})),
     Section("device_capabilities", lambda _: "Capabilities", _device_capabilities,
+            subjects=frozenset({"device"})),
+    Section("device_logs", lambda _: "Logs", _device_logs,
+            subjects=frozenset({"device"})),
+    # Last, and it is the only one that changes anything: reading down the rail is
+    # reading from what a device is to what can be done to it.
+    Section("device_actions", lambda _: "Actions", _device_actions,
             subjects=frozenset({"device"})),
 )

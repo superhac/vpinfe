@@ -788,6 +788,38 @@ body::before {
   right: -4px;
 }
 
+/* A log, read the way `tail` shows one: newest last, monospaced so timestamps and levels
+   line up down the column, and the message under its own header line rather than beside
+   it - a traceback is the case that matters and it has nowhere to go on one line. */
+.console-log {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.console-log-row { padding-top: 6px; }
+.console-log-when { color: var(--ink-3); flex: none; }
+/* Fixed width, so the source names beside them start at one place down the column. */
+.console-log-level { flex: none; width: 62px; font-weight: 700; }
+.console-log-plain { color: var(--ink-3); }
+.console-log-warn { color: var(--warm); }
+.console-log-bad { color: var(--danger); }
+.console-log-source { color: var(--ink-3); min-width: 0; overflow: hidden;
+                      text-overflow: ellipsis; white-space: nowrap; }
+/* Wrapped and indented under its header. `pre-wrap` because a traceback's own leading
+   spaces are what make it readable, and collapsing them turns it into a paragraph. */
+.console-log-message {
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding-left: 4px;
+}
+/* Where the rest of it is. Quiet - it is a fact about the page rather than a record. */
+.console-log-path {
+  color: var(--ink-3);
+  font-size: var(--fs-caption);
+  padding-top: 10px;
+}
+
 /* The dot that says a device answered, before its name in the devices rail. Its own
    class rather than a mark: the mark vocabulary is about a library's coverage, and this
    is about whether a machine is switched on. */

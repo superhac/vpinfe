@@ -580,6 +580,21 @@ class ApiClient:
         self._answered(response)
         return response.json()
 
+    def actions(self) -> list[dict]:
+        """What this install can be asked to do to itself, offered or not."""
+        return list(self._get("/actions").get("actions") or [])
+
+    def perform_action(self, scope: str, action: str, reason: str = "") -> dict:
+        """Do one of them. The confirm has already been put to the person who asked -
+        this is the call that follows their yes."""
+        return self._post("/actions", {"scope": scope, "action": action,
+                                       "reason": reason or "asked from the Console"})
+
+    def logs(self, limit: int = 200, level: str = "", contains: str = "") -> dict:
+        """Recent records from this install's own log, oldest first."""
+        query = urlencode({"limit": limit, "level": level, "contains": contains})
+        return self._get(f"/logs?{query}")
+
     def update_check(self) -> dict:
         """Whether a newer build is published. Reaches the network on the server's side."""
         return self._get("/update")

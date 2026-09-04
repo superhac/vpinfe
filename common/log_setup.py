@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import logging.handlers
+import os
 import re
 import sys
 from pathlib import Path
@@ -201,3 +202,68 @@ def include_thirdparty_logs() -> bool:
 
 def include_windows_logs() -> bool:
     return _INCLUDE_WINDOWS
+
+
+def log_file() -> Path | None:
+    """Where the log is being written, asked of the handler doing it.
+
+    Rebuilding the path from the config dir would name a file nothing is writing to on
+    an install started with file logging off, and would go stale the moment the handler
+    rolls over to a name of its own choosing.
+    """
+    for handler in logging.getLogger().handlers:
+        written = getattr(handler, "baseFilename", "")
+        if written:
+            return Path(written)
+    return None
+
+
+# `%(asctime)s %(levelname)s [%(name)s] %(message)s`, which is what a record starts with.
+# Anything not matching is a continuation - a traceback is a dozen of them - and belongs
+# to the record above it rather than being a line in its own right.
+_RECORD = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) (\w+) \[([^\]]*)\] (.*)$")
+
+# How far back to read. A rotated log is 2MB and nobody reads it whole through a UI; a
+# tail is what the question "what just happened" actually wants.
+TAIL_BYTES = 512 * 1024
+
+
+def read_log(limit: int = 200, level: str = "", contains: str = "") -> list[dict]:
+    """The most recent records, oldest first.
+
+    Records rather than lines. A traceback is one thing that happened, and splitting it
+    into fourteen rows both buries the message that caused it and makes a level filter
+    drop the half that carries the reason.
+    """
+    path = log_file()
+    if path is None or not path.exists():
+        return []
+    try:
+        with open(path, "rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            handle.seek(max(0, handle.tell() - TAIL_BYTES))
+            text = handle.read().decode("utf-8", "replace")
+    except OSError:
+        return []
+
+    records: list[dict] = []
+    for line in text.splitlines():
+        found = _RECORD.match(line)
+        if found is None:
+            # Dropped rather than kept when it is the first thing in the window: it is
+            # the tail of a record whose head was cut off by the seek.
+            if records:
+                records[-1]["message"] += "\n" + line
+            continue
+        when, name, source, message = found.groups()
+        records.append({"when": when, "level": name, "logger": source,
+                        "message": message})
+
+    wanted = (level or "").strip().upper()
+    if wanted:
+        records = [r for r in records if r["level"] == wanted]
+    needle = (contains or "").strip().lower()
+    if needle:
+        records = [r for r in records
+                   if needle in r["message"].lower() or needle in r["logger"].lower()]
+    return records[-max(1, int(limit)):]

@@ -65,6 +65,17 @@ def _rom_audit_available() -> bool | tuple[bool, str]:
         return False, f"Could not determine libpinmame state: {exc}"
 
 
+def _actions_available() -> bool | tuple[bool, str]:
+    """Whether anything on this build performs any of them. A headless install owns no
+    frontend windows and nothing has registered a performer, so it can be asked for
+    nothing - which a fleet surface is better off being told than discovering."""
+    from common import lifecycle
+
+    if any(lifecycle.performable(*pair) for pair in lifecycle.offered()):
+        return True
+    return False, "Nothing on this install performs a lifecycle action"
+
+
 def declare_core() -> None:
     """Declare the capabilities this build actually serves."""
     capabilities.declare(capabilities.Capability(
@@ -112,4 +123,13 @@ def declare_core() -> None:
         name="devices",
         feature=capabilities.install_identity.DEVICES,
         description="The other VPinFE installs and phones on your network",
+    ))
+    capabilities.declare(capabilities.Capability(
+        name="logs",
+        description="What this install has been writing down",
+    ))
+    capabilities.declare(capabilities.Capability(
+        name="actions",
+        description="Closing a table, reopening the windows, restarting, rebooting",
+        is_available=_actions_available,
     ))

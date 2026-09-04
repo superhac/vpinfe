@@ -101,6 +101,16 @@ _DESCRIPTIONS = {
 }
 
 
+# Reading order for a surface that lists them: the table, then the windows, then VPinFE,
+# then the machine - least to most, so the one that costs the most is furthest away.
+_ORDER = (
+    (TABLE, STOP),
+    (FRONTEND, RESTART), (FRONTEND, STOP), (FRONTEND, START),
+    (APP, RESTART), (APP, STOP),
+    (SYSTEM, RESTART), (SYSTEM, STOP),
+)
+
+
 @dataclass
 class _Registry:
     confirmers: dict = field(default_factory=dict)
@@ -136,6 +146,26 @@ def reset_for_tests() -> None:
     _registry.confirmers.clear()
     _registry.performers.clear()
     _registry.notifiers.clear()
+
+
+def offered() -> tuple[tuple[str, str], ...]:
+    """Every pair this build allows, in a stable order. What a surface may draw."""
+    return tuple(pair for pair in _ORDER if pair in _ALLOWED)
+
+
+def performable(scope: str, action: str) -> bool:
+    """Whether anything on this build actually does it.
+
+    The allowed set says what the vocabulary has; this says what is wired up. They come
+    apart on a headless install, where nothing owns the frontend windows - and a button
+    that reports success while nothing happened is worse than one that is not offered.
+    """
+    return (scope, action) in _registry.performers
+
+
+def describe(scope: str, action: str) -> str:
+    """What the pair is called, in the words the confirm card and the log already use."""
+    return _DESCRIPTIONS.get((scope, action), f"{action} the {scope}")
 
 
 def needs_confirmation(request: Request, confirm_scopes) -> bool:

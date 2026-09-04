@@ -100,6 +100,21 @@ class LocalDevice:
         return {"state": ANSWERING, "what": f"VPinFE {get_version()}", "reason": ""}
 
 
+class TooOldError(RuntimeError):
+    """That install does not serve this route.
+
+    Its own error because it is not a failure: an install a release or two behind
+    answers everything it knows about and 404s the rest, and a surface should say which
+    of the two happened rather than showing somebody an HTTP status and a URL.
+    """
+
+
+def _absent(exc: Exception) -> bool:
+    """Whether a request failed because the route is not there."""
+    response = getattr(exc, "response", None)
+    return getattr(response, "status_code", 0) == 404
+
+
 class NotThisDeviceError(RuntimeError):
     """Asked of a remote device something only the machine itself can answer."""
 
@@ -110,6 +125,10 @@ class NotThisDeviceError(RuntimeError):
 ANSWERING = "answering"
 UNREACHABLE = "unreachable"
 UNASKABLE = "unaskable"
+
+# What a 404 from an install actually means, in the words a person reads. Not an error
+# on either side: it answers everything it knows about and does not know about this.
+TOO_OLD = "That install is running a build without this."
 
 
 def probe(client) -> dict[str, Any]:
@@ -164,13 +183,62 @@ class RemoteDevice:
         return False
 
     def request(self, scope: str, action: str, **kwargs: Any) -> bool:
+        """Ask that machine to do it, through the same call a local one takes.
+
+        Closing a table keeps its own route because that is where play lives; everything
+        else goes to the actions route. One method either way, so a surface that offers
+        these is one code path rather than a local and a remote copy.
+        """
         from common import http_client, lifecycle
 
-        if (scope, action) != (lifecycle.TABLE, lifecycle.STOP):
-            raise NotThisDeviceError(
-                f"No route on a device for {action} the {scope}")
-        answer = http_client.post_json(self._url("/play/stop")) or {}
-        return bool(answer.get("stopped"))
+        if (scope, action) == (lifecycle.TABLE, lifecycle.STOP):
+            answer = http_client.post_json(self._url("/play/stop")) or {}
+            return bool(answer.get("stopped"))
+        if (scope, action) not in lifecycle.offered():
+            raise NotThisDeviceError(f"No route on a device for {action} the {scope}")
+        return bool(self.perform_action(
+            scope, action, str(kwargs.get("reason") or "")).get("performed"))
+
+    def perform_action(self, scope: str, action: str,
+                       reason: str = "") -> dict[str, Any]:
+        """Do one of them over there, and say what was asked for. The install answering
+        already put the question to nobody - an HTTP caller confirms with its own user
+        before calling, which is what the API origin means."""
+        from common import http_client
+
+        return dict(http_client.post_json(
+            self._url("/actions"),
+            {"scope": scope, "action": action,
+             "reason": reason or "asked from another install"}) or {})
+
+    def actions(self) -> list[dict[str, Any]]:
+        """What that install says it can be asked to do, and which of them are wired
+        up over there rather than here."""
+        from common import http_client
+
+        try:
+            said = http_client.get_json(self._url("/actions")) or {}
+        except Exception as exc:
+            if _absent(exc):
+                raise TooOldError(TOO_OLD) from exc
+            raise
+        return list(said.get("actions") or [])
+
+    def logs(self, limit: int = 200, level: str = "",
+             contains: str = "") -> dict[str, Any]:
+        """Recent records from that machine's own log. Answered by the install holding
+        the file, which is the only party that has it."""
+        from urllib.parse import urlencode
+
+        from common import http_client
+
+        query = urlencode({"limit": limit, "level": level, "contains": contains})
+        try:
+            return dict(http_client.get_json(f"{self._url('/logs')}?{query}") or {})
+        except Exception as exc:
+            if _absent(exc):
+                raise TooOldError(TOO_OLD) from exc
+            raise
 
     def update_check(self) -> dict[str, Any]:
         from common import http_client
