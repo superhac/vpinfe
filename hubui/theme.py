@@ -2103,14 +2103,11 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 
 /* One markup, two readings. Wide, the rows are a rail down the left and the open
-   section fills the column beside them. Narrow, they stack and the work falls under
-   the row that opened it. Same control, same meaning, no threshold to guess: a rail
-   with everything closed already looks like an accordion, so this is the same thing
-   drawn in the room available.
+   section fills the column beside them. Narrow, the rail sits above the section with
+   a height of its own. Same control, same meaning, drawn in the room available.
 
-   A track per row and then one that takes what is left, so the work spans the whole
-   height rather than stopping under the last row. The count comes in on --rows,
-   because CSS cannot count its own children. */
+   Two regions side by side rather than a track per row: the rows scroll on their own
+   and the section beside them holds still, which a row-per-track grid cannot do. */
 .hub-sections {
   /* Off the header. The name of what you are looking at and the list of what you can
      ask about it are two things, and butted together they read as one block. */
@@ -2125,12 +2122,15 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
                               transparent var(--rail-w));
   display: grid;
   grid-template-columns: var(--rail-w) minmax(0, 1fr);
-  grid-template-rows: repeat(var(--rows, 4), max-content) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
-  /* A rail taller than the panel is otherwise cut off with no way to reach the rest -
-     a device carries thirteen entries and a short window loses the last five. The work
-     travels with it, because the two are one grid and only a wrapper around the rows
-     could scroll them alone. */
+}
+/* The rows, as a region of their own. It scrolls when it is taller than the panel -
+   thirteen entries in a short window - and the work beside it does not move, which is
+   the whole reason the rows are wrapped rather than loose in the frame. */
+.hub-section-rail {
+  grid-column: 1; grid-row: 1;
+  display: flex; flex-direction: column;
   overflow-y: auto;
 }
 .hub-section-row { grid-column: 1; }
@@ -2138,7 +2138,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    carries the treatment - this only puts it in the rail's column. */
 .hub-rail-group { grid-column: 1; }
 .hub-section-work {
-  grid-column: 2; grid-row: 1 / -1;
+  grid-column: 2; grid-row: 1;
   min-width: 0; min-height: 0;
   /* Still open to the page, just quieter. The grid is a fixed lattice the page owns
      and this content scrolls over it, so text lands on lines that move under it. A
@@ -2245,11 +2245,15 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   /* Column. The open section keeps a working height and the column scrolls past the
      rows it does not fit - a rail long enough to fill the panel leaves nothing to
      work in otherwise. */
-  .hub-sections {
-    display: flex; flex-direction: column; background: none;
-    /* The column scrolls now that the open section holds its height. The rows above it
-       stay where they are and the ones below are a scroll away, which is the cost of
-       giving the section room and the cheaper half of the trade. */
+  .hub-sections { display: flex; flex-direction: column; background: none; }
+  /* The rail keeps a share of the panel and scrolls inside it, so a long one never
+     squeezes the section out and a short one takes only the height it needs. */
+  .hub-section-rail {
+    /* No shrink. It is the section below that grows, and a rail allowed to give way
+       to it collapsed a four-row rail into two rows and a scrollbar. The cap is what
+       limits a long one; nothing else should. */
+    flex: 0 0 auto;
+    max-height: 45%;
     overflow-y: auto;
   }
   /* background-color, so a state tint layered on background-image sits over it. */
@@ -2262,8 +2266,8 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
      lines to work in. With a rail that long the two cannot both fit, and the section
      is the one being used - so it keeps a working height and the column scrolls. */
   .hub-section-work {
-    flex: 0 0 auto;
-    min-height: min(420px, 60%);
+    flex: 1 1 auto;
+    min-height: 0;
     border-left: none; border-top: none;
     /* Open to the page rather than tinted darker. The recess used to be a black wash
        over the panel's gradient, which was an invented shade meaning nothing; the step

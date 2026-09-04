@@ -575,11 +575,15 @@ async def _rail(context: dict[str, Any], subject: str,
     browse, and what you are working on. The outline must not scroll with what it
     points at, so this row is the fixed frame and only the body scrolls.
 
-    One structure, presented two ways. Wide, the rows are a rail down the left and the
-    work fills the column beside them. Narrow, they stack in order and the work falls
-    under the row that opened it - an accordion, which is what a rail already is when
-    everything is closed. The stylesheet decides which; nothing about the markup
-    changes, so nothing has to be rebuilt on a drag.
+    Two regions, and the rows are one of them rather than being loose in the frame. That
+    is what lets the rail scroll on its own: a device carries thirteen entries, and in a
+    short window the rail either loses its last five or drags the work along with it.
+
+    Wide, the rail is a column down the left and the work fills the space beside it.
+    Narrow, the rail sits above the work with a height of its own. Not an accordion any
+    more - the open section no longer falls under the row that opened it, which is the
+    price of the rows scrolling alone. The stylesheet decides which; the markup is the
+    same either way, so nothing is rebuilt on a drag.
     """
     rows = sections_for(subject)
     if subject == "device":
@@ -591,31 +595,27 @@ async def _rail(context: dict[str, Any], subject: str,
     if section != COLLAPSED and section not in {item.key for item in rows}:
         section = rows[0].key if rows else COLLAPSED
     body = None
-    # The row count goes to the stylesheet because the wide layout needs a track
-    # per row and then one that takes the rest - CSS cannot count its own children.
-    # Headings take a track of their own, so the count is rows plus the number of
-    # distinct groups - CSS cannot count its own children.
-    tracks = len(rows) + len({item.group for item in rows if item.group})
-    with ui.element("div").classes("w-full grow min-h-0 hub-sections") \
-            .style(f"--rows: {tracks}"):
-        heading = ""
-        for item in rows:
-            if item.group and item.group != heading:
-                ui.label(item.group).classes("hub-group hub-rail-group")
-            heading = item.group
-            _section_row(context, item, item.key == section)
-            if item.key != section:
-                continue
-            # The work sits immediately after the row it belongs to, which is what
-            # makes the narrow case an accordion without a second layout.
+    open_item = next((item for item in rows if item.key == section), None)
+    with ui.element("div").classes("w-full grow min-h-0 hub-sections"):
+        # The rows are their own region so they can scroll without taking the work with
+        # them. A rail longer than the panel is the ordinary case for a device, and one
+        # that moves what you are reading is the wrong half to move.
+        with ui.element("div").classes("min-h-0 hub-section-rail"):
+            heading = ""
+            for item in rows:
+                if item.group and item.group != heading:
+                    ui.label(item.group).classes("hub-group hub-rail-group")
+                heading = item.group
+                _section_row(context, item, item.key == section)
+        if open_item is not None:
             work = ui.element("div").classes("min-w-0 hub-section-work")
-            if item.dock:
+            if open_item.dock:
                 work.classes(add="hub-has-dock")
                 work.style(f"--dock-h: {state.get('dock_px', DOCK_PX)}px")
             with work:
                 body = ui.column().classes("min-w-0 overflow-auto gap-0 "
                                            "hub-workbench-body")
-                if item.dock:
+                if open_item.dock:
                     ui.element("div").classes("hub-dock-grip") \
                         .tooltip("Drag to resize")
                     context["dock"] = ui.column().classes("min-w-0 gap-0 hub-dock")
@@ -641,7 +641,7 @@ def _for_roles(rows: tuple[Section, ...], roles) -> tuple[Section, ...]:
 
 
 def _section_row(context: dict[str, Any], section: Section, open_now: bool) -> None:
-    """One section's name, which is both the rail entry and the accordion header.
+    """One section's name - the rail entry, at either width.
 
     The name is text: a badge said nothing about a game's identity, and the sections
     still to come would each need a picture that means only itself. Words already do.
