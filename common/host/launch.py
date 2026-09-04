@@ -34,6 +34,7 @@ from common.games.tables import (
 )
 from common.host import launch_state
 from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
+from common.launcher_path import resolve_launcher_path
 from common.online.vpinplay_runtime import (
     add_game_runtime,
     get_active_profile,
@@ -375,18 +376,7 @@ def get_effective_launcher(default_launcher: str, meta_config=None):
     return resolve_launcher_path(configured_value), source_key, configured_value
 
 
-def resolve_launcher_path(configured_value: str) -> Path:
-    """The file a configured launcher actually runs.
 
-    On macOS what a person picks is `VPinballX.app`, which is a directory - so anything
-    asking whether the setting names a program has to walk into the bundle first, or it
-    reports the one right answer as a mistake. Shared with the settings check for exactly
-    that reason: two copies of this rule is one drifting away from what launches.
-    """
-    launcher_path = Path(str(configured_value or "").strip()).expanduser()
-    if sys.platform == "darwin" and launcher_path.suffix.lower() == ".app":
-        launcher_path = launcher_path / "Contents" / "MacOS" / launcher_path.stem
-    return launcher_path
 
 
 def parse_launch_env_overrides(raw_value: str) -> dict[str, str]:

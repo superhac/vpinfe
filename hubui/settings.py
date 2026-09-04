@@ -20,7 +20,7 @@ from nicegui import run, ui
 from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.labels import humanize
 from common.media_specs import media_label_map
-from hubui import deeplink, panel
+from hubui import panel
 
 logger = logging.getLogger("vpinfe.hubui.settings")
 
@@ -44,35 +44,6 @@ SOURCES_NOTE = ("Which online catalogs are searched for artwork. All of them, un
 VPS_NOTE = ("Matching, release lists and what the catalog offers are read from a copy "
             "kept on this machine. Checking is cheap; the copy is only downloaded when "
             "it has actually changed.")
-
-# group -> (key, label) - VPinFE first, because that is the thing being configured and
-# everything else is either downstream of it or somebody else's software.
-INDEX: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
-    ("VPinFE", (("general", "General"), ("library", "Library"),
-                ("media_kinds", "Media Kinds"), ("asset_kinds", "Asset Kinds"),
-                ("media_sources", "Media Sources"),
-                ("appearance", "Appearance"), ("startup", "Startup"))),
-    ("Validation", (("checks_library", "Library Checks"),
-                    ("checks_media", "Media Checks"),
-                    ("checks_script", "Script Checks"))),
-    ("Integrations", (("vps", "Virtual Pinball Spreadsheet"),
-                      ("vpinplay", "VPinPlay"), ("webhooks", "Webhooks"))),
-    ("Diagnostics", (("logs", "Logs"), ("jobs", "Job History"),
-                     ("support", "Support Bundle"))),
-)
-
-# label -> (section, why it lives there). Shown as rail entries that navigate, not as a
-# duplicate page: a setting with two homes has two answers, and one is always stale.
-ELSEWHERE: tuple[tuple[str, str, str], ...] = (
-    ("Displays, Input, Launchers", "devices",
-     "They belong to one device, and only make sense with that device named."),
-    ("Frontend Themes", "settings",
-     "A theme carries its own settings; they are shown with the theme."),
-    ("Extension Settings", "extensions",
-     "Each extension declares its own; hubui renders what it declares."),
-    ("Collection Rules", "collections",
-     "The rule is the collection."),
-)
 
 # What each page will hold. Written out because an index whose destinations are unknown
 # is not a design, and because reading this list is the cheapest way to notice that a
@@ -160,70 +131,6 @@ def _control(library, section: str, option: dict, value: Any,
     return panel.field(
         str(value or ""),
         lambda text: _write(library, section, key, text), disabled=off)
-
-
-def _schema_page(library, rerender: Callable[[], None],
-                 section: str, note: str = "") -> None:
-    """A settings page built from what the install says it has.
-
-    Nothing here names a setting. The section is named; everything in it - label, help,
-    control, legal values - comes from the schema, so this page cannot drift from the
-    config file the way a hand-written one does.
-    """
-    body = ui.column().classes("w-full gap-0")
-    # Filled off the event loop. These calls go to our own process, so making them here
-    # blocks the server from answering them and the page waits for its own timeout.
-    ui.timer(0.01, lambda: _fill(library, rerender, body, section, note), once=True)
-
-
-async def _fill(library, rerender: Callable[[], None], body, section: str,
-                note: str) -> None:
-    try:
-        schema = await run.io_bound(library.config_schema)
-        values = await run.io_bound(library.config_values)
-    except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
-        with body:
-            panel.facts(ui, [panel.intro(f"Could not read the settings: {exc}")])
-        return
-
-    # Whether each path setting finds anything. One call for the whole page rather than
-    # one per field, and never fatal: a page that cannot say whether a path is good is
-    # still a page, and the fields stay usable without their marks.
-    checks: dict[tuple[str, str], dict] = {}
-    try:
-        for found in await run.io_bound(library.config_path_checks):
-            checks[(found.get("section", ""), found.get("key", ""))] = found
-    except Exception:  # noqa: BLE001
-        logger.info("Could not check the path settings", exc_info=True)
-
-    block = next((s for s in schema if s.get("name") == section), None)
-    if block is None:
-        with body:
-            panel.facts(ui, [panel.intro("This install declares no settings here.")])
-        return
-
-    writable = bool(block.get("writable"))
-    current = dict(values.get(section) or {})
-    entries: list[tuple[Any, Any]] = []
-    if note:
-        entries.append(panel.intro(note))
-    if not writable:
-        # Disabled rather than live and silently failing, and the reason said once.
-        entries.append(panel.intro("Read-only on this install."))
-    for option in block["options"]:
-        value = current.get(option["key"], option.get("default"))
-        # The schema's label, or the key humanized as an explicit fallback where nothing
-        # has named it - never the schema's label put through that same rule again.
-        entries.append((option.get("label") or humanize(option["key"]),
-                        _control(library, section, option, value, writable,
-                                 rerender, checks)))
-        if option.get("description"):
-            entries.append(panel.note(option["description"]))
-
-    if section in FOOTERS:
-        entries += await FOOTERS[section](library, rerender)
-    with body:
-        panel.facts(ui, entries)
 
 
 def _kind_page(library, rerender: Callable[[], None], note: str,
@@ -347,19 +254,6 @@ def _checks_library() -> None:
         entries.append(panel.note(description))
     panel.facts(ui, entries)
 
-
-# A page is either built from the schema - naming only the section it shows - or
-# hand-written where it is not settings at all. Nothing in between: a page that half
-# reads the schema is a page that drifts from it.
-# key -> (config section, the one thing the page cannot say row by row). A note said
-# once beats the same sentence under thirty-five switches, which is what a generated
-# per-option description turns into.
-# No title: the lit rail row is the page's name, and INDEX above is where it is written.
-SCHEMA_PAGES: dict[str, tuple[str, str]] = {
-    "general": ("general", ""),
-    "vps": ("vpsdb", VPS_NOTE),
-}
-
 # The two kind pages are not schema pages. What they switch is a *list* in the config,
 # and the switches themselves come from the two registries - which `common/` may not
 # import, because nothing in it may reach up into a domain package. The hub may, so the
@@ -383,75 +277,24 @@ PAGES: dict[str, Callable[[], None]] = {
     "checks_library": _checks_library,
 }
 
-# A rail entry that leaves Settings rather than opening a page here.
-GO = "go:"
 
 
 def _page_label(key: str) -> str:
-    """This page's name, from the one place it is written."""
-    return next((label for _, items in INDEX for item, label in items if item == key),
-                key)
+    """A page's name, from the one place it is written."""
+    return next((label for _group, pages in DEVICE_INDEX
+                 for item, label, _kind, _sections, _role in pages if item == key), key)
 
 
 def _section_label(key: str) -> str:
     """What to call a config section on screen.
 
-    This page's own name for it where there is one, so a device's Settings and the
-    hub's agree; otherwise the key made readable. `windows.playfield` is two words
-    joined by a dot, and humanize alone leaves the dot in.
+    A page's own name where a page is that one section, otherwise the key made readable.
+    `windows.playfield` is two words joined by a dot, and humanize alone leaves the dot.
     """
-    named = _page_label(key)
-    if named != key:
-        return named
-    return " ".join(humanize(part) for part in key.split("."))
-
-
-def _rail_entries() -> list[tuple[Any, str, str]]:
-    """The rail: every page, grouped, then where the rest of them live.
-
-    "Managed elsewhere" navigates rather than duplicating - the entry is the link, so
-    there is no page here that could go stale against the object's own.
-    """
-    entries: list[tuple[Any, str, str]] = []
-    for group, items in INDEX:
-        entries.append((panel.GROUP, group, ""))
-        entries.extend((key, label, "") for key, label in items)
-    entries.append((panel.GROUP, "Managed elsewhere", ""))
-    entries.extend((f"{GO}{section}", label, why)
-                   for label, section, why in ELSEWHERE)
-    return entries
-
-
-def build(state: dict, rerender: Callable[[], None],
-          go: Callable[[str], None] | None = None, library=None) -> None:
-    current = state.get("settings_page") or "general"
-
-    def pick(key: str) -> None:
-        if key.startswith(GO):
-            section = key[len(GO):]
-            if go is not None and section != "settings":
-                go(section)
-            return
-        state.update(settings_page=key)
-        deeplink.sync(state)
-        rerender()
-
-    work = panel.sections(_rail_entries(), current, pick, rail_px=RAIL_PX)
-    with work, ui.column().classes("w-full min-w-0 overflow-auto gap-0 "
-                                   "hub-workbench-body"):
-        panel.header(_page_label(current))
-        schema_page = SCHEMA_PAGES.get(current)
-        kind_page = KIND_PAGES.get(current)
-        page = PAGES.get(current)
-        if kind_page is not None and library is not None:
-            _kind_page(library, rerender, *kind_page)
-        elif schema_page is not None and library is not None:
-            _schema_page(library, rerender, *schema_page)
-        elif page is not None:
-            page()
-        else:
-            panel.facts(ui, [panel.intro(STUBS.get(current, "Not designed yet.")),
-                             panel.intro("Not built.")])
+    named = next((label for _group, pages in DEVICE_INDEX
+                  for _item, label, _kind, sections, _role in pages
+                  if sections == (key,)), "")
+    return named or " ".join(humanize(part) for part in key.split("."))
 
 
 # `install` and `themes` appear on no page below, deliberately: the first is the device's
@@ -462,29 +305,73 @@ def build(state: dict, rerender: Callable[[], None],
 # can back one page - a machine's screens are four of them - because how the config file
 # is divided is not how somebody looks for a setting.
 #
-# group -> ((page key, label, sections it draws), ...)
-DEVICE_INDEX: tuple[tuple[str, tuple[tuple[str, str, tuple[str, ...]], ...]], ...] = (
-    ("Machine", (
-        ("displays", "Displays",
-         ("displays", "windows.playfield", "windows.backglass", "windows.scoreview")),
-        ("input", "Input", ("input",)),
-        ("feedback", "Feedback Devices", ("dof", "libdmdutil")),
+# group -> ((page key, label, kind, sections it draws, role), ...)
+# `role` filters; empty means any install. `kind` picks the renderer.
+SCHEMA_PAGE, KIND_PAGE, BUILT_PAGE = "schema", "kind", "built"
+
+DevicePage = tuple[str, str, str, tuple[str, ...], str]
+
+DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
+    ("Library", (
+        ("media_kinds", "Media Kinds", KIND_PAGE, (), "hub"),
+        ("asset_kinds", "Asset Kinds", KIND_PAGE, (), "hub"),
+        ("media_sources", "Media Sources", KIND_PAGE, (), "hub"),
+        ("checks_library", "Library Checks", BUILT_PAGE, (), "hub"),
+    )),
+    ("Hardware", (
+        ("displays", "Displays", SCHEMA_PAGE,
+         ("displays", "windows.playfield", "windows.backglass", "windows.scoreview"),
+         "device"),
+        ("input", "Input", SCHEMA_PAGE, ("input",), "device"),
+        ("feedback", "Feedback Devices", SCHEMA_PAGE, ("dof", "libdmdutil"), "device"),
     )),
     ("VPinFE", (
-        ("general", "General", ("general",)),
-        ("frontend", "Frontend", ("frontend",)),
-        ("media", "Media", ("media",)),
+        ("general", "General", SCHEMA_PAGE, ("general",), ""),
+        ("frontend", "Frontend", SCHEMA_PAGE, ("frontend",), "device"),
+        ("media", "Media", SCHEMA_PAGE, ("media",), "hub"),
     )),
     ("Integrations", (
-        ("vps", "Virtual Pinball Spreadsheet", ("vpsdb",)),
-        ("vpinplay", "VPinPlay", ("vpinplay",)),
-        ("mobile", "VPX Mobile", ("mobile",)),
+        ("vps", "Virtual Pinball Spreadsheet", SCHEMA_PAGE, ("vpsdb",), "hub"),
+        ("vpinplay", "VPinPlay", SCHEMA_PAGE, ("vpinplay",), ""),
+        ("mobile", "VPX Mobile", SCHEMA_PAGE, ("mobile",), "hub"),
     )),
     ("Diagnostics", (
-        ("logs", "Logs", ("logger",)),
-        ("network", "Network", ("network",)),
+        ("logs", "Logs", SCHEMA_PAGE, ("logger",), ""),
+        ("network", "Network", SCHEMA_PAGE, ("network",), ""),
     )),
 )
+
+
+def pages_for_roles(roles) -> list[tuple[str, DevicePage]]:
+    """(group, page) for every page the roles a device serves can answer for."""
+    held = {str(role).strip().lower() for role in (roles or [])} or {"hub", "device"}
+    return [(group, page) for group, pages in DEVICE_INDEX for page in pages
+            if not page[4] or page[4] in held]
+
+
+def build_library_page(library, rerender: Callable[[], None], key: str,
+                       kind: str) -> None:
+    """A library page, drawn where a device's rail asks for it.
+
+    These are the hub's own: what the library collects, and what it is checked for. They
+    reach for registries and for the hub's client rather than for a config schema, which
+    is why they are not schema pages and are only offered on an install that holds a
+    library.
+    """
+    if kind == BUILT_PAGE:
+        drawn = PAGES.get(key)
+        if drawn is None:
+            panel.facts(ui, [panel.intro(STUBS.get(key, "Not built yet."))])
+            return
+        drawn()
+        return
+
+    found = KIND_PAGES.get(key)
+    if found is None:
+        panel.facts(ui, [panel.intro(STUBS.get(key, "Not built yet."))])
+        return
+    note, _section, name, items, mode = found
+    _kind_page(library, rerender, note, "", name, items, mode)
 
 
 def section_rows(source, section: str, options: list[dict], values: dict,
@@ -512,8 +399,8 @@ def section_rows(source, section: str, options: list[dict], values: dict,
     return entries
 
 
-def build_device_page(source, context: dict[str, Any], schema: list[dict],
-                      values: dict, sections: tuple[str, ...]) -> None:
+async def build_device_page(source, context: dict[str, Any], schema: list[dict],
+                            values: dict, sections: tuple[str, ...]) -> None:
     """One page of a device's settings, drawn exactly as this install's are.
 
     Several config sections can make one page - a machine's screens are four of them -
@@ -545,4 +432,10 @@ def build_device_page(source, context: dict[str, Any], schema: list[dict],
             entries.append((panel.HEADING, _section_label(name)))
         entries += section_rows(source, name, block["options"], values,
                                 bool(block.get("writable")), rerender)
+        # A page may carry a foot for the one thing on it that is an act rather than a
+        # value. Only where the hub's own client is what serves the page: these reach
+        # for the library, which another machine's client cannot answer for.
+        foot = FOOTERS.get(name)
+        if foot is not None and source is context.get("library"):
+            entries += await foot(source, rerender)
     panel.facts(ui, entries)

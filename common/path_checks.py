@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 
 from common import config_schema
+from common.launcher_path import resolve_launcher_path
 
 # What the answer can be. `unset` is not a failure: most of these are optional, and a
 # blank one means "use the default", which is a choice rather than a mistake.
@@ -48,8 +49,6 @@ def check(kind: str, raw: str) -> tuple[str, str]:
     if kind == "exe":
         # What a person picks on macOS is an .app, which is a directory. The launcher
         # walks into the bundle, so this asks about the same file it would run.
-        from common.host.launch import resolve_launcher_path
-
         here = resolve_launcher_path(value)
 
     if not here.exists():

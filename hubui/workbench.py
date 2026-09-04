@@ -328,6 +328,10 @@ class Section:
     # read without one, which is every subject but a device - that one carries a whole
     # install's settings and is the length section 9a says wants grouping.
     group: str = ""
+    # Which install role this section answers for, empty meaning any. A device-only cab
+    # reads its hub's library and has none of its own, so it is not offered pages about
+    # one; the field the filter reads is the one the install already declares.
+    role: str = ""
 
 
 def sections_for(subject: str) -> tuple[Section, ...]:
@@ -335,7 +339,8 @@ def sections_for(subject: str) -> tuple[Section, ...]:
     return tuple(item for item in SECTIONS if subject in item.subjects)
 
 
-def chosen_section(state: dict[str, Any], subject: str = "game") -> str:
+def chosen_section(state: dict[str, Any], subject: str = "game",
+                   rail: tuple[Section, ...] | None = None) -> str:
     """The section this client is on, seeded once and kept across games.
 
     "" when every section is closed, which is a place like any other.
@@ -346,7 +351,7 @@ def chosen_section(state: dict[str, Any], subject: str = "game") -> str:
     those, and then the rail's own default is where you land rather than wherever the
     list happens to start.
     """
-    rail = sections_for(subject)
+    rail = sections_for(subject) if rail is None else rail
     known = {item.key for item in rail}
     if state.get("section") == COLLAPSED:
         # Asked for, so it is kept - including across a change of subject. Seeding a
@@ -576,8 +581,15 @@ async def _rail(context: dict[str, Any], subject: str,
     everything is closed. The stylesheet decides which; nothing about the markup
     changes, so nothing has to be rebuilt on a drag.
     """
-    section = chosen_section(state, subject)
     rows = sections_for(subject)
+    if subject == "device":
+        rows = _for_roles(rows, (context.get("device") or {}).get("roles"))
+    section = chosen_section(state, subject, rows)
+    # A section this device has no answer for is not a place to land: a cab that reads
+    # its hub's library never offers Media Kinds, so keeping it open from the last
+    # device would open a page it cannot draw.
+    if section != COLLAPSED and section not in {item.key for item in rows}:
+        section = rows[0].key if rows else COLLAPSED
     body = None
     # The row count goes to the stylesheet because the wide layout needs a track
     # per row and then one that takes the rest - CSS cannot count its own children.
@@ -620,6 +632,12 @@ async def _one_section(context: dict[str, Any], key: str) -> None:
     """The chosen section's content. No heading - the row that opened it is the
     heading, and a second copy of the same words under it is furniture."""
     await next(item for item in SECTIONS if item.key == key).build(context)
+
+
+def _for_roles(rows: tuple[Section, ...], roles) -> tuple[Section, ...]:
+    """The sections this device can answer for. An empty role means any install."""
+    held = {str(role).strip().lower() for role in (roles or [])} or {"hub", "device"}
+    return tuple(item for item in rows if not item.role or item.role in held)
 
 
 def _section_row(context: dict[str, Any], section: Section, open_now: bool) -> None:
@@ -2456,22 +2474,22 @@ def _device_setting_sections() -> tuple[Section, ...]:
     """One section per page of a device's settings, from the index Settings declares.
 
     Built from that declaration rather than from the schema directly, so a device's
-    pages carry the same names, the same grouping and the same order as the hub's own -
-    which is the whole point: two views of one schema that read as one product.
+    pages carry the same names, the same grouping and the same order wherever they are
+    drawn - which is the whole point: one settings surface, not two that drift.
 
-    A page whose sections the device does not declare draws nothing and says so. Left
-    in rather than filtered out, because the rail is built once for the subject and a
-    rail that changed shape per device would be a different map every time.
+    Every page for every role is built, and the rail filters by what a device declares
+    when it draws. A rail assembled per device would be a different map each time.
     """
     out = []
-    for group, pages in settings_page.DEVICE_INDEX:
-        for key, label, sections in pages:
-            out.append(Section(
-                f"device_{key}",
-                (lambda name: lambda _: name)(label),
-                (lambda names: lambda context: devices_page.settings_page_block(
-                    context, names))(sections),
-                subjects=frozenset({"device"}), group=group))
+    for group, page in settings_page.pages_for_roles(("hub", "device")):
+        key, label, kind, sections, role = page
+        out.append(Section(
+            f"device_{key}",
+            (lambda name: lambda _: name)(label),
+            (lambda page_key, k, names: lambda context:
+                devices_page.settings_page_block(context, page_key, k, names)
+             )(key, kind, sections),
+            subjects=frozenset({"device"}), group=group, role=role))
     return tuple(out)
 
 

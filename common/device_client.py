@@ -93,17 +93,6 @@ class LocalDevice:
 
         return lifecycle_host.request(scope, action, **kwargs)
 
-    def update_check(self) -> dict[str, Any]:
-        from common.online.app_updater import check_for_updates
-
-        return check_for_updates()
-
-    def play_state(self) -> dict[str, Any]:
-        from common.host import launch_state
-
-        return launch_state.current().as_dict()
-
-
     def probe(self) -> dict[str, Any]:
         """Always answering: this is the process being asked."""
         from common.app_version import get_version

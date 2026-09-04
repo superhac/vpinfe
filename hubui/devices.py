@@ -251,6 +251,11 @@ _KIND_CHOICES = [{"value": label, "label": label} for label in KIND_LABELS.value
 _STATE_CHOICES = [{"value": text, "label": text} for text, _l, _c in _REACH.values()]
 
 COLUMNS: list[dict[str, Any]] = [
+    # Never shown - it exists so every built-in view can sort this device to the top.
+    # A column has to be declared to be sorted on, and this one is a fact about the row
+    # rather than anything to read.
+    grid.column("self", "This device", hide=True,
+                help="Whether this is the device you are reading the hub from."),
     grid.column("name", "Name", 200, pinned="left",
                 help="What this device calls itself, or the address it answered from\n"
                      "where it has never reported a name."),
@@ -277,23 +282,30 @@ COLUMNS: list[dict[str, Any]] = [
                      "machine games launch on (device), or both."),
 ]
 
-_ALL = [definition["field"] for definition in COLUMNS]
+# `self` is out: it is a sort key, not a column somebody picks.
+_ALL = [definition["field"] for definition in COLUMNS if definition["field"] != "self"]
+
+# Every view leads with it, so the device you are on is the first row whatever else the
+# view orders by - which is what "pinned" means here, and it survives re-sorting because
+# a user's sort is added to this rather than replacing it.
+_SELF_FIRST = {"colId": "self", "sort": "desc", "sortIndex": 0}
 
 VIEWS: dict[str, list[str] | views.Preset] = {
     "All devices": views.Preset(
         columns=("name", "kind", "state", "what", "last_seen"),
-        sort=({"colId": "state", "sort": "asc", "sortIndex": 0},
-              {"colId": "name", "sort": "asc", "sortIndex": 1}),
+        sort=(_SELF_FIRST,
+              {"colId": "state", "sort": "asc", "sortIndex": 1},
+              {"colId": "name", "sort": "asc", "sortIndex": 2}),
         help="Every device this hub has met. Sorted so that anything not answering "
              "is at the top, because that is what you opened this page to find out."),
     "Answering": views.Preset(
         columns=("name", "kind", "what", "address", "roles"),
-        sort=({"colId": "name", "sort": "asc", "sortIndex": 0},),
+        sort=(_SELF_FIRST, {"colId": "name", "sort": "asc", "sortIndex": 1}),
         filters={"state": {"values": [_REACH[device_client.ANSWERING][0]]}},
         help="What is switched on and reachable right now."),
     "Not answering": views.Preset(
         columns=("name", "kind", "state", "address", "last_seen"),
-        sort=({"colId": "last_seen", "sort": "asc", "sortIndex": 0},),
+        sort=(_SELF_FIRST, {"colId": "last_seen", "sort": "asc", "sortIndex": 1}),
         filters={"state": {"values": [_REACH[device_client.UNREACHABLE][0],
                                       _REACH[device_client.UNASKABLE][0]]}},
         help="Devices the hub could not reach, oldest first - so the ones that have "
@@ -306,7 +318,8 @@ VIEWS: dict[str, list[str] | views.Preset] = {
 
 
 def rows(devices: list[dict[str, Any]],
-         reach: dict[str, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+         reach: dict[str, dict[str, Any]] | None = None,
+         local_device_id: str | None = None) -> list[dict[str, Any]]:
     """One row per device, flattened for a grid.
 
     The probe's answer is folded in rather than fetched per row: it arrives once for
@@ -321,6 +334,7 @@ def rows(devices: list[dict[str, Any]],
         state = _REACH.get(str(probe.get("state") or ""))
         out.append({
             "id": device_id,
+            "self": device_id == (local_device_id or ""),
             "name": device_label(device),
             "kind": KIND_LABELS.get(str(device.get("kind") or "vpinfe"), "VPinFE"),
             # Blank until the probes land, rather than a word meaning "not yet": a
@@ -342,7 +356,8 @@ def _when(stamp: str) -> str:
 
 def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
           on_select: Callable[[dict | None], None],
-          probe: Callable[[], Any] | None = None) -> None:
+          probe: Callable[[], Any] | None = None,
+          local_device_id: str | None = None) -> None:
     """Devices as a grid, so the selected row is what the workbench answers for.
 
     The same shape every other subject uses. Kind and reachability are columns rather
@@ -354,7 +369,7 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
     # Only `build` needs it, and by then every module is loaded.
     from .games import view_control
 
-    built = rows(found, state.get("device_reach"))
+    built = rows(found, state.get("device_reach"), local_device_id)
     away = sum(1 for row in built if row["state"]
                and row["state"] != _REACH[device_client.ANSWERING][0])
     on_screen = {"rows": len(built)}
@@ -411,6 +426,11 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
 # with the device rather than with the panel that draws it.
 
 def _client_for(context: dict[str, Any]):
+    """Who answers for this device. The hub's own client for this install, the client
+    that reaches it for anything else - both expose the same calls, which is what lets
+    one page draw either."""
+    if _is_local(context):
+        return context.get("library")
     return device_client.for_device(_of(context), context.get("local_device_id"))
 
 
@@ -548,19 +568,35 @@ def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     return out
 
 
-async def settings_page_block(context: dict[str, Any],
+async def settings_page_block(context: dict[str, Any], page_key: str, kind: str,
                               sections: tuple[str, ...]) -> None:
-    """One page of a device's settings, drawn from the schema that device serves.
+    """One page of a device's settings, drawn the way that page is always drawn.
 
     Whoever holds the settings answers for them: this install through the hub's own
     client, another machine through the client that reaches it. Both expose the same
-    three calls, so a page here and the same page under Settings are one page.
+    calls, so a page here is one page rather than a local and a remote copy.
 
-    A device that cannot be reached says so rather than drawing an empty form - a
-    settings page with nothing in it reads as a device with no settings.
+    The library pages are the exception, and by rule rather than by omission: what a
+    library collects is the library's, so those are only offered on an install that
+    holds one - the rail's role filter - and they are drawn against the hub's own
+    client, because the hub is what holds it.
     """
     device = _of(context)
-    source = context.get("library") if _is_local(context) else _client_for(context)
+    library = context.get("library")
+    if kind != settings_page.SCHEMA_PAGE:
+        if library is None:
+            panel.facts(ui, [panel.intro(UNREACHABLE_NOTE)])
+            return
+        rebuild = context.get("rebuild")
+
+        def redraw() -> None:
+            if rebuild is not None:
+                ui.timer(0.01, rebuild, once=True)
+
+        settings_page.build_library_page(library, redraw, page_key, kind)
+        return
+
+    source = library if _is_local(context) else _client_for(context)
     if source is None:
         panel.facts(ui, [panel.intro(UNREACHABLE_NOTE)])
         return
@@ -586,4 +622,4 @@ async def settings_page_block(context: dict[str, Any],
         return
 
     schema, values = context["device_config"]
-    settings_page.build_device_page(source, context, schema, values, sections)
+    await settings_page.build_device_page(source, context, schema, values, sections)

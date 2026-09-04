@@ -14,7 +14,6 @@ from hubui import collections as collections_page
 from hubui import deeplink, games, grid, sections, tageditor, theme, views, workbench
 from hubui import devices as devices_page
 from hubui import media as media_page
-from hubui import settings as settings_page
 from hubui.api import HubClient
 from hubui.data import Library
 
@@ -76,9 +75,11 @@ NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None,
                   ("assets", "Assets", "widgets"),
                   ("collections", "Collections", "collections_bookmark"),
                   ("tags", "Tags", "sell"))),
+    # No Settings entry. Every setting belongs to a device, this one included, so Devices
+    # is where they are - a second word leading to the same pages is a second answer that
+    # goes stale. `?view=settings` still lands, on the device it was always about.
     (None, (("devices", "Devices", "devices"),
-            ("extensions", "Extensions", "extension"),
-            ("settings", "Settings", "tune"))),
+            ("extensions", "Extensions", "extension"))),
 )
 
 NAV_ITEMS = tuple(item for _parent, items in NAV_GROUPS for item in items)
@@ -96,7 +97,6 @@ SECTIONS = {
     "assets": "Assets",
     "devices": "Devices",
     "extensions": "Extensions",
-    "settings": "Settings",
 }
 
 
@@ -214,6 +214,15 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                            "section": section, "slot": slot, "settings": settings},
                    views=[key for key, _label, _icon in NAV_ITEMS],
                    sections=[item.key for item in workbench.SECTIONS])
+    # An address written when Settings was a place still resolves. It was always about
+    # this device's settings, so it lands there - on the page it named, where that page
+    # is now a section of the device rail.
+    if view == "settings":
+        state["view"] = "devices"
+        # The device is left to the landing below, which falls back to this install -
+        # naming it here as well was two answers to one question and the wrong one won.
+        if state.get("settings_page"):
+            state["section"] = f"device_{state['settings_page']}"
 
     labels: list[ui.label] = []
     destinations: dict[str, ui.row] = {}
@@ -710,11 +719,10 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                                   redraw, rescan=_rescan)
             elif view == "extensions":
                 sections.extensions(devices)
-            elif view == "settings":
-                settings_page.build(state, render, go, library)
             elif view == "devices":
                 devices_page.build(devices, library, state, show_device,
-                                   probe=_probe_devices)
+                                   probe=_probe_devices,
+                                   local_device_id=discovery.get("install_id"))
             else:
                 _placeholder(view)
 
@@ -823,6 +831,12 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
         else:
             await show_game({"game_id": landing, "id": state.get("table") or landing}
                             if state["view"] == "tables" else {"id": landing})
+    elif state["view"] == "devices":
+        # Arriving at Devices lands on this device with its rail open, so reaching a
+        # setting is the two clicks it was when Settings was a place of its own. It is
+        # first in every view for the same reason.
+        await show_device({"id": state.get("device_id")
+                           or discovery.get("install_id")})
 
 
 def _nav_parent(parent: tuple[str, str, str], state: dict[str, Any],
