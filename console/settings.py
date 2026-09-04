@@ -30,7 +30,7 @@ RAIL_PX = 230
 
 # What switching one off does, and the two things it deliberately does not do. Said
 # where it applies to every switch on the page rather than repeated under each.
-KEPT_NOTE = ("What this library collects. Turning one off stops the hub showing and "
+KEPT_NOTE = ("What this library collects. Turning one off stops this install showing and "
              "counting it; the files stay where they are, and a table that will not "
              "launch still says so.")
 
@@ -52,7 +52,7 @@ STUBS = {
     "library": "Where tables live, how often the library is rescanned, and what a scan "
                "is allowed to write back.",
     "appearance": "Palette, density, and which columns a fresh install starts with.",
-    "startup": "What launches with the hub, and what it does when a device is already "
+    "startup": "What launches with this install, and what it does when a device is already "
                "running.",
     "checks_media": "Checks about media presence, resolution and fallbacks.",
     "checks_script": "Checks that read the table script.",
@@ -69,7 +69,7 @@ async def _write(library, section: str, key: str, value: Any) -> bool:
     """One setting, written when it is set.
 
     No save bar: a control that changes a value writes it, which is what every other
-    control in the hub does. The reason a write failed is the API's own message, never
+    control in the Console does. The reason a write failed is the API's own message, never
     the status line - `raise_for_status` throws the body away.
     """
     try:
@@ -139,8 +139,8 @@ def _kind_page(library, rerender: Callable[[], None], note: str,
     """A switch per thing, over one list in the config.
 
     Not a schema page. What it switches is a *list*, and the switches themselves come
-    from a registry or from the hub - which `common/` may not reach for, because nothing
-    in it may import a domain package. The hub may, so the rendering lives here.
+    from a registry or from the API - which `common/` may not reach for, because nothing
+    in it may import a domain package. The Console may, so the rendering lives here.
     """
     body = ui.column().classes("w-full gap-0")
     ui.timer(0.01,
@@ -161,7 +161,7 @@ async def _fill_kinds(library, rerender: Callable[[], None], body, note: str,
                       section: str, key: str,
                       items: Callable[[Any], dict[str, str]], mode: str) -> None:
     try:
-        # The library's, not this install's: two devices reading one hub would otherwise
+        # The library's, not this install's: two devices reading one library would otherwise
         # hold two answers to a question about one set of files.
         policy = await run.io_bound(library.library_policy)
         known = await run.io_bound(items, library)
@@ -232,9 +232,9 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
     when = str(state.get("checked") or "")
 
     def checked() -> None:
-        with ui.element("div").classes("hub-fact-edit"):
+        with ui.element("div").classes("console-fact-edit"):
             ui.label(when.replace("T", " ").replace("Z", " UTC") if when else "Never") \
-                .classes("hub-fact-value truncate min-w-0")
+                .classes("console-fact-value truncate min-w-0")
             panel.action("Check now", now, icon="sync", inline=True)()
 
     return [(panel.HEADING, "Catalog"), ("Last checked", checked)]
@@ -256,7 +256,7 @@ def _checks_library() -> None:
 
 # The two kind pages are not schema pages. What they switch is a *list* in the config,
 # and the switches themselves come from the two registries - which `common/` may not
-# import, because nothing in it may reach up into a domain package. The hub may, so the
+# import, because nothing in it may reach up into a domain package. The Console may, so the
 # rendering lives on this side of that line.
 # key -> (note, config section, config key, what to switch, how the list reads).
 # `hidden` stores what is off; `enabled` stores what is on and reads empty as all - the
@@ -300,7 +300,7 @@ def _section_label(key: str) -> str:
 # `install` and `themes` appear on no page below, deliberately: the first is the device's
 # identity and is edited in Details, and the second is read-only over HTTP wherever it is
 # served from.
-# A device's pages, in the shape this page uses for the hub's own: grouped, named in a
+# A device's pages, in the shape this page uses for this install's own: grouped, named in a
 # person's words, one page per topic rather than one per config section. Several sections
 # can back one page - a machine's screens are four of them - because how the config file
 # is divided is not how somebody looks for a setting.
@@ -353,8 +353,8 @@ def build_library_page(library, rerender: Callable[[], None], key: str,
                        kind: str) -> None:
     """A library page, drawn where a device's rail asks for it.
 
-    These are the hub's own: what the library collects, and what it is checked for. They
-    reach for registries and for the hub's client rather than for a config schema, which
+    These are this install's own: what the library collects, and what it is checked for.
+    They reach for registries and for its client rather than for a config schema, which
     is why they are not schema pages and are only offered on an install that holds a
     library.
     """
@@ -380,7 +380,7 @@ def section_rows(source, section: str, options: list[dict], values: dict,
                 ) -> list[tuple[Any, Any]]:
     """One section's settings as fact rows, from whatever is serving them.
 
-    `source` is anything with `put_config` - the hub's own client for this install, or
+    `source` is anything with `put_config` - this install's own client for itself, or
     the client that reaches another machine. Which is the whole reason a device's
     settings page and this one are one page: the schema decides the controls and the
     source decides where the write lands.
@@ -433,7 +433,7 @@ async def build_device_page(source, context: dict[str, Any], schema: list[dict],
         entries += section_rows(source, name, block["options"], values,
                                 bool(block.get("writable")), rerender)
         # A page may carry a foot for the one thing on it that is an act rather than a
-        # value. Only where the hub's own client is what serves the page: these reach
+        # value. Only where this install's own client is what serves the page: these reach
         # for the library, which another machine's client cannot answer for.
         foot = FOOTERS.get(name)
         if foot is not None and source is context.get("library"):

@@ -34,7 +34,7 @@ RAIL_PX = 152
 
 def header(name: str) -> None:
     """What the content under it is about, where the rail row is too far away to say it."""
-    ui.label(name).classes("text-base hub-workbench-title hub-panel-heading")
+    ui.label(name).classes("text-base console-workbench-title console-panel-heading")
 
 
 def facts(target: Any, entries: Sequence[tuple[Any, Any]]) -> None:
@@ -48,24 +48,24 @@ def facts(target: Any, entries: Sequence[tuple[Any, Any]]) -> None:
     `min-w-0` is what lets a value shrink: a grid item refuses to go below its content
     width without it, and the row wraps instead of ellipsing.
     """
-    with target.element("div").classes("hub-facts"):
+    with target.element("div").classes("console-facts"):
         for label, value in entries:
             if label is HEADING:
-                target.label(str(value)).classes("hub-fact-heading")
+                target.label(str(value)).classes("console-fact-heading")
                 continue
             if label is FULL:
-                with target.element("div").classes("hub-fact-full"):
+                with target.element("div").classes("console-fact-full"):
                     value()
                 continue
             if label is ASIDE:
-                with target.element("div").classes("hub-fact-aside"):
+                with target.element("div").classes("console-fact-aside"):
                     value()
                 continue
             # As given. A label that came from a registry is already the answer, and
             # re-casing it is how "RAR Tool Path" reached a user as "Rar Tool Path" -
             # the casing rule is a fallback for a bare key, not a filter over finished
             # words. A surface that writes its labels in prose cases them on the way in.
-            target.label(str(label)).classes("hub-fact-label")
+            target.label(str(label)).classes("console-fact-label")
             _draw_value(target, value)
 
 
@@ -73,7 +73,7 @@ def _draw_value(target: Any, value: Any) -> None:
     if callable(value):
         value()
         return
-    target.label(str(value)).classes("hub-fact-value truncate min-w-0") \
+    target.label(str(value)).classes("console-fact-value truncate min-w-0") \
         .tooltip(str(value))
 
 
@@ -87,7 +87,7 @@ def sections(entries: Sequence[tuple[Any, ...]], current: str,
     track per row and then one that takes the rest, and CSS cannot count its own
     children.
     """
-    frame = ui.element("div").classes("w-full grow min-h-0 hub-sections") \
+    frame = ui.element("div").classes("w-full grow min-h-0 console-sections") \
         .style(f"--rows: {len(entries)}; --rail-w: {rail_px}px")
     with frame:
         for entry in entries:
@@ -95,10 +95,10 @@ def sections(entries: Sequence[tuple[Any, ...]], current: str,
             hint = entry[2] if len(entry) > 2 else ""
             mark = entry[3] if len(entry) > 3 else None
             if key is GROUP:
-                ui.label(label).classes("hub-group hub-rail-group")
+                ui.label(label).classes("console-group console-rail-group")
                 continue
             _rail_row(str(key), label, str(key) == current, on_pick, hint, mark)
-        work = ui.element("div").classes("min-w-0 hub-section-work")
+        work = ui.element("div").classes("min-w-0 console-section-work")
     return work
 
 
@@ -114,19 +114,19 @@ def _rail_row(key: str, label: str, open_now: bool,
     `mark` draws before the name, where a state about the destination itself goes - a
     device answering is a fact about that device and not about the row being open.
     """
-    row = ui.row().classes("items-stretch gap-0 no-wrap hub-section-row")
+    row = ui.row().classes("items-stretch gap-0 no-wrap console-section-row")
     if open_now:
-        row.classes(add="hub-section-on")
+        row.classes(add="console-section-on")
     if hint:
         row.tooltip(hint)
     with row:
         # `no-wrap`, or a mark plus a long name is two lines and one taller row. The
         # label ellipses instead, which is what `truncate` was already there to do.
-        with ui.row().classes("items-center grow min-w-0 no-wrap hub-section-hit"):
+        with ui.row().classes("items-center grow min-w-0 no-wrap console-section-hit"):
             if mark is not None:
                 mark()
-            ui.label(label).classes("hub-section-text truncate")
-        with ui.row().classes("items-center hub-section-caret"):
+            ui.label(label).classes("console-section-text truncate")
+        with ui.row().classes("items-center console-section-caret"):
             ui.icon("expand_more", size="18px")
     # The whole band, name and chevron alike - a header that opens on the word but only
     # closes on the arrow is a control with two rules to learn.
@@ -140,7 +140,7 @@ def switch(value: bool, on_change: Callable[[Any], Any], *,
         # Green, the same token a present chip takes: on means the same thing whether
         # the panel found it or the user set it, and the shape already says which.
         control = ui.switch(value=value, on_change=on_change) \
-            .props("dense color=positive").classes("hub-fact-switch")
+            .props("dense color=positive").classes("console-fact-switch")
         if disabled:
             control.disable()
         if hint:
@@ -157,11 +157,11 @@ def state(text: str, level: str, *, beside: str = "") -> Callable[[], None]:
     `warn`, `bad`.
     """
     def draw() -> None:
-        with ui.element("div").classes("hub-fact-edit"):
+        with ui.element("div").classes("console-fact-edit"):
             if beside:
-                ui.label(beside).classes("hub-fact-value truncate min-w-0") \
+                ui.label(beside).classes("console-fact-value truncate min-w-0") \
                     .tooltip(beside)
-            ui.label(text).classes(f"hub-tier hub-tier--{level}")
+            ui.label(text).classes(f"console-tier console-tier--{level}")
 
     return draw
 
@@ -185,18 +185,18 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
     in the next grid column would read as a fact about the row, not about the value.
     """
     def draw() -> None:
-        with ui.element("div").classes("hub-fact-edit"):
+        with ui.element("div").classes("console-fact-edit"):
             if lines:
                 control = ui.textarea(placeholder=placeholder)
                 control.value = value
                 control.props(f"dense borderless rows={lines} debounce=800") \
-                    .classes("hub-edit-field")
+                    .classes("console-edit-field")
                 control.on_value_change(lambda: on_save(control.value or ""))
             else:
                 control = ui.input(placeholder=placeholder)
                 control.value = value
                 control.props("dense borderless debounce=0") \
-                    .classes("hub-edit-field")
+                    .classes("console-edit-field")
                 control.on("blur", lambda: on_save(control.value or ""))
                 control.on("keydown.enter", lambda: control.run_method("blur"))
                 if status is not None:
@@ -230,7 +230,7 @@ def value_state(state: str, reason: str = "") -> Callable[[Any], None]:
         if pair is None:
             return
         icon, color = pair
-        mark = ui.icon(icon, size="18px").classes(f"text-{color} hub-value-state")
+        mark = ui.icon(icon, size="18px").classes(f"text-{color} console-value-state")
         if reason:
             mark.tooltip(reason)
 
@@ -246,10 +246,10 @@ def select(options: Any, value: str, on_change: Callable[[Any], Any], *,
     compare.
     """
     def draw() -> None:
-        with ui.element("div").classes("hub-fact-edit"):
+        with ui.element("div").classes("console-fact-edit"):
             control = ui.select(options, value=value, on_change=on_change) \
                 .props("dense borderless options-dense") \
-                .classes("hub-edit-field hub-edit-select")
+                .classes("console-edit-field console-edit-select")
             if disabled:
                 control.disable()
 
@@ -261,10 +261,10 @@ def number(value: Any, on_change: Callable[[Any], Any], *,
     """A whole number. Narrow, because a four-digit box in a full-width field says the
     value might be long."""
     def draw() -> None:
-        with ui.element("div").classes("hub-fact-edit"):
+        with ui.element("div").classes("console-fact-edit"):
             control = ui.number(value=value if value != "" else None, format="%d",
                                 on_change=on_change) \
-                .props("dense borderless").classes("hub-edit-field hub-edit-narrow")
+                .props("dense borderless").classes("console-edit-field console-edit-narrow")
             if disabled:
                 control.disable()
 
@@ -276,14 +276,14 @@ def action(label: str, on_click: Callable[[], Any], *, icon: str = "",
            enabled: bool = True) -> Callable[[], None]:
     """A verb, which follows the value it acts on.
 
-    Weight follows the target: an action on a field or a section takes `.hub-action`;
-    one sitting beside a state takes `.hub-action--inline`, the same control at the
+    Weight follows the target: an action on a field or a section takes `.console-action`;
+    one sitting beside a state takes `.console-action--inline`, the same control at the
     chip's type scale.
     """
     def draw() -> None:
-        classes = "hub-action--inline" if inline else "hub-action"
+        classes = "console-action--inline" if inline else "console-action"
         if danger:
-            classes = f"hub-action {classes} hub-action--danger"
+            classes = f"console-action {classes} console-action--danger"
         control = ui.button(label, icon=icon or None, on_click=on_click) \
             .props("flat dense no-caps size=sm").classes(classes)
         if not enabled:
@@ -302,7 +302,7 @@ def note(text: str) -> tuple[Any, Callable[[], None]]:
     turning it off costs. Help you have to already suspect you need is not help.
     """
     def draw() -> None:
-        ui.label(text).classes("hub-help")
+        ui.label(text).classes("console-help")
 
     return (ASIDE, draw)
 
@@ -314,6 +314,6 @@ def intro(text: str) -> tuple[Any, Callable[[], None]]:
     difference between this and `note`.
     """
     def draw() -> None:
-        ui.label(text).classes("hub-help")
+        ui.label(text).classes("console-help")
 
     return (FULL, draw)

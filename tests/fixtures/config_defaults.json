@@ -80,8 +80,8 @@
     "rename_mask_to_default_ini_mask": ""
   },
   "network": {
-    "hub_bind": "0.0.0.0",
-    "hub_port": "8001",
+    "http_bind": "0.0.0.0",
+    "http_port": "8001",
     "hub_url": "",
     "theme_assets_bind": "127.0.0.1",
     "theme_assets_port": "8000",

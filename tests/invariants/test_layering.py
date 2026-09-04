@@ -25,7 +25,7 @@ REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 ALLOWED = {
     ("common/host/display_service.py", "frontend"),
     # The local resolution of the device client: deferred inside functions so that
-    # importing it does not pull the frontend into a hub-only install.
+    # importing it does not pull the frontend into an install that has no frontend.
     ("common/device_client.py", "frontend"),
 }
 

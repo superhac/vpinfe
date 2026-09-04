@@ -103,7 +103,7 @@ def _icon_cell(row: dict[str, Any]) -> str:
         return ""
     name = quote(str(row.get("name") or ""), safe="")
     return (f'<img src="/api/v1/collections/{name}/image" loading="lazy" '
-            f'class="hub-collection-cell">')
+            f'class="console-collection-cell">')
 
 
 def _order_line(row: dict[str, Any]) -> str:
@@ -140,22 +140,22 @@ def build(collections: list[dict[str, Any]], library: Any,
         if rerender is not None:
             rerender()
 
-    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
         ui.button("New collection", icon="add",
                   on_click=lambda: _ask_new(library, act)) \
-            .props("flat dense no-caps size=sm").classes("shrink-0 hub-action")
+            .props("flat dense no-caps size=sm").classes("shrink-0 console-action")
         search = ui.input(placeholder="Search collections") \
             .props("dense outlined clearable").classes("w-64")
         wire_views, _picker, showing = view_control(library, SCOPE, COLLECTION_VIEWS,
                                                     fields, COLUMNS)
         ui.space()
-        count = ui.label(f"{len(built)} collections").classes("text-xs hub-label")
+        count = ui.label(f"{len(built)} collections").classes("text-xs console-label")
         bulk = ui.button(icon="more_vert").props("flat round dense") \
             .tooltip("Actions for the selected collections")
         with bulk, ui.menu():
             ui.menu_item("Delete selected",
                          lambda: _ask_delete_many(picked, library, act)) \
-                .classes("hub-menu-item hub-menu-danger")
+                .classes("console-menu-item console-menu-danger")
         bulk.set_visibility(False)
 
     by_id = {row["id"]: row for row in built}
@@ -191,27 +191,27 @@ def build(collections: list[dict[str, Any]], library: Any,
             if col_id and not col_id.startswith("ag-Grid-"):
                 header = next((d.get("headerName") for d in COLUMNS
                                if d.get("field") == col_id), col_id)
-                ui.item_label(str(header)).props("header").classes("hub-menu-header")
+                ui.item_label(str(header)).props("header").classes("console-menu-header")
                 ui.separator()
                 ui.menu_item(
                     "Unpin" if pinned else "Pin left",
                     lambda c=col_id, p=pinned: table.run_grid_method(
                         "applyColumnState",
                         {"state": [{"colId": c, "pinned": None if p else "left"}]})) \
-                    .classes("hub-menu-item")
+                    .classes("console-menu-item")
                 ui.menu_item("Hide column",
                              lambda c=col_id: table.run_grid_method(
                                  "setColumnsVisible", [c], False)) \
-                    .classes("hub-menu-item")
+                    .classes("console-menu-item")
             elif row:
                 name = row["name"]
-                ui.item_label(name).props("header").classes("hub-menu-header")
+                ui.item_label(name).props("header").classes("console-menu-header")
                 ui.separator()
                 # Renaming lives in the panel's Details, with the description it sits
                 # beside. One home per field: a name editable in two places is two
                 # answers, and this one is the collection's identity.
                 ui.menu_item("Delete", lambda n=name: _ask_delete(n, library, act)) \
-                    .classes("hub-menu-item hub-menu-danger")
+                    .classes("console-menu-item console-menu-danger")
 
     wire_views(table)
     search.on_value_change(
@@ -228,7 +228,7 @@ def _ask_new(library: Any, act: Callable) -> None:
     removed.
     """
     with ui.dialog() as dialog, ui.card():
-        ui.label("New collection").classes("hub-card-title")
+        ui.label("New collection").classes("console-card-title")
         name = ui.input(placeholder="Name it") \
             .props("outlined dense debounce=0").classes("w-72")
 

@@ -75,14 +75,14 @@ class CompatibilityTests(unittest.TestCase):
             ("Network", "manageruiport", 9999),      # pre-PAR-44 section and key
             ("network", "manageruiport", 9998),      # migrated section, oldest key
             ("network", "manager_ui_port", 8888),    # the PAR-44 spelling
-            ("network", "hub_port", 7777),           # what it is called now
+            ("network", "http_port", 7777),           # what it is called now
         ):
             with self.subTest(section=section, key=key):
                 parser = self._parser()
                 parser.add_section(section)
                 parser.set(section, key, str(expected))
 
-                self.assertEqual(NetworkConfig.from_config(parser).hub_port, expected)
+                self.assertEqual(NetworkConfig.from_config(parser).http_port, expected)
 
     def test_the_frozen_list_covers_every_alias_declared_today(self) -> None:
         """So adding a rename without recording it is also a failure, not a gap."""

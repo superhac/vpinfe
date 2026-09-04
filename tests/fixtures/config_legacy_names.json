@@ -483,13 +483,13 @@
     "Network",
     "manager_ui_port",
     "network",
-    "hub_port"
+    "http_port"
   ],
   [
     "Network",
     "manageruiport",
     "network",
-    "hub_port"
+    "http_port"
   ],
   [
     "Network",
@@ -945,7 +945,7 @@
     "network",
     "manageruiport",
     "network",
-    "hub_port"
+    "http_port"
   ],
   [
     "network",
@@ -1005,13 +1005,13 @@
     "network",
     "manager_ui_port",
     "network",
-    "hub_port"
+    "http_port"
   ],
   [
     "network",
     "manager_ui_bind",
     "network",
-    "hub_bind"
+    "http_bind"
   ],
   [
     "Settings",
@@ -1072,5 +1072,17 @@
     "terminal",
     "logger",
     "terminal"
+  ],
+  [
+    "network",
+    "hub_port",
+    "network",
+    "http_port"
+  ],
+  [
+    "network",
+    "hub_bind",
+    "network",
+    "http_bind"
   ]
 ]

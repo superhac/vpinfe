@@ -76,7 +76,7 @@ class SeparationTests(TempTree):
 
     def setUp(self) -> None:
         super().setUp()
-        self.hub_root = Path(self.root) / "hub-library"
+        self.hub_root = Path(self.root) / "console-library"
         self.device_root = Path(self.root) / "device-library"
         self.hub_root.mkdir()
         self.device_root.mkdir()          # and nothing is ever written into it

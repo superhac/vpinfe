@@ -9,13 +9,13 @@ from typing import Any
 from common.games.asset_registry import ASSET_SPECS
 from common.media_specs import media_family, media_label_map
 from console import media_ownership
-from console.api import HubClient
+from console.api import ApiClient
 
 logger = logging.getLogger("vpinfe.console")
 
 # The cell holds the *word*, never the mark. What a cell is worth filtering and sorting
 # on is the state; how it is drawn is the column's business. Holding the drawn mark made
-# the text filter match `<span class="hub-mark hub-mark--full">` - so typing "full" found
+# the text filter match `<span class="console-mark console-mark--full">` - so typing "full" found
 # rows and typing "All tables" found none.
 #
 # The words are `media_ownership`'s, which is the module that owns them. The grid used to
@@ -71,10 +71,10 @@ class Library:
 
     Games and Assets are the same data shaped two ways, so they share this rather than
     each paying the per-game media call. Nothing here is cached across page loads: a
-    hub whose library changed underneath us would otherwise serve a stale grid.
+    library that changed underneath us would otherwise serve a stale grid.
     """
 
-    def __init__(self, client: HubClient) -> None:
+    def __init__(self, client: ApiClient) -> None:
         self._client = client
         self.games: list[dict[str, Any]] = []
         self.media: dict[str, dict[str, Any]] = {}

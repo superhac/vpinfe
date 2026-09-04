@@ -99,7 +99,7 @@ class LiveInstance:
         for index, window in enumerate(self.windows):
             cfg_set(store, f"windows.{window}", "screen_id", index)
         cfg_set(store, "network", "theme_assets_port", self.ports["assets"])
-        cfg_set(store, "network", "hub_port", self.ports["manager"])
+        cfg_set(store, "network", "http_port", self.ports["manager"])
         cfg_set(store, "network", "ws_port", self.ports["ws"])
         for (section, key), value in self.extra_settings.items():
             cfg_set(store, section, key, value)

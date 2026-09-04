@@ -37,16 +37,16 @@ REFERENCE_WORDS = {
     GONE: ("Missing", "Not in this library"),
 }
 
-# Drawn, not typed: as characters these are not a matched pair. Measured in the hub's
+# Drawn, not typed: as characters these are not a matched pair. Measured in the Console's
 # own font at 15px, ● is 9.4px across and ◐ is 15px, so the smaller state read as a
 # speck. CSS circles are the same diameter by construction.
 #
 # Full and outline are the two ends of the ramp - the clearest pair there is, and this
 # vocabulary has only two states to spend. HUBUI section 13 carries the rest.
 MARKS = {
-    FIXED: "hub-mark--full",
-    FOLLOWS: "hub-mark--outline",
-    GONE: "hub-mark--dashed",
+    FIXED: "console-mark--full",
+    FOLLOWS: "console-mark--outline",
+    GONE: "console-mark--dashed",
 }
 
 # The legend, because a tooltip cannot be the only one - it does not exist on a touch
@@ -58,7 +58,7 @@ KEY_DETAIL = ("User defined stays on the table it names. Game default follows th
 
 def mark(state: str) -> str:
     """The classes for one state's mark, base first."""
-    return f"hub-mark {MARKS.get(state, MARKS[FOLLOWS])}"
+    return f"console-mark {MARKS.get(state, MARKS[FOLLOWS])}"
 
 
 # How a game's default was decided, said as a state rather than as an actor: "User"

@@ -1,4 +1,4 @@
-"""Grids, and the column layout the hub keeps for each.
+"""Grids, and the column layout kept for each.
 
 Layout only - width, order, pinning. Which columns are shown, how they are
 sorted and what is filtered belong to a view; see console/views.py.
@@ -71,10 +71,10 @@ if (!window.HubChoiceFilter) {
       this.picked = new Set();
       this.boxes = new Map();
       this.gui = document.createElement('div');
-      this.gui.className = 'hub-filter';
+      this.gui.className = 'console-filter';
       for (const choice of params.choices || []) {
         const row = document.createElement('label');
-        row.className = 'hub-filter-row';
+        row.className = 'console-filter-row';
         const box = document.createElement('input');
         box.type = 'checkbox';
         box.addEventListener('change', () => {
@@ -85,7 +85,7 @@ if (!window.HubChoiceFilter) {
         // One leading slot, always, so an item that draws nothing indents to where the
         // marks are and every label starts on the same edge. `docs/conventions.md`.
         const slot = document.createElement('span');
-        slot.className = 'hub-filter-mark';
+        slot.className = 'console-filter-mark';
         // `repeat` draws the mark more than once, which is how a rating says three
         // rather than saying "3" beside a picture of one star.
         for (let n = 0; n < (choice.mark ? (choice.repeat || 1) : 0); n++) {
@@ -96,7 +96,7 @@ if (!window.HubChoiceFilter) {
         // A state drawn as a character rather than a shape - presence is a tick here.
         if (choice.glyph) {
           const tick = document.createElement('span');
-          tick.className = choice.glyphClass || 'hub-tick';
+          tick.className = choice.glyphClass || 'console-tick';
           tick.textContent = choice.glyph;
           slot.appendChild(tick);
         }
@@ -197,7 +197,7 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
           on_header_context: Callable[[str | None], None] | None = None,
           html_fields: list[str] | None = None,
           view_of: Callable[[], str] | None = None) -> ui.aggrid:
-    """A grid whose column layout is restored from, and saved to, the hub.
+    """A grid whose column layout is restored from, and saved to, the API.
 
     `view_of` names the view showing now. Given one, geometry is stored per view - the
     grid outlives a view change, so without it every view shares one set of widths.
@@ -247,11 +247,11 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
     ui.run_javascript("""
     window.__hubMarkFocus = () => {
       const i = window.__hubFocusRow;
-      document.querySelectorAll('.ag-row.hub-row-focus')
-        .forEach(e => e.classList.remove('hub-row-focus'));
+      document.querySelectorAll('.ag-row.console-row-focus')
+        .forEach(e => e.classList.remove('console-row-focus'));
       if (i === undefined || i === null) return;
       document.querySelectorAll(`.ag-row[row-index="${i}"]`)
-        .forEach(e => e.classList.add('hub-row-focus'));
+        .forEach(e => e.classList.add('console-row-focus'));
     };
     """)
     _restore(grid, scope, columns, view_of)
@@ -292,7 +292,7 @@ def column_menu(menu: Any, table: Any, columns: list[dict[str, Any]],
     header = next((definition.get("headerName") for definition in columns
                    if definition.get("field") == col_id), col_id)
     ui.item_label(str(header).replace("\n", " ")).props("header") \
-        .classes("hub-menu-header")
+        .classes("console-menu-header")
     ui.separator()
     # One entry that says what it will do, rather than two where one is always a no-op.
     ui.menu_item("Unpin" if pinned else "Pin left",
@@ -300,10 +300,10 @@ def column_menu(menu: Any, table: Any, columns: list[dict[str, Any]],
                      "applyColumnState",
                      {"state": [{"colId": col_id,
                                  "pinned": None if pinned else "left"}]})) \
-        .classes("hub-menu-item")
+        .classes("console-menu-item")
     ui.menu_item("Hide column",
                  lambda: table.run_grid_method("setColumnsVisible", [col_id], False)) \
-        .classes("hub-menu-item")
+        .classes("console-menu-item")
     return True
 
 
@@ -324,11 +324,11 @@ async def apply_layout(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]
     Called on gridReady and again on every view change, because the grid outlives a
     view: switching without this leaves the last view's widths on the new one's columns.
     """
-    from console.api import HubClient
+    from console.api import ApiClient
 
     where = layout_scope(scope, view_of)
     try:
-        stored = (await run.io_bound(HubClient().preferences, where)).get("columns")
+        stored = (await run.io_bound(ApiClient().preferences, where)).get("columns")
     except Exception:
         logger.warning("console: could not read column state for %s", where, exc_info=True)
         return
@@ -366,7 +366,7 @@ def _restore(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]],
 
 def _save_on_change(grid: ui.aggrid, scope: str,
                     view_of: Callable[[], str] | None) -> None:
-    from console.api import HubClient
+    from console.api import ApiClient
 
     async def save() -> None:
         where = layout_scope(scope, view_of)
@@ -376,7 +376,7 @@ def _save_on_change(grid: ui.aggrid, scope: str,
             # drift, which is the one thing it must never do.
             layout = [{k: entry[k] for k in _LAYOUT_FIELDS if k in entry}
                       for entry in (state or [])]
-            await run.io_bound(HubClient().put_preferences, where, {"columns": layout})
+            await run.io_bound(ApiClient().put_preferences, where, {"columns": layout})
         except Exception:
             # A layout that fails to save is worth a log and nothing more - it must
             # never take down the grid the user is working in.

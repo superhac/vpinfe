@@ -153,10 +153,10 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | `theme_assets_port` | int | `8000` | Theme Server Port |
 | `theme_assets_bind` | string | `127.0.0.1` | Which address to serve theme packages and table media on. The default answers this machine only. An address rather than a switch, so a single interface can be named; 0.0.0.0 is every one. This port serves the table library, so opening it shares read access to it. |
 | `ws_port` | int | `8002` | Port the frontend windows and the theme talk to VPinFE over. Loopback only. |
-| `hub_port` | int | `8001` | Port the hub answers on: the HTTP API, the Manager UI, and the remote and mobile pages. Named for the role rather than any one thing listening on it - all four are hub-side. |
+| `http_port` | int | `8001` | Port this install answers on: the HTTP API, the Console, the Manager UI, and the remote and mobile pages. Named for the protocol rather than any one thing listening on it. |
 | `hub_url` | string |  | Read the library from a hub on another machine, for example http://cabinet.local:8001. Empty - the default - means this install holds its own library, which is every single-machine setup. |
 | `verify_shared_library` | bool | `false` | On startup, check that this device's library really is the hub's, by comparing file hashes rather than paths. Reports what does not match and changes nothing else. Off by default, and ignored entirely without a Hub URL. |
-| `hub_bind` | string | `0.0.0.0` | Which address to serve the hub on. The default answers every interface, which is what it has always done - set 127.0.0.1 to reach it only from this machine. |
+| `http_bind` | string | `0.0.0.0` | Which address to serve on. The default answers every interface, which is what it has always done - set 127.0.0.1 to reach it only from this machine. |
 
 ### `dof`
 

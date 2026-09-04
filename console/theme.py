@@ -87,10 +87,10 @@ _TOKENS = """
   /* A stat, not prose - the one place a number is the content. */
   --fs-display: 30px;
 
-  /* 44px where a finger is in scope; the hub is desk-first, so this is the floor. */
+  /* 44px where a finger is in scope; the Console is desk-first, so this is the floor. */
   --target-min: 32px;
   /* An action that sits beside a value rather than owning its row - see
-     `.hub-action--inline`. Below the floor deliberately, and raised back to it where the
+     `.console-action--inline`. Below the floor deliberately, and raised back to it where the
      pointer is a finger. */
   --target-inline: 22px;
   /* A field sits in the fact rhythm rather than standing above it. Raised on touch
@@ -172,7 +172,7 @@ body { background: var(--surface-0); }
    the workbench's 54px top gap, not anything the rows were doing. Scoped to the
    right drawer on purpose: the nav wants that breathing room, the workbench does not,
    because it has far more to fit. */
-.hub-workbench {
+.console-workbench {
   /* Gap goes, top padding stays: the gap was the double-spacing, but the 16px top is
      what puts this header level with the nav's, which keeps it. */
   padding: 16px 0 0 !important;
@@ -180,7 +180,7 @@ body { background: var(--surface-0); }
 }
 /* 18px is what centring a 20px icon in the 57px rail produces, so matching it here
    means the icon does not move horizontally when the workbench collapses. */
-.hub-workbench .hub-panel-header { padding-right: 18px !important; }
+.console-workbench .console-panel-header { padding-right: 18px !important; }
 .q-page-container, .q-page { background: transparent !important; }
 .q-drawer { background: var(--panel-ground) !important; }
 
@@ -190,16 +190,16 @@ body { background: var(--surface-0); }
 .q-drawer--left .q-drawer__content {
   display: flex; flex-direction: column; overflow: hidden;
 }
-.q-drawer--left .hub-nav-header,
-.q-drawer--left .hub-nav-body ~ * { flex: none; }
-.hub-nav-body {
+.q-drawer--left .console-nav-header,
+.q-drawer--left .console-nav-body ~ * { flex: none; }
+.console-nav-body {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
 }
 /* A rail entry is an anchor so the browser can offer it in a new tab, and an anchor
    arrives underlined and in the link color. It is a place in a list of places, and it
-   is lit by `hub-nav-active` when you are on it - a rule already answering "which one
+   is lit by `console-nav-active` when you are on it - a rule already answering "which one
    is this", which an underline under every one of them would not help with. */
-a.hub-nav-row, a.hub-nav-row:hover, a.hub-nav-row:visited {
+a.console-nav-row, a.console-nav-row:hover, a.console-nav-row:visited {
   text-decoration: none;
   color: inherit;
 }
@@ -225,7 +225,7 @@ body::before {
   --ag-border-color: var(--line);
   --ag-header-foreground-color: var(--ink-2);
   /* The body reads at --ink-2, not --ink. A grid is most of the text on screen - 85% of
-     it here - and the top of the ink scale applied to all of it is what made the hub
+     it here - and the top of the ink scale applied to all of it is what made the Console
      relentless rather than crisp. The name column keeps --ink below, so the thing you
      scan for is still the brightest thing in the row. */
   --ag-foreground-color: var(--ink-2);
@@ -259,8 +259,8 @@ body::before {
    right - and three outlines would show their edges through the middle of it. */
 /* Above the cells: a cell paints its own background over the row, so an inset shadow
    on the row is set, computed, and invisible. */
-.ag-row.hub-row-focus { position: absolute; }
-.ag-row.hub-row-focus::after {
+.ag-row.console-row-focus { position: absolute; }
+.ag-row.console-row-focus::after {
   content: "";
   position: absolute; inset: 0;
   pointer-events: none;
@@ -269,16 +269,16 @@ body::before {
 }
 /* Only the outer edges, or the verticals show where the fragments meet. The right one
    is off screen when the columns are wider than the window - the row does continue. */
-.ag-pinned-left-cols-container .ag-row.hub-row-focus::after {
+.ag-pinned-left-cols-container .ag-row.console-row-focus::after {
   box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent),
               inset 2px 0 0 var(--accent);
 }
-.ag-center-cols-container .ag-row.hub-row-focus::after {
+.ag-center-cols-container .ag-row.console-row-focus::after {
   box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent),
               inset -2px 0 0 var(--accent);
 }
 /* If a column is ever pinned right, that fragment owns the right edge instead. */
-.ag-pinned-right-cols-container .ag-row.hub-row-focus::after {
+.ag-pinned-right-cols-container .ag-row.console-row-focus::after {
   box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent),
               inset -2px 0 0 var(--accent);
 }
@@ -312,7 +312,7 @@ body::before {
    title in it - which in a library with one 130-character name is the whole window -
    and it resizes and repositions itself as typing filters the list. Bounded here, so
    it opens the same size every time and stays under the field it belongs to. */
-.hub-picker-popup {
+.console-picker-popup {
   max-height: 44vh;
   /* A width, not a max-width. The menu is portalled to <body>, so a percentage is a
      percentage of the window - and left to size itself it takes the longest title in
@@ -323,18 +323,18 @@ body::before {
 }
 /* A collection's icon, and the drop target that replaces it. Small: it identifies the
    collection in a wheel, it is not the content of this panel. */
-.hub-collection-icon {
+.console-collection-icon {
   width: 64px; height: 64px;
   object-fit: contain;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel-ground);
 }
-.hub-upload .q-uploader { background: none; border: 1px dashed var(--line-strong); }
+.console-upload .q-uploader { background: none; border: 1px dashed var(--line-strong); }
 
 /* The rule, said in words above the controls that set it. Roomier than help text
    because it is the sentence somebody reads to check the rule says what they meant. */
-.hub-rule-sentence {
+.console-rule-sentence {
   color: var(--ink-2);
   font-size: var(--fs-body);
   max-width: none;
@@ -342,7 +342,7 @@ body::before {
 
 /* Why a row is in the collection. Quiet where the answer is ordinary, amber where it
    is something to go and fix - the same reading the rest of the app gives the colour. */
-.hub-member-chip {
+.console-member-chip {
   font-size: var(--fs-caption);
   letter-spacing: 0.04em;
   padding: 1px 7px;
@@ -353,16 +353,16 @@ body::before {
 /* The ordinary state, dimmed so a scan passes over it, and the one that wants
    attention. Both are always present - what varies between rows is data, and reading it
    from the absence of a mark cannot be told from a row that has no table at all. */
-.hub-chip-quiet { color: var(--ink-3); border: 1px solid #241640; }
-.hub-chip-warn { color: var(--tier-table); border: 1px solid rgba(255, 192, 97, 0.45); }
+.console-chip-quiet { color: var(--ink-3); border: 1px solid #241640; }
+.console-chip-warn { color: var(--tier-table); border: 1px solid rgba(255, 192, 97, 0.45); }
 
 /* The collection's icon in a media slot's art region. Contained, so a wide banner and a
    square logo both sit in the same box. */
-.hub-slot-image { max-width: 100%; max-height: 100%; object-fit: contain; }
+.console-slot-image { max-width: 100%; max-height: 100%; object-fit: contain; }
 
 /* A collection's picture in the list. Small and contained: it identifies a row, it is
    not the row. */
-.hub-collection-cell {
+.console-collection-cell {
   height: 30px; max-width: 44px;
   object-fit: contain;
   display: block;
@@ -370,23 +370,23 @@ body::before {
 }
 
 /* Dynamic or Manual, the one control that converts between them. */
-.hub-kind-toggle { flex: none; }
+.console-kind-toggle { flex: none; }
 
 /* The grip on an arrangeable row. `grab` rather than `move`, because the row is being
    picked up rather than pushed around, and `touch-action: none` or the browser scrolls
    the panel instead of letting the pointer handler have the drag. */
-.hub-drag-handle {
+.console-drag-handle {
   cursor: grab;
   touch-action: none;
   font-size: 18px;
   color: var(--ink-3);
   flex: none;
 }
-.hub-drag-handle:hover { color: var(--accent); }
+.console-drag-handle:hover { color: var(--accent); }
 /* Lifted, not swapped: the row leaves the flow and follows the pointer while the rest
    of the list holds still. Swapping moved the rows you were aiming at, so the target
    changed as you approached it. */
-.hub-member-row.hub-dragging {
+.console-member-row.console-dragging {
   position: fixed;
   z-index: 8000;
   background: var(--surface-hover);
@@ -397,18 +397,18 @@ body::before {
 }
 /* Where it would land. A band rather than an empty gap: the gap alone reads as the
    list having lost a row. */
-.hub-drop-slot {
+.console-drop-slot {
   border-radius: 6px;
   border: 1px dashed var(--accent);
   background: rgba(0, 217, 255, 0.06);
 }
 /* The keyboard's equivalent of being lifted. */
-.hub-member-row.hub-grabbed {
+.console-member-row.console-grabbed {
   background: var(--surface-hover);
   outline: 1px solid var(--accent);
   border-radius: 6px;
 }
-.hub-drag-handle:focus-visible {
+.console-drag-handle:focus-visible {
   outline: 2px solid var(--accent);
   border-radius: 4px;
 }
@@ -421,7 +421,7 @@ body::before {
 /* A *member* is a row in a list belonging to the selected subject - a collection's
    games, a game's tables. The word is collections' and the classes are shared on
    purpose: the two lists are the same shape and one treatment is the point. */
-.hub-member-row {
+.console-member-row {
   padding: 5px 10px;
   border-radius: 6px;
   line-height: 1.25;
@@ -429,13 +429,13 @@ body::before {
 /* The row the panel beside this is about. Weight, not colour: accent is the chosen one
    and the default mark already spends it on this list, so a second accent here would
    have two meanings in one row. */
-.hub-member-name--here { color: var(--ink); font-weight: 600; }
-.hub-member-name { font-size: var(--fs-body); color: var(--ink-2); }
-.hub-member-table {
+.console-member-name--here { color: var(--ink); font-weight: 600; }
+.console-member-name { font-size: var(--fs-body); color: var(--ink-2); }
+.console-member-table {
   font-size: var(--fs-caption);
   color: var(--ink-3);
   line-height: 1.2;
-  /* Not `.hub-help`, whose 62ch cap and looser leading are for prose. This is a
+  /* Not `.console-help`, whose 62ch cap and looser leading are for prose. This is a
      label under another label. */
   padding-left: 1px;
 }
@@ -443,7 +443,7 @@ body::before {
 /* Which of the two this table is, said beside the table it qualifies rather than in the
    chip slot at the row's edge - that slot is for what has happened to the row. Dimmer
    than the identity it follows, so a scan reads the names and not the qualifier. */
-.hub-member-qualifier {
+.console-member-qualifier {
   font-size: var(--fs-caption);
   color: var(--ink-3);
   opacity: 0.72;
@@ -460,7 +460,7 @@ body::before {
 /* One diameter for every state: the circle is drawn here rather than borrowed from the
    font, where ● and ◐ are different sizes and no font-size makes them agree. Colour
    comes from `currentColor`, so a mark follows whatever text it sits beside. */
-.hub-mark {
+.console-mark {
   /* `inline-block` so it also works in a grid cell, which is not a flex row. */
   display: inline-block;
   vertical-align: middle;
@@ -475,20 +475,20 @@ body::before {
    table an entry points at, and where a media file resolved from - and section 13 is
    explicit that they share the shapes and not the nouns. A modifier called `--fixed`
    would have carried one vocabulary's meaning into the other's screens. */
-.hub-mark--full { background: currentColor; }
+.console-mark--full { background: currentColor; }
 /* The base circle, named so a caller can say which end of the ramp it means rather
    than passing an empty string and hoping. */
-.hub-mark--outline { background: transparent; }
+.console-mark--outline { background: transparent; }
 /* Half filled, and the fill runs to the circle's own centre rather than to the edge of
    its outline. */
-.hub-mark--half {
+.console-mark--half {
   background: linear-gradient(to right, currentColor 50%, transparent 50%);
 }
 /* Drawn rather than bordered. `border-style: dashed` picks its own dash length from the
    border width, which on a 34px circumference put three chunky dashes on the circle -
    the same declaration that reads as a proper dashed edge on a tile, because a tile has
    the perimeter for it. The gradient is an exact eight, at any size. */
-.hub-mark--dashed {
+.console-mark--dashed {
   border-color: transparent;
   background: repeating-conic-gradient(currentColor 0 22.5deg,
                                        transparent 22.5deg 45deg);
@@ -499,17 +499,17 @@ body::before {
 /* A square on its corner: the odd one out on purpose, because the state it marks is
    the one that is not a degree of the others. */
 /* The legend for those marks, sitting on the toolbar beside the count. */
-.hub-tier-key .hub-mark { margin-right: 3px; }
+.console-tier-key .console-mark { margin-right: 3px; }
 /* A state drawn as nothing still needs its place in the legend, or the reader is left
    matching three words against two marks. It holds a mark's width and stays empty. */
-.hub-mark-none { display: inline-block; width: 11px; margin-right: 3px; }
+.console-mark-none { display: inline-block; width: 11px; margin-right: 3px; }
 
 /* Five stars that are also the control. Sized to the row rather than to a dialog: this
    is the compact form of the same five, and a star big enough to admire is a column
    wide enough to hurt. */
-.hub-stars-cell { padding-left: 10px !important; }
-.hub-stars { display: inline-flex; gap: 2px; line-height: 0; }
-.hub-star {
+.console-stars-cell { padding-left: 10px !important; }
+.console-stars { display: inline-flex; gap: 2px; line-height: 0; }
+.console-star {
   width: 13px;
   height: 13px;
   cursor: pointer;
@@ -521,14 +521,14 @@ body::before {
   opacity: 0.35;
   transition: opacity 90ms ease-out, background 90ms ease-out;
 }
-.hub-star--on { background: var(--accent); opacity: 1; }
-.ag-row:hover .hub-star { opacity: 0.6; }
-.ag-row:hover .hub-star--on { opacity: 1; }
-.hub-star:hover { opacity: 1; background: var(--accent); }
+.console-star--on { background: var(--accent); opacity: 1; }
+.ag-row:hover .console-star { opacity: 0.6; }
+.ag-row:hover .console-star--on { opacity: 1; }
+.console-star:hover { opacity: 1; background: var(--accent); }
 /* The way back to unrated. Beside the stars rather than in them, because it is not a
    sixth degree of the same scale - and only on a row the pointer is over, so a rated
    library does not read as a column of dismissals. */
-.hub-star-clear {
+.console-star-clear {
   margin-left: 5px;
   font-size: 13px;
   line-height: 13px;
@@ -543,32 +543,32 @@ body::before {
    Gated on the input, never on the surface (`docs/conventions.md`) - a touch device
    cannot hover, so there it is simply there, and a keyboard reaches it by focus. */
 @media (hover: hover) and (pointer: fine) {
-  .hub-star-clear { opacity: 0; }
-  .hub-stars:hover .hub-star-clear { opacity: 0.75; }
+  .console-star-clear { opacity: 0; }
+  .console-stars:hover .console-star-clear { opacity: 0.75; }
 }
-.hub-stars:focus-within .hub-star-clear { opacity: 1; }
-.hub-star-clear:hover { opacity: 1; color: var(--ink); }
+.console-stars:focus-within .console-star-clear { opacity: 1; }
+.console-star-clear:hover { opacity: 1; color: var(--ink); }
 /* In the filter, the stars are a picture of a value and not a control. */
-.hub-filter-row .hub-star { cursor: pointer; margin-right: -1px; }
+.console-filter-row .console-star { cursor: pointer; margin-right: -1px; }
 
 /* One confirmation, wherever something cannot be undone. Narrow enough to read in one
    line of sight, and the named files are quiet and breakable - a path is looked at, not
    read. */
-.hub-confirm { min-width: 320px; max-width: 460px; }
+.console-confirm { min-width: 320px; max-width: 460px; }
 /* A picker is a list to read down, not a question to answer, so it takes the room a
    list needs and caps its height rather than growing past the window. */
-.hub-picker-dialog { min-width: 520px; max-width: 640px; }
-.hub-picker-dialog .hub-source-list { max-height: 42vh; overflow-y: auto; }
-/* The question is a sentence and takes sentence case. It used to wear `.hub-card-title`,
+.console-picker-dialog { min-width: 520px; max-width: 640px; }
+.console-picker-dialog .console-source-list { max-height: 42vh; overflow-y: auto; }
+/* The question is a sentence and takes sentence case. It used to wear `.console-card-title`,
    which is the section-heading treatment - uppercase, tracked, accent - so every dialog
    opened by shouting its question. Weight and size carry it instead. */
-.hub-confirm-title {
+.console-confirm-title {
   font-size: var(--fs-body);
   font-weight: 600;
   color: var(--ink);
   line-height: 1.35;
 }
-.hub-confirm-line {
+.console-confirm-line {
   font-size: var(--fs-caption);
   color: var(--ink-3);
   word-break: break-all;
@@ -576,8 +576,8 @@ body::before {
 
 /* The state picker inside a column's filter. The same words and marks as the legend,
    because a filter that named the states differently would be a third vocabulary. */
-.hub-filter { padding: 6px 4px; min-width: 148px; }
-.hub-filter-row {
+.console-filter { padding: 6px 4px; min-width: 148px; }
+.console-filter-row {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -588,23 +588,23 @@ body::before {
   font-size: 13px;
   white-space: nowrap;
 }
-.hub-filter-row:hover { background: rgba(255, 255, 255, 0.06); }
+.console-filter-row:hover { background: rgba(255, 255, 255, 0.06); }
 /* The leading slot, wide enough for a mark and present whether or not there is one -
    a choice that draws nothing in the grid indents to here rather than shifting its
    label left of every other. A rating draws five, so it grows rather than clipping. */
-.hub-filter-mark {
+.console-filter-mark {
   display: inline-flex;
   align-items: center;
   gap: 2px;
   min-width: 11px;
   flex: none;
 }
-.hub-filter-row input { accent-color: var(--accent); cursor: pointer; margin: 0; }
+.console-filter-row input { accent-color: var(--accent); cursor: pointer; margin: 0; }
 
 /* A media cell holds one thing - a mark or a picture - so it centres that thing rather
    than leaving it on the text baseline. A picture on the baseline sat 1px below the top
    of a 60px row and 7px above the bottom. */
-.ag-cell.hub-media-cell {
+.ag-cell.console-media-cell {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -613,7 +613,7 @@ body::before {
    art - is what the cell centres. On a line box sized for the row it stood 76px tall in
    a 59px cell, so centring hung the picture 8px above the cell and the clip took the top
    off the enlarge. Zero line height makes it the height of what it holds. */
-.hub-media-cell > * {
+.console-media-cell > * {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -622,8 +622,8 @@ body::before {
 /* The art and the control that enlarges it. Relative on the art rather than the cell,
    so the button sits on the picture's own corner - on the cell's it floats out over
    the whitespace beside a narrow one. */
-.hub-cell-art { position: relative; display: inline-flex; line-height: 0; }
-.hub-cell-zoom {
+.console-cell-art { position: relative; display: inline-flex; line-height: 0; }
+.console-cell-zoom {
   position: absolute;
   top: 2px;
   right: 2px;
@@ -638,16 +638,16 @@ body::before {
   opacity: 0;
   transition: opacity 90ms ease-out;
 }
-.ag-row:hover .hub-cell-zoom { opacity: 0.75; }
-.hub-cell-zoom:hover { opacity: 1; background: rgba(10, 5, 24, 0.9); }
+.ag-row:hover .console-cell-zoom { opacity: 0.75; }
+.console-cell-zoom:hover { opacity: 1; background: rgba(10, 5, 24, 0.9); }
 
-.hub-mark--set {
+.console-mark--set {
   border-radius: 0;
   background: currentColor;
   transform: rotate(45deg) scale(0.82);
 }
 
-.hub-member-mark {
+.console-member-mark {
   /* Big enough that ● and ◐ are told apart. They differ by half a fill, which at 11px
      is two or three pixels - measured on screen, both read as the same dot. */
   font-size: 15px;
@@ -657,7 +657,7 @@ body::before {
   width: 16px;
   text-align: center;
 }
-.hub-member-row:hover .hub-member-mark { color: var(--accent); }
+.console-member-row:hover .console-member-mark { color: var(--accent); }
 
 /* The table line doubles as the control that changes which table this member names.
    The caret is the only added ink and it waits for a hover, so a list of forty rows
@@ -670,15 +670,15 @@ body::before {
    text; it now carries an 11px mark that makes the line taller, so any pull at all put
    the line over the name. A hairline of daylight is what makes the two read as a pair
    rather than as one crowded block. */
-.hub-member-table-line {
+.console-member-table-line {
   border-radius: 4px;
   padding-right: 2px;
   margin-top: 1px;
   color: var(--ink-3);
 }
-.hub-member-row:hover .hub-member-table-line .hub-mark { color: var(--accent); }
-.hub-member-table-line:hover { background: rgba(255, 255, 255, 0.06); }
-.hub-member-table-caret {
+.console-member-row:hover .console-member-table-line .console-mark { color: var(--accent); }
+.console-member-table-line:hover { background: rgba(255, 255, 255, 0.06); }
+.console-member-table-caret {
   font-size: 15px;
   color: var(--ink-3);
   flex: none;
@@ -690,23 +690,23 @@ body::before {
   :root { --target-inline: var(--target-min); --field-h: var(--target-min); }
 }
 @media (hover: hover) and (pointer: fine) {
-  .hub-member-table-caret { opacity: 0; transition: opacity 120ms ease; }
-  .hub-member-row:hover .hub-member-table-caret,
-  .hub-member-table-line:focus-within .hub-member-table-caret { opacity: 1; }
+  .console-member-table-caret { opacity: 0; transition: opacity 120ms ease; }
+  .console-member-row:hover .console-member-table-caret,
+  .console-member-table-line:focus-within .console-member-table-caret { opacity: 1; }
 }
 /* Wraps rather than truncates: in the menu the whole point is telling two builds of
    one game apart, and that is exactly what a cut-off tail hides. */
 /* Wraps rather than truncates: in this menu the whole point is telling two builds of
    one game apart, and that is exactly what a cut-off tail hides. The uppercase opt-out
    this used to carry is gone - no menu item is uppercase now. */
-.q-menu .hub-menu-item .hub-menu-table-name {
+.q-menu .console-menu-item .console-menu-table-name {
   max-width: 30ch;
   white-space: normal;
 }
-.hub-menu-check { font-size: 16px; color: var(--accent); }
+.console-menu-check { font-size: 16px; color: var(--accent); }
 /* What Game Default resolves to today, under the words that name it. A step down in
    size and colour, the same way a member row's table line sits under its game. */
-.q-menu .hub-menu-item .hub-menu-sub {
+.q-menu .console-menu-item .console-menu-sub {
   font-size: var(--fs-caption);
   /* A step below `--ink-3`, where the ramp stops: this is the only text on the menu
      nobody has to read - the label above carries the choice, and this answers "which
@@ -723,41 +723,41 @@ body::before {
 }
 /* Offered, and refused. Dimmed rather than removed: an entry that is simply absent is
    the same puzzle as a row that vanishes, which is what this state exists to avoid. */
-.q-menu .hub-menu-item.hub-menu-blocked,
-.q-menu .hub-menu-item.hub-menu-blocked .q-item__label,
-.q-menu .hub-menu-item.hub-menu-blocked:hover,
-.q-menu .hub-menu-item.hub-menu-blocked:hover .q-item__label {
+.q-menu .console-menu-item.console-menu-blocked,
+.q-menu .console-menu-item.console-menu-blocked .q-item__label,
+.q-menu .console-menu-item.console-menu-blocked:hover,
+.q-menu .console-menu-item.console-menu-blocked:hover .q-item__label {
   color: var(--ink-3);
   opacity: 0.55;
   cursor: default;
   background: transparent;
 }
-.hub-menu-blocked-mark { color: var(--ink-3) !important; font-size: 15px; }
+.console-menu-blocked-mark { color: var(--ink-3) !important; font-size: 15px; }
 /* Which of a game's tables it offers. A radio rather than a glyph: a game has exactly
    one default, that is what a radio means, and it reads as a control - which this one
    is. Kept clear of the text glyphs in `game_tables.py`, whose question is a different
    one, by being an icon and by living on a surface those never appear on. */
-.hub-default-mark {
+.console-default-mark {
   font-size: 18px;
   color: var(--ink-3);
   flex: none;
   transition: color 120ms ease;
 }
-.hub-default-mark--on { color: var(--accent); }
-.hub-default-mark.cursor-pointer:hover { color: var(--ink); }
+.console-default-mark--on { color: var(--accent); }
+.console-default-mark.cursor-pointer:hover { color: var(--ink); }
 
 /* Something to go and do, in the colour this theme keeps for exactly that. The rail is
    already a lit surface, so the accent would make this one more glowing thing in it
    rather than the one worth acting on. */
-.hub-update {
+.console-update {
   color: var(--warm);
   font-weight: 600;
 }
-.hub-update:hover { text-decoration: underline; }
+.console-update:hover { text-decoration: underline; }
 
 /* The icon of a rail entry, as a box a badge can be hung on. The badge belongs to the
    icon rather than the row because the icon is in both states and the label is not. */
-.hub-nav-mark {
+.console-nav-mark {
   position: relative;
   display: flex;
   align-items: center;
@@ -765,10 +765,10 @@ body::before {
 }
 
 /* How many of something are waiting behind a rail entry, on the icon's upper right in
-   both states. Same warm as .hub-update and for the same reason: it is the one thing in
+   both states. Same warm as .console-update and for the same reason: it is the one thing in
    a lit rail worth acting on. A count only - what it is about is on the page it leads
    to. */
-.hub-nav-badge {
+.console-nav-badge {
   background: var(--warm);
   /* The darkest surface rather than the ink: on a filled warm chip the text has to
      read against the fill, and --ink is chosen to read against a dark ground. */
@@ -791,15 +791,15 @@ body::before {
 /* The dot that says a device answered, before its name in the devices rail. Its own
    class rather than a mark: the mark vocabulary is about a library's coverage, and this
    is about whether a machine is switched on. */
-.hub-reach-dot { margin-right: 8px; }
+.console-reach-dot { margin-right: 8px; }
 
 /* The sort control above the devices rail. Aligned to the rail rather than the page, so
    it reads as belonging to the list it orders. */
-.hub-devices-bar { padding: 8px 12px 0 12px; }
-.hub-devices-sort { min-width: 120px; }
+.console-devices-bar { padding: 8px 12px 0 12px; }
+.console-devices-sort { min-width: 120px; }
 
 /* A tooltip belonging to the control that opened a menu would sit on top of it. */
-body.hub-menu-open .q-tooltip { display: none !important; }
+body.console-menu-open .q-tooltip { display: none !important; }
 
 /* The grid's own tooltip, which is where a column explains itself. AG Grid renders the
    text verbatim, so `pre-line` is what makes a newline in the help a line on screen -
@@ -819,7 +819,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 }
 
 /* The key for those marks, in the header that does not scroll. */
-.hub-member-key {
+.console-member-key {
   font-size: var(--fs-caption);
   color: var(--ink-2);
   white-space: nowrap;
@@ -829,8 +829,8 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 /* Alternating ground. Rows are two lines tall here, so where one ends is not obvious
    from spacing alone - which is exactly when striping earns its keep. Kept very low
    contrast: it separates, it does not decorate. */
-.hub-member-row:nth-child(even) { background: rgba(255, 255, 255, 0.055); }
-.hub-member-row:hover { background: var(--surface-hover); }
+.console-member-row:nth-child(even) { background: rgba(255, 255, 255, 0.055); }
+.console-member-row:hover { background: var(--surface-hover); }
 
 /* The row's action appears under the cursor. A column of identical glyphs down a long
    list is noise competing with the content, and the action is the same on every row.
@@ -845,19 +845,19 @@ body.hub-menu-open .q-tooltip { display: none !important; }
    Visible is the default; hover-to-reveal is the enhancement. */
 /* A row of verbs, not a column: with one button the default flow was enough, and the
    second one wrapped under the first at panel width. */
-.hub-row-action {
+.console-row-action {
   transition: opacity 120ms ease;
   display: flex; align-items: center; flex: 0 0 auto;
 }
 @media (hover: hover) and (pointer: fine) {
-  .hub-row-action { opacity: 0; }
-  .hub-member-row:hover .hub-row-action,
-  .hub-member-row:focus-within .hub-row-action { opacity: 1; }
-  .hub-member-row[data-origin="missing"] .hub-row-action,
-  .hub-member-row[data-origin="excluded"] .hub-row-action { opacity: 1; }
+  .console-row-action { opacity: 0; }
+  .console-member-row:hover .console-row-action,
+  .console-member-row:focus-within .console-row-action { opacity: 1; }
+  .console-member-row[data-origin="missing"] .console-row-action,
+  .console-member-row[data-origin="excluded"] .console-row-action { opacity: 1; }
 }
 
-.hub-picker-popup .q-item__label {
+.console-picker-popup .q-item__label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -873,9 +873,9 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 
    **The group label is chrome; the item is content.** */
 
-/* The same treatment as `.hub-group`, which is what the rest of the app uses to name a
+/* The same treatment as `.console-group`, which is what the rest of the app uses to name a
    group. Quiet, small, tracked - a signpost recedes. */
-.hub-menu-header {
+.console-menu-header {
   color: var(--ink-3) !important;
   font-size: var(--fs-caption);
   text-transform: uppercase;
@@ -885,8 +885,8 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 }
 /* Body voice. You read an item and click it; sentence case is how a name stays a name,
    which is what a menu over a library is full of. */
-.q-menu .hub-menu-item,
-.q-menu .hub-menu-item .q-item__label {
+.q-menu .console-menu-item,
+.q-menu .console-menu-item .q-item__label {
   color: var(--ink-2);
   font-size: var(--fs-caption);
   text-transform: none;
@@ -896,28 +896,28 @@ body.hub-menu-open .q-tooltip { display: none !important; }
    sized to its own text and the hover band stopped where the words did - measured at
    121px inside a 247px menu. The band *is* the affordance; a colour change alone is
    too weak to say "this row is the target". */
-.q-menu .hub-menu-item {
+.q-menu .console-menu-item {
   width: 100%;
   min-height: 30px;
   border-radius: 0;
 }
-.q-menu .hub-menu-item:hover,
-.q-menu .hub-menu-item:focus-visible {
+.q-menu .console-menu-item:hover,
+.q-menu .console-menu-item:focus-visible {
   background: var(--surface-hover);
 }
-.q-menu .hub-menu-item:hover,
-.q-menu .hub-menu-item:hover .q-item__label,
-.q-menu .hub-menu-item:focus-visible,
-.q-menu .hub-menu-item:focus-visible .q-item__label { color: var(--ink); }
+.q-menu .console-menu-item:hover,
+.q-menu .console-menu-item:hover .q-item__label,
+.q-menu .console-menu-item:focus-visible,
+.q-menu .console-menu-item:focus-visible .q-item__label { color: var(--ink); }
 
 /* Cyan is the current value and nothing else. Everything being accent-coloured is what
    left it meaning nothing. */
-.q-menu .hub-menu-item.hub-menu-on,
-.q-menu .hub-menu-item.hub-menu-on .q-item__label { color: var(--accent); }
+.q-menu .console-menu-item.console-menu-on,
+.q-menu .console-menu-item.console-menu-on .q-item__label { color: var(--accent); }
 
 /* One leading column, 16px, whatever fills it - mark, icon or nothing. Items with no
    mark still indent to it, so the labels line up down the menu. */
-.hub-menu-mark, .hub-menu-add {
+.console-menu-mark, .console-menu-add {
   flex: none;
   width: 16px;
   font-size: 16px;
@@ -927,21 +927,21 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 }
 /* A drawn mark keeps its own diameter and is centred in that column rather than
    stretched across it - the column's 16px made an 11px circle into an oval. */
-.q-menu .hub-menu-mark.hub-mark { width: 11px; margin: 0 2.5px; }
-.q-menu .hub-menu-item:hover .hub-menu-mark,
-.q-menu .hub-menu-item:hover .hub-menu-add { color: var(--ink); }
-.q-menu .hub-menu-item.hub-menu-on .hub-menu-mark { color: var(--accent); }
+.q-menu .console-menu-mark.console-mark { width: 11px; margin: 0 2.5px; }
+.q-menu .console-menu-item:hover .console-menu-mark,
+.q-menu .console-menu-item:hover .console-menu-add { color: var(--ink); }
+.q-menu .console-menu-item.console-menu-on .console-menu-mark { color: var(--accent); }
 
 /* The act, not the row, is what is destructive: the text carries it and the hover band
    stays the ordinary one. A red row reads as an error that has already happened. */
-.q-menu .hub-menu-item.hub-menu-danger,
-.q-menu .hub-menu-item.hub-menu-danger .q-item__label { color: var(--danger); }
-.q-menu .hub-menu-item.hub-menu-danger:hover,
-.q-menu .hub-menu-item.hub-menu-danger:hover .q-item__label { color: var(--danger-hover); }
+.q-menu .console-menu-item.console-menu-danger,
+.q-menu .console-menu-item.console-menu-danger .q-item__label { color: var(--danger); }
+.q-menu .console-menu-item.console-menu-danger:hover,
+.q-menu .console-menu-item.console-menu-danger:hover .q-item__label { color: var(--danger-hover); }
 
 /* A checkbox item is an item: same band, same height, same leading column - the box
    is what fills the mark slot. */
-.q-menu .q-checkbox.hub-menu-item {
+.q-menu .q-checkbox.console-menu-item {
   display: flex;
   padding: 2px 12px;
   min-height: 30px;
@@ -952,17 +952,17 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 
 /* Tiles are deliberately plain: the art is the content, so the chrome around it stays
    quiet enough that an outlier stands out rather than the frame. */
-.hub-tile { cursor: pointer; padding: 4px; border-radius: 8px; }
-.hub-tile:hover { background: var(--surface-hover); }
-.hub-tile-art {
+.console-tile { cursor: pointer; padding: 4px; border-radius: 8px; }
+.console-tile:hover { background: var(--surface-hover); }
+.console-tile-art {
   width: 100%;
   object-fit: contain;
   border-radius: 6px;
   background: #140a2b;
   border: 1px solid var(--line);
 }
-.hub-tile-missing { border-style: dashed; }
-.hub-tile-label {
+.console-tile-missing { border-style: dashed; }
+.console-tile-label {
   font-size: var(--fs-caption);
   color: var(--accent);
   text-align: center;
@@ -972,13 +972,13 @@ body.hub-menu-open .q-tooltip { display: none !important; }
   padding-top: 2px;
 }
 
-.hub-panel {
+.console-panel {
   background: var(--surface-2);
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
 }
-.hub-label { color: var(--accent); letter-spacing: 0.04em; }
+.console-label { color: var(--accent); letter-spacing: 0.04em; }
 
 /* Nav in the 2.x idiom: a vertical gradient off the brand purple into the page black,
    caps with tracking, and cyan for the title. The gradient runs dark enough by the foot
@@ -991,7 +991,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
   background: linear-gradient(180deg, var(--flair) 0px, #4a1e7c 60px, var(--surface-2) 90px,
                               #0f0722 100%) !important;
 }
-.hub-nav-item {
+.console-nav-item {
   /* Sampled from 2.x: 14px at weight 500 with normal tracking. Mine were 12px with
      0.06em, which read noticeably smaller and tighter than the nav beside it. */
   text-transform: uppercase;
@@ -1004,7 +1004,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
      label above them is the only cyan in the panel. */
   color: var(--ink-2);
 }
-.q-drawer--left .cursor-pointer:hover .hub-nav-item { color: var(--ink); }
+.q-drawer--left .cursor-pointer:hover .console-nav-item { color: var(--ink); }
 .q-drawer--left .cursor-pointer:hover .q-icon { color: var(--ink); opacity: 1; }
 .q-drawer--left .q-icon { color: var(--ink-2); }
 
@@ -1013,7 +1013,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 /* Geometry only. The surface and border here came from matching the "Navigation"
    label's row, which was the wrong element - the title it now matches sits in 2.x's
    header bar with nothing drawn behind it. */
-.hub-nav-header {
+.console-nav-header {
   min-height: 59px;
   padding: 12px !important;
   /* Quasar's .row wraps, and the title's width is whatever `sans-serif` resolves to on
@@ -1026,8 +1026,8 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 /* At the rail the row is the icon's whole world, so the wide state's side padding
    pushes it off center. Set here because that padding is !important and a utility
    class cannot outrank it. */
-.q-drawer--mini .hub-nav-row,
-.q-drawer--mini .hub-nav-header {
+.q-drawer--mini .console-nav-row,
+.q-drawer--mini .console-nav-header {
   padding-left: 0 !important;
   padding-right: 0 !important;
   margin-left: 0;
@@ -1036,7 +1036,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
   justify-content: center;
 }
 
-.hub-nav-row {
+.console-nav-row {
   min-height: 48px;
   padding: 12px 16px !important;
   border-radius: 12px;
@@ -1048,7 +1048,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 /* Nested under a parent entry, indented by the icon column so the children line up
    under the parent's label rather than under its icon. Collapsed to the mini rail the
    indent goes with the labels - there is nothing left to line up with. */
-.hub-nav-row--nested {
+.console-nav-row--nested {
   padding-left: 32px !important;
   /* Subordinate, not just shifted: a child that matches its parent in height, icon and
      type is a sibling wearing an indent. 38px against 48, 19px against 24, caption
@@ -1059,8 +1059,8 @@ body.hub-menu-open .q-tooltip { display: none !important; }
   margin-top: 0;
   margin-bottom: 0;
 }
-.hub-nav-row--nested .q-icon { font-size: 19px !important; }
-.hub-nav-row--nested .hub-nav-item {
+.console-nav-row--nested .q-icon { font-size: 19px !important; }
+.console-nav-row--nested .console-nav-item {
   font-size: var(--fs-caption);
   line-height: 20px;
 }
@@ -1068,7 +1068,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
    step down stays. A child keeps its smaller icon in the rail, which is the only thing
    left that can say it is one. Row height does not follow it: the rail's rhythm is one
    height, and the icons centre in it either way. */
-.q-drawer--mini .hub-nav-row--nested {
+.q-drawer--mini .console-nav-row--nested {
   padding-left: 0 !important;
   min-height: 48px;
 }
@@ -1076,11 +1076,11 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 /* The parent row holds a spacer to push its caret right. Collapsed, the label and the
    caret are hidden but the spacer is not - and a zero-width flex item still earns the
    row's gap, so the icon sat 6px left of every other one in the rail. */
-.q-drawer--mini .hub-nav-row .q-space { display: none; }
+.q-drawer--mini .console-nav-row .q-space { display: none; }
 
 /* The page you are on stays lit while you are on it - --surface-2 behind it and
    --glow-purple around it, which is what 2.x does. */
-.hub-nav-active {
+.console-nav-active {
   background: var(--surface-current);
   box-shadow: 0 0 4px rgba(180, 41, 249, 0.5), 0 0 8px rgba(180, 41, 249, 0.3);
 }
@@ -1089,7 +1089,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
    cyan is the only thing that accents. Pink was a third hue close enough to the header
    magenta to muddle rather than contrast; the panels are told apart by tone instead,
    the nav title at full neon and this one near-white with a softer halo. */
-.hub-workbench {
+.console-workbench {
   /* The nav's treatment, one step down in intensity: a band compressed into the header
      row so the subject sits on its own ground rather than on the same flat field as the
      list of what you can ask about it. It starts at the nav's *second* stop rather than
@@ -1116,21 +1116,21 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 /* Collapsed to the rail there is no window at all - the whole strip is panel, so it is
    opaque like every other part that is. The band above is untouched; only the cut to
    transparent goes, which is what let the page grid through a 57px strip. */
-.hub-rail .hub-workbench {
+.console-rail .console-workbench {
   background: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 44px,
                               var(--panel-ground) 72px) !important;
 }
 /* truncate only ellipsizes against a definite width. The column may shrink under
    min-w-0, but its labels have to be told to take that width or they overflow and get
    cropped by the parent instead of ellipsized. */
-.hub-panel-header .hub-workbench-title,
-.hub-panel-header .hub-workbench-label { max-width: 100%; }
+.console-panel-header .console-workbench-title,
+.console-panel-header .console-workbench-label { max-width: 100%; }
 
-.hub-workbench-title {
+.console-workbench-title {
   color: var(--ink);
   text-shadow: 0 0 6px rgba(0, 217, 255, 0.45);
 }
-.hub-workbench-label {
+.console-workbench-label {
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1138,8 +1138,8 @@ body.hub-menu-open .q-tooltip { display: none !important; }
 }
 /* The same name, drawn above the content instead of in a header beside it. The rule is
    what makes it read as a heading rather than as the first line of the page; the gutter
-   matches .hub-facts so the name sits on the labels' left edge. */
-.hub-panel-heading {
+   matches .console-facts so the name sits on the labels' left edge. */
+.console-panel-heading {
   display: block;
   /* Or the rule is the width of the word and reads as an underline on it. */
   width: 100%;
@@ -1148,7 +1148,7 @@ body.hub-menu-open .q-tooltip { display: none !important; }
   border-bottom: 1px solid var(--line-soft);
 }
 /* Tight: this panel carries a lot and the default expansion chrome is mostly air. */
-.hub-workbench .q-expansion-item {
+.console-workbench .q-expansion-item {
   border: 1px solid var(--line);
   border-radius: 8px;
   /* Vertical margin only. A horizontal margin on a w-full child overhangs by exactly
@@ -1157,33 +1157,33 @@ body.hub-menu-open .q-tooltip { display: none !important; }
   margin: 4px 0;
   background: rgba(26, 15, 53, 0.55);
 }
-.hub-workbench { overflow-x: hidden !important; }
+.console-workbench { overflow-x: hidden !important; }
 /* No side gutter of its own: what it holds carries the shared one, and two would
    stack. Top and bottom are the exception - the section row sits directly above and
    the section's own edge directly below, and without this the content is flush to
    both and reads as cut off at each end. */
-.hub-workbench-body { padding: 8px 0; }
-.hub-workbench .q-expansion-item .q-item {
+.console-workbench-body { padding: 8px 0; }
+.console-workbench .q-expansion-item .q-item {
   min-height: 32px;
   padding: 2px 10px;
 }
-.hub-workbench .q-expansion-item .q-item__label {
+.console-workbench .q-expansion-item .q-item__label {
   color: var(--accent); font-size: var(--fs-caption);
 }
-.hub-workbench .q-expansion-item__content { padding: 2px 0 6px; }
+.console-workbench .q-expansion-item__content { padding: 2px 0 6px; }
 /* nicegui puts a 16px flex gap on .nicegui-expansion-content, which double-spaced every
    line inside a section: 22px rows on a 38px pitch. Same default as the drawer's, in a
    different container - the rows carry their own spacing. */
-.hub-workbench .nicegui-expansion-content {
+.console-workbench .nicegui-expansion-content {
   /* Both of nicegui's defaults on this container: the 16px gap double-spaced the lines
      and the 16px padding is the dead space above the first field and below the last. */
   gap: 0 !important;
   padding: 0 !important;
 }
 /* The panel toggles match: nav and workbench are the same control, same color. */
-.hub-panel-header .q-icon { color: var(--ink-2); }
-.hub-workbench .q-expansion-item__content .row { min-height: 22px; }
-.hub-nav-title {
+.console-panel-header .q-icon { color: var(--ink-2); }
+.console-workbench .q-expansion-item__content .row { min-height: 22px; }
+.console-nav-title {
   /* .manager-title, sampled: --ink with --glow-cyan behind it at 20px/900. The white
      comes from the near-white glyph and the color from the halo, which is why a cyan
      glyph and a flat one both read wrong. */
@@ -1254,7 +1254,7 @@ def apply_colors(dark: bool) -> None:
 # work and the component work stay legible as two things.
 _COMPONENTS = """
 /* --- media map ------------------------------------------------------------------ */
-.hub-mediatile {
+.console-mediatile {
   flex: 1 1 0;
   min-width: 0;
   /* A column, so the caption sits at the foot of whatever height the row settles on
@@ -1276,10 +1276,10 @@ _COMPONENTS = """
 /* Status and selection cannot share a channel. Cyan answers "which one"; a filled
    slot is shown by the art itself. Amber stays - "borrowed" looks filled and is a gap,
    which is the one state the art cannot tell you. */
-.hub-mediatile--present { border-color: var(--line); }
-.hub-mediatile--borrowed { border-color: rgba(255, 176, 32, 0.65); }
-.hub-mediatile--missing { border-style: dashed; opacity: 0.55; }
-.hub-mediatile--on {
+.console-mediatile--present { border-color: var(--line); }
+.console-mediatile--borrowed { border-color: rgba(255, 176, 32, 0.65); }
+.console-mediatile--missing { border-style: dashed; opacity: 0.55; }
+.console-mediatile--on {
   box-shadow: 0 0 0 2px var(--accent); border-color: var(--accent);
 }
 
@@ -1299,13 +1299,13 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* An action has to look like one, and color alone never says so - it is silent to
    anyone who cannot see the hue. The border is the affordance; hover fills it. */
-.hub-action.q-btn {
+.console-action.q-btn {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 3px 10px !important;
   background: rgba(255, 255, 255, 0.02);
 }
-.hub-action.q-btn:hover {
+.console-action.q-btn:hover {
   border-color: var(--accent);
   background: rgba(0, 217, 255, 0.10);
 }
@@ -1313,7 +1313,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    than after a field. The edge stays - without one it reads as a second value, and this
    panel is worked in rather than read - but the type comes down: measured beside a chip
    at 11px/400 the panel button sat at 12px/500 and was the louder half of the pair. */
-.hub-action--inline.q-btn {
+.console-action--inline.q-btn {
   font-weight: 400;
   padding: 3px 8px !important;
   /* Hugs the chip it sits beside rather than taking the pointer floor every other
@@ -1324,7 +1324,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   min-height: var(--target-inline);
   line-height: 1;
 }
-.hub-action--inline .q-btn__content {
+.console-action--inline .q-btn__content {
   font-size: var(--fs-caption) !important;
   /* A verb never wraps. The value column is 177px, and "Choose this one" broke across
      three lines and took the row to 49px in a 26px rhythm. */
@@ -1334,8 +1334,8 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* A destructive action is still an action - it takes the same shape and says what it
    is with color on top, not instead. */
-.hub-action.hub-action--danger.q-btn { border-color: rgba(255, 107, 157, 0.45); }
-.hub-action.hub-action--danger.q-btn:hover {
+.console-action.console-action--danger.q-btn { border-color: rgba(255, 107, 157, 0.45); }
+.console-action.console-action--danger.q-btn:hover {
   border-color: var(--danger); background: rgba(255, 107, 157, 0.12);
 }
 
@@ -1345,10 +1345,10 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* Every control clears the pointer floor - what is fine for a mouse is mean on a
    trackpad. Dense rather than flat, because the toolbar tabs are `unelevated`. */
-.q-btn--dense, .hub-section-row {
+.q-btn--dense, .console-section-row {
   min-height: var(--target-min);
 }
-.hub-mediatile-art {
+.console-mediatile-art {
   width: 100%;
   /* A backstop, not the layout. The ratio decides the shape; this stops a portrait
      tile in a wide map from growing taller than the rows around it are worth. */
@@ -1363,26 +1363,26 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* NiceGUI wraps raw HTML in a plain div, and a percentage height resolves against
    that - which has none. `display: contents` takes it out of layout so the media is
    the flex child and 100% means the box it is actually in. */
-.hub-mediatile-art > div { display: contents; }
-.hub-mediatile-art img, .hub-mediatile-art video {
+.console-mediatile-art > div { display: contents; }
+.console-mediatile-art img, .console-mediatile-art video {
   width: 100%; height: 100%; object-fit: contain;
 }
 /* On hover and over the art: the tile has no room for a control wanted occasionally.
    Touch has no hover, and reaches this through the slot's own Enlarge. */
-.hub-mediatile-art { position: relative; }
+.console-mediatile-art { position: relative; }
 /* An empty slot the catalog can fill. Quiet: it is information, not a warning - a
    library is allowed to be missing a topper, and amber here would shout on every
    second tile. */
-.hub-mediatile-offered { color: var(--ink-3); opacity: 0.7; }
-.hub-mediatile:hover .hub-mediatile-offered { opacity: 1; color: var(--accent); }
-.hub-mediatile-zoom {
+.console-mediatile-offered { color: var(--ink-3); opacity: 0.7; }
+.console-mediatile:hover .console-mediatile-offered { opacity: 1; color: var(--accent); }
+.console-mediatile-zoom {
   position: absolute; top: 2px; right: 2px; opacity: 0;
   background: rgba(10, 5, 24, 0.7) !important; transition: opacity 120ms ease;
 }
-.hub-mediatile:hover .hub-mediatile-zoom { opacity: 1; }
+.console-mediatile:hover .console-mediatile-zoom { opacity: 1; }
 
 /* A panel over the page, sized by its content, so the media decides how big it is. */
-.hub-viewer-card {
+.console-viewer-card {
   background: #0b0520 !important;
   max-width: 92vw; max-height: 88vh;
   display: flex; flex-direction: column;
@@ -1390,44 +1390,44 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   border: 1px solid var(--line); border-radius: 10px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
 }
-.hub-viewer-bar {
+.console-viewer-bar {
   flex: 0 0 auto; padding: 8px 12px;
   background: rgba(11, 5, 32, 0.9); border-bottom: 1px solid var(--line);
 }
 /* Darker than Quasar's default: the art being judged is often bright. */
 .q-dialog__backdrop { background: rgba(4, 2, 12, 0.78) !important; }
 /* The video's transport, in the bar so it stays upright while the picture turns. */
-.hub-viewer-transport { display: flex; align-items: center; gap: 10px; width: 100%; }
-.hub-viewer-btn {
+.console-viewer-transport { display: flex; align-items: center; gap: 10px; width: 100%; }
+.console-viewer-btn {
   display: flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
   background: transparent; border: none; color: var(--ink-2);
 }
-.hub-viewer-btn:hover { background: rgba(180, 41, 249, 0.18); color: var(--ink); }
-.hub-viewer-btn .material-icons { font-size: var(--fs-title); }
-.hub-viewer-seek { flex: 1 1 auto; min-width: 0; accent-color: var(--accent); cursor: pointer; }
-.hub-viewer-clock {
+.console-viewer-btn:hover { background: rgba(180, 41, 249, 0.18); color: var(--ink); }
+.console-viewer-btn .material-icons { font-size: var(--fs-title); }
+.console-viewer-seek { flex: 1 1 auto; min-width: 0; accent-color: var(--accent); cursor: pointer; }
+.console-viewer-clock {
   font-size: var(--fs-caption); color: var(--ink-2); white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
 /* The stage owns the wheel and the drag, so a pinch magnifies the art rather than
    asking the browser to zoom a page that has nothing to scroll. */
-.hub-viewer-stage {
+.console-viewer-stage {
   overscroll-behavior: contain; touch-action: none;
   user-select: none; -webkit-user-select: none;
 }
-.hub-viewer-stage img, .hub-viewer-stage video {
+.console-viewer-stage img, .console-viewer-stage video {
   -webkit-user-drag: none; user-select: none;
 }
 
-.hub-viewer-stage {
+.console-viewer-stage {
   /* Sized by the media. A rotated element reports its untransformed box, and the turn
      is about its own center, so that box is the right thing to center on. */
   flex: 1 1 auto; min-height: 0;
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
-.hub-mediatile-cap {
+.console-mediatile-cap {
   /* Takes up the slack, so captions share a line whatever sits above them. */
   margin-top: auto;
   display: block;
@@ -1439,10 +1439,10 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.hub-mediatile-rule {
+.console-mediatile-rule {
   height: 1px; width: 100%; margin: 8px 0 5px; background: var(--line-soft);
 }
-.hub-mediatile-grid {
+.console-mediatile-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
@@ -1454,10 +1454,10 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    constant and whose second was the only real segment - a breadcrumb shape over
    something with no path in it, and nothing was clickable.
 
-   The first text in the hub above body size: every other heading here is 12px
+   The first text in the Console above body size: every other heading here is 12px
    uppercase, so this is the top of the scale rather than another rung on it. No glow -
    that belongs to the workbench title, which names the thing you selected. */
-.hub-page-title {
+.console-page-title {
   font-size: var(--fs-title);
   font-weight: 600;
   color: var(--ink);
@@ -1466,24 +1466,30 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
      baselines - matching the height is what actually puts them on one line. */
   line-height: 32px;
 }
-.hub-card {
+.console-card {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(26,15,53,0.75) 0%, rgba(15,7,34,0.75) 100%);
   padding: 14px 16px;
 }
-.hub-card-title {
+.console-card-title {
   font-size: var(--fs-caption);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--accent);
 }
-.hub-kpi { font-size: var(--fs-display); font-weight: 700; color: var(--ink); line-height: 1.1; }
+.console-kpi {
+  font-size: var(--fs-display); font-weight: 700; color: var(--ink);
+  line-height: 1.1;
+}
 /* The explanation under a control, not a tooltip on it. This is the whole legibility
    argument for the settings pages, so it gets a class rather than ad-hoc utilities. */
-.hub-help { font-size: var(--fs-caption); color: var(--ink-3); line-height: 1.4; max-width: 62ch; }
-.hub-setting { font-size: var(--fs-body); color: var(--ink); font-weight: 600; }
-.hub-group {
+.console-help {
+  font-size: var(--fs-caption); color: var(--ink-3); line-height: 1.4;
+  max-width: 62ch;
+}
+.console-setting { font-size: var(--fs-body); color: var(--ink); font-weight: 600; }
+.console-group {
   font-size: var(--fs-caption);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -1499,7 +1505,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    section it used to sit in. */
 /* The file, under the game it belongs to. Cut from the front for the same reason the
    picker was: what tells two tables of one game apart is at the end. */
-.hub-workbench-table {
+.console-workbench-table {
   font-size: var(--fs-caption); color: var(--tier-table);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
@@ -1507,8 +1513,8 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    vertical split - the map scrolls, the controls do not, and picking a tile can never
    put them somewhere you have to go looking. Past the work width they sit side by
    side instead, which is what the room is for. */
-.hub-section-work { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
-.hub-has-dock {
+.console-section-work { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
+.console-has-dock {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   /* The cap goes on the row, not on the dock: a percentage max-height on a grid item
@@ -1522,7 +1528,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   min-height: 0;
 }
 @container (min-width: 900px) {
-  .hub-has-dock {
+  .console-has-dock {
     /* `auto` so the track follows the dock's own width. */
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: minmax(0, 1fr);
@@ -1530,7 +1536,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   }
   /* Half the workbench, so a wide window has no dead middle. The floor keeps it
      usable where half is not much. */
-  .hub-dock { width: max(320px, 50cqw); }
+  .console-dock { width: max(320px, 50cqw); }
 }
 /* The handle between browse and work. Only where they are stacked - side by side the
    split is the panel's own width, which the outer splitter already owns. */
@@ -1539,23 +1545,23 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    panel had three horizontal lines of the same weight meaning two different things,
    and the band below the open section read as belonging to whatever was above it.
    A stub you could put two fingers on says "drag me" and says nothing else. */
-.hub-dock-grip {
+.console-dock-grip {
   height: 19px; cursor: row-resize; flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
 }
-.hub-dock-grip::before {
+.console-dock-grip::before {
   content: ""; width: 44px; height: 4px; border-radius: 2px;
   background: var(--resize-line);
 }
-.hub-dock-grip:hover::before { background: var(--accent); }
+.console-dock-grip:hover::before { background: var(--accent); }
 /* The work region keeps its room whether or not anything is in it: collapsing it
    reflows browse under the cursor that just picked something. */
 /* Centered in the reserved room: text in the top corner reads as a mistake. */
-.hub-dock-empty {
+.console-dock-empty {
   margin: auto; text-align: center; padding: 16px; max-width: 34ch;
 }
-.hub-dock-empty-title { font-size: var(--fs-body); color: var(--ink-2); }
-.hub-dock {
+.console-dock-empty-title { font-size: var(--fs-body); color: var(--ink-2); }
+.console-dock {
   /* Room on every side, or the panel's own border sits flush to the edge and loses
      its right side under the scrollbar. No border-top: the grip is the divider. */
   padding: 4px var(--panel-gutter) var(--panel-gutter);
@@ -1567,12 +1573,12 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   scrollbar-gutter: stable;
 }
 @container (min-width: 900px) {
-  .hub-dock { border-top: none; border-left: 1px solid var(--line); }
+  .console-dock { border-top: none; border-left: 1px solid var(--line); }
   /* Below the grip's own rules on purpose: same specificity, so source order decides.
      Above them this loses to the `display` they set, and the handle shows up floating
      at the top of a layout where the dock is beside the map and there is nothing to
      drag. */
-  .hub-dock-grip { display: none; }
+  .console-dock-grip { display: none; }
 }
 
 /* Takes the panel. A 420px cap used to stop four fields stretching across a window,
@@ -1581,12 +1587,12 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    width still bounds it, so a long filename ellipsizes inside the panel rather than
    running off it; there is simply more panel to use first. A cap belongs on an input,
    where a 900px text box is genuinely useless, not on the text. */
-.hub-form { width: 100%; }
+.console-form { width: 100%; }
 
 /* The facts a section is *for*, so they read at body size like everything else. They
    used to be captions - 12px label and 12px value, smaller than the section heading
    above them, which ranked the content below its own title. */
-.hub-facts {
+.console-facts {
   display: grid;
   /* Capped, and low enough that the cap is the common case rather than the exception.
      One long label should cost its own row two lines, not move every control on the
@@ -1608,13 +1614,13 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    the value it names and only one step of grey from the help under it. Contrast is the
    lever: --ink-2 is the documented secondary at 11.1:1, and the help is --ink-3 at the
    caption size, so the three read as three. */
-.hub-fact-label { font-size: var(--fs-body); color: var(--ink-2); line-height: 1.3; }
-.hub-fact-value { font-size: var(--fs-body); color: var(--ink); }
+.console-fact-label { font-size: var(--fs-body); color: var(--ink-2); line-height: 1.3; }
+.console-fact-value { font-size: var(--fs-body); color: var(--ink); }
 /* One line of chips sits on the same pitch as every other row, and a wrapped one grows
    symmetrically around its label. The row carries the height rather than the label
    carrying a nudge: two hand-tuned paddings here put this row 28px into a 26px rhythm
    and moved the label whenever the chips wrapped. */
-.hub-chips {
+.console-chips {
   display: flex; flex-wrap: wrap; gap: 4px; min-width: 0;
   min-height: var(--fact-row);
   align-content: center;
@@ -1625,17 +1631,17 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* A value the user may set. The read state and the edit state are one element, so the
    alignment cannot drift and nothing moves on the first click. */
-.hub-fact-edit { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.console-fact-edit { display: flex; align-items: center; gap: 8px; min-width: 0; }
 /* An action follows the value it acts on. It used to be pushed to the panel's right
    edge for a column of verbs, which assumed the value fills the row: a stretching field
    ends near that edge, but a chip is 60px wide and the verb landed a panel-width away
    from the state it changes - further the wider the pane was dragged. Fields still line
    up under this, because they stretch to the same width. */
-.hub-edit-field { flex: 1 1 auto; min-width: 0; }
+.console-edit-field { flex: 1 1 auto; min-width: 0; }
 /* The same edge as an action, because it is the same kind of thing: something you can
    act on. A single bottom rule was meant to be the quiet version of this and read as a
    section divider instead - full width, between two rows, which is what a divider is. */
-.hub-edit-field .q-field__control {
+.console-edit-field .q-field__control {
   /* Quasar's 40px was tolerable as an underline and is a lump as a box: the row rhythm
      is 26px, and a field that stands 14px above it makes its own row taller than every
      fact around it. Below the pointer floor, and raised back on touch with the inline
@@ -1648,25 +1654,25 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   padding: 0 8px;
   transition: border-color 120ms, background 120ms;
 }
-.hub-edit-field .q-field__control::before,
-.hub-edit-field .q-field__control::after { border: none; }
+.console-edit-field .q-field__control::before,
+.console-edit-field .q-field__control::after { border: none; }
 /* No cap. 56ch was tried and cropped "/Users/.../VPinballX/10.8/VPinballX.ini" with room
    to spare beside it, which is the failure this file already describes: a cropped value
    reads as broken, not as restraint. A settings page is mostly long paths, so the width
    is what it is for. */
 /* A whole number, sized for one. In a full-width box the value reads as something that
    might be long, and a page of them is a column of mostly empty boxes. */
-.hub-edit-narrow { width: 96px; flex: 0 0 auto; }
+.console-edit-narrow { width: 96px; flex: 0 0 auto; }
 /* A closed list of named things, sized to the names rather than to the panel. Text
    stretches because what you type has no length; a set of options does, and "daily" in
    a 1100px box says the answer might be a sentence. The floor is for the caret and the
    longest name the set happens to hold, not a target. */
-.hub-edit-select { flex: 0 1 auto; min-width: var(--select-min); }
-.hub-edit-field:hover .q-field__control {
+.console-edit-select { flex: 0 1 auto; min-width: var(--select-min); }
+.console-edit-field:hover .q-field__control {
   border-color: var(--accent);
   background: rgba(0, 217, 255, 0.06);
 }
-.hub-edit-field .q-field--focused .q-field__control {
+.console-edit-field .q-field--focused .q-field__control {
   border-color: var(--accent);
   background: rgba(0, 217, 255, 0.10);
 }
@@ -1686,22 +1692,22 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .q-field__native::placeholder,
 .q-field__input::placeholder { color: var(--ink-3) !important; opacity: 1; }
 
-.hub-edit-field .q-field__native {
+.console-edit-field .q-field__native {
   font-size: var(--fs-body); color: var(--ink); padding: 0;
 }
 /* A select's value is a span, not an input, and Quasar gives that span a min-height and
    a top padding sized for its own 40px control. At our 26px row the value sits below
    the box and reads as cropped - which is why the lists looked wrong and the text
    fields beside them did not. Centred in the control instead, at the height we set. */
-.hub-edit-select .q-field__control-container { padding-top: 0; }
-.hub-edit-select .q-field__native {
+.console-edit-select .q-field__control-container { padding-top: 0; }
+.console-edit-select .q-field__native {
   min-height: 0;
   padding: 0;
   align-items: center;
   line-height: normal;
 }
 /* The caret sits with the value rather than on the control's own baseline. */
-.hub-edit-select .q-field__append {
+.console-edit-select .q-field__append {
   height: var(--field-h);
   padding-left: 4px;
   align-items: center;
@@ -1709,23 +1715,23 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* The way back, and the only mark an overridden row carries. Amber because that is
    already this app's word for the exception worth spotting, so one mark says both what
    the state is and what to do about it. */
-.hub-revert {
+.console-revert {
   color: var(--tier-table); font-size: 16px; cursor: pointer; flex: 0 0 auto;
   opacity: 0.8;
 }
-.hub-revert:hover { opacity: 1; }
+.console-revert:hover { opacity: 1; }
 /* The one control for a yes or no. Its own height, which the row takes - a switch is
    a control, and text rows are what the 26px pitch is for. */
-.hub-fact-switch .q-toggle__inner { font-size: 28px; }
-.hub-fact-switch.disabled { opacity: 0.65 !important; }
+.console-fact-switch .q-toggle__inner { font-size: 28px; }
+.console-fact-switch.disabled { opacity: 0.65 !important; }
 
 /* A group's name, spanning the grid so every group keeps the one shared label column.
 
    The rule and the space carry the break. The weight is what puts a group title above
    the labels it governs, and uppercase with tracking is what tells it from one. */
-.hub-fact-heading {
+.console-fact-heading {
   grid-column: 1 / -1;
-  /* .hub-card-title's treatment: a heading inside a panel is cyan and uppercase
+  /* .console-card-title's treatment: a heading inside a panel is cyan and uppercase
      wherever one appears here, so a group's name is one too. */
   font-size: var(--fs-caption);
   letter-spacing: 0.08em;
@@ -1737,43 +1743,43 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 /* The first group opens the section - there is nothing above it to be separated from,
    and a rule there would read as the section's own top edge. */
-.hub-facts > .hub-fact-heading:first-child {
+.console-facts > .console-fact-heading:first-child {
   border-top: none; margin-top: 0; padding-top: 0;
 }
 /* Actions and the attention block: the width of the panel, not of a value. */
-.hub-fact-full { grid-column: 1 / -1; padding: 4px 0; min-width: 0; }
+.console-fact-full { grid-column: 1 / -1; padding: 4px 0; min-width: 0; }
 /* A line about the control above it, so it sits under the control and not under the
    label - across both columns it starts at the label's edge and reads as a caption for
    the label instead. Tight to what it explains and loose to the next row, which is what
    groups the two without a rule between them. */
-.hub-fact-aside { grid-column: 2; padding: 0 0 8px; min-width: 0; }
+.console-fact-aside { grid-column: 2; padding: 0 0 8px; min-width: 0; }
 
 /* What is wrong with this thing, before anything merely true about it. Amber, which is
    already the exception color here - not red: none of these is an error, they are
    things to go and fix. */
-.hub-attention {
+.console-attention {
   display: flex; align-items: flex-start; gap: 8px; min-width: 0;
   border: 1px solid rgba(255, 192, 97, 0.35);
   background: rgba(255, 192, 97, 0.07);
   border-radius: 6px; padding: 6px 10px;
 }
-.hub-attention-icon { color: var(--tier-table); font-size: 18px; flex: 0 0 auto; }
-.hub-attention-line { font-size: var(--fs-body); color: var(--ink); }
+.console-attention-icon { color: var(--tier-table); font-size: 18px; flex: 0 0 auto; }
+.console-attention-line { font-size: var(--fs-body); color: var(--ink); }
 /* One detail against its replacement. The old value is struck rather than merely dim:
    it is not a lesser version of the new one, it is the wrong machine's. */
-.hub-diff-field {
+.console-diff-field {
   font-size: var(--fs-caption); color: var(--ink-3);
   flex: 0 0 auto; min-width: 72px;
 }
-.hub-diff-was {
+.console-diff-was {
   font-size: var(--fs-caption); color: var(--ink-3);
   text-decoration: line-through; flex: 0 1 auto;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.hub-diff-arrow { font-size: 14px; color: var(--ink-3); flex: 0 0 auto; }
+.console-diff-arrow { font-size: 14px; color: var(--ink-3); flex: 0 0 auto; }
 /* The picked slot. The art is the subject and takes the room; the facts under it are
    a line each, which is what lets them be sentences rather than a table of fields. */
-.hub-slot {
+.console-slot {
   border: 1px solid var(--line); border-radius: 8px;
   background: linear-gradient(180deg, rgba(26,15,53,0.75) 0%, rgba(15,7,34,0.75) 100%);
   display: flex; flex-direction: column; min-height: 0;
@@ -1785,7 +1791,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* Takes what is left after the text, down to nothing - so in a short dock the art
    shrinks and the sentences stay on screen, rather than the actions going below
    the fold. */
-.hub-slot-art {
+.console-slot-art {
   /* min-height:0 is what lets this shrink at all: a flex item's floor is its content
      by default, so the picture would push the facts under it off the panel instead of
      giving up room. The floor that keeps it looking like a picture is on the blank
@@ -1796,11 +1802,11 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 /* On the art, the way the map's tiles do it - so the same gesture works in both
    places and the title row is a title again. */
-.hub-slot-zoom {
+.console-slot-zoom {
   position: absolute; top: 6px; right: 2px; opacity: 0;
   background: rgba(10, 5, 24, 0.7) !important; transition: opacity 120ms ease;
 }
-.hub-slot-art:hover .hub-slot-zoom { opacity: 1; }
+.console-slot-art:hover .console-slot-zoom { opacity: 1; }
 /* The preview wraps its element in a div of its own, and that wrapper is what broke
    fitting the art. Flex shrinks this box when the panel is short, but shrinking a box
    does not shrink what is inside it - and the picture's `max-height: 100%` resolved
@@ -1813,46 +1819,46 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    level, positioning it collapsed this box - which is sized by its content - and a
    size container cannot be one without a definite height, which is the thing missing.
    Excludes the blank state, which is a column that lays itself out. */
-.hub-slot-art > div:not(.hub-slot-zoom):not(.hub-slot-blank) { display: contents; }
-.hub-slot-art img, .hub-slot-art video {
+.console-slot-art > div:not(.console-slot-zoom):not(.console-slot-blank) { display: contents; }
+.console-slot-art img, .console-slot-art video {
   max-width: 100%; max-height: 100%; object-fit: contain;
   min-height: 0; flex: 0 1 auto;
   border-radius: 4px; border: 1px solid var(--line);
 }
 /* Audio has no frame, so it is the control itself and takes the width it is given
    rather than being sized like a picture. */
-.hub-slot-art audio { width: 100%; }
+.console-slot-art audio { width: 100%; }
 
 /* An empty slot is still the shape of the thing that goes in it: the outline holds
    the same room the art would, so picking an empty slot does not resize the panel. */
-.hub-slot-blank {
+.console-slot-blank {
   width: 100%; height: 100%; min-height: 90px;
   border: 1px dashed var(--line); border-radius: 6px;
   justify-content: center; color: var(--ink-3);
 }
-.hub-slot-blank-icon { font-size: 34px; opacity: 0.55; }
+.console-slot-blank-icon { font-size: 34px; opacity: 0.55; }
 
-.hub-slot-facts { min-width: 0; }
+.console-slot-facts { min-width: 0; }
 /* The filename is the one identifier a user recognizes, so it reads first and whole -
    these names are long and the interesting half is usually the tail. */
-.hub-slot-file {
+.console-slot-file {
   font-size: var(--fs-body); color: var(--ink-2); word-break: break-all;
   line-height: 1.35;
 }
 
 /* The losers. Set apart by a rule rather than a heading weight, because the point is
    that they are the same slot - not a new section. */
-.hub-slot-others {
+.console-slot-others {
   border-top: 1px solid var(--line-soft); margin-top: 6px; padding-top: 5px;
   min-width: 0;
 }
-.hub-slot-others-title {
+.console-slot-others-title {
   font-size: var(--fs-caption); text-transform: uppercase; letter-spacing: 0.07em;
   color: var(--ink-3); padding-bottom: 2px;
 }
 /* Shrinks but does not grow: given the width of a full-window panel, a growing
    label would put the filename and the phrase that explains it at opposite ends. */
-.hub-slot-other-file {
+.console-slot-other-file {
   font-size: var(--fs-caption); color: var(--ink-3);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
   flex: 0 1 auto;
@@ -1860,84 +1866,84 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* Who is not using the file above. Set off the same way the outranked files are,
    because it is the same kind of fact: this slot is not the whole story. */
-.hub-slot-differs {
+.console-slot-differs {
   border-top: 1px solid var(--line-soft); margin-top: 6px; padding-top: 5px;
   min-width: 0;
 }
 
-.hub-slot-actions { padding-top: 8px; }
+.console-slot-actions { padding-top: 8px; }
 
 /* Room to judge the art when there is width to spare: at 240px a backglass in a
    half-window panel is a thumbnail beside a lot of nothing, and judging art is what
    this view is for. */
 @container (min-width: 900px) {
-  .hub-slot-art { min-height: 200px; }
-  .hub-slot-art img, .hub-slot-art video { max-height: min(52vh, 520px); }
+  .console-slot-art { min-height: 200px; }
+  .console-slot-art img, .console-slot-art video { max-height: min(52vh, 520px); }
 }
 
 /* --- who owns a file, wherever a file is shown -------------------------- */
 
-.hub-tier {
+.console-tier {
   font-size: 11px; letter-spacing: 0.04em; line-height: 1.5;
   padding: 0 6px; border-radius: 999px; border: 1px solid transparent;
   white-space: nowrap; flex: 0 0 auto; align-self: center;
 }
 /* Filled, because this is the exception in a folder and the one worth spotting. */
-.hub-tier--table {
+.console-tier--table {
   color: var(--tier-table); border-color: rgba(255, 192, 97, 0.45);
   background: rgba(255, 192, 97, 0.12);
 }
 /* Outlined and quiet: the common case should be readable, not loud. */
-.hub-tier--game { color: var(--tier-quiet); border-color: var(--line); }
+.console-tier--game { color: var(--tier-quiet); border-color: var(--line); }
 /* Dashed, because nothing is actually here - something else is filling in. */
-.hub-tier--standin {
+.console-tier--standin {
   color: var(--tier-quiet); border-style: dashed; border-color: var(--line);
 }
 /* Nothing to own. Shown only where a row has to line up with others that carry one. */
-.hub-tier--missing { color: var(--ink-3); border-color: transparent; opacity: 0.5; }
+.console-tier--missing { color: var(--ink-3); border-color: transparent; opacity: 0.5; }
 
-/* Below .hub-tier, not above it. That base sets `border` as a shorthand, so a
+/* Below .console-tier, not above it. That base sets `border` as a shorthand, so a
    border-color declared earlier is reset to transparent by it - equal
    specificity, and source order decides. */
 /* Present, absent, and not yet known. A state chip is not a media tier: those answer
    whose file this is, and their amber is the exception worth spotting. Green is
    present here; amber is reserved for something to go and fix. */
-.hub-tier--on {
+.console-tier--on {
   color: var(--positive); border-color: rgba(0, 255, 159, 0.45);
   background: rgba(0, 255, 159, 0.12);
 }
-.hub-tier--off {
+.console-tier--off {
   color: var(--ink-2); border-color: rgba(155, 139, 189, 0.55);
   background: rgba(155, 139, 189, 0.10);
 }
-.hub-tier--unknown {
+.console-tier--unknown {
   color: var(--ink-2); border-style: dashed;
   border-color: rgba(155, 139, 189, 0.55);
   background: rgba(155, 139, 189, 0.06);
 }
 /* Broken, not merely absent: what this names stops the table working at all. The one
    red on the panel, so it means exactly that and nothing softer. */
-.hub-tier--bad {
+.console-tier--bad {
   color: var(--danger); border-color: rgba(255, 107, 157, 0.45);
   background: rgba(255, 107, 157, 0.12);
 }
 /* Dashed, because the thing it names is not there. */
-.hub-tier--warn {
+.console-tier--warn {
   color: var(--tier-table); border-style: dashed;
   border-color: rgba(255, 192, 97, 0.45);
 }
 
 /* On a map tile the badge sits over the art, top left, opposite the enlarge. */
-.hub-mediatile-tier {
+.console-mediatile-tier {
   position: absolute; top: 3px; left: 3px;
   background: rgba(10, 5, 24, 0.72);
 }
-.hub-mediatile-tier.hub-tier--table { background: rgba(40, 24, 8, 0.85); }
+.console-mediatile-tier.console-tier--table { background: rgba(40, 24, 8, 0.85); }
 
 /* The view has drifted from what it says it is, said on the control that names it.
    Quiet - a modified view is an ordinary thing to be in, not a warning - but it has to
    be visible or the picker is lying. */
-.hub-view-picker .q-field__suffix {
+.console-view-picker .q-field__suffix {
   font-size: var(--fs-caption); color: var(--tier-table); opacity: 1;
   padding-left: 6px;
 }
@@ -1945,160 +1951,160 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* A tick column is scanned, not read: center it so the eye runs down one line. */
 /* Green, not accent. `docs/conventions.md`: green is present, and accent is the current
    value and nothing else - spending it on every true cell in a matrix is how it stops
-   meaning anything. `.hub-unknown` is the answer that is neither yes nor no, so it is
+   meaning anything. `.console-unknown` is the answer that is neither yes nor no, so it is
    quiet: an unread table is not a fault and must not read as one. */
-.hub-tick { text-align: center; color: var(--positive); }
-.hub-unknown { text-align: center; color: var(--ink-3); font-weight: 600; }
+.console-tick { text-align: center; color: var(--positive); }
+.console-unknown { text-align: center; color: var(--ink-3); font-weight: 600; }
 
 /* One or more tables here use something else. A bar rather than a badge: the tile is
    about a hundred pixels wide and already carries a tier badge and an enlarge, and a
    third piece of text on it is not read by anybody. The count is in the tooltip and
    the names are in the panel. */
-.hub-mediatile-differs {
+.console-mediatile-differs {
   position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
   background: var(--tier-table); font-size: 0; overflow: hidden;
 }
 
 /* --- where a slot's file can come from ---------------------------------- */
 
-.hub-sources-card {
+.console-sources-card {
   width: min(840px, 94vw); max-height: 84vh; gap: 6px;
   background: var(--surface-1); border: 1px solid var(--line);
 }
 /* A row that navigates rather than acting: the whole thing is the target, so it says
    so on hover instead of hiding a click behind a label. Separate from --folder, which
    is one of these and also a row with no picture in it. */
-.hub-source-row--pick { cursor: pointer; }
+.console-source-row--pick { cursor: pointer; }
 /* One line: these names carry the maker and year and run long, and four wrapped lines
    of one row makes a list of them unreadable. */
-.hub-source-row--pick .hub-source-name {
+.console-source-row--pick .console-source-name {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   word-break: normal; min-width: 0;
 }
-.hub-source-trail { word-break: break-word; padding-bottom: 2px; }
-.hub-source-row--pick:hover {
+.console-source-trail { word-break: break-word; padding-bottom: 2px; }
+.console-source-row--pick:hover {
   border-color: var(--accent); background: rgba(0, 217, 255, 0.06);
 }
 /* The one decision every way in feeds, so it sits above them rather than inside one.
    Set off by a rule, because it is a different kind of thing from a tab. */
-.hub-destination {
+.console-destination {
   padding: 8px 4px 10px; border-bottom: 1px solid var(--line-soft);
 }
-.hub-destination-name {
+.console-destination-name {
   padding-top: 4px; word-break: break-all; font-family: inherit;
 }
 /* Stated before the write, not only in the confirm afterwards - but kept quiet,
    because replacing a file is the ordinary case and not a warning. */
-.hub-destination-conflict {
+.console-destination-conflict {
   font-size: var(--fs-caption); color: var(--ink-2); padding-top: 2px;
 }
 /* One name the file could take. The whole row is the target: the mark is small and
    the name is the part being read, so asking for the mark would be a worse target
    than the thing it belongs to. */
-.hub-placement { padding: 4px 2px; cursor: pointer; border-radius: 4px; }
-.hub-placement:hover { background: rgba(255, 255, 255, 0.04); }
-.hub-placement-mark { font-size: 18px; color: var(--ink-3); margin-top: 1px; }
+.console-placement { padding: 4px 2px; cursor: pointer; border-radius: 4px; }
+.console-placement:hover { background: rgba(255, 255, 255, 0.04); }
+.console-placement-mark { font-size: 18px; color: var(--ink-3); margin-top: 1px; }
 /* Accent, because this is the one chosen - which is what accent is for. */
-.hub-placement-mark--on { color: var(--accent); }
+.console-placement-mark--on { color: var(--accent); }
 /* These are filenames and they run long. Wrapped rather than trimmed: what tells two
    of them apart sits in the middle, so an ellipsis at either end can eat it. */
-.hub-placement-name {
+.console-placement-name {
   font-size: var(--fs-body); color: var(--ink-2);
   word-break: break-word; line-height: 1.3;
 }
 /* A second heading in a panel that opened with one needs the air, or the list above
    reads as belonging to it. */
-.hub-source-under { padding-top: 10px; }
+.console-source-under { padding-top: 10px; }
 
-.hub-sources-panels { min-height: 260px; }
+.console-sources-panels { min-height: 260px; }
 /* Quasar paints its own ground on panels and on the tab bar. Left alone it is a pale
    slab in the middle of a dark dialog. */
-.hub-sources-panels, .hub-sources-panels .q-tab-panel,
-.hub-sources-card .q-tabs { background: transparent; }
-.hub-sources-panels .q-tab-panel { padding: 12px 4px; }
+.console-sources-panels, .console-sources-panels .q-tab-panel,
+.console-sources-card .q-tabs { background: transparent; }
+.console-sources-panels .q-tab-panel { padding: 12px 4px; }
 /* Five sources have to fit without a scroll arrow: an arrow on a tab bar means the
    ways of doing this are hidden behind a control nobody looks for. */
-.hub-sources-card .q-tab { color: var(--ink-3); padding: 4px 10px; min-width: 0; }
-.hub-sources-card .q-tab--active { color: var(--accent); }
-.hub-sources-card .q-tab__indicator { background: var(--accent); }
+.console-sources-card .q-tab { color: var(--ink-3); padding: 4px 10px; min-width: 0; }
+.console-sources-card .q-tab--active { color: var(--accent); }
+.console-sources-card .q-tab__indicator { background: var(--accent); }
 /* Every tab is a list of candidates, and the dialog is capped - so the list scrolls
    inside it rather than the dialog growing past the window. */
-.hub-source-list { max-height: 52vh; overflow-y: auto; }
+.console-source-list { max-height: 52vh; overflow-y: auto; }
 /* The online tab stacks two of these, and they are not equals: the games are how you
    get to the files, and the files are what you came for. Uncapped, a long search
    pushed the files off the bottom of the dialog with nothing to scroll. */
-.hub-source-found { max-height: 26vh; overflow-y: auto; }
-.hub-source-offers { max-height: 40vh; overflow-y: auto; }
+.console-source-found { max-height: 26vh; overflow-y: auto; }
+.console-source-offers { max-height: 40vh; overflow-y: auto; }
 /* A folder is a line, not a picture: it has no thumbnail, so it should not reserve
    the height of one. */
-.hub-source-row--folder { padding: 5px 8px; }
-.hub-source-row {
+.console-source-row--folder { padding: 5px 8px; }
+.console-source-row {
   border: 1px solid var(--line-soft); border-radius: 6px; padding: 6px 8px;
 }
-.hub-source-name {
+.console-source-name {
   font-size: var(--fs-body); color: var(--ink-2); word-break: break-all;
   line-height: 1.3;
 }
-.hub-source-meta { word-break: break-all; }
+.console-source-meta { word-break: break-all; }
 /* Big enough to judge the art by, which is the question the row exists to answer.
    A backglass at 64px told you a file was an image and nothing else. */
-.hub-source-thumb {
+.console-source-thumb {
   flex: 0 0 auto; width: 132px; height: 99px; border-radius: 4px;
   border: 1px solid var(--line); overflow: hidden; background: var(--surface-0);
   display: flex; align-items: center; justify-content: center;
   position: relative;
 }
-.hub-source-thumb img, .hub-source-thumb video {
+.console-source-thumb img, .console-source-thumb video {
   max-width: 100%; max-height: 100%; object-fit: contain;
 }
 /* A kind with no frame to show - audio, a rule sheet - keeps the same footprint, so a
    list of them does not step in and out as it scrolls. */
-.hub-source-thumb-glyph { font-size: 32px; color: var(--ink-3); }
+.console-source-thumb-glyph { font-size: 32px; color: var(--ink-3); }
 
 /* A bigger look at a thumbnail, on hover. These rows live inside a dialog, and opening
    a second dialog over the first to glance at a picture is a lot of ceremony - so this
    is a preview and not the viewer. It rides in a tooltip because the lists around it
    scroll, and anything drawn inside a scrolling box is clipped by it. */
-.hub-thumb-peek {
+.console-thumb-peek {
   background: #0b0520 !important; padding: 4px !important;
   border: 1px solid var(--line); border-radius: 6px;
   max-width: none !important;
 }
 /* Slightly larger, not a viewer. Big enough and it covers the rows either side of the
    one being pointed at, which is the list you are reading. */
-.hub-thumb-peek img, .hub-thumb-peek video {
+.console-thumb-peek img, .console-thumb-peek video {
   display: block; max-width: 300px; max-height: 40vh;
 }
 /* Recognising a machine is a smaller question than judging a piece of art, and this
    list is the long one - a dozen results at the full size is most of a screen. The
    enlarge is what covers the case where the small picture is not enough. */
-.hub-source-thumb--small { width: 76px; height: 57px; }
-.hub-source-thumb--small .hub-source-thumb-glyph { font-size: 22px; }
+.console-source-thumb--small { width: 76px; height: 57px; }
+.console-source-thumb--small .console-source-thumb-glyph { font-size: 22px; }
 
 /* What a file already does for this game, when it does something. Not a warning:
    using it again is legitimate, and the tag is there so nobody has to wonder. */
-.hub-source-tag {
+.console-source-tag {
   font-size: var(--fs-caption); color: var(--accent); opacity: 0.85;
 }
 
 /* Quasar keeps the queued-file list at full height while it is empty. Uploads are
    automatic here, so the list only ever flashes. */
-.hub-sources-card .q-uploader__list:empty { display: none; }
-.hub-sources-card .q-uploader { width: 100%; max-height: 220px; }
-.hub-sources-card .q-uploader__title {
+.console-sources-card .q-uploader__list:empty { display: none; }
+.console-sources-card .q-uploader { width: 100%; max-height: 220px; }
+.console-sources-card .q-uploader__title {
   font-size: var(--fs-body); font-weight: 500; color: var(--ink-2);
 }
-.hub-sources-card .q-uploader__subtitle { display: none; }
+.console-sources-card .q-uploader__subtitle { display: none; }
 /* Quasar fills the header with the primary color. Magenta reads as "selected"
    everywhere else in this UI, and this is a drop target, not a selection. */
 /* Element-qualified and forced, because Quasar sets the header's fill from the
    primary color with the same specificity a class selector has. */
-.hub-sources-card div.q-uploader__header {
+.console-sources-card div.q-uploader__header {
   background: rgba(43,26,77,0.6) !important; border-bottom: 1px solid var(--line);
 }
-.hub-sources-card .q-uploader { background: var(--surface-2); border: 1px solid var(--line); }
+.console-sources-card .q-uploader { background: var(--surface-2); border: 1px solid var(--line); }
 /* The dashed target is the affordance; without a border the strip reads as a heading. */
-.hub-sources-card .q-uploader__list {
+.console-sources-card .q-uploader__list {
   background: transparent; border: 1px dashed var(--line); border-top: none;
 }
 
@@ -2111,7 +2117,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    Two regions rather than a track per row, so the rows scroll on their own and the
    section beside them holds still. Narrow needs them loose again to interleave, which
    is what `display: contents` on the wrapper does down there. */
-.hub-sections {
+.console-sections {
   /* Off the header. The name of what you are looking at and the list of what you can
      ask about it are two things, and butted together they read as one block. */
   margin-top: 12px;
@@ -2131,16 +2137,16 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* The rows, as a region of their own. It scrolls when it is taller than the panel -
    thirteen entries in a short window - and the work beside it does not move, which is
    the whole reason the rows are wrapped rather than loose in the frame. */
-.hub-section-rail {
+.console-section-rail {
   grid-column: 1; grid-row: 1;
   display: flex; flex-direction: column;
   overflow-y: auto;
 }
-.hub-section-row { grid-column: 1; }
-/* A rail long enough to need grouping says what a run of rows is about. `.hub-group`
+.console-section-row { grid-column: 1; }
+/* A rail long enough to need grouping says what a run of rows is about. `.console-group`
    carries the treatment - this only puts it in the rail's column. */
-.hub-rail-group { grid-column: 1; }
-.hub-section-work {
+.console-rail-group { grid-column: 1; }
+.console-section-work {
   grid-column: 2; grid-row: 1;
   min-width: 0; min-height: 0;
   /* Still open to the page, just quieter. The grid is a fixed lattice the page owns
@@ -2163,7 +2169,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    "opaque" was not opaque. .nicegui-aggrid lifts itself the same way for the same
    reason. Being above it is also what lets the open region *dim* the grid rather than
    sit behind it: what shows through there is now the work region's own alpha. */
-.hub-workbench { container-type: inline-size; position: relative; z-index: 1; }
+.console-workbench { container-type: inline-size; position: relative; z-index: 1; }
 
 /* The splitter measures in pixels, so shrinking the window used to come entirely out
    of the list: the workbench held its width and the list was left with a Name column
@@ -2187,17 +2193,17 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    bring back; there is nothing here to bring, and a strip whose only control reopens
    an empty panel is a control charged for nothing. The user's own open/closed and
    width are untouched, so returning to a page that has a subject restores them. */
-.hub-no-pane .q-splitter__after { display: none !important; }
-.hub-no-pane .q-splitter__separator { display: none !important; }
-.hub-no-pane .q-splitter__before {
+.console-no-pane .q-splitter__after { display: none !important; }
+.console-no-pane .q-splitter__separator { display: none !important; }
+.console-no-pane .q-splitter__before {
   width: auto !important;
   flex: 10000 1 0% !important;
   min-width: 0 !important;
 }
 
-.hub-full .q-splitter__before { display: none !important; min-width: 0 !important; }
-.hub-full .q-splitter__after { width: auto !important; flex: 10000 1 0% !important; }
-.hub-full .q-splitter__separator { display: none; }
+.console-full .q-splitter__before { display: none !important; min-width: 0 !important; }
+.console-full .q-splitter__after { width: auto !important; flex: 10000 1 0% !important; }
+.console-full .q-splitter__separator { display: none; }
 
 /* The row is the section's only name - there is no heading under it repeating the
    same words. */
@@ -2205,7 +2211,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    app nav: these are headings, so they take heading case - but not the nav's uppercase,
    which would rank a game's sections with the app itself. */
 /* The app nav's gutter rhythm, so the two rails read as the same kind of control. */
-.hub-section-row {
+.console-section-row {
   display: flex;
   cursor: pointer;
   font-size: var(--fs-body);
@@ -2225,20 +2231,20 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    page showed through it, grid and all. As an image they layer over the ground instead
    of standing in for it, and they still work where the band paints nothing and the
    rail's strip is what shows through. */
-.hub-section-row:hover {
+.console-section-row:hover {
   background-image: linear-gradient(rgba(180, 41, 249, 0.14), rgba(180, 41, 249, 0.14));
 }
 /* Carries the row's padding, so every pixel of the band picks the section. */
-.hub-section-hit { padding: 7px 16px; overflow: hidden; }
+.console-section-hit { padding: 7px 16px; overflow: hidden; }
 /* Beside its content, not above it - so there is nothing for a chevron to point at
    and the rail carries no picture at all. */
-.hub-section-caret {
+.console-section-caret {
   display: none; color: var(--ink-2);
   padding: 0 12px;
   transition: transform 120ms;
 }
-.hub-section-on .hub-section-caret { color: var(--ink); }
-.hub-section-on {
+.console-section-on .console-section-caret { color: var(--ink); }
+.console-section-on {
   background-image: linear-gradient(rgba(0, 217, 255, 0.22), rgba(0, 217, 255, 0.22));
   color: var(--ink);
 }
@@ -2248,7 +2254,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   /* Column. The open section keeps a working height and the column scrolls past the
      rows it does not fit - a rail long enough to fill the panel leaves nothing to
      work in otherwise. */
-  .hub-sections {
+  .console-sections {
     display: flex; flex-direction: column; background: none;
     /* The column scrolls now that the open section holds its height. The rows above it
        stay where they are and the ones below are a scroll away, which is the cost of
@@ -2258,9 +2264,9 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   /* The wrapper stops being a box, so the rows become items of the column above and
      the work can take its place among them. It exists for the wide rail's own
      scrollbar, and down here that scrollbar is the whole column's instead. */
-  .hub-section-rail { display: contents; }
+  .console-section-rail { display: contents; }
   /* background-color, so a state tint layered on background-image sits over it. */
-  .hub-section-row { background-color: var(--panel-ground); }
+  .console-section-row { background-color: var(--panel-ground); }
   /* Takes what it needs and no more, so a short section does not leave a void with
      the rows stranded at the bottom edge.
 
@@ -2268,7 +2274,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
      three or four rows; a device carries sixteen, and they left the open section two
      lines to work in. With a rail that long the two cannot both fit, and the section
      is the one being used - so it keeps a working height and the column scrolls. */
-  .hub-section-work {
+  .console-section-work {
     flex: 0 0 auto;
     min-height: min(420px, 60%);
     border-left: none; border-top: none;
@@ -2281,22 +2287,24 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   /* Bands, not words. Stacked rows have to look like something that opens: full
      width, a rule under each, and the chevron on the right saying which way. Four
      labels floating in a column said nothing about being controls at all. */
-  .hub-section-row {
+  .console-section-row {
     flex: 0 0 auto;
     margin: 0; border-radius: 0;
     border-bottom: 1px solid var(--line-band);
   }
-  .hub-section-hit { padding-left: var(--panel-gutter); }
-  .hub-section-caret { display: flex; }
+  .console-section-hit { padding-left: var(--panel-gutter); }
+  .console-section-caret { display: flex; }
   /* Turned to point at what it opened, and the rule under the open row goes: the row
      and its content are one block, so a line between them would cut it in half. */
-  .hub-section-on .hub-section-caret { transform: rotate(180deg); }
-  .hub-section-on { border-bottom-color: transparent; }
+  .console-section-on .console-section-caret { transform: rotate(180deg); }
+  .console-section-on { border-bottom-color: transparent; }
 }
 
-.hub-index-item { border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: var(--fs-body);
+.console-index-item {
+  border-radius: 6px; padding: 4px 10px; cursor: pointer;
+  font-size: var(--fs-body);
                   color: var(--ink-2); }
-.hub-index-item:hover { background: rgba(180, 41, 249, 0.14); }
-.hub-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); }
-.hub-bar > div { height: 100%; border-radius: 3px; background: var(--accent); }
+.console-index-item:hover { background: rgba(180, 41, 249, 0.14); }
+.console-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); }
+.console-bar > div { height: 100%; border-radius: 3px; background: var(--accent); }
 """

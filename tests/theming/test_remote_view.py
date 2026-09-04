@@ -17,7 +17,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from common.games import hub_library
+from common.games import remote_library
 from common.games.collection_resolver import Entry
 from common.games.wire_entry import WireGame
 from frontend import library_resolver as frontend_library
@@ -74,7 +74,7 @@ class HubUrlTests(unittest.TestCase):
 
 class RemoteViewTests(unittest.TestCase):
     def setUp(self) -> None:
-        patcher = patch.object(hub_library.http_client, "get_json",
+        patcher = patch.object(remote_library.http_client, "get_json",
                                lambda *a, **k: PAYLOAD)
         patcher.start()
         self.addCleanup(patcher.stop)

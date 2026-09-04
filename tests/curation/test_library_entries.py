@@ -4,7 +4,7 @@ A device with no library of its own shows everything before a collection is chos
 whole library is `builtin:all`, synthesized rather than stored, and `GET /library/entries`
 is the path it answers on - the same lens `GET /collections/{name}/entries` narrows.
 
-`hub_library` is the other half: what a device does with the answer. It turns the wire
+`remote_library` is the other half: what a device does with the answer. It turns the wire
 rows back into the `Entry` objects the frontend already builds locally, so nothing
 downstream can tell which side the library came from.
 """
@@ -17,7 +17,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import httpapi
-from common.games import hub_library
+from common.games import remote_library
 from common.games.collection_resolver import Entry, resolve
 from common.games.collection_store import BUILTIN_ALL, CollectionStore
 from common.games.game_metadata import game_title
@@ -82,8 +82,8 @@ class LibraryEntriesTests(TempTree):
         what the hub sent has to arrive as what the resolver would have built."""
         payload = self.client.get("/library/entries").json()
 
-        with patch.object(hub_library.http_client, "get_json", lambda *a, **k: payload):
-            remote = hub_library.fetch_entries("http://hub.example:8001")
+        with patch.object(remote_library.http_client, "get_json", lambda *a, **k: payload):
+            remote = remote_library.fetch_entries("http://hub.example:8001")
 
         local = self._resolved(self.games)
         self.assertEqual([game_title(e.game) for e in remote],
@@ -99,8 +99,8 @@ class LibraryEntriesTests(TempTree):
         what the hub sent, and the local library is not consulted to build it."""
         payload = self.client.get("/library/entries").json()
 
-        with patch.object(hub_library.http_client, "get_json", lambda *a, **k: payload):
-            remote = hub_library.fetch_entries("http://hub.example:8001")
+        with patch.object(remote_library.http_client, "get_json", lambda *a, **k: payload):
+            remote = remote_library.fetch_entries("http://hub.example:8001")
         theme = json.loads(game_state.games_json(remote, contract=2))
 
         self.assertEqual(theme["count"], len(LIBRARY))
@@ -115,8 +115,8 @@ class LibraryEntriesTests(TempTree):
         so they arrive empty rather than wrong."""
         payload = self.client.get("/library/entries").json()
 
-        with patch.object(hub_library.http_client, "get_json", lambda *a, **k: payload):
-            remote = hub_library.fetch_entries("http://hub.example:8001")
+        with patch.object(remote_library.http_client, "get_json", lambda *a, **k: payload):
+            remote = remote_library.fetch_entries("http://hub.example:8001")
         theme = json.loads(game_state.games_json(remote, contract=2))
 
         for entry in theme["entries"]:
@@ -138,9 +138,9 @@ class LibraryEntriesTests(TempTree):
         entry = self._resolved([game])[0]
         local = json.loads(game_state.games_json([entry], contract=2))["entries"][0]
         row = _entry_resource(entry)
-        with patch.object(hub_library.http_client, "get_json",
+        with patch.object(remote_library.http_client, "get_json",
                           lambda *a, **k: {"entries": [row]}):
-            remote_entries = hub_library.fetch_entries("http://hub.example:8001")
+            remote_entries = remote_library.fetch_entries("http://hub.example:8001")
         remote = json.loads(game_state.games_json(remote_entries, contract=2))["entries"][0]
 
         self.assertEqual(remote["media"], ["backglass", "playfield", "wheel"])
@@ -151,9 +151,9 @@ class LibraryEntriesTests(TempTree):
     def test_a_hub_that_answers_with_nonsense_is_an_error(self) -> None:
         """Not an empty wheel: a hub that cannot be understood is not a hub with no
         games, and showing one as the other reports the wrong thing."""
-        with patch.object(hub_library.http_client, "get_json", lambda *a, **k: "nope"):
+        with patch.object(remote_library.http_client, "get_json", lambda *a, **k: "nope"):
             with self.assertRaises(ValueError):
-                hub_library.fetch_entries("http://hub.example:8001")
+                remote_library.fetch_entries("http://hub.example:8001")
 
 
 class SharedLibraryTests(unittest.TestCase):
@@ -175,7 +175,7 @@ class SharedLibraryTests(unittest.TestCase):
                      table={"id": table_id, "file_hash": file_hash}, siblings=1)
 
     def test_the_same_share_verifies(self) -> None:
-        report = hub_library.verify_shared_library(
+        report = remote_library.verify_shared_library(
             [self._entry("T1", "aaa"), self._entry("T2", "bbb")],
             [self._game("T1", "aaa"), self._game("T2", "bbb")])
 
@@ -185,7 +185,7 @@ class SharedLibraryTests(unittest.TestCase):
     def test_a_share_that_is_not_mounted_is_reported_as_missing(self) -> None:
         """The failure this exists to catch: today it shows up one game at a time, at
         launch, as a file-not-found."""
-        report = hub_library.verify_shared_library([self._entry("T1", "aaa")], [])
+        report = remote_library.verify_shared_library([self._entry("T1", "aaa")], [])
 
         self.assertFalse(report["shared"])
         self.assertEqual(report["missing"], ["T1"])
@@ -193,7 +193,7 @@ class SharedLibraryTests(unittest.TestCase):
     def test_a_table_whose_bytes_differ_is_not_the_same_table(self) -> None:
         """Same id, different content - a local edit, a half-finished copy, a different
         build of the same table. Distinct from missing, because the fix is different."""
-        report = hub_library.verify_shared_library(
+        report = remote_library.verify_shared_library(
             [self._entry("T1", "aaa")], [self._game("T1", "zzz")])
 
         self.assertFalse(report["shared"])
@@ -203,7 +203,7 @@ class SharedLibraryTests(unittest.TestCase):
     def test_nothing_verifiable_is_not_a_pass(self) -> None:
         """A hub that has hashed nothing says nothing either way, and 'everything
         matched' must not be able to mean 'nothing was checked'."""
-        report = hub_library.verify_shared_library(
+        report = remote_library.verify_shared_library(
             [self._entry("T1", "")], [self._game("T1", "aaa")])
 
         self.assertFalse(report["shared"])
@@ -211,24 +211,24 @@ class SharedLibraryTests(unittest.TestCase):
         self.assertEqual(report["matched"], 0)
 
     def test_an_empty_library_is_not_a_verified_one(self) -> None:
-        self.assertFalse(hub_library.verify_shared_library([], [])["shared"])
+        self.assertFalse(remote_library.verify_shared_library([], [])["shared"])
 
 
 class HubUrlTests(unittest.TestCase):
     def test_the_url_names_the_collection_or_the_whole_library(self) -> None:
-        self.assertEqual(hub_library.entries_url("http://hub:8001"),
+        self.assertEqual(remote_library.entries_url("http://hub:8001"),
                          "http://hub:8001/api/v1/library/entries")
-        self.assertEqual(hub_library.entries_url("http://hub:8001", "Favorites"),
+        self.assertEqual(remote_library.entries_url("http://hub:8001", "Favorites"),
                          "http://hub:8001/api/v1/collections/Favorites/entries")
 
     def test_a_name_with_a_space_or_a_slash_survives(self) -> None:
         """A collection is named by a user, so it is not a safe path segment."""
-        self.assertEqual(hub_library.entries_url("http://hub:8001", "Last Played"),
+        self.assertEqual(remote_library.entries_url("http://hub:8001", "Last Played"),
                          "http://hub:8001/api/v1/collections/Last%20Played/entries")
-        self.assertIn("A%2FB", hub_library.entries_url("http://hub:8001", "A/B"))
+        self.assertIn("A%2FB", remote_library.entries_url("http://hub:8001", "A/B"))
 
     def test_a_trailing_slash_on_the_hub_does_not_double(self) -> None:
-        self.assertEqual(hub_library.entries_url("http://hub:8001/"),
+        self.assertEqual(remote_library.entries_url("http://hub:8001/"),
                          "http://hub:8001/api/v1/library/entries")
 
 

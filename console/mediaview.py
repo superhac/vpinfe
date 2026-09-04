@@ -25,20 +25,20 @@ json_turned = json.dumps(_TURNED)
 
 # One viewer is open at a time - it is a modal over the whole window - so fixed ids are
 # enough to find these from the script that drives them.
-_MEDIA_ID = "hub-viewer-media"
-_PLAY_ID = "hub-viewer-play"
-_SEEK_ID = "hub-viewer-seek"
-_TIME_ID = "hub-viewer-time"
+_MEDIA_ID = "console-viewer-media"
+_PLAY_ID = "console-viewer-play"
+_SEEK_ID = "console-viewer-seek"
+_TIME_ID = "console-viewer-time"
 
 # Native <video controls> are part of the element, so they turn with it and a rotated
 # video leaves its scrubber on its side. Ours live in the bar, which never turns.
 _TRANSPORT = f"""
-<div class="hub-viewer-transport">
-  <button type="button" id="{_PLAY_ID}" class="hub-viewer-btn">
+<div class="console-viewer-transport">
+  <button type="button" id="{_PLAY_ID}" class="console-viewer-btn">
     <span class="material-icons">pause</span></button>
-  <input id="{_SEEK_ID}" class="hub-viewer-seek" type="range"
+  <input id="{_SEEK_ID}" class="console-viewer-seek" type="range"
          min="0" max="1000" value="0" step="1">
-  <span id="{_TIME_ID}" class="hub-viewer-clock">0:00 / 0:00</span>
+  <span id="{_TIME_ID}" class="console-viewer-clock">0:00 / 0:00</span>
 </div>
 """
 
@@ -76,7 +76,7 @@ _WIRE = f"""
 _VIEW = f"""
 (() => {{
   const el = document.getElementById('{_MEDIA_ID}');
-  const stage = el && el.closest('.hub-viewer-stage');
+  const stage = el && el.closest('.console-viewer-stage');
   if (!el || !stage) return;
   const UPRIGHT = {json_upright};
   const TURNED = {json_turned};
@@ -223,9 +223,9 @@ def open_viewer(src: str, kind: str, label: str) -> None:
 
     # A panel over a dimmed page rather than a takeover: the card is sized by what is
     # in it, so the media being the content is what centers it.
-    with ui.dialog() as dialog, ui.card().classes("hub-viewer-card"):
-        with ui.row().classes("items-center gap-2 w-full no-wrap hub-viewer-bar"):
-            ui.label(label).classes("hub-card-title shrink-0")
+    with ui.dialog() as dialog, ui.card().classes("console-viewer-card"):
+        with ui.row().classes("items-center gap-2 w-full no-wrap console-viewer-bar"):
+            ui.label(label).classes("console-card-title shrink-0")
             if family == "video":
                 ui.html(_TRANSPORT).classes("grow min-w-0")
             else:
@@ -236,7 +236,7 @@ def open_viewer(src: str, kind: str, label: str) -> None:
         turn_left.tooltip("Turn a quarter left (view only)")
         turn_right.tooltip("Turn a quarter right (view only)")
 
-        with ui.element("div").classes("hub-viewer-stage"):
+        with ui.element("div").classes("console-viewer-stage"):
             # Sized by the script once it is on screen, which is also what has to
             # measure a turn - so it is the only thing that sets this style.
             if family == "video":

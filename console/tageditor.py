@@ -84,23 +84,23 @@ def build(rows: list[dict[str, Any]], library: Any,
 
     duplicates = rows_by_key(rows)
     if duplicates:
-        with ui.element("div").classes("hub-card w-full mb-2"):
-            ui.label("These look like the same tag").classes("hub-card-title")
+        with ui.element("div").classes("console-card w-full mb-2"):
+            ui.label("These look like the same tag").classes("console-card-title")
             ui.label("Entry keeps what you typed, so two spellings of one word both "
                      "exist. Merging folds them into the most-used one.") \
-                .classes("hub-help")
+                .classes("console-help")
             for group in duplicates:
                 with ui.row().classes("items-center gap-2 w-full no-wrap "
-                                      "hub-member-row"):
+                                      "console-member-row"):
                     ui.label(" · ".join(f"{r['tag']} ({r['games']})" for r in group)) \
-                        .classes("hub-member-name grow min-w-0 truncate")
+                        .classes("console-member-name grow min-w-0 truncate")
                     ui.button("Merge", on_click=lambda _, g=group: merge(g)) \
                         .props("flat dense no-caps size=sm") \
-                        .classes("hub-action hub-action--inline")
+                        .classes("console-action console-action--inline")
 
     if not rows:
         ui.label("No tags yet. Tag a game from its Play section and it appears here.") \
-            .classes("hub-help p-4")
+            .classes("console-help p-4")
         return
 
     menu_row: dict[str, Any] = {}
@@ -111,11 +111,11 @@ def build(rows: list[dict[str, Any]], library: Any,
             return
         with menu:
             ui.item_label(str(row.get("tag") or "")).props("header") \
-                .classes("hub-menu-header")
+                .classes("console-menu-header")
             ui.separator()
-            ui.menu_item("Rename…", lambda r=row: rename(r)).classes("hub-menu-item")
+            ui.menu_item("Rename…", lambda r=row: rename(r)).classes("console-menu-item")
             ui.menu_item("Remove from every game", lambda r=row: drop(r)) \
-                .classes("hub-menu-item hub-menu-danger")
+                .classes("console-menu-item console-menu-danger")
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
         grid.build(COLUMNS, rows, "console.tags", lambda _row: None,
@@ -126,11 +126,11 @@ def build(rows: list[dict[str, Any]], library: Any,
 async def _ask_for_a_name(current: str) -> str:
     """A dialog that collects a value keeps its own shape - `docs/conventions.md` says
     the confirm treatment is for a question, not for a field."""
-    with ui.dialog() as dialog, ui.card().classes("hub-confirm"):
-        ui.label("Rename this tag").classes("hub-confirm-title")
-        ui.label("Every game carrying it is retagged.").classes("hub-help")
+    with ui.dialog() as dialog, ui.card().classes("console-confirm"):
+        ui.label("Rename this tag").classes("console-confirm-title")
+        ui.label("Every game carrying it is retagged.").classes("console-help")
         field = ui.input(value=current).props("dense autofocus") \
-            .classes("hub-edit-field w-full")
+            .classes("console-edit-field w-full")
         with ui.row().classes("justify-end gap-2 w-full"):
             ui.button("Cancel", on_click=lambda: dialog.submit("")).props("flat no-caps")
             ui.button("Rename", on_click=lambda: dialog.submit(field.value or "")) \

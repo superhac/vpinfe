@@ -83,14 +83,14 @@ def findings(library: Library) -> dict[str, list[dict[str, Any]]]:
 
 
 def _card(title: str):
-    card = ui.element("div").classes("hub-card")
+    card = ui.element("div").classes("console-card")
     with card:
-        ui.label(title).classes("hub-card-title")
+        ui.label(title).classes("console-card-title")
     return card
 
 
 def _bar(fraction: float) -> None:
-    with ui.element("div").classes("hub-bar w-full"):
+    with ui.element("div").classes("console-bar w-full"):
         ui.element("div").style(f"width:{max(0.0, min(1.0, fraction)) * 100:.0f}%")
 
 
@@ -106,25 +106,25 @@ def overview(library: Library, registry: list[dict], discovery: dict,
 
     with ui.row().classes("w-full gap-4 no-wrap"):
         with _card("Library"):
-            ui.label(str(len(library.games))).classes("hub-kpi")
+            ui.label(str(len(library.games))).classes("console-kpi")
             ui.label("games").classes("text-xs opacity-60")
         with _card("Media coverage"):
             ui.label(f"{(present / total_slots * 100 if total_slots else 0):.0f}%") \
-                .classes("hub-kpi")
+                .classes("console-kpi")
             _bar(present / total_slots if total_slots else 0)
             ui.label(f"{present} of {total_slots} slots").classes("text-xs opacity-60")
         with _card("Needs attention"):
-            ui.label(str(open_findings)).classes("hub-kpi")
+            ui.label(str(open_findings)).classes("console-kpi")
             ui.label("findings across the library").classes("text-xs opacity-60")
         with _card("Devices"):
-            ui.label(str(len(registry))).classes("hub-kpi")
-            ui.label("known to this hub").classes("text-xs opacity-60")
+            ui.label(str(len(registry))).classes("console-kpi")
+            ui.label("known to this install").classes("text-xs opacity-60")
         with _card("This build"):
-            ui.label(str(discovery.get("app_version") or "?")).classes("hub-kpi")
+            ui.label(str(discovery.get("app_version") or "?")).classes("console-kpi")
             ui.label("no update endpoint yet").classes("text-xs opacity-60")
 
-    ui.label("Coverage by kind").classes("hub-group mt-4")
-    with ui.element("div").classes("hub-card w-full"):
+    ui.label("Coverage by kind").classes("console-group mt-4")
+    with ui.element("div").classes("console-card w-full"):
         # A filter says which games lack a topper. Nothing in a grid says "you have no
         # toppers at all" without filtering twenty kinds one at a time, which is the
         # one thing a rollup does that a lens cannot.
@@ -135,23 +135,23 @@ def overview(library: Library, registry: list[dict], discovery: dict,
         for kind, held in sorted(counts, key=lambda item: item[1]):
             with ui.row().classes("items-center gap-3 w-full no-wrap py-1"):
                 ui.label(media_label_map().get(kind, kind)) \
-                    .classes("hub-setting w-40 shrink-0")
+                    .classes("console-setting w-40 shrink-0")
                 with ui.element("div").classes("grow min-w-0"):
                     _bar(held / len(library.games) if library.games else 0)
                 ui.label(f"{held} of {len(library.games)}") \
                     .classes("text-xs opacity-60 shrink-0")
 
-    ui.label("What needs attention").classes("hub-group mt-4")
-    with ui.element("div").classes("hub-card w-full"):
+    ui.label("What needs attention").classes("console-group mt-4")
+    with ui.element("div").classes("console-card w-full"):
         for key, name, description, _ in CHECKS:
             games = found[key]
             with ui.row().classes("items-center gap-3 w-full no-wrap py-1"):
                 ui.icon("error" if games else "check_circle", size="18px") \
                     .classes("text-warning" if games else "text-positive")
                 with ui.column().classes("gap-0 grow min-w-0"):
-                    ui.label(name).classes("hub-setting")
+                    ui.label(name).classes("console-setting")
                     # The sentence is the finding. Without it a count is a puzzle.
-                    ui.label(description).classes("hub-help")
+                    ui.label(description).classes("console-help")
                 ui.label(f"{len(games)}").classes("text-sm opacity-70 shrink-0")
                 ui.button("Show", on_click=lambda k=key: go("games")) \
                     .props("flat dense no-caps size=sm").classes("shrink-0") \
@@ -161,10 +161,10 @@ def overview(library: Library, registry: list[dict], discovery: dict,
 # --- Extensions ------------------------------------------------------------------
 
 def extensions(registry: list[dict]) -> None:
-    ui.label("An extension runs either on the hub or on one device. Where it runs is a "
-             "property of the extension, not a setting.").classes("hub-help mb-3")
-    with ui.element("div").classes("hub-card w-full"):
-        ui.label("Nothing installed").classes("hub-setting")
+    ui.label("An extension runs where its feature lives. Where it runs is a "
+             "property of the extension, not a setting.").classes("console-help mb-3")
+    with ui.element("div").classes("console-card w-full"):
+        ui.label("Nothing installed").classes("console-setting")
         ui.label("Install one from a repository, or drop a package here. The list will "
                  "show what it declares and which devices it reached.") \
-            .classes("hub-help")
+            .classes("console-help")

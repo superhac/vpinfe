@@ -48,9 +48,10 @@ class StateTests(unittest.TestCase):
         """`docs/conventions.md`: green is present, and accent is the current value and
         nothing else - so a tick on every true cell of a matrix cannot be accent. An
         unread table is not a fault and must not be coloured as one."""
-        self.assertEqual(table_features.state_for(table_features.IN_SCRIPT).glyph_class, "hub-tick")
+        self.assertEqual(table_features.state_for(table_features.IN_SCRIPT).glyph_class,
+                         "console-tick")
         self.assertEqual(table_features.state_for(table_features.UNKNOWN).glyph_class,
-                         "hub-unknown")
+                         "console-unknown")
 
     def test_the_vocabulary_keeps_all_three(self) -> None:
         """The legend is a narrower list - only what is drawn - but a caller mapping a

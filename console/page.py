@@ -14,7 +14,7 @@ from console import collections as collections_page
 from console import deeplink, games, grid, sections, tageditor, theme, views, workbench
 from console import devices as devices_page
 from console import media as media_page
-from console.api import HubClient
+from console.api import ApiClient
 from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.page")
@@ -122,7 +122,7 @@ def _version(said: Any) -> str:
 _NAV_CLICK = """
 (() => {
   document.addEventListener('click', (event) => {
-    const link = event.target.closest && event.target.closest('a.hub-nav-row');
+    const link = event.target.closest && event.target.closest('a.console-nav-row');
     if (!link) return;
     if (event.button !== 0 || event.metaKey || event.ctrlKey ||
         event.shiftKey || event.altKey) return;
@@ -146,7 +146,7 @@ EMPTY_PANE = {
 
 # The pages the pane has a role on. Media is one of them: a row is one game's slot, so
 # the panel opens on it the way it does for a game. Everywhere else it is hidden -
-# `render` adds `hub-no-pane` - and the user's own open/closed and width are left alone,
+# `render` adds `console-no-pane` - and the user's own open/closed and width are left alone,
 # so coming back to a page that selects something restores what they arranged.
 WORKBENCH_VIEWS = frozenset(EMPTY_PANE)
 
@@ -160,7 +160,7 @@ def _read_hub() -> dict[str, Any]:
     the alternative is importing the services, which is what the boundary exists to
     prevent.
     """
-    client = HubClient()
+    client = ApiClient()
     library = Library(client)
     library.load()
     capabilities = client.capabilities()
@@ -277,24 +277,24 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         # (`manager-nav-header`). It is the panel's own chrome, so it costs nothing that
         # was not already the panel, and nothing floats over the grid.
         nav_header = ui.row() \
-            .classes("items-center gap-3 w-full hub-nav-header")
+            .classes("items-center gap-3 w-full console-nav-header")
         with nav_header:
             # The icon is the control, not the bar it sits in. A whole clickable header
             # collapses the panel when someone meant to click the name in it, and hangs
             # the tooltip off the middle of a wide row where it points at nothing.
             nav_icon = ui.icon("menu_open", size="24px") \
-                .classes("opacity-70 shrink-0 cursor-pointer hub-panel-toggle") \
+                .classes("opacity-70 shrink-0 cursor-pointer console-panel-toggle") \
                 .on("click", lambda: toggle_mini())
             nav_icon.tooltip("Show or hide the navigation")
             # Larger and heavier than a nav item, like HA's own title. Row height may
             # differ from the items below - that is fine and expected; what has to stay
             # aligned is the icon column, which does not depend on the label's size.
             labels.append(ui.label("VPinFE Console")
-                          .classes("whitespace-nowrap hub-nav-title"))
+                          .classes("whitespace-nowrap console-nav-title"))
         # The destinations scroll; the header and the foot do not. Without this the
         # drawer is one scroll box, so the title and the version scrolled away with the
         # rows - which is the two pieces of chrome that should always be reachable.
-        nav_body = ui.column().classes("w-full gap-0 hub-nav-body")
+        nav_body = ui.column().classes("w-full gap-0 console-nav-body")
         for parent, items in NAV_GROUPS:
             held: list[ui.row] = []
             with nav_body:
@@ -323,7 +323,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             # a line that reads "No active jobs" spends a permanent slot to report
             # nothing, and the one it replaced said that even while a scan ran.
             job_line = ui.row().classes("items-center justify-center gap-2 w-full "
-                                        "no-wrap hub-job")
+                                        "no-wrap console-job")
             with job_line:
                 ui.spinner(size="16px").classes("shrink-0")
                 job_text = ui.label("").classes("text-xs min-w-0 truncate")
@@ -345,7 +345,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         while something is running costs nothing the rest of the time.
         """
         try:
-            running = [job for job in await run.io_bound(HubClient().jobs)
+            running = [job for job in await run.io_bound(ApiClient().jobs)
                        if job.get("state") == "running"]
         except Exception:
             job_line.set_visibility(False)
@@ -366,7 +366,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     async def _look_for_update() -> None:
         """Mark Devices with how many of them have an update, once per page load.
 
-        Off the loop and never fatal: a hub with no internet is not a broken hub, a
+        Off the loop and never fatal: an install with no internet is not broken, a
         device that is asleep is not a broken device, and a rail that cannot say whether
         a build is current says nothing rather than claiming it is. Asked one device at
         a time because one that is down should cost its own answer and nobody else's.
@@ -390,10 +390,10 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
 
         # Which of them answered, on the same pass. The rail draws a dot per device from
         # this, and the registry's own "last seen" advances for the ones that did - a
-        # hub asking is the pull half of that timestamp.
+        # asking is the pull half of that timestamp.
         try:
             found = {p.get("device_id"): p
-                     for p in await run.io_bound(HubClient().probe_devices)}
+                     for p in await run.io_bound(ApiClient().probe_devices)}
             state["device_reach"] = found
             if state.get("view") == "devices":
                 # render() empties the pane, so the device open in it is redrawn after -
@@ -429,7 +429,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         if job is None:
             return
         job_timer.active = True
-        client = HubClient()
+        client = ApiClient()
         for _ in range(150):
             await asyncio.sleep(0.2)
             try:
@@ -450,13 +450,13 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     splitter = ui.splitter(reverse=True, limits=(WORKBENCH_MIN_PX, WORKBENCH_MAX_PX),
                            value=WORKBENCH_WIDE_PX) \
         .props("unit=px").classes("w-full h-full")
-    with splitter.after, ui.column().classes("w-full h-full gap-0 hub-workbench"):
+    with splitter.after, ui.column().classes("w-full h-full gap-0 console-workbench"):
         # The selected game's name shares the row with the toggle rather than sitting
         # under it - same class list, same height and same gutter as the nav's header,
         # so neither the icon's inset from the edge nor its height can drift.
         workbench_header = ui.row() \
             .classes("items-center gap-2 px-3 w-full justify-between "
-                     "no-wrap hub-panel-header") \
+                     "no-wrap console-panel-header") \
             .style(f"min-height:{HEADER_H_PX}px")
         with workbench_header:
             # min-w-0 lets the column shrink below its content so the title truncates
@@ -481,7 +481,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                         .tooltip("Give the workbench the whole window")
                 # Outside that row: it is the only way back once the rest have gone.
                 workbench_icon = ui.icon("menu_open", size="24px") \
-                    .classes("opacity-70 shrink-0 cursor-pointer hub-panel-toggle") \
+                    .classes("opacity-70 shrink-0 cursor-pointer console-panel-toggle") \
                     .on("click", lambda: show_workbench(not state["workbench"]))
                 workbench_icon.tooltip("Show or hide the workbench")
         # The scrolling belongs to the workbench's body column now, so the outline
@@ -514,8 +514,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         workbench_actions.set_visibility(shown)
         # A rail is panel the whole way down, with no window in it - the stylesheet
         # stops cutting the band to transparent, or the page grid shows through 57px.
-        splitter.classes(remove="hub-rail") if shown \
-            else splitter.classes(add="hub-rail")
+        splitter.classes(remove="console-rail") if shown \
+            else splitter.classes(add="console-rail")
         # justify-end, not justify-center: the header keeps its 18px right padding, and
         # centring inside a padded box put the icon 27px in. Held to the right, the
         # padding alone places it exactly where it sits when the panel is open.
@@ -542,8 +542,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         stays away.
         """
         state["full"] = not state.get("full")
-        splitter.classes(add="hub-full") if state["full"] \
-            else splitter.classes(remove="hub-full")
+        splitter.classes(add="console-full") if state["full"] \
+            else splitter.classes(remove="console-full")
         full_icon.props(f'icon={"close_fullscreen" if state["full"] else "open_in_full"}')
         if state["full"]:
             if not state["mini"]:
@@ -641,7 +641,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         this is for when you have just gone and switched one on."""
         try:
             found = {p.get("device_id"): p
-                     for p in await run.io_bound(HubClient().probe_devices)}
+                     for p in await run.io_bound(ApiClient().probe_devices)}
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
             ui.notify(f"Could not ask the devices: {exc}", type="negative")
             return
@@ -671,8 +671,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         heading, prompt = EMPTY_PANE.get(state["view"], ("Game Details", "Select a game"))
         with workbench_title:
             ui.label(heading) \
-                .classes("text-base hub-workbench-title leading-tight truncate")
-            ui.label(prompt).classes("text-xs hub-workbench-label leading-none truncate")
+                .classes("text-base console-workbench-title leading-tight truncate")
+            ui.label(prompt).classes("text-xs console-workbench-label leading-none truncate")
 
     def page_header() -> None:
         """The page's name, and nothing else.
@@ -694,7 +694,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         # height: centring boxes of different heights aligns boxes, not baselines.
         with ui.row().classes("items-center gap-2 w-full no-wrap") \
                 .style(f"min-height:{HEADER_H_PX}px"):
-            ui.label(title).classes("grow min-w-0 truncate hub-page-title")
+            ui.label(title).classes("grow min-w-0 truncate console-page-title")
 
     def render() -> None:
         # A game shown beside a different destination is stale by definition.
@@ -707,12 +707,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         #
         # On a page with no subject it goes entirely, rail included. Nothing there can
         # fill it, so the strip would be a control that reopens an empty panel.
-        splitter.classes(remove="hub-no-pane") if state["view"] in WORKBENCH_VIEWS \
-            else splitter.classes(add="hub-no-pane")
+        splitter.classes(remove="console-no-pane") if state["view"] in WORKBENCH_VIEWS \
+            else splitter.classes(add="console-no-pane")
         # The page you are on stays lit while you are on it.
         for key, row in destinations.items():
-            row.classes(add="hub-nav-active") if key == state["view"] \
-                else row.classes(remove="hub-nav-active")
+            row.classes(add="console-nav-active") if key == state["view"] \
+                else row.classes(remove="console-nav-active")
         content.clear()
         with content:
             page_header()
@@ -800,7 +800,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     ui.run_javascript("""
     (() => {
       const open = () => document.querySelector('.q-menu') !== null;
-      const say = () => document.body.classList.toggle('hub-menu-open', open());
+      const say = () => document.body.classList.toggle('console-menu-open', open());
       new MutationObserver(say).observe(document.body, {childList: true});
       say();
     })()
@@ -876,10 +876,10 @@ def _nav_parent(parent: tuple[str, str, str], state: dict[str, Any],
     # A row rather than a link: this one opens and closes the entries under it and has
     # no page of its own, so there is no address for a browser to be offered.
     row = ui.row().classes("items-center gap-3 cursor-pointer w-full no-wrap "
-                           "hub-nav-row").on("click", toggle)
+                           "console-nav-row").on("click", toggle)
     with row:
         ui.icon(icon, size="24px").classes("opacity-70 shrink-0")
-        labels.append(ui.label(label).classes("hub-nav-item whitespace-nowrap"))
+        labels.append(ui.label(label).classes("console-nav-item whitespace-nowrap"))
         ui.space()
         caret = ui.icon("expand_more", size="20px").classes("opacity-60 shrink-0")
         labels.append(caret)
@@ -912,22 +912,22 @@ def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
     # one alone.
     row = ui.link(target=f"/console?view={key}") \
         .classes("items-center gap-3 cursor-pointer w-full no-wrap flex "
-                 "hub-nav-row" + (" hub-nav-row--nested" if nested else "")) \
+                 "console-nav-row" + (" console-nav-row--nested" if nested else "")) \
         .on("click", choose)
     with row:
         # The badge is positioned against the icon rather than the row, so it sits on the
         # same corner whether the rail is open or collapsed - the icon is the one part of
         # an entry that is in both states, and the label is not.
-        with ui.element("div").classes("hub-nav-mark"):
+        with ui.element("div").classes("console-nav-mark"):
             ui.icon(icon, size="24px").classes("opacity-70 shrink-0")
-            badge = ui.label("").classes("hub-nav-badge")
+            badge = ui.label("").classes("console-nav-badge")
             badge.set_visibility(False)
             badges[key] = badge
         # `no-wrap` on the row and nowrap on the label. A rail entry is one line by
         # definition, and the rail scrolls once there are enough of them - which takes a
         # scrollbar's width off every row and was enough to break "Collections" in two.
         labels.append(ui.label(label)
-                      .classes("hub-nav-item whitespace-nowrap"))
+                      .classes("console-nav-item whitespace-nowrap"))
     destinations[key] = row
     if held is not None and nested:
         held.append(row)
@@ -947,7 +947,7 @@ async def _read_the_library() -> dict | None:
     one of the four was 2.x's framing from when the library was only tables.
     """
     try:
-        job = await run.io_bound(HubClient().refresh_library)
+        job = await run.io_bound(ApiClient().refresh_library)
     except Exception as exc:
         # Already running is the ordinary case here, not a failure worth a trace.
         ui.notify(f"Could not start: {exc}", type="warning")

@@ -1,4 +1,4 @@
-"""One row for one thing you could pick, wherever the hub offers a choice of things.
+"""One row for one thing you could pick, wherever the Console offers a choice of things.
 
 A file to put in a media slot, a catalog entry to match a game against - the question
 is the same in both, and it is not one a name answers. So the row leads with the
@@ -25,7 +25,7 @@ def _peek(src: str, family: str) -> None:
     behind it. In a tooltip because the lists around it scroll, and anything drawn
     inside a scrolling box is clipped by it.
     """
-    with ui.tooltip().classes("hub-thumb-peek") \
+    with ui.tooltip().classes("console-thumb-peek") \
             .props('anchor="center left" self="center right"'):
         if family == "video":
             ui.html(f'<video src="{src}#t=0.1" preload="metadata" muted '
@@ -37,7 +37,7 @@ def _peek(src: str, family: str) -> None:
 def _body(src: str, name: str, meta: str, tag: str, family: str, glyph: str,
           small: bool = False) -> None:
     """The picture and the words, which both shapes draw the same way."""
-    frame = "hub-source-thumb" + (" hub-source-thumb--small" if small else "")
+    frame = "console-source-thumb" + (" console-source-thumb--small" if small else "")
     with ui.element("div").classes(frame):
         if src and family == "video":
             ui.html(f'<video src="{src}#t=0.1" preload="metadata" muted '
@@ -46,24 +46,24 @@ def _body(src: str, name: str, meta: str, tag: str, family: str, glyph: str,
             ui.html(f'<img src="{src}" loading="lazy">')
         else:
             ui.icon(glyph or GLYPHS.get(family, FALLBACK)) \
-                .classes("hub-source-thumb-glyph")
+                .classes("console-source-thumb-glyph")
         if src and family in SHOWABLE:
             _peek(src, family)
     with ui.column().classes("gap-0 min-w-0 grow"):
-        ui.label(name).classes("hub-source-name")
+        ui.label(name).classes("console-source-name")
         if meta:
-            ui.label(meta).classes("hub-help")
+            ui.label(meta).classes("console-help")
         if tag:
-            ui.label(tag).classes("hub-source-tag")
+            ui.label(tag).classes("console-source-tag")
 
 
 def row(src: str, name: str, meta: str, tag: str, take: Callable, *,
         family: str = "image", glyph: str = "", action: str = "Use") -> None:
     """What it looks like, what it is, and the one thing you can do with it."""
-    with ui.row().classes("items-center gap-3 w-full no-wrap hub-source-row"):
+    with ui.row().classes("items-center gap-3 w-full no-wrap console-source-row"):
         _body(src, name, meta, tag, family, glyph)
         ui.button(action, on_click=take).props("flat dense no-caps size=sm") \
-            .classes("hub-action shrink-0")
+            .classes("console-action shrink-0")
 
 
 def choice(src: str, name: str, meta: str, pick: Callable, *,
@@ -76,8 +76,8 @@ def choice(src: str, name: str, meta: str, pick: Callable, *,
     The picture is small here, because these lists are the long ones and recognising a
     thing is a smaller question than judging it.
     """
-    element = ui.row().classes("items-center gap-3 w-full no-wrap hub-source-row "
-                               "hub-source-row--pick")
+    element = ui.row().classes("items-center gap-3 w-full no-wrap console-source-row "
+                               "console-source-row--pick")
     with element:
         _body(src, name, meta, "", family, glyph, small=True)
     element.on("click", lambda: pick())

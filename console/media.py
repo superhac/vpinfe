@@ -19,7 +19,7 @@ from nicegui import run, ui
 
 from common.media_specs import media_label_map
 from console import confirm, grid, media_ownership, views
-from console.api import HubClient
+from console.api import ApiClient
 from console.games import view_control
 
 logger = logging.getLogger("vpinfe.console.media")
@@ -202,7 +202,7 @@ async def fill(picked: list[dict[str, Any]], library: Any,
             empty += 1
             continue
         try:
-            offers = await run.io_bound(HubClient().media_offers,
+            offers = await run.io_bound(ApiClient().media_offers,
                                         row["vps_id"], row["kind"])
             if not offers:
                 empty += 1
@@ -251,13 +251,13 @@ def build(found: list[dict[str, Any]], library: Any,
             return f"{len(built)} media, {gaps} missing"
         return f"{on_screen['rows']} of {len(built)} media"
 
-    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
         search = ui.input(placeholder="Search media") \
             .props("dense outlined clearable").classes("w-64")
         wire_views, _picker, showing = view_control(library, SCOPE, VIEWS,
                                                     _ALL, COLUMNS)
         ui.space()
-        count = ui.label(said(0)).classes("text-xs hub-label")
+        count = ui.label(said(0)).classes("text-xs console-label")
         if rescan is not None:
             ui.button(icon="refresh", on_click=rescan) \
                 .props("flat dense round size=sm").classes("shrink-0") \

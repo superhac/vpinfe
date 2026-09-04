@@ -50,7 +50,7 @@ from console import (
 )
 from console import devices as devices_page
 from console import settings as settings_page
-from console.api import HubError
+from console.api import ApiError
 from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.workbench")
@@ -76,10 +76,10 @@ if (!window.__hubDockGrip) {
   window.__hubDockGrip = true;
   let drag = null;
   document.addEventListener('pointerdown', (e) => {
-    const grip = e.target.closest && e.target.closest('.hub-dock-grip');
+    const grip = e.target.closest && e.target.closest('.console-dock-grip');
     if (!grip) return;
-    const main = grip.closest('.hub-section-work');
-    const dock = main && main.querySelector('.hub-dock');
+    const main = grip.closest('.console-section-work');
+    const dock = main && main.querySelector('.console-dock');
     if (!dock) return;
     e.preventDefault();
     drag = { y: e.clientY, from: dock.getBoundingClientRect().height, main };
@@ -112,7 +112,7 @@ if (!window.__hubDockGrip) {
 # on every scroll frame and none of those are worth a round trip to Python.
 _KEEP_SCROLL = """
 (() => {
-  const dock = document.querySelector('.hub-dock');
+  const dock = document.querySelector('.console-dock');
   if (!dock) return;
   const held = window.__hubDockTop || (window.__hubDockTop = {});
   const key = '%s';
@@ -126,7 +126,7 @@ _KEEP_SCROLL = """
 
 _ARRANGE = """
 (() => {
-  const list = document.querySelector('.hub-member-list');
+  const list = document.querySelector('.console-member-list');
   if (!list || list.dataset.wired) return;
   list.dataset.wired = '1';
 
@@ -143,8 +143,8 @@ _ARRANGE = """
     return document.scrollingElement;
   })();
 
-  const all = () => [...list.querySelectorAll('.hub-member-row')];
-  const settled = () => all().filter((row) => !row.classList.contains('hub-dragging'));
+  const all = () => [...list.querySelectorAll('.console-member-row')];
+  const settled = () => all().filter((row) => !row.classList.contains('console-dragging'));
   const positionOf = (row) => all().indexOf(row);
 
   // A dead middle and a ramp into the last sixth: a fixed rate is unusable at five
@@ -155,12 +155,12 @@ _ARRANGE = """
   function lift(row, y) {
     const box = row.getBoundingClientRect();
     const slot = document.createElement('div');
-    slot.className = 'hub-drop-slot';
+    slot.className = 'console-drop-slot';
     slot.style.height = box.height + 'px';
     row.parentNode.insertBefore(slot, row);
     drag = {row: row, slot: slot, from: positionOf(row), anchor: row.nextSibling,
             hold: y - box.top, left: box.left, width: box.width, y: y};
-    row.classList.add('hub-dragging');
+    row.classList.add('console-dragging');
     row.style.width = box.width + 'px';
     place(y);
     drag.frame = requestAnimationFrame(tick);
@@ -200,7 +200,7 @@ _ARRANGE = """
     if (!drag) return;
     cancelAnimationFrame(drag.frame);
     const row = drag.row, slot = drag.slot, from = drag.from;
-    row.classList.remove('hub-dragging');
+    row.classList.remove('console-dragging');
     row.style.width = row.style.top = row.style.left = '';
     if (keep) { slot.parentNode.insertBefore(row, slot); }
     else { list.insertBefore(row, drag.anchor); }
@@ -213,9 +213,9 @@ _ARRANGE = """
   }
 
   list.addEventListener('pointerdown', (e) => {
-    const row = e.target.closest('.hub-member-row');
+    const row = e.target.closest('.console-member-row');
     if (!row) return;
-    if (e.target.closest('.hub-drag-handle')) {
+    if (e.target.closest('.console-drag-handle')) {
       e.preventDefault();
       try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
       lift(row, e.clientY);
@@ -243,19 +243,19 @@ _ARRANGE = """
   // The same move without a pointer. Grab, step, drop - so arranging is reachable from
   // the keyboard, which a drag on its own never is.
   list.addEventListener('keydown', (e) => {
-    const handle = e.target.closest('.hub-drag-handle');
+    const handle = e.target.closest('.console-drag-handle');
     if (!handle) return;
-    const row = handle.closest('.hub-member-row');
+    const row = handle.closest('.console-member-row');
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault();
       if (grab && grab.row === row) {
-        row.classList.remove('hub-grabbed');
+        row.classList.remove('console-grabbed');
         const to = positionOf(row), from = grab.from;
         grab = null;
         if (to >= 0 && to !== from) emitEvent('hub_member_moved', {from: from, to: to});
       } else {
         grab = {row: row, from: positionOf(row), anchor: row.nextSibling};
-        row.classList.add('hub-grabbed');
+        row.classList.add('console-grabbed');
       }
     } else if (grab && grab.row === row && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
       e.preventDefault();
@@ -268,7 +268,7 @@ _ARRANGE = """
     } else if (e.key === 'Escape' && grab && grab.row === row) {
       e.preventDefault();
       list.insertBefore(row, grab.anchor);
-      row.classList.remove('hub-grabbed');
+      row.classList.remove('console-grabbed');
       grab = null;
     }
   });
@@ -335,7 +335,7 @@ class Section:
     # install's settings and is the length section 9a says wants grouping.
     group: str = ""
     # Which install role this section answers for, empty meaning any. A device-only cab
-    # reads its hub's library and has none of its own, so it is not offered pages about
+    # reads another install's library and has none of its own, so it is not offered pages about
     # one; the field the filter reads is the one the install already declares.
     role: str = ""
 
@@ -425,7 +425,7 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
         chosen = next((t for t in tables if t.get("id") == table_id), None)
         if chosen is not None:
             with title:
-                ui.label(_table_line(chosen)).classes("hub-workbench-table") \
+                ui.label(_table_line(chosen)).classes("console-workbench-table") \
                     .tooltip(str(chosen.get("filename") or ""))
         # `lens` is a table id or "" for the folder's shared files, and it resets per
         # game because a table id means nothing to the next one. `redraws` is how the
@@ -544,7 +544,7 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
     rows = await run.io_bound(library.load_collections)
     row = next((entry for entry in rows if entry.get("name") == name), None)
     if row is None:
-        _blank(container, title, "Collection", "No longer in this hub")
+        _blank(container, title, "Collection", "No longer in this library")
         return
     # Independent of each other, so one wait rather than two.
     membership, axes = await asyncio.gather(
@@ -596,40 +596,40 @@ async def _rail(context: dict[str, Any], subject: str,
         rows = _for_roles(rows, (context.get("device") or {}).get("roles"))
     section = chosen_section(state, subject, rows)
     # A section this device has no answer for is not a place to land: a cab that reads
-    # its hub's library never offers Media Kinds, so keeping it open from the last
+    # another install's library never offers Media Kinds, so keeping it open from the last
     # device would open a page it cannot draw.
     if section != COLLAPSED and section not in {item.key for item in rows}:
         section = rows[0].key if rows else COLLAPSED
     body = None
     open_item = next((item for item in rows if item.key == section), None)
-    with ui.element("div").classes("w-full grow min-h-0 hub-sections"):
+    with ui.element("div").classes("w-full grow min-h-0 console-sections"):
         # The rows are their own region so they can scroll without taking the work with
         # them. A rail longer than the panel is the ordinary case for a device, and one
         # that moves what you are reading is the wrong half to move.
-        with ui.element("div").classes("min-h-0 hub-section-rail"):
+        with ui.element("div").classes("min-h-0 console-section-rail"):
             heading = ""
             after = 0
             for item in rows:
                 if item.group and item.group != heading:
-                    ui.label(item.group).classes("hub-group hub-rail-group") \
+                    ui.label(item.group).classes("console-group console-rail-group") \
                         .style(f"order: {after}")
                 heading = item.group
                 _section_row(context, item, item.key == section, order=after)
                 if item.key == section:
                     after = _AFTER_WORK
         if open_item is not None:
-            work = ui.element("div").classes("min-w-0 hub-section-work") \
+            work = ui.element("div").classes("min-w-0 console-section-work") \
                 .style(f"order: {_WORK}")
             if open_item.dock:
-                work.classes(add="hub-has-dock")
+                work.classes(add="console-has-dock")
                 work.style(f"--dock-h: {state.get('dock_px', DOCK_PX)}px")
             with work:
                 body = ui.column().classes("min-w-0 overflow-auto gap-0 "
-                                           "hub-workbench-body")
+                                           "console-workbench-body")
                 if open_item.dock:
-                    ui.element("div").classes("hub-dock-grip") \
+                    ui.element("div").classes("console-dock-grip") \
                         .tooltip("Drag to resize")
-                    context["dock"] = ui.column().classes("min-w-0 gap-0 hub-dock")
+                    context["dock"] = ui.column().classes("min-w-0 gap-0 console-dock")
                 else:
                     context["dock"] = None
     if body is not None:
@@ -662,17 +662,17 @@ def _section_row(context: dict[str, Any], section: Section, open_now: bool,
     which is a fact about the control rather than a label for the section. Without it
     the stacked rows are four words with no sign that any of them do anything.
     """
-    row = ui.row().classes("items-stretch gap-0 no-wrap hub-section-row") \
+    row = ui.row().classes("items-stretch gap-0 no-wrap console-section-row") \
         .style(f"order: {order}")
     if open_now:
-        row.classes(add="hub-section-on")
+        row.classes(add="console-section-on")
     with row:
-        name = ui.row().classes("items-center grow min-w-0 hub-section-hit")
+        name = ui.row().classes("items-center grow min-w-0 console-section-hit")
         with name:
-            text = ui.label(section.label(context)).classes("hub-section-text truncate")
+            text = ui.label(section.label(context)).classes("console-section-text truncate")
         # Shown only where the rows stack, because only there does one open under
         # another. Beside its content it would be pointing at nothing.
-        with ui.row().classes("items-center hub-section-caret"):
+        with ui.row().classes("items-center console-section-caret"):
             ui.icon("expand_more", size="18px")
     # The whole band, name and chevron alike - a header that opens on the word but
     # only closes on the arrow is a control with two rules to learn.
@@ -699,8 +699,8 @@ def _choose(context: dict[str, Any], key: str) -> None:
 
 def _title(target: ui.column, name: str, subtitle: str) -> None:
     with target:
-        ui.label(name).classes("text-base hub-workbench-title leading-tight truncate")
-        ui.label(subtitle).classes("text-xs hub-workbench-label leading-none truncate")
+        ui.label(name).classes("text-base console-workbench-title leading-tight truncate")
+        ui.label(subtitle).classes("text-xs console-workbench-label leading-none truncate")
 
 
 def _prefix(game_id: str, table_id: str) -> str:
@@ -787,7 +787,7 @@ async def _media_block(context: dict[str, Any]) -> None:
         if context["slot"]["kind"]:
             ui.run_javascript("""
             requestAnimationFrame(() => {
-              const tile = document.querySelector('.hub-mediatile--on');
+              const tile = document.querySelector('.console-mediatile--on');
               if (tile) tile.scrollIntoView({block: 'nearest', inline: 'nearest'});
             });
             """)
@@ -815,10 +815,10 @@ async def _media_block(context: dict[str, Any]) -> None:
                     # user is looking at - the user sees - rather than for the slot
                     # they fill, which is our word and not theirs. No "above" or
                     # "beside" either: this region moves depending on the width.
-                    with ui.column().classes("hub-dock-empty items-center gap-1"):
-                        ui.label("No media chosen").classes("hub-dock-empty-title")
+                    with ui.column().classes("console-dock-empty items-center gap-1"):
+                        ui.label("No media chosen").classes("console-dock-empty-title")
                         ui.label("Select any media item to manage it") \
-                            .classes("hub-help")
+                            .classes("console-help")
 
     context["redraws"].append(draw)
     await draw()
@@ -846,14 +846,14 @@ def _preview(src: str, kind: str, label: str) -> None:
     else:
         # A rule sheet is a document; there is no element that previews one usefully
         # in a panel this size, and a broken <img> would say it is missing.
-        ui.link(f"Open {label.lower()}", src, new_tab=True).classes("hub-help")
+        ui.link(f"Open {label.lower()}", src, new_tab=True).classes("console-help")
 
 
 def _kept_kinds(context: dict[str, Any], family: str) -> set[str] | None:
     """The kinds this library collects, or None where the answer cannot be had.
 
     None rather than an empty set, and the difference matters: filtering to an empty
-    set blanks the surface, which is what a config the hub could not read would
+    set blanks the surface, which is what a config that could not be read would
     otherwise do. Empty is folded into None for the same reason - a library keeping no
     kinds at all is not a state anybody can be in, and every way of reaching it here is
     a failure to read rather than an answer.
@@ -864,7 +864,7 @@ def _kept_kinds(context: dict[str, Any], family: str) -> set[str] | None:
     """
     try:
         return set(context["library"].kept_kinds()[family]) or None
-    except (HubError, OSError):
+    except (ApiError, OSError):
         return None
 
 
@@ -971,10 +971,10 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
         for redraw in context["redraws"]:
             await redraw()
 
-    with ui.column().classes("w-full gap-1 hub-slot p-2"):
-        ui.label(label).classes("hub-card-title")
+    with ui.column().classes("w-full gap-1 console-slot p-2"):
+        ui.label(label).classes("console-card-title")
 
-        with ui.element("div").classes("hub-slot-art"):
+        with ui.element("div").classes("console-slot-art"):
             if present:
                 src = f"{_prefix(game_id, table_id)}/{kind}"
                 _preview(src, kind, label)
@@ -985,38 +985,38 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                               on_click=lambda s=src, k=kind, la=label:
                                   mediaview.open_viewer(s, k, la)) \
                         .props("flat dense round size=sm") \
-                        .classes("hub-slot-zoom").tooltip("Enlarge")
+                        .classes("console-slot-zoom").tooltip("Enlarge")
             else:
-                with ui.column().classes("hub-slot-blank items-center gap-1"):
+                with ui.column().classes("console-slot-blank items-center gap-1"):
                     ui.icon(_BLANK_ICON.get(media_family(kind), "help_outline")) \
-                        .classes("hub-slot-blank-icon")
+                        .classes("console-slot-blank-icon")
 
-        with ui.column().classes("w-full gap-0 hub-slot-facts"):
+        with ui.column().classes("w-full gap-0 console-slot-facts"):
             if present:
                 with ui.row().classes("items-start gap-2 w-full no-wrap"):
-                    ui.label(file_name).classes("hub-slot-file grow min-w-0")
+                    ui.label(file_name).classes("console-slot-file grow min-w-0")
                     media_ownership.badge(detail.get("via") or entry.get("via"))
                 spec = _spec(detail)
                 if spec:
-                    ui.label(spec).classes("hub-help")
+                    ui.label(spec).classes("console-help")
                 ui.label(media_ownership.sentence(detail.get("via") or entry.get("via"),
                                         viewing_a_table=bool(table_id))) \
-                    .classes("hub-help")
+                    .classes("console-help")
                 origin = str(detail.get("origin") or entry.get("origin") or "")
                 # "unknown" is the ledger's honest answer and a useless line to read:
                 # most files predate the ledger, so it would be on nearly every slot.
                 if origin and origin not in ("unknown", "user"):
                     ui.label(f"Source: {media_ownership.source_name(origin)}") \
-                        .classes("hub-help")
+                        .classes("console-help")
                 # Only when somebody has said - "not matched" is true of nearly every
                 # file, and the button below is where the unanswered case belongs.
                 named = _match_line(context, kind,
                                     detail.get("matched_to") or entry.get("matched_to"))
                 if named:
-                    ui.label(named).classes("hub-help")
+                    ui.label(named).classes("console-help")
             else:
                 ui.label(f"No {label.lower()} for this "
-                         f"{'table' if table_id else 'game'}").classes("hub-help")
+                         f"{'table' if table_id else 'game'}").classes("console-help")
 
         # Only when there is more than one, because with one the sentence above has
         # already said where it is. Two is the case worth a list: the second file is
@@ -1027,46 +1027,46 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
         # sitting under the one in use read "All tables" here while the media lens
         # called the same file Unused, which is one of them being wrong.
         if len(also_here) > 1:
-            with ui.column().classes("w-full gap-0 hub-slot-others"):
-                ui.label("Here but not used").classes("hub-slot-others-title")
+            with ui.column().classes("w-full gap-0 console-slot-others"):
+                ui.label("Here but not used").classes("console-slot-others-title")
                 for item in also_here:
                     if item.get("wins"):
                         continue
                     with ui.row().classes("items-center gap-2 w-full no-wrap"):
-                        ui.label(item.get("file") or "").classes("hub-slot-other-file")
+                        ui.label(item.get("file") or "").classes("console-slot-other-file")
                         media_ownership.badge(media_ownership.UNUSED)
                 ui.label("Each of these resolves again if the file above it goes.") \
-                    .classes("hub-help")
+                    .classes("console-help")
 
         # Only from the game's lens, and only when somebody differs. This is the whole
         # of Model B in the panel: the shared file above, and who is not using it.
         for other in (differing or []):
-            with ui.row().classes("items-center gap-2 w-full no-wrap hub-slot-differs"):
+            with ui.row().classes("items-center gap-2 w-full no-wrap console-slot-differs"):
                 media_ownership.badge("table")
                 ui.label(_table_line(other) or other.get("filename") or "") \
-                    .classes("hub-slot-other-file").tooltip(other.get("file") or "")
+                    .classes("console-slot-other-file").tooltip(other.get("file") or "")
                 ui.button(icon="arrow_forward", on_click=lambda o=other: _go_to_table(
                     context, o.get("table") or "")) \
                     .props("flat dense round size=sm").classes("shrink-0") \
                     .tooltip("Open this table")
 
-        with ui.row().classes("items-center gap-2 w-full hub-slot-actions") \
+        with ui.row().classes("items-center gap-2 w-full console-slot-actions") \
                 .style("flex-wrap:wrap"):
             ui.button("Replace" if present else "Add",
                       icon="add_photo_alternate",
                       on_click=lambda: mediasource.open_sources(context, kind, label,
                                                                 draw)) \
-                .props("flat dense no-caps size=sm").classes("hub-action")
+                .props("flat dense no-caps size=sm").classes("console-action")
             if present:
                 # Beside the acts on the bytes: a slot holding nothing has no identity.
                 _match_button(context, kind, label,
                               detail if detail.get("path") else entry, draw)
                 ui.button("Remove", on_click=remove) \
                     .props("flat dense no-caps size=sm") \
-                    .classes("hub-action hub-action--danger")
+                    .classes("console-action console-action--danger")
             if can_share:
                 ui.button("Give to all tables", on_click=share) \
-                    .props("flat dense no-caps size=sm").classes("hub-action")
+                    .props("flat dense no-caps size=sm").classes("console-action")
 
 
 async def _game_block(context: dict[str, Any]) -> None:
@@ -1077,7 +1077,7 @@ async def _game_block(context: dict[str, Any]) -> None:
     as they are otherwise. Substituting one for the other, which this used to do, threw
     away half of what somebody was looking at.
     """
-    with ui.column().classes("gap-0 hub-form"):
+    with ui.column().classes("gap-0 console-form"):
         _identity_rows(context)
         _tables_block(context)
 
@@ -1086,9 +1086,9 @@ async def _table_block(context: dict[str, Any]) -> None:
     """What this table is - the file somebody built, and what it needs to run."""
     chosen = next((t for t in context["tables"] if t.get("id") == context["lens"]),
                   None)
-    with ui.column().classes("gap-0 hub-form"):
+    with ui.column().classes("gap-0 console-form"):
         if chosen is None:
-            ui.label("No table selected").classes("hub-help")
+            ui.label("No table selected").classes("console-help")
             return
         _table_rows(chosen, context)
 
@@ -1139,12 +1139,12 @@ def _override(effective: str, found: str | None, source: str,
     current = effective if shown is None else shown
 
     def draw() -> None:
-        with ui.element("div").classes("hub-fact-edit"):
+        with ui.element("div").classes("console-fact-edit"):
             field = ui.input(value=current).props("dense borderless") \
-                .classes("hub-edit-field")
+                .classes("console-edit-field")
             if hint:
                 field.tooltip(hint)
-            icon = ui.icon("undo").classes("hub-revert")
+            icon = ui.icon("undo").classes("console-revert")
             if found is not None:
                 target = f'"{found}"' if found else "empty"
                 icon.tooltip(f"Revert to {target} - from {source}")
@@ -1409,7 +1409,7 @@ async def _assets_block(context: dict[str, Any]) -> None:
             continue
         entries.append((_asset_name(kind), _present_row(bool(state.get("present")))))
 
-    with ui.column().classes("gap-0 hub-form"):
+    with ui.column().classes("gap-0 console-form"):
         _rows(ui, entries)
 
 
@@ -1437,7 +1437,7 @@ def _resolved_row(context: dict[str, Any], table: dict[str, Any], kind: str,
     name = str(state.get("file") or "")
 
     def draw() -> None:
-        with ui.element("div").classes("hub-fact-edit"):
+        with ui.element("div").classes("console-fact-edit"):
             # The script takes no tier. Its absence is not a gap - a table running the
             # script inside its own .vpx is the ordinary table - and "Missing" here
             # would call every one of them broken. `SCRIPT_WORDS` asks the question
@@ -1447,12 +1447,12 @@ def _resolved_row(context: dict[str, Any], table: dict[str, Any], kind: str,
                 why = ("A .vbs beside the table, and VPX runs it instead of the one "
                        "inside" if external
                        else "The table runs the script inside its own .vpx")
-                ui.label(word).classes("hub-tier hub-tier--off").tooltip(why)
+                ui.label(word).classes("console-tier console-tier--off").tooltip(why)
             else:
                 tier = media_ownership.for_resolution(state.get("resolution"))
-                ui.label(tier.noun).classes(f"hub-tier {tier.css}").tooltip(tier.why)
+                ui.label(tier.noun).classes(f"console-tier {tier.css}").tooltip(tier.why)
             if name:
-                ui.label(name).classes("hub-slot-file truncate").tooltip(name)
+                ui.label(name).classes("console-slot-file truncate").tooltip(name)
             if kind == "script":
                 _script_actions(context, table, external)
 
@@ -1472,11 +1472,11 @@ def _script_actions(context: dict[str, Any], table: dict[str, Any],
     if external:
         ui.button("Delete", on_click=lambda: _drop_script(context, table)) \
             .props("flat dense no-caps size=sm") \
-            .classes("hub-action hub-action--inline hub-action--danger")
+            .classes("console-action console-action--inline console-action--danger")
     else:
         ui.button("Extract", on_click=lambda: _extract_script(context, table)) \
             .props("flat dense no-caps size=sm") \
-            .classes("hub-action hub-action--inline")
+            .classes("console-action console-action--inline")
 
 
 def _launch_state(launchable: bool | None) -> Any:
@@ -1557,7 +1557,7 @@ def _tag_picker(held: list[str], known: list[str],
         control = ui.select(known, multiple=True, value=list(held),
                             with_input=True, new_value_mode="add-unique") \
             .props('dense outlined use-chips hide-dropdown-icon '
-                   'popup-content-class="hub-picker-popup"') \
+                   'popup-content-class="console-picker-popup"') \
             .classes("w-full min-w-0")
         control.on_value_change(lambda: on_change(list(control.value or [])))
 
@@ -1568,10 +1568,10 @@ def _reset_action(on_reset: Callable[[], Any]) -> Callable[[], None]:
     """Only where there is something to clear. An act offered on a record of nothing
     is a button that cannot do anything."""
     def draw() -> None:
-        with ui.element("div").classes("hub-slot-actions"):
+        with ui.element("div").classes("console-slot-actions"):
             ui.button("Reset play record", icon="restart_alt",
                       on_click=on_reset).props("flat dense no-caps size=sm") \
-                .classes("hub-action")
+                .classes("console-action")
 
     return draw
 
@@ -1619,7 +1619,7 @@ async def _vps_block(context: dict[str, Any]) -> None:
             entries.append((FULL, _details_differ(context, differs)))
     entries.append((FULL, _change_match(context)))
 
-    with ui.column().classes("gap-0 hub-form"):
+    with ui.column().classes("gap-0 console-form"):
         _rows(ui, entries)
 
 
@@ -1649,19 +1649,19 @@ def _details_differ(context: dict[str, Any],
     def draw() -> None:
         # The block lays its children out in a row, so the stack goes in a column of
         # its own - the same shape the fault list beside an icon uses.
-        with ui.element("div").classes("hub-attention w-full"), \
+        with ui.element("div").classes("console-attention w-full"), \
                 ui.column().classes("gap-1 min-w-0 grow"):
             ui.label("This game still describes the machine it was matched to before") \
-                .classes("hub-attention-line")
+                .classes("console-attention-line")
             for item in differs:
                 said = str(item.get("field") or "")
                 with ui.row().classes("items-baseline gap-2 w-full no-wrap"):
-                    ui.label(DETAIL_WORDS.get(said, said)).classes("hub-diff-field")
-                    ui.label(str(item.get("ours") or "-")).classes("hub-diff-was")
-                    ui.icon("arrow_forward").classes("hub-diff-arrow")
-                    ui.label(str(item.get("theirs") or "-")).classes("hub-help truncate")
+                    ui.label(DETAIL_WORDS.get(said, said)).classes("console-diff-field")
+                    ui.label(str(item.get("ours") or "-")).classes("console-diff-was")
+                    ui.icon("arrow_forward").classes("console-diff-arrow")
+                    ui.label(str(item.get("theirs") or "-")).classes("console-help truncate")
             ui.button("Use the entry's details", on_click=adopt) \
-                .props("flat dense no-caps size=sm").classes("hub-action")
+                .props("flat dense no-caps size=sm").classes("console-action")
 
     return draw
 
@@ -1670,14 +1670,14 @@ def _vps_entry_row(found: dict[str, Any], vps_id: str) -> Callable[[], None]:
     """The matched machine, named the way somebody can check it - and a way out to the
     catalog, so a reader is not asked to search for what is already identified."""
     def draw() -> None:
-        with ui.element("div").classes("hub-fact-edit"):
+        with ui.element("div").classes("console-fact-edit"):
             said = str(found.get("name") or "")
             made = " ".join(str(found.get(k) or "") for k in ("manufacturer", "year"))
             ui.label(f"{said} - {made.strip()}" if said else vps_id) \
-                .classes("hub-fact-value truncate min-w-0").tooltip(vps_id)
+                .classes("console-fact-value truncate min-w-0").tooltip(vps_id)
             if found.get("url"):
                 ui.link(target=str(found["url"]), new_tab=True) \
-                    .classes("hub-action hub-action--inline").tooltip("Open on VPS") \
+                    .classes("console-action console-action--inline").tooltip("Open on VPS") \
                     .props("no-caps") \
                     .set_text("View")
 
@@ -1687,10 +1687,10 @@ def _vps_entry_row(found: dict[str, Any], vps_id: str) -> Callable[[], None]:
 def _change_match(context: dict[str, Any]) -> Callable[[], None]:
     """One verb on this section, which is the only act it offers."""
     def draw() -> None:
-        with ui.element("div").classes("hub-slot-actions"):
+        with ui.element("div").classes("console-slot-actions"):
             ui.button("Change match...", icon="search",
                       on_click=lambda: _pick_a_match(context)) \
-                .props("flat dense no-caps size=sm").classes("hub-action")
+                .props("flat dense no-caps size=sm").classes("console-action")
 
     return draw
 
@@ -1709,13 +1709,13 @@ async def _pick_a_match(context: dict[str, Any]) -> None:
     library = context["library"]
 
     with ui.dialog().props("persistent") as dialog, \
-            ui.card().classes("hub-confirm hub-picker-dialog"):
-        ui.label("Match this game to VPS").classes("hub-confirm-title")
+            ui.card().classes("console-confirm console-picker-dialog"):
+        ui.label("Match this game to VPS").classes("console-confirm-title")
         ui.label("Nothing here ranks the results - pick the machine you have.") \
-            .classes("hub-help")
+            .classes("console-help")
         field = ui.input(value=str(game.get("name") or "")) \
-            .props("dense autofocus clearable").classes("hub-edit-field w-full")
-        found = ui.column().classes("w-full gap-0 hub-source-list")
+            .props("dense autofocus clearable").classes("console-edit-field w-full")
+        found = ui.column().classes("w-full gap-0 console-source-list")
 
         async def look() -> None:
             said = str(field.value or "").strip()
@@ -1723,18 +1723,18 @@ async def _pick_a_match(context: dict[str, Any]) -> None:
             found.clear()
             with found:
                 if not said:
-                    ui.label("Type a name, a maker or a year").classes("hub-help")
+                    ui.label("Type a name, a maker or a year").classes("console-help")
                     return
                 if not rows:
                     ui.label(f"Nothing in the catalog matches “{said}”") \
-                        .classes("hub-help")
+                        .classes("console-help")
                     return
                 for row in rows:
                     _match_row(row, dialog)
 
         field.on("keydown.enter", look)
         ui.button("Search", on_click=look).props("flat dense no-caps size=sm") \
-            .classes("hub-action")
+            .classes("console-action")
         with ui.row().classes("justify-end gap-2 w-full"):
             ui.button("Clear match", on_click=lambda: dialog.submit("")) \
                 .props("flat no-caps")
@@ -1787,17 +1787,17 @@ def _parked_match(context: dict[str, Any], parked: dict[str, Any]) -> Callable[[
                      context["game_id"], {"alt_vps_id_previous": ""})
 
     def draw() -> None:
-        with ui.element("div").classes("hub-attention w-full"):
+        with ui.element("div").classes("console-attention w-full"):
             said = str(parked.get("table") or "")
             ui.label("You matched this by hand before "
                      + (f"“{said}” was replaced" if said else "the table changed")) \
-                .classes("hub-attention-line")
+                .classes("console-attention-line")
             with ui.row().classes("items-center gap-2"):
                 ui.button("Restore", on_click=restore) \
-                    .props("flat dense no-caps size=sm").classes("hub-action")
+                    .props("flat dense no-caps size=sm").classes("console-action")
                 ui.button("Discard", on_click=discard) \
                     .props("flat dense no-caps size=sm") \
-                    .classes("hub-action hub-action--danger")
+                    .classes("console-action console-action--danger")
 
     return draw
 
@@ -1825,7 +1825,7 @@ def _rom_state(pinmame: dict[str, Any], rom: str,
         ui.button("Assets", icon="chevron_right",
                   on_click=lambda: _choose(context, "assets")) \
             .props("flat dense no-caps size=sm") \
-            .classes("hub-action hub-action--inline") \
+            .classes("console-action console-action--inline") \
             .tooltip("Where a rom is managed")
 
     return draw
@@ -1851,11 +1851,11 @@ def _attention(table: dict[str, Any]) -> list[tuple[Any, Any]]:
         return []
 
     def draw() -> None:
-        with ui.element("div").classes("hub-attention"):
-            ui.icon("error_outline").classes("hub-attention-icon")
+        with ui.element("div").classes("console-attention"):
+            ui.icon("error_outline").classes("console-attention-icon")
             with ui.column().classes("gap-0 min-w-0"):
                 for fault in faults:
-                    ui.label(fault).classes("hub-attention-line")
+                    ui.label(fault).classes("console-attention-line")
 
     return [(FULL, draw)]
 
@@ -1891,19 +1891,19 @@ def _library_rows(context: dict[str, Any],
         the button is the act, which is the panel's own convention.
         """
         said = game_tables.default_state(table.get("default_kind") or "")
-        with ui.element("div").classes("hub-fact-edit"):
+        with ui.element("div").classes("console-fact-edit"):
             if is_default and said:
                 # No colour: green in this panel means installed, present, extracted -
                 # facts whose absence costs you a working table. A game has a default
                 # either way, so the word carries it and the palette keeps its meaning.
-                ui.label(said[0]).classes("hub-tier hub-tier--off").tooltip(said[1])
+                ui.label(said[0]).classes("console-tier console-tier--off").tooltip(said[1])
             if not is_default:
                 ui.button("Make default",
                           on_click=lambda: act(library.set_default_table, game_id,
                                                table_id,
                                                done="Now the game's default")) \
                     .props("flat dense no-caps size=sm") \
-                    .classes("hub-action hub-action--inline")
+                    .classes("console-action console-action--inline")
             elif (table.get("default_kind") or "") == game_tables.DERIVED:
                 # The way to stop it moving. Nothing else in the UI could pin the table
                 # a game had already landed on, so an automatic default stayed at the
@@ -1912,13 +1912,13 @@ def _library_rows(context: dict[str, Any],
                           on_click=lambda: act(library.set_default_table, game_id,
                                                table_id, done="Chosen")) \
                     .props("flat dense no-caps size=sm") \
-                    .classes("hub-action hub-action--inline")
+                    .classes("console-action console-action--inline")
             else:
                 ui.button("Clear choice",
                           on_click=lambda: act(library.set_default_table, game_id, "",
                                                done="Back to an automatic default")) \
                     .props("flat dense no-caps size=sm") \
-                    .classes("hub-action hub-action--inline")
+                    .classes("console-action console-action--inline")
 
     def hidden_row() -> None:
         # On is hidden, the same direction the column and the funnel read it. It used to
@@ -1951,7 +1951,7 @@ def _play_action(context: dict[str, Any], table: dict[str, Any]) -> Callable[[],
     def draw() -> None:
         with ui.row().classes("items-center gap-2"):
             button = ui.button("Play this table", icon="play_arrow", on_click=go) \
-                .props("flat dense no-caps size=sm").classes("hub-action")
+                .props("flat dense no-caps size=sm").classes("console-action")
             if not table.get("available"):
                 button.disable()
                 button.tooltip("The .vpx is not on disk")
@@ -1990,10 +1990,10 @@ def _table_override_rows(context: dict[str, Any], table: dict[str, Any],
 def _feature_chips(features: dict[str, Any]) -> None:
     """What the table's script was seen to use, named where there is room for names -
     the grid draws the same three states as marks."""
-    with ui.element("div").classes("hub-chips"):
+    with ui.element("div").classes("console-chips"):
         for key, label in table_features.LABELS.items():
             state = table_features.state_of(features.get(key))
-            ui.label(label).classes(f"hub-tier {state.chip}").tooltip(state.noun)
+            ui.label(label).classes(f"console-tier {state.chip}").tooltip(state.noun)
 
 
 async def _script_act(context: dict[str, Any], call: Any, table_id: str,
@@ -2036,7 +2036,7 @@ async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
 
     Confirmed because it is the only destructive thing on this surface, and the dialog
     names the file rather than the id - the id is ours, the filename is what the user
-    recognizes. The hub refuses the request outright if the .vpx is back, so a stale
+    recognizes. The API refuses the request outright if the .vpx is back, so a stale
     panel cannot delete a table that returned while it was open.
     """
     if not await confirm.ask(
@@ -2072,11 +2072,11 @@ def _tables_block(context: dict[str, Any]) -> None:
     showing = str(context.get("lens") or "")
     # Only where there is a choice to describe. A count beside one row says nothing.
     said = f"Tables ({len(tables)})" if len(tables) > 1 else "Table"
-    ui.label(said).classes("hub-card-title hub-fact-heading")
+    ui.label(said).classes("console-card-title console-fact-heading")
     for table in tables:
         since = str(table.get("absent_since") or "")
         here = str(table.get("id") or "") == showing
-        with ui.column().classes("gap-0 w-full hub-member-row"):
+        with ui.column().classes("gap-0 w-full console-member-row"):
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
                 # On every row, and leading. `docs/conventions.md`: show varying state
                 # on every row rather than let a reader take meaning from absence -
@@ -2084,20 +2084,20 @@ def _tables_block(context: dict[str, Any]) -> None:
                 # has exactly one default, so the control that says so is a radio.
                 _default_mark(context, table, since=since)
                 name = ui.label(game_tables.table_name(table)) \
-                    .classes("hub-member-name grow min-w-0 truncate") \
+                    .classes("console-member-name grow min-w-0 truncate") \
                     .tooltip(str(table.get("filename") or ""))
                 # Which of them the panel beside this is about. Without it the block
                 # repeats the grid you are already looking at; with it, it is where
                 # you are - this game has two, you are on one, that one is default.
                 if here:
-                    name.classes(add="hub-member-name--here")
+                    name.classes(add="console-member-name--here")
                 if since:
                     # Stated, not judged: how long it has been gone is what tells a
                     # deletion from a share that was late mounting, and that call is
                     # the user's.
                     name.classes(add="opacity-60")
                     ui.label(game_tables.word_for(game_tables.FILE_WORDS, True)) \
-                        .classes("hub-member-chip hub-tier hub-tier--warn") \
+                        .classes("console-member-chip console-tier console-tier--warn") \
                         .tooltip(f"Not on disk since {since[:10]}")
                 elif table.get("default"):
                     # Qualifies *the default*, so it belongs only where there is one -
@@ -2105,7 +2105,7 @@ def _tables_block(context: dict[str, Any]) -> None:
                     # decided" is not a question a non-default table answers.
                     say = game_tables.default_state(table.get("default_kind") or "")
                     if say:
-                        ui.label(say[0]).classes("hub-member-chip hub-chip-quiet") \
+                        ui.label(say[0]).classes("console-member-chip console-chip-quiet") \
                             .tooltip(say[1])
                 # On every row that has one, because which program plays a file is
                 # exactly what separates a VPX build from a Future Pinball one - it
@@ -2113,8 +2113,8 @@ def _tables_block(context: dict[str, Any]) -> None:
                 # it distinguishes nothing.
                 app = apps.app_name(table.get("app"))
                 if app:
-                    ui.label(app).classes("hub-member-chip hub-tier hub-tier--off")
-                with ui.element("div").classes("hub-row-action"):
+                    ui.label(app).classes("console-member-chip console-tier console-tier--off")
+                with ui.element("div").classes("console-row-action"):
                     if since:
                         ui.button(icon="delete_outline",
                                   on_click=lambda _, t=table: _forget_table(context, t)) \
@@ -2134,7 +2134,7 @@ def _release_line(table: dict[str, Any]) -> None:
     be reporting a search that never happened.
 
     Drawn from what the row already carries. Reaching for the release list here put a
-    blocking hub call inside a synchronous draw, and the rows after it never appeared.
+    blocking API call inside a synchronous draw, and the rows after it never appeared.
     """
     source = table.get("source") or {}
     if not source.get("vps_file_id"):
@@ -2142,8 +2142,8 @@ def _release_line(table: dict[str, Any]) -> None:
     version = str(source.get("version") or "")
     made_by = ", ".join(str(name) for name in (source.get("authors") or [])[:3])
     told = " \u00b7 ".join(part for part in (version, made_by) if part)
-    with ui.row().classes("items-center gap-2 w-full no-wrap hub-member-table-line"):
-        ui.label(told or "A build the catalog no longer lists").classes("hub-help truncate")
+    with ui.row().classes("items-center gap-2 w-full no-wrap console-member-table-line"):
+        ui.label(told or "A build the catalog no longer lists").classes("console-help truncate")
 
 
 def _release_button(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -2210,7 +2210,7 @@ def _match_button(context: dict[str, Any], kind: str, label: str,
     button = ui.button("Change match" if bound else "Match",
                        on_click=lambda: _pick_a_record(context, listed.listed_as,
                                                        label, path, bound, redraw)) \
-        .props("flat dense no-caps size=sm").classes("hub-action")
+        .props("flat dense no-caps size=sm").classes("console-action")
     if context["game"].get("vps_id"):
         button.tooltip("Which published file this is")
         return
@@ -2233,14 +2233,14 @@ async def _pick_a_record(context: dict[str, Any], listed_as: str, label: str,
     records = await run.io_bound(_records_of, context, vps_id, listed_as)
 
     with ui.dialog().props("persistent") as dialog, \
-            ui.card().classes("hub-confirm hub-picker-dialog"):
+            ui.card().classes("console-confirm console-picker-dialog"):
         ui.label(f"Which published {label.lower()} is this?") \
-            .classes("hub-confirm-title")
-        ui.label(path).classes("hub-help")
-        with ui.column().classes("w-full gap-0 hub-source-list"):
+            .classes("console-confirm-title")
+        ui.label(path).classes("console-help")
+        with ui.column().classes("w-full gap-0 console-source-list"):
             if not records:
                 ui.label(f"VPS lists no {label.lower()} for this machine") \
-                    .classes("hub-help")
+                    .classes("console-help")
             for item in records:
                 _record_row(item, dialog, bound)
         with ui.row().classes("justify-end gap-2 w-full"):
@@ -2303,13 +2303,13 @@ async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> Non
     releases = await run.io_bound(_releases_of, context, entry)
 
     with ui.dialog().props("persistent") as dialog, \
-            ui.card().classes("hub-confirm hub-picker-dialog"):
-        ui.label("Which release is this table?").classes("hub-confirm-title")
+            ui.card().classes("console-confirm console-picker-dialog"):
+        ui.label("Which release is this table?").classes("console-confirm-title")
         _yours(table)
-        found = ui.column().classes("w-full gap-0 hub-source-list")
+        found = ui.column().classes("w-full gap-0 console-source-list")
         with found:
             if not releases:
-                ui.label("VPS lists no builds for this machine").classes("hub-help")
+                ui.label("VPS lists no builds for this machine").classes("console-help")
             for item in releases:
                 _release_row(item, dialog, bound)
         with ui.row().classes("justify-end gap-2 w-full"):
@@ -2337,7 +2337,7 @@ def _yours(table: dict[str, Any]) -> None:
     told = " \u00b7 ".join(part for part in (said, made_by) if part)
     ui.label(f"This file says {told}" if told
              else "This file records no version or author to compare") \
-        .classes("hub-help")
+        .classes("console-help")
 
 
 def _release_row(release: dict[str, Any], dialog: Any, bound: str) -> None:
@@ -2398,9 +2398,9 @@ def _default_mark(context: dict[str, Any], table: dict[str, Any], *,
     """
     chosen = bool(table.get("default"))
     mark = ui.icon("radio_button_checked" if chosen else "radio_button_unchecked") \
-        .classes("hub-default-mark")
+        .classes("console-default-mark")
     if chosen:
-        mark.classes(add="hub-default-mark--on")
+        mark.classes(add="console-default-mark--on")
         mark.tooltip("The table this game offers")
         return
     if since:
@@ -2475,11 +2475,11 @@ def _device(context: dict[str, Any]) -> dict[str, Any]:
 async def _device_details(context: dict[str, Any]) -> None:
     """Everything a device is, in groups, read down in one go.
 
-    Descriptive, then operational, then what this hub holds about it - which is section
+    Descriptive, then operational, then what this install holds about it - which is section
     14.2's order for the same reason it gives: what a thing *is* comes before what can
     be done to it, and the record we keep of it is nobody's first question.
     """
-    with ui.column().classes("gap-0 hub-form"):
+    with ui.column().classes("gap-0 console-form"):
         _rows(ui, await devices_page.detail_groups(context))
 
 
@@ -2517,7 +2517,7 @@ async def _collection_details(context: dict[str, Any]) -> None:
         # the games it decides between, and a read-only copy of it here would be a
         # second home for one fact.
     ]
-    with ui.column().classes("gap-0 hub-form"):
+    with ui.column().classes("gap-0 console-form"):
         _rows(ui, entries)
         _image_slot(context, row)
 
@@ -2585,23 +2585,23 @@ def _image_slot(context: dict[str, Any], row: dict[str, Any]) -> None:
         await run.io_bound(library.clear_collection_image, name)
         await context["rebuild"]()
 
-    with ui.column().classes("w-full gap-1 hub-slot p-2 mt-3"):
-        ui.label("Image").classes("hub-card-title")
-        with ui.element("div").classes("hub-slot-art"):
+    with ui.column().classes("w-full gap-1 console-slot p-2 mt-3"):
+        ui.label("Image").classes("console-card-title")
+        with ui.element("div").classes("console-slot-art"):
             if present:
                 ui.image(f"/api/v1/collections/{quote(name, safe='')}/image") \
-                    .classes("hub-slot-image")
+                    .classes("console-slot-image")
             else:
-                with ui.column().classes("hub-slot-blank items-center gap-1"):
-                    ui.icon("image").classes("hub-slot-blank-icon")
-        with ui.row().classes("items-center gap-2 w-full hub-slot-actions"):
+                with ui.column().classes("console-slot-blank items-center gap-1"):
+                    ui.icon("image").classes("console-slot-blank-icon")
+        with ui.row().classes("items-center gap-2 w-full console-slot-actions"):
             # The picker sits behind the button, as the media slot's own actions do.
             # A drop target the size of the panel was reading as the content.
             upload_control = ui.upload(on_upload=upload, auto_upload=True, max_files=1) \
                 .props('accept="image/*"').classes("hidden")
             ui.button("Replace" if present else "Add an image", icon="upload",
                       on_click=lambda: upload_control.run_method("pickFiles")) \
-                .props("flat dense no-caps size=sm").classes("hub-action")
+                .props("flat dense no-caps size=sm").classes("console-action")
             if present:
                 ui.button("Remove", on_click=clear) \
                     .props("flat dense no-caps size=sm")
@@ -2620,7 +2620,7 @@ async def _collection_contents(context: dict[str, Any]) -> None:
     thing being looked at is the whole result, which is what the rule is *for*.
     """
     row = _collection(context)
-    with ui.column().classes("gap-0 hub-form w-full"):
+    with ui.column().classes("gap-0 console-form w-full"):
         _rule_region(context, row)
     dock = context.get("dock")
     if dock is not None:
@@ -2638,15 +2638,15 @@ def _rule_region(context: dict[str, Any], row: dict[str, Any]) -> None:
     """
     dynamic = _is_dynamic(row) or _drafting(context)
     _kind_control(context, row, dynamic)
-    ui.label("Rules").classes("hub-group mt-3")
+    ui.label("Rules").classes("console-group mt-3")
     if dynamic:
-        ui.label(_rule_sentence(context, row)).classes("hub-help hub-rule-sentence mb-2")
+        ui.label(_rule_sentence(context, row)).classes("console-help console-rule-sentence mb-2")
         _axis_rows(context, row)
         _rule_actions(context, row)
     else:
         # One word. The toggle above already says what a manual collection is, and
         # repeating it here is the filler this section was rebuilt to remove.
-        ui.label("None").classes("hub-help")
+        ui.label("None").classes("console-help")
     _ordering_rows(context, row, arrangeable=not dynamic)
 
 
@@ -2662,7 +2662,7 @@ def _kind_control(context: dict[str, Any], row: dict[str, Any],
     with ui.row().classes("items-center gap-3 w-full no-wrap"):
         choice = ui.toggle({"manual": "Manual", "dynamic": "Dynamic"},
                            value="dynamic" if dynamic else "manual") \
-            .props("dense no-caps unelevated").classes("hub-kind-toggle")
+            .props("dense no-caps unelevated").classes("console-kind-toggle")
 
         async def changed() -> None:
             wanted = choice.value
@@ -2675,7 +2675,7 @@ def _kind_control(context: dict[str, Any], row: dict[str, Any],
 
         choice.on_value_change(changed)
         ui.label("Fills itself from the library" if dynamic
-                 else "Holds what you put in it").classes("hub-help min-w-0")
+                 else "Holds what you put in it").classes("console-help min-w-0")
 
 
 def _start_rule(context: dict[str, Any]) -> None:
@@ -2774,7 +2774,7 @@ def _axis_control(context: dict[str, Any], axis: dict[str, Any],
                                 value=_selected(current.get(name)),
                                 with_input=len(values) > 12) \
                 .props('dense outlined use-chips '
-                       'popup-content-class="hub-picker-popup"') \
+                       'popup-content-class="console-picker-popup"') \
                 .classes("w-full min-w-0")
             control.on_value_change(lambda: changed(list(control.value or [])))
         else:
@@ -2886,11 +2886,11 @@ def _rule_actions(context: dict[str, Any], row: dict[str, Any]) -> None:
         elif _is_dynamic(row):
             ui.button("Keep what it found", icon="push_pin",
                       on_click=lambda: _keep_result(context)) \
-                .props("flat dense no-caps size=sm").classes("hub-action") \
+                .props("flat dense no-caps size=sm").classes("console-action") \
                 .tooltip("Store these games and drop the rule")
     if dirty:
         ui.label("Not saved yet. The frontend still shows what is stored.") \
-            .classes("hub-help mt-1 text-warning")
+            .classes("console-help mt-1 text-warning")
 
 
 async def _save_rule(context: dict[str, Any]) -> None:
@@ -3032,17 +3032,17 @@ async def _preview_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
     try:
         answer = await run.io_bound(library.preview_filters, filters, row.get("limit"))
     except Exception as exc:
-        ui.label(f"Could not work that out: {exc}").classes("hub-help text-warning")
+        ui.label(f"Could not work that out: {exc}").classes("console-help text-warning")
         return
     entries = answer.get("entries") or []
     ui.label(f"{answer.get('count', len(entries))} games, if you save this") \
-        .classes("hub-card-title")
-    ui.label("A preview. Nothing here is stored yet.").classes("hub-help mb-2")
+        .classes("console-card-title")
+    ui.label("A preview. Nothing here is stored yet.").classes("console-help mb-2")
     if not entries:
-        ui.label("Nothing matches this rule.").classes("hub-help")
+        ui.label("Nothing matches this rule.").classes("console-help")
     for entry in entries[:200]:
         game = entry.get("game") or {}
-        with ui.row().classes("items-center gap-2 w-full no-wrap py-1 hub-index-item"):
+        with ui.row().classes("items-center gap-2 w-full no-wrap py-1 console-index-item"):
             ui.label(str(game.get("name") or "")) \
                 .classes("text-xs grow min-w-0 truncate")
     if len(entries) > 200:
@@ -3089,12 +3089,12 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
         total = len(members)
         word = "table" if total == 1 else "tables"
         ui.label(f"{playable} of {total} {word}" if playable != total
-                 else f"{total} {word}").classes("hub-card-title")
+                 else f"{total} {word}").classes("console-card-title")
         ui.space()
         # The key, beside the count rather than above the rows: a legend the reader
         # scrolls away from stops being one, and this sits in the header that stays.
         if members or find:
-            with ui.row().classes("items-center gap-2 no-wrap hub-member-key") \
+            with ui.row().classes("items-center gap-2 no-wrap console-member-key") \
                     .tooltip(game_tables.KEY_DETAIL):
                 for shown, word in game_tables.KEY_WORDS:
                     ui.element("span").classes(game_tables.mark(shown))
@@ -3121,13 +3121,13 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
                and (row.get("order_by") or "") == MANUAL_ORDER
                and len([m for m in members if m.get("origin") == "named"]) > 1)
     excluded = [m for m in members if (m.get("origin") or "") == "excluded"]
-    with ui.column().classes("gap-0 w-full hub-member-list"):
+    with ui.column().classes("gap-0 w-full console-member-list"):
         for member in kept:
             _member_line(context, member, arrange=arrange)
     # Grouped, not inline: a handful of rows somebody took out do not belong scattered
     # through forty they left in, and they are the ones most likely to be wanted back.
     if excluded:
-        ui.label(f"Taken out ({len(excluded)})").classes("hub-group mt-3")
+        ui.label(f"Taken out ({len(excluded)})").classes("console-group mt-3")
         with ui.column().classes("gap-0 w-full"):
             for member in excluded:
                 _member_line(context, member)
@@ -3200,22 +3200,22 @@ def _member_line(context: dict[str, Any], member: dict[str, Any],
         game_tables.reference_state(state) if state == game_tables.GONE else None)
     # The handle and the action sit outside the two text lines so they centre against
     # the row rather than against its first line, which read as pinned to the name.
-    with ui.row().classes("items-center gap-2 w-full no-wrap hub-member-row") \
+    with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row") \
             .props(f'data-origin="{origin}"'):
         if arrange:
             # Focusable, because the keyboard path grabs from here: without a tab stop
             # the arrangement is mouse-only, which is the same trap the hover-revealed
             # row action had.
-            ui.icon("drag_indicator").classes("hub-drag-handle") \
+            ui.icon("drag_indicator").classes("console-drag-handle") \
                 .props('tabindex=0 role=button') \
                 .tooltip("Drag to move, or press Space and use the arrow keys")
         with ui.column().classes("gap-0 grow min-w-0"):
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
                 ui.label(member.get("name") or member.get("game") or "") \
-                    .classes("hub-member-name grow min-w-0 truncate")
+                    .classes("console-member-name grow min-w-0 truncate")
                 if chip:
                     ui.label(chip[0]).tooltip(chip[1]) \
-                        .classes("hub-member-chip hub-chip-warn")
+                        .classes("console-member-chip console-chip-warn")
             # The table sits under its game and close to it, because the two are one
             # answer - which of this game's tables this collection holds.
             said = game_tables.table_name(table) if table else ""
@@ -3228,8 +3228,8 @@ def _member_line(context: dict[str, Any], member: dict[str, Any],
                               editable=origin != "excluded")
             elif table.get("origin") == "missing":
                 ui.label("Names a table this library does not have") \
-                    .classes("hub-member-table text-warning")
-        with ui.element("div").classes("hub-row-action"):
+                    .classes("console-member-table text-warning")
+        with ui.element("div").classes("console-row-action"):
             _member_action(context, member, origin)
 
 
@@ -3242,7 +3242,7 @@ def _table_choice(context: dict[str, Any], member: dict[str, Any], state: str,
     UI reached it, so every row read `Game Default` whatever the collection stored.
     """
     with ui.row().classes("items-center gap-2 no-wrap w-full min-w-0 "
-                          "hub-member-table-line") as line:
+                          "console-member-table-line") as line:
         # Leading the *table* line, because that is what it qualifies - which table
         # this entry uses. On the name line it would read as a mark about the game.
         # The word the key uses, not a second phrasing of it: hovering a mark and
@@ -3253,11 +3253,11 @@ def _table_choice(context: dict[str, Any], member: dict[str, Any], state: str,
         # The same line, and the same tooltip, as a game's Tables section: version and
         # author on screen, the filename a hover away. One formatter, so the two
         # surfaces cannot drift apart.
-        ui.label(said).classes("hub-member-table truncate grow min-w-0") \
+        ui.label(said).classes("console-member-table truncate grow min-w-0") \
             .tooltip(str(table.get("filename") or ""))
         if not editable:
             return
-        ui.icon("expand_more").classes("hub-member-table-caret")
+        ui.icon("expand_more").classes("console-member-table-caret")
         line.classes(add="cursor-pointer")
         # Anchored inside the element it belongs to. Built as a sibling it lands
         # wherever the parent row happens to start, which put an earlier menu 726px
@@ -3318,7 +3318,7 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
     with holder:
         # The question this group answers, not the verb on its own: "Uses" was the
         # verb without its object, and a reader had to infer the subject.
-        ui.item_label("Which table").props("header").classes("hub-menu-header")
+        ui.item_label("Which table").props("header").classes("console-menu-header")
         _table_menu_item(context, member, "", named,
                          game_tables.FOLLOWS,
                          game_tables.REFERENCE_WORDS[game_tables.FOLLOWS][0],
@@ -3344,7 +3344,7 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
             # Not "another user defined": every item here wears the mark for that and
             # the key says what it means, so the state would restate what is on screen.
             ui.item_label("Insert another table from this game").props("header") \
-                .classes("hub-menu-header")
+                .classes("console-menu-header")
             for one in spare:
                 _add_table_item(context, game, one, after=named)
 
@@ -3373,26 +3373,26 @@ def _table_menu_item(context: dict[str, Any], member: dict[str, Any], table_id: 
             return
         await context["rebuild"]()
 
-    marked = "hub-menu-item"
+    marked = "console-menu-item"
     if chosen:
-        marked += " hub-menu-on"
+        marked += " console-menu-on"
     elif blocked:
-        marked += " hub-menu-blocked"
+        marked += " console-menu-blocked"
     item = ui.menu_item(on_click=pick).classes(marked)
     if blocked:
         # It stays open on a click it will not act on: closing would look like the
         # choice was taken.
         item.props("auto-close=false").tooltip(blocked)
     with item, ui.row().classes("items-center gap-2 no-wrap w-full"):
-        ui.element("span").classes(f"hub-menu-mark {game_tables.mark(state)}")
+        ui.element("span").classes(f"console-menu-mark {game_tables.mark(state)}")
         with ui.column().classes("gap-0 grow min-w-0"):
-            ui.label(label).classes("hub-menu-table-name")
+            ui.label(label).classes("console-menu-table-name")
             if under:
-                ui.label(under).classes("hub-menu-sub")
+                ui.label(under).classes("console-menu-sub")
         if chosen:
-            ui.icon("check").classes("hub-menu-check")
+            ui.icon("check").classes("console-menu-check")
         elif blocked:
-            ui.icon("block").classes("hub-menu-check hub-menu-blocked-mark")
+            ui.icon("block").classes("console-menu-check console-menu-blocked-mark")
 
 
 def _add_table_item(context: dict[str, Any], game: str, table: dict[str, Any],
@@ -3413,14 +3413,14 @@ def _add_table_item(context: dict[str, Any], game: str, table: dict[str, Any],
             return
         await context["rebuild"]()
 
-    with ui.menu_item(on_click=add).classes("hub-menu-item"), \
+    with ui.menu_item(on_click=add).classes("console-menu-item"), \
             ui.row().classes("items-center gap-2 no-wrap w-full"):
         # A plus, not the ● the entries above wear. Both groups named the same table
         # with the same mark, so the pair read as one thing listed twice and the
         # heading was the only thing telling them apart - which a heading loses at a
         # glance (Chris, 2026-08-30). The mark carries the verb now.
-        ui.icon("add").classes("hub-menu-add")
-        ui.label(game_tables.table_name(table)).classes("hub-menu-table-name grow min-w-0")
+        ui.icon("add").classes("console-menu-add")
+        ui.label(game_tables.table_name(table)).classes("console-menu-table-name grow min-w-0")
 
 
 def _member_action(context: dict[str, Any], member: dict[str, Any],
@@ -3488,7 +3488,7 @@ def _add_control(context: dict[str, Any], members: list[dict]) -> None:
     picker = ui.select(choices, with_input=True, label="Add a game") \
         .props('dense outlined options-dense use-input input-debounce=0 '
                'hide-selected fill-input clearable '
-               'popup-content-class="hub-picker-popup"') \
+               'popup-content-class="console-picker-popup"') \
         .classes("w-full mt-3")
 
     async def add() -> None:
@@ -3527,14 +3527,14 @@ SECTIONS: tuple[Section, ...] = (
     Section("collection_contents", _contents_label, _collection_contents,
             subjects=frozenset({"collection"}), dock=True),
     # A device, in reading order: what it is, whether it is there, what it is running,
-    # what it can be asked to do, and what this hub holds about it. Settings comes from
+    # what it can be asked to do, and what this install holds about it. Settings comes from
     # the device's own schema, so it is the same page Settings draws for this install.
     # What a device is, as groups in one section - section 14.7 threw out a rail entry
     # that opened one row, and five of the six this replaced held three or fewer.
     Section("device_details", lambda _: "Device Details", _device_details,
             subjects=frozenset({"device"})),
     # Then that device's settings, one rail entry per page and grouped exactly as the
-    # hub's own Settings groups them. A rail inside a rail was the alternative and it
+    # install's own Settings groups them. A rail inside a rail was the alternative and it
     # bought nothing: these are places, so they belong in the rail that holds places.
     *_device_setting_sections(),
 )

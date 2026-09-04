@@ -49,7 +49,8 @@ SYSTEM_ADMIN = "system:admin"
 DEVICES_READ = "devices:read"
 DEVICES_WRITE = "devices:write"
 
-# How a user arranged a UI, kept hub-side so it follows them between devices. Not
+# How a user arranged a UI, kept on the install that holds the library so it follows
+# them between machines. Not
 # config:* - a column layout is not the same permission as reading where VPX lives.
 PREFERENCES_READ = "preferences:read"
 PREFERENCES_WRITE = "preferences:write"

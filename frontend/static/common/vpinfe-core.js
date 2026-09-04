@@ -1958,7 +1958,7 @@ class VPinFECore {
     // answer is about the wrong machine.
     if (!this.hubHost) this.hubAssetsPort = this.themeAssetsPort;
     try {
-      const ownPort = await this.call("get_hub_port");
+      const ownPort = await this.call("get_http_port");
       // What this install serves on. It is the hub's port too, unless a hub elsewhere
       // said otherwise in the url - correcting that here would point the page back at
       // itself for the library.

@@ -1,7 +1,7 @@
 """The address bar as the record of where you are.
 
 So a place can be linked to, and so a reload lands where you were - which matters
-because a reload is not always something you chose: a hub restart takes every open
+because a reload is not always something you chose: a restart takes every open
 page with it.
 
 replaceState, not pushState: picking a different game is not navigation, and a back

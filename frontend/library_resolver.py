@@ -11,7 +11,7 @@ import logging
 import threading
 
 from common.config_access import NetworkConfig
-from common.games import collection_resolver, hub_library
+from common.games import collection_resolver, remote_library
 from common.games.collection_store import (
     BUILTIN_ALL,
     DEFAULT_DIRECTION,
@@ -78,7 +78,7 @@ class LibraryResolver:
         """The library: the hub's entries, or the local games. Different kinds of thing,
         which `rebuild_entries` knows."""
         if self._remote:
-            return hub_library.fetch_entries(self._hub_url, collection)
+            return remote_library.fetch_entries(self._hub_url, collection)
         return all_games()
 
     def reload(self):

@@ -49,9 +49,9 @@ LEDGER_ALLOWS = {
     "PAR-40": {"get_bindings"},
     # PAR-45: one method added so the browser can learn the hub's port instead of
     # assuming 8001. Additive - a theme never calls it.
-    # PAR-63 renamed it; the old spelling stays in the allowlist as its forwarding alias.
+    # Renamed twice; every retired spelling stays in the allowlist as a forwarding alias.
     "PAR-45": {"get_manager_ui_port"},
-    "PAR-63": {"get_hub_port"},
+    "PAR-63": {"get_hub_port", "get_http_port"},
     # PAR-48: two methods added so a theme can start, stop or restart the frontend,
     # VPinFE or the machine, and know whether to ask first. Additive - close_app and
     # shutdown_system keep their names and now route through the same place.

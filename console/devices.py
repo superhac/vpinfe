@@ -17,7 +17,7 @@ from . import settings as settings_page
 logger = logging.getLogger("vpinfe.console.devices")
 
 # What a kind of device can do when nobody can ask it. A vpx_mobile device runs VPX and
-# not VPinFE, so it declares nothing, ever - the hub knows its abilities from the kind.
+# not VPinFE, so it declares nothing, ever - its abilities are known from the kind.
 IMPLIED_BY_KIND: dict[str, set[str]] = {
     "vpx_mobile": {"launch"},
 }
@@ -25,7 +25,7 @@ IMPLIED_BY_KIND: dict[str, set[str]] = {
 PRESENT, ABSENT, UNKNOWN = "present", "absent", "unknown"
 
 # What the absence costs, which is what the chip's color means everywhere else in the
-# hub: an unoffered capability is ordinary, one nothing has asked about is not.
+# here: an unoffered capability is ordinary, one nothing has asked about is not.
 _CHIP = {
     PRESENT: ("Available", "on"),
     ABSENT: ("Not offered", "off"),
@@ -33,10 +33,10 @@ _CHIP = {
 }
 
 # Why the name of a device that is not this one cannot be edited here. The install owns
-# its own name, and the hub holds a copy of what it last reported.
+# its own name, and the registry holds a copy of what it last reported.
 REMOTE_NAME_NOTE = "This name belongs to that install, and only it can change it."
 
-# A device the hub has no way to call back. Not the same as one that is down, and it says
+# A device there is no way to call back. Not the same as one that is down, and it says
 # which: an install announces the port it answers on, and this one never did.
 UNREACHABLE_NOTE = ("This device has not said which port it answers on, so it cannot be "
                     "asked. It will once it has announced itself again.")
@@ -56,8 +56,8 @@ WHY_NOT = {
 CANNOT_UPDATE = "This install cannot update itself."
 
 # What forgetting a device does, said before it is done. The registry is a record of what
-# the hub has met, not a permission list, so this removes a row and nothing else.
-FORGET_NOTE = ("Forgetting a device removes the hub's entry for it. Nothing on that "
+# this install has met, not a permission list, so this removes a row and nothing else.
+FORGET_NOTE = ("Forgetting a device removes this install's entry for it. Nothing on that "
                "machine changes, and it comes back the next time it announces itself.")
 
 # What a probe found, as the mark on a rail row and the chip on the page. Green for
@@ -83,7 +83,7 @@ def capability_state(device: dict[str, Any], capability: str,
         return PRESENT if capability in IMPLIED_BY_KIND[kind] else ABSENT
     if device.get("device_id") == local_device_id:
         return PRESENT if capability in local_capabilities else ABSENT
-    # A remote VPinFE device declares its own capabilities, and the hub has no route to
+    # A remote VPinFE device declares its own capabilities, and there is no route to
     # ask it: httpapi/devices.py records what a device said about itself and nothing more.
     return UNKNOWN
 
@@ -133,7 +133,7 @@ async def _confirm_forget(library: Any, device: dict[str, Any],
     name = device_label(device)
     if not await confirm.ask(
             f"Forget {name}?",
-            detail="This removes the hub's entry for it. Nothing on that machine "
+            detail="This removes this install's entry for it. Nothing on that machine "
                    "changes, and it comes back the next time it announces itself.",
             confirm="Forget"):
         return
@@ -177,7 +177,7 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
 
     rows.append(("Version", panel.state(f"{latest} available", "warn", beside=current)))
     def update_action() -> None:
-        with ui.element("div").classes("hub-fact-edit"):
+        with ui.element("div").classes("console-fact-edit"):
             panel.action(f"Update to {latest}",
                          lambda: _confirm_update(client, device_label(device), update),
                          icon="system_update_alt", inline=True)()
@@ -204,7 +204,7 @@ async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> Non
         playing or {}).get("launching") else ""
 
     # Named, because "a table is running" is a fact the person asking may not have: the
-    # hub is not necessarily open on the machine the table is on.
+    # Console is not necessarily open on the machine the table is on.
     lines = [f"{running} is being played there and will be closed."] if running else []
     if not await confirm.ask(
             f"Update {name} to {latest}?",
@@ -255,30 +255,30 @@ COLUMNS: list[dict[str, Any]] = [
     # A column has to be declared to be sorted on, and this one is a fact about the row
     # rather than anything to read.
     grid.column("self", "This device", hide=True,
-                help="Whether this is the device you are reading the hub from."),
+                help="Whether this is the install you are reading the Console from."),
     grid.column("name", "Name", 200, pinned="left",
                 help="What this device calls itself, or the address it answered from\n"
                      "where it has never reported a name."),
     grid.column("kind", "Kind", 120, **grid.choice_filter(_KIND_CHOICES),
                 help="A VPinFE install answers for itself. A VPX Mobile device runs\n"
-                     "VPX and not VPinFE, so the hub holds everything known about it."),
+                     "VPX and not VPinFE, so this install holds everything known about it."),
     grid.column("state", "State", 140, **grid.choice_filter(_STATE_CHOICES),
-                help="Whether it answered when the hub last asked.\n\n"
+                help="Whether it answered when this install last asked.\n\n"
                      "Answering - it is there.\n"
-                     "Not answering - the hub asked and got nothing.\n"
+                     "Not answering - it was asked and gave nothing back.\n"
                      "Cannot be asked - it has never said which port it answers on,\n"
                      "which switching the machine on does not fix."),
     grid.column("what", "Running", 160,
                 help="What answered. A VPinFE install reports its version; a phone\n"
                      "reports nothing beyond being there."),
     grid.column("address", "Address", 150,
-                help="Where the hub reaches it. Read off the socket it announced from,\n"
+                help="Where it is reached. Read off the socket it announced from,\n"
                      "never claimed in the announcement."),
     grid.column("last_seen", "Last seen", 170,
-                help="When it was last known to be there - it announced, or the hub\n"
+                help="When it was last known to be there - it announced, or this install\n"
                      "asked and got an answer. Not the same as when it last started."),
     grid.column("roles", "Roles", 130,
-                help="What that install serves: the shared library half (hub), the\n"
+                help="What that install serves: the shared library half, the\n"
                      "machine games launch on (device), or both."),
 ]
 
@@ -296,7 +296,7 @@ VIEWS: dict[str, list[str] | views.Preset] = {
         sort=(_SELF_FIRST,
               {"colId": "state", "sort": "asc", "sortIndex": 1},
               {"colId": "name", "sort": "asc", "sortIndex": 2}),
-        help="Every device this hub has met. Sorted so that anything not answering "
+        help="Every device this install has met. Sorted so that anything not answering "
              "is at the top, because that is what you opened this page to find out."),
     "Answering": views.Preset(
         columns=("name", "kind", "what", "address", "roles"),
@@ -308,7 +308,7 @@ VIEWS: dict[str, list[str] | views.Preset] = {
         sort=(_SELF_FIRST, {"colId": "last_seen", "sort": "asc", "sortIndex": 1}),
         filters={"state": {"values": [_REACH[device_client.UNREACHABLE][0],
                                       _REACH[device_client.UNASKABLE][0]]}},
-        help="Devices the hub could not reach, oldest first - so the ones that have "
+        help="Devices that could not be reached, oldest first - so the ones that have "
              "been gone longest, and are most likely worth forgetting, lead."),
     "Everything": views.Preset(
         columns=tuple(_ALL),
@@ -380,13 +380,13 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
         return f"{len(built)} devices, {away} not answering" if away \
             else f"{len(built)} devices"
 
-    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
         search = ui.input(placeholder="Search devices") \
             .props("dense outlined clearable").classes("w-64")
         _wire_views, _picker, showing = view_control(library, SCOPE, VIEWS,
                                                     _ALL, COLUMNS)
         ui.space()
-        count = ui.label(said()).classes("text-xs hub-label")
+        count = ui.label(said()).classes("text-xs console-label")
         if probe is not None:
             ui.button(icon="refresh", on_click=probe) \
                 .props("flat dense round size=sm").classes("shrink-0") \
@@ -426,7 +426,7 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
 # with the device rather than with the panel that draws it.
 
 def _client_for(context: dict[str, Any]):
-    """Who answers for this device. The hub's own client for this install, the client
+    """Who answers for this device. This install's own client for itself, the client
     that reaches it for anything else - both expose the same calls, which is what lets
     one page draw either."""
     if _is_local(context):
@@ -541,7 +541,7 @@ def capability_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
 
 
 def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
-    """What this hub holds about the device, which is the only part a hub owns."""
+    """What this install holds about the device, which is the only part it owns."""
     device = _of(context)
     library = context.get("library")
     out: list[tuple[Any, Any]] = [
@@ -550,14 +550,14 @@ def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     ]
     if _is_local(context) or library is None:
         out.append(panel.note(
-            "This is the install you are reading the hub from, so its entry is not "
+            "This is the install you are reading the Console from, so its entry is not "
             "something to forget."))
         return out
 
     def forget_action() -> None:
         # In the fact rhythm's own wrapper, or the button takes the whole value column -
         # a destructive verb drawn as a full-width bar reads as a banner.
-        with ui.element("div").classes("hub-fact-edit"):
+        with ui.element("div").classes("console-fact-edit"):
             panel.action("Forget this device",
                          lambda: _confirm_forget(library, device,
                                                  context.get("rebuild")),
@@ -572,14 +572,14 @@ async def settings_page_block(context: dict[str, Any], page_key: str, kind: str,
                               sections: tuple[str, ...]) -> None:
     """One page of a device's settings, drawn the way that page is always drawn.
 
-    Whoever holds the settings answers for them: this install through the hub's own
+    Whoever holds the settings answers for them: this install through its own
     client, another machine through the client that reaches it. Both expose the same
     calls, so a page here is one page rather than a local and a remote copy.
 
     The library pages are the exception, and by rule rather than by omission: what a
     library collects is the library's, so those are only offered on an install that
-    holds one - the rail's role filter - and they are drawn against the hub's own
-    client, because the hub is what holds it.
+    holds one - the rail's role filter - and they are drawn against this install's
+    own client, because it is what holds it.
     """
     device = _of(context)
     library = context.get("library")

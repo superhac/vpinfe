@@ -60,13 +60,13 @@ class State:
 # Not used draws nothing: most tables use most of these not at all, and a mark on every
 # one would bury the two states worth seeing.
 _STATES = {
-    IN_SCRIPT: State(IN_SCRIPT, "In the script", "hub-tier--on", "",
-                     "The script uses it", glyph="\u2713", glyph_class="hub-tick"),
-    UNUSED: State(UNUSED, "Not used", "hub-tier--off", "",
+    IN_SCRIPT: State(IN_SCRIPT, "In the script", "console-tier--on", "",
+                     "The script uses it", glyph="\u2713", glyph_class="console-tick"),
+    UNUSED: State(UNUSED, "Not used", "console-tier--off", "",
                   "The script does not use it"),
-    UNKNOWN: State(UNKNOWN, "Not parsed yet", "hub-tier--unknown", "",
+    UNKNOWN: State(UNKNOWN, "Not parsed yet", "console-tier--unknown", "",
                    "Nothing has read this table's script", glyph="?",
-                   glyph_class="hub-unknown"),
+                   glyph_class="console-unknown"),
 }
 
 # All three, unlike a media legend: "not used" is drawn as nothing, so it is exactly the

@@ -69,7 +69,7 @@ class InstanceRunningError(RuntimeError):
     """VPinFE is up, so the reset would be undone before anyone saw it."""
 
 
-def running_instance(hub_port: int, timeout: float = 1.0) -> bool:
+def running_instance(http_port: int, timeout: float = 1.0) -> bool:
     """Whether a VPinFE is serving on this install's hub port.
 
     Reads the discovery document rather than only opening the socket, so an unrelated
@@ -78,14 +78,14 @@ def running_instance(hub_port: int, timeout: float = 1.0) -> bool:
     """
     try:
         with urllib.request.urlopen(
-                f"http://127.0.0.1:{int(hub_port)}/api/v1/", timeout=timeout) as handle:
+                f"http://127.0.0.1:{int(http_port)}/api/v1/", timeout=timeout) as handle:
             document = json.load(handle)
     except (OSError, ValueError):
         return False
     return isinstance(document, dict) and document.get("name") == "VPinFE"
 
 
-def reset(game_root, config_dir, *, hub_port: int, config_only: bool = False,
+def reset(game_root, config_dir, *, http_port: int, config_only: bool = False,
           dry_run: bool = False, progress_cb=None, log_cb=None) -> dict:
     """Remove 3.0's state. Raises InstanceRunningError when VPinFE is running.
 
@@ -96,10 +96,10 @@ def reset(game_root, config_dir, *, hub_port: int, config_only: bool = False,
     config_dir = Path(config_dir)
     reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
 
-    live = running_instance(hub_port)
+    live = running_instance(http_port)
     if live and not dry_run:
         raise InstanceRunningError(
-            f"VPinFE is answering on port {hub_port}. Stop it and run this again - a "
+            f"VPinFE is answering on port {http_port}. Stop it and run this again - a "
             "reset under a running instance is written straight back over.")
 
     result = {
@@ -112,7 +112,7 @@ def reset(game_root, config_dir, *, hub_port: int, config_only: bool = False,
                       else FRESH_INSTALL),
     }
     if live:
-        reporter.log(f"VPinFE is answering on port {hub_port}, so a real run would refuse.")
+        reporter.log(f"VPinFE is answering on port {http_port}, so a real run would refuse.")
 
     if not config_only:
         _reset_library(game_root, result, reporter, dry_run)

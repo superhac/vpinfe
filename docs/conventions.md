@@ -475,7 +475,7 @@ stretch to the same width.
   reached by "Choose this one". A verb naming a mechanism ("Let VPinFE pick the default")
   is a sentence, and a menu item is a name you read and click.
 - **Weight follows the target.** An action on a *field* or a *section* takes
-  `.hub-action`; one sitting beside a **state** takes `.hub-action--inline`, the same
+  `.console-action`; one sitting beside a **state** takes `.console-action--inline`, the same
   control at the chip's type scale. It keeps its resting edge: a verb with no edge reads
   as a second value, and this panel is worked in rather than read. What made the pair
   feel wrong was the type, not the border — 12px/500 beside a chip at 11px/400.
@@ -517,12 +517,12 @@ no natural moment of leaving. Everything else writes on change.
 
 A chip's color is about consequence, not about whether something is merely true:
 
-- `hub-tier--on` — present, installed, in use
-- `hub-tier--off` — absent and unremarkable. Quiet, but filled and outlined enough to still
+- `console-tier--on` — present, installed, in use
+- `console-tier--off` — absent and unremarkable. Quiet, but filled and outlined enough to still
   read as a chip
-- `hub-tier--unknown` — not determined yet, which is not the same as "no"
-- `hub-tier--warn` — absent and worth fixing
-- `hub-tier--bad` — absent and breaking
+- `console-tier--unknown` — not determined yet, which is not the same as "no"
+- `console-tier--warn` — absent and worth fixing
+- `console-tier--bad` — absent and breaking
 
 Green is present. **Amber means go and fix this, and nothing softer.** Each fact keeps its own
 words: a rom is *Installed*, a script is *Extracted*, a file is *Present*. Do not flatten them
@@ -535,7 +535,7 @@ means the exception worth spotting in a map of twenty.
 
 **A binary fact is a tick; a fact with more answers is a shaped circle.** Presence is a
 checkmark wherever the hub says it — asset columns, media columns, feature columns — and the
-circles (`.hub-mark--full`, `--outline`, `--set`, `--dashed`) are for a vocabulary with more
+circles (`.console-mark--full`, `--outline`, `--set`, `--dashed`) are for a vocabulary with more
 than two answers to tell apart, where a reader has to distinguish them at a glance. A fact
 that stops having three answers moves to a tick; one that gains a third moves the other way.
 
@@ -596,7 +596,7 @@ element.
 
 ### Type
 
-- **A heading inside a panel** is `.hub-card-title` — `--accent` cyan, uppercase,
+- **A heading inside a panel** is `.console-card-title` — `--accent` cyan, uppercase,
   `--fs-caption`, `0.08em`. Group headings take the same treatment plus a rule and space
   above; the separation carries the break, not extra weight.
 - **Every label takes title case, with acronyms as acronyms** — a panel's fact, a column
@@ -633,7 +633,7 @@ element.
   reader. A label names the thing, not the model.
 - **In a menu, the group label is chrome and the item is content.** One language for every
   menu - dropdowns, grid header and cell menus, bulk actions, pickers:
-  - A **group header** takes `.hub-group`'s treatment: small, uppercase, tracked, `--ink-3`.
+  - A **group header** takes `.console-group`'s treatment: small, uppercase, tracked, `--ink-3`.
     It is a signpost and recedes. Never larger or brighter than the items it labels.
   - An **item** is body voice: sentence case, `--ink-2`, no letter-spacing. You read a
     name and click it, and a name only survives in sentence case.
@@ -695,7 +695,7 @@ element.
 
 ### Two traps that have both been walked into
 
-- **Source order decides between equal specificity.** `.hub-tier` sets `border` as a
+- **Source order decides between equal specificity.** `.console-tier` sets `border` as a
   *shorthand*, so a variant declaring `border-color` above it is silently reset to
   transparent. When adding a property to a base rule, check what overrides it later, and put
   the override below.

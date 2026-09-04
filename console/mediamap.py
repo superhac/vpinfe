@@ -91,7 +91,7 @@ _HOVER = """
 if (!window.__hubTilePreview) {
   window.__hubTilePreview = true;
   const tileVideo = (el) => el && el.closest
-    ? el.closest('.hub-mediatile')?.querySelector('.hub-mediatile-art video') : null;
+    ? el.closest('.console-mediatile')?.querySelector('.console-mediatile-art video') : null;
   document.addEventListener('mouseover', (e) => {
     const v = tileVideo(e.target);
     if (v && v.paused) v.play().catch(() => {});
@@ -100,7 +100,7 @@ if (!window.__hubTilePreview) {
     const v = tileVideo(e.target);
     if (!v) return;
     // Moving between children of the same tile is not leaving it.
-    const tile = e.target.closest('.hub-mediatile');
+    const tile = e.target.closest('.console-mediatile');
     if (e.relatedTarget && tile && tile.contains(e.relatedTarget)) return;
     v.pause();
     v.currentTime = 0.1;
@@ -128,13 +128,13 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
     state = _state(entry)
     ratio = TILE_AR.get(kind, 1.6)
     tile = ui.element("div").classes(
-        f"hub-mediatile hub-mediatile--{state}"
-        f"{' hub-mediatile--on' if kind == selected else ''}")
+        f"console-mediatile console-mediatile--{state}"
+        f"{' console-mediatile--on' if kind == selected else ''}")
     if on_pick is not None:
         tile.classes("cursor-pointer").on("click", lambda k=kind: on_pick(k))
     with tile:
         glyph = _glyph_for(kind)
-        with ui.element("div").classes("hub-mediatile-art") \
+        with ui.element("div").classes("console-mediatile-art") \
                 .style(f"aspect-ratio:{ratio}"):
             if state == "missing":
                 # The catalog has one and this slot does not, which is the only pairing
@@ -143,7 +143,7 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
                 # catalog holds only as a folder to browse marks nothing.
                 if offered:
                     ui.icon("cloud_download", size="16px") \
-                        .classes("hub-mediatile-offered") \
+                        .classes("console-mediatile-offered") \
                         .tooltip(f"{offered} in the catalog"
                                  if offered > 1 else "One in the catalog")
             elif glyph is not None:
@@ -157,24 +157,24 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
             # map harder to read than it is without any.
             shared = media_ownership.key_of(entry.get("via")) == media_ownership.GAME
             if state != "missing" and not shared:
-                media_ownership.badge(entry.get("via"), extra="hub-mediatile-tier")
+                media_ownership.badge(entry.get("via"), extra="console-mediatile-tier")
             # From the game's lens the resolver never looks at a table's own tier, so
             # a slot one table differs on looks settled. This is the only thing that
             # says otherwise.
             if differing:
                 plural = "" if differing == 1 else "s"
-                ui.element("div").classes("hub-mediatile-differs") \
+                ui.element("div").classes("console-mediatile-differs") \
                     .tooltip(f"{differing} table{plural} use something else here")
             if state != "missing" and media_family(kind) in ("image", "video"):
                 # click.stop, or enlarging would also pick the tile and redraw the
                 # panel out from under the dialog.
                 ui.button(icon="open_in_full") \
                     .props("flat dense round size=sm") \
-                    .classes("hub-mediatile-zoom") \
+                    .classes("console-mediatile-zoom") \
                     .on("click.stop", lambda k=kind: mediaview.open_viewer(
                         f"{prefix}/{k}", k, media_label_map().get(k, k))) \
                     .tooltip("Enlarge")
-        ui.label(media_label_map().get(kind, kind)).classes("hub-mediatile-cap")
+        ui.label(media_label_map().get(kind, kind)).classes("console-mediatile-cap")
     tile.tooltip(_tooltip(kind, entry))
 
 
@@ -227,8 +227,8 @@ def build(entries: dict[str, dict[str, Any]], prefix: str,
         if extras:
             # A rule, not a heading: the cabinet stack and everything else are
             # different shapes already, and naming them said nothing the tiles did not.
-            ui.element("div").classes("hub-mediatile-rule")
-            with ui.element("div").classes("hub-mediatile-grid"):
+            ui.element("div").classes("console-mediatile-rule")
+            with ui.element("div").classes("console-mediatile-grid"):
                 for kind in extras:
                     _tile(prefix, kind, entries[kind], on_pick, selected,
                           len((overrides or {}).get(kind) or []),

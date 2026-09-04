@@ -163,13 +163,13 @@ def build(found: list[dict[str, Any]], library: Any,
             return f"{len(built)} assets, {gaps} missing"
         return f"{on_screen['rows']} of {len(built)} assets"
 
-    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
         search = ui.input(placeholder="Search assets") \
             .props("dense outlined clearable").classes("w-64")
         wire_views, _picker, showing = view_control(library, SCOPE, VIEWS,
                                                     _ALL, COLUMNS)
         ui.space()
-        count = ui.label(said()).classes("text-xs hub-label")
+        count = ui.label(said()).classes("text-xs console-label")
         if rescan is not None:
             ui.button(icon="refresh", on_click=rescan) \
                 .props("flat dense round size=sm").classes("shrink-0") \

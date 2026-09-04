@@ -240,14 +240,14 @@ class HubEndpointTests(unittest.TestCase):
     """Reading `network.hub_url` into the three values a window url carries."""
 
     @staticmethod
-    def _network(hub_url: str = "", hub_port: int = 8001, assets_port: int = 8000):
-        return types.SimpleNamespace(hub_url=hub_url, hub_port=hub_port,
+    def _network(hub_url: str = "", http_port: int = 8001, assets_port: int = 8000):
+        return types.SimpleNamespace(hub_url=hub_url, http_port=http_port,
                                      theme_assets_port=assets_port)
 
     def _resolve(self, *args, services=None, **kwargs):
         """The hub's own ports come from its discovery document, so a test says what it
         published rather than reaching a real one."""
-        with mock.patch.object(chromium_manager.hub_library, "hub_services",
+        with mock.patch.object(chromium_manager.remote_library, "remote_services",
                                return_value=services or {}):
             return chromium_manager._hub_endpoint(self._network(*args, **kwargs))
 
@@ -293,7 +293,7 @@ class WindowUrlTests(unittest.TestCase):
     frontend dialling the wrong one forever, which is why every form is checked."""
 
     def _url(self, system: str, *, splash: bool = False, hub_host: str = "",
-             hub_port: int = 9001, device_port: int = 9001) -> str:
+             http_port: int = 9001, device_port: int = 9001) -> str:
         with mock.patch("frontend.chromium_manager.platform.system", return_value=system):
             return chromium_manager._build_window_url(
                 base_url="http://127.0.0.1",
@@ -302,7 +302,7 @@ class WindowUrlTests(unittest.TestCase):
                 window_name="playfield",
                 splash_enabled=splash,
                 ws_port=9002,
-                hub_port=hub_port,
+                http_port=http_port,
                 hub_host=hub_host,
                 device_port=device_port,
             )
@@ -344,7 +344,7 @@ class WindowUrlTests(unittest.TestCase):
     def test_the_hub_port_and_this_device_port_travel_separately(self) -> None:
         """A hub on 9000 is not this machine on 9000. Sending one number would make a
         device dial its own api at the hub's port, or the hub's at its own."""
-        url = self._url("Darwin", hub_host="hub.example", hub_port=9000, device_port=8001)
+        url = self._url("Darwin", hub_host="hub.example", http_port=9000, device_port=8001)
 
         self.assertIn("hubPort=9000", url)
         self.assertIn("devicePort=8001", url)

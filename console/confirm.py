@@ -20,12 +20,12 @@ async def ask(question: str, *, detail: str = "", lines: Iterable[str] = (),
     which asks nothing. `lines` names files where a count would hide which ones. The
     `confirm` button is the verb that does the thing, so it reads without the question.
     """
-    with ui.dialog() as dialog, ui.card().classes("hub-confirm"):
-        ui.label(question).classes("hub-confirm-title")
+    with ui.dialog() as dialog, ui.card().classes("console-confirm"):
+        ui.label(question).classes("console-confirm-title")
         if detail:
-            ui.label(detail).classes("hub-help")
+            ui.label(detail).classes("console-help")
         for line in lines:
-            ui.label(line).classes("hub-confirm-line")
+            ui.label(line).classes("console-confirm-line")
         with ui.row().classes("justify-end gap-2 w-full"):
             # Cancel first and quiet: the destructive verb is the one to be aimed at.
             ui.button("Cancel", on_click=lambda: dialog.submit(False)) \

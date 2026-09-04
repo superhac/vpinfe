@@ -168,7 +168,7 @@ class RevertTestCase(TempTree):
                       if ".vpinfe-" in path.name or path.name.startswith(".vpinfe_write_"))
 
     def _reset(self, **kwargs) -> dict:
-        kwargs.setdefault("hub_port", self.closed_port)
+        kwargs.setdefault("http_port", self.closed_port)
         return revert_3x.reset(self.games_root, self.config_dir, **kwargs)
 
     def _migrate(self) -> dict:
@@ -409,7 +409,7 @@ class DryRunTests(RevertTestCase):
         hub = StubHub("VPinFE")
         self.addCleanup(hub.stop)
 
-        result = self._reset(dry_run=True, hub_port=hub.port)
+        result = self._reset(dry_run=True, http_port=hub.port)
 
         self.assertTrue(result["instance_running"])
         self.assertTrue((self.config_dir / "vpinfe.json").exists())
@@ -425,7 +425,7 @@ class RunningInstanceTests(RevertTestCase):
         migrated = self._library_bytes()
 
         with self.assertRaises(revert_3x.InstanceRunningError):
-            self._reset(hub_port=hub.port)
+            self._reset(http_port=hub.port)
 
         self.assertTrue((self.config_dir / "vpinfe.json").exists())
         self.assertEqual(self._library_bytes(), migrated)
@@ -464,7 +464,7 @@ class LiveRefusalTests(unittest.TestCase):
                 port = live.ports["manager"]
                 self.assertTrue(revert_3x.running_instance(port))
                 with self.assertRaises(revert_3x.InstanceRunningError):
-                    revert_3x.reset(games, live.config_dir, hub_port=port)
+                    revert_3x.reset(games, live.config_dir, http_port=port)
         self.assertFalse(revert_3x.running_instance(port))
 
 

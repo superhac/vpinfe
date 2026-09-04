@@ -85,19 +85,19 @@ class Tier:
 # least specific, and a stand-in is the odd one out so it does not read as a degree of
 # the others.
 _TIERS = {
-    TABLE: Tier(TABLE, "This table", "just this table", "hub-tier--table",
-                "hub-mark--full", "A file named for this table, and only it uses it"),
-    GAME: Tier(GAME, "All tables", "shared by every table", "hub-tier--game",
-               "hub-mark--outline", "A file the whole game shares"),
-    STAND_IN: Tier(STAND_IN, "Stand-in", "standing in for it", "hub-tier--standin",
-                   "hub-mark--set", "Something else is filling this slot"),
-    MISSING: Tier(MISSING, "Missing", "not here", "hub-tier--missing",
-                  "hub-mark--dashed", "Nothing here"),
+    TABLE: Tier(TABLE, "This table", "just this table", "console-tier--table",
+                "console-mark--full", "A file named for this table, and only it uses it"),
+    GAME: Tier(GAME, "All tables", "shared by every table", "console-tier--game",
+               "console-mark--outline", "A file the whole game shares"),
+    STAND_IN: Tier(STAND_IN, "Stand-in", "standing in for it", "console-tier--standin",
+                   "console-mark--set", "Something else is filling this slot"),
+    MISSING: Tier(MISSING, "Missing", "not here", "console-tier--missing",
+                  "console-mark--dashed", "Nothing here"),
     ORPHAN: Tier(ORPHAN, "Orphan", "named for a table that is gone",
-                 "hub-tier--missing", "hub-mark--dashed",
+                 "console-tier--missing", "console-mark--dashed",
                  "Named for a table this folder does not have, so nothing can use it"),
     UNUSED: Tier(UNUSED, "Unused", "covered by something more specific",
-                 "hub-tier--standin", "hub-mark--set",
+                 "console-tier--standin", "console-mark--set",
                  "Correctly named, but something more specific wins for every table. "
                  "It resolves again if that file goes"),
 }
@@ -186,7 +186,7 @@ def sentence(via: str | None, *, viewing_a_table: bool = False) -> str:
 
 
 def _chip(tier: Tier, extra: str) -> ui.element:
-    return ui.label(tier.noun).classes(f"hub-tier {tier.css} {extra}".strip())
+    return ui.label(tier.noun).classes(f"console-tier {tier.css} {extra}".strip())
 
 
 def badge(via: str | None, *, extra: str = "") -> ui.element:

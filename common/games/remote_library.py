@@ -16,7 +16,7 @@ from common import http_client
 from common.games.collection_resolver import Entry
 from common.games.wire_entry import WireGame, table_of
 
-logger = logging.getLogger("vpinfe.common.games.hub_library")
+logger = logging.getLogger("vpinfe.common.games.remote_library")
 
 # A library is one request, and a cold one on a large library is not instant. Longer than
 # the shared default, which is sized for a metadata lookup.
@@ -31,7 +31,7 @@ def entries_url(hub_url: str, collection: str = "") -> str:
     return urljoin(hub_url.rstrip("/") + "/", path)
 
 
-def hub_services(hub_url: str, *, timeout: int = http_client.DEFAULT_TIMEOUT) -> dict[str, Any]:
+def remote_services(hub_url: str, *, timeout: int = http_client.DEFAULT_TIMEOUT) -> dict[str, Any]:
     """What the hub says about its own servers, from its discovery document.
 
     The asset server is the one a device has to be told about: artwork is on a different
@@ -83,7 +83,7 @@ def announce_to_hub(hub_url: str, config, *, timeout: int = http_client.DEFAULT_
             {"device_id": install_id,
              "display_name": install_identity.display_name(config),
              "roles": install_identity.roles(config),
-             "port": NetworkConfig.from_config(config).hub_port},
+             "port": NetworkConfig.from_config(config).http_port},
             timeout=timeout)
     except Exception:
         logger.debug("Could not announce this device to %s", hub_url, exc_info=True)

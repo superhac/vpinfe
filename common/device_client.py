@@ -38,7 +38,7 @@ class Display:
 
 class LocalDevice:
     """The device in this process. Imports are deferred so that importing this module
-    does not pull the frontend in - a hub-only install has no frontend to pull."""
+    does not pull the frontend in - an install without that feature has none."""
 
     def displays(self) -> list[Display]:
         """This machine's screens as macOS reports them. Empty elsewhere, where the

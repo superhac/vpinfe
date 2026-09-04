@@ -13,7 +13,7 @@ from pathlib import Path
 
 from common import shutdown
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
-from common.games import hub_library
+from common.games import remote_library
 from common.host import system_actions
 from common.host.display_service import get_display_monitors
 from common.online.vpinplay_runtime import clear_alternate_profile
@@ -58,7 +58,7 @@ def create_api_instances(iniconfig, logger):
     # be reached costs a name in someone's device registry, not a frontend.
     if network.hub_url:
         threading.Thread(
-            target=hub_library.announce_to_hub,
+            target=remote_library.announce_to_hub,
             args=(network.hub_url, iniconfig),
             daemon=True, name="announce-to-hub").start()
         if network.verify_shared_library:
@@ -100,7 +100,7 @@ def _report_shared_library(shared_library, logger) -> None:
     from common.games.game_repository import all_games
 
     try:
-        report = hub_library.verify_shared_library(shared_library.entries, all_games())
+        report = remote_library.verify_shared_library(shared_library.entries, all_games())
     except Exception:
         logger.debug("Could not verify the shared library", exc_info=True)
         return
@@ -265,8 +265,8 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
     if iniconfig.is_new:
         network = NetworkConfig.from_config(iniconfig)
         displays = DisplayConfig.from_config(iniconfig)
-        hub_port = network.hub_port
-        setup_url = f"http://localhost:{hub_port}/"
+        http_port = network.http_port
+        setup_url = f"http://localhost:{http_port}/"
         screen_id = displays.playfield_screen_id
         monitors = get_display_monitors()
         monitor = monitors[screen_id] if screen_id < len(monitors) else monitors[0]

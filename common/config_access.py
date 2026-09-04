@@ -246,14 +246,14 @@ def _media_priority(source: Any, key: str, allowed: tuple[str, ...], fallback: s
 @dataclass(frozen=True)
 class NetworkConfig:
     ws_port: int = 8002
-    hub_port: int = 8001
+    http_port: int = 8001
     theme_assets_port: int = 8000
     # Per port, never one switch: 8000 serves the table library and 8002 reaches
     # shutdown_system, so one setting would mean previewing a theme remotely also
     # exposed machine control. The window channel has no bind setting at all until it
     # has authentication.
     theme_assets_bind: str = "127.0.0.1"
-    hub_bind: str = "0.0.0.0"
+    http_bind: str = "0.0.0.0"
     # Empty means this install holds its own library. Set, it is the hub a device reads
     # from - the one setting that makes this process a device rather than both roles.
     hub_url: str = ""
@@ -266,13 +266,13 @@ class NetworkConfig:
         return cls(
             ws_port=cfg_int(source, "Network", "wsport", 8002),
             # Asked for by the oldest spelling, as the sibling ports are: resolution
-            # walks forward to `network.hub_port`, and a parser built by hand with the
+            # walks forward to `network.http_port`, and a parser built by hand with the
             # pre-PAR-44 section still answers.
-            hub_port=cfg_int(source, "Network", "manageruiport", 8001),
+            http_port=cfg_int(source, "Network", "manageruiport", 8001),
             theme_assets_port=cfg_int(source, "Network", "themeassetsport", 8000),
             theme_assets_bind=cfg_get(source, "network", "theme_assets_bind",
                                       "127.0.0.1").strip() or "127.0.0.1",
-            hub_bind=cfg_get(source, "network", "hub_bind",
+            http_bind=cfg_get(source, "network", "http_bind",
                              "0.0.0.0").strip() or "0.0.0.0",
             hub_url=cfg_get(source, "network", "hub_url", "").strip(),
             verify_shared_library=cfg_bool(source, "network", "verify_shared_library",

@@ -25,7 +25,7 @@ from console import (
     views,
     workbench,
 )
-from console.api import HubClient
+from console.api import ApiClient
 
 logger = logging.getLogger("vpinfe.console.games")
 
@@ -100,11 +100,11 @@ COLUMNS = [
     grid.column("game_type", "Type", group=_GAME,
                 help="What kind of machine it is - solid state, electro-mechanical,\n"
                      "pure mechanical, or an original with no real counterpart."),
-    # Qualified for the reason Game Rating is: the hub has a *frontend* theme and will
-    # have a hub one, so "Themes" in a column header is three things one screen apart.
+    # Qualified for the reason Game Rating is: an install has a *frontend* theme and will
+    # have a Console one, so "Themes" in a column header is three things one screen apart.
     # The panel says "Themes" plainly, because a group headed Machine has said which.
     grid.column("themes", "Game Themes", 200, group=_GAME,
-                help="What the machine is about - its subject, not the hub's look.\n"
+                help="What the machine is about - its subject, not how it looks here.\n"
                      "Comes from the catalog, and a machine can carry several."),
     # No ROM or Version here: ROM is an asset (`asset_registry`), Version has no
     # game-level meaning, and both were the default table's shown as the game's.
@@ -113,7 +113,7 @@ COLUMNS = [
     grid.column("rating", "Game Rating", group=_GAME,
                 help="Your rating for the machine, 0 to 5. Click a star to set it.\n"
                      "Separate from a table's rating, which is per build.",
-                cellClass="hub-stars-cell",
+                cellClass="console-stars-cell",
                 **grid.choice_filter(_RATING_CHOICES),
                 **{":cellRenderer": stars.renderer("game")}),
 ]
@@ -192,7 +192,7 @@ _STATE_CHOICES = [
      else media_ownership.tier_for(key).noun,
      "label": media_ownership.tier_for(key).noun,
      "mark": ("" if key == media_ownership.MISSING
-              else f"hub-mark {media_ownership.tier_for(key).mark}")}
+              else f"console-mark {media_ownership.tier_for(key).mark}")}
     for key in media_ownership.STATES
 ]
 
@@ -210,13 +210,13 @@ _MARK_RENDERER = (
     " const kind = params.colDef.field.slice(6);"
     " if (window.__hubThumbs) {"
     " const row = params.data || {}; const art = row['thumb_' + kind];"
-    " if (art) return '<span class=\"hub-cell-art\">' + art"
-    " + '<i class=\"material-icons hub-cell-zoom\" title=\"Enlarge\" data-game=\"'"
+    " if (art) return '<span class=\"console-cell-art\">' + art"
+    " + '<i class=\"material-icons console-cell-zoom\" title=\"Enlarge\" data-game=\"'"
     " + row.id + '\" data-kind=\"' + kind + '\">open_in_full</i></span>'; }"
     " const m = " + json.dumps(_MARK_BY_WORD) + ";"
     " const t = m[params.value]; if (!t) return '';"
     " const tip = params.value + ' \u2014 ' + t.why;"
-    " return '<span class=\"hub-mark ' + t.mark + '\" title=\"' + tip"
+    " return '<span class=\"console-mark ' + t.mark + '\" title=\"' + tip"
     " + '\"></span>'; }"
 )
 
@@ -229,7 +229,7 @@ _CELL_MEDIA = """
 if (!window.__hubCellMedia) {
   window.__hubCellMedia = true;
   const clip = (el) => el && el.closest
-    ? el.closest('.hub-media-cell')?.querySelector('video') : null;
+    ? el.closest('.console-media-cell')?.querySelector('video') : null;
   document.addEventListener('mouseover', (e) => {
     const v = clip(e.target);
     if (v && v.paused) v.play().catch(() => {});
@@ -237,13 +237,13 @@ if (!window.__hubCellMedia) {
   document.addEventListener('mouseout', (e) => {
     const v = clip(e.target);
     if (!v) return;
-    const cell = e.target.closest('.hub-media-cell');
+    const cell = e.target.closest('.console-media-cell');
     if (e.relatedTarget && cell && cell.contains(e.relatedTarget)) return;
     v.pause();
     v.currentTime = 0.1;
   });
   document.addEventListener('click', (e) => {
-    const zoom = e.target.closest && e.target.closest('.hub-cell-zoom');
+    const zoom = e.target.closest && e.target.closest('.console-cell-zoom');
     if (!zoom) return;
     e.stopPropagation();
     emitEvent('hub_media_zoom', {game: zoom.dataset.game, kind: zoom.dataset.kind});
@@ -270,7 +270,7 @@ def media_columns(kinds: list[str]) -> list[dict[str, Any]]:
                for kind in sorted(kinds, key=lambda k: labels.get(k, k).lower())}
     width = max((grid.header_width(header) for header in headers.values()), default=92)
     return [grid.column(f"media_{kind}", header, width,
-                        cellClass="hub-media-cell", group=_MEDIA,
+                        cellClass="console-media-cell", group=_MEDIA,
                         **grid.choice_filter(_STATE_CHOICES),
                         **{":cellRenderer": _MARK_RENDERER})
             for kind, header in headers.items()]
@@ -287,7 +287,7 @@ async def _rate(games: list[dict[str, Any]]) -> None:
         return
 
     async def apply(value: int) -> None:
-        client = HubClient()
+        client = ApiClient()
         for game in games:
             await run.io_bound(client.rate, game["id"], value)
         dialog.close()
@@ -311,7 +311,7 @@ async def _launch(games: list[dict[str, Any]]) -> None:
     if len(games) != 1:
         ui.notify("Select a single game to launch", type="warning")
         return
-    await run.io_bound(HubClient().launch, games[0]["id"])
+    await run.io_bound(ApiClient().launch, games[0]["id"])
     ui.notify(f"Launching {games[0].get('name')}", type="positive")
 
 
@@ -326,7 +326,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     selected: list[dict[str, Any]] = []
     context_row: list[dict[str, Any]] = []
 
-    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
         search = ui.input(placeholder="Search games") \
             .props("dense outlined clearable").classes("w-64")
         # The media preset is the library's own kinds, so it is only knowable here.
@@ -343,17 +343,17 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         # its own explanation on hover - a legend that names a state without saying
         # what it means is half a legend.
         with ui.row().classes("items-center gap-3 no-wrap text-xs opacity-60 "
-                              "hub-tier-key") as legend:
+                              "console-tier-key") as legend:
             for key in media_ownership.LEGEND:
                 tier = media_ownership.tier_for(key)
                 with ui.row().classes("items-center gap-1 no-wrap").tooltip(tier.why):
-                    ui.element("span").classes(f"hub-mark {tier.mark}")
+                    ui.element("span").classes(f"console-mark {tier.mark}")
                     ui.label(tier.noun)
         legend.bind_visibility_from(view_picker, "value",
                                     lambda value: value == "builtin:Media")
         # The selection count sits with the total: it is the same fact - how much am I
         # looking at - and it costs no vertical space of its own.
-        count = ui.label(f"{len(rows)} games").classes("text-xs hub-label")
+        count = ui.label(f"{len(rows)} games").classes("text-xs console-label")
         if rescan is not None:
             ui.button(icon="refresh", on_click=rescan) \
                 .props("flat dense round size=sm").classes("shrink-0") \
@@ -403,7 +403,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
             mediaview.open_viewer(f"/api/v1/games/{game_id}/media/{kind}", kind,
                                   media_label_map().get(kind, kind))
 
-    rate_row = stars.rating_handler(by_id, lambda: table, HubClient)
+    rate_row = stars.rating_handler(by_id, lambda: table, ApiClient)
 
     ui.on("hub_row_focus", focused)
     ui.on("hub_media_zoom", zoom_media)
@@ -445,23 +445,23 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                 header = next((definition.get("headerName") for definition in columns
                                if definition.get("field") == col_id), col_id)
                 ui.item_label(str(header).replace("\n", " ")) \
-                    .props("header").classes("hub-menu-header")
+                    .props("header").classes("console-menu-header")
                 ui.separator()
                 # One entry that says what it will do, rather than two where one is
                 # always a no-op.
                 if pinned:
                     ui.menu_item("Unpin", lambda: set_pinned(col_id, None)) \
-                        .classes("hub-menu-item")
+                        .classes("console-menu-item")
                 else:
                     ui.menu_item("Pin left", lambda: set_pinned(col_id, "left")) \
-                        .classes("hub-menu-item")
+                        .classes("console-menu-item")
                 ui.menu_item("Hide column", lambda: hide_column(col_id)) \
-                    .classes("hub-menu-item")
+                    .classes("console-menu-item")
             elif row:
                 ui.item_label(row.get("name") or "").props("header") \
-                    .classes("hub-menu-header")
+                    .classes("console-menu-header")
                 ui.separator()
-                ui.menu_item("Launch", lambda: _launch(context_row)).classes("hub-menu-item")
+                ui.menu_item("Launch", lambda: _launch(context_row)).classes("console-menu-item")
 
     # The menu hangs off a wrapper, not off the grid: ui.aggrid's Vue template is a bare
     # <div> with no slot, so a child of it is never rendered and the menu silently does
@@ -522,7 +522,7 @@ def _two(words: tuple[str, str]) -> list[dict[str, Any]]:
 
 _TICK = {
     ":valueFormatter": "params => params.value ? '\u2713' : ''",
-    "cellClass": "hub-tick",
+    "cellClass": "console-tick",
     ":cellRenderer": None,
     # Yes and No, because the column's own header is the noun: "Hidden" answers yes or
     # no, and a pair naming the thing again would read as "Hidden: Present". A column
@@ -556,7 +556,7 @@ _FEATURE_RENDERER = (
     " if (t.glyph) return '<span class=\"' + t.cls + '\" title=\"' + why + '\">'"
     " + t.glyph + '</span>';"
     " if (!t.mark) return '';"
-    " return '<span class=\"hub-mark ' + t.mark + '\" title=\"' + why"
+    " return '<span class=\"console-mark ' + t.mark + '\" title=\"' + why"
     " + '\"></span>'; }"
 )
 
@@ -577,7 +577,7 @@ _FEATURES = "Features"
 
 FEATURE_COLUMNS = [
     grid.column(f"feature_{key}", label, group=_FEATURES,
-                cellClass="hub-media-cell",
+                cellClass="console-media-cell",
                 **grid.choice_filter(_FEATURE_CHOICES),
                 **{":cellRenderer": _FEATURE_RENDERER})
     for key, label in table_features.LABELS.items()
@@ -624,7 +624,7 @@ TABLE_COLUMNS = [
     grid.column("rating", "Table Rating", group=_TABLE,
                 help="Your rating for this build, 0 to 5. Click a star to set it.\n"
                      "Separate from the machine's rating.",
-                cellClass="hub-stars-cell",
+                cellClass="console-stars-cell",
                 **grid.choice_filter(_RATING_CHOICES),
                 **{":cellRenderer": stars.renderer("table")}),
     # Each column's own words, not a generic pair: "Hidden: Yes" is a question about a
@@ -673,7 +673,7 @@ def table_asset_columns(keys: list[str]) -> list[dict[str, Any]]:
                for key, label in sorted(labels.items(), key=lambda kv: kv[1].lower())}
     width = max((grid.header_width(header) for header in headers.values()), default=92)
     return [grid.column(f"asset_{key}", header, width,
-                        cellClass="hub-media-cell", group=_ASSETS,
+                        cellClass="console-media-cell", group=_ASSETS,
                         **grid.choice_filter(_STATE_CHOICES),
                         **{":cellRenderer": _MARK_RENDERER})
             for key, header in headers.items()]
@@ -765,7 +765,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     table_columns = TABLE_COLUMNS + table_asset_columns(list(TABLE_ASSET_KEYS))
     fields = [definition["field"] for definition in table_columns]
 
-    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 hub-panel"):
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
         search = ui.input(placeholder="Search tables") \
             .props("dense outlined clearable").classes("w-64")
         presets = {**TABLE_VIEWS,
@@ -781,20 +781,20 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         # line explaining a mark nobody can see is spent on every visit for a window
         # most people never look through.
         with ui.row().classes("items-center gap-3 no-wrap text-xs opacity-60 "
-                              "hub-tier-key") as legend:
+                              "console-tier-key") as legend:
             for key in table_features.states_in(built):
                 state = table_features.state_for(key)
                 with ui.row().classes("items-center gap-1 no-wrap").tooltip(state.why):
                     if state.glyph:
                         ui.label(state.glyph).classes(state.glyph_class)
                     else:
-                        ui.element("span").classes(f"hub-mark {state.mark}".strip()
-                                                   if state.mark else "hub-mark-none")
+                        ui.element("span").classes(f"console-mark {state.mark}".strip()
+                                                   if state.mark else "console-mark-none")
                     ui.label(state.noun)
         legend.bind_visibility_from(view_picker, "value",
                                     lambda value: value == "builtin:Features")
         ui.label(f"{len(built)} tables in {len({r['game_id'] for r in built})} games") \
-            .classes("text-xs hub-label")
+            .classes("text-xs console-label")
         if rescan is not None:
             ui.button(icon="refresh", on_click=rescan) \
                 .props("flat dense round size=sm").classes("shrink-0") \
@@ -805,7 +805,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     # rather than selection, so arrowing down the list is a sweep and the checkboxes
     # stay whatever a bulk action left them.
     by_id = {row["id"]: row for row in built}
-    rate_row = stars.rating_handler(by_id, lambda: table, HubClient)
+    rate_row = stars.rating_handler(by_id, lambda: table, ApiClient)
 
     ui.on("hub_row_focus",
           lambda event: on_select(by_id.get(grid.focused_row(event))))
@@ -900,7 +900,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                                for definition in table_columns
                                if definition.get("field") == col_id), col_id)
                 ui.item_label(str(header).replace("\n", " ")).props("header") \
-                    .classes("hub-menu-header")
+                    .classes("console-menu-header")
                 ui.separator()
                 # One entry that says what it will do, rather than two where one is
                 # always a no-op.
@@ -909,14 +909,14 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                     lambda c=col_id, p=pinned: table.run_grid_method(
                         "applyColumnState",
                         {"state": [{"colId": c, "pinned": None if p else "left"}]})) \
-                    .classes("hub-menu-item")
+                    .classes("console-menu-item")
                 ui.menu_item("Hide column",
                              lambda c=col_id: table.run_grid_method(
                                  "setColumnsVisible", [c], False)) \
-                    .classes("hub-menu-item")
+                    .classes("console-menu-item")
             elif row:
                 ui.item_label(_table_label(row)).props("header") \
-                    .classes("hub-menu-header")
+                    .classes("console-menu-header")
                 ui.separator()
                 # Managed here, where every candidate for the game is visible at once.
                 if not row.get("default"):
@@ -925,7 +925,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                         lambda r=row: act(library.set_default_table, r["game_id"],
                                           r["id"], said="Now this game's default",
                                           row=r)) \
-                        .classes("hub-menu-item")
+                        .classes("console-menu-item")
                 elif (row.get("default_kind") or "") == game_tables.CHOSEN:
                     # The way back. Clearing the choice does not clear the default - it
                     # becomes automatic, which is what the panel's chip then reads.
@@ -934,7 +934,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                         lambda r=row: act(library.set_default_table, r["game_id"], "",
                                           said="Back to an automatic default",
                                           row=r)) \
-                        .classes("hub-menu-item")
+                        .classes("console-menu-item")
                 hidden = bool(row.get("hidden"))
                 ui.menu_item(
                     "Unhide" if hidden else "Hide",
@@ -942,7 +942,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                                                 r["id"], not h,
                                                 said="Now offered" if h else "Hidden",
                                                 row=r)) \
-                    .classes("hub-menu-item")
+                    .classes("console-menu-item")
                 # The script sidecar. VPX loads a `<table>.vbs` beside the .vpx in
                 # preference to the one inside it, so this is per table and belongs on
                 # the row rather than only on the panel that was carrying it.
@@ -951,14 +951,14 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                     ui.menu_item(
                         "Delete script",
                         lambda r=row: drop_script(r)) \
-                        .classes("hub-menu-item hub-menu-danger")
+                        .classes("console-menu-item console-menu-danger")
                 else:
                     ui.menu_item(
                         "Extract script",
                         lambda r=row: act(library.extract_script, r["game_id"],
                                           r["id"], said="Extracted - this table now "
                                           "runs the .vbs", row=r)) \
-                        .classes("hub-menu-item")
+                        .classes("console-menu-item")
                 # Only for a table whose file is gone. While it is on disk the record
                 # describes something the user owns, and hiding is what takes it out of
                 # play without losing its stats.
@@ -967,7 +967,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                         "Forget this table",
                         lambda r=row: act(library.forget_table, r["game_id"], r["id"],
                                           said="Record dropped", row=r, gone=True)) \
-                        .classes("hub-menu-item")
+                        .classes("console-menu-item")
 
     wire_views(table)
     search.on_value_change(
@@ -1015,7 +1015,7 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
 
     picker = ui.select({view.id: _view_name(view) for view in known}, value=active,
                        label="View").props("dense outlined") \
-        .classes("w-52 hub-view-picker")
+        .classes("w-52 console-view-picker")
     # The selected view's own words for what it is for, on the control that names it.
     # A view the user saved carries none - they named it, which is their description -
     # so the tooltip goes rather than hovering an empty bubble.
@@ -1138,16 +1138,16 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
             menu.clear()
             with menu:
                 ui.menu_item("Save as\u2026", lambda: _ask_name(save)) \
-                    .classes("hub-menu-item")
+                    .classes("console-menu-item")
                 # Only where they mean something: there is nothing to revert to until
                 # the screen has drifted, and nothing to delete unless it is the
                 # user's own view.
                 if held["modified"]:
                     ui.menu_item("Revert", lambda: apply(current())) \
-                        .classes("hub-menu-item")
+                        .classes("console-menu-item")
                 if not view.builtin and not held["modified"]:
                     ui.menu_item("Delete view", delete) \
-                        .classes("hub-menu-item hub-menu-danger")
+                        .classes("console-menu-item console-menu-danger")
                 ui.separator()
                 # An explicit column: the menu lays its children out inline otherwise,
                 # so twenty checkboxes wrap into a paragraph rather than a list.
@@ -1157,7 +1157,7 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
                         # as one list, which is right when there are eight of them.
                         if heading:
                             ui.item_label(heading).props("header") \
-                                .classes("hub-menu-header")
+                                .classes("console-menu-header")
                         for definition in group:
                             field = definition["field"]
                             label = str(definition.get("headerName") or field) \
@@ -1166,7 +1166,7 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
                                         on_change=lambda event, f=field:
                                         table.run_grid_method("setColumnsVisible",
                                                               [f], event.value)) \
-                                .props("dense").classes("hub-menu-item w-full")
+                                .props("dense").classes("console-menu-item w-full")
 
         menu_button.on_click(fill_menu)
         picker.on_value_change(lambda event: pick(event.value))
@@ -1188,7 +1188,7 @@ def _view_name(view: Any) -> str:
 
 def _ask_name(save) -> None:
     with ui.dialog() as dialog, ui.card():
-        ui.label("Save this view as").classes("hub-card-title")
+        ui.label("Save this view as").classes("console-card-title")
         # debounce=0 so the model is current the moment Save is pressed. Focus is put
         # here by the script below - Quasar's autofocus does not land in this dialog.
         name = ui.input(placeholder="Name this view") \

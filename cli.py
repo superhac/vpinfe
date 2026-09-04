@@ -59,7 +59,7 @@ def reset_3x_state(config_only: bool = False, dry_run: bool = False,
 
     return revert_3x.reset(
         _game_root_dir(), CONFIG_DIR,
-        hub_port=NetworkConfig.from_config(config_store).hub_port,
+        http_port=NetworkConfig.from_config(config_store).http_port,
         config_only=config_only, dry_run=dry_run,
         progress_cb=progress_cb, log_cb=log_cb)
 

@@ -23,7 +23,7 @@ from shutil import which
 from urllib.parse import quote, urlparse
 
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig, cfg_get
-from common.games import hub_library
+from common.games import remote_library
 from common.log_setup import include_thirdparty_logs
 from common.paths import bundled
 
@@ -132,19 +132,19 @@ def _hub_endpoint(network) -> HubEndpoint:
 
     With no hub the host is "" and every port is this install's, which is every
     single-machine setup. With one, three of the four are the hub's, and they have to be
-    asked for separately: `network.hub_port` and `network.theme_assets_port` describe what
+    asked for separately: `network.http_port` and `network.theme_assets_port` describe what
     *this* install serves, so a device reading a hub on other ports would dial its own
     numbers at the other machine. The api port is in the url; the asset port is not in it
     at all, so the hub is asked - it publishes its own in discovery.
     """
     trimmed = str(getattr(network, "hub_url", "") or "").strip()
-    own_api = network.hub_port
+    own_api = network.http_port
     own_assets = network.theme_assets_port
     if not trimmed:
         return HubEndpoint("", own_api, own_api, own_assets)
 
     parsed = urlparse(trimmed)
-    assets = hub_library.hub_services(trimmed).get("assets") or {}
+    assets = remote_library.remote_services(trimmed).get("assets") or {}
     try:
         hub_assets = int(assets.get("port") or own_assets)
     except (TypeError, ValueError):
@@ -159,7 +159,7 @@ def _build_window_url(
     window_name: str,
     splash_enabled: bool,
     ws_port: int = 8002,
-    hub_port: int = 8001,
+    http_port: int = 8001,
     hub_host: str = "",
     device_port: int = 8001,
     hub_assets_port: int = 0,
@@ -175,7 +175,7 @@ def _build_window_url(
     frontend ended up asserting one machine in six places.
     """
     endpoints = (f"wsPort={ws_port}&themeAssetsPort={theme_assets_port}"
-                 f"&hubPort={hub_port}")
+                 f"&hubPort={http_port}")
     # Only when the hub is elsewhere. Absent, the page keeps assuming loopback and one
     # port for both roles, which is right for every install that serves its own library.
     if hub_host:
@@ -501,7 +501,7 @@ class ChromiumManager:
                 window_name=window_name,
                 splash_enabled=splash_enabled,
                 ws_port=network.ws_port,
-                hub_port=hub.port,
+                http_port=hub.port,
                 hub_host=hub.host,
                 device_port=hub.device_port,
                 hub_assets_port=hub.assets_port,

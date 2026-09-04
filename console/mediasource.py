@@ -69,7 +69,7 @@ class _Sources:
         # Where the picked entry's offers are drawn. Set when the online tab builds,
         # and read by a search result, which redraws them for a different game.
         self.online_body: Any = None
-        # The sources this hub knows, so an offer can be labeled with a name rather
+        # The sources this install knows, so an offer can be labeled with a name rather
         # than an id. Read once when the tab opens.
         self._known_sources: list[dict[str, Any]] | None = None
         # Filled when the browser loads; the trail above a listing is written against
@@ -114,11 +114,11 @@ class _Sources:
         """
         if not self.placements:
             return
-        with ui.column().classes("w-full gap-0 hub-destination"):
-            ui.label("Save it as").classes("hub-card-title")
+        with ui.column().classes("w-full gap-0 console-destination"):
+            ui.label("Save it as").classes("console-card-title")
             for item in self.placements:
                 self._placement_choice(item)
-            self.filename_note = ui.label("").classes("hub-help hub-destination-name")
+            self.filename_note = ui.label("").classes("console-help console-destination-name")
         self._describe_placement()
 
     def _placement_choice(self, item: dict[str, Any]) -> None:
@@ -128,18 +128,18 @@ class _Sources:
         words the map will use about the file afterwards.
         """
         table = str(item.get("table") or "")
-        row = ui.row().classes("items-start gap-2 w-full no-wrap hub-placement")
+        row = ui.row().classes("items-start gap-2 w-full no-wrap console-placement")
         with row:
-            mark = ui.icon("radio_button_unchecked").classes("hub-placement-mark")
+            mark = ui.icon("radio_button_unchecked").classes("console-placement-mark")
             media_ownership.badge_for(
                 media_ownership.TABLE if table else media_ownership.GAME)
             with ui.column().classes("gap-0 min-w-0 grow"):
-                ui.label(str(item.get("base") or "")).classes("hub-placement-name")
+                ui.label(str(item.get("base") or "")).classes("console-placement-name")
                 going = list(item.get("displaces") or [])
                 if going:
                     ui.label(f"Replaces {len(going)} file"
                              f"{'s' if len(going) != 1 else ''} already there") \
-                        .classes("hub-destination-conflict")
+                        .classes("console-destination-conflict")
         self._marks[table] = mark
         row.on("click", lambda t=table: self._choose_placement(t))
 
@@ -154,8 +154,8 @@ class _Sources:
             picked = table == self.destination
             mark.props(f'name={"radio_button_checked" if picked else
                                 "radio_button_unchecked"}')
-            mark.classes(replace="hub-placement-mark"
-                         + (" hub-placement-mark--on" if picked else ""))
+            mark.classes(replace="console-placement-mark"
+                         + (" console-placement-mark--on" if picked else ""))
         # The extension comes from the file, which on the upload tab is not chosen yet.
         self.filename_note.text = (
             f"Saved as {self.chosen_extension}" if self.chosen_extension
@@ -213,7 +213,7 @@ class _Sources:
 
     def upload_tab(self) -> None:
         ui.label("Choose a file on the computer you are looking at this from") \
-            .classes("hub-help")
+            .classes("console-help")
 
         async def arrived(event: Any) -> None:
             name = event.file.name
@@ -231,7 +231,7 @@ class _Sources:
 
         ui.upload(on_upload=arrived, auto_upload=True, max_files=1,
                   label="Drop a file here, or browse") \
-            .props("flat").classes("w-full hub-source-upload")
+            .props("flat").classes("w-full console-source-upload")
 
     # --- from anywhere on the machine VPinFE runs on -------------------------
 
@@ -241,17 +241,17 @@ class _Sources:
             starts = await run.io_bound(self.library.browse_roots, self.game_id)
         except Exception as exc:
             with body:
-                ui.label(f"Could not read this machine: {exc}").classes("hub-help")
+                ui.label(f"Could not read this machine: {exc}").classes("console-help")
             return
         self.browse_roots = starts
         with body:
             if not starts:
                 ui.label("No folders are browsable. The game library counts as one, and "
                          "more can be listed under Browsable Media Folders in settings.") \
-                    .classes("hub-help")
+                    .classes("console-help")
                 return
             ui.label("Files already on the machine VPinFE runs on") \
-                .classes("hub-help")
+                .classes("console-help")
             # The control before what it controls: built the other way round, the
             # picker sits under the folder it chose.
             picker = (ui.select({item["path"]: _start_name(item) for item in starts},
@@ -270,15 +270,15 @@ class _Sources:
             here = await run.io_bound(self.library.browse, path)
         except Exception as exc:
             with listing:
-                ui.label(f"Could not read that folder: {exc}").classes("hub-help")
+                ui.label(f"Could not read that folder: {exc}").classes("console-help")
             return
         family = media_family(self.kind)
         with listing:
             # Named from the start it was reached through rather than as an absolute
             # path: the path on a cabinet is long, and the tail is the part that says
             # where you are.
-            ui.label(self._trail(here["path"])).classes("hub-help hub-source-trail")
-            with ui.column().classes("w-full gap-1 hub-source-list"):
+            ui.label(self._trail(here["path"])).classes("console-help console-source-trail")
+            with ui.column().classes("w-full gap-1 console-source-list"):
                 if here.get("parent"):
                     self._folder_link("..", here["parent"], listing, up=True)
                 shown = 0
@@ -292,10 +292,10 @@ class _Sources:
                     shown += 1
                 if not shown:
                     ui.label(f"Nothing here to use as {self.label.lower()}") \
-                        .classes("hub-help")
+                        .classes("console-help")
                 elif len(here["entries"]) > _LIST_MAX:
                     ui.label(f"{len(here['entries']) - _LIST_MAX} more not shown") \
-                        .classes("hub-help")
+                        .classes("console-help")
 
     def _trail(self, path: str) -> str:
         """Where this folder sits, counted from the start it was reached through."""
@@ -312,11 +312,11 @@ class _Sources:
 
     def _folder_link(self, label: str, path: str, listing: ui.column,
                      up: bool = False) -> None:
-        row = ui.row().classes("items-center gap-2 w-full no-wrap hub-source-row "
-                               "hub-source-row--pick hub-source-row--folder")
+        row = ui.row().classes("items-center gap-2 w-full no-wrap console-source-row "
+                               "console-source-row--pick console-source-row--folder")
         with row:
             ui.icon("arrow_upward" if up else "folder").classes("shrink-0")
-            ui.label(label).classes("hub-source-name")
+            ui.label(label).classes("console-source-name")
         row.on("click", lambda p=path: self._show_folder(listing, p))
 
     def _file_row(self, item: dict[str, Any]) -> None:
@@ -364,12 +364,12 @@ class _Sources:
         game = self.context["game"]
         self._own_id = str(game.get("vps_id") or "")
         with body:
-            self.online_head = ui.label("").classes("hub-card-title")
-            self.online_body = ui.column().classes("w-full gap-1 hub-source-offers")
-            ui.label("Search another game").classes("hub-card-title hub-source-under")
+            self.online_head = ui.label("").classes("console-card-title")
+            self.online_body = ui.column().classes("w-full gap-1 console-source-offers")
+            ui.label("Search another game").classes("console-card-title console-source-under")
             search = ui.input(value=str(game.get("name") or "")) \
                 .props("outlined dense clearable").classes("w-full")
-            results = ui.column().classes("w-full gap-1 hub-source-found")
+            results = ui.column().classes("w-full gap-1 console-source-found")
         search.on("keydown.enter",
                   lambda: self._search_games(results, search.value or ""))
         # Read for the names, which label the rows. Not announced up front - every row
@@ -399,11 +399,11 @@ class _Sources:
             found = await run.io_bound(self.library.search_vps, query.strip())
         except Exception as exc:
             with results:
-                ui.label(f"Could not search: {exc}").classes("hub-help")
+                ui.label(f"Could not search: {exc}").classes("console-help")
             return
         with results:
             if not found:
-                ui.label("No game by that name in VPSdb").classes("hub-help")
+                ui.label("No game by that name in VPSdb").classes("console-help")
                 return
             for item in found:
                 self._game_choice(item)
@@ -441,19 +441,19 @@ class _Sources:
             with body:
                 ui.label("This game has no VPS id, so there is nothing to look up. "
                          "Search above to take art from a game that has one.") \
-                    .classes("hub-help")
+                    .classes("console-help")
             return
         try:
             found = await run.io_bound(self.library.media_offers, vps_id, self.kind)
         except Exception as exc:
             with body:
-                ui.label(f"Could not reach the catalogs: {exc}").classes("hub-help")
+                ui.label(f"Could not reach the catalogs: {exc}").classes("console-help")
             return
         with body:
             if not found:
                 where = self._searched()
                 ui.label(f"Nothing in {where}" if where else
-                         "No online sources are switched on").classes("hub-help")
+                         "No online sources are switched on").classes("console-help")
                 return
             named = {item["id"]: item["name"]
                      for item in (self._known_sources or [])}
@@ -515,12 +515,12 @@ def open_sources(context: dict[str, Any], kind: str, label: str,
                  done: Callable) -> None:
     """Open the ways to fill this slot. Returns as soon as the dialog is up."""
     sources = _Sources(context, kind, label, done)
-    with ui.dialog() as dialog, ui.card().classes("hub-sources-card"):
+    with ui.dialog() as dialog, ui.card().classes("console-sources-card"):
         sources.dialog = dialog
-        with ui.row().classes("items-center gap-2 w-full no-wrap hub-viewer-bar"):
+        with ui.row().classes("items-center gap-2 w-full no-wrap console-viewer-bar"):
             ui.label(f"{label} for this "
                      f"{'table' if context['lens'] else 'game'}") \
-                .classes("hub-card-title grow min-w-0")
+                .classes("console-card-title grow min-w-0")
             ui.button(icon="close", on_click=dialog.close).props("flat dense round")
         destination = ui.column().classes("w-full gap-0")
 
@@ -530,7 +530,7 @@ def open_sources(context: dict[str, Any], kind: str, label: str,
             ui.tab("upload", label="Upload a file", icon="upload_file")
             ui.tab("browse", label="On this machine", icon="folder_open")
             ui.tab("online", label="Online", icon="cloud_download")
-        with ui.tab_panels(tabs, value="upload").classes("w-full hub-sources-panels"):
+        with ui.tab_panels(tabs, value="upload").classes("w-full console-sources-panels"):
             with ui.tab_panel("upload"):
                 sources.upload_tab()
             with ui.tab_panel("browse"):

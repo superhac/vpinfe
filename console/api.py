@@ -1,4 +1,4 @@
-"""Reads the hub over its own HTTP API."""
+"""Reads this install over its own HTTP API."""
 
 from __future__ import annotations
 
@@ -21,15 +21,15 @@ _TIMEOUT = 15
 def hub_base_url() -> str:
     network = NetworkConfig.from_config(get_ini_config())
     # hub_url set means this install reads another install's library; empty means it
-    # holds its own, so the hub is this process.
-    return (network.hub_url or f"http://127.0.0.1:{network.hub_port}").rstrip("/")
+    # holds its own, so the server is this process.
+    return (network.hub_url or f"http://127.0.0.1:{network.http_port}").rstrip("/")
 
 
-class HubError(RuntimeError):
-    """What the hub said went wrong, in its own words - which is what a surface shows."""
+class ApiError(RuntimeError):
+    """What the API said went wrong, in its own words - which is what a surface shows."""
 
 
-class HubClient:
+class ApiClient:
     """An ordinary consumer of /api/v1, over HTTP rather than by import.
 
     Deliberate, and the point of the exercise: anything the Hub UI cannot do through
@@ -43,7 +43,7 @@ class HubClient:
         self._discovery: dict | None = None
 
     def _answered(self, response: Any) -> None:
-        """Raise what the hub said, not what HTTP said.
+        """Raise what the API said, not what HTTP said.
 
         `raise_for_status` throws away the body, so a considered message - "No Visual
         Pinball on this machine..." - reached the panel as "501 Server Error: Not
@@ -57,7 +57,7 @@ class HubClient:
             said = str(((response.json() or {}).get("error") or {}).get("message") or "")
         except ValueError:
             said = ""
-        raise HubError(said or f"The hub answered {response.status_code}")
+        raise ApiError(said or f"The API answered {response.status_code}")
 
     def _get(self, path: str) -> dict:
         _refuse_the_event_loop(path)
@@ -100,7 +100,7 @@ class HubClient:
     def media(self, game_id: str) -> dict:
         # Cached per client: /games carries VPS addon flags, not media coverage, so
         # coverage costs one call per game. 147 games measured at 1.1s, and threading
-        # does not help - the hub answers these sequentially.
+        # does not help - the server answers these sequentially.
         if game_id not in self._media:
             self._media[game_id] = self._get(f"/games/{game_id}/media").get("media", {})
         return self._media[game_id]
@@ -205,7 +205,7 @@ class HubClient:
 
     def set_tags(self, game_id: str, tags: list[str]) -> None:
         """The whole set. What comes back is what was stored, which may differ - the
-        hub trims and drops repeats."""
+        the API trims and drops repeats."""
         _refuse_the_event_loop(f"/games/{game_id}/tags")
         response = self._session.put(f"{self._base}/games/{game_id}/tags",
                                      json={"tags": list(tags)}, timeout=_TIMEOUT)
@@ -455,7 +455,7 @@ class HubClient:
                           {"path": path, "table": table_id or ""})
 
     def media_sources(self) -> list[dict]:
-        """The online catalogs this hub knows, and which are being asked."""
+        """The online catalogs this install knows, and which are being asked."""
         return list(self._get("/media-sources").get("sources") or [])
 
     def media_offers(self, vps_id: str, kind: str) -> list[dict]:
@@ -471,7 +471,7 @@ class HubClient:
 
     def fetch_media(self, game_id: str, table_id: str, kind: str, source: str,
                     vps_id: str, size: str = "") -> dict:
-        """Pull a catalog's art into the slot. The hub resolves the link itself."""
+        """Pull a catalog's art into the slot. The API resolves the link itself."""
         return self._post(f"/games/{game_id}/media/{kind}/fetch",
                           {"source": source, "vps_id": vps_id, "size": size,
                            "table": table_id or ""})
@@ -541,7 +541,7 @@ class HubClient:
 
     def library_policy(self) -> dict:
         """What this library collects. The library's answer, not this machine's - a
-        device reading a remote hub gets the hub's."""
+        device reading a remote library gets that library's."""
         return dict(self._get("/library/policy") or {})
 
     def put_library_policy(self, changes: dict) -> dict:
@@ -567,7 +567,7 @@ class HubClient:
         return self._put(f"/games/{game_id}/tables/{table_id}/overrides", changes)
 
     def forget_table(self, game_id: str, table_id: str) -> dict:
-        """Drop the record of a table whose file is gone. The hub refuses if it is not."""
+        """Drop the record of a table whose file is gone. The API refuses if it is not."""
         path = f"/games/{game_id}/tables/{table_id}"
         _refuse_the_event_loop(path)
         response = self._session.delete(f"{self._base}{path}", timeout=_TIMEOUT)
@@ -575,11 +575,11 @@ class HubClient:
         return response.json()
 
     def update_check(self) -> dict:
-        """Whether a newer build is published. Reaches the network on the hub's side."""
+        """Whether a newer build is published. Reaches the network on the server's side."""
         return self._get("/update")
 
     def forget_device(self, device_id: str) -> None:
-        """Drop a device from this hub's registry. It answers 204, so nothing is read."""
+        """Drop a device from the registry. It answers 204, so nothing is read."""
         _refuse_the_event_loop(f"/devices/{device_id}")
         response = self._session.delete(f"{self._base}/devices/{quote(device_id)}",
                                         timeout=_TIMEOUT)
@@ -595,7 +595,7 @@ class HubClient:
         return list((response.json() or {}).get("probes") or [])
 
     def perform_update(self, *, stop_table: bool = False) -> dict:
-        """Take the published build. The hub goes down to do it, so this is the last
+        """Take the published build. The install goes down to do it, so this is the last
         call that install answers - a failure afterwards is the update working."""
         return self._post("/update", {"stop_table": stop_table})
 
@@ -613,17 +613,17 @@ class HubClient:
         return self._get("/jobs").get("jobs", [])
 
     def refresh_library(self) -> dict:
-        """Ask the hub to look at the disk again. Returns the job to watch."""
+        """Ask the install to look at the disk again. Returns the job to watch."""
         _refuse_the_event_loop("/library/refresh")
         response = self._session.post(f"{self._base}/library/refresh", timeout=_TIMEOUT)
         self._answered(response)
         return response.json()
 
     def devices(self) -> list[dict]:
-        """Every device the hub knows, as the hub knows them.
+        """Every device this install knows, as it knows them.
 
         This used to fold in two things the registry could not hold: the install you are
-        sitting at, and the one vpx_mobile device the ini could name. The hub records
+        sitting at, and the one vpx_mobile device the ini could name. The registry records
         itself at startup now, and a phone is a registry entry with a minted id, so both
         are ordinary rows and this is a plain read.
         """
@@ -631,7 +631,7 @@ class HubClient:
 
 
 def _refuse_the_event_loop(path: str) -> None:
-    """Say so, loudly, when a hub call is about to block the server from answering it.
+    """Say so, loudly, when an API call is about to block the server from answering it.
 
     These calls go to our own process. Made from the event loop they deadlock until the
     read times out, and what the user sees is the browser losing its socket - which

@@ -28,7 +28,7 @@ def get_mainmenu_config(iniconfig):
 
 
 def _managerui_remote_urls(config) -> list[str]:
-    port = NetworkConfig.from_config(config).hub_port
+    port = NetworkConfig.from_config(config).http_port
     hostname = socket.gethostname().strip()
     urls: list[str] = []
     seen_hosts: set[str] = set()
@@ -103,7 +103,7 @@ def _build_remote_qr_svg(url: str) -> str:
 
 
 def _managerui_page_urls(config, page: str) -> list[str]:
-    port = NetworkConfig.from_config(config).hub_port
+    port = NetworkConfig.from_config(config).http_port
     hostname = socket.gethostname().strip()
     urls: list[str] = []
     seen_hosts: set[str] = set()
@@ -206,8 +206,8 @@ def get_theme_assets_port(config):
     return NetworkConfig.from_config(config).theme_assets_port
 
 
-def get_hub_port(config):
-    return NetworkConfig.from_config(config).hub_port
+def get_http_port(config):
+    return NetworkConfig.from_config(config).http_port
 
 
 def get_managerui_remote_link(config):

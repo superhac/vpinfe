@@ -17,10 +17,10 @@ MOST = 5
 # and a scripted click passes on it anyway - `docs/conventions.md` has why.
 CLEAR = "×"
 
-BOX = "hub-stars"
-STAR = "hub-star"
-LIT = "hub-star--on"
-CLEAR_CLASS = "hub-star-clear"
+BOX = "console-stars"
+STAR = "console-star"
+LIT = "console-star--on"
+CLEAR_CLASS = "console-star-clear"
 
 # One delegated listener, not a handler per cell: a renderer runs again on every scroll
 # and NiceGUI strips inline handlers off raw HTML. Capture phase, because AG Grid's own

@@ -339,7 +339,7 @@ so it fails on a laptop rather than only in CI. Covered by
 
 **PAR-79 — A device can check that its library really is the hub's.**
 *(machine-checked)* New: `network.verify_shared_library`, off by default, and
-`hub_library.verify_shared_library`. With a hub set and the flag on, a device compares its
+`remote_library.verify_shared_library`. With a hub set and the flag on, a device compares its
 own tables against the hub's at startup and logs what does not match. Nothing else
 changes - no route, no payload, and an install that says nothing does exactly what it did.
 *Why:* shared storage is what the residency split assumes and nothing checked. A
@@ -464,7 +464,7 @@ forwards both rather than every sort learning two shapes. Covered by
 `tests/theming/test_remote_view.py`, including that an install saying nothing stays local.
 
 **PAR-71 — A device can read its library from a hub.** New: `GET /library/entries`, the
-play lens over the whole library, and `common/games/hub_library.py`, which turns what it
+play lens over the whole library, and `common/games/remote_library.py`, which turns what it
 returns back into local `Entry` objects. `WireGame` grows the resolved asset flags, the
 media kinds and two deliberately empty paths. Purely additive - no existing route,
 payload or stored file changes shape.
@@ -603,8 +603,8 @@ answers on it changes.
 explicitly not part of the Manager UI (`docs/http_api.md`: "it belongs to the platform").
 So `endpoints.hub` and `endpoints.device` were being built from a port named for a UI,
 which read as though the library were fetched from the Manager UI. What the four have in
-common is the role: all of them are hub-side, the Manager UI included, since the Manager
-UI is hub-only. Naming it `hub_api_port` would have repeated the original mistake from the
+common is the protocol: the API, the Console, the Manager UI and the remote and mobile
+pages all answer on it. Naming it `hub_api_port` would have repeated the original mistake from the
 other end - naming one listener while three others share the port. One consequence is
 visible and deliberate: `endpoints.device` points at the hub's port for now, because one
 `/api/v1` still answers for both roles. That is honest about today's topology rather than
