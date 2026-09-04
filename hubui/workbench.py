@@ -63,6 +63,12 @@ logger = logging.getLogger("vpinfe.hubui.workbench")
 # under it without taking the map's room.
 DOCK_PX = 300
 
+# Where the open section sits among the rows where they stack. Three buckets rather
+# than one order per row: flex keeps document order inside a bucket, so the rows above
+# the open one and the rows below it each need only a number, and the work goes between.
+_WORK = 1
+_AFTER_WORK = 2
+
 # Dragged in the browser, reported once on release - a round trip per pointer move
 # would lag badly. Guarded, because the panel is rebuilt on every section change.
 _GRIP = """
@@ -575,15 +581,15 @@ async def _rail(context: dict[str, Any], subject: str,
     browse, and what you are working on. The outline must not scroll with what it
     points at, so this row is the fixed frame and only the body scrolls.
 
-    Two regions, and the rows are one of them rather than being loose in the frame. That
-    is what lets the rail scroll on its own: a device carries thirteen entries, and in a
-    short window the rail either loses its last five or drags the work along with it.
+    Wide, the rail is a column down the left and the work fills the space beside it, and
+    the rows are wrapped so they scroll without dragging the work along - a device
+    carries sixteen entries and a short window loses the last five otherwise.
 
-    Wide, the rail is a column down the left and the work fills the space beside it.
-    Narrow, the rail sits above the work with a height of its own. Not an accordion any
-    more - the open section no longer falls under the row that opened it, which is the
-    price of the rows scrolling alone. The stylesheet decides which; the markup is the
-    same either way, so nothing is rebuilt on a drag.
+    Narrow, the same rows are a strict accordion with the work under the row that opened
+    it. The wrapper would break that, so the stylesheet drops it there and `order` puts
+    the work back in its place among the rows. Three buckets is all it takes: rows down
+    to the open one, the work, then the rest. The markup is the same at either width, so
+    nothing is rebuilt on a drag.
     """
     rows = sections_for(subject)
     if subject == "device":
@@ -602,13 +608,18 @@ async def _rail(context: dict[str, Any], subject: str,
         # that moves what you are reading is the wrong half to move.
         with ui.element("div").classes("min-h-0 hub-section-rail"):
             heading = ""
+            after = 0
             for item in rows:
                 if item.group and item.group != heading:
-                    ui.label(item.group).classes("hub-group hub-rail-group")
+                    ui.label(item.group).classes("hub-group hub-rail-group") \
+                        .style(f"order: {after}")
                 heading = item.group
-                _section_row(context, item, item.key == section)
+                _section_row(context, item, item.key == section, order=after)
+                if item.key == section:
+                    after = _AFTER_WORK
         if open_item is not None:
-            work = ui.element("div").classes("min-w-0 hub-section-work")
+            work = ui.element("div").classes("min-w-0 hub-section-work") \
+                .style(f"order: {_WORK}")
             if open_item.dock:
                 work.classes(add="hub-has-dock")
                 work.style(f"--dock-h: {state.get('dock_px', DOCK_PX)}px")
@@ -640,7 +651,8 @@ def _for_roles(rows: tuple[Section, ...], roles) -> tuple[Section, ...]:
     return tuple(item for item in rows if not item.role or item.role in held)
 
 
-def _section_row(context: dict[str, Any], section: Section, open_now: bool) -> None:
+def _section_row(context: dict[str, Any], section: Section, open_now: bool,
+                 *, order: int = 0) -> None:
     """One section's name - the rail entry, at either width.
 
     The name is text: a badge said nothing about a game's identity, and the sections
@@ -650,7 +662,8 @@ def _section_row(context: dict[str, Any], section: Section, open_now: bool) -> N
     which is a fact about the control rather than a label for the section. Without it
     the stacked rows are four words with no sign that any of them do anything.
     """
-    row = ui.row().classes("items-stretch gap-0 no-wrap hub-section-row")
+    row = ui.row().classes("items-stretch gap-0 no-wrap hub-section-row") \
+        .style(f"order: {order}")
     if open_now:
         row.classes(add="hub-section-on")
     with row:
