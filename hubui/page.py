@@ -388,7 +388,10 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
                      for p in await run.io_bound(HubClient().probe_devices)}
             state["device_reach"] = found
             if state.get("view") == "devices":
+                # render() empties the pane, so the device open in it is redrawn after -
+                # otherwise a probe landing a few seconds in wipes what you were reading.
                 render()
+                await show_device(None)
         except Exception:
             logger.info("Could not probe the devices", exc_info=True)
 
@@ -607,12 +610,19 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
 
     async def show_device(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about - the same rule
-        every other subject follows, so the panel needs no control of its own."""
+        every other subject follows, so the panel needs no control of its own.
+
+        A row of nothing is the grid settling, not a deselection: it fires a focus event
+        with no row while it restores its own state, and taking that literally emptied
+        the panel a moment after the page had opened one. There is no way to select no
+        device, so the last one stands.
+        """
         if row and not state["workbench"]:
             show_workbench(True)
-        state["device_id"] = (row or {}).get("id")
+        wanted = (row or {}).get("id") or state.get("device_id")
+        state["device_id"] = wanted
         chosen = next((d for d in devices
-                       if str(d.get("device_id")) == state["device_id"]), None)
+                       if str(d.get("device_id")) == wanted), None)
         await workbench.build_device(panel, workbench_title, library, chosen, state,
                                      discovery.get("install_id"), device_capabilities,
                                      local_capabilities)
@@ -629,6 +639,7 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             return
         state["device_reach"] = found
         render()
+        await show_device(None)
 
     async def show_collection(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about - the same rule

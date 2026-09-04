@@ -1689,6 +1689,23 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .hub-edit-field .q-field__native {
   font-size: var(--fs-body); color: var(--ink); padding: 0;
 }
+/* A select's value is a span, not an input, and Quasar gives that span a min-height and
+   a top padding sized for its own 40px control. At our 26px row the value sits below
+   the box and reads as cropped - which is why the lists looked wrong and the text
+   fields beside them did not. Centred in the control instead, at the height we set. */
+.hub-edit-select .q-field__control-container { padding-top: 0; }
+.hub-edit-select .q-field__native {
+  min-height: 0;
+  padding: 0;
+  align-items: center;
+  line-height: normal;
+}
+/* The caret sits with the value rather than on the control's own baseline. */
+.hub-edit-select .q-field__append {
+  height: var(--field-h);
+  padding-left: 4px;
+  align-items: center;
+}
 /* The way back, and the only mark an overridden row carries. Amber because that is
    already this app's word for the exception worth spotting, so one mark says both what
    the state is and what to do about it. */
