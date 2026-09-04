@@ -2,7 +2,7 @@
 
 Everything VPS-shaped reads a file: matching, release lists, obtainability, what a kind
 is offered from. Until this existed the only thing that downloaded it was a Manager UI
-page, so a hub that never opened one answered from the snapshot it started with.
+page, so an install that never opened one answered from the snapshot it started with.
 """
 
 from __future__ import annotations

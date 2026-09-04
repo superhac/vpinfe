@@ -52,7 +52,7 @@ class TokenTests(unittest.TestCase):
 
     def test_every_token_has_a_user(self) -> None:
         """A token nothing reads is a decision nobody can see. Four of them
-        accumulated - and one, `--fs-subject`, read like a heading level the hub had
+        accumulated - and one, `--fs-subject`, read like a heading level the Console had
         never actually had."""
         self.assertEqual(sorted(self.defined - self.used), [])
 

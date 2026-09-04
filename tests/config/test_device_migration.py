@@ -49,7 +49,7 @@ class MobileImportTests(unittest.TestCase):
         device, = self.registry.devices()
         self.assertEqual(device.kind, "vpx_mobile")
         self.assertEqual((device.address, device.port), ("192.168.1.50", 2112))
-        self.assertTrue(device.device_id, "the hub minted one")
+        self.assertTrue(device.device_id, "an id was minted")
 
     def test_the_port_falls_back_when_the_ini_does_not_say(self) -> None:
         ensure_mobile_device(self.registry, _config(device_ip="192.168.1.50"))
@@ -93,9 +93,9 @@ class MobileImportTests(unittest.TestCase):
         self.assertEqual([d.address for d in self.registry.devices()], ["192.168.1.60"])
 
     def test_an_install_entry_does_not_count_as_a_mobile_one(self) -> None:
-        """The hub records itself at startup, so the registry is never empty by the time
+        """An install records itself at startup, so the registry is never empty by the time
         this runs. Only a vpx_mobile entry means the import has been superseded."""
-        self.registry.record("Aaaa111111", display_name="the hub")
+        self.registry.record("Aaaa111111", display_name="this install")
 
         self.assertEqual(
             ensure_mobile_device(self.registry, _config(device_ip="192.168.1.50")), 1)

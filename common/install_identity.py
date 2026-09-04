@@ -18,7 +18,7 @@ ID_SECTION = "install"
 ID_KEY = "id"
 
 # What an install is *meant* to do, chosen deliberately. Roles said this before and said
-# it badly: `hub` and `device` were trying to name both what an install does and what
+# it badly: the two it had were trying to name both what an install does and what
 # kind of thing it is, and neither word survived the second job.
 LIBRARY = "library"
 FRONTEND = "frontend"
@@ -41,7 +41,7 @@ def install_id(config) -> str:
 
 
 def mint_id() -> str:
-    """A fresh identity. One generator for every id a hub deals in, so one it minted for
+    """A fresh identity. One generator for every id in the registry, so one minted for
     a phone and one an install minted for itself are indistinguishable - which is what
     lets the registry key on a single field."""
     return new_id()

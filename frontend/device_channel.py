@@ -6,7 +6,7 @@ Each window opens one, naming itself in the query string:
 JS to Python: calls, gated by `API_ALLOWED_METHODS`, answered by id.
 Python to JS: events pushed out to the windows.
 
-Never to a hub and never window to window - each window holds its own connection to
+Never to another install and never window to window - each window holds its own connection to
 this process, which fans events out to all of them. Was `ws_bridge`: "bridge" said
 where it sat rather than what it did, and dated from replacing 2.x's JS API bridge.
 """

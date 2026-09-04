@@ -91,7 +91,7 @@ except Exception:
 
 # What the library collects moves out of this install's config and into the library's
 # own file, once. Per-install was one answer per machine for a question about one set of
-# files, and only the hub's ever did anything.
+# files, and only the library's ever did anything.
 try:
     from common.games.library_policy import get_library_policy
     from common.paths import get_ini_config as _ini_for_policy
@@ -142,7 +142,7 @@ httpapi.register(nicegui_app)
 # would be another machine as far as anyone listening is concerned.
 httpapi.instance.announce_on_the_network()
 
-# The Hub UI, served at /hub alongside the Manager UI while both exist.
+# The Console, served alongside the Manager UI while both exist.
 console.register()
 
 # On Windows, the Proactor event loop logs a noisy ConnectionResetError (WinError 10054)
@@ -314,7 +314,7 @@ shutdown.exit_if_requested(logger)
 _start_startup_media_sync()
 
 # The catalog everything VPS-shaped reads from - matching, release lists, what a kind is
-# offered from. It was only ever downloaded by a Manager UI page, so a hub that never
+# offered from. It was only ever downloaded by a Manager UI page, so an install that never
 # opened one answered from whatever snapshot it started with.
 if not config_store.is_new:
     from common.online.vpsdb_sync import start_watch as _watch_vpsdb

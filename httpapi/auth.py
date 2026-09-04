@@ -65,7 +65,7 @@ class LocalTrustPolicy:
     tokens and no user accounts, and inventing them here would be friction with
     nothing on the other side of it. Replacing this class is how that changes.
 
-    `origin` records where the caller came from without changing what it may do. The hub
+    `origin` records where the caller came from without changing what it may do. A caller
     binds every interface by default, so "local" and "reachable" have never been the same
     question - what a network caller is allowed is a later decision than seeing it is one.
     """

@@ -1,8 +1,8 @@
 """What a library collects, which is the library's answer and not a machine's.
 
 These three lived in each install's config file. One machine, no problem; two devices
-reading one hub and there were two answers to a question about one set of files, and
-only the hub's ever did anything.
+reading one library and there were two answers to a question about one set of files, and
+only the library's ever did anything.
 """
 
 from __future__ import annotations

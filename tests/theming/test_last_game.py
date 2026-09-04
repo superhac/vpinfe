@@ -2,8 +2,8 @@
 
 Identity is the table's id, falling back to the game's. Two reasons it is not the path it
 used to be: a game folder holds several tables and a path names the folder, so an expanded
-wheel came back to the wrong row; and a device reading its library off a hub never sees the
-hub's filesystem, so a path identifies nothing there. Both ids cross the wire.
+wheel came back to the wrong row; and an install reading a library elsewhere never sees
+that filesystem, so a path identifies nothing there. Both ids cross the wire.
 """
 
 from __future__ import annotations

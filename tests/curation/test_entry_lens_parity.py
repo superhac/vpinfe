@@ -100,9 +100,9 @@ class EntryLensParityTests(TempTree):
                          "the flat field still answers for clients that read it")
 
     def test_the_wire_can_reproduce_the_newest_order(self) -> None:
-        """The "Newest" sort is a stat of the hub's filesystem, so a client sorting its
+        """The "Newest" sort is a stat of the library's filesystem, so a client sorting its
         own copy has to be told rather than look. Newest-first off the wire answer has
-        to land in the same order the hub resolves.
+        to land in the same order the library resolves.
         """
         folders = [("Medieval Madness (Williams 1997)", 300.0),
                    ("Attack from Mars (Bally 1995)", 100.0),

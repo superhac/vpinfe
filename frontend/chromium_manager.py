@@ -118,8 +118,8 @@ def get_builtin_chromium_options(
     return options
 
 
-class HubEndpoint(NamedTuple):
-    """Where a page dials for the hub, and where it dials for this device."""
+class LibraryEndpoint(NamedTuple):
+    """Where a page dials for the library, and where it dials for this machine."""
 
     host: str
     port: int
@@ -127,7 +127,7 @@ class HubEndpoint(NamedTuple):
     assets_port: int
 
 
-def _hub_endpoint(network) -> HubEndpoint:
+def _library_endpoint(network) -> LibraryEndpoint:
     """Resolve `network.library_url` into the addresses a window is launched with.
 
     With no library set the host is "" and every port is this install's, which is every
@@ -137,23 +137,21 @@ def _hub_endpoint(network) -> HubEndpoint:
     numbers at the other machine. The api port is in the url; the asset port is not in it
     at all, so the other install is asked - it publishes its own in discovery.
 
-    The query parameters a window is launched with keep the `hub` spelling. They are the
-    theme-facing contract, and renaming one is a break every theme has to be released
-    for.
     """
     trimmed = str(getattr(network, "library_url", "") or "").strip()
     own_api = network.http_port
     own_assets = network.theme_assets_port
     if not trimmed:
-        return HubEndpoint("", own_api, own_api, own_assets)
+        return LibraryEndpoint("", own_api, own_api, own_assets)
 
     parsed = urlparse(trimmed)
     assets = remote_library.remote_services(trimmed).get("assets") or {}
     try:
-        hub_assets = int(assets.get("port") or own_assets)
+        remote_assets = int(assets.get("port") or own_assets)
     except (TypeError, ValueError):
-        hub_assets = own_assets
-    return HubEndpoint(parsed.hostname or "", parsed.port or own_api, own_api, hub_assets)
+        remote_assets = own_assets
+    return LibraryEndpoint(parsed.hostname or "", parsed.port or own_api, own_api,
+                           remote_assets)
 
 
 def _build_window_url(
@@ -164,9 +162,9 @@ def _build_window_url(
     splash_enabled: bool,
     ws_port: int = 8002,
     http_port: int = 8001,
-    hub_host: str = "",
+    library_host: str = "",
     device_port: int = 8001,
-    hub_assets_port: int = 0,
+    library_assets_port: int = 0,
 ) -> str:
     """Where a window opens, and how it finds the services.
 
@@ -179,13 +177,13 @@ def _build_window_url(
     frontend ended up asserting one machine in six places.
     """
     endpoints = (f"wsPort={ws_port}&themeAssetsPort={theme_assets_port}"
-                 f"&hubPort={http_port}")
-    # Only when the hub is elsewhere. Absent, the page keeps assuming loopback and one
-    # port for both roles, which is right for every install that serves its own library.
-    if hub_host:
-        endpoints += (f"&hubHost={quote(hub_host, safe='')}"
+                 f"&libraryPort={http_port}")
+    # Only when the library is elsewhere. Absent, the page keeps assuming loopback and
+    # one port for both, which is right for every install that serves its own library.
+    if library_host:
+        endpoints += (f"&libraryHost={quote(library_host, safe='')}"
                       f"&devicePort={device_port}"
-                      f"&hubAssetsPort={hub_assets_port or theme_assets_port}")
+                      f"&libraryAssetsPort={library_assets_port or theme_assets_port}")
 
     if platform.system() == "Linux":
         return f"{base_url}:{theme_assets_port}/app/{window_name}?{endpoints}"
@@ -476,7 +474,7 @@ class ChromiumManager:
         theme_assets_port = network.theme_assets_port
         theme_name = settings.theme
         splash_enabled = settings.splashscreen
-        hub = _hub_endpoint(network)
+        library = _library_endpoint(network)
 
         # One definition, in runtime. Reversed so the controller - first in the theme's
         # list - is launched last and takes focus.
@@ -505,10 +503,10 @@ class ChromiumManager:
                 window_name=window_name,
                 splash_enabled=splash_enabled,
                 ws_port=network.ws_port,
-                http_port=hub.port,
-                hub_host=hub.host,
-                device_port=hub.device_port,
-                hub_assets_port=hub.assets_port,
+                http_port=library.port,
+                library_host=library.host,
+                device_port=library.device_port,
+                library_assets_port=library.assets_port,
             )
 
             override_key = f"{window_name}windowoverride"

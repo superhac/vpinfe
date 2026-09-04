@@ -100,7 +100,7 @@ def within_roots(raw: str) -> Path:
     allowed = [Path(item["path"]) for item in roots()]
     if not any(path == root or root in path.parents for root in allowed):
         raise InvalidRequestError(
-            "That folder is not one this hub may read",
+            "That folder is not one this install may read",
             details={"path": raw, "allowed": [str(root) for root in allowed]})
     return path
 

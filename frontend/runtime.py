@@ -102,11 +102,11 @@ def _report_shared_library(shared_library, logger) -> None:
         return
 
     if report["shared"]:
-        logger.info("Shared library verified: %s tables match the hub", report["matched"])
+        logger.info("Shared library verified: %s tables match", report["matched"])
         return
     logger.warning(
-        "Shared library does not match the hub: %s matched, %s missing here, %s differ, "
-        "%s the hub could not vouch for. Launching may fail per game.",
+        "Shared library does not match: %s matched, %s missing here, %s differ, "
+        "%s could not be vouched for. Launching may fail per game.",
         report["matched"], len(report["missing"]), len(report["differs"]),
         report["unverifiable"])
 

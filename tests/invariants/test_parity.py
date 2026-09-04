@@ -47,7 +47,7 @@ LEDGER_ALLOWS = {
     # PAR-40: one method added so the browser can fetch an action's whole binding list.
     # Additive - get_keymapping and get_joymaping still answer, projected from it.
     "PAR-40": {"get_bindings"},
-    # PAR-45: one method added so the browser can learn the hub's port instead of
+    # PAR-45: one method added so the browser can learn the library's port instead of
     # assuming 8001. Additive - a theme never calls it.
     # Renamed twice; every retired spelling stays in the allowlist as a forwarding alias.
     "PAR-45": {"get_manager_ui_port"},

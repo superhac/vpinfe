@@ -6,7 +6,7 @@ everything above asks all of them and does not care which is which.
 Two things hold across every source here. They are keyed by VPS id, so "which game" is
 one lookup and not a search per catalog. And the URL never comes from a caller: a
 source is named and produces its own link, which is what stops this being a way to
-make the hub fetch whatever somebody asks it to.
+make an install fetch whatever somebody asks it to.
 """
 
 from __future__ import annotations

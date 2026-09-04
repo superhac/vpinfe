@@ -4,7 +4,7 @@ A path in the config is the one kind of setting that can be perfectly well-forme
 still wrong, and it fails much later - at launch, as a file-not-found, on the machine
 nobody is sitting at. Asking the question when it is typed is the whole point.
 
-Answered on the machine the setting belongs to. A hub cannot stat a device's disk, so
+Answered on the machine the setting belongs to. One install cannot stat another's disk, so
 this is never asked about somebody else's path - a caller names a setting and the
 install holding it answers.
 """

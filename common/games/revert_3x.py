@@ -70,7 +70,7 @@ class InstanceRunningError(RuntimeError):
 
 
 def running_instance(http_port: int, timeout: float = 1.0) -> bool:
-    """Whether a VPinFE is serving on this install's hub port.
+    """Whether a VPinFE is serving on this install's HTTP port.
 
     Reads the discovery document rather than only opening the socket, so an unrelated
     program on that port cannot block a reset. A listening socket dies with the process

@@ -1,12 +1,12 @@
 """A wire entry wearing the shape the metadata accessors read.
 
 Filtering and sorting read `meta_config` off a `Game`. A client holding a copy of the
-library has no `meta_config` - it has entries, whose fields the hub already resolved.
+library has no `meta_config` - it has entries, whose fields were resolved over there.
 Rebuilding the sections those fields came from lets the same axis registry and the same
 sort keys answer on both sides.
 
 `name` arrives already resolved, including any `alt_title` and any leading article the
-hub moved. Putting it back under `Info.Title` is safe only because moving an article in
+wire moved. Putting it back under `Info.Title` is safe only because moving an article in
 a title that has had one moved is a no-op.
 """
 
@@ -33,7 +33,7 @@ class WireGame:
         assets = entry.get("assets") or {}
         self.gameDirName = game.get("dir_name") or ""
         self.creation_time = iso_to_epoch(game.get("created_at"))
-        # Empty, not missing: they name the hub's disk, so a device holding them would
+        # Empty, not missing: they name that machine's disk, so an install holding them would
         # hold an address it cannot reach - but a reader still expects the attribute.
         self.fullPathGame = ""
         self.fullPathVPXfile = ""
@@ -41,7 +41,7 @@ class WireGame:
         self.altColorExists = bool(assets.get("alt_color"))
         self.altSoundExists = bool(assets.get("alt_sound"))
         # `resolved_kinds` reports a kind when its attribute is non-empty and never reads
-        # the value, so the kind's own name stands in for the path the hub did not send.
+        # the value, so the kind's own name stands in for the path that was not sent.
         present = set(entry.get("media") or [])
         for spec in MEDIA_SPECS:
             setattr(self, spec.attr, spec.kind if spec.kind in present else "")
@@ -59,7 +59,7 @@ class WireGame:
             "User": {
                 "Rating": user.get("rating", game.get("rating", 0)) or 0,
                 # A filter collection on either resolves on a player as well as on the
-                # hub, which is the whole point of this lens - so an axis reading the
+                # library, which is the whole point of this lens - so an axis reading the
                 # play record has to find it here too.
                 "Favorite": bool(user.get("favorite")),
                 "Tags": list(user.get("tags") or []),

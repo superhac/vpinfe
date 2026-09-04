@@ -210,7 +210,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
                          {"job_id": "import-7", "pct": 42, "message": "Copying"})
 
     async def test_every_event_says_which_install_it_happened_on(self) -> None:
-        """A hub holding two devices needs to know which one a launch came from. The
+        """An install holding two devices needs to know which one a launch came from. The
         surface address stays dropped - which browser tab asked is nobody else's
         business; which install it happened on is what a subscriber can act on."""
         stream = self._open()

@@ -100,7 +100,7 @@ build and it changes how your library is stored — read the next section first.
 - **Console** — A new interface, and what you now land on. It is the control plane: one
   place for the library, media, devices and settings, with a table grid that can draw art
   in a column instead of a tick, and a media map laid out like a pinball machine so a
-  game's coverage reads before any label does. Column layouts are kept on the hub, so they
+  game's coverage reads before any label does. Column layouts are kept with the library, so they
   follow you between machines. The Manager UI moves to `/manager` and is still there — it
   is the complete one, and parts of the Console are unfinished.
 - **Core** — Installs find each other on your network. Each one announces its name, what
@@ -123,10 +123,10 @@ These are deliberate. `docs/compatibility-3.0.md` has the full list with the rea
   than the one that started.
 - **Core** — Launches from the Remote page and the API count as plays now. Start count, last
   played, runtime and NVRAM score were only ever recorded for wheel launches.
-- **Core** — The two roles an install can serve are `hub` and `device`. If you set
-  `[install] roles` on a 3.0 preview build, change `player` to `device` — an unrecognised
-  role is ignored, so the install would report only the half it still recognises. Nothing
-  else reads it, and a config that never set it is unaffected.
+- **Core** — An install is described by the features it has switched on: `library`,
+  `frontend`, `devices`, and `overview` if you ask for it. `[install] roles` on a 3.0
+  preview build is migrated in place — `hub` becomes `library` and `devices`, `device` and
+  `player` become `frontend`. A config that never set it is unaffected.
 - **Core** — Tables whose folders are not all lowercase start reporting the PUP packs,
   colorizations, VNI and altsound they always had. The scan compared folder names exactly,
   so `PUPVideos` — the casing PinUP Popper itself writes — went undetected.
@@ -192,7 +192,7 @@ These are deliberate. `docs/compatibility-3.0.md` has the full list with the rea
   `joypageup`/`joypagedown`.
 - **Themes** — `vpin.endpoints.player` is `vpin.endpoints.device`, and the window url
   carries `devicePort` rather than `playerPort`. It is the address of the machine a game
-  launches on — this one — as against `endpoints.hub`, which is where the library lives.
+  launches on — this one — as against `endpoints.library`, which is where the catalog lives.
   A theme that never read it is unaffected; one that did reads a different key and gets no
   error if it does not, so it is worth checking.
 - **Core** — Breaking: `/api/v1/players` is `/api/v1/devices`, its scopes are

@@ -1,4 +1,5 @@
-"""How a user has arranged a UI, kept on the hub so it follows them between devices.
+"""How a user has arranged a UI, kept with the library so it follows them between
+machines.
 
 Deliberately not `managerui/services/ui_state.py`, whose contract is that losing it
 costs one notice being shown twice. A column layout someone tuned is worth more than

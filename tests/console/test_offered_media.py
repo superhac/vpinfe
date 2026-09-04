@@ -62,12 +62,12 @@ if __name__ == "__main__":
 
 
 class KeptKindsTests(unittest.TestCase):
-    """What the hub asks for before it enumerates anything.
+    """What the Console asks for before it enumerates anything.
 
     Stored as what is hidden, read as what is kept. That direction is the point: a kind
     added in a later version is in nobody's hidden list, so it arrives switched on.
 
-    Held by the library rather than by an install, so two devices reading one hub read
+    Held by the library rather than by an install, so two installs reading one library read
     one answer instead of each carrying a copy.
     """
 

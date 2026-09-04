@@ -179,7 +179,7 @@ class PlayGroupTests(unittest.TestCase):
 
 
 class LabelCasingTests(unittest.TestCase):
-    """One casing rule for every label the hub shows."""
+    """One casing rule for every label the Console shows."""
 
     def test_acronyms_stay_acronyms(self) -> None:
         for text, said in (("vps_id", "VPS ID"), ("rom", "ROM"),

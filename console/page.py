@@ -176,7 +176,7 @@ WORKBENCH_VIEWS = frozenset(EMPTY_PANE)
 def _read_hub() -> dict[str, Any]:
     """Every blocking call the page needs, made once off the event loop.
 
-    The Hub UI consumes its own process over HTTP, so a synchronous page handler asking
+    The Console consumes its own process over HTTP, so a synchronous page handler asking
     the API for 147 games deadlocks: uvicorn cannot answer a request it is blocked
     inside. Keeping the loop free is the cost of the boundary, and it is worth paying -
     the alternative is importing the services, which is what the boundary exists to

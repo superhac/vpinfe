@@ -239,7 +239,7 @@ class ConfigStore:
         # A retired word inside a list. Unlike the choice above this one does not resolve
         # on read: `roles` is filtered against a known set, so an install written before
         # the rename silently stopped claiming the role rather than claiming it under the
-        # old name. Order is kept, because the schema's default reads hub first.
+        # old name. Order is kept, because the schema's default reads library first.
         for (section, key), aliases in _RENAMED_LIST_VALUES.items():
             if not self.config.has_option(section, key):
                 continue
@@ -251,7 +251,7 @@ class ConfigStore:
                 changed = True
 
         # `install.roles` became `install.features`, and one role expands into two
-        # features - `hub` was the library and the device list together, `device` was the
+        # features - the old `hub` was the library and the device list together, `device`
         # frontend - so neither _RENAMED_KEYS nor _RENAMED_LIST_VALUES can carry it.
         #
         # Written against the *value* rather than the old key on purpose. `roles` is an

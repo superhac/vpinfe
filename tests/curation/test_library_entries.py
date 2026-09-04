@@ -79,11 +79,11 @@ class LibraryEntriesTests(TempTree):
 
     def test_a_device_reads_the_answer_back_as_local_entries(self) -> None:
         """The round trip that makes a remote library indistinguishable from a local one:
-        what the hub sent has to arrive as what the resolver would have built."""
+        what the library sent has to arrive as what the resolver would have built."""
         payload = self.client.get("/library/entries").json()
 
         with patch.object(remote_library.http_client, "get_json", lambda *a, **k: payload):
-            remote = remote_library.fetch_entries("http://hub.example:8001")
+            remote = remote_library.fetch_entries("http://library.example:8001")
 
         local = self._resolved(self.games)
         self.assertEqual([game_title(e.game) for e in remote],
@@ -96,11 +96,11 @@ class LibraryEntriesTests(TempTree):
 
     def test_a_device_with_no_library_builds_the_theme_payload(self) -> None:
         """The separation test, in one process: everything the wheel renders comes from
-        what the hub sent, and the local library is not consulted to build it."""
+        what the library sent, and the local library is not consulted to build it."""
         payload = self.client.get("/library/entries").json()
 
         with patch.object(remote_library.http_client, "get_json", lambda *a, **k: payload):
-            remote = remote_library.fetch_entries("http://hub.example:8001")
+            remote = remote_library.fetch_entries("http://library.example:8001")
         theme = json.loads(game_state.games_json(remote, contract=2))
 
         self.assertEqual(theme["count"], len(LIBRARY))
@@ -111,12 +111,12 @@ class LibraryEntriesTests(TempTree):
             self.assertEqual(entry["game"]["user"]["rating"], 4)
 
     def test_no_path_from_the_hub_reaches_the_rendered_payload(self) -> None:
-        """A device holding the hub's paths would be holding addresses it cannot reach,
+        """An install holding the library's paths would be holding addresses it cannot reach,
         so they arrive empty rather than wrong."""
         payload = self.client.get("/library/entries").json()
 
         with patch.object(remote_library.http_client, "get_json", lambda *a, **k: payload):
-            remote = remote_library.fetch_entries("http://hub.example:8001")
+            remote = remote_library.fetch_entries("http://library.example:8001")
         theme = json.loads(game_state.games_json(remote, contract=2))
 
         for entry in theme["entries"]:
@@ -125,7 +125,7 @@ class LibraryEntriesTests(TempTree):
         self.assertNotIn(str(self.root), json.dumps(theme))
 
     def test_what_the_hub_resolved_arrives_resolved(self) -> None:
-        """Media kinds and asset flags are a stat of the hub's disk. A device cannot
+        """Media kinds and asset flags are a stat of the library's disk. Another install cannot
         redo that lookup, so the answer has to survive the trip rather than be recomputed
         against a filesystem that does not have the files."""
         game = self.games[0]
@@ -133,14 +133,14 @@ class LibraryEntriesTests(TempTree):
             setattr(game, attribute, True)
         by_kind = {spec.kind: spec.attr for spec in MEDIA_SPECS}
         for kind in ("wheel", "playfield", "backglass"):
-            setattr(game, by_kind[kind], f"/on/the/hub/{kind}.png")
+            setattr(game, by_kind[kind], f"/on/the/library/{kind}.png")
 
         entry = self._resolved([game])[0]
         local = json.loads(game_state.games_json([entry], contract=2))["entries"][0]
         row = _entry_resource(entry)
         with patch.object(remote_library.http_client, "get_json",
                           lambda *a, **k: {"entries": [row]}):
-            remote_entries = remote_library.fetch_entries("http://hub.example:8001")
+            remote_entries = remote_library.fetch_entries("http://library.example:8001")
         remote = json.loads(game_state.games_json(remote_entries, contract=2))["entries"][0]
 
         self.assertEqual(remote["media"], ["backglass", "playfield", "wheel"])
@@ -149,19 +149,19 @@ class LibraryEntriesTests(TempTree):
         self.assertTrue(all(remote["assets"].values()))
 
     def test_a_hub_that_answers_with_nonsense_is_an_error(self) -> None:
-        """Not an empty wheel: a hub that cannot be understood is not a hub with no
+        """Not an empty wheel: a library that cannot be understood is not a library with no
         games, and showing one as the other reports the wrong thing."""
         with patch.object(remote_library.http_client, "get_json", lambda *a, **k: "nope"):
             with self.assertRaises(ValueError):
-                remote_library.fetch_entries("http://hub.example:8001")
+                remote_library.fetch_entries("http://library.example:8001")
 
 
 class SharedLibraryTests(unittest.TestCase):
-    """Whether a device's own copy of the library is the hub's, asked by content.
+    """Whether an install's own copy of the library is the one it reads, asked by content.
 
     Shared storage is what the split assumes and nothing checked. A path comparison
     cannot answer it - the same share is mounted at different places on different
-    machines - so this compares the hashes the hub already publishes per table.
+    machines - so this compares the hashes the library already publishes per table.
     """
 
     @staticmethod
@@ -201,7 +201,7 @@ class SharedLibraryTests(unittest.TestCase):
         self.assertEqual(report["missing"], [])
 
     def test_nothing_verifiable_is_not_a_pass(self) -> None:
-        """A hub that has hashed nothing says nothing either way, and 'everything
+        """A library that has hashed nothing says nothing either way, and 'everything
         matched' must not be able to mean 'nothing was checked'."""
         report = remote_library.verify_shared_library(
             [self._entry("T1", "")], [self._game("T1", "aaa")])
@@ -216,20 +216,20 @@ class SharedLibraryTests(unittest.TestCase):
 
 class HubUrlTests(unittest.TestCase):
     def test_the_url_names_the_collection_or_the_whole_library(self) -> None:
-        self.assertEqual(remote_library.entries_url("http://hub:8001"),
-                         "http://hub:8001/api/v1/library/entries")
-        self.assertEqual(remote_library.entries_url("http://hub:8001", "Favorites"),
-                         "http://hub:8001/api/v1/collections/Favorites/entries")
+        self.assertEqual(remote_library.entries_url("http://library.example:8001"),
+                         "http://library.example:8001/api/v1/library/entries")
+        self.assertEqual(remote_library.entries_url("http://library.example:8001", "Favorites"),
+                         "http://library.example:8001/api/v1/collections/Favorites/entries")
 
     def test_a_name_with_a_space_or_a_slash_survives(self) -> None:
         """A collection is named by a user, so it is not a safe path segment."""
-        self.assertEqual(remote_library.entries_url("http://hub:8001", "Last Played"),
-                         "http://hub:8001/api/v1/collections/Last%20Played/entries")
-        self.assertIn("A%2FB", remote_library.entries_url("http://hub:8001", "A/B"))
+        self.assertEqual(remote_library.entries_url("http://library.example:8001", "Last Played"),
+                         "http://library.example:8001/api/v1/collections/Last%20Played/entries")
+        self.assertIn("A%2FB", remote_library.entries_url("http://library.example:8001", "A/B"))
 
     def test_a_trailing_slash_on_the_hub_does_not_double(self) -> None:
-        self.assertEqual(remote_library.entries_url("http://hub:8001/"),
-                         "http://hub:8001/api/v1/library/entries")
+        self.assertEqual(remote_library.entries_url("http://library.example:8001/"),
+                         "http://library.example:8001/api/v1/library/entries")
 
 
 if __name__ == "__main__":

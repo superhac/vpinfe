@@ -1,7 +1,7 @@
-"""A hub and a device as separate processes, the device with no library of its own.
+"""Two installs as separate processes, one with no library of its own.
 
 This is the gate the residency work was built against: if a frontend holding no games
-renders the hub's, the split is real rather than vocabulary. Everything else can pass
+renders the other's, the split is real rather than vocabulary. Everything else can pass
 with both halves in one process reading one disk, which is what makes running two worth
 the seconds it costs.
 
@@ -76,28 +76,28 @@ class SeparationTests(TempTree):
 
     def setUp(self) -> None:
         super().setUp()
-        self.hub_root = Path(self.root) / "console-library"
+        self.library_root = Path(self.root) / "console-library"
         self.device_root = Path(self.root) / "device-library"
-        self.hub_root.mkdir()
+        self.library_root.mkdir()
         self.device_root.mkdir()          # and nothing is ever written into it
 
         for title in TITLES:
-            write_game(self.hub_root, f"{title} (Bally 1995)", info=_info(title),
+            write_game(self.library_root, f"{title} (Bally 1995)", info=_info(title),
                        medias={"wheel.png": PNG, "table.png": PNG})
 
     def test_a_device_with_no_library_renders_the_hub_s(self) -> None:
-        with LiveInstance(self.hub_root) as hub:
-            hub.wait_for_api()
-            hub_api = f"http://127.0.0.1:{hub.ports['manager']}"
-            self.assertEqual(_fetch(f"{hub_api}/api/v1/library/entries")["count"],
+        with LiveInstance(self.library_root) as library:
+            library.wait_for_api()
+            library_api = f"http://127.0.0.1:{library.ports['manager']}"
+            self.assertEqual(_fetch(f"{library_api}/api/v1/library/entries")["count"],
                              len(TITLES),
-                             "the hub has to hold the library, or this proves nothing")
+                             "that install has to hold the library, or this proves nothing")
 
             with LiveInstance(self.device_root,
-                              extra_settings={("network", "library_url"): hub_api}) as device:
+                              extra_settings={("network", "library_url"): library_api}) as device:
                 device.wait_for_api()
-                # What the launcher learns from the hub's discovery document.
-                device.hub_assets_port = hub.ports["assets"]
+                # What the launcher learns from the library's discovery document.
+                device.library_assets_port = library.ports["assets"]
                 device_api = f"http://127.0.0.1:{device.ports['manager']}"
                 self.assertEqual(_fetch(f"{device_api}/api/v1/library/entries")["count"],
                                  0,
@@ -114,28 +114,28 @@ class SeparationTests(TempTree):
         """The stronger version of the gate: anything assuming there is one device fails
         here and nowhere else.
 
-        Both render the same library, so the hub really is serving two. Then one launches
+        Both render the same library, so it really is serving two. Then one launches
         and the other must not report it - `launch_state` is a module-level singleton, and
         the question this answers is whether one per process is enough. It is, because a
         device is a process; a shared launch state would show up as the idle device
         claiming the other's game.
         """
-        with LiveInstance(self.hub_root) as hub:
-            hub_api = f"http://127.0.0.1:{hub.ports['manager']}"
-            hub.wait_for_api()
+        with LiveInstance(self.library_root) as library:
+            library_api = f"http://127.0.0.1:{library.ports['manager']}"
+            library.wait_for_api()
 
             with LiveInstance(self.device_root,
-                              extra_settings={("network", "library_url"): hub_api}) as one, \
+                              extra_settings={("network", "library_url"): library_api}) as one, \
                  LiveInstance(self.device_root,
-                              extra_settings={("network", "library_url"): hub_api}) as two:
+                              extra_settings={("network", "library_url"): library_api}) as two:
                 for device in (one, two):
                     device.wait_for_api()
-                    device.hub_assets_port = hub.ports["assets"]
+                    device.library_assets_port = library.ports["assets"]
 
                 self.assertNotEqual(one.ports["manager"], two.ports["manager"],
                                     "two devices on one machine need their own ports")
 
-                # Both draw the hub's library, neither holding a copy of it.
+                # Both draw the same library, neither holding a copy of it.
                 for label, device in (("first", one), ("second", two)):
                     with self.subTest(device=label):
                         rendered, failures = self._render(device)
@@ -160,13 +160,13 @@ class SeparationTests(TempTree):
         it cannot launch from - correct, because the files genuinely are not there. The
         `remote` kind is the next test: same call, same route, its own mount.
         """
-        with LiveInstance(self.hub_root) as hub:
-            hub.wait_for_api()
-            hub_api = f"http://127.0.0.1:{hub.ports['manager']}"
-            game_id = _fetch(f"{hub_api}/api/v1/library/entries")["entries"][0]["game"]["id"]
+        with LiveInstance(self.library_root) as library:
+            library.wait_for_api()
+            library_api = f"http://127.0.0.1:{library.ports['manager']}"
+            game_id = _fetch(f"{library_api}/api/v1/library/entries")["entries"][0]["game"]["id"]
 
             with LiveInstance(self.device_root,
-                              extra_settings={("network", "library_url"): hub_api}) as device:
+                              extra_settings={("network", "library_url"): library_api}) as device:
                 device.wait_for_api()
                 status, code = _post(f"http://127.0.0.1:{device.ports['manager']}"
                                      f"/api/v1/games/{game_id}/launch")
@@ -182,20 +182,20 @@ class SeparationTests(TempTree):
         test machine has no VPX, and that is the honest place to stop: the answer is about
         the device's own hardware rather than about the library.
         """
-        with LiveInstance(self.hub_root) as hub:
-            hub.wait_for_api()
-            hub_api = f"http://127.0.0.1:{hub.ports['manager']}"
-            game_id = _fetch(f"{hub_api}/api/v1/library/entries")["entries"][0]["game"]["id"]
+        with LiveInstance(self.library_root) as library:
+            library.wait_for_api()
+            library_api = f"http://127.0.0.1:{library.ports['manager']}"
+            game_id = _fetch(f"{library_api}/api/v1/library/entries")["entries"][0]["game"]["id"]
 
-            # Same library root as the hub, which is what a shared mount looks like here.
-            with LiveInstance(self.hub_root,
-                              extra_settings={("network", "library_url"): hub_api}) as device:
+            # Same library root as the other install, which is what a shared mount looks like.
+            with LiveInstance(self.library_root,
+                              extra_settings={("network", "library_url"): library_api}) as device:
                 device.wait_for_api()
                 device_api = f"http://127.0.0.1:{device.ports['manager']}"
                 known = _fetch(f"{device_api}/api/v1/games/{game_id}")
                 status, code = _post(f"{device_api}/api/v1/games/{game_id}/launch")
 
-        self.assertEqual(known["id"], game_id, "the device resolves the hub's game id")
+        self.assertEqual(known["id"], game_id, "the reader resolves the library's game id")
         self.assertNotEqual(status, 404,
                             "the library is right there; a 404 would mean the route "
                             "cannot see a shared mount")
@@ -215,7 +215,7 @@ class SeparationTests(TempTree):
         cannot touch the developer's install, and appearing in its device list would be
         exactly that. What they hear is covered in `tests/api/test_discovery.py`.
         """
-        with LiveInstance(self.hub_root) as library:
+        with LiveInstance(self.library_root) as library:
             library.wait_for_api()
             library_api = f"http://127.0.0.1:{library.ports['manager']}"
             itself = _fetch(f"{library_api}/api/v1/devices")

@@ -70,7 +70,7 @@ class ServiceEndpoint(ApiModel):
 
 class Discovery(ApiModel):
     """`name` is the product and is the same on every install; `install_id` is which
-    install this is, which is what a hub holding several of them addresses. A hub files
+    install this is, which is what a registry holding several of them addresses. It files
     that same value under `device_id` in its registry."""
 
     name: str
@@ -114,7 +114,7 @@ class DeviceResource(ApiModel):
     first_seen: str = ""
     # When it last announced itself, which is once per startup.
     last_seen: str = ""
-    # When it was last known to be there, by either route - it announced, or the hub
+    # When it was last known to be there, by either route - it announced, or this install
     # asked and got an answer. This is the one that means "available".
     last_reachable: str = ""
     links: DeviceLinks
@@ -228,21 +228,21 @@ class DeviceProbeList(ApiModel):
 
 
 class DeviceAnnouncement(ApiModel):
-    """What a device says about itself. The address is not here: the hub reads it off
+    """What a device says about itself. The address is not here: it is read off
     the socket, because a device behind a router does not know how it is reached.
 
     `kind` is a closed set, so an unrecognized one is a 422 rather than a string stored
     and handed to a consumer that switches on it.
 
     `device_id` is optional only for a device that cannot have one: a `vpx_mobile` entry
-    is registered by a person, not by the phone, so the hub mints its id. Omitting it for
+    is registered by a person, not by the phone, so its id is minted here. Omitting it for
     a `vpinfe` install is an error - an install knows what it is called.
 
     `address` is read for a `vpx_mobile` entry and ignored for the rest. See the handler.
 
     `port` is the other half of being reachable, and unlike the address the device is the
     only party that knows it - the socket says where a request came from, never what that
-    machine listens on. Without it a hub has half an address and can only ever read what
+    machine listens on. Without it the registry has half an address and can only ever read what
     a device chose to tell it.
     """
 
@@ -343,7 +343,7 @@ class LibraryPolicy(ApiModel):
     """What this library collects. Empty means everything, in all three - so a kind or a
     source added in a later version arrives switched on rather than silently absent.
 
-    The library's rather than an install's: every device reading one hub gets this
+    The library's rather than an install's: every install reading one library gets this
     answer, instead of each carrying a copy of a question about somebody else's files.
     """
 
@@ -883,7 +883,7 @@ class EntryGame(ApiModel):
     themes: list[str] = Field(default_factory=list)
     dir_name: str = ""
     manufacturer_logo: str | None = None
-    # When the folder appeared, which is what "Newest" sorts on. A stat of the hub's
+    # When the folder appeared, which is what "Newest" sorts on. A stat of the library's
     # filesystem, so a client sorting its own copy has to be told rather than look.
     created_at: str | None = None
     # Flat, and again inside `user`. The flat one shipped first and clients may read it;
@@ -1165,7 +1165,7 @@ class CatalogEntry(ApiModel):
 class MediaFetch(ApiModel):
     """Which source to take a file from, for which VPS entry, and at which size.
 
-    No URL. The hub follows only links a source produced for that id and kind, so a
+    No URL. Only links a source produced for that id and kind are followed, so a
     caller can never point it at a host of their choosing."""
 
     source: str

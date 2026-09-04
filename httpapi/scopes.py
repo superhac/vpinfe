@@ -44,7 +44,7 @@ SYSTEM_READ = "system:read"
 # end someone's game.
 SYSTEM_ADMIN = "system:admin"
 
-# The devices a hub knows. Reading the registry is not the same as joining it: a device
+# The devices an install knows. Reading the registry is not the same as joining it: a device
 # announces itself, which is a write, and anything asking who is out there is a read.
 DEVICES_READ = "devices:read"
 DEVICES_WRITE = "devices:write"

@@ -2,7 +2,7 @@
 //
 // Six places hardcoded 127.0.0.1 and read a port off the core, so "which machine answers
 // this" was asserted six times and a seventh was easy to add. The block answers it once,
-// keyed by role - hub and device, not by transport, because the window channel is one
+// keyed by what answers - the library and this machine, not by transport, because the
 // transport serving both and a transport-keyed block cannot express the split.
 //
 // Ports arrive in the url because the page cannot ask for them: asking needs the bridge,
@@ -19,11 +19,11 @@ const withPorts = (search) => newCore({ windowName: "table", search }).vpin;
 
 describe("the endpoint block", () => {
   test("is resolved from the url before any theme code runs", () => {
-    const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&hubPort=9001");
+    const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&libraryPort=9001");
 
     assert.equal(vpin.endpoints.assets, "http://127.0.0.1:9000");
     assert.equal(vpin.endpoints.device, "http://127.0.0.1:9001");
-    assert.equal(vpin.endpoints.hub, "http://127.0.0.1:9001", "one api answers for both today");
+    assert.equal(vpin.endpoints.library, "http://127.0.0.1:9001", "one api answers for both today");
     assert.equal(vpin.endpoints.frontend_channel, "ws://127.0.0.1:9002");
   });
 
@@ -45,32 +45,32 @@ describe("the endpoint block", () => {
 
   test("each key points where its own setting says", () => {
     // The keys are not interchangeable: media comes off the asset server and the api
-    // off the manager ui port. Pointing hub at the asset server was the original bug.
-    const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&hubPort=9001");
+    // off the manager ui port. Pointing the library at the asset server was the original bug.
+    const vpin = withPorts("?window=table&wsPort=9002&themeAssetsPort=9000&libraryPort=9001");
 
     assert.equal(vpin.endpoints.assets, `http://127.0.0.1:${vpin.themeAssetsPort}`);
-    assert.equal(vpin.endpoints.hub, `http://127.0.0.1:${vpin.hubPort}`);
+    assert.equal(vpin.endpoints.library, `http://127.0.0.1:${vpin.libraryPort}`);
     assert.equal(vpin.endpoints.device, `http://127.0.0.1:${vpin.devicePort}`);
     assert.equal(vpin.endpoints.frontend_channel, `ws://127.0.0.1:${vpin.wsPort}`);
   });
 
-  test("a hub on another machine moves the hub's services and nothing else", () => {
-    // What a device gets. `hubPort` is the hub's port, so `device` cannot read it: this
-    // machine's own api is on devicePort, at loopback, whoever holds the library.
+  test("a library on another machine moves its services and nothing else", () => {
+    // `libraryPort` is the other install's, so `device` cannot read it: this machine's
+    // own api is on devicePort, at loopback, whoever holds the library.
     const vpin = withPorts(
-      "?window=table&wsPort=8002&themeAssetsPort=8000&hubPort=9000" +
-      "&hubHost=hub.example&devicePort=8001");
+      "?window=table&wsPort=8002&themeAssetsPort=8000&libraryPort=9000" +
+      "&libraryHost=library.example&devicePort=8001");
 
-    assert.equal(vpin.endpoints.hub, "http://hub.example:9000");
-    assert.equal(vpin.endpoints.assets, "http://hub.example:8000", "art follows the library");
+    assert.equal(vpin.endpoints.library, "http://library.example:9000");
+    assert.equal(vpin.endpoints.assets, "http://library.example:8000", "art follows the library");
     assert.equal(vpin.endpoints.device, "http://127.0.0.1:8001", "this machine, always");
     assert.equal(vpin.endpoints.frontend_channel, "ws://127.0.0.1:8002", "this machine, always");
   });
 
-  test("no hubHost is every single-machine install, unchanged", () => {
-    const vpin = withPorts("?window=table&wsPort=8002&themeAssetsPort=8000&hubPort=8001");
+  test("no libraryHost is every single-machine install, unchanged", () => {
+    const vpin = withPorts("?window=table&wsPort=8002&themeAssetsPort=8000&libraryPort=8001");
 
-    assert.equal(vpin.endpoints.hub, "http://127.0.0.1:8001");
+    assert.equal(vpin.endpoints.library, "http://127.0.0.1:8001");
     assert.equal(vpin.endpoints.assets, "http://127.0.0.1:8000");
     assert.equal(vpin.endpoints.device, "http://127.0.0.1:8001");
   });

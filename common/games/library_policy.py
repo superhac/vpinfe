@@ -3,10 +3,10 @@
 Which media kinds and asset kinds are worth having, and which online catalogs are
 searched for artwork: three answers about one library, shared by every device reading
 it. They lived in each install's config file, which is one answer per machine - so two
-devices on one library had two answers, and only the hub's did anything.
+installs on one library had two answers, and only the library's did anything.
 
 Follows `common/games/collection_store.py`: a small JSON file, written whole and
-atomically, carrying its own schema version. Hub-owned, like the library itself.
+atomically, carrying its own schema version. Owned by the library, like the games.
 
 Empty means everything, in all three. A kind or a source added in a later version
 arrives switched on rather than silently absent, which is what an install upgrading

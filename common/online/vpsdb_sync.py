@@ -95,7 +95,7 @@ def sync(config, force: bool = False) -> dict:
             "version": after, "at": checked_at(config)}
 
 
-# How often the runner wakes to ask whether a check is due. Not the schedule - a hub
+# How often the runner wakes to ask whether a check is due. Not the schedule - an install
 # left running for a week has to notice its daily check coming round, and a process
 # that only checked at startup would never fire on the machine that never restarts.
 _WAKE_SECONDS = 60 * 60

@@ -1,7 +1,7 @@
 """Which client answers for a device, and what a remote one refuses to guess at.
 
 The resolver is the whole seam: every caller asks `for_device` and then talks to what
-it gets back, so a wrong answer here is a hub asking the wrong machine.
+it gets back, so a wrong answer here is one install asking the wrong machine.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ class ResolverTests(unittest.TestCase):
         self.assertIsNone(client)
 
     def test_without_knowing_which_install_is_ours_nothing_is_assumed_local(self) -> None:
-        """A hub that has not identified itself must not answer for a device on the
+        """An install that has not identified itself must not answer for a device on the
         grounds that it cannot tell them apart."""
         client = device_client.for_device(CAB, None)
 
@@ -53,7 +53,7 @@ class ResolverTests(unittest.TestCase):
 
 
 class RemoteRefusalTests(unittest.TestCase):
-    """What a hub cannot learn by asking. Raising beats an empty list: "no screens" and
+    """What cannot be learned by asking. Raising beats an empty list: "no screens" and
     "not a thing this device can be asked" are different facts."""
 
     def setUp(self) -> None:

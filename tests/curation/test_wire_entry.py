@@ -3,7 +3,7 @@
 The axis registry and the sort keys are written against a `Game` and read `meta_config`
 off it. A client holding a copy of the library has entries instead, so the same question
 asked on either side has to get the same answer - otherwise a filtered view on another
-machine quietly disagrees with the hub about what is in it.
+machine quietly disagrees with the library about what is in it.
 
 These run every axis and every order against both, on one library, and compare.
 """
@@ -23,7 +23,7 @@ from tests.support.library import TempTree, fake_game, write_game
 LIBRARY = (
     # name, manufacturer, year, type, themes, rating, created, last run, secs, plays,
     # favorite, tags. The last two vary across the four, or a filter on either agrees
-    # between the hub and the wire by matching nothing on both sides.
+    # between the library and the wire by matching nothing on both sides.
     ("The Addams Family (Bally 1992)", "Bally", "1992", "SS", ["Movie"],
      3, 300.0, 1700000000, 120, 3, True, ["Wide Body"]),
     ("Attack from Mars (Bally 1995)", "Bally", "1995", "SS", ["Space", "Aliens"],
@@ -59,7 +59,7 @@ ORDERS = ("title", "year", "rating", "added", "play_time_seconds", "last_played"
 
 
 class _WireEntry:
-    """A sort key reads `.game` and `.table_id`; the table id is the hub's either way."""
+    """A sort key reads `.game` and `.table_id`; the table id is the library's either way."""
 
     def __init__(self, game, table_id: str) -> None:
         self.game = game
@@ -89,12 +89,12 @@ class WireEntryTests(TempTree):
                      for entry in self.entries]
 
     def test_every_axis_matches_the_same_games(self) -> None:
-        """A filtered view on another machine holds what the hub says it holds."""
+        """A filtered view on another machine holds what the library says it holds."""
         for stored in FILTERS:
             with self.subTest(filter=stored):
-                hub = [collection_filters.matches(stored, e.game) for e in self.entries]
+                local = [collection_filters.matches(stored, e.game) for e in self.entries]
                 wire = [collection_filters.matches(stored, e.game) for e in self.wire]
-                self.assertEqual(wire, hub)
+                self.assertEqual(wire, local)
 
     def test_every_axis_is_covered(self) -> None:
         """So an axis added later is not silently left untested here."""
@@ -106,11 +106,11 @@ class WireEntryTests(TempTree):
         """Including the three that read a play record and the one that reads a stat."""
         for order in ORDERS:
             with self.subTest(order=order):
-                hub = [game_title(e.game)
+                local = [game_title(e.game)
                        for e in collection_resolver._ordered(list(self.entries), order)]
                 wire = [game_title(e.game)
                         for e in collection_resolver._ordered(list(self.wire), order)]
-                self.assertEqual(wire, hub)
+                self.assertEqual(wire, local)
 
     def test_each_order_reads_the_field_it_claims_to(self) -> None:
         """The comparison above would hold on a wire entry carrying none of these, by
@@ -175,7 +175,7 @@ class WireEntryTests(TempTree):
 
     def test_a_hidden_table_stays_hidden_after_the_trip(self) -> None:
         """`hidden` is the user's choice not to be offered a table. A device that loses it
-        would offer one the hub does not."""
+        would offer one the library does not."""
         restored = wire_entry.table_of({"table": {"id": "T", "hidden": True}})
 
         self.assertIs(restored["hidden"], True)

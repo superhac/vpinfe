@@ -38,7 +38,7 @@ class ApiError(RuntimeError):
 class ApiClient:
     """An ordinary consumer of /api/v1, over HTTP rather than by import.
 
-    Deliberate, and the point of the exercise: anything the Hub UI cannot do through
+    Deliberate, and the point of the exercise: anything the Console cannot do through
     this client, no third-party client can do either.
     """
 

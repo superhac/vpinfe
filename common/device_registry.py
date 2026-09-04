@@ -1,4 +1,4 @@
-"""The devices a hub knows about.
+"""The devices an install knows about.
 
 Keyed by `device_id`, which is the only thing about a device that never changes: a
 display name is meant to be renamed and an address moves with DHCP, so neither can be
@@ -8,7 +8,7 @@ and atomically, carrying its own schema version.
 For a VPinFE install `device_id` *is* its `install_id`, which is what makes attribution
 work: an event carries the `install_id` it happened on, and that value finds the entry.
 They are two names because they answer different questions - `install_id` is what an
-installation calls itself, `device_id` is what this hub files it under - and because a
+installation calls itself, `device_id` is what this registry files it under - and because a
 device that is not an install has the second and never the first.
 
 Data only. Routing a launch to a chosen device, aggregating state across devices and
@@ -39,7 +39,7 @@ DEVICES_KEY = "devices"
 MIGRATIONS_KEY = "migrations"
 
 # What a device is, as a closed set. A VPinFE install runs our code and answers for
-# itself; a phone running VPX Mobile never does, and the hub holds everything known
+# itself; a phone running VPX Mobile never does, and the registry holds everything known
 # about it. Closed because a consumer switches on this - an unrecognized value would
 # reach a UI as a device it has no idea how to talk to.
 KIND_VPINFE = "vpinfe"
@@ -68,7 +68,7 @@ def _known_kind(raw: Any) -> str:
 
 @dataclass(frozen=True)
 class Device:
-    """One device a hub has seen.
+    """One device this install has seen.
 
     `display_name` and `features` are what that install last reported, cached so a registry
     can be read without asking every device. They go stale by design - the install owns
@@ -80,7 +80,7 @@ class Device:
     display_name: str = ""
     features: tuple[str, ...] = ()
     address: str = ""
-    # Declared by the device, because the socket a hub reads the address off says where a
+    # Declared by the device, because the socket the address is read off says where a
     # request came from and never what that machine listens on. 0 means it did not say -
     # an entry written before installs sent one, or a device that cannot be dialed back.
     port: int = 0
@@ -88,7 +88,7 @@ class Device:
     # When it last announced itself, which is once per startup. An install that has been
     # up for a week said so a week ago, so this is not how recently it was there.
     last_seen: str = ""
-    # When it was last known to be there, by either route - it announced, or the hub
+    # When it was last known to be there, by either route - it announced, or this install
     # asked and got an answer. The one that means "available", and the only one of the
     # three that a device being switched off ever stops advancing.
     last_reachable: str = ""
@@ -110,7 +110,7 @@ class Device:
         known = {"device_id", "kind", "display_name", "features", "roles", "address", "port",
                  "first_seen", "last_seen", "last_reachable"}
         # `roles` is what entries written before the feature model called this. Read
-        # rather than migrated: the words differ too - an install that said hub meant the
+        # rather than migrated: the words differ too - one that said `hub` meant the
         # library and the device list - and this is a cache the install refreshes itself,
         # so a stale entry corrects on its next announcement rather than on a rewrite.
         declared = raw.get("features") or raw.get("roles") or []
@@ -134,7 +134,7 @@ class Device:
 
 
 class DeviceRegistry:
-    """Every device this hub knows, read and written whole."""
+    """Every device this install knows, read and written whole."""
 
     def __init__(self, path: Path | str | None = None):
         self.path = Path(path) if path is not None else DEVICE_REGISTRY_PATH
@@ -144,7 +144,7 @@ class DeviceRegistry:
 
     def devices(self) -> list[Device]:
         """Every entry, oldest first. An unreadable file is an empty registry, never an
-        error: a hub with no devices is the normal case, and so is a first run."""
+        error: an install with no devices is the normal case, and so is a first run."""
         with self._lock:
             return self._load()
 
@@ -203,11 +203,11 @@ class DeviceRegistry:
             return devices[wanted]
 
     def record_reachable(self, device_id: str, *, when: str = "") -> Device | None:
-        """Note that the hub got an answer out of this device just now.
+        """Note that this install got an answer out of that device just now.
 
         The pull half. A device announcing itself is the push half and `record` writes
         the same field, because both prove the same thing - that it was there. What
-        differs is who asked: an install announces once at startup, and a hub can ask
+        differs is who asked: an install announces itself, and this one can ask
         any time it wants to know, which is what stops the answer aging for a week while
         the machine sits there running.
         """
@@ -297,7 +297,7 @@ _registry: DeviceRegistry | None = None
 
 
 def get_device_registry() -> DeviceRegistry:
-    """The hub's registry. One per process."""
+    """This install's registry. One per process."""
     global _registry
     if _registry is None:
         _registry = DeviceRegistry()

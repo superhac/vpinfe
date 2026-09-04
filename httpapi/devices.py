@@ -1,4 +1,4 @@
-"""The devices a hub knows about.
+"""The devices an install knows about.
 
 An install announces itself on the network and every other install decides what to do
 with that; one that manages devices records what it heard and when. That is the whole of
@@ -40,7 +40,7 @@ def _resource(device) -> dict:
     return device.as_dict() | {"links": {"self": f"/api/v1/devices/{device.device_id}"}}
 
 
-@router.get("", summary="The devices this hub knows",
+@router.get("", summary="The devices this install knows",
             dependencies=[requires(scopes.DEVICES_READ)])
 def list_devices() -> models.DeviceList:
     devices = get_device_registry().devices()
@@ -74,7 +74,7 @@ def get_device(device_id: str) -> models.DeviceResource:
     return _resource(device)
 
 
-@router.put("", summary="Announce a device to this hub", status_code=200,
+@router.put("", summary="Record a device", status_code=200,
             dependencies=[requires(scopes.DEVICES_WRITE)])
 def announce(request: Request,
              payload: models.DeviceAnnouncement = Body(...)) -> models.DeviceResource:
@@ -82,12 +82,12 @@ def announce(request: Request,
 
     Where the address comes from depends on who is talking. An install announcing
     itself gets the socket's address, never the body's: a device behind a router does
-    not know how the hub reaches it, and a caller that could name its own address could
+    not know how it is reached, and a caller that could name its own address could
     name someone else's. A `vpx_mobile` entry is the other case - the phone is not the
     one calling, a person is registering it, so its address can only be declared. The
     socket there belongs to whoever filled in the form.
 
-    A `vpx_mobile` entry with no `device_id` is new, and the hub mints one. That is the
+    A `vpx_mobile` entry with no `device_id` is new, and its id is minted here. That is the
     only way to add a device that cannot identify itself, and it is why several phones
     can coexist: each gets its own id rather than one derived from an address they would
     both change.
@@ -117,7 +117,7 @@ def announce(request: Request,
         address=address,
         # Declared, unlike the address: the socket says where a request came from, never
         # what that machine listens on. A device that does not say stays at 0, which is
-        # what it has always been - a hub reads what it was told and dials nobody.
+        # what it has always been - what it was told is read, and nobody is dialled.
         port=payload.port,
     )
     if device is None:
@@ -132,7 +132,7 @@ async def probe_devices() -> models.DeviceProbeList:
 
     A write, because it advances each answering device's `last_reachable` - the pull
     half of that timestamp, where an announcement is the push half. Both prove the same
-    thing; a hub can ask any time, and an install only says so at startup.
+    thing; this install can ask any time, and another only announces itself now and then.
 
     One device at a time, off the loop. A machine that is off costs its own short
     timeout and nobody else's answer.

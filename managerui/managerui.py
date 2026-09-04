@@ -439,7 +439,7 @@ def _manager_ui_urls(port: int) -> list[str]:
     return urls
 
 # The route is named /favicon.ico whatever the file is; the browser reads the content
-# type. One route covers every page, the Hub included - none of them set their own.
+# type. One route covers every page, the Console included - none of them set their own.
 _FAVICON = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "static", "img", "vpinfe-favicon.svg")
 

@@ -4,7 +4,7 @@
 `docs/managerui.md` says the Manager UI is one consumer of the shared services rather
 than their owner. Neither was checked, and both had drifted: `httpapi` reached into
 `managerui.services` at nine sites for game, archive, upload and asset logic, and
-`managerui` reached into `frontend` at five for the things a hub does to a device.
+`managerui` reached into `frontend` at five for the things one install does to another.
 
 Nothing in either direction was deliberate - they are what happens when a rule lives
 only in prose. This file is the check, so the next one fails here instead of being
@@ -56,7 +56,7 @@ def _offenders(package: str, forbidden: set[str]) -> list[str]:
 class LayeringTests(unittest.TestCase):
     def test_common_does_not_import_the_packages_above_it(self) -> None:
         """Anything may depend on `common/`, so it may depend on nothing that depends
-        on it - otherwise a hub install has to ship a frontend to import a game."""
+        on it - otherwise a library install has to ship a frontend to import a game."""
         self.assertEqual(_offenders("common", {"managerui", "httpapi", "frontend"}), [])
 
     def test_the_infrastructure_layer_does_not_import_a_domain_package(self) -> None:

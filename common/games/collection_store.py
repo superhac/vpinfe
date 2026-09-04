@@ -132,7 +132,7 @@ BUILTIN_RECORDS = {
 
 def public_name(name: str | None) -> str:
     """What a collection is called outside core. The whole library is no collection at
-    all out there - in the payload, in `get_current_collection`, in the hub's URL - and
+    all out there - in the payload, in `get_current_collection`, in the URL - and
     the `builtin:` prefix reaches nobody."""
     return "" if not name or name == BUILTIN_ALL else str(name)
 

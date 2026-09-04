@@ -1,6 +1,6 @@
 """One installation's identity: an id that survives, a name that addresses nothing.
 
-The id is what a hub will key its device registry on, so the properties that matter are that reading
+The id is what a device registry keys on, so the properties that matter are that reading
 never mints, that minting reaches disk, and that a second start adopts what the first
 wrote rather than quietly becoming a different install.
 """

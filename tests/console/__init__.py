@@ -1,1 +1,1 @@
-"""The hub's control plane - where a panel is, and how an address says so."""
+"""The Console - where a panel is, and how an address says so."""

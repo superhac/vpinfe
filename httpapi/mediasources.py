@@ -31,7 +31,7 @@ def enabled_ids() -> tuple[str, ...]:
     return MediaConfig.from_config(get_ini_config()).asset_sources
 
 
-@router.get("", summary="The online artwork catalogs this hub knows",
+@router.get("", summary="The online artwork catalogs this install knows",
             dependencies=[requires(scopes.VPS_READ)])
 def list_sources() -> models.MediaSourceList:
     """Every source that ships, and whether it is one of the ones being asked.

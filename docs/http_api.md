@@ -66,7 +66,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/jobs/{id}` | One job — state, last progress, outcome |
 | GET | `/api/v1/library/entries` | The play lens over the whole library |
 | GET | `/api/v1/library/filters` | Every filter axis, with the values this library holds |
-| GET | `/api/v1/library/policy` | What this library collects — hidden media kinds, hidden asset kinds, and which catalogs are searched. The library's answer, so every device reading one hub gets the same one. Empty means everything |
+| GET | `/api/v1/library/policy` | What this library collects — hidden media kinds, hidden asset kinds, and which catalogs are searched. The library's answer, so every install reading one library gets the same one. Empty means everything |
 | PUT | `/api/v1/library/policy` | Change it. A patch: an absent key is left alone, a key sent empty is stored empty |
 | POST | `/api/v1/library/scan` | Rebuild game metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
 | GET | `/api/v1/devices` | The devices this install knows about |
@@ -271,7 +271,7 @@ endpoint. Replacing `LocalTrustPolicy` is the whole of it.
 An identity does carry `origin` — `local` or `network` — decided by the request's own peer
 address, so a policy that wants to treat the two differently has the fact without re-deriving
 it. It is read from the socket and never from `X-Forwarded-For`, which the caller writes.
-Nothing acts on it yet: the hub binds every interface by default so a phone can administer a
+Nothing acts on it yet: VPinFE binds every interface by default so a phone can administer a
 cabinet, and what a network caller should be allowed is a decision that lands on that
 workflow.
 
@@ -567,7 +567,7 @@ and a shrinking one as ratings change.
 
 ## Devices
 
-A hub records which devices it knows, keyed by `device_id`. That is the whole of it -
+An install records which devices it knows, keyed by `device_id`. That is the whole of it -
 there is no routing a launch to a chosen device, no aggregating their state and no
 conflict resolution, because each of those needs a decision *across* devices that has not
 been made.
@@ -577,7 +577,7 @@ and for a VPinFE install that is the same value as its `device_id` - so the regi
 that id into a name a person recognizes.
 
 `device_id` rather than `install_id` because not every device is an install. A phone
-running VPX Mobile has no install id to offer, so the hub mints one for it. The address is
+running VPX Mobile has no install id to offer, so one is minted for it. The address is
 never the key: it is the property most likely to change, and a device on DHCP would
 otherwise become a new device every time its lease turned over.
 
@@ -590,17 +590,17 @@ A device announces itself with `PUT /devices` on startup, sending its `device_id
 survives, everything else is refreshed, because the install owns those and the registry is
 a copy that goes stale by design.
 
-**The address is observed, not claimed** - for a device announcing itself. The hub reads
+**The address is observed, not claimed** - for a device announcing itself. It is read
 it off the socket and ignores any the body carries: a device behind a router does not know
 how it is reached, and a caller that could name its own address could name someone else's.
 
 A `vpx_mobile` entry is the other case. The phone is not the caller - a person is
 registering it - so its address is declared in the body and is required, because it is the
-only way to reach it. Such an entry may also omit `device_id`, and the hub mints one from
+only way to reach it. Such an entry may also omit `device_id`, and one is minted from
 the same generator install ids use. That is what lets several phones coexist: each has an
 id of its own rather than one derived from an address they will both change.
 
-The hub records itself at startup, so it appears in its own registry like anything
+An install records itself at startup, so it appears in its own registry like anything
 else.
 
 An install upgrading from 2.x brings its `[mobile]` address across once, as a
@@ -608,25 +608,25 @@ An install upgrading from 2.x brings its `[mobile]` address across once, as a
 aliases, but nothing reads them at runtime afterwards - the registry is where a
 mobile device lives, which is what allows more than one of them.
 
-A device that cannot reach its hub starts anyway. Registering costs a label, not a
+An install that cannot be recorded starts anyway. Being listed costs a label, not a
 capability.
 
 ### Is the library really shared?
 
-A device and its hub are usually looking at the same files over a network share, and
+Two installs sharing a library are usually looking at the same files over a network share, and
 nothing checked that. A `game_root_dir` that is wrong or unmounted fails one game at a
 time, at launch, as a file-not-found.
 
-Set `network.verify_shared_library` and a device compares its own tables against the hub's
+Set `network.verify_shared_library` and an install compares its own tables against the library's
 at startup, by `table.file_hash` rather than by path — the same share is mounted at
 different places on different machines, so paths would report every install as broken. It
 logs what it found and changes nothing else: what to do about a mismatch is a decision
 nobody has made, and an unmounted share should not become fatal on a machine that was
 working a moment ago.
 
-Three outcomes, because they are three different problems: `missing` (the hub has a table
+Three outcomes, because they are three different problems: `missing` (the library has a table
 this device cannot resolve), `differs` (both have it, the bytes are not the same), and
-`unverifiable` (the hub has not hashed it, so it says nothing either way). Nothing
+`unverifiable` (the library has not hashed it, so it says nothing either way). Nothing
 verifiable is not a pass.
 
 ## Jobs

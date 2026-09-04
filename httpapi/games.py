@@ -358,7 +358,7 @@ def _tables(game, row: dict) -> list[dict]:
             "default_kind": default_kind if name == default else "",
             "hidden": name in hidden,
             # The table's own rating, which this lens has to carry as well as the play
-            # lens - a hub reads tables here and would otherwise see every one unrated.
+            # lens - tables are read here and would otherwise all look unrated.
             "rating": table_rating(described_entry),
             "user": table_play_record(described_entry),
             "available": name in on_disk,
@@ -841,7 +841,7 @@ def get_placements(game_id: str, kind: str) -> models.MediaPlacementList:
              summary="Put a file from this machine into a slot",
              dependencies=[requires(scopes.GAMES_WRITE), requires(scopes.FILESYSTEM_READ)])
 def import_media(game_id: str, kind: str, body: models.MediaImport) -> models.MediaWritten:
-    """Copy artwork in from anywhere on this machine the hub is allowed to read.
+    """Copy artwork in from anywhere on this machine the install is allowed to read.
 
     Both scopes, because it is both things: it reads a file off the disk and it writes
     a game's media, and holding one of those is not permission for the other.
@@ -863,7 +863,7 @@ def fetch_media(game_id: str, kind: str, body: models.MediaFetch) -> models.Medi
     """Download what an online catalog publishes and put it in the slot.
 
     A source and an id, never a URL: the only links this follows are ones a source
-    produced for that id and kind, which is what stops it being a way to make the hub
+    produced for that id and kind, which is what stops it being a way to make this install
     fetch whatever a caller likes. The id does not have to be this game's - a mod, or a
     game the matcher got wrong, is exactly when the art has to come from another entry.
     """
@@ -1049,10 +1049,10 @@ def extract_table_script(game_id: str, table_id: str) -> models.Table:
 
     **This changes which script the table runs.** VPX loads a sidecar in place of the
     one inside the .vpx, so extracting is how a table is patched - and it is why the
-    hub reports the script as internal or external rather than as merely extracted.
+    install reports the script as internal or external rather than as merely extracted.
 
     Runs the configured launcher with `-extractvbs`, so it answers for the machine it
-    is called on, the same as `/launch`: a hub with no VPX installed cannot do this.
+    is called on, the same as `/launch`: an install with no VPX cannot do this.
     """
     game = _game_or_404(game_id)
     filename = _table_filename_or_404(game, table_id)
@@ -1111,7 +1111,7 @@ def put_table_rating(game_id: str, table_id: str,
     """A table's own rating, which refines the game's rather than replacing it.
 
     INFO-SCHEMA section 8.1 left this open on one question - how a user sets a table's
-    rating when the wheel shows one entry per game. The hub's Tables grid is the answer:
+    rating when the wheel shows one entry per game. The Console's Tables grid is the answer:
     the row you rate is the file. Additive on both lenses, as that section says.
 
     Returns the table rather than the rating, because a client that just rated one is

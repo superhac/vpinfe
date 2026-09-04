@@ -323,7 +323,7 @@ until then the chain reports `required: null`.
 - **Launcher** — the application that runs a table file (VPX standalone today).
   Not "app": that is VPinFE itself, and the lifecycle scopes use it that way.
 - **Install** — one VPinFE installation: its files, its config, its `install_id`. It
-  survives restarts, and it is what a hub or a device is addressed as.
+  survives restarts, and it is what an install is addressed as.
 - **App** — VPinFE running. What a lifecycle request starts, stops or restarts, as against
   the `frontend` it opens and the `system` it runs on. The install is still there when the
   app is not.
@@ -373,7 +373,7 @@ neighbouring vocabulary already decided the same question — which shape means 
 which color means "present", whether a legend names a blank. Those live in the module that
 owns the fact (`console/media_ownership.py`, `console/table_features.py`, `console/game_tables.py`) and in
 this file, not in the stylesheet. **The tell is proposing a *new* treatment at all**: if the
-hub already shows this kind of fact anywhere, the answer exists and the job is to find it.
+Console already shows this kind of fact anywhere, the answer exists and the job is to find it.
 
 ### The panel is a shape, not a place
 
@@ -430,7 +430,7 @@ whatever it holds, so the air around one does not depend on its kind. At 26px a 
 value sat 21px in the row while a chip carried its own padding and read roomier — the
 same rhythm, felt as two. Content that wraps is the only thing that grows a row.
 
-**A failed write shows what the hub said, never what HTTP said.** `raise_for_status`
+**A failed write shows what the API said, never what HTTP said.** `raise_for_status`
 discards the body, so "No Visual Pinball on this machine…" reached a user as
 `501 Server Error: Not Implemented for url: /api/v1/games/…/script` — a status line and
 our own route. `HubClient` raises `HubError` carrying the API's message, and a surface
@@ -480,7 +480,7 @@ stretch to the same width.
   as a second value, and this panel is worked in rather than read. What made the pair
   feel wrong was the type, not the border — 12px/500 beside a chip at 11px/400.
   It hugs the chip at `--target-inline` rather than taking `--target-min`, which is the
-  only place in the hub below the pointer floor; `@media (pointer: coarse)` gives the
+  only place in the Console below the pointer floor; `@media (pointer: coarse)` gives the
   floor back where the pointer is a finger.
 - **Section actions sit in their own strip** under the content, as a media slot's do.
   Position is then what tells a row action from a section one.
@@ -534,7 +534,7 @@ means the exception worth spotting in a map of twenty.
 ### Marks, and what color one is
 
 **A binary fact is a tick; a fact with more answers is a shaped circle.** Presence is a
-checkmark wherever the hub says it — asset columns, media columns, feature columns — and the
+checkmark wherever the Console says it — asset columns, media columns, feature columns — and the
 circles (`.console-mark--full`, `--outline`, `--set`, `--dashed`) are for a vocabulary with more
 than two answers to tell apart, where a reader has to distinguish them at a glance. A fact
 that stops having three answers moves to a tick; one that gains a third moves the other way.

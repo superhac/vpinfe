@@ -1,4 +1,4 @@
-"""The devices a hub knows about.
+"""The devices an install knows about.
 
 Keyed by `device_id` because it is the only thing about a device that does not change:
 a display name is meant to be renamed and an address moves with DHCP. A registry that
@@ -31,11 +31,11 @@ class DeviceRegistryTests(unittest.TestCase):
 
     def test_recording_a_device_makes_it_known(self) -> None:
         self.registry.record("Aaaa111111", display_name="basement cab",
-                           features=("hub", "device"))
+                           features=("library", "frontend"))
 
         device = self.registry.get("Aaaa111111")
         self.assertEqual(device.display_name, "basement cab")
-        self.assertEqual(device.features, ("hub", "device"))
+        self.assertEqual(device.features, ("library", "frontend"))
         self.assertTrue(self.registry.knows("Aaaa111111"))
 
     def test_a_device_heard_from_twice_is_still_one_device(self) -> None:
@@ -81,11 +81,11 @@ class DeviceRegistryTests(unittest.TestCase):
                            address="192.168.1.10")
         self._rewrite_first_seen("Aaaa111111", pinned)
 
-        later = self.registry.record("Aaaa111111", display_name="b", features=("hub",),
+        later = self.registry.record("Aaaa111111", display_name="b", features=("library",),
                                    address="192.168.1.99")
 
         self.assertEqual((later.display_name, later.features, later.address),
-                         ("b", ("hub",), "192.168.1.99"))
+                         ("b", ("library",), "192.168.1.99"))
         self.assertEqual(later.first_seen, pinned, "a re-record must not move it")
         self.assertNotEqual(later.last_seen, pinned, "but last_seen is now")
 
@@ -215,7 +215,7 @@ class DeviceRegistryStorageTests(unittest.TestCase):
         self.assertEqual(json.loads(self.path.read_text())["schema"], 1)
 
     def test_an_unreadable_registry_is_empty_rather_than_fatal(self) -> None:
-        """A hub with a corrupt registry should still start. It has lost who it knew,
+        """An install with a corrupt registry should still start. It has lost who it knew,
         which is recoverable; refusing to run is not."""
         self.path.write_text("{ not json", encoding="utf-8")
 
@@ -247,7 +247,7 @@ class DeviceRegistryStorageTests(unittest.TestCase):
 class DeviceTests(unittest.TestCase):
     def test_a_device_round_trips_through_its_dict(self) -> None:
         device = Device(device_id="Aaaa111111", display_name="cab",
-                        features=("hub", "device"), address="192.168.1.10",
+                        features=("library", "frontend"), address="192.168.1.10",
                         first_seen="2026-01-01T00:00:00Z", last_seen="2026-01-02T00:00:00Z")
 
         self.assertEqual(Device.from_dict(device.as_dict()), device)

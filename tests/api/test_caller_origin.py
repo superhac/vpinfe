@@ -1,6 +1,6 @@
 """Whether a caller reached us from this machine or over the network.
 
-The hub binds every interface by default and has since 2.x, so a phone can administer a
+VPinFE binds every interface by default and has since 2.x, so a phone can administer a
 cabinet. That means "on this machine" and "able to reach this machine" have never been
 the same question, and until now nothing could tell them apart - every caller was
 identified as `local` whether it was or not.

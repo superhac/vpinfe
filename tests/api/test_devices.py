@@ -1,4 +1,4 @@
-"""The registry: which devices a hub has been told about.
+"""The registry: which devices an install has been told about.
 
 Data only. There is no routing, no aggregation and no picking one to launch on - all
 three need decisions across devices that nothing has made. What a registry buys today is
@@ -21,7 +21,7 @@ except ImportError:  # pragma: no cover
     TestClient = None
 
 CAB = {"device_id": "Aaaa111111", "display_name": "basement cab",
-       "features": ["hub", "device"]}
+       "features": ["library", "frontend"]}
 DESK = {"device_id": "Bbbb222222", "display_name": "desktop", "features": ["device"]}
 PHONE = {"device_id": "Pppp444444", "display_name": "iPhone",
          "kind": "vpx_mobile", "address": "192.168.1.50"}
@@ -79,7 +79,7 @@ class DeviceRegistryApiTests(TempTree):
                          {CAB["device_id"], DESK["device_id"]})
 
     def test_the_address_is_observed_rather_than_claimed(self) -> None:
-        """A device behind a router does not know how the hub reaches it, so a body that
+        """A device behind a router does not know how it is reached, so a body that
         said would be a claim. The socket is the only party that knows."""
         body = self.client.put("/devices", json=CAB | {"address": "10.0.0.99"}).json()
 
@@ -139,12 +139,12 @@ class DeviceRegistryApiTests(TempTree):
 
     def test_a_mobile_device_is_added_without_an_id_and_gets_one(self) -> None:
         """The phone is not the caller - a person is registering it - so it cannot offer
-        an id and the hub mints one."""
+        an id and one is minted here."""
         body = self.client.put("/devices", json={"kind": "vpx_mobile",
                                                  "display_name": "iPad",
                                                  "address": "192.168.1.60"}).json()
 
-        self.assertTrue(body["device_id"], "the hub minted one")
+        self.assertTrue(body["device_id"], "an id was minted")
         self.assertEqual(body["address"], "192.168.1.60", "declared, not observed")
         self.assertEqual(self.client.get("/devices").json()["count"], 1)
 
@@ -193,7 +193,7 @@ class DeviceRegistryApiTests(TempTree):
 
     def test_an_install_says_which_port_it_answers_on(self) -> None:
         """The socket says where a request came from, never what that machine listens
-        on, so this is the only way a hub gets the other half of an address."""
+        on, so this is the only way the other half of an address arrives."""
         self.client.put("/devices", json={**CAB, "port": 8001})
 
         device = self.client.get(f"/devices/{CAB['device_id']}").json()

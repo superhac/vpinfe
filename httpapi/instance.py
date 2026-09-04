@@ -37,7 +37,7 @@ def mint_identity() -> None:
     At startup rather than on a request: discovery only reads, so a GET never writes to
     the config file, and the id is on disk before anything can ask for it.
 
-    The hub records itself because it is a device too - it is the one you are standing
+    An install records itself because it is a device too - it is the one you are standing
     at. Leaving it out meant every screen listing devices had to synthesise a row for
     the machine it was running on, and that row was the only one nothing could forget.
     """
@@ -185,7 +185,7 @@ def build_router(prefix: str, api_version: str) -> APIRouter:
         """What this install could become, and whether it can get there itself.
 
         Served because a client cannot otherwise ask: the check lives under common/ and
-        2.x calls it in-process, which any consumer over HTTP - this project's own hub
+        2.x calls it in-process, which any consumer over HTTP - this project's own Console
         included - has no way to do. `update_supported` is false for an install that
         cannot replace itself, and `support_reason` says why, so a caller offers the
         right thing rather than a button that fails.

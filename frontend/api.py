@@ -149,7 +149,7 @@ _RENAMED_METHODS = {
     'get_table_rotation': 'get_playfield_rotation',
     # The port serves the API, the Console, the Manager UI, and the remote and mobile
     # pages, so it is named for the protocol rather than one thing listening on it. Two
-    # retired spellings rather than one: it was named for the Manager UI, then for a hub
+    # retired spellings rather than one: it was named for the Manager UI, then for a role
     # role that no longer exists. Neither reached a release, but a theme built against a
     # 3.0 dev build has seen the second.
     'get_manager_ui_port': 'get_http_port',

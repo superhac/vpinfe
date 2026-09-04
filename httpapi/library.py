@@ -154,7 +154,7 @@ def scan(response: Response,
 def get_policy() -> models.LibraryPolicy:
     """Which kinds this library collects and which catalogs it searches.
 
-    The library's, not a machine's - so every device reading this hub gets one answer
+    The library's, not a machine's - so every install reading it gets one answer
     rather than each carrying its own copy of a question about somebody else's files.
     """
     return get_library_policy().values()

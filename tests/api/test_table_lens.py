@@ -181,7 +181,7 @@ class TableScriptTests(_Lens):
 
 
 class TableFeatureTests(_Lens):
-    """The library-wide rows list their fields by hand, so anything the hub reads there
+    """The library-wide rows list their fields by hand, so anything a client reads there
     has to be named or it is silently dropped - which is how `rating` read as 0 twice."""
 
     def test_a_row_carries_what_the_script_uses(self) -> None:
@@ -200,7 +200,7 @@ class TableFeatureTests(_Lens):
 
 class TableRatingTests(_Lens):
     """A table's own rating - INFO-SCHEMA section 8.1's open UI call, answered by the
-    hub's Tables grid: the row you rate is the file."""
+    Console's Tables grid: the row you rate is the file."""
 
     def test_rating_a_table_stores_it_against_that_table(self) -> None:
         response = self.client.put(f"/games/{GAME_ID}/tables/tbl0000002/rating",

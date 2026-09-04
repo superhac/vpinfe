@@ -14,7 +14,7 @@ from common.paths import CONFIG_DIR, get_ini_config
 from common.values import parse_version
 
 # What a theme states as the oldest build it runs on. Named here rather than imported
-# from the frontend: the installer runs on a hub with no frontend at all.
+# from the frontend: the installer runs on installs that have no frontend at all.
 MIN_VERSION_KEY = "min_vpinfe"
 
 

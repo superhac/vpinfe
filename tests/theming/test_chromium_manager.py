@@ -236,7 +236,7 @@ class ChromiumManagerTests(unittest.TestCase):
         self.assertTrue(manager._exit_event.is_set())
 
 
-class HubEndpointTests(unittest.TestCase):
+class LibraryEndpointTests(unittest.TestCase):
     """Reading `network.library_url` into the three values a window url carries."""
 
     @staticmethod
@@ -245,13 +245,13 @@ class HubEndpointTests(unittest.TestCase):
                                      theme_assets_port=assets_port)
 
     def _resolve(self, *args, services=None, **kwargs):
-        """The hub's own ports come from its discovery document, so a test says what it
-        published rather than reaching a real one."""
+        """That install's own ports come from its discovery document, so a test says
+        what it published rather than reaching a real one."""
         with mock.patch.object(chromium_manager.remote_library, "remote_services",
                                return_value=services or {}):
-            return chromium_manager._hub_endpoint(self._network(*args, **kwargs))
+            return chromium_manager._library_endpoint(self._network(*args, **kwargs))
 
-    def test_no_hub_is_the_default_and_both_ports_are_this_install(self) -> None:
+    def test_no_library_set_and_both_ports_are_this_install(self) -> None:
         for value in ("", "   "):
             with self.subTest(value=value):
                 self.assertEqual(self._resolve(value), ("", 8001, 8001, 8000))
@@ -260,30 +260,30 @@ class HubEndpointTests(unittest.TestCase):
         self.assertEqual(self._resolve("http://cab.local:8001"),
                          ("cab.local", 8001, 8001, 8000))
 
-    def test_the_hub_port_and_this_device_port_are_answered_separately(self) -> None:
+    def test_the_library_port_and_this_machine_s_port_are_answered_separately(self) -> None:
         """The one that would misdial in both directions if a single number were sent."""
-        self.assertEqual(self._resolve("https://hub.example:9000"),
-                         ("hub.example", 9000, 8001, 8000))
+        self.assertEqual(self._resolve("https://library.example:9000"),
+                         ("library.example", 9000, 8001, 8000))
 
     def test_a_url_with_no_port_falls_back_to_this_install_s(self) -> None:
         self.assertEqual(self._resolve("http://cab.local", 8005),
                          ("cab.local", 8005, 8005, 8000))
 
 
-    def test_the_hub_s_asset_port_comes_from_the_hub(self) -> None:
+    def test_the_library_s_asset_port_comes_from_the_library(self) -> None:
         """It is in no url and cannot be guessed: artwork is served on a different port
         from the api, and this install's own number describes the wrong machine."""
-        resolved = self._resolve("http://hub.example:9000",
+        resolved = self._resolve("https://library.example:9000",
                                  services={"assets": {"port": 9500}})
 
-        self.assertEqual(resolved, ("hub.example", 9000, 8001, 9500))
+        self.assertEqual(resolved, ("library.example", 9000, 8001, 9500))
 
-    def test_a_hub_that_says_nothing_leaves_this_install_s_answer(self) -> None:
-        """An older hub, or one that could not be reached for its discovery document."""
+    def test_a_library_that_says_nothing_leaves_this_install_s_answer(self) -> None:
+        """An older install, or one that could not be reached for its discovery document."""
         for services in ({}, {"assets": {}}, {"assets": {"port": "nonsense"}}):
             with self.subTest(services=services):
                 self.assertEqual(
-                    self._resolve("http://hub.example:9000", services=services).assets_port,
+                    self._resolve("https://library.example:9000", services=services).assets_port,
                     8000)
 
 
@@ -292,7 +292,7 @@ class WindowUrlTests(unittest.TestCase):
     needs the bridge and finding the bridge needs a port. A port missing here is a
     frontend dialling the wrong one forever, which is why every form is checked."""
 
-    def _url(self, system: str, *, splash: bool = False, hub_host: str = "",
+    def _url(self, system: str, *, splash: bool = False, library_host: str = "",
              http_port: int = 9001, device_port: int = 9001) -> str:
         with mock.patch("frontend.chromium_manager.platform.system", return_value=system):
             return chromium_manager._build_window_url(
@@ -303,7 +303,7 @@ class WindowUrlTests(unittest.TestCase):
                 splash_enabled=splash,
                 ws_port=9002,
                 http_port=http_port,
-                hub_host=hub_host,
+                library_host=library_host,
                 device_port=device_port,
             )
 
@@ -316,9 +316,9 @@ class WindowUrlTests(unittest.TestCase):
 
                 self.assertIn("wsPort=9002", url)
                 self.assertIn("themeAssetsPort=9000", url)
-                self.assertIn("hubPort=9001", url)
+                self.assertIn("libraryPort=9001", url)
 
-    def test_no_hub_host_leaves_the_url_as_it_was(self) -> None:
+    def test_no_library_host_leaves_the_url_as_it_was(self) -> None:
         """Every single-machine install. The page keeps assuming loopback for everything,
         so a setting nobody set cannot change what a window opens with."""
         for system, splash, label in (("Linux", False, "the /app/ bootstrap"),
@@ -327,32 +327,33 @@ class WindowUrlTests(unittest.TestCase):
             with self.subTest(label):
                 url = self._url(system, splash=splash)
 
-                self.assertNotIn("hubHost", url)
+                self.assertNotIn("libraryHost", url)
                 self.assertNotIn("devicePort", url)
 
-    def test_a_remote_hub_travels_in_every_window_url(self) -> None:
-        """A page cannot ask where its hub is for the same reason it cannot ask for a
+    def test_a_remote_library_travels_in_every_window_url(self) -> None:
+        """A page cannot ask where its library is for the same reason it cannot ask for a
         port, so the host takes the same route."""
         for system, splash, label in (("Linux", False, "the /app/ bootstrap"),
                                       ("Darwin", True, "the splash page"),
                                       ("Darwin", False, "a theme page")):
             with self.subTest(label):
-                url = self._url(system, splash=splash, hub_host="hub.example")
+                url = self._url(system, splash=splash, library_host="library.example")
 
-                self.assertIn("hubHost=hub.example", url)
+                self.assertIn("libraryHost=library.example", url)
 
-    def test_the_hub_port_and_this_device_port_travel_separately(self) -> None:
-        """A hub on 9000 is not this machine on 9000. Sending one number would make a
-        device dial its own api at the hub's port, or the hub's at its own."""
-        url = self._url("Darwin", hub_host="hub.example", http_port=9000, device_port=8001)
+    def test_the_library_port_and_this_machine_s_port_travel_separately(self) -> None:
+        """A library on 9000 is not this machine on 9000. Sending one number would make an
+        install dial its own api at the library's port, or the library's at its own."""
+        url = self._url("Darwin", library_host="library.example", http_port=9000,
+                        device_port=8001)
 
-        self.assertIn("hubPort=9000", url)
+        self.assertIn("libraryPort=9000", url)
         self.assertIn("devicePort=8001", url)
 
     def test_a_host_that_needs_encoding_is_encoded(self) -> None:
-        url = self._url("Darwin", hub_host="hub name")
+        url = self._url("Darwin", library_host="library name")
 
-        self.assertIn("hubHost=hub%20name", url)
+        self.assertIn("libraryHost=library%20name", url)
 
     def test_the_ports_are_query_parameters_of_the_page(self) -> None:
         """Appended to whatever the form already asks for, not replacing it."""

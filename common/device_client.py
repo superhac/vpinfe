@@ -1,11 +1,11 @@
-"""What a hub asks of a device: its displays, its browser, its input, its lifecycle.
+"""What one install asks of another: its displays, its browser, its input, its lifecycle.
 
 One interface whether that device is this process or another machine. Narrow on purpose -
-this is the surface a hub reaches, which is what has to be authenticated once a device is
+this is the surface that reaches across, which is what has to be authenticated once a device is
 reachable over a network.
 
 A remote device answers only the questions that have a route on its own API. The rest are
-in-process by nature: a hub cannot enumerate another machine's screens by asking politely,
+in-process by nature: nothing enumerates another machine's screens by asking politely,
 and pretending otherwise would put a plausible wrong answer where a caller expected one.
 Those raise rather than returning an empty list, because "no screens" and "not something
 this device can be asked" are different facts and one of them is a bug.
@@ -26,7 +26,7 @@ _PROBE_TIMEOUT = 3
 
 @dataclass(frozen=True)
 class Display:
-    """One screen, flattened out of whatever enumerated it: a hub cannot receive an
+    """One screen, flattened out of whatever enumerated it: nothing can receive an
     NSScreen."""
 
     id: str
@@ -120,7 +120,7 @@ class NotThisDeviceError(RuntimeError):
 
 
 # What a probe found. `unreachable` and `unknown` are different answers: one means the
-# hub asked and got nothing, the other that there was nothing to ask - an entry with no
+# asking got nothing, the other that there was nothing to ask - an entry with no
 # port, which a device being switched off never causes and switching it on never fixes.
 ANSWERING = "answering"
 UNREACHABLE = "unreachable"
@@ -151,7 +151,7 @@ class RemoteDevice:
     """A device on another machine, reached over the API it announced itself from.
 
     Every call is a request that can time out, so a caller runs these off whatever loop
-    it is on. Failures are the caller's to report: a hub that cannot reach a device has
+    it is on. Failures are the caller's to report: an install that cannot reach a device has
     something to say about it, and swallowing that here would leave a screen claiming a
     device is fine because nothing asked it.
     """
@@ -163,19 +163,19 @@ class RemoteDevice:
         return f"{self.base_url}/api/v1{path}"
 
     def displays(self) -> list[Display]:
-        raise NotThisDeviceError("A hub cannot enumerate another machine's screens")
+        raise NotThisDeviceError("Another machine's screens cannot be enumerated from here")
 
     def browser_path(self) -> str | None:
-        raise NotThisDeviceError("A hub cannot read another machine's browser")
+        raise NotThisDeviceError("Another machine's browser cannot be read from here")
 
     def browser_options(self, **kwargs: Any) -> list[str]:
-        raise NotThisDeviceError("A hub cannot read another machine's browser options")
+        raise NotThisDeviceError("Another machine's browser options cannot be read from here")
 
     def parse_browser_options(self, raw: str) -> list[str]:
-        raise NotThisDeviceError("A hub cannot read another machine's browser options")
+        raise NotThisDeviceError("Another machine's browser options cannot be read from here")
 
     def bindings(self, config) -> dict[str, list[str]]:
-        raise NotThisDeviceError("A hub cannot read another machine's input bindings")
+        raise NotThisDeviceError("Another machine's input bindings cannot be read from here")
 
     def wants_confirmation(self, scope: str) -> bool:
         """False, because the question has already been put. A confirm belongs on the
@@ -307,7 +307,7 @@ class MobileDevice:
     """A phone running VPX Mobile, which is not VPinFE and never answers as one.
 
     It speaks the file transfer protocol the 2.x Mobile page sends over and nothing
-    else, so the questions a hub can put to it are a much shorter list - and the ones it
+    else, so the questions that can be put to it are a much shorter list - and the ones it
     cannot answer raise rather than returning a shape that looks like an answer.
     """
 

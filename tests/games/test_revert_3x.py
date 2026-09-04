@@ -106,8 +106,8 @@ def run_startup_migrations(games_root: Path, config_dir: Path) -> dict:
     return work
 
 
-class StubHub(HTTPServer):
-    """Something answering on the hub port. `name` is what its discovery document says,
+class StubInstance(HTTPServer):
+    """Something answering on the HTTP port. `name` is what its discovery document says,
     so a test can be a VPinFE or can be whatever else grabbed the port first."""
 
     def __init__(self, name: str | None):
@@ -406,10 +406,10 @@ class DryRunTests(RevertTestCase):
         """It writes nothing, so refusing would be friction with nothing behind it. It
         does say the real run will refuse, which is what the tester needs to know."""
         self._migrate()
-        hub = StubHub("VPinFE")
-        self.addCleanup(hub.stop)
+        instance = StubInstance("VPinFE")
+        self.addCleanup(instance.stop)
 
-        result = self._reset(dry_run=True, http_port=hub.port)
+        result = self._reset(dry_run=True, http_port=instance.port)
 
         self.assertTrue(result["instance_running"])
         self.assertTrue((self.config_dir / "vpinfe.json").exists())
@@ -420,12 +420,12 @@ class RunningInstanceTests(RevertTestCase):
         """Its failure mode is silence: a reset that looks like it worked and is then
         written straight back over by the live process, markers and all."""
         self._migrate()
-        hub = StubHub("VPinFE")
-        self.addCleanup(hub.stop)
+        instance = StubInstance("VPinFE")
+        self.addCleanup(instance.stop)
         migrated = self._library_bytes()
 
         with self.assertRaises(revert_3x.InstanceRunningError):
-            self._reset(http_port=hub.port)
+            self._reset(http_port=instance.port)
 
         self.assertTrue((self.config_dir / "vpinfe.json").exists())
         self.assertEqual(self._library_bytes(), migrated)
@@ -436,9 +436,9 @@ class RunningInstanceTests(RevertTestCase):
         self._migrate()
         for name in ("Grafana", None):
             with self.subTest(answers=name):
-                hub = StubHub(name)
-                self.addCleanup(hub.stop)
-                self.assertFalse(revert_3x.running_instance(hub.port))
+                instance = StubInstance(name)
+                self.addCleanup(instance.stop)
+                self.assertFalse(revert_3x.running_instance(instance.port))
 
     def test_a_port_nobody_is_listening_on_is_not_a_running_instance(self):
         self.assertFalse(revert_3x.running_instance(self.closed_port))
@@ -449,7 +449,7 @@ class LiveRefusalTests(unittest.TestCase):
 
     The stub above proves what the code does with an answer; this proves the answer is
     the one a running instance actually gives, which is the half that goes stale when
-    the hub moves or its discovery document changes.
+    the instance moves or its discovery document changes.
     """
 
     def test_a_real_instance_is_seen_on_its_hub_port(self):

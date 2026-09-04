@@ -329,10 +329,10 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="list",
             default="",
             label="Media kinds to hide",
-            description="Kinds of artwork this library does not collect. The hub stops"
+            description="Kinds of artwork this library does not collect. VPinFE stops"
                         " showing and counting them; the files stay where they are.",
             # The library's, not this install's - it moved to library.json, where one
-            # answer serves every device reading this hub. Declared and internal so a
+            # answer serves every install reading this library. Declared and internal so a
             # value still in a config file keeps resolving for a build that reads it.
             internal=True,
         ),
@@ -345,7 +345,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                         " all-EM library has no ROMs. A table that will not launch still"
                         " says so.",
             # The library's, not this install's - it moved to library.json, where one
-            # answer serves every device reading this hub. Declared and internal so a
+            # answer serves every install reading this library. Declared and internal so a
             # value still in a config file keeps resolving for a build that reads it.
             internal=True,
         ),
@@ -356,7 +356,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             label="Browsable Media Folders",
             description="Extra folders you can pick artwork from when adding media by"
                         " hand. The game library is always available; anywhere else has"
-                        " to be listed here before the hub will read it.",
+                        " to be listed here before VPinFE will read it.",
         ),
         ConfigOption(
             "vpx_ini_path",
@@ -417,7 +417,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                         " picks up everything, not just tables - media and assets added"
                         " or removed beside them too. Zero never does, which is the"
                         " default because a read walks every game folder: fine locally,"
-                        " real traffic on a network share. The hub can always be asked"
+                        " real traffic on a network share. It can always be asked"
                         " to read it now.",
         ),
         ConfigOption(
@@ -581,7 +581,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             default="",
             label="Online Artwork Sources",
             description="Which online catalogs are searched for artwork. Empty means"
-                        " all of them. Names come from the sources list the hub"
+                        " all of them. Names come from the sources list this install"
                         " reports.",
             # Moved to library.json with the two kind lists, for the same reason.
             internal=True,
@@ -612,7 +612,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="string",
             default="",
             description="Written by VPinFE on first start, and not meant to be edited."
-                        " A hub tells its installs apart by this, so changing it makes"
+                        " Installs are told apart by this, so changing it makes"
                         " this a different install.",
             # Minted on first read, never by a person, and never edited afterwards.
             internal=True,
