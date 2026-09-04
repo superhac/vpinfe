@@ -14,8 +14,17 @@ from nicegui import run, ui
 from common.games import apps, asset_registry
 from common.labels import humanize
 from common.media_specs import media_label_map
-from hubui import confirm, game_tables, grid, media_ownership, mediaview, stars, views, workbench
-from hubui import features as table_features
+from hubui import (
+    confirm,
+    game_tables,
+    grid,
+    media_ownership,
+    mediaview,
+    stars,
+    table_features,
+    views,
+    workbench,
+)
 from hubui.api import HubClient
 
 logger = logging.getLogger("vpinfe.hubui.games")

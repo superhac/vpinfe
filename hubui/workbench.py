@@ -46,9 +46,9 @@ from hubui import (
     mediaview,
     panel,
     stars,
+    table_features,
 )
 from hubui import devices as devices_page
-from hubui import features as table_features
 from hubui import settings as settings_page
 from hubui.api import HubError
 from hubui.data import Library

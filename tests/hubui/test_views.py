@@ -10,10 +10,10 @@ from hubui import (
     games,
     media_ownership,
     stars,
+    table_features,
     tageditor,
     workbench,
 )
-from hubui import features as table_features
 
 
 class BuiltinViewTests(unittest.TestCase):

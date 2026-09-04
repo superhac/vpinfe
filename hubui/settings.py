@@ -323,7 +323,7 @@ DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
          ("displays", "windows.playfield", "windows.backglass", "windows.scoreview"),
          "device"),
         ("input", "Input", SCHEMA_PAGE, ("input",), "device"),
-        ("feedback", "Feedback Devices", SCHEMA_PAGE, ("dof", "libdmdutil"), "device"),
+        ("feedback", "Peripherals", SCHEMA_PAGE, ("dof", "libdmdutil"), "device"),
     )),
     ("VPinFE", (
         ("general", "General", SCHEMA_PAGE, ("general",), ""),
