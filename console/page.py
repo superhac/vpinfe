@@ -190,6 +190,9 @@ def _read_hub() -> dict[str, Any]:
         "library": library,
         "discovery": client.discovery(),
         "devices": client.devices(),
+        # This machine's own configuration, asked of this machine: a path is only
+        # answerable by the install holding it, and the Console is served by that one.
+        "trouble": settings_page.local_trouble(),
         # What a device can be asked about, which is what the frontend feature turns on.
         # Infrastructure carries no feature and is not a fact about a particular machine,
         # so it is not offered as a per-device row.
@@ -245,7 +248,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
 
     state: dict[str, Any] = {"view": "overview", "device": None, "mini": False,
                              "workbench": True, "settings_page": "",
-                             "collection": None}
+                             "collection": None, "trouble": loaded["trouble"]}
     # Before anything is built, so the first render is the place asked for rather than
     # the front door followed by a jump.
     deeplink.apply(state, {"view": view, "game": game, "table": table,
@@ -772,6 +775,26 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             else:
                 _placeholder(view)
 
+    def mark_system() -> None:
+        """How much of this install's configuration is stopping a feature it has on.
+
+        Red, and a count rather than the warm one beside Devices: an update waiting is
+        worth doing when you get to it, and this is something already broken. The reasons
+        go in the tooltip because the entry is the only place they fit before the page.
+        """
+        badge = badges.get("system")
+        if badge is None:
+            return
+        items = state.get("trouble") or []
+        badge.set_visibility(bool(items))
+        badge.classes(add="console-nav-badge--error") if items \
+            else badge.classes(remove="console-nav-badge--error")
+        if not items:
+            return
+        badge.text = str(len(items))
+        badge.tooltip(" ".join(dict.fromkeys(item.reason for item in items
+                                             if item.reason)))
+
     def redraw() -> None:
         """Render, first reading anything the new subject needs.
 
@@ -779,6 +802,16 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         asks for it rather than at startup - and off the loop, because render() runs on
         it and the client refuses an HTTP call there.
         """
+        if state["view"] == "system":
+            # Asked again on every draw, which is when a path may just have been fixed -
+            # and off the loop, because it stats the disk and a share that has gone away
+            # is exactly the case this reports.
+            async def read_trouble_then_draw() -> None:
+                state["trouble"] = await run.io_bound(settings_page.local_trouble)
+                render()
+                mark_system()
+            asyncio.create_task(read_trouble_then_draw())
+            return
         if state["view"] == "tables" and not library.has_table_rows():
             async def read_then_draw() -> None:
                 await run.io_bound(library.load_tables)
@@ -866,6 +899,10 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         await run.io_bound(library.load_asset_rows)
     await workbench.build(panel, workbench_title, library, None, state)
     render()
+    # Once the nav exists to carry it. Read on the way in with everything else, so an
+    # install that is misconfigured says so on the first screen rather than on the
+    # first visit to System.
+    mark_system()
     if landing:
         # Shaped as the lens in play expects it, so the one handler reads it the same
         # way whether it came from a click or from the address bar. The file lenses

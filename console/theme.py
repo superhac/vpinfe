@@ -793,6 +793,15 @@ body::before {
    is about whether a machine is switched on. */
 .console-reach-dot { margin-right: 8px; }
 
+/* A feature is switched on and something it needs is not there. Danger rather than the
+   warm above: an update waiting is worth doing when you get to it, and this is already
+   broken, so the two must not read as the same kind of news. */
+.console-nav-badge--error { background: var(--danger); }
+/* The same finding where a count would say nothing - a settings group and the page under
+   it are signposts, and what is wrong is on the page they lead to. Leading the name, so
+   the marks down a rail sit in one column. */
+.console-trouble-mark { color: var(--danger); flex: none; margin-right: 6px; }
+
 /* The sort control above the devices rail. Aligned to the rail rather than the page, so
    it reads as belonging to the list it orders. */
 .console-devices-bar { padding: 8px 12px 0 12px; }

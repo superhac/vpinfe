@@ -98,11 +98,25 @@ def sections(entries: Sequence[tuple[Any, ...]], current: str,
                 hint = entry[2] if len(entry) > 2 else ""
                 mark = entry[3] if len(entry) > 3 else None
                 if key is GROUP:
-                    ui.label(label).classes("console-group console-rail-group")
+                    _rail_group(label, mark)
                     continue
                 _rail_row(str(key), label, str(key) == current, on_pick, hint, mark)
         work = ui.element("div").classes("min-w-0 console-section-work")
     return work
+
+
+def _rail_group(label: str, mark: Callable[[], None] | None = None) -> None:
+    """A heading over the run of rows that follows it.
+
+    A row rather than a label once it carries a mark, so the mark leads the name the way
+    it does on the rows below and the two sit in one column.
+    """
+    if mark is None:
+        ui.label(label).classes("console-group console-rail-group")
+        return
+    with ui.row().classes("items-center no-wrap console-group console-rail-group"):
+        mark()
+        ui.label(label)
 
 
 def _rail_row(key: str, label: str, open_now: bool,
@@ -211,10 +225,30 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
     return draw
 
 
+def trouble_mark(reason: str = "") -> Callable[[], None]:
+    """The mark that says something under here is misconfigured.
+
+    A glyph rather than the count the nav badge carries: a heading and a rail row are
+    signposts, and what is actually wrong is on the page they lead to.
+    """
+    def draw() -> None:
+        icon = ui.icon("error", size="16px").classes("console-trouble-mark")
+        if reason:
+            icon.tooltip(reason)
+
+    return draw
+
+
 # A state a value is in, as the mark and the color that say so. `unset` draws nothing:
 # an optional setting left blank is a choice, and a mark on every empty field is a page
 # full of marks that mean nothing.
+# Blank where blank is not allowed. Its own state because `unset` deliberately draws
+# nothing - an optional path left empty is a choice - and a feature's requirement left
+# empty is the thing that broke it.
+REQUIRED = "required"
+
 _VALUE_STATES = {
+    REQUIRED: ("cancel", "negative"),
     "ok": ("check_circle", "positive"),
     "missing": ("cancel", "negative"),
     "wrong_kind": ("cancel", "negative"),

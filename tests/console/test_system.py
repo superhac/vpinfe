@@ -8,8 +8,8 @@ then.
 import unittest
 from urllib.parse import parse_qs
 
-from common import install_identity
-from console import deeplink, page
+from common import feature_checks, install_identity, path_checks
+from console import deeplink, page, panel
 from console import settings as settings_page
 
 
@@ -91,5 +91,38 @@ class AddressTests(unittest.TestCase):
         self.assertNotIn("settings", address)
 
 
-if __name__ == "__main__":
-    unittest.main()
+class TroubleTests(unittest.TestCase):
+    """A configuration error has to lead from the nav down to the field that fixes it."""
+
+    def _unmet(self, section: str, key: str, state: str = path_checks.MISSING):
+        return feature_checks.Unmet(feature=install_identity.FRONTEND, section=section,
+                                    key=key, state=state, reason="Nothing is there.")
+
+    def test_a_requirement_is_keyed_by_the_page_that_holds_it(self) -> None:
+        held = settings_page.pages_in_trouble([self._unmet("general", "vpx_bin_path")])
+
+        self.assertEqual(list(held), ["general"])
+
+    def test_a_setting_on_no_page_is_dropped_rather_than_counted(self) -> None:
+        """A badge that leads nowhere is worse than no badge."""
+        with self.assertLogs("vpinfe.console.settings", level="WARNING"):
+            held = settings_page.pages_in_trouble([self._unmet("nowhere", "thing")])
+
+        self.assertEqual(held, {})
+
+    def test_the_disk_answers_until_a_feature_says_otherwise(self) -> None:
+        checks = [{"section": "general", "key": "vpx_bin_path", "state": path_checks.OK,
+                   "reason": ""}]
+        marks = settings_page.field_marks([self._unmet("general", "vpx_bin_path")],
+                                          checks)
+
+        self.assertEqual(marks[("general", "vpx_bin_path")]["reason"],
+                         "Nothing is there.")
+
+    def test_blank_where_blank_is_not_allowed_draws_something(self) -> None:
+        """An optional path left empty draws nothing, and this is not one of those."""
+        marks = settings_page.field_marks(
+            [self._unmet("general", "vpx_bin_path", path_checks.UNSET)], [])
+
+        self.assertEqual(marks[("general", "vpx_bin_path")]["state"], panel.REQUIRED)
+        self.assertIn(panel.REQUIRED, panel._VALUE_STATES)

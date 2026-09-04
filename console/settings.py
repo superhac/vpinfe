@@ -21,7 +21,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-from common import install_identity
+from common import feature_checks, install_identity, path_checks
 from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.labels import humanize
 from common.media_specs import media_label_map
@@ -395,6 +395,56 @@ def system_pages(features) -> list[tuple[str, DevicePage]]:
     return [(IDENTITY_GROUP, IDENTITY_PAGE), *pages_for_features(features)]
 
 
+def _page_holding(section: str) -> str:
+    """Which page draws a config section, or "" where none does."""
+    return next((page[0] for _group, pages in DEVICE_INDEX for page in pages
+                 if section in page[3]), "")
+
+
+def pages_in_trouble(items) -> dict[str, list[Any]]:
+    """Unmet requirements, keyed by the page that carries the setting.
+
+    A requirement whose setting is on no page is logged rather than counted: a badge
+    that leads nowhere is worse than no badge, and this is a mistake in the index rather
+    than in the install.
+    """
+    found: dict[str, list[Any]] = {}
+    for item in items:
+        page = _page_holding(item.section)
+        if not page:
+            logger.warning("No settings page draws %s, so nothing can lead to %s.%s",
+                           item.section, item.section, item.key)
+            continue
+        found.setdefault(page, []).append(item)
+    return found
+
+
+def field_marks(items, checks: list[dict]) -> dict[tuple[str, str], dict]:
+    """What to draw beside each path field: what the disk said, then what a feature needs.
+
+    The second overrides the first for the case that matters. A blank path draws nothing
+    on its own, because an optional one left empty is a choice - and a required one left
+    empty is exactly what the badge leading here is pointing at.
+    """
+    found = {(str(check.get("section") or ""), str(check.get("key") or "")): dict(check)
+             for check in checks or []}
+    for item in items:
+        state = panel.REQUIRED if item.state == path_checks.UNSET else item.state
+        found[(item.section, item.key)] = {"state": state, "reason": item.reason}
+    return found
+
+
+def local_trouble() -> list[Any]:
+    """What this install's enabled features are missing.
+
+    Asked of this machine's own configuration rather than over the API: a path is only
+    answerable by the machine holding it, and this is that machine.
+    """
+    from common.paths import get_ini_config
+
+    return feature_checks.unmet(get_ini_config())
+
+
 def build_library_page(library, rerender: Callable[[], None], key: str,
                        kind: str) -> None:
     """A library page, drawn where a device's rail asks for it.
@@ -446,7 +496,8 @@ def section_rows(source, section: str, options: list[dict], values: dict,
 
 
 async def build_device_page(source, context: dict[str, Any], schema: list[dict],
-                            values: dict, sections: tuple[str, ...]) -> None:
+                            values: dict, sections: tuple[str, ...],
+                            checks: dict[tuple[str, str], dict] | None = None) -> None:
     """One page of a device's settings, drawn exactly as this install's are.
 
     Several config sections can make one page - a machine's screens are four of them -
@@ -454,9 +505,10 @@ async def build_device_page(source, context: dict[str, Any], schema: list[dict],
     not how somebody looks for a setting, which is why the pages are declared rather
     than taken from the schema's own shape.
 
-    Path checks are not fetched. The machine holding a path answers for it, and asking
-    this one about another machine's disk would put a red cross on a file that is
-    perfectly fine over there.
+    `checks` is what to draw beside each path field, and only the install being drawn can
+    supply it. The machine holding a path answers for it, so asking this one about
+    another machine's disk would put a red cross on a file that is perfectly fine over
+    there - which is why a device's pages pass none.
     """
     def rerender() -> None:
         rebuild = context.get("rebuild")
@@ -477,7 +529,7 @@ async def build_device_page(source, context: dict[str, Any], schema: list[dict],
         if len(blocks) > 1:
             entries.append((panel.HEADING, _section_label(name)))
         entries += section_rows(source, name, block["options"], values,
-                                bool(block.get("writable")), rerender)
+                                bool(block.get("writable")), rerender, checks)
         # A page may carry a foot for the one thing on it that is an act rather than a
         # value. Only where this install's own client is what serves the page: these reach
         # for the library, which another machine's client cannot answer for.
@@ -505,13 +557,21 @@ def build_system(library, state: dict[str, Any], redraw: Callable[[], None],
         chosen = pages[0][1][0]
     state["settings_page"] = chosen
 
+    # What is misconfigured, marked at every level on the way to the setting that fixes
+    # it: the group, then the page, then the field's own cross.
+    hurt = pages_in_trouble(state.get("trouble") or [])
+    groups_hurt = {group for group, page in pages if page[0] in hurt}
+
     entries: list[tuple[Any, ...]] = []
     heading = ""
     for group, page in pages:
         if group != heading:
-            entries.append((panel.GROUP, group))
+            entries.append((panel.GROUP, group, "",
+                            panel.trouble_mark() if group in groups_hurt else None))
             heading = group
-        entries.append((page[0], page[1]))
+        found = hurt.get(page[0]) or []
+        entries.append((page[0], page[1], "",
+                        panel.trouble_mark(_said(found)) if found else None))
 
     def pick(key: str) -> None:
         state["settings_page"] = key
@@ -523,12 +583,21 @@ def build_system(library, state: dict[str, Any], redraw: Callable[[], None],
     # On a timer, because a page reads the schema and the values over HTTP and the draw
     # it is part of runs on the event loop, where the client refuses a call.
     ui.timer(0.01,
-             lambda: _draw_system_page(library, redraw, body, known[chosen], discovery),
+             lambda: _draw_system_page(library, redraw, body, known[chosen], discovery,
+                                       state.get("trouble") or []),
              once=True)
 
 
+def _said(items) -> str:
+    """The reasons behind one mark, in the words the check already wrote for the person
+    who has to fix them. De-duplicated: two features needing one setting is two entries
+    saying the same sentence."""
+    return " ".join(dict.fromkeys(item.reason for item in items if item.reason))
+
+
 async def _draw_system_page(library, redraw: Callable[[], None], body,
-                            page: DevicePage, discovery: dict[str, Any]) -> None:
+                            page: DevicePage, discovery: dict[str, Any],
+                            trouble) -> None:
     key, _label, kind, sections, _feature = page
     if key == IDENTITY:
         with body:
@@ -542,13 +611,15 @@ async def _draw_system_page(library, redraw: Callable[[], None], body,
     try:
         schema = await run.io_bound(library.config_schema)
         values = await run.io_bound(library.config_values)
+        checks = await run.io_bound(library.config_path_checks)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         with body:
             panel.facts(ui, [panel.intro(f"Could not read the settings: {exc}")])
         return
     with body:
         await build_device_page(library, {"library": library, "rebuild": redraw},
-                                schema, values, sections)
+                                schema, values, sections,
+                                checks=field_marks(trouble, checks))
 
 
 async def _identity_page(library, reported: str,
