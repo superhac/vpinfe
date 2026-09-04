@@ -2284,7 +2284,7 @@ def _records_of(context: dict[str, Any], vps_id: str,
     try:
         return list(context["library"].vps_releases(vps_id, listed_as))
     except Exception:
-        logger.warning("hub ui: could not read %s for %s", listed_as, vps_id,
+        logger.warning("console: could not read %s for %s", listed_as, vps_id,
                        exc_info=True)
         return []
 

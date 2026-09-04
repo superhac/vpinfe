@@ -1,4 +1,4 @@
-"""The Hub UI shell: nav, content and the workbench that follows the selection."""
+"""The Console shell: nav, content and the workbench that follows the selection."""
 
 from __future__ import annotations
 
@@ -176,10 +176,13 @@ def _read_hub() -> dict[str, Any]:
 
 # The title is per page, not from ui.run: one process serves both this and the Manager
 # UI, so an app-wide title puts the other surface's name in this one's tab.
+# Both, because the bare host is what somebody types and /console is what a link
+# carries. One function serves them so there is no redirect to lose a query string.
+@ui.page("/", title="VPinFE Console")
 @ui.page("/console", title="VPinFE Console")
-async def hub_page(view: str = "", game: str = "", table: str = "", section: str = "",
+async def console_page(view: str = "", game: str = "", table: str = "", section: str = "",
                    slot: str = "", settings: str = "") -> None:
-    """The hub. Query parameters say where in it, so a place can be linked to."""
+    """The Console. Query parameters say where in it, so a place can be linked to."""
     # The palette and Quasar's dark mode are two separate switches. The toggle button
     # that used to own the second one is gone, so it is set here - without it the shell
     # renders light while the tokens stay dark.
@@ -192,13 +195,13 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
     # changed, so a pane collapsed the moment the header it was subtracting went away.
     ui.query(".nicegui-content").classes("p-0 gap-0 h-screen")
 
-    # The shell first, then wait for the browser to have it, and only then read the
-    # hub. Reading first meant a page function that took two seconds to return, and
+    # The shell first, then wait for the browser to have it, and only then read
+    # anything. Reading first meant a page function that took two seconds to return, and
     # nicegui abandons a response that is not ready in three - which surfaced as a
     # reload loop and a page whose handlers were never wired, not as a slow page.
     with ui.column().classes("w-full h-full items-center justify-center gap-3") as loading:
         ui.spinner(size="lg").classes("text-primary")
-        ui.label("Reading the hub").classes("text-sm opacity-60")
+        ui.label("Starting the Console").classes("text-sm opacity-60")
 
     await ui.context.client.connected()
     loaded = await run.io_bound(_read_hub)

@@ -90,13 +90,13 @@ Next you must configure these three essential settings in the `general` section:
 2. **gamerootdir** - Root directory where all your tables are located (e.g., `/home/user/tables/`)
 3. **vpxinipath** - Path to your VPinballX.ini file (e.g., `~/.vpinball/VPinballX.ini`)
 
-Once these are configured you can exit the ManagerUI by clicking the shutdown button in the UI (upper left area).  Anytime you want to return to the ManagerUI look in the console for its webserver address.  Its a line that looks like this:
+Once these are configured you can exit by clicking the shutdown button in the UI (upper left area).  Anytime you want to get back, look in the terminal for the webserver address.  Its a line that looks like this:
 
 ```
 NiceGUI ready to go on http://localhost:8001, and http://192.168.1.228:8001
 ```
 
-Put that URL in a browser and your in the ManagerUI.
+Put that URL in a browser and you land in the Console.  The ManagerUI is still there at `/manager` — it has a few things the Console hasn't grown yet.
 
 By default VPinFE keeps `vpinfe.ini`, `themes/`, caches, and logs in the OS config directory (`~/.config/vpinfe` on Linux, `~/Library/Application Support/vpinfe` on macOS, `%LOCALAPPDATA%\vpinfe` on Windows). To keep everything somewhere else — a portable install, or separate config profiles — set the `VPINFE_CONFIG_DIR` environment variable or pass `--configdir DIR`. Both point the whole config directory at `DIR`; the environment variable wins if you set both.
 

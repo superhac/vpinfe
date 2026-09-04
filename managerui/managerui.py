@@ -361,7 +361,10 @@ _DIALOG_HANDLERS = {
     'first_run': _dialog_first_run,
 }
 
-@ui.page('/')
+# Off the root, which the Console holds now. Its own path rather than a redirect: it is
+# still a working surface with capabilities the Console has not grown yet, so a link to it
+# has to keep leading somewhere.
+@ui.page('/manager')
 def index(page: str = '', dialog: str = ''):
     page_param = ''
     if page:

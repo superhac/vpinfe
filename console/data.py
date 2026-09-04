@@ -100,7 +100,7 @@ class Library:
         self.games = self._client.games()
         for game in self.games:
             self.media[game["id"]] = self._client.media(game["id"])
-        logger.info("hub ui: read %d games in %.2fs", len(self.games),
+        logger.info("console: read %d games in %.2fs", len(self.games),
                     time.perf_counter() - started)
 
     def media_for(self, game_id: str, table_id: str | None) -> dict[str, Any]:
@@ -685,7 +685,7 @@ class Library:
                 try:
                     self._prefs[scope] = self._client.preferences(scope) or {}
                 except Exception:
-                    logger.warning("hub ui: could not read %s", scope, exc_info=True)
+                    logger.warning("console: could not read %s", scope, exc_info=True)
                     self._prefs[scope] = {}
 
     def put_preferences(self, scope: str, value: dict[str, Any]) -> None:

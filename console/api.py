@@ -642,4 +642,4 @@ def _refuse_the_event_loop(path: str) -> None:
         asyncio.get_running_loop()
     except RuntimeError:
         return  # No loop here: a worker thread, which is where these belong.
-    logger.error("hub ui: %s called on the event loop - wrap it in run.io_bound", path)
+    logger.error("console: %s called on the event loop - wrap it in run.io_bound", path)

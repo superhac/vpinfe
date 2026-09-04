@@ -97,12 +97,12 @@ build and it changes how your library is stored — read the next section first.
   whether a table's script drives PinMAME at all.
 - **Core, Manager UI** — Slow work runs in the background and reports progress on the event
   bus instead of blocking the page that started it.
-- **Manager UI** — A second interface, the Console, at `/console`. It is the control
-  plane: one place for the library, media, devices and settings, with a table grid that
-  can draw art in a column instead of a tick, and a media map laid out like a pinball
-  machine so a game's coverage reads before any label does. Column layouts are kept on the
-  hub, so they follow you between machines. It ships beside the Manager UI, not instead of
-  it — the Manager UI is still the complete one, and parts of the Hub UI are unfinished.
+- **Console** — A new interface, and what you now land on. It is the control plane: one
+  place for the library, media, devices and settings, with a table grid that can draw art
+  in a column instead of a tick, and a media map laid out like a pinball machine so a
+  game's coverage reads before any label does. Column layouts are kept on the hub, so they
+  follow you between machines. The Manager UI moves to `/manager` and is still there — it
+  is the complete one, and parts of the Console are unfinished.
 - **Core** — A hub keeps a list of the devices it serves. An install pointed at a hub with
   `network.hub_url` announces itself on startup, and the hub records what it said and when
   it last said it, so an event carrying an id turns into a name someone recognizes. A

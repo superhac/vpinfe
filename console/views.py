@@ -99,7 +99,7 @@ def stored(library: Any, scope: str) -> tuple[list[View], str]:
     try:
         value = library.preferences(scope + VIEWS_SUFFIX) or {}
     except Exception:
-        logger.warning("hub ui: could not read views for %s", scope, exc_info=True)
+        logger.warning("console: could not read views for %s", scope, exc_info=True)
         return [], ""
     return ([from_record(r) for r in (value.get("views") or [])],
             str(value.get("active") or ""))
@@ -113,7 +113,7 @@ def remember(library: Any, scope: str, views: list[View], active: str) -> None:
             "active": active,
         })
     except Exception:
-        logger.warning("hub ui: could not save views for %s", scope, exc_info=True)
+        logger.warning("console: could not save views for %s", scope, exc_info=True)
 
 
 def differs(view: View, columns: tuple[str, ...], sort: tuple[dict, ...],

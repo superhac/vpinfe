@@ -330,7 +330,7 @@ async def apply_layout(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]
     try:
         stored = (await run.io_bound(HubClient().preferences, where)).get("columns")
     except Exception:
-        logger.warning("hub ui: could not read column state for %s", where, exc_info=True)
+        logger.warning("console: could not read column state for %s", where, exc_info=True)
         return
     # Only the layout fields, in as well as out: a payload written before views existed
     # carries `hide`, which would override the view.
@@ -380,7 +380,7 @@ def _save_on_change(grid: ui.aggrid, scope: str,
         except Exception:
             # A layout that fails to save is worth a log and nothing more - it must
             # never take down the grid the user is working in.
-            logger.warning("hub ui: could not save column state for %s", where, exc_info=True)
+            logger.warning("console: could not save column state for %s", where, exc_info=True)
 
     for event in _SAVE_EVENTS:
         # A resize fires per pixel. nicegui's own throttle, so no timer outlives the
