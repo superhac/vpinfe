@@ -563,13 +563,22 @@ class Library:
         is read on every panel draw and changes only when somebody changes it.
         """
         if self._kept is None:
-            general = (self.config_values() or {}).get("general") or {}
+            policy = self.library_policy()
             self._kept = {
-                "media": set(media_label_map()) - _listed(general, "hidden_media_kinds"),
+                "media": set(media_label_map()) - _listed(policy, "hidden_media_kinds"),
                 "asset": ({spec.kind for spec in ASSET_SPECS}
-                          - _listed(general, "hidden_asset_kinds")),
+                          - _listed(policy, "hidden_asset_kinds")),
             }
         return self._kept
+
+    def library_policy(self) -> dict:
+        """Never cached beyond the page: it is read when a settings page opens, which is
+        exactly when somebody may have just changed it from somewhere else."""
+        return self._client.library_policy()
+
+    def put_library_policy(self, changes: dict) -> dict:
+        self._kept = None
+        return self._client.put_library_policy(changes)
 
     def offered_media(self, game_id: str) -> dict[str, int]:
         """How many files the catalog lists for each of our media kinds, counting only

@@ -253,6 +253,28 @@ class ConfigSchema(ApiModel):
     count: int
 
 
+class LibraryPolicy(ApiModel):
+    """What this library collects. Empty means everything, in all three - so a kind or a
+    source added in a later version arrives switched on rather than silently absent.
+
+    The library's rather than an install's: every device reading one hub gets this
+    answer, instead of each carrying a copy of a question about somebody else's files.
+    """
+
+    hidden_media_kinds: list[str] = Field(default_factory=list)
+    hidden_asset_kinds: list[str] = Field(default_factory=list)
+    asset_sources: list[str] = Field(default_factory=list)
+
+
+class LibraryPolicyChange(ApiModel):
+    """A patch. An absent key is left alone; a key sent empty is stored empty, because
+    "collect everything" is an answer and not the absence of one."""
+
+    hidden_media_kinds: list[str] | None = None
+    hidden_asset_kinds: list[str] | None = None
+    asset_sources: list[str] | None = None
+
+
 class ConfigPathCheck(ApiModel):
     """One path setting against this machine's disk.
 

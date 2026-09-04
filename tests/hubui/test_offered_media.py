@@ -66,11 +66,16 @@ class KeptKindsTests(unittest.TestCase):
 
     Stored as what is hidden, read as what is kept. That direction is the point: a kind
     added in a later version is in nobody's hidden list, so it arrives switched on.
+
+    Held by the library rather than by an install, so two devices reading one hub read
+    one answer instead of each carrying a copy.
     """
 
-    def _library(self, general: dict) -> Library:
+    def _library(self, policy: dict) -> Library:
+        """The library's policy rather than this install's config: what a library
+        collects is one answer for every device reading it."""
         library = Library.__new__(Library)
-        library._client = Mock(config_values=Mock(return_value={"general": general}))
+        library._client = Mock(library_policy=Mock(return_value=policy))
         library._kept = None
         return library
 

@@ -320,6 +320,10 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             label="Media kinds to hide",
             description="Kinds of artwork this library does not collect. The hub stops"
                         " showing and counting them; the files stay where they are.",
+            # The library's, not this install's - it moved to library.json, where one
+            # answer serves every device reading this hub. Declared and internal so a
+            # value still in a config file keeps resolving for a build that reads it.
+            internal=True,
         ),
         ConfigOption(
             "hidden_asset_kinds",
@@ -329,6 +333,10 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             description="Kinds of supporting file this library does not collect - an"
                         " all-EM library has no ROMs. A table that will not launch still"
                         " says so.",
+            # The library's, not this install's - it moved to library.json, where one
+            # answer serves every device reading this hub. Declared and internal so a
+            # value still in a config file keeps resolving for a build that reads it.
+            internal=True,
         ),
         ConfigOption(
             "media_browse_dirs",
@@ -563,6 +571,8 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             description="Which online catalogs are searched for artwork. Empty means"
                         " all of them. Names come from the sources list the hub"
                         " reports.",
+            # Moved to library.json with the two kind lists, for the same reason.
+            internal=True,
         ),
         ConfigOption(
             "wheelset",
@@ -599,8 +609,8 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "display_name",
             type="string",
             default="",
-            label="Install Name",
-            description="What to call this install where one is listed. Defaults to this"
+            label="Device Name",
+            description="What to call this device where one is listed. Defaults to this"
                         " machine's hostname. Nothing is addressed by it, so renaming is"
                         " safe.",
         ),

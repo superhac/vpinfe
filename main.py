@@ -89,6 +89,16 @@ try:
 except Exception:
     logger.exception("Failed to update pinmame-score-parser roms.json at startup")
 
+# What the library collects moves out of this install's config and into the library's
+# own file, once. Per-install was one answer per machine for a question about one set of
+# files, and only the hub's ever did anything.
+try:
+    from common.games.library_policy import get_library_policy
+    from common.paths import get_ini_config as _ini_for_policy
+    get_library_policy().adopt_from_config(_ini_for_policy())
+except Exception:
+    logger.exception("Library policy import failed; the config values still resolve")
+
 shutdown.exit_if_requested(logger)
 
 

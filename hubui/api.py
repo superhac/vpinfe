@@ -539,6 +539,15 @@ class HubClient:
         """What it is set to, typed - a bool arrives as a bool."""
         return dict(self._get("/config").get("values") or {})
 
+    def library_policy(self) -> dict:
+        """What this library collects. The library's answer, not this machine's - a
+        device reading a remote hub gets the hub's."""
+        return dict(self._get("/library/policy") or {})
+
+    def put_library_policy(self, changes: dict) -> dict:
+        """A patch. Only the keys sent are written."""
+        return dict(self._put("/library/policy", changes) or {})
+
     def config_path_checks(self) -> list[dict]:
         """Whether each path setting finds anything on the machine holding it. Stats the
         disk, so it is answered by that install and not worked out from the value."""

@@ -104,14 +104,26 @@ class SchemaShapeTests(unittest.TestCase):
                               f"{entry.section}.{entry.key} is not a bool default")
 
     def test_internal_state_is_not_offered_as_a_setting(self) -> None:
-        """A last-played pointer and a cache marker live in the file nobody edits by
-        hand, but they are not settings and should never reach a UI or the docs."""
+        """Two reasons an option is internal, and neither is "we would rather not show
+        it" - which is what this list exists to stop.
+
+        Runtime state that happens to live in the config file: a last-played pointer, a
+        cache marker. Nobody sets these, so nothing should offer them.
+
+        A setting that moved house: the three library-policy lists are the library's
+        rather than this install's and live in library.json now. They stay declared so a
+        value still in somebody's config keeps resolving and the one-time adoption can
+        read it, and internal so no page offers a second place to answer the question.
+        """
         internal = {(e.section, e.key) for e in config_schema.options() if e.internal}
 
         self.assertEqual(internal, {("vpsdb", "last"), ("vpsdb", "checked"),
                                     ("state", "last_table"),
                                     ("pinmame_score_parser", "roms_update_sha"),
-                                    ("install", "id")})
+                                    ("install", "id"),
+                                    ("general", "hidden_media_kinds"),
+                                    ("general", "hidden_asset_kinds"),
+                                    ("media", "asset_sources")})
         self.assertNotIn(("State", "last_game"),
                          {(e.section, e.key) for e in config_schema.settable()})
 

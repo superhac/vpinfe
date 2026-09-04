@@ -66,6 +66,8 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/jobs/{id}` | One job — state, last progress, outcome |
 | GET | `/api/v1/library/entries` | The play lens over the whole library |
 | GET | `/api/v1/library/filters` | Every filter axis, with the values this library holds |
+| GET | `/api/v1/library/policy` | What this library collects — hidden media kinds, hidden asset kinds, and which catalogs are searched. The library's answer, so every device reading one hub gets the same one. Empty means everything |
+| PUT | `/api/v1/library/policy` | Change it. A patch: an absent key is left alone, a key sent empty is stored empty |
 | POST | `/api/v1/library/scan` | Rebuild game metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
 | GET | `/api/v1/devices` | The devices this hub has been told about |
 | PUT | `/api/v1/devices` | Announce a device to this hub (idempotent). `port` is declared by the device — the hub reads the address off the socket, which never says what that machine listens on |

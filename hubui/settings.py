@@ -254,14 +254,16 @@ async def _fill_kinds(library, rerender: Callable[[], None], body, note: str,
                       section: str, key: str,
                       items: Callable[[Any], dict[str, str]], mode: str) -> None:
     try:
-        values = await run.io_bound(library.config_values)
+        # The library's, not this install's: two devices reading one hub would otherwise
+        # hold two answers to a question about one set of files.
+        policy = await run.io_bound(library.library_policy)
         known = await run.io_bound(items, library)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         with body:
             panel.facts(ui, [panel.intro(f"Could not read the settings: {exc}")])
         return
 
-    stored = _listed((values.get(section) or {}).get(key))
+    stored = _listed(policy.get(key))
     # An `enabled` list reads empty as everything, so what is on is the whole set until
     # somebody turns one off.
     on = (set(known) - stored) if mode == "hidden" else (stored or set(known))
@@ -274,8 +276,12 @@ async def _fill_kinds(library, rerender: Callable[[], None], body, note: str,
             # Everything on stores nothing, which is what keeps a source added later
             # switched on rather than quietly excluded.
             store = [] if after >= set(known) else sorted(after)
-        if await _write(library, section, key, store):
-            rerender()
+        try:
+            await run.io_bound(library.put_library_policy, {key: store})
+        except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
+            ui.notify(f"Could not save that: {exc}", type="negative")
+            return
+        rerender()
 
     entries: list[tuple[Any, Any]] = [panel.intro(note)]
     for name, label in sorted(known.items(), key=lambda pair: pair[1]):
@@ -363,12 +369,12 @@ SCHEMA_PAGES: dict[str, tuple[str, str]] = {
 # shape `asset_sources` already ships with. Both leave an empty list meaning "everything",
 # so a kind or a source added in a later version arrives switched on either way.
 KIND_PAGES: dict[str, tuple[str, str, str, Callable[[Any], dict[str, str]], str]] = {
-    "media_kinds": (KEPT_NOTE, "general", "hidden_media_kinds",
+    "media_kinds": (KEPT_NOTE, "", "hidden_media_kinds",
                     lambda _: dict(media_label_map()), "hidden"),
-    "asset_kinds": (KEPT_NOTE, "general", "hidden_asset_kinds",
+    "asset_kinds": (KEPT_NOTE, "", "hidden_asset_kinds",
                     lambda _: {spec.kind: spec.label for spec in ASSET_SPECS
                                if spec.kind not in ALWAYS_KEPT}, "hidden"),
-    "media_sources": (SOURCES_NOTE, "media", "asset_sources",
+    "media_sources": (SOURCES_NOTE, "", "asset_sources",
                       lambda library: {s["id"]: s["name"]
                                        for s in library.media_sources()}, "enabled"),
 }

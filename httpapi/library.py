@@ -11,6 +11,7 @@ from fastapi import APIRouter, Body, Response
 
 from common import jobs as job_registry
 from common.games import game_service
+from common.games.library_policy import get_library_policy
 
 from . import jobs as jobs_api
 from . import models, scopes
@@ -146,6 +147,32 @@ def scan(response: Response,
 
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"
     return jobs_api.resource(job)
+
+
+@router.get("/policy", summary="What this library collects",
+            dependencies=[requires(scopes.CONFIG_READ)])
+def get_policy() -> models.LibraryPolicy:
+    """Which kinds this library collects and which catalogs it searches.
+
+    The library's, not a machine's - so every device reading this hub gets one answer
+    rather than each carrying its own copy of a question about somebody else's files.
+    """
+    return get_library_policy().values()
+
+
+@router.put("/policy", summary="Change what this library collects",
+            dependencies=[requires(scopes.CONFIG_WRITE)])
+def put_policy(payload: models.LibraryPolicyChange = Body(...)) -> models.LibraryPolicy:
+    """A patch: only the keys sent are written.
+
+    Empty means everything, in all three, so clearing one is a real answer rather than
+    a way of saying nothing - which is why an absent key is left alone and a present
+    empty list is stored.
+    """
+    policy = get_library_policy()
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        policy.set(key, value)
+    return policy.values()
 
 
 @router.get("/watching", summary="Since when a catalog change counts as new",
