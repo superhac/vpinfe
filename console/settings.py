@@ -345,6 +345,10 @@ DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
     )),
     ("VPinFE", (
         ("general", "General", SCHEMA_PAGE, ("general",), ""),
+        # Beside General rather than under Diagnostics. Ports, addresses and which
+        # library this install reads are configuration; Diagnostics is what you reach
+        # for when something is wrong.
+        ("network", "Network", SCHEMA_PAGE, ("network",), ""),
         ("frontend", "Frontend", SCHEMA_PAGE, ("frontend",), "frontend"),
         ("media", "Media", SCHEMA_PAGE, ("media",), "library"),
     )),
@@ -355,7 +359,6 @@ DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
     )),
     ("Diagnostics", (
         ("logs", "Logs", SCHEMA_PAGE, ("logger",), ""),
-        ("network", "Network", SCHEMA_PAGE, ("network",), ""),
     )),
 )
 
