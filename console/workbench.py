@@ -23,7 +23,6 @@ from urllib.parse import quote
 
 from nicegui import run, ui
 
-from common import install_identity
 from common.games import apps, asset_registry
 from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
 from common.games.collection_filters import UNCONSTRAINED
@@ -50,7 +49,6 @@ from console import (
     table_features,
 )
 from console import devices as devices_page
-from console import settings as settings_page
 from console.api import ApiError
 from console.data import Library
 
@@ -332,13 +330,8 @@ class Section:
     # with the sections under it pushed to the bottom edge.
     dock: bool = False
     # A heading over the run of sections it starts. Empty for a rail short enough to
-    # read without one, which is every subject but a device - that one carries a whole
-    # install's settings and is the length section 9a says wants grouping.
+    # read without one, which every rail now is.
     group: str = ""
-    # Which feature this section answers for, empty meaning any. An install with no
-    # library reads another install's and has none of its own, so it is not offered pages
-    # about one; the field the filter reads is what the install already declares.
-    feature: str = ""
 
 
 def sections_for(subject: str) -> tuple[Section, ...]:
@@ -583,8 +576,8 @@ async def _rail(context: dict[str, Any], subject: str,
     points at, so this row is the fixed frame and only the body scrolls.
 
     Wide, the rail is a column down the left and the work fills the space beside it, and
-    the rows are wrapped so they scroll without dragging the work along - a device
-    carries sixteen entries and a short window loses the last five otherwise.
+    the rows are wrapped so they scroll without dragging the work along - a rail longer
+    than the panel would otherwise take the work with it when it scrolled.
 
     Narrow, the same rows are a strict accordion with the work under the row that opened
     it. The wrapper would break that, so the stylesheet drops it there and `order` puts
@@ -593,13 +586,9 @@ async def _rail(context: dict[str, Any], subject: str,
     nothing is rebuilt on a drag.
     """
     rows = sections_for(subject)
-    if subject == "device":
-        rows = _for_features(rows,
-                             (context.get("device") or {}).get("features"))
     section = chosen_section(state, subject, rows)
-    # A section this device has no answer for is not a place to land: a cab that reads
-    # another install's library never offers Media Kinds, so keeping it open from the last
-    # device would open a page it cannot draw.
+    # A section this subject has no answer for is not a place to land, so an address or a
+    # remembered choice that names one opens the rail's own default instead.
     if section != COLLAPSED and section not in {item.key for item in rows}:
         section = rows[0].key if rows else COLLAPSED
     body = None
@@ -645,13 +634,6 @@ async def _one_section(context: dict[str, Any], key: str) -> None:
     """The chosen section's content. No heading - the row that opened it is the
     heading, and a second copy of the same words under it is furniture."""
     await next(item for item in SECTIONS if item.key == key).build(context)
-
-
-def _for_features(rows: tuple[Section, ...], features) -> tuple[Section, ...]:
-    """The sections this install can answer for. An empty feature means any install."""
-    held = ({str(f).strip().lower() for f in (features or [])}
-            or set(install_identity.FEATURES))
-    return tuple(item for item in rows if not item.feature or item.feature in held)
 
 
 def _section_row(context: dict[str, Any], section: Section, open_now: bool,
@@ -2486,28 +2468,16 @@ async def _device_details(context: dict[str, Any]) -> None:
         _rows(ui, await devices_page.detail_groups(context))
 
 
-def _device_setting_sections() -> tuple[Section, ...]:
-    """One section per page of a device's settings, from the index Settings declares.
+async def _device_software(context: dict[str, Any]) -> None:
+    """What it is running, and whether there is a newer build to take."""
+    with ui.column().classes("gap-0 console-form"):
+        _rows(ui, await devices_page.software_rows(context))
 
-    Built from that declaration rather than from the schema directly, so a device's
-    pages carry the same names, the same grouping and the same order wherever they are
-    drawn - which is the whole point: one settings surface, not two that drift.
 
-    Every page for every feature is built, and the rail filters by what an install declares
-    when it draws. A rail assembled per device would be a different map each time.
-    """
-    out = []
-    for group, page in settings_page.pages_for_features(
-            install_identity.FEATURES):
-        key, label, kind, sections, feature = page
-        out.append(Section(
-            f"device_{key}",
-            (lambda name: lambda _: name)(label),
-            (lambda page_key, k, names: lambda context:
-                devices_page.settings_page_block(context, page_key, k, names)
-             )(key, kind, sections),
-            subjects=frozenset({"device"}), group=group, feature=feature))
-    return tuple(out)
+async def _device_capabilities(context: dict[str, Any]) -> None:
+    """What it can be asked for, as that install declares it."""
+    with ui.column().classes("gap-0 console-form"):
+        _rows(ui, devices_page.capability_rows(context))
 
 
 async def _collection_details(context: dict[str, Any]) -> None:
@@ -3530,15 +3500,14 @@ SECTIONS: tuple[Section, ...] = (
             subjects=frozenset({"collection"})),
     Section("collection_contents", _contents_label, _collection_contents,
             subjects=frozenset({"collection"}), dock=True),
-    # A device, in reading order: what it is, whether it is there, what it is running,
-    # what it can be asked to do, and what this install holds about it. Settings comes from
-    # the device's own schema, so it is the same page Settings draws for this install.
-    # What a device is, as groups in one section - section 14.7 threw out a rail entry
-    # that opened one row, and five of the six this replaced held three or fewer.
-    Section("device_details", lambda _: "Device Details", _device_details,
+    # A device, in reading order: what it is, what it is running, and what it can be
+    # asked for. Its settings are not here at all - they are a door in Details into that
+    # install's own Console, because a build's settings belong to that build and
+    # rendering them from here meant fetching its schema over HTTP.
+    Section("device_details", lambda _: "Details", _device_details,
             subjects=frozenset({"device"})),
-    # Then that device's settings, one rail entry per page and grouped exactly as the
-    # install's own Settings groups them. A rail inside a rail was the alternative and it
-    # bought nothing: these are places, so they belong in the rail that holds places.
-    *_device_setting_sections(),
+    Section("device_software", lambda _: "Software", _device_software,
+            subjects=frozenset({"device"})),
+    Section("device_capabilities", lambda _: "Capabilities", _device_capabilities,
+            subjects=frozenset({"device"})),
 )

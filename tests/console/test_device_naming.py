@@ -85,5 +85,43 @@ class CapabilityStateTests(unittest.TestCase):
             self.assertIn(state, devices._CHIP)
 
 
+class SettingsDoorTests(unittest.TestCase):
+    """Configuration is edited on the install it configures, so this surface offers a
+    door rather than the settings themselves."""
+
+    CAB = {"device_id": "Bbbb222222", "address": "192.168.1.50", "port": 8001}
+
+    def test_the_door_lands_on_that_install_s_system_page(self) -> None:
+        """A new window on a front door is a dead end; one that lands where the settings
+        are is navigation."""
+        self.assertEqual(devices.settings_url(self.CAB),
+                         "http://192.168.1.50:8001/console?view=system")
+
+    def test_an_entry_with_no_port_has_nothing_to_dial(self) -> None:
+        self.assertEqual(devices.settings_url({"address": "192.168.1.50"}), "")
+
+    def test_a_device_that_answered_gets_a_live_door(self) -> None:
+        reach = {"state": device_client.ANSWERING}
+
+        self.assertEqual(devices.door_reason(self.CAB, reach, False), "")
+
+    def test_a_device_that_is_not_answering_says_so_instead(self) -> None:
+        """It must visibly not be a live door: the tab would open on a connection
+        error, which is a worse answer than being told here."""
+        reach = {"state": device_client.UNREACHABLE}
+
+        self.assertTrue(devices.door_reason(self.CAB, reach, False))
+
+    def test_an_entry_that_cannot_be_asked_says_which(self) -> None:
+        reach = {"state": device_client.UNASKABLE}
+
+        self.assertEqual(devices.door_reason(self.CAB, reach, False),
+                         devices.UNREACHABLE_NOTE)
+
+    def test_this_install_always_has_a_door(self) -> None:
+        """It is a place in the Console already open, so nothing has to answer first."""
+        self.assertEqual(devices.door_reason({}, None, True), "")
+
+
 if __name__ == "__main__":
     unittest.main()

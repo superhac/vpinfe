@@ -450,24 +450,90 @@ def _is_local(context: dict[str, Any]) -> bool:
 
 
 async def detail_groups(context: dict[str, Any]) -> list[tuple[Any, Any]]:
-    """Everything about a device, as one list of groups.
+    """What a device is, whether it is there, where its settings are, and what this
+    install holds about it.
 
-    One section rather than five, because four of the five held three rows or fewer and
-    a rail entry that opens one row is a click charged for nothing. The groups are
-    headings inside it, which is what the panel already does everywhere else.
+    Descriptive, then operational, then what this install holds about it: what a thing
+    is comes before what can be done to it, and the record we keep of it is nobody's
+    first question. They are headings inside one section rather than rail entries of
+    their own, because four of them hold three rows or fewer and a rail entry that opens
+    one row is a click charged for nothing.
     """
     rows_out: list[tuple[Any, Any]] = [(panel.HEADING, "Identity")]
     rows_out += await _identity_rows(context)
     rows_out.append((panel.HEADING, "Connection"))
     rows_out += _connection_rows(_of(context), context.get("reach"))
-    rows_out += await software_rows(context)
-    caps = capability_rows(context)
-    if caps:
-        rows_out.append((panel.HEADING, "Capabilities"))
-        rows_out += caps
+    rows_out.append((panel.HEADING, "Settings"))
+    rows_out += settings_door(context)
     rows_out.append((panel.HEADING, "This entry"))
     rows_out += entry_rows(context)
     return rows_out
+
+
+# Why a device's settings are somewhere else. Said where somebody is looking for them,
+# because "not here" without a reason reads as something missing.
+SETTINGS_NOTE = ("A machine's settings belong to the build running on it, so they are "
+                 "edited in its own Console rather than from here.")
+
+# What is wrong when the door will not open. Both halves matter: one is a machine to go
+# and switch on, the other is an entry with nothing to dial.
+NO_DOOR = {
+    device_client.UNREACHABLE: "It is not answering, so there is nothing to open.",
+    device_client.UNASKABLE: UNREACHABLE_NOTE,
+}
+
+
+# Where this install's own settings are, which is a place in the Console already open.
+SYSTEM_PATH = "/console?view=system"
+
+
+def settings_url(device: dict[str, Any]) -> str:
+    """That install's own Console, landing on System. Empty when there is nothing to
+    dial - an entry written before ports were recorded has no port."""
+    address = str(device.get("address") or "").strip()
+    port = int(device.get("port") or 0)
+    return f"http://{address}:{port}{SYSTEM_PATH}" if address and port else ""
+
+
+def door_reason(device: dict[str, Any], reach: dict[str, Any] | None,
+                is_local: bool) -> str:
+    """Why the door will not open, or "" when it will.
+
+    A machine that is not answering must not be offered as a live link: the tab opens on
+    a connection error, which is a worse answer than being told here.
+    """
+    if is_local:
+        return ""
+    found = NO_DOOR.get(str((reach or {}).get("state") or ""))
+    if found:
+        return found
+    return "" if settings_url(device) else UNREACHABLE_NOTE
+
+
+def settings_door(context: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """The way into that install's own Console, or the reason there is not one.
+
+    A door rather than a section. Its settings used to be thirteen rail entries here,
+    drawn from a schema fetched over HTTP - which meant this build deciding how another
+    build's settings look, and that is exactly where version skew bites.
+    """
+    device = _of(context)
+    here = _is_local(context)
+    stopped = door_reason(device, context.get("reach"), here)
+
+    def open_it() -> None:
+        # In place for this install, a new tab for anything else: one is a place in the
+        # Console you are already reading, and the other is a different machine's.
+        ui.navigate.to(SYSTEM_PATH if here else settings_url(device),
+                       new_tab=not here)
+
+    def door() -> None:
+        with ui.element("div").classes("console-fact-edit"):
+            panel.action("Open System" if here else "Open its settings",
+                         open_it, icon="open_in_new", inline=True,
+                         enabled=not stopped)()
+
+    return [("", door), panel.note(stopped or SETTINGS_NOTE)]
 
 
 async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
@@ -575,60 +641,3 @@ def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     out.append(panel.note(FORGET_NOTE))
     out.append(("", forget_action))
     return out
-
-
-async def settings_page_block(context: dict[str, Any], page_key: str, kind: str,
-                              sections: tuple[str, ...]) -> None:
-    """One page of a device's settings, drawn the way that page is always drawn.
-
-    Whoever holds the settings answers for them: this install through its own
-    client, another machine through the client that reaches it. Both expose the same
-    calls, so a page here is one page rather than a local and a remote copy.
-
-    The library pages are the exception, and by rule rather than by omission: what a
-    library collects is the library's, so those are only offered on an install that
-    holds one - the rail's role filter - and they are drawn against this install's
-    own client, because it is what holds it.
-    """
-    device = _of(context)
-    library = context.get("library")
-    if kind != settings_page.SCHEMA_PAGE:
-        if library is None:
-            panel.facts(ui, [panel.intro(UNREACHABLE_NOTE)])
-            return
-        rebuild = context.get("rebuild")
-
-        def redraw() -> None:
-            if rebuild is not None:
-                ui.timer(0.01, rebuild, once=True)
-
-        settings_page.build_library_page(library, redraw, page_key, kind)
-        return
-
-    source = library if _is_local(context) else _client_for(context)
-    if source is None:
-        panel.facts(ui, [panel.intro(UNREACHABLE_NOTE)])
-        return
-
-    # Read once per panel build rather than per page: every page wants the same two
-    # answers, and asking a machine across the network per rail click is a page that
-    # gets slower the more you look at it.
-    if "device_config" not in context:
-        try:
-            context["device_config"] = (
-                await run.io_bound(source.config_schema),
-                await run.io_bound(source.config_values))
-        except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
-            context["device_config"] = None
-            logger.info("Could not read settings on %s", device_label(device),
-                        exc_info=True)
-            panel.facts(ui, [panel.intro(
-                f"Could not read the settings on {device_label(device)}: {exc}")])
-            return
-    if context["device_config"] is None:
-        panel.facts(ui, [panel.intro(
-            f"Could not read the settings on {device_label(device)}.")])
-        return
-
-    schema, values = context["device_config"]
-    await settings_page.build_device_page(source, context, schema, values, sections)
