@@ -96,10 +96,17 @@ class Library:
         self._kept: dict[str, set[str]] | None = None
 
     def load(self) -> None:
+        """Everything the first draw needs, read off the event loop.
+
+        The kept kinds are read here too, for the same reason the media and asset lenses
+        read them: Overview filters on them while it is drawing, which is on the loop,
+        and a call made there cannot be answered by the process it is made from.
+        """
         started = time.perf_counter()
         self.games = self._client.games()
         for game in self.games:
             self.media[game["id"]] = self._client.media(game["id"])
+        self.kept_kinds()
         logger.info("console: read %d games in %.2fs", len(self.games),
                     time.perf_counter() - started)
 
