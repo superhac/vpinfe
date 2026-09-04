@@ -67,15 +67,22 @@ class ConfigApiTests(unittest.TestCase):
     # --- writes ---------------------------------------------------------------
 
     def test_a_known_setting_is_written_and_saved(self):
-        config_api.put_values({"logger": {"console": False}})
-        self.assertEqual(self.store.written[("logger", "console")], False)
+        config_api.put_values({"logger": {"terminal": False}})
+        self.assertEqual(self.store.written[("logger", "terminal")], False)
         self.assertEqual(self.store.saves, 1)
+
+    def test_a_retired_spelling_writes_to_the_current_key(self):
+        """`console` named terminal logging before it named the web UI. A client written
+        against the old name must not write a second, dead key beside the live one."""
+        config_api.put_values({"logger": {"console": False}})
+        self.assertEqual(self.store.written[("logger", "terminal")], False)
+        self.assertNotIn(("logger", "console"), self.store.written)
 
     def test_an_unknown_key_fails_the_whole_request(self):
         """Not just the bad key - the good one must not land either, or a save is
         half-applied and no screen reflects the result."""
         with self.assertRaises(Exception) as caught:
-            config_api.put_values({"logger": {"console": False},
+            config_api.put_values({"logger": {"terminal": False},
                                    "general": {"not_a_setting": "x"}})
         self.assertIn("not_a_setting", str(caught.exception))
         self.assertEqual(self.store.written, {})

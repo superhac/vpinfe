@@ -62,8 +62,8 @@
     "zedmd_wifi_address": ""
   },
   "logger": {
-    "console": "true",
-    "level": "debug"
+    "level": "debug",
+    "terminal": "true"
   },
   "media": {
     "asset_sources": "",

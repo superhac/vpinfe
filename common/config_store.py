@@ -86,6 +86,8 @@ _RENAMED_KEYS = (
     ('Media', 'tableresolution', 'playfieldresolution'),
     ('Media', 'tablevideoresolution', 'playfieldvideoresolution'),
     ('Media', 'tablemediapriority', 'playfieldmediapriority'),
+    # `console` is the web UI now, so the log destination says which one it means.
+    ('logger', 'console', 'terminal'),
 )
 
 def _nest(sections: dict) -> dict:

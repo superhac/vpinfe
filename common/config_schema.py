@@ -541,10 +541,11 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             choices=("debug", "info", "warning", "error"),
         ),
         ConfigOption(
-            "console",
+            "terminal",
             type="bool",
             default="true",
-            label="Console Logging",
+            label="Log to Terminal",
+            aliases=("console",),
         ),
     ),
     *in_section(

@@ -136,6 +136,17 @@ class IniConversionTests(ConfigStoreTests):
         self.assertEqual(settings["game_root_dir"], "/old/tables")
         self.assertNotIn("tablerootdir", settings)
 
+    def test_terminal_logging_keeps_the_value_2x_wrote(self) -> None:
+        """`console` named the log destination before it named the web UI, and 2.x wrote
+        it into every vpinfe.ini as a default - so this one is owed an upgrade path."""
+        self._write_ini("[logger]\nconsole = false\n")
+
+        ConfigStore(str(self.ini))
+
+        logger = self._payload()[SETTINGS_KEY]["logger"]
+        self.assertIs(logger["terminal"], False)
+        self.assertNotIn("console", logger)
+
     def test_a_user_value_is_typed_on_the_way_in(self) -> None:
         self._write_ini("[Displays]\nplayfieldscreenid = 2\ncabmode = true\n")
 

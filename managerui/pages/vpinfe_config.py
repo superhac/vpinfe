@@ -55,7 +55,7 @@ SECTION_DESCRIPTIONS = {
     'frontend': 'How the wheel behaves - what it opens on, and what the menu offers.',
     'displays': 'Monitor assignments and playfield orientation settings.',
     'input': 'Controller and input-related preferences.',
-    'logger': 'Verbosity, console logging, and quick log access.',
+    'logger': 'Verbosity, terminal logging, and quick log access.',
     'media': 'Default media handling and fallback asset preferences.',
     'network': 'Ports and services used by the local frontend stack.',
     'mobile': 'Connection details for external mobile devices.',

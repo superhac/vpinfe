@@ -279,7 +279,13 @@
     "Logger",
     "console",
     "logger",
-    "console"
+    "terminal"
+  ],
+  [
+    "logger",
+    "console",
+    "logger",
+    "terminal"
   ],
   [
     "Logger",
@@ -1060,5 +1066,11 @@
     "restorelastgame",
     "frontend",
     "restore_last_table"
+  ],
+  [
+    "logger",
+    "terminal",
+    "logger",
+    "terminal"
   ]
 ]

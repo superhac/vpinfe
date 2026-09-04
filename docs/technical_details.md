@@ -102,7 +102,7 @@ uses an old spelling both still load.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `level` | choice (debug, info, warning, error) | `debug` | Log Verbosity |
-| `console` | bool | `true` | Console Logging |
+| `terminal` | bool | `true` | Log to Terminal |
 
 ### `media`
 

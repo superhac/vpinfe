@@ -128,14 +128,19 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
     config_dir.mkdir(parents=True, exist_ok=True)
 
     log_level = DEFAULT_LOG_LEVEL
-    console_enabled = True
+    terminal_enabled = True
     file_enabled = enable_file
     log_path = config_dir / DEFAULT_LOG_FILE_NAME
 
     if ini_config is not None:
-        logger_cfg = ini_config.config["logger"]
-        log_level = logger_cfg.get("level", DEFAULT_LOG_LEVEL)
-        console_enabled = _coerce_bool(logger_cfg.get("console"), True)
+        from common.config_access import cfg_get
+
+        log_level = cfg_get(ini_config, "logger", "level", DEFAULT_LOG_LEVEL)
+        # Through cfg_get rather than off the section directly: the key was `console`
+        # before the web UI took that word, and logging is configured early enough that
+        # it cannot assume the file has been migrated yet.
+        terminal_enabled = _coerce_bool(
+            cfg_get(ini_config, "logger", "terminal") or None, True)
 
     resolved_level, include_third_party, include_windows = _parse_level_and_flags(log_level)
     _INCLUDE_THIRD_PARTY = include_third_party
@@ -156,12 +161,12 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    if console_enabled:
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
-        console_handler.addFilter(_ThirdPartyFilter(include_third_party))
-        console_handler.addFilter(_WindowsFilter(include_windows))
-        root_logger.addHandler(console_handler)
+    if terminal_enabled:
+        terminal_handler = logging.StreamHandler(sys.stdout)
+        terminal_handler.setFormatter(formatter)
+        terminal_handler.addFilter(_ThirdPartyFilter(include_third_party))
+        terminal_handler.addFilter(_WindowsFilter(include_windows))
+        root_logger.addHandler(terminal_handler)
 
     if file_enabled:
         log_path.parent.mkdir(parents=True, exist_ok=True)
