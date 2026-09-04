@@ -1,0 +1,594 @@
+"""Reading and writing a game's `.info` file.
+
+The one place that knows the on-disk shape, so a schema change lands here rather than
+at every caller. A file is upgraded when it is read, and the old copy is set aside
+rather than overwritten.
+"""
+
+import json
+import logging
+import os
+from urllib.parse import parse_qs, urlparse
+
+from common.games import identity_claims
+from common.games.ids import new_id
+from common.games.info_migration import (
+    migrate,
+    needs_migration,
+    write_backup,
+    write_json_atomic,
+)
+from common.games.tables import (
+    ABSENT_SINCE_KEY,
+    DEFAULT_TABLE_KEY,
+    DETECT_KEYS,
+    TABLE_FILENAME_KEY,
+    TABLE_ID_KEY,
+    TABLES_KEY,
+    adopted_entry,
+    default_table,
+    entry_filename,
+    entry_for_filename,
+    entry_from_parsed,
+    recorded_default,
+    table_entries,
+    table_filenames,
+)
+from common.timestamps import utc_now_iso
+
+logger = logging.getLogger("vpinfe.common.games.info_file")
+
+# Schema version for the VPinFE section only - we own those keys outright, so their
+# shape can be reasoned about from a version. Other sections stay shape-driven.
+#   1  original shape (deletedNVRamOnClose, altlauncher, pluginprofile, alttitle,
+#      altvpsid). Implied when no version is recorded.
+#   2  adds `game_id`, the stable local game id (see common/games/game_identity.py).
+INFO_SCHEMA = 2
+VPINFE_SCHEMA_KEY = "schema"
+
+# Named for what it identifies, because this section holds ids at more than one scope:
+# `default_table` beside it is a *table* id, and the source block will carry VPS and host
+# ids too. A payload can say `game: {"id": ...}` because the object states the scope; this
+# section does not.
+GAME_ID_KEY = "game_id"
+
+# The section we own outright: app configuration and game-level bookkeeping. 2.x wrote
+# it as `VPinFE`; the migration renames it, since the sections we own are snake_case -
+# which it now has.
+VPINFE_SECTION = "vpinfe"
+
+# One entry per file VPinFE placed, keyed by the path it was written to. Supersedes
+# Medias, which was keyed by media kind and so held at most one entry per kind - it
+# could not say which table's wheel it meant once artwork could belong to a
+# specific one, and the same question applies to backglasses, ROMs and colorizations.
+ASSETS_KEY = "assets"
+
+_warned_newer_schema = set()
+
+
+def migrate_vpinfe_section(vpinfe):
+    """Bring the VPinFE section up to the current schema, in memory.
+
+    Idempotent; the stamp reaches disk on the next write. A section written by a newer
+    build is left as-is rather than downgraded.
+    """
+    if not isinstance(vpinfe, dict):
+        return {VPINFE_SCHEMA_KEY: INFO_SCHEMA}
+
+    try:
+        version = int(vpinfe.get(VPINFE_SCHEMA_KEY, 1) or 1)
+    except (TypeError, ValueError):
+        version = 1
+
+    if version > INFO_SCHEMA:
+        if version not in _warned_newer_schema:
+            _warned_newer_schema.add(version)
+            logger.warning(
+                "Game metadata uses VPinFE schema %s, newer than this build's %s. "
+                "Leaving it untouched; unknown settings are preserved.",
+                version, INFO_SCHEMA,
+            )
+        return vpinfe
+
+    if version < 2:
+        vpinfe.setdefault(GAME_ID_KEY, "")  # declare only; minting is a writer's job
+
+    vpinfe[VPINFE_SCHEMA_KEY] = INFO_SCHEMA
+    return vpinfe
+
+
+ALT_VPSID_KEY = "alt_vpsid"
+# Nothing resolves through this, and an invariant says so.
+ALT_VPSID_PREVIOUS_KEY = "alt_vpsid_previous"
+
+
+def _park_alt_vpsid(vpinfe, table_filename):
+    """Set a manual VPS match aside when the table it was claimed against is replaced.
+
+    It stops applying either way; what changes is that the user's typed value survives to
+    be offered back. Only the most recent is kept.
+    """
+    previous = str(vpinfe.get(ALT_VPSID_KEY, "") or "").strip()
+    vpinfe[ALT_VPSID_KEY] = ""
+    if not previous:
+        return
+    vpinfe[ALT_VPSID_PREVIOUS_KEY] = {
+        "value": previous,
+        "table": table_filename or "",
+        "set_aside": utc_now_iso(),
+    }
+
+
+def _default_table_changed(chosen, previous_files, tables):
+    """Whether the game's default table is a different file than it was.
+
+    A manual VPS override is tied to the table it was chosen against, so replacing
+    that file drops it. Scoped to the default: ADDING a table is not a reason to
+    discard the user's match.
+    """
+    previous_hash = str(entry_for_filename(previous_files, chosen)[1]
+                        .get("file_hash", "") or "").strip()
+    new_hash = str(entry_for_filename(tables, chosen)[1]
+                   .get("file_hash", "") or "").strip()
+    return bool(previous_hash and new_hash and previous_hash != new_hash)
+
+
+class InvalidMetaConfigError(ValueError):
+    """Raised when a game's .info file exists but cannot be read as metadata."""
+
+    def __init__(self, path, reason):
+        self.path = path
+        self.reason = reason
+        super().__init__(f"Invalid game metadata file: {path} ({reason})")
+
+
+PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
+
+
+def _primer_tutorial(vpsdata):
+    """The primer link among an entry's tutorials, or "" where it lists none."""
+    if not isinstance(vpsdata, dict):
+        return ""
+    for tutorial in vpsdata.get("tutorialFiles", []):
+        if not isinstance(tutorial, dict):
+            continue
+        direct = tutorial.get("url")
+        if isinstance(direct, str) and direct.startswith(PINBALL_PRIMER_PREFIX):
+            return direct
+        for entry in tutorial.get("urls", []):
+            if not isinstance(entry, dict):
+                continue
+            nested = entry.get("url")
+            if isinstance(nested, str) and nested.startswith(PINBALL_PRIMER_PREFIX):
+                return nested
+    return ""
+
+
+def info_from_vps(vps_entry):
+    """The `Info` block for one catalog entry.
+
+    Info is wholly what VPS knows about the machine. Rom and Authors used to be copied
+    in from the parsed .vpx and were per-table values all along - they live on their
+    own tables entry now.
+
+    A function rather than a method because associating a folder is no longer the only
+    time it is needed: correcting a match leaves every one of these describing the
+    machine the game used to be, and adopting the entry's details has to build the same
+    block the association would have built.
+    """
+    entry = vps_entry or {}
+    info = {
+        "IPDBId": parse_qs(urlparse(entry.get("ipdbUrl", "")).query).get("id", [""])[0],
+        "Title": entry.get("name", ""),
+        "Manufacturer": entry.get("manufacturer", ""),
+        "Year": entry.get("year", ""),
+        "Type": entry.get("type", ""),
+        "Themes": entry.get("theme", []),
+        "VPSId": entry.get("id", ""),
+    }
+    tutorial = _primer_tutorial(entry)
+    if tutorial:
+        info["PinballPrimerTut"] = tutorial
+    return info
+
+
+class MetaConfig:
+    """One game's `.info`, upgraded to the current schema as it is read."""
+
+    PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
+
+    def __init__(self, configfilepath):
+        self.configFilePath = configfilepath
+        self.data = {}
+        # The file as it was found, held only until a write backs it up.
+        self._pre_migration = ""
+
+        if os.path.exists(configfilepath):
+            try:
+                if os.path.getsize(configfilepath) == 0:
+                    raise InvalidMetaConfigError(configfilepath, "file is empty")
+                with open(configfilepath, encoding="utf-8") as f:
+                    original = f.read()
+                self.data = json.loads(original)
+            except json.JSONDecodeError as exc:
+                reason = f"invalid JSON at line {exc.lineno} column {exc.colno}: {exc.msg}"
+                raise InvalidMetaConfigError(configfilepath, reason) from exc
+            if needs_migration(self.data):
+                self._pre_migration = original
+                self.data = migrate(self.data)
+                logger.info("Migrated %s to schema %s in memory", configfilepath,
+                            INFO_SCHEMA)
+        else:
+            self.data = {}
+        self._normalize_detection_flags()
+        self._migrate_vpinfe()
+
+    @property
+    def pending_migration(self) -> bool:
+        """Whether this file converted on read and has not been written back yet.
+
+        The lazy path means "has the library converted" has no answer without asking every
+        file. This is how the caller asks one.
+        """
+        return bool(self._pre_migration)
+
+    def write_config_meta(self, configdata):
+        """
+        Build the .info JSON structure
+        """
+        info = info_from_vps(configdata.get("vpsdata", {}))
+
+        user = self.data.get("User", {
+            "Rating": 0,
+            "Favorite": False,
+            "LastRun": None,
+            "StartCount": 0,
+            "RunTime": 0,
+            "Tags": [],
+        })
+        if not isinstance(user, dict):
+            user = {}
+        user.setdefault("Rating", 0)
+        user.setdefault("Favorite", False)
+        user.setdefault("LastRun", None)
+        user.setdefault("StartCount", 0)
+        user.setdefault("RunTime", 0)
+        user.setdefault("Tags", [])
+
+        vpinfe = self.data.get(VPINFE_SECTION, {})
+        if not isinstance(vpinfe, dict):
+            vpinfe = {}
+        vpinfe = migrate_vpinfe_section(vpinfe)
+        vpinfe.setdefault("delete_nvram_on_close", False)
+        vpinfe.setdefault("alt_launcher", "")
+        vpinfe.setdefault("plugin_profile", "")
+        vpinfe.setdefault("alt_title", "")
+        # Configuration, not a play record - see game_metadata.game_frontend_dof_event.
+        vpinfe.setdefault("frontend_dof_event", "")
+        # Outside the filehash check below on purpose: the id must survive the table
+        # changing, which is exactly when alt_vpsid is cleared.
+        if not str(vpinfe.get(GAME_ID_KEY, "") or "").strip():
+            # Imported here because game_identity reaches back through game_metadata
+            # to this module. One minting rule, one place, no cycle.
+            from common.games.game_identity import new_id
+
+            vpinfe[GAME_ID_KEY] = new_id()
+
+        assets = self.data.get(ASSETS_KEY, {})
+        previous_files = table_entries(self.data)
+        tables = self._build_tables(configdata)
+
+        # Which table a single-table consumer gets - today's themes all assume one game
+        # means one table. Resolved fresh here and deliberately NOT written back:
+        # seeding it on every rebuild would turn an arbitrary first pick into a
+        # permanent one with nothing to change it. The key is written only when
+        # somebody chooses (and by the migration, which seeds it from VPXFile.filename
+        # so existing games keep selecting exactly what they select today).
+        chosen = default_table(table_filenames(tables), "",
+                               recorded_default(vpinfe, tables))
+
+        if _default_table_changed(chosen, previous_files, tables):
+            _park_alt_vpsid(vpinfe, chosen)
+        else:
+            vpinfe.setdefault(ALT_VPSID_KEY, "")
+
+        # Preserve any top-level sections we don't manage (e.g. metadata written by
+        # other tools sharing the .info file) instead of dropping them on rebuild.
+        # VPXFile and Medias are listed because they are ours and superseded - without
+        # them here the old sections would survive as "unmanaged" and be written back
+        # forever.
+        preserved = {
+            k: v
+            for k, v in self.data.items()
+            if k not in ("Info", "User", "VPXFile", VPINFE_SECTION, "Medias",
+                         TABLES_KEY, ASSETS_KEY)
+        }
+
+        self.data = {
+            "Info": info,
+            "User": user,
+            VPINFE_SECTION: vpinfe,
+            TABLES_KEY: tables,
+            ASSETS_KEY: assets,
+            **preserved
+        }
+
+        self.write_config()
+
+    def _build_tables(self, configdata):
+        """One entry per parsed table, keyed by filename.
+
+        Callers pass `gamefiles` as {filename: parsed}. `vpxdata` alone is still
+        accepted for the single-table case, which is most of the library.
+
+        Anything already recorded against a filename and not covered by the parse -
+        the user's `hidden`, a `patch_applied` flag, play stats and match records -
+        survives untouched, and follows the file across a rename. Parsed fields are
+        refreshed, so a stale value can never outlive what the .vpx actually says.
+        """
+        parsed_files = configdata.get("gamefiles")
+        if not isinstance(parsed_files, dict) or not parsed_files:
+            single = configdata.get("vpxdata") or {}
+            name = str(single.get("filename", "") or "").strip()
+            parsed_files = {name: single} if name else {}
+
+        existing = table_entries(self.data)
+        built = {}
+        for filename, parsed in parsed_files.items():
+            entry = entry_from_parsed(parsed)
+            entry[TABLE_FILENAME_KEY] = filename
+            prior = adopted_entry(existing, filename, entry.get("file_hash", ""),
+                                  parsed_files)
+            if isinstance(prior, dict):
+                # Refresh what the parse covers; leave everything else alone. Doing it
+                # the other way - naming the keys worth keeping - means every field we
+                # add later has to be remembered here, and forgetting one silently
+                # deletes it on the next rebuild. Play stats and match records live
+                # here; neither should depend on somebody updating a list.
+                entry = {**prior, **entry}
+            entry.setdefault(TABLE_ID_KEY, new_id())
+            built[entry[TABLE_ID_KEY]] = entry
+        return built
+
+    def _entries_by_id(self):
+        """The tables map keyed by id, converted in place so the next write persists it."""
+        entries = table_entries(self.data)
+        self.data[TABLES_KEY] = entries
+        return entries
+
+    @staticmethod
+    def _entry_for(entries, filename):
+        """The entry describing this .vpx, minting one if the table is new to us."""
+        _, entry = entry_for_filename(entries, filename)
+        if entry:
+            return entry
+        minted = new_id()
+        entry = {TABLE_ID_KEY: minted, TABLE_FILENAME_KEY: filename}
+        entries[minted] = entry
+        return entry
+
+    def write_config(self):
+        self._normalize_detection_flags()
+        os.makedirs(os.path.dirname(self.configFilePath), exist_ok=True)
+        if self._pre_migration:
+            # Before the first write of the new shape, and only then: one restore point
+            # per schema bump, not one per rebuild. A failure here stops the write - the
+            # backup exists for the person who needs to go back, so proceeding without
+            # one would take away the only thing that makes this reversible.
+            saved = write_backup(self.configFilePath, self._pre_migration)
+            self._pre_migration = ""
+            logger.info("Kept the pre-migration metadata at %s", saved)
+        write_json_atomic(self.configFilePath, self.data)
+
+    def get_config(self):
+        return self.data
+
+    def strip_all_newlines(self, text):
+        return text.replace("\r\n", "").replace("\n", "")
+
+    def game_file_settings(self):
+        """Per-table entries, keyed by filename. A folder can hold several tables
+        of one game - desktop, VR, a patched variant - and they are peers."""
+        return table_entries(self.data)
+
+    def set_table_hidden(self, filename, hidden):
+        """Hide a table from the frontend, or unhide it.
+
+        Hiding never deletes. A patch base has to stay on disk - the patched table
+        cannot be rebuilt without it - it just should not be offered as something to
+        play. The same applies to a variant someone may want back later.
+        """
+        settings = self._entries_by_id()
+        entry = self._entry_for(settings, filename)
+        if hidden:
+            entry["hidden"] = True
+        else:
+            entry.pop("hidden", None)
+            # An entry that only ever carried `hidden` and a name came from a table we
+            # never parsed; drop it rather than leave an empty record behind.
+            if set(entry) <= {TABLE_ID_KEY, TABLE_FILENAME_KEY}:
+                settings.pop(entry.get(TABLE_ID_KEY), None)
+        self.write_config()
+
+    def set_default_table(self, table_id):
+        """Record which of a game's tables is the one to offer first.
+
+        Stored as an id rather than a filename so the choice survives a rename, and
+        cleared by passing "" - absent means "resolve from what is in the folder",
+        which is the right answer until somebody has an opinion.
+        """
+        entries = self._entries_by_id()
+        wanted = str(table_id or "").strip()
+        if wanted and wanted not in entries:
+            raise ValueError(f"no table {wanted} in this game")
+        vpinfe = self.data.setdefault(VPINFE_SECTION, {})
+        if wanted:
+            vpinfe[DEFAULT_TABLE_KEY] = wanted
+        else:
+            vpinfe.pop(DEFAULT_TABLE_KEY, None)
+        self.write_config()
+
+    def forget_table(self, table_id):
+        """Drop an absent table's record, once a person has decided it is not coming back.
+
+        Only an entry discovery has stamped absent. While the file is on disk that entry
+        is the record of a table the user owns, and `set_table_hidden` is what takes one
+        out of play without losing its stats and match records. Refusing the present case
+        is what keeps a stale id from deleting a table that is simply there.
+
+        There is no backup because there is a better undo: put the .vpx back and refresh,
+        and discovery mints the entry again - though with a *new* id, so a collection
+        that named this table by id does not reconnect to it.
+        """
+        entries = self._entries_by_id()
+        entry = entries.get(table_id)
+        if not isinstance(entry, dict) or not entry.get(ABSENT_SINCE_KEY):
+            return False
+
+        gone_name = entry_filename(entry)
+        entries.pop(table_id, None)
+        vpinfe = self.data.get(VPINFE_SECTION)
+        if isinstance(vpinfe, dict) and str(vpinfe.get(DEFAULT_TABLE_KEY, "")) == table_id:
+            # The stored default is a table id, so leaving it would name a table nothing
+            # describes. The manual VPS match went with that table - park it the way a
+            # replacement does, so the user's typed value can be offered back.
+            vpinfe[DEFAULT_TABLE_KEY] = ""
+            _park_alt_vpsid(vpinfe, gone_name)
+        self.write_config()
+        return True
+
+    def game_file_value(self, filename, key, default=""):
+        """One key off a specific table's entry."""
+        _, value = entry_for_filename(table_entries(self.data), filename)
+        return value.get(key, default) if isinstance(value, dict) else default
+
+    def set_table_value(self, filename, key, value):
+        """Record something we did to a table, against that table."""
+        entry = self._entry_for(self._entries_by_id(), filename)
+        entry[key] = value
+        self.write_config()
+
+    def refresh_table(self, filename, parsed):
+        """Refresh what one table says about itself. Everything else on the entry -
+        hidden, where it came from, later play stats - survives, as it does on a full
+        rebuild.
+        """
+        entry = self._entry_for(self._entries_by_id(), filename)
+        entry.update(entry_from_parsed(parsed))
+        self.write_config()
+
+    def replace_table(self, removed, filename, parsed):
+        """One table replaced another on disk: describe the new one, forget the old.
+
+        A gone table's entry is not kept - its history answers nothing once the file is
+        gone. If the default is what changed, the manual VPS override goes with it, the
+        same rule a rebuild applies.
+        """
+        entries = table_entries(self.data)
+        # Deep enough to survive the update below: a shallow copy shares the entry dicts,
+        # so the "before" would change with the "after" and never look different.
+        previous = {key: dict(entry) for key, entry in entries.items()
+                    if isinstance(entry, dict)}
+
+        gone_id, _ = entry_for_filename(entries, removed) if removed else ("", {})
+        dropped = bool(removed and removed != filename and entries.pop(gone_id, None))
+        if parsed:
+            # A failed parse leaves the entry unparsed rather than filled with empties.
+            self._entry_for(entries, filename).update(entry_from_parsed(parsed))
+        elif not dropped:
+            return      # nothing to say; do not add an empty section to the .info
+
+        self.data[TABLES_KEY] = entries
+        vpinfe = self.data.get(VPINFE_SECTION)
+        if isinstance(vpinfe, dict):
+            chosen = default_table(table_filenames(entries), "",
+                                   recorded_default(vpinfe, entries))
+            if _default_table_changed(chosen, previous, entries):
+                _park_alt_vpsid(vpinfe, chosen)
+        self.write_config()
+
+    def record_patch_source(self, filename, base_file, base_hash, patch_format):
+        """Record a table we made ourselves: the base it came from, and the patch that
+        made it. An ordinary .vpx has no source, which is the normal case.
+
+        The base is hashed because a .dif applies to one exact file, and the delta's
+        format is recorded rather than the code that applied it.
+        """
+        entry = self._entry_for(self._entries_by_id(), filename)
+        entry["source"] = {
+            "base": {"file": base_file, "hash": base_hash},
+            "patch": {"format": patch_format, "applied": utc_now_iso()},
+        }
+        self.write_config()
+
+    def add_asset(self, path, host, md5="", identity=None):
+        """Record a file we placed, against the path we wrote it to.
+
+        Origin only. What kind of media it is and which table it belongs to are read
+        off the filename by resolve_media_files on every run, so a stored copy could
+        only ever agree with it or be wrong - and resolution wins either way.
+
+        `identity` is what the sender said this file is, when something witnessed it
+        arriving from a named upstream record. A weaker claim never overwrites a stronger
+        one already recorded, and an equal one does not either - the first witness keeps
+        the record, so re-importing the same file does not churn the file.
+        """
+        key = self._asset_key(path)
+        if identity is not None and not identity.is_empty:
+            source = identity_claims.source_block(identity, md5=md5)
+            source.setdefault("host", host)
+            existing = (self.data.get(ASSETS_KEY, {}).get(key) or {}).get("source") or {}
+            if existing and not identity_claims.outranks(
+                    source.get("confirmed_by", ""), existing.get("confirmed_by", "")):
+                return
+        else:
+            source = {"host": host}
+            if md5:
+                source["hash"] = md5
+        self.data.setdefault(ASSETS_KEY, {})[key] = {"source": source}
+        self.write_config()
+
+    def _asset_key(self, path):
+        """A path relative to the game folder, with forward slashes.
+
+        The .info travels with its folder, so an absolute path stops meaning anything
+        the moment the library moves. Separators are normalized because a key written
+        on Windows has to match one read on Linux.
+        """
+        try:
+            relative = os.path.relpath(str(path), os.path.dirname(self.configFilePath))
+        except ValueError:
+            # Different drive on Windows; there is nothing to record but the name.
+            relative = os.path.basename(str(path))
+        return relative.replace(os.sep, "/")
+
+    def _find_pinball_primer_tutorial(self, vpsdata):
+        return _primer_tutorial(vpsdata)
+
+    def _migrate_vpinfe(self):
+        """Apply the VPinFE section schema migration to the loaded data, in memory."""
+        if not isinstance(self.data, dict):
+            return
+        vpinfe = self.data.get(VPINFE_SECTION)
+        if isinstance(vpinfe, dict):
+            self.data[VPINFE_SECTION] = migrate_vpinfe_section(vpinfe)
+
+    def _to_bool(self, val):
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, str):
+            return val.strip().lower() in ("true", "1", "yes", "on")
+        return val == 1
+
+    def _normalize_detection_flags(self):
+        """Detect flags as real booleans, on every table entry.
+
+        The parser has handed back strings at times, and a JSON "false" is truthy to
+        anything that reads it without care.
+        """
+        for entry in table_entries(self.data).values():
+            if not isinstance(entry, dict):
+                continue
+            for key in DETECT_KEYS:
+                if key in entry:
+                    entry[key] = self._to_bool(entry[key])

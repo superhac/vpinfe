@@ -1,0 +1,198 @@
+#overlay-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  /* background-color: rgba(0, 0, 0, 0.6); */
+  display: none; /* ✅ hide by default */
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+/* Every overlay frame, whichever it is. The chrome was written out once per frame id and
+   was identical in all three; only the size differs, so only the size is stated below. */
+.vpinfe-overlay-frame {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+#menu-frame {
+  width: min(88vw, calc(88vh * 1.5), 1800px);
+  height: auto;
+  aspect-ratio: 3 / 2;
+}
+
+#collection-menu-frame {
+  width: min(82vw, calc(88vh * 1.5), 1400px);
+  height: auto;
+  aspect-ratio: 3 / 2;
+}
+
+#tutorial-frame {
+  width: 94vw;
+  height: 94vh;
+}
+
+#overlay-root {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#overlay-root.active {
+  display: flex;
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Core layout - opt in with `layout.enabled` in a theme's config.json.
+
+   Four themes each worked this out by hand and no two agreed, so the same ini gave
+   different geometry depending on which theme was installed. These rules are the one
+   answer; core sets the attributes and custom properties they read.
+
+   Nothing here applies unless a theme marks an element, so linking this file stays
+   free for the themes that do their own.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --vpinfe-upright-rotation: 0deg;
+  --vpinfe-playfield-media-rotation: 0deg;
+}
+
+/* The whole UI, turned to face the player. Only needed when the OS is not already
+   rotating the playfield screen. */
+[data-vpinfe-upright="90"] .vpinfe-upright,
+[data-vpinfe-upright="180"] .vpinfe-upright,
+[data-vpinfe-upright="270"] .vpinfe-upright {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  transform: translate(-50%, -50%) rotate(var(--vpinfe-upright-rotation));
+}
+
+/* A quarter turn swaps the axes, so the surface is the viewport's other way round. */
+[data-vpinfe-upright="90"] .vpinfe-upright,
+[data-vpinfe-upright="270"] .vpinfe-upright {
+  width: 100vh;
+  height: 100vw;
+}
+
+[data-vpinfe-upright="180"] .vpinfe-upright {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Playfield art, turned to fill the surface. Sized from the viewport and never from
+   the element: getBoundingClientRect() reports the box *after* this transform, so
+   feeding it back shrinks the image a little more on every pass. */
+.vpinfe-playfield-media {
+  transform-origin: center center;
+  transform: translate(-50%, -50%) rotate(var(--vpinfe-playfield-media-rotation));
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+
+[data-vpinfe-surface="portrait"] .vpinfe-playfield-media[data-vpinfe-turned="true"] {
+  width: 100vh;
+  height: 100vw;
+}
+
+[data-vpinfe-surface="landscape"] .vpinfe-playfield-media[data-vpinfe-turned="true"] {
+  width: 100vw;
+  height: 100vh;
+}
+
+.vpinfe-playfield-media:not([data-vpinfe-turned="true"]) {
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   Launching - every window steps aside while VPX takes the screens.
+
+   Set on the document by core, not by a theme: the controller is the only window
+   a theme's script runs in, so a theme doing this for itself dims one screen and
+   leaves the others lit. Opacity only, because it composites.
+   --------------------------------------------------------------------------- */
+
+body {
+  transition: opacity 300ms ease;
+}
+
+html[data-vpinfe-launching] body {
+  opacity: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Confirm before quitting, restarting or powering off.
+
+   Core draws it rather than the theme, so turning the setting on works on a theme
+   written before it existed. A theme that wants its own passes confirmed and never
+   reaches this. Deliberately plain - it sits over whatever the theme is showing.
+   --------------------------------------------------------------------------- */
+
+.vpinfe-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;      /* over any overlay, including a theme's own */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.vpinfe-confirm-card {
+  padding: 2.5rem 3rem;
+  border-radius: 0.75rem;
+  background: #1b1b1f;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  text-align: center;
+  font-family: sans-serif;
+  color: #fff;
+  max-width: 80vw;
+}
+
+.vpinfe-confirm-question {
+  margin: 0;
+  font-size: clamp(1.25rem, 3vw, 2rem);
+}
+
+.vpinfe-confirm-hint {
+  margin: 1rem 0 0;
+  font-size: clamp(0.85rem, 1.6vw, 1.1rem);
+  opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------------------
+   The notice a window gets when somebody else started something.
+
+   Deliberately not the confirm dialog: this window has no say, so it does not dim
+   the screen or take the input. It sits out of the way and says what is happening.
+   --------------------------------------------------------------------------- */
+
+.vpinfe-notice {
+  position: fixed;
+  left: 50%;
+  bottom: 2rem;
+  transform: translateX(-50%);
+  z-index: 2147483646;      /* under a confirm, over everything else */
+  padding: 0.9rem 1.5rem;
+  border-radius: 0.5rem;
+  background: rgba(20, 20, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-family: sans-serif;
+  color: #fff;
+  max-width: 80vw;
+}
+
+.vpinfe-notice-text {
+  margin: 0;
+  font-size: clamp(0.9rem, 2vw, 1.35rem);
+  text-align: center;
+}

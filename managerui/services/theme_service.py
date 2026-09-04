@@ -1,29 +1,31 @@
+"""Installing, removing and switching themes on behalf of the Themes page."""
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 from typing import Any
 
-from common.iniconfig import IniConfig
-from common.themes import ThemeRegistry
-
+from common import theme_options
+from common.config_access import cfg_get, cfg_set
+from common.config_store import ConfigStore
+from common.online.themes import ThemeRegistry
 from managerui.paths import THEMES_DIR, VPINFE_INI_PATH
 
 
 def get_active_theme() -> str:
     try:
-        config = IniConfig(str(VPINFE_INI_PATH))
-        theme_name = config.config.get("Settings", "theme", fallback="Revolution").strip()
+        config = ConfigStore(str(VPINFE_INI_PATH))
+        theme_name = cfg_get(config, "general", "theme", "Revolution").strip()
         return theme_name or "Revolution"
     except Exception:
         return "Revolution"
 
 
 def set_active_theme(theme_key: str) -> None:
-    config = IniConfig(str(VPINFE_INI_PATH))
-    config.config.set("Settings", "theme", theme_key)
-    with open(VPINFE_INI_PATH, "w") as handle:
-        config.config.write(handle)
+    config = ConfigStore(str(VPINFE_INI_PATH))
+    cfg_set(config, "general", "theme", theme_key)
+    config.save()
 
 
 def load_registry() -> ThemeRegistry:
@@ -54,6 +56,15 @@ def get_installed_theme_dir(theme_key: str, registry: ThemeRegistry | None = Non
 
     theme_dir = THEMES_DIR / str(theme_key or "").strip()
     return theme_dir if theme_dir.is_dir() else None
+
+
+def _folder_for(theme_key: str, registry: ThemeRegistry | None = None) -> str:
+    """The folder a theme is installed under - what its options file is keyed by.
+
+    Falls back to the key, which is what a registry install renames the folder to.
+    """
+    theme_dir = get_installed_theme_dir(theme_key, registry)
+    return theme_dir.name if theme_dir is not None else str(theme_key or "").strip()
 
 
 def _read_json_object(path: Path) -> dict[str, Any] | None:
@@ -103,6 +114,29 @@ def _normalize_select_options(raw_options: Any) -> list[Any]:
     return normalized
 
 
+def _dynamic_select_options(source: str) -> list[dict[str, Any]] | None:
+    """Options a theme cannot know ahead of time, discovered from the library.
+
+    "wheelsets" is every wheel set folder across the games plus the virtual
+    "logo" set. The leading Default entry saves as "" - no set, plain wheels.
+    """
+    if source != "wheelsets":
+        return None
+    from common.config_access import SettingsConfig
+    from common.media_specs import list_media_sets
+
+    names: list[str] = []
+    try:
+        config = ConfigStore(str(VPINFE_INI_PATH))
+        root = SettingsConfig.from_config(config).game_root_dir
+        if root:
+            names = list_media_sets(root, "wheel")
+    except Exception:
+        pass
+    return ([{"label": "Default", "value": ""}]
+            + [{"label": name, "value": name} for name in names])
+
+
 def load_theme_option_schema(theme_key: str, registry: ThemeRegistry | None = None) -> dict[str, Any] | None:
     theme_dir = get_installed_theme_dir(theme_key, registry)
     if theme_dir is None:
@@ -131,7 +165,9 @@ def load_theme_option_schema(theme_key: str, registry: ThemeRegistry | None = No
         option["description"] = str(raw_option.get("description") or "").strip()
         option["type"] = option_type
         if option_type == "select":
-            option["options"] = _normalize_select_options(raw_option.get("options"))
+            dynamic = _dynamic_select_options(str(raw_option.get("source") or "").strip().lower())
+            option["options"] = (dynamic if dynamic is not None
+                                 else _normalize_select_options(raw_option.get("options")))
         normalized_options.append(option)
 
     if not normalized_options:
@@ -149,9 +185,16 @@ def get_theme_option_values(theme_key: str, registry: ThemeRegistry | None = Non
     if schema is None:
         return {}
 
+    # The author's schema supplies the default; the user's own file supplies what they
+    # chose. A `value` still sitting in the package is a pre-3.0 leftover and is read
+    # only until the migration lifts it out.
+    chosen = theme_options.load(_folder_for(theme_key, registry))
     values: dict[str, Any] = {}
     for option in schema["options"]:
         key = option["key"]
+        if key in chosen:
+            values[key] = chosen[key]
+            continue
         current_value = option.get("value")
         if current_value is None and "default" in option:
             current_value = option.get("default")
@@ -217,21 +260,12 @@ def save_theme_option_values(
     if schema is None or theme_dir is None:
         raise ValueError(f'Theme "{theme_key}" does not expose configurable options.')
 
-    schema_path = theme_dir / "theme.json"
-    existing_schema = _read_json_object(schema_path)
-    if not existing_schema or not isinstance(existing_schema.get("options"), list):
-        raise ValueError(f'Theme "{theme_key}" has an invalid theme.json file.')
-
-    existing_options = existing_schema["options"]
+    # Written outside the theme, because an update deletes the package: values saved
+    # into it were reset by the next update, every time, with no backup and no warning.
     schema_options_by_key = {option["key"]: option for option in schema["options"]}
-    for raw_option in existing_options:
-        if not isinstance(raw_option, dict):
-            continue
-        key = str(raw_option.get("key") or raw_option.get("id") or "").strip()
-        if not key or key not in values or key not in schema_options_by_key:
-            continue
-        coerced_value = _coerce_theme_option_value(schema_options_by_key[key], values[key])
-        raw_option["value"] = coerced_value
+    keep = dict(theme_options.load(_folder_for(theme_key, registry)))
+    for key, raw_value in values.items():
+        if key in schema_options_by_key:
+            keep[key] = _coerce_theme_option_value(schema_options_by_key[key], raw_value)
 
-    schema_path.write_text(json.dumps(existing_schema, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
-    return schema_path
+    return theme_options.save(_folder_for(theme_key, registry), keep)

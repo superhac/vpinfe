@@ -1,76 +1,217 @@
-## Vpinfe.ini Definition
-VPinFE uses a platform-specific configuration directory to store its settings. On first run, VPinFE will automatically create a default `vpinfe.ini` file in the following location:
+## vpinfe.json Definition
 
-- **Linux**: `~/.config/vpinfe/vpinfe.ini`
-- **macOS**: `~/Library/Application Support/vpinfe/vpinfe.ini`
-- **Windows**: `C:\Users\<username>\AppData\Local\vpinfe\vpinfe\vpinfe.ini`
+VPinFE stores its settings as JSON in a platform-specific configuration directory. On
+first run it writes a complete `vpinfe.json` there, so a new install never needs the file
+opened by hand:
 
-### [Displays]
-| Key               | Description                                                                                         |
-| ----------------- | -------------------------------------------------------------------------                           |
-| bgscreenid        | Blackglass screen number.  use `--listres` to get your mointor ids. Leave blank if no display       |
-| dmdscreenid       | dmdscreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display      |
-| tablescreenid     | tablescreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display    |
+- **Linux**: `~/.config/vpinfe/vpinfe.json`
+- **macOS**: `~/Library/Application Support/vpinfe/vpinfe.json`
+- **Windows**: `C:\Users\<username>\AppData\Local\vpinfe\vpinfe\vpinfe.json`
 
-### [Settings]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| vpxbinpath        | Full path to you vpx binary.  e.g. /apps/vpinball/build/VPinballX_BGFX    |
-| tablerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
-| startup_collection| Set the collection VPinFE starts up with.  Case sensitive, match collection name. |
-| splashscreen      | Enable or disable the splash screen at startup. Default is `false`. |
-| restorelasttable  | Open the wheel on the last table you launched instead of the first. Default is `true`. |
+A `vpinfe.ini` from an earlier build is read once, converted, and kept, so downgrading
+still works. Settings live under a `settings` object beside a `schema` version, and each
+heading below is a key in it - `windows.playfield` is a `playfield` object inside a
+`windows` object.
 
-### [Input]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| joyleft           | Move left. Button mapping ids from `--gamepadtest`.                      |
-| joyright          | Move right. Button mapping ids from `--gamepadtest`.                     |
-| joyup             | Move up. Button mapping ids from `--gamepadtest`.                        |
-| joydown           | Move down. Button mapping ids from `--gamepadtest`.                      |
-| joypageup         | Page the wheel forward. Button mapping ids from `--gamepadtest`.         |
-| joypagedown       | Page the wheel backward. Button mapping ids from `--gamepadtest`.        |
-| pagingtype        | `alpha` (default) pages by letter; `numeric` pages by `pagingsize` tables. Alpha falls back to numeric on non-Alpha sorts. |
-| pagingsize        | Tables per numeric page jump. Default is `10`.                           |
-| joyselect         | Select button / Launch. Button mapping ids from `--gamepadtest`.        |
-| joymenu           | Pop Menu. Button mapping ids from `--gamepadtest`.                       |
-| joyback           | Go Back. Button mapping ids from `--gamepadtest`.                        |
-| joytutorial       | Open the Pinball Primer tutorial overlay. Button mapping ids from `--gamepadtest`. |
-| joyexit           | Exit VpinFE. Button mapping ids from `--gamepadtest`.                   |
-| joycollectionmenu | Open collection menu in the Theme UI. Button mapping ids from `--gamepadtest`. |
+Every name a setting has ever had keeps resolving, so an older file and a hand-edit that
+uses an old spelling both still load.
 
-### [VPSdb]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| last              | Rev of VPSDB that was last pulled.                                        |
+<!-- generated from common/config_schema.py by tests/support/config_reference.py -->
 
-### [State]
-Internal state written by VPinFE, not shown in the Manager UI.
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| lasttable         | Path of the last table you launched. Used by `restorelasttable` to reopen on that table. |
+### `windows.backglass`
 
-### [Media]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| tabletype         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait table images. |
-| tableresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `screen_id` | int |  | Backglass Monitor ID |
+| `window_override` | string |  | Position and size for this window, as x,y,width,height. Empty means no override. |
+| `media_priority` | choice (video, image) | `video` | Backglass Media Priority |
 
-### [Network]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| themeassetsport   | Port for the theme assets HTTP server. Default is `8000`.                 |
-| manageruiport     | Port for the Manager UI (NiceGUI) server. Default is `8001`.              |
+### `windows.scoreview`
 
-### [Mobile]
-| Key        | Description                                              |
-| ---------- | -------------------------------------------------------- |
-| deviceip   | IP address of the mobile device running VPinball         |
-| deviceport | Port of the mobile device's web server. Default is `2112` |
-| chunksize  | Upload chunk size in bytes. Default is `1048576` (1MB)    |
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `screen_id` | int |  | DMD Monitor ID |
+| `window_override` | string |  | Position and size for this window, as x,y,width,height. Empty means no override. |
+| `media_priority` | choice (video, image) | `video` | DMD Media Priority |
 
-## Table Metadata File (based on the Zero install table format)
-When you run VPinFE with the `--buildmeta` option it recursively goes through your table directory attempts to match your tables to their VPSDB id.  When matched, it will then parse the VPX for the table for more meta information and produce a `TABLE FOLDER NAME(manufactuer year).info` in that tables directory.  Heres an example for the table 1-2-3:
+### `windows.playfield`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `screen_id` | int | `0` | Playfield Monitor ID |
+| `orientation` | choice (landscape, portrait) | `landscape` | How the playfield screen is physically mounted. Portrait means it is turned on its side in the cabinet. This does not rotate anything by itself - it tells themes what shape to lay out for. |
+| `rotation` | choice (0, 90, 180, 270) | `0` | How far VPinFE turns its own display so it faces the player. Leave at 0 if your operating system already rotates this screen. |
+| `variant` | choice (table, fss) | `table` | Which playfield artwork this library holds: table.png, or fss.png for art captured in Visual Pinball's Full Single Screen mode. |
+| `resolution` | choice (4k, 1k) | `4k` | Default Table Resolution |
+| `video_resolution` | choice (4k, 1k) | `1k` | Default Table Video Resolution |
+| `media_priority` | choice (video, image) | `video` | Table Media Priority |
+| `media_rotation` | choice (auto, 0, 90, 180, 270) | `auto` | How far to turn playfield artwork so it fills the screen. auto measures each image and turns only when it disagrees with the surface. |
+
+### `displays`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `cab_mode` | bool | `false` | Presents VPinFE for playing standing at a cabinet: larger text and targets, and no controls that need a mouse. It does not rotate anything. |
+
+### `general`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `vpx_bin_path` | string |  | Full path to the Visual Pinball executable VPinFE launches. |
+| `vpx_launch_env` | string |  | VPX Launch Environment |
+| `global_ini_override` | string |  | Path to an ini to use instead of the default, for example /home/test/mysuper.ini. Empty means no override. |
+| `global_game_ini_override_enabled` | bool | `false` | Global tableini Override Enabled |
+| `global_game_ini_override_mask` | string |  | Global tableini Override Mask |
+| `game_root_dir` | string |  | The folder holding your table folders, one folder per game. |
+| `hidden_media_kinds` | list |  | Kinds of artwork this library does not collect. VPinFE stops showing and counting them; the files stay where they are. |
+| `hidden_asset_kinds` | list |  | Kinds of supporting file this library does not collect - an all-EM library has no ROMs. A table that will not launch still says so. |
+| `media_browse_dirs` | list |  | Extra folders you can pick artwork from when adding media by hand. The game library is always available; anywhere else has to be listed here before VPinFE will read it. |
+| `vpx_ini_path` | string |  | Path to VPinballX.ini, which VPinFE reads for the key mappings the Remote page sends. |
+| `assets_dir` | string |  | Root folder for assets shared across games rather than owned by one, such as manufacturer logos. Served at /assets/ and defaults to assets/ under the VPinFE config dir. |
+| `rar_tool_path` | string |  | Path to unar or unrar. Blank auto-detects one on this machine. |
+| `vpx_log_delete_on_start` | bool | `false` | Delete VPinball Log On Table Start |
+| `theme` | string | `Revolution` | Active Theme |
+| `startup_collection` | string |  | Default Startup Collection |
+| `library_refresh_minutes` | int | `0` | How often to re-read the library from disk, in minutes. It picks up everything, not just tables - media and assets added or removed beside them too. Zero never does, which is the default because a read walks every game folder: fine locally, real traffic on a network share. It can always be asked to read it now. |
+| `auto_update_media_on_startup` | bool | `false` | Auto Update Media On Startup |
+| `splashscreen` | bool | `false` | Enable splashscreen |
+| `mute_audio` | bool | `false` | Mute Frontend Audio |
+| `chrome_options` | string |  | Additional Chrome Options |
+| `chrome_options_exclude` | string |  |  |
+| `disable_default_chrome_options` | bool | `false` | Disable Default Chrome Options |
+
+### `frontend`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `paging_group` | choice (sort, count) | `sort` | Page by |
+| `paging_size` | int | `10` | Paging Size |
+| `confirm` | bool | `false` | Ask before quitting VPinFE or powering off the machine. Closing the frontend never asks - the windows reopen from the Manager UI, so there is nothing to lose. Off is how VPinFE has always behaved, and the question is put to whichever surface asked. |
+| `hide_quit_button` | bool | `false` | Hide Quit from MainMenu |
+| `restore_last_table` | bool | `true` | Restore Last Table |
+
+### `themes`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `registries` | list | `https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json` | Catalogs to offer themes from, most trusted first. The stock registry is an entry like any other, so a mirrored or offline install can replace or drop it. |
+| `repositories` | list |  | Individual theme repos, each one a theme in its own right. Resolved before the registries, and named for the repo with any vpinfe-theme- prefix removed. |
+
+### `logger`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `level` | choice (debug, info, warning, error) | `debug` | Log Verbosity |
+| `terminal` | bool | `true` | Log to Terminal |
+
+### `media`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `default_missing_media_image` | string |  | Default Missing Media Image |
+| `thumb_cache_max_mb` | int | `500` | Thumbnail Cache Max (MB) |
+| `asset_sources` | list |  | Which online catalogs are searched for artwork. Empty means all of them. Names come from the sources list this install reports. |
+| `wheelset` | string |  | Name of the wheel art set to use library-wide, a folder under a game's medias/wheels/. The reserved name logo shows each game's logo instead. Blank means plain wheels, and the active theme can override this with its own wheelSet option. |
+| `realdmd_media_priority` | choice (color, video, image) | `color` | Real DMD Priority |
+
+### `install`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `id` | string |  | Written by VPinFE on first start, and not meant to be edited. Installs are told apart by this, so changing it makes this a different install. |
+| `display_name` | string |  | What to call this device where one is listed. Defaults to this machine's hostname. Nothing is addressed by it, so renaming is safe. |
+| `features` | list | `library,frontend,devices` | What this install is for: curating the game library (library), launching games on this machine (frontend), managing the other installs on your network (devices), and a rollup of all three (overview). Each one it has decides what the Console shows. Overview is the one that has to be asked for. |
+
+### `vpsdb`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `last` | string |  |  |
+| `checked` | string |  |  |
+| `refresh` | choice (never, daily, weekly, monthly) | `daily` | How often to ask VPSdb whether it has changed. |
+
+### `state`
+
+Runtime state written by VPinFE, not shown in the Manager UI.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `last_table` | string |  |  |
+
+### `pinmame_score_parser`
+
+Runtime state written by VPinFE, not shown in the Manager UI.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `roms_update_sha` | string |  |  |
+
+### `network`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `theme_assets_port` | int | `8000` | Theme Server Port |
+| `theme_assets_bind` | string | `127.0.0.1` | Which address to serve theme packages and table media on. The default answers this machine only. An address rather than a switch, so a single interface can be named; 0.0.0.0 is every one. This port serves the table library, so opening it shares read access to it. |
+| `ws_port` | int | `8002` | Port the frontend windows and the theme talk to VPinFE over. Loopback only. |
+| `http_port` | int | `8001` | Port this install answers on: the HTTP API, the Console, the Manager UI, and the remote and mobile pages. Named for the protocol rather than any one thing listening on it. |
+| `library_url` | string |  | Which install this one reads its library from, for example http://cabinet.local:8001. Empty - the default - means this install holds its own, which is every single-machine setup. Installs on your network are offered; type an address for one that is not. |
+| `verify_shared_library` | bool | `false` | On startup, check that the library this install reads really is the one on disk here, by comparing file hashes rather than paths. Reports what does not match and changes nothing else. Off by default, and ignored entirely without a Library set. |
+| `http_bind` | string | `0.0.0.0` | Which address to serve on. The default answers every interface, which is what it has always done - set 127.0.0.1 to reach it only from this machine. |
+
+### `dof`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `enable_dof` | bool | `false` | Enable DOF |
+| `dof_config_tool_api_key` | string |  | DOF Config Tool API Key |
+
+### `libdmdutil`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `enabled` | bool | `false` | Enabled |
+| `pin2dmd_enabled` | bool | `false` | Enable |
+| `pixelcade_serial_port` | string |  | Pixelcade serial port |
+| `zedmd_serial_port` | string |  | ZeDMD serial port |
+| `zedmd_wifi_address` | string |  | ZeDMDWiFiAddr |
+
+### `mobile`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `device_ip` | string |  | Mobile Device IP |
+| `device_port` | int | `2112` | Mobile Device Port |
+| `chunk_size` | int | `1048576` | Mobile Chunk Size |
+| `rename_mask_to_default_ini` | bool | `false` | Enable Rename Mask To Default INI |
+| `rename_mask_to_default_ini_mask` | string |  | Rename Mask To Default INI Mask |
+
+### `vpinplay`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `sync_on_exit` | bool | `false` | Sync on Exit |
+| `api_endpoint` | string | `https://api.vpinplay.com:8888` | API Endpoint |
+| `user_id` | string |  | User ID |
+| `initials` | string |  | Initials |
+| `machine_id` | string |  | Machine ID |
+
+### `input`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `previous` | list | `key:ArrowLeft,key:ShiftLeft` | Previous |
+| `next` | list | `key:ArrowRight,key:ShiftRight` | Next |
+| `page_previous` | list | `key:PageUp,key:ArrowUp` | Page previous |
+| `page_next` | list | `key:PageDown,key:ArrowDown` | Page next |
+| `select` | list | `key:Enter` | Select |
+| `back` | list | `key:b` | Back |
+| `menu` | list | `key:m` | Menu |
+| `collection_menu` | list | `key:c` | Collection menu |
+| `tutorial` | list | `key:t` | Tutorial |
+| `exit` | list | `key:Escape,key:q` | Exit |
+
+## Game Metadata File (based on the Zero install table format)
+When you run VPinFE with the `--buildmeta` option it recursively goes through your game directory attempts to match your games to their VPSDB id.  When matched, it will then parse the VPX for the game for more meta information and produce a `GAME FOLDER NAME(manufactuer year).info` in that game's directory.  Heres an example for the game 1-2-3:
 
 ```
 {
@@ -84,14 +225,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
             "TV Show",
             "Game Show"
         ],
-        "VPSId": "HhMnyw53",
-        "Authors": [
-            "jpsalas",
-            "akiles50000",
-            "Loserman76"
-        ],
-        "Rom": "TlD_123",
-        "Description": ""
+        "VPSId": "HhMnyw53"
     },
     "User": {
         "Rating": 0,
@@ -101,50 +235,64 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
         "RunTime": 0,
         "Tags": []
     },
-    "VPXFile": {
-        "filename": "123(Talleres de Llobregat 1973) v601.vpx",
-        "filehash": "d685ce54d659fadcafd90a296473fb126754aa23b1145f457c6626aa5baa75d9",
-        "version": "6.0.1",
-        "releaseDate": "25.01.2026",
-        "saveDate": "Sun Jan 25 22:24:36 2026",
-        "saveRev": "91",
-        "manufacturer": "",
-        "year": "",
-        "type": "",
-        "vbsHash": "bd6dcb7e0c618e4553d230095e73c7ca8e17f31def4595c38a8439b279977b45",
-        "rom": "TlD_123",
-        "detectnfozzy": "false",
-        "detectfleep": "false",
-        "detectssf": "true",
-        "detectlut": "true",
-        "detectscorebit": "false",
-        "detectfastflips": "false",
-        "detectflex": "false"
+    "vpinfe": {
+        "schema": 2,
+        "id": "tuF3WogthK",
+        "default_table": "123(Talleres de Llobregat 1973) v601.vpx",
+        "delete_nvram_on_close": false,
+        "alt_launcher": "",
+        "plugin_profile": "",
+        "alt_title": "",
+        "alt_vpsid": "",
+        "frontend_dof_event": "",
+        "run_time_seconds": 0
     },
-    "VPinFE": {
-        "deletedNVRamOnClose": false,
-        "altlauncher": ""
+    "tables": {
+        "123(Talleres de Llobregat 1973) v601.vpx": {
+            "file_hash": "d685ce54d659fadcafd90a296473fb126754aa23b1145f457c6626aa5baa75d9",
+            "vbs_hash": "bd6dcb7e0c618e4553d230095e73c7ca8e17f31def4595c38a8439b279977b45",
+            "version": "6.0.1",
+            "release_date": "2026-01-25",
+            "save_date": "2026-01-25T22:24:36",
+            "save_rev": "91",
+            "manufacturer": "",
+            "year": "",
+            "type": "",
+            "rom": "TlD_123",
+            "authors": [
+                "jpsalas",
+                "akiles50000",
+                "Loserman76"
+            ],
+            "detect_nfozzy": false,
+            "detect_fleep": false,
+            "detect_ssf": true,
+            "detect_lut": true,
+            "detect_scorbit": false,
+            "detect_fastflips": false,
+            "detect_flex": false,
+            "user": {
+                "last_run": null,
+                "start_count": 0,
+                "run_time_seconds": 0
+            }
+        }
     },
-    "Medias": {
-        "bg": {
-            "Source": "vpinmediadb",
-            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/bg.png",
-            "MD5Hash": "d80f67a370ebce2edd19febdc3fd7636"
+    "assets": {
+        "medias/bg.png": {
+            "source": {
+                "host": "vpinmediadb",
+                "hash": "d80f67a370ebce2edd19febdc3fd7636"
+            }
         },
-        "wheel": {
-            "Source": "vpinmediadb",
-            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/wheel.png",
-            "MD5Hash": "a88bcaf2ade6b9614417fc18a8782f78"
+        "medias/wheel.png": {
+            "source": {
+                "host": "vpinmediadb",
+                "hash": "a88bcaf2ade6b9614417fc18a8782f78"
+            }
         },
-        "cab": {
-            "Source": "vpinmediadb",
-            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/cab.png",
-            "MD5Hash": "2df700d28fbfd88bb9a08c50da0c00ae"
-        },
-        "table": {
-            "Source": "vpinmediadb",
-            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/table.png",
-            "MD5Hash": "ee863e38e38d8dd5552e511a15583d23"
+        "medias/cab.png": {
+            "source": {"host": "user"}
         }
     }
 }
@@ -153,50 +301,107 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
 
 - Info
 
-  Contains the core table metadata sourced from VPSdb and the VPX file:
+  Contains the core game metadata sourced from VPSdb and the VPX file:
   - IPDBId: Internet Pinball Database ID (if available)
-  - Title: Table name
+  - Title: Game name
   - Manufacturer, Year, Type (EM, SS, etc.)
   - Themes: Array of themes
   - VPSId: Internal VPS database ID
-  - Authors: Table authors
-  - Rom: Name of the ROM file
-  - Description: Table description/blurb
+  - Description: Game description/blurb
+
+  Authors and Rom used to live here too. Both are properties of a table rather than of
+  the machine — a folder can hold several, and they can disagree — so they moved to
+  `tables`.
 
 - User
 
-  Stores per-user data for the table. Preserved across `--buildmeta --update-all`:
+  Stores per-user data for the game. Preserved across `--buildmeta --update-all`:
   - Rating: User rating (0–10)
   - Favorite: Favorite flag (0/1)
   - LastRun: Timestamp of last play
   - StartCount: How many times played
-  - RunTime: Total playtime in seconds
+  - RunTime: Total playtime in minutes, rounded down. Derived from
+    `vpinfe.run_time_seconds`, which is what actually accumulates — a key fixed by the
+    VPX spec cannot hold the seconds, and adding whole minutes per session charged a
+    few seconds at a table the same as a few minutes.
   - Tags: Array of custom tags
 
-- VPXFile
+- tables
 
-  Contains metadata extracted from the VPX file:
-  - filename, filehash, version
-  - releaseDate, saveDate, saveRev (VPX save info)
-  - manufacturer, year, type
-  - vbsHash: SHA-256 hash of table's VBS script
-  - rom: ROM name from the VPX
-  - detect* flags: Booleans indicating which features were detected (detectnfozzy, detectfleep, detectssf, detectlut, detectscorebit, detectfastflips, detectflex)
+  One entry per `.vpx` in the folder, keyed by filename. A game folder can hold a desktop
+  build, a VR build and a patched one, and every visible entry is independently launchable —
+  they are peers, not a primary with alternates. Each entry holds what that file says about
+  itself:
+  - file_hash, vbs_hash, version
+  - release_date, save_date, save_rev — normalized to ISO 8601, at whatever precision the
+    author actually gave. An unreadable or ambiguous date degrades to the year rather than
+    being guessed at.
+  - manufacturer, year, type — the `.vpx`'s own claim, which can differ from what VPS says
+    in `Info`. Both are kept: the disagreement is a signal.
+  - rom, authors
+  - detect_* flags: what was found in the table's script
+  - hidden: set to keep a table out of the frontend without deleting it — a patch base
+    has to stay on disk, but should not be offered
+  - user: play history for this table alone (last_run, start_count, run_time_seconds).
+    It accumulates separately from `User`, which is the game's own history.
 
-- VPinFE
+- vpinfe
 
-  VPinFE-specific settings for the table. Preserved across `--buildmeta --update-all`, except `altvpsid` which is cleared when the table's stored `VPXFile.filehash` changes during a rebuild:
-  - deletedNVRamOnClose: (true/false) Some tables, like Taito machines, retain the game state when you quit. Enabling this option deletes the NVRAM file upon closing. Default is false.
-  - altlauncher: Optional executable path override used only for this table. If set, this is used instead of `vpinfe.ini` `Settings.vpxbinpath`.
+  VPinFE-specific settings for the game, preserved across `--buildmeta --update-all`:
+  - schema: the version of this file's shape. Absent means a 2.x file, which is migrated on
+    first read — see below.
+  - id: the game's stable local identity, used in the API, in events and in collections
+  - default_table: which table a consumer that can only take one should get
+  - delete_nvram_on_close: (true/false) Some games, like Taito machines, retain the game
+    state when you quit. Enabling this deletes the NVRAM file on close. Default is false.
+  - alt_launcher: Optional executable path override for this game alone. If set, it is used
+    instead of `vpinfe.ini` `Settings.vpxbinpath`.
+  - run_time_seconds: total play time. This is the counter that accumulates; `User.RunTime`
+    is it rounded down to whole minutes. Written on the first play after upgrading, seeded
+    from whatever `User.RunTime` already held.
+  - plugin_profile, alt_title, alt_vpsid, frontend_dof_event
 
-- Medias
+  `alt_vpsid` is a manual VPS match: automatic matching got the game wrong, and somebody
+  looked up the right record and said so. It overrides `Info.VPSId` everywhere an id is
+  used - collections, media matching, the VPinPlay payload.
 
-  Tracks downloaded media files per table. Preserved across `--buildmeta --update-all`. Each entry is keyed by media type (bg, dmd, table, fss, wheel, cab, realdmd, realdmd_color, audio):
-  - Source: Where the media was downloaded from (e.g. "vpinmediadb" or "user" for manually uploaded)
-  - Path: Full local path to the media file
-  - MD5Hash: MD5 hash of the media from the source. On `--buildmeta`, if the remote MD5 differs from the stored hash, the image is re-downloaded automatically.
+  It **stops applying** when the default table's hash changes during a rebuild, because
+  the claim was made about the file that was there and that file has been replaced.
+  Matching falls back to `Info.VPSId`.
 
-After that file is created it then attempts to download the media artwork for that table from [VPinMediaDB](https://github.com/superhac/vpinmediadb). All media images are stored in a `medias/` subfolder within each table's directory:
+  - alt_vpsid_previous
+
+  The superseded override, set aside rather than deleted: `{"value", "table",
+  "set_aside"}`. **Nothing resolves through it** - it is what the user typed, kept so it
+  can be offered back rather than retyped from memory. Only the most recent is kept; a
+  claim made two tables ago is history nobody will restore. Absent when there was no
+  override to set aside.
+
+- assets
+
+  One entry per file VPinFE placed in the game folder, keyed by the file's path relative to that folder, with forward slashes. Preserved across `--buildmeta --update-all`. Replaces the old `Medias` section, which was keyed by media type and so could hold only one entry per type — no way to describe artwork belonging to one specific table, and the same question applies to backglasses, ROMs and colorizations. Each entry holds a `source`:
+  - host: who supplied the bytes — a remote such as "vpinmediadb", or "user" for a file uploaded through the Manager UI
+  - hash: the MD5 the host published, when it published one. Absent for a user upload, since a hash is only meaningful compared against a remote.
+
+  Nothing else is stored. Which media kind a file is, and which table it belongs to, are read off its name every time media resolves, so a stored copy could only agree or be wrong.
+
+  **A file with no entry is not ours.** Ownership is not decided from this section — the downloader hashes what is already on disk and compares it to the MD5 vpinmediadb publishes, so your own artwork is safe whether or not it appears here.
+
+#### Upgrading from a 2.x file
+
+Files written before schema 2 have no `schema` key, and are migrated the first time VPinFE
+reads them: `VPXFile` becomes the first `tables` entry, `VPinFE` becomes `vpinfe` with
+snake_case keys, `User.FrontendDOFEvent` moves to `vpinfe.frontend_dof_event`, and `Medias`
+is dropped.
+
+Nothing is written until something would have written anyway, and when it does, the original
+is kept first as `<Game>.info.vpinfe-<timestamp>` — for example
+`Table Name (Bally 1995).info.vpinfe-20260729T143022Z`. The timestamp is UTC, so restore
+points sort and accumulate rather than overwriting each other. **To go back, rename one over
+the `.info`.** Which schema a backup holds is read from its contents, not its name: no
+`schema` key means it is a 2.x file.
+
+After that file is created it then attempts to download the media artwork for that game from [VPinMediaDB](https://github.com/superhac/vpinmediadb). All media images are stored in a `medias/` subfolder within each game's directory:
 
 ```
 Table Folder Name (Manufacturer Year)/
@@ -230,35 +435,27 @@ Table Folder Name (Manufacturer Year)/
 
 ## Using Your Own Media (User Media)
 
-By default, `--buildmeta` downloads media artwork from [VPinMediaDB](https://github.com/superhac/vpinmediadb) and tracks updates via MD5 hashes. If you prefer to use your own media collection instead, VPinFE provides two options to mark media as "user-sourced" so it won't be pulled from or overwritten by VPinMediaDB.
+By default, `--buildmeta` downloads media artwork from [VPinMediaDB](https://github.com/superhac/vpinmediadb).
 
-### `--claim-user-media` (Standalone)
+**Your own artwork needs no protecting.** Before the downloader touches a file that already exists, it hashes it and compares that to the MD5 VPinMediaDB publishes. If they match it is demonstrably our file and stays managed. Anything else — your own artwork, or our file after you replaced it — is left alone. A file we cannot prove is ours is never overwritten, and VPinMediaDB having no hash for it counts as cannot prove.
 
-Scans all table directories for existing media files in the `medias/` subfolder and marks them as `"Source": "user"` in each table's `.info` file. Use this if you already have `.info` files and want to retroactively protect your media from being overwritten.
-
-```bash
-# Claim all existing media across all tables
-python3 main.py --claim-user-media
-
-# Claim media for a single table
-python3 main.py --claim-user-media --table "Back To The Future - The Pinball (Data East 1990)"
-```
+So drop your artwork in and run `--buildmeta` as normal. Missing kinds get filled in from VPinMediaDB; yours stay put.
 
 ### `--user-media` (With `--buildmeta`)
 
-A modifier for `--buildmeta` that skips VPinMediaDB downloads entirely and instead claims any media files found locally as user-sourced. Use this when building metadata from scratch and you never want VPinMediaDB media.
+A modifier for `--buildmeta` that skips VPinMediaDB downloads entirely. Use it when you are supplying the whole library yourself and would rather not wait on the network at all.
 
 ```bash
-# Build metadata and claim local media instead of downloading
+# Build metadata without fetching any media
 python3 main.py --buildmeta --user-media
 
-# Rebuild all metadata with user media
+# Rebuild all metadata, still fetching nothing
 python3 main.py --buildmeta --update-all --user-media
 ```
 
-Once media is marked as `"Source": "user"`, subsequent runs of `--buildmeta` will skip downloading that media type from VPinMediaDB. You can also set individual media sources to "user" via the Media Manager UI.
+### `--claim-user-media` (Deprecated)
 
-**Note:** Only media files that actually exist on disk get claimed as user-sourced. If a media type is missing (e.g., you don't have a `dmd.png`), no entry is written for it. This means the next normal `--buildmeta` run will fill in any gaps by downloading the missing media from VPinMediaDB.
+Marked existing media as `"Source": "user"` so VPinMediaDB would not overwrite it. The downloader proves ownership by hash now, so there is nothing to mark. The flag still parses and does nothing; it will be removed in a later release.
 
 ## VPX Table Patches
 VPinFE can automaticlly pull patches from [vpx-standalone-scripts](https://github.com/jsm174/vpx-standalone-scripts) via the `--vpxpatch` CLI option if a matching patch can be found.  

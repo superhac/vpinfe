@@ -2,19 +2,32 @@ name: Build VPinFE (Cross-Platform)
 
 on:
   push:
-    branches: [ master, vpinfe-2.0, platform ]
+    branches: [ master, vpinfe-2.0, vpinfe-3.0 ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ master, vpinfe-2.0, platform ]
+    branches: [ master, vpinfe-2.0, vpinfe-3.0 ]
+  # Run the build by hand, on any branch, from the Actions tab. Nothing about the
+  # packaging is exercised by the test suite - a wrong --add-data path is a missing
+  # splash in a release artifact, not a red test - so being able to produce real
+  # artifacts on all three runners without pushing a tag is how that gets checked.
+  # The release jobs refuse to run this way; see their conditions.
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+# One run per branch. A second push supersedes the first rather than queueing behind
+# it - a tag run is exempt, because cancelling one halfway leaves a partial release.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   build:
+    timeout-minutes: 30
     env:
       DOF_VERSION: latest
       DOF_REPO: superhac/libdof-python
@@ -28,13 +41,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
-
-      - name: Ensure fetch scripts are executable
-        if: runner.os != 'Windows'
-        run: |
-          chmod +x scripts/fetch_dof_bundle.sh
-          chmod +x scripts/fetch_libdmdutil_bundle.sh
-        shell: bash
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -91,7 +97,7 @@ jobs:
             --repo "${DOF_REPO}" \
             --version "${DOF_VERSION}" \
             --triplet "${DOF_TRIPLET}" \
-            --outdir third-party/dof
+            --outdir third_party/dof
         shell: bash
 
       - name: Fetch libdmdutil bundle
@@ -102,14 +108,13 @@ jobs:
             --repo "${DMDUTIL_REPO}" \
             --version "${DMDUTIL_VERSION}" \
             --triplet "${DOF_TRIPLET}" \
-            --outdir third-party/libdmdutil
+            --outdir third_party/libdmdutil
         shell: bash
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          pip install -r requirements.txt -r requirements-build.txt
 
       - name: Create Chromium directories (Linux/macOS)
         if: runner.os != 'Windows'
@@ -122,10 +127,15 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path chromium\linux,chromium\windows,chromium\mac
 
+      # All four downloads below are Chromium 152.0.7977.x. The snapshot buckets do not
+      # build at the same positions - Windows is the nearest below the other two - so the
+      # numbers differ while the browser does not. Keep them on one version when bumping:
+      # a theme is written against what the bundled browser supports, and a capability
+      # that exists on one platform and not another is invisible to whoever wrote it.
       - name: Download Linux Chromium
         if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
-          wget -O chromium/linux/chrome.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F1568190%2Fchrome-linux.zip?generation=1768270474193258&alt=media"
+          wget -O chromium/linux/chrome.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F1669021%2Fchrome-linux.zip?generation=1785190995992284&alt=media"
           unzip -q chromium/linux/chrome.zip -d chromium/linux
           mv chromium/linux/chrome-linux chromium/linux/chrome
           chmod +x chromium/linux/chrome/chrome
@@ -133,15 +143,15 @@ jobs:
       - name: Download ARM Linux Chromium
         if: runner.os == 'Linux' && runner.arch == 'ARM64'
         run: |
-          wget -O chromium/linux/chrome.tar.xz "https://github.com/ungoogled-software/ungoogled-chromium-portablelinux/releases/download/144.0.7559.109-1/ungoogled-chromium-144.0.7559.109-1-arm64_linux.tar.xz"
+          wget -O chromium/linux/chrome.tar.xz "https://github.com/ungoogled-software/ungoogled-chromium-portablelinux/releases/download/152.0.7977.64-1/ungoogled-chromium-152.0.7977.64-1-arm64_linux.tar.xz"
           tar xvf chromium/linux/chrome.tar.xz -C chromium/linux/
-          mv chromium/linux/ungoogled-chromium-144.0.7559.109-1-arm64_linux chromium/linux/chrome
+          mv chromium/linux/ungoogled-chromium-152.0.7977.64-1-arm64_linux chromium/linux/chrome
           chmod +x chromium/linux/chrome/chrome
 
       - name: Download Windows Chromium
         if: runner.os == 'Windows'
         run: |
-          pwsh -Command "Invoke-WebRequest -Uri 'https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win_x64%2F1568195%2Fchrome-win.zip?generation=1768274160162696&alt=media' -OutFile 'chromium/windows/chrome.zip' -UseBasicParsing"
+          pwsh -Command "Invoke-WebRequest -Uri 'https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win_x64%2F1668971%2Fchrome-win.zip?generation=1785191094860934&alt=media' -OutFile 'chromium/windows/chrome.zip' -UseBasicParsing"
           pwsh -Command "Expand-Archive -Path 'chromium/windows/chrome.zip' -DestinationPath 'chromium/windows'"
           pwsh -Command "Remove-Item 'chromium/windows/chrome.zip'"
 
@@ -149,56 +159,25 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           mkdir -p chromium
-          curl -L -o chrome-mac.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac_Arm%2F1582847%2Fchrome-mac.zip?generation=1770766943434586&alt=media"
+          curl -L -o chrome-mac.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac_Arm%2F1669021%2Fchrome-mac.zip?generation=1785190481571679&alt=media"
           unzip -q chrome-mac.zip
           mv chrome-mac/Chromium.app chromium/Chromium.app
           rm -rf chrome-mac chrome-mac.zip
 
+      # What ships is packaging/vpinfe.spec, not flags here. See its docstring.
       - name: Build app with PyInstaller
-        run: |
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            pyinstaller --onedir --noconfirm --name vpinfe \
-              --add-data "web:web" \
-              --add-data "managerui/static:managerui/static" \
-              --add-data "third-party/dof:third-party/dof" \
-              --add-data "third-party/libdmdutil:third-party/libdmdutil" \
-              --add-data "chromium/linux/chrome:chromium/linux/chrome" \
-              --hidden-import pynput.keyboard._xorg \
-              --hidden-import pynput.mouse._xorg \
-              main.py
-          elif [[ "$RUNNER_OS" == "Windows" ]]; then
-            pyinstaller --onedir --noconfirm --name vpinfe \
-              --add-data "web;web" \
-              --add-data "managerui/static;managerui/static" \
-              --add-data "third-party/dof;third-party/dof" \
-              --add-data "third-party/libdmdutil;third-party/libdmdutil" \
-              --add-data "chromium/windows;chromium/windows" \
-              main.py
-          elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
-              --add-data "web:web" \
-              --add-data "managerui/static:managerui/static" \
-              --add-data "third-party/dof:third-party/dof" \
-              --add-data "third-party/libdmdutil:third-party/libdmdutil" \
-              main.py
-            mkdir -p dist/VPinFE.app/Contents/Frameworks/chromium
-            cp -R chromium/Chromium.app dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app
-            chmod +x dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app/Contents/MacOS/Chromium
-            rm -rf dist/vpinfe
-          fi
+        run: pyinstaller packaging/vpinfe.spec
         shell: bash
 
-      - name: Ad-hoc sign the app (macOS)
+      - name: Bundle Chromium into the .app (macOS)
         if: runner.os == 'macOS'
         run: |
-          codesign --force --deep --sign - dist/VPinFE.app
-          codesign --verify --verbose dist/VPinFE.app
-        shell: bash
-
-      - name: Remove extended attributes (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          sudo xattr -rc dist
+          # Not --add-data: an .app copied that way loses its executable bit and the
+          # symlinks inside it, and will not launch.
+          mkdir -p dist/VPinFE.app/Contents/Frameworks/chromium
+          cp -R chromium/Chromium.app dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app
+          chmod +x dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app/Contents/MacOS/Chromium
+          rm -rf dist/VPinFE
         shell: bash
 
       - name: Install create-dmg
@@ -208,13 +187,19 @@ jobs:
         env:
           HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
 
-      - name: Package as DMG (macOS)
+      # Sign, strip the quarantine attributes a runner leaves behind, and wrap the .app
+      # in the DMG a user actually downloads. Identical for the full and slim builds,
+      # so it is written once and run twice.
+      - name: Package the .app as a signed DMG (macOS)
         if: runner.os == 'macOS'
         run: |
+          codesign --force --deep --sign - dist/VPinFE.app
+          codesign --verify --verbose dist/VPinFE.app
+          sudo xattr -rc dist
           create-dmg \
             --volname "VPinFE" \
-            --volicon "icon/VPinFE.icns" \
-            --background "icon/DMG_background.png" \
+            --volicon "packaging/VPinFE.icns" \
+            --background "packaging/DMG_background.png" \
             --window-pos 200 120 \
             --window-size 610 475 \
             --icon-size 100 \
@@ -227,7 +212,7 @@ jobs:
 
       - name: Copy Windows launcher
         if: runner.os == 'Windows'
-        run: cp vpinfe.bat dist/vpinfe/
+        run: cp packaging/vpinfe.bat dist/vpinfe/
         shell: bash
 
       - name: Upload full build artifact (macOS)
@@ -236,6 +221,7 @@ jobs:
         with:
           name: build-macos-arm64
           path: dist/VPinFE.dmg
+          retention-days: 30
 
       - name: Upload full build artifact (Linux)
         if: runner.os == 'Linux'
@@ -243,6 +229,7 @@ jobs:
         with:
           name: build-linux-${{ runner.arch == 'X64' && 'x64' || 'arm64' }}
           path: dist/
+          retention-days: 30
 
       - name: Upload full build artifact (Windows)
         if: runner.os == 'Windows'
@@ -250,19 +237,20 @@ jobs:
         with:
           name: build-win-x64
           path: dist/
+          retention-days: 30
 
-      - name: Build slim app with PyInstaller (Linux)
-        if: runner.os == 'Linux'
+      # The same spec, minus Chromium. One step for all three platforms.
+      - name: Build slim app with PyInstaller
+        env:
+          VPINFE_SLIM: "1"
         run: |
           rm -rf build dist
-          pyinstaller --onedir --noconfirm --name vpinfe \
-            --add-data "web:web" \
-            --add-data "managerui/static:managerui/static" \
-            --add-data "third-party/dof:third-party/dof" \
-            --add-data "third-party/libdmdutil:third-party/libdmdutil" \
-            --hidden-import pynput.keyboard._xorg \
-            --hidden-import pynput.mouse._xorg \
-            main.py
+          pyinstaller packaging/vpinfe.spec
+          # On macOS the spec produces both the COLLECT directory and the .app that
+          # wraps it. Only the .app is shipped; leaving the directory doubles the DMG.
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            rm -rf dist/VPinFE
+          fi
         shell: bash
 
       - name: Upload slim build artifact (Linux)
@@ -271,21 +259,11 @@ jobs:
         with:
           name: build-linux-${{ runner.arch == 'X64' && 'x64' || 'arm64' }}-slim
           path: dist/
-
-      - name: Build slim app with PyInstaller (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
-          pyinstaller --onedir --noconfirm --name vpinfe `
-            --add-data "web;web" `
-            --add-data "managerui/static;managerui/static" `
-            --add-data "third-party/dof;third-party/dof" `
-            --add-data "third-party/libdmdutil;third-party/libdmdutil" `
-            main.py
+          retention-days: 30
 
       - name: Copy Windows launcher (slim)
         if: runner.os == 'Windows'
-        run: cp vpinfe.bat dist/vpinfe/
+        run: cp packaging/vpinfe.bat dist/vpinfe/
         shell: bash
 
       - name: Upload slim build artifact (Windows)
@@ -294,40 +272,22 @@ jobs:
         with:
           name: build-win-x64-slim
           path: dist/
+          retention-days: 30
 
-      - name: Build slim app with PyInstaller (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          rm -rf build dist
-          pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
-            --add-data "web:web" \
-            --add-data "managerui/static:managerui/static" \
-            --add-data "third-party/dof:third-party/dof" \
-            --add-data "third-party/libdmdutil:third-party/libdmdutil" \
-            main.py
-          rm -rf dist/vpinfe
-        shell: bash
 
-      - name: Ad-hoc sign the app (macOS Slim)
+      # Sign, strip the quarantine attributes a runner leaves behind, and wrap the .app
+      # in the DMG a user actually downloads. Identical for the full and slim builds,
+      # so it is written once and run twice.
+      - name: Package the .app as a signed DMG (macOS Slim)
         if: runner.os == 'macOS'
         run: |
           codesign --force --deep --sign - dist/VPinFE.app
           codesign --verify --verbose dist/VPinFE.app
-        shell: bash
-
-      - name: Remove extended attributes (macOS Slim)
-        if: runner.os == 'macOS'
-        run: |
           sudo xattr -rc dist
-        shell: bash
-
-      - name: Package as DMG (macOS Slim)
-        if: runner.os == 'macOS'
-        run: |
           create-dmg \
             --volname "VPinFE" \
-            --volicon "icon/VPinFE.icns" \
-            --background "icon/DMG_background.png" \
+            --volicon "packaging/VPinFE.icns" \
+            --background "packaging/DMG_background.png" \
             --window-pos 200 120 \
             --window-size 610 475 \
             --icon-size 100 \
@@ -344,9 +304,14 @@ jobs:
         with:
           name: build-macos-arm64-slim
           path: dist/VPinFE.dmg
+          retention-days: 30
 
   release_bundle:
-    if: startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 15
+    # A hand-started run never releases, whatever it was started against - a tag can be
+    # dispatched as readily as a branch, and "it only publishes on a tag push" should be
+    # true by construction rather than by reading the ref.
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     strategy:
@@ -401,7 +366,8 @@ jobs:
           path: release/vpinfe-${{ github.ref_name }}-${{ matrix.triplet }}.zip
 
   publish_release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 15
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch'
     needs: release_bundle
     runs-on: ubuntu-latest
 
@@ -463,11 +429,20 @@ jobs:
             release/manifest.json
           )
 
+          # A beta or rc tag publishes as a prerelease. That is the whole beta
+          # channel: the in-app updater asks /releases/latest, which GitHub
+          # defines as the newest non-prerelease, so testers grab these from the
+          # releases page while every installed copy keeps updating to stable.
+          flags=()
+          if [[ "${GITHUB_REF_NAME}" == *-beta* || "${GITHUB_REF_NAME}" == *-rc* ]]; then
+            flags+=(--prerelease)
+          fi
+
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release edit "${GITHUB_REF_NAME}" --notes-file RELEASE_NOTES.md
+            gh release edit "${GITHUB_REF_NAME}" --notes-file RELEASE_NOTES.md "${flags[@]}"
             gh release upload "${GITHUB_REF_NAME}" "${assets[@]}" --clobber
           else
             gh release create "${GITHUB_REF_NAME}" "${assets[@]}" \
               --notes-file RELEASE_NOTES.md \
-              --verify-tag
+              --verify-tag "${flags[@]}"
           fi

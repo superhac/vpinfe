@@ -6,23 +6,26 @@ Each configured display gets its own Chromium process in --app mode,
 positioned on the correct monitor with fullscreen.
 """
 
-import os
-import sys
 import logging
-import shlex
-from shutil import which
-from collections import namedtuple
+import os
 import platform
-import subprocess
-import tempfile
+import shlex
+import shutil
 import signal
+import subprocess
+import sys
+import tempfile
 import threading
 import time
-from urllib.parse import quote
+from collections import namedtuple
+from typing import NamedTuple
+from shutil import which
+from urllib.parse import quote, urlparse
 
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig, cfg_get
-from common.logging_config import include_thirdparty_logs
-
+from common.games import remote_library
+from common.log_setup import include_thirdparty_logs
+from common.paths import bundled
 
 logger = logging.getLogger("vpinfe.frontend.chromium_manager")
 
@@ -69,6 +72,20 @@ def parse_additional_chromium_options(raw_options: str) -> list[str]:
     return shlex.split(raw_options, comments=False, posix=True)
 
 
+def parsed_or_none(raw_options: str, setting: str) -> list[str]:
+    """The flags a setting asks for, or none of them.
+
+    An unbalanced quote is a typo in a text field, and the cost of raising on one is
+    the whole frontend: nothing above catches it, so every window goes and the user
+    sees a black screen rather than a bad setting.
+    """
+    try:
+        return parse_additional_chromium_options(raw_options)
+    except ValueError as exc:
+        logger.warning("Ignoring invalid %s value: %s", setting, exc)
+        return []
+
+
 def get_builtin_chromium_options(
     window_name: str = "<window>",
     url: str = "<url>",
@@ -101,35 +118,91 @@ def get_builtin_chromium_options(
     return options
 
 
+class LibraryEndpoint(NamedTuple):
+    """Where a page dials for the library, and where it dials for this machine."""
+
+    host: str
+    port: int
+    device_port: int
+    assets_port: int
+
+
+def _library_endpoint(network) -> LibraryEndpoint:
+    """Resolve `network.library_url` into the addresses a window is launched with.
+
+    With no library set the host is "" and every port is this install's, which is every
+    single-machine setup. With one, three of the four belong to that install and have to
+    be asked for separately: `network.http_port` and `network.theme_assets_port` describe
+    what *this* install serves, so reading a library on other ports would dial our own
+    numbers at the other machine. The api port is in the url; the asset port is not in it
+    at all, so the other install is asked - it publishes its own in discovery.
+
+    """
+    trimmed = str(getattr(network, "library_url", "") or "").strip()
+    own_api = network.http_port
+    own_assets = network.theme_assets_port
+    if not trimmed:
+        return LibraryEndpoint("", own_api, own_api, own_assets)
+
+    parsed = urlparse(trimmed)
+    assets = remote_library.remote_services(trimmed).get("assets") or {}
+    try:
+        remote_assets = int(assets.get("port") or own_assets)
+    except (TypeError, ValueError):
+        remote_assets = own_assets
+    return LibraryEndpoint(parsed.hostname or "", parsed.port or own_api, own_api,
+                           remote_assets)
+
+
 def _build_window_url(
     base_url: str,
     theme_assets_port: int,
     theme_name: str,
     window_name: str,
     splash_enabled: bool,
+    ws_port: int = 8002,
+    http_port: int = 8001,
+    library_host: str = "",
+    device_port: int = 8001,
+    library_assets_port: int = 0,
 ) -> str:
+    """Where a window opens, and how it finds the services.
+
+    The ports travel in the url because they are what the page cannot ask for:
+    everything else comes over the bridge, and asking needs the bridge port. Without
+    this they were settings the browser ignored, so moving a service left the frontend
+    dialling the old port forever.
+
+    Built once and appended to all three url forms - stating them per form is how the
+    frontend ended up asserting one machine in six places.
+    """
+    endpoints = (f"wsPort={ws_port}&themeAssetsPort={theme_assets_port}"
+                 f"&libraryPort={http_port}")
+    # Only when the library is elsewhere. Absent, the page keeps assuming loopback and
+    # one port for both, which is right for every install that serves its own library.
+    if library_host:
+        endpoints += (f"&libraryHost={quote(library_host, safe='')}"
+                      f"&devicePort={device_port}"
+                      f"&libraryAssetsPort={library_assets_port or theme_assets_port}")
+
     if platform.system() == "Linux":
-        return f"{base_url}:{theme_assets_port}/app/{window_name}"
+        return f"{base_url}:{theme_assets_port}/app/{window_name}?{endpoints}"
 
     if splash_enabled:
-        return f"{base_url}:{theme_assets_port}/web/splash.html?window={window_name}"
+        return (f"{base_url}:{theme_assets_port}/core/splash.html"
+                f"?window={window_name}&{endpoints}")
 
     encoded_theme = quote(theme_name, safe="")
     return (
         f"{base_url}:{theme_assets_port}/themes/"
         f"{encoded_theme}/index_{window_name}.html?window={window_name}"
+        f"&{endpoints}"
     )
 
 
 def resource_path(relative_path):
-    """Get absolute path to resource, works for both dev and PyInstaller bundle."""
-    if getattr(sys, "frozen", False):
-        # Running as PyInstaller bundle
-        base_path = sys._MEIPASS
-    else:
-        # Running from source - project root
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base_path, relative_path)
+    """Kept as the name three call sites below use; `common.paths.bundled` is the answer."""
+    return str(bundled(*relative_path.split("/")))
 
 
 ChromiumPath = namedtuple("ChromiumPath", ["path", "using_local_install"])
@@ -226,6 +299,57 @@ def get_mac_screens():
     return result
 
 
+PROFILE_PREFIX = "vpinfe_chromium_"
+
+
+def _profile_dirs_in_use():
+    """Profile directories a running Chromium is holding, ours or anyone's."""
+    try:
+        import psutil
+    except ImportError:
+        return None                     # cannot prove anything is dead; sweep nothing
+    in_use = set()
+    for proc in psutil.process_iter(["cmdline"]):
+        try:
+            for arg in proc.info["cmdline"] or ():
+                if arg.startswith("--user-data-dir="):
+                    in_use.add(arg.split("=", 1)[1])
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return in_use
+
+
+def sweep_stale_profiles():
+    """Remove profile directories left behind by a run that did not shut down.
+
+    terminate_all clears up after itself, but a SIGKILL, a power cut or a `systemctl
+    stop` never reaches it - and on a cabinet /tmp is often tmpfs, so what leaks is RAM.
+    Only directories no live process is using are touched, because a second instance may
+    be running and its profiles are not ours to delete.
+    """
+    in_use = _profile_dirs_in_use()
+    if in_use is None:
+        return 0
+    root = tempfile.gettempdir()
+    removed = 0
+    try:
+        names = os.listdir(root)
+    except OSError:
+        return 0
+    for name in names:
+        if not name.startswith(PROFILE_PREFIX):
+            continue
+        path = os.path.join(root, name)
+        if path in in_use or not os.path.isdir(path):
+            continue
+        shutil.rmtree(path, ignore_errors=True)
+        removed += 1
+    if removed:
+        logger.info("Removed %s leftover Chromium profile director%s",
+                    removed, "y" if removed == 1 else "ies")
+    return removed
+
+
 class ChromiumManager:
     """Manages Chromium subprocess lifecycle for multi-monitor display."""
 
@@ -233,6 +357,7 @@ class ChromiumManager:
         self._processes = []  # [(window_name, process, temp_dir, monitor)]
         self._exit_event = threading.Event()
         self._minimized_hwnds = []  # Windows only: [(window_name, hwnd)] awaiting restore
+        sweep_stale_profiles()
 
     def launch_window(
         self,
@@ -248,15 +373,16 @@ class ChromiumManager:
         """Launch one Chromium instance for a given monitor.
 
         Args:
-            window_name: 'bg', 'dmd', or 'table'
-            url: The URL to load (e.g. http://127.0.0.1:8000/web/splash.html?window=bg)
+            window_name: whatever the theme declared - 'playfield', 'backglass' and
+                'scoreview' by default, and anything else a theme asks for
+            url: The URL to load (e.g. http://127.0.0.1:8000/app/backglass)
             monitor: screeninfo Monitor object with x, y, width, height
             index: Unique index for temp profile directory
         """
         chrome_path, using_local_install = get_chromium_path()
         if not os.path.exists(chrome_path):
             raise FileNotFoundError(f"Chromium binary not found: {chrome_path}")
-        logger.info("Using Chromium executable for '%s': %s", window_name, chrome_path)
+        logger.debug("Using Chromium executable for '%s': %s", window_name, chrome_path)
 
         user_data_dir = tempfile.mkdtemp(
             prefix=f"vpinfe_chromium_{window_name}_{index}_"
@@ -272,8 +398,8 @@ class ChromiumManager:
         # PyInstaller bundles libaries which might be incompatible with the local files.
         system = platform.system()
         if (system == "Linux"):
-            if using_local_install and getattr(sys, "frozen", False): 
-                logger.info("Using local Chromium on Linux")
+            if using_local_install and getattr(sys, "frozen", False):
+                logger.debug("Using local Chromium on Linux")
                 lp_key = 'LD_LIBRARY_PATH'
                 lp_orig = env.get(lp_key + '_ORIG')
                 if lp_orig is not None:
@@ -288,16 +414,13 @@ class ChromiumManager:
                 user_data_dir=user_data_dir,
                 mute_audio=mute_audio,
                 include_default_options=include_default_options,
-                exclude_options=parse_additional_chromium_options(exclude_options),
+                exclude_options=parsed_or_none(exclude_options,
+                                               "general.chrome_options_exclude"),
             ),
         ]
-        try:
-            extra_args = parse_additional_chromium_options(additional_options)
-        except ValueError as exc:
-            logger.warning("Ignoring invalid Settings.chromeoptions value: %s", exc)
-            extra_args = []
+        extra_args = parsed_or_none(additional_options, "general.chrome_options")
         if extra_args:
-            logger.info("Adding Chromium options for '%s': %s", window_name, extra_args)
+            logger.debug("Adding Chromium options for '%s': %s", window_name, extra_args)
             args.extend(extra_args)
 
         logger.info(
@@ -331,7 +454,7 @@ class ChromiumManager:
         """Launch Chromium windows for all configured displays.
 
         Args:
-            iniconfig: IniConfig instance with display and network settings
+            iniconfig: ConfigStore instance with display and network settings
             base_url: Base URL for the HTTP server
         """
         if sys.platform == "darwin":
@@ -351,15 +474,13 @@ class ChromiumManager:
         theme_assets_port = network.theme_assets_port
         theme_name = settings.theme
         splash_enabled = settings.splashscreen
+        library = _library_endpoint(network)
 
-        # Launch windows in order: bg, dmd, table (table last so it gets focus)
-        window_configs = [
-            ("bg", "bgscreenid"),
-            ("dmd", "dmdscreenid"),
-            ("table", "tablescreenid"),
-        ]
+        # One definition, in runtime. Reversed so the controller - first in the theme's
+        # list - is launched last and takes focus.
+        from frontend.runtime import window_configs
 
-        for window_name, config_key in window_configs:
+        for window_name, config_key in reversed(window_configs(iniconfig)):
             screen_id_str = displays.window_screen_id(config_key).strip()
             if not screen_id_str:
                 continue
@@ -381,6 +502,11 @@ class ChromiumManager:
                 theme_name=theme_name,
                 window_name=window_name,
                 splash_enabled=splash_enabled,
+                ws_port=network.ws_port,
+                http_port=library.port,
+                library_host=library.host,
+                device_port=library.device_port,
+                library_assets_port=library.assets_port,
             )
 
             override_key = f"{window_name}windowoverride"
@@ -394,54 +520,60 @@ class ChromiumManager:
             if override_str:
                 separator = "&" if "?" in url else "?"
                 url += f"{separator}override={override_str}"
-                logger.info("Override applied - Final URL: %s", url)
+                logger.debug("Override applied - Final URL: %s", url)
 
             # Brief delay before launching the table window to ensure bg/dmd
             # are initialized first, so table gets focus as the last window
             if window_name == "table":
                 time.sleep(0.5)
 
-            self.launch_window(
-                window_name,
-                url,
-                monitor,
-                screen_id,
-                mute_audio=(window_name != "table"),
-                additional_options=settings.chrome_options,
-                include_default_options=not settings.disable_default_chrome_options,
-                exclude_options=cfg_get(iniconfig, "Settings", "chromeoptionsexclude", ""),
-            )
+            # One window failing is one window. Unwrapped, whatever went wrong on the
+            # backglass took the playfield with it and the cabinet showed nothing.
+            try:
+                self.launch_window(
+                    window_name,
+                    url,
+                    monitor,
+                    screen_id,
+                    mute_audio=(window_name != "table"),
+                    additional_options=settings.chrome_options,
+                    include_default_options=not settings.disable_default_chrome_options,
+                    exclude_options=cfg_get(iniconfig, "Settings",
+                                            "chromeoptionsexclude", ""),
+                )
+            except Exception:
+                logger.exception("Could not launch the %s window", window_name)
 
         logger.info("Launched %s browser windows", len(self._processes))
 
         # macOS: ensure the table window gets focus after all windows launch
         if sys.platform == "darwin":
-            threading.Thread(target=self._focus_table_window_mac, daemon=True).start()
+            threading.Thread(target=self._focus_game_window_mac, daemon=True).start()
 
-    def _focus_table_window_mac(self):
+    def _focus_game_window_mac(self):
         """macOS: ensure focus goes to the table window after launch."""
         time.sleep(0.5)
         try:
             import AppKit
 
-            table_pid = None
+            game_pid = None
             for win_name, proc, _, _ in self._processes:
                 if win_name == "table":
-                    table_pid = proc.pid
+                    game_pid = proc.pid
                     break
 
-            if table_pid is None:
+            if game_pid is None:
                 return
 
             for ns_app in AppKit.NSWorkspace.sharedWorkspace().runningApplications():
-                if ns_app.processIdentifier() == table_pid:
+                if ns_app.processIdentifier() == game_pid:
                     ns_app.activateWithOptions_(
                         AppKit.NSApplicationActivateIgnoringOtherApps
                     )
-                    logger.info("macOS: activating table window focus")
+                    logger.debug("macOS: activating playfield window focus")
                     return
 
-            logger.debug("macOS: table app process not available for focus activation")
+            logger.debug("macOS: playfield app process not available for focus activation")
         except Exception:
             logger.exception("macOS focus activation failed")
 
@@ -611,9 +743,13 @@ class ChromiumManager:
                     logger.exception("kill %s failed", pid)
 
     def terminate_all(self):
-        """Terminate all Chromium processes immediately."""
-        logger.info("Terminating all browser windows...")
-        for window_name, proc, temp_dir, _ in self._processes:
+        """Terminate all Chromium processes immediately. Safe to call twice."""
+        if not self._processes:
+            self._exit_event.set()
+            return
+
+        logger.debug("Terminating all browser windows...")
+        for window_name, proc, _temp_dir, _ in self._processes:
             try:
                 if proc.poll() is None:  # still running
                     # Use force=True (SIGKILL) directly - no need for graceful shutdown
@@ -627,10 +763,17 @@ class ChromiumManager:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 logger.warning("'%s' still not reaped", window_name)
+            # The profile is a fresh temp directory per window per launch, and nothing
+            # was removing it. Three per run adds up fast on a frontend that restarts.
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
         self._processes.clear()
         self._exit_event.set()
         logger.info("All browser windows closed.")
+
+    def request_exit(self):
+        """Unblock wait_for_exit and leave the windows to the caller."""
+        self._exit_event.set()
 
     def wait_for_exit(self, is_window_connected=None):
         """Block until all Chromium processes have exited.
@@ -645,7 +788,7 @@ class ChromiumManager:
         def _monitor():
             """Watch for any process to exit, then terminate all."""
             while self._processes and not self._exit_event.is_set():
-                for window_name, proc, temp_dir, _ in list(self._processes):
+                for window_name, proc, _temp_dir, _ in list(self._processes):
                     if proc.poll() is not None:
                         if is_window_connected and is_window_connected(window_name):
                             logger.info(
@@ -679,7 +822,7 @@ class ChromiumManager:
 
     def get_process(self, window_name):
         """Get the process for a specific window."""
-        for name, proc, temp_dir, _ in self._processes:
+        for name, proc, _temp_dir, _ in self._processes:
             if name == window_name:
                 return proc
         return None

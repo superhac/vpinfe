@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
+"""Starting VPinFE.
+
+Reads mostly top to bottom, and the order is the point: config before anything
+under common/ is imported, servers before windows, and the shutdown at the end is
+the one path every exit goes through.
+"""
 
 from __future__ import annotations
 
-import sys
+import multiprocessing
 import os
 import platform
-import multiprocessing
+import sys
+
+from common.config_access import cfg_get
+
 multiprocessing.freeze_support()
 
 # On Windows, hide the console window when launched via icon (not from terminal).
@@ -22,44 +31,56 @@ if platform.system() == "Windows" and getattr(sys, 'frozen', False):
             ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
 
 if "--dof-helper" in sys.argv[1:]:
-    from common.dof_service_worker import main as _dof_helper_main
+    from common.host.dof_service_worker import main as _dof_helper_main
     raise SystemExit(_dof_helper_main())
 
 
 # common.paths resolves CONFIG_DIR at import time, so --configdir has to reach
 # the environment before anything under common/ is imported. Do it first.
 from common.config_bootstrap import apply_configdir_override
+
 apply_configdir_override(sys.argv[1:])
 
-from common.logging_config import configure_logging, get_logger
-from common.iniconfig import IniConfig
-from common.dof_service import start_dof_service_if_enabled, stop_dof_service
-from common.libdmdutil_service import (
+from common import shutdown, theme_options
+from common.app_version import get_version
+from common.config_store import ConfigStore
+from common.games.metadata_service import build_metadata
+from common.host.dof_service import start_dof_service_if_enabled, stop_dof_service
+from common.host.libdmdutil_service import (
     stop_libdmdutil_service,
 )
-from common.pinmame_score_parser_updater import ensure_latest_roms_json
-from common.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
-from common.app_version import get_version
-from common.themes import ThemeRegistry
-from common.paths import VPINFE_INI_PATH, configure_nicegui_storage, ensure_config_dir
-from common.metadata_service import build_metadata
+from common.log_setup import configure_logging, get_logger
+from common.online.pinmame_score_parser_updater import ensure_latest_roms_json
+from common.online.themes import ThemeRegistry
+from common.online.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
+from common.paths import (
+    THEMES_DIR,
+    VPINFE_INI_PATH,
+    configure_nicegui_storage,
+    ensure_config_dir,
+)
 
 # Get the base path
 base_path = os.path.dirname(os.path.abspath(__file__))
 
-# Load config BEFORE importing clioptions/managerui (they create IniConfig at import time)
+# Load config BEFORE importing cli/managerui (they create ConfigStore at import time)
 config_dir = ensure_config_dir()
 nicegui_storage_path = configure_nicegui_storage()
 log_path = configure_logging(config_dir, enable_file=False)
-iniconfig = IniConfig(str(VPINFE_INI_PATH))
-log_path = configure_logging(config_dir, iniconfig)
+config_store = ConfigStore(str(VPINFE_INI_PATH))
+log_path = configure_logging(config_dir, config_store)
 logger = get_logger("vpinfe.main")
 logger.info("Logging to %s", log_path)
 logger.info("Using NiceGUI storage path: %s", nicegui_storage_path)
 logger.info("Version: %s", get_version())
 
+# Startup downloads themes, walks the library and rewrites .info files, and it can take
+# a while on a big one. Start listening for a kill now; the checks below act on it at
+# the step boundaries, so nothing gets killed halfway through writing.
+shutdown.watch_during_startup()
+
 try:
-    roms_update_result = ensure_latest_roms_json(iniconfig)
+    roms_update_result = ensure_latest_roms_json(config_store)
     logger.info(
         "pinmame-score-parser roms.json status=%s path=%s",
         roms_update_result.get("status"),
@@ -68,17 +89,33 @@ try:
 except Exception:
     logger.exception("Failed to update pinmame-score-parser roms.json at startup")
 
+# What the library collects moves out of this install's config and into the library's
+# own file, once. Per-install was one answer per machine for a question about one set of
+# files, and only the library's ever did anything.
+try:
+    from common.games.library_policy import get_library_policy
+    from common.paths import get_ini_config as _ini_for_policy
+    get_library_policy().adopt_from_config(_ini_for_policy())
+except Exception:
+    logger.exception("Library policy import failed; the config values still resolve")
+
+shutdown.exit_if_requested(logger)
+
 
 def reconfigure_app_logging() -> None:
-    configure_logging(config_dir, iniconfig)
+    configure_logging(config_dir, config_store)
 
-# Now safe to import modules that create their own IniConfig at import time
-from frontend import runtime
-from clioptions import parseArgs
-from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run, _shutdown_event
+# Now safe to import modules that create their own ConfigStore at import time
 from nicegui import app as nicegui_app
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+
+import httpapi
+import console
+from cli import parseArgs
+from frontend import lifecycle_host, runtime
+from managerui.managerui import _shutdown_event, set_first_run, start_manager_ui, stop_manager_ui
+from managerui.services import app_control
 
 nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
 
@@ -95,6 +132,18 @@ class _SuppressNoResponseReturnedMiddleware(BaseHTTPMiddleware):
 
 
 nicegui_app.add_middleware(_SuppressNoResponseReturnedMiddleware)
+
+# Mount the HTTP API. Has to happen before any ui.run(), including the early
+# first-run start below.
+httpapi.register(nicegui_app)
+
+# And say so on the network, once the routes an announcement points at exist. Here rather
+# than inside the app builder: a test builds that app many times over, and each build
+# would be another machine as far as anyone listening is concerned.
+httpapi.instance.announce_on_the_network()
+
+# The Console, served alongside the Manager UI while both exist.
+console.register()
 
 # On Windows, the Proactor event loop logs a noisy ConnectionResetError (WinError 10054)
 # whenever a browser tab is closed mid-connection. Install a startup handler that
@@ -129,16 +178,27 @@ _startup_media_sync_started = False
 def create_api_instances():
     """Create API instances for each configured display window."""
     global ws_bridge, frontend_browser
-    ws_bridge, frontend_browser = runtime.create_api_instances(iniconfig, logger)
+    ws_bridge, frontend_browser = runtime.create_api_instances(config_store, logger)
+    # Now that there is a browser to stop, this process can say what it can do. Windows
+    # are opened by run_frontend_loop below, so nothing here can open them: starting the
+    # frontend on a headless instance is left unperformable until that moves.
+    lifecycle_host.install(
+        config_store=config_store,
+        config_dir=config_dir,
+        frontend_browser=frontend_browser,
+        shutdown_event=_shutdown_event,
+        ws_bridge=ws_bridge,
+    )
+    app_control.install_notices()
 
 
 def _start_startup_media_sync():
     """Optionally sync media from VPinMediaDB on startup in a background thread."""
     global _startup_media_sync_started
     _startup_media_sync_started = runtime.start_startup_media_sync(
-        iniconfig,
+        config_store,
         logger,
-        lambda **kwargs: build_metadata(iniconfig=iniconfig, **kwargs),
+        lambda **kwargs: build_metadata(iniconfig=config_store, **kwargs),
         started=_startup_media_sync_started,
     )
 
@@ -147,18 +207,28 @@ cli_args = parseArgs() if len(sys.argv) > 0 else None
 headless = cli_args and cli_args.headless
 
 # Register frontend theme assets before NiceGUI can start on the first-run path.
-MOUNT_POINTS, themes_dir = runtime.build_mount_points(base_path, config_dir, iniconfig)
+MOUNT_POINTS, themes_dir = runtime.build_mount_points(base_path, config_dir, config_store)
 nicegui_app.add_static_files('/themes', themes_dir)
 
 # On first run, start the manager UI early so chromium can load it
-if iniconfig.is_new:
+if config_store.is_new:
     set_first_run(True)
-    manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
-    start_manager_ui(port=manager_ui_port)
+    http_port = int(cfg_get(config_store, 'network', 'http_port', '8001'))
+    http_bind = cfg_get(config_store, 'network', 'http_bind', '0.0.0.0')
+    start_manager_ui(port=http_port, bind=http_bind)
     reconfigure_app_logging()
     # Wait for the NiceGUI server to be ready before chromium tries to load it
-    runtime.wait_for_manager_ui_ready(manager_ui_port)
-    logger.info("First run: Manager UI ready on port %s", manager_ui_port)
+    runtime.wait_for_manager_ui_ready(http_port)
+    logger.info("First run: Manager UI ready on port %s", http_port)
+
+# Before anything installs or updates a theme. An update deletes the theme's folder, and
+# until now that folder is where the user's option values were kept - so this has to run
+# first or the release that fixes that data loss is the release that causes it one last
+# time. Cheap and idempotent: it skips any theme that already has its own options file.
+try:
+    theme_options.migrate_from_packages(THEMES_DIR)
+except Exception:
+    logger.exception("Could not move theme options out of the installed packages")
 
 # Initialize theme registry and auto-install default themes
 try:
@@ -169,23 +239,110 @@ try:
 except Exception:
     logger.exception("Theme registry initialization failed")
 
+shutdown.exit_if_requested(logger)
+
+# Give every game and every table a stable id. One-time cost per library; a no-op
+# afterwards, and neither pass writes a .info it did not change.
+try:
+    from common.games.game_identity import ensure_unique_ids
+    from common.games.game_repository import all_games
+    from common.games.library_discovery import discover
+    from common.games.table_identity import ensure_unique_table_ids
+    games = all_games()
+    ensure_unique_ids(games)
+    # Before the minting pass, not after: discovery adds an entry for every .vpx the
+    # folder holds, and minting is what turns those into addressable tables.
+    discover(games)
+    ensure_unique_table_ids(games)
+except Exception:
+    logger.exception("Id backfill failed; games or tables without an id are not addressable")
+
+# Reading those tables is the expensive half - a parse hashes the whole .vpx - so it
+# goes on a job and startup does not wait for it. Writes land on a background thread
+# while requests are served, which is safe because persist_game_meta rebinds
+# meta_config rather than mutating the dict a reader may be holding.
+try:
+    from common import jobs
+    from common.games.library_enrichment import enrich
+    jobs.submit(jobs.KIND_LIBRARY_SCAN, lambda job: enrich(games, job.reporter()))
+except Exception:
+    logger.exception("Could not start library enrichment; unread tables stay unread")
+
+# And keep looking, if the user asked us to. Off by default: a check re-reads every
+# game folder, which is nothing locally and real traffic on a share.
+try:
+    from common.config_access import cfg_int
+    from common.games.library_refresh import start_periodic
+    start_periodic(cfg_int(config_store, "Settings", "library_refresh_minutes", 0))
+except Exception:
+    logger.exception("Could not start the periodic library refresh")
+
+shutdown.exit_if_requested(logger)
+
+# Collection membership moves onto game ids once the ids exist. Resolvable entries
+# are rewritten; anything that does not resolve is left alone rather than dropped.
+try:
+    from common.games.collection_migration import (
+        ensure_last_played,
+        ensure_order_direction,
+    )
+    from common.games.collection_store import CollectionStore
+    from common.paths import COLLECTIONS_PATH
+    _collections = CollectionStore(str(COLLECTIONS_PATH))
+    _collections.migrate_membership_to_game_ids(all_games())
+    # After the rekey, so a file arriving as a 2.x ini is in its current shape first.
+    ensure_last_played(_collections)
+    ensure_order_direction(_collections)
+except Exception:
+    logger.exception("Collection membership migration failed; memberships left as they were")
+
+shutdown.exit_if_requested(logger)
+
+# The one mobile device [mobile] could describe becomes a registry entry, after which
+# several can coexist and nothing reads those keys at runtime.
+try:
+    from common.device_migration import ensure_mobile_device
+    from common.device_registry import get_device_registry
+    from common.paths import get_ini_config
+    ensure_mobile_device(get_device_registry(), get_ini_config())
+except Exception:
+    logger.exception("Mobile device import failed; [mobile] left as it was")
+
+shutdown.exit_if_requested(logger)
+
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()
-start_dof_service_if_enabled(iniconfig)
+
+# The catalog everything VPS-shaped reads from - matching, release lists, what a kind is
+# offered from. It was only ever downloaded by a Manager UI page, so an install that never
+# opened one answered from whatever snapshot it started with.
+if not config_store.is_new:
+    from common.online.vpsdb_sync import start_watch as _watch_vpsdb
+
+    _watch_vpsdb(config_store, _shutdown_event)
+# Feedback hardware follows game lifecycle events from here on, so both launch
+# paths get the same behavior without either of them knowing about DOF.
+from common.host import peripherals
+
+peripherals.register()
+
+start_dof_service_if_enabled(config_store)
 
 # Point the archive analyzer at a configured RAR tool (blank = auto-detect from PATH)
-from managerui.services.asset_analyzer_service import configure_rar_tool
-configure_rar_tool(iniconfig.config.get('Settings', 'rartoolpath', fallback='').strip())
+from common.uploads.asset_analyzer_service import configure_rar_tool
+
+configure_rar_tool(cfg_get(config_store, 'Settings', 'rar_tool_path', '').strip())
 
 # Create API instances and register with WebSocket bridge
 create_api_instances()
 
-# Start the HTTP server to serve images from the "tables" directory
-http_server = runtime.start_asset_server(MOUNT_POINTS, iniconfig)
+# Start the HTTP server to serve images from the "games" directory
+http_server = runtime.start_asset_server(MOUNT_POINTS, config_store)
 
 # Start the NiceGUI HTTP server
-manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
-start_manager_ui(port=manager_ui_port)
+http_port = int(cfg_get(config_store, 'network', 'http_port', '8001'))
+http_bind = cfg_get(config_store, 'network', 'http_bind', '0.0.0.0')
+start_manager_ui(port=http_port, bind=http_bind)
 reconfigure_app_logging()
 
 # Start the WebSocket bridge
@@ -193,7 +350,7 @@ ws_bridge.start()
 
 runtime.run_frontend_loop(
     headless,
-    iniconfig,
+    config_store,
     frontend_browser,
     _shutdown_event,
     logger,
@@ -204,7 +361,7 @@ runtime.run_frontend_loop(
 runtime.shutdown_services(
     logger,
     vpinplay_sync=vpinplay_sync_on_shutdown,
-    iniconfig=iniconfig,
+    iniconfig=config_store,
     ws_bridge=ws_bridge,
     stop_dof=stop_dof_service,
     stop_dmd=stop_libdmdutil_service,

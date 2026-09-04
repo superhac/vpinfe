@@ -1,32 +1,50 @@
+"""What a theme is allowed to ask for, and what only core is.
+
+The WebSocket bridge dispatches by name and reaches nothing outside
+`API_ALLOWED_METHODS`, which is two sets. `API_PUBLISHED_METHODS` is the theme
+surface - docs/theme.md documents it and the parity gate holds it to that, so adding a
+name there is adding to the theme contract. `API_INTERNAL_METHODS` is core's own: the
+overlays VPinFE ships call them across an iframe, which is why they stay dispatchable,
+and `vpin.call` refuses them so they are not theme API.
+
+Renamed methods keep their old spelling as an alias rather than breaking a published
+theme.
+"""
+
 import logging
-import subprocess
-from common import system_actions
-from common.table_repository import ensure_tables_loaded
-from common.collections_service import get_collection_image_url, get_collection_names, get_collections_metadata
-from common.display_service import monitors_as_dicts
-from common.dof_service import (
-    send_frontend_dof_event,
-    start_dof_service_if_enabled,
-    stop_dof_service,
+
+from common import events, lifecycle
+from common.config_access import cfg_get
+from common.deprecations import announce
+from common.games import game_identity
+from common.games.collection_store import normalize_direction, public_name
+from common.games.collections_service import (
+    get_collection_image_url,
+    get_collection_names,
+    get_collections_manager,
+    get_collections_metadata,
 )
-from common.libdmdutil_service import (
-    show_image as show_libdmdutil_image,
-    stop_libdmdutil_service,
-)
-from common.launcher import (
-    build_vpx_launch_command,
-    get_effective_launcher,
-    parse_launch_env_overrides,
-    resolve_launch_tableini_override,
-)
-from common.table_metadata import normalize_meta
-from common.vpinplay_runtime import (
+from common.games.game_metadata import game_rating, normalize_meta, set_game_rating
+from common.games.game_repository import all_games
+from common.host import launch, launch_state
+from common.host.display_service import monitors_as_dicts
+from common.online.vpinplay_runtime import (
     activate_alternate_profile,
     clear_alternate_profile,
     get_alternate_profile_state,
 )
-from frontend import config_api, input_api, last_table, launch_service, metadata_build_service, realdmd_service, table_state, theme_api
-
+from frontend import (
+    config_api,
+    game_state,
+    input_api,
+    last_game,
+    lifecycle_host,
+    metadata_build_service,
+    theme_api,
+    theme_windows,
+)
+from frontend import library_resolver as frontend_library
+from frontend.theme_contract import CURRENT_CONTRACT, declared_contract
 
 logger = logging.getLogger("vpinfe.frontend.api")
 
@@ -39,10 +57,12 @@ _FILTER_OPTION_KEYS = {
 }
 
 
-API_ALLOWED_METHODS = {
+API_PUBLISHED_METHODS = {
     'get_my_window_name',
     'close_app',
     'shutdown_system',
+    'lifecycle_request',
+    'lifecycle_needs_confirmation',
     'get_monitors',
     'get_tables',
     'get_initial_table_index',
@@ -51,28 +71,24 @@ API_ALLOWED_METHODS = {
     'get_collection_image_url',
     'set_tables_by_collection',
     'save_filter_collection',
-    'get_current_filter_state',
-    'get_current_sort_state',
-    'get_current_order_state',
     'get_current_collection',
     'get_filter_letters',
     'get_filter_themes',
     'get_filter_types',
     'get_filter_manufacturers',
     'get_filter_years',
-    'apply_filters',
-    'apply_sort',
     'get_page_index',
     'reset_filters',
     'console_out',
+    'get_bindings',
     'get_joymaping',
     'get_keymapping',
     'get_mainmenu_config',
     'set_button_mapping',
     'launch_table',
-    'update_frontend_dof_for_table',
-    'get_table_rating',
-    'set_table_rating',
+    'notify_table_selected',
+    'get_game_rating',
+    'set_game_rating',
     'build_metadata',
     'get_theme_config',
     'get_theme_name',
@@ -81,52 +97,193 @@ API_ALLOWED_METHODS = {
     'get_temporary_vpinplay_profile',
     'set_temporary_vpinplay_profile',
     'clear_temporary_vpinplay_profile',
-    'get_table_orientation',
-    'get_table_rotation',
+    'get_playfield_orientation',
+    'get_playfield_rotation',
     'get_splashscreen_enabled',
     'get_audio_muted',
     'set_audio_muted',
     'get_cab_mode',
+    'get_playfield_media_rotation',
     'get_theme_assets_port',
+    'get_http_port',
     'get_managerui_remote_link',
     'get_managerui_vpinplay_multi_link',
     'get_theme_index_page',
+    # Additive: the contract a theme declared, so vpinfe-core.js can serve the surface
+    # that theme asked for rather than every surface at once.
+    'get_theme_contract',
+    # The windows the theme declared, controller first, so the browser knows which
+    # window it is without a hardcoded name.
+    'get_theme_windows',
     'send_event',
     'send_event_all_windows',
     'send_event_all_windows_incself',
+    # Additive, so no contract bump: a theme that never calls it is unaffected.
+    'report_deprecated_use',
 }
 
 
+# The collection menu's own controls. Core ships that overlay, it runs as its own iframe,
+# and this channel is the only way it can reach the library - so the names stay
+# dispatchable while `vpin.call` refuses them.
+API_INTERNAL_METHODS = {
+    'apply_filters',
+    'apply_sort',
+    'get_current_filter_state',
+    'get_current_sort_state',
+    'get_current_order_state',
+    'get_paging_state',
+}
+
+
+# Themes written before the vocabulary rename call these names. The allowlist carries
+# both spellings and __getattr__ forwards the old one, so an existing theme keeps working
+# without a contract bump - the payload it gets back is identical either way.
+#
+# The selection surface is not in here: a row is a table, so `get_tables`, `launch_table`
+# and their siblings are the current names rather than forwarded ones.
+_RENAMED_METHODS = {
+    'get_table_rating': 'get_game_rating',
+    'set_table_rating': 'set_game_rating',
+    'get_table_orientation': 'get_playfield_orientation',
+    'get_table_rotation': 'get_playfield_rotation',
+    # The port serves the API, the Console, the Manager UI, and the remote and mobile
+    # pages, so it is named for the protocol rather than one thing listening on it. Two
+    # retired spellings rather than one: it was named for the Manager UI, then for a role
+    # role that no longer exists. Neither reached a release, but a theme built against a
+    # 3.0 dev build has seen the second.
+    'get_manager_ui_port': 'get_http_port',
+    'get_hub_port': 'get_http_port',
+}
+
+API_PUBLISHED_METHODS |= set(_RENAMED_METHODS)
+
+# What the channel dispatches. An overlay's call arrives the same way a theme's does, so
+# the gate that separates them is in the browser rather than here.
+API_ALLOWED_METHODS = API_PUBLISHED_METHODS | API_INTERNAL_METHODS
+
+
 class API:
-    def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None):
+
+    """One instance per frontend window. Only methods in API_ALLOWED_METHODS are reachable."""
+
+    def __getattr__(self, name):
+        """Forward a pre-rename method name to its replacement.
+
+        Only reached when normal lookup fails, so it costs nothing for current names.
+        """
+        renamed = _RENAMED_METHODS.get(name)
+        if renamed is None:
+            raise AttributeError(name)
+        announce("ws-methods", name)
+        return getattr(self, renamed)
+
+    def report_deprecated_use(self, key, name):
+        """Let the browser tell the log it used a legacy name.
+
+        A theme runs in Chromium, so its use of a vpin.* alias is only visible in a
+        console nobody reads on a cabinet. The WebSocket methods announce themselves
+        here already; without this the eleven JS aliases are the one surface that
+        cannot be judged from the machine, which is where they would be retired from.
+
+        vpinfe-core.js calls this once per name. Untrusted input, so it only ever
+        reaches announce(), which looks both up in the registry and logs.
+        """
+        announce(str(key), str(name))
+    def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None,
+                 library=None):
         self._iniConfig = iniConfig
-        self.window_name = window_name          # 'bg', 'dmd', or 'table'
+        self.window_name = window_name          # whatever the theme declared
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
         self.frontend_browser = frontend_browser  # ChromiumManager instance
-        self.allTables = ensure_tables_loaded()
-        self.jsTableDictData = None
-        # Track current filter state
-        self.current_filters = table_state.default_filter_state()
-        # Track current collection
-        self.current_collection = None
-        # Establish the default view: alphabetical by (article-reordered) title,
-        # ascending. Also sets current_sort/current_order. Done here so the
-        # initial wheel matches the displayed titles instead of on-disk folder
-        # order (which ignores the "The"-moved-to-end renaming).
-        self._reset_to_default_view()
+        # The wheel's state, shared with every other window onto the same library.
+        # Given one when the frontend builds the windows; a caller that constructs an
+        # API on its own - a test, the gamepad diagnostic - gets a view of its own.
+        if library is not None:
+            self.library = library
+        self.jsGameDictData = None
         # Check for startup collection
-        startup_collection = self._iniConfig.config['Settings'].get('startup_collection', '').strip()
+        startup_collection = cfg_get(self._iniConfig, 'general', 'startup_collection').strip()
         if startup_collection:
             try:
                 self.set_tables_by_collection(startup_collection)
             except Exception:
                 logger.exception("Could not load startup collection '%s'", startup_collection)
 
-        self._realdmd_updater = realdmd_service.RealDmdUpdater(
-            self._iniConfig,
-            self.window_name,
-            show_libdmdutil_image,
-        )
+    # The library's state, reached through the window that is showing it. Properties
+    # rather than a move, so every existing caller - and `game_state`, which mutates
+    # these by name - keeps working against one shared object instead of a copy per
+    # window.
+    @property
+    def library(self):
+        """The shared resolver, made on demand for a caller that never gave one.
+
+        `API.__new__(API)` is a real pattern here: paging arithmetic and input mapping
+        are tested against a bare instance with no library behind it. Those get a view
+        of their own rather than an AttributeError routed through `__getattr__`, which
+        reports the wrong name entirely.
+        """
+        existing = self.__dict__.get("_library")
+        if existing is None:
+            # Loaded through this module's name, which is the one callers already patch
+            # to stand a library up for a test - the resolver is an implementation
+            # detail of where the games are held, not of how they are found.
+            existing = frontend_library.LibraryResolver(getattr(self, "_iniConfig", None),
+                                          games=all_games())
+            self.__dict__["_library"] = existing
+        return existing
+
+    @library.setter
+    def library(self, value):
+        self.__dict__["_library"] = value
+
+    @property
+    def allGames(self):  # noqa: N802 - the name game_state and themes already use
+        return self.library.all_games
+
+    @allGames.setter
+    def allGames(self, value):  # noqa: N802
+        self.library.all_games = value
+
+    @property
+    def filteredGames(self):  # noqa: N802 - as above
+        return self.library.filtered_games
+
+    @filteredGames.setter
+    def filteredGames(self, value):  # noqa: N802
+        self.library.filtered_games = value
+
+    @property
+    def current_filters(self):
+        return self.library.current_filters
+
+    @current_filters.setter
+    def current_filters(self, value):
+        self.library.current_filters = value
+
+    @property
+    def current_collection(self):
+        return self.library.current_collection
+
+    @current_collection.setter
+    def current_collection(self, value):
+        self.library.current_collection = value
+
+    @property
+    def current_sort(self):
+        return self.library.current_sort
+
+    @current_sort.setter
+    def current_sort(self, value):
+        self.library.current_sort = value
+
+    @property
+    def current_order(self):
+        return self.library.current_order
+
+    @current_order.setter
+    def current_order(self, value):
+        self.library.current_order = value
 
     ####################
     ## Private Functions
@@ -135,31 +292,56 @@ class API:
     def _finish_setup(self):
         pass
 
-    def _normalize_table_meta(self, table):
-        return normalize_meta(table.metaConfig)
+    def _normalize_game_meta(self, game):
+        return normalize_meta(game.meta_config)
 
-    def _get_frontend_dof_event_for_table(self, table) -> str:
-        return realdmd_service.get_frontend_dof_event_for_table(table)
-
-    def _get_realdmd_image_for_table(self, table):
-        return realdmd_service.get_realdmd_image_for_table(table, self._iniConfig)
-
-    def _queue_realdmd_image_update(self, table_name: str, image_path) -> None:
-        self._realdmd_updater.queue_image_update(table_name, image_path)
+    def _theme_contract(self) -> int:
+        """Which shape the active theme asked for. Read per payload rather than cached,
+        so switching themes does not need a restart to take effect."""
+        theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(self._iniConfig.config))
+        return declared_contract(theme_dir) if theme_dir else CURRENT_CONTRACT
 
     def _reset_to_default_view(self):
-        """Reset the current view to the default order: alphabetical by the
-        (article-reordered) title, ascending.
+        """Reset the shared view to its default order. See `View.reset_to_default`."""
+        self.library.reset_to_default()
 
-        filteredTables is a fresh shallow copy of allTables so later in-place
-        sorts never disturb the master list (the Table objects stay shared, so
-        rating/meta updates still propagate). Shared by startup and every reset
-        path so they all agree on the default order.
+    def _rebuild_entries(self) -> None:
+        """Recompute the shared view. Called whenever the list or its order changes."""
+        self.library.rebuild_entries()
+
+    @property
+    def entries(self):
+        """What the wheel steps through, and what an index from a theme addresses.
+
+        The view's list, not this window's: every window onto the same library steps
+        through the same entries, and only the controller can change them.
         """
-        self.filteredTables = list(self.allTables)
-        self.current_sort = 'Alpha'
-        self.current_order = 'Ascending'
-        table_state.apply_sort(self.filteredTables, self.current_sort, self.current_order)
+        return self.library.entries
+
+    def entry_at(self, index):
+        """The entry a theme's index names, or None when it names nothing.
+
+        An index is a position in *this window's* filtered list, so it means nothing
+        anywhere else - two windows filtered differently give the same number to
+        different games. Anything leaving this process converts through here first.
+        """
+        try:
+            position = int(index)
+        except (TypeError, ValueError):
+            return None
+        # Not `entries[-1]`: a theme counts up from zero, so a negative number is one
+        # that went wrong, and Python would quietly hand back the end of the list.
+        if position < 0:
+            return None
+        try:
+            return self.entries[position]
+        except IndexError:
+            return None
+
+    def game_id_at(self, index) -> str:
+        """The id of the game an index names, or "" - the addressable form of an index."""
+        entry = self.entry_at(index)
+        return game_identity.game_id(entry.game) if entry is not None else ""
 
 
     ###################
@@ -169,17 +351,50 @@ class API:
     def get_my_window_name(self):
         return self.window_name or "unknown"
 
+    def _origin(self):
+        """This window is the address a confirmation goes back to."""
+        return lifecycle.Origin(lifecycle.SURFACE_FRONTEND, self.window_name or "")
+
     def close_app(self):
-        logger.info("close_app called from window '%s'", self.window_name)
-        if self.frontend_browser:
-            self.frontend_browser.terminate_all()
+        """Quit VPinFE. The 2.x spelling of `lifecycle_request('app', 'stop')`."""
+        return self.lifecycle_request(lifecycle.APP, lifecycle.STOP)
 
     def shutdown_system(self):
-        """Shutdown the host system (cross-platform) and close frontend windows."""
-        logger.info("shutdown_system called from window '%s'", self.window_name)
-        system_actions.shutdown_system()
-        if self.frontend_browser:
-            self.frontend_browser.terminate_all()
+        """Power off the host. The 2.x spelling of `lifecycle_request('system', 'stop')`."""
+        return self.lifecycle_request(lifecycle.SYSTEM, lifecycle.STOP)
+
+    def lifecycle_needs_confirmation(self, scope, action):
+        """Whether to ask the user first, and what to ask - the browser draws the dialog.
+
+        The question is put where the request came from, and the bridge to a window only
+        goes one way, so the confirmation happens in the browser and calls back with the
+        answer. The wording comes from here so every surface asks the same thing.
+        """
+        return {
+            "confirm": lifecycle_host.wants_confirmation(str(scope)),
+            # Already sentence-cased - capitalize() here would lowercase "VPinFE".
+            "description": lifecycle.Request(
+                str(scope), str(action), self._origin()).describe(),
+        }
+
+    def lifecycle_request(self, scope, action, reason="", confirmed=False):
+        """Start, stop or restart the frontend, VPinFE or the machine.
+
+        `confirmed` is the theme reporting that it already asked. A theme that never
+        asks - every 2.x theme - is answered by the core's own fallback, so turning the
+        setting on is never defeated by an old theme.
+
+        Returns whether it is going ahead, so a theme can leave its own menu open when
+        the user says no.
+        """
+        try:
+            return lifecycle_host.request(
+                scope, action, origin=self._origin(), reason=reason,
+                already_confirmed=bool(confirmed))
+        except ValueError:
+            logger.warning("Window '%s' asked to %s the %s, which is not a thing",
+                           self.window_name, action, scope)
+            return False
 
     def get_monitors(self):
         return monitors_as_dicts()
@@ -199,13 +414,21 @@ class API:
     def get_tables(self, reset=False):
         if reset:
             self._reset_to_default_view()
-        self.jsTableDictData = table_state.tables_json(self.filteredTables)
-        return self.jsTableDictData
+        else:
+            # Re-derived once per change, not once per window: all three ask after the
+            # same TableDataChange broadcast, and the second and third were rebuilding a
+            # view the first had just rebuilt.
+            self.library.refresh_if_stale(lambda: game_state.refresh_view(self))
+        # Built once for the view, not once per window: three windows onto the same
+        # library were each serializing an identical answer.
+        self.jsGameDictData = self.library.payload(
+            self._theme_contract(), collection=public_name(self.current_collection))
+        return self.jsGameDictData
 
     def get_initial_table_index(self):
-        # Position the wheel on the last-launched table at startup. Resolved
+        # Position the wheel on the last-launched game at startup. Resolved
         # against the current (possibly filtered) view; 0 when disabled or unfound.
-        return last_table.resolve_last_table_index(self._iniConfig, self.filteredTables)
+        return last_game.resolve_last_table_index(self._iniConfig, self.entries)
 
 
     def get_collections(self):
@@ -218,26 +441,27 @@ class API:
         return get_collection_image_url(collection)
 
     def set_tables_by_collection(self, collection):
-        """Set filtered tables based on collection from collections.ini."""
-        table_state.apply_collection(self, collection)
+        """Set filtered games based on collection from collections.ini."""
+        game_state.apply_collection(self, collection)
 
     def save_filter_collection(
         self,
         name,
         letter="All",
         theme="All",
-        table_type="All",
+        game_type="All",
         manufacturer="All",
         year="All",
-        sort_by="Alpha",
+        order_by="title",
         rating="All",
         rating_or_higher=False,
-        order_by="Descending",
+        direction="desc",
     ):
         """Save current filter settings as a named collection."""
         try:
-            return table_state.save_current_filter_collection(
-                self, name, letter, theme, table_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by
+            return game_state.save_current_filter_collection(
+                self, name, letter, theme, game_type, manufacturer, year, order_by,
+                rating, rating_or_higher, direction,
             )
         except ValueError as e:
             return {"success": False, "message": str(e)}
@@ -255,11 +479,12 @@ class API:
         return self.current_order
 
     def get_current_collection(self):
-        """Return current collection name for UI synchronization."""
-        return self.current_collection or 'None'
+        """Return current collection name for UI synchronization. The whole library has
+        always answered 'None' here, and that is what `builtin:all` is."""
+        return public_name(self.current_collection) or 'None'
 
     def _filter_option(self, key: str):
-        return table_state.filter_options(self.allTables)[key]
+        return game_state.filter_options(self.allGames)[key]
 
     def get_filter_letters(self):
         return self._filter_option(_FILTER_OPTION_KEYS["letters"])
@@ -276,64 +501,111 @@ class API:
     def get_filter_years(self):
         return self._filter_option(_FILTER_OPTION_KEYS["years"])
 
-    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
+    def apply_filters(self, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
         """
-        Apply VPSdb filters to the full table list.
+        Apply VPSdb filters to the full game list.
         These filters work independently of collections.
-        Returns the count of filtered tables.
+        Returns the count of filtered games.
         """
         logger.debug(
             "Applying filters: letter=%s, theme=%s, type=%s, manufacturer=%s, year=%s, rating=%s, rating_or_higher=%s",
             letter,
             theme,
-            table_type,
+            game_type,
             manufacturer,
             year,
             rating,
             rating_or_higher,
         )
-        count = table_state.apply_filters(self, letter, theme, table_type, manufacturer, year, rating, rating_or_higher)
-        logger.debug("Filtered tables count: %s", count)
+        count = game_state.apply_filters(self, letter, theme, game_type, manufacturer, year, rating, rating_or_higher)
+        logger.debug("Filtered games count: %s", count)
         return count
 
     def reset_filters(self):
-        """Reset all VPSdb filters back to full table list."""
-        self.current_filters = table_state.default_filter_state()
+        """Reset all VPSdb filters back to full game list."""
+        self.current_filters = game_state.default_filter_state()
         self._reset_to_default_view()
 
-    def apply_sort(self, sort_type, order_by=None):
+    def apply_sort(self, order_by, direction=None):
         """
-        Sort the current filtered tables.
-        sort_type: 'Alpha', 'Newest', 'LastRun', 'Highest StartCount', or 'RunTime'
-        order_by: 'Ascending' or 'Descending'
-        Returns the count of sorted tables.
-        """
-        self.current_sort = sort_type
-        self.current_order = table_state.normalize_sort_order(order_by, sort_type)
-        logger.debug("Applying sort: %s %s", sort_type, self.current_order)
+        Sort the current filtered games.
+        order_by: one of the orders a collection can carry - 'title', 'year', 'added',
+        'last_played', 'play_count', 'play_time_seconds', 'rating'. The 2.x names still
+        arrive from a stored filter and resolve.
+        direction: 'asc' or 'desc'.
 
-        count = table_state.apply_sort(self.filteredTables, sort_type, self.current_order)
-        logger.debug("Sorted %s tables by %s %s", count, sort_type, self.current_order)
+        These used to be `sort_type` and `order_by`, where `order_by` was the direction -
+        one layer below, game_state.apply_sort uses the same word for the field. A stored
+        filter still writes the 2.x key `order_by` for a direction; nothing in code has to
+        repeat it.
+        Returns the count of sorted games.
+        """
+        self.current_sort = order_by
+        # No direction asked for means descending, which is what the menu offers first
+        # and what a bare apply_sort has always done.
+        self.current_order = normalize_direction(direction or "desc")
+        logger.debug("Applying sort: %s %s", order_by, self.current_order)
+
+        count = game_state.apply_sort(self.filteredGames, order_by, self.current_order)
+        self._rebuild_entries()
+        logger.debug("Sorted %s games by %s %s", count, order_by, self.current_order)
         return count
+
+    def paging_state(self):
+        """What a page press does on the list showing now.
+
+        The collection's own choice if it made one, otherwise the player's. Resolved in
+        one place because two answers to this question is how the wheel and the menu
+        would come to disagree about what a press just did.
+        """
+        default, page_size = input_api.get_paging_config(self._iniConfig.config)
+        chosen = None
+        name = self.current_collection
+        if name:
+            try:
+                chosen = get_collections_manager().get_order(name)["paging_group"]
+            except (KeyError, ValueError):
+                chosen = None
+        group = chosen or default
+        kind = game_state.group_kind(self.current_sort)
+        # Asking for the sort's groups where the sort has none gets a count anyway.
+        if group == "sort" and not kind:
+            group = "count"
+        return {"group": group, "kind": kind if group == "sort" else "",
+                "size": page_size}
+
+    def get_paging_state(self):
+        """The same, for a surface that wants to say what a press will do."""
+        return self.paging_state()
 
     def get_page_index(self, index, direction):
         """
         Compute the target wheel index for a page next/prev request.
-        Paging behavior comes from [Input] pagingtype/pagingsize and the
-        current sort; see table_state.page_jump_index.
+        Paging behavior comes from [input] paging_group/paging_size and the order
+        on screen, which is what decides the groups; see game_state.page_jump_index.
         """
         try:
             index = int(index)
         except (TypeError, ValueError):
             index = 0
-        paging_type, page_size = input_api.get_paging_config(self._iniConfig.config)
-        return table_state.page_jump_index(
-            self.filteredTables, index, direction, self.current_sort, paging_type, page_size
+        paging = self.paging_state()
+        return game_state.page_jump_index(
+            [e.game for e in self.entries], index, direction, self.current_sort,
+            paging["group"], paging["size"]
         )
 
-    def console_out(self, output):
-        logger.info("Win: %s - %s", self.window_name, output)
+    def console_out(self, output, frame=""):
+        """A line from the browser. `frame` names an overlay within this window.
+
+        The window comes from the connection rather than the caller, so it cannot be
+        claimed; the frame is the caller's, because only it knows which iframe it is.
+        """
+        where = f"{self.window_name}/{frame}" if frame else self.window_name
+        logger.info("[%s] %s", where, output)
         return output
+
+    def get_bindings(self):
+        return input_api.get_bindings(self._iniConfig.config)
 
     def get_joymaping(self):
         return input_api.get_joymapping(self._iniConfig.config)
@@ -353,58 +625,63 @@ class API:
         return input_api.set_button_mapping(self._iniConfig, button_name, button_index)
 
     def launch_table(self, index):
-        return launch_service.launch_table(
-            self,
-            index,
-            get_effective_launcher=get_effective_launcher,
-            build_vpx_launch_command=build_vpx_launch_command,
-            parse_launch_env_overrides=parse_launch_env_overrides,
-            resolve_launch_tableini_override=resolve_launch_tableini_override,
-            stop_dof_service=stop_dof_service,
-            stop_libdmdutil_service=stop_libdmdutil_service,
-            start_dof_service_if_enabled=start_dof_service_if_enabled,
-            popen=subprocess.Popen,
-        )
+        """Launch what the wheel is sitting on.
 
-    def update_frontend_dof_for_table(self, index):
-        """Send the configured frontend DOF event for the selected table."""
-        try:
-            table = self.filteredTables[int(index)]
-        except Exception:
-            logger.debug("Skipping frontend DOF update for invalid table index: %s", index)
+        The windows hear about it through the bus like everyone else, so nothing
+        here has to tell them.
+        """
+        entry = self.entry_at(index)
+        if entry is None:
+            logger.warning("Ignoring launch for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
 
-        event_token = self._get_frontend_dof_event_for_table(table)
-        event_sent = send_frontend_dof_event(self._iniConfig, event_token)
-        realdmd_path = self._get_realdmd_image_for_table(table)
-        self._queue_realdmd_image_update(table.tableDirName, realdmd_path)
-        resolved_event = event_token if event_token else "random:E900-E990"
-        logger.debug(
-            "Frontend media update for %s -> event=%s (dof_sent=%s, dmd_queued=%s, image=%s)",
-            table.tableDirName,
-            resolved_event,
-            event_sent,
-            True,
-            realdmd_path,
-        )
-        return {
-            "success": True,
-            "event": resolved_event,
-            "sent": event_sent,
-            "realdmd_image": str(realdmd_path) if realdmd_path else "",
-            "realdmd_sent": False,
-            "realdmd_queued": True,
-        }
+        game = entry.game
+        try:
+            # The entry names the table, so the table the collection chose launches
+            # rather than whatever the game defaults to.
+            launch.launch_game(game, self._iniConfig,
+                               source=launch_state.SOURCE_FRONTEND,
+                               table=entry.filename)
+        except launch.LaunchUnavailableError as exc:
+            logger.warning("Cannot launch %s: %s", game.gameDirName, exc)
+            return {"success": False, "reason": str(exc)}
+        return {"success": True}
 
-    def get_table_rating(self, index):
-        """Get User.Rating for a table index in the current filtered list."""
-        return table_state.get_table_rating(self.filteredTables, index)
+    def notify_table_selected(self, index):
+        """Announce that the player moved to this game.
 
-    def set_table_rating(self, index, rating):
-        """Set User.Rating (0-5) for a table index in the current filtered list."""
-        result = table_state.set_table_rating(self.filteredTables, index, rating)
-        logger.info("Updated User.Rating for %s -> %s", self.filteredTables[index].tableDirName, result["rating"])
-        return result
+        Whatever reacts - a DOF effect, the real DMD, something not written yet -
+        subscribes to the event. Nothing is reported back, because none of it can
+        fail in a way the wheel should care about.
+        """
+        entry = self.entry_at(index)
+        if entry is None:
+            logger.debug("Ignoring game selection for invalid index: %s", index)
+            return {"success": False, "reason": "invalid_index"}
+        game = entry.game
+
+        events.emit(events.GAME_SELECTED, game=game, ini_config=self._iniConfig)
+        return {"success": True}
+
+    def get_game_rating(self, index):
+        """Get User.Rating for a game index in the current filtered list."""
+        entry = self.entry_at(index)
+        return game_rating(entry.game) if entry is not None else 0
+
+    def set_game_rating(self, index, rating):
+        """Set User.Rating (0-5) for a game index in the current filtered list.
+
+        The index is converted here; the write itself is the one in common/, so a
+        rating set from a theme and one set over HTTP are the same operation.
+        """
+        entry = self.entry_at(index)
+        if entry is None:
+            logger.warning("Ignoring rating for invalid index: %s", index)
+            return {"success": False, "reason": "invalid_index"}
+
+        stored = set_game_rating(entry.game, rating)
+        logger.info("Updated User.Rating for %s -> %s", entry.game.gameDirName, stored)
+        return {"success": True, "rating": stored}
 
     def build_metadata(self, download_media=True, update_all=False):
         """
@@ -413,17 +690,17 @@ class API:
 
         Args:
             download_media: Whether to download media files
-            update_all: Whether to update all tables (even if meta.ini exists)
+            update_all: Whether to update all games (even if the .info exists)
 
         Returns:
             dict with success status and message
         """
-        from common.metadata_service import build_metadata
+        from common.games.metadata_service import build_metadata
 
         return metadata_build_service.start_build(
             self,
             build_metadata_func=lambda **kwargs: build_metadata(iniconfig=self._iniConfig, **kwargs),
-            ensure_tables_loaded_func=ensure_tables_loaded,
+            all_games_func=all_games,
             download_media=download_media,
             update_all=update_all,
         )
@@ -472,11 +749,14 @@ class API:
         })
         return result
 
-    def get_table_orientation(self):
-        return config_api.get_table_orientation(self._iniConfig.config)
+    def get_playfield_orientation(self):
+        return config_api.get_playfield_orientation(self._iniConfig.config)
 
-    def get_table_rotation(self):
-        return config_api.get_table_rotation(self._iniConfig.config)
+    def get_playfield_rotation(self):
+        return config_api.get_playfield_rotation(self._iniConfig.config)
+
+    def get_playfield_media_rotation(self):
+        return config_api.get_playfield_media_rotation(self._iniConfig.config)
 
     def get_cab_mode(self):
         return config_api.get_cab_mode(self._iniConfig.config)
@@ -484,11 +764,21 @@ class API:
     def get_theme_assets_port(self):
         return config_api.get_theme_assets_port(self._iniConfig.config)
 
+    def get_http_port(self):
+        return config_api.get_http_port(self._iniConfig.config)
+
     def get_managerui_remote_link(self):
         return config_api.get_managerui_remote_link(self._iniConfig.config)
 
     def get_managerui_vpinplay_multi_link(self):
         return config_api.get_managerui_vpinplay_multi_link(self._iniConfig.config)
+
+    def get_theme_contract(self):
+        return self._theme_contract()
+
+    def get_theme_windows(self):
+        theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(self._iniConfig.config))
+        return list(theme_windows.declared_windows(theme_dir, self._theme_contract()))
 
     def get_theme_index_page(self):
         return theme_api.get_theme_index_page(self._iniConfig.config, self.get_my_window_name())
