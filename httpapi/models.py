@@ -161,6 +161,9 @@ class DeviceProbe(ApiModel):
     features: list[str] = Field(default_factory=list)
     install_id: str = ""
     display_name: str = ""
+    # What it said it can do, from the same response its name came in. Absent - rather
+    # than empty - from anything that did not answer, and from a build too old to say.
+    capabilities: list[str] | None = None
 
 
 class DeviceProbeList(ApiModel):

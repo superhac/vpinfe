@@ -62,6 +62,17 @@ class CapabilityStateTests(unittest.TestCase):
             devices.capability_state(device, "capture", LOCAL, set(), reach),
             devices.ABSENT)
 
+    def test_a_build_that_did_not_say_is_not_a_build_that_offers_nothing(self) -> None:
+        """The probe response carried no capability list at all until the field was
+        declared on it, so every remote install read as offering none of them - a
+        confident wrong answer, where "cannot be determined" is the true one."""
+        device = {"device_id": "Bbbb222222", "kind": "vpinfe"}
+        reach = {"state": device_client.ANSWERING}
+
+        self.assertEqual(
+            devices.capability_state(device, "launch", LOCAL, set(), reach),
+            devices.UNKNOWN)
+
     def test_a_probe_that_found_nothing_leaves_it_unknown(self) -> None:
         """Unreachable is not an answer about what it offers."""
         device = {"device_id": "Bbbb222222", "kind": "vpinfe"}

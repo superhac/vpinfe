@@ -89,7 +89,13 @@ def capability_state(device: dict[str, Any], capability: str,
     # and it used to be thrown away, which left every remote install answering
     # "cannot be determined" for all of them.
     if probed and probed.get("state") == device_client.ANSWERING:
-        return PRESENT if capability in set(probed.get("capabilities") or []) else ABSENT
+        said = probed.get("capabilities")
+        # None is a build that did not say, which is not the same as a build that
+        # answered and offers nothing. Reading it as the latter put "Not offered" on
+        # every row of a machine that offers all of them.
+        if said is None:
+            return UNKNOWN
+        return PRESENT if capability in set(said) else ABSENT
     # Nothing has asked it, or it did not answer. Not the same as "does not offer it".
     return UNKNOWN
 
