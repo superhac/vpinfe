@@ -4,7 +4,7 @@ import unittest
 
 from common.games import asset_registry
 from common.labels import field_label
-from hubui import (
+from console import (
     data,
     game_tables,
     games,

@@ -196,7 +196,7 @@ class OrderKeepsNamedTablesTests(Harness):
     **The list is one entry per row, changed 2026-08-30.** It used to name each game
     once and move that game's refs as a block, which cannot express the thing 2.10 opens
     by asking for - *"multiple tables for a single game, in an arbitrary order"* - and
-    the route said so itself. hubui now draws one row per ref with its own handle, so a
+    the route said so itself. console now draws one row per ref with its own handle, so a
     drag has to be able to move one of them; naming the game once could only move both.
     """
 

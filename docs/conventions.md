@@ -360,10 +360,10 @@ Two game identifiers exist and are not interchangeable:
 - `vpsid` / `altvpsid` — correlation with VPSdb and services keyed by it. Note this
   identifies the VPS **game**, not which of its tables you have.
 
-## Hub UI
+## Console
 
-The stylesheet is the design system. `hubui/theme.py` holds every token and every class the
-hub uses, and there is no second place a treatment is defined. **Grep it before inventing
+The stylesheet is the design system. `console/theme.py` holds every token and every class the
+console uses, and there is no second place a treatment is defined. **Grep it before inventing
 one** — a heading, a chip, a state, a control. Something that looks like it needs a new class
 usually has one already, and two spellings of the same idea is how a surface stops looking
 like one product.
@@ -371,7 +371,7 @@ like one product.
 **And grep the surface next door.** The class is half the answer; the other half is how the
 neighbouring vocabulary already decided the same question — which shape means "nothing here",
 which color means "present", whether a legend names a blank. Those live in the module that
-owns the fact (`hubui/media_ownership.py`, `hubui/features.py`, `hubui/game_tables.py`) and in
+owns the fact (`console/media_ownership.py`, `console/table_features.py`, `console/game_tables.py`) and in
 this file, not in the stylesheet. **The tell is proposing a *new* treatment at all**: if the
 hub already shows this kind of fact anywhere, the answer exists and the job is to find it.
 
@@ -389,7 +389,7 @@ defined.
 you are, and a second copy of the words under it is furniture. A rail long enough to need
 grouping takes group headings; a short one does not.
 
-**One implementation, in `hubui/panel.py`.** The fact list and one constructor per kind of
+**One implementation, in `console/panel.py`.** The fact list and one constructor per kind of
 value live there, and every surface renders through it. Reaching for `ui.switch` or
 `ui.input` directly forks the design system — which is how the same field ended up with a
 resting edge on one surface and Quasar's default on another. Every constructor hands back
@@ -452,7 +452,7 @@ over twice, and the column picker offered a third set of words for the same colu
   row says nothing. A switch reading "on means restricted" is fine; `Clear NVRAM on exit`
   already does.
 - The **words belong to the module that owns the fact**, and every surface reads them:
-  `hubui/game_tables.py`, `hubui/media_ownership.py`, `hubui/features.py`.
+  `console/game_tables.py`, `console/media_ownership.py`, `console/table_features.py`.
 - A **menu item is a verb that produces the state word** — `Hide`, `Clear choice` — not a
   sentence explaining the mechanism.
 - **Never index a word pair by a boolean at the call site.** Ask the vocabulary for the
@@ -487,7 +487,7 @@ stretch to the same width.
 
 ### One confirmation, and one field
 
-- **Anything that cannot be undone asks first, through `hubui/confirm.py`.** Four dialogs
+- **Anything that cannot be undone asks first, through `console/confirm.py`.** Four dialogs
   had been written to the same shape with different spellings — one awaited a bool and
   one took a callback, the buttons swapped `no-caps`, the help lines used two classes.
   The question is a sentence in sentence case (never the section-heading treatment: a
@@ -528,7 +528,7 @@ Green is present. **Amber means go and fix this, and nothing softer.** Each fact
 words: a rom is *Installed*, a script is *Extracted*, a file is *Present*. Do not flatten them
 to Yes/No.
 
-State chips are not media tiers. `hubui/media_ownership.py` answers "whose file is this", and its amber
+State chips are not media tiers. `console/media_ownership.py` answers "whose file is this", and its amber
 means the exception worth spotting in a map of twenty.
 
 ### Marks, and what color one is

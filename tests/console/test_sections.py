@@ -1,7 +1,7 @@
 import unittest
 from urllib.parse import parse_qs
 
-from hubui import deeplink, workbench
+from console import deeplink, workbench
 
 
 def _address(state: dict) -> dict[str, str]:

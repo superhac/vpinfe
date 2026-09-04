@@ -35,7 +35,7 @@ from common.games.collection_store import (
 from common.labels import field_label, humanize
 from common.media_specs import media_family, media_label_map
 from common.online import vps_kinds
-from hubui import (
+from console import (
     candidates,
     confirm,
     deeplink,
@@ -48,12 +48,12 @@ from hubui import (
     stars,
     table_features,
 )
-from hubui import devices as devices_page
-from hubui import settings as settings_page
-from hubui.api import HubError
-from hubui.data import Library
+from console import devices as devices_page
+from console import settings as settings_page
+from console.api import HubError
+from console.data import Library
 
-logger = logging.getLogger("vpinfe.hubui.workbench")
+logger = logging.getLogger("vpinfe.console.workbench")
 
 # Which group a section belongs to, in the order they are shown.
 # Short, because the outline and the body would otherwise say the same three phrases
@@ -2464,7 +2464,7 @@ def _is_dynamic(row: dict[str, Any]) -> bool:
 
 # --- Device sections --------------------------------------------------------
 #
-# Each is a thin adapter: the rows themselves are `hubui/devices.py`'s, because what a
+# Each is a thin adapter: the rows themselves are `console/devices.py`'s, because what a
 # device is and what may be asked of it belongs with the device, not with the panel that
 # draws it. The panel's job here is the rail and the frame.
 

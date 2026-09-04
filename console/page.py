@@ -9,15 +9,15 @@ from typing import Any
 from nicegui import run, ui
 
 from common import device_client
-from hubui import assets as assets_page
-from hubui import collections as collections_page
-from hubui import deeplink, games, grid, sections, tageditor, theme, views, workbench
-from hubui import devices as devices_page
-from hubui import media as media_page
-from hubui.api import HubClient
-from hubui.data import Library
+from console import assets as assets_page
+from console import collections as collections_page
+from console import deeplink, games, grid, sections, tageditor, theme, views, workbench
+from console import devices as devices_page
+from console import media as media_page
+from console.api import HubClient
+from console.data import Library
 
-logger = logging.getLogger("vpinfe.hubui.page")
+logger = logging.getLogger("vpinfe.console.page")
 
 # Both panel headers are pinned to this, so the two toggles sit at the same height
 # whatever their labels do. Left to the text, one was 52px and the other 22px.
@@ -176,7 +176,7 @@ def _read_hub() -> dict[str, Any]:
 
 # The title is per page, not from ui.run: one process serves both this and the Manager
 # UI, so an app-wide title puts the other surface's name in this one's tab.
-@ui.page("/hub", title="VPinFE Hub")
+@ui.page("/console", title="VPinFE Console")
 async def hub_page(view: str = "", game: str = "", table: str = "", section: str = "",
                    slot: str = "", settings: str = "") -> None:
     """The hub. Query parameters say where in it, so a place can be linked to."""
@@ -286,7 +286,7 @@ async def hub_page(view: str = "", game: str = "", table: str = "", section: str
             # Larger and heavier than a nav item, like HA's own title. Row height may
             # differ from the items below - that is fine and expected; what has to stay
             # aligned is the icon column, which does not depend on the label's size.
-            labels.append(ui.label("VPinFE Hub")
+            labels.append(ui.label("VPinFE Console")
                           .classes("whitespace-nowrap hub-nav-title"))
         # The destinations scroll; the header and the foot do not. Without this the
         # drawer is one scroll box, so the title and the version scrolled away with the
@@ -907,7 +907,7 @@ def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
     # on a list of places. The click handler still does the navigating; `_NAV_CLICK`
     # stops the browser following the href on a plain click and leaves every modified
     # one alone.
-    row = ui.link(target=f"/hub?view={key}") \
+    row = ui.link(target=f"/console?view={key}") \
         .classes("items-center gap-3 cursor-pointer w-full no-wrap flex "
                  "hub-nav-row" + (" hub-nav-row--nested" if nested else "")) \
         .on("click", choose)

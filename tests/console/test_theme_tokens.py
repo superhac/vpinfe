@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 import unittest
 
-from hubui import theme
+from console import theme
 
 # Every block that ships, in one string - a token may be defined in one and used in
 # another, and checking them apart would report both halves as broken.

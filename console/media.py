@@ -18,13 +18,13 @@ from typing import Any
 from nicegui import run, ui
 
 from common.media_specs import media_label_map
-from hubui import confirm, grid, media_ownership, views
-from hubui.api import HubClient
-from hubui.games import view_control
+from console import confirm, grid, media_ownership, views
+from console.api import HubClient
+from console.games import view_control
 
-logger = logging.getLogger("vpinfe.hubui.media")
+logger = logging.getLogger("vpinfe.console.media")
 
-SCOPE = "hubui.media.columns"
+SCOPE = "console.media.columns"
 
 _ORPHAN = media_ownership.tier_for(media_ownership.ORPHAN).noun
 _UNUSED = media_ownership.tier_for(media_ownership.UNUSED).noun

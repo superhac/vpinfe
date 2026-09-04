@@ -6,7 +6,7 @@ standing next to, which is where a wrong answer is hardest to notice.
 
 import unittest
 
-from hubui import devices
+from console import devices
 
 LOCAL = "Aaaa111111"
 

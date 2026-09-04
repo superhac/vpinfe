@@ -72,7 +72,7 @@ def sync(state: dict[str, Any]) -> None:
     """Put the current place in the address bar, without reloading anything."""
     tail = query(state)
     ui.run_javascript(
-        f"history.replaceState(null, '', {json.dumps('/hub?' + tail if tail else '/hub')})")
+        f"history.replaceState(null, '', {json.dumps('/console?' + tail if tail else '/console')})")
 
 
 def apply(state: dict[str, Any], params: dict[str, str], *,

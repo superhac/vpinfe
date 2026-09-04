@@ -7,7 +7,7 @@ the only way this vocabulary can be wrong in a way nobody notices.
 
 import unittest
 
-from hubui import games, table_features
+from console import games, table_features
 
 
 class StateTests(unittest.TestCase):

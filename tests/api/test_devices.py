@@ -114,7 +114,7 @@ class DeviceRegistryApiTests(TempTree):
         self.assertEqual(self.client.delete("/devices/Nope111111").status_code, 404)
 
     def test_an_unknown_kind_is_refused(self) -> None:
-        """A closed set, checked at the boundary. hubui switches on this to decide what
+        """A closed set, checked at the boundary. console switches on this to decide what
         it can do with an entry, so a kind it has never heard of is worse stored than
         rejected - it would reach a screen as a device nothing knows how to talk to."""
         response = self.client.put("/devices", json=CAB | {"kind": "toaster"})

@@ -27,7 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # Where a path can reach another machine. Not `frontend/` - its Python serves the
 # browser and its own tests cover the URLs - and not `tests/`, which asserts on the
 # values these produce rather than producing them.
-SOURCES = ("common", "httpapi", "hubui", "managerui")
+SOURCES = ("common", "httpapi", "console", "managerui")
 
 # Either of these turns a path into text in the host's separator.
 BUILDERS = ("relpath", "relative_to")

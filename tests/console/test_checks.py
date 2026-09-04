@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import unittest
 
-from hubui import sections
+from console import sections
 
 
 class FakeLibrary:

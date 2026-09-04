@@ -14,7 +14,7 @@ from nicegui import run, ui
 from common.games import apps, asset_registry
 from common.labels import humanize
 from common.media_specs import media_label_map
-from hubui import (
+from console import (
     confirm,
     game_tables,
     grid,
@@ -25,11 +25,11 @@ from hubui import (
     views,
     workbench,
 )
-from hubui.api import HubClient
+from console.api import HubClient
 
-logger = logging.getLogger("vpinfe.hubui.games")
+logger = logging.getLogger("vpinfe.console.games")
 
-SCOPE = "hubui.games.columns"
+SCOPE = "console.games.columns"
 
 # The groups are section 13's grain distinction, surfaced in the column picker: what
 # the row *is*, what it rolls up, and what it has. Media sits last because it is most
@@ -175,7 +175,7 @@ def asset_columns(keys: list[str]) -> list[dict[str, Any]]:
 
 
 # Word -> how to draw it, derived from the vocabulary rather than restated. The cell
-# holds the word and the mark is drawn from it here; `hubui/data.py` has why.
+# holds the word and the mark is drawn from it here; `console/data.py` has why.
 _MARK_BY_WORD = {
     tier.noun: {"mark": tier.mark, "why": tier.why}
     for tier in (media_ownership.tier_for(key) for key in media_ownership.STATES)

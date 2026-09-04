@@ -14,7 +14,7 @@ from typing import Any
 from nicegui import ui
 
 from common.media_specs import media_label_map
-from hubui.data import Library
+from console.data import Library
 
 # name, one-line description, predicate over (game, media entries).
 #

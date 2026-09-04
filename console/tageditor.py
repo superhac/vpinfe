@@ -13,7 +13,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-from hubui import confirm, grid
+from console import confirm, grid
 
 SUBJECT = "tag"
 LABEL = "Tags"
@@ -118,7 +118,7 @@ def build(rows: list[dict[str, Any]], library: Any,
                 .classes("hub-menu-item hub-menu-danger")
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        grid.build(COLUMNS, rows, "hubui.tags", lambda _row: None,
+        grid.build(COLUMNS, rows, "console.tags", lambda _row: None,
                    lambda row: (menu_row.__setitem__("row", row), fill(row)))
         menu = ui.context_menu()
 

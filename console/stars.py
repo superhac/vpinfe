@@ -2,7 +2,7 @@
 
 Drawn twice and it cannot be drawn once: a grid cell is rendered by AG Grid in the
 browser, a panel row is built from elements on the server. So both live here, answering
-to the same constants, and `tests/hubui` asserts they still agree on what they draw.
+to the same constants, and `tests/console` asserts they still agree on what they draw.
 """
 
 from __future__ import annotations

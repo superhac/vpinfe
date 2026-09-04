@@ -4,7 +4,7 @@ A grouped rail beside one open page, which is the shape the details pane already
 the index is the map of the product, and it is the thing VPin Studio gets right about
 its preferences even though it throws the rest of the app away to show it.
 
-Everything on a page is drawn through `hubui/panel.py`. A config control is the one
+Everything on a page is drawn through `console/panel.py`. A config control is the one
 place that carries its explanation beneath it rather than in a tooltip: a key's name
 says what it is called, not what turning it off costs.
 """
@@ -20,9 +20,9 @@ from nicegui import run, ui
 from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.labels import humanize
 from common.media_specs import media_label_map
-from hubui import panel
+from console import panel
 
-logger = logging.getLogger("vpinfe.hubui.settings")
+logger = logging.getLogger("vpinfe.console.settings")
 
 # Wider than the pane's rail: these are page names rather than section names, and
 # "Virtual Pinball Spreadsheet" ellipses at the pane's width.
@@ -245,7 +245,7 @@ FOOTERS: dict[str, Callable] = {"vpsdb": _vps_foot}
 
 
 def _checks_library() -> None:
-    from hubui.sections import CHECKS
+    from console.sections import CHECKS
     entries: list[tuple[Any, Any]] = [panel.intro(
         "Each check runs over every game. Turn one off here to silence it everywhere; "
         "dismiss it on a single game to silence it just there.")]

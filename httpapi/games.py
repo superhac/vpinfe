@@ -196,7 +196,7 @@ def _asset_summary(row: dict) -> dict:
                if row.get(flag)]
     return {
         "backglass": {"present": bool(row.get("b2s_exists"))},
-        # `ini`, not `settings`: hubui has a Settings section, and one word for a
+        # `ini`, not `settings`: console has a Settings section, and one word for a
         # nav destination and a file kind is two things sharing a name.
         "ini": {"present": bool(row.get("ini_exists"))},
         "pup_pack": {"present": bool(row.get("pup_pack_exists"))},

@@ -14,7 +14,7 @@ from common.labels import humanize
 from . import confirm, grid, panel, views
 from . import settings as settings_page
 
-logger = logging.getLogger("vpinfe.hubui.devices")
+logger = logging.getLogger("vpinfe.console.devices")
 
 # What a kind of device can do when nobody can ask it. A vpx_mobile device runs VPX and
 # not VPinFE, so it declares nothing, ever - the hub knows its abilities from the kind.
@@ -243,7 +243,7 @@ def _hostname_placeholder(device: dict[str, Any], is_local: bool) -> str:
 
 # --- The grid ---------------------------------------------------------------
 
-SCOPE = "hubui.devices.columns"
+SCOPE = "console.devices.columns"
 
 KIND_LABELS = {"vpinfe": "VPinFE", "vpx_mobile": "VPX Mobile"}
 

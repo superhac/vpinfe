@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import Mock
 
 from common.online import vps_kinds
-from hubui import workbench
+from console import workbench
 
 RECORD = "wheel_KtY1"
 

@@ -6,7 +6,7 @@ same - so the words are asserted here rather than left to each surface to spell.
 
 import unittest
 
-from hubui import game_tables
+from console import game_tables
 
 
 class WordTests(unittest.TestCase):

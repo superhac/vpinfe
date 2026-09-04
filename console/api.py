@@ -13,7 +13,7 @@ import requests
 from common.config_access import NetworkConfig
 from common.paths import get_ini_config
 
-logger = logging.getLogger("vpinfe.hubui")
+logger = logging.getLogger("vpinfe.console")
 
 _TIMEOUT = 15
 

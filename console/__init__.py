@@ -5,4 +5,4 @@ from __future__ import annotations
 
 def register() -> None:
     """Import the page module so its @ui.page decorator registers the route."""
-    from hubui import page  # noqa: F401
+    from console import page  # noqa: F401

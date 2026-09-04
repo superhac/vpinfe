@@ -20,9 +20,9 @@ from nicegui import run, ui
 
 from common import labels
 from common.media_specs import media_family, media_label_map
-from hubui import candidates, confirm, media_ownership
+from console import candidates, confirm, media_ownership
 
-logger = logging.getLogger("vpinfe.hubui.mediasource")
+logger = logging.getLogger("vpinfe.console.mediasource")
 
 # Enough of a list to scroll rather than to page. A folder of artwork is tens of files,
 # not thousands, and a picker with pages in it is a database browser.

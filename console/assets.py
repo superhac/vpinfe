@@ -18,12 +18,12 @@ from typing import Any
 
 from nicegui import ui
 
-from hubui import grid, media_ownership, views
-from hubui.games import view_control
+from console import grid, media_ownership, views
+from console.games import view_control
 
-logger = logging.getLogger("vpinfe.hubui.assets")
+logger = logging.getLogger("vpinfe.console.assets")
 
-SCOPE = "hubui.assets.columns"
+SCOPE = "console.assets.columns"
 
 # What the wire's binding is called on screen. Three of the four are the words the media
 # lens already uses for the same question - whose file is this - and `orphaned` is the

@@ -111,7 +111,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 import httpapi
-import hubui
+import console
 from cli import parseArgs
 from frontend import lifecycle_host, runtime
 from managerui.managerui import _shutdown_event, set_first_run, start_manager_ui, stop_manager_ui
@@ -138,7 +138,7 @@ nicegui_app.add_middleware(_SuppressNoResponseReturnedMiddleware)
 httpapi.register(nicegui_app)
 
 # The Hub UI, served at /hub alongside the Manager UI while both exist.
-hubui.register()
+console.register()
 
 # On Windows, the Proactor event loop logs a noisy ConnectionResetError (WinError 10054)
 # whenever a browser tab is closed mid-connection. Install a startup handler that

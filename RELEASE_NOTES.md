@@ -97,7 +97,7 @@ build and it changes how your library is stored — read the next section first.
   whether a table's script drives PinMAME at all.
 - **Core, Manager UI** — Slow work runs in the background and reports progress on the event
   bus instead of blocking the page that started it.
-- **Manager UI** — A second interface, the Hub UI, at `/hub`. It is the hub's control
+- **Manager UI** — A second interface, the Console, at `/console`. It is the control
   plane: one place for the library, media, devices and settings, with a table grid that
   can draw art in a column instead of a tick, and a media map laid out like a pinball
   machine so a game's coverage reads before any label does. Column layouts are kept on the

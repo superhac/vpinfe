@@ -21,7 +21,7 @@ from typing import Any
 
 from common.games.ids import new_id
 
-logger = logging.getLogger("vpinfe.hubui.views")
+logger = logging.getLogger("vpinfe.console.views")
 
 # Where the user's own views live, beside the layout the grid saves for itself.
 VIEWS_SUFFIX = ".views"

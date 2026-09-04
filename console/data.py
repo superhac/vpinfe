@@ -8,10 +8,10 @@ from typing import Any
 
 from common.games.asset_registry import ASSET_SPECS
 from common.media_specs import media_family, media_label_map
-from hubui import media_ownership
-from hubui.api import HubClient
+from console import media_ownership
+from console.api import HubClient
 
-logger = logging.getLogger("vpinfe.hubui")
+logger = logging.getLogger("vpinfe.console")
 
 # The cell holds the *word*, never the mark. What a cell is worth filtering and sorting
 # on is the state; how it is drawn is the column's business. Holding the drawn mark made

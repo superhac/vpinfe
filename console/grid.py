@@ -1,7 +1,7 @@
 """Grids, and the column layout the hub keeps for each.
 
 Layout only - width, order, pinning. Which columns are shown, how they are
-sorted and what is filtered belong to a view; see hubui/views.py.
+sorted and what is filtered belong to a view; see console/views.py.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-logger = logging.getLogger("vpinfe.hubui")
+logger = logging.getLogger("vpinfe.console")
 
 DEFAULT_COL_DEF: dict[str, Any] = {
     "sortable": True,
@@ -28,7 +28,7 @@ DEFAULT_COL_DEF: dict[str, Any] = {
 # Layout belongs to the *view*, not to the grid: a tick column wants to be narrow and a
 # name column wants to be wide, and they are the same column under two views. Visibility,
 # sort and filters are the view's too - what keeps a built-in a constant is that none of
-# it is stored against the built-in's definition. See hubui/views.py.
+# it is stored against the built-in's definition. See console/views.py.
 _SAVE_EVENTS = ("columnMoved", "columnResized", "columnPinned")
 _LAYOUT_FIELDS = ("colId", "width", "flex", "pinned")
 
@@ -324,7 +324,7 @@ async def apply_layout(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]
     Called on gridReady and again on every view change, because the grid outlives a
     view: switching without this leaves the last view's widths on the new one's columns.
     """
-    from hubui.api import HubClient
+    from console.api import HubClient
 
     where = layout_scope(scope, view_of)
     try:
@@ -366,7 +366,7 @@ def _restore(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]],
 
 def _save_on_change(grid: ui.aggrid, scope: str,
                     view_of: Callable[[], str] | None) -> None:
-    from hubui.api import HubClient
+    from console.api import HubClient
 
     async def save() -> None:
         where = layout_scope(scope, view_of)

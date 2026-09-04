@@ -21,7 +21,7 @@ jobs:
       # as good as Dependabot's production/development classification, while the file
       # list is a fact about the diff. Runtime pins are left for a human - a green
       # check says nothing about how a dependency renders in a browser, which is
-      # where nicegui 3.7.0-3.8.0 emptied hubui's media panel.
+      # where nicegui 3.7.0-3.8.0 emptied the console's media panel.
       - name: Merge only if requirements-dev.txt is the whole change
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

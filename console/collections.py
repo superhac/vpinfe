@@ -16,12 +16,12 @@ from urllib.parse import quote
 from nicegui import run, ui
 
 from common.games.collection_store import DIRECTION_LABELS, SORT_LABELS
-from hubui import confirm, grid, views
-from hubui.games import view_control
+from console import confirm, grid, views
+from console.games import view_control
 
-logger = logging.getLogger("vpinfe.hubui.collections")
+logger = logging.getLogger("vpinfe.console.collections")
 
-SCOPE = "hubui.collections"
+SCOPE = "console.collections"
 
 # What a collection is called on screen. The wire says `filter`; a reader says
 # **Dynamic** - it is the word for a list that changes under you, and "filter" names the
