@@ -2132,10 +2132,6 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 /* A rail long enough to need grouping says what a run of rows is about. `.hub-group`
    carries the treatment - this only puts it in the rail's column. */
 .hub-rail-group { grid-column: 1; }
-/* A heading that opens a run of rows is a control, so it takes the row's own hit area
-   and says so on hover. The type stays the heading's - it names a group either way. */
-.hub-rail-group { padding: 6px 16px; margin: 0; }
-.hub-rail-group:hover { color: var(--ink); background: var(--surface-hover); }
 .hub-section-work {
   grid-column: 2; grid-row: 1 / -1;
   min-width: 0; min-height: 0;
@@ -2241,17 +2237,28 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* Below the base rules on purpose: same specificity, so source order decides. */
 @container (max-width: 519px) {
-  /* Column, and the open section takes what the rows leave - so the names stay put
-     and the content scrolls under them rather than the whole panel sliding. */
-  .hub-sections { display: flex; flex-direction: column; background: none; }
+  /* Column. The open section keeps a working height and the column scrolls past the
+     rows it does not fit - a rail long enough to fill the panel leaves nothing to
+     work in otherwise. */
+  .hub-sections {
+    display: flex; flex-direction: column; background: none;
+    /* The column scrolls now that the open section holds its height. The rows above it
+       stay where they are and the ones below are a scroll away, which is the cost of
+       giving the section room and the cheaper half of the trade. */
+    overflow-y: auto;
+  }
   /* background-color, so a state tint layered on background-image sits over it. */
   .hub-section-row { background-color: var(--panel-ground); }
   /* Takes what it needs and no more, so a short section does not leave a void with
-     the rows stranded at the bottom edge - and shrinks when it needs more than is
-     there, which puts the scrolling inside it and keeps every row on screen. */
+     the rows stranded at the bottom edge.
+
+     It no longer shrinks to keep every row on screen. That worked while a rail was
+     three or four rows; a device carries thirteen, and they left the open section two
+     lines to work in. With a rail that long the two cannot both fit, and the section
+     is the one being used - so it keeps a working height and the column scrolls. */
   .hub-section-work {
-    flex: 0 1 auto;
-    min-height: 0;
+    flex: 0 0 auto;
+    min-height: min(420px, 60%);
     border-left: none; border-top: none;
     /* Open to the page rather than tinted darker. The recess used to be a black wash
        over the panel's gradient, which was an invented shade meaning nothing; the step
