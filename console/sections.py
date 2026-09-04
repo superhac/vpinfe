@@ -116,9 +116,9 @@ def overview(library: Library, registry: list[dict], discovery: dict,
         with _card("Needs attention"):
             ui.label(str(open_findings)).classes("hub-kpi")
             ui.label("findings across the library").classes("text-xs opacity-60")
-        with _card("Players"):
+        with _card("Devices"):
             ui.label(str(len(registry))).classes("hub-kpi")
-            ui.label("devices known").classes("text-xs opacity-60")
+            ui.label("known to this hub").classes("text-xs opacity-60")
         with _card("This build"):
             ui.label(str(discovery.get("app_version") or "?")).classes("hub-kpi")
             ui.label("no update endpoint yet").classes("text-xs opacity-60")

@@ -2850,13 +2850,13 @@ def _paging_control(context: dict[str, Any],
                     row: dict[str, Any]) -> Callable[[], None]:
     """Which boundary the frontend pages between.
 
-    Empty is a value - it says follow the player's own setting - so it is an option
-    rather than the absence of one.
+    Empty is a value - it says follow whatever the frontend is set to - so it is an
+    option rather than the absence of one.
     """
     current = row.get("paging_group") or ""
 
     def draw() -> None:
-        field = ui.select({"": "Follow the player", "sort": "By sort group",
+        field = ui.select({"": "Follow the frontend", "sort": "By sort group",
                            "count": "By a fixed number"}, value=current) \
             .props("dense outlined").classes("w-full min-w-0")
 
