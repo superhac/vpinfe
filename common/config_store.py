@@ -271,7 +271,10 @@ class ConfigStore:
                         if feature not in now:
                             now.append(feature)
                 announce('ini-roles-to-features', ','.join(was))
-                order = ('library', 'frontend', 'devices')
+                # Every feature, in the order the install declares them. Overview is in
+                # the list so that an install already asking for it keeps it, and no
+                # role expands into it, so migrating never acquires one.
+                order = ('library', 'frontend', 'devices', 'overview')
                 self.config.set('install', 'features',
                                 ','.join(f for f in order if f in now))
                 changed = True

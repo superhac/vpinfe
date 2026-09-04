@@ -377,6 +377,7 @@ FEATURE_LABELS = {
     install_identity.LIBRARY: "Library",
     install_identity.FRONTEND: "Frontend",
     install_identity.DEVICES: "Device Management",
+    install_identity.OVERVIEW: "Overview",
 }
 
 # What switching one on gets you. The name says which feature; this says what the install
@@ -385,6 +386,8 @@ FEATURE_NOTES = {
     install_identity.LIBRARY: "Curate the game library on this machine.",
     install_identity.FRONTEND: "Launch games on this machine.",
     install_identity.DEVICES: "Manage the other VPinFE installs on your network.",
+    install_identity.OVERVIEW: "Add a front page summarising the other three. Off "
+                              "unless you ask for it.",
 }
 
 # Why the last one cannot be switched off here. An install with no features stored reads

@@ -246,9 +246,26 @@ class RetiredRoleTests(ConfigStoreTests):
 
         self.assertEqual(self._features(), ["library", "frontend", "devices"])
 
+    def test_a_migrating_install_does_not_acquire_overview(self) -> None:
+        """Nothing expands into it, so an install coming from roles never gains a feature
+        that has to be asked for."""
+        self.ini.write_text("[install]\nroles = hub,device\n", encoding="utf-8")
+
+        ConfigStore(str(self.ini))
+
+        self.assertNotIn("overview", self._features())
+
+    def test_an_install_already_asking_for_overview_keeps_it(self) -> None:
+        """The migration reorders what it finds; it is not a filter on what is allowed."""
+        self.ini.write_text("[install]\nroles = hub,overview\n", encoding="utf-8")
+
+        ConfigStore(str(self.ini))
+
+        self.assertEqual(self._features(), ["library", "devices", "overview"])
+
     def test_a_cab_does_not_inherit_a_library_it_never_had(self) -> None:
         """The one that matters. `device` alone becomes `frontend` alone, not everything -
-        the default is every feature, and falling through to it would be silent."""
+        the fallback is the default set, and falling through to it would be silent."""
         self.ini.write_text("[install]\nroles = device\n", encoding="utf-8")
 
         ConfigStore(str(self.ini))

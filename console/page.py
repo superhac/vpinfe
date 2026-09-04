@@ -73,12 +73,12 @@ NAV_PARENT = ("library", "Library", "inventory_2")
 # Which feature each destination answers for, empty meaning every install. An install
 # without a feature does not show its section at all - not greyed and not empty, absent -
 # because a section for something this machine is not for is a place with nothing in it.
-# Overview and Extensions name none: one is the front door and the other is what this
-# install has loaded, and neither belongs to a feature any more than jobs do.
+# Extensions names none: it is what this install has loaded, and belongs to a feature no
+# more than jobs do. Overview does name one, and that one is off unless asked for.
 NavItem = tuple[str, str, str, str]
 
 NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] = (
-    (None, (("overview", "Overview", "space_dashboard", ""),)),
+    (None, (("overview", "Overview", "space_dashboard", install_identity.OVERVIEW),)),
     # Media sits with the grains of the library it is one of, ahead of the two that
     # organize it rather than being part of it.
     (NAV_PARENT, (("games", "Games", "sports_esports", install_identity.LIBRARY),
@@ -246,7 +246,11 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     nav_groups = nav_for(discovery.get("features"))
     nav_items = [item for _parent, items in nav_groups for item in items]
 
-    state: dict[str, Any] = {"view": "overview", "device": None, "mini": False,
+    # The first place this install actually has. Overview is off unless asked for, so a
+    # constant here would land a good many installs on a section that is not in the rail.
+    landing_view = nav_items[0][0] if nav_items else "system"
+
+    state: dict[str, Any] = {"view": landing_view, "device": None, "mini": False,
                              "workbench": True, "settings_page": "",
                              "collection": None, "trouble": loaded["trouble"]}
     # Before anything is built, so the first render is the place asked for rather than

@@ -35,6 +35,26 @@ class NavTests(unittest.TestCase):
         self.assertIn("system", _rail([]))
         self.assertIn("system", _rail(["nonsense"]))
 
+    def test_overview_has_to_be_asked_for(self) -> None:
+        """It is a rollup of the other three rather than something an install does, so
+        the default set and the fallback both leave it out."""
+        self.assertNotIn(install_identity.OVERVIEW,
+                         install_identity.DEFAULT_FEATURES)
+        self.assertNotIn("overview", _rail(install_identity.DEFAULT_FEATURES))
+        self.assertIn("overview", _rail(install_identity.FEATURES))
+
+    def test_a_typo_does_not_switch_overview_on(self) -> None:
+        """An unreadable setting falls back to the defaults, which is why a feature that
+        has to be asked for must not be one of them."""
+        import configparser
+
+        config = configparser.ConfigParser()
+        config.add_section("install")
+        config.set("install", "features", "libary, frontnd")
+
+        self.assertEqual(install_identity.features(config),
+                         list(install_identity.DEFAULT_FEATURES))
+
     def test_no_library_takes_the_library_sections_with_it(self) -> None:
         rail = _rail([install_identity.FRONTEND])
 

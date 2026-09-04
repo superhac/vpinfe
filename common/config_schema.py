@@ -632,9 +632,10 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             default="library,frontend,devices",
             label="Features",
             description="What this install is for: curating the game library (library),"
-                        " launching games on this machine (frontend), and managing the"
-                        " other installs on your network (devices). Each one it has"
-                        " decides what the Console shows.",
+                        " launching games on this machine (frontend), managing the other"
+                        " installs on your network (devices), and a rollup of all three"
+                        " (overview). Each one it has decides what the Console shows."
+                        " Overview is the one that has to be asked for.",
             aliases=("roles",),
         ),
     ),

@@ -31,6 +31,10 @@ REQUIREMENTS: dict[str, tuple[tuple[str, str], ...]] = {
     # Managing other installs needs nothing of its own: it reaches them over the network,
     # and an address it cannot reach is that device's row to report, not a setting here.
     install_identity.DEVICES: (),
+    # A rollup reports on whatever the other features hold. It has nothing of its own to
+    # be missing, and an empty library is a fact about the library rather than a fault
+    # in the page that counts it.
+    install_identity.OVERVIEW: (),
 }
 
 

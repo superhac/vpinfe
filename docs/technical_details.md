@@ -120,7 +120,7 @@ uses an old spelling both still load.
 | --- | --- | --- | --- |
 | `id` | string |  | Written by VPinFE on first start, and not meant to be edited. A hub tells its installs apart by this, so changing it makes this a different install. |
 | `display_name` | string |  | What to call this device where one is listed. Defaults to this machine's hostname. Nothing is addressed by it, so renaming is safe. |
-| `features` | list | `library,frontend,devices` | What this install is for: curating the game library (library), launching games on this machine (frontend), and managing the other installs on your network (devices). Each one it has decides what the Console shows. |
+| `features` | list | `library,frontend,devices` | What this install is for: curating the game library (library), launching games on this machine (frontend), managing the other installs on your network (devices), and a rollup of all three (overview). Each one it has decides what the Console shows. Overview is the one that has to be asked for. |
 
 ### `vpsdb`
 

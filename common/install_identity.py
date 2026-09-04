@@ -23,10 +23,16 @@ ID_KEY = "id"
 LIBRARY = "library"
 FRONTEND = "frontend"
 DEVICES = "devices"
-FEATURES = (LIBRARY, FRONTEND, DEVICES)
+# A rollup over the other three rather than something this install does. Off unless it
+# is asked for: it answers a question nobody had, and a front door that reports on a
+# library this machine may not have is worse than no front door.
+OVERVIEW = "overview"
+FEATURES = (LIBRARY, FRONTEND, DEVICES, OVERVIEW)
 
-# What every 2.x install and every desktop install already is: all of them.
-DEFAULT_FEATURES = FEATURES
+# What every 2.x install and every desktop install already is. Not every feature: this
+# is also what an empty or unreadable setting falls back to, so a feature that has to be
+# asked for must not be in here or a typo would switch it on.
+DEFAULT_FEATURES = (LIBRARY, FRONTEND, DEVICES)
 
 
 def install_id(config) -> str:
@@ -75,9 +81,9 @@ def _hostname() -> str:
 def features(config) -> list[str]:
     """What this install is meant to do, in a stable order.
 
-    Empty or unrecognized falls back to all of them, never to none: a typo must not
-    decide this machine stopped launching games, and an install with no features has an
-    empty nav and no way to fix itself from inside.
+    Empty or unrecognized falls back to the defaults, never to none: a typo must not
+    decide this machine stopped launching games. It falls back to those rather than to
+    every feature, so one that has to be asked for is never acquired by accident.
     """
     configured = [name.strip().lower()
                   for name in cfg_list(config, ID_SECTION, "features")]
