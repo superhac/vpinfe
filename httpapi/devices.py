@@ -1,8 +1,13 @@
 """The devices a hub knows about.
 
-A device announces itself; the hub records what it said and when it last said it. That is
-the whole of it - there is no routing, no aggregation and no picking one to launch on,
-because all three need decisions *across* devices that nothing has made yet.
+An install announces itself on the network and every other install decides what to do
+with that; one that manages devices records what it heard and when. That is the whole of
+it - there is no routing, no aggregation and no picking one to launch on, because all
+three need decisions *across* devices that nothing has made yet.
+
+The registry is untrusted input now that it fills itself: anything on the LAN can claim
+to be a VPinFE install, so it is a record of what said it was there rather than of
+anything deliberate. A home LAN is the assumption that makes that fine.
 
 What it buys now is attribution: an event carries the `install_id` it happened on
 (PAR-55), and for a VPinFE install that value is its `device_id`, so the registry is
@@ -18,7 +23,7 @@ import logging
 
 from fastapi import APIRouter, Body, Request, Response
 
-from common import device_client, device_registry, install_identity
+from common import device_client, device_registry, discovery, install_identity
 from common.device_registry import get_device_registry
 from common.paths import get_ini_config
 
@@ -40,6 +45,24 @@ def _resource(device) -> dict:
 def list_devices() -> models.DeviceList:
     devices = get_device_registry().devices()
     return {"count": len(devices), "devices": [_resource(p) for p in devices]}
+
+
+# Ahead of `/{device_id}`, which would otherwise match the word.
+@router.get("/discovered", summary="Installs announcing themselves on this network",
+            dependencies=[requires(scopes.DEVICES_READ)])
+def discovered_installs() -> models.DiscoveredList:
+    """What mDNS has heard, as it stands.
+
+    Not the registry: these are announcements, so nothing here has been recorded or
+    decided about. It is what a picker offers and a person confirms.
+    """
+    found = discovery.peers()
+    return {"count": len(found),
+            "installs": [{"install_id": peer.install_id,
+                          "display_name": peer.display_name,
+                          "features": list(peer.features),
+                          "address": peer.address, "port": peer.port,
+                          "url": peer.url} for peer in found]}
 
 
 @router.get("/{device_id}", summary="One device",

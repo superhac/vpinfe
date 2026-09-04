@@ -11,7 +11,7 @@ import threading
 import time
 from pathlib import Path
 
-from common import shutdown
+from common import discovery, shutdown
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
 from common.games import remote_library
 from common.host import system_actions
@@ -53,18 +53,13 @@ def create_api_instances(iniconfig, logger):
     # of one answer, kept in step by everyone doing the same work.
     shared_library = library_resolver.LibraryResolver(iniconfig)
 
-    # A device says hello to the hub whose library it is about to show. On a single
-    # machine there is no hub_url and this does nothing. Best effort: a hub that cannot
-    # be reached costs a name in someone's device registry, not a frontend.
-    if network.hub_url:
+    # Nothing is announced to anybody here. An install says what it is on the network and
+    # every other install decides what to do with that, so a machine that only launches
+    # games carries no address for a machine that manages it.
+    if network.library_url and network.verify_shared_library:
         threading.Thread(
-            target=remote_library.announce_to_hub,
-            args=(network.hub_url, iniconfig),
-            daemon=True, name="announce-to-hub").start()
-        if network.verify_shared_library:
-            threading.Thread(
-                target=_report_shared_library, args=(shared_library, logger),
-                daemon=True, name="verify-shared-library").start()
+            target=_report_shared_library, args=(shared_library, logger),
+            daemon=True, name="verify-shared-library").start()
 
     for window_name, config_key in window_configs(iniconfig):
         screen_id_str = displays.window_screen_id(config_key).strip()
@@ -90,7 +85,8 @@ def create_api_instances(iniconfig, logger):
 
 
 def _report_shared_library(shared_library, logger) -> None:
-    """Say whether this device's library really is the hub's, once, at startup.
+    """Say whether the library this install reads is the one on its own disk, once, at
+    startup.
 
     Reports and does nothing else. A mismatch is a real problem - it is the difference
     between a wheel that launches and one that fails per game with a file-not-found - but
@@ -302,6 +298,9 @@ def shutdown_services(logger, *, vpinplay_sync, iniconfig, ws_bridge, stop_dof, 
         ("ws_bridge.stop", ws_bridge.stop),
         ("stop_dof_service", stop_dof),
         ("stop_libdmdutil_service", lambda: stop_dmd(clear=False)),
+        # Before the sockets go: this is what sends the goodbye packet, and a peer that
+        # never gets one has to wait out a timeout to notice the machine is gone.
+        ("stop_discovery", discovery.stop),
         ("http_server.on_closed", http_server.on_closed),
         ("nicegui_app.shutdown", nicegui_app.shutdown),
         ("stop_manager_ui", stop_manager_ui),

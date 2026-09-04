@@ -25,12 +25,13 @@ from frontend import game_state
 logger = logging.getLogger("vpinfe.frontend.library_resolver")
 
 
-def hub_url(ini_config) -> str:
-    """The hub this install reads its library from, or "" when it holds its own."""
+def library_url(ini_config) -> str:
+    """The install this one reads its library from, or "" when it holds its own."""
     try:
-        return NetworkConfig.from_config(ini_config.config).hub_url
+        return NetworkConfig.from_config(ini_config.config).library_url
     except Exception:
-        logger.debug("Could not read the hub URL; holding a local library", exc_info=True)
+        logger.debug("Could not read the library URL; holding a local library",
+                     exc_info=True)
         return ""
 
 
@@ -45,10 +46,10 @@ class LibraryResolver:
         self._ini_config = ini_config
         self.lock = threading.RLock()
 
-        # With a hub set, this install is a device: the list it holds is entries the hub
-        # resolved, not games off a disk it may not have.
-        self._hub_url = hub_url(ini_config)
-        self._remote = bool(self._hub_url)
+        # With a library set, the list this install holds is entries that install
+        # resolved, not games off a disk this one may not have.
+        self._library_url = library_url(ini_config)
+        self._remote = bool(self._library_url)
 
         # An unreadable library is empty, not fatal: a first run before the scan has
         # none, and wants a view it can fill in rather than an exception.
@@ -75,15 +76,15 @@ class LibraryResolver:
         self.reset_to_default()
 
     def _load(self, collection: str = ""):
-        """The library: the hub's entries, or the local games. Different kinds of thing,
-        which `rebuild_entries` knows."""
+        """The library: another install's entries, or the local games. Different kinds of
+        thing, which `rebuild_entries` knows."""
         if self._remote:
-            return remote_library.fetch_entries(self._hub_url, collection)
+            return remote_library.fetch_entries(self._library_url, collection)
         return all_games()
 
     def reload(self):
-        """The library again. A hub that has gone quiet leaves the list alone: a stale
-        wheel beats a device emptying its screen because one request failed."""
+        """The library again. A library that has gone quiet leaves the list alone: a
+        stale wheel beats a screen emptying because one request failed."""
         try:
             self.all_games = self._load(public_name(self.current_collection))
         except Exception:
@@ -99,9 +100,9 @@ class LibraryResolver:
     def resolve_view(self, collection: str, criteria: dict | None = None) -> list:
         """The entries a collection holds, off this install's library.
 
-        A device's are the hub's answer, kept as it arrived: the resolver reads a game's
-        table dicts out of its `.info` and those stayed on the hub, so re-resolving here
-        would quietly produce an empty wheel.
+        A remote library's are that install's answer, kept as it arrived: the resolver
+        reads a game's table dicts out of its `.info` and those stayed over there, so
+        re-resolving here would quietly produce an empty wheel.
 
         `criteria` is the filter menu's controls, which make a collection out of the
         library rather than narrowing one - so they only arrive with `builtin:all`.

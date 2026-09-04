@@ -18,11 +18,17 @@ logger = logging.getLogger("vpinfe.console")
 _TIMEOUT = 15
 
 
-def hub_base_url() -> str:
+def local_base_url() -> str:
+    """This install's own API, always.
+
+    It used to follow the library setting, so an install reading somebody else's catalog
+    ran its whole Console against that machine - settings included, which is now exactly
+    the thing configuration must not do. Nothing is lost by pinning it: the nav is
+    derived from features, so an install with no library of its own has no library
+    sections for a remote catalog to fill.
+    """
     network = NetworkConfig.from_config(get_ini_config())
-    # hub_url set means this install reads another install's library; empty means it
-    # holds its own, so the server is this process.
-    return (network.hub_url or f"http://127.0.0.1:{network.http_port}").rstrip("/")
+    return f"http://127.0.0.1:{network.http_port}"
 
 
 class ApiError(RuntimeError):
@@ -37,7 +43,7 @@ class ApiClient:
     """
 
     def __init__(self, base_url: str | None = None) -> None:
-        self._base = f"{base_url or hub_base_url()}/api/v1"
+        self._base = f"{base_url or local_base_url()}/api/v1"
         self._session = requests.Session()
         self._media: dict[str, dict] = {}
         self._discovery: dict | None = None
@@ -584,6 +590,12 @@ class ApiClient:
         response = self._session.delete(f"{self._base}/devices/{quote(device_id)}",
                                         timeout=_TIMEOUT)
         self._answered(response)
+
+    def discovered_installs(self) -> list[dict]:
+        """Every install announcing itself on this network, as it stands. Read when a
+        page draws rather than cached: a machine is switched on while somebody is
+        looking at the list."""
+        return list(self._get("/devices/discovered").get("installs") or [])
 
     def probe_devices(self) -> list[dict]:
         """Ask every device whether it is there. Slower than an ordinary read - it dials

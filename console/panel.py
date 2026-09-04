@@ -106,17 +106,17 @@ def sections(entries: Sequence[tuple[Any, ...]], current: str,
 
 
 def _rail_group(label: str, mark: Callable[[], None] | None = None) -> None:
-    """A heading over the run of rows that follows it.
+    """A heading over the run of rows that follows it, with a corner for a mark.
 
-    A row rather than a label once it carries a mark, so the mark leads the name the way
-    it does on the rows below and the two sit in one column.
+    The mark is drawn over the heading rather than beside it, so a group reads at the
+    same place on the line whether or not something under it wants attention.
     """
     if mark is None:
         ui.label(label).classes("console-group console-rail-group")
         return
-    with ui.row().classes("items-center no-wrap console-group console-rail-group"):
-        mark()
+    with ui.element("div").classes("console-group console-rail-group"):
         ui.label(label)
+        mark()
 
 
 def _rail_row(key: str, label: str, open_now: bool,
@@ -128,8 +128,9 @@ def _rail_row(key: str, label: str, open_now: bool,
     label for the destination. Without it the stacked rows are words with no sign that
     any of them do anything.
 
-    `mark` draws before the name, where a state about the destination itself goes - a
-    device answering is a fact about that device and not about the row being open.
+    `mark` draws in the row's own corner, over the name rather than beside it: a state
+    about the destination must not move the word that names it, and the gutter it sits
+    in is reserved on every row whether one is drawn or not.
     """
     row = ui.row().classes("items-stretch gap-0 no-wrap console-section-row")
     if open_now:
@@ -137,12 +138,12 @@ def _rail_row(key: str, label: str, open_now: bool,
     if hint:
         row.tooltip(hint)
     with row:
-        # `no-wrap`, or a mark plus a long name is two lines and one taller row. The
-        # label ellipses instead, which is what `truncate` was already there to do.
+        # `no-wrap`, or a long name is two lines and one taller row. The label ellipses
+        # instead, which is what `truncate` was already there to do.
         with ui.row().classes("items-center grow min-w-0 no-wrap console-section-hit"):
+            ui.label(label).classes("console-section-text truncate")
             if mark is not None:
                 mark()
-            ui.label(label).classes("console-section-text truncate")
         with ui.row().classes("items-center console-section-caret"):
             ui.icon("expand_more", size="18px")
     # The whole band, name and chevron alike - a header that opens on the word but only
@@ -232,7 +233,7 @@ def trouble_mark(reason: str = "") -> Callable[[], None]:
     signposts, and what is actually wrong is on the page they lead to.
     """
     def draw() -> None:
-        icon = ui.icon("error", size="16px").classes("console-trouble-mark")
+        icon = ui.icon("error", size="14px").classes("console-trouble-mark")
         if reason:
             icon.tooltip(reason)
 
@@ -287,6 +288,39 @@ def select(options: Any, value: str, on_change: Callable[[Any], Any], *,
             control = ui.select(options, value=value, on_change=on_change) \
                 .props("dense borderless options-dense") \
                 .classes("console-edit-field console-edit-select")
+            if disabled:
+                control.disable()
+
+    return draw
+
+
+def combo(value: str, options: Any, on_change: Callable[[Any], Any], *,
+          disabled: bool = False, status: Callable[[Any], Any] | None = None,
+          placeholder: str = "") -> Callable[[], None]:
+    """A list to pick from that can also be typed into.
+
+    For a value something else can offer good answers to and still be wrong about - which
+    installs are on the network, say. A closed select would leave a filtered network with
+    no way to name a machine by hand; a plain field would make the ordinary case a typing
+    exercise with a URL in it.
+    """
+    def draw() -> None:
+        offered = dict(options or {})
+        # What is stored is always one of the choices, even when nothing is offering it
+        # now: a machine that is switched off has to still read as the choice that was
+        # made, and a value outside the list is refused outright.
+        if value and value not in offered:
+            offered[value] = value
+        with ui.element("div").classes("console-fact-edit"):
+            control = ui.select(offered, value=value or None, on_change=on_change,
+                                with_input=True, new_value_mode="add-unique")
+            control.props("dense borderless options-dense clearable input-debounce=0")
+            if placeholder:
+                control.props(f'placeholder="{placeholder}"')
+            control.classes("console-edit-field console-edit-select console-edit-combo")
+            if status is not None:
+                with control.add_slot("append"):
+                    status(control)
             if disabled:
                 control.disable()
 

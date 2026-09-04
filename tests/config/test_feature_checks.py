@@ -21,12 +21,19 @@ class RequirementTests(unittest.TestCase):
             pass
         os.chmod(self.launcher, 0o755)
 
-    def _config(self, **general: str):
+    def _config(self, *, library_url: str = "", **general: str):
         parser = configparser.ConfigParser()
         parser.add_section("general")
         for key, value in general.items():
             parser.set("general", key, value)
+        parser.add_section("network")
+        parser.set("network", "library_url", library_url)
         return parser
+
+    def _frontend_config(self, **general: str):
+        """A frontend that has been told which library to read, so a test about a path is
+        about that path and not about the library as well."""
+        return self._config(library_url="http://elsewhere:8001", **general)
 
     def _unmet(self, config, features):
         return [(u.feature, u.key, u.state)
@@ -38,7 +45,7 @@ class RequirementTests(unittest.TestCase):
         self.assertEqual(feature_checks.unmet(config, install_identity.FEATURES), [])
 
     def test_the_frontend_needs_a_launcher(self) -> None:
-        config = self._config(game_root_dir=self.games)
+        config = self._frontend_config(game_root_dir=self.games)
 
         self.assertEqual(self._unmet(config, ["frontend"]),
                          [("frontend", "vpx_bin_path", path_checks.UNSET)])
@@ -62,10 +69,30 @@ class RequirementTests(unittest.TestCase):
     def test_a_path_that_is_set_and_wrong_is_not_the_same_as_unset(self) -> None:
         """The reason differs, and so does the fix: one is 'fill this in', the other is
         'what you filled in is not there'."""
-        config = self._config(game_root_dir=self.games, vpx_bin_path="/nope/vpx")
+        config = self._frontend_config(game_root_dir=self.games,
+                                       vpx_bin_path="/nope/vpx")
 
         self.assertEqual(self._unmet(config, ["frontend"]),
                          [("frontend", "vpx_bin_path", path_checks.MISSING)])
+
+    def test_a_frontend_with_no_library_has_to_be_told_which_one(self) -> None:
+        """No silent picking, not even when exactly one is on the network."""
+        config = self._config(game_root_dir=self.games, vpx_bin_path=self.launcher)
+
+        self.assertEqual(self._unmet(config, ["frontend"]),
+                         [("frontend", "library_url", path_checks.UNSET)])
+
+    def test_a_frontend_that_holds_its_own_library_needs_no_picker(self) -> None:
+        """The single-machine case, which is the common one."""
+        config = self._config(game_root_dir=self.games, vpx_bin_path=self.launcher)
+
+        self.assertEqual(feature_checks.unmet(config, ["library", "frontend"]), [])
+
+    def test_a_library_chosen_settles_it(self) -> None:
+        config = self._frontend_config(game_root_dir=self.games,
+                                       vpx_bin_path=self.launcher)
+
+        self.assertEqual(feature_checks.unmet(config, ["frontend"]), [])
 
     def test_managing_devices_requires_nothing_of_its_own(self) -> None:
         """It reaches other installs over the network. An address that does not answer is

@@ -128,16 +128,20 @@ class HubEndpoint(NamedTuple):
 
 
 def _hub_endpoint(network) -> HubEndpoint:
-    """Resolve `network.hub_url` into the addresses a window is launched with.
+    """Resolve `network.library_url` into the addresses a window is launched with.
 
-    With no hub the host is "" and every port is this install's, which is every
-    single-machine setup. With one, three of the four are the hub's, and they have to be
-    asked for separately: `network.http_port` and `network.theme_assets_port` describe what
-    *this* install serves, so a device reading a hub on other ports would dial its own
+    With no library set the host is "" and every port is this install's, which is every
+    single-machine setup. With one, three of the four belong to that install and have to
+    be asked for separately: `network.http_port` and `network.theme_assets_port` describe
+    what *this* install serves, so reading a library on other ports would dial our own
     numbers at the other machine. The api port is in the url; the asset port is not in it
-    at all, so the hub is asked - it publishes its own in discovery.
+    at all, so the other install is asked - it publishes its own in discovery.
+
+    The query parameters a window is launched with keep the `hub` spelling. They are the
+    theme-facing contract, and renaming one is a break every theme has to be released
+    for.
     """
-    trimmed = str(getattr(network, "hub_url", "") or "").strip()
+    trimmed = str(getattr(network, "library_url", "") or "").strip()
     own_api = network.http_port
     own_assets = network.theme_assets_port
     if not trimmed:

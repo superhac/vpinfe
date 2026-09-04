@@ -11,7 +11,13 @@ import logging
 
 from fastapi import APIRouter, BackgroundTasks, Body
 
-from common import device_client, device_registry, install_identity, lifecycle
+from common import (
+    device_client,
+    device_registry,
+    discovery,
+    install_identity,
+    lifecycle,
+)
 from common.app_version import get_version
 from common.config_access import NetworkConfig
 from common.device_registry import get_device_registry
@@ -44,6 +50,42 @@ def mint_identity() -> None:
     record_self()
 
 
+def announce_on_the_network() -> None:
+    """Say what this install is, and note the ones that say back.
+
+    Started with the API because that is what the announcement points at: the port in the
+    record is the one these routes answer on.
+    """
+    try:
+        config = get_ini_config()
+    except Exception as exc:
+        logger.warning("Could not read this install to announce it: %s", exc)
+        return
+    discovery.start(config, on_peer=_heard_from)
+
+
+def _heard_from(peer) -> None:
+    """File an install this one heard from, when managing devices is its job.
+
+    The feature is read per announcement rather than once at startup, so switching it on
+    from the Console does not need every other machine to restart before it is noticed.
+    """
+    try:
+        config = get_ini_config()
+        if not install_identity.has_feature(config, install_identity.DEVICES):
+            return
+        get_device_registry().record(
+            peer.install_id,
+            kind=device_registry.KIND_VPINFE,
+            display_name=peer.display_name,
+            features=peer.features,
+            address=peer.address,
+            port=peer.port,
+        )
+    except Exception:
+        logger.debug("Could not record the install that announced itself", exc_info=True)
+
+
 def record_self() -> None:
     """Put what this install currently calls itself into its own registry entry.
 
@@ -64,6 +106,10 @@ def record_self() -> None:
         # A registry that cannot be written must not stop the API starting: the entry is
         # a label, and the install is identified with or without it.
         logger.warning("Could not record this install in its own registry: %s", exc)
+        return
+    # The announcement carries the same two facts, so it is refreshed with them rather
+    # than left saying what this install used to be called until the next restart.
+    discovery.refresh(config)
 
 
 def _identity() -> dict:

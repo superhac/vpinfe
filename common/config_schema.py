@@ -102,9 +102,20 @@ class ConfigOption:
     # the same way and want different answers, and a surface that guesses from a name is
     # one rename away from validating the wrong thing.
     path: str = ""
+    # A set of values worth offering that this file cannot hold, because it is not known
+    # until the install is running - which installs are on the network, say. Declared
+    # here rather than matched on the key by a surface, so the same rename that moves the
+    # setting moves the control with it. Suggestions, not choices: the list is offered
+    # and anything may still be typed, because the thing that produces it can be wrong.
+    suggest: str = ""
 
 
 PATH_KINDS = ("file", "dir", "exe")
+
+# What a `suggest` may name. Closed, so a typo is a setting with no suggestions rather
+# than a surface quietly asking for a list nobody serves.
+SUGGEST_LIBRARIES = "libraries"
+SUGGESTIONS = (SUGGEST_LIBRARIES,)
 
 
 def in_section(section: str, *options: ConfigOption) -> tuple[ConfigOption, ...]:
@@ -713,24 +724,26 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             aliases=("hub_port", "manager_ui_port", "manageruiport"),
         ),
         ConfigOption(
-            "hub_url",
+            "library_url",
             type="string",
             default="",
-            label="Hub URL",
-            description="Read the library from a hub on another machine, for example"
+            suggest=SUGGEST_LIBRARIES,
+            label="Library",
+            description="Which install this one reads its library from, for example"
                         " http://cabinet.local:8001. Empty - the default - means this"
-                        " install holds its own library, which is every single-machine"
-                        " setup.",
+                        " install holds its own, which is every single-machine setup."
+                        " Installs on your network are offered; type an address for one"
+                        " that is not.",
         ),
         ConfigOption(
             "verify_shared_library",
             type="bool",
             default="false",
             label="Verify Shared Library",
-            description="On startup, check that this device's library really is the"
-                        " hub's, by comparing file hashes rather than paths. Reports"
-                        " what does not match and changes nothing else. Off by default,"
-                        " and ignored entirely without a Hub URL.",
+            description="On startup, check that the library this install reads really is"
+                        " the one on disk here, by comparing file hashes rather than"
+                        " paths. Reports what does not match and changes nothing else."
+                        " Off by default, and ignored entirely without a Library set.",
         ),
         ConfigOption(
             "http_bind",

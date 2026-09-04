@@ -1,9 +1,9 @@
-"""The library as a device reads it off a hub.
+"""The library as one install reads it off another.
 
-A device with no library of its own asks the hub for entries and builds its own payload
-from them. This turns the wire rows into the same objects the resolver produces locally,
-so everything downstream - filters, sorts, the payload builder - cannot tell which side
-the library came from.
+An install with no library of its own asks for entries and builds its own payload from
+them. This turns the wire rows into the same objects the resolver produces locally, so
+everything downstream - filters, sorts, the payload builder - cannot tell which side the
+library came from.
 """
 
 from __future__ import annotations
@@ -22,77 +22,36 @@ logger = logging.getLogger("vpinfe.common.games.remote_library")
 # the shared default, which is sized for a metadata lookup.
 LIBRARY_TIMEOUT = 30
 
-def entries_url(hub_url: str, collection: str = "") -> str:
-    """Where a device asks for entries. Empty means the whole library, which is its own
-    endpoint rather than a collection: no stored collection means "all of it"."""
+def entries_url(library_url: str, collection: str = "") -> str:
+    """Where to ask for entries. Empty means the whole library, which is its own endpoint
+    rather than a collection: no stored collection means "all of it"."""
     name = collection.strip()
     path = f"api/v1/collections/{quote(name, safe='')}/entries" if name \
         else "api/v1/library/entries"
-    return urljoin(hub_url.rstrip("/") + "/", path)
+    return urljoin(library_url.rstrip("/") + "/", path)
 
 
-def remote_services(hub_url: str, *, timeout: int = http_client.DEFAULT_TIMEOUT) -> dict[str, Any]:
-    """What the hub says about its own servers, from its discovery document.
+def remote_services(library_url: str, *,
+                    timeout: int = http_client.DEFAULT_TIMEOUT) -> dict[str, Any]:
+    """What that install says about its own servers, from its discovery document.
 
-    The asset server is the one a device has to be told about: artwork is on a different
+    The asset server is the one a reader has to be told about: artwork is on a different
     port from the API, and assuming 8000 is right only until someone moves it. Empty when
-    the hub cannot be reached or says nothing - the caller keeps its own answer, which is
-    what a single-machine install has always used.
+    it cannot be reached or says nothing - the caller keeps its own answer, which is what
+    a single-machine install has always used.
     """
-    url = urljoin(hub_url.rstrip("/") + "/", "api/v1/")
+    url = urljoin(library_url.rstrip("/") + "/", "api/v1/")
     try:
         payload = http_client.get_json(url, timeout=timeout)
     except Exception:
-        logger.debug("Could not read the hub's discovery document", exc_info=True)
+        logger.debug("Could not read that install's discovery document", exc_info=True)
         return {}
     services = payload.get("services") if isinstance(payload, dict) else None
     return services if isinstance(services, dict) else {}
 
 
-def announce_to_hub(hub_url: str, config, *, timeout: int = http_client.DEFAULT_TIMEOUT) -> bool:
-    """Tell the hub this device exists. True if it was recorded.
-
-    Best effort on purpose: a hub that refuses or cannot be reached must not stop a device
-    starting. The device registry is for attribution - putting a name to the `install_id` an
-    event already carries - so failing to register costs a label, not a capability.
-
-    The id is sent as `device_id`, which is what the hub files it under. For an install the
-    two are the same value; a device that is not an install has no `install_id` at all.
-
-    The address is not sent. The hub reads it off the socket, which is the only party that
-    knows how this device was actually reached. The port is the other way round: the socket
-    says where a request came from, never what that machine listens on, so the device is the
-    only one who can say it. Both halves are needed before a hub can ask a device anything.
-    """
-    from common import install_identity
-    from common.config_access import NetworkConfig
-
-    # Minted here if this install has none. Announcing is the first thing that needs an
-    # identity, and it runs before the API starts - which is the other place that mints
-    # one. An id that is not on disk is not an identity, so this writes.
-    try:
-        install_id = install_identity.ensure_id(config)
-    except Exception:
-        logger.debug("Could not establish an install id; not announcing", exc_info=True)
-        return False
-    if not install_id:
-        return False
-    try:
-        http_client.put_json(
-            urljoin(hub_url.rstrip("/") + "/", "api/v1/devices"),
-            {"device_id": install_id,
-             "display_name": install_identity.display_name(config),
-             "features": install_identity.features(config),
-             "port": NetworkConfig.from_config(config).http_port},
-            timeout=timeout)
-    except Exception:
-        logger.debug("Could not announce this device to %s", hub_url, exc_info=True)
-        return False
-    return True
-
-
 def verify_shared_library(entries, local_games) -> dict[str, Any]:
-    """Whether the device's own copy of the library is the hub's, by content.
+    """Whether this install's own copy of the library is the one it reads, by content.
 
     Shared storage is what the split assumes and nothing checks: a `game_root_dir` that is
     wrong or unmounted fails one game at a time, at launch, as a file-not-found. This asks
@@ -100,8 +59,8 @@ def verify_shared_library(entries, local_games) -> dict[str, Any]:
     mounted at different places on different machines - a path comparison would report
     every install as broken.
 
-    Reports rather than decides. `matched`, `missing` (the hub has a table this device
-    cannot resolve) and `differs` (both have it, the bytes are not the same) are three
+    Reports rather than decides. `matched`, `missing` (the library has a table this
+    install cannot resolve) and `differs` (both have it, the bytes differ) are three
     different problems for a caller to act on, and what to do about each is a policy
     question this does not answer.
     """
@@ -119,7 +78,7 @@ def verify_shared_library(entries, local_games) -> dict[str, Any]:
         table_id = getattr(entry, "table_id", "")
         wanted = str((entry.table or {}).get("file_hash", "") or "")
         if not table_id or not wanted:
-            # A table the hub has not hashed says nothing either way. Counted rather
+            # A table the library has not hashed says nothing either way. Counted rather
             # than dropped, so "everything matched" cannot mean "nothing was checked".
             unverifiable += 1
             continue
@@ -137,22 +96,22 @@ def verify_shared_library(entries, local_games) -> dict[str, Any]:
 
 def _entry_from_wire(row: dict[str, Any]) -> Entry:
     """One wire row as the Entry the rest of the frontend already reads. `siblings` comes
-    from the hub, which is the only side that can see a game's other tables."""
+    from the library, which is the only side that can see a game's other tables."""
     return Entry(game=WireGame(row.get("game") or {}, row),
                  table=table_of(row),
                  siblings=int(row.get("siblings") or 1))
 
 
-def fetch_entries(hub_url: str, collection: str = "",
+def fetch_entries(library_url: str, collection: str = "",
                   timeout: int = LIBRARY_TIMEOUT) -> list[Entry]:
-    """The hub's entries for a collection, as local Entry objects.
+    """Another install's entries for a collection, as local Entry objects.
 
-    Raises rather than returning an empty list: a hub that cannot be reached is not a hub
-    with no games, and a caller showing an empty wheel for it would be reporting the wrong
-    thing.
+    Raises rather than returning an empty list: a library that cannot be reached is not a
+    library with no games, and a caller showing an empty wheel for it would be reporting
+    the wrong thing.
     """
-    payload = http_client.get_json(entries_url(hub_url, collection), timeout=timeout)
+    payload = http_client.get_json(entries_url(library_url, collection), timeout=timeout)
     rows = payload.get("entries") if isinstance(payload, dict) else payload
     if not isinstance(rows, list):
-        raise ValueError(f"Hub at {hub_url} did not return an entry list")
+        raise ValueError(f"{library_url} did not return an entry list")
     return [_entry_from_wire(row) for row in rows if isinstance(row, dict)]

@@ -254,9 +254,10 @@ class NetworkConfig:
     # has authentication.
     theme_assets_bind: str = "127.0.0.1"
     http_bind: str = "0.0.0.0"
-    # Empty means this install holds its own library. Set, it is the hub a device reads
-    # from - the one setting that makes this process a device rather than both roles.
-    hub_url: str = ""
+    # Empty means this install holds its own library. Set, it names the install this one
+    # reads its catalog from - the one setting that makes this process read somebody
+    # else's.
+    library_url: str = ""
     # Off by default: it costs a walk of the local library at startup, and an install
     # that is working does not need to be told so.
     verify_shared_library: bool = False
@@ -274,7 +275,7 @@ class NetworkConfig:
                                       "127.0.0.1").strip() or "127.0.0.1",
             http_bind=cfg_get(source, "network", "http_bind",
                              "0.0.0.0").strip() or "0.0.0.0",
-            hub_url=cfg_get(source, "network", "hub_url", "").strip(),
+            library_url=cfg_get(source, "network", "library_url", "").strip(),
             verify_shared_library=cfg_bool(source, "network", "verify_shared_library",
                                            False),
         )

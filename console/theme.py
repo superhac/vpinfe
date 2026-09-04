@@ -798,9 +798,19 @@ body::before {
    broken, so the two must not read as the same kind of news. */
 .console-nav-badge--error { background: var(--danger); }
 /* The same finding where a count would say nothing - a settings group and the page under
-   it are signposts, and what is wrong is on the page they lead to. Leading the name, so
-   the marks down a rail sit in one column. */
-.console-trouble-mark { color: var(--danger); flex: none; margin-right: 6px; }
+   it are signposts, and what is wrong is on the page they lead to. In the corner over
+   the name rather than beside it, so a row reads the same whether it carries one or
+   not. */
+.console-trouble-mark {
+  color: var(--danger);
+  position: absolute;
+  /* On the label's own line. Raised into the corner it read as belonging to nothing -
+     the eye joins a mark to text it is level with. Centred rather than stretched: the
+     glyph carries its own height, so top and bottom together would not have moved it. */
+  top: 50%;
+  transform: translateY(-50%);
+  right: 6px;
+}
 
 /* The sort control above the devices rail. Aligned to the rail rather than the page, so
    it reads as belonging to the list it orders. */
@@ -1505,6 +1515,16 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   color: var(--ink-3);
   padding: 10px 8px 4px;
 }
+/* A heading that can carry a corner mark. The gutter is reserved on every one of them
+   for the same reason the rows reserve theirs. The mark sits on the caption's own line
+   and in the rows' column: the heading has no row margin, so matching the rows below
+   costs it that 8px, and a mark floating in the gap above the words reads as belonging
+   to the row before it. */
+.console-rail-group { position: relative; padding-right: 34px; }
+/* A heading's padding is 10px over 4px, so its box centre sits 3px above its text.
+   Nudged back down onto the caption, and 8px further left because a heading has none of
+   the row margin below it - which is what puts the two marks in one column. */
+.console-rail-group .console-trouble-mark { margin-top: 3px; right: 14px; }
 /* The outline: a table of contents down the side of the workbench. Quiet, because
    what it points at is the content - an open section is lit and the rest recede. */
 /* The lens: which build the sections under it answer for. Pills rather than a
@@ -1677,6 +1697,10 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    a 1100px box says the answer might be a sentence. The floor is for the caret and the
    longest name the set happens to hold, not a target. */
 .console-edit-select { flex: 0 1 auto; min-width: var(--select-min); }
+/* Except where the list holds addresses. The rule above is for a closed set of named
+   things, where a wide box says the answer might be a sentence; a URL is exactly the
+   answer that needs the room, and it can also be typed. */
+.console-edit-combo { flex: 1 1 auto; }
 .console-edit-field:hover .q-field__control {
   border-color: var(--accent);
   background: rgba(0, 217, 255, 0.06);
@@ -2243,8 +2267,14 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .console-section-row:hover {
   background-image: linear-gradient(rgba(180, 41, 249, 0.14), rgba(180, 41, 249, 0.14));
 }
-/* Carries the row's padding, so every pixel of the band picks the section. */
-.console-section-hit { padding: 7px 16px; overflow: hidden; }
+/* Carries the row's padding, so every pixel of the band picks the section. The right
+   gutter is wider than the left to hold a mark in the corner. Reserved on every row
+   whether or not one is there: a badge that appears is not allowed to move the words
+   under it, and a rail that reflows when a setting changes is worse than no badge.
+   `relative` is what the mark is positioned against; `overflow: hidden` here and a
+   scrolling rail outside both clip, so it sits inside the box rather than overhanging
+   the way the nav's badge does. */
+.console-section-hit { padding: 7px 26px 7px 16px; overflow: hidden; position: relative; }
 /* Beside its content, not above it - so there is nothing for a chevron to point at
    and the rail carries no picture at all. */
 .console-section-caret {

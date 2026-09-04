@@ -283,6 +283,11 @@ class Library:
     def probe_devices(self) -> list[dict]:
         return self._client.probe_devices()
 
+    def discovered_installs(self) -> list[dict]:
+        """Never cached: what is on the network is the question, and an answer from when
+        the page opened is the one thing it must not be."""
+        return self._client.discovered_installs()
+
     def set_game_overrides(self, game_id: str, changes: dict) -> dict:
         """An override changes the name a game sorts under, so the whole list is stale,
         not just this game's row."""

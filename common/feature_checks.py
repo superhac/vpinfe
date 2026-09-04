@@ -34,6 +34,11 @@ REQUIREMENTS: dict[str, tuple[tuple[str, str], ...]] = {
 }
 
 
+# Where a frontend is told which library to read. Not a path, which is why it sits beside
+# the table above rather than in it: what it names is another install.
+LIBRARY_URL = ("network", "library_url")
+
+
 @dataclass(frozen=True)
 class Unmet:
     """One requirement an enabled feature does not have. `reason` is written for the
@@ -80,7 +85,27 @@ def unmet(config, features=None) -> list[Unmet]:
                 reason = f"{option.label} is not set."
             found.append(Unmet(feature=feature, section=section, key=key,
                                state=state, reason=reason))
+    missing_library = _no_library_to_read(config, on)
+    if missing_library is not None:
+        found.append(missing_library)
     return found
+
+
+def _no_library_to_read(config, on) -> Unmet | None:
+    """A frontend that holds no library of its own and has not been told which to read.
+
+    Not guessed at, not even when exactly one install on the network has a library. A
+    silent pick is the kind of thing nobody can debug afterwards, and the catalog belongs
+    to a different machine.
+    """
+    if install_identity.FRONTEND not in on or install_identity.LIBRARY in on:
+        return None
+    if cfg_get(config, *LIBRARY_URL).strip():
+        return None
+    return Unmet(feature=install_identity.FRONTEND,
+                 section=LIBRARY_URL[0], key=LIBRARY_URL[1],
+                 state=path_checks.UNSET,
+                 reason="No library chosen, and this install holds none of its own.")
 
 
 def features_in_trouble(config, features=None) -> set[str]:

@@ -125,6 +125,27 @@ class DeviceList(ApiModel):
     devices: list[DeviceResource]
 
 
+class DiscoveredInstall(ApiModel):
+    """One install heard announcing itself on this network.
+
+    Not a device: nothing here has been recorded or decided about. Anything on the LAN
+    can claim to be a VPinFE install, so this is a list of what said it was there, which
+    is what a picker offers and a person confirms.
+    """
+
+    install_id: str
+    display_name: str = ""
+    features: list[str] = Field(default_factory=list)
+    address: str = ""
+    port: int = 0
+    url: str = ""
+
+
+class DiscoveredList(ApiModel):
+    count: int
+    installs: list[DiscoveredInstall]
+
+
 class DeviceProbe(ApiModel):
     """What one device said when asked.
 
@@ -238,6 +259,10 @@ class ConfigOptionInfo(ApiModel):
     # What this string names on disk, when it names something: file, dir or exe. Empty
     # for everything that is only text, so a client need not match on the key's name.
     path: str = ""
+    # A live list worth offering beside this setting, named rather than included: it
+    # changes while the install runs, so a client asks for it when it draws. Empty for
+    # everything a person simply types.
+    suggest: str = ""
 
 
 class ConfigSection(ApiModel):

@@ -82,7 +82,7 @@
   "network": {
     "http_bind": "0.0.0.0",
     "http_port": "8001",
-    "hub_url": "",
+    "library_url": "",
     "theme_assets_bind": "127.0.0.1",
     "theme_assets_port": "8000",
     "verify_shared_library": "false",

@@ -94,7 +94,7 @@ class SeparationTests(TempTree):
                              "the hub has to hold the library, or this proves nothing")
 
             with LiveInstance(self.device_root,
-                              extra_settings={("network", "hub_url"): hub_api}) as device:
+                              extra_settings={("network", "library_url"): hub_api}) as device:
                 device.wait_for_api()
                 # What the launcher learns from the hub's discovery document.
                 device.hub_assets_port = hub.ports["assets"]
@@ -125,9 +125,9 @@ class SeparationTests(TempTree):
             hub.wait_for_api()
 
             with LiveInstance(self.device_root,
-                              extra_settings={("network", "hub_url"): hub_api}) as one, \
+                              extra_settings={("network", "library_url"): hub_api}) as one, \
                  LiveInstance(self.device_root,
-                              extra_settings={("network", "hub_url"): hub_api}) as two:
+                              extra_settings={("network", "library_url"): hub_api}) as two:
                 for device in (one, two):
                     device.wait_for_api()
                     device.hub_assets_port = hub.ports["assets"]
@@ -166,7 +166,7 @@ class SeparationTests(TempTree):
             game_id = _fetch(f"{hub_api}/api/v1/library/entries")["entries"][0]["game"]["id"]
 
             with LiveInstance(self.device_root,
-                              extra_settings={("network", "hub_url"): hub_api}) as device:
+                              extra_settings={("network", "library_url"): hub_api}) as device:
                 device.wait_for_api()
                 status, code = _post(f"http://127.0.0.1:{device.ports['manager']}"
                                      f"/api/v1/games/{game_id}/launch")
@@ -189,7 +189,7 @@ class SeparationTests(TempTree):
 
             # Same library root as the hub, which is what a shared mount looks like here.
             with LiveInstance(self.hub_root,
-                              extra_settings={("network", "hub_url"): hub_api}) as device:
+                              extra_settings={("network", "library_url"): hub_api}) as device:
                 device.wait_for_api()
                 device_api = f"http://127.0.0.1:{device.ports['manager']}"
                 known = _fetch(f"{device_api}/api/v1/games/{game_id}")
@@ -202,68 +202,42 @@ class SeparationTests(TempTree):
         self.assertEqual((status, code), (501, "feature_unavailable"),
                          "stopped on this machine having no VPX, not on the library")
 
-    def test_the_hub_learns_which_devices_it_is_serving(self) -> None:
-        """A device registry is what turns the install_id on an event into a name someone
-        recognizes. Two devices, so it is a device registry rather than a single-entry special
-        case, and each has to arrive with its own identity.
+    def test_an_install_registers_itself_and_nobody_else(self) -> None:
+        """Nothing reports to anything any more.
 
-        Three entries, not two: the hub is a device as well, and records itself at
-        startup. It is the machine someone is standing at, and a screen listing devices
-        should not have to synthesise the one it is running on.
+        An install used to push itself into whichever registry `network.hub_url` named,
+        which meant a machine that only launches games carrying the address of a machine
+        that manages it. It announces itself on the network instead, and each install
+        decides what to do with what it hears - so an install reading somebody's library
+        writes nothing into that install's registry.
+
+        Announcing is off in these instances: they get their own config dir so they
+        cannot touch the developer's install, and appearing in its device list would be
+        exactly that. What they hear is covered in `tests/api/test_discovery.py`.
         """
-        with LiveInstance(self.hub_root) as hub:
-            hub.wait_for_api()
-            hub_api = f"http://127.0.0.1:{hub.ports['manager']}"
-            itself = _fetch(f"{hub_api}/api/v1/devices")
+        with LiveInstance(self.hub_root) as library:
+            library.wait_for_api()
+            library_api = f"http://127.0.0.1:{library.ports['manager']}"
+            itself = _fetch(f"{library_api}/api/v1/devices")
             self.assertEqual(itself["count"], 1,
-                             "a hub knows itself before anyone says hello")
-            hub_id = itself["devices"][0]["device_id"]
+                             "an install knows itself before anyone says hello")
+            mine = itself["devices"][0]
+            self.assertTrue(mine["device_id"], "an install with no id is not an identity")
+            self.assertTrue(mine["display_name"], mine)
+            self.assertEqual(mine["kind"], "vpinfe", mine)
 
-            with LiveInstance(self.device_root,
-                              extra_settings={("network", "hub_url"): hub_api}) as one, \
-                 LiveInstance(self.device_root,
-                              extra_settings={("network", "hub_url"): hub_api}) as two:
-                one.wait_for_api()
-                two.wait_for_api()
-                registry = self._registry_of(hub_api, expected=3,
-                                             instances=(hub, one, two))
+            with LiveInstance(
+                    self.device_root,
+                    extra_settings={("network", "library_url"): library_api}) as reader:
+                reader.wait_for_api()
+                # Long enough that a push at startup would have landed: the thread that
+                # used to make it ran before the API was serving.
+                time.sleep(2.0)
+                after = _fetch(f"{library_api}/api/v1/devices")
 
-        self.assertEqual(len(registry), 3, "both devices and the hub, none overwritten")
-        ids = {device["device_id"] for device in registry}
-        self.assertEqual(len(ids), 3, "each device announced its own identity")
-        self.assertIn(hub_id, ids, "the hub is still in its own registry afterwards")
-        self.assertNotIn("", ids, "an install with no id is not an identity")
-        for device in registry:
-            self.assertTrue(device["display_name"], device)
-            self.assertTrue(device["first_seen"], device)
-            self.assertEqual(device["kind"], "vpinfe", device)
-        for device in [d for d in registry if d["device_id"] != hub_id]:
-            self.assertEqual(device["address"], "127.0.0.1",
-                             "the hub records where it was reached from, not what it "
-                             "was told")
-
-    def _registry_of(self, hub_api: str, *, expected: int, timeout: float = 30.0,
-                   instances=()) -> list:
-        """The device registry once it holds `expected` devices. Polled because announcing is a
-        background thread on each device - a fixed sleep would be a race either way.
-
-        Failing here rather than returning a short registry, and failing with what each
-        instance logged: this has timed out occasionally and "expected 2, got 1" says
-        nothing about which device never announced or what stopped it. The logs exist;
-        the assertion just was not reaching for them.
-        """
-        deadline = time.monotonic() + timeout
-        devices = []
-        while time.monotonic() < deadline:
-            devices = _fetch(f"{hub_api}/api/v1/devices")["devices"]
-            if len(devices) >= expected:
-                return devices
-            time.sleep(0.25)
-
-        logs = "\n\n".join(f"--- instance {n} ---\n{inst.output(tail=3000)}"
-                            for n, inst in enumerate(instances, 1))
-        self.fail(f"{len(devices)} of {expected} devices announced within {timeout}s.\n"
-                  f"registry: {devices}\n\n{logs}")
+        self.assertEqual([d["device_id"] for d in after["devices"]],
+                         [mine["device_id"]],
+                         "reading a library is not registering with it")
 
     def _render(self, device: LiveInstance):
         """Open the device's playfield window and read back what the theme drew."""

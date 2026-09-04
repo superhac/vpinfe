@@ -24,6 +24,8 @@ from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from common import discovery
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 HARNESS_THEME = REPO_ROOT / "tests" / "fixtures" / "theme-harness"
 
@@ -63,8 +65,11 @@ class LiveInstance:
             # instance reported an empty log, which is why they were hard to diagnose.
             [sys.executable, "-u", "main.py", "--headless"],
             cwd=str(REPO_ROOT),
+            # Off the network as well as off the developer's config: an instance that
+            # announced itself would turn up in the device list of whatever install is
+            # already running here, which is exactly what its own config dir prevents.
             env={**os.environ, "VPINFE_CONFIG_DIR": str(self.config_dir),
-                 "PYTHONUNBUFFERED": "1"},
+                 discovery.OFF: "1", "PYTHONUNBUFFERED": "1"},
             stdout=self._log, stderr=subprocess.STDOUT, text=True)
         self._wait_until_serving()
         return self
@@ -136,9 +141,9 @@ class LiveInstance:
         # What the launcher appends for a device, and the reason it has to be here too:
         # without it the page dials this machine for the library's art, which a device
         # does not have. See `_build_window_url`, which is what does this for real.
-        hub_url = str(self.extra_settings.get(("network", "hub_url"), "") or "")
-        if hub_url:
-            parsed = urllib.parse.urlparse(hub_url)
+        library_url = str(self.extra_settings.get(("network", "library_url"), "") or "")
+        if library_url:
+            parsed = urllib.parse.urlparse(library_url)
             query += (f"&hubHost={urllib.parse.quote(parsed.hostname or '', safe='')}"
                       f"&hubPort={parsed.port or self.ports['manager']}"
                       f"&devicePort={self.ports['manager']}"

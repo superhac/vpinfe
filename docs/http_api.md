@@ -69,8 +69,9 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/library/policy` | What this library collects — hidden media kinds, hidden asset kinds, and which catalogs are searched. The library's answer, so every device reading one hub gets the same one. Empty means everything |
 | PUT | `/api/v1/library/policy` | Change it. A patch: an absent key is left alone, a key sent empty is stored empty |
 | POST | `/api/v1/library/scan` | Rebuild game metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
-| GET | `/api/v1/devices` | The devices this hub has been told about |
-| PUT | `/api/v1/devices` | Announce a device to this hub (idempotent). `port` is declared by the device — the hub reads the address off the socket, which never says what that machine listens on |
+| GET | `/api/v1/devices` | The devices this install knows about |
+| PUT | `/api/v1/devices` | Record a device (idempotent). For a phone, or a machine mDNS cannot reach. `port` is declared by the caller — the address is read off the socket, which never says what that machine listens on |
+| GET | `/api/v1/devices/discovered` | Installs announcing themselves on this network right now. Announcements, not records: nothing here has been decided about |
 | GET | `/api/v1/devices/{id}` | One device |
 | POST | `/api/v1/devices/probe` | Ask every device whether it is there, and record the ones that answer. `unaskable` means there was nothing to dial, which is not the same as down |
 | DELETE | `/api/v1/devices/{id}` | Forget one |

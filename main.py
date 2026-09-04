@@ -137,6 +137,11 @@ nicegui_app.add_middleware(_SuppressNoResponseReturnedMiddleware)
 # first-run start below.
 httpapi.register(nicegui_app)
 
+# And say so on the network, once the routes an announcement points at exist. Here rather
+# than inside the app builder: a test builds that app many times over, and each build
+# would be another machine as far as anyone listening is concerned.
+httpapi.instance.announce_on_the_network()
+
 # The Hub UI, served at /hub alongside the Manager UI while both exist.
 console.register()
 

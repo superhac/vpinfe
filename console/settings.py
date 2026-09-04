@@ -21,7 +21,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-from common import feature_checks, install_identity, path_checks
+from common import config_schema, feature_checks, install_identity, path_checks
 from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.labels import humanize
 from common.media_specs import media_label_map
@@ -87,16 +87,34 @@ async def _write(library, section: str, key: str, value: Any) -> bool:
 
 def _control(library, section: str, option: dict, value: Any,
              writable: bool, rerender: Callable[[], None] | None = None,
-             checks: dict[tuple[str, str], dict] | None = None) -> Callable[[], None]:
+             checks: dict[tuple[str, str], dict] | None = None,
+             suggestions: dict[str, Any] | None = None) -> Callable[[], None]:
     """The control a setting's type asks for.
 
-    Driven by the schema's `type`, never by the key's name: a setting added to
-    config_schema renders here without this file being touched, which is the whole
-    point of the schema being served rather than restated.
+    Driven by the schema, never by the key's name: a setting added to config_schema
+    renders here without this file being touched, which is the whole point of the schema
+    being served rather than restated. `suggest` is the same rule for a value the install
+    can offer answers to at runtime.
     """
     key = option["key"]
     kind = option.get("type")
     off = not writable
+    found = (checks or {}).get((section, key)) or {}
+    state = panel.value_state(str(found.get("state") or ""),
+                              str(found.get("reason") or ""))
+
+    if option.get("suggest"):
+        # Offered and not imposed: what produced the list can be wrong - a network that
+        # filters multicast has nothing on it - so anything may still be typed.
+        offered = (suggestions or {}).get(option["suggest"]) or {}
+
+        async def save_suggested(event: Any) -> None:
+            if await _write(library, section, key, str(event.value or "").strip()) \
+                    and rerender is not None:
+                rerender()
+
+        return panel.combo(str(value or ""), offered, save_suggested, disabled=off,
+                           status=state)
 
     if kind == "bool":
         return panel.switch(
@@ -123,16 +141,11 @@ def _control(library, section: str, option: dict, value: Any,
         # A path is the one setting that can be well-formed and still wrong, and it fails
         # much later - at launch, as a file-not-found. Re-checked after a write rather
         # than guessed at here: the answer is about this machine's disk, not the text.
-        found = (checks or {}).get((section, key)) or {}
-
         async def save_path(text: str) -> None:
             if await _write(library, section, key, text) and rerender is not None:
                 rerender()
 
-        return panel.field(
-            str(value or ""), save_path, disabled=off,
-            status=panel.value_state(str(found.get("state") or ""),
-                                     str(found.get("reason") or "")))
+        return panel.field(str(value or ""), save_path, disabled=off, status=state)
     return panel.field(
         str(value or ""),
         lambda text: _write(library, section, key, text), disabled=off)
@@ -473,6 +486,7 @@ def build_library_page(library, rerender: Callable[[], None], key: str,
 def section_rows(source, section: str, options: list[dict], values: dict,
                  writable: bool, rerender: Callable[[], None],
                  checks: dict[tuple[str, str], dict] | None = None,
+                 suggestions: dict[str, Any] | None = None,
                 ) -> list[tuple[Any, Any]]:
     """One section's settings as fact rows, from whatever is serving them.
 
@@ -489,7 +503,7 @@ def section_rows(source, section: str, options: list[dict], values: dict,
         value = current.get(option["key"], option.get("default"))
         entries.append((option.get("label") or humanize(option["key"]),
                         _control(source, section, option, value, writable,
-                                 rerender, checks)))
+                                 rerender, checks, suggestions)))
         if option.get("description"):
             entries.append(panel.note(option["description"]))
     return entries
@@ -497,7 +511,8 @@ def section_rows(source, section: str, options: list[dict], values: dict,
 
 async def build_device_page(source, context: dict[str, Any], schema: list[dict],
                             values: dict, sections: tuple[str, ...],
-                            checks: dict[tuple[str, str], dict] | None = None) -> None:
+                            checks: dict[tuple[str, str], dict] | None = None,
+                            suggestions: dict[str, Any] | None = None) -> None:
     """One page of a device's settings, drawn exactly as this install's are.
 
     Several config sections can make one page - a machine's screens are four of them -
@@ -529,7 +544,8 @@ async def build_device_page(source, context: dict[str, Any], schema: list[dict],
         if len(blocks) > 1:
             entries.append((panel.HEADING, _section_label(name)))
         entries += section_rows(source, name, block["options"], values,
-                                bool(block.get("writable")), rerender, checks)
+                                bool(block.get("writable")), rerender, checks,
+                                suggestions)
         # A page may carry a foot for the one thing on it that is an act rather than a
         # value. Only where this install's own client is what serves the page: these reach
         # for the library, which another machine's client cannot answer for.
@@ -612,6 +628,7 @@ async def _draw_system_page(library, redraw: Callable[[], None], body,
         schema = await run.io_bound(library.config_schema)
         values = await run.io_bound(library.config_values)
         checks = await run.io_bound(library.config_path_checks)
+        offered = await _suggestions(library, schema, sections)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         with body:
             panel.facts(ui, [panel.intro(f"Could not read the settings: {exc}")])
@@ -619,7 +636,40 @@ async def _draw_system_page(library, redraw: Callable[[], None], body,
     with body:
         await build_device_page(library, {"library": library, "rebuild": redraw},
                                 schema, values, sections,
-                                checks=field_marks(trouble, checks))
+                                checks=field_marks(trouble, checks),
+                                suggestions=offered)
+
+
+async def _suggestions(library, schema: list[dict],
+                       sections: tuple[str, ...]) -> dict[str, Any]:
+    """The live lists this page's settings say are worth offering.
+
+    Asked for only where a setting on this page declares one, so opening Displays does
+    not go and look at the network.
+    """
+    wanted = {str(option.get("suggest") or "")
+              for block in schema if str(block.get("name")) in sections
+              for option in block.get("options") or []}
+    if config_schema.SUGGEST_LIBRARIES not in wanted:
+        return {}
+    found = await run.io_bound(library.discovered_installs)
+    # Only the ones that have a library to read. An install that just launches games has
+    # nothing to offer another that does the same.
+    return {config_schema.SUGGEST_LIBRARIES: {
+        str(install.get("url") or ""): _install_label(install)
+        for install in found
+        if install_identity.LIBRARY in (install.get("features") or [])}}
+
+
+def _install_label(install: dict) -> str:
+    """What a discovered install is called in a list, with its address.
+
+    Both, because a name is what somebody recognizes and the address is what they are
+    actually choosing - and two machines on one network can share a name.
+    """
+    name = str(install.get("display_name") or "").strip()
+    url = str(install.get("url") or "")
+    return f"{name} - {url}" if name else url
 
 
 async def _identity_page(library, reported: str,

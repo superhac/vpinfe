@@ -103,12 +103,14 @@ build and it changes how your library is stored — read the next section first.
   game's coverage reads before any label does. Column layouts are kept on the hub, so they
   follow you between machines. The Manager UI moves to `/manager` and is still there — it
   is the complete one, and parts of the Console are unfinished.
-- **Core** — A hub keeps a list of the devices it serves. An install pointed at a hub with
-  `network.hub_url` announces itself on startup, and the hub records what it said and when
-  it last said it, so an event carrying an id turns into a name someone recognizes. A
-  device on your phone can be in that list too, added by hand — several of them, which the
-  single `[mobile]` address could never express. Your existing one is imported on the first
-  start.
+- **Core** — Installs find each other on your network. Each one announces its name, what
+  it is for and which build it is running, and an install with device management switched
+  on fills its device list from what it hears — there is no address to type on either
+  side, and an event carrying an id turns into a name someone recognizes. Windows may ask
+  to let VPinFE through the firewall the first time it starts, and a network that filters
+  multicast still takes an address by hand. A device on your phone can be in that list
+  too, added by hand — several of them, which the single `[mobile]` address could never
+  express. Your existing one is imported on the first start.
 - **Manager UI** — The Tables page says when the library has been upgraded and where to undo
   it, and can upgrade or restore table info for the whole library in one pass.
 

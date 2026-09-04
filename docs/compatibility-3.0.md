@@ -354,24 +354,37 @@ machine that was working a moment ago. Nothing verifiable is not a pass, so "eve
 matched" cannot mean "nothing was checked". Covered by
 `tests/curation/test_library_entries.py`.
 
-**PAR-78 — A hub knows which devices it is serving.** *(machine-checked)* New:
-`GET/PUT/DELETE /api/v1/devices`, two scopes (`devices:read`, `devices:write`), a
-`devices` link in discovery, and `put_json` in `common/http_client.py`. A device with
-`network.hub_url` set announces itself at startup. Purely additive - an install with no
-hub announces nothing, and every existing route is untouched.
-*Why:* the device registry storage shipped in PAR-66 with nothing writing to it, so a hub held an
+**PAR-78 — An install knows which other installs are on its network.** *(machine-checked)*
+New: `GET/PUT/DELETE /api/v1/devices`, `GET /api/v1/devices/discovered`, two scopes
+(`devices:read`, `devices:write`), a `devices` link in discovery, and `put_json` in
+`common/http_client.py`. Every existing route is untouched.
+*Why:* the device registry storage shipped in PAR-66 with nothing writing to it, so it held an
 empty file. Events already carry the `install_id` they happened on (PAR-55); a device registry is
 what turns that id into a name a person recognizes, which is the whole of what item 9 was
 scoped to - data, no screen. Routing a launch to a chosen device, aggregating state and
 conflict resolution are all deliberately absent: each needs a decision across devices that
-has not been made. The address is read off the socket rather than the request body,
-because a device behind a router does not know how it is reached and a caller that could
-name its own address could name someone else's. Announcing is best effort on a background
-thread: a hub that refuses or cannot be reached costs a label, not a frontend. It also
-mints the install id if there is none - announcing is the first thing that needs one and
-it runs before the API, which is the other place that mints. Covered by
-`tests/api/test_devices.py` and `tests/theming/test_separation.py`, which registers two
-live devices with a live hub.
+has not been made. The registry fills itself from what is announced on the network
+(PAR-89) rather than from installs pushing to a configured address, so `PUT` is what a
+person uses to add a phone or a machine mDNS cannot reach. Its address is read off the
+socket for anything announcing itself and taken from the body for a phone, because a phone
+is registered by a person rather than by itself. Covered by `tests/api/test_devices.py` and
+`tests/theming/test_separation.py`, which runs two live installs against a live library.
+
+**PAR-89 — An install announces itself on the local network.** 3.0 registers an mDNS
+service, `_vpinfe._tcp.local.`, carrying its id, name, features and version, and browses
+for the same. New dependency: `zeroconf`. Users may see a firewall prompt on Windows the
+first time an install starts, and an install with device management switched on fills its
+device list without anyone typing an address.
+*Why:* the alternative was every install holding the address of whichever machine manages
+it - configuration for a feature it does not have, on the machine least likely to be
+looked after. Announcing puts the configuration where the capability is, and it dissolves
+three polling defects rather than optimising them: presence becomes an event with a
+goodbye packet instead of a timeout per sleeping machine. The record carries identity
+only, because the capability list is four fifths of the discovery document and a TXT
+record has no room for it - capabilities stay an HTTP fetch for a peer somebody has
+decided to care about. Best effort throughout: a network that filters multicast costs
+discovery and never a startup, which is why manual entry stays. Covered by
+`tests/api/test_discovery.py`.
 
 **PAR-77 — The table is a first-class object on the wire.** *(machine-checked)* One
 `table_descriptor` builds the table half of both play lenses, so `GET /collections/{name}
@@ -432,9 +445,9 @@ timed out. Covered by `tests/theming/test_separation.py`, which runs a hub and a
 separate processes and renders the device's wheel in a browser - it fails if this reads the
 local disk again.
 
-**PAR-73 — A window is told which machine its hub is on.** *(machine-checked)* Two query
-parameters are added to the window url, `hubHost` and `devicePort`, and only when
-`network.hub_url` is set. `vpin.endpoints` reads them: `hub` and `assets` follow the hub,
+**PAR-73 — A window is told which machine its library is on.** *(machine-checked)* Two
+query parameters are added to the window url, `hubHost` and `devicePort`, and only when
+`network.library_url` is set. `vpin.endpoints` reads them: `hub` and `assets` follow the hub,
 `device` and `frontend_channel` stay on this machine. Purely additive - with no hub set the
 url is byte-identical to what it was and every endpoint stays loopback.
 *Why:* `endpoints` hardcoded `127.0.0.1` for all four, so a remote device resolved the
@@ -449,10 +462,10 @@ Covered by `tests/theming/test_chromium_manager.py` and `tests/js/endpoints.test
 post-connect port refresh is covered by `tests/theming/test_render_smoke.py`, which caught
 it overwriting a remote hub's port with this install's.
 
-**PAR-72 — `network.hub_url` points a device at its hub.** *(machine-checked)* One new
-config key, defaulting to empty. Empty - which is every existing install and every
+**PAR-72 — `network.library_url` says which library an install reads.** *(machine-checked)*
+One new config key, defaulting to empty. Empty - which is every existing install and every
 single-machine setup - and the view loads the local library exactly as before. Set, and
-`View` holds the entries the hub resolved. `Entry` gains `meta_config` and `creation_time`,
+`View` holds the entries that install resolved. `Entry` gains `meta_config` and `creation_time`,
 both forwarding to the game it holds.
 *Why:* nothing named which hub a device reads from, so the remote path built in PAR-71 had
 no way to be switched on. The default preserves 2.x behavior by being the absence of a

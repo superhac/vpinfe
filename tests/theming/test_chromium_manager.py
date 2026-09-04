@@ -237,11 +237,11 @@ class ChromiumManagerTests(unittest.TestCase):
 
 
 class HubEndpointTests(unittest.TestCase):
-    """Reading `network.hub_url` into the three values a window url carries."""
+    """Reading `network.library_url` into the three values a window url carries."""
 
     @staticmethod
-    def _network(hub_url: str = "", http_port: int = 8001, assets_port: int = 8000):
-        return types.SimpleNamespace(hub_url=hub_url, http_port=http_port,
+    def _network(library_url: str = "", http_port: int = 8001, assets_port: int = 8000):
+        return types.SimpleNamespace(library_url=library_url, http_port=http_port,
                                      theme_assets_port=assets_port)
 
     def _resolve(self, *args, services=None, **kwargs):
@@ -256,7 +256,7 @@ class HubEndpointTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertEqual(self._resolve(value), ("", 8001, 8001, 8000))
 
-    def test_a_hub_url_yields_its_host_and_port(self) -> None:
+    def test_a_library_url_yields_its_host_and_port(self) -> None:
         self.assertEqual(self._resolve("http://cab.local:8001"),
                          ("cab.local", 8001, 8001, 8000))
 

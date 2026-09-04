@@ -49,6 +49,11 @@ def _describe(option: config_schema.ConfigOption) -> dict[str, Any]:
         # So a client knows which strings name something on disk without matching on the
         # key. Empty for everything that is only text.
         "path": option.path,
+        # Which live list is worth offering beside this setting, where one is. Named
+        # rather than filled in here: the values change while the install runs, so a
+        # client asks for them when it draws rather than reading a snapshot taken when
+        # the schema was served.
+        "suggest": option.suggest,
     }
 
 
