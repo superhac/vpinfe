@@ -78,7 +78,8 @@ _REACH = {
 
 def capability_state(device: dict[str, Any], capability: str,
                      local_device_id: str | None,
-                     local_capabilities: set[str]) -> str:
+                     local_capabilities: set[str],
+                     probed: dict[str, Any] | None = None) -> str:
     """One of three answers, never two.
 
     "Cannot be determined" is its own state on purpose. Collapsing it into "not offered"
@@ -90,8 +91,13 @@ def capability_state(device: dict[str, Any], capability: str,
         return PRESENT if capability in IMPLIED_BY_KIND[kind] else ABSENT
     if device.get("device_id") == local_device_id:
         return PRESENT if capability in local_capabilities else ABSENT
-    # A remote VPinFE device declares its own capabilities, and there is no route to
-    # ask it: httpapi/devices.py records what a device said about itself and nothing more.
+    # What the probe already heard. A remote install declares its capabilities in the
+    # same response the probe reads for its name and version, so this costs nothing -
+    # and it used to be thrown away, which left every remote install answering
+    # "cannot be determined" for all of them.
+    if probed and probed.get("state") == device_client.ANSWERING:
+        return PRESENT if capability in set(probed.get("capabilities") or []) else ABSENT
+    # Nothing has asked it, or it did not answer. Not the same as "does not offer it".
     return UNKNOWN
 
 
@@ -543,7 +549,8 @@ def capability_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     for capability in context.get("device_capabilities") or []:
         state = capability_state(device, capability,
                                  context.get("local_device_id"),
-                                 context.get("local_capabilities") or set())
+                                 context.get("local_capabilities") or set(),
+                                 context.get("reach"))
         text, level = _CHIP[state]
         out.append((humanize(capability), panel.state(text, level)))
     return out or [panel.intro("This device declares nothing.")]

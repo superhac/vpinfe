@@ -224,6 +224,12 @@ class RemoteDevice:
         return {"state": ANSWERING,
                 "what": f"{name} {version}".strip(),
                 "features": list(said.get("features") or []),
+                # Already in this response, so asking again would be a second call for
+                # something we are holding. Names only: the descriptions are the biggest
+                # part of the payload and the caller has its own copy of them.
+                "capabilities": [str(entry.get("name") or "")
+                                 for entry in (said.get("capabilities") or [])
+                                 if entry.get("available")],
                 "install_id": str(said.get("install_id") or ""),
                 "display_name": str(said.get("display_name") or ""),
                 "reason": ""}

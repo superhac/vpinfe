@@ -6,6 +6,7 @@ standing next to, which is where a wrong answer is hardest to notice.
 
 import unittest
 
+from common import device_client
 from console import devices
 
 LOCAL = "Aaaa111111"
@@ -40,12 +41,35 @@ class CapabilityStateTests(unittest.TestCase):
         self.assertEqual(devices.capability_state(device, "capture", LOCAL, {"launch"}),
                          devices.ABSENT)
 
-    def test_another_install_is_unknown_rather_than_absent(self) -> None:
+    def test_another_install_is_unknown_until_it_has_answered(self) -> None:
         """Nothing has asked it. Saying "not offered" would report missing hardware."""
         device = {"device_id": "Bbbb222222", "kind": "vpinfe"}
 
         self.assertEqual(devices.capability_state(device, "launch", LOCAL, {"launch"}),
                          devices.UNKNOWN)
+
+    def test_another_install_answers_from_what_the_probe_heard(self) -> None:
+        """It declares its capabilities in the same response the probe reads for its name
+        and version, so this costs no extra call - and throwing it away left every remote
+        install saying "cannot be determined" for all of them."""
+        device = {"device_id": "Bbbb222222", "kind": "vpinfe"}
+        reach = {"state": device_client.ANSWERING, "capabilities": ["launch", "play"]}
+
+        self.assertEqual(
+            devices.capability_state(device, "launch", LOCAL, set(), reach),
+            devices.PRESENT)
+        self.assertEqual(
+            devices.capability_state(device, "capture", LOCAL, set(), reach),
+            devices.ABSENT)
+
+    def test_a_probe_that_found_nothing_leaves_it_unknown(self) -> None:
+        """Unreachable is not an answer about what it offers."""
+        device = {"device_id": "Bbbb222222", "kind": "vpinfe"}
+        reach = {"state": device_client.UNREACHABLE, "capabilities": []}
+
+        self.assertEqual(
+            devices.capability_state(device, "launch", LOCAL, set(), reach),
+            devices.UNKNOWN)
 
     def test_a_kind_that_cannot_declare_is_answered_from_its_kind(self) -> None:
         device = {"device_id": "Pppp444444", "kind": "vpx_mobile"}
