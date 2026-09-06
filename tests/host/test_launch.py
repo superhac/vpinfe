@@ -52,9 +52,9 @@ class LaunchTests(unittest.TestCase):
         popen = popen or (lambda cmd, **kwargs: _FakePopen())
         patches = {
             "_binary_of": lambda launcher, asked_for: "/opt/vpx",
-            "build_vpx_launch_command": lambda **kwargs: ["/opt/vpx", "-play", "x.vpx"],
+            "_plan": lambda table, binary, launcher: (
+                ["/opt/vpx", "-play", "x.vpx"], "Startup done"),
             "parse_launch_env_overrides": lambda raw: {},
-            "resolve_launch_tableini_override": lambda *a, **k: "",
             "delete_vpinball_log_on_start_if_configured": lambda *a, **k: None,
             "get_active_profile": lambda: None,
         }

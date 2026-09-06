@@ -16,19 +16,17 @@ from __future__ import annotations
 import inspect
 import re
 import unittest
+from dataclasses import fields
 from pathlib import Path
 
+from apps.vpx.launch import VPXLaunch, masked_tableini_path, resolve_tableini_override
+from common.apps.contract import Entry
 from common.games import (
     archive_service,
     game_index_service,
     game_repository,
     game_service,
     media_service,
-)
-from common.host.launch import (
-    build_masked_tableini_path,
-    build_vpx_launch_command,
-    resolve_launch_tableini_override,
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -61,21 +59,27 @@ def _parameters(func) -> list[str]:
 
 
 class TheLaunchableArtifactIsATable(unittest.TestCase):
-    def test_the_launch_command_calls_its_file_argument_a_table(self) -> None:
-        self.assertIn("vpx_path", _parameters(build_vpx_launch_command))
+    def test_an_entry_calls_its_file_a_table(self) -> None:
+        self.assertIn("table", {f.name for f in fields(Entry)})
 
-    def test_that_argument_is_the_one_vpx_is_told_to_play(self) -> None:
+    def test_that_field_is_the_one_the_app_is_told_to_play(self) -> None:
         """The name is only worth pinning if it is the launchable artifact it names."""
-        command = build_vpx_launch_command(launcher_path="/usr/bin/VPinballX",
-                                           vpx_path="/games/Example/Example.vpx")
+        command = VPXLaunch().command(Entry(table="/games/Example/Example.vpx"),
+                                      {"bin_path": "/usr/bin/VPinballX"})
+
         self.assertEqual(command[-2:], ["-play", "/games/Example/Example.vpx"])
 
     def test_nothing_on_the_launch_path_calls_that_file_a_game(self) -> None:
-        for func in (build_vpx_launch_command, build_masked_tableini_path,
-                     resolve_launch_tableini_override):
+        """`game_dir` is the folder and is meant to say game. Anything else beginning
+        that way would be naming the file after its container."""
+        named_game = [f.name for f in fields(Entry)
+                      if f.name.startswith("game") and f.name != "game_dir"]
+        self.assertEqual(named_game, [])
+
+        for func in (masked_tableini_path, resolve_tableini_override):
             with self.subTest(func=func.__name__):
-                named_game = [p for p in _parameters(func) if p.startswith("game")]
-                self.assertEqual(named_game, [])
+                self.assertEqual([p for p in _parameters(func)
+                                  if p.startswith("game")], [])
 
 
 class TheFolderIsAGame(unittest.TestCase):

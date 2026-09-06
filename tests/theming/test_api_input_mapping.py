@@ -80,8 +80,9 @@ class TestApiInputMapping(unittest.TestCase):
         self.assertEqual(mapping["keytutorial"], "t")
 
     @patch("common.host.launch.subprocess.Popen")
-    @patch("common.host.launch.build_vpx_launch_command",
-           return_value=["/tmp/fake-launcher", "-play", "/tmp/table.vpx"])
+    @patch("common.host.launch._plan",
+           return_value=(["/tmp/fake-launcher", "-play", "/tmp/table.vpx"],
+                         "Startup done"))
     @patch("common.host.launch._binary_of", return_value="/tmp/fake-launcher")
     @patch("common.host.launch._launcher_for")
     @patch("frontend.api.all_games")
@@ -90,7 +91,7 @@ class TestApiInputMapping(unittest.TestCase):
         mock_games,
         mock_launcher_for,
         _mock_binary,
-        _mock_build_cmd,
+        _mock_plan,
         mock_popen,
     ) -> None:
         """The wheel launches through the shared service; the windows hear about it

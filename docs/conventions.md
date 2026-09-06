@@ -322,8 +322,8 @@ chime sounds (the `cOptRom` pattern), and read as required when the player may r
 happily without the ROM. The flag lands on the table on the next metadata rebuild;
 until then the chain reports `required: null`.
 - **App** — a program that runs a table file: Visual Pinball X today, `generic` for one
-  we only know how to start. Code, not configuration - `common/games/apps.py` declares
-  them.
+  we only know how to start. Code, not configuration - `apps/` holds them, and
+  `common/apps/` is the contract they implement and the registry that finds them.
 - **Launcher** — a configured way of running an app: a name, a binary, an ini, its own
   `launcher.<id>` section. User data, and what a table names when it plays differently
   from the rest. One app, as many launchers as somebody wants.

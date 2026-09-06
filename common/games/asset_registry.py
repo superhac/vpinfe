@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from common import apps
 from common.games.media_service import IMAGE_EXTENSIONS
 from common.media_specs import MEDIA_SPECS, media_filename_map
 
@@ -52,7 +53,7 @@ def is_readme(name: str) -> bool:
 
 ASSET_SPECS = (
     # The file itself. Nothing launches without it.
-    AssetSpec("table", "Table", "casino", (".vpx",), False, False, False,
+    AssetSpec("table", "Table", "casino", apps.table_suffixes(), False, False, False,
               required_to_launch=True),
     AssetSpec("game_info", "Metadata", "description", (), True, False, False),
     AssetSpec("backglass", "Backglass", "wallpaper", (".directb2s",), True, False, False),
@@ -87,8 +88,8 @@ ASSET_SPECS = (
 _SPECS_BY_KIND = {spec.kind: spec for spec in ASSET_SPECS}
 
 # The kinds whose absence stops a table running, as opposed to making it worse.
-# The `.vpx` is the library rather than an accessory to it, so it is the one kind there
-# is no sense in a library saying it does not collect. Everything else is optional
+# The table file is the library rather than an accessory to it, so it is the one kind
+# there is no sense in a library saying it does not collect. Everything else is optional
 # including the ROM: an EM table declares none, and an all-EM library never wants the
 # column. Not `REQUIRED_KINDS` - required-ness belongs to a kind and whether it applies
 # belongs to a table, which is the distinction `launchable` exists to keep.

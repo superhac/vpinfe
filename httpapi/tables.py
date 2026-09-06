@@ -29,15 +29,14 @@ router = APIRouter(prefix="/tables", tags=["tables"])
 def list_apps() -> models.LaunchAppList:
     """What can launch something in this library, and which files each one claims.
 
-    One today. It is a route rather than a constant because a client showing an App
-    column should read the list rather than carry its own copy of it, and because the
-    day there are two is the day every hard-coded ".vpx" would have had to be found.
+    A route rather than a constant because a client showing an App column should read
+    the list rather than carry its own copy of it.
     """
-    from common.games import apps
+    from common import apps
 
     return {"apps": [{"id": app.id, "name": app.name,
-                      "suffixes": list(app.suffixes)}
-                     for app in apps.APPS]}
+                      "suffixes": list(app.claim.suffixes)}
+                     for app in apps.all_apps()]}
 
 
 @router.get("", summary="Every table in the library",

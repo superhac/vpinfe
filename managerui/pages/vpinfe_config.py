@@ -16,7 +16,6 @@ from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from common.games.collection_store import CollectionStore
 from common.host.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
-from common.host.launch import build_masked_tableini_path, build_vpx_launch_command
 from managerui import config_options
 from managerui.config_fields import is_checkbox_field
 from managerui.config_options import get_friendly_name
@@ -217,13 +216,17 @@ def render_panel(tab=None):
                             or '').strip()
         launch_env = str((held.value('launch_env') if held else '') or '').strip()
 
-        tableini_override = build_masked_tableini_path(sample_vpx, tableini_enabled, tableini_mask)
-        launcher = vpxbin or '<no launcher configured>'
-        command = build_vpx_launch_command(
-            launcher_path=launcher,
-            vpx_path=sample_vpx,
-            global_ini_override=global_ini_override,
-            tableini_override=tableini_override,
+        from common import apps
+
+        app = apps.get(held.app if held else '') or apps.default_app()
+        command = app.launch.command(
+            apps.Entry(table=sample_vpx),
+            {
+                'bin_path': vpxbin or '<no launcher configured>',
+                'ini_override': global_ini_override,
+                'table_ini_override_enabled': tableini_enabled,
+                'table_ini_override_mask': tableini_mask,
+            },
         )
         env_line = launch_env if launch_env else '(none)'
         return shlex.join(command), env_line

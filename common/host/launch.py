@@ -22,7 +22,7 @@ import sys
 import time
 from pathlib import Path
 
-from common import events
+from common import apps, events
 from common.config_access import VPinPlayConfig
 from common.games import game_play_service, launchers
 from common.games.tables import (
@@ -45,10 +45,6 @@ from common.online.vpinplay_service import sync_single_game_meta
 from common.paths import PLUGIN_PROFILES_DIR
 
 logger = logging.getLogger("vpinfe.common.host.launch")
-
-# VPX writes this once the table is actually up. Before it, the process exists but
-# the player is looking at nothing.
-STARTUP_MARKER = "Startup done"
 
 
 class LaunchUnavailableError(Exception):
@@ -163,23 +159,23 @@ def _launch_env(launcher) -> dict:
     return env
 
 
-def _command(vpx_path: str, binary: str, launcher) -> list[str]:
-    """The command line, from the launcher that is about to run it.
+def _plan(table: str, binary: str, launcher) -> tuple[list[str], str]:
+    """What to run, and what the app writes once it is actually up.
 
-    There is no precedence to resolve any more. A plugin profile and the global override
-    both drove VPX's single `-ini` and had to be ranked against each other; a launcher
-    carries one ini, and which launcher is playing already answered the question.
+    Both come from the app the launcher wraps. `bin_path` is overwritten with the
+    resolved executable, because what a person picked may be a macOS bundle and the app
+    is handed something it can spawn.
     """
-    return build_vpx_launch_command(
-        launcher_path=binary,
-        vpx_path=vpx_path,
-        global_ini_override=str(launcher.value("ini_override") or ""),
-        tableini_override=resolve_launch_tableini_override(
-            vpx_path,
-            launcher.value("table_ini_override_enabled"),
-            str(launcher.value("table_ini_override_mask") or ""),
-        ),
-    )
+    app = apps.get(getattr(launcher, "app", "")) or apps.default_app()
+    if app.launch is None:
+        raise LaunchUnavailableError(
+            f"{apps.app_name(app.id)} does not know how to start anything.")
+
+    settings = {declared.key: launcher.value(declared.key)
+                for declared in launcher.fields()}
+    settings["bin_path"] = binary
+    return (app.launch.command(apps.Entry(table=table), settings),
+            app.launch.session(settings).readiness_marker)
 
 
 def _record_play(game, ini_config, elapsed_seconds: float, profile, table: str = "") -> None:
@@ -278,7 +274,7 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
     # leaving the frontend with its input suppressed for the life of the process.
     try:
         launch_state.set_launching(getattr(game, "gameDirName", None), source=source)
-        cmd = _command(vpx_path, binary, launcher)
+        cmd, marker = _plan(vpx_path, binary, launcher)
         logger.info("Launching: %s", cmd)
         process = popen(
             cmd,
@@ -297,11 +293,17 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
         else:
             game_play_service.increment_start_count(game, os.path.basename(vpx_path))
 
-        # Draining stdout is not optional: the pipe fills and VPX blocks on a write
-        # if nobody reads it.
-        running = False
+        # An app that cannot say when it is up is up as soon as it is spawned. Waiting
+        # for a marker that will never come would leave the table launched and nothing
+        # ever told about it.
+        running = not marker
+        if running:
+            events.emit(events.TABLE_LAUNCHED, game=game, ini_config=ini_config)
+
+        # Draining stdout is not optional: the pipe fills and the child blocks on a
+        # write if nobody reads it.
         for line in process.stdout:
-            if not running and STARTUP_MARKER in line:
+            if not running and marker in line:
                 running = True
                 events.emit(events.TABLE_LAUNCHED, game=game, ini_config=ini_config)
                 logger.info("table running")
@@ -407,73 +409,3 @@ def parse_launch_env_overrides(raw_value: str) -> dict[str, str]:
     return parsed
 
 
-def _to_bool(value) -> bool:
-    if isinstance(value, bool):
-        return value
-    return str(value or "").strip().lower() in ("1", "true", "yes", "on")
-
-
-def build_masked_tableini_path(vpx_path: str, override_enabled, override_mask: str) -> str:
-    """
-    Build a masked table ini path for VPX -tableini override.
-
-    Pattern: {VPX_FILENAME_NO_EXT}.{MASK}.ini
-    Result path lives next to the source VPX file.
-    """
-    if not _to_bool(override_enabled):
-        return ""
-
-    mask = str(override_mask or "").strip()
-    if not mask:
-        logger.warning("Global tableini override enabled, but mask is empty; skipping -tableini")
-        return ""
-
-    vpx_file = Path(str(vpx_path or "").strip())
-    if not vpx_file.name:
-        return ""
-
-    masked_name = f"{vpx_file.stem}.{mask}.ini"
-    return str(vpx_file.with_name(masked_name))
-
-
-def resolve_launch_tableini_override(vpx_path: str, override_enabled, override_mask: str) -> str:
-    """
-    Resolve a tableini override for launch-time use.
-
-    Returns empty string when disabled, mask is empty, or the resolved ini file does not exist.
-    """
-    masked_path = build_masked_tableini_path(vpx_path, override_enabled, override_mask)
-    if not masked_path:
-        return ""
-
-    if not Path(masked_path).is_file():
-        logger.info("Masked tableini does not exist; skipping -tableini: %s", masked_path)
-        return ""
-
-    return masked_path
-
-
-def build_vpx_launch_command(
-    launcher_path: str,
-    vpx_path: str,
-    global_ini_override: str = "",
-    tableini_override: str = "",
-) -> list[str]:
-    """
-    Build VPX launch command and guarantee '-play <table>' is the last argument pair.
-
-    One ini, because there is only one source of it now. A plugin profile and the global
-    override both drove VPX's single -ini and had to be ranked against each other; a
-    launcher carries one, and which launcher is playing already answered it.
-    """
-    cmd = [str(launcher_path)]
-    ini_override = str(global_ini_override or "").strip()
-    if ini_override:
-        cmd.extend(["-ini", ini_override])
-
-    gameini = str(tableini_override or "").strip()
-    if gameini:
-        cmd.extend(["-tableini", gameini])
-
-    cmd.extend(["-play", str(vpx_path)])
-    return cmd

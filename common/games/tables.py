@@ -1,18 +1,14 @@
 """Tables: the launchable artifacts inside a game folder.
 
-A folder can hold several .vpx, so everything asks here which one is the default.
+A folder can hold several of them, so everything asks here which one is the default.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable
 
-from common.games import apps
+from common import apps
 from common.timestamps import iso_from_asctime, iso_from_authored_date
-
-# Kept because callers outside this module still name it. Which extensions make a file
-# a table is `apps.table_suffixes()` now - this is one app's, not the answer.
-VPX_SUFFIX = ".vpx"
 
 # One entry per .vpx, keyed by the table's id so a rename rewrites one field:
 #
@@ -133,7 +129,7 @@ def table_names(names: Iterable[str]) -> list[str]:
 
 
 def entry_filename(entry: dict | None) -> str:
-    """The .vpx an entry describes, or ""."""
+    """The file an entry describes, or ""."""
     if not isinstance(entry, dict):
         return ""
     return str(entry.get(TABLE_FILENAME_KEY, "") or "").strip()

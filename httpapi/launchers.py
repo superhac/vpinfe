@@ -20,7 +20,8 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from common.games import apps, launchers
+from common import apps
+from common.games import launchers
 
 from . import scopes
 from .auth import requires
@@ -69,9 +70,10 @@ def list_launchers() -> dict[str, Any]:
         "mappings": store.mappings(),
         "defaults": {app.id: getattr(launchers.default_for(app.id, held),
                                      "launcher_id", None)
-                     for app in apps.APPS},
-        "apps": [{"id": app.id, "name": app.name, "suffixes": list(app.suffixes)}
-                 for app in apps.APPS],
+                     for app in apps.all_apps()},
+        "apps": [{"id": app.id, "name": app.name,
+                  "suffixes": list(app.claim.suffixes)}
+                 for app in apps.all_apps()],
     }
 
 
@@ -88,10 +90,10 @@ def put_launcher(launcher_id: str, body: dict[str, Any] = Body(...)) -> dict[str
     if not wanted:
         raise InvalidRequestError("A launcher needs an id.")
     app_id = str(body.get("app") or "").strip()
-    if not any(app.id == app_id for app in apps.APPS):
+    if apps.get(app_id) is None:
         raise InvalidRequestError(
             f"No app called {app_id!r}. This build knows "
-            f"{', '.join(app.id for app in apps.APPS)}.")
+            f"{', '.join(app.id for app in apps.all_apps())}.")
 
     store = launchers.get_launcher_store()
     written = store.put(launchers.Launcher(

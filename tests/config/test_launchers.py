@@ -10,7 +10,8 @@ import os
 import unittest
 from tempfile import TemporaryDirectory
 
-from common.games import apps, launchers
+from apps.vpx import FIELDS as VPX_FIELDS
+from common.games import launchers
 
 
 def _launcher(launcher_id: str, **kwargs) -> launchers.Launcher:
@@ -206,7 +207,7 @@ class SeedTests(unittest.TestCase):
         quietly stopped using what it was configured with."""
         one = launchers.seeded_from(self.VALUES)
 
-        self.assertEqual(sorted(one.settings), sorted(f.key for f in apps.VPX_FIELDS))
+        self.assertEqual(sorted(one.settings), sorted(f.key for f in VPX_FIELDS))
 
 
 if __name__ == "__main__":

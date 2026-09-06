@@ -26,8 +26,8 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
+from common import apps
 from common.atomic_write import write_atomic
-from common.games import apps
 from common.install_identity import mint_id
 from common.paths import CONFIG_DIR
 
@@ -80,7 +80,7 @@ class Launcher:
 
     def fields(self) -> tuple[apps.Field, ...]:
         """What configuring this launcher takes, from the app it wraps."""
-        found = next((a for a in apps.APPS if a.id == self.app), None)
+        found = apps.get(self.app)
         return found.fields if found is not None else ()
 
     def as_dict(self) -> dict[str, Any]:

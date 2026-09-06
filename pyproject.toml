@@ -39,4 +39,4 @@ extend-immutable-calls = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["common", "frontend", "httpapi", "managerui"]
+known-first-party = ["apps", "common", "frontend", "httpapi", "managerui"]

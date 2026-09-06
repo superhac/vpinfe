@@ -19,9 +19,9 @@ from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse, Response
 
+from common import apps
 from common.config_access import MediaConfig
 from common.games import (
-    apps,
     asset_origin,
     asset_registry,
     asset_resolver,
@@ -358,8 +358,8 @@ def _tables(game, row: dict) -> list[dict]:
             # Which program plays it, from the registry rather than assumed. Today
             # every table is Visual Pinball's; the point is that the next one is a
             # registry entry and not a search for where ".vpx" was hard-coded.
-            "format": (apps.app_for(name) or apps.DEFAULT_APP).id,
-            "app": (apps.app_for(name) or apps.DEFAULT_APP).id,
+            "format": (apps.app_for(name) or apps.default_app()).id,
+            "app": (apps.app_for(name) or apps.default_app()).id,
             # Which launcher actually plays it, and whether that was chosen here or
             # followed from the default. Resolved rather than read off the assignment,
             # because a table naming one that is switched off falls back - and what a

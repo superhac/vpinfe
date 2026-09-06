@@ -72,8 +72,16 @@ class TableLensTests(_Lens):
 
     def test_the_apps_that_play_a_table_are_listed(self) -> None:
         body = self.client.get("/tables/apps").json()
-        self.assertEqual([app["id"] for app in body["apps"]], ["vpx"])
+        self.assertEqual([app["id"] for app in body["apps"]], ["vpx", "generic"])
         self.assertIn(".vpx", body["apps"][0]["suffixes"])
+
+    def test_generic_claims_nothing_by_extension(self) -> None:
+        """It is listed as something to configure, never as something that could take a
+        table away from the app that understands it."""
+        body = self.client.get("/tables/apps").json()
+        generic = next(app for app in body["apps"] if app["id"] == "generic")
+
+        self.assertEqual(generic["suffixes"], [])
 
     def test_every_table_says_which_app_plays_it(self) -> None:
         self.assertEqual({row["app"] for row in self._rows()}, {"vpx"})
