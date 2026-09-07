@@ -625,6 +625,18 @@ class ApiClient:
         return dict(self._get(
             f"/launchers/{launcher_id}/config?table={table}&scope={scope}") or {})
 
+    def config_backups(self, launcher_id: str) -> dict:
+        """Copies of the file this launcher's app keeps its settings in."""
+        return dict(self._get(f"/launchers/{launcher_id}/config/backups") or {})
+
+    def take_config_backup(self, launcher_id: str, label: str = "") -> dict:
+        return dict(self._post(f"/launchers/{launcher_id}/config/backups",
+                               {"label": label}) or {})
+
+    def restore_config_backup(self, launcher_id: str, name: str) -> dict:
+        return dict(self._post(
+            f"/launchers/{launcher_id}/config/backups/{name}/restore", {}) or {})
+
     def folder_settings_reaching(self, launcher_id: str, table: str) -> dict:
         """What a folder currently gives this table, for the confirm shown before a
         table takes settings of its own."""

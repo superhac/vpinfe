@@ -345,6 +345,15 @@ class Library:
         return dict(self._client.launcher_config(
             launcher_id, table, scope).get("values") or {})
 
+    def config_backups(self, launcher_id: str) -> dict:
+        return self._client.config_backups(launcher_id)
+
+    def take_config_backup(self, launcher_id: str, label: str = "") -> dict:
+        return self._client.take_config_backup(launcher_id, label)
+
+    def restore_config_backup(self, launcher_id: str, name: str) -> dict:
+        return self._client.restore_config_backup(launcher_id, name)
+
     def folder_settings_reaching(self, launcher_id: str, table: str) -> dict:
         return self._client.folder_settings_reaching(launcher_id, table)
 

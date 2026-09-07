@@ -3092,6 +3092,7 @@ async def _launcher_actions(context: dict[str, Any]) -> None:
             reload_page()
 
     with ui.column().classes("gap-2 console-form px-3 py-2"):
+        await _config_backups(context, launcher)
         with ui.row().classes("items-center gap-2 no-wrap"):
             ui.button("Duplicate",
                       on_click=lambda: launchers_page.duplicate(
@@ -3109,6 +3110,104 @@ async def _launcher_actions(context: dict[str, Any]) -> None:
             if only_one:
                 remove.disable()
                 remove.tooltip("The only launcher this install has.")
+
+
+# How many copies to list. The rest are still there; a list nobody scrolls is a list
+# nobody reads, and the one somebody wants is almost always the last one taken.
+BACKUPS_SHOWN = 8
+
+# Why a copy was taken, in the words somebody would use.
+BACKUP_REASONS = {"manual": "Taken by you", "before-restore": "Before a restore"}
+
+
+async def _config_backups(context: dict[str, Any], launcher: dict) -> None:
+    """Copies of the file the app keeps its settings in.
+
+    A copy of what is there now is taken before any restore, so putting the wrong one
+    back is something to undo rather than something to regret.
+    """
+    library = context["library"]
+    if not _app_keeps_settings(context):
+        return
+    try:
+        found = await run.io_bound(library.config_backups, launcher["launcher_id"])
+    except Exception as exc:  # noqa: BLE001
+        panel.facts(ui, [panel.note(f"Could not read the copies: {exc}")])
+        return
+
+    held = list(found.get("backups") or [])
+    playing = bool(context.get("playing"))
+
+    async def take() -> None:
+        try:
+            await run.io_bound(library.take_config_backup, launcher["launcher_id"], "")
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(f"Could not take a copy: {exc}", type="negative")
+            return
+        ui.notify("Copied", type="positive")
+        await context["rebuild"]()
+
+    async def put_back(name: str) -> None:
+        if not await confirm.ask(
+                "Put this copy back?",
+                detail="A copy of the settings as they are now is taken first, so this "
+                       "can be undone.",
+                confirm="Restore"):
+            return
+        try:
+            await run.io_bound(library.restore_config_backup,
+                               launcher["launcher_id"], name)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(f"Could not put it back: {exc}", type="negative")
+            return
+        ui.notify("Restored", type="positive")
+        await context["rebuild"]()
+
+    entries: list[tuple[Any, Any]] = [(HEADING, "Settings file")]
+    entries.append(("Copies", _take_backup(take, playing)))
+    if not held:
+        entries.append(panel.note(
+            "No copies yet. One is taken automatically before any restore."))
+    for one in held[:BACKUPS_SHOWN]:
+        entries.append((_backup_when(one), _restore_backup(one, put_back, playing)))
+    if len(held) > BACKUPS_SHOWN:
+        entries.append(panel.note(
+            f"{len(held) - BACKUPS_SHOWN} older, kept on disk."))
+    _rows(ui, entries)
+
+
+def _app_keeps_settings(context: dict[str, Any]) -> bool:
+    return bool(context.get("config_groups")) or _program_is_there(context)
+
+
+def _backup_when(one: dict) -> str:
+    """When it was taken, as a person reads a date, with why beside it."""
+    stamp = str(one.get("taken_at") or "")
+    said = f"{stamp[:10]} {stamp[11:16]}" if len(stamp) >= 16 else (stamp or "Unknown")
+    label = str(one.get("label") or "")
+    return f"{said} - {label}" if label else said
+
+
+def _take_backup(take: Callable, playing: bool) -> Callable[[], None]:
+    def draw() -> None:
+        panel.action("Copy the settings now", take, inline=True, enabled=not playing,
+                     hint=PLAYING_NOTE if playing else "")()
+    return draw
+
+
+def _restore_backup(one: dict, put_back: Callable, playing: bool) -> Callable[[], None]:
+    reason = BACKUP_REASONS.get(str(one.get("reason") or ""), "")
+
+    async def go() -> None:
+        await put_back(str(one.get("name") or ""))
+
+    def draw() -> None:
+        with ui.row().classes("items-center gap-2 no-wrap"):
+            if reason:
+                panel.state(reason, "off")()
+            panel.action("Put back", go, inline=True, enabled=not playing,
+                         hint=PLAYING_NOTE if playing else "")()
+    return draw
 
 
 async def _location_details(context: dict[str, Any]) -> None:

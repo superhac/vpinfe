@@ -241,6 +241,71 @@ def write_launcher_config(launcher_id: str,
     return {"written": sorted(str(k) for k in values)}
 
 
+def _config_files(launcher: launchers.Launcher) -> dict[str, str]:
+    config = _config_of(launcher)
+    naming = getattr(config, "files", None)
+    return dict(naming(_launcher_settings(launcher))) if naming else {}
+
+
+def _as_backup(one) -> dict[str, Any]:
+    return {"name": one.name, "taken_at": one.taken_at, "reason": one.reason,
+            "label": one.label, "size": one.size}
+
+
+@router.get("/{launcher_id}/config/backups", summary="Copies of its settings file",
+            dependencies=[requires(scopes.CONFIG_READ)])
+def list_config_backups(launcher_id: str) -> dict[str, Any]:
+    found = launchers.get_launcher_store().get(launcher_id)
+    if found is None:
+        raise NotFoundError(f"No launcher called {launcher_id!r}.")
+    from common.games import config_backups
+
+    return {"backups": [_as_backup(one) for one in config_backups.held(launcher_id)],
+            "files": _config_files(found)}
+
+
+@router.post("/{launcher_id}/config/backups", summary="Take a copy of it now",
+             dependencies=[requires(scopes.CONFIG_WRITE)])
+def take_config_backup(launcher_id: str,
+                       body: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+    found = launchers.get_launcher_store().get(launcher_id)
+    if found is None:
+        raise NotFoundError(f"No launcher called {launcher_id!r}.")
+    files = _config_files(found)
+    if not files:
+        raise InvalidRequestError(
+            f"{apps.app_name(found.app)} keeps no settings file to copy.")
+    from common.games import config_backups
+
+    taken = config_backups.take(launcher_id, files,
+                                label=str(body.get("label") or ""))
+    if not taken:
+        raise InvalidRequestError(
+            "Nothing to copy yet: the file this launcher names is not there.")
+    return {"taken": [_as_backup(one) for one in taken]}
+
+
+@router.post("/{launcher_id}/config/backups/{name}/restore",
+             summary="Put a copy back",
+             dependencies=[requires(scopes.CONFIG_WRITE)])
+def restore_config_backup(launcher_id: str, name: str) -> dict[str, Any]:
+    """A copy of what is there now is taken first. Restoring the wrong one is a mistake
+    somebody makes once, and without that copy it is the last one they get to make."""
+    found = launchers.get_launcher_store().get(launcher_id)
+    if found is None:
+        raise NotFoundError(f"No launcher called {launcher_id!r}.")
+    from common.games import config_backups
+
+    try:
+        safety = config_backups.restore(launcher_id, name, _config_files(found))
+    except FileNotFoundError as exc:
+        raise NotFoundError(str(exc)) from exc
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc)) from exc
+    return {"restored": name,
+            "safety_copy": _as_backup(safety) if safety else None}
+
+
 @router.delete("/{launcher_id}", summary="Forget a launcher",
                dependencies=[requires(scopes.CONFIG_WRITE)])
 def delete_launcher(launcher_id: str) -> dict[str, Any]:

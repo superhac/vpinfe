@@ -192,6 +192,13 @@ class ConfigValue:
 
 @runtime_checkable
 class Config(Protocol):
+    """An app's own configuration, and where it keeps it.
+
+    `files` names them; copying one somewhere safe is core's, which owns moving files
+    for every kind already. Only the app knows which file its settings are in, and only
+    core should be deciding where a copy of one goes.
+    """
+
     def groups(self, settings: Mapping[str, Any]) -> tuple[ConfigGroup, ...]: ...
 
     def scopes(self) -> tuple[str, ...]: ...
@@ -201,6 +208,8 @@ class Config(Protocol):
 
     def write(self, scope: str, target: str, values: Mapping[str, str],
               settings: Mapping[str, Any]) -> None: ...
+
+    def files(self, settings: Mapping[str, Any]) -> dict[str, str]: ...
 
 
 # --- kinds ------------------------------------------------------------------------

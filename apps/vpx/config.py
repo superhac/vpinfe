@@ -240,6 +240,16 @@ class VPXConfig:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(vini.written(held, dict(values)), encoding="utf-8")
 
+    def files(self, settings: Mapping[str, Any]) -> dict[str, str]:
+        """The files this launcher's settings live in, named for a person.
+
+        The application layer only. A table's own file sits beside its game file and
+        travels with it; this is the one that belongs to the launcher and would be lost
+        with it.
+        """
+        found = _app_ini(settings)
+        return {"Application settings": str(found)} if found else {}
+
     def inherited_from_folder(self, target: str,
                               settings: Mapping[str, Any]) -> dict[str, str]:
         """What a folder file is currently giving this table, for the confirm that has
