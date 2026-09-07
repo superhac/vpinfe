@@ -49,6 +49,7 @@ from console import (
     table_features,
 )
 from console import devices as devices_page
+from console import locations as locations_page
 from console.api import ApiError
 from console.data import Library
 
@@ -463,6 +464,53 @@ async def build_collection(container: ui.column, title: ui.column, library: Libr
         if state["build_seq"] != mine:
             return
         await _draw_collection(container, title, library, name, state)
+
+
+async def build_location(container: ui.column, title: ui.column, library: Library,
+                         location_id: str | None,
+                         state: dict[str, Any] | None = None) -> None:
+    """The panel, for a location rather than a game.
+
+    Its own entry point for the reason a collection has one: a location has no game, no
+    tables and no media lens, so everything `build` assembles would be a chain of empty
+    values threaded through to sections that never read them.
+    """
+    state = state if state is not None else {}
+    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
+    state["build_seq"] = mine = state.get("build_seq", 0) + 1
+    async with lock:
+        if state["build_seq"] != mine:
+            return
+        await _draw_location(container, title, library, location_id, state)
+
+
+async def _draw_location(container: ui.column, title: ui.column, library: Library,
+                         location_id: str | None, state: dict[str, Any]) -> None:
+    if not location_id:
+        _blank(container, title, "Location", "Select a location")
+        return
+    # Read fresh rather than from the grid's copy: reachable and writable are answers
+    # about this moment, and the panel is where they are acted on.
+    found = await run.io_bound(library.locations)
+    row = next((one for one in (found.get("locations") or [])
+                if one.get("location_id") == location_id), None)
+    if row is None:
+        _blank(container, title, "Location", "No longer in this install")
+        return
+
+    container.clear()
+    title.clear()
+    with container:
+        _title(title, row.get("name") or "",
+               locations_page.KIND_LABELS.get(str(row.get("kind") or "root"), "Location"))
+        context: dict[str, Any] = {"library": library, "location": row, "state": state,
+                                   "redraws": [], "dock": None}
+
+        async def rebuild() -> None:
+            await build_location(container, title, library, location_id, state)
+
+        context["rebuild"] = rebuild
+        await _rail(context, "location", state)
 
 
 async def build_device(container: ui.column, title: ui.column, library: Library,
@@ -2564,6 +2612,92 @@ async def _device_actions(context: dict[str, Any]) -> None:
         _rows(ui, await devices_page.action_rows(context))
 
 
+async def _location_details(context: dict[str, Any]) -> None:
+    """What the location is, and what the disk says about it."""
+    row = context["location"]
+    library = context["library"]
+    rebuild = context["rebuild"]
+
+    async def write(**changes: Any) -> None:
+        body = {"path": row["path"], "kind": row["kind"], **changes}
+        try:
+            await run.io_bound(library.put_location, row["location_id"], body)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(f"Could not save it: {exc}", type="negative")
+            return
+        await rebuild()
+
+    async def save_path(text: str) -> None:
+        wanted = str(text or "").strip()
+        if wanted and wanted != row["path"]:
+            await write(path=wanted)
+
+    async def save_kind(event: Any) -> None:
+        wanted = str(getattr(event, "value", "") or "root")
+        if wanted != row["kind"]:
+            await write(kind=wanted)
+
+    entries: list[tuple[Any, Any]] = [
+        (HEADING, "This location"),
+        ("Folder", panel.field(
+            row["path"], save_path,
+            status=panel.value_state("ok" if row["reachable"] else "missing",
+                                     row["reason"]))),
+        ("Contains", panel.select(locations_page.KIND_LABELS, row["kind"], save_kind)),
+        ("State", _location_state(row)),
+        ("New games", _location_write_to(context, row)),
+    ]
+    with ui.column().classes("gap-0 console-form"):
+        _rows(ui, entries)
+        _location_actions(context, row)
+
+
+def _location_state(row: dict[str, Any]) -> Callable[[], None]:
+    if not row["reachable"]:
+        return panel.state("Unreachable", "bad", beside=row["reason"])
+    if not row["writable"]:
+        return panel.state("Read-only", "warn", beside=row["reason"])
+    return panel.state("Ready", "on")
+
+
+def _location_write_to(context: dict[str, Any],
+                       row: dict[str, Any]) -> Callable[[], None]:
+    """A choice rather than a switch: exactly one location holds it, and a switch on
+    every row would let somebody turn two on and expect both."""
+    if row["write_to"]:
+        return panel.state("Created here", "on")
+
+    async def choose() -> None:
+        try:
+            await run.io_bound(context["library"].set_location_write_to,
+                               row["location_id"])
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(f"Could not point it here: {exc}", type="negative")
+            return
+        await context["rebuild"]()
+
+    reason = ""
+    if row["kind"] != "root":
+        reason = "A single game folder has no room for another game."
+    elif not row["writable"]:
+        reason = row["reason"] or "Nothing can be written here."
+    return panel.action("Create new games here", choose,
+                        enabled=row["writable"] and row["kind"] == "root", hint=reason)
+
+
+def _location_actions(context: dict[str, Any], row: dict[str, Any]) -> None:
+    async def forget() -> None:
+        if await locations_page.remove(context["library"], row):
+            context["state"]["location"] = ""
+            reload_page = context["state"].get("rerender")
+            if callable(reload_page):
+                reload_page()
+
+    with ui.row().classes("items-center gap-2 no-wrap px-3 py-2"):
+        ui.button("Remove", on_click=forget) \
+            .props("flat dense no-caps size=sm color=negative")
+
+
 async def _collection_details(context: dict[str, Any]) -> None:
     """What the collection is, rather than what is in it."""
     row = _collection(context)
@@ -3580,6 +3714,8 @@ SECTIONS: tuple[Section, ...] = (
     Section("assets", _assets_label, _assets_block),
     # Two, not three. A rule and what it matches are one thing to look at, so the rule
     # sits in the browse region and the result in the dock beside it.
+    Section("location_details", lambda _: "Details", _location_details,
+            subjects=frozenset({"location"})),
     Section("collection_details", lambda _: "Details", _collection_details,
             subjects=frozenset({"collection"})),
     Section("collection_contents", _contents_label, _collection_contents,

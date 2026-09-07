@@ -522,13 +522,15 @@ def local_trouble() -> list[Any]:
     answerable by the machine holding it, and this is that machine. Its launchers go with
     it, because whether a table can be played is now a question about one of them.
     """
-    from common.games import launchers
+    from common.games import launchers, locations
     from common.paths import get_ini_config
 
     store = launchers.get_launcher_store()
+    held = locations.configured()
     return feature_checks.unmet(
         get_ini_config(),
-        launcher=launchers.default_for("vpx", store.launchers()))
+        launcher=launchers.default_for("vpx", store.launchers()),
+        locations=[(one, locations.state_of(one)) for one in held])
 
 
 def build_library_page(library, rerender: Callable[[], None], key: str,

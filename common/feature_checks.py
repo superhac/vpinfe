@@ -24,16 +24,17 @@ from common.config_access import cfg_get
 # and has no section and key to name.
 WHERE_SETTINGS = "settings"
 WHERE_LAUNCHERS = "launchers"
+WHERE_LOCATIONS = "locations"
 
 # What each feature needs before it can do its job. These happen to be paths, which is not
 # a rule - a requirement is anything a feature cannot work without.
 REQUIREMENTS: dict[str, tuple[tuple[str, str], ...]] = {
-    # Curating a library needs somewhere to find the games.
-    install_identity.LIBRARY: (("general", "game_root_dir"),),
-    # Launching needs the games. Something to launch them *with* is not here: that is a
-    # launcher rather than a setting, and it is checked below against the launcher the
-    # install would actually use.
-    install_identity.FRONTEND: (("general", "game_root_dir"),),
+    # Curating a library needs somewhere to find the games, which is a location rather
+    # than a setting now and is checked below against the ones the install actually has.
+    install_identity.LIBRARY: (),
+    # Launching needs the games, and something to launch them *with*. Neither is a
+    # setting: both are objects, and both are checked below.
+    install_identity.FRONTEND: (),
     # Managing other installs needs nothing of its own: it reaches them over the network,
     # and an address it cannot reach is that device's row to report, not a setting here.
     install_identity.DEVICES: (),
@@ -77,7 +78,8 @@ def _option(section: str, key: str):
 NOT_ASKED = object()
 
 
-def unmet(config, features=None, launcher=NOT_ASKED) -> list[Unmet]:
+def unmet(config, features=None, launcher=NOT_ASKED,
+          locations=NOT_ASKED) -> list[Unmet]:
     """Every requirement the enabled features do not satisfy, in feature order.
 
     One entry per (feature, setting), so a setting two features both need is reported
@@ -104,11 +106,40 @@ def unmet(config, features=None, launcher=NOT_ASKED) -> list[Unmet]:
                 reason = f"{option.label} is not set."
             found.append(Unmet(feature=feature, section=section, key=key,
                                state=state, reason=reason))
-    for extra in (_no_working_launcher(on, launcher),
+    for extra in (*_no_reachable_location(on, locations),
+                  _no_working_launcher(on, launcher),
                   _no_library_to_read(config, on)):
         if extra is not None:
             found.append(extra)
     return found
+
+
+def _no_reachable_location(on, found) -> tuple[Unmet, ...]:
+    """A library with nowhere to read, or nowhere it can currently reach.
+
+    Reported against every feature that needs one, because the person is looking at one
+    feature's page and needs to know that page is affected. Handed the resolved locations
+    for the reason the launcher is: this module may not reach into a domain package, and
+    passing the answer keeps the resolution in the one place that owns it.
+
+    One unreachable location among several is that row's business, not a fault in the
+    install - the library still has the others. Nothing reachable at all is the fault.
+    """
+    wants = [f for f in (install_identity.LIBRARY, install_identity.FRONTEND) if f in on]
+    if not wants or found is NOT_ASKED:
+        return ()
+
+    held = list(found or [])
+    if not held:
+        reason = "This install has no location, so there is nowhere to find games."
+    elif not any(state.reachable for state in (one[1] for one in held)):
+        reason = ("None of this install's locations can be reached. A share that has "
+                  "not mounted is the usual cause.")
+    else:
+        return ()
+    return tuple(Unmet(feature=feature, section="", key="", state=path_checks.UNSET,
+                       reason=reason, where=WHERE_LOCATIONS)
+                 for feature in wants)
 
 
 def _no_working_launcher(on, found) -> Unmet | None:

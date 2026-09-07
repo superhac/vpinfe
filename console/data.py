@@ -310,6 +310,20 @@ class Library:
         show the value that was there before the edit that just happened."""
         return self._client.launchers()
 
+    def locations(self) -> dict:
+        """Read fresh every time, for the reason launchers are - this page edits it, and
+        what the disk says can change without anybody editing anything."""
+        return self._client.locations()
+
+    def put_location(self, location_id: str, body: dict) -> dict:
+        return self._client.put_location(location_id, body)
+
+    def delete_location(self, location_id: str) -> None:
+        self._client.delete_location(location_id)
+
+    def set_location_write_to(self, location_id: str) -> dict:
+        return self._client.set_location_write_to(location_id)
+
     def put_launcher(self, launcher_id: str, body: dict) -> dict:
         return self._client.put_launcher(launcher_id, body)
 

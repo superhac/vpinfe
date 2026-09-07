@@ -601,6 +601,24 @@ class ApiClient:
         return dict(self._put(f"/launchers/mappings/{table_id}",
                               {"launcher_id": launcher_id}) or {})
 
+    def locations(self) -> dict:
+        """Every location, with what the disk says about each one right now.
+
+        Read fresh every time: reachable and writable are answers about this moment, and
+        a cache would show that a share was mounted before it dropped.
+        """
+        return dict(self._get("/locations") or {})
+
+    def put_location(self, location_id: str, body: dict) -> dict:
+        return dict(self._put(f"/locations/{location_id}", body) or {})
+
+    def delete_location(self, location_id: str) -> None:
+        self._delete(f"/locations/{location_id}")
+
+    def set_location_write_to(self, location_id: str) -> dict:
+        """Where a new game's folder is created."""
+        return dict(self._put(f"/locations/{location_id}/write-to", {}) or {})
+
     def config_schema(self) -> list[dict]:
         """Every setting this install has, sectioned. Read from the install rather than
         carried here, so a client cannot offer a setting the install does not have."""

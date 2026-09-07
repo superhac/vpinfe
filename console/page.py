@@ -15,6 +15,7 @@ from console import collections as collections_page
 from console import deeplink, games, grid, sections, tageditor, theme, views, workbench
 from console import devices as devices_page
 from console import launchers as launchers_page
+from console import locations as locations_page
 from console import logs as logs_page
 from console import media as media_page
 from console import metrics as metrics_page
@@ -96,14 +97,18 @@ NavItem = tuple[str, str, str, str]
 NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] = (
     (None, (("overview", "Overview", "space_dashboard", install_identity.OVERVIEW),)),
     # Media sits with the grains of the library it is one of, ahead of the two that
-    # organize it rather than being part of it.
+    # organize it rather than being part of it. Locations is last: it is where the rest
+    # comes from, but it is touched at setup and when a share breaks, and the first entry
+    # here is also the Console's front door.
     (NAV_PARENT, (("games", "Games", "sports_esports", install_identity.LIBRARY),
                   ("tables", "Tables", "casino", install_identity.LIBRARY),
                   ("media", "Media", "perm_media", install_identity.LIBRARY),
                   ("assets", "Assets", "widgets", install_identity.LIBRARY),
                   ("collections", "Collections", "collections_bookmark",
                    install_identity.LIBRARY),
-                  ("tags", "Tags", "sell", install_identity.LIBRARY))),
+                  ("tags", "Tags", "sell", install_identity.LIBRARY),
+                  ("locations", "Locations", "folder_open",
+                   install_identity.LIBRARY))),
     # Subjects, not settings: both are collections of objects with per-row actions,
     # which is not what a page of (label, value) pairs does. The frontend's *settings*
     # stay in Settings, the way media's do - one holds things, the other holds values.
@@ -152,6 +157,7 @@ SECTIONS = {
     "games": "Games",
     "tables": "Tables",
     "tags": "Tags",
+    "locations": "Locations",
     "collections": "Collections",
     "media": "Media",
     "assets": "Assets",
@@ -203,6 +209,7 @@ EMPTY_PANE = {
     "media": ("Media", "Select a kind of media"),
     "assets": ("Assets", "Select a kind of file"),
     "devices": ("Device", "Select a device"),
+    "locations": ("Location", "Select a location"),
 }
 
 # The pages the pane has a role on. Media is one of them: a row is one game's slot, so
@@ -735,6 +742,15 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         await workbench.build_collection(panel, workbench_title, library,
                                          state["collection"], state)
 
+    async def show_location(row: dict | None) -> None:
+        """What the grid has selected is what the workbench is about - the same rule
+        Games and Collections follow, so the panel needs no control of its own."""
+        if row and not state["workbench"]:
+            show_workbench(True)
+        state["location"] = (row or {}).get("id")
+        await workbench.build_location(panel, workbench_title, library,
+                                       state["location"], state)
+
     def clear_workbench() -> None:
         """Empty the pane. Sync, so render() can call it without awaiting a rebuild."""
         workbench_title.clear()
@@ -817,6 +833,9 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                                    local_device_id=discovery.get("install_id"))
             elif view == "settings":
                 settings_page.build_system(library, state, redraw, discovery)
+            elif view == "locations":
+                state["rerender"] = redraw
+                locations_page.build(library, state, show_location, redraw)
             elif view == "launchers":
                 # Copying to other machines is offered only where this install manages
                 # them, and it needs to know which row is itself.
@@ -842,13 +861,19 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         items = state.get("trouble") or []
         # Split by where the fix is: a launcher that cannot run is not fixed on a
         # settings page, and a badge that leads to the wrong place is worse than none.
+        # Named rather than "everything that is not a launcher": a `where` added later
+        # would otherwise land on Settings by default, which is the wrong place by
+        # definition - it is somewhere else precisely because Settings cannot fix it.
         at_settings = [one for one in items
-                       if one.where != feature_checks.WHERE_LAUNCHERS]
+                       if one.where == feature_checks.WHERE_SETTINGS]
         at_launchers = [one for one in items
                         if one.where == feature_checks.WHERE_LAUNCHERS]
+        at_locations = [one for one in items
+                        if one.where == feature_checks.WHERE_LOCATIONS]
         _mark_trouble(badges.get("system"), items)
         _mark_trouble(badges.get("settings"), at_settings)
         _mark_trouble(badges.get("launchers"), at_launchers)
+        _mark_trouble(badges.get("locations"), at_locations)
 
     def _mark_trouble(badge, items) -> None:
         """Red, and a count rather than the warm one beside Devices: an update waiting is

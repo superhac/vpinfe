@@ -123,7 +123,10 @@ class SchemaShapeTests(unittest.TestCase):
                                     ("install", "id"),
                                     ("general", "hidden_media_kinds"),
                                     ("general", "hidden_asset_kinds"),
-                                    ("media", "asset_sources")})
+                                    ("media", "asset_sources"),
+                                    # `locations.json` holds this now, for the same
+                                    # reason and on the same terms.
+                                    ("general", "game_root_dir")})
         self.assertNotIn(("State", "last_game"),
                          {(e.section, e.key) for e in config_schema.settable()})
 

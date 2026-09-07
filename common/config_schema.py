@@ -304,6 +304,10 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     # file once. What is left here belongs to the install itself.
     *in_section(
         "general",
+        # `locations.json` holds this now, because a library can be in more than one
+        # place and a single string cannot say so. Kept and internal rather than
+        # deleted: a value still in a file has to keep resolving, and it is what the
+        # first run seeds the locations from.
         ConfigOption(
             "game_root_dir",
             group="Where things are",
@@ -313,6 +317,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             label="Tables Directory",
             description="The folder holding your table folders, one folder per game.",
             aliases=("gamerootdir",),
+            internal=True,
         ),
         ConfigOption(
             "hidden_media_kinds",

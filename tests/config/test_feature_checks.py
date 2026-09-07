@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 
 from common import feature_checks, install_identity, path_checks
 from common.games.launchers import Launcher
+from common.games.locations import Location, state_of
 
 
 class RequirementTests(unittest.TestCase):
@@ -36,6 +37,12 @@ class RequirementTests(unittest.TestCase):
         about that path and not about the library as well."""
         return self._config(library_url="http://elsewhere:8001", **general)
 
+    def _locations(self, *paths: str):
+        """The locations the install has, resolved the way the caller resolves them."""
+        held = [Location(location_id=f"loc{n}", path=path)
+                for n, path in enumerate(paths)]
+        return [(one, state_of(one)) for one in held]
+
     def _launcher_for(self, bin_path: str | None):
         """What the install would launch with. None means it has no launcher at all."""
         if bin_path is None:
@@ -43,10 +50,12 @@ class RequirementTests(unittest.TestCase):
         return Launcher(launcher_id="l1", app="vpx", display_name="Visual Pinball X",
                         settings={"bin_path": bin_path})
 
-    def _unmet(self, config, features, bin_path="__ok__"):
+    def _unmet(self, config, features, bin_path="__ok__", locations="__ok__"):
         found = self._launcher_for(self.launcher if bin_path == "__ok__" else bin_path)
+        held = self._locations(self.games) if locations == "__ok__" else locations
         return [(u.feature, u.key or u.where, u.state)
-                for u in feature_checks.unmet(config, features, launcher=found)]
+                for u in feature_checks.unmet(config, features, launcher=found,
+                                              locations=held)]
 
     def test_a_fully_configured_install_reports_nothing(self) -> None:
         config = self._config(game_root_dir=self.games)
@@ -71,14 +80,28 @@ class RequirementTests(unittest.TestCase):
 
         self.assertEqual(feature_checks.unmet(config, ["library"]), [])
 
-    def test_a_setting_two_features_need_is_reported_against_each(self) -> None:
+    def test_a_requirement_two_features_need_is_reported_against_each(self) -> None:
         """Somebody is looking at one feature's page and needs to know that page is
-        affected - not that some other feature is also unhappy about the same setting."""
+        affected - not that some other feature is also unhappy about the same thing."""
         config = self._config()
 
-        self.assertEqual(self._unmet(config, ["library", "frontend"]),
-                         [("library", "game_root_dir", path_checks.UNSET),
-                          ("frontend", "game_root_dir", path_checks.UNSET)])
+        self.assertEqual(self._unmet(config, ["library", "frontend"], locations=[]),
+                         [("library", feature_checks.WHERE_LOCATIONS, path_checks.UNSET),
+                          ("frontend", feature_checks.WHERE_LOCATIONS,
+                           path_checks.UNSET)])
+
+    def test_one_location_among_several_being_unreachable_is_not_a_fault(self) -> None:
+        """That row's business, not the install's: the library still has the others."""
+        held = self._locations(self.games, os.path.join(self.tmp.name, "never-mounted"))
+
+        self.assertEqual(self._unmet(self._config(), ["library"], locations=held), [])
+
+    def test_nothing_reachable_at_all_is_a_fault(self) -> None:
+        held = self._locations(os.path.join(self.tmp.name, "never-mounted"))
+
+        self.assertEqual(self._unmet(self._config(), ["library"], locations=held),
+                         [("library", feature_checks.WHERE_LOCATIONS,
+                           path_checks.UNSET)])
 
     def test_a_path_that_is_set_and_wrong_is_not_the_same_as_unset(self) -> None:
         """The reason differs, and so does the fix: one is 'fill this in', the other is
@@ -131,11 +154,12 @@ class RequirementTests(unittest.TestCase):
                 self.assertTrue(item.reason.strip(), f"{item.key} gave no reason")
 
     def test_features_in_trouble_names_them_once(self) -> None:
+        """A frontend with no library to read and no launcher is in trouble twice, and
+        is named once."""
         config = self._config()
 
-        self.assertEqual(feature_checks.features_in_trouble(config,
-                                                            ["library", "frontend"]),
-                         {"library", "frontend"})
+        self.assertEqual(feature_checks.features_in_trouble(config, ["frontend"]),
+                         {"frontend"})
 
 
 if __name__ == "__main__":

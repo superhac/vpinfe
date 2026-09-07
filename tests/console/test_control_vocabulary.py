@@ -38,6 +38,9 @@ BUDGET = {
                              "opens - not a fact row, and the row it belongs to is "
                              "already a strip of chips"),
     "collections.py": (1, "the name field in the new-collection dialog"),
+    "locations.py": (1, "the folder field in the add-a-location dialog, which is asked "
+                        "up front because a location with no folder set reads as "
+                        "unreachable - the same words a dropped share uses"),
     "tageditor.py": (1, "the inline tag field, which is the editor itself"),
 }
 

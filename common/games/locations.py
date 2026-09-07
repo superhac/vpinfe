@@ -67,8 +67,13 @@ class Location:
 
     @property
     def name(self) -> str:
-        """What to call it when there is nowhere to show the whole path."""
-        return Path(self.path).name or self.path
+        """What to call it where the whole path will not fit.
+
+        The last two segments, not the last one: a library is very often a folder called
+        `tables` or `games`, and two of those side by side would draw the same row twice.
+        """
+        parts = [p for p in Path(self.path).parts if p not in ("/", "\\")]
+        return "/".join(parts[-2:]) if len(parts) > 1 else (parts[0] if parts else self.path)
 
     def as_dict(self) -> dict[str, str]:
         return {"location_id": self.location_id, "path": self.path, "kind": self.kind}
@@ -97,7 +102,9 @@ def state_of(location: Location) -> LocationState:
     """Asked of the disk every time. A late mount is the ordinary case here, and the
     honest report is "this location is unreachable" rather than every entry in it
     reading as gone."""
-    path = Path(location.path)
+    # Resolved the same way `canonical` resolves it. Reading the raw string would call
+    # `~/tables` unreachable while the scan happily walked it.
+    path = Path(canonical(location.path) or location.path)
     if not path.exists():
         return LocationState(False, False, "Not reachable.")
     if not path.is_dir():
@@ -261,11 +268,15 @@ CONFIGURED_ID = "configured"
 def configured() -> list[Location]:
     """Every location the scan walks.
 
-    Still the one configured root. The store above is written and not read: the field
-    somebody edits today is the configured root, and it has to keep working until there
-    is somewhere else to edit this. This function is the one place that changes when
-    there is.
+    The store, and the configured root only when the store has nothing - which is an
+    install that has not started since locations arrived, or one whose file was deleted.
+    Falling back rather than reading empty means a library never disappears because a
+    seed did not run.
     """
+    held = get_location_store().locations()
+    if held:
+        return held
+
     from common.paths import get_games_path
 
     root = get_games_path()
