@@ -114,7 +114,7 @@ class TestApiInputMapping(unittest.TestCase):
                 Launcher(launcher_id="l1", app="vpx", display_name="Visual Pinball X",
                          settings={"bin_path": str(launcher)}), "")
 
-            process = types.SimpleNamespace(stdout=[], wait=lambda: 0)
+            process = types.SimpleNamespace(stdout=[], wait=lambda: 0, returncode=0)
             mock_popen.return_value = process
 
             window_messages = []

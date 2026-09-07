@@ -11,17 +11,20 @@ import unittest
 from unittest import mock
 
 from common import events
-from common.host import launch, launch_state
+from common.host import commands, launch, launch_state, table_commands
 
 
 class _FakePopen:
-    def __init__(self, lines=()):
+    def __init__(self, lines=(), returncode=0):
         self.stdout = list(lines)
         self.waited = False
+        # What the program exited with. A real Popen always has one, and a command set
+        # to run after the table is told it.
+        self.returncode = returncode
 
     def wait(self):
         self.waited = True
-        return 0
+        return self.returncode
 
 
 def _game(name="Example"):
@@ -78,6 +81,37 @@ class LifecycleTests(LaunchTests):
         self._run(popen=lambda cmd, **k: _FakePopen(["Startup done\n"]))
 
         self.assertEqual(seen, ["table.launching", "table.launched", "table.exited"])
+
+    def test_a_persons_own_commands_run_outside_everything_else(self) -> None:
+        """"Before the table" has to mean before all of it, hooks included. Anywhere
+        further in and what it means shifts as our own sequence changes."""
+        seen = []
+        for name in (events.TABLE_LAUNCHING, events.TABLE_EXITED):
+            events.subscribe(name, lambda _n=name, **_: seen.append(_n))
+
+        def before(game, table, launcher, ini_config):
+            seen.append("pre")
+            return table_commands.Around(ran=True)
+
+        with mock.patch.object(table_commands, "before", before), \
+                mock.patch.object(table_commands, "after",
+                                  lambda around, **k: seen.append("post")):
+            self._run(popen=lambda cmd, **k: _FakePopen(["Startup done\n"]))
+
+        self.assertEqual(seen, ["pre", "table.launching", "table.exited", "post"])
+
+    def test_a_command_that_was_set_to_stop_the_launch_stops_it(self) -> None:
+        """And it stops it before anything is announced, so there is nothing to undo."""
+        seen = []
+        events.subscribe(events.TABLE_LAUNCHING, lambda **_: seen.append("launching"))
+
+        with mock.patch.object(table_commands, "before",
+                               side_effect=commands.CommandRefusedError("no share")):
+            with self.assertRaises(launch.LaunchUnavailableError) as raised:
+                self._run()
+
+        self.assertIn("no share", str(raised.exception))
+        self.assertEqual(seen, [])
 
     def test_a_game_that_never_starts_reports_no_launched(self) -> None:
         """table.launched means the table is up, not that a process exists."""

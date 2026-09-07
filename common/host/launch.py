@@ -31,7 +31,7 @@ from common.games.tables import (
     table_entries,
     table_names,
 )
-from common.host import launch_state
+from common.host import commands, launch_state, table_commands
 from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
 from common.launcher_path import resolve_launcher_path
 from common.online.vpinplay_runtime import (
@@ -260,60 +260,75 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
     delete_vpinball_log_on_start_if_configured(
         launcher.value("log_delete_on_start"), str(launcher.value("ini_path") or ""))
 
-    # Hooks run first and can still stop this - releasing the peripherals is one.
-    # Nothing below has happened yet, so a refusal here leaves nothing to undo.
-    # The table id says which build of the game this is: a subscriber recording what
-    # played cannot work it out from the game, which offers several.
-    events.emit(events.TABLE_LAUNCHING, game=game, ini_config=ini_config,
-                table_id=_launched_table_id(game, vpx_path))
-
     started_at = None
     profile = None
-    # Everything from here is inside the try, so table.exited is guaranteed to
-    # anyone who heard table.launching - which is what stops a failure below from
-    # leaving the frontend with its input suppressed for the life of the process.
+    # Outside everything, including our own hooks. What a person writes here sets the
+    # machine up for a table, so "before the table" has to mean before all of it -
+    # anywhere further in and its meaning shifts as our sequence changes.
+    around = table_commands.Around()
     try:
-        launch_state.set_launching(getattr(game, "gameDirName", None), source=source)
-        cmd, marker = _plan(vpx_path, binary, launcher)
-        logger.info("Launching: %s", cmd)
-        process = popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            text=True,
-            env=_launch_env(launcher),
-        )
-        launch_state.attach(process)
-        started_at = time.time()
-        profile = get_active_profile()
-        if profile is not None:
-            record_game_start(str(getattr(game, "fullPathGame", "")
-                                   or getattr(game, "gameDirName", "") or ""))
-        else:
-            game_play_service.increment_start_count(game, os.path.basename(vpx_path))
+        try:
+            around = table_commands.before(game, vpx_path, launcher, ini_config)
+        except commands.CommandRefusedError as exc:
+            raise LaunchUnavailableError(str(exc)) from exc
 
-        # An app that cannot say when it is up is up as soon as it is spawned. Waiting
-        # for a marker that will never come would leave the table launched and nothing
-        # ever told about it.
-        running = not marker
-        if running:
-            events.emit(events.TABLE_LAUNCHED, game=game, ini_config=ini_config)
+        # Hooks run next and can still stop this - releasing the peripherals is one.
+        # Nothing below has happened yet, so a refusal here leaves nothing to undo.
+        # The table id says which build of the game this is: a subscriber recording what
+        # played cannot work it out from the game, which offers several.
+        events.emit(events.TABLE_LAUNCHING, game=game, ini_config=ini_config,
+                    table_id=_launched_table_id(game, vpx_path))
 
-        # Draining stdout is not optional: the pipe fills and the child blocks on a
-        # write if nobody reads it.
-        for line in process.stdout:
-            if not running and marker in line:
-                running = True
+        # Everything from here is inside the try, so table.exited is guaranteed to
+        # anyone who heard table.launching - which is what stops a failure below from
+        # leaving the frontend with its input suppressed for the life of the process.
+        try:
+            launch_state.set_launching(getattr(game, "gameDirName", None), source=source)
+            cmd, marker = _plan(vpx_path, binary, launcher)
+            logger.info("Launching: %s", cmd)
+            process = popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                text=True,
+                env=_launch_env(launcher),
+            )
+            launch_state.attach(process)
+            started_at = time.time()
+            profile = get_active_profile()
+            if profile is not None:
+                record_game_start(str(getattr(game, "fullPathGame", "")
+                                       or getattr(game, "gameDirName", "") or ""))
+            else:
+                game_play_service.increment_start_count(game, os.path.basename(vpx_path))
+
+            # An app that cannot say when it is up is up as soon as it is spawned.
+            # Waiting for a marker that will never come would leave the table launched
+            # and nothing ever told about it.
+            running = not marker
+            if running:
                 events.emit(events.TABLE_LAUNCHED, game=game, ini_config=ini_config)
-                logger.info("table running")
 
-        process.wait()
+            # Draining stdout is not optional: the pipe fills and the child blocks on a
+            # write if nobody reads it.
+            for line in process.stdout:
+                if not running and marker in line:
+                    running = True
+                    events.emit(events.TABLE_LAUNCHED, game=game, ini_config=ini_config)
+                    logger.info("table running")
+
+            process.wait()
+            around.values["exit_code"] = str(process.returncode)
+        finally:
+            # Before the play data below, so the peripherals come back promptly rather
+            # than waiting on an NVRAM parse and possibly a network call.
+            launch_state.clear()
+            events.emit(events.TABLE_EXITED, game=game, ini_config=ini_config)
     finally:
-        # Before the play data below, so the peripherals come back promptly rather
-        # than waiting on an NVRAM parse and possibly a network call.
-        launch_state.clear()
-        events.emit(events.TABLE_EXITED, game=game, ini_config=ini_config)
+        # Whenever the ones before ran, even where the program never started - they are
+        # what puts the machine back, and it is in that state either way.
+        table_commands.after(around, started_at=started_at)
 
     if started_at is not None:
         _record_play(game, ini_config, max(0.0, time.time() - started_at), profile,

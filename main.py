@@ -326,6 +326,17 @@ if not config_store.is_new:
     from common.online.vpsdb_sync import start_watch as _watch_vpsdb
 
     _watch_vpsdb(config_store, _shutdown_event)
+# Whatever a person asked to run when VPinFE starts, and anything a previous run left
+# half done. Ahead of the services below because that is what these are usually for -
+# a share mounted, a service stopped, an audio route moved - and everything after this
+# line is entitled to assume it has happened.
+try:
+    from common.host import vpinfe_commands
+
+    vpinfe_commands.on_start(config_store)
+except Exception:
+    logger.exception("Commands set to run when VPinFE starts did not all work")
+
 # Feedback hardware follows game lifecycle events from here on, so both launch
 # paths get the same behavior without either of them knowing about DOF.
 from common.host import peripherals
@@ -375,6 +386,14 @@ runtime.shutdown_services(
     nicegui_app=nicegui_app,
     stop_manager_ui=stop_manager_ui,
 )
+
+# Last, so a command that puts the machine back runs after everything it might be
+# putting back has actually stopped. Before the restart check, because a restart is
+# another run and the pair has to close before the next one opens.
+try:
+    vpinfe_commands.on_exit(config_store)
+except Exception:
+    logger.exception("Commands set to run when VPinFE exits did not all work")
 
 # Check for restart sentinel
 runtime.restart_if_requested(config_dir, logger)
