@@ -265,6 +265,43 @@ class LocationStore:
 CONFIGURED_ID = "configured"
 
 
+def portable_reference(game_dir: str, target: str) -> str:
+    """How to store a path to a file outside a game folder, so a library survives being
+    moved.
+
+    Relative where the target is inside the same configured location as the game,
+    because moving or sharing that whole tree then keeps the reference pointing at the
+    same file. Absolute otherwise: a relative path out of the library would be a chain
+    of `..` that means nothing once the library has moved, which is worse than an
+    absolute path that at least fails honestly.
+    """
+    from common.games.tables import stored_reference
+
+    wanted = canonical(target)
+    home = canonical(game_dir)
+    if not wanted or not home:
+        return stored_reference(target)
+    for location in configured():
+        root = canonical(location.path)
+        if not root:
+            continue
+        # Compared canonically, because two spellings of one place have to be recognized
+        # as one - but the relative form is computed from those same canonical ends, so
+        # what it walks is real rather than through whichever alias was typed.
+        if _inside(root, wanted) and _inside(root, home):
+            return Path(os.path.relpath(wanted, home)).as_posix()
+    # Stored as given, not as resolved. Somebody who points through a symlink means the
+    # symlink: baking today's target in would stop the reference following it, and a
+    # mount point is exactly the kind of path that gets repointed.
+    return stored_reference(os.path.normpath(os.path.expanduser(str(target or ""))))
+
+
+def _inside(root: str, path: str) -> bool:
+    """Whether a path is at or under a root, compared as paths rather than as text -
+    `/games2` starts with `/games` and is not in it."""
+    return path == root or path.startswith(root.rstrip(os.sep) + os.sep)
+
+
 def configured() -> list[Location]:
     """Every location the scan walks.
 

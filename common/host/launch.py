@@ -156,7 +156,13 @@ def _resolve_entry(game, named: str | None) -> tuple[str, dict]:
 
     wanted = str(named).strip()
     for entry_id, entry in entries.items():
-        if tables.entry_native_key(entry) == wanted and tables.entry_key(entry):
+        if tables.entry_native_key(entry) != wanted:
+            continue
+        # A key and a path are both only in the record - the folder has never heard of
+        # either, so there is nothing to check them against here. What answers for a
+        # reference is whether the file is there, and that is `check_launchable`'s job
+        # rather than a name lookup's.
+        if tables.entry_key(entry) or tables.entry_reference(entry):
             return entry_id, entry
 
     # A filename, so the folder decides whether it is real - not the record, which can
@@ -173,12 +179,16 @@ def _resolve_entry(game, named: str | None) -> tuple[str, dict]:
 
 
 def _path_of(game, entry: dict) -> str:
-    """The file an entry names, or "" for one with no file. Joined to the game folder
-    here, so nothing above this line handles a path at all."""
+    """The file an entry names, or "" for one with no file. Every path is built here, so
+    nothing above this line handles one at all."""
+    game_dir = str(getattr(game, "fullPathGame", "") or "")
+    reference = tables.entry_reference(entry)
+    if reference:
+        return tables.resolved_reference(game_dir, reference)
     filename = tables.entry_filename(entry)
     if not filename:
         return ""
-    return os.path.join(str(getattr(game, "fullPathGame", "") or ""), filename)
+    return os.path.join(game_dir, filename)
 
 
 def _launch_env(launcher) -> dict:
@@ -270,10 +280,34 @@ def check_launchable(game, ini_config, table: str | None = None) -> str:
     # now is a good time, then whether this machine can do it at all. Checking the
     # launcher first would answer a malformed request with a configuration error.
     table_id, entry = _resolve_entry(game, table)
+    _reference_is_reachable(game, entry)
     if launch_state.current().launching:
         raise LaunchBusyError("A table is already launching on this machine")
     _binary_of(*_launcher_for(table_id, entry))
     return _path_of(game, entry) or tables.entry_native_key(entry)
+
+
+class ReferenceUnreachableError(LaunchUnavailableError):
+    """A table that lives somewhere else, and that somewhere is not there right now.
+
+    Its own type because it is not the same as a table being gone: the record and the
+    media are here and nothing is lost, so a surface should say the location is
+    unreachable rather than offer to forget the entry.
+    """
+
+
+def _reference_is_reachable(game, entry: dict) -> None:
+    """A reference is only as good as the thing it points at, and the usual reason it
+    fails is a share that has not mounted - which is temporary, and reads nothing like a
+    deleted file."""
+    if not tables.entry_reference(entry):
+        return
+    path = _path_of(game, entry)
+    if path and os.path.isfile(path):
+        return
+    raise ReferenceUnreachableError(
+        f"This table lives at {path or tables.entry_reference(entry)}, which is not "
+        "reachable from here.")
 
 
 def launch_game(game, ini_config, *, source: str, table: str | None = None,

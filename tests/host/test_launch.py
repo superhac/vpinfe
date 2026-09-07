@@ -6,6 +6,9 @@ disagreed - most visibly, only one of them recorded that a table had been played
 
 from __future__ import annotations
 
+import os
+import pathlib
+import tempfile
 import types
 import unittest
 from unittest import mock
@@ -338,3 +341,69 @@ class KeyedEntryTests(LaunchTests):
 
         self.assertEqual(cmd, ["/opt/fx", "mm"])
         self.assertEqual(marker, "", "a generic program cannot say when it is up")
+
+
+class ReferencedEntryTests(LaunchTests):
+    """A table that lives somewhere else - a .vpx on a share, or one file shared by
+    several games. The record and the media are here; the file is not."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.elsewhere = os.path.join(self.tmp.name, "shared", "afm.vpx")
+        os.makedirs(os.path.dirname(self.elsewhere))
+        pathlib.Path(self.elsewhere).touch()
+        self.game_dir = os.path.join(self.tmp.name, "games", "AFM")
+        os.makedirs(self.game_dir)
+
+    def _game_with(self, reference: str):
+        return types.SimpleNamespace(
+            fullPathVPXfile="", fullPathGame=self.game_dir, gameDirName="AFM",
+            meta_config={"tables": {"r1": {"id": "r1", "path": reference}}})
+
+    def _check(self, game, table=None):
+        found = _launcher()
+        with mock.patch.object(launch, "_launcher_for",
+                               lambda table_id, entry: (found, "")), \
+                mock.patch.object(launch, "resolve_launcher_path",
+                                  lambda value: types.SimpleNamespace(
+                                      exists=lambda: True)):
+            return launch.check_launchable(game, types.SimpleNamespace(config={}), table)
+
+    def test_an_absolute_reference_launches_what_it_points_at(self) -> None:
+        self.assertEqual(self._check(self._game_with(self.elsewhere)), self.elsewhere)
+
+    def test_a_relative_one_is_anchored_on_the_game_folder(self) -> None:
+        """Which is what lets a library be moved or shared as one piece."""
+        got = self._check(self._game_with("../../shared/afm.vpx"))
+
+        self.assertEqual(got, os.path.normpath(self.elsewhere))
+
+    def test_it_can_be_named_by_the_path_the_record_holds(self) -> None:
+        self.assertEqual(self._check(self._game_with(self.elsewhere), self.elsewhere),
+                         self.elsewhere)
+
+    def test_a_reference_to_nothing_is_refused_as_unreachable(self) -> None:
+        """Not as missing. Nothing here is lost - the usual cause is a share that has
+        not mounted, and offering to forget the entry would be the wrong answer."""
+        with self.assertRaises(launch.ReferenceUnreachableError) as caught:
+            self._check(self._game_with("/nowhere/at/all.vpx"))
+
+        self.assertIn("not reachable", str(caught.exception))
+
+    def test_and_that_refusal_is_still_a_launch_refusal(self) -> None:
+        """So every caller that already handles one keeps working."""
+        self.assertTrue(issubclass(launch.ReferenceUnreachableError,
+                                   launch.LaunchUnavailableError))
+
+    def test_the_command_is_built_from_the_resolved_path(self) -> None:
+        entry = launch.apps.Entry(entry_id="r1", table=self.elsewhere,
+                                  game_dir=self.game_dir)
+        found = _launcher().__class__(launcher_id="l3", app="generic",
+                                      display_name="Generic",
+                                      settings={"bin_path": "/opt/x", "args": ""})
+
+        cmd, _marker = launch._plan(entry, "/opt/x", found)
+
+        self.assertEqual(cmd, ["/opt/x", self.elsewhere])

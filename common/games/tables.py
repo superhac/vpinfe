@@ -5,7 +5,9 @@ A folder can hold several of them, so everything asks here which one is the defa
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable
+from pathlib import Path
 
 from common import apps
 from common.timestamps import iso_from_asctime, iso_from_authored_date
@@ -42,9 +44,15 @@ DEFAULT_TABLE_KEY = "default_table"
 TABLE_APP_KEY = "app"
 TABLE_KEY_KEY = "key"
 
+# A game file that is not in this folder. Held with forward slashes whatever wrote it,
+# because `os.path.relpath` answers in the host's separator and the same library would
+# otherwise read one way on Linux and another on Windows.
+TABLE_PATH_KEY = "path"
+
 # How an entry is shaped. Read off what the record holds, never stored: a mode field is
 # one more thing that can disagree with reality, and this one cannot.
 FORM_CONTAINED = "contained"
+FORM_REFERENCED = "referenced"
 FORM_KEYED = "keyed"
 
 # What a tables entry takes from a parse, in the parser's own names. The .vpx's
@@ -162,26 +170,73 @@ def entry_app(entry: dict | None) -> str:
     return str(entry.get(TABLE_APP_KEY, "") or "").strip()
 
 
+def entry_reference(entry: dict | None) -> str:
+    """Where an entry's game file is, when it is not in this folder. As stored: relative
+    to the game folder, or absolute, and forward-slashed either way."""
+    if not isinstance(entry, dict):
+        return ""
+    return str(entry.get(TABLE_PATH_KEY, "") or "").strip()
+
+
 def entry_form(entry: dict | None) -> str:
-    """Contained or keyed. Derived, so it can never disagree with the record."""
-    return FORM_KEYED if entry_key(entry) else FORM_CONTAINED
+    """Contained, referenced or keyed. Derived, so it can never disagree with the
+    record - which is also why they are checked in the order of what is most specific:
+    a key means there is no file at all, and a path means the file is elsewhere."""
+    if entry_key(entry):
+        return FORM_KEYED
+    return FORM_REFERENCED if entry_reference(entry) else FORM_CONTAINED
 
 
 def entry_native_key(entry: dict | None) -> str:
     """What this entry is reconciled and looked up by within its game.
 
-    A filename for something in the folder, and `app:key` for something the app finds
-    itself. One string either way, because every caller wants "which entry is this" and
-    none of them wants to know which of the two answered.
+    A filename for something in the folder, the stored path for something elsewhere, and
+    `app:key` for something no file describes. One string whichever it is, because every
+    caller wants "which entry is this" and none of them wants to ask twice.
     """
     key = entry_key(entry)
-    return f"{entry_app(entry)}:{key}" if key else entry_filename(entry)
+    if key:
+        return f"{entry_app(entry)}:{key}"
+    return entry_reference(entry) or entry_filename(entry)
+
+
+def stored_reference(path: str) -> str:
+    """A path as the record holds it: forward slashes, whatever wrote it.
+
+    `os.path.relpath` answers in the host's separator, and a library written on Windows
+    and read on Linux would otherwise disagree with itself about where a file is.
+    """
+    return str(path or "").strip().replace("\\", "/")
+
+
+def resolved_reference(game_dir: str, stored: str) -> str:
+    """The absolute path a reference points at, or "".
+
+    Relative is anchored on the game folder, because that is what lets a library be
+    moved or shared as one piece and still resolve. An absolute reference is returned
+    as it stands and survives the game folder moving, but not the library going
+    anywhere else.
+    """
+    said = stored_reference(stored)
+    if not said:
+        return ""
+    found = Path(said)
+    if found.is_absolute():
+        return os.path.normpath(str(found))
+    # Lexically, not `resolve()`: a share that is not mounted is exactly the case this
+    # has to answer for, and resolving would go to the filesystem to do it.
+    return os.path.normpath(str(Path(str(game_dir or "")).joinpath(found)))
 
 
 def keyed_entry(app: str, key: str) -> dict:
     """A new entry for something with no file. The minting pass gives it an id."""
     return {TABLE_APP_KEY: str(app or "").strip(),
             TABLE_KEY_KEY: str(key or "").strip()}
+
+
+def referenced_entry(path: str) -> dict:
+    """A new entry for a game file that lives somewhere else."""
+    return {TABLE_PATH_KEY: stored_reference(path)}
 
 
 def entry_for_filename(entries: dict | None, filename: str) -> tuple[str, dict]:
@@ -295,11 +350,11 @@ def default_entry(entries: dict | None, folder_name: str = "",
     if named:
         return entry_for_filename(held, named)
 
-    # Nothing with a file. Ordered by the key so the answer is the same every time,
-    # which is the same reason `default_table` falls through to the first by name.
-    keyed = sorted(((i, e) for i, e in held.items() if entry_key(e)),
-                   key=lambda pair: entry_native_key(pair[1]))
-    return keyed[0] if keyed else ("", {})
+    # Nothing in the folder. Ordered by what names it, so the answer is the same every
+    # time - the same reason `default_table` falls through to the first by name.
+    rest = sorted(((i, e) for i, e in held.items() if entry_native_key(e)),
+                  key=lambda pair: entry_native_key(pair[1]))
+    return rest[0] if rest else ("", {})
 
 
 def table_entries(meta: dict | None) -> dict:
