@@ -362,9 +362,10 @@ class Library:
         return self._client.launcher_config(launcher_id, table, scope)
 
     def write_launcher_config(self, launcher_id: str, values: dict, *,
-                              table: str = "", scope: str = "launcher") -> dict:
+                              table: str = "", scope: str = "launcher",
+                              seed: bool = False) -> dict:
         return self._client.write_launcher_config(launcher_id, values,
-                                                  table=table, scope=scope)
+                                                  table=table, scope=scope, seed=seed)
 
     def put_launcher(self, launcher_id: str, body: dict) -> dict:
         return self._client.put_launcher(launcher_id, body)

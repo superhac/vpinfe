@@ -645,9 +645,11 @@ class ApiClient:
         ).get("reaching") or {})
 
     def write_launcher_config(self, launcher_id: str, values: dict, *,
-                              table: str = "", scope: str = "launcher") -> dict:
+                              table: str = "", scope: str = "launcher",
+                              seed: bool = False) -> dict:
         return dict(self._put(f"/launchers/{launcher_id}/config",
-                              {"values": values, "table": table, "scope": scope}) or {})
+                              {"values": values, "table": table, "scope": scope,
+                               "seed": seed}) or {})
 
     def config_schema(self) -> list[dict]:
         """Every setting this install has, sectioned. Read from the install rather than

@@ -6,6 +6,7 @@ mapping that travelled with it.
 """
 
 import os
+import pathlib
 import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -156,3 +157,74 @@ class LauncherApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TableFileSeedingTests(unittest.TestCase):
+    """The two settings layers do not stack, so the write that gives a table its own
+    file takes the folder's other keys off it. Carrying them across on that first write
+    is what keeps the table doing what it did a moment ago."""
+
+    def setUp(self) -> None:
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.store = launchers.LauncherStore(
+            os.path.join(self.tmp.name, "launchers.json"))
+        store_patch = patch.object(launchers, "get_launcher_store",
+                                   return_value=self.store)
+        store_patch.start()
+        self.addCleanup(store_patch.stop)
+        self.store.mark_migration(launcher_migration.SEEDED)
+        self.client = _client()
+        self.client.put("/launchers/l1",
+                        json={"app": "vpx", "settings": {"bin_path": "/opt/vpx"}})
+        folder = os.path.join(self.tmp.name, "Attack from Mars")
+        os.makedirs(folder)
+        self.table = os.path.join(folder, "afm.vpx")
+        pathlib.Path(self.table).touch()
+        pathlib.Path(folder, "Attack from Mars.ini").write_text(
+            "[Player]\nBallTrail = 1\nFXAA = 3\n")
+        self.beside = os.path.join(folder, "afm.ini")
+        patcher = patch("httpapi.launchers._game_file", return_value=self.table)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _write(self, **body):
+        return self.client.put("/launchers/l1/config",
+                               json={"scope": "entry", "table": "t1", **body})
+
+    def test_a_folder_says_what_it_is_giving_a_table_with_no_file_of_its_own(self) -> None:
+        got = self.client.get("/launchers/l1/config/reaching?table=t1")
+
+        self.assertEqual(got.json()["reaching"],
+                         {"Player.BallTrail": "1", "Player.FXAA": "3"})
+
+    def test_the_first_write_carries_them_across_when_it_is_asked_to(self) -> None:
+        self._write(values={"Backglass.BackglassWndX": "137"}, seed=True)
+
+        written = pathlib.Path(self.beside).read_text()
+        self.assertIn("BallTrail = 1", written)
+        self.assertIn("FXAA = 3", written)
+        self.assertIn("BackglassWndX = 137", written)
+
+    def test_and_the_value_being_set_wins_over_what_it_carried(self) -> None:
+        """The write is the reason any of this is happening."""
+        self._write(values={"Player.FXAA": "0"}, seed=True)
+
+        self.assertIn("FXAA = 0", pathlib.Path(self.beside).read_text())
+
+    def test_without_asking_it_writes_only_what_it_was_given(self) -> None:
+        """Which is what takes the other two off the table - so nothing does this
+        silently."""
+        self._write(values={"Backglass.BackglassWndX": "137"})
+
+        written = pathlib.Path(self.beside).read_text()
+        self.assertNotIn("BallTrail", written)
+        self.assertIn("BackglassWndX = 137", written)
+
+    def test_a_table_that_already_has_a_file_has_nothing_left_reaching_it(self) -> None:
+        """So the second write cannot re-seed from a folder it no longer reads."""
+        self._write(values={"Backglass.BackglassWndX": "137"}, seed=True)
+
+        got = self.client.get("/launchers/l1/config/reaching?table=t1")
+
+        self.assertEqual(got.json()["reaching"], {})

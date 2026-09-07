@@ -156,14 +156,17 @@ def _control(library, launcher_id: str, table_id: str, scope: str, field: dict,
         # Giving a table its own file takes it off the folder's, so what the folder is
         # currently giving it has to be shown before that happens rather than found
         # afterwards. Only on the write that creates the file.
+        seed = False
         if scope == SCOPE_ENTRY and not held.get("set_here"):
-            if not await confirm_new_table_file(library, launcher_id, table_id):
+            answer = await confirm_new_table_file(library, launcher_id, table_id)
+            if answer is None:
                 await draw()
                 return False
+            seed = answer
         try:
             await run.io_bound(library.write_launcher_config, launcher_id,
                                {field["key"]: _as_text(value)},
-                               table=table_id, scope=scope)
+                               table=table_id, scope=scope, seed=seed)
         except Exception as exc:  # noqa: BLE001
             ui.notify(f"Could not save it: {exc}", type="negative")
             return False
@@ -221,26 +224,32 @@ def _as_text(value: Any) -> str:
     return "" if value is None else str(value)
 
 
-async def confirm_new_table_file(library, launcher_id: str, table_id: str) -> bool:
+async def confirm_new_table_file(library, launcher_id: str,
+                                 table_id: str) -> bool | None:
     """Asked before a table gets a file of its own, where a folder file is reaching it.
 
+    Returns whether to carry the folder's settings across, or None if the write should
+    not happen at all.
+
     The two do not stack: once a table has its own file, the folder's other keys stop
-    reaching it and fall through to the launcher. Keeping them is the default, because
-    the alternative changes what the table does without saying so.
+    reaching it and fall through to the launcher. Carrying them is the only answer
+    offered, because the alternative changes what the table does without saying so - the
+    question here is whether to go ahead, not which of two things to do.
     """
     try:
         reaching = await run.io_bound(library.folder_settings_reaching, launcher_id,
                                       table_id)
     except Exception:  # noqa: BLE001 - a confirm must not be the thing that breaks
         logger.exception("Could not read what the folder gives this table")
-        return True
+        return False
     if not reaching:
-        return True
+        return False
     count = len(reaching)
-    return await confirm.ask(
+    said = await confirm.ask(
         f"{count} setting{'' if count == 1 else 's'} currently reach this table "
         "from its folder.",
         detail="Giving this table its own settings stops the folder reaching it, so "
                "they are copied across and nothing it does changes. Everything else in "
                "the folder is unaffected.",
         confirm="Keep them")
+    return True if said else None

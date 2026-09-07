@@ -240,10 +240,23 @@ def write_launcher_config(launcher_id: str,
     values = body.get("values") or {}
     if not isinstance(values, dict) or not values:
         raise InvalidRequestError("Name at least one setting to write.")
-    config.write(scope, _game_file(str(body.get("table") or "")),
-                 {str(k): str(v) for k, v in values.items()},
-                 _launcher_settings(found))
-    return {"written": sorted(str(k) for k in values)}
+    settings = _launcher_settings(found)
+    table = _game_file(str(body.get("table") or ""))
+    writing = {str(k): str(v) for k, v in values.items()}
+
+    # The two layers do not stack, so the write that gives a table its own file takes
+    # the folder's other keys off it. Carrying them across is what keeps the table doing
+    # what it did a moment ago. Asked for rather than always done, because a caller has
+    # to have told whoever is doing this what it is about to happen - and after that
+    # first write there is nothing left reaching, so it stops mattering.
+    if body.get("seed"):
+        reaching = getattr(config, "inherited_from_folder", None)
+        if reaching is not None:
+            # Under, not over: the value being set is the reason for the write.
+            writing = {**reaching(table, settings), **writing}
+
+    config.write(scope, table, writing, settings)
+    return {"written": sorted(writing)}
 
 
 def _config_files(launcher: launchers.Launcher) -> dict[str, str]:
