@@ -12,6 +12,7 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
+from common import apps
 from common.host import commands, table_commands
 
 
@@ -31,6 +32,11 @@ def _game():
     return SimpleNamespace(fullPathGame="/games/Attack from Mars",
                            gameDirName="Attack from Mars", location_id="loc1",
                            meta_config={})
+
+
+def _playing(table="/games/Attack from Mars/afm.vpx", key="", entry_id="t1"):
+    return apps.Entry(entry_id=entry_id, table=table,
+                      game_dir="/games/Attack from Mars", key=key)
 
 
 class OrderTests(unittest.TestCase):
@@ -56,7 +62,7 @@ class OrderTests(unittest.TestCase):
         """Execution order, not evidence they are one feature: what the machine needs is
         true whichever launcher plays the table."""
         around = table_commands.before(
-            _game(), "/games/Attack from Mars/afm.vpx",
+            _game(), _playing(),
             _launcher(on_table_start="launcher-pre", on_table_exit="launcher-post"),
             _config(on_table_start="install-pre", on_table_exit="install-post"))
         table_commands.after(around, started_at=None)
@@ -66,8 +72,7 @@ class OrderTests(unittest.TestCase):
             ["install-pre", "launcher-pre", "launcher-post", "install-post"])
 
     def test_nothing_written_runs_nothing_and_owes_nothing(self) -> None:
-        around = table_commands.before(_game(), "/games/x/x.vpx", _launcher(),
-                                       _config())
+        around = table_commands.before(_game(), _playing(), _launcher(), _config())
         table_commands.after(around)
 
         self.assertEqual(self.ran, [])
@@ -77,7 +82,7 @@ class OrderTests(unittest.TestCase):
 class ValueTests(unittest.TestCase):
     def test_a_command_is_told_about_the_table_it_is_running_around(self) -> None:
         values = table_commands._values(
-            _game(), "/games/Attack from Mars/afm.vpx",
+            _game(), _playing(),
             _launcher(bin_path="/opt/vpx/VPinballX", ini_path="/cfg/VPinballX.ini"))
 
         self.assertEqual(values["game_dir"], "/games/Attack from Mars")
@@ -91,10 +96,24 @@ class ValueTests(unittest.TestCase):
     def test_what_a_table_never_had_is_empty_rather_than_missing(self) -> None:
         """Every name the context offers has to resolve, or a command that mentions one
         of them fails on a table that happens not to have it."""
-        values = table_commands._values(_game(), "/games/x/x.vpx", None)
+        values = table_commands._values(_game(), _playing(entry_id=""), None)
 
         for name in ("id", "key", "rom", "launcher_bin", "launcher_ini", "player"):
             self.assertEqual(values[name], "", name)
+
+
+class KeyedEntryTests(unittest.TestCase):
+    """An entry with no file. Every name still resolves - `{table}` to nothing, because
+    there is no file, and `{key}` to the name its app knows it by."""
+
+    def test_a_keyed_entry_has_a_key_and_no_table(self) -> None:
+        values = table_commands._values(
+            _game(), _playing(table="", key="mm", entry_id="t2"), None)
+
+        self.assertEqual(values["key"], "mm")
+        self.assertEqual(values["table"], "")
+        self.assertEqual(values["table_stem"], "")
+        self.assertEqual(values["game_dir"], "/games/Attack from Mars")
 
 
 class FailureTests(unittest.TestCase):
@@ -108,7 +127,7 @@ class FailureTests(unittest.TestCase):
         with mock.patch.object(table_commands.commands, "run",
                                side_effect=commands.CommandRefusedError("no share")):
             with self.assertRaises(commands.CommandRefusedError) as raised:
-                table_commands.before(_game(), "/games/x/x.vpx", _launcher(),
+                table_commands.before(_game(), _playing(), _launcher(),
                                       _config(on_table_start="mount",
                                               table_start_required="true"))
 
@@ -125,7 +144,7 @@ class FailureTests(unittest.TestCase):
         with mock.patch.object(table_commands.commands, "run", side_effect=run):
             with self.assertRaises(commands.CommandRefusedError):
                 table_commands.before(
-                    _game(), "/games/x/x.vpx", _launcher(),
+                    _game(), _playing(), _launcher(),
                     _config(on_table_start="mount", table_start_required="true"))
 
         self.assertTrue(table_commands._remember.called)
@@ -134,7 +153,7 @@ class FailureTests(unittest.TestCase):
         with mock.patch.object(table_commands.commands, "run",
                                return_value=commands.Outcome(ran=True)) as run:
             table_commands.before(
-                _game(), "/games/x/x.vpx",
+                _game(), _playing(),
                 _launcher(on_table_start="sink", on_start_required="false"),
                 _config())
 
@@ -162,7 +181,7 @@ class UnfinishedTests(unittest.TestCase):
         with mock.patch.object(table_commands.commands, "run",
                                return_value=commands.Outcome(ran=True)):
             table_commands.before(
-                _game(), "/games/x/x.vpx", _launcher(on_table_exit="unmute"),
+                _game(), _playing(), _launcher(on_table_exit="unmute"),
                 _config(on_table_start="mute", on_table_exit="restart-service"))
 
         self.assertTrue(table_commands.PENDING_PATH.exists())
@@ -180,7 +199,7 @@ class UnfinishedTests(unittest.TestCase):
         with mock.patch.object(table_commands.commands, "run",
                                return_value=commands.Outcome(ran=True)):
             around = table_commands.before(
-                _game(), "/games/x/x.vpx", _launcher(),
+                _game(), _playing(), _launcher(),
                 _config(on_table_start="mute", on_table_exit="unmute"))
             table_commands.after(around, started_at=None)
 

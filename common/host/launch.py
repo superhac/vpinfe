@@ -24,7 +24,7 @@ from pathlib import Path
 
 from common import apps, events
 from common.config_access import VPinPlayConfig
-from common.games import game_play_service, launchers
+from common.games import game_play_service, info_file, launchers, tables
 from common.games.tables import (
     default_table,
     entry_for_filename,
@@ -67,21 +67,29 @@ class LaunchBusyError(LaunchUnavailableError):
     so differently."""
 
 
-def _launcher_for(game, vpx_path: str):
-    """Which launcher plays this table, and whether it is the one the table asked for.
+def _launcher_for(table_id: str, entry: dict):
+    """Which launcher plays this entry, and whether it is the one it asked for.
 
-    Returns (launcher, asked_for). They differ when a table names a launcher that has
+    Returns (launcher, asked_for). They differ when an entry names a launcher that has
     since been switched off, which falls back rather than refusing - and the caller says
     so at launch, because a table quietly running on something else is the question
     nobody can answer weeks later.
     """
     store = launchers.get_launcher_store()
-    held = store.launchers()
-    table_id = _launched_table_id(game, vpx_path)
     asked_for = store.mapped(table_id)
-    return (launchers.launcher_for_table(os.path.basename(vpx_path), table_id,
-                                         held, store.mappings()),
+    return (launchers.launcher_for_entry(_app_of(entry), table_id, store.launchers(),
+                                         store.mappings()),
             asked_for)
+
+
+def _app_of(entry: dict) -> str:
+    """Which app plays an entry. A file says so by its own suffix; something with no
+    file has to declare it, because nothing about a key says whose it is."""
+    app = tables.entry_app(entry)
+    if app:
+        return app
+    found = apps.app_for(tables.entry_filename(entry))
+    return found.id if found is not None else ""
 
 
 def binary_for(table_id: str, filename: str) -> str:
@@ -93,8 +101,9 @@ def binary_for(table_id: str, filename: str) -> str:
     reason resolution is one function.
     """
     store = launchers.get_launcher_store()
-    launcher = launchers.launcher_for_table(filename, table_id, store.launchers(),
-                                            store.mappings())
+    found = apps.app_for(filename)
+    launcher = launchers.launcher_for_entry(found.id if found else "", table_id,
+                                            store.launchers(), store.mappings())
     return _binary_of(launcher, store.mapped(table_id))
 
 
@@ -118,32 +127,58 @@ def _binary_of(launcher, asked_for: str) -> str:
     return str(resolved)
 
 
-def _launched_table_id(game, vpx_path: str) -> str:
-    """The id of the table being launched, or "" for a folder with none yet."""
-    entries = table_entries(getattr(game, "meta_config", {}))
-    return entry_for_filename(entries, os.path.basename(vpx_path))[0]
+def _resolve_entry(game, named: str | None) -> tuple[str, dict]:
+    """(table id, entry) for the thing to launch.
 
+    `named` is what a caller asked for by its native key - a filename for something in
+    the folder, `app:key` for something the app finds itself. A filename is checked
+    against what is actually in the folder, so a caller cannot talk this into running
+    something outside the game's directory. A key has nothing to check it against, which
+    is the point of a key: the app is the only thing that can say whether it resolves.
 
-def _resolve_table(game, table: str | None) -> str:
-    """The full path of the file to launch.
-
-    A named file is checked against what is actually in the folder, so a caller
-    cannot talk this into running something outside the table's directory.
+    The record answers first and the folder answers second. A folder that has a table but
+    no record for it yet is still launchable - which is the same rule discovery follows,
+    and the alternative is a game nothing can play until a scan has been round.
     """
-    game_dir = str(getattr(game, "fullPathGame", "") or "")
-    if table is None:
+    entries = table_entries(getattr(game, "meta_config", {}))
+    if named is None:
+        found = tables.default_entry(
+            entries, getattr(game, "gameDirName", "") or "",
+            tables.recorded_default(
+                (getattr(game, "meta_config", None) or {}).get(info_file.VPINFE_SECTION),
+                entries))
+        if found[0] or found[1]:
+            return found
         path = str(getattr(game, "fullPathVPXfile", "") or "")
         if not path:
-            raise LaunchUnavailableError("This game has no table to launch")
-        return path
+            raise LaunchUnavailableError("This game has nothing to launch")
+        return "", {tables.TABLE_FILENAME_KEY: os.path.basename(path)}
 
+    wanted = str(named).strip()
+    for entry_id, entry in entries.items():
+        if tables.entry_native_key(entry) == wanted and tables.entry_key(entry):
+            return entry_id, entry
+
+    # A filename, so the folder decides whether it is real - not the record, which can
+    # describe a file somebody has since deleted.
+    game_dir = str(getattr(game, "fullPathGame", "") or "")
     listing = []
     if game_dir and os.path.isdir(game_dir):
         listing = [name for name in os.listdir(game_dir)
                    if os.path.isfile(os.path.join(game_dir, name))]
-    if table not in table_names(listing):
-        raise UnknownTableError(f"No table named {table} in this game")
-    return os.path.join(game_dir, table)
+    if wanted not in table_names(listing):
+        raise UnknownTableError(f"No table named {named} in this game")
+    found_id, found = entry_for_filename(entries, wanted)
+    return found_id, found or {tables.TABLE_FILENAME_KEY: wanted}
+
+
+def _path_of(game, entry: dict) -> str:
+    """The file an entry names, or "" for one with no file. Joined to the game folder
+    here, so nothing above this line handles a path at all."""
+    filename = tables.entry_filename(entry)
+    if not filename:
+        return ""
+    return os.path.join(str(getattr(game, "fullPathGame", "") or ""), filename)
 
 
 def _launch_env(launcher) -> dict:
@@ -159,7 +194,7 @@ def _launch_env(launcher) -> dict:
     return env
 
 
-def _plan(table: str, binary: str, launcher) -> tuple[list[str], str]:
+def _plan(entry: apps.Entry, binary: str, launcher) -> tuple[list[str], str]:
     """What to run, and what the app writes once it is actually up.
 
     Both come from the app the launcher wraps. `bin_path` is overwritten with the
@@ -174,7 +209,7 @@ def _plan(table: str, binary: str, launcher) -> tuple[list[str], str]:
     settings = {declared.key: launcher.value(declared.key)
                 for declared in launcher.fields()}
     settings["bin_path"] = binary
-    return (app.launch.command(apps.Entry(table=table), settings),
+    return (app.launch.command(entry, settings),
             app.launch.session(settings).readiness_marker)
 
 
@@ -234,11 +269,11 @@ def check_launchable(game, ini_config, table: str | None = None) -> str:
     # Ordered from the caller's problem outwards: what it asked for, then whether
     # now is a good time, then whether this machine can do it at all. Checking the
     # launcher first would answer a malformed request with a configuration error.
-    resolved = _resolve_table(game, table)
+    table_id, entry = _resolve_entry(game, table)
     if launch_state.current().launching:
         raise LaunchBusyError("A table is already launching on this machine")
-    _binary_of(*_launcher_for(game, resolved))
-    return resolved
+    _binary_of(*_launcher_for(table_id, entry))
+    return _path_of(game, entry) or tables.entry_native_key(entry)
 
 
 def launch_game(game, ini_config, *, source: str, table: str | None = None,
@@ -253,9 +288,13 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
     popen = popen or subprocess.Popen
     # The table first: which launcher plays it is a question about the file, so there is
     # nothing to resolve until the file is known.
-    vpx_path = _resolve_table(game, table)
-    launcher, asked_for = _launcher_for(game, vpx_path)
+    table_id, entry = _resolve_entry(game, table)
+    vpx_path = _path_of(game, entry)
+    launcher, asked_for = _launcher_for(table_id, entry)
     binary = _binary_of(launcher, asked_for)
+    playing = apps.Entry(entry_id=table_id, table=vpx_path,
+                         game_dir=str(getattr(game, "fullPathGame", "") or ""),
+                         key=tables.entry_key(entry))
 
     delete_vpinball_log_on_start_if_configured(
         launcher.value("log_delete_on_start"), str(launcher.value("ini_path") or ""))
@@ -268,7 +307,7 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
     around = table_commands.Around()
     try:
         try:
-            around = table_commands.before(game, vpx_path, launcher, ini_config)
+            around = table_commands.before(game, playing, launcher, ini_config)
         except commands.CommandRefusedError as exc:
             raise LaunchUnavailableError(str(exc)) from exc
 
@@ -277,14 +316,14 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
         # The table id says which build of the game this is: a subscriber recording what
         # played cannot work it out from the game, which offers several.
         events.emit(events.TABLE_LAUNCHING, game=game, ini_config=ini_config,
-                    table_id=_launched_table_id(game, vpx_path))
+                    table_id=table_id)
 
         # Everything from here is inside the try, so table.exited is guaranteed to
         # anyone who heard table.launching - which is what stops a failure below from
         # leaving the frontend with its input suppressed for the life of the process.
         try:
             launch_state.set_launching(getattr(game, "gameDirName", None), source=source)
-            cmd, marker = _plan(vpx_path, binary, launcher)
+            cmd, marker = _plan(playing, binary, launcher)
             logger.info("Launching: %s", cmd)
             process = popen(
                 cmd,
@@ -301,7 +340,8 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
                 record_game_start(str(getattr(game, "fullPathGame", "")
                                        or getattr(game, "gameDirName", "") or ""))
             else:
-                game_play_service.increment_start_count(game, os.path.basename(vpx_path))
+                game_play_service.increment_start_count(
+                    game, tables.entry_native_key(entry))
 
             # An app that cannot say when it is up is up as soon as it is spawned.
             # Waiting for a marker that will never come would leave the table launched
@@ -332,7 +372,7 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
 
     if started_at is not None:
         _record_play(game, ini_config, max(0.0, time.time() - started_at), profile,
-                     os.path.basename(vpx_path))
+                     tables.entry_native_key(entry))
         events.emit(events.TABLE_PLAY_RECORDED, game=game, ini_config=ini_config)
     game_play_service.delete_nvram_if_configured(game)
 

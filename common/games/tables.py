@@ -35,6 +35,18 @@ TABLE_FILENAME_KEY = "filename"
 # choice rather than something a table says about itself.
 DEFAULT_TABLE_KEY = "default_table"
 
+# What an entry with no file of its own is: the app that plays it, and the name that app
+# knows it by. Pinball FX's table id, MAME's rom name. We never look the key up - the
+# whole point of a key rather than a path is that the app already does that better, and
+# pointing at the file would break the moment somebody reorganized their rompath.
+TABLE_APP_KEY = "app"
+TABLE_KEY_KEY = "key"
+
+# How an entry is shaped. Read off what the record holds, never stored: a mode field is
+# one more thing that can disagree with reality, and this one cannot.
+FORM_CONTAINED = "contained"
+FORM_KEYED = "keyed"
+
 # What a tables entry takes from a parse, in the parser's own names. The .vpx's
 # manufacturer/year/type can disagree with what VPS says in Info; both are kept.
 PARSED_KEYS = (
@@ -135,6 +147,43 @@ def entry_filename(entry: dict | None) -> str:
     return str(entry.get(TABLE_FILENAME_KEY, "") or "").strip()
 
 
+def entry_key(entry: dict | None) -> str:
+    """The name this entry's app knows it by, or "" for one that names a file."""
+    if not isinstance(entry, dict):
+        return ""
+    return str(entry.get(TABLE_KEY_KEY, "") or "").strip()
+
+
+def entry_app(entry: dict | None) -> str:
+    """The app an entry declares, or "". Only a keyed entry declares one - a file says
+    which app plays it by its own suffix, and a second answer could contradict it."""
+    if not isinstance(entry, dict):
+        return ""
+    return str(entry.get(TABLE_APP_KEY, "") or "").strip()
+
+
+def entry_form(entry: dict | None) -> str:
+    """Contained or keyed. Derived, so it can never disagree with the record."""
+    return FORM_KEYED if entry_key(entry) else FORM_CONTAINED
+
+
+def entry_native_key(entry: dict | None) -> str:
+    """What this entry is reconciled and looked up by within its game.
+
+    A filename for something in the folder, and `app:key` for something the app finds
+    itself. One string either way, because every caller wants "which entry is this" and
+    none of them wants to know which of the two answered.
+    """
+    key = entry_key(entry)
+    return f"{entry_app(entry)}:{key}" if key else entry_filename(entry)
+
+
+def keyed_entry(app: str, key: str) -> dict:
+    """A new entry for something with no file. The minting pass gives it an id."""
+    return {TABLE_APP_KEY: str(app or "").strip(),
+            TABLE_KEY_KEY: str(key or "").strip()}
+
+
 def entry_for_filename(entries: dict | None, filename: str) -> tuple[str, dict]:
     """(id, entry) for the table with this filename, or ("", {}). Callers arrive holding
     a name off a directory listing; the storage is keyed by id."""
@@ -152,15 +201,21 @@ def table_filenames(entries: dict | None) -> list[str]:
 def rekey_by_id(entries: dict | None) -> dict:
     """The tables map keyed by id, converting the filename-keyed shape on the way.
 
-    An entry with no `filename` predates the re-key and its key is the name. One with no
-    id yet keeps that name as its key until the minting pass assigns one - dropping it
-    would destroy the `hidden` and play stats the id exists to protect.
+    An entry with no `filename` and no key of its own predates the re-key and its map key
+    is the name. One with no id yet keeps that name as its key until the minting pass
+    assigns one - dropping it would destroy the `hidden` and play stats the id exists to
+    protect.
+
+    An entry that declares a key has no file and never had one, so nothing is filled in
+    for it. Reading its map key as a filename would give it a file that is not there and
+    make it the one entry the folder can never find.
     """
     if not isinstance(entries, dict):
         return {}
     # Callers test identity to mean "nothing to convert", so an empty map belongs here
     # too: a game with no .vpx would otherwise be rewritten on every startup.
-    if all(isinstance(e, dict) and TABLE_FILENAME_KEY in e for e in entries.values()):
+    if all(isinstance(e, dict) and (TABLE_FILENAME_KEY in e or entry_key(e))
+           for e in entries.values()):
         return entries
 
     rekeyed = {}
@@ -168,7 +223,8 @@ def rekey_by_id(entries: dict | None) -> dict:
         if not isinstance(entry, dict):
             continue    # not a record; there is nothing to address or carry
         entry = dict(entry)
-        entry.setdefault(TABLE_FILENAME_KEY, key)
+        if not entry_key(entry):
+            entry.setdefault(TABLE_FILENAME_KEY, key)
         rekeyed[table_id(entry) or key] = entry
     return rekeyed
 
@@ -215,6 +271,35 @@ def default_table(names: Iterable[str], folder_name: str = "", recorded: str = "
                 return name
 
     return candidates[0]
+
+
+def default_entry(entries: dict | None, folder_name: str = "",
+                  recorded: str = "") -> tuple[str, dict]:
+    """(id, entry) for the one a single-entry consumer gets, or ("", {}).
+
+    `default_table` answers the same question in filenames and most callers want that,
+    because most entries are files. This one also sees the entries that are not - a
+    folder holding only a keyed entry has no filenames at all, and answering "" for it
+    would make it the one kind of game nothing can launch.
+    """
+    held = dict(entries or {})
+    if not held:
+        return "", {}
+
+    wanted = str(recorded or "").strip()
+    if wanted in held:
+        return wanted, held[wanted]
+
+    named = default_table([entry_filename(e) for e in held.values()],
+                          folder_name, wanted)
+    if named:
+        return entry_for_filename(held, named)
+
+    # Nothing with a file. Ordered by the key so the answer is the same every time,
+    # which is the same reason `default_table` falls through to the first by name.
+    keyed = sorted(((i, e) for i, e in held.items() if entry_key(e)),
+                   key=lambda pair: entry_native_key(pair[1]))
+    return keyed[0] if keyed else ("", {})
 
 
 def table_entries(meta: dict | None) -> dict:

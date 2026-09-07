@@ -55,21 +55,26 @@ def player_name() -> str:
     return str(profile.initials or profile.user_id or "")
 
 
-def _values(game, table: str, launcher) -> dict[str, str]:
+def _values(game, playing, launcher) -> dict[str, str]:
     """What a command about this table may say. Strings, all of them, because they are
-    going into an argument list."""
+    going into an argument list.
+
+    Every name the context offers resolves to something, empty included: a command
+    mentioning one that happens not to apply to this entry should run with a blank, not
+    fail. An entry with no file has no `{table}`, and that is normal.
+    """
     entries = tables.table_entries(getattr(game, "meta_config", {}))
-    table_id, entry = tables.entry_for_filename(entries, Path(table).name)
+    entry = entries.get(playing.entry_id) or {}
     settings = ({one.key: launcher.value(one.key) for one in launcher.fields()}
                 if launcher is not None else {})
     return {
-        "game_dir": str(getattr(game, "fullPathGame", "") or ""),
-        "table": str(table or ""),
-        "table_stem": Path(str(table or "")).stem,
+        "game_dir": str(playing.game_dir or ""),
+        "table": str(playing.table or ""),
+        "table_stem": Path(playing.table).stem if playing.table else "",
         "game_name": str(getattr(game, "gameDirName", "") or ""),
-        "id": table_id,
-        # The app's own name for the entry. Contained tables do not have one.
-        "key": str(entry.get("key") or ""),
+        "id": str(playing.entry_id or ""),
+        # The app's own name for the entry. Something in the folder has none.
+        "key": str(playing.key or ""),
         "rom": str(entry.get("rom") or ""),
         "launcher_bin": str(settings.get("bin_path") or ""),
         "launcher_ini": str(settings.get("ini_path") or ""),
@@ -78,14 +83,14 @@ def _values(game, table: str, launcher) -> dict[str, str]:
     }
 
 
-def before(game, table: str, launcher, ini_config) -> Around:
+def before(game, playing, launcher, ini_config) -> Around:
     """The install's commands and then this launcher's, in that order.
 
     A failure stops the launch only where somebody said it should. What that means is a
     share that has to be mounted against an audio route that would be nice to switch,
     and only they know which they wrote.
     """
-    around = Around(values=_values(game, table, launcher))
+    around = Around(values=_values(game, playing, launcher))
     around.timeout = cfg_int(ini_config, "general", "command_timeout",
                              commands.DEFAULT_TIMEOUT)
     around.install_after = cfg_get(ini_config, "general", "on_table_exit", "")

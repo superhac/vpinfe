@@ -305,7 +305,19 @@ def default_for(app_id: str, launchers) -> Launcher | None:
 
 
 def launcher_for_table(filename: str, table_id: str, launchers, mappings) -> Launcher | None:
-    """Which launcher plays this table: what it names, then the default for its app.
+    """Which launcher plays this file. For callers that hold a name off a directory
+    listing; anything holding an entry knows its app and asks the next one down."""
+    app = apps.app_for(filename)
+    return launcher_for_entry(app.id if app is not None else "", table_id,
+                              launchers, mappings)
+
+
+def launcher_for_entry(app_id: str, table_id: str, launchers,
+                       mappings) -> Launcher | None:
+    """Which launcher plays this entry: what it names, then the default for its app.
+
+    By app rather than by filename, because an entry with no file has no suffix to
+    resolve through - a key says nothing about whose it is, so the entry declares it.
 
     One function, so the grid's effective-launcher column and the launch path can never
     disagree - that divergence is the bug the override mask has today, where what will
@@ -315,7 +327,7 @@ def launcher_for_table(filename: str, table_id: str, launchers, mappings) -> Lau
     the caller is expected to say so: the fallback is honest, and silence about it is
     what turns a configuration choice into a mystery.
     """
-    app = apps.app_for(filename)
+    app = apps.get(str(app_id or "").strip())
     if app is None:
         return None
     wanted = str(mappings.get(str(table_id or "").strip(), "") or "")

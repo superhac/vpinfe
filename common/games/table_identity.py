@@ -17,8 +17,8 @@ from common.games.tables import (
     DEFAULT_TABLE_KEY,
     TABLE_ID_KEY,
     TABLES_KEY,
-    entry_filename,
     entry_for_filename,
+    entry_native_key,
     rekey_by_id,
     table_id,
 )
@@ -27,11 +27,16 @@ logger = logging.getLogger("vpinfe.common.games.table_identity")
 
 
 def table_ids(game) -> dict[str, str]:
-    """{filename: id} for a game's tables, skipping entries with no id yet."""
+    """{native key: id} for a game's tables, skipping entries with no id yet.
+
+    The native key is the filename for something in the folder and `app:key` for
+    something with no file. One map either way: every caller is asking which entry this
+    is, and none of them wants to answer that question twice.
+    """
     entries = getattr(game, "meta_config", None) or {}
     entries = entries.get(TABLES_KEY) if isinstance(entries, dict) else None
-    return {entry_filename(e): i for i, e in rekey_by_id(entries).items()
-            if entry_filename(e)}
+    return {entry_native_key(e): i for i, e in rekey_by_id(entries).items()
+            if entry_native_key(e)}
 
 
 def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
@@ -60,7 +65,7 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
 
         resolved: dict[str, dict] = {}
         for entry in entries.values():
-            filename = entry_filename(entry)
+            filename = entry_native_key(entry)
             # The entry's own id, never the map key: an id-less entry is keyed by its
             # filename, which is truthy and is not an id.
             current = table_id(entry)
@@ -122,7 +127,8 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
 
 
 def find_table_by_id(games: Iterable[Any], wanted: str) -> tuple[Any, str] | None:
-    """(game, filename) for this table id, or None."""
+    """(game, native key) for this table id, or None. The native key is a filename for
+    a table in the folder, and `app:key` for one the app finds itself."""
     wanted = (wanted or "").strip()
     if not wanted:
         return None

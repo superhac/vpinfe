@@ -267,3 +267,74 @@ class RefusalTests(LaunchTests):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _keyed_game(app="generic", key="mm"):
+    """A game whose only entry has no file at all - a ROM its emulator looks up, a
+    Pinball FX table id. The folder holds the record and the media and nothing else."""
+    return types.SimpleNamespace(
+        fullPathVPXfile="",
+        fullPathGame="/games/Medieval Madness",
+        gameDirName="Medieval Madness",
+        meta_config={"tables": {"t9": {"id": "t9", "app": app, "key": key}}},
+    )
+
+
+class KeyedEntryTests(LaunchTests):
+    """An entry with no file. Nothing about a key says whose it is, so the entry names
+    its app - and that is what picks the launcher, in place of a suffix that is not
+    there."""
+
+    def _run_keyed(self, popen=None, table=None):
+        found = _launcher("/opt/fx")
+        found = found.__class__(launcher_id="l2", app="generic",
+                                display_name="Generic", settings={"bin_path": "/opt/fx"})
+        with mock.patch.object(launch.launchers, "get_launcher_store",
+                               return_value=types.SimpleNamespace(
+                                   launchers=lambda: [found],
+                                   mappings=lambda: {},
+                                   mapped=lambda _id: "")), \
+                mock.patch.object(launch, "resolve_launcher_path",
+                                  lambda value: types.SimpleNamespace(
+                                      exists=lambda: True, __str__=lambda s: "/opt/fx")):
+            return launch.check_launchable(_keyed_game(),
+                                           types.SimpleNamespace(config={}), table)
+
+    def test_a_game_with_no_file_is_still_launchable(self) -> None:
+        """The one thing that must not happen: a folder holding only a keyed entry
+        reading as a game nothing can play."""
+        self.assertEqual(self._run_keyed(), "generic:mm")
+
+    def test_it_can_be_named_by_the_key_its_app_knows_it_by(self) -> None:
+        self.assertEqual(self._run_keyed(table="generic:mm"), "generic:mm")
+
+    def test_a_key_this_game_does_not_have_is_refused(self) -> None:
+        with self.assertRaises(launch.UnknownTableError):
+            self._run_keyed(table="generic:nosuchrom")
+
+    def test_the_launcher_comes_from_the_app_the_entry_declares(self) -> None:
+        """Not from a suffix. There is no filename to take one off."""
+        found = _launcher().__class__(launcher_id="l2", app="generic",
+                                      display_name="Generic",
+                                      settings={"bin_path": "/opt/fx"})
+        with mock.patch.object(launch.launchers, "get_launcher_store",
+                               return_value=types.SimpleNamespace(
+                                   launchers=lambda: [found],
+                                   mappings=lambda: {},
+                                   mapped=lambda _id: "")):
+            launcher, _asked = launch._launcher_for(
+                "t9", {"app": "generic", "key": "mm"})
+
+        self.assertIs(launcher, found)
+
+    def test_the_command_is_built_from_the_key_and_not_a_path(self) -> None:
+        entry = launch.apps.Entry(entry_id="t9", key="mm",
+                                  game_dir="/games/Medieval Madness")
+        found = _launcher().__class__(launcher_id="l2", app="generic",
+                                      display_name="Generic",
+                                      settings={"bin_path": "/opt/fx", "args": ""})
+
+        cmd, marker = launch._plan(entry, "/opt/fx", found)
+
+        self.assertEqual(cmd, ["/opt/fx", "mm"])
+        self.assertEqual(marker, "", "a generic program cannot say when it is up")
