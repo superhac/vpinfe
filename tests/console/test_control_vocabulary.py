@@ -27,8 +27,11 @@ CONTROLS = re.compile(r"ui\.(switch|checkbox|input|select|number|textarea)\(")
 # the grammar and is not counted. Raising a number is a decision: say what the control is
 # for, or use `panel`.
 BUDGET = {
-    "workbench.py": (15, "panel rows with bespoke wiring - chips, debounce, a disabled "
-                         "select carrying its own reason - plus one find box"),
+    "workbench.py": (17, "panel rows with bespoke wiring - chips, debounce, a disabled "
+                         "select carrying its own reason - plus one find box, and the "
+                         "name and program asked for in the add-with-no-file dialog, "
+                         "which are questions rather than facts about a thing that "
+                         "exists yet"),
     "logs.py": (4, "the control bar above the viewport: two pickers, a level and a find"),
     "games.py": (3, "the view picker in the toolbar, and two dialogs"),
     "mediasource.py": (2, "a start picker and a search, both toolbar"),

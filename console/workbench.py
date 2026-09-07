@@ -1367,13 +1367,24 @@ def _table_rows(table: dict[str, Any],
     # What this file is. "Filename" rather than the group's own word, which named the
     # filename here and the on-disk state under Status - one word, two facts, both on
     # screen at once.
-    entries += [
-        (HEADING, game_tables.FILE),
-        ("Filename", table.get("filename") or "-"),
-        ("Version", table.get("version") or "-"),
-        ("Author", ", ".join(table.get("authors") or []) or "-"),
-        ("Hash", table.get("file_hash") or "-"),
-    ]
+    if game_tables.is_keyed(table):
+        # Nothing read a file, so there is no version, author or hash to show and a
+        # row of dashes would say we looked. What it has is the name and whose it is.
+        entries += [
+            (HEADING, game_tables.KNOWN_AS),
+            ("Name", table.get("key") or "-"),
+            ("Program", table.get("app_name") or "-"),
+            panel.note("Its program finds this by name rather than us pointing at a "
+                       "file, so nothing here is on disk to check."),
+        ]
+    else:
+        entries += [
+            (HEADING, game_tables.FILE),
+            ("Filename", table.get("filename") or "-"),
+            ("Version", table.get("version") or "-"),
+            ("Author", ", ".join(table.get("authors") or []) or "-"),
+            ("Hash", table.get("file_hash") or "-"),
+        ]
 
     # Its own group. These say what the table implements, which is not the same
     # question as what plays it - the group they shared could not be named honestly.
@@ -2033,8 +2044,8 @@ def _switch(value: bool, on_change: Callable[[Any], Any], *,
 
 
 def _play_action(context: dict[str, Any], table: dict[str, Any]) -> Callable[[], None]:
-    """Play this file, not the game's default - the panel is about this one."""
-    filename = str(table.get("filename") or "")
+    """Play this one, not the game's default - the panel is about this entry."""
+    filename = game_tables.native_key(table)
 
     async def go() -> None:
         try:
@@ -2283,6 +2294,69 @@ async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
     await context["rebuild"]()
 
 
+async def _add_keyed_table(context: dict[str, Any]) -> None:
+    """Record something this game holds that has no file.
+
+    A folder scan finds files, so this is the one thing it can never find - which is why
+    it is an action rather than something that appears on its own. What is asked for is
+    the name the program uses, because that is what it will be handed.
+    """
+    library = context["library"]
+    try:
+        offered = [one for one in await run.io_bound(library.launch_apps)
+                   if one.get("accepts_keys")]
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(f"Could not read what can play it: {exc}", type="negative")
+        return
+    if not offered:
+        ui.notify("Nothing this build knows plays something by name", type="warning")
+        return
+
+    chosen = {"app": str(offered[0].get("id") or "")}
+    with ui.dialog() as dialog, ui.card().classes("console-confirm"):
+        ui.label("Add something with no file").classes("console-confirm-title")
+        ui.label("For anything its own program finds by name instead - a ROM, or a "
+                 "game a store launches by its id. The name is not checked here: only "
+                 "the program can say whether it resolves.").classes("console-help")
+        # Only where there is a choice. A question with one answer is a click charged
+        # for nothing, and today one app plays something by name.
+        if len(offered) > 1:
+            ui.select({str(one["id"]): str(one.get("name") or one["id"])
+                       for one in offered},
+                      value=chosen["app"], label="Played by",
+                      on_change=lambda e: chosen.update(app=str(e.value or ""))) \
+                .props("outlined dense").classes("w-72")
+        # debounce=0 so the model is current the moment Add is pressed, and focus put
+        # on show - Quasar's autofocus does not land in a dialog.
+        typed = ui.input(placeholder="The name its program uses") \
+            .props("outlined dense debounce=0").classes("w-72")
+
+        async def add() -> None:
+            said = str(typed.value or "").strip()
+            if not said:
+                # Said rather than ignored: a dialog that does nothing when you press
+                # its button reads as broken.
+                typed.props('error error-message="Give it a name"')
+                return
+            dialog.close()
+            try:
+                await run.io_bound(library.add_keyed_table, context["game_id"],
+                                   chosen["app"], said)
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(f"Could not add it: {exc}", type="negative")
+                return
+            ui.notify(f"Added {said}", type="positive")
+            await context["rebuild"]()
+
+        with ui.row().classes("justify-end gap-2 w-full"):
+            ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
+            ui.button("Add", on_click=add).props("no-caps")
+
+    dialog.on("show", lambda: ui.run_javascript(
+        f"document.getElementById('c{typed.id}').focus()"))
+    dialog.open()
+
+
 def _tables_block(context: dict[str, Any]) -> None:
     """This game's tables, and which one it offers first.
 
@@ -2295,12 +2369,23 @@ def _tables_block(context: dict[str, Any]) -> None:
     telling them apart, and filenames cannot.
     """
     tables = context["tables"]
-    if not tables:
-        return
     showing = str(context.get("lens") or "")
     # Only where there is a choice to describe. A count beside one row says nothing.
     said = f"Tables ({len(tables)})" if len(tables) > 1 else "Table"
-    ui.label(said).classes("console-card-title console-fact-heading")
+    with ui.row().classes("items-center gap-2 w-full no-wrap"):
+        ui.label(said if tables else "Tables") \
+            .classes("console-card-title console-fact-heading grow")
+        # Beside the list rather than hidden in a menu, and drawn even where the list
+        # is empty: a folder with nothing in it yet is exactly where one of these is
+        # added, and returning early left that game with no way to gain anything.
+        ui.button("Add by name",
+                  on_click=lambda: _add_keyed_table(context)) \
+            .props("flat dense no-caps size=sm") \
+            .tooltip("For something its own program finds by name rather than a file "
+                     "we point at")
+    if not tables:
+        ui.label("Nothing here yet").classes("console-help")
+        return
     for table in tables:
         since = str(table.get("absent_since") or "")
         here = str(table.get("id") or "") == showing
@@ -2344,12 +2429,15 @@ def _tables_block(context: dict[str, Any]) -> None:
                     ui.label(launcher) \
                         .classes("console-member-chip console-tier console-tier--off")
                 with ui.element("div").classes("console-row-action"):
-                    if since:
+                    # An entry with no file can always be forgotten: nothing on disk
+                    # will mint it again, which is the opposite of a table that is
+                    # there - dropping that record only means the next scan re-adds it.
+                    if since or game_tables.is_keyed(table):
                         ui.button(icon="delete_outline",
                                   on_click=lambda _, t=table: _forget_table(context, t)) \
                             .props("flat dense round size=sm color=warning") \
-                            .tooltip("Forget this table")
-                    else:
+                            .tooltip("Forget this")
+                    if not since:
                         _release_button(context, table)
                         _launch_button(context, table)
             _release_line(table)
@@ -2603,7 +2691,7 @@ def _launch_button(context: dict[str, Any], table: dict[str, Any]) -> None:
     """Play this one. The row names the table, so the act on it is unambiguous - which
     is what lets Game Details offer a launch without inventing a game-level one whose
     target would be implicit."""
-    filename = str(table.get("filename") or "")
+    filename = game_tables.native_key(table)
 
     async def go() -> None:
         try:

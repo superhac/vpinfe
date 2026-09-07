@@ -18,6 +18,10 @@ MACHINE = "Machine"
 # left a reader asking which file. Chris, 2026-09-01, with `Default Table` below.
 FILE = "Table File"
 FEATURES = "Features"
+# What a keyed entry's group is called where the file group would be. There is no file,
+# so "Table File" would be a heading over a blank - and the thing it does have is the
+# name its program knows it by.
+KNOWN_AS = "Known As"
 LAUNCH = "Launch"
 PLAY = "Play"
 FRONTEND = "Frontend"
@@ -54,6 +58,21 @@ MARKS = {
 KEY_WORDS = ((FIXED, "User Defined"), (FOLLOWS, "Game Default"))
 KEY_DETAIL = ("User defined stays on the table it names. Game default follows the "
               "game, so a replacement is picked up.")
+
+
+def native_key(table: dict[str, Any] | None) -> str:
+    """What names this entry to the install: its filename, or `app:key` where it has no
+    file. The one string the launch path, the API and this surface all speak."""
+    held = table or {}
+    key = str(held.get("key") or "").strip()
+    if key:
+        return f"{str(held.get('app') or '').strip()}:{key}"
+    return str(held.get("filename") or "")
+
+
+def is_keyed(table: dict[str, Any] | None) -> bool:
+    """Whether this entry has no file. Read off `form`, which the install derives."""
+    return str((table or {}).get("form") or "") == "keyed"
 
 
 def mark(state: str) -> str:
@@ -115,7 +134,9 @@ def table_name(table: dict[str, Any]) -> str:
         author = str(table.get("author") or "").strip()
     version = str(table.get("version") or "").strip()
     said = JOIN.join(part for part in (version, author) if part)
-    return said or str(table.get("filename") or "")
+    # An entry with no file has no version or author either - nothing read one. What
+    # names it is what its program calls it, which is the only handle it has.
+    return said or str(table.get("filename") or "") or str(table.get("key") or "")
 
 
 def reference_state(origin: str) -> tuple[str, str]:

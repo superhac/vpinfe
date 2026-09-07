@@ -687,6 +687,21 @@ class ApiClient:
         """What the user says about one file. Same patch shape as the game's."""
         return self._put(f"/games/{game_id}/tables/{table_id}/overrides", changes)
 
+    def launch_apps(self) -> list[dict]:
+        """The programs that play something in this library, read rather than carried:
+        a client with its own copy of the list is a second place for it to be wrong."""
+        return list(self._get("/tables/apps").get("apps") or [])
+
+    def add_keyed_table(self, game_id: str, app: str, key: str) -> dict:
+        """Record something this game holds that has no file, by the name its program
+        knows it by. Nothing scans one of these into existence."""
+        path = f"/games/{game_id}/tables"
+        _refuse_the_event_loop(path)
+        response = self._session.post(f"{self._base}{path}",
+                                      json={"app": app, "key": key}, timeout=_TIMEOUT)
+        self._answered(response)
+        return response.json()
+
     def forget_table(self, game_id: str, table_id: str) -> dict:
         """Drop the record of a table whose file is gone. The API refuses if it is not."""
         path = f"/games/{game_id}/tables/{table_id}"

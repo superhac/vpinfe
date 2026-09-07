@@ -656,6 +656,8 @@ class Table(ApiModel):
     id: str
     format: str
     app: str
+    # What to call that app on screen. Ids are for the wire.
+    app_name: str = ""
     # The same three the row lens carries, so the two cannot describe one table
     # differently. Resolved, not read off the assignment.
     launcher: str = ""
@@ -744,6 +746,10 @@ class LaunchApp(ApiModel):
     id: str
     name: str
     suffixes: list[str]
+    # Whether it can play something named rather than pointed at - a rom its emulator
+    # looks up, a store's own id. An app that only plays files says no, and offering it
+    # where a name is being typed would be offering something that cannot work.
+    accepts_keys: bool = False
 
 
 class LaunchAppList(ApiModel):
@@ -764,6 +770,11 @@ class TableRow(ApiModel):
     manufacturer: str = ""
     year: str = ""
     filename: str
+    # `contained` for something in the game's folder, `keyed` for something with no file
+    # at all, that its app finds by a name instead - in which case `filename` is empty
+    # and `key` is what it is called.
+    form: str = "contained"
+    key: str = ""
     version: str = ""
     authors: list[str] = []
     # This table's own rating, not its game's. 0 is unrated, which is most of them.
@@ -805,6 +816,8 @@ class TableRow(ApiModel):
     # mask can never show - which tables were deliberately pointed somewhere, and so
     # what changing the default will and will not move.
     launcher_set_here: bool = False
+    # What to call the app on screen. Ids are for the wire.
+    app_name: str = ""
 
 
 class TableRowList(ApiModel):

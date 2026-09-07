@@ -99,6 +99,7 @@ class Library:
         self._overrides: dict[str, dict[str, Any]] = {}
         self._prefs: dict[str, dict[str, Any]] = {}
         self._config_schema: list[dict[str, Any]] | None = None
+        self._launch_apps: list[dict[str, Any]] | None = None
         self._kept: dict[str, set[str]] | None = None
 
     def load(self) -> None:
@@ -452,12 +453,31 @@ class Library:
         self.tables.pop(game_id, None)
         self._table_rows = None
 
+    def launch_apps(self) -> list[dict]:
+        """Cached for the page's life: what this build knows how to launch cannot
+        change while the process is up."""
+        if self._launch_apps is None:
+            self._launch_apps = self._client.launch_apps()
+        return self._launch_apps
+
+    def add_keyed_table(self, game_id: str, app: str, key: str) -> dict:
+        """Add an entry with no file. The game gains a table, so both lenses on it are
+        now describing a library that has one more thing in it."""
+        result = self._client.add_keyed_table(game_id, app, key)
+        self.tables.pop(game_id, None)
+        self._table_rows = None
+        # The game gained one, so its own row is stale too - the table count is the
+        # column that says so, and it is read off the game rather than counted here.
+        self._forget_game(game_id)
+        return result
+
     def forget_table(self, game_id: str, table_id: str) -> dict:
         """Drop a gone table's record. The tables list is what changes, and the media
         cache with it - a per-build read keyed on that table is now describing nothing."""
         result = self._client.forget_table(game_id, table_id)
         self.tables.pop(game_id, None)
         self.forget_media(game_id)
+        self._forget_game(game_id)
         return result
 
     def forget_media(self, game_id: str) -> None:

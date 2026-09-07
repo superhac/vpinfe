@@ -393,6 +393,9 @@ def _tables(game, row: dict) -> list[dict]:
             # registry entry and not a search for where ".vpx" was hard-coded.
             "format": app_id,
             "app": app_id,
+            # Named as well as identified: a client showing the bare id would be putting
+            # one on screen, and would need a second round trip to avoid it.
+            "app_name": apps.app_name(app_id),
             # Contained or keyed, derived from the record rather than stored, so it can
             # never disagree with it. A keyed entry has no file and never had one.
             "form": tables.entry_form(described_entry),

@@ -35,7 +35,8 @@ def list_apps() -> models.LaunchAppList:
     from common import apps
 
     return {"apps": [{"id": app.id, "name": app.name,
-                      "suffixes": list(app.claim.suffixes)}
+                      "suffixes": list(app.claim.suffixes),
+                      "accepts_keys": app.claim.accepts_keys}
                      for app in apps.all_apps()]}
 
 
@@ -70,6 +71,10 @@ def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
                 "manufacturer": str(info.get("Manufacturer", "") or ""),
                 "year": str(info.get("Year", "") or ""),
                 "filename": table.get("filename") or "",
+                # What names this entry where it has no file, and which of the two it
+                # is. A row showing a blank in the file column would read as a fault.
+                "form": table.get("form") or "contained",
+                "key": table.get("key") or "",
                 "version": table.get("version") or "",
                 "authors": table.get("authors") or [],
                 "rating": int(table.get("rating") or 0),
@@ -89,6 +94,7 @@ def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
                 "available": bool(table.get("available")),
                 "absent_since": table.get("absent_since"),
                 "app": table.get("app") or "",
+                "app_name": table.get("app_name") or "",
                 # The same three the games lens carries, so the two cannot describe one
                 # table differently.
                 "launcher": table.get("launcher") or "",
@@ -96,7 +102,8 @@ def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
                 "launcher_set_here": bool(table.get("launcher_set_here")),
             })
 
-    found.sort(key=lambda item: (item["game"].lower(), item["filename"].lower()))
+    found.sort(key=lambda item: (item["game"].lower(),
+                                (item["filename"] or item["key"]).lower()))
     total = len(found)
     window = found[offset:offset + limit] if limit else found[offset:]
     return {"total": total, "offset": offset, "count": len(window), "tables": window}

@@ -648,7 +648,8 @@ TABLE_COLUMNS = [
     grid.column("filename", game_tables.FILE, 420, group=_TABLE,
                 help="The .vpx itself. The identifier of record, and what tells\n"
                      "two builds of one machine apart - which is usually at the\n"
-                     "end of the name, so this column is last and widest."),
+                     "end of the name, so this column is last and widest.\n"
+                     "A row with no file shows the name its program knows it by."),
     *FEATURE_COLUMNS,
 ]
 
@@ -741,6 +742,10 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     return [{**row,
              "missing": not row.get("available", True),
+             # The file where there is one, and the name its program knows it by where
+             # there is not. A blank cell in the column that identifies the row would
+             # read as a fault rather than as a different kind of thing.
+             "filename": row.get("filename") or row.get("key") or "",
              # Whose file answers for this table, in the media map's own words - the
              # cell holds the word and the mark is drawn from it, the way media cells
              # do. Five kinds resolve per table; the rest belong to the folder.
