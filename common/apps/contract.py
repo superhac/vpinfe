@@ -35,6 +35,10 @@ class Field:
     type: str = "string"
     default: str = ""
     description: str = ""
+    # `(value, label)` where the answers are a closed set. Stored value first.
+    choices: tuple[tuple[str, str], ...] = ()
+    minimum: float | None = None
+    maximum: float | None = None
     # "file", "dir" or "exe" where this names something on disk. Declared rather than
     # guessed from the key: `bin_path` and `ini_path` end the same way and want
     # different answers.
@@ -164,6 +168,23 @@ class ConfigGroup:
     settings: tuple[Field, ...] = ()
 
 
+@dataclass(frozen=True)
+class ConfigValue:
+    """One setting at a scope: what the app will use, and which layer answered.
+
+    Four facts rather than a value, because somebody editing one layer of several has to
+    see which layer is answering.
+    """
+
+    value: str = ""
+    # Empty where nothing has set it and the app's own default wins.
+    scope: str = ""
+    set_here: bool = False
+    # False with `set_here` true is a value another layer is shadowing - invisible
+    # otherwise, and the bug report we would get.
+    in_effect: bool = True
+
+
 @runtime_checkable
 class Config(Protocol):
     def groups(self, settings: Mapping[str, Any]) -> tuple[ConfigGroup, ...]: ...
@@ -171,7 +192,7 @@ class Config(Protocol):
     def scopes(self) -> tuple[str, ...]: ...
 
     def read(self, scope: str, target: str,
-             settings: Mapping[str, Any]) -> dict[str, str]: ...
+             settings: Mapping[str, Any]) -> dict[str, ConfigValue]: ...
 
     def write(self, scope: str, target: str, values: Mapping[str, str],
               settings: Mapping[str, Any]) -> None: ...

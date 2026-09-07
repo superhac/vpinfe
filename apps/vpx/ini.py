@@ -1,0 +1,224 @@
+"""Reading Visual Pinball's own settings file, and writing one back.
+
+The file documents itself. Every setting VPX knows carries a comment above it giving the
+label, the description, the default, and - where the answers are a closed set - what each
+value means:
+
+    ; Output Mode: Disabled, floating, or embedded [Default: 'Disabled', 0='Disabled',
+    ; 1='Floating', 2='Embedded in playfield']
+    BackglassOutput = 1
+
+So the schema is read rather than authored, and a setting VPX adds in a later build
+appears without anything here changing. 1133 of the 1195 keys in a current file carry
+one.
+
+Writing keeps the file's own shape: a value is replaced on the line it is already on and
+nothing else moves, because the comments are the only documentation these settings have
+and rewriting the file from a parse would throw them away.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+
+# `; Label: description [Default: ...]`, where the default block is optional and the
+# label runs to the first colon.
+_DEFAULT_BLOCK = re.compile(r"\[Default:(?P<body>.*)\]\s*$")
+# `0='None', 1='Dubois'` inside that block.
+_CHOICE = re.compile(r"(-?\d+)\s*=\s*'([^']*)'")
+# `5 in 0 .. 10`, the range VPX states for a number.
+_RANGE = re.compile(r"in\s+(-?[\dXA-Fa-f.]+)\s*\.\.\s*(-?[\dXA-Fa-f.]+)")
+_QUOTED = re.compile(r"^'(.*)'$")
+_SECTION = re.compile(r"^\[(.+)\]\s*$")
+_KEY = re.compile(r"^([^=\[;]+?)=(.*)$")
+
+# What a value is, from what its default looks like. VPX states no type, so these are
+# the only signals there are.
+KIND_CHOICE = "choice"
+KIND_INT = "int"
+KIND_NUMBER = "number"
+KIND_COLOR = "color"
+KIND_STRING = "string"
+
+
+@dataclass(frozen=True)
+class Setting:
+    """One key, as the file describes it."""
+
+    section: str
+    key: str
+    value: str
+    label: str = ""
+    description: str = ""
+    default: str = ""
+    kind: str = KIND_STRING
+    choices: tuple[tuple[str, str], ...] = ()
+    minimum: float | None = None
+    maximum: float | None = None
+    # Where the value sits, so a write replaces it in place.
+    line: int = -1
+
+    @property
+    def qualified(self) -> str:
+        """`Section.Key`, which is what a layered lookup is keyed by. A key is only
+        unique within its section - `Width` is in eight of them."""
+        return f"{self.section}.{self.key}"
+
+
+@dataclass
+class Ini:
+    lines: list[str] = field(default_factory=list)
+    settings: dict[str, Setting] = field(default_factory=dict)
+
+    def value(self, qualified: str) -> str | None:
+        """What this file says, or None where it says nothing.
+
+        Empty is not nothing: VPX's own header says a property with nothing after the
+        `=` means "use the default", so an empty string here is a deliberate reset and
+        a caller has to be able to tell it from a key the file never mentions.
+        """
+        found = self.settings.get(qualified)
+        return None if found is None else found.value
+
+
+def parse(text: str) -> Ini:
+    """Every section, key and the comment block above it."""
+    lines = text.splitlines()
+    settings: dict[str, Setting] = {}
+    section = ""
+    pending: list[str] = []
+
+    for index, raw in enumerate(lines):
+        stripped = raw.strip()
+        found = _SECTION.match(stripped)
+        if found:
+            section, pending = found.group(1).strip(), []
+            continue
+        if stripped.startswith(";"):
+            pending.append(stripped[1:].strip())
+            continue
+        if not stripped:
+            pending = []
+            continue
+        pair = _KEY.match(raw)
+        if pair is None or not section:
+            pending = []
+            continue
+        key = pair.group(1).strip()
+        one = _describe(section, key, pair.group(2).strip(), pending, index)
+        settings[one.qualified] = one
+        pending = []
+
+    return Ini(lines=lines, settings=settings)
+
+
+def _describe(section: str, key: str, value: str, comments: list[str],
+              line: int) -> Setting:
+    label, description, default_block = _split(" ".join(c for c in comments if c))
+    choices = tuple((num, said) for num, said in _CHOICE.findall(default_block))
+    low, high = _bounds(default_block)
+    return Setting(
+        section=section, key=key, value=value, line=line,
+        label=label or key, description=description,
+        default=_default_of(default_block, choices),
+        kind=_kind(default_block, choices),
+        choices=choices, minimum=low, maximum=high,
+    )
+
+
+def _split(text: str) -> tuple[str, str, str]:
+    """`(label, description, the default block)`. The label runs to the first colon,
+    which is why the block is taken out first: several descriptions contain one."""
+    block = ""
+    found = _DEFAULT_BLOCK.search(text)
+    if found:
+        block = found.group("body").strip()
+        text = text[: found.start()].strip()
+    if ":" in text:
+        label, description = text.split(":", 1)
+        return label.strip(), description.strip(), block
+    return text.strip(), "", block
+
+
+def _default_of(block: str, choices: tuple[tuple[str, str], ...]) -> str:
+    """The default as it would be stored, not as it is shown.
+
+    An enumerated setting states its default by label - `'Luminance', 0='None', ...` -
+    and what goes in the file is the number, so the label is looked back up.
+    """
+    head = block.split(",", 1)[0].strip() if choices else block.strip()
+    head = _RANGE.sub("", head).strip()
+    quoted = _QUOTED.match(head)
+    said = quoted.group(1) if quoted else head
+    if choices:
+        return next((num for num, label in choices if label == said), said)
+    return said
+
+
+def _kind(block: str, choices: tuple[tuple[str, str], ...]) -> str:
+    if choices:
+        return KIND_CHOICE
+    head = _RANGE.sub("", block).strip()
+    if _QUOTED.match(head):
+        return KIND_STRING
+    if re.fullmatch(r"-?0X[0-9A-Fa-f]+", head):
+        return KIND_COLOR
+    if re.fullmatch(r"-?\d+", head):
+        return KIND_INT
+    if re.fullmatch(r"-?\d*\.\d+", head):
+        return KIND_NUMBER
+    return KIND_STRING
+
+
+def _bounds(block: str) -> tuple[float | None, float | None]:
+    found = _RANGE.search(block)
+    if found is None:
+        return None, None
+    try:
+        return float(found.group(1)), float(found.group(2))
+    except ValueError:
+        # A color states its range in hex. It is a range, but not one a number field
+        # can use, so it is left unstated rather than reported wrong.
+        return None, None
+
+
+def written(ini: Ini, changes: dict[str, str]) -> str:
+    """The file with those values replaced, and nothing else touched.
+
+    A key the file does not carry is appended under its section, or under a new section
+    at the end where there is none. Rewriting from the parse would be shorter and would
+    discard every comment, which is the only documentation these settings have.
+    """
+    lines = list(ini.lines)
+    appended: dict[str, list[str]] = {}
+
+    for qualified, value in changes.items():
+        found = ini.settings.get(qualified)
+        if found is not None and 0 <= found.line < len(lines):
+            lines[found.line] = f"{found.key} = {value}"
+            continue
+        section, _, key = qualified.partition(".")
+        appended.setdefault(section, []).append(f"{key} = {value}")
+
+    for section, rows in appended.items():
+        at = _section_end(lines, section)
+        if at is None:
+            lines.extend(["", f"[{section}]", *rows])
+            continue
+        lines[at:at] = rows
+
+    return "\n".join(lines) + "\n"
+
+
+def _section_end(lines: list[str], section: str) -> int | None:
+    """The line after the last one belonging to a section, or None if it has none."""
+    start = next((n for n, raw in enumerate(lines)
+                  if _SECTION.match(raw.strip())
+                  and _SECTION.match(raw.strip()).group(1).strip() == section), None)
+    if start is None:
+        return None
+    for n in range(start + 1, len(lines)):
+        if _SECTION.match(lines[n].strip()):
+            return n
+    return len(lines)

@@ -9,6 +9,7 @@ from __future__ import annotations
 from common.apps.contract import App, Claim, Field, Kinds
 
 from .capability import VPXCapability
+from .config import VPXConfig
 from .launch import VPXLaunch
 
 # What running Visual Pinball takes, in the order a person meets it: what to run, then
@@ -34,9 +35,9 @@ FIELDS: tuple[Field, ...] = (
           description="How a table's own ini is named, relative to the table."),
 )
 
-# `format` and `config` are unset: reading a table's OLE container and editing an ini
-# both still live in core, and moving them is the next piece of work rather than this
-# one. A group nothing implements answers None, which every consumer already handles.
+# `format` is unset: reading a table's OLE container still lives in core, and moving it
+# is its own piece of work. A group nothing implements answers None, which every
+# consumer already handles.
 VPX = App(
     id="vpx",
     name="Visual Pinball X",
@@ -44,5 +45,6 @@ VPX = App(
     fields=FIELDS,
     kinds=Kinds(),
     launch=VPXLaunch(),
+    config=VPXConfig(),
     capability=VPXCapability(),
 )
