@@ -159,7 +159,11 @@ def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
                            status=state)
 
     if kind == "bool":
-        return panel.switch(bool(value), lambda e: save(bool(e.value)), disabled=off)
+        # Through the declared type, not `bool()`. A setting nobody has stored answers
+        # with its declared default, and that is the string "false" - which is a
+        # perfectly true string, and drew every untouched switch as on.
+        return panel.switch(bool(value_for(option, value)),
+                            lambda e: save(bool(e.value)), disabled=off)
     if kind == "choice" and option.get("choices"):
         # Passed through when it is already a mapping. A theme names its choices
         # `{value: label}`, and flattening that to a list would put the stored value on
