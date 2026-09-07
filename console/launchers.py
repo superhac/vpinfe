@@ -18,6 +18,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common import path_checks
 from console import confirm, panel
 from console import settings as settings_page
 
@@ -84,6 +85,31 @@ def _toolbar(library, state: dict[str, Any], redraw: Callable[[], None],
                     .props("flat dense no-caps size=sm")
 
 
+def _mark(one: dict) -> Callable[[], None] | None:
+    """The exceptions only, and the worse one wins.
+
+    Switched off is a choice somebody made; a program that is not there is a launcher
+    that cannot run, and it is the one to say when a row is both.
+    """
+    broken = next((said for said in _broken(one)), "")
+    if broken:
+        return panel.trouble_mark(broken)
+    if not one["enabled"]:
+        return panel.trouble_mark("Switched off. Tables that name it fall back.")
+    return None
+
+
+def _broken(one: dict):
+    """Every path this launcher names that the disk cannot answer for, worst first."""
+    checks = one.get("checks") or {}
+    labels = {field["key"]: field["label"] for field in one.get("fields") or []}
+    for key, found in checks.items():
+        state = str(found.get("state") or "")
+        if state in ("", path_checks.OK, path_checks.UNSET):
+            continue
+        yield f"{labels.get(key, key)}: {found.get('reason') or state}"
+
+
 def _list_and_editor(library, state: dict[str, Any], redraw: Callable[[], None],
                      held: list[dict], defaults: dict, chosen: str) -> None:
     entries: list[tuple[Any, ...]] = []
@@ -92,9 +118,7 @@ def _list_and_editor(library, state: dict[str, Any], redraw: Callable[[], None],
         # The name a person gave it, and what it runs underneath. The app is not a second
         # column: it only says something the name does not when they differ.
         hint = DEFAULT_HINT if is_default else ""
-        entries.append((one["launcher_id"], one["display_name"], hint,
-                        None if one["enabled"] else panel.trouble_mark(
-                            "Switched off. Tables that name it fall back.")))
+        entries.append((one["launcher_id"], one["display_name"], hint, _mark(one)))
 
     def pick(key: str) -> None:
         state["launcher"] = key
@@ -159,7 +183,8 @@ def _editor(library, state: dict[str, Any], redraw: Callable[[], None],
         entries.append((field["label"],
                         settings_page.control_for(
                             field, launcher["settings"].get(field["key"]),
-                            save_field(field["key"]), rerender=redraw)))
+                            save_field(field["key"]), rerender=redraw,
+                            check=(launcher.get("checks") or {}).get(field["key"]))))
         if field.get("description"):
             entries.append(panel.note(field["description"]))
 

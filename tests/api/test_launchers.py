@@ -90,6 +90,38 @@ class LauncherApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("atari-pinball", response.json()["error"]["message"])
 
+    def test_a_launcher_says_what_the_disk_makes_of_its_paths(self) -> None:
+        """Without it, one pointing at a program that has been uninstalled looks exactly
+        like one that works, and the list cannot say which of two can run a table."""
+        self._put("one", settings={"bin_path": "/nope/VPinballX"})
+
+        checks = self.client.get("/launchers").json()["launchers"][0]["checks"]
+
+        self.assertEqual(checks["bin_path"]["state"], "missing")
+        self.assertTrue(checks["bin_path"]["reason"])
+
+    def test_a_path_that_is_there_is_reported_ok(self) -> None:
+        import os
+        program = os.path.join(self.tmp.name, "VPinballX")
+        with open(program, "w", encoding="utf-8"):
+            pass
+        os.chmod(program, 0o755)
+        self._put("one", settings={"bin_path": program})
+
+        checks = self.client.get("/launchers").json()["launchers"][0]["checks"]
+
+        self.assertEqual(checks["bin_path"]["state"], "ok")
+        self.assertEqual(checks["bin_path"]["reason"], "")
+
+    def test_only_the_fields_that_name_a_path_are_checked(self) -> None:
+        """A state on every field would be a mark on every row, which says nothing."""
+        self._put("one", settings={"bin_path": "/nope/VPinballX"})
+
+        checks = self.client.get("/launchers").json()["launchers"][0]["checks"]
+
+        self.assertNotIn("launch_env", checks)
+        self.assertNotIn("log_delete_on_start", checks)
+
     def test_removing_one_takes_its_mappings(self) -> None:
         self._put("one", display_name="VPX")
         self.client.put("/launchers/mappings/t1", json={"launcher_id": "one"})

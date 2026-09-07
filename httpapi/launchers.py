@@ -20,7 +20,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from common import apps
+from common import apps, path_checks
 from common.games import launchers
 
 from . import scopes
@@ -51,7 +51,23 @@ def _described(launcher: launchers.Launcher) -> dict[str, Any]:
         "fields": [{"key": f.key, "label": f.label, "type": f.type,
                     "default": f.default, "description": f.description, "path": f.path}
                    for f in launcher.fields()],
+        # Asked on every read, never stored: a launcher pointing at a program that has
+        # been uninstalled otherwise looks exactly like one that works.
+        "checks": _checks(launcher),
     }
+
+
+def _checks(launcher: launchers.Launcher) -> dict[str, dict[str, str]]:
+    """`{field: {state, reason}}`, for the fields that name a path and only those. A
+    state on every field would be a mark on every row, which says nothing."""
+    found = {}
+    for field in launcher.fields():
+        if not field.path:
+            continue
+        state, reason = path_checks.check(field.path,
+                                          str(launcher.value(field.key) or ""))
+        found[field.key] = {"state": state, "reason": reason}
+    return found
 
 
 @router.get("", summary="Every launcher this install has",
