@@ -702,6 +702,23 @@ class ApiClient:
         self._answered(response)
         return response.json()
 
+    def add_referenced_table(self, game_id: str, file_path: str) -> dict:
+        """Point this game at a file that is not in its folder."""
+        path = f"/games/{game_id}/tables"
+        _refuse_the_event_loop(path)
+        response = self._session.post(f"{self._base}{path}",
+                                      json={"path": file_path}, timeout=_TIMEOUT)
+        self._answered(response)
+        return response.json()
+
+    def contain_table(self, game_id: str, table_id: str) -> dict:
+        """Copy a referenced file into the game folder and stop pointing at it."""
+        path = f"/games/{game_id}/tables/{table_id}/contain"
+        _refuse_the_event_loop(path)
+        response = self._session.post(f"{self._base}{path}", timeout=_TIMEOUT)
+        self._answered(response)
+        return response.json()
+
     def forget_table(self, game_id: str, table_id: str) -> dict:
         """Drop the record of a table whose file is gone. The API refuses if it is not."""
         path = f"/games/{game_id}/tables/{table_id}"

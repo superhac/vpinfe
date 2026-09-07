@@ -22,6 +22,14 @@ FEATURES = "Features"
 # so "Table File" would be a heading over a blank - and the thing it does have is the
 # name its program knows it by.
 KNOWN_AS = "Known As"
+# A referenced entry's group. Not "Table File", which reads as a file of this game's -
+# the whole point of one of these is that the file belongs somewhere else.
+ELSEWHERE = "Where It Is"
+
+# What a reference is doing right now. Notable first, like every pair here. **Not
+# Missing** - nothing is lost when a share has not mounted, and the word that tells
+# somebody a file was deleted is the wrong word for a location being away.
+REACH_WORDS = ("Unreachable", "Reachable")
 LAUNCH = "Launch"
 PLAY = "Play"
 FRONTEND = "Frontend"
@@ -67,12 +75,18 @@ def native_key(table: dict[str, Any] | None) -> str:
     key = str(held.get("key") or "").strip()
     if key:
         return f"{str(held.get('app') or '').strip()}:{key}"
-    return str(held.get("filename") or "")
+    reference = str((held.get("reference") or {}).get("path") or "").strip()
+    return reference or str(held.get("filename") or "")
 
 
 def is_keyed(table: dict[str, Any] | None) -> bool:
     """Whether this entry has no file. Read off `form`, which the install derives."""
     return str((table or {}).get("form") or "") == "keyed"
+
+
+def is_referenced(table: dict[str, Any] | None) -> bool:
+    """Whether this entry's file is somewhere other than the game folder."""
+    return str((table or {}).get("form") or "") == "referenced"
 
 
 def mark(state: str) -> str:
@@ -135,8 +149,12 @@ def table_name(table: dict[str, Any]) -> str:
     version = str(table.get("version") or "").strip()
     said = JOIN.join(part for part in (version, author) if part)
     # An entry with no file has no version or author either - nothing read one. What
-    # names it is what its program calls it, which is the only handle it has.
-    return said or str(table.get("filename") or "") or str(table.get("key") or "")
+    # names it is what its program calls it, or the file it points at.
+    if said:
+        return said
+    reference = table.get("reference") or {}
+    return (str(table.get("filename") or "") or str(table.get("key") or "")
+            or str(reference.get("path") or ""))
 
 
 def reference_state(origin: str) -> tuple[str, str]:

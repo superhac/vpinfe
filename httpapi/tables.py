@@ -75,6 +75,9 @@ def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
                 # is. A row showing a blank in the file column would read as a fault.
                 "form": table.get("form") or "contained",
                 "key": table.get("key") or "",
+                # As stored, which is what identifies the row. Where it resolves to and
+                # whether it is there belong to the panel, not to a grid cell.
+                "reference": ((table.get("reference") or {}).get("path") or ""),
                 "version": table.get("version") or "",
                 "authors": table.get("authors") or [],
                 "rating": int(table.get("rating") or 0),

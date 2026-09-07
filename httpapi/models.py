@@ -790,11 +790,14 @@ class TableRow(ApiModel):
     manufacturer: str = ""
     year: str = ""
     filename: str
-    # `contained` for something in the game's folder, `keyed` for something with no file
-    # at all, that its app finds by a name instead - in which case `filename` is empty
-    # and `key` is what it is called.
+    # `contained` for something in the game's folder, `referenced` for a file elsewhere
+    # it points at, `keyed` for something with no file at all that its app finds by a
+    # name instead - in which case `filename` is empty and `key` is what it is called.
     form: str = "contained"
     key: str = ""
+    # Where a referenced entry's file is, as stored. `available` already says whether it
+    # is reachable; where it resolves to on this machine is a panel's question.
+    reference: str = ""
     version: str = ""
     authors: list[str] = []
     # This table's own rating, not its game's. 0 is unrated, which is most of them.

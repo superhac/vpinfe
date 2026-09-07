@@ -464,12 +464,30 @@ class Library:
         """Add an entry with no file. The game gains a table, so both lenses on it are
         now describing a library that has one more thing in it."""
         result = self._client.add_keyed_table(game_id, app, key)
+        self._forget_after_a_table_write(game_id)
+        return result
+
+    def add_referenced_table(self, game_id: str, file_path: str) -> dict:
+        """Point this game at a file elsewhere."""
+        result = self._client.add_referenced_table(game_id, file_path)
+        self._forget_after_a_table_write(game_id)
+        return result
+
+    def contain_table(self, game_id: str, table_id: str) -> dict:
+        """Copy a referenced file in. A file arrived in the folder, so the media the
+        game resolves can have changed with it."""
+        result = self._client.contain_table(game_id, table_id)
+        self._forget_after_a_table_write(game_id)
+        self.forget_media(game_id)
+        return result
+
+    def _forget_after_a_table_write(self, game_id: str) -> None:
+        """Both lenses and the game's own row. The table count is a column on the game,
+        read off it rather than counted here, so a write that leaves the game alone
+        reports the old number."""
         self.tables.pop(game_id, None)
         self._table_rows = None
-        # The game gained one, so its own row is stale too - the table count is the
-        # column that says so, and it is read off the game rather than counted here.
         self._forget_game(game_id)
-        return result
 
     def forget_table(self, game_id: str, table_id: str) -> dict:
         """Drop a gone table's record. The tables list is what changes, and the media

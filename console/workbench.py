@@ -1367,6 +1367,7 @@ def _table_rows(table: dict[str, Any],
     # What this file is. "Filename" rather than the group's own word, which named the
     # filename here and the on-disk state under Status - one word, two facts, both on
     # screen at once.
+    reference = table.get("reference") or {}
     if game_tables.is_keyed(table):
         # Nothing read a file, so there is no version, author or hash to show and a
         # row of dashes would say we looked. What it has is the name and whose it is.
@@ -1376,6 +1377,28 @@ def _table_rows(table: dict[str, Any],
             ("Program", table.get("app_name") or "-"),
             panel.note("Its program finds this by name rather than us pointing at a "
                        "file, so nothing here is on disk to check."),
+        ]
+    elif reference:
+        # Where it is comes first, because that is the fact that makes this entry
+        # different from every other one on the page.
+        entries += [
+            (HEADING, game_tables.ELSEWHERE),
+            ("Path", reference.get("resolved") or reference.get("path") or "-"),
+            ("Now", panel.state(
+                game_tables.word_for(game_tables.REACH_WORDS,
+                                     not reference.get("reachable")),
+                "on" if reference.get("reachable") else "warn")),
+        ]
+        if not reference.get("reachable"):
+            # The distinction that matters: nothing here has been lost, so the thing
+            # to do is make the location reachable, not forget the entry.
+            entries.append(panel.note(
+                "The file is not there right now. Nothing of this table's is lost - "
+                "its record, its art and its play record are all here - so this is "
+                "usually a drive or a share that has not come back yet."))
+        entries += [
+            ("Version", table.get("version") or "-"),
+            ("Author", ", ".join(table.get("authors") or []) or "-"),
         ]
     else:
         entries += [
@@ -2357,6 +2380,76 @@ async def _add_keyed_table(context: dict[str, Any]) -> None:
     dialog.open()
 
 
+async def _add_referenced_table(context: dict[str, Any]) -> None:
+    """Point this game at a table that is not in its folder.
+
+    Asked as a full path, and checked when it is given: a path that is wrong the moment
+    it is typed is a typo, and keeping it would leave a record that never worked reading
+    the same as a share that is simply away.
+    """
+    library = context["library"]
+    with ui.dialog() as dialog, ui.card().classes("console-confirm"):
+        ui.label("Point at a table elsewhere").classes("console-confirm-title")
+        ui.label("For a table on a share, or one file two games both use. It stays "
+                 "where it is - this game keeps the record and the art, and plays that "
+                 "file.").classes("console-help")
+        # No suffix in the example: which ones are tables is the app registry's answer,
+        # and hard-coding one here would be this surface deciding it.
+        typed = ui.input(placeholder="/path/to/the/table file") \
+            .props("outlined dense debounce=0").classes("w-96")
+
+        async def keep() -> None:
+            said = str(typed.value or "").strip()
+            if not said:
+                typed.props('error error-message="Name a file"')
+                return
+            dialog.close()
+            try:
+                await run.io_bound(library.add_referenced_table,
+                                   context["game_id"], said)
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(f"Could not add it: {exc}", type="negative")
+                return
+            ui.notify("Added", type="positive")
+            await context["rebuild"]()
+
+        with ui.row().classes("justify-end gap-2 w-full"):
+            ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
+            ui.button("Add", on_click=keep).props("no-caps")
+
+    dialog.on("show", lambda: ui.run_javascript(
+        f"document.getElementById('c{typed.id}').focus()"))
+    dialog.open()
+
+
+async def _contain_table(context: dict[str, Any], table: dict[str, Any]) -> None:
+    """Copy a referenced file into the game folder, so the entry stops depending on
+    somewhere else being there.
+
+    Confirmed because it writes a file and because what it costs - the disk - is the
+    thing somebody is choosing to spend. Named for what it is *for*, not for the
+    mechanism: nobody wants "convert to contained", they want the table to keep working
+    when the share is away.
+    """
+    reference = table.get("reference") or {}
+    if not await confirm.ask(
+            "Copy this table into the game?",
+            detail="It is copied, not moved - whatever else uses that file keeps it. "
+                   "Afterwards this game plays its own copy and no longer needs the "
+                   "place it came from.",
+            lines=[reference.get("resolved") or reference.get("path") or ""],
+            confirm="Copy it in"):
+        return
+    try:
+        await run.io_bound(context["library"].contain_table,
+                           context["game_id"], table.get("id") or "")
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(f"Could not copy it in: {exc}", type="negative")
+        return
+    ui.notify("Copied in", type="positive")
+    await context["rebuild"]()
+
+
 def _tables_block(context: dict[str, Any]) -> None:
     """This game's tables, and which one it offers first.
 
@@ -2378,6 +2471,14 @@ def _tables_block(context: dict[str, Any]) -> None:
         # Beside the list rather than hidden in a menu, and drawn even where the list
         # is empty: a folder with nothing in it yet is exactly where one of these is
         # added, and returning early left that game with no way to gain anything.
+        #
+        # Two buttons rather than a menu of two. Both are always available, and a menu
+        # that opens onto two items charges a click to say so.
+        ui.button("Point at a file",
+                  on_click=lambda: _add_referenced_table(context)) \
+            .props("flat dense no-caps size=sm") \
+            .tooltip("For a table that lives somewhere else - a share, or one file "
+                     "two games both use")
         ui.button("Add by name",
                   on_click=lambda: _add_keyed_table(context)) \
             .props("flat dense no-caps size=sm") \
@@ -2429,10 +2530,17 @@ def _tables_block(context: dict[str, Any]) -> None:
                     ui.label(launcher) \
                         .classes("console-member-chip console-tier console-tier--off")
                 with ui.element("div").classes("console-row-action"):
-                    # An entry with no file can always be forgotten: nothing on disk
-                    # will mint it again, which is the opposite of a table that is
-                    # there - dropping that record only means the next scan re-adds it.
-                    if since or game_tables.is_keyed(table):
+                    if game_tables.is_referenced(table):
+                        ui.button(icon="south_west",
+                                  on_click=lambda _, t=table: _contain_table(context, t)) \
+                            .props("flat dense round size=sm") \
+                            .tooltip("Copy it into this game")
+                    # An entry the folder does not hold can always be forgotten: nothing
+                    # on disk here will mint it again, which is the opposite of a table
+                    # that is there - dropping that record only means the next scan
+                    # re-adds it.
+                    if since or game_tables.is_keyed(table) \
+                            or game_tables.is_referenced(table):
                         ui.button(icon="delete_outline",
                                   on_click=lambda _, t=table: _forget_table(context, t)) \
                             .props("flat dense round size=sm color=warning") \
