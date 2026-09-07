@@ -379,8 +379,16 @@ def _tables(game, row: dict) -> list[dict]:
     entries = []
     for native, name, described_entry in rows:
         keyed = bool(tables.entry_key(described_entry))
+        reference = tables.entry_reference(described_entry)
+        # A reference names a file, so the file says which app plays it - the same
+        # question a filename in the folder answers, asked of a name somewhere else.
+        claims = os.path.basename(
+            tables.resolved_reference(str(game_dir), reference)) if reference else name
         app_id = (tables.entry_app(described_entry) if keyed
-                  else (apps.app_for(name) or apps.default_app()).id)
+                  else (apps.app_for(claims) or apps.default_app()).id)
+        points_at = (tables.resolved_reference(str(game_dir), reference)
+                     if reference else "")
+        reachable = bool(points_at) and os.path.isfile(points_at)
         plays_it = _launcher_of(app_id,
                                 str(described_entry.get(TABLE_ID_KEY, "") or ""))
         entry = {
@@ -396,9 +404,14 @@ def _tables(game, row: dict) -> list[dict]:
             # Named as well as identified: a client showing the bare id would be putting
             # one on screen, and would need a second round trip to avoid it.
             "app_name": apps.app_name(app_id),
-            # Contained or keyed, derived from the record rather than stored, so it can
-            # never disagree with it. A keyed entry has no file and never had one.
+            # Contained, referenced or keyed, derived from the record rather than
+            # stored, so it can never disagree with it.
             "form": tables.entry_form(described_entry),
+            # Where a referenced entry points, as stored and as resolved. Both, because
+            # what a person typed and what it comes out as are different facts and a
+            # relative path is unreadable without the second.
+            "reference": ({"path": reference, "resolved": points_at,
+                           "reachable": reachable} if reference else None),
             # What its app knows it by, where the entry has no file of its own. Empty
             # for everything in the folder, which is nearly everything.
             "key": tables.entry_key(described_entry),
@@ -432,10 +445,11 @@ def _tables(game, row: dict) -> list[dict]:
             # lens - tables are read here and would otherwise all look unrated.
             "rating": table_rating(described_entry),
             "user": table_play_record(described_entry),
-            # A file is there or it is not. A key has nothing here to check it
-            # against - only the app can say - so what stands in for it is whether
-            # this machine has a launcher that would play it at all.
-            "available": bool(plays_it["launcher"]) if keyed else name in on_disk,
+            # A file is there or it is not, wherever it is. A key has nothing here to
+            # check it against - only the app can say - so what stands in for it is
+            # whether this machine has a launcher that would play it at all.
+            "available": (bool(plays_it["launcher"]) if keyed
+                          else reachable if reference else name in on_disk),
             "absent_since": library_discovery.absent_since(described_entry) or None,
             # An entry with no file has no stem, so nothing is named after it and only
             # the folder's own media applies. That is the honest answer rather than an
@@ -445,6 +459,12 @@ def _tables(game, row: dict) -> list[dict]:
         if keyed:
             # Both come out of reading a file, and there is none. Saying "unknown" here
             # would put a dependency on an entry that cannot carry one.
+            chain = None
+            flex = None
+        elif reference:
+            # There is a file, but not here - and both of these are read out of this
+            # folder. Answering from the folder would report the game's own roms and
+            # FlexDMD for a table that is not in it.
             chain = None
             flex = None
         elif is_parsed(described_entry):
@@ -1479,7 +1499,7 @@ def _table_or_404(game, table_id: str) -> dict:
 
 @router.post("/{game_id}/tables", summary="Add something this game holds with no file",
              status_code=201, dependencies=[requires(scopes.GAMES_WRITE)])
-def add_keyed_table(game_id: str, body: models.KeyedTableRequest) -> models.Table:
+def add_keyed_table(game_id: str, body: models.NewTableRequest) -> models.Table:
     """Record a ROM, a Pinball FX table, or anything else its program finds by name.
 
     Nothing is scanned into existence here, and nothing can be: a folder scan finds
@@ -1491,6 +1511,9 @@ def add_keyed_table(game_id: str, body: models.KeyedTableRequest) -> models.Tabl
     somebody reorganized their rompath.
     """
     game = _game_or_404(game_id)
+    if body.path:
+        return _add_referenced_table(game, str(body.path))
+
     app_id = str(body.app or "").strip()
     if apps.get(app_id) is None:
         raise InvalidRequestError(
@@ -1508,6 +1531,95 @@ def add_keyed_table(game_id: str, body: models.KeyedTableRequest) -> models.Tabl
     if not meta.add_keyed_table(app_id, key, table_id):
         raise ConflictError("This game already has that one",
                             details={"app": app_id, "key": key})
+    game.meta_config = load_game_meta(game)
+    return _table_or_404(game, table_id)
+
+
+def _add_referenced_table(game, path: str):
+    """A game file that lives somewhere else - on a read-only share, or one file two
+    games both point at.
+
+    Checked against the disk now, because a path that is wrong the moment it is typed is
+    a typo and should be refused rather than kept as a broken record. A path that stops
+    resolving later is a different thing: the location is unreachable, the entry stands,
+    and nothing here is lost.
+    """
+    from common.games import locations
+
+    game_dir = str(getattr(game, "fullPathGame", "") or "")
+    target = os.path.expanduser(str(path or "").strip())
+    if not target:
+        raise InvalidRequestError("Say where the file is.")
+    if not os.path.isabs(target):
+        raise InvalidRequestError("Give the full path to the file.")
+    if not os.path.isfile(target):
+        raise NotFoundError("There is no file there", details={"path": target})
+    if apps.app_for(os.path.basename(target)) is None:
+        raise InvalidRequestError(
+            f"Nothing this build knows plays {os.path.basename(target)}.")
+    if locations.canonical(os.path.dirname(target)) == locations.canonical(game_dir):
+        raise InvalidRequestError(
+            "That file is already in this game's folder, so it is one of its tables "
+            "rather than something it points at.")
+
+    # Relative where it survives the library moving, absolute where it would not.
+    stored = locations.portable_reference(game_dir, target)
+    table_id = new_id()
+    meta = MetaConfig(str(meta_file_path(game)))
+    if not meta.add_referenced_table(stored, table_id):
+        raise ConflictError("This game already points at that file",
+                            details={"path": stored})
+    game.meta_config = load_game_meta(game)
+    return _table_or_404(game, table_id)
+
+
+@router.post("/{game_id}/tables/{table_id}/contain",
+             summary="Copy a referenced table in and stop pointing at it",
+             dependencies=[requires(scopes.GAMES_WRITE)])
+def contain_table(game_id: str, table_id: str) -> models.Table:
+    """Bring the file into the game folder, so the entry stops depending on somewhere
+    else being there.
+
+    Per entry rather than for the whole library: the ten tables somebody actually cares
+    about are worth the disk, and the rest can stay where they are.
+
+    The id survives, which is the point - a collection that named this table and the
+    play record on it both stay pointed at it. The file is copied and not moved: what it
+    references may be read-only, shared with another game, or somebody else's.
+    """
+    import shutil
+
+    game = _game_or_404(game_id)
+    config = load_game_meta(game)
+    entry = table_entries(config).get(table_id)
+    if not isinstance(entry, dict) or not tables.entry_reference(entry):
+        raise NotFoundError("This game has no such reference",
+                            details={"table": table_id})
+
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
+    source = Path(tables.resolved_reference(str(game_dir),
+                                            tables.entry_reference(entry)))
+    if not source.is_file():
+        raise ConflictError(
+            "That file is not reachable from here, so there is nothing to copy",
+            details={"path": str(source)})
+    landing = game_dir / source.name
+    if landing.exists():
+        raise ConflictError("This game already has a file by that name",
+                            details={"filename": source.name})
+
+    try:
+        shutil.copy2(source, landing)
+    except OSError as exc:
+        raise ConflictError(f"Could not copy it in: {exc}") from exc
+
+    meta = MetaConfig(str(meta_file_path(game)))
+    if not meta.contain_referenced_table(table_id, source.name):
+        # The copy landed and the record did not, which is the one state worth undoing:
+        # a file in the folder with nothing describing it becomes a second table on the
+        # next scan, beside the reference that is still there.
+        landing.unlink(missing_ok=True)
+        raise ConflictError("Could not record it", details={"table": table_id})
     game.meta_config = load_game_meta(game)
     return _table_or_404(game, table_id)
 
@@ -1530,9 +1642,10 @@ def delete_table(game_id: str, table_id: str) -> models.TableForgotten:
                             details={"game": getattr(game, "gameDirName", ""),
                                      "table": table_id})
     meta = MetaConfig(str(meta_file_path(game)))
-    if tables.entry_key(entry):
-        # Nothing on disk will mint this one again, which is exactly why forgetting it
-        # is safe where forgetting a table that is there is not.
+    if tables.entry_key(entry) or tables.entry_reference(entry):
+        # Nothing in this folder will mint one of these again, which is exactly why
+        # forgetting it is safe where forgetting a table that is there is not. A
+        # reference forgotten leaves the file it pointed at alone.
         meta.forget_keyed_table(table_id)
         game.meta_config = load_game_meta(game)
         return {"forgotten": table_id}

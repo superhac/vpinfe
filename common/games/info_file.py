@@ -24,6 +24,7 @@ from common.games.tables import (
     DETECT_KEYS,
     TABLE_FILENAME_KEY,
     TABLE_ID_KEY,
+    TABLE_PATH_KEY,
     TABLES_KEY,
     adopted_entry,
     default_table,
@@ -32,8 +33,11 @@ from common.games.tables import (
     entry_from_parsed,
     entry_key,
     entry_native_key,
+    entry_reference,
     keyed_entry,
     recorded_default,
+    referenced_entry,
+    stored_reference,
     table_entries,
     table_filenames,
 )
@@ -480,13 +484,50 @@ class MetaConfig:
         self.write_config()
         return True
 
+    def add_referenced_table(self, path, table_id):
+        """Record a game file that lives somewhere else.
+
+        Stored as given - relative or absolute is the caller's decision, because only it
+        knows whether the target is inside the library and therefore whether a relative
+        path would survive the library moving.
+
+        Refuses a path this game already references. Two entries pointing at one file
+        are the same table twice and nothing downstream could tell them apart.
+        """
+        entries = self._entries_by_id()
+        wanted = stored_reference(path)
+        if any(entry_native_key(one) == wanted for one in entries.values()
+               if isinstance(one, dict)):
+            return False
+        entries[table_id] = {**referenced_entry(wanted), TABLE_ID_KEY: table_id}
+        self.write_config()
+        return True
+
+    def contain_referenced_table(self, table_id, filename):
+        """Turn a reference into a table of this game's own, once its file has been
+        copied in. The copy is the caller's - this is the half that has to be one write.
+
+        The id survives, which is the point: a collection that named this table, and its
+        play record, both stay pointed at it.
+        """
+        entries = self._entries_by_id()
+        entry = entries.get(table_id)
+        if not isinstance(entry, dict) or not entry_reference(entry):
+            return False
+        entry.pop(TABLE_PATH_KEY, None)
+        entry[TABLE_FILENAME_KEY] = str(filename or "").strip()
+        self.write_config()
+        return True
+
     def forget_keyed_table(self, table_id):
-        """Drop an entry that has no file. Nothing on disk will mint it again, which is
+        """Drop an entry the folder does not hold: one with no file at all, or one whose
+        file is somewhere else. Nothing on disk here will mint either back, which is
         exactly why forgetting one is safe and forgetting a table that is there is not.
         """
         entries = self._entries_by_id()
         entry = entries.get(table_id)
-        if not isinstance(entry, dict) or not entry_key(entry):
+        if not isinstance(entry, dict) or not (entry_key(entry)
+                                               or entry_reference(entry)):
             return False
         entries.pop(table_id, None)
         vpinfe = self.data.get(VPINFE_SECTION)

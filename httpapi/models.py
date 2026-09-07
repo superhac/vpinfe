@@ -667,13 +667,17 @@ class Table(ApiModel):
     # app has none opens onto nothing, so the row that leads there is simply absent.
     launcher_app_configurable: bool = False
     filename: str
-    # `contained` for something in the game's folder, `keyed` for something with no file
-    # at all, that its app finds by a name instead. Derived from the record rather than
-    # stored, so it cannot disagree with it.
+    # `contained` for something in the game's folder, `referenced` for a file elsewhere
+    # that it points at, `keyed` for something with no file at all that its app finds by
+    # a name instead. Derived from the record rather than stored, so it cannot disagree
+    # with it.
     form: str = "contained"
     # The name its app knows it by. Empty for everything with a file, which is nearly
     # everything - and where it is set, `filename` is empty because there is no file.
     key: str = ""
+    # Where the file is, on a referenced entry. Null on every other, where `filename`
+    # already says and the game folder is the answer to "where".
+    reference: TableReference | None = None
     default: bool
     # Why it is the default, not only that it is: `user` where somebody chose it,
     # `auto` where the resolver picked one - a filename matching the folder, else first
@@ -719,16 +723,32 @@ class Table(ApiModel):
     dependencies: Dependencies | None = None
 
 
-class KeyedTableRequest(ApiModel):
-    """Something a game folder holds that has no file of its own.
+class TableReference(ApiModel):
+    """Where an entry's file is, when it is not in the game's folder."""
 
-    `key` is whatever its program calls it. It is never resolved here: the program
-    already looks it up, and better - pointing at the file it found would break the
-    moment somebody moved it.
+    # As stored: relative to the game folder, or absolute. Relative is what survives the
+    # library being moved or shared as one piece, so it is used wherever it can be.
+    path: str
+    # As it comes out on this machine. A relative path cannot be read without it.
+    resolved: str = ""
+    # Whether the file is there right now. **False is not "missing"** - the usual cause
+    # is a share that has not mounted, the record and the media are still here, and the
+    # answer is to make the location reachable rather than to forget the entry.
+    reachable: bool = False
+
+
+class NewTableRequest(ApiModel):
+    """Something a game holds that a scan of its folder cannot find.
+
+    Either a file somewhere else, by `path` - the full path to it, stored relative where
+    that survives the library moving and absolute where it would not. Or something with
+    no file at all, by `app` and `key`, where the key is whatever its program calls it
+    and is never resolved here: the program already looks it up, and better.
     """
 
-    app: str
-    key: str
+    path: str = ""
+    app: str = ""
+    key: str = ""
 
 
 class TableList(ApiModel):
