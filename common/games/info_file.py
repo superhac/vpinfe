@@ -30,6 +30,9 @@ from common.games.tables import (
     entry_filename,
     entry_for_filename,
     entry_from_parsed,
+    entry_key,
+    entry_native_key,
+    keyed_entry,
     recorded_default,
     table_entries,
     table_filenames,
@@ -454,6 +457,41 @@ class MetaConfig:
             # replacement does, so the user's typed value can be offered back.
             vpinfe[DEFAULT_TABLE_KEY] = ""
             _park_alt_vpsid(vpinfe, gone_name)
+        self.write_config()
+        return True
+
+    def add_keyed_table(self, app, key, table_id):
+        """Record something this folder holds that has no file: a ROM its emulator looks
+        up, a Pinball FX table id.
+
+        Given its id here rather than by the minting pass, because the caller has to be
+        able to say which entry it just made - a pass that runs at startup answers too
+        late to be told to.
+
+        Refuses a key this game already has. Two entries with the same app and key are
+        the same thing twice, and nothing downstream could tell them apart.
+        """
+        entries = self._entries_by_id()
+        wanted = f"{str(app or '').strip()}:{str(key or '').strip()}"
+        if any(entry_native_key(one) == wanted for one in entries.values()
+               if isinstance(one, dict)):
+            return False
+        entries[table_id] = {**keyed_entry(app, key), TABLE_ID_KEY: table_id}
+        self.write_config()
+        return True
+
+    def forget_keyed_table(self, table_id):
+        """Drop an entry that has no file. Nothing on disk will mint it again, which is
+        exactly why forgetting one is safe and forgetting a table that is there is not.
+        """
+        entries = self._entries_by_id()
+        entry = entries.get(table_id)
+        if not isinstance(entry, dict) or not entry_key(entry):
+            return False
+        entries.pop(table_id, None)
+        vpinfe = self.data.get(VPINFE_SECTION)
+        if isinstance(vpinfe, dict) and str(vpinfe.get(DEFAULT_TABLE_KEY, "")) == table_id:
+            vpinfe[DEFAULT_TABLE_KEY] = ""
         self.write_config()
         return True
 

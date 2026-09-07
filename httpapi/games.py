@@ -30,6 +30,7 @@ from common.games import (
     library_discovery,
     media_lookup,
     media_placement,
+    tables,
 )
 from common.games.game_metadata import (
     adopt_vps_details,
@@ -56,6 +57,7 @@ from common.games.game_repository import (
     game_to_row,
 )
 from common.games.game_service import find_vps_release
+from common.games.ids import new_id
 from common.games.info_file import VPINFE_SECTION, MetaConfig
 from common.games.tables import (
     ABSENT_SINCE_KEY,
@@ -67,7 +69,6 @@ from common.games.tables import (
     is_parsed,
     recorded_default,
     table_entries,
-    table_filenames,
     table_names,
 )
 from common.host import launch, launch_state, pinmame_catalog
@@ -82,7 +83,7 @@ from .errors import ConflictError, FeatureUnavailableError, InvalidRequestError,
 logger = logging.getLogger("vpinfe.httpapi.games")
 
 
-def _launcher_of(filename: str, table_id: str) -> dict:
+def _launcher_of(app_id: str, table_id: str) -> dict:
     """The launcher a table would play with, named for a reader.
 
     Resolved rather than read off the assignment, because a table naming one that is
@@ -93,7 +94,7 @@ def _launcher_of(filename: str, table_id: str) -> dict:
     from common.games import launchers
 
     store = launchers.get_launcher_store()
-    found = launchers.launcher_for_table(filename, table_id, store.launchers(),
+    found = launchers.launcher_for_entry(app_id, table_id, store.launchers(),
                                          store.mappings())
     return {
         "launcher": found.launcher_id if found else "",
@@ -322,16 +323,30 @@ def _tables(game, row: dict) -> list[dict]:
     files, subdirs = _listing(game_dir)
     on_disk = table_names(files)
 
-    names = list(on_disk)
-    for name in table_filenames(described):
-        if name not in names:
-            names.append(name)
-    if not names:
+    # (native key, filename, record). The native key is the filename for something in
+    # the folder and `app:key` for something with no file, so one list covers all of
+    # them and nothing below has to ask which kind it is holding.
+    rows: list[tuple[str, str, dict]] = [
+        (name, name, entry_for_filename(described, name)[1]) for name in on_disk]
+    seen = {name for name, _f, _e in rows}
+    for record in described.values():
+        native = tables.entry_native_key(record)
+        if not native or native in seen:
+            continue
+        rows.append((native, tables.entry_filename(record), record))
+        seen.add(native)
+    if not rows:
         return []
 
     # Same resolver the launcher and the metadata build use, so all three agree.
     recorded = recorded_default(vpinfe_section(game.meta_config), described)
-    default = default_table(files or names, game_dir.name, recorded)
+    default = default_table(files or [f for _n, f, _e in rows if f],
+                            game_dir.name, recorded)
+    if not default:
+        # Nothing with a file. The default is then whichever entry the launch path would
+        # pick, which is the one thing this must not disagree with.
+        default = tables.entry_native_key(
+            tables.default_entry(described, game_dir.name, recorded)[1])
     # Why this one, not only which one. `default_table` falls through a recorded choice,
     # a filename matching the folder, then first alphabetically - which its own docstring
     # calls "deterministic rather than correct". A reader does not care which of the last
@@ -362,8 +377,12 @@ def _tables(game, row: dict) -> list[dict]:
         return True if raw in ("true", "1") else False if raw in ("false", "0") else None
 
     entries = []
-    for name in names:
-        described_entry = entry_for_filename(described, name)[1]
+    for native, name, described_entry in rows:
+        keyed = bool(tables.entry_key(described_entry))
+        app_id = (tables.entry_app(described_entry) if keyed
+                  else (apps.app_for(name) or apps.default_app()).id)
+        plays_it = _launcher_of(app_id,
+                                str(described_entry.get(TABLE_ID_KEY, "") or ""))
         entry = {
             # The table's own id, the same one the play lens uses. Without it the two
             # lenses describe the same table and a client cannot tell that they do -
@@ -372,13 +391,19 @@ def _tables(game, row: dict) -> list[dict]:
             # Which program plays it, from the registry rather than assumed. Today
             # every table is Visual Pinball's; the point is that the next one is a
             # registry entry and not a search for where ".vpx" was hard-coded.
-            "format": (apps.app_for(name) or apps.default_app()).id,
-            "app": (apps.app_for(name) or apps.default_app()).id,
+            "format": app_id,
+            "app": app_id,
+            # Contained or keyed, derived from the record rather than stored, so it can
+            # never disagree with it. A keyed entry has no file and never had one.
+            "form": tables.entry_form(described_entry),
+            # What its app knows it by, where the entry has no file of its own. Empty
+            # for everything in the folder, which is nearly everything.
+            "key": tables.entry_key(described_entry),
             # Which launcher actually plays it, and whether that was chosen here or
             # followed from the default. Resolved rather than read off the assignment,
             # because a table naming one that is switched off falls back - and what a
             # reader is shown has to be what will happen.
-            **_launcher_of(name, str(described_entry.get(TABLE_ID_KEY, "") or "")),
+            **plays_it,
             "filename": name,
             "version": str(described_entry.get("version", "") or ""),
             "authors": [str(a) for a in (described_entry.get("authors") or [])],
@@ -395,20 +420,31 @@ def _tables(game, row: dict) -> list[dict]:
             # Named, not just identified - a client showing the bare id would be putting
             # an id on screen, and would need a second round trip to avoid it.
             "source": _named_source(described_entry),
-            "default": name == default,
+            "default": native == default,
             # Empty on every table that is not the default: the kind is a fact about
             # the one that is, not a field every row carries a blank for.
-            "default_kind": default_kind if name == default else "",
-            "hidden": name in hidden,
+            "default_kind": default_kind if native == default else "",
+            "hidden": native in hidden or described_entry.get("hidden") is True,
             # The table's own rating, which this lens has to carry as well as the play
             # lens - tables are read here and would otherwise all look unrated.
             "rating": table_rating(described_entry),
             "user": table_play_record(described_entry),
-            "available": name in on_disk,
+            # A file is there or it is not. A key has nothing here to check it
+            # against - only the app can say - so what stands in for it is whether
+            # this machine has a launcher that would play it at all.
+            "available": bool(plays_it["launcher"]) if keyed else name in on_disk,
             "absent_since": library_discovery.absent_since(described_entry) or None,
+            # An entry with no file has no stem, so nothing is named after it and only
+            # the folder's own media applies. That is the honest answer rather than an
+            # empty one: a keyed entry's art is the folder's art.
             "assets": asset_resolver.resolve_for_table(name, game_dir.name, files),
         }
-        if is_parsed(described_entry):
+        if keyed:
+            # Both come out of reading a file, and there is none. Saying "unknown" here
+            # would put a dependency on an entry that cannot carry one.
+            chain = None
+            flex = None
+        elif is_parsed(described_entry):
             # Every table carries its own ROM and detect flags, so each one answers
             # for itself. This used to be knowable only for the single file the .info
             # described; the rest returned an honest "unknown".
@@ -434,12 +470,17 @@ def _tables(game, row: dict) -> list[dict]:
                      "audit": None, "installed": None,
                      "reason": "unknown: this table has not been parsed yet"}
             flex = asset_resolver.flexdmd_state(subdirs, None)
-        chain["nvram"] = asset_resolver.nvram_state(str(game_dir), chain["effective"])
-        entry["dependencies"] = {"pinmame": chain, "flexdmd": flex}
+        if chain is None:
+            entry["dependencies"] = None
+        else:
+            chain["nvram"] = asset_resolver.nvram_state(str(game_dir),
+                                                        chain["effective"])
+            entry["dependencies"] = {"pinmame": chain, "flexdmd": flex}
         # One answer to "will this run", from the kinds declared required rather than
         # from the two a client happens to be shown.
         entry["launchable"] = asset_registry.launchable(
-            entry["available"], bool(chain.get("declared")), chain.get("installed"))
+            entry["available"], bool((chain or {}).get("declared")),
+            (chain or {}).get("installed"))
         entries.append(entry)
     return entries
 
@@ -1433,6 +1474,41 @@ def _table_or_404(game, table_id: str) -> dict:
     return found
 
 
+@router.post("/{game_id}/tables", summary="Add something this game holds with no file",
+             status_code=201, dependencies=[requires(scopes.GAMES_WRITE)])
+def add_keyed_table(game_id: str, body: models.KeyedTableRequest) -> models.Table:
+    """Record a ROM, a Pinball FX table, or anything else its program finds by name.
+
+    Nothing is scanned into existence here, and nothing can be: a folder scan finds
+    files, and this is the one kind of entry that has none. Adding it is the only way
+    it can arrive.
+
+    We never resolve the key. The whole reason a key is not a path is that the program
+    already looks it up, and better - pointing at `roms/mm.zip` would break the moment
+    somebody reorganized their rompath.
+    """
+    game = _game_or_404(game_id)
+    app_id = str(body.app or "").strip()
+    if apps.get(app_id) is None:
+        raise InvalidRequestError(
+            f"No app called {app_id!r}. This build knows "
+            f"{', '.join(app.id for app in apps.all_apps())}.")
+    if not apps.get(app_id).claim.accepts_keys:
+        raise InvalidRequestError(
+            f"{apps.app_name(app_id)} plays files, not names it looks up.")
+    key = str(body.key or "").strip()
+    if not key:
+        raise InvalidRequestError("Say what the program calls it.")
+
+    table_id = new_id()
+    meta = MetaConfig(str(meta_file_path(game)))
+    if not meta.add_keyed_table(app_id, key, table_id):
+        raise ConflictError("This game already has that one",
+                            details={"app": app_id, "key": key})
+    game.meta_config = load_game_meta(game)
+    return _table_or_404(game, table_id)
+
+
 @router.delete("/{game_id}/tables/{table_id}", summary="Forget a table that is gone",
                dependencies=[requires(scopes.GAMES_WRITE)])
 def delete_table(game_id: str, table_id: str) -> models.TableForgotten:
@@ -1450,12 +1526,19 @@ def delete_table(game_id: str, table_id: str) -> models.TableForgotten:
         raise NotFoundError("This game has no such table",
                             details={"game": getattr(game, "gameDirName", ""),
                                      "table": table_id})
+    meta = MetaConfig(str(meta_file_path(game)))
+    if tables.entry_key(entry):
+        # Nothing on disk will mint this one again, which is exactly why forgetting it
+        # is safe where forgetting a table that is there is not.
+        meta.forget_keyed_table(table_id)
+        game.meta_config = load_game_meta(game)
+        return {"forgotten": table_id}
+
     if not entry.get(ABSENT_SINCE_KEY):
         raise ConflictError("That table's file is still on disk, so its record stands",
                             details={"table": table_id,
                                      "filename": entry.get("filename", "")})
 
-    meta = MetaConfig(str(meta_file_path(game)))
     meta.forget_table(table_id)
     # The scan's copy still describes the table that just went.
     game.meta_config = load_game_meta(game)

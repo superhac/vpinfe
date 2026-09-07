@@ -665,6 +665,13 @@ class Table(ApiModel):
     # app has none opens onto nothing, so the row that leads there is simply absent.
     launcher_app_configurable: bool = False
     filename: str
+    # `contained` for something in the game's folder, `keyed` for something with no file
+    # at all, that its app finds by a name instead. Derived from the record rather than
+    # stored, so it cannot disagree with it.
+    form: str = "contained"
+    # The name its app knows it by. Empty for everything with a file, which is nearly
+    # everything - and where it is set, `filename` is empty because there is no file.
+    key: str = ""
     default: bool
     # Why it is the default, not only that it is: `user` where somebody chose it,
     # `auto` where the resolver picked one - a filename matching the folder, else first
@@ -704,7 +711,22 @@ class Table(ApiModel):
     # This table's own counters. The game's record is the headline; a table that has
     # been played and a sibling that has not is the thing a game's total cannot say.
     user: TablePlayRecord = Field(default_factory=TablePlayRecord)
-    dependencies: Dependencies
+    # Null on an entry with no file. Both of these come out of reading one, so an entry
+    # that has none cannot have either - and reporting them as unknown would put a
+    # dependency on something that can never carry one.
+    dependencies: Dependencies | None = None
+
+
+class KeyedTableRequest(ApiModel):
+    """Something a game folder holds that has no file of its own.
+
+    `key` is whatever its program calls it. It is never resolved here: the program
+    already looks it up, and better - pointing at the file it found would break the
+    moment somebody moved it.
+    """
+
+    app: str
+    key: str
 
 
 class TableList(ApiModel):
