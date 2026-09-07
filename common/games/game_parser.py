@@ -145,11 +145,13 @@ class GameParser:
             logger.exception("Failed to enumerate game directory: %s", game_dir)
 
         game.table_files = table_names(game_contents)
-        if not game.table_files:
-            logger.warning("No .vpx found in %s directory.", game.gameDirName)
-            return None
-
         info_name = f"{game.gameDirName}.info"
+        # A record alone is enough: an entry keeps its media, its curation and its play
+        # history whether or not there is something here to launch. A table alone has to
+        # be enough too - discovery writes the record on the first pass that sees the
+        # folder, and it only ever sees folders that are already games.
+        if not game.table_files and info_name not in game_contents:
+            return None
         # Only folders holding a backup open one.
         stamps = backup_names(game_contents, info_name)
         game.info_restorable = bool(
@@ -198,7 +200,9 @@ class GameParser:
         recorded = recorded_default(vpinfe_section(game.meta_config),
                                     table_entries(game.meta_config))
         chosen = default_table(game_contents, game_dir.name, recorded)
-        game.fullPathVPXfile = str(game_dir / chosen)
+        # Empty rather than a path, because `game_dir / ""` is the folder and a reader
+        # that stats it would be told there is a table here.
+        game.fullPathVPXfile = str(game_dir / chosen) if chosen else ""
 
         # Media after the default pick: tier 1 of the resolution chain keys off
         # the table that actually launches.
@@ -208,11 +212,14 @@ class GameParser:
             has_medias_dir="medias" in game_subdirs,
             table_stem=Path(chosen).stem if chosen else None,
         )
+        # The folder when there is no table, so "recently added" still orders an entry
+        # that has nothing to stat.
+        stat_target = game.fullPathVPXfile or str(game_dir)
         try:
-            stat = os.stat(game.fullPathVPXfile)
+            stat = os.stat(stat_target)
             game.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
         except OSError:
-            logger.warning("Could not stat table: %s", game.fullPathVPXfile)
+            logger.warning("Could not stat: %s", stat_target)
 
         return game
 

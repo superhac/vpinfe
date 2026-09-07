@@ -50,6 +50,60 @@ class GameParserTests(unittest.TestCase):
             self.assertTrue(game_to_row(by_name["With B2S (Bally 1990)"])["b2s_exists"])
             self.assertFalse(game_to_row(by_name["No B2S (Bally 1991)"])["b2s_exists"])
 
+    def test_a_folder_with_a_record_and_no_table_is_still_an_entry(self) -> None:
+        """Its media, its curation and its play history are all still here. Refusing it
+        would mean an entry disappears the moment the thing that plays it does."""
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            folder = root / "Nothing To Play (Original 2024)"
+            folder.mkdir()
+            (folder / "Nothing To Play (Original 2024).info").write_text("{}")
+
+            by_name = {g.gameDirName: g for g in GameParser(root).getAllGames()}
+
+            self.assertIn("Nothing To Play (Original 2024)", by_name)
+            self.assertEqual(by_name["Nothing To Play (Original 2024)"].table_files, [])
+
+    def test_a_table_with_no_record_is_still_an_entry(self) -> None:
+        """The bootstrap, and it has to stay: discovery writes the record on the first
+        pass that sees the folder, and it only ever sees folders that are already
+        games. Refusing this one would leave it invisible with nothing able to fix it."""
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            folder = root / "No Record Yet (Bally 1990)"
+            folder.mkdir()
+            (folder / "No Record Yet (Bally 1990).vpx").write_text("")
+
+            parser = GameParser(root)
+            by_name = {g.gameDirName: g for g in parser.getAllGames()}
+
+            self.assertIn("No Record Yet (Bally 1990)", by_name)
+            self.assertEqual([row["folder"] for row in parser.getMissingGames()],
+                             ["No Record Yet (Bally 1990)"])
+
+    def test_a_folder_with_neither_is_not_an_entry(self) -> None:
+        """A Backglasses folder sitting beside the games is not a game."""
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "Backglasses").mkdir()
+            (root / "Backglasses" / "something.directb2s").write_text("")
+
+            self.assertEqual(GameParser(root).getAllGames(), [])
+
+    def test_an_entry_with_no_table_names_no_table(self) -> None:
+        """Empty rather than the folder: `game_dir / ""` is the folder itself, and a
+        reader that stats it would be told there is a table here."""
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            folder = root / "Nothing To Play (Original 2024)"
+            folder.mkdir()
+            (folder / "Nothing To Play (Original 2024).info").write_text("{}")
+
+            game = GameParser(root).getAllGames()[0]
+
+            self.assertEqual(game.fullPathVPXfile, "")
+            self.assertIsNotNone(game.creation_time)
+
     def test_standalone_scripts_can_be_constructed_without_running_network_work(self) -> None:
         with mock.patch(
                 "common.games.standalone_scripts.StandaloneScripts.apply_patches") as apply_patches:
