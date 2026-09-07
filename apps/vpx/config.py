@@ -26,6 +26,7 @@ from common.apps.contract import (
 )
 
 from . import ini as vini
+from .setting_types import TYPES
 
 # Which sections feed which group. Declared rather than derived from section names,
 # because they do not line up: the backglass DMD overlay keys sit with the B2S plugin
@@ -50,9 +51,26 @@ REST = ("more", "More settings")
 
 _GROUPED = {section for _key, _label, sections in GROUPS for section in sections}
 
-# Read but never offered. `[Version]` is what VPX wrote about itself, not something to
-# set, and the per-table one carries a table's own version.
+# Read but never offered. `[Version]` is what the program wrote about itself rather than
+# something to set; the rest is state the program keeps in the same file - key bindings
+# written per device as somebody binds them, and the order plugins render in, worked out
+# when they load. None of it is a setting, and 59 rows of raw input bindings in a
+# settings editor is noise somebody has to read past.
 HIDDEN_SECTIONS = frozenset({"Version", "RecentDir", "TableOverride"})
+HIDDEN_PREFIXES = ("Input.Mapping", "Input.Device")
+# A trailing part rather than a whole section: `[Backglass.Priority.PUP]` is one of
+# several, one per plugin, and they arrive as plugins do.
+HIDDEN_PARTS = ("Priority",)
+
+
+def _offered(qualified: str) -> bool:
+    """Judged on the whole name rather than the section, because the file does not put
+    these in sections of their own: `[Input]` holds `Mapping.LeftFlipper`, so the thing
+    that says it is a binding is the key and not the heading above it."""
+    parts = qualified.split(".")
+    if parts[0] in HIDDEN_SECTIONS or qualified.startswith(HIDDEN_PREFIXES):
+        return False
+    return not any(part in parts for part in HIDDEN_PARTS)
 
 
 def _app_ini(settings: Mapping[str, Any]) -> Path | None:
@@ -110,6 +128,27 @@ def _read(path: Path | None) -> vini.Ini:
         return vini.Ini()
 
 
+def _type_of(one: vini.Setting) -> str:
+    """What the program says it is, and what the file implies only where it has not said.
+
+    The ini cannot tell a switch from a number: `Enable Log` and `ImageMngPosX` both
+    default to a bare 0 or 1. A setting the map does not carry - a plugin registers its
+    own at runtime, and they are never in it - keeps what the file implied.
+    """
+    said = TYPES.get(one.qualified, "")
+    if not said:
+        return one.kind
+    # An enumerated setting keeps what the file said, because the file is where the
+    # answers and their labels are. The map only agrees that it is a choice.
+    if said == "choice" and one.kind != vini.KIND_CHOICE:
+        return one.kind
+    # A color is a number to the program and a color here; the file is the only place
+    # that says so, and it says so in the shape of the default.
+    if one.kind == vini.KIND_COLOR:
+        return one.kind
+    return said
+
+
 class VPXConfig:
     """The settings surface for one launcher, and for one table under it."""
 
@@ -127,7 +166,7 @@ class VPXConfig:
         schema = _read(_app_ini(settings))
         by_section: dict[str, list[Field]] = {}
         for one in schema.settings.values():
-            if one.section in HIDDEN_SECTIONS:
+            if not _offered(one.qualified):
                 continue
             by_section.setdefault(one.section, []).append(_field(one))
 
@@ -162,7 +201,7 @@ class VPXConfig:
 
         found: dict[str, ConfigValue] = {}
         for qualified in sorted(set(app.settings) | set(table.settings) | set(mine.settings)):
-            if qualified.split(".", 1)[0] in HIDDEN_SECTIONS:
+            if not _offered(qualified):
                 continue
             from_table = table.value(qualified)
             from_app = app.value(qualified)
@@ -173,9 +212,12 @@ class VPXConfig:
             else:
                 effective, source = "", ""
             set_here = mine.value(qualified) is not None
+            fallback, fallback_scope = _without(scope, qualified, app, table,
+                                                table_scope)
             found[qualified] = ConfigValue(
                 value=effective, scope=source, set_here=set_here,
-                in_effect=not set_here or _same(mine_path, winning))
+                in_effect=not set_here or _same(mine_path, winning),
+                fallback=fallback, fallback_scope=fallback_scope)
         return found
 
     def write(self, scope: str, target: str, values: Mapping[str, str],
@@ -207,6 +249,29 @@ class VPXConfig:
         return {q: one.value for q, one in _read(folder).settings.items()}
 
 
+def _without(scope: str, qualified: str, app: vini.Ini, table: vini.Ini,
+             table_scope: str) -> tuple[str, str]:
+    """What would answer if this scope stopped naming it.
+
+    Clearing a value has to be able to say what it will follow, or somebody has to
+    change it to find out what it was following.
+    """
+    if scope != SCOPE_LAUNCHER and table_scope == scope:
+        # The table layer is the one being cleared, so the application answers next.
+        from_app = app.value(qualified)
+        return (from_app, SCOPE_LAUNCHER) if from_app is not None else ("", "")
+    if scope == SCOPE_LAUNCHER:
+        # Nothing is under the application layer but the program's own default, which
+        # the field carries rather than the file.
+        return "", ""
+    # A scope that is not the one in force changes nothing by clearing.
+    from_table = table.value(qualified)
+    if from_table is not None:
+        return from_table, table_scope
+    from_app = app.value(qualified)
+    return (from_app, SCOPE_LAUNCHER) if from_app is not None else ("", "")
+
+
 def _same(one: Path | None, two: Path | None) -> bool:
     """Two paths naming one file. Compared resolved, because a game folder named after
     the table it holds makes `<table>.ini` and `<folder>.ini` the same file."""
@@ -235,7 +300,7 @@ def _field(one: vini.Setting) -> Field:
     return Field(
         key=one.qualified,
         label=one.label,
-        type=one.kind,
+        type=_type_of(one),
         default=one.default,
         description=one.description,
         choices=one.choices,

@@ -174,6 +174,51 @@ class SchemaTests(_Case):
             SCOPE_LAUNCHER, "", self.settings))
 
 
+class TypeTests(_Case):
+    def test_the_program_says_what_a_setting_is_and_the_file_cannot(self) -> None:
+        """`Enable Log` and `ImageMngPosX` both default to a bare 0 or 1. Only the
+        program's own declarations separate a switch from a number."""
+        from apps.vpx.setting_types import TYPES
+
+        self.assertEqual(TYPES.get("Editor.EnableLog"), "bool")
+        self.assertEqual(TYPES.get("Editor.WindowLeft"), "int")
+
+    def test_every_plugin_has_a_switch(self) -> None:
+        """The host creates it so a plugin can be turned off, and no plugin declares
+        it - so it is the one switch that would have had no type at all."""
+        from apps.vpx.setting_types import TYPES
+
+        for plugin in ("Plugin.B2S", "Plugin.PinMAME", "Plugin.FlexDMD"):
+            with self.subTest(plugin=plugin):
+                self.assertEqual(TYPES.get(f"{plugin}.Enable"), "bool")
+
+    def test_a_setting_the_program_has_not_declared_keeps_what_the_file_implied(self) -> None:
+        """A stale map degrades rather than breaks."""
+        from apps.vpx import ini as vini
+        from apps.vpx.config import _type_of
+
+        one = vini.parse("[Nowhere]\n; A: b [Default: 3]\nNeverDeclared = 3\n")
+        self.assertEqual(_type_of(one.settings["Nowhere.NeverDeclared"]), "int")
+
+    def test_what_the_program_keeps_in_the_file_is_not_offered_as_a_setting(self) -> None:
+        """Key bindings written per device, and the order plugins render in. State that
+        happens to share the file, and 59 rows of it is noise to read past."""
+        offered = {f.key for g in self.config.groups(self.settings) for f in g.settings}
+
+        for key in ("Input.Mapping.LeftFlipper", "Input.Device.Key.Type",
+                    "Backglass.Priority.PUP"):
+            with self.subTest(key=key):
+                self.assertNotIn(key, offered)
+
+    def test_a_binding_is_hidden_even_though_its_section_is_not(self) -> None:
+        """`[Input]` holds both `Mapping.LeftFlipper` and real settings, so the whole
+        name decides rather than the heading above it."""
+        from apps.vpx.config import _offered
+
+        self.assertFalse(_offered("Input.Mapping.LeftFlipper"))
+        self.assertTrue(_offered("Input.JoyCustom1"))
+
+
 class SeedingTests(_Case):
     def test_what_a_folder_would_stop_supplying_is_reportable(self) -> None:
         """Shown in the confirm before a table file takes it off them, so the effective

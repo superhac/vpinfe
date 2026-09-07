@@ -2701,6 +2701,82 @@ def _config_group_block(key: str) -> Callable[[dict[str, Any]], Any]:
     return draw
 
 
+# Where a value came from, in the words somebody would use. Never the wire's: a
+# setting nobody has touched is not "unset", it is what the program does by default, and
+# saying so takes no word at all - an unmarked row is the untouched one, so a mark always
+# means somebody did something.
+CAME_FROM = {
+    "launcher": "From the launcher",
+    "folder": "From the folder",
+    "entry": "From this table",
+}
+
+
+def _config_mark(held: dict, scope: str) -> Callable[[], None] | None:
+    """The one thing worth saying about where this value comes from.
+
+    Four states and only three of them draw. Set-here-and-shadowed is the one that has
+    to be loud: it is a value somebody wrote that another layer is answering over, and
+    it is invisible on the row otherwise.
+    """
+    if held.get("set_here") and not held.get("in_effect"):
+        return panel.state("Not in effect", "warn")
+    if held.get("set_here"):
+        return panel.state("Set here", "on")
+    came = held.get("scope") or ""
+    if came and came != scope:
+        return panel.state(CAME_FROM.get(came, "Inherited"), "off")
+    return None
+
+
+def _said_value(field, value: str) -> str:
+    """A value as somebody reads it rather than as it is stored. A switch is On or Off,
+    never 1 or 0, and an enumerated setting is its own label."""
+    if value == "":
+        return ""
+    if getattr(field, "type", "") == "bool":
+        return "Off" if value in ("0", "false", "False") else "On"
+    for stored, label in getattr(field, "choices", ()) or ():
+        if stored == value:
+            return label
+    return value
+
+
+def _clear_hint(held: dict, field) -> str:
+    """What clearing it will leave in force, named rather than discovered by doing it."""
+    where = held.get("fallback_scope") or ""
+    said = _said_value(field, held.get("fallback") or "")
+    if where:
+        whose = CAME_FROM.get(where, "the layer above").replace("From ", "")
+        return f"Will follow {whose}" + (f" ({said})" if said else "")
+    shown = _said_value(field, field.default) or "what the program does"
+    return f"Will go back to {shown}"
+
+
+def _beside(mark: Callable[[], None], held: dict, field,
+            clear: Callable) -> Callable[[], None]:
+    """The mark, and where it is somebody's own value, the way back off it.
+
+    Clear only where there is something to clear. On every row it would be a control
+    that does nothing on almost all of them - 98% of this program's settings are
+    untouched - and a row of inert verbs teaches people to stop reading them.
+    """
+    def draw() -> None:
+        with ui.row().classes("items-center gap-2 no-wrap"):
+            mark()
+            if held.get("set_here"):
+                panel.action("Clear", lambda: _run(clear, field.key), inline=True,
+                             hint=_clear_hint(held, field))()
+    return draw
+
+
+def _run(clear: Callable, key: str):
+    """`clear` builds the handler for one key, and a button wants the handler."""
+    async def go() -> None:
+        (await clear(key))()
+    return go
+
+
 async def _config_rows(context: dict[str, Any], group) -> None:
     """One group of the program's own settings, at the launcher scope.
 
@@ -2713,6 +2789,20 @@ async def _config_rows(context: dict[str, Any], group) -> None:
     if not values:
         values.update(await run.io_bound(
             library.launcher_config_values, launcher["launcher_id"]))
+
+    scope = context.get("config_scope") or "launcher"
+
+    async def clear(key: str) -> Callable[[], Any]:
+        async def wipe() -> None:
+            try:
+                await run.io_bound(library.write_launcher_config,
+                                   launcher["launcher_id"], {key: ""})
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(f"Could not clear it: {exc}", type="negative")
+                return
+            context.pop("config_values", None)
+            await context["rebuild"]()
+        return wipe
 
     async def save(key: str) -> Callable[[Any], Any]:
         async def write(value: Any) -> bool:
@@ -2738,12 +2828,18 @@ async def _config_rows(context: dict[str, Any], group) -> None:
         if section != seen and len(sections) > 1:
             seen = section
             entries.append((HEADING, _section_label(section, group.label)))
+            said = SECTION_NOTES.get(section)
+            if said:
+                entries.append(panel.note(said))
         held = values.get(field.key) or {}
         entries.append((field.label,
                         settings_page.control_for(
                             _as_option(field),
                             held.get("value", field.default),
                             await save(field.key))))
+        mark = _config_mark(held, scope)
+        if mark is not None:
+            entries.append((panel.ASIDE, _beside(mark, held, field, clear)))
         if field.description:
             entries.append(panel.note(field.description))
     with ui.column().classes("gap-0 console-form"):
@@ -2756,14 +2852,36 @@ def _section_of(qualified: str) -> str:
     return qualified.rsplit(".", 1)[0] if "." in qualified else ""
 
 
+# What a source section is for, carried over from the 2.x page this replaces. VPinFE's
+# own words, written for its own users - the program says what each *setting* does and
+# nothing about what a section is. A section with nothing useful to add is absent rather
+# than carrying a line that restates its own name.
+SECTION_NOTES = {
+    "Editor": "Editor debugging, layout and appearance.",
+    "Player": "Runtime audio, display, physics and table player settings.",
+    "Backglass": "Backglass output and positioning.",
+    "ScoreView": "Score view window and rendering.",
+    "Topper": "Topper output and placement.",
+    "PlayerVR": "VR preview, table placement and headset rendering.",
+    "DefaultCamera": "Default desktop and full single-screen camera.",
+    "TableOverride": "Global table view, difficulty, exposure and tone mapping overrides.",
+    "Input": "Input, controller, keyboard and nudge.",
+    "DMD": "Dot-matrix rendering and layout.",
+    "Alpha": "Alphanumeric display rendering.",
+    "Controller": "Controller integrations and external systems.",
+    "Standalone": "Standalone runtime behavior and cabinet integration.",
+    "TableOption": "Table script options saved by tables themselves.",
+}
+
+
 def _section_label(section: str, group_label: str) -> str:
     """What to call a source section on screen. Never its raw name: `[Plugin.B2S]` is
     the file's spelling, and what a reader wants is which of the two backglass plugins
     this is."""
     said = section.split(".", 1)[-1] if section.startswith("Plugin.") else section
-    # Left as the program spells it. These are product names - PinMAME, FlexDMD,
-    # B2SLegacy - and a humanizer built for snake_case field names turns them into
-    # `Pinmame` and `Flexdmd`, which is worse than the name it was given.
+    # Left as the program spells it. A section here is somebody's product name, and the
+    # humanizer this file uses is built for snake_case fields - it lowercases the
+    # capitals inside a name and gives back something worse than it was handed.
     said = said.replace("\\", " - ")
     return group_label if said.lower() == group_label.lower() else said
 

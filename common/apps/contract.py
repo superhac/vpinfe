@@ -183,6 +183,11 @@ class ConfigValue:
     # False with `set_here` true is a value another layer is shadowing - invisible
     # otherwise, and the bug report we would get.
     in_effect: bool = True
+    # What would win if this scope stopped naming it, and which layer would supply it.
+    # Clearing a value has to be able to say what it will follow instead, or somebody
+    # has to change it to find out.
+    fallback: str = ""
+    fallback_scope: str = ""
 
 
 @runtime_checkable
