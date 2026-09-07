@@ -345,6 +345,13 @@ class Library:
         return dict(self._client.launcher_config(
             launcher_id, table, scope).get("values") or {})
 
+    def folder_settings_reaching(self, launcher_id: str, table: str) -> dict:
+        return self._client.folder_settings_reaching(launcher_id, table)
+
+    def launcher_config(self, launcher_id: str, table: str = "",
+                        scope: str = "launcher") -> dict:
+        return self._client.launcher_config(launcher_id, table, scope)
+
     def write_launcher_config(self, launcher_id: str, values: dict, *,
                               table: str = "", scope: str = "launcher") -> dict:
         return self._client.write_launcher_config(launcher_id, values,

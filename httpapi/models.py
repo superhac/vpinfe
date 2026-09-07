@@ -657,6 +657,9 @@ class Table(ApiModel):
     launcher: str = ""
     launcher_name: str = ""
     launcher_set_here: bool = False
+    # Whether the program that launcher runs has settings of its own. A launcher whose
+    # app has none opens onto nothing, so the row that leads there is simply absent.
+    launcher_app_configurable: bool = False
     filename: str
     default: bool
     # Why it is the default, not only that it is: `user` where somebody chose it,

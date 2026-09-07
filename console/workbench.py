@@ -2066,8 +2066,69 @@ def _table_override_rows(context: dict[str, Any], table: dict[str, Any],
     return [
         ("Launcher", _launcher_pick(context, table)),
         panel_note_for_launcher(table),
+        *_program_settings_row(context, table),
         ("Clear NVRAM on exit", nvram),
     ]
+
+
+# What the scope selector calls each layer. The user thinks "the DMD off for this one
+# table" or "hide the grill on everything" - never in filenames, which appear in a
+# tooltip and in the log and nowhere else.
+SCOPE_WORDS = {
+    "launcher": "Everything this launcher plays",
+    "folder": "This folder",
+    "entry": "This table",
+}
+
+
+def _program_settings_row(context: dict[str, Any],
+                          table: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """The way into the program's own settings for one table, under the launcher that
+    plays it so the two read as one idea.
+
+    Only where the app that launcher wraps has settings of its own. `generic` does not:
+    it knows a program and arguments and nothing about what that program stores.
+    """
+    name = str(table.get("launcher_name") or "")
+    if not name or not table.get("launcher_app_configurable"):
+        return []
+    changed = int(table.get("launcher_settings_here") or 0)
+    said = (f"Set here - {changed} changed" if changed
+            else f"Following {name}")
+
+    # An async handler rather than a lambda that returns one: the panel hands what it
+    # is given straight to the button, and a coroutine nobody awaits is a click that
+    # does nothing and says nothing.
+    async def open_them() -> None:
+        await _open_table_settings(context, table)
+
+    def draw() -> None:
+        with ui.row().classes("items-center gap-2 no-wrap"):
+            panel.state(said, "on" if changed else "off")()
+            panel.action("Edit" if changed else "Set for this table",
+                         open_them, inline=True)()
+
+    return [(f"{name} settings", draw)]
+
+
+async def _open_table_settings(context: dict[str, Any], table: dict[str, Any]) -> None:
+    """The program's settings, scoped to this table, in a dialog over the workbench.
+
+    One component and two ways in: the launcher's rail opens it fixed to the launcher,
+    and this opens it defaulting to the table. The scope arrives already correct because
+    of where you came from, which is what stops the picker being something to touch.
+    """
+    from console import app_settings
+
+    await app_settings.open_for_table(
+        context["library"],
+        launcher_id=str(table.get("launcher") or ""),
+        launcher_name=str(table.get("launcher_name") or ""),
+        # The id, not a path: where a game file sits is a fact about the machine that
+        # holds it, and this Console may be reading another one.
+        table_id=str(table.get("id") or ""),
+        folder_tables=len(context.get("tables") or []) or 1,
+        on_done=context.get("rebuild"))
 
 
 def panel_note_for_launcher(table: dict[str, Any]) -> tuple[Any, Any]:

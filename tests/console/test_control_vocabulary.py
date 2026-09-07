@@ -38,6 +38,9 @@ BUDGET = {
                              "opens - not a fact row, and the row it belongs to is "
                              "already a strip of chips"),
     "collections.py": (1, "the name field in the new-collection dialog"),
+    "app_settings.py": (1, "the scope picker in the dialog's toolbar, which is not a "
+                           "fact row - it says where edits go rather than holding a "
+                           "value of its own"),
     "locations.py": (1, "the folder field in the add-a-location dialog, which is asked "
                         "up front because a location with no folder set reads as "
                         "unreachable - the same words a dropped share uses"),

@@ -102,7 +102,21 @@ def _launcher_of(filename: str, table_id: str) -> dict:
         # can see which tables were deliberately pointed somewhere, and therefore what
         # changing the default will and will not move.
         "launcher_set_here": bool(store.mapped(table_id)),
+        # Whether the program it runs has settings of its own to offer. `generic` has
+        # none - it knows a program and arguments and nothing about what that program
+        # stores - so the row that leads to them is simply absent rather than opening
+        # onto nothing.
+        "launcher_app_configurable": _app_configurable(found),
     }
+
+
+def _app_configurable(launcher) -> bool:
+    if launcher is None:
+        return False
+    from common import apps
+
+    app = apps.get(launcher.app)
+    return app is not None and app.config is not None
 
 
 router = APIRouter(prefix="/games", tags=["games"])

@@ -16,6 +16,7 @@ to send rather than something minted here on every write.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Body
@@ -135,6 +136,26 @@ def _launcher_settings(launcher: launchers.Launcher) -> dict[str, Any]:
     return {field.key: launcher.value(field.key) for field in launcher.fields()}
 
 
+def _game_file(table_id: str) -> str:
+    """The file behind a table id, resolved here rather than sent.
+
+    A caller names the table, not the path. Where a game file sits is a fact about this
+    machine, and the Console reads this API over the network - it has no business
+    knowing, and on another machine it would be wrong.
+    """
+    wanted = str(table_id or "").strip()
+    if not wanted:
+        return ""
+    from common.games.game_repository import all_games
+    from common.games.table_identity import find_table_by_id
+
+    found = find_table_by_id(all_games(), wanted)
+    if found is None:
+        raise NotFoundError(f"No table called {wanted!r}.")
+    game, filename = found
+    return str(Path(str(getattr(game, "fullPathGame", "") or "")) / filename)
+
+
 @router.get("/{launcher_id}/config", summary="What the app it runs can be set to",
             dependencies=[requires(scopes.CONFIG_READ)])
 def launcher_config(launcher_id: str, table: str = "",
@@ -156,7 +177,7 @@ def launcher_config(launcher_id: str, table: str = "",
         raise InvalidRequestError(
             f"No scope called {scope!r}. This app has "
             f"{', '.join(config.scopes())}.")
-    values = config.read(scope, table, settings)
+    values = config.read(scope, _game_file(table), settings)
     return {
         "scopes": list(config.scopes()),
         "groups": [{"key": g.key, "label": g.label,
@@ -173,6 +194,26 @@ def _described_field(field: apps.Field) -> dict[str, Any]:
             "default": field.default, "description": field.description,
             "choices": [list(pair) for pair in field.choices],
             "minimum": field.minimum, "maximum": field.maximum}
+
+
+@router.get("/{launcher_id}/config/reaching",
+            summary="What a folder currently gives one of its tables",
+            dependencies=[requires(scopes.CONFIG_READ)])
+def folder_settings_reaching(launcher_id: str, table: str = "") -> dict[str, Any]:
+    """Asked before a table is given settings of its own.
+
+    The two layers do not stack, so a table with its own file stops receiving the
+    folder's other keys. What they are has to be shown before that happens, not
+    discovered afterwards.
+    """
+    found = launchers.get_launcher_store().get(launcher_id)
+    if found is None:
+        raise NotFoundError(f"No launcher called {launcher_id!r}.")
+    config = _config_of(found)
+    reaching = getattr(config, "inherited_from_folder", None)
+    if config is None or reaching is None:
+        return {"reaching": {}}
+    return {"reaching": reaching(_game_file(table), _launcher_settings(found))}
 
 
 @router.put("/{launcher_id}/config", summary="Set values on the app it runs",
@@ -194,7 +235,7 @@ def write_launcher_config(launcher_id: str,
     values = body.get("values") or {}
     if not isinstance(values, dict) or not values:
         raise InvalidRequestError("Name at least one setting to write.")
-    config.write(scope, str(body.get("table") or ""),
+    config.write(scope, _game_file(str(body.get("table") or "")),
                  {str(k): str(v) for k, v in values.items()},
                  _launcher_settings(found))
     return {"written": sorted(str(k) for k in values)}
