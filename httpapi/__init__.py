@@ -28,6 +28,7 @@ from . import (
     jobs,
     launchers,
     library,
+    locations,
     logs,
     manufacturers,
     media,
@@ -107,6 +108,7 @@ def create_api_app() -> FastAPI:
     api.include_router(preferences.router)
     api.include_router(config.router)
     api.include_router(launchers.router)
+    api.include_router(locations.router)
     api.include_router(metrics.router)
     api.include_router(themes.router)
     api.include_router(about.router)
