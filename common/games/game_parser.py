@@ -36,6 +36,16 @@ _SCAN_WORKERS = 16
 logger = logging.getLogger("vpinfe.common.games.game_parser")
 
 
+def _resolved(path) -> str:
+    """One spelling per folder, for comparing two that may be written differently. A
+    path that cannot be resolved is returned as it came rather than raising - it is
+    being compared, not opened."""
+    try:
+        return str(Path(path).resolve())
+    except OSError:
+        return str(path)
+
+
 class GameParser:
     # static console colors
     """One pass over the library folder, turning each subfolder into a Game."""
@@ -229,15 +239,22 @@ class GameParser:
 
         A rating, a rename or an import changes one folder, and rescanning the library
         to see it costs the whole library - on a network share, minutes of it.
+
+        Folders are matched resolved, because the caller rarely spells one the way the
+        listing did: a root reached through a symlink is the ordinary case, and on macOS
+        every path under /var is one. Matching the spelling meant the game was never
+        found, so each refresh appended a second copy instead of replacing it.
         """
         game_dir = Path(game_dir)
-        target = str(game_dir)
-        self.missing_games = [row for row in self.missing_games if row["path"] != target]
-        self.unreadable_games = [r for r in self.unreadable_games if r["path"] != target]
+        target = _resolved(game_dir)
+        self.missing_games = [row for row in self.missing_games
+                              if _resolved(row["path"]) != target]
+        self.unreadable_games = [r for r in self.unreadable_games
+                                 if _resolved(r["path"]) != target]
 
         game = self._build_game(game_dir) if game_dir.is_dir() else None
         for index, existing in enumerate(self.games):
-            if existing.fullPathGame == target:
+            if _resolved(existing.fullPathGame) == target:
                 if game is None:
                     del self.games[index]        # the folder went away
                 else:

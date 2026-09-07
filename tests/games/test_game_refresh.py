@@ -61,6 +61,18 @@ class SingleGameRefreshTests(TempTree):
 
         self.assertEqual(self.parser.getGameCount(), 3)
 
+    def test_a_folder_named_a_different_way_is_replaced_not_added(self):
+        """The caller rarely spells a folder the way the listing did - a root reached
+        through a symlink is the ordinary case, and on macOS every path under /var is
+        one. Matching on the spelling appended a second copy on every refresh."""
+        before = self.parser.getGameCount()
+
+        self.parser.reload_game(Path(str(self.root / "Bravo")).resolve())
+
+        self.assertEqual(self.parser.getGameCount(), before)
+        self.assertEqual([g.gameDirName for g in self.parser.getAllGames()].count("Bravo"),
+                         1)
+
     def test_a_folder_that_appeared_is_added(self):
         _game_dir(self.root, "Delta")
 
