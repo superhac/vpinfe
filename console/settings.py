@@ -21,11 +21,12 @@ from typing import Any
 
 from nicegui import run, ui
 
-from common import config_schema, feature_checks, install_identity, path_checks
+from common import config_schema, feature_checks, install_identity, path_checks, tokens
 from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.labels import humanize
 from common.media_specs import media_label_map
 from console import binding_editor, deeplink, input_watch, panel
+from console import commands as commands_help
 
 logger = logging.getLogger("vpinfe.console.settings")
 
@@ -626,6 +627,13 @@ def section_rows(source, section: str, options: list[dict], values: dict,
         group = str(option.get("group") or "")
         if group and group != heading:
             entries.append((panel.HEADING, group))
+            if group == "Commands":
+                # Said here rather than left to be discovered. It is already true - a
+                # launcher points at an arbitrary program - but this is the setting that
+                # makes it obvious, and it matters if the reach of this page ever changes.
+                entries.append(panel.note(
+                    "These run as whoever VPinFE is running as, so anyone who can reach "
+                    "this page can run anything that account can."))
         heading = group
         value = current.get(option["key"], option.get("default"))
         entries.append((option.get("label") or humanize(option["key"]),
@@ -638,6 +646,12 @@ def section_rows(source, section: str, options: list[dict], values: dict,
                             section_values=effective)))
         if option.get("description"):
             entries.append(panel.note(option["description"]))
+        # Under the last field of a pair, where somebody has just read what it does and
+        # is about to type into it.
+        if option["key"] == "on_vpinfe_exit":
+            entries.append(commands_help.offered(tokens.VPINFE))
+        elif option["key"] == "on_table_exit":
+            entries.append(commands_help.offered(tokens.TABLE))
     return entries
 
 

@@ -1603,6 +1603,33 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   max-width: 62ch;
 }
 .console-setting { font-size: var(--fs-body); color: var(--ink); font-weight: 600; }
+
+/* The names a command can use, beside the field it is typed into. Two columns so the
+   names line up and the meanings read as one list rather than a run of sentences; the
+   name is mono because it is typed literally, and that is the only thing on these pages
+   that is. */
+/* The list of names a command can use, folded away because eleven rows between two
+   settings is a wall. No card and no border: it is help under a control, and a box
+   around it would read as a region of the page. */
+.console-tokens .q-expansion-item__container > .q-item {
+  min-height: 0; padding: 2px 0;
+  font-size: var(--fs-caption); color: var(--ink-3);
+}
+.console-tokens .q-item__section--side { padding-right: 6px; min-width: 0; }
+.console-token-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 10px;
+  align-items: baseline;
+  max-width: 62ch;
+}
+.console-token {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
 .console-group {
   font-size: var(--fs-caption);
   text-transform: uppercase;
@@ -1778,6 +1805,10 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   padding: 0 8px;
   transition: border-color 120ms, background 120ms;
 }
+/* A field that holds several lines cannot be one row tall. The fixed height above is
+   what keeps a page of single-line controls on one rhythm; here the row count is the
+   height, and pinning it hid two of every three lines behind a scrollbar. */
+.console-edit-field.q-textarea .q-field__control { height: auto; padding: 4px 8px; }
 .console-edit-field .q-field__control::before,
 .console-edit-field .q-field__control::after { border: none; }
 /* No cap. 56ch was tried and cropped "/Users/.../VPinballX/10.8/VPinballX.ini" with room

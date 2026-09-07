@@ -23,7 +23,7 @@ from urllib.parse import quote
 
 from nicegui import run, ui
 
-from common import icons, path_checks
+from common import icons, path_checks, tokens
 from common.games import asset_registry
 from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
 from common.games.collection_filters import UNCONSTRAINED
@@ -49,6 +49,7 @@ from console import (
     stars,
     table_features,
 )
+from console import commands as commands_help
 from console import devices as devices_page
 from console import launchers as launchers_page
 from console import locations as locations_page
@@ -3076,6 +3077,9 @@ async def _launcher_setup(context: dict[str, Any]) -> None:
                             check=(launcher.get("checks") or {}).get(field["key"]))))
         if field.get("description"):
             entries.append(panel.note(field["description"]))
+        # Once, under the pair, rather than beside each of them.
+        if field["key"] == "on_table_exit":
+            entries.append(commands_help.offered(tokens.TABLE))
     with ui.column().classes("gap-0 console-form"):
         _rows(ui, entries)
 
