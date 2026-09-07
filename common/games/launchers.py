@@ -41,6 +41,27 @@ MAPPINGS_KEY = "mappings"
 MIGRATIONS_KEY = "migrations"
 
 
+# What every launcher has, whatever app it wraps. Commands to run around a table are
+# not an app's business - Visual Pinball has no opinion about mounting a share - but they
+# are this launcher's, because they run only when this launcher is what plays the table.
+# The install-wide pair is in Settings, and runs outside these.
+OWN_FIELDS: tuple[apps.Field, ...] = (
+    apps.Field("on_table_start", "When This Launcher Starts a Table", type="text",
+               lines=3,
+               description="One command per line, run after the install-wide ones and "
+                           "before the program. For something only this way of playing "
+                           "needs."),
+    apps.Field("on_table_exit", "When This Launcher's Table Exits", type="text",
+               lines=3,
+               description="Run whenever the ones above ran, even if the program never "
+                           "started."),
+    apps.Field("on_start_required", "A Failure Stops the Launch", type="bool",
+               default="false",
+               description="On, a command that fails before the table starts stops it "
+                           "launching. Off, the failure is noted and it starts anyway."),
+)
+
+
 def mint_launcher_id() -> str:
     """An id for a new launcher. The generator every id in this project uses, so an id
     minted here and one that arrives from another machine are indistinguishable - which
@@ -79,9 +100,10 @@ class Launcher:
         return declared.default if declared is not None else ""
 
     def fields(self) -> tuple[apps.Field, ...]:
-        """What configuring this launcher takes, from the app it wraps."""
+        """What configuring this launcher takes: what its app declares, and what every
+        launcher has whatever it wraps."""
         found = apps.get(self.app)
-        return found.fields if found is not None else ()
+        return (found.fields if found is not None else ()) + OWN_FIELDS
 
     def as_dict(self) -> dict[str, Any]:
         return {"launcher_id": self.launcher_id, "app": self.app,

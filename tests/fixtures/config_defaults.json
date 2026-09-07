@@ -18,6 +18,7 @@
     "auto_update_media_on_startup": "false",
     "chrome_options": "",
     "chrome_options_exclude": "",
+    "command_timeout": "15",
     "disable_default_chrome_options": "false",
     "game_root_dir": "",
     "hidden_asset_kinds": "",
@@ -25,9 +26,14 @@
     "library_refresh_minutes": "0",
     "media_browse_dirs": "",
     "mute_audio": "false",
+    "on_table_exit": "",
+    "on_table_start": "",
+    "on_vpinfe_exit": "",
+    "on_vpinfe_start": "",
     "rar_tool_path": "",
     "splashscreen": "false",
     "startup_collection": "",
+    "table_start_required": "false",
     "theme": "Revolution"
   },
   "input": {

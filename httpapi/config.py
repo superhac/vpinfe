@@ -58,6 +58,10 @@ def _describe(option: config_schema.ConfigOption) -> dict[str, Any]:
         # the grouping is the schema's answer and not one each surface invents.
         "group": option.group,
         "editor": option.editor,
+        # How many rows a text field gets. A setting declared over three lines that
+        # arrives without this renders as a one-line box - which is what a command list
+        # did until it was served.
+        "lines": option.lines,
     }
 
 

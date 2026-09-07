@@ -119,12 +119,12 @@ class ValueTests(unittest.TestCase):
 
         self.assertIs(one.value("log_delete_on_start"), True)
 
-    def test_an_app_nobody_declares_has_no_fields(self) -> None:
+    def test_an_app_nobody_declares_offers_nothing_of_its_own(self) -> None:
         """A launcher whose app this build does not know is still a launcher: it is
-        listed, and it simply has nothing to edit."""
+        listed, and the only fields it has are the ones every launcher has."""
         one = _launcher("a", app="future-pinball")
 
-        self.assertEqual(one.fields(), ())
+        self.assertEqual(one.fields(), launchers.OWN_FIELDS)
         self.assertEqual(one.value("bin_path"), "")
 
 

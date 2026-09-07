@@ -334,6 +334,10 @@ class ConfigOptionInfo(ApiModel):
     # value is, so a client with no such editor renders the ordinary control and edits
     # the value badly rather than not at all.
     editor: str = ""
+    # How many rows a `text` value wants. Zero is one line, which is nearly all of them;
+    # a list of commands is three. Served because the control is decided from it, and a
+    # multi-line setting that arrives without it draws as a single line.
+    lines: int = 0
 
 
 class ConfigSection(ApiModel):

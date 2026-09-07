@@ -49,8 +49,13 @@ def _described(launcher: launchers.Launcher) -> dict[str, Any]:
         "owns_ini": launcher.owns_ini,
         "settings": {field.key: launcher.value(field.key)
                      for field in launcher.fields()},
+        # `lines`, `choices` and the bounds travel with the field because the control a
+        # surface draws is decided from them - a field declared over three lines that
+        # arrives without them renders as a one-line box.
         "fields": [{"key": f.key, "label": f.label, "type": f.type,
-                    "default": f.default, "description": f.description, "path": f.path}
+                    "default": f.default, "description": f.description, "path": f.path,
+                    "lines": f.lines, "choices": dict(f.choices),
+                    "min": f.minimum, "max": f.maximum}
                    for f in launcher.fields()],
         # Asked on every read, never stored: a launcher pointing at a program that has
         # been uninstalled otherwise looks exactly like one that works.

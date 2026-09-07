@@ -90,6 +90,9 @@ class ConfigOption:
     label: str = ""
     description: str = ""
     choices: tuple[str, ...] = ()
+    # How many rows a `text` setting gets. A paragraph and a one-line name want
+    # different controls, and only the setting knows which it is.
+    lines: int = 0
     # Spellings a stored file or an old call site may still use. Canonical-plus-alias is
     # how VPinFE already renames ini keys, and how Visual Pinball does it upstream: the
     # file is rewritten to the canonical name, and the old one keeps resolving forever.
@@ -308,6 +311,72 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         # place and a single string cannot say so. Kept and internal rather than
         # deleted: a value still in a file has to keep resolving, and it is what the
         # first run seeds the locations from.
+        # Commands somebody asks to run around VPinFE and around a table. These belong
+        # to the install rather than to a launcher: they are about the machine's state -
+        # an audio route, a display, a service to stop - and they run whichever launcher
+        # plays the table. A launcher having an opinion about VPinFE starting is
+        # nonsense, which is why there are two pairs here and one on the launcher.
+        ConfigOption(
+            "on_vpinfe_start",
+            group="Commands",
+            type="text",
+            lines=3,
+            default="",
+            label="When VPinFE Starts",
+            description="One command per line, run before anything else. Written the "
+                        "way a shell splits arguments, but nothing else a shell does - "
+                        "for a pipe, point at a script.",
+        ),
+        ConfigOption(
+            "on_vpinfe_exit",
+            group="Commands",
+            type="text",
+            lines=3,
+            default="",
+            label="When VPinFE Exits",
+            description="Run last. These run even if VPinFE is stopping because "
+                        "something went wrong.",
+        ),
+        ConfigOption(
+            "on_table_start",
+            group="Commands",
+            type="text",
+            lines=3,
+            default="",
+            label="When Any Table Starts",
+            description="Run before every table, whichever launcher plays it, and "
+                        "before that launcher's own commands.",
+        ),
+        ConfigOption(
+            "on_table_exit",
+            group="Commands",
+            type="text",
+            lines=3,
+            default="",
+            label="When Any Table Exits",
+            description="Run after every table. They run whenever the ones above ran, "
+                        "even if the table never started.",
+        ),
+        ConfigOption(
+            "command_timeout",
+            group="Commands",
+            type="int",
+            default="15",
+            label="Give Each Command",
+            description="Seconds before a command is given up on. One that never "
+                        "finishes would mean no table launches again.",
+        ),
+        ConfigOption(
+            "table_start_required",
+            group="Commands",
+            type="bool",
+            default="false",
+            label="A Failure Stops the Launch",
+            description="On, a command that fails before a table starts stops it "
+                        "launching - for something the table cannot do without, like a "
+                        "share to mount. Off, the failure is noted and the table "
+                        "starts anyway.",
+        ),
         ConfigOption(
             "game_root_dir",
             group="Where things are",

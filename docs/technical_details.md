@@ -57,6 +57,12 @@ uses an old spelling both still load.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
+| `on_vpinfe_start` | text |  | One command per line, run before anything else. Written the way a shell splits arguments, but nothing else a shell does - for a pipe, point at a script. |
+| `on_vpinfe_exit` | text |  | Run last. These run even if VPinFE is stopping because something went wrong. |
+| `on_table_start` | text |  | Run before every table, whichever launcher plays it, and before that launcher's own commands. |
+| `on_table_exit` | text |  | Run after every table. They run whenever the ones above ran, even if the table never started. |
+| `command_timeout` | int | `15` | Seconds before a command is given up on. One that never finishes would mean no table launches again. |
+| `table_start_required` | bool | `false` | On, a command that fails before a table starts stops it launching - for something the table cannot do without, like a share to mount. Off, the failure is noted and the table starts anyway. |
 | `game_root_dir` | string |  | The folder holding your table folders, one folder per game. |
 | `hidden_media_kinds` | list |  | Kinds of artwork this library does not collect. VPinFE stops showing and counting them; the files stay where they are. |
 | `hidden_asset_kinds` | list |  | Kinds of supporting file this library does not collect - an all-EM library has no ROMs. A table that will not launch still says so. |

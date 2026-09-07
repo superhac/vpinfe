@@ -37,6 +37,8 @@ class Field:
     description: str = ""
     # `(value, label)` where the answers are a closed set. Stored value first.
     choices: tuple[tuple[str, str], ...] = ()
+    # How many rows a `text` field gets; one line otherwise.
+    lines: int = 0
     minimum: float | None = None
     maximum: float | None = None
     # "file", "dir" or "exe" where this names something on disk. Declared rather than
