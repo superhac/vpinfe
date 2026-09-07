@@ -141,6 +141,34 @@ class ListingTests(_Keyed):
         self.assertTrue(self._tables()[0]["available"])
 
 
+class PlayRecordTests(_Keyed):
+    """Playing one has to count against the entry that was played, and only it."""
+
+    def test_a_play_lands_on_the_entry_rather_than_inventing_a_second(self) -> None:
+        """Matched on the name the launch path uses. Matching on the filename alone
+        found nothing, and the create-if-absent branch then added a phantom entry whose
+        filename was the key - one more of them on every launch."""
+        from common.games import game_play_service
+
+        table_id = self._add().json()["id"]
+        game_play_service.add_play_time(self.game, 12, "generic:mm")
+
+        entries = self._info()["tables"]
+        self.assertEqual(list(entries), [table_id], "one entry, not two")
+        self.assertEqual(entries[table_id]["user"]["run_time_seconds"], 12)
+
+    def test_a_file_that_has_no_record_still_gets_one(self) -> None:
+        """The create branch is for files, and it stays: a table on disk that nothing
+        has described yet is counted from its first launch."""
+        from common.games import game_play_service
+
+        game_play_service.add_play_time(self.game, 5, "Somebody Else.vpx")
+
+        entries = list(self._info()["tables"].values())
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["filename"], "Somebody Else.vpx")
+
+
 class ForgettingTests(_Keyed):
     def test_it_can_be_forgotten_because_nothing_will_mint_it_again(self) -> None:
         """Which is the opposite of a table whose file is on disk: that record comes

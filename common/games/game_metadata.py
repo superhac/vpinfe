@@ -19,6 +19,7 @@ from common.games.tables import (
     TABLES_KEY,
     entry_filename,
     entry_for_filename,
+    entry_native_key,
     recorded_default,
     rekey_by_id,
     table_entries,
@@ -645,8 +646,16 @@ def adopt_vps_details(game, vps_entry: dict[str, Any]) -> dict[str, Any]:
     return {field: theirs for field, (_, theirs) in fresh.items()}
 
 
-def get_or_create_table_user(config: dict[str, Any], filename: str) -> dict[str, Any]:
-    """One table's play record, created on its first launch.
+def get_or_create_table_user(config: dict[str, Any], native: str) -> dict[str, Any]:
+    """One entry's play record, created on its first launch.
+
+    `native` is what names the entry within its game - a filename for something in the
+    folder, `app:key` for something with no file. Matched on that rather than on the
+    filename alone, because an entry that has no file matches no filename and inventing
+    one for it added a second, phantom entry on every launch.
+
+    The create is for files only, and it is safe that it is: an entry with no file
+    cannot be launched before it has been added, so it is always already here.
 
     The counters are written here; `rating` is written by `set_table_rating` and is the
     only entered value in the block. Favorite is still in the design with no producer,
@@ -654,10 +663,12 @@ def get_or_create_table_user(config: dict[str, Any], filename: str) -> dict[str,
     """
     entries = rekey_by_id(config.setdefault(TABLES_KEY, {}))
     config[TABLES_KEY] = entries
-    found_id, entry = entry_for_filename(entries, filename)
+    found_id, entry = next(
+        ((i, e) for i, e in entries.items()
+         if isinstance(e, dict) and entry_native_key(e) == native), ("", {}))
     if not entry:
         found_id = new_id()
-        entry = {TABLE_ID_KEY: found_id, TABLE_FILENAME_KEY: filename}
+        entry = {TABLE_ID_KEY: found_id, TABLE_FILENAME_KEY: native}
         entries[found_id] = entry
     user = entry.setdefault("user", {})
     user.setdefault("last_run", None)
