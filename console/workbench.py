@@ -1421,13 +1421,18 @@ def _table_rows(table: dict[str, Any],
     # here: a finding jumps to where it is fixed.
     entries += [(HEADING, game_tables.LAUNCH)]
     present = bool(table.get("available"))
-    entries += [
-        ("Will run", _launch_state(table.get("launchable"))),
-        (game_tables.FILE,
-         _state(game_tables.word_for(game_tables.FILE_WORDS, not present),
-                "on" if present else "bad")),
-        ("ROM", _rom_state(pinmame, rom, context=context)),
-    ]
+    entries += [("Will run", _launch_state(table.get("launchable")))]
+    # Only where there is a file of this game's to be on disk or not. Where it is is
+    # already answered above for a reference, in words that fit it - and "Missing" is
+    # what a deleted file says, which is not what an unmounted share is. An entry with
+    # no file at all has nothing this row could report.
+    if not game_tables.is_referenced(table) and not game_tables.is_keyed(table):
+        entries.append(
+            (game_tables.FILE,
+             _state(game_tables.word_for(game_tables.FILE_WORDS, not present),
+                    "on" if present else "bad")))
+    if not game_tables.is_keyed(table):
+        entries.append(("ROM", _rom_state(pinmame, rom, context=context)))
     if context is not None:
         entries += _table_override_rows(context, table, overrides)
         entries += [(FULL, _play_action(context, table))]
@@ -1970,7 +1975,16 @@ def _attention(table: dict[str, Any]) -> list[tuple[Any, Any]]:
     flex = (table.get("dependencies") or {}).get("flexdmd") or {}
     faults = []
     if not table.get("available"):
-        faults.append("The .vpx is not on disk")
+        # Three ways a thing can be unavailable and they are not the same fault. A file
+        # that is gone is a deletion; a file somewhere else is a location that is away,
+        # and nothing here is lost; something with no file at all has nothing to play
+        # it. The same sentence for all three would send somebody to the wrong fix.
+        if game_tables.is_referenced(table):
+            faults.append("The place this table lives is not reachable")
+        elif game_tables.is_keyed(table):
+            faults.append("Nothing on this machine can play it")
+        else:
+            faults.append("The file is not on disk")
     if pinmame.get("effective") and pinmame.get("installed") is False:
         faults.append(f"ROM {pinmame['effective']} is not installed")
     if flex.get("detected") and not flex.get("installed"):
