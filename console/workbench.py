@@ -23,6 +23,7 @@ from urllib.parse import quote
 
 from nicegui import run, ui
 
+from common import icons
 from common.games import asset_registry
 from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
 from common.games.collection_filters import UNCONSTRAINED
@@ -2461,7 +2462,7 @@ def _release_row(release: dict[str, Any], dialog: Any, bound: str) -> None:
         name = f"{name}  \u2713"
     candidates.choice(str(release.get("img_url") or ""), name,
                       " \u00b7 ".join(part for part in meta if part),
-                      lambda: dialog.submit(said), glyph="casino")
+                      lambda: dialog.submit(said), glyph=icons.TABLES)
 
 
 def _releases_of(context: dict[str, Any], vps_id: str) -> list[dict[str, Any]]:

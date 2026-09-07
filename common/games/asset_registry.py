@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from common import apps
+from common import apps, icons
 from common.games.media_service import IMAGE_EXTENSIONS
 from common.media_specs import MEDIA_SPECS, media_filename_map
 
@@ -53,7 +53,7 @@ def is_readme(name: str) -> bool:
 
 ASSET_SPECS = (
     # The file itself. Nothing launches without it.
-    AssetSpec("table", "Table", "casino", apps.table_suffixes(), False, False, False,
+    AssetSpec("table", "Table", icons.TABLES, apps.table_suffixes(), False, False, False,
               required_to_launch=True),
     AssetSpec("game_info", "Metadata", "description", (), True, False, False),
     AssetSpec("backglass", "Backglass", "wallpaper", (".directb2s",), True, False, False),

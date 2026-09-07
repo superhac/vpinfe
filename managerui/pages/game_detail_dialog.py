@@ -13,6 +13,7 @@ from pathlib import Path
 
 from nicegui import context, events, run, ui
 
+from common import icons
 from common.games import game_index_service, game_service
 from common.games.game_metadata import reorder_leading_article
 from common.games.media_service import invalidate_media_cache
@@ -58,7 +59,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
 
         # Header
         with ui.row().classes('table-dialog-header w-full items-center gap-3'):
-            ui.icon('casino', size='32px').style('color: var(--ink);')
+            ui.icon(icons.TABLES, size='32px').style('color: var(--ink);')
             with ui.column().classes('gap-0 flex-grow'):
                 with ui.row().classes('items-center gap-2'):
                     title_label = ui.label(game_name).classes('text-xl font-bold').style('color: var(--ink);')

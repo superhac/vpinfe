@@ -8,7 +8,7 @@ from typing import Any
 
 from nicegui import run, ui
 
-from common import device_client, feature_checks, install_identity
+from common import device_client, feature_checks, icons, install_identity
 from console import about as about_page
 from console import assets as assets_page
 from console import collections as collections_page
@@ -66,8 +66,7 @@ RAIL_PX = 57
 # missing anywhere", which is what it was reaching for.
 # Grouped, because four of these are what the library holds and the rest are not.
 # A subject is a place, not transient state - so Tables and Tags are
-# rail entries rather than a mode a dropdown puts the Games page into. `casino` is the
-# asset registry's own icon for a table; the rail should not invent a second one.
+# rail entries rather than a mode a dropdown puts the Games page into.
 # Library is a rail entry like the rest, with the four it holds nested under it - not a
 # bare heading, which would be the one thing in this rail that is not a place. It is a
 # disclosure rather than a destination: a row that both navigated and collapsed would
@@ -100,8 +99,8 @@ NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] 
     # organize it rather than being part of it. Locations is last: it is where the rest
     # comes from, but it is touched at setup and when a share breaks, and the first entry
     # here is also the Console's front door.
-    (NAV_PARENT, (("games", "Games", "sports_esports", install_identity.LIBRARY),
-                  ("tables", "Tables", "casino", install_identity.LIBRARY),
+    (NAV_PARENT, (("games", "Games", icons.GAMES, install_identity.LIBRARY),
+                  ("tables", "Tables", icons.TABLES, install_identity.LIBRARY),
                   ("media", "Media", "perm_media", install_identity.LIBRARY),
                   ("assets", "Assets", "widgets", install_identity.LIBRARY),
                   ("collections", "Collections", "collections_bookmark",
