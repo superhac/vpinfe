@@ -23,7 +23,7 @@ from urllib.parse import quote
 
 from nicegui import run, ui
 
-from common import icons
+from common import icons, path_checks
 from common.games import asset_registry
 from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
 from common.games.collection_filters import UNCONSTRAINED
@@ -328,6 +328,11 @@ class Section:
     # for the other - rather than being present and answering a question nobody asked.
     # Keys stay unique across every rail, so `section=` in an address means one thing.
     subjects: frozenset[str] = frozenset({"game", "table"})
+    # Whether this subject can answer for it right now. A section that would open onto
+    # nothing leaves the rail rather than sitting there empty - offering a settings
+    # editor for a program that is not on this machine is a form of lying, and an empty
+    # row is a place somebody goes once and learns to stop trusting.
+    shown: Callable[[dict[str, Any]], bool] | None = None
     # Whether this section works on a picked thing beside its browse region. Only the
     # one that has something to pick declares it: reserving the room everywhere left
     # a section like Game details as four lines of text over an empty half-panel,
@@ -544,6 +549,7 @@ async def _draw_launcher(container: ui.column, title: ui.column, library: Librar
         return
 
     groups = await run.io_bound(library.launcher_config_groups, launcher_id)
+    playing = await run.io_bound(_playing, library)
 
     container.clear()
     title.clear()
@@ -551,7 +557,7 @@ async def _draw_launcher(container: ui.column, title: ui.column, library: Librar
         _title(title, row.get("display_name") or "", row.get("app_name") or "")
         context: dict[str, Any] = {
             "library": library, "launcher": row, "launchers": held,
-            "config_groups": list(groups or []), "state": state,
+            "config_groups": list(groups or []), "state": state, "playing": playing,
             "defaults": dict(found.get("defaults") or {}),
             "redraws": [], "dock": None,
         }
@@ -687,7 +693,8 @@ async def _rail(context: dict[str, Any], subject: str,
     to the open one, the work, then the rest. The markup is the same at either width, so
     nothing is rebuilt on a drag.
     """
-    rows = sections_for(subject)
+    rows = tuple(item for item in sections_for(subject)
+                 if item.shown is None or item.shown(context))
     section = chosen_section(state, subject, rows)
     # A section this subject has no answer for is not a place to land, so an address or a
     # remembered choice that names one opens the rail's own default instead.
@@ -2743,8 +2750,29 @@ def _launcher_config_sections() -> tuple[Section, ...]:
     """
     return tuple(
         Section(f"launcher_{key}", _config_group_label(key), _config_group_block(key),
-                subjects=frozenset({"launcher"}))
+                subjects=frozenset({"launcher"}), shown=_config_group_shown(key))
         for key in CONFIG_GROUP_KEYS)
+
+
+def _config_group_shown(key: str) -> Callable[[dict[str, Any]], bool]:
+    def shown(context: dict[str, Any]) -> bool:
+        if not _program_is_there(context):
+            return False
+        found = _group(context, key)
+        return found is not None and bool(found.settings)
+    return shown
+
+
+def _program_is_there(context: dict[str, Any]) -> bool:
+    """Whether the program this launcher names is on this machine.
+
+    Its own settings are read out of its own files, so without it there is nothing to
+    read and nothing that could be written back meaningfully. Setup and Actions stay,
+    because pointing it somewhere else is how the problem gets fixed.
+    """
+    checks = (context.get("launcher") or {}).get("checks") or {}
+    state = str((checks.get("bin_path") or {}).get("state") or "")
+    return state == path_checks.OK
 
 
 def _config_group_label(key: str) -> Callable[[dict[str, Any]], str]:
@@ -2820,7 +2848,7 @@ def _clear_hint(held: dict, field) -> str:
 
 
 def _beside(mark: Callable[[], None], held: dict, field,
-            clear: Callable) -> Callable[[], None]:
+            clear: Callable, playing: bool = False) -> Callable[[], None]:
     """The mark, and where it is somebody's own value, the way back off it.
 
     Clear only where there is something to clear. On every row it would be a control
@@ -2832,7 +2860,8 @@ def _beside(mark: Callable[[], None], held: dict, field,
             mark()
             if held.get("set_here"):
                 panel.action("Clear", lambda: _run(clear, field.key), inline=True,
-                             hint=_clear_hint(held, field))()
+                             enabled=not playing,
+                             hint=PLAYING_NOTE if playing else _clear_hint(held, field))()
     return draw
 
 
@@ -2841,6 +2870,20 @@ def _run(clear: Callable, key: str):
     async def go() -> None:
         (await clear(key))()
     return go
+
+
+# Said once over the group rather than on every row. The program rewrites both layers
+# when a table exits and its own in-game menu writes the same keys, so an edit made now
+# is one of two writers and the last one wins.
+PLAYING_NOTE = ("A table is playing on this machine. These are read-only until it "
+                "exits, because the program writes this file itself on the way out.")
+
+
+def _playing(library) -> bool:
+    try:
+        return bool((library.play_state() or {}).get("launching"))
+    except Exception:  # noqa: BLE001 - not knowing is not a reason to refuse to draw
+        return False
 
 
 async def _config_rows(context: dict[str, Any], group) -> None:
@@ -2882,7 +2925,10 @@ async def _config_rows(context: dict[str, Any], group) -> None:
             return True
         return write
 
+    playing = bool(context.get("playing"))
     entries: list[tuple[Any, Any]] = []
+    if playing:
+        entries.append(panel.note(PLAYING_NOTE))
     seen = ""
     sections = {_section_of(f.key) for f in group.settings}
     for field in group.settings:
@@ -2903,10 +2949,11 @@ async def _config_rows(context: dict[str, Any], group) -> None:
                         settings_page.control_for(
                             option,
                             settings_page.value_for(option, held.get("value")),
-                            await save(field.key))))
+                            await save(field.key), writable=not playing)))
         mark = _config_mark(held, scope)
         if mark is not None:
-            entries.append((panel.ASIDE, _beside(mark, held, field, clear)))
+            entries.append((panel.ASIDE,
+                            _beside(mark, held, field, clear, playing)))
         if field.description:
             entries.append(panel.note(field.description))
     with ui.column().classes("gap-0 console-form"):
@@ -3016,6 +3063,10 @@ async def _launcher_setup(context: dict[str, Any]) -> None:
         "Switched off it stays configured and keeps its tables, and they fall back to "
         "the default until it is switched on again."))
 
+    if not _program_is_there(context):
+        entries.append(panel.note(
+            f"{launcher['app_name']} is not on this machine, so its own settings are "
+            "not shown. Point this launcher at it below and they will be."))
     entries.append((HEADING, "How it runs"))
     for field in launcher.get("fields") or []:
         entries.append((field["label"],

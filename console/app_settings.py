@@ -20,6 +20,10 @@ from nicegui import run, ui
 
 from console import confirm, panel
 
+# One definition of both: the launcher's rail and this dialog are the same surface at
+# two scopes, and two spellings of "a table is playing" would drift.
+from console.workbench import PLAYING_NOTE, _playing
+
 logger = logging.getLogger("vpinfe.console.app_settings")
 
 SCOPE_ENTRY = "entry"
@@ -100,6 +104,9 @@ async def _fill(library, launcher_id: str, table_id: str, state: dict[str, Any],
 
     groups = found.get("groups") or []
     values = found.get("values") or {}
+    playing = await run.io_bound(_playing, library)
+    if playing:
+        panel.facts(ui, [panel.note(PLAYING_NOTE)])
     wanted = state["search"]
     shown = 0
     for group in groups:
@@ -110,7 +117,8 @@ async def _fill(library, launcher_id: str, table_id: str, state: dict[str, Any],
             continue
         shown += len(rows)
         panel.header(group["label"])
-        await _group_rows(library, launcher_id, table_id, scope, rows, values, draw)
+        await _group_rows(library, launcher_id, table_id, scope, rows, values, draw,
+                          playing)
 
     if not shown:
         panel.facts(ui, [panel.intro(
@@ -119,15 +127,17 @@ async def _fill(library, launcher_id: str, table_id: str, state: dict[str, Any],
 
 
 async def _group_rows(library, launcher_id: str, table_id: str, scope: str,
-                      rows: list[dict], values: dict, draw: Callable) -> None:
+                      rows: list[dict], values: dict, draw: Callable,
+                      playing: bool = False) -> None:
     """One group's settings, with where each value comes from and the way off it."""
     entries: list[tuple[Any, Any]] = []
     for field in rows:
         held = values.get(field["key"]) or {}
         entries.append((field["label"],
                         _control(library, launcher_id, table_id, scope, field,
-                                 held, draw)))
-        aside = _aside(library, launcher_id, table_id, scope, field, held, draw)
+                                 held, draw, playing)))
+        aside = _aside(library, launcher_id, table_id, scope, field, held, draw,
+                       playing)
         if aside is not None:
             entries.append((panel.ASIDE, aside))
         if field.get("description"):
@@ -137,7 +147,7 @@ async def _group_rows(library, launcher_id: str, table_id: str, scope: str,
 
 
 def _control(library, launcher_id: str, table_id: str, scope: str, field: dict,
-             held: dict, draw: Callable) -> Callable[[], None]:
+             held: dict, draw: Callable, playing: bool = False) -> Callable[[], None]:
     """The control always shows the effective value: you never look at a number that is
     not the one the program will use."""
     from console import settings as settings_page
@@ -168,11 +178,13 @@ def _control(library, launcher_id: str, table_id: str, scope: str, field: dict,
     # value, and a closed set of answers has no option spelled "". The control shows what
     # the program will use, which for an untouched setting is its own default.
     return settings_page.control_for(
-        option, settings_page.value_for(option, held.get("value")), save)
+        option, settings_page.value_for(option, held.get("value")), save,
+        writable=not playing)
 
 
 def _aside(library, launcher_id: str, table_id: str, scope: str, field: dict,
-           held: dict, draw: Callable) -> Callable[[], None] | None:
+           held: dict, draw: Callable,
+           playing: bool = False) -> Callable[[], None] | None:
     from console import workbench
 
     mark = workbench._config_mark(held, scope)
@@ -197,8 +209,9 @@ def _aside(library, launcher_id: str, table_id: str, scope: str, field: dict,
         with ui.row().classes("items-center gap-2 no-wrap"):
             mark()
             if held.get("set_here"):
-                panel.action("Clear", wipe, inline=True,
-                             hint=workbench._clear_hint(held, _Field))()
+                panel.action("Clear", wipe, inline=True, enabled=not playing,
+                             hint=(workbench.PLAYING_NOTE if playing
+                                   else workbench._clear_hint(held, _Field)))()
     return drawn
 
 
