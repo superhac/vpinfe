@@ -50,7 +50,9 @@ from console import (
     table_features,
 )
 from console import devices as devices_page
+from console import launchers as launchers_page
 from console import locations as locations_page
+from console import settings as settings_page
 from console.api import ApiError
 from console.data import Library
 
@@ -512,6 +514,53 @@ async def _draw_location(container: ui.column, title: ui.column, library: Librar
 
         context["rebuild"] = rebuild
         await _rail(context, "location", state)
+
+
+async def build_launcher(container: ui.column, title: ui.column, library: Library,
+                         launcher_id: str | None,
+                         state: dict[str, Any] | None = None) -> None:
+    """The panel, for a launcher rather than a game."""
+    state = state if state is not None else {}
+    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
+    state["build_seq"] = mine = state.get("build_seq", 0) + 1
+    async with lock:
+        if state["build_seq"] != mine:
+            return
+        await _draw_launcher(container, title, library, launcher_id, state)
+
+
+async def _draw_launcher(container: ui.column, title: ui.column, library: Library,
+                         launcher_id: str | None, state: dict[str, Any]) -> None:
+    if not launcher_id:
+        _blank(container, title, "Launcher", "Select a launcher")
+        return
+    # Read fresh rather than from the grid's copy: every control in here writes, and a
+    # rebuild that redrew from a stale row would show the edit undoing itself.
+    found = await run.io_bound(library.launchers)
+    held = list(found.get("launchers") or [])
+    row = next((one for one in held if one.get("launcher_id") == launcher_id), None)
+    if row is None:
+        _blank(container, title, "Launcher", "No longer on this install")
+        return
+
+    groups = await run.io_bound(library.launcher_config_groups, launcher_id)
+
+    container.clear()
+    title.clear()
+    with container:
+        _title(title, row.get("display_name") or "", row.get("app_name") or "")
+        context: dict[str, Any] = {
+            "library": library, "launcher": row, "launchers": held,
+            "config_groups": list(groups or []), "state": state,
+            "defaults": dict(found.get("defaults") or {}),
+            "redraws": [], "dock": None,
+        }
+
+        async def rebuild() -> None:
+            await build_launcher(container, title, library, launcher_id, state)
+
+        context["rebuild"] = rebuild
+        await _rail(context, "launcher", state)
 
 
 async def build_device(container: ui.column, title: ui.column, library: Library,
@@ -2613,6 +2662,219 @@ async def _device_actions(context: dict[str, Any]) -> None:
         _rows(ui, await devices_page.action_rows(context))
 
 
+# The app's declared groups, as rail sections. Fixed rather than read at import: a
+# section key has to be stable for `section=` in an address to mean one thing, and the
+# groups an app declares are its own vocabulary rather than this file's.
+CONFIG_GROUP_KEYS = ("backglass", "scoreview", "rom", "play", "more")
+
+
+def _launcher_config_sections() -> tuple[Section, ...]:
+    """One rail section per group the app declares, in the order it declares them.
+
+    A group the launcher's app does not offer draws nothing and the rail leaves it out,
+    which is how 10.8.0 - where the plugin architecture does not exist - shows fewer
+    sections rather than empty ones.
+    """
+    return tuple(
+        Section(f"launcher_{key}", _config_group_label(key), _config_group_block(key),
+                subjects=frozenset({"launcher"}))
+        for key in CONFIG_GROUP_KEYS)
+
+
+def _config_group_label(key: str) -> Callable[[dict[str, Any]], str]:
+    def said(context: dict[str, Any]) -> str:
+        found = _group(context, key)
+        return found.label if found is not None else key.title()
+    return said
+
+
+def _group(context: dict[str, Any], key: str):
+    return next((g for g in context.get("config_groups") or [] if g.key == key), None)
+
+
+def _config_group_block(key: str) -> Callable[[dict[str, Any]], Any]:
+    async def draw(context: dict[str, Any]) -> None:
+        found = _group(context, key)
+        if found is None or not found.settings:
+            return
+        await _config_rows(context, found)
+    return draw
+
+
+async def _config_rows(context: dict[str, Any], group) -> None:
+    """One group of the program's own settings, at the launcher scope.
+
+    The value shown is always the one the program will use, never what this scope
+    happens to hold: you should not be looking at a number that is not in force.
+    """
+    library = context["library"]
+    launcher = context["launcher"]
+    values = context.setdefault("config_values", {})
+    if not values:
+        values.update(await run.io_bound(
+            library.launcher_config_values, launcher["launcher_id"]))
+
+    async def save(key: str) -> Callable[[Any], Any]:
+        async def write(value: Any) -> bool:
+            try:
+                await run.io_bound(library.write_launcher_config,
+                                   launcher["launcher_id"], {key: _as_text(value)})
+            except Exception as exc:  # noqa: BLE001
+                ui.notify(f"Could not save it: {exc}", type="negative")
+                return False
+            context.pop("config_values", None)
+            return True
+        return write
+
+    entries: list[tuple[Any, Any]] = []
+    seen = ""
+    sections = {_section_of(f.key) for f in group.settings}
+    for field in group.settings:
+        # A heading per source section. Labels are the program's and are not unique -
+        # five plugins each call their switch `Enable`, and two of the five say nothing
+        # else about themselves. The section is the only thing that tells them apart,
+        # and it is what the program groups them by too.
+        section = _section_of(field.key)
+        if section != seen and len(sections) > 1:
+            seen = section
+            entries.append((HEADING, _section_label(section, group.label)))
+        held = values.get(field.key) or {}
+        entries.append((field.label,
+                        settings_page.control_for(
+                            _as_option(field),
+                            held.get("value", field.default),
+                            await save(field.key))))
+        if field.description:
+            entries.append(panel.note(field.description))
+    with ui.column().classes("gap-0 console-form"):
+        _rows(ui, entries)
+
+
+def _section_of(qualified: str) -> str:
+    """The part before the last dot. A section name has dots of its own -
+    `Plugin.B2S.Enable` is `Enable` in `Plugin.B2S`."""
+    return qualified.rsplit(".", 1)[0] if "." in qualified else ""
+
+
+def _section_label(section: str, group_label: str) -> str:
+    """What to call a source section on screen. Never its raw name: `[Plugin.B2S]` is
+    the file's spelling, and what a reader wants is which of the two backglass plugins
+    this is."""
+    said = section.split(".", 1)[-1] if section.startswith("Plugin.") else section
+    # Left as the program spells it. These are product names - PinMAME, FlexDMD,
+    # B2SLegacy - and a humanizer built for snake_case field names turns them into
+    # `Pinmame` and `Flexdmd`, which is worse than the name it was given.
+    said = said.replace("\\", " - ")
+    return group_label if said.lower() == group_label.lower() else said
+
+
+def _as_text(value: Any) -> str:
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    return "" if value is None else str(value)
+
+
+def _as_option(field) -> dict[str, Any]:
+    """A declared field as the control grammar reads it. `choices` is a mapping so the
+    label goes on screen where the stored value would otherwise be."""
+    option: dict[str, Any] = {"key": field.key, "type": field.type,
+                              "label": field.label, "default": field.default}
+    if field.choices:
+        option["choices"] = {value: label for value, label in field.choices}
+        option["type"] = "choice"
+    return option
+
+
+async def _launcher_setup(context: dict[str, Any]) -> None:
+    """What this launcher is, and what it runs. Its own fields, which are few - the
+    program's settings are the sections after this one."""
+    library = context["library"]
+    launcher = context["launcher"]
+    rebuild = context["rebuild"]
+    only_one = len(context.get("launchers") or []) <= 1
+    is_default = context.get("defaults", {}).get(launcher["app"]) == launcher["launcher_id"]
+
+    async def write(**changes: Any) -> bool:
+        try:
+            await run.io_bound(library.put_launcher, launcher["launcher_id"],
+                               {**launcher, **changes})
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(f"Could not save: {exc}", type="negative")
+            return False
+        return True
+
+    async def rename(text: str) -> None:
+        await write(display_name=text.strip() or launcher["app_name"])
+
+    async def flip(on: bool) -> None:
+        if await write(enabled=on):
+            await rebuild()
+
+    def save_field(key: str) -> Callable[[Any], Any]:
+        async def save(value: Any) -> bool:
+            return await write(settings={**launcher["settings"], key: value})
+        return save
+
+    entries: list[tuple[Any, Any]] = [
+        ("Name", panel.field(launcher["display_name"], rename,
+                             placeholder=launcher["app_name"])),
+        panel.note("What you call this way of running a table. Nothing is addressed by "
+                   "it, so renaming is safe."),
+        ("Runs", launcher["app_name"]),
+    ]
+    if is_default:
+        entries.append(panel.note(launchers_page.DEFAULT_HINT))
+    entries.append(("Enabled", panel.switch(
+        launcher["enabled"], lambda e: flip(bool(e.value)), disabled=only_one,
+        hint="The only launcher this install has." if only_one else "")))
+    entries.append(panel.note(
+        "Switched off it stays configured and keeps its tables, and they fall back to "
+        "the default until it is switched on again."))
+
+    entries.append((HEADING, "How it runs"))
+    for field in launcher.get("fields") or []:
+        entries.append((field["label"],
+                        settings_page.control_for(
+                            field, launcher["settings"].get(field["key"]),
+                            save_field(field["key"]),
+                            check=(launcher.get("checks") or {}).get(field["key"]))))
+        if field.get("description"):
+            entries.append(panel.note(field["description"]))
+    with ui.column().classes("gap-0 console-form"):
+        _rows(ui, entries)
+
+
+async def _launcher_actions(context: dict[str, Any]) -> None:
+    library = context["library"]
+    launcher = context["launcher"]
+    state = context["state"]
+    only_one = len(context.get("launchers") or []) <= 1
+
+    def again() -> None:
+        reload_page = state.get("rerender")
+        if callable(reload_page):
+            reload_page()
+
+    with ui.column().classes("gap-2 console-form px-3 py-2"):
+        with ui.row().classes("items-center gap-2 no-wrap"):
+            ui.button("Duplicate",
+                      on_click=lambda: launchers_page.duplicate(
+                          library, state, again, launcher)) \
+                .props("flat dense no-caps size=sm")
+            if state.get("can_manage_devices"):
+                ui.button("Copy to devices",
+                          on_click=lambda: launchers_page.copy_dialog(
+                              library, state, launcher)) \
+                    .props("flat dense no-caps size=sm")
+            remove = ui.button("Remove",
+                               on_click=lambda: launchers_page.remove(
+                                   library, state, again, launcher)) \
+                .props("flat dense no-caps size=sm color=negative")
+            if only_one:
+                remove.disable()
+                remove.tooltip("The only launcher this install has.")
+
+
 async def _location_details(context: dict[str, Any]) -> None:
     """What the location is, and what the disk says about it."""
     row = context["location"]
@@ -3717,6 +3979,13 @@ SECTIONS: tuple[Section, ...] = (
     # sits in the browse region and the result in the dock beside it.
     Section("location_details", lambda _: "Details", _location_details,
             subjects=frozenset({"location"})),
+    # A launcher, in reading order: what it is and what it runs, then the program's own
+    # settings grouped as the app declares them, then what can be done to it.
+    Section("launcher_setup", lambda _: "Setup", _launcher_setup,
+            subjects=frozenset({"launcher"})),
+    *_launcher_config_sections(),
+    Section("launcher_actions", lambda _: "Actions", _launcher_actions,
+            subjects=frozenset({"launcher"})),
     Section("collection_details", lambda _: "Details", _collection_details,
             subjects=frozenset({"collection"})),
     Section("collection_contents", _contents_label, _collection_contents,

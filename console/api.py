@@ -619,6 +619,17 @@ class ApiClient:
         """Where a new game's folder is created."""
         return dict(self._put(f"/locations/{location_id}/write-to", {}) or {})
 
+    def launcher_config(self, launcher_id: str, table: str = "",
+                        scope: str = "launcher") -> dict:
+        """The app's declared groups and their values at one scope."""
+        return dict(self._get(
+            f"/launchers/{launcher_id}/config?table={table}&scope={scope}") or {})
+
+    def write_launcher_config(self, launcher_id: str, values: dict, *,
+                              table: str = "", scope: str = "launcher") -> dict:
+        return dict(self._put(f"/launchers/{launcher_id}/config",
+                              {"values": values, "table": table, "scope": scope}) or {})
+
     def config_schema(self) -> list[dict]:
         """Every setting this install has, sectioned. Read from the install rather than
         carried here, so a client cannot offer a setting the install does not have."""

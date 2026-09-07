@@ -209,6 +209,7 @@ EMPTY_PANE = {
     "assets": ("Assets", "Select a kind of file"),
     "devices": ("Device", "Select a device"),
     "locations": ("Location", "Select a location"),
+    "launchers": ("Launcher", "Select a launcher"),
 }
 
 # The pages the pane has a role on. Media is one of them: a row is one game's slot, so
@@ -741,6 +742,15 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         await workbench.build_collection(panel, workbench_title, library,
                                          state["collection"], state)
 
+    async def show_launcher(row: dict | None) -> None:
+        """What the grid has selected is what the workbench is about, the same rule
+        every other subject follows."""
+        if row and not state["workbench"]:
+            show_workbench(True)
+        state["launcher"] = (row or {}).get("id")
+        await workbench.build_launcher(panel, workbench_title, library,
+                                       state["launcher"], state)
+
     async def show_location(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about - the same rule
         Games and Collections follow, so the panel needs no control of its own."""
@@ -841,7 +851,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 state["can_manage_devices"] = (
                     install_identity.DEVICES in (discovery.get("features") or []))
                 state["install_id"] = discovery.get("install_id") or ""
-                launchers_page.build(library, state, redraw)
+                state["rerender"] = redraw
+                launchers_page.build(library, state, show_launcher, redraw)
             elif view == "themes":
                 themes_page.build(library, state, redraw)
             elif view == "metrics":

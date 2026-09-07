@@ -324,6 +324,32 @@ class Library:
     def set_location_write_to(self, location_id: str) -> dict:
         return self._client.set_location_write_to(location_id)
 
+    def launcher_config_groups(self, launcher_id: str, table: str = "",
+                               scope: str = "launcher") -> list:
+        """The groups an app declares, as the panel's control grammar wants them."""
+        from types import SimpleNamespace
+
+        found = self._client.launcher_config(launcher_id, table, scope)
+        return [SimpleNamespace(
+            key=g["key"], label=g["label"],
+            settings=[SimpleNamespace(
+                key=f["key"], label=f["label"], type=f["type"],
+                default=f["default"], description=f["description"],
+                choices=tuple(tuple(pair) for pair in f.get("choices") or ()),
+                minimum=f.get("minimum"), maximum=f.get("maximum"))
+                for f in g["settings"]])
+            for g in found.get("groups") or []]
+
+    def launcher_config_values(self, launcher_id: str, table: str = "",
+                               scope: str = "launcher") -> dict:
+        return dict(self._client.launcher_config(
+            launcher_id, table, scope).get("values") or {})
+
+    def write_launcher_config(self, launcher_id: str, values: dict, *,
+                              table: str = "", scope: str = "launcher") -> dict:
+        return self._client.write_launcher_config(launcher_id, values,
+                                                  table=table, scope=scope)
+
     def put_launcher(self, launcher_id: str, body: dict) -> dict:
         return self._client.put_launcher(launcher_id, body)
 

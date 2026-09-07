@@ -123,6 +123,83 @@ def put_launcher(launcher_id: str, body: dict[str, Any] = Body(...)) -> dict[str
     return _described(written)
 
 
+def _config_of(launcher: launchers.Launcher):
+    """The app's own settings surface for this launcher, or None where its app has
+    none. `generic` has none: it knows a program and arguments and nothing about what
+    that program stores."""
+    app = apps.get(launcher.app)
+    return getattr(app, "config", None) if app is not None else None
+
+
+def _launcher_settings(launcher: launchers.Launcher) -> dict[str, Any]:
+    return {field.key: launcher.value(field.key) for field in launcher.fields()}
+
+
+@router.get("/{launcher_id}/config", summary="What the app it runs can be set to",
+            dependencies=[requires(scopes.CONFIG_READ)])
+def launcher_config(launcher_id: str, table: str = "",
+                    scope: str = "launcher") -> dict[str, Any]:
+    """The declared groups, and every value as it stands at one scope.
+
+    The groups come from the app, which reads them out of the program's own files, so a
+    setting a later build of that program adds appears without anything here changing.
+    """
+    found = launchers.get_launcher_store().get(launcher_id)
+    if found is None:
+        raise NotFoundError(f"No launcher called {launcher_id!r}.")
+    config = _config_of(found)
+    if config is None:
+        return {"groups": [], "values": {}, "scopes": []}
+
+    settings = _launcher_settings(found)
+    if scope not in config.scopes():
+        raise InvalidRequestError(
+            f"No scope called {scope!r}. This app has "
+            f"{', '.join(config.scopes())}.")
+    values = config.read(scope, table, settings)
+    return {
+        "scopes": list(config.scopes()),
+        "groups": [{"key": g.key, "label": g.label,
+                    "settings": [_described_field(f) for f in g.settings]}
+                   for g in config.groups(settings)],
+        "values": {key: {"value": one.value, "scope": one.scope,
+                         "set_here": one.set_here, "in_effect": one.in_effect}
+                   for key, one in values.items()},
+    }
+
+
+def _described_field(field: apps.Field) -> dict[str, Any]:
+    return {"key": field.key, "label": field.label, "type": field.type,
+            "default": field.default, "description": field.description,
+            "choices": [list(pair) for pair in field.choices],
+            "minimum": field.minimum, "maximum": field.maximum}
+
+
+@router.put("/{launcher_id}/config", summary="Set values on the app it runs",
+            dependencies=[requires(scopes.CONFIG_WRITE)])
+def write_launcher_config(launcher_id: str,
+                          body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Values at one scope. The app writes them into its own file in place."""
+    found = launchers.get_launcher_store().get(launcher_id)
+    if found is None:
+        raise NotFoundError(f"No launcher called {launcher_id!r}.")
+    config = _config_of(found)
+    if config is None:
+        raise InvalidRequestError(
+            f"{apps.app_name(found.app)} has no settings of its own to write.")
+
+    scope = str(body.get("scope") or "launcher")
+    if scope not in config.scopes():
+        raise InvalidRequestError(f"No scope called {scope!r}.")
+    values = body.get("values") or {}
+    if not isinstance(values, dict) or not values:
+        raise InvalidRequestError("Name at least one setting to write.")
+    config.write(scope, str(body.get("table") or ""),
+                 {str(k): str(v) for k, v in values.items()},
+                 _launcher_settings(found))
+    return {"written": sorted(str(k) for k in values)}
+
+
 @router.delete("/{launcher_id}", summary="Forget a launcher",
                dependencies=[requires(scopes.CONFIG_WRITE)])
 def delete_launcher(launcher_id: str) -> dict[str, Any]:
