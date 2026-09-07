@@ -3112,19 +3112,30 @@ async def _launcher_actions(context: dict[str, Any]) -> None:
                 remove.tooltip("The only launcher this install has.")
 
 
-# How many copies to list. The rest are still there; a list nobody scrolls is a list
-# nobody reads, and the one somebody wants is almost always the last one taken.
-BACKUPS_SHOWN = 8
-
 # Why a copy was taken, in the words somebody would use.
 BACKUP_REASONS = {"manual": "Taken by you", "before-restore": "Before a restore"}
 
 
-async def _config_backups(context: dict[str, Any], launcher: dict) -> None:
-    """Copies of the file the app keeps its settings in.
+def _app_keeps_settings(context: dict[str, Any]) -> bool:
+    """Whether there is a settings file to copy at all. `generic` keeps none."""
+    return bool(context.get("config_groups")) or _program_is_there(context)
 
-    A copy of what is there now is taken before any restore, so putting the wrong one
-    back is something to undo rather than something to regret.
+
+def _backup_when(one: dict) -> str:
+    """When it was taken, as a person reads a date, with any label beside it."""
+    stamp = str(one.get("taken_at") or "")
+    said = f"{stamp[:10]} {stamp[11:16]}" if len(stamp) >= 16 else (stamp or "Unknown")
+    label = str(one.get("label") or "")
+    return f"{said} - {label}" if label else said
+
+
+async def _config_backups(context: dict[str, Any], launcher: dict) -> None:
+    """The settings file this launcher writes, and the copies kept of it.
+
+    Two verbs rather than a list of rows. Actions is a list of things to do, and a
+    timestamp is not a label - putting one in the label column made the section read
+    like a log somebody had to scan. Which copy to put back is a question, so it is
+    asked where questions are asked.
     """
     library = context["library"]
     if not _app_keeps_settings(context):
@@ -3132,10 +3143,11 @@ async def _config_backups(context: dict[str, Any], launcher: dict) -> None:
     try:
         found = await run.io_bound(library.config_backups, launcher["launcher_id"])
     except Exception as exc:  # noqa: BLE001
-        panel.facts(ui, [panel.note(f"Could not read the copies: {exc}")])
+        _rows(ui, [panel.note(f"Could not read the copies: {exc}")])
         return
 
     held = list(found.get("backups") or [])
+    named = list((found.get("files") or {}).values())
     playing = bool(context.get("playing"))
 
     async def take() -> None:
@@ -3147,7 +3159,58 @@ async def _config_backups(context: dict[str, Any], launcher: dict) -> None:
         ui.notify("Copied", type="positive")
         await context["rebuild"]()
 
-    async def put_back(name: str) -> None:
+    entries: list[tuple[Any, Any]] = [(HEADING, "Settings file")]
+    if named:
+        entries.append(("File", _file_value(named[0])))
+    entries.append(("Copies", _copies_value(held, take, found, context, playing)))
+    entries.append(panel.note(
+        f"Kept in {found.get('kept_in') or 'this install\'s configuration folder'}"))
+    _rows(ui, entries)
+
+
+def _file_value(path: str) -> Callable[[], None]:
+    """The name, with the whole path where a whole path belongs."""
+    from pathlib import Path as _Path
+
+    def draw() -> None:
+        ui.label(_Path(path).name).classes(
+            "console-fact-value truncate min-w-0").tooltip(path)
+    return draw
+
+
+def _said_count(held: list[dict]) -> str:
+    if not held:
+        return "None yet"
+    newest = _backup_when(held[0])
+    return (f"1, taken {newest}" if len(held) == 1
+            else f"{len(held)}, newest {newest}")
+
+
+def _copies_value(held: list[dict], take: Callable, found: dict,
+                  context: dict[str, Any], playing: bool) -> Callable[[], None]:
+    async def choose() -> None:
+        await _restore_dialog(held, context, playing)
+
+    def draw() -> None:
+        with ui.row().classes("items-center gap-2 no-wrap"):
+            ui.label(_said_count(held)).classes("console-fact-value truncate min-w-0")
+            panel.action("Copy it now", take, inline=True, enabled=not playing,
+                         hint=PLAYING_NOTE if playing else "")()
+            panel.action("Restore", choose, inline=True,
+                         enabled=bool(held) and not playing,
+                         hint=(PLAYING_NOTE if playing
+                               else "" if held else "No copies to put back yet"))()
+    return draw
+
+
+async def _restore_dialog(held: list[dict], context: dict[str, Any],
+                          playing: bool) -> None:
+    """Which copy, asked where a question belongs rather than as a row of buttons."""
+    library = context["library"]
+    launcher_id = context["launcher"]["launcher_id"]
+
+    async def put_back(name: str, dialog) -> None:
+        dialog.close()
         if not await confirm.ask(
                 "Put this copy back?",
                 detail="A copy of the settings as they are now is taken first, so this "
@@ -3155,58 +3218,37 @@ async def _config_backups(context: dict[str, Any], launcher: dict) -> None:
                 confirm="Restore"):
             return
         try:
-            await run.io_bound(library.restore_config_backup,
-                               launcher["launcher_id"], name)
+            await run.io_bound(library.restore_config_backup, launcher_id, name)
         except Exception as exc:  # noqa: BLE001
             ui.notify(f"Could not put it back: {exc}", type="negative")
             return
         ui.notify("Restored", type="positive")
         await context["rebuild"]()
 
-    entries: list[tuple[Any, Any]] = [(HEADING, "Settings file")]
-    entries.append(("Copies", _take_backup(take, playing)))
-    if not held:
-        entries.append(panel.note(
-            "No copies yet. One is taken automatically before any restore."))
-    for one in held[:BACKUPS_SHOWN]:
-        entries.append((_backup_when(one), _restore_backup(one, put_back, playing)))
-    if len(held) > BACKUPS_SHOWN:
-        entries.append(panel.note(
-            f"{len(held) - BACKUPS_SHOWN} older, kept on disk."))
-    _rows(ui, entries)
+    with ui.dialog() as dialog, ui.card().classes("console-panel"):
+        ui.label("Put a copy back").classes("console-card-title")
+        ui.label("The newest is first. A copy of the settings as they are now is "
+                 "taken before any of these replaces them.").classes("console-help")
+        with ui.column().classes("gap-0 w-full console-form"):
+            _rows(ui, [(_backup_when(one),
+                        _one_copy(one, put_back, dialog, playing)) for one in held])
+        with ui.row().classes("justify-end w-full"):
+            ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
+    dialog.open()
 
 
-def _app_keeps_settings(context: dict[str, Any]) -> bool:
-    return bool(context.get("config_groups")) or _program_is_there(context)
-
-
-def _backup_when(one: dict) -> str:
-    """When it was taken, as a person reads a date, with why beside it."""
-    stamp = str(one.get("taken_at") or "")
-    said = f"{stamp[:10]} {stamp[11:16]}" if len(stamp) >= 16 else (stamp or "Unknown")
-    label = str(one.get("label") or "")
-    return f"{said} - {label}" if label else said
-
-
-def _take_backup(take: Callable, playing: bool) -> Callable[[], None]:
-    def draw() -> None:
-        panel.action("Copy the settings now", take, inline=True, enabled=not playing,
-                     hint=PLAYING_NOTE if playing else "")()
-    return draw
-
-
-def _restore_backup(one: dict, put_back: Callable, playing: bool) -> Callable[[], None]:
+def _one_copy(one: dict, put_back: Callable, dialog: Any,
+              playing: bool) -> Callable[[], None]:
     reason = BACKUP_REASONS.get(str(one.get("reason") or ""), "")
 
     async def go() -> None:
-        await put_back(str(one.get("name") or ""))
+        await put_back(str(one.get("name") or ""), dialog)
 
     def draw() -> None:
         with ui.row().classes("items-center gap-2 no-wrap"):
             if reason:
                 panel.state(reason, "off")()
-            panel.action("Put back", go, inline=True, enabled=not playing,
-                         hint=PLAYING_NOTE if playing else "")()
+            panel.action("Put back", go, inline=True, enabled=not playing)()
     return draw
 
 

@@ -260,8 +260,14 @@ def list_config_backups(launcher_id: str) -> dict[str, Any]:
         raise NotFoundError(f"No launcher called {launcher_id!r}.")
     from common.games import config_backups
 
-    return {"backups": [_as_backup(one) for one in config_backups.held(launcher_id)],
-            "files": _config_files(found)}
+    return {
+        "backups": [_as_backup(one) for one in
+                    config_backups.held(launcher_id, found.display_name)],
+        "files": _config_files(found),
+        # Said rather than left to be discovered: somebody who wants one of these
+        # outside VPinFE has to be told where they are.
+        "kept_in": config_backups.home_for(launcher_id, found.display_name),
+    }
 
 
 @router.post("/{launcher_id}/config/backups", summary="Take a copy of it now",
@@ -278,7 +284,8 @@ def take_config_backup(launcher_id: str,
     from common.games import config_backups
 
     taken = config_backups.take(launcher_id, files,
-                                label=str(body.get("label") or ""))
+                                label=str(body.get("label") or ""),
+                                named=found.display_name)
     if not taken:
         raise InvalidRequestError(
             "Nothing to copy yet: the file this launcher names is not there.")
@@ -297,7 +304,8 @@ def restore_config_backup(launcher_id: str, name: str) -> dict[str, Any]:
     from common.games import config_backups
 
     try:
-        safety = config_backups.restore(launcher_id, name, _config_files(found))
+        safety = config_backups.restore(launcher_id, name, _config_files(found),
+                                        named=found.display_name)
     except FileNotFoundError as exc:
         raise NotFoundError(str(exc)) from exc
     except ValueError as exc:

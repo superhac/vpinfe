@@ -50,16 +50,27 @@ def _safe(label: str) -> str:
     return _LABEL.sub("-", str(label or "").strip()).strip("-.")[:64]
 
 
-def _home(launcher_id: str) -> Path:
+def _home(launcher_id: str, named: str = "") -> Path:
     """One folder per launcher. Two launchers on one machine each have their own ini,
-    and copies of both in one folder would be told apart by a filename alone."""
-    return BACKUPS_DIR / (_safe(launcher_id) or "unknown")
+    and copies of both in one folder would be told apart by a filename alone.
+
+    Named for the launcher and then its id, because somebody who goes looking in Finder
+    should not have to work out which of two ten-character ids is theirs - and the id is
+    what keeps two launchers with one name apart.
+    """
+    stem = _safe(launcher_id) or "unknown"
+    return BACKUPS_DIR / (f"{_safe(named)}--{stem}" if _safe(named) else stem)
+
+
+def home_for(launcher_id: str, named: str = "") -> str:
+    """Where this launcher's copies are kept, for a surface that has to say so."""
+    return str(_home(launcher_id, named))
 
 
 def take(launcher_id: str, files: dict[str, str], *, reason: str = MANUAL,
-         label: str = "") -> list[Backup]:
+         label: str = "", named: str = "") -> list[Backup]:
     """A copy of every file the app named, or nothing where none of them is there yet."""
-    home = _home(launcher_id)
+    home = _home(launcher_id, named)
     when = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     taken: list[Backup] = []
     for path in dict.fromkeys(files.values()):
@@ -76,22 +87,23 @@ def take(launcher_id: str, files: dict[str, str], *, reason: str = MANUAL,
     return taken
 
 
-def held(launcher_id: str) -> list[Backup]:
+def held(launcher_id: str, named: str = "") -> list[Backup]:
     """Every copy this launcher has, newest first."""
-    home = _home(launcher_id)
+    home = _home(launcher_id, named)
     if not home.is_dir():
         return []
     found = [_described(path) for path in home.iterdir() if path.is_file()]
     return sorted(found, key=lambda one: one.taken_at, reverse=True)
 
 
-def restore(launcher_id: str, name: str, files: dict[str, str]) -> Backup | None:
+def restore(launcher_id: str, name: str, files: dict[str, str],
+            named: str = "") -> Backup | None:
     """Put a copy back, over a copy of what is there now.
 
     Returns the safety copy it took first, so a caller can say what it did rather than
     only that it did it.
     """
-    home = _home(launcher_id)
+    home = _home(launcher_id, named)
     source = home / Path(str(name or "")).name
     if not source.is_file() or source.parent != home:
         raise FileNotFoundError(f"No copy called {name!r}.")
@@ -100,7 +112,8 @@ def restore(launcher_id: str, name: str, files: dict[str, str]) -> Backup | None
     if target is None:
         raise ValueError("That copy does not match any file this app keeps.")
 
-    safety = take(launcher_id, {"": str(target)}, reason=BEFORE_RESTORE)
+    safety = take(launcher_id, {"": str(target)}, reason=BEFORE_RESTORE,
+                  named=named)
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, target)
     logger.info("Restored %s over %s", source.name, target)

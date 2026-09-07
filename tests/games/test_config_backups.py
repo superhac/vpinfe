@@ -54,6 +54,22 @@ class TakeTests(_Case):
         self.assertNotIn("..", taken.name)
 
 
+    def test_the_folder_is_named_for_a_person_looking_in_it(self) -> None:
+        """Somebody who opens Finder should not have to work out which of two
+        ten-character ids is theirs."""
+        backups.take("a4CbR4RnyE", self.files, named="Visual Pinball X")
+
+        home = backups.home_for("a4CbR4RnyE", "Visual Pinball X")
+        self.assertTrue(home.endswith("Visual-Pinball-X--a4CbR4RnyE"))
+        self.assertTrue(Path(home).is_dir())
+
+    def test_and_the_id_still_keeps_two_of_one_name_apart(self) -> None:
+        first = backups.home_for("aaa", "Visual Pinball X")
+        second = backups.home_for("bbb", "Visual Pinball X")
+
+        self.assertNotEqual(first, second)
+
+
 class RestoreTests(_Case):
     def test_putting_one_back_restores_what_it_held(self) -> None:
         made = backups.take("L1", self.files)[0]
