@@ -216,7 +216,12 @@ class VPXConfig:
                                                 table_scope)
             found[qualified] = ConfigValue(
                 value=effective, scope=source, set_here=set_here,
-                in_effect=not set_here or _same(mine_path, winning),
+                # Three ways it is the one in force: nothing is set here to be
+                # shadowed; this scope is the layer that answered; or this scope and
+                # the one that answered are the same file, which is what a game folder
+                # named after its table makes of the two table-layer spellings.
+                in_effect=(not set_here or source == scope
+                           or _same(mine_path, winning)),
                 fallback=fallback, fallback_scope=fallback_scope)
         return found
 

@@ -72,14 +72,21 @@ class Ini:
     settings: dict[str, Setting] = field(default_factory=dict)
 
     def value(self, qualified: str) -> str | None:
-        """What this file says, or None where it says nothing.
+        """What this file sets, or None where it sets nothing.
 
-        Empty is not nothing: VPX's own header says a property with nothing after the
-        `=` means "use the default", so an empty string here is a deliberate reset and
-        a caller has to be able to tell it from a key the file never mentions.
+        A key written with nothing after the `=` sets nothing. VPX's own header says so
+        - "when a property is not defined (nothing after the equal sign), VPX will use
+        the default value for it" - and it writes every key it knows into the file, so
+        98% of them are blank. Reading blank as a value would make every setting in the
+        program look like somebody had chosen it.
         """
         found = self.settings.get(qualified)
-        return None if found is None else found.value
+        return None if found is None or found.value == "" else found.value
+
+    def mentions(self, qualified: str) -> bool:
+        """Whether the file carries the key at all, blank or not. For writing back,
+        which needs the line, rather than for reading what is in force."""
+        return qualified in self.settings
 
 
 def parse(text: str) -> Ini:

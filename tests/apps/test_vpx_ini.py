@@ -82,11 +82,18 @@ class ParseTests(unittest.TestCase):
     def test_a_quoted_default_is_a_string(self) -> None:
         self.assertEqual(self.one("Backglass.Name").kind, vini.KIND_STRING)
 
-    def test_an_empty_value_is_not_the_same_as_an_absent_key(self) -> None:
-        """VPX's own header says a property with nothing after the `=` means "use the
-        default", so it is a deliberate reset rather than a key the file never had."""
-        self.assertEqual(self.ini.value("Editor.WindowLeft"), "")
+    def test_a_key_written_blank_sets_nothing(self) -> None:
+        """VPX writes every key it knows into the file and leaves 98% of them blank,
+        because blank means "use the default". Reading blank as a value would make
+        every setting in the program look like somebody had chosen it."""
+        self.assertIsNone(self.ini.value("Editor.WindowLeft"))
         self.assertIsNone(self.ini.value("Editor.NeverHeardOf"))
+
+    def test_but_the_file_still_carries_it(self) -> None:
+        """Writing back needs the line it is already on; reading what is in force does
+        not care that it is there."""
+        self.assertTrue(self.ini.mentions("Editor.WindowLeft"))
+        self.assertFalse(self.ini.mentions("Editor.NeverHeardOf"))
 
     def test_a_label_falls_back_to_the_key(self) -> None:
         self.assertEqual(vini.parse("[A]\nB = 1\n").settings["A.B"].label, "B")

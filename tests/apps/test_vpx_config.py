@@ -108,6 +108,22 @@ class LayerTests(_Case):
 
         self.assertEqual(self.at(SCOPE_ENTRY, self.other).scope, SCOPE_FOLDER)
 
+    def test_a_launcher_value_with_no_table_in_play_is_in_force(self) -> None:
+        """Nothing sits above the application layer, so a value set there is the one
+        that wins - and a row saying otherwise marks every setting as shadowed."""
+        found = self.config.read(SCOPE_LAUNCHER, "", self.settings)[KEY]
+
+        self.assertTrue(found.set_here)
+        self.assertTrue(found.in_effect)
+
+    def test_a_launcher_value_a_table_overrides_is_still_in_force_at_its_own_scope(self) -> None:
+        """The launcher is not shadowed by a table: it still answers for every other
+        table. Only the layer that lost to another at the *same* scope is."""
+        self.table_file("[Backglass]\nBackglassOutput = 0\n")
+
+        found = self.config.read(SCOPE_LAUNCHER, str(self.table), self.settings)[KEY]
+        self.assertTrue(found.set_here)
+
     def test_a_folder_named_for_its_table_makes_one_file_of_the_two(self) -> None:
         """The ordinary case, and the two scopes coincide rather than shadowing."""
         solo = self.root / "Attack from Mars"
