@@ -55,6 +55,14 @@ async def open_for_table(library, *, launcher_id: str, launcher_name: str,
             ui.space()
             ui.button("Done", on_click=dialog.close).props("flat dense no-caps")
 
+        # The picker before the settings, because it says where an edit will go and
+        # that has to be readable before anything is edited rather than after.
+        with ui.row().classes("items-center gap-3 w-full no-wrap px-3 pb-2"):
+            ui.label("Edits go to").classes("console-label text-xs")
+            scope = ui.select(words, value=state["scope"]) \
+                .props("dense outlined options-dense").classes("w-64")
+            search = panel.search("Search settings")
+
         body = ui.column().classes("w-full grow min-h-0 gap-0 overflow-auto")
 
         async def draw() -> None:
@@ -62,22 +70,16 @@ async def open_for_table(library, *, launcher_id: str, launcher_name: str,
             with body:
                 await _fill(library, launcher_id, table_id, state, words, draw)
 
-        with ui.row().classes("items-center gap-3 w-full no-wrap px-3 pb-2"):
-            ui.label("Edits go to").classes("console-label text-xs")
-            ui.select(words, value=state["scope"],
-                      on_change=lambda e: _pick(state, e, draw)) \
-                .props("dense outlined options-dense").classes("w-64")
-            search = panel.search("Search settings")
-            search.on_value_change(lambda: _find(state, search.value or "", draw))
-
+        scope.on_value_change(lambda: _pick(state, scope.value, draw))
+        search.on_value_change(lambda: _find(state, search.value or "", draw))
         await draw()
 
     dialog.on("hide", lambda: on_done() if callable(on_done) else None)
     dialog.open()
 
 
-def _pick(state: dict[str, Any], event: Any, draw: Callable) -> Any:
-    state["scope"] = str(getattr(event, "value", "") or SCOPE_ENTRY)
+def _pick(state: dict[str, Any], chosen: Any, draw: Callable) -> Any:
+    state["scope"] = str(chosen or SCOPE_ENTRY)
     return draw()
 
 
@@ -162,8 +164,11 @@ def _control(library, launcher_id: str, table_id: str, scope: str, field: dict,
     if field.get("choices"):
         option["choices"] = {value: label for value, label in field["choices"]}
         option["type"] = "choice"
-    return settings_page.control_for(option, held.get("value", field.get("default")),
-                                     save)
+    # `or`, not a default argument: a setting nobody has touched has an empty effective
+    # value, and a closed set of answers has no option spelled "". The control shows what
+    # the program will use, which for an untouched setting is its own default.
+    return settings_page.control_for(
+        option, settings_page.value_for(option, held.get("value")), save)
 
 
 def _aside(library, launcher_id: str, table_id: str, scope: str, field: dict,

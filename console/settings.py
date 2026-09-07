@@ -78,6 +78,47 @@ EDITORS: dict[str, Callable[..., Callable[[], None]]] = {
 }
 
 
+def value_for(option: dict, raw: Any) -> Any:
+    """A stored value as its declared type, or the default where it will not fit.
+
+    Values read out of a program's own file are strings, and not every one of them
+    matches what that program says the setting is: an integer written once as `0.0`
+    stays that way, and a closed set of answers has no option spelled "". A settings
+    page that raises on either is a page that will not draw at all, so the declared
+    type wins and a value that cannot meet it falls back to the default.
+    """
+    said = str(raw if raw is not None else "").strip()
+    kind = str(option.get("type") or "")
+    if not said:
+        said = str(option.get("default") or "").strip()
+    if not said:
+        return False if kind == "bool" else ""
+
+    if kind == "bool":
+        return said.strip().lower() not in ("0", "false", "no", "off", "")
+    if kind in ("int", "number"):
+        try:
+            number = float(said)
+        except ValueError:
+            return _fallback_number(option, kind)
+        return int(number) if kind == "int" else number
+    if kind == "choice":
+        offered = option.get("choices") or {}
+        keys = offered.keys() if isinstance(offered, dict) else offered
+        if said not in keys:
+            return str(option.get("default") or "") if str(
+                option.get("default") or "") in keys else next(iter(keys), "")
+    return said
+
+
+def _fallback_number(option: dict, kind: str) -> Any:
+    try:
+        number = float(str(option.get("default") or "").strip() or 0)
+    except ValueError:
+        number = 0
+    return int(number) if kind == "int" else number
+
+
 def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
                 writable: bool = True, rerender: Callable[[], None] | None = None,
                 check: dict | None = None,

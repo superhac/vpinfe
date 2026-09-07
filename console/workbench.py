@@ -2100,13 +2100,18 @@ def _program_settings_row(context: dict[str, Any],
     # is given straight to the button, and a coroutine nobody awaits is a click that
     # does nothing and says nothing.
     async def open_them() -> None:
-        await _open_table_settings(context, table)
+        try:
+            await _open_table_settings(context, table)
+        except Exception as exc:  # noqa: BLE001 - a dead button says nothing at all
+            logger.exception("Could not open the app settings")
+            ui.notify(f"Could not open the settings: {exc}", type="negative")
 
     def draw() -> None:
         with ui.row().classes("items-center gap-2 no-wrap"):
             panel.state(said, "on" if changed else "off")()
-            panel.action("Edit" if changed else "Set for this table",
-                         open_them, inline=True)()
+            ui.button("Edit" if changed else "Set for this table",
+                      on_click=open_them) \
+                .props("flat dense no-caps size=sm").classes("console-action--inline")
 
     return [(f"{name} settings", draw)]
 
@@ -2893,10 +2898,11 @@ async def _config_rows(context: dict[str, Any], group) -> None:
             if said:
                 entries.append(panel.note(said))
         held = values.get(field.key) or {}
+        option = _as_option(field)
         entries.append((field.label,
                         settings_page.control_for(
-                            _as_option(field),
-                            held.get("value", field.default),
+                            option,
+                            settings_page.value_for(option, held.get("value")),
                             await save(field.key))))
         mark = _config_mark(held, scope)
         if mark is not None:
