@@ -253,6 +253,25 @@ class LocationStore:
         write_atomic(self.path, lambda handle: json.dump(payload, handle, indent=2))
 
 
+# The id every row carries while the scan still walks the configured root. Runtime
+# only: nothing stores a location id yet.
+CONFIGURED_ID = "configured"
+
+
+def configured() -> list[Location]:
+    """Every location the scan walks.
+
+    Still the one configured root. The store above is written and not read: the field
+    somebody edits today is the configured root, and it has to keep working until there
+    is somewhere else to edit this. This function is the one place that changes when
+    there is.
+    """
+    from common.paths import get_games_path
+
+    root = get_games_path()
+    return [Location(location_id=CONFIGURED_ID, path=root, kind=KIND_ROOT)] if root else []
+
+
 SEEDED = "seeded-from-config"
 
 

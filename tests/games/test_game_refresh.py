@@ -9,10 +9,12 @@ from __future__ import annotations
 import configparser
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from common import events
 from common.games import game_repository
 from common.games.game_parser import GameParser
+from common.games.locations import Location
 from tests.support.library import TempTree, write_game
 
 
@@ -135,9 +137,19 @@ class ChangeAnnouncementTests(TempTree):
         self.seen = []
         events.subscribe(events.GAME_CHANGED, lambda **payload: self.seen.append(payload))
 
-        previous = game_repository._PARSER
-        game_repository._PARSER = parser
-        self.addCleanup(setattr, game_repository, "_PARSER", previous)
+        # Injected as the only location, so the repository keeps it rather than
+        # dropping it as a parser for somewhere that is no longer configured.
+        held = mock.patch.object(
+            game_repository.locations, "configured",
+            return_value=[Location(location_id="test", path=str(self.root))])
+        held.start()
+        self.addCleanup(held.stop)
+
+        previous = dict(game_repository._PARSERS)
+        game_repository._PARSERS.clear()
+        game_repository._PARSERS[str(self.root)] = parser
+        self.addCleanup(game_repository._PARSERS.update, previous)
+        self.addCleanup(game_repository._PARSERS.clear)
 
     def test_a_refreshed_game_is_announced_with_the_new_object(self):
         _game_dir(self.root, "Bravo", rating=5)

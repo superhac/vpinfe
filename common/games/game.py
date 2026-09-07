@@ -14,6 +14,9 @@ from typing import Any
 class Game:
     gameDirName: str | None = None
     fullPathGame: str | None = None
+    # Which location it was found in. What lets a report say "from the share that is
+    # unreachable" rather than "missing".
+    location_id: str = ""
     fullPathVPXfile: str | None = None
     creation_time: float | None = None
 

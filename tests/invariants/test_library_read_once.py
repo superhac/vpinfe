@@ -112,12 +112,19 @@ class GamesUnderTests(TempTree):
         super().setUp()
         from common.games import game_repository
         self.repo = game_repository
-        game_repository._PARSER = None
-        self.addCleanup(setattr, game_repository, "_PARSER", None)
+        game_repository._PARSERS.clear()
+        self.addCleanup(game_repository._PARSERS.clear)
+
+    def _configured(self, path):
+        """The library is a list of locations now, so this is what says where it is."""
+        from common.games.locations import Location
+
+        return mock.patch.object(self.repo.locations, "configured",
+                                 return_value=[Location("test", str(path))])
 
     def test_the_configured_root_is_answered_from_the_cache(self) -> None:
         write_game(self.root, "Example", info={"Info": {"Name": "Example"}})
-        with mock.patch.object(self.repo, "get_games_path", return_value=str(self.root)):
+        with self._configured(self.root):
             first = self.repo.games_under(str(self.root))
             with mock.patch.object(self.repo, "GameParser") as parser:
                 again = self.repo.games_under(str(self.root))
@@ -127,7 +134,7 @@ class GamesUnderTests(TempTree):
 
     def test_no_root_at_all_means_the_configured_one(self) -> None:
         write_game(self.root, "Example", info={"Info": {"Name": "Example"}})
-        with mock.patch.object(self.repo, "get_games_path", return_value=str(self.root)):
+        with self._configured(self.root):
             self.repo.games_under("")
             with mock.patch.object(self.repo, "GameParser") as parser:
                 self.repo.games_under("")
@@ -140,7 +147,7 @@ class GamesUnderTests(TempTree):
         write_game(self.root, "Configured", info={"Info": {"Name": "Configured"}})
         write_game(other, "Elsewhere", info={"Info": {"Name": "Elsewhere"}})
 
-        with mock.patch.object(self.repo, "get_games_path", return_value=str(self.root)):
+        with self._configured(self.root):
             self.repo.games_under(str(self.root))
             names = [g.gameDirName for g in self.repo.games_under(str(other))]
 

@@ -14,6 +14,7 @@ from time import perf_counter
 from typing import Any
 
 from common import events
+from common.games import locations
 from common.games.collection_store import CollectionStore
 from common.games.game_identity import ensure_unique_ids
 from common.games.game_identity import game_id as vpinfe_id
@@ -30,41 +31,55 @@ from common.games.game_metadata import (
 from common.games.game_parser import GameParser
 from common.games.info_migration import INFO_SCHEMA, schema_of
 from common.games.tables import table_entries
-from common.paths import COLLECTIONS_PATH, get_games_path, get_ini_config
+from common.paths import COLLECTIONS_PATH, get_ini_config
 
 _LOCK = threading.Lock()
-_PARSER: GameParser | None = None
+# One parser per location, keyed by its path. A parser reads one root and knows nothing
+# about locations, which is what keeps the plural half here and out of the scan.
+_PARSERS: dict[str, GameParser] = {}
 logger = logging.getLogger("vpinfe.common.games.game_repository")
 
 
-def all_games(reload: bool = False) -> list[Any]:
-    """Every game in the configured library, read once and held.
+def _held(reload: bool) -> tuple[list[Any], bool]:
+    """Every game across every location, and whether anything was actually read.
 
-    The scan is the expensive part, so the parser is kept and reused. It is rebuilt when
-    the configured root changes, which is what stops a second library being answered with
-    the first one's games.
+    Parsers are kept and reused; one is built for a location that has not been read yet
+    and dropped for a location that has gone. Rebuilding on a changed list is what stops
+    a second library being answered with the first one's games.
     """
-    global _PARSER
+    wanted = locations.configured()
+    for gone in [path for path in _PARSERS if path not in {one.path for one in wanted}]:
+        _PARSERS.pop(gone)
+
+    games: list[Any] = []
+    read = False
+    for location in wanted:
+        parser = _PARSERS.get(location.path)
+        if parser is None:
+            parser = _PARSERS[location.path] = GameParser(location.path, get_ini_config())
+            read = True
+        elif reload:
+            parser.loadGames(reload=True)
+            read = True
+        for game in parser.getAllGames():
+            game.location_id = location.location_id
+            games.append(game)
+    return games, read
+
+
+def all_games(reload: bool = False) -> list[Any]:
+    """Every game across every location, read once and held."""
     started_at = perf_counter()
     with _LOCK:
-        games_root = get_games_path()
-        needs_new_parser = _PARSER is None or str(_PARSER.gamesRootFilePath) != games_root
-        if needs_new_parser:
-            _PARSER = GameParser(games_root, get_ini_config())
-        # The flag carries the None check, but behind a name, where narrowing cannot
-        # follow. Stated once here for the two uses below.
-        assert _PARSER is not None
-        if not needs_new_parser and reload:
-            _PARSER.loadGames(reload=True)
-        games = list(_PARSER.getAllGames())
+        games, read = _held(reload)
 
     # Only when it read the library. Logging every call logged the caller rather than the
     # work - a dozen call sites answered from cache on every page render, with the one
-    # line that matters buried among them. An unexpected line here means the root changed
-    # or something is discarding the cache, and both are worth seeing.
-    if needs_new_parser or reload:
-        logger.debug("read the library at %s: %s games in %.3fs",
-                     games_root, len(games), perf_counter() - started_at)
+    # line that matters buried among them. An unexpected line here means the locations
+    # changed or something is discarding the cache, and both are worth seeing.
+    if read:
+        logger.debug("read %s location(s): %s games in %.3fs",
+                     len(_PARSERS), len(games), perf_counter() - started_at)
     return games
 
 
@@ -75,12 +90,15 @@ def games_under(games_root: str, config=None) -> list[Any]:
     share was the whole cold scan again each time. Most of them want the library the app
     already has; they just could not say so without assuming the root.
 
-    A root that is not the configured one is genuinely a different library - a report run
-    against another folder, a test - so it gets its own parse rather than quietly being
-    answered with the wrong games.
+    A root that is none of the configured locations is genuinely a different library - a
+    report run against another folder, a test - so it gets its own parse rather than
+    quietly being answered with the wrong games.
     """
     wanted = str(games_root or "").strip()
-    if not wanted or wanted == get_games_path():
+    if not wanted:
+        return all_games()
+    here = locations.canonical(wanted)
+    if any(locations.canonical(one.path) == here for one in locations.configured()):
         return all_games()
     return list(GameParser(wanted, config or get_ini_config()).getAllGames())
 
@@ -110,9 +128,8 @@ def unreadable_games() -> list[dict[str, str]]:
     """Folders whose .info could not be read, so the game was left out of the library."""
     all_games()
     with _LOCK:
-        if _PARSER is None:
-            return []
-        return [dict(row) for row in _PARSER.getUnreadableGames()]
+        return [dict(row) for parser in _PARSERS.values()
+                for row in parser.getUnreadableGames()]
 
 
 def pending_upgrade_game_names() -> list[str]:
@@ -149,11 +166,14 @@ def refresh_game(game_dir: Path) -> list[Any]:
     normalized = str(Path(game_dir).expanduser().resolve())
     started_at = perf_counter()
     with _LOCK:
-        if _PARSER is None or not _PARSER.getGameCount():
+        # The one whose root holds this folder. Asking the wrong parser to re-read it
+        # would add the game to a location it is not in.
+        parser = _parser_holding(normalized)
+        if parser is None:
             reloaded = None
         else:
-            reloaded = _PARSER.reload_game(normalized)
-            games = list(_PARSER.getAllGames())
+            reloaded = parser.reload_game(normalized)
+            games, _ = _held(reload=False)
     if reloaded is None:
         # Nothing loaded yet, so there is no single game to refresh - read the library.
         games = all_games(reload=True)
@@ -170,9 +190,8 @@ def refresh_game(game_dir: Path) -> list[Any]:
 def get_missing_games(reload: bool = False) -> list[dict[str, str]]:
     all_games(reload=reload)
     with _LOCK:
-        if _PARSER is None:
-            return []
-        return [dict(row) for row in _PARSER.getMissingGames()]
+        return [dict(row) for parser in _PARSERS.values()
+                for row in parser.getMissingGames()]
 
 
 def collections_by_game_id() -> dict[str, list[str]]:
@@ -318,3 +337,16 @@ def get_game_name_map(reload: bool = False) -> dict[str, str]:
         for row in get_game_rows(reload=reload)
         if row.get("vpinfe_id")
     }
+
+
+def _parser_holding(game_dir: str) -> GameParser | None:
+    """The parser for the location this folder is in, or None when nothing is loaded."""
+    for path, parser in _PARSERS.items():
+        if not parser.getGameCount():
+            continue
+        try:
+            if Path(game_dir).is_relative_to(Path(path).expanduser().resolve()):
+                return parser
+        except (OSError, ValueError):
+            continue
+    return None
