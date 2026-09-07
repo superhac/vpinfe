@@ -397,6 +397,11 @@ class ReferencedEntryTests(LaunchTests):
         self.assertTrue(issubclass(launch.ReferenceUnreachableError,
                                    launch.LaunchUnavailableError))
 
+    def test_the_file_it_points_at_says_which_app_plays_it(self) -> None:
+        """A reference names a file, so it answers the same way a table in the folder
+        does - there is no `app` on the record and none is needed."""
+        self.assertEqual(launch._app_of({"path": self.elsewhere}), "vpx")
+
     def test_the_command_is_built_from_the_resolved_path(self) -> None:
         entry = launch.apps.Entry(entry_id="r1", table=self.elsewhere,
                                   game_dir=self.game_dir)

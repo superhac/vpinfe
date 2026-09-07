@@ -143,6 +143,19 @@ class AddingTests(_Referenced):
         self.assertTrue(Path(made.json()["reference"]["path"]).is_absolute())
 
 
+class RecordShapeTests(_Referenced):
+    def test_it_is_not_given_a_filename_it_does_not_have(self) -> None:
+        """The re-key fills a map key in as the filename for the shape that predates it.
+        An entry that already names itself is not that shape, whichever way it does it -
+        and a stray filename here answered for a file this folder does not hold, which
+        is how the app that plays it stopped resolving."""
+        self._add()
+
+        entry = next(iter(self._info()["tables"].values()))
+        self.assertNotIn("filename", entry)
+        self.assertIn("path", entry)
+
+
 class UnreachableTests(_Referenced):
     def test_a_reference_that_stops_resolving_keeps_its_entry(self) -> None:
         """Nothing here is lost - the record, the media and the play record all stand."""

@@ -83,12 +83,21 @@ def _launcher_for(table_id: str, entry: dict):
 
 
 def _app_of(entry: dict) -> str:
-    """Which app plays an entry. A file says so by its own suffix; something with no
-    file has to declare it, because nothing about a key says whose it is."""
+    """Which app plays an entry.
+
+    A file says so by its own suffix, wherever that file is - a reference names one, so
+    it answers the same way a table in the folder does. Something with no file at all
+    has to declare it, because nothing about a key says whose it is.
+    """
     app = tables.entry_app(entry)
     if app:
         return app
-    found = apps.app_for(tables.entry_filename(entry))
+    # The reference first where there is one: it is what the entry actually plays, and
+    # a stray `filename` beside it would answer for a file this folder does not have.
+    reference = tables.entry_reference(entry)
+    named = (os.path.basename(reference) if reference
+             else tables.entry_filename(entry))
+    found = apps.app_for(named)
     return found.id if found is not None else ""
 
 

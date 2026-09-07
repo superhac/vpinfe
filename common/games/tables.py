@@ -256,21 +256,22 @@ def table_filenames(entries: dict | None) -> list[str]:
 def rekey_by_id(entries: dict | None) -> dict:
     """The tables map keyed by id, converting the filename-keyed shape on the way.
 
-    An entry with no `filename` and no key of its own predates the re-key and its map key
-    is the name. One with no id yet keeps that name as its key until the minting pass
-    assigns one - dropping it would destroy the `hidden` and play stats the id exists to
-    protect.
+    An entry that says nothing about what it is predates the re-key, and its map key is
+    the filename it was stored under. One with no id yet keeps that name as its key
+    until the minting pass assigns one - dropping it would destroy the `hidden` and play
+    stats the id exists to protect.
 
-    An entry that declares a key has no file and never had one, so nothing is filled in
-    for it. Reading its map key as a filename would give it a file that is not there and
-    make it the one entry the folder can never find.
+    **An entry that already names itself is left alone**, whichever way it does it: a
+    filename, a path to a file elsewhere, or a key its app knows it by. Reading the map
+    key as a filename for one of those gives it a file that is not there and makes it
+    the one entry its folder can never find - which it did, twice, once per form, when
+    this asked about one of them instead of about all three.
     """
     if not isinstance(entries, dict):
         return {}
     # Callers test identity to mean "nothing to convert", so an empty map belongs here
     # too: a game with no .vpx would otherwise be rewritten on every startup.
-    if all(isinstance(e, dict) and (TABLE_FILENAME_KEY in e or entry_key(e))
-           for e in entries.values()):
+    if all(isinstance(e, dict) and entry_native_key(e) for e in entries.values()):
         return entries
 
     rekeyed = {}
@@ -278,8 +279,8 @@ def rekey_by_id(entries: dict | None) -> dict:
         if not isinstance(entry, dict):
             continue    # not a record; there is nothing to address or carry
         entry = dict(entry)
-        if not entry_key(entry):
-            entry.setdefault(TABLE_FILENAME_KEY, key)
+        if not entry_native_key(entry):
+            entry[TABLE_FILENAME_KEY] = key
         rekeyed[table_id(entry) or key] = entry
     return rekeyed
 
