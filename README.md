@@ -41,6 +41,20 @@ https://www.youtube.com/playlist?list=PLMRebAANedgX9YDbl0gte_ZgoYU9VQF8j
 
 # Installing (First time Setup)
 
+## What you need
+
+Visual Pinball **10.8.0**, or a recent **10.8.1** prerelease.
+
+10.8.0 is the only tagged release in the 10.8 line. Everything called 10.8.1 is a
+nightly identified by its build number, so "10.8.1 or newer" on its own does not tell
+you much - two builds eighteen months apart both answer to it. If you run a nightly,
+take a current one.
+
+Older builds still run tables. VPinFE does not check the version; it looks at the
+install you point it at and offers what is actually there. Per-table settings work on
+10.8.0, and the plugin settings only appear where the build has plugins - they are read
+out of your `VPinballX.ini` rather than assumed.
+
 The install is the same for all platforms you need to download the right release for it.  Currently there are two different builds available for each platform:
 
 - A slim build (has slim in its name) is for people who already have chrome installed locally on there machine. (Recommend bundle)
