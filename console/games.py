@@ -859,15 +859,18 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         # most people never look through.
         with ui.row().classes("items-center gap-3 no-wrap text-xs opacity-60 "
                               "console-tier-key") as legend:
+            # `shown`, not `state`: this function's own `state` is the page's, and a
+            # loop variable by that name quietly replaced it for everything after the
+            # legend - which nothing noticed until something further down wrote to it.
             for key in table_features.states_in(built):
-                state = table_features.state_for(key)
-                with ui.row().classes("items-center gap-1 no-wrap").tooltip(state.why):
-                    if state.glyph:
-                        ui.label(state.glyph).classes(state.glyph_class)
+                shown = table_features.state_for(key)
+                with ui.row().classes("items-center gap-1 no-wrap").tooltip(shown.why):
+                    if shown.glyph:
+                        ui.label(shown.glyph).classes(shown.glyph_class)
                     else:
-                        ui.element("span").classes(f"console-mark {state.mark}".strip()
-                                                   if state.mark else "console-mark-none")
-                    ui.label(state.noun)
+                        ui.element("span").classes(f"console-mark {shown.mark}".strip()
+                                                   if shown.mark else "console-mark-none")
+                    ui.label(shown.noun)
         legend.bind_visibility_from(view_picker, "value",
                                     lambda value: value == "builtin:Features")
         ui.label(f"{len(built)} tables in {len({r['game_id'] for r in built})} games") \
