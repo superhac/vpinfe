@@ -596,11 +596,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             try:
                 found = await run.io_bound(ask)
             except Exception as exc:  # noqa: BLE001
-                # The reason, not the stack. A device that is switched off or off the
-                # network is the ordinary case here, and twenty lines of socket
-                # internals for it is what teaches somebody to stop reading the log.
-                logger.info("Could not ask %s what it is running: %s",
-                            devices_page.device_label(entry), exc)
+                # Debug, because a device being off is not news. This runs on every
+                # draw, so at any louder level a cabinet somebody switched off in
+                # August fills the log for the rest of the year - and the Console
+                # already says which devices are unreachable, on the page about them.
+                logger.debug("Could not ask %s what it is running: %s",
+                             devices_page.device_label(entry), exc)
                 continue
             if entry.get("device_id") == discovery.get("install_id"):
                 # Kept so the device's own page does not ask a second time on arrival.
@@ -620,8 +621,10 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 # otherwise a probe landing a few seconds in wipes what you were reading.
                 render()
                 await show_device(None)
-        except Exception:
-            logger.info("Could not probe the devices", exc_info=True)
+        except Exception as exc:  # noqa: BLE001
+            # Same as the pass above: asked for by hand rather than on a draw, but a
+            # device that is off is still the ordinary answer, and the page says so.
+            logger.debug("Could not probe the devices: %s", exc)
 
         badge = badges.get("devices")
         if badge is None or not waiting:
