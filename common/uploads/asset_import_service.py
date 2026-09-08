@@ -186,6 +186,24 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
     return None, BlockedItem(asset, f"Unsupported asset type: {kind}")
 
 
+def _new_games_under() -> str:
+    """The folder a new game is created in.
+
+    The location marked "create new games here", not the configured root - locations
+    replaced that key, and reading it meant the control on screen stored a choice
+    nothing acted on. On a single-location install the two are the same folder, which
+    is why it went unnoticed: the seed makes the first location out of that root and
+    marks it as the target in the same breath.
+
+    Falls back to the root only where the location store has nothing to say, so an
+    install that has not been through the seed still imports.
+    """
+    from common.games.locations import destination
+
+    found = destination()
+    return found.path or get_games_path()
+
+
 def build_import_plan(analysis: AnalysisResult, *, game_dir: Path | None = None,
                       game_row: dict | None = None, rom_name: str = "",
                       allow_new_game: bool = False,
@@ -199,7 +217,7 @@ def build_import_plan(analysis: AnalysisResult, *, game_dir: Path | None = None,
         game_asset = next(a for a in analysis.assets if a.kind == "table")
         vpx_stem = Path(_basename(game_asset.entries[0].arcname)).stem
         new_dir_name = _safe_upload_name(vpx_stem)
-        base = Path(games_path or get_games_path()).expanduser() / new_dir_name
+        base = Path(games_path or _new_games_under()).expanduser() / new_dir_name
         sidecar_stem = _sidecar_stem(analysis.assets, base, vpx_stem)
         for asset in analysis.assets:
             item, block = _plan_asset(asset, base, vpx_stem, rom_name, analysis.source_name,

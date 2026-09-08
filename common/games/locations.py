@@ -185,6 +185,17 @@ class LocationStore:
             self._write(kept, "" if write_to == wanted else write_to)
         return True
 
+    def chosen_write_to(self) -> str:
+        """The location somebody actually chose, or "".
+
+        `write_to` answers the fallback as well, which is right when something has to
+        create a folder now. This is right when the question is what they asked for -
+        so a destination that has gone read-only can be refused by name rather than
+        quietly becoming a different folder.
+        """
+        with self._lock:
+            return self._load()[1]
+
     def reorder(self, order: list[str]) -> bool:
         """Put the locations in the order given. **The order is the priority.**
 
@@ -287,6 +298,79 @@ class LocationStore:
 # The id every row carries while the scan still walks the configured root. Runtime
 # only: nothing stores a location id yet.
 CONFIGURED_ID = "configured"
+
+
+@dataclass(frozen=True)
+class Destination:
+    """Where a new game folder would be created, or why it would not be.
+
+    Both, because the answer a caller needs on a refusal is not only that it failed: it
+    is which other places would work, so somebody can send this one there instead.
+    """
+
+    location: Location | None = None
+    # Empty when there is somewhere to write. A sentence when there is not.
+    reason: str = ""
+    # Every writable root other than the one that was wanted, for a one-time override.
+    alternatives: tuple[Location, ...] = ()
+
+    @property
+    def path(self) -> str:
+        return self.location.path if self.location is not None else ""
+
+
+def _writable_roots(held: list[Location]) -> tuple[Location, ...]:
+    return tuple(one for one in held
+                 if one.kind == KIND_ROOT and state_of(one).writable)
+
+
+def destination(location_id: str = "") -> Destination:
+    """Where a new game goes, or the reason it cannot go anywhere.
+
+    **Refuses rather than quietly landing somewhere else.** The location marked "create
+    new games here" is a choice somebody made and a row on screen says so; writing to a
+    different one because that row went read-only makes the screen a lie, and they find
+    out by looking for a game where they expected it.
+
+    `location_id` names a one-time override, which is checked the same way - an override
+    that cannot be written to is refused rather than falling back in its turn.
+    """
+    store = get_location_store()
+    held = store.locations()
+    writable = _writable_roots(held)
+    wanted = str(location_id or "").strip() or store.chosen_write_to()
+
+    if not wanted:
+        # Nothing chosen. The first writable root is the honest default rather than a
+        # refusal: an install that has never been asked still has to be able to create.
+        if writable:
+            return Destination(location=writable[0])
+        return Destination(
+            reason="No location can be written to, so there is nowhere to create a "
+                   "game. Add one, or check the ones you have are reachable.")
+
+    named = next((one for one in held if one.location_id == wanted), None)
+    others = tuple(one for one in writable if one.location_id != wanted)
+    if named is None:
+        return Destination(
+            reason="The location new games were set to go to is no longer here.",
+            alternatives=others)
+    state = state_of(named)
+    if named.kind != KIND_ROOT:
+        return Destination(
+            reason=f"{named.name} is a single game folder, so a new game cannot be "
+                   "created inside it.", alternatives=others)
+    if not state.reachable:
+        return Destination(
+            reason=f"{named.name} is not reachable"
+                   + (f": {state.reason}" if state.reason else "."),
+            alternatives=others)
+    if not state.writable:
+        return Destination(
+            reason=f"{named.name} cannot be written to"
+                   + (f": {state.reason}" if state.reason else "."),
+            alternatives=others)
+    return Destination(location=named, alternatives=others)
 
 
 def portable_reference(game_dir: str, target: str) -> str:
