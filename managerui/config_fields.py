@@ -1,42 +1,32 @@
+"""How a single setting should be presented: which control, and in what order."""
+
 from __future__ import annotations
 
+from common.input_registry import INPUT_ACTIONS
 
-INPUT_MAPPING_ACTION_ORDER = [
-    "left",
-    "right",
-    "up",
-    "down",
-    "pageup",
-    "pagedown",
-    "select",
-    "menu",
-    "back",
-    "exit",
-    "collectionmenu",
-    "tutorial",
-]
+# The registry declares the actions in the order a player meets them, so take that
+# rather than restate it: the hand-written copy still said left/right/up/down after
+# those became previous/next, and seven of its twelve entries sorted nothing.
+INPUT_MAPPING_ACTION_ORDER = [action.name for action in INPUT_ACTIONS]
 
-CHECKBOX_FIELDS = {
-    ("Settings", "autoupdatemediaonstartup"),
-    ("Settings", "restorelasttable"),
-    ("Settings", "splashscreen"),
-    ("Settings", "muteaudio"),
-    ("Settings", "mmhidequitbutton"),
-    ("Settings", "disabledefaultchromeoptions"),
-    ("Settings", "globaltableinioverrideenabled"),
-    ("Settings", "vpxlogdeleteonstart"),
-    ("Displays", "cabmode"),
-    ("Logger", "console"),
-    ("DOF", "enabledof"),
-    ("libdmdutil", "enabled"),
-    ("libdmdutil", "pin2dmdenabled"),
-    ("Mobile", "renamemasktodefaultini"),
-    ("vpinplay", "synconexit"),
-}
+# Which settings render as a checkbox. Derived from the schema rather than listed here:
+# the hand-written list was still spelled the way the ini spelled it, so after the move to
+# snake_case twelve of its fifteen entries matched nothing and those settings drew as text
+# boxes. config_schema already knows a setting's type, and it is the only thing that has
+# to be right.
+def _checkbox_fields() -> frozenset[tuple[str, str]]:
+    from common import config_schema
+    return frozenset((option.section, option.key)
+                     for option in config_schema.options() if option.type == "bool")
+
+
+CHECKBOX_FIELDS = _checkbox_fields()
 
 
 def is_checkbox_field(section: str, key: str) -> bool:
-    return (section, key) in CHECKBOX_FIELDS
+    """Whether this setting draws as a checkbox, under any spelling it has had."""
+    from common import config_schema
+    return config_schema.locate(section, key) in CHECKBOX_FIELDS
 
 
 def sort_input_mapping_keys(keys: list[str], prefix: str) -> list[str]:

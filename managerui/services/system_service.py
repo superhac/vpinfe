@@ -1,3 +1,5 @@
+"""What the machine underneath looks like - disks, GPU, and which windowing system."""
+
 from __future__ import annotations
 
 import os
@@ -5,8 +7,8 @@ import platform
 import shutil
 from pathlib import Path
 
-from common.iniconfig import IniConfig
-
+from common.config_access import cfg_get
+from common.config_store import ConfigStore
 from managerui.paths import VPINFE_INI_PATH
 
 
@@ -17,10 +19,10 @@ def gpu_monitoring_supported() -> bool:
 def resolve_usage_path() -> Path:
     candidate = Path.home()
     try:
-        config = IniConfig(str(VPINFE_INI_PATH))
-        tableroot = config.config.get("Settings", "tablerootdir", fallback="").strip()
-        if tableroot:
-            candidate = Path(tableroot).expanduser()
+        config = ConfigStore(str(VPINFE_INI_PATH))
+        gameroot = cfg_get(config, "Settings", "game_root_dir", "").strip()
+        if gameroot:
+            candidate = Path(gameroot).expanduser()
     except Exception:
         pass
 

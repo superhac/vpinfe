@@ -2,7 +2,7 @@
 
 This document explains how VPinFE discovers, installs, updates, and serves published themes so you can publish a new theme correctly.
 
-This is the publishing side of the theme system. For authoring the actual HTML/CSS/JS theme files, see [theme.md](/home/superhac/repos/testing/vpinfe/docs/theme.md).
+This is the publishing side of the theme system. For authoring the actual HTML/CSS/JS theme files, see [theme.md](theme.md).
 
 ## Overview
 
@@ -29,7 +29,7 @@ The central registry is currently:
 - `https://github.com/superhac/vpinfe-themes`
 - Raw registry file: `https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json`
 
-VPinFE loads that registry in [`common/themes.py`](/home/superhac/repos/testing/vpinfe/common/themes.py).
+VPinFE loads that registry in [`common/online/themes.py`](../common/online/themes.py).
 
 ### Registry format
 
@@ -59,6 +59,49 @@ Each theme entry currently uses these fields:
 | `theme_manifest_url` | Yes | Raw URL to the theme's `manifest.json` on the `master` branch. |
 | `default_install` | No, but expected | If `true`, VPinFE auto-installs the theme at startup. |
 
+### Serving more than one contract
+
+3.0 introduces theme contract 2. A theme that moves to it stops working on 2.x builds, and
+a 2.x build has no way to know that before it installs.
+
+Rather than register a second theme or coordinate every release with the registry owner,
+declare your release lines in a `vpinfe-theme.json` at the root of your default branch:
+
+```json
+{
+  "releases": [
+    { "contract": 1, "ref": "master", "version": "1.6" },
+    { "contract": 2, "ref": "v2", "version": "2.1" }
+  ]
+}
+```
+
+Each entry says which contract that line speaks and which ref serves it. VPinFE installs
+the highest contract it can run, and reads that line's `manifest.json` and source archive
+from its own ref. A theme whose only release needs a newer VPinFE than the one asking is
+not offered at all, which is how a build avoids installing something it cannot run.
+
+**Write refs bare** - `v2`, not `refs/heads/v2`. GitHub and Forgejo spell fully qualified
+refs differently and each returns 404 for the other's form, so VPinFE strips
+`refs/heads/` and `refs/tags/` before building a URL. A fully qualified ref still works;
+it is just rewritten. The one thing to avoid is a branch and a tag with the same name in
+one repo, because a bare ref cannot then say which you meant.
+
+You own this file, so a release is a merge in your repository. The registry is not
+involved after the theme is registered once.
+
+**Which line goes on your default branch decides whether 2.x users keep working.** A 2.x
+build predates all of this: it ignores `vpinfe-theme.json` and always installs
+`master.zip`, whatever that now contains. So keeping contract 1 on the default branch and
+developing contract 2 on a branch - the layout above - leaves 2.x installs working and
+still receiving your contract 1 updates. Moving your default branch to contract 2 breaks
+them, and nothing in the registry can prevent that. Both are reasonable; just know which
+one you are choosing.
+
+A theme with no `vpinfe-theme.json` is read the way it always was: one contract 1 release,
+`manifest.json` on the default branch. That is every theme published today, and none of
+them need to do anything.
+
 ### Important behavior of the registry key
 
 The registry key is not just a label. It affects runtime behavior:
@@ -74,20 +117,76 @@ Registry keys do not have to match the repo name or the `manifest.json` `name` f
 
 ## Per-Theme Repository
 
-Each published theme lives in its own GitHub repository. VPinFE expects to install directly from the repository root.
+Each published theme lives in its own repository. VPinFE expects to install directly from the repository root.
 
-The current install code assumes:
+The install code assumes:
 
-- The repository is hosted on GitHub
+- The repository is hosted on GitHub or on a Forgejo/Gitea server
 - The theme files live at the repository root
-- The publish branch is `master`
-- The repository can be downloaded as `https://github.com/<owner>/<repo>/archive/refs/heads/master.zip`
+- The repository serves `<base_url>/raw/<ref>/<path>` and `<base_url>/archive/<ref>.zip`
 
-This behavior comes from [`common/themes.py`](/home/superhac/repos/testing/vpinfe/common/themes.py), which builds ZIP URLs as:
+This behavior comes from [`common/online/theme_releases.py`](../common/online/theme_releases.py)
+and [`common/online/theme_installer.py`](../common/online/theme_installer.py), which build URLs as:
 
 ```text
-<theme_base_url>/archive/refs/heads/master.zip
+<theme_base_url>/raw/<ref>/manifest.json
+<theme_base_url>/archive/<ref>.zip
 ```
+
+With no `vpinfe-theme.json` the ref is `HEAD`, which both hosts resolve to whatever the
+repository's default branch actually is - so a repo defaulting to `main` works without
+saying anything.
+
+### Publishing somewhere other than the stock registry
+
+A theme does not have to be in the registry to be installable. A user can name your
+repository directly in their config file, and VPinFE will treat it as a theme in its own
+right:
+
+```json
+{
+  "settings": {
+    "themes": {
+      "repositories": ["https://git.example.net/you/vpinfe-theme-aurora"]
+    }
+  }
+}
+```
+
+**The theme is called whatever `manifest.json` says its `name` is** - not the repository's
+name. A repository url names nothing, so the author's own choice is the one that counts,
+and it is the name the theme installs under and the value to set for `theme`. Everything
+else works the same way: `vpinfe-theme.json` chooses the release, `manifest.json`
+describes it, and updates are found by version.
+
+This works for any repository, including one already in the registry - so it is also how
+you install a fork, or hold a published theme at a particular version. Because the name
+comes from the manifest, a fork of Revolution is called `Revolution` too, and the registry
+copy and yours are the same theme: yours wins, and VPinFE logs which one it dropped. Where
+a registry key and a manifest name differ only in case - the registry says `cab`, the
+manifest says `Cab` - they are two names and both install, with a warning.
+
+#### Pinning a ref
+
+Add `#<ref>` to hold a repository at one branch or tag:
+
+```json
+"repositories": ["https://git.example.net/you/vpinfe-theme-aurora#v1.4"]
+```
+
+A pin overrides release selection - it is you naming the ref, so `vpinfe-theme.json` does
+not get to choose. Two things follow. If a declared release line serves that ref, its
+contract still applies, so a build that cannot run it still declines rather than
+installing something that will not work. And because the manifest at a fixed ref never
+changes, a pinned theme is never offered an update; move the pin to take one.
+
+The same file takes `registries`, a list of `themes.json` catalogs. The stock registry is
+an ordinary entry in that list, so it can be reordered, replaced with a mirror, or
+removed on an install that should not reach the internet. Repositories are resolved
+before registries, so naming a repo directly wins if a name appears in both.
+
+Neither list is editable in the Manager UI. A source is a URL VPinFE fetches and installs
+code from, so adding one is a deliberate edit to the config file.
 
 ### Required repository contents
 
@@ -127,7 +226,7 @@ Optional files are allowed, such as:
 
 Each published theme repository must include a `manifest.json` at the repository root.
 
-VPinFE validates the manifest in [`common/themes.py`](/home/superhac/repos/testing/vpinfe/common/themes.py).
+VPinFE validates the manifest in [`common/online/themes.py`](../common/online/themes.py).
 
 ### Required manifest fields
 
@@ -211,14 +310,14 @@ Installed themes are stored under the user's VPinFE config directory:
 - Linux: `~/.config/vpinfe/themes/`
 - Other platforms: the matching `platformdirs.user_config_dir("vpinfe", "vpinfe")` path
 
-At runtime, VPinFE mounts that directory as `/themes/` in the local HTTP server from [`main.py`](/home/superhac/repos/testing/vpinfe/main.py).
+At runtime, VPinFE mounts that directory as `/themes/` in the local HTTP server from [`main.py`](../main.py).
 
 So after a theme is installed, files are served from URLs like:
 
 - `/themes/<theme_key>/index_table.html`
 - `/themes/<theme_key>/preview.png`
 
-The frontend also builds the active page URL with [`frontend/api.py`](/home/superhac/repos/testing/vpinfe/frontend/api.py):
+The frontend also builds the active page URL with [`frontend/api.py`](../frontend/api.py):
 
 ```text
 http://127.0.0.1:<themeassetsport>/themes/<active theme>/index_<window>.html?window=<window>
@@ -265,6 +364,9 @@ To publish an update:
 3. Optionally update `change_log`
 4. Push to GitHub
 
+If you publish more than one contract, increment the version on the line you changed and
+leave the other line's ref alone.
+
 You do not need to change `themes.json` unless:
 
 - the repository URL changes
@@ -278,7 +380,8 @@ The Manager UI's update badge is driven by comparing the remote manifest version
 
 ### Using the wrong branch
 
-The current installer downloads `master.zip`, not `main.zip`. If your theme only exists on `main`, installation will fail unless the code or registry strategy changes.
+Without a `vpinfe-theme.json`, the installer downloads `master.zip`, not `main.zip`. If your
+theme only exists on `main`, name it as a release `ref` or installation will fail.
 
 ### Putting files in a subdirectory
 
@@ -311,8 +414,8 @@ These conventions are not strictly required by the current code, but they will m
 
 The implementation described above lives here:
 
-- Registry loading and install logic: [common/themes.py](/home/superhac/repos/testing/vpinfe/common/themes.py)
-- Theme page in the Manager UI: [managerui/pages/themes.py](/home/superhac/repos/testing/vpinfe/managerui/pages/themes.py)
-- Static theme file mounting and startup auto-install: [main.py](/home/superhac/repos/testing/vpinfe/main.py)
-- Active theme page URL generation: [frontend/api.py](/home/superhac/repos/testing/vpinfe/frontend/api.py)
-- Theme authoring guide: [docs/theme.md](/home/superhac/repos/testing/vpinfe/docs/theme.md)
+- Registry loading and install logic: [common/online/themes.py](../common/online/themes.py)
+- Theme page in the Manager UI: [managerui/pages/themes.py](../managerui/pages/themes.py)
+- Static theme file mounting and startup auto-install: [main.py](../main.py)
+- Active theme page URL generation: [frontend/api.py](../frontend/api.py)
+- Theme authoring guide: [docs/theme.md](theme.md)

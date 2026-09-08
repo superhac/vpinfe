@@ -1,13 +1,14 @@
+"""VPX plugin profiles: the named sets of plugin settings a user can switch between."""
+
 from __future__ import annotations
 
 import re
 import shutil
 from pathlib import Path
 
-from common.launcher import DEFAULT_PROFILE_NAME
+from common.host.launch import DEFAULT_PROFILE_NAME
 from common.paths import PLUGIN_PROFILES_DIR
 from managerui.services import vpx_config_service
-
 
 PLUGIN_SECTION_PREFIX = "Plugin."
 

@@ -1,3 +1,5 @@
+"""VPX plugins: which are enabled, and under which profile."""
+
 from __future__ import annotations
 
 import logging
@@ -10,8 +12,7 @@ from managerui.services.plugin_profile_service import (
     DEFAULT_PROFILE_NAME,
     PLUGIN_PROFILES_DIR,
 )
-from managerui.ui_helpers import load_page_style, attach_shell_save_bar
-
+from managerui.ui_helpers import attach_shell_save_bar, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.vpx_plugins")
 

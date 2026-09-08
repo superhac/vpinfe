@@ -1,8 +1,11 @@
+"""Filtering the games list, and the options each filter offers."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
 from typing import Any
 
+from common.games import collection_filters
 
 ALL_VALUE = "All"
 
@@ -17,11 +20,11 @@ def _as_list(value: Any) -> list:
     return [value]
 
 
-def build_table_filter_options(rows: Iterable[dict]) -> dict[str, list[str]]:
+def build_game_filter_options(rows: Iterable[dict]) -> dict[str, list[str]]:
     manufacturers = set()
     years = set()
     themes = set()
-    table_types = set()
+    game_types = set()
 
     for row in rows:
         manufacturer = row.get("manufacturer", "")
@@ -36,19 +39,19 @@ def build_table_filter_options(rows: Iterable[dict]) -> dict[str, list[str]]:
             if theme:
                 themes.add(str(theme))
 
-        table_type = row.get("type", "")
-        if table_type:
-            table_types.add(str(table_type))
+        game_type = row.get("type", "")
+        if game_type:
+            game_types.add(str(game_type))
 
     return {
         "manufacturers": [ALL_VALUE] + sorted(manufacturers),
         "years": [ALL_VALUE] + sorted(years),
         "themes": [ALL_VALUE] + sorted(themes),
-        "table_types": [ALL_VALUE] + sorted(table_types),
+        "game_types": [ALL_VALUE] + sorted(game_types),
     }
 
 
-def apply_table_filters(
+def apply_game_filters(
     rows: Iterable[dict],
     filter_state: dict[str, Any],
     *,
@@ -79,9 +82,9 @@ def apply_table_filters(
             if theme in _as_list(row.get("themes", []))
         ]
 
-    table_type = filter_state.get("table_type", ALL_VALUE)
-    if table_type != ALL_VALUE:
-        result = [row for row in result if row.get("type") == table_type]
+    game_type = collection_filters.criterion(filter_state, "game_type", ALL_VALUE)
+    if game_type != ALL_VALUE:
+        result = [row for row in result if row.get("type") == game_type]
 
     for predicate in extra_predicates or ():
         result = [row for row in result if predicate(row)]

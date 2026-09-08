@@ -22,6 +22,6 @@ python3 scripts/fetch_dof_bundle.py \
   --repo "${DOF_REPO}" \
   --version "${DOF_VERSION}" \
   --triplet "${DOF_TRIPLET}" \
-  --outdir "third-party/dof"
+  --outdir "third_party/dof"
 
-echo "Installed DOF bundle for ${DOF_TRIPLET} at third-party/dof"
+echo "Installed DOF bundle for ${DOF_TRIPLET} at third_party/dof"

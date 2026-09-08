@@ -1,3 +1,5 @@
+"""The VPinPlay page: the account scores are submitted under."""
+
 from __future__ import annotations
 
 import json
@@ -9,13 +11,13 @@ from urllib.parse import quote
 
 from nicegui import run, ui
 
-from common.iniconfig import IniConfig
-from common.vpinplay_service import sync_installed_tables
+from common.config_access import cfg_get
+from common.config_store import ConfigStore
+from common.online.vpinplay_service import sync_installed_games
 from managerui.config_fields import is_checkbox_field
-from managerui.pages.vpinfe_config import get_friendly_name
+from managerui.config_options import get_friendly_name
 from managerui.paths import VPINFE_INI_PATH
-from managerui.ui_helpers import load_page_style, attach_shell_save_bar
-
+from managerui.ui_helpers import attach_shell_save_bar, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.vpinplay")
 
@@ -100,7 +102,7 @@ def _build_qr_filename(user_id: str) -> str:
 
 
 def render_panel():
-    config = IniConfig(str(INI_PATH))
+    config = ConfigStore(str(INI_PATH))
     load_page_style("vpinfe_config.css")
 
     if not config.config.has_section(SECTION):
@@ -122,12 +124,12 @@ def render_panel():
         if vpinplay_user_link is None:
             return
         vpinplay_user_link.text = "Your Stats"
-        vpinplay_user_link.props(f"href={_build_vpinplay_user_url(_input_value('userid'))}")
+        vpinplay_user_link.props(f"href={_build_vpinplay_user_url(_input_value('user_id'))}")
 
     def update_vpinplay_sync_button_state():
         if sync_vpinplay_button is None:
             return
-        if _input_value("userid") and _input_value("initials"):
+        if _input_value("user_id") and _input_value("initials"):
             sync_vpinplay_button.enable()
         else:
             sync_vpinplay_button.disable()
@@ -136,9 +138,9 @@ def render_panel():
         if qr_preview is None or qr_download_button is None:
             return
 
-        user_id = _input_value("userid")
+        user_id = _input_value("user_id")
         initials = _input_value("initials")
-        machine_id = _input_value("machineid")
+        machine_id = _input_value("machine_id")
 
         if not user_id or not initials or not machine_id:
             qr_preview.set_content(
@@ -164,9 +166,9 @@ def render_panel():
         qr_download_button.enable()
 
     def download_vpinplay_qr():
-        user_id = _input_value("userid")
+        user_id = _input_value("user_id")
         initials = _input_value("initials")
-        machine_id = _input_value("machineid")
+        machine_id = _input_value("machine_id")
         if not user_id or not initials or not machine_id:
             ui.notify("User ID, Initials, and Machine ID are required.", type="warning")
             return
@@ -191,7 +193,7 @@ def render_panel():
                 inp = ui.checkbox(text=friendly_label, value=(value == "true")).classes("config-input")
             else:
                 inp = ui.input(value=value).props("outlined dense").classes("config-input")
-                if key == "machineid":
+                if key == "machine_id":
                     inp.props("readonly disable")
                 if key == "initials":
                     inp.props("maxlength=3").classes("config-uppercase-input")
@@ -207,7 +209,7 @@ def render_panel():
                     inp.on_value_change(on_initials_change)
 
             inputs[SECTION][key] = inp
-            if key == "userid":
+            if key == "user_id":
                 inp.on_value_change(
                     lambda _: (update_vpinplay_user_link(), update_vpinplay_sync_button_state(), update_vpinplay_qr())
                 )
@@ -222,8 +224,7 @@ def render_panel():
                     value = str(value or "").upper()
                     inp.value = value
                 config.config.set(SECTION, key, value)
-        with open(INI_PATH, "w") as f:
-            config.config.write(f)
+        config.save()
         update_vpinplay_sync_button_state()
         ui.notify("VPinPlay settings saved", type="positive")
 
@@ -249,11 +250,11 @@ def render_panel():
         return command_label, status_label, output_area, close_button
 
     async def run_vpinplay_sync():
-        service_ip = _input_value("apiendpoint")
-        user_id = _input_value("userid")
+        service_ip = _input_value("api_endpoint")
+        user_id = _input_value("user_id")
         initials = _input_value("initials")
-        machine_id = _input_value("machineid")
-        tables_dir = config.config.get("Settings", "tablerootdir", fallback="").strip()
+        machine_id = _input_value("machine_id")
+        games_dir = cfg_get(config, "Settings", "game_root_dir", "").strip()
 
         if not service_ip:
             ui.notify("API Endpoint is required.", type="warning")
@@ -267,7 +268,7 @@ def render_panel():
         if not machine_id:
             ui.notify("Machine ID is required.", type="warning")
             return
-        if not tables_dir:
+        if not games_dir:
             ui.notify("Tables Directory is required in Configuration > Settings.", type="warning")
             return
 
@@ -279,17 +280,17 @@ def render_panel():
         sync_vpinplay_button.text = "Syncing..."
         try:
             result = await run.io_bound(
-                sync_installed_tables,
+                sync_installed_games,
                 service_ip,
                 user_id,
                 initials,
                 machine_id,
-                tables_dir,
+                games_dir,
             )
             output_area.value = (
-                f"Scanned: {result['tables_scanned']}\n"
-                f"Sent: {result['tables_sent']}\n"
-                f"Skipped (missing VPSId): {result['tables_skipped']}\n\n"
+                f"Scanned: {result['games_scanned']}\n"
+                f"Sent: {result['games_sent']}\n"
+                f"Skipped (missing VPSId): {result['games_skipped']}\n\n"
                 f"HTTP status: {result['status_code']}\n\n"
                 f"{result['response_body']}"
             )
@@ -307,11 +308,11 @@ def render_panel():
             update_vpinplay_sync_button_state()
 
     options = config.config.options(SECTION)
-    sync_key = "synconexit"
-    endpoint_key = "apiendpoint"
-    user_key = "userid"
+    sync_key = "sync_on_exit"
+    endpoint_key = "api_endpoint"
+    user_key = "user_id"
     initials_key = "initials"
-    machine_key = "machineid"
+    machine_key = "machine_id"
 
     with ui.column().classes("w-full config-page-shell"):
         with ui.card().classes("w-full config-hero").style("overflow: hidden;"):

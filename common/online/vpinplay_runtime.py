@@ -1,0 +1,237 @@
+"""Playing as somebody else for one session.
+
+A guest profile is deliberately temporary: it is cleared on shutdown, so a cabinet
+never comes back up still submitting scores under a visitor's name.
+"""
+
+from __future__ import annotations
+
+import copy
+import threading
+import time
+from dataclasses import dataclass
+from typing import Any
+
+PROFILE_TYPE = "vpinplay_identity"
+PROFILE_VERSION = 1
+
+
+@dataclass(frozen=True)
+class AlternateVPinPlayProfile:
+    profile_key: str
+    user_id: str
+    initials: str
+    machine_id: str
+    source_name: str = ""
+    activated_at: int = 0
+
+
+_LOCK = threading.Lock()
+_PROFILES: dict[str, AlternateVPinPlayProfile] = {}
+_ACTIVE_PROFILE_KEY: str | None = None
+_GAME_USER_STATE_BY_PROFILE: dict[str, dict[str, dict[str, Any]]] = {}
+
+
+def _normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("QR payload must be a JSON object.")
+
+    profile_type = str(payload.get("type", "") or "").strip()
+    version_raw = payload.get("version", 0)
+    user_id = str(payload.get("userId", "") or "").strip()
+    initials = str(payload.get("initials", "") or "").strip().upper()
+    machine_id = str(payload.get("machineId", "") or "").strip()
+
+    try:
+        version = int(version_raw)
+    except (TypeError, ValueError):
+        raise ValueError("QR payload version is invalid.") from None
+
+    if profile_type != PROFILE_TYPE:
+        raise ValueError(f"Unsupported QR payload type: {profile_type or 'missing'}.")
+    if version != PROFILE_VERSION:
+        raise ValueError(f"Unsupported QR payload version: {version}.")
+    if not user_id:
+        raise ValueError("QR payload is missing userId.")
+    if not initials:
+        raise ValueError("QR payload is missing initials.")
+    if len(initials) > 3:
+        raise ValueError("QR payload initials must be 3 characters or fewer.")
+    if not machine_id:
+        raise ValueError("QR payload is missing machineId.")
+
+    return {
+        "type": profile_type,
+        "version": version,
+        "userId": user_id,
+        "initials": initials,
+        "machineId": machine_id,
+    }
+
+
+def _build_profile_key(user_id: str, machine_id: str) -> str:
+    return f"{str(user_id or '').strip()}::{str(machine_id or '').strip()}"
+
+
+def _profile_to_dict(profile: AlternateVPinPlayProfile) -> dict[str, Any]:
+    game_states = _GAME_USER_STATE_BY_PROFILE.get(profile.profile_key, {})
+    return {
+        "profileKey": profile.profile_key,
+        "userId": profile.user_id,
+        "initials": profile.initials,
+        "machineId": profile.machine_id,
+        "sourceName": profile.source_name,
+        "activatedAt": profile.activated_at,
+        "trackedTables": len(game_states),
+    }
+
+
+def validate_profile_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return _normalize_payload(payload)
+
+
+def activate_alternate_profile(payload: dict[str, Any], source_name: str = "") -> dict[str, Any]:
+    normalized = _normalize_payload(payload)
+    activated_at = int(time.time())
+    profile_key = _build_profile_key(normalized["userId"], normalized["machineId"])
+    profile = AlternateVPinPlayProfile(
+        profile_key=profile_key,
+        user_id=normalized["userId"],
+        initials=normalized["initials"],
+        machine_id=normalized["machineId"],
+        source_name=str(source_name or "").strip(),
+        activated_at=activated_at,
+    )
+    with _LOCK:
+        global _ACTIVE_PROFILE_KEY
+        _PROFILES[profile_key] = profile
+        _GAME_USER_STATE_BY_PROFILE.setdefault(profile_key, {})
+        _ACTIVE_PROFILE_KEY = profile_key
+    return get_alternate_profile_state()
+
+
+def set_active_profile(profile_key: str) -> dict[str, Any]:
+    normalized_key = str(profile_key or "").strip()
+    with _LOCK:
+        global _ACTIVE_PROFILE_KEY
+        if not normalized_key or normalized_key not in _PROFILES:
+            raise ValueError("Alternate VPinPlay account was not found.")
+        _ACTIVE_PROFILE_KEY = normalized_key
+    return get_alternate_profile_state()
+
+
+def clear_alternate_profile(profile_key: str | None = None) -> dict[str, Any]:
+    with _LOCK:
+        global _ACTIVE_PROFILE_KEY
+        if profile_key is None:
+            _PROFILES.clear()
+            _GAME_USER_STATE_BY_PROFILE.clear()
+            _ACTIVE_PROFILE_KEY = None
+        else:
+            normalized_key = str(profile_key or "").strip()
+            if normalized_key:
+                _PROFILES.pop(normalized_key, None)
+                _GAME_USER_STATE_BY_PROFILE.pop(normalized_key, None)
+                if _ACTIVE_PROFILE_KEY == normalized_key:
+                    _ACTIVE_PROFILE_KEY = next(iter(_PROFILES.keys()), None)
+    return get_alternate_profile_state()
+
+
+def get_alternate_profile_state() -> dict[str, Any]:
+    with _LOCK:
+        active_profile = _PROFILES.get(_ACTIVE_PROFILE_KEY) if _ACTIVE_PROFILE_KEY else None
+        profiles = [_profile_to_dict(profile) for profile in _PROFILES.values()]
+        profiles.sort(key=lambda item: (item.get("userId") or "").lower())
+        active_game_count = len(_GAME_USER_STATE_BY_PROFILE.get(_ACTIVE_PROFILE_KEY or "", {}))
+        return {
+            "active": active_profile is not None,
+            "profile": _profile_to_dict(active_profile) if active_profile is not None else None,
+            "active_games": active_game_count,
+            "profiles": profiles,
+            "activeProfileKey": active_profile.profile_key if active_profile is not None else "",
+        }
+
+
+def get_active_profile() -> AlternateVPinPlayProfile | None:
+    with _LOCK:
+        return _PROFILES.get(_ACTIVE_PROFILE_KEY) if _ACTIVE_PROFILE_KEY else None
+
+
+def has_active_profile() -> bool:
+    return get_active_profile() is not None
+
+
+def _ensure_profile_game_state(profile_key: str) -> dict[str, dict[str, Any]]:
+    return _GAME_USER_STATE_BY_PROFILE.setdefault(profile_key, {})
+
+
+def _ensure_game_user_state(profile_key: str, game_key: str) -> dict[str, Any]:
+    profile_state = _ensure_profile_game_state(profile_key)
+    state = profile_state.setdefault(
+        game_key,
+        {
+            "Rating": 0,
+            "Favorite": False,
+            "LastRun": None,
+            "StartCount": 0,
+            "RunTime": 0,
+            "run_time_seconds": 0,
+            "Tags": [],
+        },
+    )
+    return state
+
+
+def record_game_start(game_key: str, played_at: int | None = None) -> dict[str, Any]:
+    timestamp = int(played_at or time.time())
+    with _LOCK:
+        if _ACTIVE_PROFILE_KEY is None:
+            return {}
+        state = _ensure_game_user_state(_ACTIVE_PROFILE_KEY, game_key)
+        try:
+            state["StartCount"] = int(state.get("StartCount", 0)) + 1
+        except (TypeError, ValueError):
+            state["StartCount"] = 1
+        state["LastRun"] = timestamp
+        return copy.deepcopy(state)
+
+
+def add_game_runtime(game_key: str, elapsed_seconds: float, profile_key: str | None = None) -> dict[str, Any]:
+    """Add one session to a profile's play time, in seconds.
+
+    RunTime is what the API is sent and it carries minutes, so it is derived from the
+    seconds rather than accumulated - rounding each session up to a whole minute first
+    charged a few seconds at a table the same as a few minutes.
+    """
+    seconds = int(round(max(0.0, float(elapsed_seconds))))
+    with _LOCK:
+        resolved_profile_key = str(profile_key or _ACTIVE_PROFILE_KEY or "").strip()
+        if not resolved_profile_key:
+            return {}
+        state = _ensure_game_user_state(resolved_profile_key, game_key)
+        try:
+            prior_seconds = int(state.get("run_time_seconds", 0))
+        except (TypeError, ValueError):
+            prior_seconds = 0
+        state["run_time_seconds"] = prior_seconds + seconds
+        state["RunTime"] = state["run_time_seconds"] // 60
+        return copy.deepcopy(state)
+
+
+def set_game_score(game_key: str, score_data: Any, profile_key: str | None = None) -> dict[str, Any]:
+    with _LOCK:
+        resolved_profile_key = str(profile_key or _ACTIVE_PROFILE_KEY or "").strip()
+        if not resolved_profile_key:
+            return {}
+        state = _ensure_game_user_state(resolved_profile_key, game_key)
+        state["Score"] = score_data
+        return copy.deepcopy(state)
+
+
+def get_game_user_state(game_key: str, profile_key: str | None = None) -> dict[str, Any]:
+    with _LOCK:
+        resolved_profile_key = str(profile_key or _ACTIVE_PROFILE_KEY or "").strip()
+        if not resolved_profile_key:
+            return {}
+        state = _ensure_game_user_state(resolved_profile_key, game_key)
+        return copy.deepcopy(state)

@@ -1,3 +1,5 @@
+"""The Logs page, for reading the log without leaving the cabinet."""
+
 from __future__ import annotations
 
 import html
@@ -5,10 +7,8 @@ from pathlib import Path
 
 from nicegui import ui
 
-from common.config_access import SettingsConfig
-from common.iniconfig import IniConfig
-from common.vpx_log import resolve_vpinball_log_path
-from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
+from common.host.vpx_log import resolve_vpinball_log_path
+from managerui.paths import CONFIG_DIR
 from managerui.ui_helpers import load_page_style
 
 
@@ -28,26 +28,32 @@ def _get_vpinfe_log_path() -> Path:
 
 def _get_vpinball_log_path() -> Path | None:
     try:
-        config = IniConfig(str(VPINFE_INI_PATH))
-        settings = SettingsConfig.from_config(config)
+        from common.games import launchers
+
+        return resolve_vpinball_log_path(launchers.default_value("ini_path"))
     except Exception:
         return None
-
-    return resolve_vpinball_log_path(settings.vpx_ini_path)
 
 
 def _get_delete_on_start_enabled() -> bool:
     try:
-        config = IniConfig(str(VPINFE_INI_PATH))
-        return SettingsConfig.from_config(config).vpx_log_delete_on_start
+        from common.games import launchers
+
+        found = launchers.default_launcher()
+        return bool(found is not None and found.value("log_delete_on_start"))
     except Exception:
         return False
 
 
 def _set_delete_on_start_enabled(value: bool) -> None:
-    config = IniConfig(str(VPINFE_INI_PATH))
-    config.config.set("Settings", "vpxlogdeleteonstart", "true" if value else "false")
-    config.save()
+    """Written onto the launcher that would run a table, which is where it lives now."""
+    from common.games import launchers
+
+    store = launchers.get_launcher_store()
+    found = launchers.default_for("vpx", store.launchers())
+    if found is None:
+        return
+    store.put(launchers.replace_settings(found, log_delete_on_start=bool(value)))
 
 
 def render_panel():

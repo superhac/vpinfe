@@ -39,7 +39,7 @@
     box-shadow: var(--glow-purple);
 }
 
-.vpsid-badge {
+.member-count-badge {
     background: linear-gradient(135deg, var(--neon-cyan) 0%, #06b6d4 100%);
     display: inline-flex;
     align-items: center;

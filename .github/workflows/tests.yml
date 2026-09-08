@@ -2,12 +2,19 @@ name: Tests
 
 on:
   push:
-    branches: [ master, platform ]
+    branches: [ master, vpinfe-3.0 ]
   pull_request:
-    branches: [ master, platform ]
+    branches: [ master, vpinfe-3.0 ]
+
+# One run per branch. A second push supersedes the first rather than queueing behind
+# it - a tag run is exempt, because cancelling one halfway leaves a partial release.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
 
 jobs:
   test:
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -32,4 +39,18 @@ jobs:
       # The suite doesn't need the DOF/libdmdutil bundles or Chromium the build
       # job fetches, so this stays a fast check that runs on its own.
       - name: Run tests
-        run: python -m unittest discover tests
+        run: python -m unittest discover -t . -s tests
+
+      # vpinfe-core.js is the largest single piece of theme-facing code and had no
+      # tests at all until these. Node's built-in runner, so there is nothing to
+      # install: the repo has no JavaScript dependencies and should not gain any.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The manifest lives beside the tests, not at the repo root - node resolves
+      # "type": "module" from the nearest package.json walking up from a test file.
+      - name: Run frontend tests
+        run: npm test
+        working-directory: tests/js
