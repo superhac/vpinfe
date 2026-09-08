@@ -20,6 +20,7 @@ and rewriting the file from a parse would throw them away.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 # `; Label: description [Default: ...]`, where the default block is optional and the
@@ -190,15 +191,23 @@ def _bounds(block: str) -> tuple[float | None, float | None]:
         return None, None
 
 
-def written(ini: Ini, changes: dict[str, str]) -> str:
+def written(ini: Ini, changes: dict[str, str],
+            remove: Iterable[str] = ()) -> str:
     """The file with those values replaced, and nothing else touched.
 
     A key the file does not carry is appended under its section, or under a new section
     at the end where there is none. Rewriting from the parse would be shorter and would
     discard every comment, which is the only documentation these settings have.
+
+    `remove` takes a key out rather than blanking it, which is what the program does to
+    a table's settings when it has no value for one. Blanking reads the same on the way
+    back in, and leaves a stub the program deletes the next time it saves.
     """
     lines = list(ini.lines)
     appended: dict[str, list[str]] = {}
+
+    dropped = [ini.settings[q].line for q in remove
+               if q in ini.settings and 0 <= ini.settings[q].line < len(lines)]
 
     for qualified, value in changes.items():
         found = ini.settings.get(qualified)
@@ -215,6 +224,9 @@ def written(ini: Ini, changes: dict[str, str]) -> str:
             continue
         lines[at:at] = rows
 
+    # Last, by line number descending, so removing one does not move the next.
+    for at in sorted(dropped, reverse=True):
+        del lines[at]
     return "\n".join(lines) + "\n"
 
 

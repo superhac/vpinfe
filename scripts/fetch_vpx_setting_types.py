@@ -65,20 +65,34 @@ def section_on_disk(declared: str) -> str:
     return declared
 
 
-def parsed(text: str) -> dict[str, str]:
+def parsed(text: str) -> tuple[dict[str, str], set[str]]:
+    """Every setting's type, and which of them are contextual.
+
+    Contextual is the `...Dyn` half of each macro pair, and it decides whether a table
+    override survives being saved: `LayeredINIPropertyStore::Save` drops a table value
+    that equals the application's *unless* the property is contextual, in which case it
+    is kept. Without this, a setting that can be held at the inherited value and one
+    that cannot are indistinguishable here.
+    """
     flat = re.sub(r"\s+", " ", text)
     found: dict[str, str] = {}
+    contextual: set[str] = set()
     for macro, section, key in DECL.findall(flat):
         kind = KINDS.get(macro)
-        if kind is not None:
-            found[f"{section_on_disk(section)}.{key}"] = kind
-    return found
+        if kind is None:
+            continue
+        qualified = f"{section_on_disk(section)}.{key}"
+        found[qualified] = kind
+        if macro.endswith("Dyn"):
+            contextual.add(qualified)
+    return found, contextual
 
 
-def rendered(types: dict[str, str]) -> str:
+def rendered(types: dict[str, str], contextual: set[str] | None = None) -> str:
     # Escaped: a `DefaultProps\\Ball` section carries a backslash, and written raw it
     # is an invalid escape in the file this generates.
     rows = "".join(f'    {key!r}: "{kind}",\n' for key, kind in sorted(types.items()))
+    marks = "".join(f"    {key!r},\n" for key in sorted(contextual or ()))
     return (
         '"""What type each Visual Pinball setting is.\n'
         "\n"
@@ -101,6 +115,16 @@ def rendered(types: dict[str, str]) -> str:
         "TYPES: dict[str, str] = {\n"
         f"{rows}"
         "}\n"
+        "\n"
+        "# The ones a table can hold at the application's own value.\n"
+        "#\n"
+        "# Saving a table's settings drops any value equal to the application's, so a\n"
+        "# table cannot be pinned to what it already inherits - except for these, which\n"
+        "# are kept. Declared by the `...Dyn` half of each macro pair.\n"
+        f"# {len(contextual or ())} of them.\n"
+        "CONTEXTUAL: frozenset[str] = frozenset({\n"
+        f"{marks}"
+        "})\n"
     )
 
 
@@ -146,7 +170,7 @@ def main() -> int:
         with urllib.request.urlopen(SOURCE, timeout=30) as answer:
             text = answer.read().decode("utf-8")
 
-    types = parsed(text)
+    types, contextual = parsed(text)
     if root is not None:
         # The plugins come second, so a plugin that redeclares a core setting is the
         # one that answers for its own section.
@@ -157,13 +181,14 @@ def main() -> int:
     if not types:
         print("No declarations found; the source's shape has changed.", file=sys.stderr)
         return 1
-    OUT.write_text(rendered(types), encoding="utf-8")
+    OUT.write_text(rendered(types, contextual), encoding="utf-8")
     counts: dict[str, int] = {}
     for kind in types.values():
         counts[kind] = counts.get(kind, 0) + 1
     print(f"wrote {OUT.relative_to(OUT.parent.parent.parent)}: {len(types)} settings")
     for kind, n in sorted(counts.items()):
         print(f"    {kind:8} {n}")
+    print(f"    {'contextual':8} {len(contextual)}")
     return 0
 
 

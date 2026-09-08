@@ -26,7 +26,7 @@ from common.apps.contract import (
 )
 
 from . import ini as vini
-from .setting_types import TYPES
+from .setting_types import CONTEXTUAL, TYPES
 
 # Which sections feed which group. Declared rather than derived from section names,
 # because they do not line up: the backglass DMD overlay keys sit with the B2S plugin
@@ -227,18 +227,59 @@ class VPXConfig:
 
     def write(self, scope: str, target: str, values: Mapping[str, str],
               settings: Mapping[str, Any]) -> None:
-        """Set values at one scope, in place.
+        """Set values at one scope, in place. Written the way the program writes it.
 
         The file keeps its own shape - a value is replaced on the line it is on. The
         comments are the only documentation these settings have, and rewriting the file
         from a parse would throw all of them away.
+
+        **A table layer is not the same as the application layer, and the program does
+        not write them the same way.** Saving a table's settings removes a key it has no
+        value for and one whose value equals the application's; saving the application's
+        writes every key, blank where it has no value. Doing it our own way would leave a
+        file the program rewrites differently the first time it saves - and the parts it
+        rewrote would be the parts somebody had set here.
         """
         path = path_for(scope, target, settings)
         if path is None:
             raise ValueError(f"There is no {scope} file to write.")
+        refused = self._refusals(scope, target, values, settings)
+        if refused:
+            raise SettingRefusedError(refused)
         held = _read(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(vini.written(held, dict(values)), encoding="utf-8")
+        drop = ([key for key, value in values.items() if str(value) == ""]
+                if scope != SCOPE_LAUNCHER else [])
+        keep = {key: value for key, value in values.items() if key not in drop}
+        path.write_text(vini.written(held, keep, remove=drop), encoding="utf-8")
+
+    def _refusals(self, scope: str, target: str, values: Mapping[str, str],
+                  settings: Mapping[str, Any]) -> dict[str, str]:
+        """Table values the program would throw away, and why, keyed by setting.
+
+        Holding a table at what it already inherits does not survive: the next time the
+        program saves that table's settings it removes any value equal to the
+        application's. Refusing it is behaving the same way; refusing it *silently*
+        would be worse than writing it, because the setting would read as set until
+        something else quietly unset it.
+
+        The exception is the program's own: a contextual setting is kept even when it
+        matches, so those are written.
+        """
+        if scope == SCOPE_LAUNCHER:
+            return {}
+        app = _read(_app_ini(settings))
+        out: dict[str, str] = {}
+        for qualified, value in values.items():
+            if str(value) == "" or qualified in CONTEXTUAL:
+                continue
+            if app.value(qualified) == str(value):
+                out[qualified] = (
+                    f"{qualified} is already {value} for every table, and Visual "
+                    "Pinball drops a table setting that matches. Change the one for "
+                    "every table instead, or set this to something different.")
+        return out
+
 
     def files(self, settings: Mapping[str, Any]) -> dict[str, str]:
         """The files this launcher's settings live in, named for a person.
@@ -263,6 +304,14 @@ class VPXConfig:
             return {}
         return {q: one.value for q, one in _read(folder).settings.items()}
 
+
+class SettingRefusedError(ValueError):
+    """A write the program itself would not keep. Its own type because a surface has to
+    say which settings and why, rather than report that a save failed."""
+
+    def __init__(self, refusals: dict[str, str]) -> None:
+        super().__init__("; ".join(refusals.values()))
+        self.refusals = dict(refusals)
 
 def _without(scope: str, qualified: str, app: vini.Ini, table: vini.Ini,
              table_scope: str) -> tuple[str, str]:

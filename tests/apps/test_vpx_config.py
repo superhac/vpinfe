@@ -32,6 +32,9 @@ VPinball = 10815353
 """
 
 KEY = "Backglass.BackglassOutput"
+# Not contextual, where `KEY` is: the program keeps a contextual table value even when
+# it matches the application's, so a rule about matching values needs an ordinary one.
+PLAIN = "DMD.Profile1Legacy"
 
 
 class _Case(unittest.TestCase):
@@ -255,3 +258,88 @@ class SeedingTests(_Case):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WritingLikeTheProgramTests(_Case):
+    """A table layer is not written the way the application layer is, and the difference
+    is the program's, not ours.
+
+    `LayeredINIPropertyStore::Save` writes every key at the application layer, blank
+    where it has no value. At a table it writes only real overrides: a key it has no
+    value for is removed, and so is one whose value matches the application's - unless
+    the property is contextual. Writing our own way leaves a file the program rewrites
+    the first time it saves, and the parts it rewrote are the parts somebody set here.
+    """
+
+    def test_a_real_override_is_written(self) -> None:
+        self.config.write("entry", str(self.table), {KEY: "0"}, self.settings)
+
+        self.assertEqual(self.at("entry")[0] if isinstance(self.at("entry"), tuple)
+                         else self.at("entry").value, "0")
+
+    def test_clearing_at_a_table_removes_the_key(self) -> None:
+        """Rather than blanking it. Both read the same on the way back in, and the
+        program deletes a blank one the next time it saves."""
+        self.config.write("entry", str(self.table), {KEY: "0"}, self.settings)
+        self.config.write("entry", str(self.table), {KEY: ""}, self.settings)
+
+        written = (self.game / "MM (VPW 1.2).ini").read_text()
+        self.assertNotIn("BackglassOutput", written)
+
+    def test_clearing_at_the_application_blanks_it_instead(self) -> None:
+        """Which is what the program does where there is no parent to fall through to."""
+        self.config.write("launcher", str(self.table), {KEY: ""}, self.settings)
+
+        self.assertIn("BackglassOutput =", self.app_ini.read_text())
+
+    def test_holding_a_table_at_the_inherited_value_is_refused(self) -> None:
+        """The program drops exactly this on its next save, so writing it would leave a
+        setting that reads as set until something else quietly unset it.
+
+        `Profile1Legacy` rather than the key the rest of this file uses: that one is
+        contextual, which is the exception rather than the rule being tested.
+        """
+        from apps.vpx.config import SettingRefusedError
+
+        with self.assertRaises(SettingRefusedError) as caught:
+            self.config.write("entry", str(self.table),
+                              {PLAIN: "1"}, self.settings)
+
+        self.assertIn(PLAIN, caught.exception.refusals)
+
+    def test_and_the_refusal_names_the_setting_and_what_to_do(self) -> None:
+        """A refusal a surface can only report as "could not save" sends somebody
+        looking for a fault that is not there."""
+        from apps.vpx.config import SettingRefusedError
+
+        with self.assertRaises(SettingRefusedError) as caught:
+            self.config.write("entry", str(self.table),
+                              {PLAIN: "1"}, self.settings)
+
+        said = caught.exception.refusals[PLAIN]
+        self.assertIn("already", said)
+        self.assertIn("every table", said)
+
+    def test_a_different_value_is_written_at_a_table(self) -> None:
+        self.config.write("entry", str(self.table), {PLAIN: "0"}, self.settings)
+
+        self.assertIn("Profile1Legacy = 0",
+                      (self.game / "MM (VPW 1.2).ini").read_text())
+
+    def test_a_contextual_setting_may_be_held_at_it(self) -> None:
+        """The program keeps those even when they match, so we do too."""
+        from apps.vpx.config import CONTEXTUAL
+
+        held = next(iter(CONTEXTUAL))
+        section, _, key = held.partition(".")
+        self.app_ini.write_text(f"{self.app_ini.read_text()}\n[{section}]\n{key} = 7\n")
+
+        self.config.write("entry", str(self.table), {held: "7"}, self.settings)
+
+        self.assertIn(key, (self.game / "MM (VPW 1.2).ini").read_text())
+
+    def test_the_application_layer_may_hold_any_value(self) -> None:
+        """There is nothing above it to match, so nothing to be redundant against."""
+        self.config.write("launcher", str(self.table), {KEY: "1"}, self.settings)
+
+        self.assertIn("BackglassOutput = 1", self.app_ini.read_text())

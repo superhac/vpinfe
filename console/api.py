@@ -35,7 +35,16 @@ def local_base_url() -> str:
 
 
 class ApiError(RuntimeError):
-    """What the API said went wrong, in its own words - which is what a surface shows."""
+    """What the API said went wrong, in its own words - which is what a surface shows.
+
+    `details` is the error's own payload where it sent one. A refusal names which
+    settings it declined and why, and a surface that only had the sentence would have to
+    parse it back out of prose.
+    """
+
+    def __init__(self, message: str, details: dict | None = None) -> None:
+        super().__init__(message)
+        self.details = dict(details or {})
 
 
 class ApiClient:
@@ -61,12 +70,15 @@ class ApiClient:
         """
         if response.ok:
             return
-        said = ""
+        said, details = "", {}
         try:
-            said = str(((response.json() or {}).get("error") or {}).get("message") or "")
+            found = (response.json() or {}).get("error") or {}
+            said = str(found.get("message") or "")
+            details = found.get("details") or {}
         except ValueError:
             said = ""
-        raise ApiError(said or f"The API answered {response.status_code}")
+        raise ApiError(said or f"The API answered {response.status_code}",
+                       details if isinstance(details, dict) else {})
 
     def _get(self, path: str) -> dict:
         _refuse_the_event_loop(path)

@@ -26,7 +26,7 @@ from common.games import launchers
 
 from . import scopes
 from .auth import requires
-from .errors import InvalidRequestError, NotFoundError
+from .errors import ConflictError, InvalidRequestError, NotFoundError
 
 logger = logging.getLogger("vpinfe.httpapi.launchers")
 
@@ -255,7 +255,16 @@ def write_launcher_config(launcher_id: str,
             # Under, not over: the value being set is the reason for the write.
             writing = {**reaching(table, settings), **writing}
 
-    config.write(scope, table, writing, settings)
+    try:
+        config.write(scope, table, writing, settings)
+    except Exception as exc:
+        refusals = getattr(exc, "refusals", None)
+        if refusals is None:
+            raise
+        # Named one by one rather than as a failed save: which setting and why is the
+        # whole of what somebody can act on, and a surface that only says "could not
+        # save" sends them to look for a fault that is not there.
+        raise ConflictError(str(exc), details={"refused": refusals}) from exc
     return {"written": sorted(writing)}
 
 
