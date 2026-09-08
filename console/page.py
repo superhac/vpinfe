@@ -276,25 +276,33 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
     """
     from console import import_dialog, uploads
 
-    try:
-        analysis = await uploads.analysis_of(library, drop.upload_id)
-    except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not read that drop: {exc}", type="negative")
-        await run.io_bound(library.abort_upload, drop.upload_id)
-        return
-    if analysis.get("error"):
-        ui.notify(f"Could not read that drop: {analysis['error']}", type="negative")
-        await run.io_bound(library.abort_upload, drop.upload_id)
-        return
-
     game_id, game_dir, media_kind = _drop_target(library, state, drop)
+
+    # A slot drop is not analysed at all, and that is the whole point of one: the cell
+    # said which game and which slot, so any image belongs on an image slot and is
+    # written under that slot's own name. Asking the analyser first rejected exactly
+    # the file this is for - one whose name says nothing.
+    analysis: dict = {}
+    if not media_kind:
+        try:
+            analysis = await uploads.analysis_of(library, drop.upload_id)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(f"Could not read that drop: {exc}", type="negative")
+            await run.io_bound(library.abort_upload, drop.upload_id)
+            return
+        if analysis.get("error"):
+            ui.notify(f"Could not read that drop: {analysis['error']}",
+                      type="negative")
+            await run.io_bound(library.abort_upload, drop.upload_id)
+            return
+
     if drop.target != uploads.TARGET_LIBRARY and not game_dir:
         ui.notify("Could not work out which game that row is", type="negative")
         await run.io_bound(library.abort_upload, drop.upload_id)
         return
 
     # A drop with no game named can only be a new one, and only if it brought a table.
-    new_game = not game_dir
+    new_game = not game_dir and not media_kind
     if new_game and not analysis.get("has_game"):
         ui.notify("Drop this on a game to add it to that one, or drop a table to make "
                   "a new game", type="warning")
@@ -303,7 +311,8 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
 
     try:
         plan = await run.io_bound(library.upload_plan, drop.upload_id,
-                                  game_dir=game_dir, allow_new_game=new_game)
+                                  game_dir=game_dir, allow_new_game=new_game,
+                                  media_kind=media_kind)
     except Exception as exc:  # noqa: BLE001
         ui.notify(f"Could not work out where that goes: {exc}", type="negative")
         await run.io_bound(library.abort_upload, drop.upload_id)
@@ -323,10 +332,9 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
 
     await import_dialog.open_for(
         library, drop.upload_id, plan, source=drop.name, game_dir=game_dir,
-        allow_new_game=new_game,
+        allow_new_game=new_game, media_kind=media_kind,
         declared=_declared_by_the_drop(analysis, game_id),
         on_done=done)
-    del media_kind
 
 
 def _drop_target(library, state: dict, drop) -> tuple[str, str, str]:

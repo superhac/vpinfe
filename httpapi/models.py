@@ -1832,6 +1832,11 @@ class PlanRequest(ApiModel):
     game_dir: str = ""
     rom_name: str = ""
     allow_new_game: bool = False
+    # Set where the drop named a slot rather than a game. The slot decides the media
+    # key, so nothing is read off the filename: any image works on an image slot and
+    # is written under that slot's own name. Needs `game_dir`, and refuses more than
+    # one file - a slot holds one thing.
+    media_kind: str = ""
 
 
 class ImportRequest(PlanRequest):

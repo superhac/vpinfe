@@ -25,6 +25,7 @@ from common.uploads.asset_analyzer_service import (
 from common.uploads.asset_import_service import (
     ImportPlan,
     build_import_plan,
+    build_media_slot_plan,
     execute_import_plan,
     find_vps_entry,
     select_plan_items,
@@ -208,6 +209,9 @@ def analyze_upload(upload_id: str) -> models.Analysis:
 def plan_upload(upload_id: str,
                 payload: models.PlanRequest = Body(default_factory=models.PlanRequest),
                 ) -> models.ImportPlanResource:
+    if payload.media_kind:
+        return _plan_to_dict(_slot_plan(upload_id, payload.game_dir,
+                                        payload.media_kind))
     analysis, _source = _analysis_for(upload_id)
     vps_entry = _vps_entry(payload.vps_id)
     plan = build_import_plan(
@@ -219,6 +223,26 @@ def plan_upload(upload_id: str,
     if vps_entry is not None and plan.new_game_dir_name:
         plan = select_plan_items(plan, None, vps_folder_name(vps_entry))
     return _plan_to_dict(plan)
+
+
+def _slot_plan(upload_id: str, game_dir: str, media_kind: str) -> ImportPlan:
+    """A drop that named a slot, which decides the media key on its own.
+
+    Nothing is read off the filename - any image works on an image slot and is written
+    under that slot's own name. The file only has to belong to the slot's family, and
+    one file only, because a slot holds one thing.
+    """
+    if not game_dir:
+        raise InvalidRequestError("A slot import needs the game it belongs to.")
+    session = _session_dir(upload_id)
+    files = [one for one in session.iterdir() if one.is_file()]
+    if [one for one in session.iterdir() if one.is_dir()] or len(files) != 1:
+        raise InvalidRequestError("Drop a single file on a slot.")
+    try:
+        return build_media_slot_plan(files[0], game_dir=Path(game_dir),
+                                     media_kind=media_kind)
+    except ValueError as exc:
+        raise InvalidRequestError(str(exc)) from exc
 
 
 def _declared_identities(declared) -> dict:
@@ -252,6 +276,23 @@ def import_upload(upload_id: str,
     # Before the session is even looked up: a claim we cannot trust is a bad request
     # whichever upload it names, and saying so early keeps the reason readable.
     declared = _declared_identities(payload.declared)
+    if payload.media_kind:
+        # A slot import has one file and no choice to make about it: the slot decided
+        # the destination, so there is nothing to select from and nothing to name.
+        plan = _slot_plan(upload_id, payload.game_dir, payload.media_kind)
+        source = next(one for one in _session_dir(upload_id).iterdir()
+                      if one.is_file())
+        blocked = [{"kind": b.asset.kind, "reason": b.reason} for b in plan.blocked]
+        if not plan.items:
+            raise ApiError("no_importable_assets", "No importable assets",
+                           status_code=422, details={"blocked": blocked})
+        try:
+            report = execute_import_plan(plan, source, declared=declared)
+        except (ValueError, FileNotFoundError) as exc:
+            raise InvalidRequestError(str(exc)) from exc
+        upload_session_service.cleanup_session(upload_id)
+        report["blocked"] = blocked
+        return report
     analysis, source_path = _analysis_for(upload_id)
     vps_entry = _vps_entry(payload.vps_id)
     plan = build_import_plan(
