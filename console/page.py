@@ -414,6 +414,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
 
     await ui.context.client.connected()
     loaded = await run.io_bound(_read_hub)
+    if ui.context.client.is_deleted:
+        # Reading the library takes long enough that somebody can close the tab or
+        # reload inside it, and there is then nothing to draw on and nothing to clear.
+        # Building anyway raises out of the page function and logs a stack trace for
+        # somebody having changed their mind.
+        return
     loading.delete()
 
     library = loaded["library"]
@@ -589,9 +595,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 continue
             try:
                 found = await run.io_bound(ask)
-            except Exception:
-                logger.info("Could not ask %s what it is running",
-                            devices_page.device_label(entry), exc_info=True)
+            except Exception as exc:  # noqa: BLE001
+                # The reason, not the stack. A device that is switched off or off the
+                # network is the ordinary case here, and twenty lines of socket
+                # internals for it is what teaches somebody to stop reading the log.
+                logger.info("Could not ask %s what it is running: %s",
+                            devices_page.device_label(entry), exc)
                 continue
             if entry.get("device_id") == discovery.get("install_id"):
                 # Kept so the device's own page does not ask a second time on arrival.

@@ -1175,7 +1175,16 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
             return shown, tuple(state), model
 
         async def _refresh() -> None:
-            shown, sort, model = await _seen()
+            try:
+                shown, sort, model = await _seen()
+            except TimeoutError:
+                # Asking the grid what it is showing is a round trip to the browser,
+                # and this one is only to decide whether to mark the view modified.
+                # A browser that is busy, or a tab being closed, is not worth failing
+                # the thing that called us - the next interaction asks again.
+                logger.debug("console: the grid did not answer in time; "
+                             "leaving the view mark as it is")
+                return
             view = current()
             changed = views.differs(view, shown, sort, model)
             # On the picker rather than beside it: the drift is a fact about the view

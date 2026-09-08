@@ -378,6 +378,12 @@ def _save_on_change(grid: ui.aggrid, scope: str,
             layout = [{k: entry[k] for k in _LAYOUT_FIELDS if k in entry}
                       for entry in (state or [])]
             await run.io_bound(ApiClient().put_preferences, where, {"columns": layout})
+        except TimeoutError:
+            # The browser did not answer in time. This fires on every resize and sort,
+            # so a busy moment is ordinary and the next one saves - a stack trace for it
+            # is what teaches somebody to stop reading the log.
+            logger.debug("console: the grid did not answer in time; layout for %s not "
+                         "saved this time", where)
         except Exception:
             # A layout that fails to save is worth a log and nothing more - it must
             # never take down the grid the user is working in.
