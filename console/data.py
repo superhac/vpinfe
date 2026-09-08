@@ -839,6 +839,40 @@ class Library:
         self._forget_games()
         return changed
 
+    # --- imports ------------------------------------------------------------
+    # Pass-throughs: the browser uploads straight to the API, so what is left is the
+    # three questions after that and none of them is cached - each is about a session
+    # that exists only until it is answered.
+
+    def upload_analysis(self, upload_id: str) -> dict:
+        return self._client.upload_analysis(upload_id)
+
+    def upload_plan(self, upload_id: str, **asked) -> dict:
+        return self._client.upload_plan(upload_id, **asked)
+
+    def upload_import(self, upload_id: str, **asked) -> dict:
+        return self._client.upload_import(upload_id, **asked)
+
+    def abort_upload(self, upload_id: str) -> None:
+        self._client.abort_upload(upload_id)
+
+    def refresh_after_import(self) -> None:
+        """Everything an import can have changed, which is nearly everything.
+
+        A new game, a new table in an existing one, a media file that changed what a
+        game resolves - one import can do all three, and there is no cheap way to know
+        which. So this is the blunt one, and it is only called after a write somebody
+        watched happen rather than on any ordinary draw.
+        """
+        self._forget_games()
+        self._table_rows = None
+        self._media_rows = None
+        self._asset_rows = None
+        self.media.clear()
+        self.table_media.clear()
+        self._overrides.clear()
+        self.tables.clear()
+
     def _forget_games(self) -> None:
         """Re-read the whole list, for a write that touched more of it than one game.
 

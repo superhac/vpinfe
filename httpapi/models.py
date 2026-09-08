@@ -1774,6 +1774,12 @@ class PlanItem(ApiModel):
     default_enabled: bool
     size: int
     media_kind: str
+    # What the incoming file is called, or a count where one asset is several files.
+    name: str = ""
+    # What this does to what is already there, empty where it replaces nothing. Answered
+    # here because it is a question about the install's disk, which a client cannot see -
+    # and it is the question somebody is really answering when they confirm.
+    replaces: str = ""
 
 
 class ImportPlanResource(ApiModel):

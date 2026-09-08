@@ -1612,6 +1612,32 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    names line up and the meanings read as one list rather than a run of sentences; the
    name is mono because it is typed literally, and that is the only thing on these pages
    that is. */
+/* Dragging files over the Console. The page dims very slightly so it is obvious the
+   drop will land somewhere, and the row or cell under the pointer lights up to say
+   exactly where - which is the whole of the targeting model: where you let go decides
+   what you meant, and it has to be visible before you let go. */
+body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
+.console-drop-lit {
+  background: rgba(0, 217, 255, 0.16) !important;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* The import confirmation. Wider than a confirm because every row carries four facts,
+   and capped so a bundle of forty does not become a page. */
+.console-import-card { width: 680px; max-width: 92vw; }
+.console-import-rows { max-height: 46vh; overflow-y: auto; }
+.console-import-row { padding: 4px 0; }
+/* Fixed, so the names beside them line up and the column reads down rather than
+   zig-zagging with the length of each kind's label. */
+.console-import-kind {
+  width: 116px; flex: none;
+  font-size: var(--fs-caption); color: var(--ink-3);
+  text-align: center;
+  border: 1px solid var(--line); border-radius: 10px; padding: 1px 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.console-import-blocked .q-item { min-height: 0; padding: 2px 0; }
+
 /* The list of names a command can use, folded away because eleven rows between two
    settings is a wall. No card and no border: it is help under a control, and a box
    around it would read as a region of the page. */

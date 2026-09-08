@@ -16,6 +16,9 @@ from common.paths import get_ini_config
 logger = logging.getLogger("vpinfe.console")
 
 _TIMEOUT = 15
+# An import copies files, which is disk work rather than a question - a pup pack is
+# gigabytes and the default would give up on it partway through.
+_IMPORT_TIMEOUT = 900
 
 
 def local_base_url() -> str:
@@ -600,6 +603,59 @@ class ApiClient:
         """Point a table at one, or clear it back to the default with an empty id."""
         return dict(self._put(f"/launchers/mappings/{table_id}",
                               {"launcher_id": launcher_id}) or {})
+
+    # --- imports ------------------------------------------------------------
+    # The files themselves are uploaded by the browser straight to the API, so nothing
+    # streams through here. What the Console does is the three steps after that: read
+    # what arrived, work out where it would go, and say go.
+
+    def upload_analysis(self, upload_id: str) -> dict:
+        """What was dropped, as the install reads it."""
+        return dict(self._get(f"/uploads/{upload_id}/analysis") or {})
+
+    def upload_plan(self, upload_id: str, *, game_dir: str = "", rom_name: str = "",
+                    allow_new_game: bool = False, vps_id: str = "") -> dict:
+        """Where each of those files would go. Nothing is written by asking."""
+        path = f"/uploads/{upload_id}/plan"
+        _refuse_the_event_loop(path)
+        response = self._session.post(
+            f"{self._base}{path}",
+            json={"game_dir": game_dir, "rom_name": rom_name,
+                  "allow_new_game": allow_new_game, "vps_id": vps_id},
+            timeout=_TIMEOUT)
+        self._answered(response)
+        return response.json()
+
+    def upload_import(self, upload_id: str, *, game_dir: str = "", rom_name: str = "",
+                      allow_new_game: bool = False, vps_id: str = "",
+                      new_game_dir_name: str | None = None,
+                      selected: list[int] | None = None,
+                      declared: dict | None = None) -> dict:
+        """Do it. `selected` left out means every item the plan offered."""
+        path = f"/uploads/{upload_id}/import"
+        _refuse_the_event_loop(path)
+        body: dict[str, Any] = {
+            "game_dir": game_dir, "rom_name": rom_name,
+            "allow_new_game": allow_new_game, "vps_id": vps_id,
+        }
+        if new_game_dir_name is not None:
+            body["new_game_dir_name"] = new_game_dir_name
+        if selected is not None:
+            body["selected"] = selected
+        if declared:
+            body["declared"] = declared
+        response = self._session.post(f"{self._base}{path}", json=body,
+                                      timeout=_IMPORT_TIMEOUT)
+        self._answered(response)
+        return response.json()
+
+    def abort_upload(self, upload_id: str) -> None:
+        """Throw the staged files away. Best effort - a session left behind is rubbish
+        in a temp directory, not a fault worth reporting to somebody."""
+        try:
+            self._delete(f"/uploads/{upload_id}")
+        except Exception:  # noqa: BLE001
+            logger.debug("console: could not abort upload %s", upload_id, exc_info=True)
 
     def locations(self) -> dict:
         """Every location, with what the disk says about each one right now.

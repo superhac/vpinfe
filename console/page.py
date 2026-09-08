@@ -12,7 +12,17 @@ from common import device_client, feature_checks, icons, install_identity
 from console import about as about_page
 from console import assets as assets_page
 from console import collections as collections_page
-from console import deeplink, games, grid, sections, tageditor, theme, views, workbench
+from console import (
+    deeplink,
+    games,
+    grid,
+    sections,
+    tageditor,
+    theme,
+    uploads,
+    views,
+    workbench,
+)
 from console import devices as devices_page
 from console import launchers as launchers_page
 from console import locations as locations_page
@@ -256,6 +266,110 @@ def _read_hub() -> dict[str, Any]:
 # Five minutes to reconnect, not the default three seconds: a suspended background tab
 # goes quiet for longer than that, and a page deleted under one comes back as a reload.
 # On each route, because the timeout is the page's and these are two pages.
+async def _took_a_drop(library, state: dict, redraw, drop) -> None:
+    """What a drop meant, and the conversation that follows it.
+
+    Where somebody let go is the whole of the targeting: a row names that game whatever
+    is ticked elsewhere, a media cell names the slot as well, and the empty space of a
+    grid names nothing - which is what makes it a new game rather than a guess about an
+    existing one.
+    """
+    from console import import_dialog, uploads
+
+    try:
+        analysis = await uploads.analysis_of(library, drop.upload_id)
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(f"Could not read that drop: {exc}", type="negative")
+        await run.io_bound(library.abort_upload, drop.upload_id)
+        return
+    if analysis.get("error"):
+        ui.notify(f"Could not read that drop: {analysis['error']}", type="negative")
+        await run.io_bound(library.abort_upload, drop.upload_id)
+        return
+
+    game_id, game_dir, media_kind = _drop_target(library, state, drop)
+    if drop.target != uploads.TARGET_LIBRARY and not game_dir:
+        ui.notify("Could not work out which game that row is", type="negative")
+        await run.io_bound(library.abort_upload, drop.upload_id)
+        return
+
+    # A drop with no game named can only be a new one, and only if it brought a table.
+    new_game = not game_dir
+    if new_game and not analysis.get("has_game"):
+        ui.notify("Drop this on a game to add it to that one, or drop a table to make "
+                  "a new game", type="warning")
+        await run.io_bound(library.abort_upload, drop.upload_id)
+        return
+
+    try:
+        plan = await run.io_bound(library.upload_plan, drop.upload_id,
+                                  game_dir=game_dir, allow_new_game=new_game)
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(f"Could not work out where that goes: {exc}", type="negative")
+        await run.io_bound(library.abort_upload, drop.upload_id)
+        return
+    if not plan.get("items"):
+        reasons = sorted({str(one.get("reason") or "")
+                          for one in plan.get("blocked") or ()})
+        ui.notify("; ".join(one for one in reasons if one) or "Nothing to import",
+                  type="warning")
+        await run.io_bound(library.abort_upload, drop.upload_id)
+        return
+
+    async def done(_report) -> None:
+        library.forget_media(game_id) if game_id else None
+        await run.io_bound(library.refresh_after_import)
+        redraw()
+
+    await import_dialog.open_for(
+        library, drop.upload_id, plan, source=drop.name, game_dir=game_dir,
+        allow_new_game=new_game,
+        declared=_declared_by_the_drop(analysis, game_id),
+        on_done=done)
+    del media_kind
+
+
+def _drop_target(library, state: dict, drop) -> tuple[str, str, str]:
+    """(game id, game folder, media kind) for where a drop landed.
+
+    The row id is the id of whatever that grid's rows are about - a game under Games, a
+    table under Tables - so which grid you are on decides how to read it, and the grid
+    you are on is the view.
+    """
+    from console import uploads
+
+    if drop.target == uploads.TARGET_LIBRARY or not drop.row_id:
+        return "", "", ""
+    game_id = drop.row_id
+    if state.get("view") in ("tables", "media", "assets"):
+        # These rows are about a file, and carry the game they belong to.
+        row = next((one for one in library.table_rows()
+                    if str(one.get("id")) == drop.row_id), None)
+        if row is None:
+            row = next((one for one in library.media_rows()
+                        if str(one.get("id")) == drop.row_id), None)
+        game_id = str((row or {}).get("game_id") or "")
+    found = next((one for one in library.games if str(one.get("id")) == game_id), None)
+    return game_id, str((found or {}).get("folder") or ""), drop.media_kind
+
+
+def _declared_by_the_drop(analysis: dict, game_id: str) -> dict:
+    """What the gesture said the files are.
+
+    Letting go on a game names that game, and a person choosing a target has said it
+    more plainly than a filename ever does - so the basis is the user. No upstream
+    record is named, because nothing here fetched one: that binding only arrives from
+    something that actually went and got the file.
+    """
+    if not game_id:
+        return {}
+    names = {str(entry.get("path") or "").rsplit("/", 1)[-1]
+             for asset in analysis.get("assets") or ()
+             for entry in asset.get("entries") or ()}
+    return {name: {"game_id": game_id, "host": "user", "confirmed_by": "user"}
+            for name in names if name}
+
+
 @ui.page("/", title="VPinFE Console", reconnect_timeout=300)
 @ui.page("/console", title="VPinFE Console", reconnect_timeout=300)
 async def console_page(view: str = "", game: str = "", table: str = "", section: str = "",
@@ -943,6 +1057,10 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             asyncio.create_task(read_assets_then_draw())
             return
         render()
+
+    # Installed once the library and the redraw both exist. What a drop means comes from
+    # where it landed, so this is one handler for every grid rather than a zone per page.
+    uploads.install(lambda drop: _took_a_drop(library, state, redraw, drop))
 
     ui.run_javascript(_NAV_CLICK)
 

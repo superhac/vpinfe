@@ -7,7 +7,7 @@ package reorganization.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from fastapi import APIRouter, Body, File, Form, Query, UploadFile
@@ -71,6 +71,42 @@ def _analysis_to_dict(analysis: AnalysisResult) -> dict:
     }
 
 
+def _item_name(item) -> str:
+    """What the file being brought in is called, for a surface that lists what will
+    land. Several files under one asset - a pup pack, a tree - are a count instead."""
+    entries = [one for one in item.asset.entries if not one.is_dir]
+    if len(entries) == 1:
+        return PurePosixPath(entries[0].arcname).name
+    return f"{len(entries)} files"
+
+
+def _replaces(plan: ImportPlan, item) -> str:
+    """What this item does to whatever is already there, said before it happens.
+
+    Asked of the disk, so it belongs on this side: a client cannot see the install's
+    folders, and "will this overwrite something" is the question somebody is actually
+    answering when they confirm.
+    """
+    if item.action == "write_info":
+        if plan.new_game_dir_name:
+            return "adopts bundle metadata"
+        base = Path(plan.game_dir)
+        if (base / f"{base.name}.info").exists():
+            return "merges into existing metadata - fills gaps only, backup kept"
+        return "adopts bundle metadata"
+    if plan.new_game_dir_name:
+        return ""   # a folder that does not exist yet has nothing to replace
+    base = Path(plan.game_dir)
+    if item.action == "replace_vpx":
+        existing = sorted(base.glob("*.vpx"))
+        return f"replaces {existing[0].name}" if existing else ""
+    if item.action == "replace_media":
+        return "replaces current" if Path(item.destination).exists() else "slot is empty"
+    if item.action in {"replace_b2s", "copy"} and Path(item.destination).exists():
+        return "replaces existing file"
+    return ""
+
+
 def _plan_to_dict(plan: ImportPlan) -> dict:
     return {
         "game_dir": plan.game_dir,
@@ -87,6 +123,11 @@ def _plan_to_dict(plan: ImportPlan) -> dict:
                 "default_enabled": item.default_enabled,
                 "size": item.asset.size,
                 "media_kind": item.asset.media_kind,
+                # What the file is called, and what it does to what is already there.
+                # Both are answers about this machine's disk, so a client cannot
+                # work them out and would have to ask anyway.
+                "name": _item_name(item),
+                "replaces": _replaces(plan, item),
             }
             for index, item in enumerate(plan.items)
         ],
