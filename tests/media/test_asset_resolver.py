@@ -17,6 +17,28 @@ CYBER = "Attack from Mars (Bally 1995) - cyberpez (1) - VPF_14030.vpx"
 
 
 class LaunchLensTests(unittest.TestCase):
+    def test_a_folder_named_script_stands_in_for_a_table_that_has_none(self) -> None:
+        """`pintable.cpp` looks for `<table>.vbs` and, failing that, builds
+        `<folder>.vbs` from the parent directory's name and loads that. This read as
+        absent while VPX was running it - and a script override is the one asset whose
+        absence changes what the table actually does."""
+        files = [BIGUS, f"{FOLDER}.vbs"]
+
+        resolved = res.resolve_for_table(BIGUS, FOLDER, files)
+
+        self.assertEqual(resolved["script"]["resolution"], res.RESOLUTION_SHARED)
+        self.assertEqual(resolved["script"]["file"], f"{FOLDER}.vbs")
+
+    def test_and_the_table_s_own_script_still_wins(self) -> None:
+        stem = BIGUS[: -len(".vpx")]
+        files = [BIGUS, f"{stem}.vbs", f"{FOLDER}.vbs"]
+
+        resolved = res.resolve_for_table(BIGUS, FOLDER, files)
+
+        self.assertEqual(resolved["script"]["resolution"], res.RESOLUTION_DEDICATED)
+        self.assertEqual(resolved["script"]["file"], f"{stem}.vbs")
+
+
     def test_a_stem_named_asset_wins_over_the_folder_named_one(self) -> None:
         files = [BIGUS, "Attack from Mars (Bally 1995) - bigus1 (1) - VPF_14317.directb2s",
                  f"{FOLDER}.directb2s"]

@@ -27,7 +27,11 @@ class AssetKind:
 # Which kinds VPX resolves per table, and whether a folder-named file stands in. That
 # is this module's own knowledge; the extension is the registry's, so a kind has one
 # declaration and adding an extension to it does not have to be remembered twice.
-_PER_TABLE = (("backglass", True), ("ini", True), ("script", False),
+# A script named for the folder stands in for one named for the table, the same way an
+# ini does. `pintable.cpp` falls back to `<folder>.vbs` when `<table>.vbs` is not there,
+# and this said otherwise - so a folder-named script read as absent while VPX was
+# running it.
+_PER_TABLE = (("backglass", True), ("ini", True), ("script", True),
               ("pov", False), ("scv", True))
 
 VPX_ASSET_KINDS = tuple(
