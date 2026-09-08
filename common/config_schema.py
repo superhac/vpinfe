@@ -317,6 +317,16 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         # plays the table. A launcher having an opinion about VPinFE starting is
         # nonsense, which is why there are two pairs here and one on the launcher.
         ConfigOption(
+            "ask_where_new_games_go",
+            group="Where things are",
+            type="bool",
+            default="true",
+            label="Ask Where a New Game Goes",
+            description="On, an import that could go to more than one place asks which. "
+                        "Off, it goes to the one marked for new games without asking. "
+                        "Never asked where there is only one place it could go.",
+        ),
+        ConfigOption(
             "on_vpinfe_start",
             group="Commands",
             type="text",

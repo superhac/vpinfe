@@ -50,9 +50,95 @@ def _where(plan: dict[str, Any], item: dict[str, Any]) -> str:
     return rel.as_posix()
 
 
+async def ask_where(library: Any) -> str | None:
+    """Which location a new game goes to. "" means the one already marked for it, and
+    None means do not import at all.
+
+    Three outcomes, and only one of them is a question. Where the marked location works
+    and there is nothing else it could be, nothing is asked - a question with one answer
+    is a click charged for nothing. Where it does not work, this refuses and says why,
+    offering the places that would work rather than only reporting a failure. And where
+    it works but there is a choice, it asks only while somebody wants to be asked.
+    """
+    try:
+        found = await run.io_bound(library.new_game_destination)
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(f"Could not work out where new games go: {exc}", type="negative")
+        return None
+
+    others = list(found.get("alternatives") or [])
+    if found.get("reason"):
+        return await _no_destination(library, found, others)
+    if not found.get("ask"):
+        return ""
+    return await _which_destination(library, found, others)
+
+
+async def _no_destination(library: Any, found: dict[str, Any],
+                          others: list[dict[str, Any]]) -> str | None:
+    """It cannot go where it was told to. Refuse, say why, and offer the rest."""
+    if not others:
+        ui.notify(str(found.get("reason") or "There is nowhere to put a new game"),
+                  type="negative")
+        return None
+    return await _pick(library, str(found.get("reason") or ""), others,
+                       offer_remember=False)
+
+
+async def _which_destination(library: Any, found: dict[str, Any],
+                             others: list[dict[str, Any]]) -> str | None:
+    """It could go to more than one place, and somebody wants to be asked."""
+    marked = {"location_id": found.get("location_id"), "name": found.get("name"),
+              "path": found.get("path")}
+    return await _pick(library, "", [marked, *others], offer_remember=True)
+
+
+async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
+                *, offer_remember: bool) -> str | None:
+    holds = {"id": str(offered[0].get("location_id") or ""), "stop_asking": False}
+    with ui.dialog() as picker, ui.card().classes("console-confirm"):
+        ui.label("Where should this game go?").classes("console-confirm-title")
+        if reason:
+            # The refusal leads, because it is the reason they are being asked at all.
+            ui.label(reason).classes("console-help")
+        ui.select({str(one.get("location_id") or ""):
+                   str(one.get("name") or one.get("path") or "")
+                   for one in offered},
+                  value=holds["id"],
+                  on_change=lambda e: holds.__setitem__("id", str(e.value or ""))) \
+            .props("outlined dense").classes("w-full")
+        if offer_remember:
+            # Offered here rather than only in Settings, because this is the moment
+            # somebody knows whether they want to be asked again.
+            ui.checkbox("Always use this one, do not ask again",
+                        on_change=lambda e: holds.__setitem__("stop_asking",
+                                                              bool(e.value))) \
+                .props("dense").classes("console-help")
+        with ui.row().classes("justify-end gap-2 w-full pt-2"):
+            ui.button("Cancel", on_click=lambda: picker.submit(None)) \
+                .props("flat no-caps")
+            ui.button("Use this", on_click=lambda: picker.submit(holds["id"])) \
+                .props("no-caps")
+
+    said = await picker
+    if said is None:
+        return None
+    if holds["stop_asking"]:
+        try:
+            await run.io_bound(
+                library.put_config,
+                {"general": {"ask_where_new_games_go": False}})
+            await run.io_bound(library.set_location_write_to, said)
+        except Exception as exc:  # noqa: BLE001
+            # The import still goes where they said. Only the remembering failed.
+            ui.notify(f"Could not remember that: {exc}", type="warning")
+    return said
+
+
 async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
                    source: str = "", game_dir: str = "", rom_name: str = "",
                    allow_new_game: bool = False, media_kind: str = "",
+                   location_id: str = "",
                    declared: dict | None = None,
                    on_done: Callable[[dict], Any] | None = None) -> None:
     """Show the plan and, if it is confirmed, run it.
@@ -132,7 +218,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
         report = await run.io_bound(
             library.upload_import, upload_id, game_dir=game_dir, rom_name=rom_name,
             allow_new_game=allow_new_game, media_kind=media_kind,
-            vps_id=str(named["vps_id"] or ""),
+            location_id=location_id, vps_id=str(named["vps_id"] or ""),
             new_game_dir_name=(str(named["folder"]) if new_folder else None),
             selected=wanted, declared=declared)
     except Exception as exc:  # noqa: BLE001

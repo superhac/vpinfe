@@ -57,6 +57,7 @@ uses an old spelling both still load.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
+| `ask_where_new_games_go` | bool | `true` | On, an import that could go to more than one place asks which. Off, it goes to the one marked for new games without asking. Never asked where there is only one place it could go. |
 | `on_vpinfe_start` | text |  | One command per line, run before anything else. Written the way a shell splits arguments, but nothing else a shell does - for a pipe, point at a script. |
 | `on_vpinfe_exit` | text |  | Run last. These run even if VPinFE is stopping because something went wrong. |
 | `on_table_start` | text |  | Run before every table, whichever launcher plays it, and before that launcher's own commands. |

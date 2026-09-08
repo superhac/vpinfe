@@ -110,6 +110,40 @@ def set_order(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     return list_locations()
 
 
+@router.get("/destination", summary="Where a new game would be created",
+            dependencies=[requires(scopes.CONFIG_READ)])
+def new_game_destination() -> dict[str, Any]:
+    """Where it would go, or why it could not, and what else it could go to instead.
+
+    Asked before an import rather than discovered by one: a destination that has gone
+    read-only refuses rather than quietly becoming a different folder, and a refusal is
+    only useful if it says where else this could land.
+
+    Declared above `/{location_id}`, which would otherwise read "destination" as an id.
+    """
+    found = locations.destination()
+    return {
+        "location_id": found.location.location_id if found.location else "",
+        "path": found.path,
+        "name": found.location.name if found.location else "",
+        "reason": found.reason,
+        # Every other writable root, so a surface can offer them for this one import
+        # without asking somebody to go and change a setting first.
+        "alternatives": [{"location_id": one.location_id, "name": one.name,
+                          "path": one.path} for one in found.alternatives],
+        # Whether to ask at all. Never where there is only one place it could go: a
+        # question with one answer is a click charged for nothing.
+        "ask": (_asks() and bool(found.alternatives)),
+    }
+
+
+def _asks() -> bool:
+    from common.config_access import cfg_bool
+    from common.paths import get_ini_config
+
+    return cfg_bool(get_ini_config(), "general", "ask_where_new_games_go", True)
+
+
 @router.put("/{location_id}", summary="Add or replace a location",
             dependencies=[requires(scopes.CONFIG_WRITE)])
 def put_location(location_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:

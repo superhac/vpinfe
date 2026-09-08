@@ -309,10 +309,19 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
         await run.io_bound(library.abort_upload, drop.upload_id)
         return
 
+    # Where a new game would go is settled before anything is planned, because the
+    # answer can be "nowhere" and that is not something to discover halfway through.
+    where = ""
+    if new_game:
+        where = await import_dialog.ask_where(library)
+        if where is None:
+            await run.io_bound(library.abort_upload, drop.upload_id)
+            return
+
     try:
         plan = await run.io_bound(library.upload_plan, drop.upload_id,
                                   game_dir=game_dir, allow_new_game=new_game,
-                                  media_kind=media_kind)
+                                  media_kind=media_kind, location_id=where)
     except Exception as exc:  # noqa: BLE001
         ui.notify(f"Could not work out where that goes: {exc}", type="negative")
         await run.io_bound(library.abort_upload, drop.upload_id)
@@ -332,7 +341,7 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
 
     await import_dialog.open_for(
         library, drop.upload_id, plan, source=drop.name, game_dir=game_dir,
-        allow_new_game=new_game, media_kind=media_kind,
+        allow_new_game=new_game, media_kind=media_kind, location_id=where,
         declared=_declared_by_the_drop(analysis, game_id),
         on_done=done)
 

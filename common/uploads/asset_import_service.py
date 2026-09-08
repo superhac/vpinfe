@@ -186,7 +186,7 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
     return None, BlockedItem(asset, f"Unsupported asset type: {kind}")
 
 
-def _new_games_under() -> str:
+def _new_games_under(location_id: str = "") -> str:
     """The folder a new game is created in.
 
     The location marked "create new games here", not the configured root - locations
@@ -198,16 +198,26 @@ def _new_games_under() -> str:
     Falls back to the root only where the location store has nothing to say, so an
     install that has not been through the seed still imports.
     """
-    from common.games.locations import destination
+    from common.games.locations import destination, get_location_store
 
-    found = destination()
-    return found.path or get_games_path()
+    found = destination(location_id)
+    if found.path:
+        return found.path
+    if get_location_store().locations():
+        # There are locations and none of them will take this. Refused rather than
+        # quietly landing somewhere else: the row on screen says where new games go,
+        # and writing to a different one makes that row a lie.
+        raise ValueError(found.reason)
+    # None at all, which is an install that has not been through the seed. It still has
+    # to be able to import, and the configured root is where it always went.
+    return get_games_path()
 
 
 def build_import_plan(analysis: AnalysisResult, *, game_dir: Path | None = None,
                       game_row: dict | None = None, rom_name: str = "",
                       allow_new_game: bool = False,
-                      games_path: str | None = None) -> ImportPlan:
+                      games_path: str | None = None,
+                      location_id: str = "") -> ImportPlan:
     """Route detected assets to destinations for an existing game or a new game bundle."""
     items: list[PlannedItem] = []
     blocked: list[BlockedItem] = []
@@ -217,7 +227,8 @@ def build_import_plan(analysis: AnalysisResult, *, game_dir: Path | None = None,
         game_asset = next(a for a in analysis.assets if a.kind == "table")
         vpx_stem = Path(_basename(game_asset.entries[0].arcname)).stem
         new_dir_name = _safe_upload_name(vpx_stem)
-        base = Path(games_path or _new_games_under()).expanduser() / new_dir_name
+        base = Path(games_path or _new_games_under(location_id)).expanduser() \
+            / new_dir_name
         sidecar_stem = _sidecar_stem(analysis.assets, base, vpx_stem)
         for asset in analysis.assets:
             item, block = _plan_asset(asset, base, vpx_stem, rom_name, analysis.source_name,

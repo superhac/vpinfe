@@ -39,7 +39,7 @@ from common.uploads.upload_session_service import (
 
 from . import models, scopes
 from .auth import requires
-from .errors import ApiError, InvalidRequestError, NotFoundError
+from .errors import ApiError, ConflictError, InvalidRequestError, NotFoundError
 
 logger = logging.getLogger("vpinfe.httpapi.uploads")
 
@@ -99,7 +99,13 @@ def _replaces(plan: ImportPlan, item) -> str:
         return ""   # a folder that does not exist yet has nothing to replace
     base = Path(plan.game_dir)
     if item.action == "replace_vpx":
-        existing = sorted(base.glob("*.vpx"))
+        # Which suffixes are tables is the registry's answer, not a constant here - an
+        # app this build gains claims its own, and a glob would not know.
+        from common import apps
+
+        wanted = tuple(apps.table_suffixes())
+        existing = sorted(one for one in base.iterdir()
+                          if one.is_file() and one.suffix.lower() in wanted)
         return f"replaces {existing[0].name}" if existing else ""
     if item.action == "replace_media":
         return "replaces current" if Path(item.destination).exists() else "slot is empty"
@@ -214,12 +220,18 @@ def plan_upload(upload_id: str,
                                         payload.media_kind))
     analysis, _source = _analysis_for(upload_id)
     vps_entry = _vps_entry(payload.vps_id)
-    plan = build_import_plan(
-        analysis,
-        game_dir=Path(payload.game_dir) if payload.game_dir else None,
-        rom_name=payload.rom_name,
-        allow_new_game=payload.allow_new_game,
-    )
+    try:
+        plan = build_import_plan(
+            analysis,
+            game_dir=Path(payload.game_dir) if payload.game_dir else None,
+            rom_name=payload.rom_name,
+            allow_new_game=payload.allow_new_game,
+            location_id=payload.location_id,
+        )
+    except ValueError as exc:
+        # Nowhere to put it. Something a person fixes - a share to mount, a location to
+        # pick - so it is a conflict rather than a fault.
+        raise ConflictError(str(exc)) from exc
     if vps_entry is not None and plan.new_game_dir_name:
         plan = select_plan_items(plan, None, vps_folder_name(vps_entry))
     return _plan_to_dict(plan)
@@ -295,12 +307,16 @@ def import_upload(upload_id: str,
         return report
     analysis, source_path = _analysis_for(upload_id)
     vps_entry = _vps_entry(payload.vps_id)
-    plan = build_import_plan(
-        analysis,
-        game_dir=Path(payload.game_dir) if payload.game_dir else None,
-        rom_name=payload.rom_name,
-        allow_new_game=payload.allow_new_game,
-    )
+    try:
+        plan = build_import_plan(
+            analysis,
+            game_dir=Path(payload.game_dir) if payload.game_dir else None,
+            rom_name=payload.rom_name,
+            allow_new_game=payload.allow_new_game,
+            location_id=payload.location_id,
+        )
+    except ValueError as exc:
+        raise ConflictError(str(exc)) from exc
     if vps_entry is not None and not plan.new_game_dir_name:
         raise InvalidRequestError("vps_id only applies to new-game imports")
 

@@ -42,8 +42,9 @@ BUDGET = {
                              "opens - not a fact row, and the row it belongs to is "
                              "already a strip of chips"),
     "collections.py": (1, "the name field in the new-collection dialog"),
-    "import_dialog.py": (3, "the per-item checkbox, the folder name and the record "
-                            "picker in the import confirmation - all questions about "
+    "import_dialog.py": (5, "the per-item checkbox, the folder name and the record "
+                            "picker in the import confirmation, plus the destination "
+                            "picker and its do-not-ask-again - all questions about "
                             "something that does not exist yet, which is what a fact "
                             "row is not for"),
     "app_settings.py": (1, "the scope picker in the dialog's toolbar, which is not a "

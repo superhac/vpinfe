@@ -1837,6 +1837,10 @@ class PlanRequest(ApiModel):
     # is written under that slot's own name. Needs `game_dir`, and refuses more than
     # one file - a slot holds one thing.
     media_kind: str = ""
+    # A one-time destination for a new game, naming a location. Left out, it goes to the
+    # one marked for new games - and if that one cannot be written to, the import is
+    # refused rather than quietly landing somewhere else.
+    location_id: str = ""
 
 
 class ImportRequest(PlanRequest):

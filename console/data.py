@@ -847,6 +847,9 @@ class Library:
     def upload_analysis(self, upload_id: str) -> dict:
         return self._client.upload_analysis(upload_id)
 
+    def new_game_destination(self) -> dict:
+        return self._client.new_game_destination()
+
     def upload_plan(self, upload_id: str, **asked) -> dict:
         return self._client.upload_plan(upload_id, **asked)
 
