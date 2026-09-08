@@ -13,6 +13,11 @@ from console.api import ApiClient
 
 logger = logging.getLogger("vpinfe.console")
 
+# Long enough that somebody waited for it. A warm read is a fifth of a second and says
+# nothing; a cold one over a share has been seconds, and that is the number worth having
+# when somebody says the Console is slow.
+_SLOW_READ = 1.0
+
 # The cell holds the *word*, never the mark. What a cell is worth filtering and sorting
 # on is the state; how it is drawn is the column's business. Holding the drawn mark made
 # the text filter match `<span class="console-mark console-mark--full">` - so typing "full" found
@@ -113,8 +118,13 @@ class Library:
         self.games = self._client.games()
         self.media = self._shared_media()
         self.kept_kinds()
-        logger.info("console: read %d games in %.2fs", len(self.games),
-                    time.perf_counter() - started)
+        # Info only when it took long enough to be worth knowing. This runs on every
+        # draw, so at info always it is a line per page load saying the cache is warm -
+        # and the reason this timing is logged at all is the cold read, which is the
+        # one that has been slow before.
+        took = time.perf_counter() - started
+        logger.log(logging.INFO if took >= _SLOW_READ else logging.DEBUG,
+                   "console: read %d games in %.2fs", len(self.games), took)
 
     def _shared_media(self) -> dict[str, dict[str, Any]]:
         """Every game's shared media, from one listing rather than a call per game.

@@ -88,6 +88,36 @@ def _is_third_party_logger(logger_name: str) -> bool:
     return False
 
 
+# Warnings from a library that are true of it and expected of us, with why. Demoted to
+# debug rather than dropped: turning third-party debug on still shows them, so this hides
+# nothing from somebody looking - it stops them crowding out the lines that need reading.
+#
+# Each one is a decision. If a library warns about something we could fix, fix it; this
+# is for the ones where the shape it objects to is the shape we chose.
+_EXPECTED = (
+    # The Console draws its shell, waits for the browser to have it, and only then reads
+    # the library and builds the page - so handlers are attached to elements the client
+    # has already seen, and it re-renders those. That staging is deliberate: reading
+    # first meant a page function too slow to return, which nicegui abandons. The cost
+    # is a few elements re-rendered once per page load.
+    ("nicegui", "Event listeners changed after initial definition"),
+)
+
+
+class _ExpectedNoiseFilter(logging.Filter):
+    """Turn a library's expected warnings into debug, so the log keeps its meaning."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.levelno == logging.WARNING:
+            said = record.getMessage()
+            for name, fragment in _EXPECTED:
+                if record.name.startswith(name) and fragment in said:
+                    record.levelno = logging.DEBUG
+                    record.levelname = "DEBUG"
+                    break
+        return True
+
+
 class _ThirdPartyFilter(logging.Filter):
     def __init__(self, include_third_party: bool):
         super().__init__()
@@ -165,6 +195,7 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
     if terminal_enabled:
         terminal_handler = logging.StreamHandler(sys.stdout)
         terminal_handler.setFormatter(formatter)
+        terminal_handler.addFilter(_ExpectedNoiseFilter())
         terminal_handler.addFilter(_ThirdPartyFilter(include_third_party))
         terminal_handler.addFilter(_WindowsFilter(include_windows))
         root_logger.addHandler(terminal_handler)
@@ -181,6 +212,7 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
             # Start each run in a fresh file, with the previous run kept as a backup.
             file_handler.doRollover()
         file_handler.setFormatter(formatter)
+        file_handler.addFilter(_ExpectedNoiseFilter())
         file_handler.addFilter(_ThirdPartyFilter(include_third_party))
         file_handler.addFilter(_WindowsFilter(include_windows))
         root_logger.addHandler(file_handler)

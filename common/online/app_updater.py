@@ -282,7 +282,10 @@ def check_for_updates() -> dict:
         "triplet": context["triplet"],
         "asset_name": None,
     }
-    logger.info(
+    # Debug, all three of these: a check runs whenever a surface draws, so anything
+    # louder is three lines per page load saying what the last one said. What a caller
+    # needs is in the result it gets back.
+    logger.debug(
         "Starting update check: current_version=%s triplet=%s supported=%s support_reason=%s",
         result["current_version"],
         result["triplet"],
@@ -302,7 +305,7 @@ def check_for_updates() -> dict:
 
         current_ver = _parse_tag_version(context["current_version"])
         latest_ver = _parse_tag_version(latest_tag)
-        logger.info(
+        logger.debug(
             "Parsed versions for update check: current=%s parsed_current=%s latest=%s parsed_latest=%s",
             context["current_version"],
             current_ver,
@@ -314,7 +317,14 @@ def check_for_updates() -> dict:
             result["update_available"] = True
             if result["error"] is None:
                 result["error"] = "non_release_build"
-            logger.warning("Update check treating current build as non-release: current_version=%s", context["current_version"])
+            # A source build has no version to compare and knows it - `support_reason`
+            # already says so, and it is not going to change while this process runs.
+            # A build that is meant to be a release and cannot be parsed is the odd
+            # one, and that is the one worth a warning.
+            _say = (logger.debug if context["reason"] == "source_build"
+                    else logger.warning)
+            _say("Update check treating current build as non-release: "
+                 "current_version=%s", context["current_version"])
             return result
 
         if latest_ver is None:
