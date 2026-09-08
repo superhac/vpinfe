@@ -967,7 +967,11 @@ body.console-menu-open .q-tooltip { display: none !important; }
   .console-row-action { opacity: 0; }
   .console-member-row:hover .console-row-action,
   .console-member-row:focus-within .console-row-action { opacity: 1; }
+  /* A row in a state somebody has to act on keeps its action visible. Hover-revealing
+     it is right where the row is mostly read and the act is occasional; it is wrong
+     where the row exists in order to be acted on, which is what these states are. */
   .console-member-row[data-origin="missing"] .console-row-action,
+  .console-member-row[data-origin="shadowed"] .console-row-action,
   .console-member-row[data-origin="excluded"] .console-row-action { opacity: 1; }
 }
 

@@ -615,6 +615,24 @@ class ApiClient:
     def delete_location(self, location_id: str) -> None:
         self._delete(f"/locations/{location_id}")
 
+    def set_location_order(self, order: list[str]) -> dict:
+        """Which location outranks which. The list order is the priority."""
+        return dict(self._put("/locations/order", {"order": list(order)}) or {})
+
+    def shadowed_here(self, location_id: str) -> list[dict]:
+        """Game folders in this location whose id a higher one already answers for."""
+        return list((self._get(f"/locations/{location_id}/shadowed")
+                     or {}).get("shadowed") or [])
+
+    def adopt_shadowed(self, location_id: str, path: str) -> dict:
+        """Give one shadowed folder an id of its own. The only write in any of this."""
+        found = f"/locations/{location_id}/shadowed/adopt"
+        _refuse_the_event_loop(found)
+        response = self._session.post(f"{self._base}{found}", json={"path": path},
+                                      timeout=_TIMEOUT)
+        self._answered(response)
+        return response.json()
+
     def set_location_write_to(self, location_id: str) -> dict:
         """Where a new game's folder is created."""
         return dict(self._put(f"/locations/{location_id}/write-to", {}) or {})

@@ -325,6 +325,24 @@ class Library:
     def set_location_write_to(self, location_id: str) -> dict:
         return self._client.set_location_write_to(location_id)
 
+    def set_location_order(self, order: list[str]) -> dict:
+        """Which location outranks which. Changing it changes which folder answers for
+        a shared id, so every game read since is describing the old answer."""
+        result = self._client.set_location_order(order)
+        self._forget_games()
+        self._table_rows = None
+        return result
+
+    def shadowed_here(self, location_id: str) -> list[dict]:
+        return self._client.shadowed_here(location_id)
+
+    def adopt_shadowed(self, location_id: str, path: str) -> dict:
+        """The folder becomes a game of its own, so the library has one more in it."""
+        result = self._client.adopt_shadowed(location_id, path)
+        self._forget_games()
+        self._table_rows = None
+        return result
+
     def launcher_config_groups(self, launcher_id: str, table: str = "",
                                scope: str = "launcher") -> list:
         """The groups an app declares, as the panel's control grammar wants them."""

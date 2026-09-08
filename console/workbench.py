@@ -501,7 +501,8 @@ async def _draw_location(container: ui.column, title: ui.column, library: Librar
     # Read fresh rather than from the grid's copy: reachable and writable are answers
     # about this moment, and the panel is where they are acted on.
     found = await run.io_bound(library.locations)
-    row = next((one for one in (found.get("locations") or [])
+    held = list(found.get("locations") or [])
+    row = next((one for one in held
                 if one.get("location_id") == location_id), None)
     if row is None:
         _blank(container, title, "Location", "No longer in this install")
@@ -512,7 +513,10 @@ async def _draw_location(container: ui.column, title: ui.column, library: Librar
     with container:
         _title(title, row.get("name") or "",
                locations_page.KIND_LABELS.get(str(row.get("kind") or "root"), "Location"))
-        context: dict[str, Any] = {"library": library, "location": row, "state": state,
+        # The whole list as well as this row: priority is a fact about where this one
+        # sits among the others, so it cannot be read off the row alone.
+        context: dict[str, Any] = {"library": library, "location": row,
+                                   "locations": held, "state": state,
                                    "redraws": [], "dock": None}
 
         async def rebuild() -> None:
@@ -3516,9 +3520,118 @@ async def _location_details(context: dict[str, Any]) -> None:
         ("State", _location_state(row)),
         ("New games", _location_write_to(context, row)),
     ]
+    # Only where there is something to outrank. With one location the row would be a
+    # control that cannot do anything and a word nobody needs to learn.
+    if len(context.get("locations") or []) > 1:
+        entries += [("Priority", _location_priority(context, row)),
+                    panel.note("Which location wins when two of them hold the same "
+                               "game. Nothing is changed on disk to settle that - the "
+                               "higher one answers, and the other is listed below.")]
     with ui.column().classes("gap-0 console-form"):
         _rows(ui, entries)
+        await _shadowed_block(context, row)
         _location_actions(context, row)
+
+
+def _location_priority(context: dict[str, Any],
+                       row: dict[str, Any]) -> Callable[[], None]:
+    """Where this location sits, and the two moves that change it.
+
+    Up and down rather than a number to type: the fact somebody holds is "this one
+    should beat that one", and a rank is the arithmetic they would have to do to say it.
+    """
+    held = list(context.get("locations") or [])
+    order = [one["location_id"] for one in held]
+    place = order.index(row["location_id"]) if row["location_id"] in order else 0
+
+    async def move(by: int) -> None:
+        wanted = list(order)
+        wanted.insert(place + by, wanted.pop(place))
+        try:
+            await run.io_bound(context["library"].set_location_order, wanted)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(f"Could not reorder them: {exc}", type="negative")
+            return
+        await context["rebuild"]()
+
+    def draw() -> None:
+        with ui.row().classes("items-center gap-2 no-wrap"):
+            ui.label(f"{place + 1} of {len(order)}").classes("console-fact-value")
+            up = ui.button(icon="arrow_upward", on_click=lambda: move(-1)) \
+                .props("flat dense round size=sm").tooltip("Higher priority")
+            down = ui.button(icon="arrow_downward", on_click=lambda: move(1)) \
+                .props("flat dense round size=sm").tooltip("Lower priority")
+            if place == 0:
+                up.disable()
+            if place >= len(order) - 1:
+                down.disable()
+
+    return draw
+
+
+async def _shadowed_block(context: dict[str, Any], row: dict[str, Any]) -> None:
+    """The game folders here that a higher location is already answering for.
+
+    Drawn only where there are some. On the ordinary install this is nothing, and a
+    heading over an empty list is a problem invented for somebody to worry about.
+    """
+    if not int(row.get("shadowed") or 0):
+        return
+    try:
+        held = await run.io_bound(context["library"].shadowed_here,
+                                  row["location_id"])
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(f"Could not read what is shadowed here: {exc}", type="negative")
+        return
+    if not held:
+        return
+
+    count = len(held)
+    ui.label(f"Shadowed ({count})").classes("console-card-title console-fact-heading")
+    ui.label("The same game is in your library twice. Nothing here has been changed "
+             "and nothing is lost - one of the two answers for it, and these are the "
+             "others. Removing this location is the answer when the whole of it is a "
+             "second view of one library.").classes("console-help")
+    for one in held:
+        # Marked, so the action stays visible rather than waiting for a hover. Every row
+        # here is one somebody came to act on, which is the case that rule is for.
+        with ui.column().classes("gap-0 w-full console-member-row") \
+                .props('data-origin="shadowed"'):
+            with ui.row().classes("items-center gap-2 w-full no-wrap"):
+                ui.label(Path(str(one.get("path") or "")).name) \
+                    .classes("console-member-name grow min-w-0 truncate") \
+                    .tooltip(str(one.get("path") or ""))
+                with ui.element("div").classes("console-row-action"):
+                    ui.button("Make it its own game",
+                              on_click=lambda _, o=one: _adopt_shadowed(context, o)) \
+                        .props("flat dense no-caps size=sm")
+            ui.label(f"Answered by {one.get('used_path') or ''}") \
+                .classes("console-member-table")
+
+
+async def _adopt_shadowed(context: dict[str, Any], one: dict[str, Any]) -> None:
+    """Settle one of them by giving this folder an id of its own.
+
+    Confirmed because it is the only thing in any of this that writes to somebody's game
+    folder, and because it is a decision about which copy is which - the thing the
+    install deliberately refuses to make on its own.
+    """
+    if not await confirm.ask(
+            "Make this its own game?",
+            detail="It gets a new id and joins the library beside the one that is "
+                   "answering now. Anything that named the shared id keeps pointing at "
+                   "that one. Nothing is moved or deleted.",
+            lines=[str(one.get("path") or "")], confirm="Make it its own"):
+        return
+    try:
+        await run.io_bound(context["library"].adopt_shadowed,
+                           context["location"]["location_id"],
+                           str(one.get("path") or ""))
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(f"Could not do that: {exc}", type="negative")
+        return
+    ui.notify("It is its own game now", type="positive")
+    await context["rebuild"]()
 
 
 def _location_state(row: dict[str, Any]) -> Callable[[], None]:

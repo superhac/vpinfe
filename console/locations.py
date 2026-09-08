@@ -50,12 +50,24 @@ COLUMNS = [
     grid.column("new_games", "New Games", 120,
                 help="Where a game you add or import is created.\n"
                      "One location holds this, and it is your choice."),
+    # Priority as a number rather than as position alone: the grid can be sorted by
+    # any column, so the order you are looking at is not always the order that decides.
+    grid.column("priority", "Priority", 110, type="numericColumn",
+                help="Which location wins when two of them hold the same game.\n"
+                     "1 is highest. Move a location up or down to change it."),
+    grid.column("shadowed", "Shadowed", 120, type="numericColumn",
+                help="Game folders here whose id a higher location already uses.\n"
+                     "Blank is the ordinary answer. A number means the same game is\n"
+                     "in your library twice - often the same tree reached two ways."),
     grid.column("path", "Full Path", 420,
                 help="The whole path, for telling two similar folders apart."),
 ]
 
 LOCATION_VIEWS: dict[str, list[str]] = {
-    "Overview": ["name", "contains", "state", "new_games", "path"],
+    "Overview": ["name", "contains", "state", "new_games", "shadowed", "path"],
+    # Its own view rather than more columns on Overview: this one is read when
+    # something is wrong, and the question is which location beats which.
+    "Priority": ["name", "priority", "shadowed", "state", "path"],
 }
 
 
@@ -77,7 +89,13 @@ def rows(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
         # Blank on every other row rather than "No": a column that says the same thing
         # everywhere but once is a column about the exception.
         "new_games": "Created here" if one.get("write_to") else "",
-    } for one in locations]
+        # From the list order, which is what the install reads it from. 1 is highest,
+        # because a person counts places from one and this is a rank, not an index.
+        "priority": place + 1,
+        # None rather than 0, so the ordinary answer is an empty cell. A column of
+        # zeroes reads as a thing to look at.
+        "shadowed": int(one.get("shadowed") or 0) or None,
+    } for place, one in enumerate(locations)]
 
 
 def build(library, state: dict[str, Any],
