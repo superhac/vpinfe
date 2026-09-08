@@ -7,7 +7,8 @@ and keeps its own. Reading never writes; minting is explicit. See docs/http_api.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from common.games.game_metadata import (
@@ -28,7 +29,8 @@ ID_SECTION = VPINFE_SECTION
 ID_KEY = GAME_ID_KEY
 
 __all__ = ["ID_ALPHABET", "ID_LENGTH", "ID_KEY", "ID_SECTION", "new_id",
-           "game_id", "ensure_id", "ensure_unique_ids", "find_by_id"]
+           "game_id", "ensure_id", "ensure_unique_ids", "resolve_ids", "Resolution",
+           "Shadowed", "find_by_id"]
 
 
 def game_id(game) -> str:
@@ -71,31 +73,110 @@ def ensure_id(game, *, force_new: bool = False) -> str:
     return minted
 
 
-def ensure_unique_ids(games: Iterable[Any]) -> dict[str, Any]:
-    """Give every game an id, re-minting collisions so an id addresses one game.
+@dataclass(frozen=True)
+class Shadowed:
+    """A game folder whose id another folder is already using.
 
-    Two games share an id when a game folder was copied.
+    Named for what happened to it rather than for the fault: nothing is wrong with this
+    folder, and nothing has been done to it. Another one answers for its id, so this one
+    is out of the library until somebody says which should.
+    """
+
+    game_id: str
+    path: str
+    location_id: str
+    # The folder that is answering for the id instead, so the report can say what won.
+    used_path: str
+    used_location_id: str
+
+
+@dataclass(frozen=True)
+class Resolution:
+    """Which folder answers for each id, and which were shadowed doing it."""
+
+    by_id: dict[str, Any]
+    shadowed: tuple[Shadowed, ...] = ()
+
+    def under(self, location_id: str) -> tuple[Shadowed, ...]:
+        """What this location holds that something else is answering for."""
+        return tuple(one for one in self.shadowed
+                     if one.location_id == str(location_id or ""))
+
+
+def _priority(games: Iterable[Any], order: Sequence[str] | None) -> list[Any]:
+    """Games in the order their claim on an id is honoured.
+
+    Locations are a list and that list is the priority: the earlier location wins, which
+    is the same rule `LocationStore.write_to` already applies when it falls back to the
+    first writable one. Within one location there is no priority to appeal to, so the
+    tie goes to the first by path - arbitrary, but the same answer on every run, which
+    directory order is not.
+    """
+    if order is None:
+        from common.games.locations import configured
+
+        order = [one.location_id for one in configured()]
+    rank = {location_id: index for index, location_id in enumerate(order)}
+    # A location the list does not name goes last rather than first: it is not part of
+    # the answer somebody arranged, so it cannot outrank what is.
+    unranked = len(rank)
+    return sorted(
+        games,
+        key=lambda game: (rank.get(str(getattr(game, "location_id", "") or ""),
+                                  unranked),
+                          str(getattr(game, "fullPathGame", "") or "")))
+
+
+def resolve_ids(games: Iterable[Any],
+                order: Sequence[str] | None = None) -> Resolution:
+    """Which folder answers for each id. **Nothing is rewritten to settle a clash.**
+
+    A folder carries its id, so two folders holding one means the same game is in the
+    library twice - a copy, or the same tree reached through two locations. Re-minting
+    the loser used to settle it silently, and that is a write to somebody's file to
+    resolve something only they can: it makes the copy a different game for good, and
+    anything that named it goes with it.
+
+    So the higher-priority location answers, the rest are reported, and the decision
+    waits for a person. Ids are still minted for folders that have none - that is not a
+    clash, and a game with no id cannot be addressed at all.
     """
     by_id: dict[str, Any] = {}
+    holder: dict[str, Any] = {}
+    shadowed: list[Shadowed] = []
     minted = 0
-    for game in games:
+
+    for game in _priority(games, order):
         current = game_id(game)
         if not current:
             current = ensure_id(game)
             minted += 1
         if current in by_id:
-            logger.warning(
-                "Game id %s is used by both %s and %s; assigning a new id to the latter",
-                current,
-                getattr(by_id[current], "gameDirName", "?"),
-                getattr(game, "gameDirName", "?"),
-            )
-            current = ensure_id(game, force_new=True)
-            minted += 1
+            first = holder[current]
+            shadowed.append(Shadowed(
+                game_id=current,
+                path=str(getattr(game, "fullPathGame", "") or ""),
+                location_id=str(getattr(game, "location_id", "") or ""),
+                used_path=str(getattr(first, "fullPathGame", "") or ""),
+                used_location_id=str(getattr(first, "location_id", "") or "")))
+            continue
         by_id[current] = game
+        holder[current] = game
+
     if minted:
         logger.info("Assigned ids to %s of %s games", minted, len(by_id))
-    return by_id
+    if shadowed:
+        logger.warning(
+            "%s game folder(s) hold an id another folder is already using; they are "
+            "out of the library until somebody says which should have it", len(shadowed))
+    return Resolution(by_id=by_id, shadowed=tuple(shadowed))
+
+
+def ensure_unique_ids(games: Iterable[Any],
+                      order: Sequence[str] | None = None) -> dict[str, Any]:
+    """Every game that answers for an id, keyed by it. The shadowed ones are not here -
+    `resolve_ids` is what reports those."""
+    return resolve_ids(games, order).by_id
 
 
 def find_by_id(games: Iterable[Any], wanted: str) -> Any | None:

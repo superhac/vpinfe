@@ -218,18 +218,24 @@ class UniquenessTests(TempTree):
         self.assertEqual(len(by_id), 3)
         self.assertTrue(all(game_identity.game_id(t) for t in games))
 
-    def test_a_copied_game_folder_gets_a_fresh_id(self) -> None:
+    def test_a_copied_game_folder_is_left_alone_and_reported(self) -> None:
+        """It used to be given a fresh id, which settles the clash by writing to
+        somebody's file - and which of the two should keep the id is not ours to
+        decide. Both records stand; one answers for the id and the other is reported.
+        """
         original = _game(self.root, "Original", meta={"Info": {}})
         assigned = game_identity.ensure_id(original)
         # Copying the folder copies the .info, and with it the id.
         copy = _game(self.root, "Copy", meta={"Info": {}, "vpinfe": {"game_id": assigned}})
 
         with self.assertLogs("vpinfe.common.games.game_identity", level="WARNING"):
-            by_id = game_identity.ensure_unique_ids([original, copy])
+            found = game_identity.resolve_ids([original, copy], order=[])
 
-        self.assertNotEqual(game_identity.game_id(copy), assigned)
+        self.assertEqual(game_identity.game_id(copy), assigned,
+                         "the copy's record is not rewritten to settle this")
         self.assertEqual(game_identity.game_id(original), assigned)
-        self.assertEqual(len(by_id), 2)
+        self.assertEqual(len(found.by_id), 1)
+        self.assertEqual(len(found.shadowed), 1)
 
 
 class LookupTests(TempTree):

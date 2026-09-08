@@ -31,7 +31,8 @@ logger = logging.getLogger("vpinfe.httpapi.locations")
 router = APIRouter(prefix="/locations", tags=["locations"])
 
 
-def _described(location: locations.Location, write_to: str) -> dict[str, Any]:
+def _described(location: locations.Location, write_to: str,
+               shadowed: int = 0) -> dict[str, Any]:
     state = locations.state_of(location)
     return {
         "location_id": location.location_id,
@@ -43,7 +44,24 @@ def _described(location: locations.Location, write_to: str) -> dict[str, Any]:
         # Empty when there is nothing to say. A reason on every row would say nothing.
         "reason": state.reason,
         "write_to": location.location_id == write_to,
+        # How many of this location's game folders hold an id a higher one is already
+        # using. Nearly always zero; the case it exists for is one library reached
+        # through two locations, where it is the whole count and says so.
+        "shadowed": shadowed,
     }
+
+
+def _shadowed() -> Any:
+    """What each location holds that something above it is answering for.
+
+    Asked of the library on every read, like reachable and writable: whether a folder is
+    shadowed depends on the other locations, so a stored answer would be wrong the
+    moment one is added, removed or reordered.
+    """
+    from common.games.game_identity import resolve_ids
+    from common.games.game_repository import all_games
+
+    return resolve_ids(all_games())
 
 
 @router.get("", summary="Every location this install looks in",
@@ -59,11 +77,37 @@ def list_locations() -> dict[str, Any]:
     held = store.locations()
     target = store.write_to()
     write_to = target.location_id if target is not None else ""
+    found = _shadowed()
     return {
-        "locations": [_described(one, write_to) for one in held],
+        "locations": [_described(one, write_to, len(found.under(one.location_id)))
+                      for one in held],
         "write_to": write_to,
         "kinds": list(locations.KINDS),
+        # The order is the priority: an id two folders hold is answered by the one in
+        # the location nearer the top. Said here rather than left to be inferred from
+        # the list being a list.
+        "order_is_priority": True,
     }
+
+
+@router.put("/order", summary="Set which location outranks which",
+            dependencies=[requires(scopes.CONFIG_WRITE)])
+def set_order(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """The order is the priority.
+
+    A game folder carries its id, so one library reached through two locations holds
+    every id twice, and the folder that answers for an id is the one in the location
+    nearer the top. Nothing is written to a game folder to settle that, which is why
+    this is the control that settles it.
+
+    Declared above `/{location_id}`, which would otherwise match "order" as an id.
+    """
+    order = body.get("order")
+    if not isinstance(order, list) or not order:
+        raise InvalidRequestError("Name the locations, in the order you want them.")
+    if not locations.get_location_store().reorder([str(one) for one in order]):
+        raise NotFoundError("None of those are locations this install has.")
+    return list_locations()
 
 
 @router.put("/{location_id}", summary="Add or replace a location",
@@ -100,6 +144,64 @@ def delete_location(location_id: str) -> dict[str, Any]:
     if not locations.get_location_store().remove(location_id):
         raise NotFoundError(f"No location called {location_id!r}.")
     return {"removed": location_id}
+
+
+@router.get("/{location_id}/shadowed",
+            summary="Game folders here whose id something else answers for",
+            dependencies=[requires(scopes.CONFIG_READ)])
+def list_shadowed(location_id: str) -> dict[str, Any]:
+    """What this location holds that is out of the library, and what took its place.
+
+    Both sides, because the question a person brings here is which of the two copies
+    they meant to keep - and that cannot be answered by naming only one of them.
+    """
+    if locations.get_location_store().get(location_id) is None:
+        raise NotFoundError(f"No location called {location_id!r}.")
+    return {"shadowed": [
+        {"game_id": one.game_id, "path": one.path,
+         "used_path": one.used_path, "used_location_id": one.used_location_id}
+        for one in _shadowed().under(location_id)]}
+
+
+@router.post("/{location_id}/shadowed/adopt",
+             summary="Give one shadowed folder an id of its own",
+             dependencies=[requires(scopes.CONFIG_WRITE)])
+def adopt_shadowed(location_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Settle one clash by making this folder a game in its own right.
+
+    **The one write in any of this, and it only happens because somebody asked.** The
+    folder keeps everything else it has - its media, its curation, its play record - and
+    gains a new id, so it stops being a copy of the other and starts being its own game.
+    Anything that named the id keeps pointing at the folder that kept it.
+
+    The other way to settle it is to remove the location, which is right when the whole
+    location is a second view of one library. That is `DELETE /locations/{id}` and it
+    writes nothing at all.
+    """
+    from common.games.game_identity import ensure_id
+
+    if locations.get_location_store().get(location_id) is None:
+        raise NotFoundError(f"No location called {location_id!r}.")
+    wanted = locations.canonical(str(body.get("path") or ""))
+    if not wanted:
+        raise InvalidRequestError("Name the folder to give an id to.")
+
+    found = _shadowed()
+    one = next((entry for entry in found.under(location_id)
+                if locations.canonical(entry.path) == wanted), None)
+    if one is None:
+        raise NotFoundError(
+            "Nothing here is shadowed at that path. It may have been settled already.",
+            details={"path": str(body.get("path") or "")})
+
+    from common.games.game_repository import all_games
+
+    game = next((held for held in all_games()
+                 if locations.canonical(str(getattr(held, "fullPathGame", "") or ""))
+                 == wanted), None)
+    if game is None:
+        raise NotFoundError("That folder is no longer in the library.")
+    return {"path": one.path, "game_id": ensure_id(game, force_new=True)}
 
 
 @router.put("/{location_id}/write-to", summary="Create new games here",

@@ -185,6 +185,30 @@ class LocationStore:
             self._write(kept, "" if write_to == wanted else write_to)
         return True
 
+    def reorder(self, order: list[str]) -> bool:
+        """Put the locations in the order given. **The order is the priority.**
+
+        A game folder carries its id, so one library reached through two locations has
+        every id twice - and which folder answers is decided by which location is
+        higher. That has to be somebody's to set, which is what this is.
+
+        Any location the caller does not name keeps its place after the ones that were,
+        in the order it already had. A caller working from a stale list therefore
+        rearranges what it knew about and loses nothing it did not.
+        """
+        with self._lock:
+            held, write_to = self._load()
+            by_id = {one.location_id: one for one in held}
+            wanted = [by_id[one] for one in
+                      dict.fromkeys(str(x or "").strip() for x in order)
+                      if one in by_id]
+            if not wanted:
+                return False
+            named = {one.location_id for one in wanted}
+            self._write(wanted + [one for one in held
+                                  if one.location_id not in named], write_to)
+        return True
+
     def set_write_to(self, location_id: str) -> bool:
         wanted = str(location_id or "").strip()
         with self._lock:
