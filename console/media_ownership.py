@@ -140,7 +140,11 @@ def key_of(via: str | None) -> str:
 # What the asset resolver calls the same three states. It answers `dedicated` /
 # `shared` / `none` where media answers a `via`, and the question is identical - which
 # file wins for this table - so the words are these and not a second set.
-_RESOLUTIONS = {"dedicated": TABLE, "shared": GAME, "none": MISSING}
+# `superseded` is Unused, which already says "covered by something more specific" - a
+# point of view file beside a table that has settings is exactly that, and it needs no
+# word of its own.
+_RESOLUTIONS = {"dedicated": TABLE, "shared": GAME, "none": MISSING,
+                "superseded": UNUSED}
 
 
 def key_of_resolution(resolution: str | None) -> str:

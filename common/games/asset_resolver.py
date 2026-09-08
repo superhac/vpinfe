@@ -42,6 +42,15 @@ VPX_ASSET_KINDS = tuple(
 RESOLUTION_DEDICATED = "dedicated"
 RESOLUTION_SHARED = "shared"
 RESOLUTION_NONE = "none"
+# The file is there and the program will not read it, because something newer answers
+# the same question. Its own answer rather than `none`, which would say there is nothing
+# here - and the thing somebody does about it depends on knowing there is.
+RESOLUTION_SUPERSEDED = "superseded"
+
+# A kind the program stops reading once another kind resolves. Point of view moved into
+# the settings system, and `pintable.cpp` imports a `.pov` only where the table has no
+# settings file - so a table with an ini has a point of view its `.pov` had no part in.
+_SUPERSEDED_BY = {"pov": "ini"}
 
 BINDING_DEDICATED = "dedicated"
 BINDING_SHARED = "shared"
@@ -64,6 +73,10 @@ def resolve_for_table(table: str, folder_name: str, files,
     Mirrors VPX's search order - a file named for the table wins, a file named
     for the folder is the shared fallback, and a kind without a fallback (pov) is
     stem-or-nothing.
+
+    A kind another one supersedes reports that rather than reporting that it resolved.
+    Saying a file is in use when the program has stopped reading it is the worse of the
+    two mistakes: somebody edits it and watches nothing happen.
     """
     lookup = _by_lower(files)
     stem = _stem(table)
@@ -79,6 +92,14 @@ def resolve_for_table(table: str, folder_name: str, files,
                 resolved[kind.key] = {"resolution": RESOLUTION_SHARED, "file": shared}
                 continue
         resolved[kind.key] = {"resolution": RESOLUTION_NONE}
+
+    for kind, by in _SUPERSEDED_BY.items():
+        found = resolved.get(kind) or {}
+        if (found.get("resolution") in (RESOLUTION_DEDICATED, RESOLUTION_SHARED)
+                and (resolved.get(by) or {}).get("resolution")
+                in (RESOLUTION_DEDICATED, RESOLUTION_SHARED)):
+            resolved[kind] = {**found, "resolution": RESOLUTION_SUPERSEDED,
+                              "superseded_by": by}
     return resolved
 
 

@@ -17,6 +17,41 @@ CYBER = "Attack from Mars (Bally 1995) - cyberpez (1) - VPF_14030.vpx"
 
 
 class LaunchLensTests(unittest.TestCase):
+    def test_a_point_of_view_beside_a_table_with_settings_is_not_in_use(self) -> None:
+        """`pintable.cpp` imports a `.pov` only where the table has no settings file -
+        point of view moved into the settings system and the file is legacy. Calling it
+        in use is the worse of the two mistakes: somebody edits it and watches nothing
+        happen, with the screen agreeing with them throughout."""
+        files = [BIGUS, BIGUS.replace(".vpx", ".pov"), BIGUS.replace(".vpx", ".ini")]
+
+        resolved = res.resolve_for_table(BIGUS, FOLDER, files)
+
+        self.assertEqual(resolved["pov"]["resolution"], res.RESOLUTION_SUPERSEDED)
+        self.assertEqual(resolved["pov"]["superseded_by"], "ini")
+        self.assertEqual(resolved["pov"]["file"], BIGUS.replace(".vpx", ".pov"))
+
+    def test_and_it_is_in_use_where_the_table_has_no_settings(self) -> None:
+        files = [BIGUS, BIGUS.replace(".vpx", ".pov")]
+
+        resolved = res.resolve_for_table(BIGUS, FOLDER, files)
+
+        self.assertEqual(resolved["pov"]["resolution"], res.RESOLUTION_DEDICATED)
+
+    def test_a_folder_ini_supersedes_it_too(self) -> None:
+        """The ini that answers is whichever of the two spellings resolved."""
+        files = [BIGUS, BIGUS.replace(".vpx", ".pov"), f"{FOLDER}.ini"]
+
+        resolved = res.resolve_for_table(BIGUS, FOLDER, files)
+
+        self.assertEqual(resolved["pov"]["resolution"], res.RESOLUTION_SUPERSEDED)
+
+    def test_nothing_is_invented_where_there_is_no_point_of_view(self) -> None:
+        files = [BIGUS, BIGUS.replace(".vpx", ".ini")]
+
+        resolved = res.resolve_for_table(BIGUS, FOLDER, files)
+
+        self.assertEqual(resolved["pov"]["resolution"], res.RESOLUTION_NONE)
+
     def test_a_folder_named_script_stands_in_for_a_table_that_has_none(self) -> None:
         """`pintable.cpp` looks for `<table>.vbs` and, failing that, builds
         `<folder>.vbs` from the parent directory's name and loads that. This read as
