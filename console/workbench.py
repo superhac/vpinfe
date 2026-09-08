@@ -2328,7 +2328,7 @@ async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
         ui.notify(f"Could not forget it: {exc}", type="negative")
         return
     ui.notify("Table forgotten", type="positive")
-    await context["rebuild"]()
+    await _table_list_changed(context)
 
 
 async def _add_keyed_table(context: dict[str, Any]) -> None:
@@ -2383,7 +2383,7 @@ async def _add_keyed_table(context: dict[str, Any]) -> None:
                 ui.notify(f"Could not add it: {exc}", type="negative")
                 return
             ui.notify(f"Added {said}", type="positive")
-            await context["rebuild"]()
+            await _table_list_changed(context)
 
         with ui.row().classes("justify-end gap-2 w-full"):
             ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
@@ -2392,6 +2392,21 @@ async def _add_keyed_table(context: dict[str, Any]) -> None:
     dialog.on("show", lambda: ui.run_javascript(
         f"document.getElementById('c{typed.id}').focus()"))
     dialog.open()
+
+
+async def _table_list_changed(context: dict[str, Any]) -> None:
+    """Redraw the panel, and put the grid behind it right too.
+
+    The grid holds facts about a game that a write to its tables changes - the table
+    count, and under Tables the rows themselves - so a panel that refreshes alone leaves
+    a number on screen that is no longer true. The grid answers with a transaction on
+    the rows that changed rather than a rebuild, so scroll position, focus and the open
+    panel all survive it.
+    """
+    await context["rebuild"]()
+    again = context.get("state", {}).get("refresh_game")
+    if callable(again):
+        await again(context["game_id"])
 
 
 async def _add_referenced_table(context: dict[str, Any]) -> None:
@@ -2425,7 +2440,7 @@ async def _add_referenced_table(context: dict[str, Any]) -> None:
                 ui.notify(f"Could not add it: {exc}", type="negative")
                 return
             ui.notify("Added", type="positive")
-            await context["rebuild"]()
+            await _table_list_changed(context)
 
         with ui.row().classes("justify-end gap-2 w-full"):
             ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
@@ -2461,7 +2476,7 @@ async def _contain_table(context: dict[str, Any], table: dict[str, Any]) -> None
         ui.notify(f"Could not copy it in: {exc}", type="negative")
         return
     ui.notify("Copied in", type="positive")
-    await context["rebuild"]()
+    await _table_list_changed(context)
 
 
 def _tables_block(context: dict[str, Any]) -> None:

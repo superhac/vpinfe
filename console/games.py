@@ -477,6 +477,29 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                            on_header_context, view_of=showing)
         context_menu = ui.context_menu()
 
+    async def refresh_game(game_id: str) -> None:
+        """Put one game's row back on screen after something changed it.
+
+        A transaction rather than a page rebuild. Rebuilding is what this used to do,
+        and it reads as the grid flashing: scroll position, focus and the open panel all
+        go, for a write that touched one row. `getRowId` is the row's id, so a
+        transaction leaves all three alone.
+        """
+        fresh = next((row for row in await run.io_bound(library.game_rows)
+                      if row.get("id") == game_id), None)
+        if fresh is None:
+            return
+        by_id[game_id] = fresh
+        # In place, so the row keeps its position under whatever sort is on. The list
+        # `rows` was built from is what the count reads, and it holds the same dicts.
+        for index, held in enumerate(rows):
+            if held.get("id") == game_id:
+                rows[index] = fresh
+                break
+        table.run_grid_method("applyTransaction", {"update": [fresh]})
+
+    state["refresh_game"] = refresh_game
+
     def apply_renderer() -> None:
         """Redraw the media cells as marks or as pictures.
 
@@ -734,6 +757,35 @@ def _resolved_word(entry: dict[str, Any] | None) -> str:
     return "" if tier.key == media_ownership.MISSING else tier.noun
 
 
+def row_transaction(showing: dict[str, dict[str, Any]], game_id: str,
+                    fresh: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """What to tell the grid after one game's rows were rewritten.
+
+    Which of add, update and remove is needed is decided by comparing what came back
+    with what is on screen, so one call answers for a table arriving, one changing and
+    one going without being told which happened - and a write that does two of those at
+    once, which giving a game its first table does: a row arrives and the default moves.
+
+    Only that game's rows are considered on either side. Every other row on screen
+    belongs to a game this write did not touch, and offering them as removals would
+    empty the grid.
+    """
+    here = {row_id for row_id, row in showing.items()
+            if row.get("game_id") == game_id}
+    came_back = {row["id"] for row in fresh}
+    transaction: dict[str, list[dict[str, Any]]] = {}
+    arrived = [row for row in fresh if row["id"] not in here]
+    changed = [row for row in fresh if row["id"] in here]
+    gone = [{"id": row_id} for row_id in sorted(here - came_back)]
+    if arrived:
+        transaction["add"] = arrived
+    if changed:
+        transaction["update"] = changed
+    if gone:
+        transaction["remove"] = gone
+    return transaction
+
+
 def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The API's tables, flattened for a grid.
 
@@ -856,6 +908,26 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         table = grid.build(table_columns, built, f"{SCOPE}.tables", on_select,
                            on_context, on_header_context, view_of=showing)
         menu = ui.context_menu()
+
+    async def refresh_game(game_id: str) -> None:
+        """Put one game's rows back after something changed them.
+
+        Every row of that game, not the one acted on: a game can gain a table or lose
+        one, and the default moves between them in the same write. Which of the three a
+        row needs is decided by comparing what came back with what is showing, so this
+        answers for an add, an edit and a removal without being told which it was.
+        """
+        rows_now = await run.io_bound(library.load_tables)
+        fresh = table_rows([item for item in rows_now
+                            if item.get("game_id") == game_id])
+        transaction = row_transaction(by_id, game_id, fresh)
+        for entry in transaction.get("remove", ()):
+            by_id.pop(entry["id"], None)
+        by_id.update({row["id"]: row for row in fresh})
+        if transaction:
+            table.run_grid_method("applyTransaction", transaction)
+
+    state["refresh_game"] = refresh_game
 
     async def drop_script(row: dict[str, Any]) -> None:
         """Asked, because a patched table quietly becomes an unpatched one."""
