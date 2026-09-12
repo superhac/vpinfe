@@ -7,6 +7,7 @@ recorded hash that has drifted means `--stale` stops reporting.
 
 import ast
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -151,12 +152,72 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
             for node in ast.walk(tree):
                 if not isinstance(node, ast.Dict):
                     continue
-                for key, value in zip(node.keys, node.values):
+                for key, value in zip(node.keys, node.values, strict=True):
                     if isinstance(key, ast.Constant) and key.value in DISPLAY_KWARGS \
                        and isinstance(value, ast.Constant) and _is_text(value.value):
                         offenders.append(f"{path.relative_to(ROOT)}:{value.lineno} "
                                          f'{{"{key.value}": {value.value!r}}}')
         self.assertEqual(offenders, [], "call t() and put the words in the catalog")
+
+
+# Markup the frontend serves itself. A text node here is a cabinet's words, and nothing
+# checked them until this existed - the Console could not drift back to English and these
+# five pages could.
+STATIC = ROOT / "frontend" / "static"
+ELEMENT = re.compile(r"<([a-zA-Z][\w-]*)\b([^<>]*?)>([^<>]*[A-Za-z][^<>]*?)</\1>")
+SCRIPT_OR_STYLE = re.compile(r"<(script|style)\b.*?</\1>", re.S | re.I)
+WRITES_TEXT = re.compile(r"""(textContent|innerHTML|innerText)\s*=\s*(['"])(.*?)\2""")
+# `title` never shows under kiosk, `option` carries values a script rewrites, and both
+# would be noise rather than findings.
+UNCHECKED_TAGS = {"title", "script", "style", "option"}
+
+
+def _reads_as_prose(text: str) -> bool:
+    said = text.strip()
+    if len(said) < 2 or not any(c.isalpha() for c in said):
+        return False
+    if said.startswith(("http", "/", "#", "{")):
+        return False
+    return not re.fullmatch(r"[a-z][a-z0-9_-]*", said)
+
+
+class TestFrontendChrome(unittest.TestCase):
+    """The frontend serves its own markup, so the Python check cannot see any of it."""
+
+    def test_every_text_node_carries_a_key(self) -> None:
+        offenders = []
+        for path in sorted(STATIC.rglob("*.html")):
+            body = SCRIPT_OR_STYLE.sub("", path.read_text(encoding="utf-8"))
+            for tag, attrs, text in ELEMENT.findall(body):
+                if tag.lower() in UNCHECKED_TAGS or "data-i18n" in attrs:
+                    continue
+                if _reads_as_prose(text):
+                    offenders.append(f"{path.relative_to(ROOT)}: <{tag}>{text.strip()[:40]}")
+        self.assertEqual(offenders, [], 'add data-i18n="<key>" and put the words in the catalog')
+
+    def test_nothing_writes_a_literal_into_the_page(self) -> None:
+        """A runtime string needs t(key, english), not a quoted sentence."""
+        offenders = []
+        for path in sorted(STATIC.rglob("*")):
+            if path.suffix not in (".html", ".js") or not path.is_file():
+                continue
+            for prop, _quote, said in WRITES_TEXT.findall(path.read_text(encoding="utf-8")):
+                if _reads_as_prose(said):
+                    offenders.append(f"{path.relative_to(ROOT)}: {prop} = {said[:40]!r}")
+        self.assertEqual(offenders, [], "call t(key, english) instead")
+
+    def test_every_key_the_markup_names_is_served(self) -> None:
+        """A key with no entry renders as whatever English is between the tags, which
+        looks right until the day somebody translates the catalog and that one does not
+        move."""
+        served = {f"frontend.{k}" for k in SOURCE if k.startswith("frontend.")} | \
+                 {k for k in SOURCE if k.startswith("frontend.")}
+        missing = []
+        for path in sorted(STATIC.rglob("*.html")):
+            for key in re.findall(r'data-i18n="([^"]+)"', path.read_text(encoding="utf-8")):
+                if key not in served:
+                    missing.append(f"{path.relative_to(ROOT)}: {key}")
+        self.assertEqual(missing, [], "the markup names a key the catalog does not hold")
 
 
 class TestCatalogs(unittest.TestCase):
