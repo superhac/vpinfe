@@ -113,7 +113,8 @@ def overview(library: Library, registry: list[dict], discovery: dict,
             ui.label(f"{(present / total_slots * 100 if total_slots else 0):.0f}%") \
                 .classes("console-kpi")
             _bar(present / total_slots if total_slots else 0)
-            ui.label(f"{present} of {total_slots} slots").classes("text-xs opacity-60")
+            ui.label(t("console.sections.of_slots", present=(present),
+                    total_slots=(total_slots))).classes("text-xs opacity-60")
         with _card("Needs attention"):
             ui.label(str(open_findings)).classes("console-kpi")
             ui.label(t("console.sections.findings_across_the")).classes("text-xs opacity-60")
@@ -203,7 +204,7 @@ def _metadata_action(library: Library) -> Callable[[str], Any]:
         except Exception as exc:
             ui.notify(str(exc), type="negative")
             return
-        ui.notify(f"{word} under way", type="positive")
+        ui.notify(t("console.sections.under_way", word=(word)), type="positive")
         # The counts this card is drawn from are now stale. Asked again off the loop,
         # for the same reason they were read there in the first place.
         await run.io_bound(library.read_metadata_state)

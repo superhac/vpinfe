@@ -66,7 +66,7 @@ async def _write(library, section: str, key: str, value: Any) -> bool:
     try:
         await run.io_bound(library.put_config, {section: {key: value}})
     except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-        ui.notify(f"Could not save that: {exc}", type="negative")
+        ui.notify(t("console.settings.could_not_save_that", exc=(exc)), type="negative")
         return False
     return True
 
@@ -264,7 +264,7 @@ async def _fill_kinds(library, rerender: Callable[[], None], body, note: str,
         known = await run.io_bound(items, library)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         with body:
-            panel.facts(ui, [panel.intro(f"Could not read the settings: {exc}")])
+            panel.facts(ui, [panel.intro(t("console.settings.could_not_read_the", exc=(exc)))])
         return
 
     stored = _listed(policy.get(key))
@@ -283,7 +283,7 @@ async def _fill_kinds(library, rerender: Callable[[], None], body, note: str,
         try:
             await run.io_bound(library.put_library_policy, {key: store})
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(f"Could not save that: {exc}", type="negative")
+            ui.notify(t("console.settings.could_not_save_that", exc=(exc)), type="negative")
             return
         rerender()
 
@@ -308,7 +308,7 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
     try:
         state = await run.io_bound(library.vps_sync_state)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
-        return [panel.intro(f"Could not read the sync state: {exc}")]
+        return [panel.intro(t("console.settings.could_not_read_the_sync", exc=(exc)))]
 
     async def now() -> None:
         # Held: an ongoing notification never times out on its own.
@@ -316,7 +316,7 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
         try:
             done = await run.io_bound(library.sync_vps)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(f"Could not check: {exc}", type="negative")
+            ui.notify(t("console.settings.could_not_check", exc=(exc)), type="negative")
             return
         finally:
             checking.dismiss()
@@ -784,7 +784,7 @@ async def _draw_system_page(library, redraw: Callable[[], None], body,
         offered = await _suggestions(library, schema, sections)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         with body:
-            panel.facts(ui, [panel.intro(f"Could not read the settings: {exc}")])
+            panel.facts(ui, [panel.intro(t("console.settings.could_not_read_the", exc=(exc)))])
         return
     with body:
         await build_device_page(library, {"library": library, "rebuild": redraw},
@@ -831,7 +831,7 @@ async def _identity_page(library, reported: str,
     try:
         values = await run.io_bound(library.config_values)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
-        panel.facts(ui, [panel.intro(f"Could not read the settings: {exc}")])
+        panel.facts(ui, [panel.intro(t("console.settings.could_not_read_the", exc=(exc)))])
         return
     held = dict(values.get("install") or {})
     on = _listed(held.get("features"))

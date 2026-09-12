@@ -165,7 +165,8 @@ async def _draw(viewport, held: dict[str, Any]) -> None:
     viewport.clear()
     with viewport:
         if held.get("error"):
-            panel.facts(ui, [panel.intro(f"Could not read the log: {held['error']}")])
+            panel.facts(ui,
+                    [panel.intro(t("console.logs.could_not_read_the_log", value=(held['error'])))])
             return
         if not held["records"]:
             panel.facts(ui, [panel.intro(
@@ -223,7 +224,7 @@ def _digest(records: list[dict[str, Any]]) -> None:
 
     ordered = sorted(grouped.items(),
                      key=lambda item: (-_rank(item[1]["level"]), -item[1]["count"]))
-    ui.label(f"{len(ordered)} distinct in {len(records)} records") \
+    ui.label(t("console.logs.distinct_in_records", len=(len(ordered)), len2=(len(records)))) \
         .classes("console-help px-3 pb-1")
     for (source, first_line), found in ordered:
         tone = devices_page.LOG_LEVELS.get(str(found["level"] or ""),
@@ -233,7 +234,8 @@ def _digest(records: list[dict[str, Any]]) -> None:
                 .style("min-width:4ch; text-align:right")
             with ui.column().classes("gap-0 grow min-w-0"):
                 ui.label(first_line).classes(f"truncate {tone}")
-                ui.label(f"{source} - first {found['first']}, last {found['last']}") \
+                ui.label(t("console.logs.first_last", source=(source), value=(found['first']),
+                        value2=(found['last']))) \
                     .classes("console-log-source")
 
 

@@ -9,8 +9,8 @@ from common.extensions import contributions
 from common.games import collection_filters, collection_resolver, game_identity
 from common.games.collection_filters import (
     GameListFilters,
-    group_kind,
     group_key,
+    group_kind,
 )
 from common.games.collection_resolver import visible_entries
 from common.games.collection_store import (
@@ -305,7 +305,8 @@ def filter_options(games):
     return GameListFilters(games).available_options()
 
 
-def apply_filters(api, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
+def apply_filters(api, letter=None, theme=None, game_type=None, manufacturer=None, year=None,
+        rating=None, rating_or_higher=None):
     """Filter the library. Setting a control is choosing a different collection - one
     made from the library - so it leaves whatever collection was on screen."""
     api.current_collection = BUILTIN_ALL

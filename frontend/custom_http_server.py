@@ -109,7 +109,8 @@ class CustomHTTPServer:
                         return self._refuse()
 
                     if common != root:
-                        self.log_debug("Path traversal attempt blocked:", full_path, "not inside", root)
+                        self.log_debug("Path traversal attempt blocked:", full_path, "not inside",
+                                root)
                         return self._refuse()
 
                     # If the file or directory exists, return that path
@@ -131,7 +132,8 @@ class CustomHTTPServer:
             # Always add CORS headers to every response
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Range")
+            self.send_header("Access-Control-Allow-Headers",
+                    "X-Requested-With, Content-Type, Range")
             # Expose some headers so XHR/fetch can see content-length/range when needed
             self.send_header("Access-Control-Expose-Headers", "Content-Length, Content-Range")
             super().end_headers()
@@ -509,7 +511,8 @@ class CustomHTTPServer:
             self.send_response(200, "OK")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Range")
+            self.send_header("Access-Control-Allow-Headers",
+                    "X-Requested-With, Content-Type, Range")
             self.end_headers()
 
         # Keep default logging behavior or override to quiet it:

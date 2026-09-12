@@ -291,11 +291,11 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
         try:
             analysis = await uploads.analysis_of(library, drop.upload_id)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(f"Could not read that drop: {exc}", type="negative")
+            ui.notify(t("console.page.could_not_read_that_drop", exc=(exc)), type="negative")
             await run.io_bound(library.abort_upload, drop.upload_id)
             return
         if analysis.get("error"):
-            ui.notify(f"Could not read that drop: {analysis['error']}",
+            ui.notify(t("console.page.could_not_read_that_drop", value=(analysis['error'])),
                       type="negative")
             await run.io_bound(library.abort_upload, drop.upload_id)
             return
@@ -326,7 +326,7 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
                                   game_dir=game_dir, allow_new_game=new_game,
                                   media_kind=media_kind, location_id=where)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not work out where that goes: {exc}", type="negative")
+        ui.notify(t("console.page.could_not_work_out_where", exc=(exc)), type="negative")
         await run.io_bound(library.abort_upload, drop.upload_id)
         return
     if not plan.get("items"):
@@ -675,7 +675,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             if found.get("state") == "running":
                 continue
             if found.get("state") == "failed":
-                ui.notify(f"The scan failed: {found.get('error') or 'no reason given'}",
+                ui.notify(t("console.page.the_scan_failed",
+                        value=(found.get('error') or 'no reason given')),
                           type="negative")
             else:
                 ui.notify(t("console.page.the_library_is_up_to_date"), type="positive")
@@ -879,7 +880,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             found = {p.get("device_id"): p
                      for p in await run.io_bound(ApiClient().probe_devices)}
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(f"Could not ask the devices: {exc}", type="negative")
+            ui.notify(t("console.page.could_not_ask_the_devices", exc=(exc)), type="negative")
             return
         state["device_reach"] = found
         render()
@@ -1285,7 +1286,7 @@ async def _read_the_library() -> dict | None:
         job = await run.io_bound(ApiClient().refresh_library)
     except Exception as exc:
         # Already running is the ordinary case here, not a failure worth a trace.
-        ui.notify(f"Could not start: {exc}", type="warning")
+        ui.notify(t("console.page.could_not_start", exc=(exc)), type="warning")
         return None
     ui.notify(t("console.page.reading_the_library_from"), type="positive")
     return job

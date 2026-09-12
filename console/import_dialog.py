@@ -66,7 +66,7 @@ async def ask_where(library: Any) -> str | None:
     try:
         found = await run.io_bound(library.new_game_destination)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not work out where new games go: {exc}", type="negative")
+        ui.notify(t("console.import_dialog.could_not_work_out_where", exc=(exc)), type="negative")
         return None
 
     others = list(found.get("alternatives") or [])
@@ -135,7 +135,7 @@ async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
             await run.io_bound(library.set_location_write_to, said)
         except Exception as exc:  # noqa: BLE001
             # The import still goes where they said. Only the remembering failed.
-            ui.notify(f"Could not remember that: {exc}", type="warning")
+            ui.notify(t("console.import_dialog.could_not_remember_that", exc=(exc)), type="warning")
     return said
 
 
@@ -164,15 +164,16 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-import-card"):
         if new_folder:
-            ui.label(f"Import from {source or 'this drop'}") \
+            ui.label(t("console.import_dialog.import_from", value=(source or 'this drop'))) \
                 .classes("console-confirm-title")
             ui.label(t("console.import_dialog.the_files_keep_their_names")) \
                 .classes("console-help")
         else:
-            ui.label(f"Import into {Path(str(plan.get('game_dir') or '')).name}") \
+            ui.label(t("console.import_dialog.import_into",
+                    name=(Path(str(plan.get('game_dir') or '')).name))) \
                 .classes("console-confirm-title")
             if not single and source:
-                ui.label(f"from {source}").classes("console-help")
+                ui.label(t("console.import_dialog.from", source=(source))).classes("console-help")
 
         if new_folder:
             _folder_row(library, named, plan)
@@ -180,7 +181,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
         rows = ui.column().classes("gap-0 w-full console-import-rows")
 
         if blocked:
-            with ui.expansion(f"Not imported ({len(blocked)})") \
+            with ui.expansion(t("console.import_dialog.not_imported", len=(len(blocked)))) \
                     .props("dense dense-toggle").classes("console-import-blocked"):
                 for one in blocked:
                     ui.label(f"{one.get('kind') or ''} - {one.get('reason') or ''}") \
@@ -228,16 +229,17 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
             selected=wanted, declared=declared)
     except Exception as exc:  # noqa: BLE001
         note.dismiss()
-        ui.notify(f"Could not import it: {exc}", type="negative")
+        ui.notify(t("console.import_dialog.could_not_import_it", exc=(exc)), type="negative")
         await run.io_bound(library.abort_upload, upload_id)
         return
     note.dismiss()
     brought = int(report.get("imported") or 0)
-    ui.notify(f"Imported {brought} item{'' if brought == 1 else 's'}", type="positive")
+    ui.notify(t("console.import_dialog.imported_item", brought=(brought),
+            value=('' if brought == 1 else 's')), type="positive")
     if report.get("vps_error"):
         # The import worked and the match did not. Two facts, and rolling the second
         # into a failure would say the files did not land when they did.
-        ui.notify(f"Imported, but could not match it: {report['vps_error']}",
+        ui.notify(t("console.import_dialog.imported_but_could_not", value=(report['vps_error'])),
                   type="warning")
     if on_done is not None:
         answer = on_done(report)
@@ -292,7 +294,7 @@ async def _match(library: Any, named: dict[str, Any], field: Any) -> None:
     try:
         found = await run.io_bound(library.vps_search, term, 8)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not search: {exc}", type="negative")
+        ui.notify(t("console.import_dialog.could_not_search", exc=(exc)), type="negative")
         return
     if not found:
         ui.notify(t("console.import_dialog.nothing_in_the_catalog"), type="warning")

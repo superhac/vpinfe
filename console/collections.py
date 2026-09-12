@@ -130,7 +130,7 @@ def build(collections: list[dict[str, Any]], library: Any,
         try:
             await run.io_bound(what, *args)
         except Exception as exc:
-            ui.notify(f"Could not do that: {exc}", type="negative")
+            ui.notify(t("console.collections.could_not_do_that", exc=(exc)), type="negative")
             return
         ui.notify(said, type="positive")
         if rerender is not None:
@@ -144,7 +144,8 @@ def build(collections: list[dict[str, Any]], library: Any,
         wire_views, _picker, showing = view_control(library, SCOPE, COLLECTION_VIEWS,
                                                     fields, COLUMNS)
         ui.space()
-        count = ui.label(f"{len(built)} collections").classes("text-xs console-label")
+        count = ui.label(t("console.collections.collections",
+                len=(len(built)))).classes("text-xs console-label")
         bulk = ui.button(icon="more_vert").props("flat round dense") \
             .tooltip(t("console.collections.actions_for_the_selected"))
         with bulk, ui.menu():
@@ -234,7 +235,7 @@ def _ask_new(library: Any, act: Callable) -> None:
                 return
             dialog.close()
             await act(library.create_collection, name.value.strip(), None,
-                      said=f"Created “{name.value.strip()}”")
+                      said=t("console.collections.created", strip=(name.value.strip())))
 
         with ui.row().classes("justify-end gap-2 w-full"):
             ui.button(t("console.collections.cancel"), on_click=dialog.close).props("flat no-caps")
@@ -256,7 +257,8 @@ async def _ask_delete_many(picked: list[dict], library: Any, act: Callable) -> N
                          detail="The games stay in the library. Only the lists go.",
                          lines=shown):
         for name in names:
-            await act(library.delete_collection, name, said=f"Deleted {name}")
+            await act(library.delete_collection, name,
+                    said=t("console.collections.deleted", name=(name)))
 
 
 async def _ask_delete(name: str, library: Any, act: Callable) -> None:
@@ -264,7 +266,8 @@ async def _ask_delete(name: str, library: Any, act: Callable) -> None:
     no undo behind this."""
     if await confirm.ask(f"Delete “{name}”?",
                          detail="The games stay in the library. Only the list goes."):
-        await act(library.delete_collection, name, said=f"Deleted {name}")
+        await act(library.delete_collection, name,
+                said=t("console.collections.deleted", name=(name)))
 
 
 def stored_views(library: Any) -> tuple[list[views.View], str]:

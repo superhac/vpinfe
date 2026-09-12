@@ -211,7 +211,7 @@ def _chip(binding: str, store: Callable[..., Any], claimed_by: list[str],
         chip = ui.label(shown).classes(f"console-member-chip {tone}")
     if len(claimed_by) > 1:
         others = [_label_for(name) for name in claimed_by]
-        chip.tooltip(f"Also bound to {_and(others)} - only the first one gets it")
+        chip.tooltip(t("console.binding_editor.also_bound_to_only_the", _and=(_and(others))))
     elif text != shown:
         chip.tooltip(text)
     if not writable:
@@ -225,7 +225,7 @@ def _chip(binding: str, store: Callable[..., Any], claimed_by: list[str],
         # binding that is no longer there.
         ui.label("✕").classes("console-chip-remove") \
             .on("click.stop", lambda: _remove(text, shown, store, held)) \
-            .tooltip(f"Remove {shown}")
+            .tooltip(t("console.binding_editor.remove", shown=(shown)))
 
 
 def _menu(chip: Any, binding: str, store: Callable[..., Any], held: list,
@@ -331,14 +331,15 @@ def _capture(option: dict[str, Any], held: list, store: Callable[[list], Any],
         shown = input_registry.describe(selector)
         if input_registry.identity(selector) in [
                 input_registry.identity(one) for one in held]:
-            ui.notify(f"{shown} already does this.", type="warning")
+            ui.notify(t("console.binding_editor.already_does_this", shown=(shown)), type="warning")
             return
         # Refused rather than taken with a warning. Dispatch gives a key to the first
         # action that lists it, so taking one that is spoken for would not move it - it
         # would make a binding that looks set and never fires.
         owner = _owner(selector, claimed, option)
         if owner:
-            ui.notify(f"{shown} is already {owner}. Take it off there first.",
+            ui.notify(t("console.binding_editor.is_already_take_it_off", shown=(shown),
+                    owner=(owner)),
                       type="warning")
             return
         await store([*held, selector])

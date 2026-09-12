@@ -138,8 +138,8 @@ class _Sources:
                 ui.label(str(item.get("base") or "")).classes("console-placement-name")
                 going = list(item.get("displaces") or [])
                 if going:
-                    ui.label(f"Replaces {len(going)} file"
-                             f"{'s' if len(going) != 1 else ''} already there") \
+                    ui.label(t("console.mediasource.replaces_file_already", len=(len(going)),
+                            value=('s' if len(going) != 1 else ''))) \
                         .classes("console-destination-conflict")
         self._marks[table] = mark
         row.on("click", lambda t=table: self._choose_placement(t))
@@ -199,7 +199,8 @@ class _Sources:
             going = await run.io_bound(self.library.displaced_by, self.game_id,
                                        self.destination, self.kind, filename)
         except Exception as exc:
-            ui.notify(f"Could not check that slot: {exc}", type="negative")
+            ui.notify(t("console.mediasource.could_not_check_that_slot", exc=(exc)),
+                    type="negative")
             return False
         return not going or await confirm_replace(self.label, going)
 
@@ -226,7 +227,7 @@ class _Sources:
                 await run.io_bound(self.library.place_media, self.game_id,
                                    self.destination, self.kind, name, data)
             except Exception as exc:
-                ui.notify(f"Could not place it: {exc}", type="negative")
+                ui.notify(t("console.mediasource.could_not_place_it", exc=(exc)), type="negative")
                 return
             await self.finish(f"{self.label} saved")
 
@@ -242,7 +243,8 @@ class _Sources:
             starts = await run.io_bound(self.library.browse_roots, self.game_id)
         except Exception as exc:
             with body:
-                ui.label(f"Could not read this machine: {exc}").classes("console-help")
+                ui.label(t("console.mediasource.could_not_read_this",
+                        exc=(exc))).classes("console-help")
             return
         self.browse_roots = starts
         with body:
@@ -270,7 +272,8 @@ class _Sources:
             here = await run.io_bound(self.library.browse, path)
         except Exception as exc:
             with listing:
-                ui.label(f"Could not read that folder: {exc}").classes("console-help")
+                ui.label(t("console.mediasource.could_not_read_that_folder",
+                        exc=(exc))).classes("console-help")
             return
         family = media_family(self.kind)
         with listing:
@@ -291,10 +294,12 @@ class _Sources:
                         continue
                     shown += 1
                 if not shown:
-                    ui.label(f"Nothing here to use as {self.label.lower()}") \
+                    ui.label(t("console.mediasource.nothing_here_to_use_as",
+                            lower=(self.label.lower()))) \
                         .classes("console-help")
                 elif len(here["entries"]) > _LIST_MAX:
-                    ui.label(f"{len(here['entries']) - _LIST_MAX} more not shown") \
+                    ui.label(t("console.mediasource.more_not_shown",
+                            value=(len(here['entries']) - _LIST_MAX))) \
                         .classes("console-help")
 
     def _trail(self, path: str) -> str:
@@ -327,7 +332,8 @@ class _Sources:
                 await run.io_bound(self.library.import_media, self.game_id,
                                    self.destination, self.kind, item["path"])
             except Exception as exc:
-                ui.notify(f"Could not bring it in: {exc}", type="negative")
+                ui.notify(t("console.mediasource.could_not_bring_it_in", exc=(exc)),
+                        type="negative")
                 return
             await self.finish(f"{self.label} saved")
 
@@ -400,7 +406,8 @@ class _Sources:
             found = await run.io_bound(self.library.search_vps, query.strip())
         except Exception as exc:
             with results:
-                ui.label(f"Could not search: {exc}").classes("console-help")
+                ui.label(t("console.mediasource.could_not_search",
+                        exc=(exc))).classes("console-help")
             return
         with results:
             if not found:
@@ -447,7 +454,8 @@ class _Sources:
             found = await run.io_bound(self.library.media_offers, vps_id, self.kind)
         except Exception as exc:
             with body:
-                ui.label(f"Could not reach the catalogs: {exc}").classes("console-help")
+                ui.label(t("console.mediasource.could_not_reach_the",
+                        exc=(exc))).classes("console-help")
             return
         with body:
             if not found:
@@ -477,7 +485,7 @@ class _Sources:
                                    self.destination, self.kind, offer["source"],
                                    vps_id, size)
             except Exception as exc:
-                ui.notify(f"Could not fetch it: {exc}", type="negative")
+                ui.notify(t("console.mediasource.could_not_fetch_it", exc=(exc)), type="negative")
                 return
             finally:
                 fetching.dismiss()
@@ -518,8 +526,8 @@ def open_sources(context: dict[str, Any], kind: str, label: str,
     with ui.dialog() as dialog, ui.card().classes("console-sources-card"):
         sources.dialog = dialog
         with ui.row().classes("items-center gap-2 w-full no-wrap console-viewer-bar"):
-            ui.label(f"{label} for this "
-                     f"{'table' if context['lens'] else 'game'}") \
+            ui.label(t("console.mediasource.for_this", label=(label),
+                    value=('table' if context['lens'] else 'game'))) \
                 .classes("console-card-title grow min-w-0")
             ui.button(icon="close", on_click=dialog.close).props("flat dense round")
         destination = ui.column().classes("w-full gap-0")

@@ -328,7 +328,7 @@ def _unreachable(state: dict[str, Any], redraw) -> None:
         redraw()
 
     with ui.column().classes("w-full items-center justify-center grow gap-3 p-6"):
-        ui.label(f"{target_name(state['target'])} is not answering") \
+        ui.label(t("console.remote.is_not_answering", target_name=(target_name(state['target'])))) \
             .classes("remote-empty text-center")
         ui.button(t("console.remote.try_again"), icon="refresh", on_click=again) \
             .props("no-caps flat").classes("remote-action")
@@ -507,7 +507,7 @@ def _game_list(found: list[dict[str, Any]], state: dict[str, Any],
         if left > 0:
             # The count, not a "load more": what is wanted is one game, and typing two
             # more letters reaches it faster than paging to it does.
-            ui.label(f"{left} more - keep typing").classes("remote-note p-3")
+            ui.label(t("console.remote.more_keep_typing", left=(left))).classes("remote-note p-3")
 
 
 def _game_row(game: dict[str, Any], state: dict[str, Any], client_for_target,
@@ -609,7 +609,7 @@ def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet,
 
     async def add(name: str) -> None:
         if await write(ApiClient().add_to_collection, name, game["id"]):
-            ui.notify(f"Added to {name}", type="positive")
+            ui.notify(t("console.remote.added_to", name=(name)), type="positive")
             sheet.close()
 
     with ui.button(t("console.remote.add_to_collection"), icon="playlist_add") \

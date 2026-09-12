@@ -18,6 +18,7 @@ from fastapi import APIRouter, Query
 from starlette.responses import FileResponse
 
 from common.config_access import SettingsConfig
+from common.i18n import t
 from common.media_specs import AUDIO_FAMILY, DOC_FAMILY, IMAGE_FAMILY, VIDEO_FAMILY
 from common.paths import get_ini_config
 
@@ -107,12 +108,12 @@ def within_roots(raw: str) -> Path:
     try:
         path = Path(raw).expanduser().resolve()
     except OSError as exc:
-        raise InvalidRequestError("That path cannot be read",
+        raise InvalidRequestError(t("error.filesystem.that_path_cannot_be_read"),
                                   details={"path": raw}) from exc
     allowed = [Path(item["path"]) for item in roots()] + _extension_roots()
     if not any(path == root or root in path.parents for root in allowed):
         raise InvalidRequestError(
-            "That folder is not one this install may read",
+            t("error.filesystem.that_folder_is_not_one"),
             details={"path": raw, "allowed": [str(root) for root in allowed]})
     return path
 
@@ -144,7 +145,8 @@ def get_file(path: str = Query(...)) -> FileResponse:
     here = within_roots(path)
     family = family_of(here)
     if not here.is_file() or not family:
-        raise InvalidRequestError("That is not a media file", details={"path": path})
+        raise InvalidRequestError(t("error.filesystem.that_is_not_a_media_file"),
+                details={"path": path})
     return FileResponse(here)
 
 
@@ -159,7 +161,8 @@ def get_entries(path: str = Query(...)) -> models.FilesystemListing:
     """
     here = within_roots(path)
     if not here.is_dir():
-        raise InvalidRequestError("That is not a folder", details={"path": path})
+        raise InvalidRequestError(t("error.filesystem.that_is_not_a_folder"),
+                details={"path": path})
 
     folders, files = [], []
     allowed = [Path(item["path"]) for item in roots()]
@@ -181,7 +184,7 @@ def get_entries(path: str = Query(...)) -> models.FilesystemListing:
                 files.append({"name": entry.name, "path": str(entry), "kind": "file",
                               "family": family, "size_bytes": entry.stat().st_size})
     except OSError as exc:
-        raise InvalidRequestError("That folder cannot be read",
+        raise InvalidRequestError(t("error.filesystem.that_folder_cannot_be_read"),
                                   details={"path": path}) from exc
 
     # Null at a root, so a client knows where "up" stops without knowing the rules.

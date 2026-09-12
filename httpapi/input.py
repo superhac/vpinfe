@@ -15,6 +15,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 
 from common import input_actions, input_registry
+from common.i18n import t
 
 from . import models, scopes
 from .auth import requires
@@ -39,12 +40,12 @@ def act(payload: models.InputActionRequest, request: Request) -> models.InputAct
     action = (payload.action or "").strip()
     if not input_actions.known(action):
         raise InvalidRequestError(
-            f"No input action called {action!r}. "
-            f"One of: {', '.join(one.name for one in input_registry.INPUT_ACTIONS)}")
+            t("error.input.no_input_action_called_one", action=(action),
+                    join=(', '.join(one.name for one in input_registry.INPUT_ACTIONS))))
     phase = (payload.phase or TAP).strip().lower()
     if phase not in PHASES:
         raise InvalidRequestError(
-            f"A phase is one of {', '.join(PHASES)}, not {phase!r}")
+            t("error.input.a_phase_is_one_of_not", join=(', '.join(PHASES)), phase=(phase)))
 
     source = _source(payload.source, request)
     if phase == input_actions.RELEASE:

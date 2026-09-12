@@ -112,7 +112,7 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
         found = await run.io_bound(library.launchers)
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
         with body:
-            panel.facts(ui, [panel.intro(f"Could not read the launchers: {exc}")])
+            panel.facts(ui, [panel.intro(t("console.launchers.could_not_read_the_2", exc=(exc)))])
         return
 
     # Imported here: `workbench` imports this module, and `games` imports `workbench`,
@@ -129,7 +129,7 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
             ui.label(INTRO).classes("console-help")
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
                 for app in apps_known:
-                    ui.button(f"Add {app['name']}", icon="add",
+                    ui.button(t("console.launchers.add", value=(app['name'])), icon="add",
                               on_click=lambda a=app: _add(library, state, redraw, a)) \
                         .props("flat dense no-caps size=sm").classes("console-action")
                 search = panel.search("Search launchers")
@@ -137,7 +137,8 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
                                                             LAUNCHER_VIEWS, fields,
                                                             COLUMNS)
                 ui.space()
-                ui.label(f"{len(built)} launcher{'' if len(built) == 1 else 's'}") \
+                ui.label(t("console.launchers.launcher", len=(len(built)),
+                        value=('' if len(built) == 1 else 's'))) \
                     .classes("text-xs console-label")
 
         if not built:
@@ -172,7 +173,7 @@ async def _add(library, state: dict[str, Any], redraw: Callable[[], None],
                            {"app": app["id"], "display_name": app["name"],
                             "enabled": True, "settings": {}})
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not add it: {exc}", type="negative")
+        ui.notify(t("console.launchers.could_not_add_it", exc=(exc)), type="negative")
         return
     state["launcher"] = made
     redraw()
@@ -194,7 +195,7 @@ async def duplicate(library, state: dict[str, Any], redraw: Callable[[], None],
                            {**launcher, "launcher_id": made, "owns_ini": False,
                             "display_name": f"{launcher['display_name']} copy"})
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not duplicate it: {exc}", type="negative")
+        ui.notify(t("console.launchers.could_not_duplicate_it", exc=(exc)), type="negative")
         return
     state["launcher"] = made
     redraw()
@@ -209,7 +210,7 @@ async def copy_dialog(library, state: dict[str, Any], launcher: dict) -> None:
     try:
         known = await run.io_bound(library.devices)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not read the devices: {exc}", type="negative")
+        ui.notify(t("console.launchers.could_not_read_the_devices", exc=(exc)), type="negative")
         return
     # Only other VPinFE installs. A phone runs no launcher, and this install already has
     # the launcher being copied.
@@ -223,7 +224,7 @@ async def copy_dialog(library, state: dict[str, Any], launcher: dict) -> None:
 
     picked: set[str] = set()
     with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label(f"Copy {launcher['display_name']} to which machines?") \
+        ui.label(t("console.launchers.copy_to_which_machines", value=(launcher['display_name']))) \
             .classes("console-confirm-title")
         ui.label(t("console.launchers.it_arrives_with_the_same")) \
             .classes("console-help")
@@ -262,7 +263,7 @@ async def _do_copy(library, launcher: dict, devices: list[dict],
             mappings = {table: to for table, to in (found.get("mappings") or {}).items()
                         if to == launcher["launcher_id"]}
         except Exception as exc:  # noqa: BLE001
-            ui.notify(f"Could not read the assignments: {exc}", type="negative")
+            ui.notify(t("console.launchers.could_not_read_the", exc=(exc)), type="negative")
             return
 
     def client_for(device):
@@ -289,7 +290,7 @@ async def remove(library, state: dict[str, Any], redraw: Callable[[], None],
     try:
         await run.io_bound(library.delete_launcher, launcher["launcher_id"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not remove it: {exc}", type="negative")
+        ui.notify(t("console.launchers.could_not_remove_it", exc=(exc)), type="negative")
         return
     state["launcher"] = ""
     redraw()

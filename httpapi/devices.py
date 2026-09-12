@@ -25,6 +25,7 @@ from fastapi import APIRouter, Body, Request, Response
 
 from common import device_client, device_registry, discovery, install_identity
 from common.device_registry import get_device_registry
+from common.i18n import t
 from common.paths import get_ini_config
 
 from . import models, scopes
@@ -70,7 +71,7 @@ def discovered_installs() -> models.DiscoveredList:
 def get_device(device_id: str) -> models.DeviceResource:
     device = get_device_registry().get(device_id)
     if device is None:
-        raise NotFoundError(f"No device with device id {device_id}")
+        raise NotFoundError(t("error.devices.no_device_with_device_id", device_id=(device_id)))
     return _resource(device)
 
 
@@ -98,13 +99,13 @@ def announce(request: Request,
 
     if not device_id:
         if not is_mobile:
-            raise InvalidRequestError("A device needs a device id")
+            raise InvalidRequestError(t("error.devices.a_device_needs_a_device_id"))
         device_id = device_registry.mint_device_id()
 
     if is_mobile:
         address = payload.address.strip()
         if not address:
-            raise InvalidRequestError("A vpx_mobile device needs an address")
+            raise InvalidRequestError(t("error.devices.a_vpx_mobile_device_needs"))
     else:
         client = getattr(request, "client", None)
         address = getattr(client, "host", "") or ""
@@ -121,7 +122,7 @@ def announce(request: Request,
         port=payload.port,
     )
     if device is None:
-        raise InvalidRequestError("A device needs a device id")
+        raise InvalidRequestError(t("error.devices.a_device_needs_a_device_id"))
     return _resource(device)
 
 
@@ -157,7 +158,7 @@ async def probe_devices() -> models.DeviceProbeList:
 def forget(device_id: str):
     """Forgetting one that is still running only means it announces itself again."""
     if not get_device_registry().forget(device_id):
-        raise NotFoundError(f"No device with device id {device_id}")
+        raise NotFoundError(t("error.devices.no_device_with_device_id", device_id=(device_id)))
     return Response(status_code=204)
 
 
@@ -169,14 +170,13 @@ def _mobile(device_id: str):
     """
     found = get_device_registry().get(device_id)
     if found is None:
-        raise NotFoundError(f"No device with device id {device_id}")
+        raise NotFoundError(t("error.devices.no_device_with_device_id", device_id=(device_id)))
     if found.kind != device_registry.KIND_VPX_MOBILE:
         raise InvalidRequestError(
-            f"{found.display_name or device_id} is a VPinFE install, not a device "
-            "tables are sent to. Ask it for its own library instead.")
+            t("error.devices.is_a_vpinfe_install_not_a", value=(found.display_name or device_id)))
     if not found.address or not found.port:
         raise InvalidRequestError(
-            f"{found.display_name or device_id} has no address to send to")
+            t("error.devices.has_no_address_to_send_to", value=(found.display_name or device_id)))
     return found
 
 
@@ -221,7 +221,7 @@ def send_games(device_id: str, response: Response,
     device = _mobile(device_id)
     folders = [folder_of(game_id) for game_id in payload.games]
     if not folders:
-        raise InvalidRequestError("Name at least one game to send")
+        raise InvalidRequestError(t("error.devices.name_at_least_one_game_to"))
 
     def work(job) -> None:
         reporter = job.reporter()

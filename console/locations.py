@@ -109,7 +109,7 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
         found = await run.io_bound(library.locations)
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
         with body:
-            panel.facts(ui, [panel.intro(f"Could not read the locations: {exc}")])
+            panel.facts(ui, [panel.intro(t("console.locations.could_not_read_the", exc=(exc)))])
         return
 
     # Imported here: `workbench` imports this module, and `games` imports `workbench`,
@@ -131,7 +131,8 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
             wire_views, _picker, showing = view_control(library, SCOPE,
                                                         LOCATION_VIEWS, fields, COLUMNS)
             ui.space()
-            ui.label(f"{len(built)} location{'' if len(built) == 1 else 's'}") \
+            ui.label(t("console.locations.location", len=(len(built)),
+                    value=('' if len(built) == 1 else 's'))) \
                 .classes("text-xs console-label")
 
         if not built:
@@ -189,7 +190,7 @@ async def _create(library, state: dict[str, Any], rerender: Callable[[], None] |
     try:
         await run.io_bound(library.put_location, made, {"path": path, "kind": kind})
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not add it: {exc}", type="negative")
+        ui.notify(t("console.locations.could_not_add_it", exc=(exc)), type="negative")
         return
     state["location"] = made
     if rerender is not None:
@@ -209,6 +210,6 @@ async def remove(library, row: dict[str, Any]) -> bool:
     try:
         await run.io_bound(library.delete_location, row["location_id"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not remove it: {exc}", type="negative")
+        ui.notify(t("console.locations.could_not_remove_it", exc=(exc)), type="negative")
         return False
     return True

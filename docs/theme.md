@@ -1232,6 +1232,38 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 
 ### API Reference
 
+#### t(key, params)
+
+What a key says, in the language this install speaks. Core's own words, and the handful
+every theme was writing out for itself.
+
+```js
+wheel.textContent = vpin.t("frontend.theme.no_tables_found");
+status.textContent = vpin.t("frontend.theme.launching");
+```
+
+An unknown key answers with the key, never blank, so a typo is visible rather than an
+empty element. Core ships these, and they are the ones seven themes had each written
+their own copy of:
+
+| key | English |
+|---|---|
+| `frontend.theme.no_tables_found` | No tables found |
+| `frontend.theme.loading_table` | Loading Table... |
+| `frontend.theme.launching` | Launching... |
+| `frontend.theme.unknown_table` | Unknown Table |
+| `frontend.theme.unknown_author` | Unknown Author |
+| `frontend.theme.my_rating` | My Rating |
+| `frontend.theme.detected_features` | Detected Features |
+
+Your own words stay yours. A theme that writes its own English keeps working exactly as
+it does now — `t()` is there when you want your theme to follow the user's language, and
+nothing breaks if you never call it.
+
+Feature names are not on that list on purpose. `Nfozzy`, `Fleep`, `SSF`, `PuP-Pack` and
+the rest are what the community calls those things in every language, and translating
+them would make a theme harder to read, not easier.
+
 #### enabled(name)
 `true` when core is doing that for you right now. `vpin.enabled("core_audio")`. An unknown
 name is `false` rather than an error, so a theme can ask about something a build might not

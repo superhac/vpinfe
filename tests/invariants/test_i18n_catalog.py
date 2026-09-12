@@ -108,6 +108,26 @@ def _is_text(value) -> bool:
     return not re.fullmatch(r"[a-z][a-z0-9_]*", said)
 
 
+def _fault(path, call, kwarg, node) -> list[str]:
+    """Whether this argument hands a person English the catalog never saw.
+
+    An f-string counts. It was the whole of the miss: 174 of these sat in plain sight
+    while a check that only looked at `ast.Constant` reported the Console clean - and a
+    sentence assembled from pieces is the one a translator most needs to own, because
+    the order of the pieces is different in most languages.
+    """
+    where = f"{path.relative_to(ROOT)}:{node.lineno}"
+    shown = f"{call}({kwarg}=" if kwarg else f"{call}("
+    if isinstance(node, ast.Constant) and _is_text(node.value):
+        return [f"{where} {shown}{node.value!r})"]
+    if isinstance(node, ast.JoinedStr):
+        words = "".join(v.value for v in node.values
+                        if isinstance(v, ast.Constant) and isinstance(v.value, str))
+        if any(c.isalpha() for c in words) and len(words.strip()) > 2:
+            return [f"{where} {shown}f{words.strip()[:46]!r}...)"]
+    return []
+
+
 class TestNoBareDisplayLiterals(unittest.TestCase):
     """A string written where it is shown is one no translator is ever offered.
 
@@ -129,15 +149,10 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
                     else getattr(func, "id", None)
                 at = 0 if name in DISPLAY_CALLS else DISPLAY_ARG.get(name)
                 if at is not None and len(node.args) > at:
-                    arg = node.args[at]
-                    if isinstance(arg, ast.Constant) and _is_text(arg.value):
-                        offenders.append(
-                            f"{path.relative_to(ROOT)}:{arg.lineno} {name}({arg.value!r})")
+                    offenders += _fault(path, name, "", node.args[at])
                 for kw in node.keywords:
-                    if kw.arg in DISPLAY_KWARGS and isinstance(kw.value, ast.Constant) \
-                       and _is_text(kw.value.value):
-                        offenders.append(f"{path.relative_to(ROOT)}:{kw.value.lineno} "
-                                         f"{name}({kw.arg}={kw.value.value!r})")
+                    if kw.arg in DISPLAY_KWARGS:
+                        offenders += _fault(path, name, kw.arg, kw.value)
         self.assertEqual(offenders, [], "call t() and put the words in the catalog")
 
     def test_a_choice_written_as_a_dict_counts_too(self) -> None:
@@ -179,6 +194,42 @@ def _reads_as_prose(text: str) -> bool:
     if said.startswith(("http", "/", "#", "{")):
         return False
     return not re.fullmatch(r"[a-z][a-z0-9_-]*", said)
+
+
+# Constructors whose message the Console shows to the user verbatim: console/api.py
+# raises ApiError carrying the server's `error.message`, and a page notifies it.
+API_ERRORS = {"NotFoundError", "InvalidRequestError", "ConflictError",
+              "FeatureUnavailableError", "ApiError"}
+
+
+class TestApiErrorMessages(unittest.TestCase):
+    """The wire's `code` is the contract; its `message` is a sentence somebody reads.
+
+    `httpapi/errors.py` says clients branch on the code, and they should - but nothing
+    does, so the message is what reaches the screen. That makes it UI, and it belongs in
+    the catalog like the rest of the UI.
+    """
+
+    def test_no_error_is_raised_with_a_literal_message(self) -> None:
+        offenders = []
+        for path in sorted((ROOT / "httpapi").rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                if getattr(node.func, "id", None) not in API_ERRORS:
+                    continue
+                spots = [kw.value for kw in node.keywords if kw.arg == "message"]
+                name = getattr(node.func, "id", "")
+                if name == "ApiError" and len(node.args) > 1:
+                    spots.append(node.args[1])
+                elif name != "ApiError" and node.args:
+                    spots.append(node.args[0])
+                for spot in spots:
+                    offenders += _fault(path, name, "", spot)
+        self.assertEqual(offenders, [], "call t() and put the words in the catalog")
 
 
 class TestFrontendChrome(unittest.TestCase):

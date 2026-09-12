@@ -22,6 +22,7 @@ from common.config_access import NetworkConfig
 from common.device_registry import get_device_registry
 from common.games import launcher_migration, locations
 from common.host import launch_state
+from common.i18n import t
 from common.paths import get_ini_config
 from common.vpinfe_version import get_version
 
@@ -240,12 +241,12 @@ def build_router(prefix: str, api_version: str) -> APIRouter:
         wanted = payload or models.UpdateRequest()
         context = await run_in_threadpool(get_install_context)
         if not context["supported"]:
-            raise FeatureUnavailableError("This install cannot replace itself",
+            raise FeatureUnavailableError(t("error.instance.this_install_cannot"),
                                           details={"support_reason": context["reason"]})
 
         playing = launch_state.current()
         if playing.launching and not wanted.stop_table:
-            raise ConflictError("A table is running",
+            raise ConflictError(t("error.instance.a_table_is_running"),
                                 details={"game_name": playing.game_name})
 
         prepared = await run_in_threadpool(prepare_update)

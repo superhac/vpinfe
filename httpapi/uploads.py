@@ -16,6 +16,7 @@ from starlette.concurrency import run_in_threadpool
 from common import timestamps
 from common.games import identity_claims
 from common.games.asset_registry import spec_for
+from common.i18n import t
 from common.uploads import upload_session_service
 from common.uploads.asset_analyzer_service import (
     AnalysisResult,
@@ -164,7 +165,7 @@ def _vps_entry(vps_id: str):
         return None
     entry = find_vps_entry(vps_id)
     if entry is None:
-        raise InvalidRequestError(f"Unknown vps_id: {vps_id}")
+        raise InvalidRequestError(t("error.uploads.unknown_vps_id", vps_id=(vps_id)))
     return entry
 
 
@@ -247,11 +248,11 @@ def _slot_plan(upload_id: str, game_dir: str, media_kind: str) -> ImportPlan:
     one file only, because a slot holds one thing.
     """
     if not game_dir:
-        raise InvalidRequestError("A slot import needs the game it belongs to.")
+        raise InvalidRequestError(t("error.uploads.a_slot_import_needs_the"))
     session = _session_dir(upload_id)
     files = [one for one in session.iterdir() if one.is_file()]
     if [one for one in session.iterdir() if one.is_dir()] or len(files) != 1:
-        raise InvalidRequestError("Drop a single file on a slot.")
+        raise InvalidRequestError(t("error.uploads.drop_a_single_file_on_a"))
     try:
         return build_media_slot_plan(files[0], game_dir=Path(game_dir),
                                      media_kind=media_kind)
@@ -298,7 +299,7 @@ def import_upload(upload_id: str,
                       if one.is_file())
         blocked = [{"kind": b.asset.kind, "reason": b.reason} for b in plan.blocked]
         if not plan.items:
-            raise ApiError("no_importable_assets", "No importable assets",
+            raise ApiError("no_importable_assets", t("error.uploads.no_importable_assets"),
                            status_code=422, details={"blocked": blocked})
         try:
             report = execute_import_plan(plan, source, declared=declared)
@@ -320,7 +321,7 @@ def import_upload(upload_id: str,
     except ValueError as exc:
         raise ConflictError(str(exc)) from exc
     if vps_entry is not None and not plan.new_game_dir_name:
-        raise InvalidRequestError("vps_id only applies to new-game imports")
+        raise InvalidRequestError(t("error.uploads.vps_id_only_applies_to_new"))
 
     # Folder naming precedence: explicit new_game_dir_name > VPS-derived > vpx stem.
     new_name = payload.new_game_dir_name
@@ -333,7 +334,7 @@ def import_upload(upload_id: str,
 
     blocked = [{"kind": b.asset.kind, "reason": b.reason} for b in plan.blocked]
     if not plan.items:
-        raise ApiError("no_importable_assets", "No importable assets",
+        raise ApiError("no_importable_assets", t("error.uploads.no_importable_assets"),
                        status_code=422, details={"blocked": blocked})
     try:
         report = execute_import_plan(plan, source_path, declared=declared)
@@ -388,7 +389,7 @@ def vps_entry(vps_id: str) -> models.VpsSearchResult:
 
     found = next((e for e in load_vpsdb() if str(e.get("id") or "") == vps_id), None)
     if found is None:
-        raise NotFoundError("No such VPS entry", details={"vps_id": vps_id})
+        raise NotFoundError(t("error.uploads.no_such_vps_entry"), details={"vps_id": vps_id})
     return _vps_resource(found)
 
 
@@ -443,12 +444,12 @@ def vps_releases(vps_id: str,
 
     if listed_as != "tableFiles" and listed_as not in vps_kinds.BY_LISTING:
         raise InvalidRequestError(
-            "VPSdb lists no such kind",
+            t("error.uploads.vpsdb_lists_no_such_kind"),
             details={"listed_as": listed_as,
                      "known": ["tableFiles", *sorted(vps_kinds.BY_LISTING)]})
     found = next((e for e in load_vpsdb() if str(e.get("id") or "") == vps_id), None)
     if found is None:
-        raise NotFoundError("No such VPS entry", details={"vps_id": vps_id})
+        raise NotFoundError(t("error.uploads.no_such_vps_entry"), details={"vps_id": vps_id})
     return {"releases": [_release_resource(item)
                          for item in (found.get(listed_as) or [])]}
 

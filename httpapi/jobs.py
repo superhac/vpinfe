@@ -12,6 +12,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Query
 
 from common import jobs as job_registry
+from common.i18n import t
 
 from . import models, scopes
 from .auth import requires
@@ -46,5 +47,5 @@ def get_job(job_id: str) -> models.JobResource:
     """
     job = job_registry.get(job_id)
     if job is None:
-        raise NotFoundError(f"No job with id {job_id}")
+        raise NotFoundError(t("error.jobs.no_job_with_id", job_id=(job_id)))
     return resource(job, with_result=True)

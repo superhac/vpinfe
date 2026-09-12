@@ -158,7 +158,8 @@ def _managerui_page_urls(config, page: str) -> list[str]:
 
 def _preferred_managerui_url(urls: list[str]) -> str:
     return next(
-        (url for url in urls if url.startswith("http://") and url.split("://", 1)[1].split(":", 1)[0].count(".") == 3),
+        (url for url in urls if url.startswith("http://") and url.split("://", 1)[1].split(":",
+                1)[0].count(".") == 3),
         next((url for url in urls if "://localhost:" not in url.lower()), urls[0] if urls else ""),
     )
 

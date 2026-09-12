@@ -57,7 +57,8 @@ async def open_for_table(library, *, launcher_id: str, launcher_name: str,
     with ui.dialog().props("maximized") as dialog, ui.card().classes(
             "w-full h-full console-panel"):
         with ui.row().classes("items-center gap-3 w-full no-wrap px-3 pt-2"):
-            ui.label(f"{launcher_name} settings").classes("console-card-title")
+            ui.label(t("console.app_settings.settings",
+                    launcher_name=(launcher_name))).classes("console-card-title")
             ui.space()
             ui.button(t("console.app_settings.done"),
                     on_click=dialog.close).props("flat dense no-caps")
@@ -102,7 +103,7 @@ async def _fill(library, launcher_id: str, table_id: str, state: dict[str, Any],
         found = await run.io_bound(library.launcher_config, launcher_id,
                                    table_id, scope)
     except Exception as exc:  # noqa: BLE001 - this says why, never 500s
-        panel.facts(ui, [panel.intro(f"Could not read the settings: {exc}")])
+        panel.facts(ui, [panel.intro(t("console.app_settings.could_not_read_the", exc=(exc)))])
         return
 
     groups = found.get("groups") or []
@@ -210,7 +211,7 @@ def _aside(library, launcher_id: str, table_id: str, scope: str, field: dict,
             await run.io_bound(library.write_launcher_config, launcher_id,
                                {field["key"]: ""}, table=table_id, scope=scope)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(f"Could not clear it: {exc}", type="negative")
+            ui.notify(t("console.app_settings.could_not_clear_it", exc=(exc)), type="negative")
             return
         await draw()
 

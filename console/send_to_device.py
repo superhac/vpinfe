@@ -79,7 +79,8 @@ async def send(games: list[dict[str, Any]], device: dict[str, Any]) -> None:
     except Exception as exc:
         ui.notify(str(exc), type="negative")
         return
-    ui.notify(f"Sending {len(games)} to {name_of(device)}", type="positive")
+    ui.notify(t("console.send_to_device.sending_to", len=(len(games)), name_of=(name_of(device))),
+            type="positive")
 
 
 async def _which(found: list[dict[str, Any]]) -> dict[str, Any]:

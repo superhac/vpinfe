@@ -19,6 +19,7 @@ from typing import Any
 from fastapi import APIRouter, Body
 
 from common import config_schema, path_checks
+from common.i18n import t
 from common.paths import get_ini_config
 
 from . import models, scopes
@@ -168,7 +169,7 @@ def put_values(values: dict[str, dict[str, Any]] = Body(...)) -> models.ConfigVa
         store.save()
     except Exception as exc:  # noqa: BLE001 - the caller gets the reason, not a 500
         logger.exception("Could not write the settings file")
-        raise ConflictError(f"Could not write the settings file: {exc}") from exc
+        raise ConflictError(t("error.config.could_not_write_the", exc=(exc))) from exc
 
     if any(section == "install" and key == "display_name" for section, key, _ in staged):
         # The registry holds a copy of what each install reported. This one just changed

@@ -73,7 +73,7 @@ def draw(value: int, on_pick: Callable[[int], Any]) -> Callable[[], None]:
                 lit = f" {LIT}" if n <= value else ""
                 ui.element("span").classes(f"{STAR}{lit}") \
                     .on("click", lambda _, n=n: on_pick(n)) \
-                    .tooltip(f"{n} of 5")
+                    .tooltip(t("console.stars.of_5", n=(n)))
             if value:
                 ui.label(CLEAR).classes(CLEAR_CLASS) \
                     .on("click", lambda _: on_pick(0)) \
@@ -103,7 +103,7 @@ def rating_handler(rows_by_id: dict[str, Any], grid_of: Callable[[], Any],
         try:
             await run.io_bound(call, *wanted)
         except Exception as exc:
-            ui.notify(f"Could not save that rating: {exc}", type="negative")
+            ui.notify(t("console.stars.could_not_save_that_rating", exc=(exc)), type="negative")
             return
         row = rows_by_id.get(table_id or game_id)
         if row is not None:

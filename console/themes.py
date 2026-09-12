@@ -45,7 +45,7 @@ async def _fill(library, state: dict[str, Any], redraw: Callable[[], None], body
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
         body.clear()
         with body:
-            panel.facts(ui, [panel.intro(f"Could not read the themes: {exc}")])
+            panel.facts(ui, [panel.intro(t("console.themes.could_not_read_the_themes", exc=(exc)))])
         return
 
     themes = list(found.get("themes") or [])
@@ -167,13 +167,13 @@ def _actions(library, state: dict[str, Any], redraw: Callable[[], None], body,
 
 
 async def _install(library, key: str, again: Callable[[], Any]) -> None:
-    ui.notify(f"Downloading {key}...", type="ongoing")
+    ui.notify(t("console.themes.downloading", key=(key)), type="ongoing")
     try:
         await run.io_bound(library.install_theme, key)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not install it: {exc}", type="negative")
+        ui.notify(t("console.themes.could_not_install_it", exc=(exc)), type="negative")
         return
-    ui.notify(f"{key} installed", type="positive")
+    ui.notify(t("console.themes.installed", key=(key)), type="positive")
     await again()
 
 
@@ -193,9 +193,9 @@ async def _activate(library, theme: dict[str, Any], again: Callable[[], Any]) ->
     try:
         await run.io_bound(library.activate_theme, theme["key"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not make it active: {exc}", type="negative")
+        ui.notify(t("console.themes.could_not_make_it_active", exc=(exc)), type="negative")
         return
-    ui.notify(f"{theme['name']} plays when the frontend next starts", type="positive")
+    ui.notify(t("console.themes.plays_when_the_frontend", value=(theme['name'])), type="positive")
     await again()
 
 
@@ -209,9 +209,9 @@ async def _remove(library, theme: dict[str, Any], again: Callable[[], Any]) -> N
     try:
         await run.io_bound(library.remove_theme, theme["key"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not remove it: {exc}", type="negative")
+        ui.notify(t("console.themes.could_not_remove_it", exc=(exc)), type="negative")
         return
-    ui.notify(f"{theme['name']} removed", type="positive")
+    ui.notify(t("console.themes.removed", value=(theme['name'])), type="positive")
     await again()
 
 
@@ -224,13 +224,13 @@ async def _configure(library, theme: dict[str, Any]) -> None:
     try:
         found = await run.io_bound(library.theme_options, theme["key"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not read its settings: {exc}", type="negative")
+        ui.notify(t("console.themes.could_not_read_its", exc=(exc)), type="negative")
         return
 
     options = list(found.get("options") or [])
     values = dict(found.get("values") or {})
     if not options:
-        ui.notify(f"{theme['name']} declares no settings.", type="warning")
+        ui.notify(t("console.themes.declares_no_settings", value=(theme['name'])), type="warning")
         return
 
     # Held rather than read back off the controls when Save is pressed: a json option
@@ -257,7 +257,7 @@ async def _configure(library, theme: dict[str, Any]) -> None:
     try:
         await run.io_bound(library.save_theme_options, theme["key"], wanted)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(f"Could not save those settings: {exc}", type="negative")
+        ui.notify(t("console.themes.could_not_save_those", exc=(exc)), type="negative")
         return
     ui.notify(t("console.themes.saved"), type="positive")
 
@@ -334,7 +334,8 @@ def _saver(option: dict[str, Any], wanted: dict[str, Any]) -> Callable[[Any], An
             try:
                 wanted[key] = json.loads(text)
             except json.JSONDecodeError as exc:
-                ui.notify(f"{option.get('name') or key}: that is not JSON - {exc.msg}",
+                ui.notify(t("console.themes.that_is_not_json", value=(option.get('name') or key),
+                        msg=(exc.msg)),
                           type="warning")
                 return False
             return True

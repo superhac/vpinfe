@@ -183,9 +183,9 @@ async def _confirm_forget(library: Any, device: dict[str, Any],
     try:
         await run.io_bound(library.forget_device, str(device.get("device_id") or ""))
     except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-        ui.notify(f"Could not forget that device: {exc}", type="negative")
+        ui.notify(t("console.devices.could_not_forget_that", exc=(exc)), type="negative")
         return
-    ui.notify(f"Forgot {name}", type="positive")
+    ui.notify(t("console.devices.forgot", name=(name)), type="positive")
     if rerender is not None:
         rerender()
 
@@ -213,12 +213,13 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
     latest = str(update.get("latest_version") or "a newer build")
     if not update.get("update_supported"):
         reason = WHY_NOT.get(str(update.get("support_reason") or ""), CANNOT_UPDATE)
-        rows.append(("Version", panel.state(f"{latest} available", "warn",
+        rows.append(("Version", panel.state(t("console.devices.available", latest=(latest)), "warn",
                                             beside=current)))
         rows.append(panel.note(reason))
         return rows
 
-    rows.append(("Version", panel.state(f"{latest} available", "warn", beside=current)))
+    rows.append(("Version",
+            panel.state(t("console.devices.available", latest=(latest)), "warn", beside=current)))
     def update_action() -> None:
         with ui.element("div").classes("console-fact-edit"):
             panel.action(f"Update to {latest}",
@@ -240,7 +241,8 @@ async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> Non
     try:
         playing = await run.io_bound(client.play_state)
     except Exception as exc:  # noqa: BLE001 - a dialog that cannot say what it will do
-        ui.notify(f"Could not check what {name} is doing: {exc}", type="negative")
+        ui.notify(t("console.devices.could_not_check_what_is", name=(name), exc=(exc)),
+                type="negative")
         return
 
     running = str((playing or {}).get("game_name") or "") if (
@@ -264,11 +266,11 @@ async def _start_update(client: Any, name: str, stop_table: bool) -> None:
     try:
         await run.io_bound(lambda: client.perform_update(stop_table=stop_table))
     except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-        ui.notify(f"Could not start the update: {exc}", type="negative")
+        ui.notify(t("console.devices.could_not_start_the_update", exc=(exc)), type="negative")
         return
     # Nothing to redraw towards. Updating this install takes the page's own server down;
     # updating another leaves it up but knowing nothing new until that device is back.
-    ui.notify(f"Update staged. {name} is restarting to apply it.", type="positive")
+    ui.notify(t("console.devices.update_staged_is", name=(name)), type="positive")
 
 
 def _hostname_placeholder(device: dict[str, Any], is_local: bool) -> str:
@@ -636,7 +638,7 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
             await run.io_bound(library.put_config,
                                {"install": {"display_name": value.strip()}})
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(f"Could not save that: {exc}", type="negative")
+            ui.notify(t("console.devices.could_not_save_that", exc=(exc)), type="negative")
             return
         rebuild = context.get("rebuild")
         if rebuild is not None:
@@ -733,7 +735,8 @@ async def action_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     except Exception as exc:  # noqa: BLE001 - unreachable is a state, not a 500
         logger.info("Could not ask %s what it does", device_label(_of(context)),
                     exc_info=True)
-        return [panel.intro(f"Could not ask {device_label(_of(context))}: {exc}")]
+        return [panel.intro(t("console.devices.could_not_ask",
+                device_label=(device_label(_of(context))), exc=(exc)))]
     if not offered:
         return [panel.intro(t("console.devices.this_device_offers_nothing"))]
 
@@ -762,7 +765,7 @@ def _action_control(context: dict[str, Any],
         try:
             done = await run.io_bound(client.perform_action, scope, action)
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(f"Could not do that: {exc}", type="negative")
+            ui.notify(t("console.devices.could_not_do_that", exc=(exc)), type="negative")
             return
         # A machine on its way down answers before it goes, so "performed" here means
         # the work was handed over rather than finished.
@@ -795,7 +798,7 @@ async def log_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     except Exception as exc:  # noqa: BLE001 - unreachable is a state, not a 500
         logger.info("Could not read the log on %s", device_label(_of(context)),
                     exc_info=True)
-        return [panel.intro(f"Could not read the log: {exc}")]
+        return [panel.intro(t("console.devices.could_not_read_the_log", exc=(exc)))]
 
     records = list(found.get("records") or [])
     if not records:

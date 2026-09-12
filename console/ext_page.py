@@ -60,7 +60,8 @@ def _settings(name: str, surfaces: dict) -> None:
         except Exception as exc:  # noqa: BLE001
             card.clear()
             with card:
-                ui.label(f"Could not read them: {exc}").classes("console-help")
+                ui.label(t("console.ext_page.could_not_read_them",
+                        exc=(exc))).classes("console-help")
             return
         card.clear()
         with card:
@@ -137,7 +138,7 @@ def _state(name: str, surfaces: dict) -> None:
         except Exception as exc:  # noqa: BLE001
             card.clear()
             with card:
-                ui.label(f"Could not read it: {exc}").classes("console-help")
+                ui.label(t("console.ext_page.could_not_read_it", exc=(exc))).classes("console-help")
             return
         card.clear()
         rows = list(found.get("rows") or [])

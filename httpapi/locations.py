@@ -21,6 +21,7 @@ from typing import Any
 from fastapi import APIRouter, Body
 
 from common.games import locations
+from common.i18n import t
 
 from . import scopes
 from .auth import requires
@@ -104,9 +105,9 @@ def set_order(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """
     order = body.get("order")
     if not isinstance(order, list) or not order:
-        raise InvalidRequestError("Name the locations, in the order you want them.")
+        raise InvalidRequestError(t("error.locations.name_the_locations_in_the"))
     if not locations.get_location_store().reorder([str(one) for one in order]):
-        raise NotFoundError("None of those are locations this install has.")
+        raise NotFoundError(t("error.locations.none_of_those_are"))
     return list_locations()
 
 
@@ -154,15 +155,15 @@ def put_location(location_id: str, body: dict[str, Any] = Body(...)) -> dict[str
     """
     wanted = str(location_id or "").strip()
     if not wanted:
-        raise InvalidRequestError("A location needs an id.")
+        raise InvalidRequestError(t("error.locations.a_location_needs_an_id"))
     path = str(body.get("path") or "").strip()
     if not path:
-        raise InvalidRequestError("A location needs a path.")
+        raise InvalidRequestError(t("error.locations.a_location_needs_a_path"))
     kind = str(body.get("kind") or locations.KIND_ROOT).strip()
     if kind not in locations.KINDS:
         raise InvalidRequestError(
-            f"No location kind called {kind!r}. This build knows "
-            f"{', '.join(locations.KINDS)}.")
+            t("error.locations.no_location_kind_called", kind=(kind),
+                    join=(', '.join(locations.KINDS))))
 
     store = locations.get_location_store()
     written = store.put(locations.Location(location_id=wanted, path=path, kind=kind))
@@ -176,7 +177,7 @@ def delete_location(location_id: str) -> dict[str, Any]:
     """The records inside it go with it. A contained entry keeps its record in its own
     folder, so it leaves with the location and is there again if it comes back."""
     if not locations.get_location_store().remove(location_id):
-        raise NotFoundError(f"No location called {location_id!r}.")
+        raise NotFoundError(t("error.locations.no_location_called", location_id=(location_id)))
     return {"removed": location_id}
 
 
@@ -190,7 +191,7 @@ def list_shadowed(location_id: str) -> dict[str, Any]:
     they meant to keep - and that cannot be answered by naming only one of them.
     """
     if locations.get_location_store().get(location_id) is None:
-        raise NotFoundError(f"No location called {location_id!r}.")
+        raise NotFoundError(t("error.locations.no_location_called", location_id=(location_id)))
     return {"shadowed": [
         {"game_id": one.game_id, "path": one.path,
          "used_path": one.used_path, "used_location_id": one.used_location_id}
@@ -215,17 +216,17 @@ def adopt_shadowed(location_id: str, body: dict[str, Any] = Body(...)) -> dict[s
     from common.games.game_identity import ensure_id
 
     if locations.get_location_store().get(location_id) is None:
-        raise NotFoundError(f"No location called {location_id!r}.")
+        raise NotFoundError(t("error.locations.no_location_called", location_id=(location_id)))
     wanted = locations.canonical(str(body.get("path") or ""))
     if not wanted:
-        raise InvalidRequestError("Name the folder to give an id to.")
+        raise InvalidRequestError(t("error.locations.name_the_folder_to_give_an"))
 
     found = _shadowed()
     one = next((entry for entry in found.under(location_id)
                 if locations.canonical(entry.path) == wanted), None)
     if one is None:
         raise NotFoundError(
-            "Nothing here is shadowed at that path. It may have been settled already.",
+            t("error.locations.nothing_here_is_shadowed"),
             details={"path": str(body.get("path") or "")})
 
     from common.games.game_repository import all_games
@@ -234,7 +235,7 @@ def adopt_shadowed(location_id: str, body: dict[str, Any] = Body(...)) -> dict[s
                  if locations.canonical(str(getattr(held, "fullPathGame", "") or ""))
                  == wanted), None)
     if game is None:
-        raise NotFoundError("That folder is no longer in the library.")
+        raise NotFoundError(t("error.locations.that_folder_is_no_longer"))
     return {"path": one.path, "game_id": ensure_id(game, force_new=True)}
 
 
@@ -242,5 +243,5 @@ def adopt_shadowed(location_id: str, body: dict[str, Any] = Body(...)) -> dict[s
             dependencies=[requires(scopes.CONFIG_WRITE)])
 def set_write_to(location_id: str) -> dict[str, Any]:
     if not locations.get_location_store().set_write_to(location_id):
-        raise NotFoundError(f"No location called {location_id!r}.")
+        raise NotFoundError(t("error.locations.no_location_called", location_id=(location_id)))
     return {"write_to": location_id}

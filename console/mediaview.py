@@ -219,7 +219,7 @@ def open_viewer(src: str, kind: str, label: str) -> None:
     family = media_family(kind)
     if family not in ("image", "video"):
         # Audio has no frame to enlarge and a document is not ours to render.
-        ui.notify(f"{label} has nothing to enlarge", type="info")
+        ui.notify(t("console.mediaview.has_nothing_to_enlarge", label=(label)), type="info")
         return
 
     # A panel over a dimmed page rather than a takeover: the card is sized by what is

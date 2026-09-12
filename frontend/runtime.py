@@ -238,7 +238,8 @@ def wait_for_manager_ui_ready(port: int, timeout_seconds: float = 15.0) -> None:
             time.sleep(0.5)
 
 
-def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, logger, is_window_connected=None):
+def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, logger,
+        is_window_connected=None):
     # Only headless used to handle a signal, so killing the windowed frontend died where
     # it stood and skipped shutdown_services - the play data never reached VPinPlay, and
     # Chromium runs in its own session, so its windows outlived us on screen.

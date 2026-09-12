@@ -6,6 +6,7 @@ import logging
 import threading
 from queue import Queue
 
+from common.i18n import t
 from frontend import game_state
 
 logger = logging.getLogger("vpinfe.frontend.metadata_build_service")
@@ -66,4 +67,4 @@ def start_build(api, *, build_metadata_func, all_games_func, download_media=True
 
     threading.Thread(target=run_build, daemon=True).start()
     threading.Thread(target=process_events, daemon=True).start()
-    return {"success": True, "message": "Build metadata started"}
+    return {"success": True, "message": t("frontend.buildmeta.started")}

@@ -252,7 +252,7 @@ def _counts(want: int, got: int, short: int):
                 # The number alone cannot say whether it is right. What was expected is
                 # what makes a shortfall visible without anybody counting.
                 ui.label(f"of {want}").classes("console-help")
-                ui.label(f"{short} short").classes(
+                ui.label(t("console.ext_action.short", short=(short))).classes(
                     "console-member-chip console-chip-warn")
     return draw
 
@@ -282,17 +282,22 @@ def _report(body, job: dict) -> None:
                              if isinstance(value, (int, str))])
         held = list(result.get("already_here") or [])
         if held:
-            ui.label(f"Already here ({len(held)})").classes("console-group mt-3")
+            ui.label(t("console.ext_action.already_here",
+                    len=(len(held)))).classes("console-group mt-3")
             for row in held[:20]:
-                ui.label(f"{row.get('name') or row.get('key')} - matched by "
-                         f"{row.get('how') or 'name'}").classes("console-help")
+                ui.label(t("console.ext_action.matched_by",
+                           value=(row.get('name') or row.get('key')),
+                           value2=(row.get('how') or 'name'))).classes("console-help")
             if len(held) > 20:
-                ui.label(f"and {len(held) - 20} more").classes("console-help")
+                ui.label(t("console.ext_action.and_more",
+                        value=(len(held) - 20))).classes("console-help")
         missed = [row for row in (result.get("rows") or []) if row.get("error")]
         if missed:
-            ui.label(f"Did not come across ({len(missed)})").classes("console-group mt-3")
+            ui.label(t("console.ext_action.did_not_come_across",
+                    len=(len(missed)))).classes("console-group mt-3")
             for row in missed[:20]:
                 ui.label(f"{row.get('name') or row.get('key')} - {row['error']}") \
                     .classes("console-help")
             if len(missed) > 20:
-                ui.label(f"and {len(missed) - 20} more").classes("console-help")
+                ui.label(t("console.ext_action.and_more",
+                        value=(len(missed) - 20))).classes("console-help")

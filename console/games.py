@@ -366,10 +366,10 @@ async def _rate(games: list[dict[str, Any]]) -> None:
         for game in games:
             await run.io_bound(client.rate, game["id"], value)
         dialog.close()
-        ui.notify(f"Rated {len(games)} game(s) {value}", type="positive")
+        ui.notify(t("console.games.rated_game_s", len=(len(games)), value=(value)), type="positive")
 
     with ui.dialog() as dialog, ui.card():
-        ui.label(f"Rate {len(games)} game(s)").classes("text-sm")
+        ui.label(t("console.games.rate_game_s", len=(len(games)))).classes("text-sm")
         with ui.row():
             for value in range(6):
                 ui.button(str(value), on_click=lambda v=value: apply(v)).props("flat dense")
@@ -387,7 +387,7 @@ async def _launch(games: list[dict[str, Any]]) -> None:
         ui.notify(t("console.games.select_a_single_game_to"), type="warning")
         return
     await run.io_bound(ApiClient().launch, games[0]["id"])
-    ui.notify(f"Launching {games[0].get('name')}", type="positive")
+    ui.notify(t("console.games.launching", get=(games[0].get('name'))), type="positive")
 
 
 def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
@@ -428,7 +428,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                                     lambda value: value == "builtin:Media")
         # The selection count sits with the total: it is the same fact - how much am I
         # looking at - and it costs no vertical space of its own.
-        count = ui.label(f"{len(rows)} games").classes("text-xs console-label")
+        count = ui.label(t("console.games.games", len=(len(rows)))).classes("text-xs console-label")
         if rescan is not None:
             ui.button(icon="refresh", on_click=rescan) \
                 .props("flat dense round size=sm").classes("shrink-0") \
@@ -923,7 +923,8 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                     ui.label(shown.noun)
         legend.bind_visibility_from(view_picker, "value",
                                     lambda value: value == "builtin:Features")
-        ui.label(f"{len(built)} tables in {len({r['game_id'] for r in built})} games") \
+        ui.label(t("console.games.tables_in_games", len=(len(built)),
+                len2=(len({r['game_id'] for r in built})))) \
             .classes("text-xs console-label")
         if rescan is not None:
             ui.button(icon="refresh", on_click=rescan) \
@@ -1007,7 +1008,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         try:
             await run.io_bound(what, *args)
         except Exception as exc:
-            ui.notify(f"Could not do that: {exc}", type="negative")
+            ui.notify(t("console.games.could_not_do_that", exc=(exc)), type="negative")
             return
         ui.notify(said, type="positive")
         game_id = str((row or {}).get("game_id") or "")
@@ -1194,8 +1195,8 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
             # old fallback showed every column instead, which reads as the view
             # misbehaving rather than as a view that has gone stale.
             if wanted is None:
-                ui.notify(f'"{view.name}" was saved with columns this library no '
-                          "longer has, so the grid is unchanged", type="warning")
+                ui.notify(t("console.games.was_saved_with_columns", name=(view.name)),
+                        type="warning")
                 await _refresh()
                 return
             table.run_grid_method("setColumnsVisible", wanted, True)
@@ -1280,7 +1281,7 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
             picker.set_options({v.id: _view_name(v) for v in held["views"]},
                                value=view.id)
             await _refresh()
-            ui.notify(f"Saved the view \u201c{view.name}\u201d", type="positive")
+            ui.notify(t("console.games.saved_the_view", name=(view.name)), type="positive")
 
         async def delete() -> None:
             view = current()

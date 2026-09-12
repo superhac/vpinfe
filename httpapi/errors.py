@@ -13,6 +13,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from common.i18n import t
+
 logger = logging.getLogger("vpinfe.httpapi.errors")
 
 
@@ -53,12 +55,14 @@ class ApiError(Exception):
 
 
 class NotFoundError(ApiError):
-    def __init__(self, message: str = "Not found", *, details: Any = None) -> None:
+    def __init__(self, message: str = "", *, details: Any = None) -> None:
+        message = message or t("error.envelope.not_found")
         super().__init__(CODE_NOT_FOUND, message, status_code=404, details=details)
 
 
 class InvalidRequestError(ApiError):
-    def __init__(self, message: str = "Invalid request", *, details: Any = None) -> None:
+    def __init__(self, message: str = "", *, details: Any = None) -> None:
+        message = message or t("error.envelope.invalid_request")
         super().__init__(CODE_INVALID_REQUEST, message, status_code=400, details=details)
 
 
@@ -66,14 +70,16 @@ class ConflictError(ApiError):
     """The request is fine, but the thing it asks for cannot happen right now -
     something is already using what it needs."""
 
-    def __init__(self, message: str = "Conflict", *, details: Any = None) -> None:
+    def __init__(self, message: str = "", *, details: Any = None) -> None:
+        message = message or t("error.envelope.conflict")
         super().__init__(CODE_CONFLICT, message, status_code=409, details=details)
 
 
 class FeatureUnavailableError(ApiError):
     """Exists, but not available here. The message is user-facing: say how to enable it."""
 
-    def __init__(self, message: str = "Feature unavailable", *, details: Any = None) -> None:
+    def __init__(self, message: str = "", *, details: Any = None) -> None:
+        message = message or t("error.envelope.feature_unavailable")
         super().__init__(CODE_FEATURE_UNAVAILABLE, message, status_code=501, details=details)
 
 
@@ -108,7 +114,7 @@ def install_error_handlers(app, on_unhandled=None) -> None:
     @app.exception_handler(RequestValidationError)
     async def _validation_error(request, exc: RequestValidationError):
         return error_response(422, CODE_INVALID_REQUEST,
-                              "Request validation failed", exc.errors())
+                              t("error.envelope.validation_failed"), exc.errors())
 
     @app.exception_handler(Exception)
     async def _unhandled(request, exc: Exception):
@@ -119,4 +125,4 @@ def install_error_handlers(app, on_unhandled=None) -> None:
                 on_unhandled(request)
             except Exception:
                 logger.exception("Reporting the failure failed as well")
-        return error_response(500, CODE_INTERNAL_ERROR, "Internal server error")
+        return error_response(500, CODE_INTERNAL_ERROR, t("error.envelope.internal"))

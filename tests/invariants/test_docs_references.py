@@ -16,6 +16,8 @@ first segment has to be a real top-level directory before a missing file counts.
 
 from __future__ import annotations
 
+import functools
+import json
 import re
 import subprocess
 import unittest
@@ -70,6 +72,24 @@ def _doc_files() -> list[Path]:
     return sorted(REPO_ROOT.joinpath("docs").glob("*.md")) + [REPO_ROOT / "README.md"]
 
 
+def _is_catalog_key(dotted: str) -> bool:
+    """DOTTED_REF captures only the tail, so match on that."""
+    return any(key.endswith(dotted) for key in _catalog_keys())
+
+
+@functools.cache
+def _catalog_keys() -> frozenset[str]:
+    """Translation keys, which read exactly like a dotted module path and are not one.
+
+    `frontend.theme.no_tables_found` is a catalog entry; without this the check asks for
+    a file called `no_tables_found.py`.
+    """
+    catalog = REPO_ROOT / "common" / "i18n" / "catalogs" / "en.json"
+    if not catalog.is_file():
+        return frozenset()
+    return frozenset(json.loads(catalog.read_text(encoding="utf-8")))
+
+
 class DocPathReferenceTests(unittest.TestCase):
 
     def test_every_repo_path_a_doc_cites_exists(self) -> None:
@@ -115,7 +135,8 @@ class DocPathReferenceTests(unittest.TestCase):
                 cited = set(BARE_REF.findall(line))
                 cited.update(RELATIVE_REF.findall(line))
                 cited.update(QUOTED_FILE.findall(line))
-                cited.update(d.rsplit(".", 1)[-1] + ".py" for d in DOTTED_REF.findall(line))
+                cited.update(d.rsplit(".", 1)[-1] + ".py" for d in DOTTED_REF.findall(line)
+                             if not _is_catalog_key(d))
 
                 for ref in sorted(cited):
                     if ref in KNOWN_ABSENT_FILES or known(ref):

@@ -46,9 +46,10 @@ def build(rows: list[dict[str, Any]], library: Any,
         try:
             changed = await run.io_bound(call, *args)
         except Exception as exc:
-            ui.notify(f"Could not do that: {exc}", type="negative")
+            ui.notify(t("console.tageditor.could_not_do_that", exc=(exc)), type="negative")
             return
-        ui.notify(f"{said} - {changed} game{'' if changed == 1 else 's'} changed",
+        ui.notify(t("console.tageditor.game_changed", said=(said), changed=(changed),
+                value=('' if changed == 1 else 's')),
                   type="positive")
         if rerender is not None:
             rerender()
@@ -64,14 +65,15 @@ def build(rows: list[dict[str, Any]], library: Any,
                        f"{'' if r['games'] == 1 else 's'}" for r in group[1:]],
                 confirm="Merge"):
             return
-        await sweep(library.merge_tags, others + [into], into, said=f"Merged into {into}")
+        await sweep(library.merge_tags, others + [into], into,
+                said=t("console.tageditor.merged_into", into=(into)))
 
     async def rename(row: dict[str, Any]) -> None:
         said = await _ask_for_a_name(str(row.get("tag") or ""))
         if not said or said == row.get("tag"):
             return
         await sweep(library.merge_tags, [str(row.get("tag"))], said,
-                    said=f"Renamed to {said}")
+                    said=t("console.tageditor.renamed_to", said=(said)))
 
     async def drop(row: dict[str, Any]) -> None:
         tag = str(row.get("tag") or "")
@@ -82,7 +84,7 @@ def build(rows: list[dict[str, Any]], library: Any,
                        "carries does not exist, so there is nothing to restore it from.",
                 confirm="Remove"):
             return
-        await sweep(library.delete_tag, tag, said=f"Removed {tag}")
+        await sweep(library.delete_tag, tag, said=t("console.tageditor.removed", tag=(tag)))
 
     duplicates = rows_by_key(rows)
     if duplicates:

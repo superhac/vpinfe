@@ -24,6 +24,7 @@ from fastapi.responses import StreamingResponse
 
 from common import events, install_identity
 from common.games import game_identity
+from common.i18n import t
 from common.paths import get_ini_config
 
 from . import scopes
@@ -283,7 +284,7 @@ def _parse_filter(raw: str) -> frozenset[str] | None:
     unknown = sorted(wanted - set(STREAMED_EVENTS))
     if unknown:
         raise InvalidRequestError(
-            "Unknown event name",
+            t("error.events.unknown_event_name"),
             details={"unknown": unknown, "known": sorted(STREAMED_EVENTS)},
         )
     return frozenset(wanted)

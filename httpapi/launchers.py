@@ -23,6 +23,7 @@ from fastapi import APIRouter, Body
 
 from common import apps, path_checks
 from common.games import launchers
+from common.i18n import t
 
 from . import scopes
 from .auth import requires
@@ -110,12 +111,12 @@ def put_launcher(launcher_id: str, body: dict[str, Any] = Body(...)) -> dict[str
     """
     wanted = str(launcher_id or "").strip()
     if not wanted:
-        raise InvalidRequestError("A launcher needs an id.")
+        raise InvalidRequestError(t("error.launchers.a_launcher_needs_an_id"))
     app_id = str(body.get("app") or "").strip()
     if apps.get(app_id) is None:
         raise InvalidRequestError(
-            f"No app called {app_id!r}. This build knows "
-            f"{', '.join(app.id for app in apps.all_apps())}.")
+            t("error.launchers.no_app_called_this_build", app_id=(app_id),
+                    join=(', '.join(app.id for app in apps.all_apps()))))
 
     store = launchers.get_launcher_store()
     written = store.put(launchers.Launcher(
@@ -156,7 +157,7 @@ def _game_file(table_id: str) -> str:
 
     found = find_table_by_id(all_games(), wanted)
     if found is None:
-        raise NotFoundError(f"No table called {wanted!r}.")
+        raise NotFoundError(t("error.launchers.no_table_called", wanted=(wanted)))
     game, filename = found
     return str(Path(str(getattr(game, "fullPathGame", "") or "")) / filename)
 
@@ -172,7 +173,7 @@ def launcher_config(launcher_id: str, table: str = "",
     """
     found = launchers.get_launcher_store().get(launcher_id)
     if found is None:
-        raise NotFoundError(f"No launcher called {launcher_id!r}.")
+        raise NotFoundError(t("error.launchers.no_launcher_called", launcher_id=(launcher_id)))
     config = _config_of(found)
     if config is None:
         return {"groups": [], "values": {}, "scopes": []}
@@ -180,8 +181,8 @@ def launcher_config(launcher_id: str, table: str = "",
     settings = _launcher_settings(found)
     if scope not in config.scopes():
         raise InvalidRequestError(
-            f"No scope called {scope!r}. This app has "
-            f"{', '.join(config.scopes())}.")
+            t("error.launchers.no_scope_called_this_app", scope=(scope),
+                    join=(', '.join(config.scopes()))))
     values = config.read(scope, _game_file(table), settings)
     return {
         "scopes": list(config.scopes()),
@@ -213,7 +214,7 @@ def folder_settings_reaching(launcher_id: str, table: str = "") -> dict[str, Any
     """
     found = launchers.get_launcher_store().get(launcher_id)
     if found is None:
-        raise NotFoundError(f"No launcher called {launcher_id!r}.")
+        raise NotFoundError(t("error.launchers.no_launcher_called", launcher_id=(launcher_id)))
     config = _config_of(found)
     reaching = getattr(config, "inherited_from_folder", None)
     if config is None or reaching is None:
@@ -228,18 +229,18 @@ def write_launcher_config(launcher_id: str,
     """Values at one scope. The app writes them into its own file in place."""
     found = launchers.get_launcher_store().get(launcher_id)
     if found is None:
-        raise NotFoundError(f"No launcher called {launcher_id!r}.")
+        raise NotFoundError(t("error.launchers.no_launcher_called", launcher_id=(launcher_id)))
     config = _config_of(found)
     if config is None:
         raise InvalidRequestError(
-            f"{apps.app_name(found.app)} has no settings of its own to write.")
+            t("error.launchers.has_no_settings_of_its_own", app_name=(apps.app_name(found.app))))
 
     scope = str(body.get("scope") or "launcher")
     if scope not in config.scopes():
-        raise InvalidRequestError(f"No scope called {scope!r}.")
+        raise InvalidRequestError(t("error.launchers.no_scope_called", scope=(scope)))
     values = body.get("values") or {}
     if not isinstance(values, dict) or not values:
-        raise InvalidRequestError("Name at least one setting to write.")
+        raise InvalidRequestError(t("error.launchers.name_at_least_one_setting"))
     settings = _launcher_settings(found)
     table = _game_file(str(body.get("table") or ""))
     writing = {str(k): str(v) for k, v in values.items()}
@@ -284,7 +285,7 @@ def _as_backup(one) -> dict[str, Any]:
 def list_config_backups(launcher_id: str) -> dict[str, Any]:
     found = launchers.get_launcher_store().get(launcher_id)
     if found is None:
-        raise NotFoundError(f"No launcher called {launcher_id!r}.")
+        raise NotFoundError(t("error.launchers.no_launcher_called", launcher_id=(launcher_id)))
     from common.games import config_backups
 
     return {
@@ -303,11 +304,11 @@ def take_config_backup(launcher_id: str,
                        body: dict[str, Any] = Body(default={})) -> dict[str, Any]:
     found = launchers.get_launcher_store().get(launcher_id)
     if found is None:
-        raise NotFoundError(f"No launcher called {launcher_id!r}.")
+        raise NotFoundError(t("error.launchers.no_launcher_called", launcher_id=(launcher_id)))
     files = _config_files(found)
     if not files:
         raise InvalidRequestError(
-            f"{apps.app_name(found.app)} keeps no settings file to copy.")
+            t("error.launchers.keeps_no_settings_file_to", app_name=(apps.app_name(found.app))))
     from common.games import config_backups
 
     taken = config_backups.take(launcher_id, files,
@@ -315,7 +316,7 @@ def take_config_backup(launcher_id: str,
                                 named=found.display_name)
     if not taken:
         raise InvalidRequestError(
-            "Nothing to copy yet: the file this launcher names is not there.")
+            t("error.launchers.nothing_to_copy_yet_the"))
     return {"taken": [_as_backup(one) for one in taken]}
 
 
@@ -327,7 +328,7 @@ def restore_config_backup(launcher_id: str, name: str) -> dict[str, Any]:
     somebody makes once, and without that copy it is the last one they get to make."""
     found = launchers.get_launcher_store().get(launcher_id)
     if found is None:
-        raise NotFoundError(f"No launcher called {launcher_id!r}.")
+        raise NotFoundError(t("error.launchers.no_launcher_called", launcher_id=(launcher_id)))
     from common.games import config_backups
 
     try:
@@ -348,7 +349,7 @@ def delete_launcher(launcher_id: str) -> dict[str, Any]:
     state anybody chose, so it goes back to the default."""
     store = launchers.get_launcher_store()
     if not store.remove(launcher_id):
-        raise NotFoundError(f"No launcher {launcher_id}")
+        raise NotFoundError(t("error.launchers.no_launcher", launcher_id=(launcher_id)))
     return {"launcher_id": launcher_id, "removed": True}
 
 
@@ -363,6 +364,6 @@ def put_mapping(table_id: str, body: dict[str, Any] = Body(...)) -> dict[str, An
     wanted = str(body.get("launcher_id") or "").strip()
     store = launchers.get_launcher_store()
     if wanted and store.get(wanted) is None:
-        raise NotFoundError(f"No launcher {wanted}")
+        raise NotFoundError(t("error.launchers.no_launcher", wanted=(wanted)))
     store.assign(table_id, wanted)
     return {"table_id": table_id, "launcher_id": store.mapped(table_id)}

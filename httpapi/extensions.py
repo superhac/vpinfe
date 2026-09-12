@@ -12,6 +12,7 @@ import logging
 from fastapi import APIRouter, Depends, Request
 
 from common import extensions
+from common.i18n import t
 
 from . import scopes
 from .auth import requires
@@ -42,8 +43,8 @@ def _running(name: str):
         if record is None or not record.running:
             reason = record.reason if record is not None else "It is not installed"
             display = record.display_name if record is not None else name
-            raise FeatureUnavailableError(f"The {display} extension is not running: "
-                                          f"{reason or 'no reason recorded'}")
+            raise FeatureUnavailableError(t("error.extensions.the_extension_is_not",
+                    display=(display), value=(reason or 'no reason recorded')))
 
     return Depends(check)
 

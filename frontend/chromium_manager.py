@@ -666,7 +666,8 @@ class ChromiumManager:
             for window_name, hwnd in self._win_find_our_hwnds():
                 user32.ShowWindow(hwnd, SW_MINIMIZE)
                 self._minimized_hwnds.append((window_name, hwnd))
-            logger.info("Windows: minimized %s frontend windows for launch", len(self._minimized_hwnds))
+            logger.info("Windows: minimized %s frontend windows for launch",
+                    len(self._minimized_hwnds))
         except Exception:
             logger.exception("Windows minimize failed")
 

@@ -17,6 +17,7 @@ from typing import Any
 from nicegui import ui
 
 from common import tokens
+from common.i18n import t
 from console import panel
 
 # Below this many, a list is shorter than the control that would fold it away.
@@ -43,7 +44,7 @@ def offered(context: str) -> tuple[Any, Callable[[], None]]:
                 ui.label(_LEAD).classes("console-help")
                 rows()
             return
-        with ui.expansion(f"Names you can use ({len(available)})") \
+        with ui.expansion(t("console.commands.names_you_can_use", len=(len(available)))) \
                 .props("dense dense-toggle").classes("console-tokens"):
             with ui.column().classes("gap-1 pt-1"):
                 ui.label(_LEAD).classes("console-help")

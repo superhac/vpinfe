@@ -192,8 +192,8 @@ def _disk_row(disk: dict[str, Any]) -> None:
             _bar((disk.get("percent") or 0) / 100, _tone(disk.get("percent")))
         # The bar fills as the disk fills, so the words say full too. A bar reading
         # "used" beside a number reading "free" is two directions in one row.
-        ui.label(f"{(disk.get('percent') or 0):.0f}% full - "
-                 f"{_size(disk.get('free'))} free") \
+        ui.label(t("console.metrics.full_free", value=(disk.get('percent') or 0),
+                _size=(_size(disk.get('free'))))) \
             .classes("text-xs opacity-60 shrink-0")
 
 

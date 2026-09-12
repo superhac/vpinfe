@@ -18,6 +18,7 @@ import logging
 from fastapi import APIRouter, BackgroundTasks, Body
 
 from common import device_client, lifecycle
+from common.i18n import t
 
 from . import models, scopes
 from .auth import requires
@@ -72,8 +73,7 @@ def perform_action(background: BackgroundTasks,
     scope, action = payload.scope.strip().lower(), payload.action.strip().lower()
     if (scope, action) not in lifecycle.offered():
         raise InvalidRequestError(
-            f"Not something an install does: {action} the {scope}. "
-            "GET /actions lists them.")
+            t("error.actions.not_something_an_install", action=(action), scope=(scope)))
     if not lifecycle.performable(scope, action):
         raise FeatureUnavailableError(NOT_WIRED,
                                       details={"scope": scope, "action": action})

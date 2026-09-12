@@ -505,7 +505,8 @@ class API:
     def get_filter_years(self):
         return self._filter_option(_FILTER_OPTION_KEYS["years"])
 
-    def apply_filters(self, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
+    def apply_filters(self, letter=None, theme=None, game_type=None, manufacturer=None, year=None,
+            rating=None, rating_or_higher=None):
         """
         Apply VPSdb filters to the full game list.
         These filters work independently of collections.
@@ -521,7 +522,8 @@ class API:
             rating,
             rating_or_higher,
         )
-        count = game_state.apply_filters(self, letter, theme, game_type, manufacturer, year, rating, rating_or_higher)
+        count = game_state.apply_filters(self, letter, theme, game_type, manufacturer, year, rating,
+                rating_or_higher)
         logger.debug("Filtered games count: %s", count)
         return count
 
@@ -742,7 +744,8 @@ class API:
 
         return metadata_build_service.start_build(
             self,
-            build_metadata_func=lambda **kwargs: build_metadata(iniconfig=self._iniConfig, **kwargs),
+            build_metadata_func=lambda **kwargs: build_metadata(iniconfig=self._iniConfig,
+                    **kwargs),
             all_games_func=all_games,
             download_media=download_media,
             update_all=update_all,
