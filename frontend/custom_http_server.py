@@ -6,6 +6,7 @@ files to a local Chromium, and anything outside that is refused rather than reso
 
 # custom_http_server.py
 import http.server
+import json
 import logging
 import mimetypes
 import os
@@ -411,12 +412,34 @@ class CustomHTTPServer:
             except (ConnectionResetError, BrokenPipeError):
                 return
 
+        def _serve_core_words(self):
+            """Core's own chrome, for the pages core serves.
+
+            Only the `frontend.` namespace: a theme page has no business with the
+            Console's words, and shipping them would put the whole catalog on a cabinet
+            to render six menu items.
+            """
+            from common import i18n
+            body = json.dumps({f"frontend.{k}": v
+                               for k, v in i18n.under("frontend").items()}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            try:
+                self.wfile.write(body)
+            except (ConnectionResetError, BrokenPipeError):
+                return
+
         def do_GET(self):
             """Override to handle Range requests for video streaming."""
             request_path = urlsplit(self.path).path
             if request_path.startswith("/app/"):
                 window_name = request_path[len("/app/"):].strip("/")
                 self._serve_app_bootstrap(window_name)
+                return
+            if request_path == "/core/i18n.json":
+                self._serve_core_words()
                 return
             if request_path == "/proxy/pinballprimer":
                 self._serve_pinball_primer_proxy()

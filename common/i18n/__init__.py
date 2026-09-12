@@ -205,3 +205,13 @@ def under(prefix: str) -> dict[str, str]:
             if key.startswith(dotted):
                 out[key[len(dotted):]] = t(key)
     return out
+
+
+# Month names are catalog entries and the order of the parts is a catalog entry, because
+# neither is the same everywhere: "%d %b %Y" hardcodes both, and %b is English whatever
+# the language is unless setlocale has been called process-wide, which is not a thing to
+# do to a running app.
+def date(when) -> str:
+    """A date as this language writes it. Short month, no leading zero on the day."""
+    month = t(f"date.month.{when.month}")
+    return t("date.short", day=when.day, month=month, year=when.year)

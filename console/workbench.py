@@ -23,7 +23,7 @@ from urllib.parse import quote
 
 from nicegui import run, ui
 
-from common import icons, path_checks, tokens
+from common import i18n, icons, path_checks, tokens
 from common.games import asset_registry
 from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
 from common.games.collection_filters import UNCONSTRAINED
@@ -1019,7 +1019,7 @@ def _spec(detail: dict[str, Any]) -> str:
     stamp = str(detail.get("modified") or "")
     if stamp:
         try:
-            parts.append(datetime.fromisoformat(stamp).astimezone().strftime("%d %b %Y"))
+            parts.append(i18n.date(datetime.fromisoformat(stamp).astimezone()))
         except ValueError:
             pass
     return " \u00b7 ".join(parts)
@@ -1632,7 +1632,7 @@ def _played_when(stamp: str | None) -> str:
     if not stamp:
         return "Never"
     try:
-        return datetime.fromisoformat(stamp).astimezone().strftime("%d %b %Y")
+        return i18n.date(datetime.fromisoformat(stamp).astimezone())
     except ValueError:
         return "Never"
 

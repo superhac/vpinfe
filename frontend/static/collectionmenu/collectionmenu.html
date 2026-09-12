@@ -153,50 +153,50 @@
   <div id="menu-container">
     <ul class="menu" id="menu">
       <li class="menu-item" id="collection-item">
-        <span class="dropdown-label">Collections:</span>
-        <span class="dropdown-value" id="collection-value">None</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.collections">Collections:</span>
+        <span class="dropdown-value" id="collection-value" data-i18n="frontend.collectionmenu.none">None</span>
       </li>
       <li class="menu-item filter-separator" id="letter-item">
-        <span class="dropdown-label">Starting Letter:</span>
-        <span class="dropdown-value" id="letter-value">All</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.starting_letter">Starting Letter:</span>
+        <span class="dropdown-value" id="letter-value" data-i18n="frontend.collectionmenu.all">All</span>
       </li>
       <li class="menu-item" id="theme-item">
-        <span class="dropdown-label">Theme:</span>
-        <span class="dropdown-value" id="theme-value">All</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.theme">Theme:</span>
+        <span class="dropdown-value" id="theme-value" data-i18n="frontend.collectionmenu.all">All</span>
       </li>
       <li class="menu-item" id="type-item">
-        <span class="dropdown-label">Type:</span>
-        <span class="dropdown-value" id="type-value">All</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.type">Type:</span>
+        <span class="dropdown-value" id="type-value" data-i18n="frontend.collectionmenu.all">All</span>
       </li>
       <li class="menu-item" id="manufacturer-item">
-        <span class="dropdown-label">Manufacturer:</span>
-        <span class="dropdown-value" id="manufacturer-value">All</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.manufacturer">Manufacturer:</span>
+        <span class="dropdown-value" id="manufacturer-value" data-i18n="frontend.collectionmenu.all">All</span>
       </li>
       <li class="menu-item" id="year-item">
-        <span class="dropdown-label">Year:</span>
-        <span class="dropdown-value" id="year-value">All</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.year">Year:</span>
+        <span class="dropdown-value" id="year-value" data-i18n="frontend.collectionmenu.all">All</span>
       </li>
       <li class="menu-item" id="rating-item">
-        <span class="dropdown-label">Rating:</span>
-        <span class="dropdown-value" id="rating-value">All</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.rating">Rating:</span>
+        <span class="dropdown-value" id="rating-value" data-i18n="frontend.collectionmenu.all">All</span>
       </li>
       <li class="menu-item" id="ratingmode-item">
-        <span class="dropdown-label">Rating Mode:</span>
-        <span class="dropdown-value" id="ratingmode-value">Exact</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.rating_mode">Rating Mode:</span>
+        <span class="dropdown-value" id="ratingmode-value" data-i18n="frontend.collectionmenu.exact">Exact</span>
       </li>
       <li class="menu-item" id="sortby-item">
-        <span class="dropdown-label">Sort By:</span>
-        <span class="dropdown-value" id="sortby-value">Title</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.sort_by">Sort By:</span>
+        <span class="dropdown-value" id="sortby-value" data-i18n="frontend.collectionmenu.title">Title</span>
       </li>
       <li class="menu-item" id="orderby-item">
-        <span class="dropdown-label">Order By:</span>
-        <span class="dropdown-value" id="orderby-value">Descending</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.order_by">Order By:</span>
+        <span class="dropdown-value" id="orderby-value" data-i18n="frontend.collectionmenu.descending">Descending</span>
       </li>
-      <li class="menu-item action-separator" id="save-filter-item">Save Filter...</li>
-      <li class="menu-item" id="close-item">Close</li>
+      <li class="menu-item action-separator" id="save-filter-item" data-i18n="frontend.collectionmenu.save_filter">Save Filter...</li>
+      <li class="menu-item" id="close-item" data-i18n="frontend.collectionmenu.close">Close</li>
     </ul>
 
-    <div class="table-count" id="table-count">Table Count: 0</div>
+    <div class="table-count" id="table-count" data-i18n="frontend.collectionmenu.table_count_0">Table Count: 0</div>
     <!-- What a page press will do here. The sort decides the groups, so this changes
          with the sort above rather than being a setting of its own. -->
     <div class="table-count" id="paging-state"></div>
@@ -206,17 +206,27 @@
 
     <!-- Dialog for saving filters -->
     <div id="save-filter-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; border: 2px solid #555; padding: 1.5vh 2vw; z-index: 2000; border-radius: 0.5vh;">
-      <div style="font-size: 2.82vh; margin-bottom: 1vh;">Save Current Filter</div>
+      <div style="font-size: 2.82vh; margin-bottom: 1vh;" data-i18n="frontend.collectionmenu.save_current_filter">Save Current Filter</div>
       <input type="text" id="filter-name-input" placeholder="Enter filter name..." style="width: 100%; padding: 0.5vh; font-size: 2.34vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.25vh; margin-bottom: 1vh;">
       <div style="display: flex; gap: 1vw;">
-        <button id="save-filter-btn" style="flex: 1; padding: 0.5vh; font-size: 2.34vh; background: #444; color: #fff; border: 1px solid #666; border-radius: 0.25vh; cursor: pointer;">Save</button>
-        <button id="cancel-save-btn" style="flex: 1; padding: 0.5vh; font-size: 2.34vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.25vh; cursor: pointer;">Cancel</button>
+        <button id="save-filter-btn" style="flex: 1; padding: 0.5vh; font-size: 2.34vh; background: #444; color: #fff; border: 1px solid #666; border-radius: 0.25vh; cursor: pointer;" data-i18n="frontend.collectionmenu.save">Save</button>
+        <button id="cancel-save-btn" style="flex: 1; padding: 0.5vh; font-size: 2.34vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.25vh; cursor: pointer;" data-i18n="frontend.collectionmenu.cancel">Cancel</button>
       </div>
       <div id="save-message" style="margin-top: 0.75vh; font-size: 1.88vh; text-align: center;"></div>
     </div>
   </div>
 
   <script>
+
+// The overlay has no core of its own. The parent hands it `__vpinWords` when the frame
+// is built; until then - and on any install with no catalog - the English passed here
+// is what shows.
+function t(key, english, params) {
+  const words = window.__vpinWords;
+  const said = (words && words[key]) || english;
+  return params ? said.replace(/\{(\w+)\}/g, (whole, name) =>
+    params[name] === undefined ? whole : params[name]) : said;
+}
     let rotationAngle = 0; // starting angle
     // Two ordered lists with a cursor, one nested in the other, so both are core's list
     // rather than two more copies of `(i +- 1 + n) % n`.
@@ -791,7 +801,8 @@
       const filterName = input.value.trim();
 
       if (!filterName) {
-        message.textContent = 'Please enter a filter name';
+        message.textContent =
+          t('frontend.collectionmenu.name_the_filter', 'Please enter a filter name');
         message.style.color = '#f88';
         return;
       }
@@ -808,7 +819,8 @@
         (orderOptions[orderByIndex] !== "desc");
 
       if (!hasActiveFilters) {
-        message.textContent = 'No filters or sort order active. Set at least one before saving.';
+        message.textContent = t('frontend.collectionmenu.nothing_to_save',
+          'No filters or sort order active. Set at least one before saving.');
         message.style.color = '#f88';
         return;
       }

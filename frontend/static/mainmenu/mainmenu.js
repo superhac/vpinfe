@@ -1,3 +1,12 @@
+// The overlay has no core of its own. The parent hands it `__vpinWords` when the frame
+// is built; until then - and on any install with no catalog - the English passed here
+// is what shows.
+function t(key, english, params) {
+  const words = window.__vpinWords;
+  const said = (words && words[key]) || english;
+  return params ? said.replace(/\{(\w+)\}/g, (whole, name) =>
+    params[name] === undefined ? whole : params[name]) : said;
+}
 let rotationAngle = 0;
 // The menu and its dialog are ordered lists with a cursor, so they are core's list
 // rather than two more copies of `(i +- 1 + n) % n`. Core owns the arithmetic; the
@@ -285,11 +294,11 @@ async function refreshRatingMenuLabel(indexHint = null) {
 
     const savedRating = await window.parent.vpin.call('get_game_rating', idx);
     if (requestSeq !== ratingLabelRequestSeq) return;
-    ratingItem.innerHTML = `Rating (<span style="color:#ffd84d;">${ratingStarsText(savedRating)}</span>)`;
+    ratingItem.innerHTML = `${t('frontend.mainmenu.rating', 'Rating')} (<span style="color:#ffd84d;">${ratingStarsText(savedRating)}</span>)`;
     syncMenuWidthFromLongestLabel();
   } catch (_e) {
     if (requestSeq !== ratingLabelRequestSeq) return;
-    ratingItem.textContent = 'Rating';
+    ratingItem.textContent = t('frontend.mainmenu.rating', 'Rating');
     syncMenuWidthFromLongestLabel();
   }
 }
@@ -492,7 +501,8 @@ function startBuildMeta() {
   document.getElementById('buildmeta-progress').style.display = 'block';
   document.getElementById('log-container').innerHTML = '';
   document.getElementById('progress-bar').style.width = '0%';
-  document.getElementById('progress-text').textContent = 'Starting...';
+  document.getElementById('progress-text').textContent =
+    t('frontend.mainmenu.starting', 'Starting...');
   document.getElementById('buildmeta-close').style.display = 'none';
 
   dialogState = 'progress';
@@ -505,7 +515,9 @@ window.receiveEvent = function(event) {
   if (event.type === 'buildmeta_progress') {
     const percent = event.total > 0 ? Math.round((event.current / event.total) * 100) : 0;
     document.getElementById('progress-bar').style.width = `${percent}%`;
-    document.getElementById('progress-text').textContent = `${event.message} — ${percent}%`;
+    document.getElementById('progress-text').textContent =
+      t('frontend.mainmenu.progress', '{message} — {percent}%',
+        { message: event.message, percent });
   } else if (event.type === 'buildmeta_log') {
     const logContainer = document.getElementById('log-container');
     const logLine = document.createElement('div');
@@ -519,7 +531,8 @@ window.receiveEvent = function(event) {
       `Complete! ${event.result.found} tables scanned, ${event.result.not_found} not found in VPSdb`;
     document.getElementById('buildmeta-close').style.display = 'block';
   } else if (event.type === 'buildmeta_error') {
-    document.getElementById('progress-text').textContent = `Error: ${event.error}`;
+    document.getElementById('progress-text').textContent =
+      t('frontend.mainmenu.error', 'Error: {reason}', { reason: event.error });
     document.getElementById('progress-text').style.color = '#f44336';
     document.getElementById('buildmeta-close').style.display = 'block';
   }

@@ -588,6 +588,10 @@ class ContractOneReader {
 
 
 class VPinFECore {
+  // Core's own words, keyed by catalog key. Empty until #loadWords lands, which is
+  // why the markup keeps its English.
+  #words = {};
+
   // Resolves the confirm dialog when one is up, and is null when one is not - which is
   // also how the input handler knows whether it owns the next select or back.
   #pendingConfirm = null;
@@ -765,8 +769,79 @@ class VPinFECore {
   // Public api
   // ***********************************
 
+  // ***********************************
+  // Words
+  // ***********************************
+
+  /**
+   * What a key says, in the language this install speaks.
+   *
+   * Core's own chrome only - the menus, the overlays, the handful of strings every
+   * theme was writing out for itself. A theme's own words stay a theme's business.
+   * Unknown keys answer with the key, never blank.
+   */
+  t(key, params = {}) {
+    const said = this.#words[key];
+    if (said === undefined) return key;
+    return said.replace(/\{(\w+)\}/g, (whole, name) =>
+      params[name] === undefined ? whole : params[name]);
+  }
+
+  /**
+   * Fill every [data-i18n] element from the catalog.
+   *
+   * The markup keeps its English between the tags, so a page that loads before the
+   * catalog does - or with no catalog at all - reads correctly rather than blank.
+   */
+  applyWords(root = document) {
+    for (const el of root.querySelectorAll("[data-i18n]")) {
+      const key = el.getAttribute("data-i18n");
+      const said = this.#words[key];
+      if (said !== undefined) el.textContent = said;
+    }
+  }
+
+  /**
+   * Fill an overlay's words once its document exists.
+   *
+   * An overlay is an iframe, so it is its own document and the page's own applyWords
+   * never reaches it. Same origin, so reading into it is allowed - the same thing
+   * #listenForKeysIn already does.
+   */
+  #applyWordsIn(iframe) {
+    const fill = () => {
+      try {
+        if (iframe.contentDocument) this.applyWords(iframe.contentDocument);
+        // An overlay does not load core, so anything it writes at runtime reads this.
+        // Its own `t()` falls back to the English in the page when it is not here yet.
+        if (iframe.contentWindow) iframe.contentWindow.__vpinWords = this.#words;
+      } catch (error) {
+        console.warn("[i18n] Could not fill an overlay's words", error);
+      }
+    };
+    iframe.addEventListener("load", fill);
+    fill();   // already loaded from cache, in which case the event has been and gone
+  }
+
+  async #loadWords() {
+    // Same origin as the page core is served from. A failure is not fatal: every
+    // [data-i18n] element already holds its English.
+    try {
+      const response = await fetch("/core/i18n.json", { cache: "no-store" });
+      if (response.ok) this.#words = await response.json();
+    } catch (error) {
+      console.warn("[i18n] Could not load the catalog; using the markup's English", error);
+    }
+    this.applyWords();
+    for (const spec of Object.values(VPinFECore.OVERLAYS)) {
+      const frame = document.getElementById(spec.frameId);
+      if (frame) this.#applyWordsIn(frame);
+    }
+  }
+
   init() {
     this.#applyWindowIdentity();
+    this.#loadWords();
     // The theme's own page, for the same reason an overlay gets it: a theme that throws
     // at startup renders nothing, which looks exactly like a blank screen.
     this.#reportUncaughtFrom(window, "");
@@ -1457,6 +1532,7 @@ class VPinFECore {
       overlayRoot.appendChild(iframe);
       await new Promise(resolve => setTimeout(resolve, 10));   // let the DOM catch up
       this.#listenForKeysIn(iframe);
+      this.#applyWordsIn(iframe);
     }
 
     iframe.style.display = "block";
@@ -1501,10 +1577,13 @@ class VPinFECore {
     card.className = "vpinfe-confirm-card";
     const question = document.createElement("p");
     question.className = "vpinfe-confirm-question";
-    question.textContent = `${asking.description}?`;
+    // One entry, so the question mark is the translator's - Spanish opens with
+    // an inverted one and French puts a space before it.
+    question.textContent = this.t("frontend.confirm.question",
+                                  { what: asking.description });
     const hint = document.createElement("p");
     hint.className = "vpinfe-confirm-hint";
-    hint.textContent = "Select to confirm, Back to cancel";
+    hint.textContent = this.t("frontend.confirm.how");
     card.appendChild(question);
     card.appendChild(hint);
     root.appendChild(card);
