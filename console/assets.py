@@ -34,13 +34,13 @@ ORPHAN = media_ownership.tier_for(media_ownership.ORPHAN).noun
 UNUSED = media_ownership.tier_for(media_ownership.UNUSED).noun
 MISSING = media_ownership.tier_for(media_ownership.MISSING).noun
 
-_REASON_CHOICES = ([{"value": "", "label": "In use"}]
+_REASON_CHOICES = ([{"value": "", "label": t("console.assets.in_use")}]
                    + [{"value": word, "label": word}
                       for word in (MISSING, ORPHAN, UNUSED)])
 
 _SOURCE_CHOICES = ([{"value": name, "label": name}
                     for name in media_ownership.source_names()]
-                   + [{"value": "", "label": "No file"}])
+                   + [{"value": "", "label": t("console.assets.no_file")}])
 
 
 def _reason(row: dict[str, Any]) -> str:

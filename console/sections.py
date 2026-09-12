@@ -108,7 +108,7 @@ def overview(library: Library, registry: list[dict], discovery: dict,
     with ui.row().classes("w-full gap-4 no-wrap"):
         with _card("Library"):
             ui.label(str(len(library.games))).classes("console-kpi")
-            ui.label("games").classes("text-xs opacity-60")
+            ui.label(t("console.sections.games")).classes("text-xs opacity-60")
         with _card("Media coverage"):
             ui.label(f"{(present / total_slots * 100 if total_slots else 0):.0f}%") \
                 .classes("console-kpi")

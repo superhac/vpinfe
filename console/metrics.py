@@ -206,7 +206,7 @@ def _spark(target, series: list[float]) -> None:
     target.clear()
     if len(series) < 2:
         with target:
-            ui.label("collecting").classes("text-xs opacity-40")
+            ui.label(t("console.metrics.collecting")).classes("text-xs opacity-40")
         return
     # Every other point at most, so a ten-minute window is a readable width rather than
     # three hundred hairlines.

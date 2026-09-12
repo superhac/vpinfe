@@ -139,6 +139,25 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
                                          f"{name}({kw.arg}={kw.value.value!r})")
         self.assertEqual(offenders, [], "call t() and put the words in the catalog")
 
+    def test_a_choice_written_as_a_dict_counts_too(self) -> None:
+        """`{"value": True, "label": "Yes"}` is a grid filter's words, and the keyword
+        check above walks straight past it - which is how thirteen of these survived the
+        first pass."""
+        offenders = []
+        for path in sorted((ROOT / "console").rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Dict):
+                    continue
+                for key, value in zip(node.keys, node.values):
+                    if isinstance(key, ast.Constant) and key.value in DISPLAY_KWARGS \
+                       and isinstance(value, ast.Constant) and _is_text(value.value):
+                        offenders.append(f"{path.relative_to(ROOT)}:{value.lineno} "
+                                         f'{{"{key.value}": {value.value!r}}}')
+        self.assertEqual(offenders, [], "call t() and put the words in the catalog")
+
 
 class TestCatalogs(unittest.TestCase):
     def test_the_recorded_hashes_match_the_source(self) -> None:

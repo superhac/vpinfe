@@ -76,7 +76,7 @@ def _asset_label(key: str) -> str:
 #
 # Clicking the star a rating already stands on clears it. That is how every star widget
 # behaves, and the alternative is a sixth control on a column this narrow.
-_RATING_CHOICES = ([{"value": 0, "label": "Unrated"}]
+_RATING_CHOICES = ([{"value": 0, "label": t("console.games.unrated")}]
                    + [{"value": n, "label": "", "mark": f"{stars.STAR} {stars.LIT}",
                        "repeat": n} for n in range(1, 6)])
 
@@ -99,8 +99,8 @@ _TICK = {
     # Yes and No, because the column's own header is the noun: "Hidden" answers yes or
     # no, and a pair naming the thing again would read as "Hidden: Present". A column
     # whose subject has better words passes its own.
-    **grid.choice_filter([{"value": True, "label": "Yes"},
-                          {"value": False, "label": "No"}]),
+    **grid.choice_filter([{"value": True, "label": t("console.games.yes")},
+                          {"value": False, "label": t("console.games.no")}]),
 }
 
 
@@ -192,8 +192,8 @@ RENDERERS = ("Ticks", "Thumbnails")
 
 # An asset column asks whether the game has one, and "Missing" is the word the media
 # vocabulary already uses for the same absence.
-_HAS_CHOICES = [{"value": True, "label": "Present"},
-                {"value": False, "label": "Missing"}]
+_HAS_CHOICES = [{"value": True, "label": t("console.games.present")},
+                {"value": False, "label": t("console.games.missing")}]
 
 
 def asset_columns(keys: list[str]) -> list[dict[str, Any]]:
@@ -322,7 +322,7 @@ def with_derived_facets(columns: list[dict[str, Any]],
         choices = [{"value": value, "label": value} for value in seen]
         # A blank is a value like any other here, and the component is written for it.
         if any(not str(row.get(field) or "").strip() for row in rows):
-            choices.append({"value": "", "label": "Not recorded"})
+            choices.append({"value": "", "label": t("console.games.not_recorded")})
         built.append(definition | grid.choice_filter(choices))
     return built
 
@@ -704,7 +704,7 @@ TABLE_COLUMNS = [
                 **grid.choice_filter(
                     [{"value": word, "label": word}
                      for word, _why in game_tables.DEFAULT_WORDS.values()]
-                    + [{"value": "", "label": "Not the default"}])),
+                    + [{"value": "", "label": t("console.games.not_the_default")}])),
     grid.column("rating", t("console.games.table_rating"), group=_TABLE,
                 help=t("console.games.your_rating_for_this_build.help"),
                 cellClass="console-stars-cell",

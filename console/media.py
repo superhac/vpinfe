@@ -35,13 +35,13 @@ _MISSING = media_ownership.tier_for(media_ownership.MISSING).noun
 # blank is a choice like any other in the funnel, and it needs a word there because
 # "match the empty ones" is not something a checkbox can say by being unlabelled.
 _REASON = {media_ownership.ORPHAN: _ORPHAN, media_ownership.UNUSED: _UNUSED}
-_REASON_CHOICES = ([{"value": "", "label": "In use"}]
+_REASON_CHOICES = ([{"value": "", "label": t("console.media.in_use")}]
                    + [{"value": word, "label": word}
                       for word in (_MISSING, _ORPHAN, _UNUSED)])
 
 _SOURCE_CHOICES = ([{"value": name, "label": name}
                     for name in media_ownership.source_names()]
-                   + [{"value": "", "label": "No file"}])
+                   + [{"value": "", "label": t("console.media.no_file")}])
 
 
 def _standing_in(via: str) -> str:
