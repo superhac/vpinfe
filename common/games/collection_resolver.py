@@ -24,6 +24,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
+from common import collation
 from common.games import collection_filters
 from common.games.collection_store import MANUAL_ORDER
 from common.games.game_identity import game_id
@@ -135,7 +136,7 @@ def visible_entries(game) -> list[dict]:
     default_id = entry_for_filename(entries, chosen)[0]
 
     rest = sorted((e for e in visible if e.get(TABLE_ID_KEY) != default_id),
-                  key=lambda e: entry_filename(e).lower())
+                  key=lambda e: collation.sort_key(entry_filename(e)))
     head = [e for e in visible if e.get(TABLE_ID_KEY) == default_id]
     return head + rest
 
@@ -191,7 +192,7 @@ def _primary_key(order_by: str):
     if order_by in ("last_played", "play_count"):
         stored = {"last_played": "LastRun", "play_count": "StartCount"}[order_by]
         return lambda game: _user_value(game, stored)
-    return lambda game: game_title(game).lower()
+    return lambda game: collation.sort_key(game_title(game))
 
 
 def _tiebreak(entry) -> tuple:
@@ -225,7 +226,7 @@ def order_games(games: list, order_by: str, descending: bool = False) -> list:
     if order_by == MANUAL_ORDER:
         return games
     key = _primary_key(order_by)
-    games.sort(key=lambda game: game_title(game).lower())
+    games.sort(key=lambda game: collation.sort_key(game_title(game)))
     games.sort(key=key, reverse=descending)
     return games
 

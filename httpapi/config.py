@@ -43,6 +43,7 @@ def _describe(option: config_schema.ConfigOption) -> dict[str, Any]:
         "type": option.type,
         "default": option.default,
         "label": option.label or option.key,
+        "label_key": f"{option.keys}.label",
         "description": option.description,
         "choices": list(option.choices),
         "writable": option.section not in READ_ONLY_SECTIONS,

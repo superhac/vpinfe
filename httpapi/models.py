@@ -135,6 +135,10 @@ class Action(ApiModel):
     scope: str
     action: str
     label: str
+    # The catalog key behind `label`, for a client that resolves its own words.
+    # `label` stays English and stays the fallback; this is additive, which is why
+    # it does not move the theme contract.
+    label_key: str = ""
     available: bool = True
     reason: str = ""
 
@@ -403,6 +407,10 @@ class ConfigOptionInfo(ApiModel):
     type: str
     default: str
     label: str
+    # The catalog key behind `label`, for a client that resolves its own words.
+    # `label` stays English and stays the fallback; this is additive, which is why
+    # it does not move the theme contract.
+    label_key: str = ""
     description: str = ""
     choices: list[str] = []
     writable: bool = True
@@ -1016,6 +1024,10 @@ class MediaSlot(ApiModel):
     year: str = ""
     kind: str
     label: str
+    # The catalog key behind `label`, for a client that resolves its own words.
+    # `label` stays English and stays the fallback; this is additive, which is why
+    # it does not move the theme contract.
+    label_key: str = ""
     table: str = ""
     table_file: str = ""
     vps_id: str = ""
@@ -1057,6 +1069,10 @@ class AssetSlot(ApiModel):
     year: str = ""
     kind: str
     label: str
+    # The catalog key behind `label`, for a client that resolves its own words.
+    # `label` stays English and stays the fallback; this is additive, which is why
+    # it does not move the theme contract.
+    label_key: str = ""
     table: str = ""
     table_file: str = ""
     vps_id: str = ""
@@ -1797,6 +1813,10 @@ class FilterAxis(ApiModel):
     # reworded freely, and a client that derives its own from the key gets "Game type"
     # where the rest of the app says "Type".
     label: str = ""
+    # The catalog key behind `label`, for a client that resolves its own words.
+    # `label` stays English and stays the fallback; this is additive, which is why
+    # it does not move the theme contract.
+    label_key: str = ""
     summary: str
     # Whether a criterion on this axis may hold several values, which is an OR across
     # them. A client renders a multi-select from this rather than from a list of axis
@@ -1924,6 +1944,10 @@ class FileStored(ApiModel):
 class DetectedAssetInfo(ApiModel):
     kind: str
     label: str
+    # The catalog key behind `label`, for a client that resolves its own words.
+    # `label` stays English and stays the fallback; this is additive, which is why
+    # it does not move the theme contract.
+    label_key: str = ""
     media_kind: str
     root: str
     size: int
@@ -1956,6 +1980,10 @@ class PlanItem(ApiModel):
     index: int
     kind: str
     label: str
+    # The catalog key behind `label`, for a client that resolves its own words.
+    # `label` stays English and stays the fallback; this is additive, which is why
+    # it does not move the theme contract.
+    label_key: str = ""
     detail: str
     destination: str
     action: str

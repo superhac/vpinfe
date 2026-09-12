@@ -38,6 +38,7 @@ def filters() -> models.FilterAxisList:
                       # client derives one from the key and gets "Game type" where the
                       # rest of the app says "Type". The registry owns the naming.
                       "label": axis.label,
+                      "label_key": f"filter.{axis.name}.label",
                       "summary": axis.summary,
                       # Whether the axis takes several values, which is an OR across
                       # them. Declared here so a client renders the right control

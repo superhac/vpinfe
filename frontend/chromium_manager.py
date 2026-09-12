@@ -18,10 +18,11 @@ import tempfile
 import threading
 import time
 from collections import namedtuple
-from typing import NamedTuple
 from shutil import which
+from typing import NamedTuple
 from urllib.parse import quote, urlparse
 
+from common import i18n
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig, cfg_get
 from common.games import remote_library
 from common.log_setup import include_thirdparty_logs
@@ -115,6 +116,10 @@ def get_builtin_chromium_options(
         )
     if mute_audio:
         options.append("--mute-audio")
+    # Without this the cabinet's browser reports whatever locale the OS was installed
+    # with, which is not a thing VPinFE chose or a user can see. It reaches a theme as
+    # `navigator.language` and decides what `toLocaleDateString` prints.
+    options.append(f"--lang={i18n.language()}")
     return options
 
 

@@ -14,7 +14,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from common import input_registry
+from common import i18n, input_registry
+from common.i18n import t
 from common.labels import humanize
 
 # What a page press groups by. `sort` takes the groups from whatever the list is ordered
@@ -39,7 +40,7 @@ def _input_options() -> tuple[ConfigOption, ...]:
             action.name,
             type="list",
             default=",".join(action.bindings),
-            label=action.label,
+            label_key=f"input.{action.name}",
             group=action.group,
             # A list of selectors is what it *is*; typing `pad:0/button:3` is not how
             # anybody wants to say which button they pressed.
@@ -87,8 +88,10 @@ class ConfigOption:
     default: str
     # Filled in by `in_section`, so an entry never states it.
     section: str = ""
-    label: str = ""
-    description: str = ""
+    # Where this setting's words live, for the settings generated from another registry:
+    # the `[input]` block is one option per action, and the action already owns the word.
+    # Empty means the key follows the section and the key, which is every other setting.
+    label_key: str = ""
     choices: tuple[str, ...] = ()
     # How many rows a `text` setting gets. A paragraph and a one-line name want
     # different controls, and only the setting knows which it is.
@@ -128,6 +131,30 @@ class ConfigOption:
     # type rather than showing nothing.
     editor: str = ""
 
+    @property
+    def keys(self) -> str:
+        """Where this setting's words live in the catalog."""
+        return self.label_key or f"config.{self.section}.{self.key}"
+
+    @property
+    def label(self) -> str:
+        """What to call this setting on screen, or "" where it has no name of its own.
+
+        A setting nobody sets - an install id, a last-played pointer - is never shown,
+        so it has no entry and no translator is asked for one.
+        """
+        said = t(f"{self.keys}.label")
+        return "" if said.endswith(".label") else said
+
+    @property
+    def description(self) -> str:
+        """One line explaining it, or "" where nobody has written one.
+
+        Prose, so a locale may leave it in English while the label is translated.
+        """
+        said = t(f"{self.keys}.description")
+        return "" if said.endswith(".description") else said
+
 
 PATH_KINDS = ("file", "dir", "exe")
 
@@ -160,23 +187,18 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "screen_id",
             type="int",
             default="",
-            label="Backglass Monitor ID",
             legacy=(("Displays", "bg_screen_id"), ("Displays", "bgscreenid")),
         ),
         ConfigOption(
             "window_override",
             type="string",
             default="",
-            label="Backglass Window Override",
-            description="Position and size for this window, as x,y,width,height."
-                        " Empty means no override.",
             legacy=(("Displays", "bg_window_override"), ("Displays", "bgwindowoverride")),
         ),
         ConfigOption(
             "media_priority",
             type="choice",
             default="video",
-            label="Backglass Media Priority",
             choices=("video", "image"),
             legacy=(("Media", "bg_media_priority"), ("Media", "bgmediapriority")),
         ),
@@ -187,23 +209,18 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "screen_id",
             type="int",
             default="",
-            label="DMD Monitor ID",
             legacy=(("Displays", "dmd_screen_id"), ("Displays", "dmdscreenid")),
         ),
         ConfigOption(
             "window_override",
             type="string",
             default="",
-            label="DMD Window Override",
-            description="Position and size for this window, as x,y,width,height."
-                        " Empty means no override.",
             legacy=(("Displays", "dmd_window_override"), ("Displays", "dmdwindowoverride")),
         ),
         ConfigOption(
             "media_priority",
             type="choice",
             default="video",
-            label="DMD Media Priority",
             choices=("video", "image"),
             legacy=(("Media", "dmd_media_priority"), ("Media", "dmdmediapriority")),
         ),
@@ -214,17 +231,12 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "screen_id",
             type="int",
             default="0",
-            label="Playfield Monitor ID",
             legacy=(("Displays", "playfield_screen_id"), ("Displays", "playfieldscreenid")),
         ),
         ConfigOption(
             "orientation",
             type="choice",
             default="landscape",
-            label="Playfield Monitor Mounting",
-            description="How the playfield screen is physically mounted. Portrait means it is"
-                        " turned on its side in the cabinet. This does not rotate anything by"
-                        " itself - it tells themes what shape to lay out for.",
             choices=("landscape", "portrait"),
             legacy=(("Displays", "playfield_orientation"), ("Displays", "playfieldorientation")),
         ),
@@ -232,9 +244,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "rotation",
             type="choice",
             default="0",
-            label="Rotate VPinFE Display",
-            description="How far VPinFE turns its own display so it faces the player. Leave at 0"
-                        " if your operating system already rotates this screen.",
             choices=("0", "90", "180", "270"),
             legacy=(("Displays", "playfield_rotation"), ("Displays", "playfieldrotation")),
         ),
@@ -242,9 +251,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "variant",
             type="choice",
             default="table",
-            label="Table Type",
-            description="Which playfield artwork this library holds: table.png, or fss.png for art"
-                        " captured in Visual Pinball's Full Single Screen mode.",
             choices=("table", "fss"),
             legacy=(("Media", "playfield_variant"), ("Media", "playfieldvariant")),
         ),
@@ -252,7 +258,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "resolution",
             type="choice",
             default="4k",
-            label="Default Table Resolution",
             choices=("4k", "1k"),
             legacy=(("Media", "playfield_resolution"), ("Media", "playfieldresolution")),
         ),
@@ -260,7 +265,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "video_resolution",
             type="choice",
             default="1k",
-            label="Default Table Video Resolution",
             choices=("4k", "1k"),
             legacy=(("Media", "playfield_video_resolution"), ("Media", "playfieldvideoresolution")),
         ),
@@ -268,7 +272,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "media_priority",
             type="choice",
             default="video",
-            label="Table Media Priority",
             choices=("video", "image"),
             legacy=(("Media", "playfield_media_priority"), ("Media", "playfieldmediapriority")),
         ),
@@ -276,9 +279,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "media_rotation",
             type="choice",
             default="auto",
-            label="Table Media Rotation",
-            description="How far to turn playfield artwork so it fills the screen. auto measures"
-                        " each image and turns only when it disagrees with the surface.",
             choices=("auto", "0", "90", "180", "270"),
             legacy=(("Media", "playfield_media_rotation"), ("Media", "playfieldmediarotation")),
         ),
@@ -292,9 +292,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "cab_mode",
             type="bool",
             default="false",
-            label="Cabinet Mode",
-            description="Presents VPinFE for playing standing at a cabinet: larger text and"
-                        " targets, and no controls that need a mouse. It does not rotate anything.",
             aliases=("cabmode",),
             legacy=(("Settings", "cabmode"), ("Settings", "cab_mode")),
         ),
@@ -321,10 +318,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             group="Where things are",
             type="bool",
             default="true",
-            label="Ask Where a New Game Goes",
-            description="On, an import that could go to more than one place asks which. "
-                        "Off, it goes to the one marked for new games without asking. "
-                        "Never asked where there is only one place it could go.",
         ),
         ConfigOption(
             "on_vpinfe_start",
@@ -332,10 +325,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="text",
             lines=3,
             default="",
-            label="When VPinFE Starts",
-            description="One command per line, run before anything else. Written the "
-                        "way a shell splits arguments, but nothing else a shell does - "
-                        "for a pipe, point at a script.",
         ),
         ConfigOption(
             "on_vpinfe_exit",
@@ -343,9 +332,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="text",
             lines=3,
             default="",
-            label="When VPinFE Exits",
-            description="Run last. These run even if VPinFE is stopping because "
-                        "something went wrong.",
         ),
         ConfigOption(
             "on_table_start",
@@ -353,9 +339,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="text",
             lines=3,
             default="",
-            label="When Any Table Starts",
-            description="Run before every table, whichever launcher plays it, and "
-                        "before that launcher's own commands.",
         ),
         ConfigOption(
             "on_table_exit",
@@ -363,29 +346,18 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="text",
             lines=3,
             default="",
-            label="When Any Table Exits",
-            description="Run after every table. They run whenever the ones above ran, "
-                        "even if the table never started.",
         ),
         ConfigOption(
             "command_timeout",
             group="Commands",
             type="int",
             default="15",
-            label="Give Each Command",
-            description="Seconds before a command is given up on. One that never "
-                        "finishes would mean no table launches again.",
         ),
         ConfigOption(
             "table_start_required",
             group="Commands",
             type="bool",
             default="false",
-            label="A Failure Stops the Launch",
-            description="On, a command that fails before a table starts stops it "
-                        "launching - for something the table cannot do without, like a "
-                        "share to mount. Off, the failure is noted and the table "
-                        "starts anyway.",
         ),
         ConfigOption(
             "game_root_dir",
@@ -393,8 +365,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="string",
             path="dir",
             default="",
-            label="Tables Directory",
-            description="The folder holding your table folders, one folder per game.",
             aliases=("gamerootdir",),
             internal=True,
         ),
@@ -402,9 +372,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "hidden_media_kinds",
             type="list",
             default="",
-            label="Media kinds to hide",
-            description="Kinds of artwork this library does not collect. VPinFE stops"
-                        " showing and counting them; the files stay where they are.",
             # The library's, not this install's - it moved to library.json, where one
             # answer serves every install reading this library. Declared and internal so a
             # value still in a config file keeps resolving for a build that reads it.
@@ -414,10 +381,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "hidden_asset_kinds",
             type="list",
             default="",
-            label="Asset kinds to hide",
-            description="Kinds of supporting file this library does not collect - an"
-                        " all-EM library has no ROMs. A table that will not launch still"
-                        " says so.",
             # The library's, not this install's - it moved to library.json, where one
             # answer serves every install reading this library. Declared and internal so a
             # value still in a config file keeps resolving for a build that reads it.
@@ -428,10 +391,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             group="Where things are",
             type="list",
             default="",
-            label="Browsable Media Folders",
-            description="Extra folders you can pick artwork from when adding media by"
-                        " hand. The game library is always available; anywhere else has"
-                        " to be listed here before VPinFE will read it.",
         ),
         ConfigOption(
             "assets_dir",
@@ -439,10 +398,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="string",
             path="dir",
             default="",
-            label="Shared Assets Directory",
-            description="Root folder for assets shared across games rather than owned by one, such"
-                        " as manufacturer logos. Served at /assets/ and defaults to assets/ under"
-                        " the VPinFE config dir.",
             aliases=("assetsdir",),
         ),
         ConfigOption(
@@ -451,9 +406,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="string",
             path="exe",
             default="",
-            label="RAR Tool Path",
-            description="Path to unar or unrar. Blank auto-detects one on this"
-                        " machine.",
             aliases=("rartoolpath",),
         ),
         ConfigOption(
@@ -461,34 +413,33 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             group="What a player sees",
             type="string",
             default="Revolution",
-            label="Active Theme",
+        ),
+        ConfigOption(
+            "language",
+            group="What a player sees",
+            type="choice",
+            # `auto` reads the operating system, which is right on a cabinet somebody
+            # set up in their own language and never opened this page.
+            default="auto",
+            choices=("auto",) + i18n.available(),
         ),
         ConfigOption(
             "startup_collection",
             group="What a player sees",
             type="string",
             default="",
-            label="Default Startup Collection",
         ),
         ConfigOption(
             "library_refresh_minutes",
             group="Reading the library",
             type="int",
             default="0",
-            label="Re-read the Library Every",
-            description="How often to re-read the library from disk, in minutes. It"
-                        " picks up everything, not just tables - media and assets added"
-                        " or removed beside them too. Zero never does, which is the"
-                        " default because a read walks every game folder: fine locally,"
-                        " real traffic on a network share. It can always be asked"
-                        " to read it now.",
         ),
         ConfigOption(
             "auto_update_media_on_startup",
             group="Reading the library",
             type="bool",
             default="false",
-            label="Auto Update Media on Startup",
             aliases=("autoupdatemediaonstartup",),
         ),
         ConfigOption(
@@ -496,14 +447,12 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             group="What a player sees",
             type="bool",
             default="false",
-            label="Enable Splash Screen",
         ),
         ConfigOption(
             "mute_audio",
             group="What a player sees",
             type="bool",
             default="false",
-            label="Mute Frontend Audio",
             aliases=("muteaudio",),
         ),
         ConfigOption(
@@ -511,7 +460,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             group="The browser it runs in",
             type="string",
             default="",
-            label="Additional Chrome Options",
             aliases=("chromeoptions",),
         ),
         ConfigOption(
@@ -519,10 +467,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             group="The browser it runs in",
             type="string",
             default="",
-            label="Default Chrome Options to Drop",
-            description="Which of the built-in options to leave off, one per line."
-                        " For the case where one of them is the problem and turning"
-                        " all of them off would take the rest with it.",
             aliases=("chromeoptionsexclude",),
         ),
         ConfigOption(
@@ -530,7 +474,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             group="The browser it runs in",
             type="bool",
             default="false",
-            label="Disable Default Chrome Options",
             aliases=("disabledefaultchromeoptions",),
         ),
     ),
@@ -545,7 +488,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "paging_group",
             type="choice",
             default=PAGING_GROUP_DEFAULT,
-            label="Page by",
             choices=PAGING_GROUPS,
             legacy=(("Input", "pagingtype"),),
         ),
@@ -553,24 +495,17 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "paging_size",
             type="int",
             default="10",
-            label="Paging Size",
             legacy=(("Input", "pagingsize"),),
         ),
         ConfigOption(
             "confirm",
             type="bool",
             default="false",
-            label="Confirm Before Exit",
-            description="Ask before quitting VPinFE or powering off the machine. Closing the"
-                        " frontend never asks - the windows reopen from the Manager UI, so"
-                        " there is nothing to lose. Off is how VPinFE has always behaved, and"
-                        " the question is put to whichever surface asked.",
         ),
         ConfigOption(
             "hide_quit_button",
             type="bool",
             default="false",
-            label="Hide Quit from the Main Menu",
             aliases=("MMhideQuitButton",),
             # The 2.x location, then the one 3.0 briefly used. The second is not
             # compatibility for a shipped release - 3.0 has none - it is so an install
@@ -582,7 +517,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "restore_last_table",
             type="bool",
             default="true",
-            label="Restore Last Table",
             # `restorelastgame` was 3.0's and never shipped; 2.x wrote `restorelasttable`,
             # which is also what this restores - a row is a table.
             aliases=("restorelasttable",),
@@ -600,19 +534,11 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "registries",
             type="list",
             default="https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json",
-            label="Theme Registries",
-            description="Catalogs to offer themes from, most trusted first. The stock registry is"
-                        " an entry like any other, so a mirrored or offline install can replace or"
-                        " drop it.",
         ),
         ConfigOption(
             "repositories",
             type="list",
             default="",
-            label="Theme Repositories",
-            description="Individual theme repos, each one a theme in its own right. Resolved"
-                        " before the registries, and named for the repo with any vpinfe-theme-"
-                        " prefix removed.",
         ),
     ),
     *in_section(
@@ -621,14 +547,12 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "level",
             type="choice",
             default="debug",
-            label="Log Verbosity",
             choices=("debug", "info", "warning", "error"),
         ),
         ConfigOption(
             "terminal",
             type="bool",
             default="true",
-            label="Log to Terminal",
             aliases=("console",),
         ),
     ),
@@ -638,24 +562,18 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "default_missing_media_image",
             type="string",
             default="",
-            label="Default Missing Media Image",
             aliases=("defaultmissingmediaimg",),
         ),
         ConfigOption(
             "thumb_cache_max_mb",
             type="int",
             default="500",
-            label="Thumbnail Cache Max (MB)",
             aliases=("thumbcachemaxmb",),
         ),
         ConfigOption(
             "asset_sources",
             type="list",
             default="",
-            label="Online Artwork Sources",
-            description="Which online catalogs are searched for artwork. Empty means"
-                        " all of them. Names come from the sources list this install"
-                        " reports.",
             # Moved to library.json with the two kind lists, for the same reason.
             internal=True,
         ),
@@ -663,17 +581,11 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "wheelset",
             type="string",
             default="",
-            label="Wheel Set",
-            description="Name of the wheel art set to use library-wide, a folder under a game's"
-                        " medias/wheels/. The reserved name logo shows each game's logo instead."
-                        " Blank means plain wheels, and the active theme can override this with its"
-                        " own wheelSet option.",
         ),
         ConfigOption(
             "realdmd_media_priority",
             type="choice",
             default="color",
-            label="Real DMD Priority",
             choices=("color", "video", "image"),
             aliases=("realdmdmediapriority",),
         ),
@@ -684,9 +596,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "id",
             type="string",
             default="",
-            description="Written by VPinFE on first start, and not meant to be edited."
-                        " Installs are told apart by this, so changing it makes"
-                        " this a different install.",
             # Minted on first read, never by a person, and never edited afterwards.
             internal=True,
         ),
@@ -694,23 +603,11 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "display_name",
             type="string",
             default="",
-            label="Device Name",
-            description="What to call this device where one is listed. Defaults to this"
-                        " machine's hostname. Nothing is addressed by it, so renaming is"
-                        " safe.",
         ),
         ConfigOption(
             "features",
             type="list",
             default="library,frontend,devices",
-            label="Features",
-            description="What this install is for: curating the game library (library),"
-                        " launching games on this machine (frontend), managing the other"
-                        " installs on your network (devices), and a rollup of all three"
-                        " (overview). Each one it has decides what the Console shows."
-                        " Overview is the one that has to be asked for. Left empty the"
-                        " install is for nothing yet, and System is still there to"
-                        " configure it with.",
             aliases=("roles",),
         ),
     ),
@@ -736,8 +633,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="choice",
             default="daily",
             choices=("never", "daily", "weekly", "monthly"),
-            label="Check for Catalog Updates",
-            description="How often to ask VPSdb whether it has changed.",
         ),
     ),
     *in_section(
@@ -767,7 +662,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             group="What this install serves",
             type="int",
             default="8000",
-            label="Theme Server Port",
             aliases=("themeassetsport",),
         ),
         ConfigOption(
@@ -775,21 +669,12 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             group="What this install serves",
             type="string",
             default="127.0.0.1",
-            label="Theme Server Address",
-            description="Which address to serve theme packages and table media on. The"
-                        " default answers this machine only. An address rather than a"
-                        " switch, so a single interface can be named; 0.0.0.0 is every"
-                        " one. This port serves the table library, so opening it shares"
-                        " read access to it.",
         ),
         ConfigOption(
             "ws_port",
             group="What this install serves",
             type="int",
             default="8002",
-            label="WebSocket Bridge Port",
-            description="Port the frontend windows and the theme talk to VPinFE over. Loopback"
-                        " only.",
             aliases=("wsport",),
         ),
         ConfigOption(
@@ -797,10 +682,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             group="What this install serves",
             type="int",
             default="8001",
-            label="HTTP Port",
-            description="Port this install answers on: the HTTP API, the Console, the"
-                        " Manager UI, and the remote and mobile pages. Named for the"
-                        " protocol rather than any one thing listening on it.",
             aliases=("hub_port", "manager_ui_port", "manageruiport"),
         ),
         ConfigOption(
@@ -809,33 +690,18 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="string",
             default="",
             suggest=SUGGEST_LIBRARIES,
-            label="Library",
-            description="Which install this one reads its library from, for example"
-                        " http://cabinet.local:8001. Empty - the default - means this"
-                        " install holds its own, which is every single-machine setup."
-                        " Installs on your network are offered; type an address for one"
-                        " that is not.",
         ),
         ConfigOption(
             "verify_shared_library",
             group="The library it reads",
             type="bool",
             default="false",
-            label="Verify Shared Library",
-            description="On startup, check that the library this install reads really is"
-                        " the one on disk here, by comparing file hashes rather than"
-                        " paths. Reports what does not match and changes nothing else."
-                        " Off by default, and ignored entirely without a Library set.",
         ),
         ConfigOption(
             "http_bind",
             group="What this install serves",
             type="string",
             default="0.0.0.0",
-            label="HTTP Address",
-            description="Which address to serve on. The default answers every"
-                        " interface, which is what it has always done - set 127.0.0.1 to"
-                        " reach it only from this machine.",
             aliases=("hub_bind", "manager_ui_bind"),
         ),
     ),
@@ -845,14 +711,12 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "enable_dof",
             type="bool",
             default="false",
-            label="Enable DOF",
             aliases=("enabledof",),
         ),
         ConfigOption(
             "dof_config_tool_api_key",
             type="string",
             default="",
-            label="DOF Config Tool API Key",
             aliases=("dofconfigtoolapikey",),
         ),
     ),
@@ -862,34 +726,29 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "enabled",
             type="bool",
             default="false",
-            label="Enable libdmdutil",
         ),
         ConfigOption(
             "pin2dmd_enabled",
             type="bool",
             default="false",
-            label="Enable PIN2DMD",
             aliases=("pin2dmdenabled",),
         ),
         ConfigOption(
             "pixelcade_serial_port",
             type="string",
             default="",
-            label="Pixelcade Serial Port",
             aliases=("pixelcadedevice",),
         ),
         ConfigOption(
             "zedmd_serial_port",
             type="string",
             default="",
-            label="ZeDMD Serial Port",
             aliases=("zedmddevice",),
         ),
         ConfigOption(
             "zedmd_wifi_address",
             type="string",
             default="",
-            label="ZeDMD Wi-Fi Address",
             aliases=("zedmdwifiaddr",),
         ),
     ),
@@ -899,39 +758,30 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "device_ip",
             type="string",
             default="",
-            label="Mobile Device IP",
             aliases=("deviceip",),
         ),
         ConfigOption(
             "device_port",
             type="int",
             default="2112",
-            label="Mobile Device Port",
             aliases=("deviceport",),
         ),
         ConfigOption(
             "chunk_size",
             type="int",
             default="1048576",
-            label="Mobile Chunk Size",
             aliases=("chunksize",),
         ),
         ConfigOption(
             "rename_mask_to_default_ini",
             type="bool",
             default="false",
-            label="Send a Masked Configuration Instead",
-            description="Where a table has no configuration file of its own, send the"
-                        " masked one in its place under the name the table expects.",
             aliases=("renamemasktodefaultini",),
         ),
         ConfigOption(
             "rename_mask_to_default_ini_mask",
             type="string",
             default="",
-            label="Configuration File Mask",
-            description="The word between the table name and .ini - cab sends"
-                        " tablename.cab.ini as tablename.ini.",
             aliases=("renamemasktodefaultinimask",),
         ),
     ),
@@ -941,34 +791,29 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "sync_on_exit",
             type="bool",
             default="false",
-            label="Sync on Exit",
             aliases=("synconexit",),
         ),
         ConfigOption(
             "api_endpoint",
             type="string",
             default="https://api.vpinplay.com:8888",
-            label="API Endpoint",
             aliases=("apiendpoint",),
         ),
         ConfigOption(
             "user_id",
             type="string",
             default="",
-            label="User ID",
             aliases=("userid",),
         ),
         ConfigOption(
             "initials",
             type="string",
             default="",
-            label="Initials",
         ),
         ConfigOption(
             "machine_id",
             type="string",
             default="",
-            label="Machine ID",
             aliases=("machineid",),
         ),
     ),

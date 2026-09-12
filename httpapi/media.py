@@ -18,6 +18,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Query
 
+from common import collation
 from common.games import asset_origin
 from common.media_specs import (
     MEDIA_SPECS,
@@ -115,6 +116,7 @@ def _row(game_id: str, row: dict, kind: str, table: str, table_file: str) -> dic
             "manufacturer": str(row.get("manufacturer") or ""),
             "year": str(row.get("year") or ""),
             "kind": kind, "label": media_label_map().get(kind, kind),
+            "label_key": f"media.kind.{kind}.label",
             "table": table, "table_file": table_file,
             # What a catalog is asked for. On the row because every act on a slot needs
             # it and the alternative is a lookup per row against the games list.
@@ -249,8 +251,9 @@ def list_media(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
                                          recorded, hosts, table["id"],
                                          str(table.get("filename") or "")))
 
-    found.sort(key=lambda item: (item["game"].lower(), item["label"].lower(),
-                                 item["table_file"].lower()))
+    found.sort(key=lambda item: (collation.sort_key(item["game"]),
+                                 collation.sort_key(item["label"]),
+                                 collation.sort_key(item["table_file"])))
     total = len(found)
     window = found[offset:offset + limit] if limit else found[offset:]
     return {"total": total, "offset": offset, "count": len(window), "media": window}

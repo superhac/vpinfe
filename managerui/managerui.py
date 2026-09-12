@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from common import i18n
 from common.paths import configure_nicegui_storage
 
 _NICEGUI_STORAGE_PATH = configure_nicegui_storage()
@@ -449,12 +450,17 @@ def _run_ui():
     logger.info("Using NiceGUI storage path: %s", _NICEGUI_STORAGE_PATH)
     logger.info("Starting Manager UI on host=%s port=%s", _ui_bind, _ui_port)
     logger.info("Manager UI expected URLs: %s", ", ".join(_manager_ui_urls(_ui_port)))
+    # One process serves the Console and the Manager UI, so this is where NiceGUI's own
+    # language is settled for both: Quasar's pack and the reconnect overlay. Not on the
+    # @ui.page decorators - `resolve_language()` reads app.config per request, so leaving
+    # them unset is what keeps a language change a reload rather than a restart.
     ui.run(title='VPinFE Manager UI',
            favicon=_FAVICON,
            host=_ui_bind,
            port=_ui_port,
            reload=False,
            show=False,
+           language=i18n.nicegui_language(),
            storage_secret=STORAGE_SECRET)
 
 def start_manager_ui(port=8001, bind="0.0.0.0"):

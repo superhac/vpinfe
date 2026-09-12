@@ -13,6 +13,8 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common import i18n
+
 logger = logging.getLogger("vpinfe.console")
 
 DEFAULT_COL_DEF: dict[str, Any] = {
@@ -274,6 +276,9 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         # Rows are recycled as you scroll, so the mark rides the wrong row without
         # this.
         ":onBodyScroll": "() => { window.__hubMarkFocus && window.__hubMarkFocus(); }",
+        # AG Grid's own words - the filter menu on every column, "No Rows To Show", the
+        # column menu. Empty in English, where its built-ins are already right.
+        **({"localeText": grid_locale} if (grid_locale := i18n.under("grid")) else {}),
         "suppressDragLeaveHidesColumns": True,
         "animateRows": False,
         # False deliberately: preventing the default stops the event reaching Quasar,

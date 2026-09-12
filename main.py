@@ -41,7 +41,7 @@ from common.config_bootstrap import apply_configdir_override
 
 apply_configdir_override(sys.argv[1:])
 
-from common import extensions, shutdown, theme_options
+from common import extensions, i18n, shutdown, theme_options
 from common.config_store import ConfigStore
 from common.games.metadata_service import build_metadata
 from common.host.dof_service import start_dof_service_if_enabled, stop_dof_service
@@ -69,7 +69,13 @@ log_path = configure_logging(config_dir, enable_file=False)
 config_store = ConfigStore(str(VPINFE_INI_PATH))
 log_path = configure_logging(config_dir, config_store)
 logger = get_logger("vpinfe.main")
+
+# Before anything builds a label. Every registry resolves through the catalog at
+# attribute access, so this only has to happen ahead of the first page, not ahead of the
+# imports - but there is no reason to leave it later than the config that answers it.
+spoken = i18n.set_language(config_store.value("general", "language"))
 logger.info("Logging to %s", log_path)
+logger.info("Language: %s (%s)", spoken, " -> ".join(i18n.chain()))
 logger.info("Using NiceGUI storage path: %s", nicegui_storage_path)
 logger.info("Version: %s", get_version())
 

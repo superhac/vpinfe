@@ -44,7 +44,8 @@ NOT_WIRED = "Nothing on this install performs that."
 def _describe(scope: str, action: str) -> dict:
     performable = lifecycle.performable(scope, action)
     return {"scope": scope, "action": action,
-            "label": lifecycle.describe(scope, action),
+            "label": lifecycle.label(scope, action),
+            "label_key": f"action.{scope}.{action}",
             "available": performable,
             "reason": "" if performable else NOT_WIRED}
 

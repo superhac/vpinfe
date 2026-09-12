@@ -51,6 +51,7 @@ def _asset_to_dict(asset: DetectedAsset) -> dict:
     return {
         "kind": asset.kind,
         "label": asset.label,
+        "label_key": f"asset.kind.{asset.kind}.label",
         "media_kind": asset.media_kind,
         "root": asset.root,
         "size": asset.size,
@@ -124,6 +125,7 @@ def _plan_to_dict(plan: ImportPlan) -> dict:
                 "index": index,
                 "kind": item.asset.kind,
                 "label": spec_for(item.asset.kind).label,
+                "label_key": f"asset.kind.{item.asset.kind}.label",
                 "detail": item.asset.detail,
                 "destination": item.destination,
                 "action": item.action,

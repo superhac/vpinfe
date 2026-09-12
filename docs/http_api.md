@@ -177,6 +177,28 @@ snake_case for the same reason — GitHub's and Stripe's among them.
 A game resource carries `id` (this install's id) and `vps_id` (correlation with VPSdb and
 friends). Sub-resources are linked from `links` rather than assembled by the client.
 
+### `label` and `label_key`
+
+A resource that carries a `label` carries a `label_key` beside it — the filter axes, the
+config schema, media and asset slots, actions, and the upload plan.
+
+`label` is always English. It is the fallback, it is what a client that does nothing new
+keeps rendering, and it will not change meaning. `label_key` names the same string in the
+translation catalog, for a client that would rather resolve its own words:
+
+```json
+{ "name": "manufacturer", "label": "Manufacturer", "label_key": "filter.manufacturer.label" }
+```
+
+Which language the server answers in comes from `[general] language`. A client that reads
+`label` gets that language; a client that reads `label_key` decides for itself. Neither is
+a compatibility change — `label_key` is additive, so a theme or script that has never
+heard of it is unaffected.
+
+Table names, manufacturers and everything else your library holds are content and are
+never translated. Sorting follows the language being served, so do not assume row order
+is stable across languages.
+
 **Resources gain fields without a version bump, so ignore ones you don't recognize.**
 Adding a field is additive and happens routinely — three of the 3.0 changes did it. A
 client that rejects unknown keys, or round-trips a resource by enumerating them, breaks on

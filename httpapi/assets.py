@@ -19,6 +19,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Query
 
+from common import collation
 from common.games import asset_origin, asset_resolver
 from common.games.asset_registry import spec_for
 
@@ -57,6 +58,7 @@ def _row(game_id: str, row: dict, kind: str) -> dict:
             "manufacturer": str(row.get("manufacturer") or ""),
             "year": str(row.get("year") or ""),
             "kind": kind, "label": _label(kind),
+            "label_key": f"asset.kind.{kind}.label",
             "vps_id": str(row.get("vpsid") or "")}
 
 
@@ -178,8 +180,9 @@ def list_assets(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
                           "file": here or None, "path": here or None,
                           "serves": len(tables) if here else None})
 
-    found.sort(key=lambda item: (item["game"].lower(), item["label"].lower(),
-                                 str(item.get("table_file") or "")))
+    found.sort(key=lambda item: (collation.sort_key(item["game"]),
+                                 collation.sort_key(item["label"]),
+                                 collation.sort_key(str(item.get("table_file") or ""))))
     total = len(found)
     window = found[offset:offset + limit] if limit else found[offset:]
     return {"total": total, "offset": offset, "count": len(window), "assets": window}

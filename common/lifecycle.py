@@ -18,6 +18,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
+from common.i18n import t, t_source
+
 logger = logging.getLogger("vpinfe.common.lifecycle")
 
 # What a request applies to.
@@ -80,25 +82,24 @@ class Request:
     def describe(self) -> str:
         """What this asks for, in the words a person would use.
 
-        Written out rather than built from the scope and the action: the template read
-        "stop the vpinfe", which names an internal scope at someone about to be asked
-        whether they meant it. Already sentence-cased, because str.capitalize lowercases
-        the rest and "Quit VPinFE" would come back as "Quit vpinfe".
+        In English, because every caller of this is a log line. `label` is the one the
+        confirm card and the API ask for.
         """
-        return _DESCRIPTIONS.get(self.pair, f"{self.action} the {self.scope}")
+        return describe(*self.pair)
 
 
-# Every allowed pair, in the words the confirm card and the log both use.
-_DESCRIPTIONS = {
-    (FRONTEND, START): "Open the frontend windows",
-    (FRONTEND, STOP): "Close the frontend windows",
-    (FRONTEND, RESTART): "Reopen the frontend windows",
-    (VPINFE, STOP): "Quit VPinFE",
-    (VPINFE, RESTART): "Restart VPinFE",
-    (SYSTEM, STOP): "Power off this machine",
-    (SYSTEM, RESTART): "Reboot this machine",
-    (TABLE, STOP): "Close the table that is running",
-}
+# Every allowed pair. What each is called is in the catalog, keyed by the pair, because
+# the confirm card asks in the user's language and the log asks in English.
+PAIRS = frozenset({
+    (FRONTEND, START),
+    (FRONTEND, STOP),
+    (FRONTEND, RESTART),
+    (VPINFE, STOP),
+    (VPINFE, RESTART),
+    (SYSTEM, STOP),
+    (SYSTEM, RESTART),
+    (TABLE, STOP),
+})
 
 
 # Reading order for a surface that lists them: the table, then the windows, then VPinFE,
@@ -164,8 +165,29 @@ def performable(scope: str, action: str) -> bool:
 
 
 def describe(scope: str, action: str) -> str:
-    """What the pair is called, in the words the confirm card and the log already use."""
-    return _DESCRIPTIONS.get((scope, action), f"{action} the {scope}")
+    """What the pair is called, in English, for a log line.
+
+    Written out rather than built from the scope and the action: the template read
+    "stop the vpinfe", which names an internal scope at somebody about to be asked
+    whether they meant it. Already sentence-cased, because str.capitalize lowercases the
+    rest and "Quit VPinFE" would come back as "Quit vpinfe".
+    """
+    return t_source(_key(scope, action)) if _known(scope, action) \
+        else f"{action} the {scope}"
+
+
+def label(scope: str, action: str) -> str:
+    """What the pair is called on screen, in the language now set."""
+    return t(_key(scope, action)) if _known(scope, action) \
+        else f"{action} the {scope}"
+
+
+def _key(scope: str, action: str) -> str:
+    return f"action.{scope}.{action}"
+
+
+def _known(scope: str, action: str) -> bool:
+    return (scope, action) in PAIRS
 
 
 def needs_confirmation(request: Request, confirm_scopes) -> bool:

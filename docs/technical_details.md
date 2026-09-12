@@ -71,6 +71,7 @@ uses an old spelling both still load.
 | `assets_dir` | string |  | Root folder for assets shared across games rather than owned by one, such as manufacturer logos. Served at /assets/ and defaults to assets/ under the VPinFE config dir. |
 | `rar_tool_path` | string |  | Path to unar or unrar. Blank auto-detects one on this machine. |
 | `theme` | string | `Revolution` | Active Theme |
+| `language` | choice (auto, en) | `auto` | What language VPinFE speaks. Auto follows the operating system. Table names and everything else your library holds are never translated. |
 | `startup_collection` | string |  | Default Startup Collection |
 | `library_refresh_minutes` | int | `0` | How often to re-read the library from disk, in minutes. It picks up everything, not just tables - media and assets added or removed beside them too. Zero never does, which is the default because a read walks every game folder: fine locally, real traffic on a network share. It can always be asked to read it now. |
 | `auto_update_media_on_startup` | bool | `false` | Auto Update Media on Startup |

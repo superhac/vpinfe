@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from common import collation
 from common.games.game_metadata import (
     game_last_run,
     game_manufacturer,
@@ -32,6 +33,7 @@ from common.games.game_metadata import (
     normalize_rating,
     play_record,
 )
+from common.i18n import t
 from common.values import is_truthy
 
 # What a criterion says when it constrains nothing. The vocabulary the filter engine
@@ -51,10 +53,11 @@ def letter_of(game) -> str:
     """The letter group a title sorts into. Digits and symbols share one bucket.
 
     The one definition, for paging and filtering both: a second is how `300` came to
-    page under `#`, match no letter filter, and be offered as `3` by the picker.
+    page under `#`, match no letter filter, and be offered as `3` by the picker. The
+    rule sits with the ordering in `common.collation`, because a group the sort does not
+    keep contiguous is a page jump that lands outside the letter it named.
     """
-    title = game_title(game).strip()
-    return title[0].upper() if title and title[0].isalpha() else "#"
+    return collation.letter_of(game_title(game))
 
 
 def _match_letter(criterion, game, table) -> bool:
@@ -119,16 +122,15 @@ class FilterAxis:
     in `manufacturer`, `year` and `type`, which exist on a game *and* on each of its
     tables and were previously resolved by accident.
 
-    `name` is stored and `label` is shown, so a label can be reworded freely and a name
+    `name` is stored and the label is shown, so a label can be reworded freely and a name
     never can - and the label is what a *reader* calls it, not a short form of the key.
-    Both rating axes label as "Rating": they are one control.
+    Both rating axes label as "Rating": they are one control, and the catalog carries the
+    word twice so a translator is not asked to guess that.
     """
 
     name: str
     scope: str
     kind: str
-    label: str
-    summary: str
     matches: Callable
     # Which group this game is in. `matches` answers the other question - is it in group
     # A? - and paging to the next boundary can only ask this one. None where the axis
@@ -149,51 +151,51 @@ class FilterAxis:
     many: bool = False
 
     @property
+    def label(self) -> str:
+        """What a reader calls this axis. The key follows `name`, which never moves."""
+        return t(f"filter.{self.name}.label")
+
+    @property
+    def summary(self) -> str:
+        """The sentence explaining the axis, for a tooltip. Prose: may be untranslated."""
+        return t(f"filter.{self.name}.summary")
+
+    @property
     def is_table_scoped(self) -> bool:
         return self.scope == TABLE_SCOPE
 
 
 AXES: tuple[FilterAxis, ...] = (
-    FilterAxis("letter", GAME_SCOPE, "letter", "Letter",
-               "First letter of the title, as sorted",
+    FilterAxis("letter", GAME_SCOPE, "letter",
                _match_letter, groups=letter_of, many=True,
                values_of=lambda game: [letter_of(game)], values_key="letters"),
     # The label a reader sees; `name` is stored and never moves. "Theme" alone reads as
     # the frontend's in a list of rules that has no game in front of it.
-    FilterAxis("theme", GAME_SCOPE, "choice", "Game Theme",
-               "Any theme the game is tagged with",
+    FilterAxis("theme", GAME_SCOPE, "choice",
                _match_theme, many=True,
                values_of=game_themes, values_key="themes"),
-    FilterAxis("game_type", GAME_SCOPE, "choice", "Type",
-               "Solid state, electro-mechanical and so on",
+    FilterAxis("game_type", GAME_SCOPE, "choice",
                _match_game_type, many=True,
                values_of=lambda game: [game_type(game)], values_key="types"),
-    FilterAxis("manufacturer", GAME_SCOPE, "choice", "Manufacturer",
-               "Who made the machine",
+    FilterAxis("manufacturer", GAME_SCOPE, "choice",
                _match_manufacturer, many=True,
                values_of=lambda game: [game_manufacturer(game)],
                values_key="manufacturers"),
-    FilterAxis("year", GAME_SCOPE, "choice", "Year",
-               "Year the machine was released",
+    FilterAxis("year", GAME_SCOPE, "choice",
                _match_year, groups=lambda game: str(game_year(game)), many=True,
                values_of=lambda game: [str(game_year(game) or "")],
                values_key="years"),
-    FilterAxis("rating", GAME_SCOPE, "rating", "Rating",
-               "The rating the user gave the game",
+    FilterAxis("rating", GAME_SCOPE, "rating",
                _match_rating, groups=lambda game: str(game_rating(game))),
-    FilterAxis("rating_or_higher", GAME_SCOPE, "rating", "Rating",
-               "Read `rating` as a floor instead of a set",
+    FilterAxis("rating_or_higher", GAME_SCOPE, "rating",
                _match_rating_or_higher),
-    FilterAxis("played", GAME_SCOPE, "flag", "Played",
-               "Whether the game has ever been played",
+    FilterAxis("played", GAME_SCOPE, "flag",
                _match_played),
-    FilterAxis("favorite", GAME_SCOPE, "flag", "Favorite",
-               "Whether the user marked the game a favorite",
+    FilterAxis("favorite", GAME_SCOPE, "flag",
                _match_favorite),
     # The user's own words, so the values are whatever this library holds - the same
     # shape as `theme`, which is where they come from for everybody else.
-    FilterAxis("tags", GAME_SCOPE, "choice", "Tags",
-               "Any tag the user put on the game",
+    FilterAxis("tags", GAME_SCOPE, "choice",
                _match_tag, many=True,
                values_of=game_tags, values_key="tags"),
 )
@@ -444,7 +446,7 @@ class GameListFilters:
 
         # Sort alphabetically by name
         result.sort(
-            key=lambda t: self._get_game_name(t).lower()
+            key=lambda t: collation.sort_key(self._get_game_name(t))
         )
 
         return result

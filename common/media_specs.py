@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
+from common.i18n import t
+
 # Extension families, ordered: resolution tries them in order and the first hit
 # wins. Aligned with what import accepts, so a file import writes is never
 # invisible to the scan - which it was, when resolution demanded one exact name.
@@ -32,9 +34,6 @@ class MediaSpec:
     kind: str
     attr: str
     filename_template: str
-    # What a person calls this art, for anywhere the Manager UI names a kind. BG and
-    # DMD stay: it is what the art is called, whatever the kind is called.
-    label: str
     # Which VPinMediaDB resolution bucket this kind is published under - "1k" for the
     # backglass and scoreview, the configured playfield resolution for the playfield.
     #
@@ -57,6 +56,12 @@ class MediaSpec:
     # Whether medias/<kind>s/<set>/ folders participate in resolution.
     supports_sets: bool = False
 
+    @property
+    def label(self) -> str:
+        """What a person calls this art. BG and DMD stay: it is what the art is called,
+        whatever the kind is called."""
+        return t(f"media.kind.{self.kind}.label")
+
     def filename(self, playfield_variant: str = "table") -> str:
         return self.filename_template.format(playfield_variant=playfield_variant)
 
@@ -67,7 +72,6 @@ class MediaSpec:
 MEDIA_SPECS = (
     MediaSpec(
         "backglass",
-        label="Backglass",
         attr="BGImagePath",
         filename_template="bg.png",
         asset_group="1k",
@@ -75,7 +79,6 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "scoreview",
-        label="DMD",
         attr="DMDImagePath",
         filename_template="dmd.png",
         asset_group="1k",
@@ -86,7 +89,6 @@ MEDIA_SPECS = (
     # playfield falls back to when it has none.
     MediaSpec(
         "playfield",
-        label="Playfield",
         attr="PlayfieldImagePath",
         filename_template="{playfield_variant}.png",
         asset_group="table_resolution",
@@ -94,14 +96,12 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "playfield_fss",
-        label="Playfield FSS",
         attr="FSSImagePath",
         filename_template="fss.png",
         token="(FSS)",
     ),
     MediaSpec(
         "wheel",
-        label="Wheel",
         attr="WheelImagePath",
         filename_template="wheel.png",
         token="(Wheel)",
@@ -110,28 +110,24 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "cab",
-        label="Cab",
         attr="CabImagePath",
         filename_template="cab.png",
         token="(Cabinet)",
     ),
     MediaSpec(
         "real_dmd",
-        label="Real DMD",
         attr="realDMDImagePath",
         filename_template="realdmd.png",
         token="(RealDMD)",
     ),
     MediaSpec(
         "real_dmd_color",
-        label="Real DMD Color",
         attr="realDMDColorImagePath",
         filename_template="realdmd-color.png",
         token="(RealColorDMD)",
     ),
     MediaSpec(
         "flyer",
-        label="Flyer",
         attr="FlyerImagePath",
         filename_template="flyer.png",
         token="(Flyer)",
@@ -139,7 +135,6 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "playfield_video",
-        label="Playfield Video",
         attr="PlayfieldVideoPath",
         filename_template="{playfield_variant}.mp4",
         asset_group="table_video_resolution",
@@ -148,7 +143,6 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "backglass_video",
-        label="Backglass Video",
         attr="BGVideoPath",
         filename_template="bg.mp4",
         asset_group="table_video_resolution",
@@ -157,7 +151,6 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "scoreview_video",
-        label="DMD Video",
         attr="DMDVideoPath",
         filename_template="dmd.mp4",
         asset_group="table_video_resolution",
@@ -166,7 +159,6 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "audio",
-        label="Audio",
         attr="AudioPath",
         filename_template="audio.mp3",
         token="(Audio)",
@@ -176,7 +168,6 @@ MEDIA_SPECS = (
     # outside its media scheme and we bring in so it gets the chain.
     MediaSpec(
         "instruction_card",
-        label="Instruction Card",
         attr="InstructionCardImagePath",
         filename_template="instructioncard.png",
         token="(InstructionCard)",
@@ -184,14 +175,12 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "topper",
-        label="Topper",
         attr="TopperPath",
         filename_template="topper.png",
         token="(Topper)",
     ),
     MediaSpec(
         "topper_video",
-        label="Topper Video",
         attr="TopperVideoPath",
         filename_template="topper.mp4",
         token="(Topper)",
@@ -199,7 +188,6 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "loading",
-        label="Loading Video",
         attr="LoadingVideoPath",
         filename_template="loading.mp4",
         token="(Loading)",
@@ -207,7 +195,6 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "audio_launch",
-        label="Launch Audio",
         attr="AudioLaunchPath",
         filename_template="audiolaunch.mp3",
         token="(AudioLaunch)",
@@ -215,7 +202,6 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "rule_sheet",
-        label="Rule Sheet",
         attr="RuleSheetPath",
         filename_template="rulesheet.pdf",
         token="(RuleSheet)",
@@ -225,7 +211,6 @@ MEDIA_SPECS = (
     # is why the wheel falls back to it.
     MediaSpec(
         "logo",
-        label="Logo",
         attr="LogoImagePath",
         filename_template="logo.png",
         token="(Logo)",

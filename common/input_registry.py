@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from common.i18n import t
+
 SECTION = "input"
 
 # Selector prefixes. A binding that starts with neither is not one we can read.
@@ -28,13 +30,17 @@ class InputAction:
 
     name: str
     bindings: tuple[str, ...]
-    label: str
     # What this used to be called, so an existing [Input] section still resolves.
     legacy: tuple[str, ...] = ()
     # What kind of thing it does, for a page that has to show ten of these. Here rather
     # than on the settings schema because this registry is what knows what an action is
     # for - the schema is generated from it and would be restating the answer.
     group: str = ""
+
+    @property
+    def label(self) -> str:
+        """What a player calls this action, for the settings page that lists them."""
+        return t(f"input.{self.name}.label")
 
     @property
     def config_key(self) -> str:
@@ -56,14 +62,12 @@ INPUT_ACTIONS: tuple[InputAction, ...] = (
         "previous",
         group="Moving through the library",
         bindings=("key:ArrowLeft", "key:ShiftLeft"),
-        label="Previous",
         legacy=("joyleft", "keyleft"),
     ),
     InputAction(
         "next",
         group="Moving through the library",
         bindings=("key:ArrowRight", "key:ShiftRight"),
-        label="Next",
         legacy=("joyright", "keyright"),
     ),
     # up/down and pageup/pagedown were the same intent under two names: carousel-desktop
@@ -74,56 +78,48 @@ INPUT_ACTIONS: tuple[InputAction, ...] = (
         "page_previous",
         group="Moving through the library",
         bindings=("key:PageUp", "key:ArrowUp"),
-        label="Page Previous",
         legacy=("joypageup", "keypageup", "joyup", "keyup"),
     ),
     InputAction(
         "page_next",
         group="Moving through the library",
         bindings=("key:PageDown", "key:ArrowDown"),
-        label="Page Next",
         legacy=("joypagedown", "keypagedown", "joydown", "keydown"),
     ),
     InputAction(
         "select",
         group="Playing",
         bindings=("key:Enter",),
-        label="Select",
         legacy=("joyselect", "keyselect"),
     ),
     InputAction(
         "back",
         group="Playing",
         bindings=("key:KeyB",),
-        label="Back",
         legacy=("joyback", "keyback"),
     ),
     InputAction(
         "menu",
         group="Opening something",
         bindings=("key:KeyM",),
-        label="Menu",
         legacy=("joymenu", "keymenu"),
     ),
     InputAction(
         "collection_menu",
         group="Opening something",
         bindings=("key:KeyC",),
-        label="Collection Menu",
         legacy=("joycollectionmenu", "keycollectionmenu"),
     ),
     InputAction(
         "tutorial",
         group="Opening something",
         bindings=("key:KeyT",),
-        label="Tutorial",
         legacy=("joytutorial", "keytutorial"),
     ),
     InputAction(
         "exit",
         group="Playing",
         bindings=("key:Escape", "key:KeyQ"),
-        label="Exit",
         legacy=("joyexit", "keyexit"),
     ),
 )
