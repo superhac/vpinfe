@@ -17,6 +17,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.i18n import t
 from common.media_specs import media_label_map
 from console import confirm, grid, media_ownership, panel, views
 from console.api import ApiClient
@@ -86,48 +87,30 @@ _GAME = "Game"
 _SOURCE = "Source"
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.column("game", "Game", 200, pinned="left", group=_GAME,
-                help="The game folder this file belongs to."),
-    grid.column("label", "Kind", 160, group=_FILE,
-                help="Which of the twenty media kinds this row is about - the wheel,\n"
-                     "the playfield, the backglass and so on."),
-    grid.column("used_by", "Used by", type="numericColumn", group=_FILE,
-                help="How many of this game's tables actually load this file.\n\n"
-                     "0 - nothing loads it.\n"
-                     "Blank - there is no file to load."),
-    grid.column("reason", "Unused reason", 150, group=_FILE,
+    grid.column("game", t("console.media.game"), 200, pinned="left", group=_GAME,
+                help=t("console.media.the_game_folder_this_file.help")),
+    grid.column("label", t("console.media.kind"), 160, group=_FILE,
+                help=t("console.media.which_of_the_twenty_media.help")),
+    grid.column("used_by", t("console.media.used_by"), type="numericColumn", group=_FILE,
+                help=t("console.media.how_many_of_this_game_s.help")),
+    grid.column("reason", t("console.media.unused_reason"), 150, group=_FILE,
                 **grid.choice_filter(_REASON_CHOICES),
-                help="Why this file is not the one being used. Blank while it is.\n\n"
-                     "Missing - no file at all.\n"
-                     "Orphan - named for a table this folder does not have, so "
-                     "nothing will ever look for it again. Safe to delete.\n"
-                     "Unused - correctly named, but something more specific wins. "
-                     "It is the fallback, and it resolves again the moment the file "
-                     "covering it goes."),
-    grid.column("table_file", "Table", 200, group=_FILE,
-                help="The .vpx this file is named for.\n\n"
-                     "Blank - named for the folder, so every table falls back to it."),
-    grid.column("path", "Path", 300, group=_FILE,
-                help="Where the file sits, relative to the game folder.\n"
-                     "Art placed since 2.x lives in medias/."),
-    grid.column("source", "Source", 165, group=_SOURCE,
+                help=t("console.media.why_this_file_is_not_the.help")),
+    grid.column("table_file", t("console.media.table"), 200, group=_FILE,
+                help=t("console.media.the_vpx_this_file_is_named.help")),
+    grid.column("path", t("console.media.path"), 300, group=_FILE,
+                help=t("console.media.where_the_file_sits.help")),
+    grid.column("source", t("console.media.source"), 165, group=_SOURCE,
                 **grid.choice_filter(_SOURCE_CHOICES),
-                help="Who put the file here, as far as anything recorded it.\n\n"
-                     "Unknown - nothing recorded it. True of anything placed before "
-                     "the ledger or by another tool, which is most files.\n"
-                     "Blank - there is no file."),
-    grid.column("match", "Match", 140, group=_SOURCE,
-                help="The VPS file somebody said this art is for.\n\n"
-                     "Blank - nobody has said, which is not the same as there being "
-                     "no match to make."),
-    grid.column("covered_by", "Covered by", 130, group=_FILE,
-                help="What the cabinet shows for this kind while there is no file of "
-                     "its own - a set, or another kind standing in.\n"
-                     "That file belongs to the other kind, which is why this row "
-                     "still reads as missing."),
-    grid.column("manufacturer", "Manufacturer", 150, group=_GAME,
-                help="Who made the machine."),
-    grid.column("year", "Year", group=_GAME, help="The year the machine was released."),
+                help=t("console.media.who_put_the_file_here_as.help")),
+    grid.column("match", t("console.media.match"), 140, group=_SOURCE,
+                help=t("console.media.the_vps_file_somebody_said.help")),
+    grid.column("covered_by", t("console.media.covered_by"), 130, group=_FILE,
+                help=t("console.media.what_the_cabinet_shows_for.help")),
+    grid.column("manufacturer", t("console.media.manufacturer"), 150, group=_GAME,
+                help=t("console.media.who_made_the_machine.help")),
+    grid.column("year", t("console.media.year"), group=_GAME,
+            help=t("console.media.the_year_the_machine_was.help")),
 ]
 
 _ALL = [definition["field"] for definition in COLUMNS]
@@ -140,36 +123,26 @@ VIEWS: dict[str, list[str] | views.Preset] = {
         columns=("game", "label", "reason", "manufacturer", "year"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [_MISSING]}},
-        help="The art you do not have. Filter to one kind and you have the shopping "
-             "list for it - select the rows and fetch them from the catalogs in one "
-             "go."),
+        help=t("console.media.the_art_you_do_not_have.help")),
     "Orphans": views.Preset(
         columns=("game", "label", "reason", "table_file", "path"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [_ORPHAN]}},
-        help="Art left behind when a table was renamed, replaced by a new version or "
-             "deleted. Nothing will ever look for these names again, so this is the "
-             "list that is safe to clear out."),
+        help=t("console.media.art_left_behind_when_a.help")),
     "Unused": views.Preset(
         columns=("game", "label", "reason", "used_by", "path", "source"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [_UNUSED]}},
-        help="Files nothing loads because something more specific always wins - the "
-             "catalog art still sitting under the art you made yourself. Worth "
-             "clearing if you want the space, but each one is a fallback that comes "
-             "back the moment the file covering it goes."),
+        help=t("console.media.files_nothing_loads.help")),
     "Sources": views.Preset(
         columns=("game", "label", "used_by", "path", "source", "match"),
         sort=({"colId": "source", "sort": "asc", "sortIndex": 0},
               {"colId": "game", "sort": "asc", "sortIndex": 1}),
         filters={"reason": {"values": [""]}},
-        help="Where your art came from, with the unattributed first. Use it to see how "
-             "much of the library you assembled yourself, and to bind files to their "
-             "VPS records so updates can be tracked later."),
+        help=t("console.media.where_your_art_came_from.help")),
     "Everything": views.Preset(
         columns=tuple(_ALL),
-        help="Every row, nothing hidden. The way out of any other view, and where you "
-             "build a filter of your own worth saving."),
+        help=t("console.media.every_row_nothing_hidden.help")),
 }
 
 
@@ -183,7 +156,7 @@ async def fill(picked: list[dict[str, Any]], library: Any,
     """
     wanted = [row for row in picked if not row.get("present")]
     if not wanted:
-        ui.notify("Those all have a file. Select missing ones to fill.",
+        ui.notify(t("console.media.those_all_have_a_file"),
                   type="warning")
         return
     unmatched = sum(1 for row in wanted if not row.get("vps_id"))
@@ -260,10 +233,9 @@ def build(found: list[dict[str, Any]], library: Any,
         if rescan is not None:
             ui.button(icon="refresh", on_click=rescan) \
                 .props("flat dense round size=sm").classes("shrink-0") \
-                .tooltip("Read the library from disk again and pick up anything "
-                         "added, changed or removed - tables, media and assets")
+                .tooltip(t("console.media.read_the_library_from_disk"))
         actions = ui.button(icon="more_vert").props("flat round dense") \
-            .tooltip("Actions for the selected media")
+            .tooltip(t("console.media.actions_for_the_selected"))
 
         async def refill() -> None:
             for game_id in {row["game_id"] for row in selected}:
@@ -273,10 +245,10 @@ def build(found: list[dict[str, Any]], library: Any,
 
         with actions:
             with ui.menu():
-                ui.menu_item("Get art for selected",
+                ui.menu_item(t("console.media.get_art_for_selected"),
                              lambda: fill(list(selected), library, refill))
                 ui.separator()
-                ui.menu_item("Clear selection",
+                ui.menu_item(t("console.media.clear_selection"),
                              lambda: table.run_grid_method("deselectAll"))
         actions.set_visibility(False)
 

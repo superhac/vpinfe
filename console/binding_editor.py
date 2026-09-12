@@ -23,6 +23,7 @@ from typing import Any
 from nicegui import ui
 
 from common import input_registry
+from common.i18n import t
 from console import confirm, panel
 
 logger = logging.getLogger("vpinfe.console.binding_editor")
@@ -171,9 +172,9 @@ def rows(option: dict[str, Any], value: Any, save: Callable[[Any], Any], *,
                 # Amber, because this action cannot be triggered at all - which is the
                 # one thing on this page worth going and fixing. Drawn quiet, it read
                 # as a binding whose name happened to be "Nothing bound".
-                ui.label("Nothing bound") \
+                ui.label(t("console.binding_editor.nothing_bound")) \
                     .classes("console-member-chip console-tier console-tier--warn") \
-                    .tooltip("Nothing triggers this - bind something to it")
+                    .tooltip(t("console.binding_editor.nothing_triggers_this_bind"))
             if writable:
                 _capture(option, held, store, claimed)
 
@@ -268,7 +269,7 @@ def _menu(chip: Any, binding: str, store: Callable[..., Any], held: list,
 
         holding = input_registry.hold_ms(binding)
         with ui.row().classes("items-center gap-2 no-wrap"):
-            ui.label("Held for").classes("console-setting grow min-w-0")
+            ui.label(t("console.binding_editor.held_for")).classes("console-setting grow min-w-0")
             switch = ui.switch(value=bool(holding)) \
                 .props("dense color=positive").classes("console-fact-switch")
         seconds = ui.number(value=(holding or DEFAULT_HOLD_MS) / 1000,
@@ -282,7 +283,7 @@ def _menu(chip: Any, binding: str, store: Callable[..., Any], held: list,
         seconds.on_value_change(
             lambda: set_hold(round(float(seconds.value or 0) * 1000))
             if switch.value else None)
-        ui.label("How long it has to be held before it counts") \
+        ui.label(t("console.binding_editor.how_long_it_has_to_be_held")) \
             .classes("console-help")
 
         panel.action("Remove",
@@ -343,7 +344,7 @@ def _capture(option: dict[str, Any], held: list, store: Callable[[list], Any],
         await store([*held, selector])
 
     panel.action("Bind", heard, icon="add", inline=True,
-                 hint="Press one input, two together, or hold to bind a hold",
+                 hint=t("console.binding_editor.press_one_input_two"),
                  js=_CAPTURE_JS % {
                      "hold_at": HOLD_AT_MS,
                      "asking": json.dumps(

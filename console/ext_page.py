@@ -1,3 +1,4 @@
+
 """One extension's own page: what it is set to, what it can be asked to do, what it holds.
 
 Core draws all of it. The extension says what its settings are, what its actions are and
@@ -16,6 +17,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.i18n import t
 from console import ext_action, panel
 from console.api import ApiClient
 
@@ -27,7 +29,7 @@ def build(extension: dict, back) -> None:
 
     with ui.row().classes("items-center gap-2 w-full"):
         ui.button(icon="arrow_back", on_click=lambda: back()) \
-            .props("flat dense round").tooltip("Back to extensions")
+            .props("flat dense round").tooltip(t("console.ext_page.back_to_extensions"))
         ui.label(str(extension.get("display_name") or name)) \
             .classes("text-base console-workbench-title console-panel-heading")
         version = str(extension.get("version") or "")
@@ -111,7 +113,7 @@ def _actions(extension: dict, name: str) -> None:
     offered = list(extension.get("actions") or [])
     if not offered:
         return
-    ui.label("Actions").classes("console-group mt-4")
+    ui.label(t("console.ext_page.actions")).classes("console-group mt-4")
     with ui.element("div").classes("console-card w-full"), \
             ui.row().classes("items-center gap-2 w-full flex-wrap"):
         for action in offered:
@@ -212,7 +214,7 @@ def _reach(extension: dict) -> None:
     uses = [_plainly(str(one)) for one in extension.get("capabilities") or []]
     if not reaches and not uses:
         return
-    ui.label("What it can reach").classes("console-group mt-4")
+    ui.label(t("console.ext_page.what_it_can_reach")).classes("console-group mt-4")
     with ui.element("div").classes("console-card w-full"):
         entries: list[tuple[Any, Any]] = []
         if reaches:

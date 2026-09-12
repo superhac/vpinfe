@@ -19,6 +19,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common import labels
+from common.i18n import t
 from common.media_specs import media_family, media_label_map
 from console import candidates, confirm, media_ownership
 
@@ -115,7 +116,7 @@ class _Sources:
         if not self.placements:
             return
         with ui.column().classes("w-full gap-0 console-destination"):
-            ui.label("Save it as").classes("console-card-title")
+            ui.label(t("console.mediasource.save_it_as")).classes("console-card-title")
             for item in self.placements:
                 self._placement_choice(item)
             self.filename_note = ui.label("").classes("console-help console-destination-name")
@@ -212,7 +213,7 @@ class _Sources:
     # --- from the computer you are looking at this from ----------------------
 
     def upload_tab(self) -> None:
-        ui.label("Choose a file on the computer you are looking at this from") \
+        ui.label(t("console.mediasource.choose_a_file_on_the")) \
             .classes("console-help")
 
         async def arrived(event: Any) -> None:
@@ -230,7 +231,7 @@ class _Sources:
             await self.finish(f"{self.label} saved")
 
         ui.upload(on_upload=arrived, auto_upload=True, max_files=1,
-                  label="Drop a file here, or browse") \
+                  label=t("console.mediasource.drop_a_file_here_or_browse")) \
             .props("flat").classes("w-full console-source-upload")
 
     # --- from anywhere on the machine VPinFE runs on -------------------------
@@ -246,16 +247,15 @@ class _Sources:
         self.browse_roots = starts
         with body:
             if not starts:
-                ui.label("No folders are browsable. The game library counts as one, and "
-                         "more can be listed under Browsable Media Folders in settings.") \
+                ui.label(t("console.mediasource.no_folders_are_browsable")) \
                     .classes("console-help")
                 return
-            ui.label("Files already on the machine VPinFE runs on") \
+            ui.label(t("console.mediasource.files_already_on_the")) \
                 .classes("console-help")
             # The control before what it controls: built the other way round, the
             # picker sits under the folder it chose.
             picker = (ui.select({item["path"]: _start_name(item) for item in starts},
-                                value=starts[0]["path"], label="Start from")
+                                value=starts[0]["path"], label=t("console.mediasource.start_from"))
                       .props("outlined dense").classes("w-full")
                       if len(starts) > 1 else None)
             listing = ui.column().classes("w-full gap-1")
@@ -366,7 +366,8 @@ class _Sources:
         with body:
             self.online_head = ui.label("").classes("console-card-title")
             self.online_body = ui.column().classes("w-full gap-1 console-source-offers")
-            ui.label("Search another game").classes("console-card-title console-source-under")
+            ui.label(t("console.mediasource.search_another_game")) \
+                .classes("console-card-title console-source-under")
             search = ui.input(value=str(game.get("name") or "")) \
                 .props("outlined dense clearable").classes("w-full")
             results = ui.column().classes("w-full gap-1 console-source-found")
@@ -403,7 +404,7 @@ class _Sources:
             return
         with results:
             if not found:
-                ui.label("No game by that name in VPSdb").classes("console-help")
+                ui.label(t("console.mediasource.no_game_by_that_name_in")).classes("console-help")
                 return
             for item in found:
                 self._game_choice(item)
@@ -439,8 +440,7 @@ class _Sources:
                                  else f"{found_online} for {name}")
         if not vps_id:
             with body:
-                ui.label("This game has no VPS id, so there is nothing to look up. "
-                         "Search above to take art from a game that has one.") \
+                ui.label(t("console.mediasource.this_game_has_no_vps_id_so")) \
                     .classes("console-help")
             return
         try:
@@ -527,9 +527,9 @@ def open_sources(context: dict[str, Any], kind: str, label: str,
         # Ordered by how far the file has to travel: your own computer, this machine,
         # then the internet.
         with ui.tabs().props("dense no-caps align=left").classes("w-full") as tabs:
-            ui.tab("upload", label="Upload a file", icon="upload_file")
-            ui.tab("browse", label="On this machine", icon="folder_open")
-            ui.tab("online", label="Online", icon="cloud_download")
+            ui.tab("upload", label=t("console.mediasource.upload_a_file"), icon="upload_file")
+            ui.tab("browse", label=t("console.mediasource.on_this_machine"), icon="folder_open")
+            ui.tab("online", label=t("console.mediasource.online"), icon="cloud_download")
         with ui.tab_panels(tabs, value="upload").classes("w-full console-sources-panels"):
             with ui.tab_panel("upload"):
                 sources.upload_tab()

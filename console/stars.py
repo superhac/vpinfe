@@ -1,3 +1,4 @@
+
 """Five stars, one control, wherever a rating is set.
 
 Drawn twice and it cannot be drawn once: a grid cell is rendered by AG Grid in the
@@ -11,6 +12,8 @@ from collections.abc import Callable
 from typing import Any
 
 from nicegui import run, ui
+
+from common.i18n import t
 
 MOST = 5
 # The character *is* the control. In a tooltip it measures zero and cannot be clicked,
@@ -74,7 +77,7 @@ def draw(value: int, on_pick: Callable[[int], Any]) -> Callable[[], None]:
             if value:
                 ui.label(CLEAR).classes(CLEAR_CLASS) \
                     .on("click", lambda _: on_pick(0)) \
-                    .tooltip("Clear rating")
+                    .tooltip(t("console.stars.clear_rating"))
 
     return build
 

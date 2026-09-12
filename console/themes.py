@@ -1,3 +1,4 @@
+
 """The frontend themes this install knows, and which one plays.
 
 Cards rather than a grid. A theme is chosen by looking at it - the preview is the point,
@@ -21,6 +22,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.i18n import t
 from console import confirm, panel, settings
 
 logger = logging.getLogger("vpinfe.console.themes")
@@ -50,16 +52,15 @@ async def _fill(library, state: dict[str, Any], redraw: Callable[[], None], body
     body.clear()
     with body:
         with ui.row().classes("items-center gap-2 w-full no-wrap px-1 pt-1"):
-            ui.label("What the frontend looks like. Installing one downloads it; "
-                     "making one active takes effect when the frontend next starts.") \
+            ui.label(t("console.themes.what_the_frontend_looks")) \
                 .classes("console-help grow min-w-0")
-            ui.button("Check for updates", icon="refresh",
+            ui.button(t("console.themes.check_for_updates"), icon="refresh",
                       on_click=lambda: _fill(library, state, redraw, body,
                                              refresh=True)) \
                 .props("flat dense no-caps size=sm")
         if not themes:
             panel.facts(ui, [panel.intro(
-                "No theme sources are configured, so there is nothing to list.")])
+                t("console.themes.no_theme_sources_are"))])
             return
         for theme in themes:
             _card(library, state, redraw, body, theme)
@@ -110,7 +111,7 @@ def _heading(theme: dict[str, Any]) -> None:
         if theme.get("configurable"):
             _chip("Configurable", "console-tier--off")
         if theme.get("url"):
-            ui.link("Source", theme["url"], new_tab=True).classes("console-help")
+            ui.link(t("console.themes.source"), theme["url"], new_tab=True).classes("console-help")
 
 
 def _chip(text: str, tone: str) -> None:
@@ -142,25 +143,25 @@ def _actions(library, state: dict[str, Any], redraw: Callable[[], None], body,
 
     with ui.row().classes("items-center gap-2 no-wrap flex-wrap pt-1"):
         if not theme["installed"]:
-            ui.button("Install", icon="download",
+            ui.button(t("console.themes.install"), icon="download",
                       on_click=lambda: _install(library, key, again)) \
                 .props("flat dense no-caps size=sm")
         elif theme["update_available"]:
-            ui.button("Update", icon="system_update_alt",
+            ui.button(t("console.themes.update"), icon="system_update_alt",
                       on_click=lambda: _install(library, key, again)) \
                 .props("flat dense no-caps size=sm color=primary")
         if theme["installed"] and not theme["active"]:
-            ui.button("Make active", icon="check_circle",
+            ui.button(t("console.themes.make_active"), icon="check_circle",
                       on_click=lambda: _activate(library, theme, again)) \
                 .props("flat dense no-caps size=sm")
         if theme.get("configurable"):
-            ui.button("Configure", icon="tune",
+            ui.button(t("console.themes.configure"), icon="tune",
                       on_click=lambda: _configure(library, theme)) \
                 .props("flat dense no-caps size=sm")
         if theme["installed"] and not theme["active"]:
             # Not on the active one: removing it would leave the frontend with no theme
             # at all, and the way out of that is a config file.
-            ui.button("Remove", icon="delete",
+            ui.button(t("console.themes.remove"), icon="delete",
                       on_click=lambda: _remove(library, theme, again)) \
                 .props("flat dense no-caps size=sm color=negative")
 
@@ -246,9 +247,10 @@ async def _configure(library, theme: dict[str, Any]) -> None:
         with ui.column().classes("w-full gap-3 console-theme-options"):
             panel.facts(ui, _rows(options, wanted))
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button("Cancel", on_click=lambda: dialog.submit(False)) \
+            ui.button(t("console.themes.cancel"), on_click=lambda: dialog.submit(False)) \
                 .props("flat no-caps")
-            ui.button("Save", on_click=lambda: dialog.submit(True)).props("no-caps")
+            ui.button(t("console.themes.save"),
+                    on_click=lambda: dialog.submit(True)).props("no-caps")
 
     if not await dialog:
         return
@@ -257,7 +259,7 @@ async def _configure(library, theme: dict[str, Any]) -> None:
     except Exception as exc:  # noqa: BLE001
         ui.notify(f"Could not save those settings: {exc}", type="negative")
         return
-    ui.notify("Saved", type="positive")
+    ui.notify(t("console.themes.saved"), type="positive")
 
 
 def _rows(options: list[dict[str, Any]], wanted: dict[str, Any]) -> list[tuple]:

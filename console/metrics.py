@@ -1,3 +1,4 @@
+
 """What this machine is doing, and what it has been doing this session.
 
 The live half. A machine's host, OS and browser are facts rather than readings and they
@@ -17,6 +18,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.i18n import t
 from console import panel
 
 logger = logging.getLogger("vpinfe.console.metrics")
@@ -49,12 +51,12 @@ def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
         with ui.row().classes("w-full gap-4 no-wrap items-stretch") as readings:
             cpu = _reading_card("Processor")
             memory = _reading_card("Memory")
-        disks_title = ui.label("Free space").classes("console-group mt-2")
+        disks_title = ui.label(t("console.metrics.free_space")).classes("console-group mt-2")
         disks = ui.element("div").classes("console-card w-full")
-        ui.label("Graphics").classes("console-group mt-2")
+        ui.label(t("console.metrics.graphics")).classes("console-group mt-2")
         with ui.element("div").classes("console-card w-full"):
             with ui.row().classes("items-center gap-3 w-full no-wrap"):
-                ui.label("Watch the graphics cards") \
+                ui.label(t("console.metrics.watch_the_graphics_cards")) \
                     .classes("console-setting grow min-w-0")
                 # Through the shared control, which is where "on is green" is decided.
                 # Drawn by hand here it was the default color, so the one switch on this
@@ -138,12 +140,11 @@ def _draw_cards(target, held: dict[str, Any]) -> None:
     target.clear()
     with target:
         if not held["watch_gpu"]:
-            ui.label("Off. Reading them runs nvtop, so it is asked for rather than "
-                     "assumed.").classes("console-help")
+            ui.label(t("console.metrics.off_reading_them_runs")).classes("console-help")
             return
         found = held.get("gpu")
         if found is None:
-            ui.label("Reading them...").classes("console-help")
+            ui.label(t("console.metrics.reading_them")).classes("console-help")
             return
         if not found.get("available"):
             # "This machine has no graphics section" and "the tool that reads one is
@@ -184,7 +185,8 @@ def _disk_row(disk: dict[str, Any]) -> None:
         if disk.get("error"):
             # A share that has gone away is exactly what this reports, and saying
             # nothing would show it as a path with no numbers.
-            ui.label("cannot be read").classes("text-xs").style(f"color: {_tone(100)}")
+            ui.label(t("console.metrics.cannot_be_read")).classes("text-xs") \
+                .style(f"color: {_tone(100)}")
             return
         with ui.element("div").classes("w-40 shrink-0"):
             _bar((disk.get("percent") or 0) / 100, _tone(disk.get("percent")))

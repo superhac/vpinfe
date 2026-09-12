@@ -1,3 +1,4 @@
+
 """Binding a game to its VPS entry, from the panel or from a grid selection.
 
 Both callers come through here so there is one picker rather than two that drift.
@@ -14,6 +15,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.i18n import t
 from console import candidates
 
 logger = logging.getLogger("vpinfe.console.vps_match")
@@ -38,10 +40,10 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
     """
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-confirm console-picker-dialog"):
-        ui.label("Match this game to VPS").classes("console-confirm-title")
+        ui.label(t("console.vps_match.match_this_game_to_vps")).classes("console-confirm-title")
         if place:
             ui.label(place).classes("console-help")
-        ui.label("Nothing here ranks the results - pick the machine you have.") \
+        ui.label(t("console.vps_match.nothing_here_ranks_the")) \
             .classes("console-help")
         field = ui.input(value=str(game.get("name") or "")) \
             .props("dense autofocus clearable").classes("console-edit-field w-full")
@@ -53,7 +55,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
             found.clear()
             with found:
                 if not said:
-                    ui.label("Type a name, a maker or a year").classes("console-help")
+                    ui.label(t("console.vps_match.type_a_name_a_maker_or_a")).classes("console-help")
                     return
                 if not rows:
                     ui.label(f"Nothing in VPS matches “{said}”") \
@@ -63,18 +65,20 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
                     _match_row(row, dialog)
 
         field.on("keydown.enter", look)
-        ui.button("Search", on_click=look).props("flat dense no-caps size=sm") \
+        ui.button(t("console.vps_match.search"),
+                on_click=look).props("flat dense no-caps size=sm") \
             .classes("console-action")
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button("Clear match", on_click=lambda: dialog.submit(CLEARED)) \
+            ui.button(t("console.vps_match.clear_match"), on_click=lambda: dialog.submit(CLEARED)) \
                 .props("flat no-caps")
             if walking:
-                ui.button("Skip", on_click=lambda: dialog.submit(CANCELLED)) \
+                ui.button(t("console.vps_match.skip"), on_click=lambda: dialog.submit(CANCELLED)) \
                     .props("flat no-caps")
-                ui.button("Stop", on_click=lambda: dialog.submit(STOPPED)) \
+                ui.button(t("console.vps_match.stop"), on_click=lambda: dialog.submit(STOPPED)) \
                     .props("flat no-caps")
             else:
-                ui.button("Cancel", on_click=lambda: dialog.submit(CANCELLED)) \
+                ui.button(t("console.vps_match.cancel"),
+                        on_click=lambda: dialog.submit(CANCELLED)) \
                     .props("flat no-caps")
         await look()
 

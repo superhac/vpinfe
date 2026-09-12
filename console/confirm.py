@@ -1,3 +1,4 @@
+
 """Ask before something cannot be undone.
 
 One dialog: two had already been written to the same shape with different spellings, and
@@ -10,6 +11,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from nicegui import ui
+
+from common.i18n import t
 
 
 async def ask(question: str, *, detail: str = "", lines: Iterable[str] = (),
@@ -28,7 +31,7 @@ async def ask(question: str, *, detail: str = "", lines: Iterable[str] = (),
             ui.label(line).classes("console-confirm-line")
         with ui.row().classes("justify-end gap-2 w-full"):
             # Cancel first and quiet: the destructive verb is the one to be aimed at.
-            ui.button("Cancel", on_click=lambda: dialog.submit(False)) \
+            ui.button(t("console.confirm.cancel"), on_click=lambda: dialog.submit(False)) \
                 .props("flat no-caps")
             ui.button(confirm, on_click=lambda: dialog.submit(True)) \
                 .props("no-caps" + (" color=negative" if danger else ""))

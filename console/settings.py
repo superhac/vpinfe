@@ -23,6 +23,7 @@ from nicegui import run, ui
 
 from common import config_schema, feature_checks, install_identity, path_checks, tokens
 from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
+from common.i18n import t
 from common.labels import humanize
 from common.media_specs import media_label_map
 from console import binding_editor, deeplink, input_watch, panel
@@ -355,8 +356,7 @@ FOOTERS: dict[str, Callable] = {"vpsdb": _vps_foot, "input": _input_foot}
 def _checks_library() -> None:
     from console.sections import CHECKS
     entries: list[tuple[Any, Any]] = [panel.intro(
-        "Each check runs over every game. Turn one off here to silence it everywhere; "
-        "dismiss it on a single game to silence it just there.")]
+        t("console.settings.each_check_runs_over_every"))]
     for _, name, description, _pred in CHECKS:
         entries.append((name, panel.switch(True, lambda e: None)))
         entries.append(panel.note(description))
@@ -591,14 +591,14 @@ def build_library_page(library, rerender: Callable[[], None], key: str,
     if kind == BUILT_PAGE:
         drawn = PAGES.get(key)
         if drawn is None:
-            panel.facts(ui, [panel.intro("Not built yet.")])
+            panel.facts(ui, [panel.intro(t("console.settings.not_built_yet"))])
             return
         drawn()
         return
 
     found = KIND_PAGES.get(key)
     if found is None:
-        panel.facts(ui, [panel.intro("Not built yet.")])
+        panel.facts(ui, [panel.intro(t("console.settings.not_built_yet"))])
         return
     note, _section, name, items, mode = found
     _kind_page(library, rerender, note, "", name, items, mode)
@@ -625,7 +625,7 @@ def section_rows(source, section: str, options: list[dict], values: dict,
                  for one in options}
     entries: list[tuple[Any, Any]] = []
     if not writable:
-        entries.append(panel.intro("Read-only on this install."))
+        entries.append(panel.intro(t("console.settings.read_only_on_this_install")))
     heading = ""
     for option in _by_group(options):
         group = str(option.get("group") or "")
@@ -636,8 +636,7 @@ def section_rows(source, section: str, options: list[dict], values: dict,
                 # launcher points at an arbitrary program - but this is the setting that
                 # makes it obvious, and it matters if the reach of this page ever changes.
                 entries.append(panel.note(
-                    "These run as whoever VPinFE is running as, so anyone who can reach "
-                    "this page can run anything that account can."))
+                    t("console.settings.these_run_as_whoever")))
         heading = group
         value = current.get(option["key"], option.get("default"))
         entries.append((option.get("label") or humanize(option["key"]),
@@ -683,7 +682,7 @@ async def build_device_page(source, context: dict[str, Any], schema: list[dict],
     blocks = [block for block in schema
               if str(block.get("name")) in sections and block.get("options")]
     if not blocks:
-        panel.facts(ui, [panel.intro("This device declares nothing on this page.")])
+        panel.facts(ui, [panel.intro(t("console.settings.this_device_declares"))])
         return
 
     entries: list[tuple[Any, Any]] = []
@@ -856,11 +855,9 @@ async def _identity_page(library, reported: str,
         # that answer rather than the word for it.
         ("Name", panel.field(str(held.get("display_name") or ""), rename,
                              placeholder=reported)),
-        panel.note("What this install is called where one is listed. Nothing is "
-                   "addressed by it, so renaming is safe."),
+        panel.note(t("console.settings.what_this_install_is")),
         (panel.HEADING, "Features"),
-        panel.intro("What this install is for. Each one decides what the Console shows "
-                    "and what this machine answers for."),
+        panel.intro(t("console.settings.what_this_install_is_for")),
     ]
     for name in install_identity.FEATURES:
         entries.append((FEATURE_LABELS[name], panel.switch(

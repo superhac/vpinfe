@@ -1,3 +1,4 @@
+
 """The last look before an import writes anything: what will land, and what will not.
 
 Every row says three things, because those are the three a person is actually deciding
@@ -17,6 +18,8 @@ from pathlib import Path
 from typing import Any
 
 from nicegui import run, ui
+
+from common.i18n import t
 
 logger = logging.getLogger("vpinfe.console.import_dialog")
 
@@ -97,7 +100,7 @@ async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
                 *, offer_remember: bool) -> str | None:
     holds = {"id": str(offered[0].get("location_id") or ""), "stop_asking": False}
     with ui.dialog() as picker, ui.card().classes("console-confirm"):
-        ui.label("Where should this game go?").classes("console-confirm-title")
+        ui.label(t("console.import_dialog.where_should_this_game_go")).classes("console-confirm-title")
         if reason:
             # The refusal leads, because it is the reason they are being asked at all.
             ui.label(reason).classes("console-help")
@@ -110,14 +113,15 @@ async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
         if offer_remember:
             # Offered here rather than only in Settings, because this is the moment
             # somebody knows whether they want to be asked again.
-            ui.checkbox("Always use this one, do not ask again",
+            ui.checkbox(t("console.import_dialog.always_use_this_one_do_not"),
                         on_change=lambda e: holds.__setitem__("stop_asking",
                                                               bool(e.value))) \
                 .props("dense").classes("console-help")
         with ui.row().classes("justify-end gap-2 w-full pt-2"):
-            ui.button("Cancel", on_click=lambda: picker.submit(None)) \
+            ui.button(t("console.import_dialog.cancel"), on_click=lambda: picker.submit(None)) \
                 .props("flat no-caps")
-            ui.button("Use this", on_click=lambda: picker.submit(holds["id"])) \
+            ui.button(t("console.import_dialog.use_this"),
+                    on_click=lambda: picker.submit(holds["id"])) \
                 .props("no-caps")
 
     said = await picker
@@ -162,7 +166,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
         if new_folder:
             ui.label(f"Import from {source or 'this drop'}") \
                 .classes("console-confirm-title")
-            ui.label("The files keep their names. Only the folder is named here.") \
+            ui.label(t("console.import_dialog.the_files_keep_their_names")) \
                 .classes("console-help")
         else:
             ui.label(f"Import into {Path(str(plan.get('game_dir') or '')).name}") \
@@ -195,9 +199,10 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
         recount()
 
         with ui.row().classes("justify-end gap-2 w-full pt-2"):
-            ui.button("Cancel", on_click=lambda: dialog.submit(False)) \
+            ui.button(t("console.import_dialog.cancel"), on_click=lambda: dialog.submit(False)) \
                 .props("flat no-caps")
-            go = ui.button("Import", on_click=lambda: dialog.submit(True)) \
+            go = ui.button(t("console.import_dialog.import"),
+                    on_click=lambda: dialog.submit(True)) \
                 .props("no-caps")
             if not items:
                 go.disable()
@@ -210,7 +215,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
     wanted = None if single else [i for i, on in sorted(chosen.items()) if on]
     if wanted is not None and not wanted:
         await run.io_bound(library.abort_upload, upload_id)
-        ui.notify("Nothing was selected, so nothing was imported", type="warning")
+        ui.notify(t("console.import_dialog.nothing_was_selected_so"), type="warning")
         return
 
     note = ui.notification("Importing…", spinner=True, timeout=None)
@@ -274,9 +279,10 @@ def _folder_row(library: Any, named: dict[str, Any], plan: dict[str, Any]) -> No
         field = ui.input(value=str(named["folder"] or "")) \
             .props("outlined dense debounce=0").classes("grow")
         field.on_value_change(lambda: named.__setitem__("folder", field.value or ""))
-        ui.button("Match", on_click=lambda: _match(library, named, field)) \
+        ui.button(t("console.import_dialog.match"),
+                on_click=lambda: _match(library, named, field)) \
             .props("flat dense no-caps size=sm") \
-            .tooltip("Name the folder from the upstream record")
+            .tooltip(t("console.import_dialog.name_the_folder_from_the"))
     del plan
 
 
@@ -289,16 +295,15 @@ async def _match(library: Any, named: dict[str, Any], field: Any) -> None:
         ui.notify(f"Could not search: {exc}", type="negative")
         return
     if not found:
-        ui.notify("Nothing in the catalog matches that name", type="warning")
+        ui.notify(t("console.import_dialog.nothing_in_the_catalog"), type="warning")
         return
     offered = {str(one.get("vps_id") or ""):
                f"{one.get('name') or ''} ({one.get('manufacturer') or ''} "
                f"{one.get('year') or ''})".replace(" )", ")")
                for one in found}
     with ui.dialog() as picker, ui.card().classes("console-confirm"):
-        ui.label("Which one is this?").classes("console-confirm-title")
-        ui.label("The folder is named from the record, so other tools reading this "
-                 "library recognize it.").classes("console-help")
+        ui.label(t("console.import_dialog.which_one_is_this")).classes("console-confirm-title")
+        ui.label(t("console.import_dialog.the_folder_is_named_from")).classes("console-help")
         # Pre-selected on the best match rather than left empty: the top hit is right
         # nearly always, and an empty picker asks somebody to re-read what they typed.
         holds = {"id": next(iter(offered), "")}
@@ -306,9 +311,10 @@ async def _match(library: Any, named: dict[str, Any], field: Any) -> None:
                   on_change=lambda e: holds.__setitem__("id", str(e.value or ""))) \
             .props("outlined dense").classes("w-full")
         with ui.row().classes("justify-end gap-2 w-full pt-2"):
-            ui.button("Cancel", on_click=lambda: picker.submit("")) \
+            ui.button(t("console.import_dialog.cancel"), on_click=lambda: picker.submit("")) \
                 .props("flat no-caps")
-            ui.button("Use this", on_click=lambda: picker.submit(holds["id"])) \
+            ui.button(t("console.import_dialog.use_this"),
+                    on_click=lambda: picker.submit(holds["id"])) \
                 .props("no-caps")
 
     picked = await picker

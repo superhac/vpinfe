@@ -1,3 +1,4 @@
+
 """Locations: where this install looks for games.
 
 A grid rather than a rail, for the reason Devices is one: the value of a location is
@@ -17,6 +18,8 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.i18n import t
+
 from . import confirm, grid, panel
 
 logger = logging.getLogger("vpinfe.console.locations")
@@ -35,32 +38,23 @@ _KIND_CHOICES = [{"value": key, "label": label} for key, label in KIND_LABELS.it
 COLUMNS = [
     # The folder leads and is pinned. It is what a person recognizes a location by, and
     # every other column is a fact about it.
-    grid.column("name", "Folder", 260, pinned="left",
-                help="The folder this location is.\n"
-                     "The last two parts of the path, because a library is very often\n"
-                     "called `tables` and two of those would read the same."),
-    grid.column("contains", "Contains", 140, **grid.choice_filter(_KIND_CHOICES),
-                help="Game folders - its children are games.\n"
-                     "One game - the location is itself a single game folder."),
-    grid.column("state", "State", 140,
-                help="What the disk says right now.\n\n"
-                     "Ready - reachable and can be written to.\n"
-                     "Read-only - reachable, but nothing can be added.\n"
-                     "Unreachable - not there. Usually a share that has not mounted."),
-    grid.column("new_games", "New Games", 120,
-                help="Where a game you add or import is created.\n"
-                     "One location holds this, and it is your choice."),
+    grid.column("name", t("console.locations.folder"), 260, pinned="left",
+                help=t("console.locations.the_folder_this_location.help")),
+    grid.column("contains", t("console.locations.contains"), 140,
+            **grid.choice_filter(_KIND_CHOICES),
+                help=t("console.locations.game_folders_its_children.help")),
+    grid.column("state", t("console.locations.state"), 140,
+                help=t("console.locations.what_the_disk_says_right.help")),
+    grid.column("new_games", t("console.locations.new_games"), 120,
+                help=t("console.locations.where_a_game_you_add_or.help")),
     # Priority as a number rather than as position alone: the grid can be sorted by
     # any column, so the order you are looking at is not always the order that decides.
-    grid.column("priority", "Priority", 110, type="numericColumn",
-                help="Which location wins when two of them hold the same game.\n"
-                     "1 is highest. Move a location up or down to change it."),
-    grid.column("shadowed", "Shadowed", 120, type="numericColumn",
-                help="Game folders here whose id a higher location already uses.\n"
-                     "Blank is the ordinary answer. A number means the same game is\n"
-                     "in your library twice - often the same tree reached two ways."),
-    grid.column("path", "Full Path", 420,
-                help="The whole path, for telling two similar folders apart."),
+    grid.column("priority", t("console.locations.priority"), 110, type="numericColumn",
+                help=t("console.locations.which_location_wins_when.help")),
+    grid.column("shadowed", t("console.locations.shadowed"), 120, type="numericColumn",
+                help=t("console.locations.game_folders_here_whose_id.help")),
+    grid.column("path", t("console.locations.full_path"), 420,
+                help=t("console.locations.the_whole_path_for_telling.help")),
 ]
 
 LOCATION_VIEWS: dict[str, list[str]] = {
@@ -142,7 +136,7 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
 
         if not built:
             panel.facts(ui, [panel.intro(
-                "No locations yet. Add the folder your games are in.")])
+                t("console.locations.no_locations_yet_add_the"))])
             return
 
         by_id = {row["id"]: row for row in built}
@@ -180,8 +174,8 @@ def _ask_new(library, state: dict[str, Any], rerender: Callable[[], None] | None
             await _create(library, state, rerender, kind, wanted)
 
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
-            ui.button("Add", on_click=keep).props("no-caps")
+            ui.button(t("console.locations.cancel"), on_click=dialog.close).props("flat no-caps")
+            ui.button(t("console.locations.add"), on_click=keep).props("no-caps")
     dialog.on("show", lambda: ui.run_javascript(
         f"document.getElementById('c{folder.id}').focus()"))
     dialog.open()

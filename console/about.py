@@ -1,3 +1,4 @@
+
 """What this install and this machine are.
 
 The facts a person is asked for when they report something: version, build, OS, browser,
@@ -23,6 +24,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.i18n import t
 from console import panel
 
 logger = logging.getLogger("vpinfe.console.about")
@@ -78,14 +80,14 @@ def _draw(body, groups: list[dict[str, Any]], held: dict[str, Any],
     body.clear()
     with body:
         with ui.row().classes("items-center gap-2 w-full no-wrap"):
-            ui.label("Everything a bug report asks for, in one block") \
+            ui.label(t("console.about.everything_a_bug_report")) \
                 .classes("console-help grow min-w-0")
             panel.action("Copy", lambda event: _copied(bool(event.args), held["text"]),
                          icon="content_copy",
-                         hint="Put all of it on the clipboard",
+                         hint=t("console.about.put_all_of_it_on_the"),
                          js=_COPY_JS % json.dumps(held["text"]))()
             panel.action("Refresh", lambda: reload(True), icon="refresh",
-                         hint="Read it again")()
+                         hint=t("console.about.read_it_again"))()
         # One list for all of them, headings inside it, the way Settings next door
         # draws its sections: a list per group sizes a label column per group, and the
         # values then start at four different places down one page.
@@ -105,16 +107,16 @@ def _copied(done: bool, text: str) -> None:
     already selected.
     """
     if done:
-        ui.notify("Copied", type="positive")
+        ui.notify(t("console.about.copied"), type="positive")
         return
     _show_to_copy(text)
 
 
 def _show_to_copy(text: str) -> None:
     with ui.dialog() as dialog, ui.card().classes("console-card w-full max-w-2xl"):
-        ui.label("This browser will not let a page write to the clipboard") \
+        ui.label(t("console.about.this_browser_will_not_let")) \
             .classes("console-panel-heading")
-        ui.label("Press the usual copy shortcut - it is already selected.") \
+        ui.label(t("console.about.press_the_usual_copy")) \
             .classes("console-help")
         ui.textarea(value=text).props("outlined readonly rows=18") \
             .classes("w-full console-log")

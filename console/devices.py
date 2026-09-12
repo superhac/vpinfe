@@ -9,6 +9,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common import device_client, device_registry
+from common.i18n import t
 from common.labels import humanize
 
 from . import confirm, grid, panel, views
@@ -155,7 +156,7 @@ def _connection_rows(device: dict[str, Any],
 
     found = _REACH.get(str((reach or {}).get("state") or ""))
     if found is None:
-        rows.append(("State", panel.state("Checking", "unknown")))
+        rows.append(("State", panel.state(t("console.devices.checking"), "unknown")))
     else:
         label, level, _color = found
         what = str((reach or {}).get("what") or "")
@@ -199,7 +200,7 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
     """
     rows: list[tuple[Any, Any]] = [(panel.HEADING, "Software")]
     if not update:
-        rows.append(("Version", panel.state("Not known", "unknown")))
+        rows.append(("Version", panel.state(t("console.devices.not_known"), "unknown")))
         if not is_local and client is None:
             rows.append(panel.note(UNREACHABLE_NOTE))
         return rows
@@ -296,32 +297,22 @@ COLUMNS: list[dict[str, Any]] = [
     # Never shown - it exists so every built-in view can sort this device to the top.
     # A column has to be declared to be sorted on, and this one is a fact about the row
     # rather than anything to read.
-    grid.column("self", "This device", hide=True,
-                help="Whether this is the install you are reading the Console from."),
-    grid.column("name", "Name", 200, pinned="left",
-                help="What this device calls itself, or the address it answered from\n"
-                     "where it has never reported a name."),
-    grid.column("kind", "Kind", 120, **grid.choice_filter(_KIND_CHOICES),
-                help="A VPinFE install answers for itself. A VPX Mobile device runs\n"
-                     "VPX and not VPinFE, so this install holds everything known about it."),
-    grid.column("state", "State", 140, **grid.choice_filter(_STATE_CHOICES),
-                help="Whether it answered when this install last asked.\n\n"
-                     "Answering - it is there.\n"
-                     "Not answering - it was asked and gave nothing back.\n"
-                     "Cannot be asked - it has never said which port it answers on,\n"
-                     "which switching the machine on does not fix."),
-    grid.column("what", "Running", 160,
-                help="What answered. A VPinFE install reports its version; a phone\n"
-                     "reports nothing beyond being there."),
-    grid.column("address", "Address", 150,
-                help="Where it is reached. Read off the socket it announced from,\n"
-                     "never claimed in the announcement."),
-    grid.column("last_seen", "Last seen", 170,
-                help="When it was last known to be there - it announced, or this install\n"
-                     "asked and got an answer. Not the same as when it last started."),
-    grid.column("features", "Features", 150,
-                help="What that install is for: curating the library, launching\n"
-                     "games on that machine, or managing the others."),
+    grid.column("self", t("console.devices.this_device"), hide=True,
+                help=t("console.devices.whether_this_is_the.help")),
+    grid.column("name", t("console.devices.name"), 200, pinned="left",
+                help=t("console.devices.what_this_device_calls.help")),
+    grid.column("kind", t("console.devices.kind"), 120, **grid.choice_filter(_KIND_CHOICES),
+                help=t("console.devices.a_vpinfe_install_answers.help")),
+    grid.column("state", t("console.devices.state"), 140, **grid.choice_filter(_STATE_CHOICES),
+                help=t("console.devices.whether_it_answered_when.help")),
+    grid.column("what", t("console.devices.running"), 160,
+                help=t("console.devices.what_answered_a_vpinfe.help")),
+    grid.column("address", t("console.devices.address"), 150,
+                help=t("console.devices.where_it_is_reached_read.help")),
+    grid.column("last_seen", t("console.devices.last_seen"), 170,
+                help=t("console.devices.when_it_was_last_known_to.help")),
+    grid.column("features", t("console.devices.features"), 150,
+                help=t("console.devices.what_that_install_is_for.help")),
 ]
 
 # `self` is out: it is a sort key, not a column somebody picks.
@@ -338,24 +329,21 @@ VIEWS: dict[str, list[str] | views.Preset] = {
         sort=(_SELF_FIRST,
               {"colId": "state", "sort": "asc", "sortIndex": 1},
               {"colId": "name", "sort": "asc", "sortIndex": 2}),
-        help="Every device this install has met. Sorted so that anything not answering "
-             "is at the top, because that is what you opened this page to find out."),
+        help=t("console.devices.every_device_this_install.help")),
     "Answering": views.Preset(
         columns=("name", "kind", "what", "address", "features"),
         sort=(_SELF_FIRST, {"colId": "name", "sort": "asc", "sortIndex": 1}),
         filters={"state": {"values": [_REACH[device_client.ANSWERING][0]]}},
-        help="What is switched on and reachable right now."),
+        help=t("console.devices.what_is_switched_on_and.help")),
     "Not answering": views.Preset(
         columns=("name", "kind", "state", "address", "last_seen"),
         sort=(_SELF_FIRST, {"colId": "last_seen", "sort": "asc", "sortIndex": 1}),
         filters={"state": {"values": [_REACH[device_client.UNREACHABLE][0],
                                       _REACH[device_client.UNASKABLE][0]]}},
-        help="Devices that could not be reached, oldest first - so the ones that have "
-             "been gone longest, and are most likely worth forgetting, lead."),
+        help=t("console.devices.devices_that_could_not_be.help")),
     "Everything": views.Preset(
         columns=tuple(_ALL),
-        help="Every row and every column. The way out of any other view, and where "
-             "you build a filter of your own worth saving."),
+        help=t("console.devices.every_row_and_every_column.help")),
 }
 
 
@@ -431,7 +419,7 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
         if probe is not None:
             ui.button(icon="refresh", on_click=probe) \
                 .props("flat dense round size=sm").classes("shrink-0") \
-                .tooltip("Ask every device whether it is there")
+                .tooltip(t("console.devices.ask_every_device_whether"))
 
     by_id = {row["id"]: row for row in built}
     ui.on("hub_row_focus",
@@ -546,12 +534,12 @@ async def _carrying_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
             context["rerender"]()
 
     if not held:
-        return [panel.note("Nothing on it yet. Send games from the Games list.")]
+        return [panel.note(t("console.devices.nothing_on_it_yet_send"))]
 
     def row(name: str) -> Callable[[], None]:
         def draw() -> None:
             with ui.element("div").classes("console-slot-actions"):
-                ui.button("Remove", on_click=lambda _e=None: forget(name)) \
+                ui.button(t("console.devices.remove"), on_click=lambda _e=None: forget(name)) \
                     .props("flat dense no-caps size=sm") \
                     .classes("console-action console-action--inline")
 
@@ -720,7 +708,7 @@ def capability_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
                                  context.get("reach"))
         text, level = _CHIP[state]
         out.append((humanize(capability), panel.state(text, level)))
-    return out or [panel.intro("This device declares nothing.")]
+    return out or [panel.intro(t("console.devices.this_device_declares"))]
 
 
 # What a lifecycle action costs, which is what decides whether it is asked about twice.
@@ -747,7 +735,7 @@ async def action_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
                     exc_info=True)
         return [panel.intro(f"Could not ask {device_label(_of(context))}: {exc}")]
     if not offered:
-        return [panel.intro("This device offers nothing to do.")]
+        return [panel.intro(t("console.devices.this_device_offers_nothing"))]
 
     rows_out: list[tuple[Any, Any]] = [panel.intro(ACTIONS_NOTE)]
     for entry in offered:
@@ -811,7 +799,7 @@ async def log_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
 
     records = list(found.get("records") or [])
     if not records:
-        return [panel.intro("Nothing has been written to the log on this device.")]
+        return [panel.intro(t("console.devices.nothing_has_been_written"))]
     return [(panel.FULL, lambda: _log_lines(records, str(found.get("path") or "")))]
 
 
@@ -840,8 +828,7 @@ def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     ]
     if _is_local(context) or library is None:
         out.append(panel.note(
-            "This is the install you are reading the Console from, so its entry is not "
-            "something to forget."))
+            t("console.devices.this_is_the_install_you")))
         return out
 
     def forget_action() -> None:

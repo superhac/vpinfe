@@ -1,3 +1,4 @@
+
 """What core draws when somebody presses an action an extension offers.
 
 The extension describes what to ask and what to call; this is the one place it is drawn.
@@ -18,6 +19,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.i18n import t
 from console import panel
 from console.api import ApiClient
 
@@ -108,9 +110,10 @@ async def open_action(extension: str, action: dict) -> None:
                     ui.label(str(found.get("reason") or "")).classes("console-help")
             with buttons:
                 if history:
-                    ui.button("Back", on_click=_back).props("flat no-caps")
+                    ui.button(t("console.ext_action.back"), on_click=_back).props("flat no-caps")
                 else:
-                    ui.button("Cancel", on_click=lambda: dialog.submit(False)) \
+                    ui.button(t("console.ext_action.cancel"),
+                            on_click=lambda: dialog.submit(False)) \
                         .props("flat no-caps")
                 if summary:
                     go = ui.button(str(found.get("confirm")
@@ -119,7 +122,7 @@ async def open_action(extension: str, action: dict) -> None:
                     if not found.get("ready"):
                         go.disable()
                 else:
-                    ui.button("Next", on_click=_next).props("no-caps")
+                    ui.button(t("console.ext_action.next"), on_click=_next).props("no-caps")
 
         async def _next() -> None:
             try:
@@ -164,9 +167,10 @@ async def open_action(extension: str, action: dict) -> None:
             buttons.clear()
             with body:
                 bar = ui.linear_progress(value=0, show_value=False).classes("w-full")
-                said = ui.label("Working").classes("console-help")
+                said = ui.label(t("console.ext_action.working")).classes("console-help")
             with buttons:
-                close = ui.button("Close", on_click=lambda: dialog.submit(True)) \
+                close = ui.button(t("console.ext_action.close"),
+                        on_click=lambda: dialog.submit(True)) \
                     .props("flat no-caps")
                 close.disable()
 
@@ -221,7 +225,8 @@ def _finished(body, buttons, dialog, answer: dict) -> None:
         if facts:
             panel.facts(ui, facts)
     with buttons:
-        ui.button("Close", on_click=lambda: dialog.submit(True)).props("flat no-caps")
+        ui.button(t("console.ext_action.close"),
+                on_click=lambda: dialog.submit(True)).props("flat no-caps")
 
 
 def _compare(rows: list[dict]) -> None:

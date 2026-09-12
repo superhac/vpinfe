@@ -24,6 +24,7 @@ from nicegui import run, ui
 
 from common import device_registry, install_identity
 from common.config_access import NetworkConfig
+from common.i18n import t
 from common.labels import humanize
 from console import stars, theme
 from console.api import ApiClient, local_base_url
@@ -133,7 +134,7 @@ def _read_target(client: ApiClient) -> dict[str, Any]:
     }
 
 
-@ui.page("/remote", title="VPinFE Remote", reconnect_timeout=300)
+@ui.page("/remote", title=t("console.remote.vpinfe_remote"), reconnect_timeout=300)
 async def remote_page(screen: str = "") -> None:
     """The remote. `screen` names which of the three, so a place can be linked to."""
     ui.dark_mode(True)
@@ -158,7 +159,7 @@ async def remote_page(screen: str = "") -> None:
 
     with ui.column().classes("w-full h-full items-center justify-center gap-3") as loading:
         ui.spinner(size="lg").classes("text-primary")
-        ui.label("Loading").classes("text-sm opacity-60")
+        ui.label(t("console.remote.loading")).classes("text-sm opacity-60")
 
     await ui.context.client.connected()
     loaded = await run.io_bound(_read_here)
@@ -266,7 +267,8 @@ def _header(state: dict[str, Any], aimable: list[dict[str, Any]],
         else:
             # Not an error: an install with no frontend feature is a library somebody
             # administers, and there is nothing here for a remote to drive.
-            ui.label("Nothing to drive from here").classes("remote-target-name truncate")
+            ui.label(t("console.remote.nothing_to_drive_from_here")) \
+                .classes("remote-target-name truncate")
 
 
 def _tabs(state: dict[str, Any], redraw) -> None:
@@ -328,7 +330,7 @@ def _unreachable(state: dict[str, Any], redraw) -> None:
     with ui.column().classes("w-full items-center justify-center grow gap-3 p-6"):
         ui.label(f"{target_name(state['target'])} is not answering") \
             .classes("remote-empty text-center")
-        ui.button("Try again", icon="refresh", on_click=again) \
+        ui.button(t("console.remote.try_again"), icon="refresh", on_click=again) \
             .props("no-caps flat").classes("remote-action")
 
 
@@ -360,9 +362,9 @@ def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target,
         redraw()
 
     with ui.column().classes("w-full gap-1 console-card"):
-        ui.label("Playing").classes("console-card-title")
+        ui.label(t("console.remote.playing")).classes("console-card-title")
         ui.label(str(play.get("game_name") or "A table")).classes("remote-headline")
-    ui.button("Quit table", on_click=quit_table) \
+    ui.button(t("console.remote.quit_table"), on_click=quit_table) \
         .props("no-caps flat").classes("remote-action remote-action--danger")
 
 
@@ -376,7 +378,7 @@ def _idle(state: dict[str, Any], redraw) -> None:
     game = last_played(state.get("games") or [])
     if not game:
         with ui.column().classes("w-full gap-1 console-card"):
-            ui.label("Nothing playing").classes("remote-headline")
+            ui.label(t("console.remote.nothing_playing")).classes("remote-headline")
         return
 
     async def rate(value: int) -> None:
@@ -389,7 +391,7 @@ def _idle(state: dict[str, Any], redraw) -> None:
         redraw()
 
     with ui.column().classes("w-full gap-2 console-card"):
-        ui.label("Last played").classes("console-card-title")
+        ui.label(t("console.remote.last_played")).classes("console-card-title")
         ui.label(str(game.get("name") or "")).classes("remote-headline")
         stars.draw(int((game.get("user") or {}).get("rating") or 0), rate)()
 
@@ -401,7 +403,7 @@ def _running_jobs(state: dict[str, Any]) -> None:
         if str(job.get("state") or "") != "running":
             continue
         with ui.column().classes("w-full gap-2 console-card"):
-            ui.label("Running").classes("console-card-title")
+            ui.label(t("console.remote.running")).classes("console-card-title")
             # The kind is a wire word - `library.scan` - and nothing on this surface
             # shows one. A percentage says more than the name does anyway, so the name
             # is the label and the bar is the answer.
@@ -478,7 +480,7 @@ def _play(state: dict[str, Any], client_for_target, redraw) -> None:
         redraw()
 
     with ui.column().classes("w-full gap-2 p-3"):
-        ui.input(placeholder="Find a game", value=state.get("find") or "",
+        ui.input(placeholder=t("console.remote.find_a_game"), value=state.get("find") or "",
                  on_change=typed) \
             .props("dense outlined clearable inputmode=search").classes("w-full")
         named = [one.get("name") for one in state.get("collections") or []
@@ -584,7 +586,7 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target,
                 state["play"] = await run.io_bound(client_for_target().play_state)
                 redraw()
 
-        ui.button("Launch", icon="play_arrow", on_click=launch) \
+        ui.button(t("console.remote.launch"), icon="play_arrow", on_click=launch) \
             .props("no-caps unelevated color=primary") \
             .classes("remote-action remote-action--primary")
     sheet.open()
@@ -600,10 +602,9 @@ def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet,
     """
     named = manual_collections(state.get("collections") or [])
     if not named:
-        ui.button("Add to collection", icon="playlist_add") \
+        ui.button(t("console.remote.add_to_collection"), icon="playlist_add") \
             .props("no-caps flat disable").classes("remote-action") \
-            .tooltip("No lists of your own yet - a filter collection follows a rule "
-                     "rather than holding what you put in it")
+            .tooltip(t("console.remote.no_lists_of_your_own_yet_a"))
         return
 
     async def add(name: str) -> None:
@@ -611,7 +612,7 @@ def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet,
             ui.notify(f"Added to {name}", type="positive")
             sheet.close()
 
-    with ui.button("Add to collection", icon="playlist_add") \
+    with ui.button(t("console.remote.add_to_collection"), icon="playlist_add") \
             .props("no-caps flat").classes("remote-action"):
         with ui.menu():
             for name in named:
@@ -723,9 +724,9 @@ def _playing_instead(play: dict[str, Any], state: dict[str, Any], client_for_tar
                      redraw) -> None:
     with ui.column().classes("w-full gap-3 p-3"):
         with ui.column().classes("w-full gap-1 console-card"):
-            ui.label("Playing").classes("console-card-title")
+            ui.label(t("console.remote.playing")).classes("console-card-title")
             ui.label(str(play.get("game_name") or "A table")).classes("remote-headline")
-            ui.label("The wheel is not listening while a table is up") \
+            ui.label(t("console.remote.the_wheel_is_not_listening")) \
                 .classes("remote-note")
         _playing(play, state, client_for_target, redraw)
 
@@ -840,7 +841,7 @@ def invite(labels: list) -> None:
 
     def show() -> None:
         with ui.dialog() as sheet, ui.card().classes("console-confirm items-center"):
-            ui.label("VPinFE on your phone").classes("console-confirm-title")
+            ui.label(t("console.remote.vpinfe_on_your_phone")).classes("console-confirm-title")
             art = _qr_svg(said)
             if art:
                 ui.html(art).classes("console-qr")
@@ -848,11 +849,11 @@ def invite(labels: list) -> None:
             # somebody gets this, and an address nobody can read out is one they cannot
             # type either.
             ui.label(said).classes("console-help text-center")
-            ui.button("Close", on_click=sheet.close) \
+            ui.button(t("console.remote.close"), on_click=sheet.close) \
                 .props("flat no-caps").classes("console-action")
         sheet.open()
 
     with ui.row().classes("items-center justify-center gap-2 w-full no-wrap "
                           "console-invite").on("click", show):
         ui.icon("qr_code_2").classes("shrink-0")
-        labels.append(ui.label("On your phone").classes("text-xs"))
+        labels.append(ui.label(t("console.remote.on_your_phone")).classes("text-xs"))

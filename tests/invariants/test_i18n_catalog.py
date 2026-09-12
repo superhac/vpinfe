@@ -78,6 +78,68 @@ class TestRegistriesHoldNoWords(unittest.TestCase):
         self.assertEqual(offenders, [], "the catalog owns these words now")
 
 
+# The display positions a string reaches a person through. Kept beside the check rather
+# than imported from the Console, so a surface cannot quietly widen what counts as not
+# being text.
+DISPLAY_CALLS = {
+    "label", "button", "markdown", "tooltip", "notify", "link", "badge", "chip", "tab",
+    "expansion", "item_label", "radio", "toggle", "menu_item", "input", "select",
+    "switch", "checkbox", "number", "textarea", "upload", "dialog", "tree", "step",
+}
+DISPLAY_ARG = {"column": 1, "two_line": 0, "intro": 0, "note": 0, "state": 0,
+               "header": 0, "fact": 0}
+DISPLAY_KWARGS = {"label", "text", "title", "placeholder", "tooltip", "help", "message",
+                  "description", "caption", "hint", "said", "header", "headerName"}
+
+
+def _is_text(value) -> bool:
+    """Whether a literal is something a person reads, rather than an icon or a class."""
+    import re
+    if not isinstance(value, str):
+        return False
+    said = value.strip()
+    if len(said) < 2 or not any(c.isalpha() for c in said):
+        return False
+    if said.startswith(("http://", "https://", "/", "./", "#")):
+        return False
+    if " " not in said and said.islower() and ("-" in said or "_" in said):
+        return False
+    return not re.fullmatch(r"[a-z][a-z0-9_]*", said)
+
+
+class TestNoBareDisplayLiterals(unittest.TestCase):
+    """A string written where it is shown is one no translator is ever offered.
+
+    Scoped to the Console. `frontend/` static chrome is not here yet, and widening this
+    to it is what that pass is measured against.
+    """
+
+    def test_the_console_shows_nothing_it_did_not_look_up(self) -> None:
+        offenders = []
+        for path in sorted((ROOT / "console").rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                func = node.func
+                name = func.attr if isinstance(func, ast.Attribute) \
+                    else getattr(func, "id", None)
+                at = 0 if name in DISPLAY_CALLS else DISPLAY_ARG.get(name)
+                if at is not None and len(node.args) > at:
+                    arg = node.args[at]
+                    if isinstance(arg, ast.Constant) and _is_text(arg.value):
+                        offenders.append(
+                            f"{path.relative_to(ROOT)}:{arg.lineno} {name}({arg.value!r})")
+                for kw in node.keywords:
+                    if kw.arg in DISPLAY_KWARGS and isinstance(kw.value, ast.Constant) \
+                       and _is_text(kw.value.value):
+                        offenders.append(f"{path.relative_to(ROOT)}:{kw.value.lineno} "
+                                         f"{name}({kw.arg}={kw.value.value!r})")
+        self.assertEqual(offenders, [], "call t() and put the words in the catalog")
+
+
 class TestCatalogs(unittest.TestCase):
     def test_the_recorded_hashes_match_the_source(self) -> None:
         """Out of step and `--stale` stops reporting. `scripts/i18n.py --record` fixes it."""

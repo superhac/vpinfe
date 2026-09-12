@@ -1,3 +1,4 @@
+
 """The library seen by asset file rather than by game.
 
 The Media lens's twin, and it exists for the same reason: a row is a file, so a gap is
@@ -18,6 +19,7 @@ from typing import Any
 
 from nicegui import ui
 
+from common.i18n import t
 from console import grid, media_ownership, panel, views
 from console.games import view_control
 
@@ -72,40 +74,28 @@ _GAME = "Game"
 _SOURCE = "Source"
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.column("game", "Game", 200, pinned="left", group=_GAME,
-                help="The game folder this file belongs to."),
-    grid.column("label", "Kind", 160, group=_FILE,
-                help="What the file is for - the backglass VPX loads, the table's own\n"
-                     "settings, its script, and so on."),
-    grid.column("used_by", "Used by", type="numericColumn", group=_FILE,
-                help="How many of this game's tables actually load this file.\n\n"
-                     "0 - nothing loads it.\n"
-                     "Blank - there is no file to load."),
-    grid.column("reason", "Unused reason", 150, group=_FILE,
+    grid.column("game", t("console.assets.game"), 200, pinned="left", group=_GAME,
+                help=t("console.assets.the_game_folder_this_file.help")),
+    grid.column("label", t("console.assets.kind"), 160, group=_FILE,
+                help=t("console.assets.what_the_file_is_for_the.help")),
+    grid.column("used_by", t("console.assets.used_by"), type="numericColumn", group=_FILE,
+                help=t("console.assets.how_many_of_this_game_s.help")),
+    grid.column("reason", t("console.assets.unused_reason"), 150, group=_FILE,
                 **grid.choice_filter(_REASON_CHOICES),
-                help="Why this file is not the one being used. Blank while it is.\n\n"
-                     "Missing - no file at all.\n"
-                     "Orphan - named for a table this folder does not have. Safe to "
-                     "delete.\n"
-                     "Unused - correctly named, but nothing resolves to it. Either "
-                     "every table has its own, or it is named for the folder and VPX "
-                     "only ever looks for one named for the table."),
-    grid.column("table_file", "Table", 200, group=_FILE,
-                help="The .vpx this file is named for.\n\n"
-                     "Blank - named for the folder, so every table falls back to it."),
-    grid.column("path", "Path", 300, group=_FILE,
-                help="Where the file sits, relative to the game folder."),
-    grid.column("source", "Source", 165, group=_SOURCE,
+                help=t("console.assets.why_this_file_is_not_the.help")),
+    grid.column("table_file", t("console.assets.table"), 200, group=_FILE,
+                help=t("console.assets.the_vpx_this_file_is_named.help")),
+    grid.column("path", t("console.assets.path"), 300, group=_FILE,
+                help=t("console.assets.where_the_file_sits.help")),
+    grid.column("source", t("console.assets.source"), 165, group=_SOURCE,
                 **grid.choice_filter(_SOURCE_CHOICES),
-                help="Who put the file here, as far as anything recorded it.\n\n"
-                     "Unknown - nothing recorded it, which is true of most files.\n"
-                     "Blank - there is no file."),
-    grid.column("match", "Match", 140, group=_SOURCE,
-                help="The VPS file somebody said this is.\n\n"
-                     "Blank - nobody has said."),
-    grid.column("manufacturer", "Manufacturer", 150, group=_GAME,
-                help="Who made the machine."),
-    grid.column("year", "Year", group=_GAME, help="The year the machine was released."),
+                help=t("console.assets.who_put_the_file_here_as.help")),
+    grid.column("match", t("console.assets.match"), 140, group=_SOURCE,
+                help=t("console.assets.the_vps_file_somebody_said.help")),
+    grid.column("manufacturer", t("console.assets.manufacturer"), 150, group=_GAME,
+                help=t("console.assets.who_made_the_machine.help")),
+    grid.column("year", t("console.assets.year"), group=_GAME,
+            help=t("console.assets.the_year_the_machine_was.help")),
 ]
 
 _ALL = [definition["field"] for definition in COLUMNS]
@@ -115,35 +105,26 @@ VIEWS: dict[str, list[str] | views.Preset] = {
         columns=("game", "label", "reason", "manufacturer", "year"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [MISSING]}},
-        help="What a table could use and has not got. Not all of it matters - a PUP "
-             "pack is an enhancement, not a requirement - so read it as what is "
-             "available to add rather than as a list of faults."),
+        help=t("console.assets.what_a_table_could_use_and.help")),
     "Orphans": views.Preset(
         columns=("game", "label", "reason", "table_file", "path"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [ORPHAN]}},
-        help="Files left behind when a table was renamed, updated to a new version or "
-             "deleted. VPX will never look for these names again, so this is the list "
-             "that is safe to clear out."),
+        help=t("console.assets.files_left_behind_when_a.help")),
     "Unused": views.Preset(
         columns=("game", "label", "reason", "used_by", "table_file", "path"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [UNUSED]}},
-        help="Correctly named files that nothing loads - a shared file every table has "
-             "overridden, or a script named for the folder when VPX only ever looks "
-             "for one named for the table. The second kind is usually a mistake worth "
-             "fixing rather than deleting."),
+        help=t("console.assets.correctly_named_files_that.help")),
     "Sources": views.Preset(
         columns=("game", "label", "used_by", "path", "source", "match"),
         sort=({"colId": "source", "sort": "asc", "sortIndex": 0},
               {"colId": "game", "sort": "asc", "sortIndex": 1}),
         filters={"reason": {"values": [""]}},
-        help="Where the files you rely on came from. Use it to bind them to their VPS "
-             "records, so a later version of a table can be told from the one you have."),
+        help=t("console.assets.where_the_files_you_rely.help")),
     "Everything": views.Preset(
         columns=tuple(_ALL),
-        help="Every row, nothing hidden. The way out of any other view, and where you "
-             "build a filter of your own worth saving."),
+        help=t("console.assets.every_row_nothing_hidden.help")),
 }
 
 
@@ -172,8 +153,7 @@ def build(found: list[dict[str, Any]], library: Any,
         if rescan is not None:
             ui.button(icon="refresh", on_click=rescan) \
                 .props("flat dense round size=sm").classes("shrink-0") \
-                .tooltip("Read the library from disk again and pick up anything "
-                         "added, changed or removed - tables, media and assets")
+                .tooltip(t("console.assets.read_the_library_from_disk"))
 
     by_id = {row["id"]: row for row in built}
     ui.on("hub_row_focus",

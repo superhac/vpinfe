@@ -14,6 +14,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common import i18n
+from common.i18n import t
 
 logger = logging.getLogger("vpinfe.console")
 
@@ -350,7 +351,7 @@ def column_menu(menu: Any, table: Any, columns: list[dict[str, Any]],
                      {"state": [{"colId": col_id,
                                  "pinned": None if pinned else "left"}]})) \
         .classes("console-menu-item")
-    ui.menu_item("Hide column",
+    ui.menu_item(t("console.grid.hide_column"),
                  lambda: table.run_grid_method("setColumnsVisible", [col_id], False)) \
         .classes("console-menu-item")
     return True

@@ -1,3 +1,4 @@
+
 """What this install has written down.
 
 A scrolling viewport with a control bar above it, not a grid. A log is one tall column
@@ -25,6 +26,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.i18n import t
 from console import devices as devices_page
 from console import panel
 
@@ -114,7 +116,7 @@ def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
                   value=held["level"]).props("dense outlined").classes("w-36") \
             .on_value_change(lambda e: (remember("level", e.value or ""), reload()))
 
-        ui.input(placeholder="Find", value=held["contains"]) \
+        ui.input(placeholder=t("console.logs.find"), value=held["contains"]) \
             .props("dense outlined clearable").classes("grow min-w-0") \
             .on("keydown.enter", lambda e: (remember("contains",
                                                      e.sender.value or ""), reload()))
@@ -141,11 +143,11 @@ def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
             # A rotated file does not change, so following it is a control that would
             # do nothing. Refresh is what makes sense there.
             ui.button(icon="refresh", on_click=lambda: reload()) \
-                .props("flat dense round size=sm").tooltip("Read it again")
+                .props("flat dense round size=sm").tooltip(t("console.logs.read_it_again"))
 
         if held["path"]:
             ui.label(held["path"]).classes("console-help truncate max-w-xs") \
-                .tooltip("Where this file is, for reading the rest of it")
+                .tooltip(t("console.logs.where_this_file_is_for"))
 
 
 async def _draw(viewport, held: dict[str, Any]) -> None:

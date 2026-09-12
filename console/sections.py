@@ -13,6 +13,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.i18n import t
 from common.media_specs import media_label_map
 from console.data import Library
 
@@ -115,15 +116,15 @@ def overview(library: Library, registry: list[dict], discovery: dict,
             ui.label(f"{present} of {total_slots} slots").classes("text-xs opacity-60")
         with _card("Needs attention"):
             ui.label(str(open_findings)).classes("console-kpi")
-            ui.label("findings across the library").classes("text-xs opacity-60")
+            ui.label(t("console.sections.findings_across_the")).classes("text-xs opacity-60")
         with _card("Devices"):
             ui.label(str(len(registry))).classes("console-kpi")
-            ui.label("known to this install").classes("text-xs opacity-60")
+            ui.label(t("console.sections.known_to_this_install")).classes("text-xs opacity-60")
         with _card("This build"):
             ui.label(str(discovery.get("vpinfe_version") or "?")).classes("console-kpi")
-            ui.label("no update endpoint yet").classes("text-xs opacity-60")
+            ui.label(t("console.sections.no_update_endpoint_yet")).classes("text-xs opacity-60")
 
-    ui.label("Coverage by kind").classes("console-group mt-4")
+    ui.label(t("console.sections.coverage_by_kind")).classes("console-group mt-4")
     with ui.element("div").classes("console-card w-full"):
         # A filter says which games lack a topper. Nothing in a grid says "you have no
         # toppers at all" without filtering twenty kinds one at a time, which is the
@@ -141,7 +142,7 @@ def overview(library: Library, registry: list[dict], discovery: dict,
                 ui.label(f"{held} of {len(library.games)}") \
                     .classes("text-xs opacity-60 shrink-0")
 
-    ui.label("What needs attention").classes("console-group mt-4")
+    ui.label(t("console.sections.what_needs_attention")).classes("console-group mt-4")
     with ui.element("div").classes("console-card w-full"):
         for key, name, description, _ in CHECKS:
             games = found[key]
@@ -153,7 +154,7 @@ def overview(library: Library, registry: list[dict], discovery: dict,
                     # The sentence is the finding. Without it a count is a puzzle.
                     ui.label(description).classes("console-help")
                 ui.label(f"{len(games)}").classes("text-sm opacity-70 shrink-0")
-                ui.button("Show", on_click=lambda k=key: go("games")) \
+                ui.button(t("console.sections.show"), on_click=lambda k=key: go("games")) \
                     .props("flat dense no-caps size=sm").classes("shrink-0") \
                     .set_enabled(bool(games))
 
@@ -252,7 +253,7 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
     newer = int(state.get("newer_than_us") or 0)
     restorable = int(state.get("restorable") or 0)
 
-    ui.label("Library metadata").classes("console-group mt-4")
+    ui.label(t("console.sections.library_metadata")).classes("console-group mt-4")
     with ui.element("div").classes("console-card w-full"):
         _metadata_row(
             not pending, "Format",
@@ -323,7 +324,7 @@ def table_scripts(library: Library) -> None:
     from console import confirm
     from console.api import ApiClient
 
-    ui.label("Table scripts").classes("console-group mt-4")
+    ui.label(t("console.sections.table_scripts")).classes("console-group mt-4")
     card = ui.element("div").classes("console-card w-full")
 
     def draw() -> None:
@@ -359,7 +360,7 @@ def table_scripts(library: Library) -> None:
         except Exception as exc:
             ui.notify(str(exc), type="negative")
             return
-        ui.notify("Fetching under way", type="positive")
+        ui.notify(t("console.sections.fetching_under_way"), type="positive")
         await run.io_bound(library.read_script_patches)
         draw()
 
@@ -379,9 +380,8 @@ QUIET_STATES = frozenset({"off"})
 def extensions(installed: list[dict], open_one=None) -> None:
     if not installed:
         with ui.element("div").classes("console-card w-full"):
-            ui.label("Nothing installed").classes("console-setting")
-            ui.label("An extension adds a feature to this install without being part "
-                     "of it.").classes("console-help")
+            ui.label(t("console.sections.nothing_installed")).classes("console-setting")
+            ui.label(t("console.sections.an_extension_adds_a")).classes("console-help")
         return
 
     for found in installed:
@@ -444,6 +444,6 @@ def _actions(found: dict, open_one=None) -> None:
                 .tooltip(str(action.get("description") or ""))
         if has_page and open_one is not None:
             ui.space()
-            ui.button("Open", icon="arrow_forward",
+            ui.button(t("console.sections.open"), icon="arrow_forward",
                       on_click=lambda _e=None, name=name: open_one(name)) \
                 .props("flat dense no-caps")

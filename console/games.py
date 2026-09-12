@@ -12,6 +12,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.games import asset_registry
+from common.i18n import t
 from common.labels import humanize
 from common.media_specs import media_label_map
 from console import (
@@ -107,40 +108,32 @@ _TICK = {
 # own click would move the focused row, and rating a row you can see is not a request
 # to go and look at it.
 COLUMNS = [
-    grid.column("name", "Name", 280, pinned="left", group=_GAME,
-                help="The machine, as your library names it.\n"
-                     "One row is one game folder, however many tables are in it."),
+    grid.column("name", t("console.games.name"), 280, pinned="left", group=_GAME,
+                help=t("console.games.the_machine_as_your.help")),
     # Always, including 1: it is the only thing saying the row collapses its tables,
     # and it qualifies everything to its right. "Table Count" rather
     # than "Tables", which read as the tables themselves - this is a number about the
     # game, and it belongs with the game's other facts.
-    grid.column("table_count", "Table Count", type="numericColumn", group=_GAME,
-                help="How many .vpx files this game folder holds.\n"
-                     "More than one means several builds of the same machine, and\n"
-                     "everything to the right is the folder's answer rather than\n"
-                     "any one build's. The Tables page separates them."),
-    grid.column("manufacturer", "Manufacturer", group=_GAME,
-                help="Who made the machine."),
-    grid.column("year", "Year", group=_GAME,
-                help="The year the machine was released."),
-    grid.column("game_type", "Type", group=_GAME,
-                help="What kind of machine it is - solid state, electro-mechanical,\n"
-                     "pure mechanical, or an original with no real counterpart."),
+    grid.column("table_count", t("console.games.table_count"), type="numericColumn", group=_GAME,
+                help=t("console.games.how_many_vpx_files_this.help")),
+    grid.column("manufacturer", t("console.games.manufacturer"), group=_GAME,
+                help=t("console.games.who_made_the_machine.help")),
+    grid.column("year", t("console.games.year"), group=_GAME,
+                help=t("console.games.the_year_the_machine_was.help")),
+    grid.column("game_type", t("console.games.type"), group=_GAME,
+                help=t("console.games.what_kind_of_machine_it_is.help")),
     # Qualified for the reason Game Rating is: an install has a *frontend* theme and will
     # have a Console one, so "Themes" in a column header is three things one screen apart.
     # The panel says "Themes" plainly, because a group headed Machine has said which.
-    grid.column("themes", "Game Themes", 200, group=_GAME,
-                help="What the machine is about - its subject, not how it looks here.\n"
-                     "Comes from the catalog, and a machine can carry several."),
+    grid.column("themes", t("console.games.game_themes"), 200, group=_GAME,
+                help=t("console.games.what_the_machine_is_about.help")),
     # The word only where it is missing, and a blank cell everywhere else: most of a
     # library is matched, so a mark on every row says nothing and the few that are not
     # are the whole point of the column. It sits beside the catalog facts because it
     # explains them - a game with no manufacturer, year or themes is usually a game the
     # catalog has never been asked about.
-    grid.column("vps_unmatched", "VPS Match", group=_GAME,
-                help="Blank where this game is matched to a catalog entry.\n"
-                     "Unmatched means nothing can be looked up for it - no art,\n"
-                     "no release list, no update. Open the game to match it.",
+    grid.column("vps_unmatched", t("console.games.vps_match"), group=_GAME,
+                help=t("console.games.blank_where_this_game_is.help"),
                 **_NO_CHECKBOX,
                 **{":valueFormatter":
                    "params => params.value ? "
@@ -150,9 +143,8 @@ COLUMNS = [
     # game-level meaning, and both were the default table's shown as the game's.
     # Named for whose rating it is, because the tables grid has one too and "Rating"
     # in two places invites the reader to assume they are the same number.
-    grid.column("rating", "Game Rating", group=_GAME,
-                help="Your rating for the machine, 0 to 5. Click a star to set it.\n"
-                     "Separate from a table's rating, which is per build.",
+    grid.column("rating", t("console.games.game_rating"), group=_GAME,
+                help=t("console.games.your_rating_for_the.help"),
                 cellClass="console-stars-cell",
                 **grid.choice_filter(_RATING_CHOICES),
                 **{":cellRenderer": stars.renderer("game")}),
@@ -392,7 +384,7 @@ async def _launch(games: list[dict[str, Any]]) -> None:
     """
     from nicegui import run
     if len(games) != 1:
-        ui.notify("Select a single game to launch", type="warning")
+        ui.notify(t("console.games.select_a_single_game_to"), type="warning")
         return
     await run.io_bound(ApiClient().launch, games[0]["id"])
     ui.notify(f"Launching {games[0].get('name')}", type="positive")
@@ -440,26 +432,25 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         if rescan is not None:
             ui.button(icon="refresh", on_click=rescan) \
                 .props("flat dense round size=sm").classes("shrink-0") \
-                .tooltip("Read the library from disk again and pick up anything "
-                         "added, changed or removed - tables, media and assets")
+                .tooltip(t("console.games.read_the_library_from_disk"))
         actions = ui.button(icon="more_vert").props("flat round dense") \
-            .tooltip("Actions for the selected games")
+            .tooltip(t("console.games.actions_for_the_selected"))
         with actions:
             with ui.menu():
-                ui.menu_item("Rate selected", lambda: _rate(selected))
+                ui.menu_item(t("console.games.rate_selected"), lambda: _rate(selected))
                 # Walks the selection one picker at a time rather than matching them in
                 # a run. Nothing here can tell a right match from a wrong one - the
                 # ranker that would have was measured and retired - so a person decides
                 # every one, and Skip leaves a game exactly as it was.
-                ui.menu_item("Match to VPS...",
+                ui.menu_item(t("console.games.match_to_vps"),
                              lambda: vps_match.walk(library, list(selected)))
                 # Where the games you have already picked go. From here rather than
                 # only from the device, because starting with the tables and choosing
                 # where they land is a different job from managing what a phone holds.
-                ui.menu_item("Send to device...",
+                ui.menu_item(t("console.games.send_to_device"),
                              lambda: send_to_device.ask_where(selected))
                 ui.separator()
-                ui.menu_item("Clear selection",
+                ui.menu_item(t("console.games.clear_selection"),
                              lambda: table.run_grid_method("deselectAll"))
         actions.set_visibility(False)
 
@@ -545,18 +536,19 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                 # One entry that says what it will do, rather than two where one is
                 # always a no-op.
                 if pinned:
-                    ui.menu_item("Unpin", lambda: set_pinned(col_id, None)) \
+                    ui.menu_item(t("console.games.unpin"), lambda: set_pinned(col_id, None)) \
                         .classes("console-menu-item")
                 else:
-                    ui.menu_item("Pin left", lambda: set_pinned(col_id, "left")) \
+                    ui.menu_item(t("console.games.pin_left"), lambda: set_pinned(col_id, "left")) \
                         .classes("console-menu-item")
-                ui.menu_item("Hide column", lambda: hide_column(col_id)) \
+                ui.menu_item(t("console.games.hide_column"), lambda: hide_column(col_id)) \
                     .classes("console-menu-item")
             elif row:
                 ui.item_label(row.get("name") or "").props("header") \
                     .classes("console-menu-header")
                 ui.separator()
-                ui.menu_item("Launch", lambda: _launch(context_row)).classes("console-menu-item")
+                ui.menu_item(t("console.games.launch"),
+                        lambda: _launch(context_row)).classes("console-menu-item")
 
     # The menu hangs off a wrapper, not off the grid: ui.aggrid's Vue template is a bare
     # <div> with no slot, so a child of it is never rendered and the menu silently does
@@ -691,23 +683,16 @@ _TABLE = "Table"
 _IN_PLAY = "In this library"
 
 TABLE_COLUMNS = [
-    grid.column("game", "Game", 240, pinned="left", group=_GAME,
-                help="The machine this build is of. Several rows share one when a\n"
-                     "folder holds more than one .vpx."),
-    grid.column("version", "Version", group=_TABLE,
-                help="The build's own version, as its author set it.\n"
-                     "Blank where the file does not carry one."),
-    grid.column("author", "Author", 160, group=_TABLE,
-                help="Who built this table. Several names where it was a\n"
-                     "collaboration."),
-    grid.column("rom", "ROM", 110, group=_TABLE,
-                help="The PinMAME rom this build actually resolves to, aliases\n"
-                     "followed. Blank on a table that drives no emulator - an\n"
-                     "electro-mechanical machine needs none."),
-    grid.column("launcher", "Launcher", group=_TABLE,
-                help="Which launcher plays this file. A dot means this table names\n"
-                     "it; without one the table follows whichever launcher is the\n"
-                     "default, so changing the default moves it."),
+    grid.column("game", t("console.games.game"), 240, pinned="left", group=_GAME,
+                help=t("console.games.the_machine_this_build_is.help")),
+    grid.column("version", t("console.games.version"), group=_TABLE,
+                help=t("console.games.the_build_s_own_version_as.help")),
+    grid.column("author", t("console.games.author"), 160, group=_TABLE,
+                help=t("console.games.who_built_this_table.help")),
+    grid.column("rom", t("console.games.rom"), 110, group=_TABLE,
+                help=t("console.games.the_pinmame_rom_this_build.help")),
+    grid.column("launcher", t("console.games.launcher"), group=_TABLE,
+                help=t("console.games.which_launcher_plays_this.help")),
     # One column per fact rather than one word folding three together. "Status" cannot
     # stay one column anyway - has an update, missing its rom and the rest are all
     # status - and folded, a table that is both the default and hidden reads as only
@@ -715,42 +700,30 @@ TABLE_COLUMNS = [
     # for. A summary column can be built later, deliberately, from these.
     # Not a tick: a chosen default and a derived one are different facts.
     grid.column("default_state", game_tables.DEFAULT_LABEL, group=_IN_PLAY,
-                help="Which build the frontend offers when it can show only one.\n\n"
-                     "Chosen - you picked it.\n"
-                     "Automatic - nobody picked, so one was derived. It moves if\n"
-                     "the folder changes.",
+                help=t("console.games.which_build_the_frontend.help"),
                 **grid.choice_filter(
                     [{"value": word, "label": word}
                      for word, _why in game_tables.DEFAULT_WORDS.values()]
                     + [{"value": "", "label": "Not the default"}])),
-    grid.column("rating", "Table Rating", group=_TABLE,
-                help="Your rating for this build, 0 to 5. Click a star to set it.\n"
-                     "Separate from the machine's rating.",
+    grid.column("rating", t("console.games.table_rating"), group=_TABLE,
+                help=t("console.games.your_rating_for_this_build.help"),
                 cellClass="console-stars-cell",
                 **grid.choice_filter(_RATING_CHOICES),
                 **{":cellRenderer": stars.renderer("table")}),
     # Each column's own words, not a generic pair: "Hidden: Yes" is a question about a
     # question, where "Hidden / Offered" is the fact and its opposite.
-    grid.column("hidden", "Hidden", group=_IN_PLAY,
-                help="Ticked where the frontend does not offer this build.\n"
-                     "The file stays where it is - hiding never deletes anything,\n"
-                     "and a patch base has to stay on disk.",
+    grid.column("hidden", t("console.games.hidden"), group=_IN_PLAY,
+                help=t("console.games.ticked_where_the_frontend.help"),
                 **{**_TICK, **grid.choice_filter(
                     _two(game_tables.HIDDEN_WORDS))}),
-    grid.column("missing", "Missing", group=_IN_PLAY,
-                help="Ticked where the library describes this table but the file is\n"
-                     "not on disk. A share that has not mounted looks like this, so\n"
-                     "the entry is kept rather than removed.",
+    grid.column("missing", t("console.games.missing"), group=_IN_PLAY,
+                help=t("console.games.ticked_where_the_library.help"),
                 **{**_TICK, **grid.choice_filter(
                     _two(game_tables.FILE_WORDS))}),
     # Last and widest: it is the identifier of record, and the part that tells two
     # tables of one game apart sits at its end.
     grid.column("filename", game_tables.FILE, 420, group=_TABLE,
-                help="The .vpx itself. The identifier of record, and what tells\n"
-                     "two builds of one machine apart - which is usually at the\n"
-                     "end of the name, so this column is last and widest.\n"
-                     "A row whose file is elsewhere shows where, and one with no\n"
-                     "file at all shows the name its program knows it by."),
+                help=t("console.games.the_vpx_itself_the.help")),
     *FEATURE_COLUMNS,
 ]
 
@@ -955,8 +928,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         if rescan is not None:
             ui.button(icon="refresh", on_click=rescan) \
                 .props("flat dense round size=sm").classes("shrink-0") \
-                .tooltip("Read the library from disk again and pick up anything "
-                         "added, changed or removed - tables, media and assets")
+                .tooltip(t("console.games.read_the_library_from_disk"))
 
     # The workbench follows the focused row, the same way it does under Games - focus
     # rather than selection, so arrowing down the list is a sweep and the checkboxes
@@ -1018,7 +990,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                 lines=[f"{Path(str(row.get('filename') or '')).stem}.vbs"]):
             return
         await act(library.delete_script, row["game_id"], row["id"],
-                  said="Deleted - the table runs its own script", row=row)
+                  said=t("console.games.deleted_the_table_runs_its"), row=row)
 
     async def act(what: Callable, *args: Any, said: str = "",
                   row: dict[str, Any] | None = None, gone: bool = False) -> None:
@@ -1087,7 +1059,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                         "applyColumnState",
                         {"state": [{"colId": c, "pinned": None if p else "left"}]})) \
                     .classes("console-menu-item")
-                ui.menu_item("Hide column",
+                ui.menu_item(t("console.games.hide_column"),
                              lambda c=col_id: table.run_grid_method(
                                  "setColumnsVisible", [c], False)) \
                     .classes("console-menu-item")
@@ -1098,18 +1070,18 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                 # Managed here, where every candidate for the game is visible at once.
                 if not row.get("default"):
                     ui.menu_item(
-                        "Make default",
+                        t("console.games.make_default"),
                         lambda r=row: act(library.set_default_table, r["game_id"],
-                                          r["id"], said="Now this game's default",
+                                          r["id"], said=t("console.games.now_this_game_s_default"),
                                           row=r)) \
                         .classes("console-menu-item")
                 elif (row.get("default_kind") or "") == game_tables.CHOSEN:
                     # The way back. Clearing the choice does not clear the default - it
                     # becomes automatic, which is what the panel's chip then reads.
                     ui.menu_item(
-                        "Clear choice",
+                        t("console.games.clear_choice"),
                         lambda r=row: act(library.set_default_table, r["game_id"], "",
-                                          said="Back to an automatic default",
+                                          said=t("console.games.back_to_an_automatic"),
                                           row=r)) \
                         .classes("console-menu-item")
                 hidden = bool(row.get("hidden"))
@@ -1126,24 +1098,26 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                 script = (row.get("assets") or {}).get("script") or {}
                 if (script.get("resolution") or "") == "dedicated":
                     ui.menu_item(
-                        "Delete script",
+                        t("console.games.delete_script"),
                         lambda r=row: drop_script(r)) \
                         .classes("console-menu-item console-menu-danger")
                 else:
                     ui.menu_item(
-                        "Extract script",
+                        t("console.games.extract_script"),
                         lambda r=row: act(library.extract_script, r["game_id"],
-                                          r["id"], said="Extracted - this table now "
-                                          "runs the .vbs", row=r)) \
+                                          r["id"],
+                                          said=t("console.games.extracted_this_table_now"),
+                                          row=r)) \
                         .classes("console-menu-item")
                 # Only for a table whose file is gone. While it is on disk the record
                 # describes something the user owns, and hiding is what takes it out of
                 # play without losing its stats.
                 if not row.get("available"):
                     ui.menu_item(
-                        "Forget this table",
+                        t("console.games.forget_this_table"),
                         lambda r=row: act(library.forget_table, r["game_id"], r["id"],
-                                          said="Record dropped", row=r, gone=True)) \
+                                          said=t("console.games.record_dropped"),
+                                          row=r, gone=True)) \
                         .classes("console-menu-item")
 
     wire_views(table)
@@ -1191,7 +1165,7 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
                             "modified": False}
 
     picker = ui.select({view.id: _view_name(view) for view in known}, value=active,
-                       label="View").props("dense outlined") \
+                       label=t("console.games.view")).props("dense outlined") \
         .classes("w-52 console-view-picker")
     # The selected view's own words for what it is for, on the control that names it.
     # A view the user saved carries none - they named it, which is their description -
@@ -1201,7 +1175,7 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
     # Inside the button, not beside it: a q-menu anchors to its parent, and as a
     # sibling this one anchored to the toolbar row and opened 726px away.
     menu_button = ui.button(icon="more_vert").props("flat dense round size=sm") \
-        .tooltip("Columns, and saving this view")
+        .tooltip(t("console.games.columns_and_saving_this"))
     with menu_button:
         menu = ui.menu()
 
@@ -1331,16 +1305,16 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
             view = current()
             menu.clear()
             with menu:
-                ui.menu_item("Save as\u2026", lambda: _ask_name(save)) \
+                ui.menu_item(t("console.games.save_as"), lambda: _ask_name(save)) \
                     .classes("console-menu-item")
                 # Only where they mean something: there is nothing to revert to until
                 # the screen has drifted, and nothing to delete unless it is the
                 # user's own view.
                 if held["modified"]:
-                    ui.menu_item("Revert", lambda: apply(current())) \
+                    ui.menu_item(t("console.games.revert"), lambda: apply(current())) \
                         .classes("console-menu-item")
                 if not view.builtin and not held["modified"]:
-                    ui.menu_item("Delete view", delete) \
+                    ui.menu_item(t("console.games.delete_view"), delete) \
                         .classes("console-menu-item console-menu-danger")
                 ui.separator()
                 # An explicit column: the menu lays its children out inline otherwise,
@@ -1382,10 +1356,10 @@ def _view_name(view: Any) -> str:
 
 def _ask_name(save) -> None:
     with ui.dialog() as dialog, ui.card():
-        ui.label("Save this view as").classes("console-card-title")
+        ui.label(t("console.games.save_this_view_as")).classes("console-card-title")
         # debounce=0 so the model is current the moment Save is pressed. Focus is put
         # here by the script below - Quasar's autofocus does not land in this dialog.
-        name = ui.input(placeholder="Name this view") \
+        name = ui.input(placeholder=t("console.games.name_this_view")) \
             .props("outlined dense debounce=0").classes("w-72")
 
         async def keep() -> None:
@@ -1398,8 +1372,8 @@ def _ask_name(save) -> None:
             await save(name.value)
 
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
-            save_button = ui.button("Save", on_click=keep).props("no-caps")
+            ui.button(t("console.games.cancel"), on_click=dialog.close).props("flat no-caps")
+            save_button = ui.button(t("console.games.save"), on_click=keep).props("no-caps")
     # Focused when Quasar says the dialog has finished opening. Anything earlier is
     # overridden by its own focus handling, whatever the delay.
     dialog.on("show", lambda: ui.run_javascript(

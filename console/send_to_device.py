@@ -15,6 +15,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common import device_registry
+from common.i18n import t
 from console import confirm
 from console.api import ApiClient
 
@@ -53,7 +54,7 @@ async def ask_where(games: list[dict[str, Any]]) -> None:
     if not found:
         # Said rather than hidden: the answer is "not yet", and somebody who has just
         # added a phone in Devices needs to know this is where it turns up.
-        ui.notify("No devices to send to. Add one under Devices first.",
+        ui.notify(t("console.send_to_device.no_devices_to_send_to_add"),
                   type="warning")
         return
 
@@ -84,11 +85,11 @@ async def send(games: list[dict[str, Any]], device: dict[str, Any]) -> None:
 async def _which(found: list[dict[str, Any]]) -> dict[str, Any]:
     """Which device, when there is more than one."""
     with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label("Send to which device?").classes("console-confirm-title")
+        ui.label(t("console.send_to_device.send_to_which_device")).classes("console-confirm-title")
         for device in found:
             ui.button(name_of(device),
                       on_click=lambda _e=None, d=device: dialog.submit(d)) \
                 .props("flat no-caps align=left").classes("console-action w-full")
-        ui.button("Cancel", on_click=lambda: dialog.submit(None)) \
+        ui.button(t("console.send_to_device.cancel"), on_click=lambda: dialog.submit(None)) \
             .props("flat no-caps").classes("console-action")
     return await dialog or {}

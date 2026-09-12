@@ -1,3 +1,4 @@
+
 """Dropping files onto the Console, and what happens between the drop and the import.
 
 The engine underneath is not this surface's: analysing what arrived, working out where
@@ -22,6 +23,8 @@ from typing import Any
 from uuid import uuid4
 
 from nicegui import context, run, ui
+
+from common.i18n import t
 
 logger = logging.getLogger("vpinfe.console.uploads")
 
@@ -216,7 +219,7 @@ def install(on_drop: Callable[[Drop], Any]) -> None:
             if state["busy"]:
                 # One at a time. A second import landing while the first is still being
                 # decided would have two dialogs answering for two different sessions.
-                ui.notify("Finish the one already open first", type="warning")
+                ui.notify(t("console.uploads.finish_the_one_already"), type="warning")
                 return
             asyncio.create_task(_handle(state, payload, on_drop))
 
@@ -257,7 +260,7 @@ async def _handle(state: dict[str, Any], payload: dict[str, Any],
     except Exception:
         logger.exception("console: a drop could not be handled")
         with client:
-            ui.notify("That drop could not be read", type="negative")
+            ui.notify(t("console.uploads.that_drop_could_not_be"), type="negative")
     finally:
         state["busy"] = False
 

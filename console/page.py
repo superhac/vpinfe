@@ -9,6 +9,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common import device_client, feature_checks, icons, install_identity
+from common.i18n import t
 from console import about as about_page
 from console import assets as assets_page
 from console import collections as collections_page
@@ -300,15 +301,14 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
             return
 
     if drop.target != uploads.TARGET_LIBRARY and not game_dir:
-        ui.notify("Could not work out which game that row is", type="negative")
+        ui.notify(t("console.page.could_not_work_out_which"), type="negative")
         await run.io_bound(library.abort_upload, drop.upload_id)
         return
 
     # A drop with no game named can only be a new one, and only if it brought a table.
     new_game = not game_dir and not media_kind
     if new_game and not analysis.get("has_game"):
-        ui.notify("Drop this on a game to add it to that one, or drop a table to make "
-                  "a new game", type="warning")
+        ui.notify(t("console.page.drop_this_on_a_game_to_add"), type="warning")
         await run.io_bound(library.abort_upload, drop.upload_id)
         return
 
@@ -390,8 +390,8 @@ def _declared_by_the_drop(analysis: dict, game_id: str) -> dict:
             for name in names if name}
 
 
-@ui.page("/", title="VPinFE Console", reconnect_timeout=300)
-@ui.page("/console", title="VPinFE Console", reconnect_timeout=300)
+@ui.page("/", title=t("console.page.vpinfe_console"), reconnect_timeout=300)
+@ui.page("/console", title=t("console.page.vpinfe_console"), reconnect_timeout=300)
 async def console_page(view: str = "", game: str = "", table: str = "", section: str = "",
                    slot: str = "", page: str = "") -> None:
     """The Console. Query parameters say where in it, so a place can be linked to."""
@@ -413,7 +413,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # reload loop and a page whose handlers were never wired, not as a slow page.
     with ui.column().classes("w-full h-full items-center justify-center gap-3") as loading:
         ui.spinner(size="lg").classes("text-primary")
-        ui.label("Loading the Console").classes("text-sm opacity-60")
+        ui.label(t("console.page.loading_the_console")).classes("text-sm opacity-60")
 
     await ui.context.client.connected()
     loaded = await run.io_bound(_read_hub)
@@ -507,11 +507,11 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             nav_icon = ui.icon("menu_open", size="24px") \
                 .classes("opacity-70 shrink-0 cursor-pointer console-panel-toggle") \
                 .on("click", lambda: toggle_mini())
-            nav_icon.tooltip("Show or hide the navigation")
+            nav_icon.tooltip(t("console.page.show_or_hide_the"))
             # Larger and heavier than a nav item, like HA's own title. Row height may
             # differ from the items below - that is fine and expected; what has to stay
             # aligned is the icon column, which does not depend on the label's size.
-            labels.append(ui.label("VPinFE Console")
+            labels.append(ui.label(t("console.page.vpinfe_console"))
                           .classes("whitespace-nowrap console-nav-title"))
         # The destinations scroll; the header and the foot do not. Without this the
         # drawer is one scroll box, so the title and the version scrolled away with the
@@ -678,7 +678,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 ui.notify(f"The scan failed: {found.get('error') or 'no reason given'}",
                           type="negative")
             else:
-                ui.notify("The library is up to date", type="positive")
+                ui.notify(t("console.page.the_library_is_up_to_date"), type="positive")
                 redraw()
             return
 
@@ -708,18 +708,18 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                     # Stepping the list from in here, so a sweep does not need the grid
                     # on screen - which is the point of Full.
                     ui.button(icon="keyboard_arrow_up", on_click=lambda: _step(-1)) \
-                        .props("flat dense round size=sm").tooltip("Previous game")
+                        .props("flat dense round size=sm").tooltip(t("console.page.previous_game"))
                     ui.button(icon="keyboard_arrow_down", on_click=lambda: _step(1)) \
-                        .props("flat dense round size=sm").tooltip("Next game")
+                        .props("flat dense round size=sm").tooltip(t("console.page.next_game"))
                     full_icon = ui.button(icon="open_in_full",
                                           on_click=lambda: toggle_full()) \
                         .props("flat dense round size=sm") \
-                        .tooltip("Give the workbench the whole window")
+                        .tooltip(t("console.page.give_the_workbench_the"))
                 # Outside that row: it is the only way back once the rest have gone.
                 workbench_icon = ui.icon("menu_open", size="24px") \
                     .classes("opacity-70 shrink-0 cursor-pointer console-panel-toggle") \
                     .on("click", lambda: show_workbench(not state["workbench"]))
-                workbench_icon.tooltip("Show or hide the workbench")
+                workbench_icon.tooltip(t("console.page.show_or_hide_the_workbench"))
         # The scrolling belongs to the workbench's body column now, so the outline
         # beside it can stay put while that scrolls.
         panel = ui.column().classes("w-full gap-0 grow min-h-0 overflow-hidden")
@@ -1287,5 +1287,5 @@ async def _read_the_library() -> dict | None:
         # Already running is the ordinary case here, not a failure worth a trace.
         ui.notify(f"Could not start: {exc}", type="warning")
         return None
-    ui.notify("Reading the library from disk", type="positive")
+    ui.notify(t("console.page.reading_the_library_from"), type="positive")
     return job

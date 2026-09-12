@@ -1,3 +1,4 @@
+
 """The tag editor: one row per tag, and the way to fix two spellings of one word.
 
 Entry does not fold case - Chris, 2026-09-01: surface close matches and let the user
@@ -13,14 +14,15 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.i18n import t
 from console import confirm, grid
 
 SUBJECT = "tag"
 LABEL = "Tags"
 
 COLUMNS = [
-    grid.column("tag", "Tag", 260, pinned="left"),
-    grid.column("games", "Games", type="numericColumn"),
+    grid.column("tag", t("console.tageditor.tag"), 260, pinned="left"),
+    grid.column("games", t("console.tageditor.games"), type="numericColumn"),
 ]
 
 
@@ -85,21 +87,20 @@ def build(rows: list[dict[str, Any]], library: Any,
     duplicates = rows_by_key(rows)
     if duplicates:
         with ui.element("div").classes("console-card w-full mb-2"):
-            ui.label("These look like the same tag").classes("console-card-title")
-            ui.label("Entry keeps what you typed, so two spellings of one word both "
-                     "exist. Merging folds them into the most-used one.") \
+            ui.label(t("console.tageditor.these_look_like_the_same")).classes("console-card-title")
+            ui.label(t("console.tageditor.entry_keeps_what_you_typed")) \
                 .classes("console-help")
             for group in duplicates:
                 with ui.row().classes("items-center gap-2 w-full no-wrap "
                                       "console-member-row"):
                     ui.label(" · ".join(f"{r['tag']} ({r['games']})" for r in group)) \
                         .classes("console-member-name grow min-w-0 truncate")
-                    ui.button("Merge", on_click=lambda _, g=group: merge(g)) \
+                    ui.button(t("console.tageditor.merge"), on_click=lambda _, g=group: merge(g)) \
                         .props("flat dense no-caps size=sm") \
                         .classes("console-action console-action--inline")
 
     if not rows:
-        ui.label("No tags yet. Tag a game from its Play section and it appears here.") \
+        ui.label(t("console.tageditor.no_tags_yet_tag_a_game")) \
             .classes("console-help p-4")
         return
 
@@ -113,8 +114,9 @@ def build(rows: list[dict[str, Any]], library: Any,
             ui.item_label(str(row.get("tag") or "")).props("header") \
                 .classes("console-menu-header")
             ui.separator()
-            ui.menu_item("Rename…", lambda r=row: rename(r)).classes("console-menu-item")
-            ui.menu_item("Remove from every game", lambda r=row: drop(r)) \
+            ui.menu_item(t("console.tageditor.rename"),
+                    lambda r=row: rename(r)).classes("console-menu-item")
+            ui.menu_item(t("console.tageditor.remove_from_every_game"), lambda r=row: drop(r)) \
                 .classes("console-menu-item console-menu-danger")
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
@@ -127,12 +129,14 @@ async def _ask_for_a_name(current: str) -> str:
     """A dialog that collects a value keeps its own shape - `docs/conventions.md` says
     the confirm treatment is for a question, not for a field."""
     with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label("Rename this tag").classes("console-confirm-title")
-        ui.label("Every game carrying it is retagged.").classes("console-help")
+        ui.label(t("console.tageditor.rename_this_tag")).classes("console-confirm-title")
+        ui.label(t("console.tageditor.every_game_carrying_it_is")).classes("console-help")
         field = ui.input(value=current).props("dense autofocus") \
             .classes("console-edit-field w-full")
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button("Cancel", on_click=lambda: dialog.submit("")).props("flat no-caps")
-            ui.button("Rename", on_click=lambda: dialog.submit(field.value or "")) \
+            ui.button(t("console.tageditor.cancel"),
+                    on_click=lambda: dialog.submit("")).props("flat no-caps")
+            ui.button(t("console.tageditor.rename_2"),
+                    on_click=lambda: dialog.submit(field.value or "")) \
                 .props("no-caps")
     return str(await dialog or "")

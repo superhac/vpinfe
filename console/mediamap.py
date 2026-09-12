@@ -15,6 +15,7 @@ from typing import Any
 
 from nicegui import ui
 
+from common.i18n import t
 from common.media_specs import media_family, media_label_map
 from console import media_ownership, mediaview
 
@@ -173,7 +174,7 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
                     .classes("console-mediatile-zoom") \
                     .on("click.stop", lambda k=kind: mediaview.open_viewer(
                         f"{prefix}/{k}", k, media_label_map().get(k, k))) \
-                    .tooltip("Enlarge")
+                    .tooltip(t("console.mediamap.enlarge"))
         ui.label(media_label_map().get(kind, kind)).classes("console-mediatile-cap")
     tile.tooltip(_tooltip(kind, entry))
 

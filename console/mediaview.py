@@ -13,6 +13,7 @@ import json
 
 from nicegui import ui
 
+from common.i18n import t
 from common.media_specs import media_family
 
 # Rotated a quarter turn, the picture's visual bounds swap - so the limits that keep it
@@ -233,8 +234,8 @@ def open_viewer(src: str, kind: str, label: str) -> None:
             turn_left = ui.button(icon="rotate_left").props("flat dense round")
             turn_right = ui.button(icon="rotate_right").props("flat dense round")
             ui.button(icon="close", on_click=dialog.close).props("flat dense round")
-        turn_left.tooltip("Turn a quarter left (view only)")
-        turn_right.tooltip("Turn a quarter right (view only)")
+        turn_left.tooltip(t("console.mediaview.turn_a_quarter_left_view"))
+        turn_right.tooltip(t("console.mediaview.turn_a_quarter_right_view"))
 
         with ui.element("div").classes("console-viewer-stage"):
             # Sized by the script once it is on screen, which is also what has to

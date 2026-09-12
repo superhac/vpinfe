@@ -21,6 +21,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common import path_checks
+from common.i18n import t
 from console import confirm, grid, panel
 
 logger = logging.getLogger("vpinfe.console.launchers")
@@ -44,19 +45,16 @@ _STATE_CHOICES = [{"value": one, "label": one}
                   for one in (STATE_READY, STATE_OFF, STATE_BROKEN)]
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.column("name", "Name", 240, pinned="left",
-                help="What you called this way of running a table."),
-    grid.column("app", "Runs", 180,
-                help="The program behind it. It only says something the name does not\n"
-                     "where the two differ."),
-    grid.column("state", "State", 150, **grid.choice_filter(_STATE_CHOICES),
-                help="Ready - it is switched on and its program is there.\n"
-                     "Cannot run - a path it names is not on this machine.\n"
-                     "Switched off - configured, keeping its tables, not in use."),
-    grid.column("default", "Default", 110,
-                help="Tables that name no launcher use this one."),
-    grid.column("program", "Program", 420,
-                help="The executable this launcher runs."),
+    grid.column("name", t("console.launchers.name"), 240, pinned="left",
+                help=t("console.launchers.what_you_called_this_way.help")),
+    grid.column("app", t("console.launchers.runs"), 180,
+                help=t("console.launchers.the_program_behind_it_it.help")),
+    grid.column("state", t("console.launchers.state"), 150, **grid.choice_filter(_STATE_CHOICES),
+                help=t("console.launchers.ready_it_is_switched_on.help")),
+    grid.column("default", t("console.launchers.default"), 110,
+                help=t("console.launchers.tables_that_name_no.help")),
+    grid.column("program", t("console.launchers.program"), 420,
+                help=t("console.launchers.the_executable_this.help")),
 ]
 
 LAUNCHER_VIEWS: dict[str, list[str]] = {
@@ -144,8 +142,7 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
 
         if not built:
             panel.facts(ui, [panel.intro(
-                "No launchers yet. Add one and point it at the program that plays your "
-                "tables.")])
+                t("console.launchers.no_launchers_yet_add_one"))])
             return
 
         by_id = {row["id"]: row for row in built}
@@ -221,16 +218,14 @@ async def copy_dialog(library, state: dict[str, Any], launcher: dict) -> None:
                  if str(one.get("kind") or "vpinfe") == "vpinfe"
                  and str(one.get("device_id") or "") != mine]
     if not reachable:
-        ui.notify("No other VPinFE installs are known to this one.", type="warning")
+        ui.notify(t("console.launchers.no_other_vpinfe_installs"), type="warning")
         return
 
     picked: set[str] = set()
     with ui.dialog() as dialog, ui.card().classes("console-confirm"):
         ui.label(f"Copy {launcher['display_name']} to which machines?") \
             .classes("console-confirm-title")
-        ui.label("It arrives with the same name and the same id, so a table that names "
-                 "it there means this launcher. A program path that does not exist on "
-                 "that machine is reported by it, not here.") \
+        ui.label(t("console.launchers.it_arrives_with_the_same")) \
             .classes("console-help")
         for one in reachable:
             name = str(one.get("display_name") or one.get("device_id"))
@@ -238,17 +233,18 @@ async def copy_dialog(library, state: dict[str, Any], launcher: dict) -> None:
                 picked.add(str(d.get("device_id"))) if e.value
                 else picked.discard(str(d.get("device_id"))))) \
                 .props("dense")
-        also = ui.checkbox("Also copy which tables use it").props("dense")
-        ui.label("A one-way copy. Change it on a machine afterwards and the two differ "
-                 "from then on - nothing keeps them in step.").classes("console-help")
+        also = ui.checkbox(t("console.launchers.also_copy_which_tables_use")).props("dense")
+        ui.label(t("console.launchers.a_one_way_copy_change_it")).classes("console-help")
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button("Cancel", on_click=lambda: dialog.submit(None)).props("flat no-caps")
-            ui.button("Copy", on_click=lambda: dialog.submit(True)).props("no-caps")
+            ui.button(t("console.launchers.cancel"),
+                    on_click=lambda: dialog.submit(None)).props("flat no-caps")
+            ui.button(t("console.launchers.copy"),
+                    on_click=lambda: dialog.submit(True)).props("no-caps")
 
     if not await dialog:
         return
     if not picked:
-        ui.notify("No machines picked.", type="warning")
+        ui.notify(t("console.launchers.no_machines_picked"), type="warning")
         return
     await _do_copy(library, launcher, [one for one in reachable
                                        if str(one.get("device_id")) in picked],

@@ -1,3 +1,4 @@
+
 """The program's own settings for one table, opened over the workbench.
 
 One component, two ways in. The launcher's rail opens it fixed to that launcher and
@@ -18,6 +19,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.i18n import t
 from console import confirm, panel
 
 # One definition of both: the launcher's rail and this dialog are the same surface at
@@ -46,7 +48,7 @@ async def open_for_table(library, *, launcher_id: str, launcher_name: str,
                          table_id: str, folder_tables: int = 1,
                          on_done: Callable | None = None) -> None:
     if not launcher_id:
-        ui.notify("This table has no launcher to configure.", type="warning")
+        ui.notify(t("console.app_settings.this_table_has_no_launcher"), type="warning")
         return
 
     state: dict[str, Any] = {"scope": SCOPE_ENTRY, "search": ""}
@@ -57,12 +59,13 @@ async def open_for_table(library, *, launcher_id: str, launcher_name: str,
         with ui.row().classes("items-center gap-3 w-full no-wrap px-3 pt-2"):
             ui.label(f"{launcher_name} settings").classes("console-card-title")
             ui.space()
-            ui.button("Done", on_click=dialog.close).props("flat dense no-caps")
+            ui.button(t("console.app_settings.done"),
+                    on_click=dialog.close).props("flat dense no-caps")
 
         # The picker before the settings, because it says where an edit will go and
         # that has to be readable before anything is edited rather than after.
         with ui.row().classes("items-center gap-3 w-full no-wrap px-3 pb-2"):
-            ui.label("Edits go to").classes("console-label text-xs")
+            ui.label(t("console.app_settings.edits_go_to")).classes("console-label text-xs")
             scope = ui.select(words, value=state["scope"]) \
                 .props("dense outlined options-dense").classes("w-64")
             search = panel.search("Search settings")

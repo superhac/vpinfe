@@ -16,6 +16,7 @@ from urllib.parse import quote
 from nicegui import run, ui
 
 from common.games.collection_store import DIRECTION_LABELS, SORT_LABELS
+from common.i18n import t
 from console import confirm, grid, panel, views
 from console.games import view_control
 
@@ -38,30 +39,25 @@ COLUMNS = [
     # before its name is read, and a list of collections that showed none of them was
     # asking the reader to work from the least distinctive thing about each.
     grid.column("icon", "", 56, pinned="left", sortable=False, filter=False),
-    grid.column("name", "Name", 240, pinned="left",
-                help="What you called the collection. It is what the frontend shows\n"
-                     "when it offers this collection to pick from."),
-    grid.column("kind", "Kind",
-                help="How the collection decides what is in it.\n\n"
-                     "Fixed - you put the tables in yourself, and they stay.\n"
-                     "Dynamic - a rule chooses, so it keeps up with the library."),
+    grid.column("name", t("console.collections.name"), 240, pinned="left",
+                help=t("console.collections.what_you_called_the.help")),
+    grid.column("kind", t("console.collections.kind"),
+                help=t("console.collections.how_the_collection_decides.help")),
     # Right-aligned with the other number rather than left with the words: a count is
     # read against the counts above and below it.
     # "Table Count", the same as the games grid: a count of tables, not the tables
     # themselves. What it counts is what the collection hands out - one row per entry,
     # and an entry is a table. The stored membership is a different number.
-    grid.column("count", "Table Count", **_NUMERIC,
-                help="How many tables the collection hands out right now.\n"
-                     "A dynamic one changes as the library does."),
-    grid.column("order", "Order", 200,
-                help="The order the frontend walks the collection in."),
+    grid.column("count", t("console.collections.table_count"), **_NUMERIC,
+                help=t("console.collections.how_many_tables_the.help")),
+    grid.column("order", t("console.collections.order"), 200,
+                help=t("console.collections.the_order_the_frontend.help")),
     # "Table Limit", paired with Table Count: a column header stands alone, so `Limit`
     # invites "limit of what?". The panel keeps plain `Limit` - it sits under
     # Presentation beside Ordered by and Paging, which supply the context a header has
     # to carry for itself.
-    grid.column("limit", "Table Limit", **_NUMERIC,
-                help="The most tables this collection will hand out.\n"
-                     "Blank means no cap - everything the rule matches."),
+    grid.column("limit", t("console.collections.table_limit"), **_NUMERIC,
+                help=t("console.collections.the_most_tables_this.help")),
 ]
 
 # One built-in, and the control stays: a view is how you save your own, and a grid with
@@ -141,7 +137,7 @@ def build(collections: list[dict[str, Any]], library: Any,
             rerender()
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
-        ui.button("New collection", icon="add",
+        ui.button(t("console.collections.new_collection"), icon="add",
                   on_click=lambda: _ask_new(library, act)) \
             .props("flat dense no-caps size=sm").classes("shrink-0 console-action")
         search = panel.search("Search collections")
@@ -150,9 +146,9 @@ def build(collections: list[dict[str, Any]], library: Any,
         ui.space()
         count = ui.label(f"{len(built)} collections").classes("text-xs console-label")
         bulk = ui.button(icon="more_vert").props("flat round dense") \
-            .tooltip("Actions for the selected collections")
+            .tooltip(t("console.collections.actions_for_the_selected"))
         with bulk, ui.menu():
-            ui.menu_item("Delete selected",
+            ui.menu_item(t("console.collections.delete_selected"),
                          lambda: _ask_delete_many(picked, library, act)) \
                 .classes("console-menu-item console-menu-danger")
         bulk.set_visibility(False)
@@ -198,7 +194,7 @@ def build(collections: list[dict[str, Any]], library: Any,
                         "applyColumnState",
                         {"state": [{"colId": c, "pinned": None if p else "left"}]})) \
                     .classes("console-menu-item")
-                ui.menu_item("Hide column",
+                ui.menu_item(t("console.collections.hide_column"),
                              lambda c=col_id: table.run_grid_method(
                                  "setColumnsVisible", [c], False)) \
                     .classes("console-menu-item")
@@ -209,7 +205,8 @@ def build(collections: list[dict[str, Any]], library: Any,
                 # Renaming lives in the panel's Details, with the description it sits
                 # beside. One home per field: a name editable in two places is two
                 # answers, and this one is the collection's identity.
-                ui.menu_item("Delete", lambda n=name: _ask_delete(n, library, act)) \
+                ui.menu_item(t("console.collections.delete"),
+                        lambda n=name: _ask_delete(n, library, act)) \
                     .classes("console-menu-item console-menu-danger")
 
     wire_views(table)
@@ -227,8 +224,8 @@ def _ask_new(library: Any, act: Callable) -> None:
     removed.
     """
     with ui.dialog() as dialog, ui.card():
-        ui.label("New collection").classes("console-card-title")
-        name = ui.input(placeholder="Name it") \
+        ui.label(t("console.collections.new_collection")).classes("console-card-title")
+        name = ui.input(placeholder=t("console.collections.name_it")) \
             .props("outlined dense debounce=0").classes("w-72")
 
         async def keep() -> None:
@@ -240,8 +237,8 @@ def _ask_new(library: Any, act: Callable) -> None:
                       said=f"Created “{name.value.strip()}”")
 
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
-            ui.button("Create", on_click=keep).props("no-caps")
+            ui.button(t("console.collections.cancel"), on_click=dialog.close).props("flat no-caps")
+            ui.button(t("console.collections.create"), on_click=keep).props("no-caps")
     dialog.on("show", lambda: ui.run_javascript(
         f"document.getElementById('c{name.id}').focus()"))
     dialog.open()
