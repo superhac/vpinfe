@@ -153,13 +153,10 @@ def put_values(values: dict[str, dict[str, Any]] = Body(...)) -> models.ConfigVa
 
     if unknown:
         raise InvalidRequestError(
-            "Not settings this install has: " + ", ".join(sorted(unknown))
-            + ". GET /config/schema lists them.")
+            t("error.config.not_settings_this_install", keys=", ".join(sorted(unknown))))
     if refused:
         raise InvalidRequestError(
-            "Read-only over HTTP: " + ", ".join(sorted(refused))
-            + ". Theme sources are code this install fetches; editing them stays a "
-              "deliberate edit of the settings file.")
+            t("error.config.read_only_over_http", keys=", ".join(sorted(refused))))
     if not staged:
         return get_values()
 

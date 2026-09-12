@@ -126,8 +126,8 @@ async def _fill(library, launcher_id: str, table_id: str, state: dict[str, Any],
 
     if not shown:
         panel.facts(ui, [panel.intro(
-            f"Nothing matches “{state['search']}”." if wanted
-            else f"{words[scope]} has no settings to show.")])
+            t("console.app_settings.nothing_matches", value=(state['search'])) if wanted
+            else t("console.app_settings.has_no_settings_to_show", value=(words[scope])))])
 
 
 async def _group_rows(library, launcher_id: str, table_id: str, scope: str,

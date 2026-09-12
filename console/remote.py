@@ -572,7 +572,7 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target,
                 sheet.close()
                 redraw()
 
-        ui.button("Favorite" if not held else "Remove favorite",
+        ui.button(t("console.remote.favorite") if not held else t("console.remote.remove_favorite"),
                   icon="favorite" if not held else "favorite_border",
                   on_click=favor) \
             .props("no-caps flat").classes("remote-action")

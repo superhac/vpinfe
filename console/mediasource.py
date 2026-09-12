@@ -460,8 +460,8 @@ class _Sources:
         with body:
             if not found:
                 where = self._searched()
-                ui.label(f"Nothing in {where}" if where else
-                         "No online sources are switched on").classes("console-help")
+                ui.label(t("console.mediasource.nothing_in", where=(where)) if where else
+                         t("console.mediasource.no_online_sources_are")).classes("console-help")
                 return
             named = {item["id"]: item["name"]
                      for item in (self._known_sources or [])}

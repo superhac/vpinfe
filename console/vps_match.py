@@ -110,8 +110,9 @@ async def walk(library: Any, games: list[dict[str, Any]]) -> None:
         changed += 1
     # Said once at the end rather than per game: a toast after every pick in a run of
     # thirty is noise covering the thing you are looking at.
-    ui.notify(f"{changed} match{'' if changed == 1 else 'es'} set" if changed
-              else "Nothing changed", type="positive" if changed else "info")
+    ui.notify(t("console.vps_match.match_set", changed=(changed),
+            value=('' if changed == 1 else 'es')) if changed
+              else t("console.vps_match.nothing_changed"), type="positive" if changed else "info")
 
 
 def _match_row(row: dict[str, Any], dialog: Any) -> None:

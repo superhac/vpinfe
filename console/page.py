@@ -647,8 +647,9 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         # because "3" on its own does not say which three.
         badge.text = str(len(waiting))
         badge.set_visibility(True)
-        badge.tooltip(f"Update waiting: {', '.join(waiting)}" if len(waiting) <= 3
-                      else f"{len(waiting)} devices have an update waiting")
+        badge.tooltip(t("console.page.update_waiting",
+                join=(', '.join(waiting))) if len(waiting) <= 3
+                      else t("console.page.devices_have_an_update", len=(len(waiting))))
 
     ui.timer(0.1, _look_for_update, once=True)
 

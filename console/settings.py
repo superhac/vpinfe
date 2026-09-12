@@ -322,7 +322,8 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
             checking.dismiss()
         # "Already current" is the ordinary outcome and says itself; a positive toast
         # for it would make the rare one look the same as the common one.
-        ui.notify("Catalog updated" if done.get("changed") else "Already up to date",
+        ui.notify(t("console.settings.catalog_updated") if done.get("changed")
+                else t("console.settings.already_up_to_date"),
                   type="positive" if done.get("changed") else "info")
         rerender()
 
@@ -330,7 +331,8 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
 
     def checked() -> None:
         with ui.element("div").classes("console-fact-edit"):
-            ui.label(when.replace("T", " ").replace("Z", " UTC") if when else "Never") \
+            ui.label(when.replace("T", " ").replace("Z",
+                    " UTC") if when else t("console.settings.never")) \
                 .classes("console-fact-value truncate min-w-0")
             panel.action("Check now", now, icon="sync", inline=True)()
 

@@ -91,6 +91,11 @@ DISPLAY_ARG = {"column": 1, "two_line": 0, "intro": 0, "note": 0, "state": 0,
                "header": 0, "fact": 0}
 DISPLAY_KWARGS = {"label", "text", "title", "placeholder", "tooltip", "help", "message",
                   "description", "caption", "hint", "said", "header", "headerName"}
+# Constructors whose `description` and `title` are the API's own documentation - the
+# OpenAPI page and the capability list an integrator reads, not anything on a screen.
+# Same line §9 draws for logs and docs/: it says the same thing on every install.
+API_DOCUMENTATION = {"Query", "Header", "Path", "Body", "Form", "File", "Depends",
+                     "FastAPI", "APIRouter", "Capability", "Field"}
 
 
 def _is_text(value) -> bool:
@@ -118,6 +123,13 @@ def _fault(path, call, kwarg, node) -> list[str]:
     """
     where = f"{path.relative_to(ROOT)}:{node.lineno}"
     shown = f"{call}({kwarg}=" if kwarg else f"{call}("
+    # A conditional picks between two sentences and a + joins one to another, and both
+    # are still words typed where they are shown. Four of these sat behind a check that
+    # only knew Constant and JoinedStr.
+    if isinstance(node, ast.IfExp):
+        return _fault(path, call, kwarg, node.body) + _fault(path, call, kwarg, node.orelse)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return _fault(path, call, kwarg, node.left) + _fault(path, call, kwarg, node.right)
     if isinstance(node, ast.Constant) and _is_text(node.value):
         return [f"{where} {shown}{node.value!r})"]
     if isinstance(node, ast.JoinedStr):
@@ -150,6 +162,8 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
                 at = 0 if name in DISPLAY_CALLS else DISPLAY_ARG.get(name)
                 if at is not None and len(node.args) > at:
                     offenders += _fault(path, name, "", node.args[at])
+                if name in API_DOCUMENTATION:
+                    continue
                 for kw in node.keywords:
                     if kw.arg in DISPLAY_KWARGS:
                         offenders += _fault(path, name, kw.arg, kw.value)

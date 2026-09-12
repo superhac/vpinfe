@@ -345,7 +345,7 @@ def column_menu(menu: Any, table: Any, columns: list[dict[str, Any]],
         .classes("console-menu-header")
     ui.separator()
     # One entry that says what it will do, rather than two where one is always a no-op.
-    ui.menu_item("Unpin" if pinned else "Pin left",
+    ui.menu_item(t("console.grid.unpin") if pinned else t("console.grid.pin_left"),
                  lambda: table.run_grid_method(
                      "applyColumnState",
                      {"state": [{"colId": col_id,

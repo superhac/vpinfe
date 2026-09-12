@@ -1052,8 +1052,9 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
             ui.notify(t("console.workbench.could_not_remove_it", exc=(exc)), type="negative")
             return
         gone = len(result.get("removed") or [])
-        ui.notify(f"Removed {gone} file(s)" if gone else
-                  "Nothing to remove at this level", type="positive" if gone else "info")
+        ui.notify(t("console.workbench.removed_file_s", gone=(gone)) if gone
+                  else t("console.workbench.nothing_to_remove_at_this"),
+                  type="positive" if gone else "info")
         await draw()
 
     # Widening only, and only from the table you are looking at. The other direction -
@@ -1155,7 +1156,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
 
         with ui.row().classes("items-center gap-2 w-full console-slot-actions") \
                 .style("flex-wrap:wrap"):
-            ui.button("Replace" if present else "Add",
+            ui.button(t("console.workbench.replace") if present else t("console.workbench.add"),
                       icon="add_photo_alternate",
                       on_click=lambda: mediasource.open_sources(context, kind, label,
                                                                 draw)) \
@@ -1872,8 +1873,9 @@ def _parked_match(context: dict[str, Any], parked: dict[str, Any]) -> Callable[[
     def draw() -> None:
         with ui.element("div").classes("console-attention w-full"):
             said = str(parked.get("table") or "")
-            ui.label("You matched this by hand before "
-                     + (f"“{said}” was replaced" if said else "the table changed")) \
+            ui.label(t("console.workbench.you_matched_this_by_hand")
+                     + (t("console.workbench.was_replaced",
+                             said=(said)) if said else t("console.workbench.the_table_changed"))) \
                 .classes("console-attention-line")
             with ui.row().classes("items-center gap-2"):
                 ui.button(t("console.workbench.restore"), on_click=restore) \
@@ -2116,7 +2118,8 @@ def _program_settings_row(context: dict[str, Any],
     def draw() -> None:
         with ui.row().classes("items-center gap-2 no-wrap"):
             panel.state(said, "on" if changed else "off")()
-            ui.button("Edit" if changed else "Set for this table",
+            ui.button(t("console.workbench.edit") if changed
+                    else t("console.workbench.set_for_this_table"),
                       on_click=open_them) \
                 .props("flat dense no-caps size=sm").classes("console-action--inline")
 
@@ -2149,8 +2152,8 @@ def panel_note_for_launcher(table: dict[str, Any]) -> tuple[Any, Any]:
     name = str(table.get("launcher_name") or "")
     if table.get("launcher_set_here"):
         return panel.note(t("console.workbench.this_table_names_its_own"))
-    return panel.note(f"Following the default, which is {name}." if name
-                      else "Following the default. This install has no launcher yet.")
+    return panel.note(t("console.workbench.following_the_default", name=(name)) if name
+                      else t("console.workbench.following_the_default_this"))
 
 
 def _launcher_pick(context: dict[str, Any], table: dict[str, Any]) -> Callable[[], None]:
@@ -2441,7 +2444,7 @@ def _tables_block(context: dict[str, Any]) -> None:
     # Only where there is a choice to describe. A count beside one row says nothing.
     said = f"Tables ({len(tables)})" if len(tables) > 1 else "Table"
     with ui.row().classes("items-center gap-2 w-full no-wrap"):
-        ui.label(said if tables else "Tables") \
+        ui.label(said if tables else t("console.workbench.tables")) \
             .classes("console-card-title console-fact-heading grow")
         # Beside the list rather than hidden in a menu, and drawn even where the list
         # is empty: a folder with nothing in it yet is exactly where one of these is
@@ -2605,7 +2608,8 @@ def _match_button(context: dict[str, Any], kind: str, label: str,
     if not path:
         return
     bound = str(entry.get("matched_to") or "")
-    button = ui.button("Change match" if bound else "Match",
+    button = ui.button(t("console.workbench.change_match_2") if bound
+            else t("console.workbench.match"),
                        on_click=lambda: _pick_a_record(context, listed.listed_as,
                                                        label, path, bound, redraw)) \
         .props("flat dense no-caps size=sm").classes("console-action")
@@ -2733,8 +2737,8 @@ def _yours(table: dict[str, Any]) -> None:
     said = str(table.get("version") or "")
     made_by = ", ".join(str(name) for name in (table.get("authors") or [])[:4])
     told = " \u00b7 ".join(part for part in (said, made_by) if part)
-    ui.label(f"This file says {told}" if told
-             else "This file records no version or author to compare") \
+    ui.label(t("console.workbench.this_file_says", told=(told)) if told
+             else t("console.workbench.this_file_records_no")) \
         .classes("console-help")
 
 
@@ -3227,7 +3231,7 @@ async def _launcher_setup(context: dict[str, Any]) -> None:
         entries.append(panel.note(launchers_page.DEFAULT_HINT))
     entries.append(("Enabled", panel.switch(
         launcher["enabled"], lambda e: flip(bool(e.value)), disabled=only_one,
-        hint="The only launcher this install has." if only_one else "")))
+        hint=t("console.workbench.the_only_launcher_this") if only_one else "")))
     entries.append(panel.note(
         t("console.workbench.switched_off_it_stays")))
 
@@ -3370,7 +3374,8 @@ def _copies_value(held: list[dict], take: Callable, found: dict,
             panel.action("Restore", choose, inline=True,
                          enabled=bool(held) and not playing,
                          hint=(PLAYING_NOTE if playing
-                               else "" if held else "No copies to put back yet"))()
+                               else "" if held
+                               else t("console.workbench.no_copies_to_put_back_yet")))()
     return draw
 
 
@@ -3706,7 +3711,8 @@ def _image_slot(context: dict[str, Any], row: dict[str, Any]) -> None:
             # A drop target the size of the panel was reading as the content.
             upload_control = ui.upload(on_upload=upload, auto_upload=True, max_files=1) \
                 .props('accept="image/*"').classes("hidden")
-            ui.button("Replace" if present else "Add an image", icon="upload",
+            ui.button(t("console.workbench.replace") if present
+                    else t("console.workbench.add_an_image"), icon="upload",
                       on_click=lambda: upload_control.run_method("pickFiles")) \
                 .props("flat dense no-caps size=sm").classes("console-action")
             if present:
@@ -3781,8 +3787,9 @@ def _kind_control(context: dict[str, Any], row: dict[str, Any],
             await _keep_result(context)
 
         choice.on_value_change(changed)
-        ui.label("Fills itself from the library" if dynamic
-                 else "Holds what you put in it").classes("console-help min-w-0")
+        ui.label(t("console.workbench.fills_itself_from_the") if dynamic
+                 else t("console.workbench.holds_what_you_put_in_it")) \
+                     .classes("console-help min-w-0")
 
 
 def _start_rule(context: dict[str, Any]) -> None:

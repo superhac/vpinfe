@@ -1055,7 +1055,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                 # One entry that says what it will do, rather than two where one is
                 # always a no-op.
                 ui.menu_item(
-                    "Unpin" if pinned else "Pin left",
+                    t("console.games.unpin") if pinned else t("console.games.pin_left"),
                     lambda c=col_id, p=pinned: table.run_grid_method(
                         "applyColumnState",
                         {"state": [{"colId": c, "pinned": None if p else "left"}]})) \
@@ -1087,10 +1087,11 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                         .classes("console-menu-item")
                 hidden = bool(row.get("hidden"))
                 ui.menu_item(
-                    "Unhide" if hidden else "Hide",
+                    t("console.games.unhide") if hidden else t("console.games.hide"),
                     lambda r=row, h=hidden: act(library.set_table_hidden, r["game_id"],
                                                 r["id"], not h,
-                                                said="Now offered" if h else "Hidden",
+                                                said=t("console.games.now_offered") if h
+                                                else t("console.games.hidden"),
                                                 row=r)) \
                     .classes("console-menu-item")
                 # The script sidecar. VPX loads a `<table>.vbs` beside the .vpx in

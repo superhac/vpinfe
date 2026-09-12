@@ -125,7 +125,8 @@ def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
                          on_click=lambda: (remember("wrap", not held["wrap"]),
                                            reload())) \
             .props("flat dense round size=sm")
-        wrap.tooltip("Wrap long lines" if not held["wrap"] else "Stop wrapping")
+        wrap.tooltip(t("console.logs.wrap_long_lines") if not held["wrap"]
+                else t("console.logs.stop_wrapping"))
         if held["wrap"]:
             wrap.props(add="color=primary")
 
@@ -135,8 +136,8 @@ def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
                                                           not held["follow"]),
                                                  reload())) \
                 .props("flat dense round size=sm")
-            follow.tooltip("Following. Click to stop." if held["follow"]
-                           else "Not following. Click to follow.")
+            follow.tooltip(t("console.logs.following_click_to_stop") if held["follow"]
+                           else t("console.logs.not_following_click_to"))
             if held["follow"]:
                 follow.props(add="color=primary")
         else:
@@ -170,8 +171,8 @@ async def _draw(viewport, held: dict[str, Any]) -> None:
             return
         if not held["records"]:
             panel.facts(ui, [panel.intro(
-                "Nothing matches." if held["level"] or held["contains"]
-                else "This install has written nothing yet.")])
+                t("console.logs.nothing_matches") if held["level"] or held["contains"]
+                else t("console.logs.this_install_has_written"))])
             return
         if held["digest"]:
             _digest(held["records"])

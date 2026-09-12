@@ -769,7 +769,8 @@ def _action_control(context: dict[str, Any],
             return
         # A machine on its way down answers before it goes, so "performed" here means
         # the work was handed over rather than finished.
-        ui.notify(f"{label}" if done.get("performed") else f"{label} did not happen",
+        ui.notify(f"{label}" if done.get("performed") else t("console.devices.did_not_happen",
+                label=(label)),
                   type="positive" if done.get("performed") else "warning")
 
     def draw() -> None:

@@ -190,7 +190,7 @@ def build(collections: list[dict[str, Any]], library: Any,
                 ui.item_label(str(header)).props("header").classes("console-menu-header")
                 ui.separator()
                 ui.menu_item(
-                    "Unpin" if pinned else "Pin left",
+                    t("console.collections.unpin") if pinned else t("console.collections.pin_left"),
                     lambda c=col_id, p=pinned: table.run_grid_method(
                         "applyColumnState",
                         {"state": [{"colId": c, "pinned": None if p else "left"}]})) \
