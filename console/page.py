@@ -394,14 +394,16 @@ def _declared_by_the_drop(analysis: dict, game_id: str) -> dict:
 @ui.page("/", title=t("console.page.vpinfe_console"), reconnect_timeout=300)
 @ui.page("/console", title=t("console.page.vpinfe_console"), reconnect_timeout=300)
 async def console_page(view: str = "", game: str = "", table: str = "", section: str = "",
-                   slot: str = "", page: str = "") -> None:
+                   slot: str = "", page: str = "", mode: str = "") -> None:
     """The Console. Query parameters say where in it, so a place can be linked to."""
     # The palette and Quasar's dark mode are two separate switches. The toggle button
     # that used to own the second one is gone, so it is set here - without it the shell
     # renders light while the tokens stay dark.
     ui.dark_mode(True)
-    theme.apply_colors()
-    theme.apply_flair()
+    theme.apply_colors(mode if mode in theme.PALETTES else theme.DEFAULT_MODE)
+    # Dev hook while Phase 4 is unbuilt: ?mode=dark renders the neutral palette.
+    # The setting that replaces this is `general.hub_theme`.
+    theme.apply_flair(mode if mode in theme.PALETTES else theme.DEFAULT_MODE)
     grid.install_filters()
     # The shell takes the viewport once, here, and every height below it is flex. The
     # old layout gave each pane its own calc(100vh - N) against chrome that later

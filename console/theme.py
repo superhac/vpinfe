@@ -31,6 +31,9 @@ _SYNTHWAVE = """
   /* Hover lifts the same hue. It used to move to orange, which was a transposition of
      the resting value rather than a decision. */
   --danger-hover: #ff8fb8;
+  /* The one a *fill* can carry white on, which --danger cannot: Quasar fills an error
+     toast with it and writes white on top. Measured 4.81:1, where --danger is 2.68:1. */
+  --danger-fill: #e00068;
 
   /* What a state looks like when it is a fill or an edge rather than a word. Each is
      its own value, not the family color at an opacity: the same percentage over a dark
@@ -193,6 +196,99 @@ _SYNTHWAVE = """
   --scrollbar-thumb: rgba(155, 139, 189, 0.32);
   --scrollbar-thumb-hover: rgba(155, 139, 189, 0.62);
 """
+
+# Neutral dark: no purple, no glow, no backdrop. Every value below was measured against
+# the floors in the same way Synthwave's were - text 4.5:1 on every surface it can land
+# on, a control's edge 3:1, a chip's text 4.5:1 on its own fill.
+_DARK = """
+  /* Ink. Cooler and quieter than Synthwave's - there is no purple under it to
+     fight, so the same legibility needs less brightness. */
+  --ink: #e6e9ee;
+  --ink-2: #a9b1bd;
+  --ink-3: #8a93a1;
+  /* Blue is the interactive color here, and `--flair` is the one a fill can carry
+     white on: Quasar paints a filled button with it and writes white on top, which
+     the accent at 2.3:1 cannot hold. */
+  --accent: #4cb2ff;
+  --positive: #3fd68c;
+  --flair: #2f6fd0;
+  --danger: #ff6b6b;
+  --danger-hover: #ff9494;
+  /* The fill, not the text. White on it is 5.62:1; on --danger it would be 2.78. */
+  --danger-fill: #c62828;
+  /* A hue at .14 for a fill and .45 for an edge, the same pair across all four
+     families, because on a neutral ground there is no reason for them to differ. */
+  --positive-wash: rgba(63, 214, 140, 0.14);
+  --positive-edge: rgba(63, 214, 140, 0.45);
+  --danger-wash: rgba(255, 107, 107, 0.14);
+  --danger-edge: rgba(255, 107, 107, 0.45);
+  --warm-wash: rgba(240, 180, 41, 0.14);
+  --warm-edge: rgba(240, 180, 41, 0.45);
+  --quiet-edge: rgba(138, 147, 161, 0.45);
+  --quiet-wash: rgba(138, 147, 161, 0.12);
+  /* Neutral washes are lighter here than in Synthwave: the ground is already grey,
+     so less is needed to read as a step. */
+  --wash-hover: rgba(255, 255, 255, 0.05);
+  --surface-lift: rgba(255, 255, 255, 0.04);
+  --scrim-media: rgba(6, 7, 9, 0.72);
+  --scrim-media-hover: rgba(6, 7, 9, 0.90);
+  /* What covers the page. Neutral-black rather than purple-black. */
+  --scrim-page: rgba(6, 7, 9, 0.78);
+  /* The accent as a fill. Synthwave's magenta hovers become blue - the brand color
+     that carried them does not exist in this mode. */
+  --accent-wash: rgba(76, 178, 255, 0.14);
+  --accent-wash-on: rgba(76, 178, 255, 0.24);
+  --drop-lit: rgba(76, 178, 255, 0.20);
+  --wash-lift: rgba(255, 255, 255, 0.03);
+  --bar-track: rgba(255, 255, 255, 0.09);
+  /* Four steps, measured: every text token above clears 4.5:1 on all of them. */
+  --surface-0: #0e0f12;
+  --surface-1: #16181d;
+  --surface-2: #1e2127;
+  --surface-3: #121419;
+  --surface-sunken: #0a0b0e;
+  --surface-art: #08090b;
+  --row-select: #1b3a57;
+  --flair-wash: rgba(76, 178, 255, 0.10);
+  --flair-wash-strong: rgba(76, 178, 255, 0.16);
+  --notice-wash: rgba(240, 180, 41, 0.08);
+  --notice-edge: rgba(240, 180, 41, 0.35);
+  --borrowed-edge: rgba(240, 140, 20, 0.65);
+  --scrim-media-warm: rgba(46, 32, 8, 0.85);
+  --surface-band: rgba(255, 255, 255, 0.05);
+  /* Boundaries. `--line-strong` is 3.2:1 on the lightest surface a control sits on. */
+  --line: #2a2e36;
+  --line-strong: #696f7b;
+  --line-soft: #1e2229;
+  --line-band: rgba(169, 177, 189, 0.22);
+  --surface-hover: #252931;
+  --surface-current: #2e333d;
+  --warm: #f0b429;
+  /* Derived, so they follow whatever the mode said above. */
+  --tier-table: var(--warm);
+  --tier-quiet: var(--ink-3);
+  --resize-line: rgba(255, 255, 255, 0.34);
+  /* **This is what the mode is for.** Synthwave's grid, glows and gradients resolve
+     to nothing here; a glow rendered grey is still a glow. Elevation is not glow and
+     stays - a shadow says "above the page", which is true in any palette. */
+  --fx-backdrop: none;
+  --fx-glow-panel: none;
+  --fx-glow-nav: none;
+  --fx-glow-brand: none;
+  --fx-glow-text: none;
+  --viewer-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --shadow-drag: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-tooltip: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --header-bg: var(--surface-1);
+  --nav-bg: var(--surface-1);
+  --workbench-bg: var(--surface-1);
+  --workbench-bg-rail: var(--surface-1);
+  --card-bg: var(--surface-2);
+  /* Quiet, not invisible. */
+  --scrollbar-thumb: rgba(138, 147, 161, 0.32);
+  --scrollbar-thumb-hover: rgba(138, 147, 161, 0.62);
+"""
+
 
 # Sizes, not colors. Density is a feature of this surface rather than a preference,
 # so a mode that changed the type scale would turn a designed density into somebody's
@@ -1663,7 +1759,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
 
 # Every appearance mode this surface has. Synthwave is the only one built; Dark and Light
 # are the reason the palette is separable at all.
-PALETTES = {"synthwave": _SYNTHWAVE}
+PALETTES = {"synthwave": _SYNTHWAVE, "dark": _DARK}
 DEFAULT_MODE = "synthwave"
 
 
@@ -1698,15 +1794,15 @@ def apply_surface(name: str) -> None:
         f"document.documentElement.dataset.surface = {json.dumps(name)}")
 
 
-def _token(name: str) -> str:
+def _token(name: str, mode: str = DEFAULT_MODE) -> str:
     """The value a token carries, read out of the palette that declares it."""
-    match = re.search(rf"^\s*{name}:\s*([^;]+);", PALETTES[DEFAULT_MODE], re.MULTILINE)
+    match = re.search(rf"^\s*{name}:\s*([^;]+);", PALETTES[mode], re.MULTILINE)
     if match is None:
         raise KeyError(name)
     return match.group(1).strip()
 
 
-def apply_colors() -> None:
+def apply_colors(mode: str = DEFAULT_MODE) -> None:
     """Hand Quasar the brand set it paints its own components with.
 
     Read off the tokens rather than kept beside them. A second copy of the palette is a
@@ -1714,22 +1810,21 @@ def apply_colors() -> None:
     to the two the stylesheet was busy collapsing into one.
     """
     ui.colors(
-        primary=_token("--flair"),
-        secondary=_token("--accent"),
+        primary=_token("--flair", mode),
+        secondary=_token("--accent", mode),
         # Quasar carries three slots for a second brand color and the Console designs
         # with one. All three take it, so a component reaching for any of them cannot
         # land on Quasar's stock purple.
-        accent=_token("--accent"),
-        positive=_token("--positive"),
-        # Not --danger, and measured: Quasar fills an error toast with `negative` and
-        # writes white on it, where --danger's #ff6b9d is 2.68:1. This is 4.81:1. The
-        # pink that reads as text on a panel and the pink that carries white on top of
-        # it are two colors, and Quasar has one slot for both.
-        negative="#e00068",
-        warning=_token("--warm"),
-        info=_token("--accent"),
-        dark=_token("--surface-2"),
-        dark_page=_token("--surface-0"),
+        accent=_token("--accent", mode),
+        positive=_token("--positive", mode),
+        # Not --danger: Quasar fills an error toast with `negative` and writes white on
+        # it, and the color that reads as text on a panel is not the one that carries
+        # white on top. Two colors, one slot, so the palette names both.
+        negative=_token("--danger-fill", mode),
+        warning=_token("--warm", mode),
+        info=_token("--accent", mode),
+        dark=_token("--surface-2", mode),
+        dark_page=_token("--surface-0", mode),
     )
 
 

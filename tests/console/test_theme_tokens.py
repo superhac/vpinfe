@@ -11,6 +11,7 @@ resolves, every token has a user, and a color is named rather than typed.
 
 from __future__ import annotations
 
+import pathlib
 import re
 import unittest
 
@@ -23,6 +24,10 @@ STYLESHEET = (theme.palette_css() + theme._SCROLLBAR
 
 DEFINED = re.compile(r"^\s*(--[a-z0-9-]+)\s*:", re.MULTILINE)
 USED = re.compile(r"var\(\s*(--[a-z0-9-]+)")
+# A palette is also read from Python: the nine Quasar brand values are looked up with
+# `_token("--x")` rather than through a rule, and a token only read that way still has a
+# reader. Without this, naming one is punished for not being written in CSS.
+FROM_PYTHON = re.compile(r'_token\(\s*"(--[a-z0-9-]+)"')
 # Hex, or rgb()/rgba() with a literal triple. Not a var() inside one.
 LITERAL = re.compile(r"#[0-9a-fA-F]{3,8}\b"
                      r"|rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*[\d.]+\s*)?\)")
@@ -63,7 +68,9 @@ def _ours(names):
 class TokenTests(unittest.TestCase):
     def setUp(self) -> None:
         self.defined = _ours(set(DEFINED.findall(STYLESHEET)))
-        self.used = _ours(set(USED.findall(STYLESHEET)))
+        source = pathlib.Path(theme.__file__).read_text(encoding="utf-8")
+        self.used = _ours(set(USED.findall(STYLESHEET))
+                          | set(FROM_PYTHON.findall(source)))
 
     def test_every_var_resolves_to_a_token_that_exists(self) -> None:
         """`var(--warn)` shipped for weeks. A missing custom property is not an error
@@ -76,6 +83,37 @@ class TokenTests(unittest.TestCase):
         accumulated - and one, `--fs-subject`, read like a heading level the Console had
         never actually had."""
         self.assertEqual(sorted(self.defined - self.used), [])
+
+
+class PaletteTests(unittest.TestCase):
+    """Every mode has to answer for every token.
+
+    A mode that omits one does not fall back to another mode - there is no other mode in
+    the page. The `var()` resolves to nothing, the declaration is dropped, and the element
+    inherits whatever is above it. That is the same silent failure `--warn` shipped as,
+    except a whole palette can carry it.
+    """
+
+    def test_every_palette_declares_the_same_tokens(self) -> None:
+        declared = {mode: set(DEFINED.findall(block))
+                    for mode, block in theme.PALETTES.items()}
+        base = declared[theme.DEFAULT_MODE]
+        for mode, names in declared.items():
+            self.assertEqual(sorted(names ^ base), [],
+                             f"{mode} does not declare the same tokens as "
+                             f"{theme.DEFAULT_MODE}")
+
+    def test_every_mode_renders_a_block_that_resolves(self) -> None:
+        """The stylesheet is one string per mode, so a mode is only real if the rules
+        can read it."""
+        rules = theme._SCROLLBAR + theme._SURFACES + theme._REMOTE + \
+            theme._FLAIR + theme._COMPONENTS
+        want = _ours(set(USED.findall(rules)))
+        for mode in theme.PALETTES:
+            # Everything that ships in this mode - a few tokens are declared inside a
+            # scoped rule rather than in the palette, and those resolve just as well.
+            have = _ours(set(DEFINED.findall(theme.palette_css(mode) + rules)))
+            self.assertEqual(sorted(want - have), [], f"{mode} leaves these unresolved")
 
 
 class LiteralTests(unittest.TestCase):
