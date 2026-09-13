@@ -890,17 +890,24 @@ async def _media_block(context: dict[str, Any]) -> None:
                            on_pick=lambda kind: _pick_slot(context, kind, draw),
                            selected=context["slot"]["kind"],
                            overrides=overrides, offered=offered, kept=kept)
-        # A slot arrived at by link can be anywhere in a map of twenty tiles, including
-        # below the fold - and a selection you cannot see is not one. `nearest` moves
-        # the least that makes it visible, so a tile already on screen does not jolt
-        # the map, and clicking one never scrolls at all.
-        if context["slot"]["kind"]:
-            ui.run_javascript("""
-            requestAnimationFrame(() => {
-              const tile = document.querySelector('.console-mediatile--on');
-              if (tile) tile.scrollIntoView({block: 'nearest', inline: 'nearest'});
-            });
-            """)
+            # A slot arrived at by link can be anywhere in a map of twenty tiles,
+            # including below the fold - and a selection you cannot see is not one.
+            # `nearest` moves the least that makes it visible, so a tile already on
+            # screen does not jolt the map, and clicking one never scrolls at all.
+            #
+            # Inside `with holder`, and that is not tidiness. `run_javascript` reaches
+            # for the client through the current slot, and a redraw scheduled from a
+            # click runs on a bare task with no slot at all - so out here it raised,
+            # took the rest of this function with it, and the dock below never got
+            # cleared. The map updated, the editor kept whatever it had, and nothing
+            # said why.
+            if context["slot"]["kind"]:
+                ui.run_javascript("""
+                requestAnimationFrame(() => {
+                  const tile = document.querySelector('.console-mediatile--on');
+                  if (tile) tile.scrollIntoView({block: 'nearest', inline: 'nearest'});
+                });
+                """)
         dock = context.get("dock")
         if dock is not None:
             dock.clear()
