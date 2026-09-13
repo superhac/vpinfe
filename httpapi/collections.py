@@ -36,6 +36,8 @@ from common.games.collection_store import (
     normalize_paging_group,
 )
 from common.games.collections_service import (
+    follow_rename_in_settings,
+    forget_in_settings,
     get_collections_manager,
     get_collections_metadata,
 )
@@ -439,6 +441,7 @@ def delete_collection(name: str) -> Response:
         if name not in manager.get_collections_name():
             raise NotFoundError(t("error.collections.no_collection_named", name=(name)))
         manager.delete_collection(name)
+    forget_in_settings(name)
     return Response(status_code=204)
 
 
@@ -672,6 +675,7 @@ def patch_collection(name: str,
     """
 
     final = name
+    renamed_from: str | None = None
     with get_collections_manager().mutate() as manager:
         if name not in manager.get_collections_name():
             raise NotFoundError(t("error.collections.no_collection_named", name=(name)))
@@ -742,7 +746,13 @@ def patch_collection(name: str,
                 raise ConflictError(t("error.collections.collection_named_already_exists",
                                       name=(new_name)))
             manager.rename_collection(name, new_name)
+            renamed_from = name
             final = new_name
+
+    # Outside the mutate block: the collections file is written first, so a settings
+    # write that fails cannot leave the setting pointing at a rename that did not happen.
+    if renamed_from is not None:
+        follow_rename_in_settings(renamed_from, final)
 
     return _resource_for(_row_or_404(final))
 

@@ -26,6 +26,8 @@ from common.games.collections_service import (  # noqa: F401  (import and export
     IMAGE_EXTENSIONS,
     collection_icon_url,
     ensure_collection_icons_dir,
+    follow_rename_in_settings,
+    forget_in_settings,
     get_collection_image,
     get_collections_manager,
     save_collection_icon,
@@ -173,11 +175,13 @@ def get_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> dict[str,
 def delete_collection(name: str) -> None:
     with get_collections_manager().mutate() as manager:
         manager.delete_collection(name)
+    forget_in_settings(name)
 
 
 def rename_collection(name: str, new_name: str) -> None:
     with get_collections_manager().mutate() as manager:
         manager.rename_collection(name, new_name)
+    follow_rename_in_settings(name, new_name)
 
 
 def create_game_collection(name: str, game_ids: list[str], image: str | None = None) -> None:

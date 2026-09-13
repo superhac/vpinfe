@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from common.games.collection_store import CollectionStore
-from common.paths import COLLECTIONS_PATH
+from common.paths import COLLECTIONS_PATH, get_ini_config
 from common.values import is_truthy
 
 COLLECTION_ICONS_DIR = COLLECTIONS_PATH.parent / "collection_icons"
@@ -66,6 +66,35 @@ def collection_icon_path(filename: str | None) -> Path | None:
         return None
     here = ensure_collection_icons_dir() / name
     return here if here.is_file() else None
+
+
+def follow_rename_in_settings(old_name: str, new_name: str) -> None:
+    """Move `general.startup_collection` along with the collection it names.
+
+    The setting holds a name because a collection has no id to hold instead, so a rename
+    left it pointing at a collection that no longer existed. The frontend caught the
+    failure, logged it and showed the whole library - which looks like the setting was
+    never set rather than like something broke.
+    """
+    store = get_ini_config()
+    if str(store.value("general", "startup_collection") or "").strip() != old_name:
+        return
+    store.set_value("general", "startup_collection", new_name)
+    store.save()
+
+
+def forget_in_settings(name: str) -> None:
+    """Clear `general.startup_collection` when the collection it names is deleted.
+
+    The alternative is leaving it naming something gone, which shows the whole library
+    and raises on every start. This shows the whole library and says so on the settings
+    screen, which is the same outcome told honestly.
+    """
+    store = get_ini_config()
+    if str(store.value("general", "startup_collection") or "").strip() != name:
+        return
+    store.set_value("general", "startup_collection", "")
+    store.save()
 
 
 def get_collection_names() -> list[str]:
