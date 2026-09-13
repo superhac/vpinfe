@@ -407,11 +407,13 @@ async def build(container: ui.column, title: ui.column, library: Library,
 async def _draw(container: ui.column, title: ui.column, library: Library,
                 game_id: str | None, state: dict[str, Any], table_id: str = "") -> None:
     if game_id is None:
-        _blank(container, title, "Game Details", "Select a game")
+        _blank(container, title, t("console.page.empty_game_details"),
+               t("console.page.empty_select_a_game"))
         return
     game = next((entry for entry in library.games if entry["id"] == game_id), None)
     if game is None:
-        _blank(container, title, "Game Details", "Not in this library")
+        _blank(container, title, t("console.page.empty_game_details"),
+               t("console.page.empty_not_in_this_library"))
         return
     # Off the loop, always. This is an HTTP call to our own process: made on the
     # event loop it blocks the server from answering it, the request times out
@@ -499,7 +501,8 @@ async def build_location(container: ui.column, title: ui.column, library: Librar
 async def _draw_location(container: ui.column, title: ui.column, library: Library,
                          location_id: str | None, state: dict[str, Any]) -> None:
     if not location_id:
-        _blank(container, title, "Location", "Select a location")
+        _blank(container, title, t("console.page.empty_location"),
+               t("console.page.empty_select_a_location"))
         return
     # Read fresh rather than from the grid's copy: reachable and writable are answers
     # about this moment, and the panel is where they are acted on.
@@ -508,7 +511,8 @@ async def _draw_location(container: ui.column, title: ui.column, library: Librar
     row = next((one for one in held
                 if one.get("location_id") == location_id), None)
     if row is None:
-        _blank(container, title, "Location", "No longer in this install")
+        _blank(container, title, t("console.page.empty_location"),
+               t("console.page.empty_no_longer_in_this_install"))
         return
 
     container.clear()
@@ -545,7 +549,8 @@ async def build_launcher(container: ui.column, title: ui.column, library: Librar
 async def _draw_launcher(container: ui.column, title: ui.column, library: Library,
                          launcher_id: str | None, state: dict[str, Any]) -> None:
     if not launcher_id:
-        _blank(container, title, "Launcher", "Select a launcher")
+        _blank(container, title, t("console.page.empty_launcher"),
+               t("console.page.empty_select_a_launcher"))
         return
     # Read fresh rather than from the grid's copy: every control in here writes, and a
     # rebuild that redrew from a stale row would show the edit undoing itself.
@@ -553,7 +558,8 @@ async def _draw_launcher(container: ui.column, title: ui.column, library: Librar
     held = list(found.get("launchers") or [])
     row = next((one for one in held if one.get("launcher_id") == launcher_id), None)
     if row is None:
-        _blank(container, title, "Launcher", "No longer on this install")
+        _blank(container, title, t("console.page.empty_launcher"),
+               t("console.page.empty_no_longer_on_this_install"))
         return
 
     groups = await run.io_bound(library.launcher_config_groups, launcher_id)
@@ -603,7 +609,8 @@ async def _draw_device(container: ui.column, title: ui.column, library: Library,
                        device_capabilities: list[str],
                        local_capabilities: set[str]) -> None:
     if not device:
-        _blank(container, title, "Device", "Select a device")
+        _blank(container, title, t("console.page.empty_device"),
+               t("console.page.empty_select_a_device"))
         return
 
     container.clear()
@@ -642,7 +649,8 @@ def _blank(container: ui.column, title: ui.column, heading: str, said: str) -> N
 async def _draw_collection(container: ui.column, title: ui.column, library: Library,
                            name: str | None, state: dict[str, Any]) -> None:
     if not name:
-        _blank(container, title, "Collection", "Select a collection")
+        _blank(container, title, t("console.page.empty_collection"),
+               t("console.page.empty_select_a_collection"))
         return
     # Read fresh rather than from the grid's copy: every control in here writes,
     # and a rebuild that redrew the values it just changed from a stale row would
@@ -654,7 +662,8 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
     rows = await run.io_bound(library.load_collections)
     row = next((entry for entry in rows if entry.get("name") == name), None)
     if row is None:
-        _blank(container, title, "Collection", "No longer in this library")
+        _blank(container, title, t("console.page.empty_collection"),
+               t("console.page.empty_no_longer_in_this_library"))
         return
     # Independent of each other, so one wait rather than two.
     membership, axes = await asyncio.gather(
@@ -2443,7 +2452,8 @@ def _tables_block(context: dict[str, Any]) -> None:
     tables = context["tables"]
     showing = str(context.get("lens") or "")
     # Only where there is a choice to describe. A count beside one row says nothing.
-    said = f"Tables ({len(tables)})" if len(tables) > 1 else "Table"
+    said = t("console.workbench.tables_count", count=(len(tables))) if len(tables) > 1 \
+        else t("console.workbench.table_one")
     with ui.row().classes("items-center gap-2 w-full no-wrap"):
         ui.label(said if tables else t("console.workbench.tables")) \
             .classes("console-card-title console-fact-heading grow")

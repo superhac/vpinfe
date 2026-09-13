@@ -86,9 +86,9 @@ _ACTION_ICONS = {
 # What a probe found, as the mark on a rail row and the chip on the page. Green for
 # answering, because that is the one a person scans the rail for.
 _REACH = {
-    device_client.ANSWERING: ("Answering", "on", "positive"),
-    device_client.UNREACHABLE: ("Not answering", "bad", "negative"),
-    device_client.UNASKABLE: ("Cannot be asked", "unknown", "grey"),
+    device_client.ANSWERING: ("console.devices.answering", "on", "positive"),
+    device_client.UNREACHABLE: ("console.devices.not_answering", "bad", "negative"),
+    device_client.UNASKABLE: ("console.devices.cannot_be_asked", "unknown", "grey"),
 }
 
 
@@ -132,7 +132,7 @@ def device_label(device: dict[str, Any]) -> str:
     """
     return (str(device.get("display_name") or "").strip()
             or str(device.get("address") or "").strip()
-            or "Device")
+            or t("console.devices.device"))
 
 
 def _connection_rows(device: dict[str, Any],
@@ -144,15 +144,18 @@ def _connection_rows(device: dict[str, Any],
     doing something about.
     """
     rows: list[tuple[Any, Any]] = [
-        ("Address", str(device.get("address") or "") or "Not known")]
+        (t("console.devices.address"),
+         str(device.get("address") or "") or t("console.devices.not_known"))]
 
     found = _REACH.get(str((reach or {}).get("state") or ""))
     if found is None:
-        rows.append(("State", panel.state(t("console.devices.checking"), "unknown")))
+        rows.append((t("console.devices.state"),
+                     panel.state(t("console.devices.checking"), "unknown")))
     else:
         label, level, _color = found
         what = str((reach or {}).get("what") or "")
-        rows.append(("State", panel.state(label, level, beside=what)))
+        rows.append((t("console.devices.state"),
+                     panel.state(t(label), level, beside=what)))
         reason = str((reach or {}).get("reason") or "")
         if level != "on" and reason:
             rows.append(panel.note(reason))
@@ -286,7 +289,7 @@ SCOPE = "console.devices.columns"
 KIND_LABELS = {"vpinfe": "VPinFE", "vpx_mobile": "VPX Mobile"}
 
 _KIND_CHOICES = [{"value": label, "label": label} for label in KIND_LABELS.values()]
-_STATE_CHOICES = [{"value": text, "label": text} for text, _l, _c in _REACH.values()]
+_STATE_CHOICES = [{"value": text, "label": t(text)} for text, _l, _c in _REACH.values()]
 
 COLUMNS: list[dict[str, Any]] = [
     # Never shown - it exists so every built-in view can sort this device to the top.
@@ -401,9 +404,10 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
 
     def said() -> str:
         if on_screen["rows"] != len(built):
-            return f"{on_screen['rows']} of {len(built)} devices"
-        return f"{len(built)} devices, {away} not answering" if away \
-            else f"{len(built)} devices"
+            return t("console.devices.count_of", shown=(on_screen["rows"]),
+                     count=(len(built)))
+        return t("console.devices.count_away", count=(len(built)), away=(away)) if away \
+            else t("console.devices.count", count=(len(built)))
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
         search = panel.search(t("console.devices.search_devices"))
@@ -639,7 +643,7 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
             await rebuild()
 
     rows_out: list[tuple[Any, Any]] = [
-        ("Name", panel.field(stored, rename,
+        (t("console.devices.name"), panel.field(stored, rename,
                              placeholder=_hostname_placeholder(device,
                                                                _is_local(context)),
                              disabled=not editable)),

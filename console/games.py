@@ -39,9 +39,9 @@ SCOPE = "console.games.columns"
 # the row *is*, what it rolls up, and what it has. Media sits last because it is most
 # of the list and least of the use - and last is where it already was, so the grouping
 # names a seam that was there rather than moving anything.
-_GAME = "Game"
-_ASSETS = "Assets"
-_MEDIA = "Media"
+_GAME = "console.games.game"
+_ASSETS = "console.games.assets"
+_MEDIA = "console.games.media"
 
 # What the games resource calls an asset is not always what `asset_registry` calls it -
 # `settings` is the table INI, and one `alt_color` covers both Serum and VNI. Named
@@ -52,19 +52,19 @@ _MEDIA = "Media"
 # `alt_color` and `alt_sound` are here because the games resource still names them
 # its own way - one `alt_color` covering the registry's Serum and VNI.
 _ASSET_LABELS = {
-    "alt_color": "Alt Color",
-    "alt_sound": "AltSound",
+    "alt_color": "console.games.asset_label_alt_color",
+    "alt_sound": "console.games.asset_label_alt_sound",
     # The `.directb2s`, which media also calls a backglass - one is the file that
     # drives the second screen, the other is a picture of it. A column header has no
     # group heading beside it, so the two cannot both be "Backglass".
-    "backglass": "B2S",
+    "backglass": "console.games.asset_label_backglass",
 }
 
 
 def _asset_label(key: str) -> str:
     """The registry's word for a kind, then this surface's override, then humanize."""
     if key in _ASSET_LABELS:
-        return _ASSET_LABELS[key]
+        return t(_ASSET_LABELS[key])
     try:
         return asset_registry.spec_for(key).label
     except KeyError:
@@ -108,42 +108,42 @@ _TICK = {
 # own click would move the focused row, and rating a row you can see is not a request
 # to go and look at it.
 COLUMNS = [
-    grid.column("name", t("console.games.name"), 280, pinned="left", group=_GAME,
+    grid.column("name", t("console.games.name"), 280, pinned="left", group=t(_GAME),
                 help=t("console.games.the_machine_as_your.help")),
     # Always, including 1: it is the only thing saying the row collapses its tables,
     # and it qualifies everything to its right. "Table Count" rather
     # than "Tables", which read as the tables themselves - this is a number about the
     # game, and it belongs with the game's other facts.
-    grid.column("table_count", t("console.games.table_count"), type="numericColumn", group=_GAME,
+    grid.column("table_count", t("console.games.table_count"), type="numericColumn", group=t(_GAME),
                 help=t("console.games.how_many_vpx_files_this.help")),
-    grid.column("manufacturer", t("console.games.manufacturer"), group=_GAME,
+    grid.column("manufacturer", t("console.games.manufacturer"), group=t(_GAME),
                 help=t("console.games.who_made_the_machine.help")),
-    grid.column("year", t("console.games.year"), group=_GAME,
+    grid.column("year", t("console.games.year"), group=t(_GAME),
                 help=t("console.games.the_year_the_machine_was.help")),
-    grid.column("game_type", t("console.games.type"), group=_GAME,
+    grid.column("game_type", t("console.games.type"), group=t(_GAME),
                 help=t("console.games.what_kind_of_machine_it_is.help")),
     # Qualified for the reason Game Rating is: an install has a *frontend* theme and will
     # have a Console one, so "Themes" in a column header is three things one screen apart.
     # The panel says "Themes" plainly, because a group headed Machine has said which.
-    grid.column("themes", t("console.games.game_themes"), 200, group=_GAME,
+    grid.column("themes", t("console.games.game_themes"), 200, group=t(_GAME),
                 help=t("console.games.what_the_machine_is_about.help")),
     # The word only where it is missing, and a blank cell everywhere else: most of a
     # library is matched, so a mark on every row says nothing and the few that are not
     # are the whole point of the column. It sits beside the catalog facts because it
     # explains them - a game with no manufacturer, year or themes is usually a game the
     # catalog has never been asked about.
-    grid.column("vps_unmatched", t("console.games.vps_match"), group=_GAME,
+    grid.column("vps_unmatched", t("console.games.vps_match"), group=t(_GAME),
                 help=t("console.games.blank_where_this_game_is.help"),
                 **_NO_CHECKBOX,
                 **{":valueFormatter":
                    "params => params.value ? "
                    + json.dumps(game_tables.VPS_WORDS[0]) + " : ''"},
-                **grid.choice_filter(_two(game_tables.VPS_WORDS))),
+                **grid.choice_filter(_two(game_tables.VPS_WORDS), formatted=True)),
     # No ROM or Version here: ROM is an asset (`asset_registry`), Version has no
     # game-level meaning, and both were the default table's shown as the game's.
     # Named for whose rating it is, because the tables grid has one too and "Rating"
     # in two places invites the reader to assume they are the same number.
-    grid.column("rating", t("console.games.game_rating"), group=_GAME,
+    grid.column("rating", t("console.games.game_rating"), group=t(_GAME),
                 help=t("console.games.your_rating_for_the.help"),
                 cellClass="console-stars-cell",
                 **grid.choice_filter(_RATING_CHOICES),
@@ -205,7 +205,7 @@ def asset_columns(keys: list[str]) -> list[dict[str, Any]]:
     """
     labels = {key: _asset_label(key) for key in keys}
     width = max((grid.header_width(label) for label in labels.values()), default=92)
-    return [grid.column(f"asset_{key}", label, width, group=_ASSETS,
+    return [grid.column(f"asset_{key}", label, width, group=t(_ASSETS),
                         cellStyle={"textAlign": "center"},
                         **{**_TICK, **grid.choice_filter(_HAS_CHOICES)})
             for key, label in sorted(labels.items(), key=lambda kv: kv[1].lower())]
@@ -227,7 +227,7 @@ _MARK_BY_WORD = {
 _STATE_CHOICES = [
     {"value": "" if key == media_ownership.MISSING
      else media_ownership.tier_for(key).noun,
-     "label": media_ownership.tier_for(key).noun,
+     "label": t(media_ownership.tier_for(key).noun),
      "mark": ("" if key == media_ownership.MISSING
               else f"console-mark {media_ownership.tier_for(key).mark}")}
     for key in media_ownership.STATES
@@ -345,7 +345,7 @@ def media_columns(kinds: list[str]) -> list[dict[str, Any]]:
                for kind in sorted(kinds, key=lambda k: (labels.get(k) or k).lower())}
     width = max((grid.header_width(header) for header in headers.values()), default=92)
     return [grid.column(f"media_{kind}", header, width,
-                        cellClass="console-media-cell", group=_MEDIA,
+                        cellClass="console-media-cell", group=t(_MEDIA),
                         **grid.choice_filter(_STATE_CHOICES),
                         **{":cellRenderer": _MARK_RENDERER})
             for kind, header in headers.items()]
@@ -665,10 +665,10 @@ _FEATURE_CHOICES = [
      "glyphClass": table_features.state_for(table_features.UNKNOWN).glyph_class},
 ]
 
-_FEATURES = "Features"
+_FEATURES = "console.games.features"
 
 FEATURE_COLUMNS = [
-    grid.column(f"feature_{key}", label, group=_FEATURES,
+    grid.column(f"feature_{key}", label, group=t(_FEATURES),
                 cellClass="console-media-cell",
                 **grid.choice_filter(_FEATURE_CHOICES),
                 **{":cellRenderer": _FEATURE_RENDERER})
@@ -679,19 +679,19 @@ FEATURE_COLUMNS = [
 # One row per launchable file. The game's name leads, because a filename alone does not
 # say what the thing is - and it is pinned, because scrolling right to see which game a
 # row belongs to is the failure this subject exists to fix.
-_TABLE = "Table"
-_IN_PLAY = "In this library"
+_TABLE = "console.games.table"
+_IN_PLAY = "console.games.in_this_library"
 
 TABLE_COLUMNS = [
-    grid.column("game", t("console.games.game"), 240, pinned="left", group=_GAME,
+    grid.column("game", t("console.games.game"), 240, pinned="left", group=t(_GAME),
                 help=t("console.games.the_machine_this_build_is.help")),
-    grid.column("version", t("console.games.version"), group=_TABLE,
+    grid.column("version", t("console.games.version"), group=t(_TABLE),
                 help=t("console.games.the_build_s_own_version_as.help")),
-    grid.column("author", t("console.games.author"), 160, group=_TABLE,
+    grid.column("author", t("console.games.author"), 160, group=t(_TABLE),
                 help=t("console.games.who_built_this_table.help")),
-    grid.column("rom", t("console.games.rom"), 110, group=_TABLE,
+    grid.column("rom", t("console.games.rom"), 110, group=t(_TABLE),
                 help=t("console.games.the_pinmame_rom_this_build.help")),
-    grid.column("launcher", t("console.games.launcher"), group=_TABLE,
+    grid.column("launcher", t("console.games.launcher"), group=t(_TABLE),
                 help=t("console.games.which_launcher_plays_this.help")),
     # One column per fact rather than one word folding three together. "Status" cannot
     # stay one column anyway - has an update, missing its rom and the rest are all
@@ -699,30 +699,30 @@ TABLE_COLUMNS = [
     # one of them. Each of these sorts and filters on its own, which is what a list is
     # for. A summary column can be built later, deliberately, from these.
     # Not a tick: a chosen default and a derived one are different facts.
-    grid.column("default_state", game_tables.DEFAULT_LABEL, group=_IN_PLAY,
+    grid.column("default_state", game_tables.DEFAULT_LABEL, group=t(_IN_PLAY),
                 help=t("console.games.which_build_the_frontend.help"),
                 **grid.choice_filter(
                     [{"value": word, "label": word}
                      for word, _why in game_tables.DEFAULT_WORDS.values()]
                     + [{"value": "", "label": t("console.games.not_the_default")}])),
-    grid.column("rating", t("console.games.table_rating"), group=_TABLE,
+    grid.column("rating", t("console.games.table_rating"), group=t(_TABLE),
                 help=t("console.games.your_rating_for_this_build.help"),
                 cellClass="console-stars-cell",
                 **grid.choice_filter(_RATING_CHOICES),
                 **{":cellRenderer": stars.renderer("table")}),
     # Each column's own words, not a generic pair: "Hidden: Yes" is a question about a
     # question, where "Hidden / Offered" is the fact and its opposite.
-    grid.column("hidden", t("console.games.hidden"), group=_IN_PLAY,
+    grid.column("hidden", t("console.games.hidden"), group=t(_IN_PLAY),
                 help=t("console.games.ticked_where_the_frontend.help"),
                 **{**_TICK, **grid.choice_filter(
                     _two(game_tables.HIDDEN_WORDS))}),
-    grid.column("missing", t("console.games.missing"), group=_IN_PLAY,
+    grid.column("missing", t("console.games.missing"), group=t(_IN_PLAY),
                 help=t("console.games.ticked_where_the_library.help"),
                 **{**_TICK, **grid.choice_filter(
                     _two(game_tables.FILE_WORDS))}),
     # Last and widest: it is the identifier of record, and the part that tells two
     # tables of one game apart sits at its end.
-    grid.column("filename", game_tables.FILE, 420, group=_TABLE,
+    grid.column("filename", game_tables.FILE, 420, group=t(_TABLE),
                 help=t("console.games.the_vpx_itself_the.help")),
     *FEATURE_COLUMNS,
 ]
@@ -750,7 +750,7 @@ def table_asset_columns(keys: list[str]) -> list[dict[str, Any]]:
                for key, label in sorted(labels.items(), key=lambda kv: kv[1].lower())}
     width = max((grid.header_width(header) for header in headers.values()), default=92)
     return [grid.column(f"asset_{key}", header, width,
-                        cellClass="console-media-cell", group=_ASSETS,
+                        cellClass="console-media-cell", group=t(_ASSETS),
                         **grid.choice_filter(_STATE_CHOICES),
                         **{":cellRenderer": _MARK_RENDERER})
             for key, header in headers.items()]

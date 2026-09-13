@@ -3,6 +3,7 @@
 import unittest
 
 from common.games import asset_registry
+from common.i18n import t
 from common.labels import field_label
 from console import (
     data,
@@ -141,7 +142,8 @@ class AssetSectionTests(unittest.TestCase):
         for resolution, noun in (("dedicated", "This table"), ("shared", "All tables"),
                                  ("none", "Missing"), (None, "Missing")):
             with self.subTest(resolution=resolution):
-                self.assertEqual(media_ownership.for_resolution(resolution).noun, noun)
+                self.assertEqual(t(media_ownership.for_resolution(resolution).noun),
+                                 noun)
 
 
 class LaunchRollupTests(unittest.TestCase):
@@ -299,14 +301,14 @@ class FunnelChoiceTests(unittest.TestCase):
         glyph in the funnel would promise a mark that is never on screen."""
         choices = self._by_label(games._STATE_CHOICES)
 
-        self.assertEqual(choices["Missing"]["mark"], "")
-        self.assertTrue(choices["This table"]["mark"])
+        self.assertEqual(choices[t("console.media_ownership.noun_missing")]["mark"], "")
+        self.assertTrue(choices[t("console.media_ownership.noun_this_table")]["mark"])
 
     def test_every_state_is_still_offered(self) -> None:
         """Dropping the mark is not dropping the choice - Missing is the one people
         filter to most, and it stays pickable."""
         self.assertEqual({choice["label"] for choice in games._STATE_CHOICES},
-                         {media_ownership.tier_for(key).noun
+                         {t(media_ownership.tier_for(key).noun)
                           for key in media_ownership.STATES})
 
 

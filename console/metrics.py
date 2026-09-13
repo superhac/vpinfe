@@ -49,8 +49,8 @@ def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
         note = ui.label("").classes("console-help")
         note.set_visibility(False)
         with ui.row().classes("w-full gap-4 no-wrap items-stretch") as readings:
-            cpu = _reading_card("Processor")
-            memory = _reading_card("Memory")
+            cpu = _reading_card(t("console.metrics.processor"))
+            memory = _reading_card(t("console.metrics.memory"))
         disks_title = ui.label(t("console.metrics.free_space")).classes("console-group mt-2")
         disks = ui.element("div").classes("console-card w-full")
         ui.label(t("console.metrics.graphics")).classes("console-group mt-2")
@@ -259,4 +259,4 @@ def _load_said(load: Any) -> str:
     it does not have rather than one we failed to read."""
     if not load:
         return ""
-    return "load " + ", ".join(f"{one:g}" for one in load)
+    return t("console.metrics.load", figures=", ".join(f"{one:g}" for one in load))

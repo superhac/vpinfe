@@ -7,6 +7,7 @@ sorted and what is filtered belong to a view; see console/views.py.
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 from collections.abc import Callable
 from typing import Any
@@ -177,9 +178,26 @@ def install_filters() -> None:
     ui.add_body_html(f"<script>{_CHOICE_FILTER_JS}</script>")
 
 
-def choice_filter(choices: list[dict[str, Any]]) -> dict[str, Any]:
-    """Column options that filter by picking a state rather than by typing one."""
-    return {":filter": CHOICE_FILTER, "filterParams": {"choices": choices}}
+def choice_filter(choices: list[dict[str, Any]], *,
+                  formatted: bool = False) -> dict[str, Any]:
+    """Column options that filter by picking a state rather than by typing one.
+
+    The cell holds the value, not the label - a filter matches on what the row says and
+    a saved view records that, so the stored token must not move when the language
+    does. `valueFormatter` is what puts the label on screen.
+
+    `formatted=True` where the column writes its own: a tick column formats a boolean
+    and would collide with one written here.
+    """
+    shown = {} if formatted else {
+        str(one.get("value")): str(one.get("label")) for one in choices
+        if str(one.get("label") or "") != str(one.get("value") or "")}
+    out: dict[str, Any] = {":filter": CHOICE_FILTER,
+                           "filterParams": {"choices": choices}}
+    if shown:
+        out[":valueFormatter"] = (
+            f"params => ({json.dumps(shown)})[params.value] ?? params.value")
+    return out
 
 
 def focused_row(event: Any) -> str:

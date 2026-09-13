@@ -27,7 +27,8 @@ logger = logging.getLogger("vpinfe.console.locations")
 SCOPE = "locations"
 
 # What a person would call each kind, rather than what the record calls it.
-KIND_LABELS = {"root": "Game folders", "game": "One game"}
+KIND_LABELS = {"root": "console.locations.game_folders",
+               "game": "console.locations.one_game"}
 
 # The verb, for the buttons that make one. Not the same words as the column: adding is
 # an act and reads as one.
@@ -36,7 +37,7 @@ ADD_LABELS = {
     "game": "console.locations.add.add_a_single_game"
 }
 
-_KIND_CHOICES = [{"value": key, "label": label} for key, label in KIND_LABELS.items()]
+_KIND_CHOICES = [{"value": key, "label": t(label)} for key, label in KIND_LABELS.items()]
 
 COLUMNS = [
     # The folder leads and is pinned. It is what a person recognizes a location by, and
@@ -71,8 +72,9 @@ LOCATION_VIEWS: dict[str, list[str]] = {
 def state_of(row: dict[str, Any]) -> str:
     """The fewest true words. Why is in the column's help and in the panel."""
     if not row.get("reachable"):
-        return "Unreachable"
-    return "Ready" if row.get("writable") else "Read-only"
+        return t("console.locations.unreachable")
+    return t("console.locations.ready") if row.get("writable") \
+        else t("console.locations.read_only")
 
 
 def rows(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -81,7 +83,7 @@ def rows(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
         "id": one["location_id"],
         "name": one["name"],
         "path": one["path"],
-        "contains": KIND_LABELS.get(one["kind"], one["kind"]),
+        "contains": t(KIND_LABELS.get(one["kind"], one["kind"])),
         "state": state_of(one),
         # Blank on every other row rather than "No": a column that says the same thing
         # everywhere but once is a column about the exception.
@@ -127,7 +129,7 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
         with ui.row().classes(
                 "w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
             for kind, label in ADD_LABELS.items():
-                ui.button(label, icon="add",
+                ui.button(t(label), icon="add",
                           on_click=lambda k=kind: _ask_new(library, state, rerender, k)) \
                     .props("flat dense no-caps size=sm").classes("shrink-0 console-action")
             search = panel.search(t("console.locations.search_locations"))
@@ -165,7 +167,7 @@ def _ask_new(library, state: dict[str, Any], rerender: Callable[[], None] | None
     looks broken the moment it is made is worse than one more dialog.
     """
     with ui.dialog() as dialog, ui.card():
-        ui.label(ADD_LABELS[kind]).classes("console-card-title")
+        ui.label(t(ADD_LABELS[kind])).classes("console-card-title")
         folder = ui.input(placeholder="/path/to/your/games") \
             .props("outlined dense debounce=0").classes("w-96")
 

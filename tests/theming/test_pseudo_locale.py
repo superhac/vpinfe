@@ -25,6 +25,13 @@ from tests.support.library import write_game
 from tests.support.live_instance import LiveInstance
 
 ROOT = Path(__file__).resolve().parents[2]
+
+# Sections whose screens are mostly not ours to translate, and so cannot be read this
+# way: `logs` is log lines (English on purpose - see §9 of the design), `themes` and
+# `extensions` are third-party manifest text, and `about` is what the machine reports
+# about itself. Their chrome is covered by the static checks in
+# tests/invariants/test_i18n_catalog.py; this one would drown in their content.
+CONTENT_HEAVY = frozenset({"logs", "themes", "extensions", "about"})
 CATALOG = json.loads((ROOT / "common/i18n/catalogs/en.json").read_text(encoding="utf-8"))
 GAME = "Attack from Mars"
 
@@ -72,27 +79,57 @@ def _icon_names() -> set[str]:
 class PseudoLocaleTests(unittest.TestCase):
     """Slow: boots a real instance and a real browser. Worth it - see the docstring."""
 
-    def test_the_console_says_nothing_in_english(self) -> None:
+    def test_every_section_says_nothing_in_english(self) -> None:
+        """Not just the landing view. `?view=` is the address of each section, and a
+        page nobody opens is a page nobody checked - the rail was found on the one view
+        this did open, and there was no reason to think the rest were different."""
         if not chromium_path():
             self.skipTest("no Chromium on this machine")
         if not (ROOT / "common/i18n/catalogs/qps.json").is_file():
             self.skipTest("no pseudo-locale; run scripts/i18n.py --pseudo")
 
-        # The library's own words are content and are never translated, so they are not
-        # a leak when they show up unchanged.
-        content = {w.lower() for w in re.findall(r"[A-Za-z]{4,}", GAME)} | {"local", "dev"}
+        # Words that reach the screen as data rather than as our chrome. Each is here
+        # for a stated reason, because an allowance nobody can justify is how a check
+        # like this quietly stops meaning anything.
+        content = (
+            # the fixture game's own title, and this install's name
+            {w.lower() for w in re.findall(r"[A-Za-z]{4,}", GAME)}
+            | {"local", "dev"}
+            # the machine's hostname and the temp directories it runs from, which the
+            # Devices and Metrics pages report verbatim
+            | {"cbmacbookmax", "wired", "vpinfe", "folders", "live"}
+            # a launcher is named by the config that declares it: "Visual Pinball",
+            # "Generic". A name somebody typed is theirs.
+            | {"visual", "pinball", "generic"}
+            # `Last Played` is a collection *name*, written into collections.json - it
+            # is stored data, and translating it would rename what is on disk
+            | {"last", "played"}
+            # `alt_color` and `alt_sound` are asset kinds the registry does not name, so
+            # `httpapi/assets.py:_label` builds a label from the identifier. That is the
+            # documented fallback for a kind from outside; the fix is to register the
+            # kind, which is a data change rather than a localization one.
+            | {"color", "sound"})
         allowed = _icon_names() | content
 
-        async def look(instance) -> list[str]:
+        from console import page as console_page
+        sections = sorted(set(console_page.SECTIONS) - CONTENT_HEAVY)
+
+        async def look(instance) -> dict[str, list[str]]:
+            found: dict[str, list[str]] = {}
             async with BrowserSession(chromium_path()) as browser:
-                await browser.navigate(instance.console_url("/console"))
-                await browser.wait_for(
-                    "document.querySelectorAll('.q-page, .nicegui-content').length > 0",
-                    timeout=90.0)
-                await asyncio.sleep(4)
-                text = await browser.evaluate("document.body.innerText") or ""
-            seen = {w.lower() for w in ASCII_WORD.findall(text)}
-            return sorted(seen - allowed)
+                for view in sections:
+                    await browser.navigate(
+                        instance.console_url(f"/console?view={view}"))
+                    await browser.wait_for(
+                        "document.querySelectorAll('.q-page, .nicegui-content').length > 0",
+                        timeout=90.0)
+                    await asyncio.sleep(3)
+                    text = await browser.evaluate("document.body.innerText") or ""
+                    seen = {w.lower() for w in ASCII_WORD.findall(text)}
+                    leaked = sorted(seen - allowed)
+                    if leaked:
+                        found[view] = leaked
+            return found
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -101,7 +138,7 @@ class PseudoLocaleTests(unittest.TestCase):
                               extra_settings={("general", "language"): "qps"}) as instance:
                 leaked = asyncio.run(look(instance))
 
-        self.assertEqual(leaked, [], "these reached the screen without the catalog")
+        self.assertEqual(leaked, {}, "these reached the screen without the catalog")
 
 
 if __name__ == "__main__":

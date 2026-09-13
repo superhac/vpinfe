@@ -372,7 +372,9 @@ def table_scripts(library: Library) -> None:
 
 # What a state is called on screen. "Off" is the switch somebody set; "Stopped" is an
 # error taking one out, which is a different thing to be told and reads as one.
-STATE_WORDS = {"off": "Off", "failed": "Failed", "disabled": "Stopped"}
+STATE_WORDS = {"off": "console.sections.off",
+               "failed": "console.sections.failed",
+               "disabled": "console.sections.stopped"}
 # Off costs nothing - it is what was asked for. The other two are a feature that is not
 # there, which is what the warn tone is for.
 QUIET_STATES = frozenset({"off"})
@@ -407,7 +409,7 @@ def _extension_card(found: dict, open_one=None) -> None:
             if state in STATE_WORDS:
                 tone = ("console-chip-quiet" if state in QUIET_STATES
                         else "console-chip-warn")
-                ui.label(STATE_WORDS[state]).classes(f"console-member-chip {tone}")
+                ui.label(t(STATE_WORDS[state])).classes(f"console-member-chip {tone}")
         # What it is, then what happened to it. A card keeps its shape whatever state
         # the extension is in, and the news is the line the chip points at.
         for line in (str(found.get("description") or ""),

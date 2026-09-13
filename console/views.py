@@ -152,7 +152,24 @@ def _sort_key(sort: Any) -> list[tuple[str, str]]:
 # in ui-preferences through `grid.layout_scope` - so the name never moves and this is
 # where it gets a word. A view somebody saved is not here: they named it, and their
 # words are theirs.
-BUILTIN_VIEW_NAMES = ("Machine", "Media", "Assets", "Table", "In this library")
+BUILTIN_VIEW_NAMES = (
+    "Machine",
+    "Media",
+    "Assets",
+    "Table",
+    "In this library",
+    "Missing",
+    "Orphans",
+    "Unused",
+    "Sources",
+    "Everything",
+    "Overview",
+    "Priority",
+    "All devices",
+    "Answering",
+    "Not answering",
+    "Table File",
+)
 
 
 def builtin_name(name: str) -> str:

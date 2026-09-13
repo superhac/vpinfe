@@ -35,7 +35,7 @@ UNUSED = media_ownership.tier_for(media_ownership.UNUSED).noun
 MISSING = media_ownership.tier_for(media_ownership.MISSING).noun
 
 _REASON_CHOICES = ([{"value": "", "label": t("console.assets.in_use")}]
-                   + [{"value": word, "label": word}
+                   + [{"value": word, "label": t(word)}
                       for word in (MISSING, ORPHAN, UNUSED)])
 
 _SOURCE_CHOICES = ([{"value": name, "label": name}
@@ -69,32 +69,32 @@ def rows(found: list[dict[str, Any]]) -> list[dict[str, Any]]:
             for row in found]
 
 
-_FILE = "File"
-_GAME = "Game"
-_SOURCE = "Source"
+_FILE = "console.assets.file"
+_GAME = "console.assets.game"
+_SOURCE = "console.assets.source"
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.column("game", t("console.assets.game"), 200, pinned="left", group=_GAME,
+    grid.column("game", t("console.assets.game"), 200, pinned="left", group=t(_GAME),
                 help=t("console.assets.the_game_folder_this_file.help")),
-    grid.column("label", t("console.assets.kind"), 160, group=_FILE,
+    grid.column("label", t("console.assets.kind"), 160, group=t(_FILE),
                 help=t("console.assets.what_the_file_is_for_the.help")),
-    grid.column("used_by", t("console.assets.used_by"), type="numericColumn", group=_FILE,
+    grid.column("used_by", t("console.assets.used_by"), type="numericColumn", group=t(_FILE),
                 help=t("console.assets.how_many_of_this_game_s.help")),
-    grid.column("reason", t("console.assets.unused_reason"), 150, group=_FILE,
+    grid.column("reason", t("console.assets.unused_reason"), 150, group=t(_FILE),
                 **grid.choice_filter(_REASON_CHOICES),
                 help=t("console.assets.why_this_file_is_not_the.help")),
-    grid.column("table_file", t("console.assets.table"), 200, group=_FILE,
+    grid.column("table_file", t("console.assets.table"), 200, group=t(_FILE),
                 help=t("console.assets.the_vpx_this_file_is_named.help")),
-    grid.column("path", t("console.assets.path"), 300, group=_FILE,
+    grid.column("path", t("console.assets.path"), 300, group=t(_FILE),
                 help=t("console.assets.where_the_file_sits.help")),
-    grid.column("source", t("console.assets.source"), 165, group=_SOURCE,
+    grid.column("source", t("console.assets.source"), 165, group=t(_SOURCE),
                 **grid.choice_filter(_SOURCE_CHOICES),
                 help=t("console.assets.who_put_the_file_here_as.help")),
-    grid.column("match", t("console.assets.match"), 140, group=_SOURCE,
+    grid.column("match", t("console.assets.match"), 140, group=t(_SOURCE),
                 help=t("console.assets.the_vps_file_somebody_said.help")),
-    grid.column("manufacturer", t("console.assets.manufacturer"), 150, group=_GAME,
+    grid.column("manufacturer", t("console.assets.manufacturer"), 150, group=t(_GAME),
                 help=t("console.assets.who_made_the_machine.help")),
-    grid.column("year", t("console.assets.year"), group=_GAME,
+    grid.column("year", t("console.assets.year"), group=t(_GAME),
             help=t("console.assets.the_year_the_machine_was.help")),
 ]
 
@@ -141,7 +141,7 @@ def build(found: list[dict[str, Any]], library: Any,
 
     def said() -> str:
         if on_screen["rows"] == len(built):
-            return f"{len(built)} assets, {gaps} missing"
+            return t("console.assets.count_with_gaps", count=(len(built)), gaps=(gaps))
         return f"{on_screen['rows']} of {len(built)} assets"
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):

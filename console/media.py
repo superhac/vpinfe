@@ -36,7 +36,7 @@ _MISSING = media_ownership.tier_for(media_ownership.MISSING).noun
 # "match the empty ones" is not something a checkbox can say by being unlabelled.
 _REASON = {media_ownership.ORPHAN: _ORPHAN, media_ownership.UNUSED: _UNUSED}
 _REASON_CHOICES = ([{"value": "", "label": t("console.media.in_use")}]
-                   + [{"value": word, "label": word}
+                   + [{"value": word, "label": t(word)}
                       for word in (_MISSING, _ORPHAN, _UNUSED)])
 
 _SOURCE_CHOICES = ([{"value": name, "label": name}
@@ -82,34 +82,34 @@ def rows(found: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 # The groups the column picker offers, the way Games and Tables already group theirs.
-_FILE = "File"
-_GAME = "Game"
-_SOURCE = "Source"
+_FILE = "console.media.file"
+_GAME = "console.media.game"
+_SOURCE = "console.media.source"
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.column("game", t("console.media.game"), 200, pinned="left", group=_GAME,
+    grid.column("game", t("console.media.game"), 200, pinned="left", group=t(_GAME),
                 help=t("console.media.the_game_folder_this_file.help")),
-    grid.column("label", t("console.media.kind"), 160, group=_FILE,
+    grid.column("label", t("console.media.kind"), 160, group=t(_FILE),
                 help=t("console.media.which_of_the_twenty_media.help")),
-    grid.column("used_by", t("console.media.used_by"), type="numericColumn", group=_FILE,
+    grid.column("used_by", t("console.media.used_by"), type="numericColumn", group=t(_FILE),
                 help=t("console.media.how_many_of_this_game_s.help")),
-    grid.column("reason", t("console.media.unused_reason"), 150, group=_FILE,
+    grid.column("reason", t("console.media.unused_reason"), 150, group=t(_FILE),
                 **grid.choice_filter(_REASON_CHOICES),
                 help=t("console.media.why_this_file_is_not_the.help")),
-    grid.column("table_file", t("console.media.table"), 200, group=_FILE,
+    grid.column("table_file", t("console.media.table"), 200, group=t(_FILE),
                 help=t("console.media.the_vpx_this_file_is_named.help")),
-    grid.column("path", t("console.media.path"), 300, group=_FILE,
+    grid.column("path", t("console.media.path"), 300, group=t(_FILE),
                 help=t("console.media.where_the_file_sits.help")),
-    grid.column("source", t("console.media.source"), 165, group=_SOURCE,
+    grid.column("source", t("console.media.source"), 165, group=t(_SOURCE),
                 **grid.choice_filter(_SOURCE_CHOICES),
                 help=t("console.media.who_put_the_file_here_as.help")),
-    grid.column("match", t("console.media.match"), 140, group=_SOURCE,
+    grid.column("match", t("console.media.match"), 140, group=t(_SOURCE),
                 help=t("console.media.the_vps_file_somebody_said.help")),
-    grid.column("covered_by", t("console.media.covered_by"), 130, group=_FILE,
+    grid.column("covered_by", t("console.media.covered_by"), 130, group=t(_FILE),
                 help=t("console.media.what_the_cabinet_shows_for.help")),
-    grid.column("manufacturer", t("console.media.manufacturer"), 150, group=_GAME,
+    grid.column("manufacturer", t("console.media.manufacturer"), 150, group=t(_GAME),
                 help=t("console.media.who_made_the_machine.help")),
-    grid.column("year", t("console.media.year"), group=_GAME,
+    grid.column("year", t("console.media.year"), group=t(_GAME),
             help=t("console.media.the_year_the_machine_was.help")),
 ]
 
@@ -221,7 +221,7 @@ def build(found: list[dict[str, Any]], library: Any,
         if picked:
             return f"{picked} of {on_screen['rows']} selected"
         if on_screen["rows"] == len(built):
-            return f"{len(built)} media, {gaps} missing"
+            return t("console.media.count_with_gaps", count=(len(built)), gaps=(gaps))
         return f"{on_screen['rows']} of {len(built)} media"
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):

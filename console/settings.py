@@ -391,8 +391,9 @@ PAGES: dict[str, Callable[[], None]] = {
 
 def _page_label(key: str) -> str:
     """A page's name, from the one place it is written."""
-    return next((label for _group, pages in DEVICE_INDEX
-                 for item, label, _kind, _sections, _feature in pages if item == key), key)
+    found = next((label for _group, pages in DEVICE_INDEX
+                  for item, label, _kind, _sections, _feature in pages if item == key), "")
+    return t(found) if found else key
 
 
 def _section_label(key: str) -> str:
@@ -404,7 +405,7 @@ def _section_label(key: str) -> str:
     named = next((label for _group, pages in DEVICE_INDEX
                   for _item, label, _kind, sections, _feature in pages
                   if sections == (key,)), "")
-    return named or " ".join(humanize(part) for part in key.split("."))
+    return t(named) if named else " ".join(humanize(part) for part in key.split("."))
 
 
 # `install` and `themes` appear on no page below, deliberately: the first is the device's
@@ -423,33 +424,40 @@ SCHEMA_PAGE, KIND_PAGE, BUILT_PAGE = "schema", "kind", "built"
 DevicePage = tuple[str, str, str, tuple[str, ...], str]
 
 DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
-    ("Library", (
-        ("media_kinds", "Media Kinds", KIND_PAGE, (), "library"),
-        ("asset_kinds", "Asset Kinds", KIND_PAGE, (), "library"),
-        ("media_sources", "Media Sources", KIND_PAGE, (), "library"),
-        ("checks_library", "Library Checks", BUILT_PAGE, (), "library"),
+    ("console.settings.group_library", (
+        ("media_kinds", "console.settings.page_media_kinds", KIND_PAGE, (), "library"),
+        ("asset_kinds", "console.settings.page_asset_kinds", KIND_PAGE, (), "library"),
+        ("media_sources", "console.settings.page_media_sources", KIND_PAGE, (), "library"),
+        ("checks_library", "console.settings.page_checks_library", BUILT_PAGE, (), "library"),
     )),
-    ("Hardware", (
-        ("displays", "Displays", SCHEMA_PAGE,
+    ("console.settings.group_hardware", (
+        ("displays", "console.settings.page_displays", SCHEMA_PAGE,
          ("displays", "windows.playfield", "windows.backglass", "windows.scoreview"),
          "frontend"),
-        ("input", "Input", SCHEMA_PAGE, ("input",), "frontend"),
-        ("feedback", "Peripherals", SCHEMA_PAGE, ("dof", "libdmdutil"), "frontend"),
+        ("input", "console.settings.page_input", SCHEMA_PAGE, ("input",), "frontend"),
+        ("feedback", "console.settings.page_feedback", SCHEMA_PAGE, ("dof", "libdmdutil"),
+                "frontend"),
     )),
-    ("VPinFE", (
-        ("general", "General", SCHEMA_PAGE, ("general",), install_identity.CORE),
-        ("network", "Network", SCHEMA_PAGE, ("network",), install_identity.CORE),
+    ("console.settings.group_vpinfe",
+            (
+        ("general", "console.settings.page_general", SCHEMA_PAGE, ("general",),
+                 install_identity.CORE),
+        ("network", "console.settings.page_network", SCHEMA_PAGE, ("network",),
+                 install_identity.CORE),
         # How much is written down and where it goes. The records themselves are a
         # place of their own under System, so this page is named for the act rather
         # than for them - two things called Logs is one too many.
-        ("logging", "Logging", SCHEMA_PAGE, ("logger",), install_identity.CORE),
-        ("frontend", "Frontend", SCHEMA_PAGE, ("frontend",), "frontend"),
-        ("media", "Media", SCHEMA_PAGE, ("media",), "library"),
+        ("logging", "console.settings.page_logging", SCHEMA_PAGE, ("logger",),
+                 install_identity.CORE),
+        ("frontend", "console.settings.page_frontend", SCHEMA_PAGE, ("frontend",), "frontend"),
+        ("media", "console.settings.page_media", SCHEMA_PAGE, ("media",), "library"),
     )),
-    ("Integrations", (
-        ("vps", "Virtual Pinball Spreadsheet", SCHEMA_PAGE, ("vpsdb",), "library"),
-        ("vpinplay", "VPinPlay", SCHEMA_PAGE, ("vpinplay",), install_identity.CORE),
-        ("mobile", "VPX Mobile", SCHEMA_PAGE, ("mobile",), "devices"),
+    ("console.settings.group_integrations",
+            (
+        ("vps", "console.settings.page_vps", SCHEMA_PAGE, ("vpsdb",), "library"),
+        ("vpinplay", "console.settings.page_vpinplay", SCHEMA_PAGE, ("vpinplay",),
+                 install_identity.CORE),
+        ("mobile", "console.settings.page_mobile", SCHEMA_PAGE, ("mobile",), "devices"),
     )),
 )
 
@@ -471,10 +479,10 @@ def pages_for_features(features) -> list[tuple[str, DevicePage]]:
 # What a person calls each feature. The key names the thing and the label says what you
 # do with it, which is why `devices` reads as Device Management on screen.
 FEATURE_LABELS = {
-    install_identity.LIBRARY: "Library",
-    install_identity.FRONTEND: "Frontend",
-    install_identity.DEVICES: "Device Management",
-    install_identity.OVERVIEW: "Overview",
+    install_identity.LIBRARY: "console.settings.feature_label_library",
+    install_identity.FRONTEND: "console.settings.feature_label_frontend",
+    install_identity.DEVICES: "console.settings.feature_label_device_management",
+    install_identity.OVERVIEW: "console.settings.feature_label_overview",
 }
 
 # What switching one on gets you. The name says which feature; this says what the install
@@ -494,7 +502,7 @@ def features_said(features) -> str:
     on every row. Anything else unrecognized is shown as it arrived, because a device
     reporting a feature this build has not heard of is a fact rather than a blank.
     """
-    return ", ".join(FEATURE_LABELS.get(str(name), str(name))
+    return ", ".join(t(FEATURE_LABELS.get(str(name), str(name)))
                      for name in (features or [])
                      if str(name) != install_identity.CORE)
 
@@ -505,12 +513,13 @@ IDENTITY = "identity"
 # on, so an install with none still has a way to fix itself from inside. Not a schema
 # page - `features` is a list in the file and a closed set on screen, and a
 # comma-separated text field is the wrong control for that.
-IDENTITY_PAGE: DevicePage = (IDENTITY, "Identity", BUILT_PAGE, ("install",),
+IDENTITY_PAGE: DevicePage = (IDENTITY, "console.settings.identity", BUILT_PAGE,
+                             ("install",),
                              install_identity.CORE)
 
 # What the Identity page's group is called. This install, as against the Library group
 # below it, which is about the games rather than about the machine.
-IDENTITY_GROUP = "This install"
+IDENTITY_GROUP = "console.settings.this_install"
 
 
 def system_pages(features) -> list[tuple[str, DevicePage]]:
@@ -854,14 +863,15 @@ async def _identity_page(library, reported: str,
     entries: list[tuple[Any, Any]] = [
         # The name it reports with nothing set is its hostname, so the placeholder is
         # that answer rather than the word for it.
-        ("Name", panel.field(str(held.get("display_name") or ""), rename,
+        (t("console.settings.name"), panel.field(str(held.get("display_name") or ""),
+                                                 rename,
                              placeholder=reported)),
         panel.note(t("console.settings.what_this_install_is")),
-        (panel.HEADING, "Features"),
+        (panel.HEADING, t("console.settings.features")),
         panel.intro(t("console.settings.what_this_install_is_for")),
     ]
     for name in install_identity.FEATURES:
-        entries.append((FEATURE_LABELS[name], panel.switch(
+        entries.append((t(FEATURE_LABELS[name]), panel.switch(
             name in on, lambda event, key=name: flip(key, bool(event.value)))))
         entries.append(panel.note(t(FEATURE_NOTES[name])))
     panel.facts(ui, entries)

@@ -27,7 +27,10 @@ SCOPE = "console.collections"
 # What a collection is called on screen. The wire says `filter`; a reader says
 # **Dynamic** - it is the word for a list that changes under you, and "filter" names the
 # mechanism rather than the thing.
-KIND_LABELS = {"manual": "Manual", "filter": "Dynamic"}
+# Keys, resolved where they are shown. "Dynamic" is the word a person reads for what
+# the wire calls a filter collection.
+KIND_LABELS = {"manual": "console.collections.manual",
+               "filter": "console.collections.dynamic"}
 
 # A number filters as a number: greater-than, less-than, between. AG Grid's default
 # filter is the text one, which offers "contains" over a count - and `agNumberColumnFilter`
@@ -78,7 +81,7 @@ def rows(collections: list[dict[str, Any]]) -> list[dict[str, Any]]:
         built.append({
             "id": row.get("name") or "",
             "name": row.get("name") or "",
-            "kind": KIND_LABELS.get(row.get("type") or "", row.get("type") or ""),
+            "kind": t(KIND_LABELS.get(row.get("type") or "", row.get("type") or "")),
             "icon": _icon_cell(row),
             # Zero is an answer here, not an absence: this is what the collection
             # resolves to, and an empty collection resolves to none.

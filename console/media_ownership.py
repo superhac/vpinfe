@@ -86,21 +86,27 @@ class Tier:
 # least specific, and a stand-in is the odd one out so it does not read as a degree of
 # the others.
 _TIERS = {
-    TABLE: Tier(TABLE, "This table", "just this table", "console-tier--table",
-                "console-mark--full", "A file named for this table, and only it uses it"),
-    GAME: Tier(GAME, "All tables", "shared by every table", "console-tier--game",
-               "console-mark--outline", "A file the whole game shares"),
-    STAND_IN: Tier(STAND_IN, "Stand-in", "standing in for it", "console-tier--standin",
-                   "console-mark--set", "Something else is filling this slot"),
-    MISSING: Tier(MISSING, "Missing", "not here", "console-tier--missing",
-                  "console-mark--dashed", "Nothing here"),
-    ORPHAN: Tier(ORPHAN, "Orphan", "named for a table that is gone",
+    TABLE: Tier(TABLE, "console.media_ownership.noun_this_table",
+             "console.media_ownership.phrase_just_this_table", "console-tier--table",
+                "console-mark--full", "console.media_ownership.why_a_file_named_for_this"),
+    GAME: Tier(GAME, "console.media_ownership.noun_all_tables",
+             "console.media_ownership.phrase_shared_by_every_table", "console-tier--game",
+               "console-mark--outline", "console.media_ownership.why_a_file_the_whole_game"),
+    STAND_IN: Tier(STAND_IN, "console.media_ownership.noun_stand_in",
+             "console.media_ownership.phrase_standing_in_for_it", "console-tier--standin",
+                   "console-mark--set",
+                            "console.media_ownership.why_something_else_is_filling_this"),
+    MISSING: Tier(MISSING, "console.media_ownership.noun_missing",
+             "console.media_ownership.phrase_not_here", "console-tier--missing",
+                  "console-mark--dashed", "console.media_ownership.why_nothing_here"),
+    ORPHAN: Tier(ORPHAN, "console.media_ownership.noun_orphan",
+             "console.media_ownership.phrase_named_for_a_table_that",
                  "console-tier--missing", "console-mark--dashed",
-                 "Named for a table this folder does not have, so nothing can use it"),
-    UNUSED: Tier(UNUSED, "Unused", "covered by something more specific",
+                 "console.media_ownership.why_named_for_a_table_this"),
+    UNUSED: Tier(UNUSED, "console.media_ownership.noun_unused",
+             "console.media_ownership.phrase_covered_by_something_more_specific",
                  "console-tier--standin", "console-mark--set",
-                 "Correctly named, but something more specific wins for every table. "
-                 "It resolves again if that file goes"),
+                 "console.media_ownership.why_correctly_named_but_something_more"),
 }
 
 # Most specific first. `LEGEND` omits Missing, which a legend does not need - a blank
@@ -191,7 +197,7 @@ def sentence(via: str | None, *, viewing_a_table: bool = False) -> str:
 
 
 def _chip(tier: Tier, extra: str) -> ui.element:
-    return ui.label(tier.noun).classes(f"console-tier {tier.css} {extra}".strip())
+    return ui.label(t(tier.noun)).classes(f"console-tier {tier.css} {extra}".strip())
 
 
 def badge(via: str | None, *, extra: str = "") -> ui.element:

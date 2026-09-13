@@ -91,9 +91,16 @@ DISPLAY_CALLS = {
 # person, and each was found by reading `console/panel.py` rather than by the check
 # noticing: a helper the list does not name is a hole the check cannot see.
 DISPLAY_ARG = {"column": 1, "two_line": 0, "intro": 0, "note": 0, "state": 0,
-               "header": 0, "fact": 0, "search": 0, "action": 0, "trouble_mark": 0}
+               "header": 0, "fact": 0, "action": 0, "trouble_mark": 0}
+# `search` only as `panel.search`: `re.search` is the same attribute name and its first
+# argument is a pattern, not a placeholder.
+QUALIFIED = {("panel", "search"): 0}
 DISPLAY_KWARGS = {"label", "text", "title", "placeholder", "tooltip", "help", "message",
-                  "description", "caption", "hint", "said", "header", "headerName"}
+                  "description", "caption", "hint", "said", "header", "headerName",
+                  # A column group is a header over other headers. `summary` and `reason`
+                  # are deliberately absent: they name OpenAPI metadata and a WebSocket
+                  # close reason far more often than they name anything on a screen.
+                  "group"}
 # Constructors whose `description` and `title` are the API's own documentation - the
 # OpenAPI page and the capability list an integrator reads, not anything on a screen.
 # Same line §9 draws for logs and docs/: it says the same thing on every install.
@@ -177,6 +184,9 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
                 name = func.attr if isinstance(func, ast.Attribute) \
                     else getattr(func, "id", None)
                 at = 0 if name in DISPLAY_CALLS else DISPLAY_ARG.get(name)
+                if at is None:
+                    at = QUALIFIED.get((getattr(func.value, "id", None), name)) \
+                        if isinstance(func, ast.Attribute) else None
                 if at is not None and len(node.args) > at:
                     offenders += _fault(path, name, "", node.args[at])
                 if name in API_DOCUMENTATION:
@@ -212,6 +222,9 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
                 if name in API_DOCUMENTATION:
                     continue
                 at = 0 if name in DISPLAY_CALLS else DISPLAY_ARG.get(name)
+                if at is None:
+                    at = QUALIFIED.get((getattr(func.value, "id", None), name)) \
+                        if isinstance(func, ast.Attribute) else None
                 spots = []
                 if at is not None and len(node.args) > at:
                     spots.append(node.args[at])

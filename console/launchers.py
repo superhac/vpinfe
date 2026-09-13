@@ -35,12 +35,12 @@ SCOPE = "console.launchers.columns"
 # a note on every row would say nothing.
 DEFAULT_HINT = "Tables that name no launcher use this one."
 
-STATE_READY = "Ready"
-STATE_OFF = "Switched off"
-STATE_BROKEN = "Cannot run"
+STATE_READY = "console.launchers.ready"
+STATE_OFF = "console.launchers.switched_off"
+STATE_BROKEN = "console.launchers.cannot_run"
 
 _STATE_CHOICES = [{"value": one, "label": one}
-                  for one in (STATE_READY, STATE_OFF, STATE_BROKEN)]
+                  for one in (t(STATE_READY), t(STATE_OFF), t(STATE_BROKEN))]
 
 COLUMNS: list[dict[str, Any]] = [
     grid.column("name", t("console.launchers.name"), 240, pinned="left",
@@ -85,7 +85,7 @@ def rows(held: list[dict], defaults: dict) -> list[dict[str, Any]]:
         "id": one["launcher_id"],
         "name": one["display_name"],
         "app": one["app_name"],
-        "state": state_of(one),
+        "state": t(state_of(one)),
         # Blank on every other row rather than "No": a column that says the same thing
         # everywhere but once is a column about the exception.
         "default": "Default" if defaults.get(one["app"]) == one["launcher_id"] else "",
