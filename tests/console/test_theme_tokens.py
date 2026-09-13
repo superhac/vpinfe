@@ -25,6 +25,7 @@ USED = re.compile(r"var\(\s*(--[a-z0-9-]+)")
 # Hex, or rgb()/rgba() with a literal triple. Not a var() inside one.
 LITERAL = re.compile(r"#[0-9a-fA-F]{3,8}\b"
                      r"|rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*[\d.]+\s*)?\)")
+COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 
 # AG Grid reads its own palette off these, so they are written for it rather than for
 # us: defined here, used by a stylesheet we do not ship.
@@ -39,6 +40,13 @@ def _same_color(literal):
     """One color typed two ways is one color: `rgba(15,7,34,.75)` and
     `rgba(15, 7, 34, 0.75)` differ only in whitespace."""
     return "".join(literal.split()).lower()
+
+
+def _colors_typed_in(css):
+    """Comments first, because a comment naming the color it rejected is the reason
+    the rule reads the way it does. Counting those made the number argue against
+    writing them down."""
+    return {_same_color(m) for m in LITERAL.findall(COMMENT.sub("", css))}
 
 
 def _ours(names):
@@ -76,11 +84,10 @@ class LiteralTests(unittest.TestCase):
     it had always claimed to match. Fifty colors were there the whole time.
     """
 
-    CEILING = 36
+    CEILING = 34
 
     def test_no_new_color_is_typed_rather_than_named(self) -> None:
-        found = {_same_color(m)
-                 for m in LITERAL.findall(theme._FLAIR + theme._COMPONENTS)}
+        found = _colors_typed_in(theme._FLAIR + theme._COMPONENTS)
 
         self.assertLessEqual(
             len(found), self.CEILING,
