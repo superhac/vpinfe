@@ -94,6 +94,13 @@ _SYNTHWAVE = """
      nav rail, the region the workbench works in, and the plate a picture is shown on.
      Those were three values a unit and a half apart, which is not three decisions. */
   --surface-sunken: #0f0722;
+  /* The region the work happens in, and the plate a picture is shown on. Both were
+     folded into --surface-sunken while Synthwave was the only palette, where all three
+     composite to the same color. They are separate again because they stop agreeing the
+     moment the ground is light: "sunken" means recessed on a dark page and merely
+     dirtier on a white one. */
+  --surface-work: #0f0722;
+  --surface-viewer: #0b0520;
   /* Darker than the page, because a picture reads best against something that is not
      competing with it. */
   --surface-art: #06030f;
@@ -149,6 +156,11 @@ _SYNTHWAVE = """
      use, so the second one did not have to invent a second amber.
      Measured against the surfaces it sits on: 11.1:1 and 5.9:1. */
   --warm: #ffc061;
+  /* The amber a *fill* uses, and the ink that sits on one. A third instance of the
+     same split as --flair and --danger-fill: the color that reads as a word is not the
+     color that carries a word. Here they happen to agree; in Light they do not. */
+  --warm-fill: #ffc061;
+  --ink-on-fill: #0a0518;
 
   /* Who owns a media file. Amber is what makes "one table's own" legible in a map of
      twenty tiles; the folder-wide case is the norm and stays quiet. */
@@ -247,6 +259,8 @@ _DARK = """
   --surface-2: #1e2127;
   --surface-3: #121419;
   --surface-sunken: #0a0b0e;
+  --surface-work: #0a0b0e;
+  --surface-viewer: #0a0b0e;
   --surface-art: #08090b;
   --row-select: #1b3a57;
   --flair-wash: rgba(76, 178, 255, 0.10);
@@ -264,6 +278,8 @@ _DARK = """
   --surface-hover: #252931;
   --surface-current: #2e333d;
   --warm: #f0b429;
+  --warm-fill: #f0b429;
+  --ink-on-fill: #0e0f12;
   /* Derived, so they follow whatever the mode said above. */
   --tier-table: var(--warm);
   --tier-quiet: var(--ink-3);
@@ -343,6 +359,12 @@ _LIGHT = """
   --surface-2: #ffffff;
   --surface-3: #eceef2;
   --surface-sunken: #e4e7ec;
+  /* White, not the tint. The content you are working on is the paper and the chrome
+     around it recedes - a light mode that greys the work region and leaves the nav
+     white has that the wrong way round. --surface-sunken keeps the tint for what
+     really is below the panel: the grid header and the foot of the rail. */
+  --surface-work: #ffffff;
+  --surface-viewer: #ffffff;
   --surface-art: #f1f3f6;
   --row-select: #dbe9fa;
   --flair-wash: #eef4fc;
@@ -360,6 +382,13 @@ _LIGHT = """
   --surface-hover: #eef0f3;
   --surface-current: #e3e8ef;
   --warm: #8a5a00;
+  /* Not --warm. The brown that reads as a word on white is a dark blob as a badge,
+     and on a page where everything else is dark-on-white a dark blob is one more dark
+     thing. This is lower contrast against the nav than the brown and far more visible,
+     because nothing else on the page is this hue. 3.19:1 against white so the shape is
+     identifiable, 5.63:1 for the number on it. */
+  --warm-fill: #cf7d00;
+  --ink-on-fill: #14171c;
   /* Derived, so they follow what this mode said above. The one warm color becomes a
      brown here: amber on white is not readable. */
   --tier-table: var(--warm);
@@ -1343,10 +1372,11 @@ body::before {
    a lit rail worth acting on. A count only - what it is about is on the page it leads
    to. */
 .console-nav-badge {
-  background: var(--warm);
-  /* The darkest surface rather than the ink: on a filled warm chip the text has to
-     read against the fill, and --ink is chosen to read against a dark ground. */
-  color: var(--surface-0);
+  background: var(--warm-fill);
+  /* Its own ink, not --ink and not --surface-0: a number on a warm fill has to read
+     against the fill, and both of those are chosen to read against the page instead -
+     which puts them on the wrong side of it in one mode or another. */
+  color: var(--ink-on-fill);
   border-radius: 999px;
   font-size: 10px;
   font-weight: 700;
@@ -2071,7 +2101,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* A panel over the page, sized by its content, so the media decides how big it is. */
 .console-viewer-card {
-  background: var(--surface-sunken) !important;
+  background: var(--surface-viewer) !important;
   max-width: 92vw; max-height: 88vh;
   display: flex; flex-direction: column;
   padding: 0 !important; overflow: hidden;
@@ -2080,7 +2110,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 .console-viewer-bar {
   flex: 0 0 auto; padding: 8px 12px;
-  background: var(--surface-sunken); border-bottom: 1px solid var(--line);
+  background: var(--surface-viewer); border-bottom: 1px solid var(--line);
 }
 /* Darker than Quasar's default: the art being judged is often bright. */
 .q-dialog__backdrop { background: var(--scrim-page) !important; }
@@ -2831,7 +2861,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    is a preview and not the viewer. It rides in a tooltip because the lists around it
    scroll, and anything drawn inside a scrolling box is clipped by it. */
 .console-thumb-peek {
-  background: var(--surface-sunken) !important; padding: 4px !important;
+  background: var(--surface-viewer) !important; padding: 4px !important;
   border: 1px solid var(--line); border-radius: 6px;
   max-width: none !important;
 }
@@ -2945,7 +2975,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
      that edge is a 400px stripe down a very wide region.
      Any alpha is a claim about what is behind it: this one is the page, and the tile
      fills inside here are measured against this. */
-  background-color: var(--surface-sunken);
+  background-color: var(--surface-work);
   /* The window's two edges against the frame - left of it the rail, above it the
      header. Without the top one the panel just stops in mid-air where the paint ends. */
   border-left: 1px solid var(--line-soft);
