@@ -108,7 +108,10 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   font-size: var(--fs-body);
-  background: rgba(255, 255, 255, 0.02);
+  /* The same lift a media tile takes, and for the same reason it was invented: a fill
+     that composites to the ground leaves the control as a bare outline. White at 2% did
+     that on a light ground exactly. */
+  background: var(--surface-lift);
 }
 /* Set apart as well as coloured: it ends the thing every other button on the screen is
    for, and sitting in the same rhythm as Menu and Tutorial is how a thumb reaches it on

@@ -563,12 +563,35 @@ def palette_css(mode: str = DEFAULT_MODE) -> str:
 # where this file appears to be.
 BASE_CSS = bundled("console", "static", "console-base.css")
 BASE_MOUNT = "/console-static"
-BASE_HREF = f"{BASE_MOUNT}/console-base.css"
 
 
 def base_css() -> str:
     """Every rule, as text. For anything that has to read them rather than serve them."""
     return BASE_CSS.read_text(encoding="utf-8")
+
+
+def _base_href() -> str:
+    """The URL, carrying a digest of what is behind it.
+
+    The file is served with an hour's max-age, which is the point of having it - but a
+    browser holding a copy will not ask again inside that hour, whatever the etag says.
+    So an upgrade would leave the old stylesheet on screen for up to an hour, which is a
+    thing the old inline delivery could not do. A different URL is the only way to make
+    a cached copy irrelevant, and deriving it from the bytes means it changes exactly
+    when they do.
+    """
+    from hashlib import sha256
+
+    try:
+        digest = sha256(BASE_CSS.read_bytes()).hexdigest()[:12]
+    except OSError:
+        # Served or not, the page still has to draw. An unversioned URL caches badly;
+        # no stylesheet at all is a blank Console.
+        return f"{BASE_MOUNT}/console-base.css"
+    return f"{BASE_MOUNT}/console-base.css?v={digest}"
+
+
+BASE_HREF = _base_href()
 
 
 def apply_flair(mode: str = DEFAULT_MODE) -> None:

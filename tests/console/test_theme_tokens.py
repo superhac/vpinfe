@@ -11,9 +11,11 @@ resolves, every token has a user, and a color is named rather than typed.
 
 from __future__ import annotations
 
+import hashlib
 import pathlib
 import re
 import unittest
+from unittest import mock
 
 from console import theme
 
@@ -119,6 +121,42 @@ class PaletteTests(unittest.TestCase):
             self.assertEqual(sorted(want - have), [], f"{mode} leaves these unresolved")
 
 
+class DeliveryTests(unittest.TestCase):
+    """How the rules reach the page, which is the half a stylesheet cannot check itself."""
+
+    def test_the_url_carries_a_digest_of_what_is_behind_it(self) -> None:
+        """The file is served with an hour's max-age, and a browser holding a copy does
+        not ask again inside that hour whatever the etag says. Without a URL that moves
+        with the bytes, an upgrade leaves the old stylesheet on screen - which the old
+        inline delivery could not do, so the cache is a cost this introduced."""
+        digest = hashlib.sha256(theme.BASE_CSS.read_bytes()).hexdigest()[:12]
+        self.assertEqual(theme.BASE_HREF,
+                         f"{theme.BASE_MOUNT}/console-base.css?v={digest}")
+
+    def test_a_changed_rule_changes_the_url(self) -> None:
+        """The property that matters, stated as itself rather than as the hash."""
+        first = theme._base_href()
+        held = theme.BASE_CSS.read_bytes()
+        try:
+            theme.BASE_CSS.write_bytes(held + b"\n.console-nothing { color: red; }\n")
+            self.assertNotEqual(theme._base_href(), first)
+        finally:
+            theme.BASE_CSS.write_bytes(held)
+        self.assertEqual(theme._base_href(), first)
+
+    def test_the_page_links_the_rules_rather_than_carrying_them(self) -> None:
+        """Inlining them again would work and would quietly put 127KB back into every
+        page load, which is the whole reason the file exists."""
+        added = []
+        with mock.patch.object(theme.ui, "add_css", side_effect=lambda css: added.append(css)), \
+             mock.patch.object(theme.ui, "add_head_html",
+                               side_effect=lambda html: added.append(html)):
+            theme.apply_flair()
+        self.assertTrue(any(theme.BASE_HREF in one for one in added), "no link to the file")
+        rules = theme.base_css()
+        self.assertFalse(any(rules in one for one in added), "the rules are in the page")
+
+
 class LiteralTests(unittest.TestCase):
     """A ceiling on colors typed by hand, not a ban on them.
 
@@ -132,13 +170,14 @@ class LiteralTests(unittest.TestCase):
 
     - 18 -> 61, when the pattern started matching the rgb()/rgba() it had always claimed
       to match. Fifty colors were there the whole time.
-    - 0 -> 1, when the rules moved to one file and this began reading all five blocks
-      instead of two. `rgba(255, 255, 255, 0.02)` on the remote's action button had never
-      been counted, and it is a real one: over Light's ground it composites to exactly
-      the ground, so that button has no lift there at all.
+    - 0 -> 1 -> 0, when the rules moved to one file and this began reading all five
+      blocks instead of two. `rgba(255, 255, 255, 0.02)` on the remote's action button
+      had never been counted, and it was a real one: over Light's ground it composited to
+      exactly the ground, so that button was an outline with nothing inside it. It takes
+      `--surface-lift` now, which is the token invented for that failure.
     """
 
-    CEILING = 1
+    CEILING = 0
 
     def test_no_new_color_is_typed_rather_than_named(self) -> None:
         found = _colors_typed_in(theme.base_css())
