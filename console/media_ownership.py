@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from nicegui import ui
 
+from common.i18n import t
 from common.media_specs import media_label_map
 
 # Who placed a file, where the answer is not a catalog. "Unknown" is honest and common:
@@ -176,16 +177,16 @@ def sentence(via: str | None, *, viewing_a_table: bool = False) -> str:
     """
     key = key_of(via)
     if key == TABLE:
-        return "Only this table uses it"
+        return t("console.media_ownership.only_this_table_uses_it")
     if key == GAME:
-        return ("This table has none of its own, so it uses what the game shares"
-                if viewing_a_table else "Every table in this game uses it")
+        return (t("console.media_ownership.this_table_has_none_of_its")
+                if viewing_a_table else t("console.media_ownership.every_table_in_this_game"))
     if key == STAND_IN:
         detail = str(via or "").split(":", 1)[-1]
         if str(via or "").startswith("set:"):
-            return f"From the “{detail}” set"
+            return t("console.media_ownership.from_the_set", detail=(detail))
         borrowed = media_label_map().get(detail, detail).lower()
-        return f"Standing in from the {borrowed} - this kind has none of its own"
+        return t("console.media_ownership.standing_in_from_the_this", borrowed=(borrowed))
     return ""
 
 

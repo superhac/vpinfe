@@ -506,7 +506,7 @@ def _placement_label(item: dict[str, Any]) -> str:
     """
     label = str(item.get("label") or "")
     if not item.get("table"):
-        return "All tables in this game"
+        return t("console.mediasource.all_tables_in_this_game")
     stem = label[:-4] if label.lower().endswith(".vpx") else label
     trimmed = stem if len(stem) <= 40 else "\u2026" + stem[-39:]
     return f"Only {trimmed}"
@@ -515,7 +515,7 @@ def _placement_label(item: dict[str, Any]) -> str:
 def _start_name(root: dict[str, Any]) -> str:
     """What to call a starting point. The game's own folder is not named after the
     folder, because the folder's name is the one thing already on screen above it."""
-    return ("This game's folder" if root.get("source") == "game"
+    return (t("console.mediasource.this_game_s_folder") if root.get("source") == "game"
             else str(root.get("name") or root.get("path") or ""))
 
 

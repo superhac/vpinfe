@@ -1718,7 +1718,7 @@ def _reset_action(on_reset: Callable[[], Any]) -> Callable[[], None]:
 
 def _vps_label(context: dict[str, Any]) -> str:
     game = context["game"]
-    return "VPS" if game.get("vps_id") else "VPS - not matched"
+    return "VPS" if game.get("vps_id") else t("console.workbench.vps_not_matched")
 
 
 async def _vps_block(context: dict[str, Any]) -> None:
@@ -2592,9 +2592,9 @@ def _match_line(context: dict[str, Any], kind: str, matched_to: Any) -> str:
                 str(record.get("version") or ""),
                 ", ".join(str(name) for name in (record.get("authors") or [])[:2]),
             ) if part)
-            return f"Matched to {told}" if told else "Matched to a published file"
+            return f"Matched to {told}" if told else t("console.workbench.matched_to_a_published")
     # Worth saying: it is why no update will ever be reported for this file.
-    return "Matched to a file the catalog no longer lists"
+    return t("console.workbench.matched_to_a_file_the")
 
 
 def _match_button(context: dict[str, Any], kind: str, label: str,
@@ -3018,7 +3018,7 @@ def _clear_hint(held: dict, field) -> str:
         whose = CAME_FROM.get(where, "the layer above").replace("From ", "")
         return f"Will follow {whose}" + (f" ({said})" if said else "")
     shown = _said_value(field, field.default) or "what the program does"
-    return f"Will go back to {shown}"
+    return t("console.workbench.will_go_back_to", shown=(shown))
 
 
 def _beside(mark: Callable[[], None], held: dict, field,
@@ -3937,8 +3937,8 @@ def _rule_sentence(context: dict[str, Any], row: dict[str, Any]) -> str:
             said.append(f"{_axis_label(axis)} is "
                         + " or ".join(f"\u201c{v}\u201d" for v in chosen))
     if not said:
-        return "Everything in the library, so far."
-    return "Every game where " + ", and ".join(said) + "."
+        return t("console.workbench.everything_in_the_library")
+    return t("console.workbench.every_game_where") + ", and ".join(said) + "."
 
 
 def _ordering_rows(context: dict[str, Any], row: dict[str, Any],

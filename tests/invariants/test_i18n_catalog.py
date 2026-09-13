@@ -116,6 +116,20 @@ def _is_text(value) -> bool:
     return not re.fullmatch(r"[a-z][a-z0-9_]*", said)
 
 
+def _literals_in(node) -> list[str]:
+    """Every string literal a value is built from, through conditionals and joins."""
+    if isinstance(node, ast.Constant):
+        return [node.value] if isinstance(node.value, str) else []
+    if isinstance(node, ast.IfExp):
+        return _literals_in(node.body) + _literals_in(node.orelse)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return _literals_in(node.left) + _literals_in(node.right)
+    if isinstance(node, ast.JoinedStr):
+        return ["".join(v.value for v in node.values
+                        if isinstance(v, ast.Constant) and isinstance(v.value, str))]
+    return []
+
+
 def _fault(path, call, kwarg, node) -> list[str]:
     """Whether this argument hands a person English the catalog never saw.
 
@@ -209,6 +223,27 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
                                          f"{name}({spot.id}) where {spot.id} = "
                                          f"{held[spot.id][:40]!r}")
         self.assertEqual(offenders, [], "the constant should hold a key, not a sentence")
+
+    def test_a_function_does_not_return_a_sentence(self) -> None:
+        """`return "Only this table uses it"` and a caller shows it.
+
+        Nineteen of these. The call site looks clean because the words are in the
+        function it calls, which is the same way a constant hid seven more.
+        """
+        offenders = []
+        for path in sorted((ROOT / "console").rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if not isinstance(node, ast.Return) or node.value is None:
+                    continue
+                for said in _literals_in(node.value):
+                    # Three words and a capital: a sentence, not a key or a CSS class
+                    if len(said.split()) >= 3 and said[:1].isupper() \
+                       and not said.startswith(("console.", "frontend.", "error.")):
+                        offenders.append(f"{path.relative_to(ROOT)}:{node.lineno} "
+                                         f"return {said[:44]!r}")
+        self.assertEqual(offenders, [], "return a key and let the caller resolve it")
 
     def test_a_choice_written_as_a_dict_counts_too(self) -> None:
         """`{"value": True, "label": "Yes"}` is a grid filter's words, and the keyword

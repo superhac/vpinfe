@@ -366,16 +366,16 @@ def _expected(option: dict[str, Any], kind: str) -> str:
     No full stop: each of these is a fragment naming a shape, not a sentence about it.
     """
     if kind == "boolean":
-        return "Expected: on or off"
+        return t("console.themes.expected_on_or_off")
     if kind == "number":
         low, high = option.get("min"), option.get("max")
         if low is not None and high is not None:
-            return f"Expected: a number between {low} and {high}"
-        return "Expected: a number"
+            return t("console.themes.expected_a_number_between", low=(low), high=(high))
+        return t("console.themes.expected_a_number")
     if kind == "select":
-        return f"Expected: one of {len(option.get('options') or [])} choices"
+        return t("console.themes.expected_one_of_choices", len=(len(option.get('options') or [])))
     if kind == "textarea":
-        return "Expected: text, over as many lines as you like"
+        return t("console.themes.expected_text_over_as_many")
     if kind == "json":
-        return "Expected: JSON - an object, an array, or a single value"
+        return t("console.themes.expected_json_an_object_an")
     return "Expected: text"
