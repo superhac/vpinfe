@@ -167,7 +167,9 @@ EDITORS = (EDITOR_BINDING,)
 # What a `suggest` may name. Closed, so a typo is a setting with no suggestions rather
 # than a surface quietly asking for a list nobody serves.
 SUGGEST_LIBRARIES = "libraries"
-SUGGESTIONS = (SUGGEST_LIBRARIES,)
+SUGGEST_THEMES = "themes"
+SUGGEST_COLLECTIONS = "collections"
+SUGGESTIONS = (SUGGEST_LIBRARIES, SUGGEST_THEMES, SUGGEST_COLLECTIONS)
 
 
 def in_section(section: str, *options: ConfigOption) -> tuple[ConfigOption, ...]:
@@ -413,6 +415,9 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             group="What a player sees",
             type="string",
             default="Revolution",
+            # Installed themes, and still typeable: a theme can be dropped into place
+            # before this page has been reopened to notice it.
+            suggest=SUGGEST_THEMES,
         ),
         ConfigOption(
             "language",
@@ -428,6 +433,9 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             group="What a player sees",
             type="string",
             default="",
+            # Only a collection that exists can be opened on, but the list is not closed:
+            # a cabinet can be set up before the collection it will open on is made.
+            suggest=SUGGEST_COLLECTIONS,
         ),
         ConfigOption(
             "library_refresh_minutes",

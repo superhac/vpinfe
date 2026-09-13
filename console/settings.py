@@ -151,8 +151,15 @@ def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
         # filters multicast has nothing on it - so anything may still be typed.
         offered = (suggestions or {}).get(option["suggest"]) or {}
 
+        # Only where this setting is carrying a mark. The redraw exists to refresh one -
+        # `network.library_url` is what a feature check points at, and answering it has
+        # to clear the badge that led here. Every other suggested setting changes nothing
+        # the page is showing about anything else, and rebuilding for those costs four
+        # round trips and puts a long page back at the top under the pointer.
+        marks = bool(found)
+
         async def save_suggested(event: Any) -> None:
-            if await save(str(event.value or "").strip()) and rerender is not None:
+            if await save(str(event.value or "").strip()) and marks and rerender is not None:
                 rerender()
 
         return panel.combo(str(value or ""), offered, save_suggested, disabled=off,
@@ -813,15 +820,34 @@ async def _suggestions(library, schema: list[dict],
     wanted = {str(option.get("suggest") or "")
               for block in schema if str(block.get("name")) in sections
               for option in block.get("options") or []}
-    if config_schema.SUGGEST_LIBRARIES not in wanted:
-        return {}
-    found = await run.io_bound(library.discovered_installs)
-    # Only the ones that have a library to read. An install that just launches games has
-    # nothing to offer another that does the same.
-    return {config_schema.SUGGEST_LIBRARIES: {
-        str(install.get("url") or ""): _install_label(install)
-        for install in found
-        if install_identity.LIBRARY in (install.get("features") or [])}}
+    offered: dict[str, Any] = {}
+
+    if config_schema.SUGGEST_LIBRARIES in wanted:
+        found = await run.io_bound(library.discovered_installs)
+        # Only the ones that have a library to read. An install that just launches games
+        # has nothing to offer another that does the same.
+        offered[config_schema.SUGGEST_LIBRARIES] = {
+            str(install.get("url") or ""): _install_label(install)
+            for install in found
+            if install_identity.LIBRARY in (install.get("features") or [])}
+
+    if config_schema.SUGGEST_THEMES in wanted:
+        known = await run.io_bound(library.themes)
+        # Keyed by what is stored, labelled by what the theme calls itself - they are
+        # usually the same word and a theme is free to make them differ.
+        offered[config_schema.SUGGEST_THEMES] = {
+            str(theme.get("key") or ""): str(theme.get("name") or theme.get("key") or "")
+            for theme in (known.get("themes") or []) if theme.get("key")}
+
+    if config_schema.SUGGEST_COLLECTIONS in wanted:
+        # `collections()` answers from what the Collections page last read, which on
+        # this page is nothing. This is already off the event loop, so read.
+        held = await run.io_bound(library.load_collections)
+        offered[config_schema.SUGGEST_COLLECTIONS] = {
+            str(row.get("name") or ""): str(row.get("name") or "")
+            for row in held if row.get("name")}
+
+    return offered
 
 
 def _install_label(install: dict) -> str:
