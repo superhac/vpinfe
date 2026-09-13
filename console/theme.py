@@ -9,10 +9,6 @@ from nicegui import ui
 
 LOGO = "/static/img/vpinfe-logo.png"
 
-# The 2.x header treatment, from manager.css. A flat bar read as the same surface as the
-# side rails, which is what made the whole shell look like one undifferentiated panel.
-HEADER_GRADIENT = "linear-gradient(135deg, #b429f9 0%, #4a1e7c 50%, #0a0518 100%)"
-
 
 # The 2.x visual treatment, from manager.css: a synthwave grid over the page, and the
 # table's own row colors. AG Grid reads its palette from --ag-* custom properties, so
@@ -413,7 +409,6 @@ body::before {
 /* The identifier a row is scanned by stays at the top of the ink scale; everything
    beside it supports it. Pinned left is where both grids put that column. */
 .ag-pinned-left-cols-container .ag-cell { color: var(--ink); }
-.ag-header { border-bottom: 1px solid rgba(0, 217, 255, 0.35) !important; }
 /* Two states, one color: both answer "which one", and a second hue would read as a
    third meaning. Selected is a fill, focused is a band, and a row can be both.
    Set on the row, not --ag-selected-row-background-color, which AG Grid 34 ignores. */

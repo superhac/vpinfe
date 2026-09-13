@@ -76,7 +76,7 @@ class LiteralTests(unittest.TestCase):
     it had always claimed to match. Fifty colors were there the whole time.
     """
 
-    CEILING = 54
+    CEILING = 53
 
     def test_no_new_color_is_typed_rather_than_named(self) -> None:
         found = {_same_color(m)
