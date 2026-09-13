@@ -169,7 +169,10 @@ _TOKENS = """
   --select-min: 200px;
 
   /* What a draggable divider looks like, wherever one appears - a border color here
-     reads as an edge rather than a handle. */
+     reads as an edge rather than a handle. A divider is something you grab, so it takes
+     WCAG 1.4.11's 3:1 like any other control: at .28 it measured 2.37 to 2.46 against the
+     surfaces it lies on, and .38 is the smallest step that clears the floor on all of
+     them. Higher starts competing with the content either side of it. */
   /* The one warm color in this palette, and the reason both uses below read at a
      glance: nothing else here is warm. Named for what it is rather than for either
      use, so the second one did not have to invent a second amber.
@@ -180,7 +183,7 @@ _TOKENS = """
      twenty tiles; the folder-wide case is the norm and stays quiet. */
   --tier-table: var(--warm);
   --tier-quiet: var(--ink-3);
-  --resize-line: rgba(255, 255, 255, 0.28);
+  --resize-line: rgba(255, 255, 255, 0.38);
 
   /* The gutter a panel keeps from whatever it sits against. One value, so the browse
      region and the work region do not each pick their own and land 4px apart. */
