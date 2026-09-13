@@ -23,7 +23,8 @@ STYLESHEET = theme._TOKENS + theme._FLAIR + theme._COMPONENTS
 DEFINED = re.compile(r"^\s*(--[a-z0-9-]+)\s*:", re.MULTILINE)
 USED = re.compile(r"var\(\s*(--[a-z0-9-]+)")
 # Hex, or rgb()/rgba() with a literal triple. Not a var() inside one.
-HEX = re.compile(r"#[0-9a-fA-F]{3,8}\b")
+LITERAL = re.compile(r"#[0-9a-fA-F]{3,8}\b"
+                     r"|rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*[\d.]+\s*)?\)")
 
 # AG Grid reads its own palette off these, so they are written for it rather than for
 # us: defined here, used by a stylesheet we do not ship.
@@ -32,6 +33,12 @@ FOREIGN_PREFIXES = ("--ag-", "--q-")
 # Set on the element while the page runs, from the workbench's own drag handlers, so
 # the stylesheet reads them and never defines them.
 RUNTIME = {"--dock-h", "--rows"}
+
+
+def _same_color(literal):
+    """One color typed two ways is one color: `rgba(15,7,34,.75)` and
+    `rgba(15, 7, 34, 0.75)` differ only in whitespace."""
+    return "".join(literal.split()).lower()
 
 
 def _ours(names):
@@ -58,19 +65,22 @@ class TokenTests(unittest.TestCase):
 
 
 class LiteralTests(unittest.TestCase):
-    """A ratchet, not a gate.
+    """A ceiling on colors typed by hand, not a ban on them.
 
     The colors that already had a token are named. What is left has none, and each
     needs a name invented for it rather than a substitution - so the pass lands in
     pieces. This holds the direction while it does: the count comes down and never up.
 
-    Lower CEILING as it falls. Raising it is the thing to notice.
+    Lower CEILING as it falls. Raising it is the thing to notice - with one exception
+    already spent: it went 18 -> 61 when the pattern started matching the rgb()/rgba()
+    it had always claimed to match. Fifty colors were there the whole time.
     """
 
-    CEILING = 18
+    CEILING = 61
 
     def test_no_new_color_is_typed_rather_than_named(self) -> None:
-        found = sorted(set(HEX.findall(theme._FLAIR + theme._COMPONENTS)))
+        found = {_same_color(m)
+                 for m in LITERAL.findall(theme._FLAIR + theme._COMPONENTS)}
 
         self.assertLessEqual(
             len(found), self.CEILING,
@@ -78,9 +88,9 @@ class LiteralTests(unittest.TestCase):
             "Name it in _TOKENS and use var().")
 
     def test_the_token_block_is_where_a_color_is_named(self) -> None:
-        """The other half: if the token block held no hex either, the ratchet would be
-        passing because it is reading the wrong string."""
-        self.assertTrue(HEX.findall(theme._TOKENS))
+        """The other half: if the token block held no hex either, the count above would
+        be passing because it is reading the wrong string."""
+        self.assertTrue(LITERAL.findall(theme._TOKENS))
 
 
 if __name__ == "__main__":
