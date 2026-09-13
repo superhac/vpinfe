@@ -36,24 +36,19 @@ _CHIP = {
 
 # Why the name of a device that is not this one cannot be edited here. The install owns
 # its own name, and the registry holds a copy of what it last reported.
-REMOTE_NAME_NOTE = "This name belongs to that install, and only it can change it."
 
 # A device there is no way to call back. Not the same as one that is down, and it says
 # which: an install announces the port it answers on, and this one never did.
-UNREACHABLE_NOTE = ("This device has not said which port it answers on, so it cannot be "
-                    "asked. It will once it has announced itself again.")
+UNREACHABLE_NOTE = "console.devices.unreachable_note"
 
 # Why an install cannot replace itself, in the words a person reads. The API answers with
 # the reason's name; the sentence for it belongs to whatever is showing it.
 WHY_NOT = {
-    "source_build": "This build runs from source, so it updates with a git pull "
-                    "rather than from here.",
-    "non_release_build": "This build was not published as a release, so there is "
-                         "nothing to replace it with.",
-    "unsupported_architecture": "No published build matches this machine's "
-                                "architecture.",
-    "macos_not_supported_yet": "Updating in place is not built for macOS yet.",
-    "unsupported_platform": "Updating in place is not built for this platform.",
+    "source_build": "console.devices.why_not.this_build_runs_from_source",
+    "non_release_build": "console.devices.why_not.this_build_was_not_published",
+    "unsupported_architecture": "console.devices.why_not.no_published_build_matches_this",
+    "macos_not_supported_yet": "console.devices.why_not.updating_in_place_is_not",
+    "unsupported_platform": "console.devices.why_not.updating_in_place_is_not"
 }
 CANNOT_UPDATE = "This install cannot update itself."
 
@@ -86,10 +81,7 @@ _ACTION_ICONS = {
 
 # Said once over the list rather than under each. Which machine this happens on is the
 # thing a fleet surface has to be clear about.
-ACTIONS_NOTE = "These happen on this device, not on the install you are reading from."
 
-FORGET_NOTE = ("Forgetting a device removes this install's entry for it. Nothing on that "
-               "machine changes, and it comes back the next time it announces itself.")
 
 # What a probe found, as the mark on a rail row and the chip on the page. Green for
 # answering, because that is the one a person scans the rail for.
@@ -202,7 +194,7 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
     if not update:
         rows.append(("Version", panel.state(t("console.devices.not_known"), "unknown")))
         if not is_local and client is None:
-            rows.append(panel.note(UNREACHABLE_NOTE))
+            rows.append(panel.note(t(UNREACHABLE_NOTE)))
         return rows
 
     current = str(update.get("current_version") or "unknown")
@@ -212,7 +204,8 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
 
     latest = str(update.get("latest_version") or "a newer build")
     if not update.get("update_supported"):
-        reason = WHY_NOT.get(str(update.get("support_reason") or ""), CANNOT_UPDATE)
+        reason = t(WHY_NOT.get(str(update.get("support_reason") or ""),
+                               "console.devices.cannot_update"))
         rows.append(("Version", panel.state(t("console.devices.available", latest=(latest)), "warn",
                                             beside=current)))
         rows.append(panel.note(reason))
@@ -222,7 +215,7 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
             panel.state(t("console.devices.available", latest=(latest)), "warn", beside=current)))
     def update_action() -> None:
         with ui.element("div").classes("console-fact-edit"):
-            panel.action(f"Update to {latest}",
+            panel.action(t("console.devices.update_to", latest=(latest)),
                          lambda: _confirm_update(client, device_label(device), update),
                          icon="system_update_alt", inline=True)()
 
@@ -413,7 +406,7 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
             else f"{len(built)} devices"
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
-        search = panel.search("Search devices")
+        search = panel.search(t("console.devices.search_devices"))
         _wire_views, _picker, showing = view_control(library, SCOPE, VIEWS,
                                                     _ALL, COLUMNS)
         ui.space()
@@ -558,7 +551,7 @@ SETTINGS_NOTE = ("A machine's settings belong to the build running on it, so the
 # What is wrong when the door will not open. Both halves matter: one is a machine to go
 # and switch on, the other is an entry with nothing to dial.
 NO_DOOR = {
-    device_client.UNREACHABLE: "It is not answering, so there is nothing to open.",
+    device_client.UNREACHABLE: "console.devices.not_answering",
     device_client.UNASKABLE: UNREACHABLE_NOTE,
 }
 
@@ -609,11 +602,12 @@ def settings_door(context: dict[str, Any]) -> list[tuple[Any, Any]]:
 
     def door() -> None:
         with ui.element("div").classes("console-fact-edit"):
-            panel.action("Open System" if here else "Open its settings",
+            panel.action(t("console.devices.open_system") if here
+                    else t("console.devices.open_its_settings"),
                          open_it, icon="open_in_new", inline=True,
                          enabled=not stopped)()
 
-    return [("", door), panel.note(stopped or SETTINGS_NOTE)]
+    return [("", door), panel.note(t(stopped) if stopped else SETTINGS_NOTE)]
 
 
 async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
@@ -651,7 +645,7 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
                              disabled=not editable)),
     ]
     if not _is_local(context):
-        rows_out.append(panel.note(REMOTE_NAME_NOTE))
+        rows_out.append(panel.note(t("console.devices.remote_name_note")))
     rows_out.append(("Kind", KIND_LABELS.get(str(device.get("kind") or "vpinfe"),
                                              "VPinFE")))
     rows_out.append(("Features",
@@ -727,7 +721,7 @@ async def action_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     """
     client = _client_for(context)
     if client is None:
-        return [panel.intro(UNREACHABLE_NOTE)]
+        return [panel.intro(t(UNREACHABLE_NOTE))]
     try:
         offered = await run.io_bound(client.actions)
     except device_client.TooOldError as exc:
@@ -740,7 +734,7 @@ async def action_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     if not offered:
         return [panel.intro(t("console.devices.this_device_offers_nothing"))]
 
-    rows_out: list[tuple[Any, Any]] = [panel.intro(ACTIONS_NOTE)]
+    rows_out: list[tuple[Any, Any]] = [panel.intro(t("console.devices.actions_note"))]
     for entry in offered:
         rows_out.append(("", _action_control(context, entry)))
         if not entry.get("available") and entry.get("reason"):
@@ -791,7 +785,7 @@ async def log_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     """
     client = _client_for(context)
     if client is None:
-        return [panel.intro(UNREACHABLE_NOTE)]
+        return [panel.intro(t(UNREACHABLE_NOTE))]
     try:
         found = await run.io_bound(client.logs, LOG_LIMIT)
     except device_client.TooOldError as exc:
@@ -839,11 +833,11 @@ def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
         # In the fact rhythm's own wrapper, or the button takes the whole value column -
         # a destructive verb drawn as a full-width bar reads as a banner.
         with ui.element("div").classes("console-fact-edit"):
-            panel.action("Forget this device",
+            panel.action(t("console.devices.forget_this_device"),
                          lambda: _confirm_forget(library, device,
                                                  context.get("rebuild")),
                          icon="delete_outline", inline=True, danger=True)()
 
-    out.append(panel.note(FORGET_NOTE))
+    out.append(panel.note(t("console.devices.forget_note")))
     out.append(("", forget_action))
     return out

@@ -403,7 +403,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     context_row: list[dict[str, Any]] = []
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
-        search = panel.search("Search games")
+        search = panel.search(t("console.games.search_games"))
         # The media preset is the library's own kinds, so it is only knowable here.
         presets = {**GAME_VIEWS,
                    "Media": ["name", *[f"media_{kind}" for kind in kinds]],
@@ -894,7 +894,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     fields = [definition["field"] for definition in table_columns]
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
-        search = panel.search("Search tables")
+        search = panel.search(t("console.games.search_tables"))
         presets = {**TABLE_VIEWS,
                    _ASSETS: ["game", "version", "author",
                              *[f"asset_{key}" for key in TABLE_ASSET_KEYS]]}

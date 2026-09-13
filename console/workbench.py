@@ -2084,9 +2084,9 @@ def _table_override_rows(context: dict[str, Any], table: dict[str, Any],
 # table" or "hide the grill on everything" - never in filenames, which appear in a
 # tooltip and in the log and nowhere else.
 SCOPE_WORDS = {
-    "launcher": "Everything this launcher plays",
-    "folder": "This folder",
-    "entry": "This table",
+    "launcher": "console.workbench.scope.everything_this_launcher_plays",
+    "folder": "console.workbench.scope.this_folder",
+    "entry": "console.workbench.scope.this_table"
 }
 
 
@@ -3033,9 +3033,10 @@ def _beside(mark: Callable[[], None], held: dict, field,
         with ui.row().classes("items-center gap-2 no-wrap"):
             mark()
             if held.get("set_here"):
-                panel.action("Clear", lambda: _run(clear, field.key), inline=True,
+                panel.action(t("console.workbench.clear"), lambda: _run(clear, field.key),
+                        inline=True,
                              enabled=not playing,
-                             hint=PLAYING_NOTE if playing else _clear_hint(held, field))()
+                             hint=t(PLAYING_NOTE) if playing else _clear_hint(held, field))()
     return draw
 
 
@@ -3049,8 +3050,7 @@ def _run(clear: Callable, key: str):
 # Said once over the group rather than on every row. The program rewrites both layers
 # when a table exits and its own in-game menu writes the same keys, so an edit made now
 # is one of two writers and the last one wins.
-PLAYING_NOTE = ("A table is playing on this machine. These are read-only until it "
-                "exits, because the program writes this file itself on the way out.")
+PLAYING_NOTE = "console.workbench.playing_note"
 
 
 def _playing(library) -> bool:
@@ -3102,7 +3102,7 @@ async def _config_rows(context: dict[str, Any], group) -> None:
     playing = bool(context.get("playing"))
     entries: list[tuple[Any, Any]] = []
     if playing:
-        entries.append(panel.note(PLAYING_NOTE))
+        entries.append(panel.note(t(PLAYING_NOTE)))
     seen = ""
     sections = {_section_of(f.key) for f in group.settings}
     for field in group.settings:
@@ -3115,6 +3115,7 @@ async def _config_rows(context: dict[str, Any], group) -> None:
             seen = section
             entries.append((HEADING, _section_label(section, group.label)))
             said = SECTION_NOTES.get(section)
+            said = t(said) if said else said
             if said:
                 entries.append(panel.note(said))
         held = values.get(field.key) or {}
@@ -3145,20 +3146,20 @@ def _section_of(qualified: str) -> str:
 # nothing about what a section is. A section with nothing useful to add is absent rather
 # than carrying a line that restates its own name.
 SECTION_NOTES = {
-    "Editor": "Editor debugging, layout and appearance.",
-    "Player": "Runtime audio, display, physics and table player settings.",
-    "Backglass": "Backglass output and positioning.",
-    "ScoreView": "Score view window and rendering.",
-    "Topper": "Topper output and placement.",
-    "PlayerVR": "VR preview, table placement and headset rendering.",
-    "DefaultCamera": "Default desktop and full single-screen camera.",
-    "TableOverride": "Global table view, difficulty, exposure and tone mapping overrides.",
-    "Input": "Input, controller, keyboard and nudge.",
-    "DMD": "Dot-matrix rendering and layout.",
-    "Alpha": "Alphanumeric display rendering.",
-    "Controller": "Controller integrations and external systems.",
-    "Standalone": "Standalone runtime behavior and cabinet integration.",
-    "TableOption": "Table script options saved by tables themselves.",
+    "Editor": "console.workbench.section.editor_debugging_layout_and_appear",
+    "Player": "console.workbench.section.runtime_audio_display_physics_and",
+    "Backglass": "console.workbench.section.backglass_output_and_positioning",
+    "ScoreView": "console.workbench.section.score_view_window_and_rendering",
+    "Topper": "console.workbench.section.topper_output_and_placement",
+    "PlayerVR": "console.workbench.section.vr_preview_table_placement_and",
+    "DefaultCamera": "console.workbench.section.default_desktop_and_full_single",
+    "TableOverride": "console.workbench.section.global_table_view_difficulty_expos",
+    "Input": "console.workbench.section.input_controller_keyboard_and_nudg",
+    "DMD": "console.workbench.section.dot_matrix_rendering_and_layout",
+    "Alpha": "console.workbench.section.alphanumeric_display_rendering",
+    "Controller": "console.workbench.section.controller_integrations_and_extern",
+    "Standalone": "console.workbench.section.standalone_runtime_behavior_and_ca",
+    "TableOption": "console.workbench.section.table_script_options_saved_by"
 }
 
 
@@ -3369,11 +3370,11 @@ def _copies_value(held: list[dict], take: Callable, found: dict,
     def draw() -> None:
         with ui.row().classes("items-center gap-2 no-wrap"):
             ui.label(_said_count(held)).classes("console-fact-value truncate min-w-0")
-            panel.action("Copy it now", take, inline=True, enabled=not playing,
-                         hint=PLAYING_NOTE if playing else "")()
-            panel.action("Restore", choose, inline=True,
+            panel.action(t("console.workbench.copy_it_now"), take, inline=True, enabled=not playing,
+                         hint=t(PLAYING_NOTE) if playing else "")()
+            panel.action(t("console.workbench.restore"), choose, inline=True,
                          enabled=bool(held) and not playing,
-                         hint=(PLAYING_NOTE if playing
+                         hint=(t(PLAYING_NOTE) if playing
                                else "" if held
                                else t("console.workbench.no_copies_to_put_back_yet")))()
     return draw
@@ -3423,7 +3424,7 @@ def _one_copy(one: dict, put_back: Callable, dialog: Any,
         with ui.row().classes("items-center gap-2 no-wrap"):
             if reason:
                 panel.state(reason, "off")()
-            panel.action("Put back", go, inline=True, enabled=not playing)()
+            panel.action(t("console.workbench.put_back"), go, inline=True, enabled=not playing)()
     return draw
 
 
@@ -3601,7 +3602,7 @@ def _location_write_to(context: dict[str, Any],
         reason = "A single game folder has no room for another game."
     elif not row["writable"]:
         reason = row["reason"] or "Nothing can be written here."
-    return panel.action("Create new games here", choose,
+    return panel.action(t("console.workbench.create_new_games_here"), choose,
                         enabled=row["writable"] and row["kind"] == "root", hint=reason)
 
 

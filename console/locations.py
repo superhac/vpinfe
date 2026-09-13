@@ -31,7 +31,10 @@ KIND_LABELS = {"root": "Game folders", "game": "One game"}
 
 # The verb, for the buttons that make one. Not the same words as the column: adding is
 # an act and reads as one.
-ADD_LABELS = {"root": "Add a folder of games", "game": "Add a single game"}
+ADD_LABELS = {
+    "root": "console.locations.add.add_a_folder_of_games",
+    "game": "console.locations.add.add_a_single_game"
+}
 
 _KIND_CHOICES = [{"value": key, "label": label} for key, label in KIND_LABELS.items()]
 
@@ -127,7 +130,7 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
                 ui.button(label, icon="add",
                           on_click=lambda k=kind: _ask_new(library, state, rerender, k)) \
                     .props("flat dense no-caps size=sm").classes("shrink-0 console-action")
-            search = panel.search("Search locations")
+            search = panel.search(t("console.locations.search_locations"))
             wire_views, _picker, showing = view_control(library, SCOPE,
                                                         LOCATION_VIEWS, fields, COLUMNS)
             ui.space()

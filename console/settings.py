@@ -334,7 +334,7 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
             ui.label(when.replace("T", " ").replace("Z",
                     " UTC") if when else t("console.settings.never")) \
                 .classes("console-fact-value truncate min-w-0")
-            panel.action("Check now", now, icon="sync", inline=True)()
+            panel.action(t("console.settings.check_now"), now, icon="sync", inline=True)()
 
     return [(panel.HEADING, "Catalog"), ("Last checked", checked)]
 
@@ -480,11 +480,10 @@ FEATURE_LABELS = {
 # What switching one on gets you. The name says which feature; this says what the install
 # then does, which is the half a person switching it on is actually choosing between.
 FEATURE_NOTES = {
-    install_identity.LIBRARY: "Curate the game library on this machine.",
-    install_identity.FRONTEND: "Launch games on this machine.",
-    install_identity.DEVICES: "Manage the other VPinFE installs on your network.",
-    install_identity.OVERVIEW: "Add a front page summarising the other three. Off "
-                              "unless you ask for it.",
+    install_identity.LIBRARY: "console.settings.feature.curate_the_game_library_on",
+    install_identity.FRONTEND: "console.settings.feature.launch_games_on_this_machine",
+    install_identity.DEVICES: "console.settings.feature.manage_the_other_vpinfe_installs",
+    install_identity.OVERVIEW: "console.settings.feature.add_a_front_page_summarising"
 }
 
 
@@ -864,7 +863,7 @@ async def _identity_page(library, reported: str,
     for name in install_identity.FEATURES:
         entries.append((FEATURE_LABELS[name], panel.switch(
             name in on, lambda event, key=name: flip(key, bool(event.value)))))
-        entries.append(panel.note(FEATURE_NOTES[name]))
+        entries.append(panel.note(t(FEATURE_NOTES[name])))
     panel.facts(ui, entries)
 
 

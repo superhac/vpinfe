@@ -87,8 +87,11 @@ DISPLAY_CALLS = {
     "expansion", "item_label", "radio", "toggle", "menu_item", "input", "select",
     "switch", "checkbox", "number", "textarea", "upload", "dialog", "tree", "step",
 }
+# The Console's own components. Every one of these puts its argument in front of a
+# person, and each was found by reading `console/panel.py` rather than by the check
+# noticing: a helper the list does not name is a hole the check cannot see.
 DISPLAY_ARG = {"column": 1, "two_line": 0, "intro": 0, "note": 0, "state": 0,
-               "header": 0, "fact": 0}
+               "header": 0, "fact": 0, "search": 0, "action": 0, "trouble_mark": 0}
 DISPLAY_KWARGS = {"label", "text", "title", "placeholder", "tooltip", "help", "message",
                   "description", "caption", "hint", "said", "header", "headerName"}
 # Constructors whose `description` and `title` are the API's own documentation - the
@@ -168,6 +171,44 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
                     if kw.arg in DISPLAY_KWARGS:
                         offenders += _fault(path, name, kw.arg, kw.value)
         self.assertEqual(offenders, [], "call t() and put the words in the catalog")
+
+    def test_a_constant_is_not_a_hiding_place(self) -> None:
+        """`INTRO = "Each one is a way of..."` then `ui.label(INTRO)` reads as clean.
+
+        Seven of these survived two passes: the check looks at the call site and the
+        words were one line away. A constant may hold a *key* - `UNREACHABLE_NOTE` does,
+        because `door_reason` returns it and a test names it - but not a sentence.
+        """
+        offenders = []
+        for path in sorted((ROOT / "console").rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            held = {node.targets[0].id: node.value.value for node in tree.body
+                    if isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Name)
+                    and isinstance(node.value, ast.Constant)
+                    and isinstance(node.value.value, str)}
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                func = node.func
+                name = func.attr if isinstance(func, ast.Attribute) \
+                    else getattr(func, "id", None)
+                if name in API_DOCUMENTATION:
+                    continue
+                at = 0 if name in DISPLAY_CALLS else DISPLAY_ARG.get(name)
+                spots = []
+                if at is not None and len(node.args) > at:
+                    spots.append(node.args[at])
+                spots += [kw.value for kw in node.keywords if kw.arg in DISPLAY_KWARGS]
+                for spot in spots:
+                    if isinstance(spot, ast.Name) and spot.id in held \
+                       and _is_text(held[spot.id]):
+                        offenders.append(f"{path.relative_to(ROOT)}:{spot.lineno} "
+                                         f"{name}({spot.id}) where {spot.id} = "
+                                         f"{held[spot.id][:40]!r}")
+        self.assertEqual(offenders, [], "the constant should hold a key, not a sentence")
 
     def test_a_choice_written_as_a_dict_counts_too(self) -> None:
         """`{"value": True, "label": "Yes"}` is a grid filter's words, and the keyword

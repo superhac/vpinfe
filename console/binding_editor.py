@@ -286,7 +286,7 @@ def _menu(chip: Any, binding: str, store: Callable[..., Any], held: list,
         ui.label(t("console.binding_editor.how_long_it_has_to_be_held")) \
             .classes("console-help")
 
-        panel.action("Remove",
+        panel.action(t("console.binding_editor.remove_plain"),
                      lambda: _remove(now["text"], input_registry.describe(now["text"]),
                                      store, held),
                      icon="close", danger=True)()
@@ -344,7 +344,7 @@ def _capture(option: dict[str, Any], held: list, store: Callable[[list], Any],
             return
         await store([*held, selector])
 
-    panel.action("Bind", heard, icon="add", inline=True,
+    panel.action(t("console.binding_editor.bind"), heard, icon="add", inline=True,
                  hint=t("console.binding_editor.press_one_input_two"),
                  js=_CAPTURE_JS % {
                      "hold_at": HOLD_AT_MS,

@@ -30,8 +30,6 @@ SCOPE = "console.launchers.columns"
 
 # Said once over the list rather than under each row. What a launcher is for, in the
 # words somebody would use before they know the word.
-INTRO = ("Each one is a way of running a table: which program, and how it is configured. "
-         "Tables use the first one that is switched on unless they name another.")
 
 # Why a row is the default, where that is not obvious. Only on the one it applies to -
 # a note on every row would say nothing.
@@ -126,13 +124,13 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
 
     with body:
         with ui.column().classes("w-full gap-1 px-3 pt-2 pb-1"):
-            ui.label(INTRO).classes("console-help")
+            ui.label(t("console.launchers.intro")).classes("console-help")
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
                 for app in apps_known:
                     ui.button(t("console.launchers.add", value=(app['name'])), icon="add",
                               on_click=lambda a=app: _add(library, state, redraw, a)) \
                         .props("flat dense no-caps size=sm").classes("console-action")
-                search = panel.search("Search launchers")
+                search = panel.search(t("console.launchers.search_launchers"))
                 wire_views, _picker, showing = view_control(library, SCOPE,
                                                             LAUNCHER_VIEWS, fields,
                                                             COLUMNS)

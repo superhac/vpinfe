@@ -140,7 +140,7 @@ def build(collections: list[dict[str, Any]], library: Any,
         ui.button(t("console.collections.new_collection"), icon="add",
                   on_click=lambda: _ask_new(library, act)) \
             .props("flat dense no-caps size=sm").classes("shrink-0 console-action")
-        search = panel.search("Search collections")
+        search = panel.search(t("console.collections.search_collections"))
         wire_views, _picker, showing = view_control(library, SCOPE, COLLECTION_VIEWS,
                                                     fields, COLUMNS)
         ui.space()

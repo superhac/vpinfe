@@ -225,7 +225,7 @@ def build(found: list[dict[str, Any]], library: Any,
         return f"{on_screen['rows']} of {len(built)} media"
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
-        search = panel.search("Search media")
+        search = panel.search(t("console.media.search_media"))
         wire_views, _picker, showing = view_control(library, SCOPE, VIEWS,
                                                     _ALL, COLUMNS)
         ui.space()

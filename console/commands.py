@@ -41,17 +41,15 @@ def offered(context: str) -> tuple[Any, Callable[[], None]]:
     def draw() -> None:
         if len(available) <= SHOW_ALL_UP_TO:
             with ui.column().classes("gap-1"):
-                ui.label(_LEAD).classes("console-help")
+                ui.label(t("console.commands.each_stands_for_something")).classes("console-help")
                 rows()
             return
         with ui.expansion(t("console.commands.names_you_can_use", len=(len(available)))) \
                 .props("dense dense-toggle").classes("console-tokens"):
             with ui.column().classes("gap-1 pt-1"):
-                ui.label(_LEAD).classes("console-help")
+                ui.label(t("console.commands.each_stands_for_something")).classes("console-help")
                 rows()
 
     return (panel.ASIDE, draw)
 
 
-_LEAD = ("Each stands for something when the command runs. A name that is not on this "
-         "list is refused rather than left blank.")

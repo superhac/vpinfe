@@ -69,7 +69,7 @@ async def open_for_table(library, *, launcher_id: str, launcher_name: str,
             ui.label(t("console.app_settings.edits_go_to")).classes("console-label text-xs")
             scope = ui.select(words, value=state["scope"]) \
                 .props("dense outlined options-dense").classes("w-64")
-            search = panel.search("Search settings")
+            search = panel.search(t("console.app_settings.search_settings"))
 
         body = ui.column().classes("w-full grow min-h-0 gap-0 overflow-auto")
 
@@ -110,7 +110,7 @@ async def _fill(library, launcher_id: str, table_id: str, state: dict[str, Any],
     values = found.get("values") or {}
     playing = await run.io_bound(_playing, library)
     if playing:
-        panel.facts(ui, [panel.note(PLAYING_NOTE)])
+        panel.facts(ui, [panel.note(t(PLAYING_NOTE))])
     wanted = state["search"]
     shown = 0
     for group in groups:
@@ -224,8 +224,9 @@ def _aside(library, launcher_id: str, table_id: str, scope: str, field: dict,
         with ui.row().classes("items-center gap-2 no-wrap"):
             mark()
             if held.get("set_here"):
-                panel.action("Clear", wipe, inline=True, enabled=not playing,
-                             hint=(workbench.PLAYING_NOTE if playing
+                panel.action(t("console.app_settings.clear"), wipe, inline=True,
+                        enabled=not playing,
+                             hint=(t(workbench.PLAYING_NOTE) if playing
                                    else workbench._clear_hint(held, _Field)))()
     return drawn
 

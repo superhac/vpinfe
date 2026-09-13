@@ -82,11 +82,12 @@ def _draw(body, groups: list[dict[str, Any]], held: dict[str, Any],
         with ui.row().classes("items-center gap-2 w-full no-wrap"):
             ui.label(t("console.about.everything_a_bug_report")) \
                 .classes("console-help grow min-w-0")
-            panel.action("Copy", lambda event: _copied(bool(event.args), held["text"]),
+            panel.action(t("console.about.copy"), lambda event: _copied(bool(event.args),
+                    held["text"]),
                          icon="content_copy",
                          hint=t("console.about.put_all_of_it_on_the"),
                          js=_COPY_JS % json.dumps(held["text"]))()
-            panel.action("Refresh", lambda: reload(True), icon="refresh",
+            panel.action(t("console.about.refresh"), lambda: reload(True), icon="refresh",
                          hint=t("console.about.read_it_again"))()
         # One list for all of them, headings inside it, the way Settings next door
         # draws its sections: a list per group sizes a label column per group, and the
@@ -120,7 +121,7 @@ def _show_to_copy(text: str) -> None:
             .classes("console-help")
         ui.textarea(value=text).props("outlined readonly rows=18") \
             .classes("w-full console-log")
-        panel.action("Close", dialog.close)()
+        panel.action(t("console.about.close"), dialog.close)()
     dialog.open()
     # Found in the document rather than through the element's own id: `getElement`
     # answers with the Vue component, whose root here is a fragment, so there is no
