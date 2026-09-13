@@ -11,5 +11,14 @@ from __future__ import annotations
 
 
 def register() -> None:
-    """Import the page modules so their @ui.page decorators register the routes."""
-    from console import page, remote  # noqa: F401
+    """Put the Console on the app: its routes, and the stylesheet they all link.
+
+    The mount is not under /console, which is a page. A mount there would match every
+    path below it and sit beside a route of the same name, and which of the two answered
+    would depend on the order they were added.
+    """
+    from nicegui import app as nicegui_app
+
+    from console import page, remote, theme  # noqa: F401
+
+    nicegui_app.add_static_files(theme.BASE_MOUNT, str(theme.BASE_CSS.parent))

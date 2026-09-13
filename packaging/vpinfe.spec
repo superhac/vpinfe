@@ -42,6 +42,7 @@ IS_MACOS = sys.platform == "darwin"
 DATA_ROOTS = [
     "frontend/static",
     "managerui/static",
+    "console/static",
     "common/host/static",
     "third_party/dof",
     "third_party/libdmdutil",
