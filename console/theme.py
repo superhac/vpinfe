@@ -113,8 +113,12 @@ _TOKENS = """
   --surface-band: rgba(43, 26, 77, 0.6);
   --line: #2b1a4d;
   /* The visible edge, against --line's hairline: a menu, a dropped-file target and a
-     panel header all need to be seen as an edge rather than felt as one. */
-  --line-strong: #3d2461;
+     panel header all need to be seen as an edge rather than felt as one.
+     3.1:1 against the lightest surface a control sits on, which is the floor WCAG 1.4.11
+     puts under the boundary you identify a control by. The #3d2461 that held this job
+     measured 1.21 to 1.55 against those same surfaces - visible as a shape, and not a
+     boundary anybody was required to be able to see. */
+  --line-strong: #6f6a8c;
   --line-soft: #1f1338;
   /* Structure, not a hairline: the rule between stacked section bands has to be seen
      across a dark panel, and --line-soft sits close enough to the background that it
@@ -533,7 +537,7 @@ body::before {
   color: var(--ink-2);
 }
 .q-menu .q-item:hover { background: var(--surface-hover); }
-.q-menu .q-separator { background: var(--line-strong); margin: 2px 0; }
+.q-menu .q-separator { background: var(--line); margin: 2px 0; }
 /* A menu that holds controls rather than items. `.q-item` carries its own gutters and
    these do not, so the padding is here - and a width, because a number field alone in a
    168px minimum reads as a menu that failed to load. */
