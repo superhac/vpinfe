@@ -26,6 +26,10 @@ USED = re.compile(r"var\(\s*(--[a-z0-9-]+)")
 LITERAL = re.compile(r"#[0-9a-fA-F]{3,8}\b"
                      r"|rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*[\d.]+\s*)?\)")
 COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+# A mask is a stencil, not a paint: inside one, black and white are the opacity
+# channel and mean "hide this" and "keep this". A mode never restates them, so
+# counting them as colors would leave a number that can never reach zero.
+MASK = re.compile(r"(?:-webkit-)?mask(?:-image)?\s*:[^;]*;")
 
 # AG Grid reads its own palette off these, so they are written for it rather than for
 # us: defined here, used by a stylesheet we do not ship.
@@ -45,8 +49,9 @@ def _same_color(literal):
 def _colors_typed_in(css):
     """Comments first, because a comment naming the color it rejected is the reason
     the rule reads the way it does. Counting those made the number argue against
-    writing them down."""
-    return {_same_color(m) for m in LITERAL.findall(COMMENT.sub("", css))}
+    writing them down. Masks after, for the reason above them."""
+    return {_same_color(m)
+            for m in LITERAL.findall(MASK.sub("", COMMENT.sub("", css)))}
 
 
 def _ours(names):
@@ -84,7 +89,7 @@ class LiteralTests(unittest.TestCase):
     it had always claimed to match. Fifty colors were there the whole time.
     """
 
-    CEILING = 15
+    CEILING = 0
 
     def test_no_new_color_is_typed_rather_than_named(self) -> None:
         found = _colors_typed_in(theme._FLAIR + theme._COMPONENTS)

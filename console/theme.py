@@ -65,6 +65,10 @@ _TOKENS = """
      drop. One step, not two - a focused field carries a ring as well, so the fill was
      not the only thing saying so, and the fainter of the two was hard to see at all. */
   --accent-wash: rgba(0, 217, 255, 0.10);
+  /* Louder again, for a section that is the one you are in. Laid over whatever ground
+     the row already has rather than replacing it, which is why it is written as a
+     gradient of one color. */
+  --accent-wash-on: rgba(0, 217, 255, 0.22);
   /* Louder again, and only while a drag is actually over the target. */
   --drop-lit: rgba(0, 217, 255, 0.16);
 
@@ -188,6 +192,44 @@ _TOKENS = """
   /* The gutter a panel keeps from whatever it sits against. One value, so the browse
      region and the work region do not each pick their own and land 4px apart. */
   --panel-gutter: 16px;
+
+  /* --- The effects layer -----------------------------------------------------------
+     Synthwave carries three things the neutral modes will not: the backdrop grid, the
+     glows, and the gradients behind the header, the rail and the workbench. None of
+     them is a color, so none can be swapped by changing one. They are declared whole so
+     a mode can resolve them to `none` - a glow rendered grey is still a glow, and on
+     white it is a smudge. */
+  --fx-backdrop:
+      linear-gradient(0deg, rgba(0, 217, 255, 0.2) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 217, 255, 0.2) 1px, transparent 1px);
+  --fx-glow-panel: 0 2px 8px rgba(180, 41, 249, 0.2);
+  --fx-glow-nav: 0 0 4px rgba(180, 41, 249, 0.5), 0 0 8px rgba(180, 41, 249, 0.3);
+  /* Two, because they are two jobs. The brand in the rail is the loudest text in the
+     Console and says so with a double glow; a panel's title is a heading and takes a
+     single soft one. Collapsing them would make every panel heading shout. */
+  --fx-glow-brand: 0 0 4px rgba(0, 217, 255, 0.5), 0 0 8px rgba(0, 217, 255, 0.3);
+  --fx-glow-text: 0 0 6px rgba(0, 217, 255, 0.45);
+
+  /* Elevation, as against glow: these say "above the page", not "brand". A neutral mode
+     keeps them and only changes the color. */
+  --viewer-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --shadow-drag: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-tooltip: 0 6px 20px rgba(0, 0, 0, 0.45);
+
+  /* The three grounds that are a gradient rather than a surface. Each resolves to a flat
+     surface in a neutral mode. */
+  --header-bg: linear-gradient(135deg, var(--flair) 0%, #4a1e7c 50%,
+               var(--surface-0) 100%);
+  --nav-bg: linear-gradient(180deg, var(--flair) 0px, #4a1e7c 60px, var(--surface-2) 90px,
+            var(--surface-sunken) 100%);
+  --workbench-bg: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 44px,
+                  var(--surface-1) 72px, var(--surface-1) 80px, transparent 80px);
+  /* The same band without the transparent tail, for the rail's copy, which has nothing
+     below it to show through to. */
+  --workbench-bg-rail: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 44px,
+                       var(--surface-1) 72px);
+  /* A card is a panel with a little depth in it rather than a flat plate. */
+  --card-bg: linear-gradient(180deg, rgba(26, 15, 53, 0.75) 0%, rgba(15, 7, 34, 0.75) 100%);
 
   /* Quiet, not invisible: a scrollbar says a region has more in it, so hiding one
      hides that there is more to see. */
@@ -440,9 +482,7 @@ a.console-nav-row, a.console-nav-row:hover, a.console-nav-row:visited {
 
 body::before {
   content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background-image:
-    linear-gradient(0deg, rgba(0, 217, 255, 0.2) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 217, 255, 0.2) 1px, transparent 1px);
+  background-image: var(--fx-backdrop);
   background-size: 40px 40px; opacity: 0.3;
 }
 .nicegui-aggrid, .ag-root-wrapper { position: relative; z-index: 1; }
@@ -530,7 +570,7 @@ body::before {
   background: var(--surface-2) !important;
   border: 1px solid var(--line-strong);
   border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
+  box-shadow: var(--fx-glow-panel);
   min-width: 168px;
 }
 .q-menu .q-item {
@@ -672,7 +712,7 @@ body::before {
   z-index: 8000;
   background: var(--surface-hover);
   border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--shadow-drag);
   cursor: grabbing;
   pointer-events: none;
 }
@@ -1189,7 +1229,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
   padding: 8px 10px;
   font-size: var(--fs-caption);
   line-height: 1.45;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-tooltip);
 }
 
 /* The key for those marks, in the header that does not scroll. */
@@ -1354,7 +1394,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
   background: var(--surface-2);
   border: 1px solid var(--line-strong);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
+  box-shadow: var(--fx-glow-panel);
 }
 .console-label { color: var(--accent); letter-spacing: 0.04em; }
 
@@ -1366,8 +1406,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
      row rather than spread down the rail. The title is near-white with a glow and
      carries purple fine; the items are #5898d4 and do not, so the ground under them
      has to be dark. 90px is just past the 59px header. */
-  background: linear-gradient(180deg, var(--flair) 0px, #4a1e7c 60px, var(--surface-2) 90px,
-                              var(--surface-sunken) 100%) !important;
+  background: var(--nav-bg) !important;
 }
 .console-nav-item {
   /* Sampled from 2.x: 14px at weight 500 with normal tracking. Mine were 12px with
@@ -1460,7 +1499,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
    --glow-purple around it, which is what 2.x does. */
 .console-nav-active {
   background: var(--surface-current);
-  box-shadow: 0 0 4px rgba(180, 41, 249, 0.5), 0 0 8px rgba(180, 41, 249, 0.3);
+  box-shadow: var(--fx-glow-nav);
 }
 
 /* One accent, not three. Purple is surface - gradients, borders, the grid header - and
@@ -1487,16 +1526,13 @@ body.console-menu-open .q-tooltip { display: none !important; }
      the solid rail read as a mistake. The panel is opaque everywhere it is the panel.
      80px is where the rows start; 16px of the workbench's own top padding sits above
      the header, so this starts at 0 or the band would not reach the panel's edge. */
-  background: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 44px,
-                              var(--surface-1) 72px, var(--surface-1) 80px,
-                              transparent 80px) !important;
+  background: var(--workbench-bg) !important;
 }
 /* Collapsed to the rail there is no window at all - the whole strip is panel, so it is
    opaque like every other part that is. The band above is untouched; only the cut to
    transparent goes, which is what let the page grid through a 57px strip. */
 .console-rail .console-workbench {
-  background: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 44px,
-                              var(--surface-1) 72px) !important;
+  background: var(--workbench-bg-rail) !important;
 }
 /* truncate only ellipsizes against a definite width. The column may shrink under
    min-w-0, but its labels have to be told to take that width or they overflow and get
@@ -1506,7 +1542,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
 
 .console-workbench-title {
   color: var(--ink);
-  text-shadow: 0 0 6px rgba(0, 217, 255, 0.45);
+  text-shadow: var(--fx-glow-text);
 }
 .console-workbench-label {
   color: var(--accent);
@@ -1569,20 +1605,19 @@ body.console-menu-open .q-tooltip { display: none !important; }
   font-size: var(--fs-title);
   font-weight: 900;
   color: var(--ink);
-  text-shadow: 0 0 4px rgba(0, 217, 255, 0.5), 0 0 8px rgba(0, 217, 255, 0.3);
+  text-shadow: var(--fx-glow-brand);
 }
 
 .nicegui-aggrid {
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
+  box-shadow: var(--fx-glow-panel);
 }
 .ag-header {
   /* 2.x's --header-gradient in full - I had been running it to #4a1e7c and stopping,
      which lost the fade to near-black at the far end. */
-  background: linear-gradient(135deg, var(--flair) 0%, #4a1e7c 50%,
-              var(--surface-0) 100%) !important;
+  background: var(--header-bg) !important;
   border-bottom: 1px solid var(--line-strong) !important;
 }
 /* Sampled from 2.x's th: --ink at 12px/600, uppercase, no added tracking. */
@@ -1809,7 +1844,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   display: flex; flex-direction: column;
   padding: 0 !important; overflow: hidden;
   border: 1px solid var(--line); border-radius: 10px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--viewer-shadow);
 }
 .console-viewer-bar {
   flex: 0 0 auto; padding: 8px 12px;
@@ -1890,7 +1925,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .console-card {
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(26,15,53,0.75) 0%, rgba(15,7,34,0.75) 100%);
+  background: var(--card-bg);
   padding: 14px 16px;
 }
 .console-card-title {
@@ -2279,7 +2314,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    a line each, which is what lets them be sentences rather than a table of fields. */
 .console-slot {
   border: 1px solid var(--line); border-radius: 8px;
-  background: linear-gradient(180deg, rgba(26,15,53,0.75) 0%, rgba(15,7,34,0.75) 100%);
+  background: var(--card-bg);
   display: flex; flex-direction: column; min-height: 0;
   /* Without this the column is sized by its contents and overhangs the panel, which
      is what put a horizontal scrollbar under a narrow dock. */
@@ -2773,7 +2808,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 }
 .console-section-on .console-section-caret { color: var(--ink); }
 .console-section-on {
-  background-image: linear-gradient(rgba(0, 217, 255, 0.22), rgba(0, 217, 255, 0.22));
+  background-image: linear-gradient(var(--accent-wash-on), var(--accent-wash-on));
   color: var(--ink);
 }
 
