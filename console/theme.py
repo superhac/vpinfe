@@ -100,6 +100,22 @@ _TOKENS = """
   /* The brand magenta as a fill, for a row or an item under the pointer. Cyan answers
      "which one" and is not available for this. */
   --flair-wash: rgba(180, 41, 249, 0.14);
+  /* The same fill over media rather than over a panel, where the ground is a picture
+     and a fainter wash disappears into it. */
+  --flair-wash-strong: rgba(180, 41, 249, 0.18);
+
+  /* A notice: amber across a whole block, not a chip. A wide area takes a lower alpha
+     than a small one to carry the same weight, which is why these are not the chip's
+     --warm-wash and --warm-edge. */
+  --notice-wash: rgba(255, 192, 97, 0.07);
+  --notice-edge: rgba(255, 192, 97, 0.35);
+  /* Borrowed media, and its own amber: this is the one state the picture cannot tell
+     you, so it is louder than the warm the rest of the palette uses. */
+  --borrowed-edge: rgba(255, 176, 32, 0.65);
+  /* The media plate, warmed, for the file a table owns itself. */
+  --scrim-media-warm: rgba(40, 24, 8, 0.85);
+  /* A header band across the top of a card. */
+  --surface-band: rgba(43, 26, 77, 0.6);
   --line: #2b1a4d;
   /* The visible edge, against --line's hairline: a menu, a dropped-file target and a
      panel header all need to be seen as an edge rather than felt as one. */
@@ -1682,7 +1698,7 @@ _COMPONENTS = """
    slot is shown by the art itself. Amber stays - "borrowed" looks filled and is a gap,
    which is the one state the art cannot tell you. */
 .console-mediatile--present { border-color: var(--line); }
-.console-mediatile--borrowed { border-color: rgba(255, 176, 32, 0.65); }
+.console-mediatile--borrowed { border-color: var(--borrowed-edge); }
 .console-mediatile--missing { border-style: dashed; opacity: 0.55; }
 .console-mediatile--on {
   box-shadow: 0 0 0 2px var(--accent); border-color: var(--accent);
@@ -1809,7 +1825,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
   background: transparent; border: none; color: var(--ink-2);
 }
-.console-viewer-btn:hover { background: rgba(180, 41, 249, 0.18); color: var(--ink); }
+.console-viewer-btn:hover { background: var(--flair-wash-strong); color: var(--ink); }
 .console-viewer-btn .material-icons { font-size: var(--fs-title); }
 .console-viewer-seek { flex: 1 1 auto; min-width: 0; accent-color: var(--accent); cursor: pointer; }
 .console-viewer-clock {
@@ -2242,8 +2258,8 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    things to go and fix. */
 .console-attention {
   display: flex; align-items: flex-start; gap: 8px; min-width: 0;
-  border: 1px solid rgba(255, 192, 97, 0.35);
-  background: rgba(255, 192, 97, 0.07);
+  border: 1px solid var(--notice-edge);
+  background: var(--notice-wash);
   border-radius: 6px; padding: 6px 10px;
 }
 .console-attention-icon { color: var(--tier-table); font-size: 18px; flex: 0 0 auto; }
@@ -2421,7 +2437,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   position: absolute; top: 3px; left: 3px;
   background: var(--scrim-media);
 }
-.console-mediatile-tier.console-tier--table { background: rgba(40, 24, 8, 0.85); }
+.console-mediatile-tier.console-tier--table { background: var(--scrim-media-warm); }
 
 /* The view has drifted from what it says it is, said on the control that names it.
    Quiet - a modified view is an ordinary thing to be in, not a warning - but it has to
@@ -2583,7 +2599,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 /* Element-qualified and forced, because Quasar sets the header's fill from the
    primary color with the same specificity a class selector has. */
 .console-sources-card div.q-uploader__header {
-  background: rgba(43,26,77,0.6) !important; border-bottom: 1px solid var(--line);
+  background: var(--surface-band) !important; border-bottom: 1px solid var(--line);
 }
 .console-sources-card .q-uploader { background: var(--surface-2); border: 1px solid var(--line); }
 /* The dashed target is the affordance; without a border the strip reads as a heading. */
