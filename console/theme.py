@@ -343,7 +343,7 @@ _LIGHT = """
   --surface-2: #ffffff;
   --surface-3: #eceef2;
   --surface-sunken: #e4e7ec;
-  --surface-art: #e8eaef;
+  --surface-art: #f1f3f6;
   --row-select: #dbe9fa;
   --flair-wash: #eef4fc;
   --flair-wash-strong: #e0ebfa;
@@ -1959,7 +1959,13 @@ _COMPONENTS = """
    which is the one state the art cannot tell you. */
 .console-mediatile--present { border-color: var(--line); }
 .console-mediatile--borrowed { border-color: var(--borrowed-edge); }
-.console-mediatile--missing { border-style: dashed; opacity: 0.55; }
+/* Dashed, and nothing else. `opacity: .55` used to ride along here and it dimmed the
+   whole tile - the caption with it. Measured, that put the slot's name at 3.82:1 in
+   Synthwave, 3.36 in Dark and 2.63 in Light, against the 4.5 a name has to clear. An
+   empty slot still has to say which slot it is; the dashed edge is what says it is
+   empty, and a word you cannot read is not a quieter word. */
+.console-mediatile--missing { border-style: dashed; }
+.console-mediatile--missing .console-mediatile-art { opacity: 0.55; }
 .console-mediatile--on {
   box-shadow: 0 0 0 2px var(--accent); border-color: var(--accent);
 }
