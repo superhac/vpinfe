@@ -42,6 +42,19 @@ _TOKENS = """
   --warm-edge: rgba(255, 192, 97, 0.45);
   /* The off and unknown states, which share the help color's lilac. */
   --quiet-edge: rgba(155, 139, 189, 0.55);
+  --quiet-wash: rgba(155, 139, 189, 0.08);
+
+  /* A row under the pointer. Translucent, because the rows it lands on are not all the
+     same color underneath. */
+  --wash-hover: rgba(255, 255, 255, 0.06);
+  /* A small panel that steps up from whatever it sits on. It has to stay translucent:
+     the same tile appears over the workbench's gradient and over the bare page, and an
+     opaque value that reads as a surface against one composites to the other exactly,
+     leaving an empty slot as a bare outline. */
+  --surface-lift: rgba(26, 15, 53, 0.6);
+  /* Laid over artwork so a control or a label on top of it stays readable. The ground
+     here is a photograph, so this one is translucent by nature rather than by choice. */
+  --scrim-media: rgba(10, 5, 24, 0.72);
 
   --surface-0: #0a0518;
   --surface-1: #150a2e;
@@ -535,7 +548,7 @@ body::before {
 .console-chip-quiet {
   color: var(--ink-2);
   border: 1px solid rgba(155, 139, 189, 0.45);
-  background: rgba(155, 139, 189, 0.08);
+  background: var(--quiet-wash);
 }
 .console-chip-warn { color: var(--tier-table); border: 1px solid var(--warm-edge); }
 
@@ -847,7 +860,7 @@ body::before {
   font-size: 13px;
   white-space: nowrap;
 }
-.console-filter-row:hover { background: rgba(255, 255, 255, 0.06); }
+.console-filter-row:hover { background: var(--wash-hover); }
 /* The leading slot, wide enough for a mark and present whether or not there is one -
    a choice that draws nothing in the grid indents to here rather than shifting its
    label left of every other. A rating draws five, so it grows rather than clipping. */
@@ -890,7 +903,7 @@ body::before {
   padding: 2px;
   border-radius: 4px;
   color: var(--ink);
-  background: rgba(10, 5, 24, 0.72);
+  background: var(--scrim-media);
   cursor: pointer;
   /* Hidden until the row is under the cursor: twenty of these showing at once is a
      column of buttons, and the pictures are what the row is for. */
@@ -936,7 +949,7 @@ body::before {
   color: var(--ink-3);
 }
 .console-member-row:hover .console-member-table-line .console-mark { color: var(--accent); }
-.console-member-table-line:hover { background: rgba(255, 255, 255, 0.06); }
+.console-member-table-line:hover { background: var(--wash-hover); }
 .console-member-table-caret {
   font-size: 15px;
   color: var(--ink-3);
@@ -1464,7 +1477,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
      its own width, which is where the workbench's 6px of horizontal scroll came from; the
      inset belongs on the container. */
   margin: 4px 0;
-  background: rgba(26, 15, 53, 0.55);
+  background: var(--surface-lift);
 }
 .console-workbench { overflow-x: hidden !important; }
 /* No side gutter of its own: what it holds carries the shared one, and two would
@@ -1619,7 +1632,7 @@ _COMPONENTS = """
      open to the page that same value composites to exactly the page and the tile has
      no surface at all, leaving an empty slot as a bare 1px outline. A tile is a small
      panel, and panels step up. */
-  background: rgba(26, 15, 53, 0.6);
+  background: var(--surface-lift);
   padding: 3px;
 }
 /* Present is stated with a color, missing with the absence of one. A library is mostly
@@ -1729,7 +1742,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 .console-mediatile:hover .console-mediatile-offered { opacity: 1; color: var(--accent); }
 .console-mediatile-zoom {
   position: absolute; top: 2px; right: 2px; opacity: 0;
-  background: rgba(10, 5, 24, 0.7) !important; transition: opacity 120ms ease;
+  background: var(--scrim-media) !important; transition: opacity 120ms ease;
 }
 .console-mediatile:hover .console-mediatile-zoom { opacity: 1; }
 
@@ -2233,7 +2246,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    places and the title row is a title again. */
 .console-slot-zoom {
   position: absolute; top: 6px; right: 2px; opacity: 0;
-  background: rgba(10, 5, 24, 0.7) !important; transition: opacity 120ms ease;
+  background: var(--scrim-media) !important; transition: opacity 120ms ease;
 }
 .console-slot-art:hover .console-slot-zoom { opacity: 1; }
 /* The preview wraps its element in a div of its own, and that wrapper is what broke
@@ -2343,12 +2356,12 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 }
 .console-tier--off {
   color: var(--ink-2); border-color: var(--quiet-edge);
-  background: rgba(155, 139, 189, 0.10);
+  background: var(--quiet-wash);
 }
 .console-tier--unknown {
   color: var(--ink-2); border-style: dashed;
   border-color: var(--quiet-edge);
-  background: rgba(155, 139, 189, 0.06);
+  background: var(--quiet-wash);
 }
 /* Broken, not merely absent: what this names stops the table working at all. The one
    red on the panel, so it means exactly that and nothing softer. */
@@ -2365,7 +2378,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 /* On a map tile the badge sits over the art, top left, opposite the enlarge. */
 .console-mediatile-tier {
   position: absolute; top: 3px; left: 3px;
-  background: rgba(10, 5, 24, 0.72);
+  background: var(--scrim-media);
 }
 .console-mediatile-tier.console-tier--table { background: rgba(40, 24, 8, 0.85); }
 
@@ -2431,7 +2444,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    the name is the part being read, so asking for the mark would be a worse target
    than the thing it belongs to. */
 .console-placement { padding: 4px 2px; cursor: pointer; border-radius: 4px; }
-.console-placement:hover { background: rgba(255, 255, 255, 0.04); }
+.console-placement:hover { background: var(--wash-hover); }
 .console-placement-mark { font-size: 18px; color: var(--ink-3); margin-top: 1px; }
 /* Accent, because this is the one chosen - which is what accent is for. */
 .console-placement-mark--on { color: var(--accent); }
