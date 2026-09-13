@@ -778,11 +778,14 @@ class VPinFECore {
    *
    * Core's own chrome only - the menus, the overlays, the handful of strings every
    * theme was writing out for itself. A theme's own words stay a theme's business.
-   * Unknown keys answer with the key, never blank.
+   *
+   * `english` is what shows until the catalog arrives, which is a real window: the
+   * fetch in init is not awaited, so anything drawn before it lands would otherwise
+   * read as a key. Unknown keys with no English answer with the key, never blank.
    */
-  t(key, params = {}) {
-    const said = this.#words[key];
-    if (said === undefined) return key;
+  t(key, english = "", params = {}) {
+    const said = this.#words[key] ?? english;
+    if (!said) return key;
     return said.replace(/\{(\w+)\}/g, (whole, name) =>
       params[name] === undefined ? whole : params[name]);
   }
@@ -1579,11 +1582,12 @@ class VPinFECore {
     question.className = "vpinfe-confirm-question";
     // One entry, so the question mark is the translator's - Spanish opens with
     // an inverted one and French puts a space before it.
-    question.textContent = this.t("frontend.confirm.text",
+    question.textContent = this.t("frontend.confirm.question", "{what}?",
                                   { what: asking.description });
     const hint = document.createElement("p");
     hint.className = "vpinfe-confirm-hint";
-    hint.textContent = this.t("frontend.confirm.select_confirm_back_cancel");
+    hint.textContent = this.t("frontend.confirm.select_confirm_back_cancel",
+                              "Select to confirm, Back to cancel");
     card.appendChild(question);
     card.appendChild(hint);
     root.appendChild(card);

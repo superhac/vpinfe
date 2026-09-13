@@ -517,7 +517,7 @@ def _placement_label(item: dict[str, Any]) -> str:
 
 
 def _trimmed_stem(label: str) -> str:
-    """The .vpx name without its extension, short enough to read."""
+    """The file's name without its extension, short enough to read."""
     stem = label[:-4] if label.lower().endswith(".vpx") else label
     return stem if len(stem) <= 40 else "\u2026" + stem[-39:]
 

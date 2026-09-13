@@ -516,7 +516,7 @@ window.receiveEvent = function(event) {
     const percent = event.total > 0 ? Math.round((event.current / event.total) * 100) : 0;
     document.getElementById('progress-bar').style.width = `${percent}%`;
     document.getElementById('progress-text').textContent =
-      t('frontend.mainmenu.text', '{message} — {percent}%',
+      t('frontend.mainmenu.progress', '{message} — {percent}%',
         { message: event.message, percent });
   } else if (event.type === 'buildmeta_log') {
     const logContainer = document.getElementById('log-container');

@@ -1,9 +1,23 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
 // The browser surface vpinfe-core.js needs, and nothing more.
 //
 // The file touches five globals - window, document, WebSocket, fetch, navigator - so a
 // stub is small enough to read in one sitting. Anything a test does not exercise throws
 // rather than returning undefined, because a silent undefined is how a test passes while
 // the real thing is broken.
+
+// What `_serve_core_words` sends a page: the frontend's own namespace and the shared
+// vocabulary. Read from the real catalog so a test asserting on a word is asserting on
+// the word that ships, not on one written twice.
+function coreWords() {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+  const all = JSON.parse(readFileSync(join(root, "common/i18n/catalogs/en.json"), "utf8"));
+  return Object.fromEntries(Object.entries(all).filter(
+    ([key]) => key.startsWith("frontend.") || key.startsWith("word.")));
+}
 
 function unimplemented(name) {
   return () => {
@@ -115,6 +129,15 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
           ? documentStub.body : null;
         if (parent) parent.children.splice(parent.children.indexOf(el), 1);
       },
+      // An overlay is an iframe, and core fills its words when the frame loads. Nothing
+      // here fires a load event, so the listener is recorded and never called - which is
+      // the same path a frame served from cache takes.
+      listeners: {},
+      addEventListener(name, handler) { (el.listeners[name] ||= []).push(handler); },
+      removeEventListener(name, handler) {
+        el.listeners[name] = (el.listeners[name] || []).filter((one) => one !== handler);
+      },
+      contentDocument: null,
       contentWindow: { postMessage: (message) => el.posted.push(message) },
     };
     return el;
@@ -135,6 +158,10 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
     // nothing, which is the real behavior for a page that never opted in.
     _query: {},
     querySelector(selector) { return documentStub._query[selector] || null; },
+    // Core fills every [data-i18n] element from the catalog on init. A page with none
+    // is the ordinary case here, and a test that wants them puts them in `_queryAll`.
+    _queryAll: {},
+    querySelectorAll(selector) { return documentStub._queryAll[selector] || []; },
     readyState: "complete",
     _byId: { "overlay-root": element("overlay-root") },
     getElementById(id) { return documentStub._byId[id] || null; },
@@ -188,7 +215,13 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
     WebSocket: FakeWebSocket,
     Audio: FakeAudio,
     Image: FakeImage,
-    fetch: unimplemented("fetch"),
+    // Core asks for /core/i18n.json on init. An empty catalog is the honest answer
+    // here: every [data-i18n] element keeps the English between its tags and every
+    // runtime call passes its own, so a page with no catalog reads correctly. A test
+    // that wants words can replace this.
+    fetch: async (url) => (String(url).endsWith("/core/i18n.json")
+      ? { ok: true, json: async () => coreWords() }
+      : unimplemented(`fetch(${url})`)()),
     // The remote-launch stream. This used to swallow listeners, which is why nothing
     // could reach the handler behind it - and the handler was reading a field the
     // payload does not have. Keep it drivable.

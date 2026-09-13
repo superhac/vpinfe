@@ -105,7 +105,7 @@ def announce(request: Request,
     if is_mobile:
         address = payload.address.strip()
         if not address:
-            raise InvalidRequestError(t("error.devices.vpx_mobile_device_needs"))
+            raise InvalidRequestError(t("error.devices.mobile_device_needs"))
     else:
         client = getattr(request, "client", None)
         address = getattr(client, "host", "") or ""
