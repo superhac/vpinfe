@@ -68,11 +68,10 @@ _TOKENS = """
   /* Louder again, and only while a drag is actually over the target. */
   --drop-lit: rgba(0, 217, 255, 0.16);
 
-  /* The faint plate a bare control sits on, so it reads as a control without an edge. */
+  /* The faint plate a bare control sits on, and the zebra stripe down a list. Both are
+     always there, which is why they sit this far under --wash-hover: a stripe level
+     with the hover leaves a pointed-at row indistinguishable from an unpointed one. */
   --wash-lift: rgba(255, 255, 255, 0.02);
-  /* A zebra stripe. Near enough to --wash-hover to look like drift and it is not: a
-     stripe is always there and a hover is not, so a mode may want them apart. */
-  --wash-stripe: rgba(255, 255, 255, 0.055);
   /* The unfilled part of a progress bar - a track, not a wash. */
   --bar-track: rgba(255, 255, 255, 0.08);
 
@@ -1197,7 +1196,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
 /* Alternating ground. Rows are two lines tall here, so where one ends is not obvious
    from spacing alone - which is exactly when striping earns its keep. Kept very low
    contrast: it separates, it does not decorate. */
-.console-member-row:nth-child(even) { background: var(--wash-stripe); }
+.console-member-row:nth-child(even) { background: var(--wash-lift); }
 .console-member-row:hover { background: var(--surface-hover); }
 
 /* The row's action appears under the cursor. A column of identical glyphs down a long
