@@ -61,10 +61,10 @@ _TOKENS = """
      there to keep a picture legible rather than to interrupt. */
   --scrim-page: rgba(4, 2, 12, 0.78);
 
-  /* The accent as a fill. Two steps, because a control can be pointed at and engaged
-     at the same time and the second has to be the louder one. */
-  --accent-wash: rgba(0, 217, 255, 0.06);
-  --accent-wash-strong: rgba(0, 217, 255, 0.10);
+  /* The accent as a fill: a control that is pointed at, focused, or about to take a
+     drop. One step, not two - a focused field carries a ring as well, so the fill was
+     not the only thing saying so, and the fainter of the two was hard to see at all. */
+  --accent-wash: rgba(0, 217, 255, 0.10);
   /* Louder again, and only while a drag is actually over the target. */
   --drop-lit: rgba(0, 217, 255, 0.16);
 
@@ -1721,7 +1721,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 .console-action.q-btn:hover {
   border-color: var(--accent);
-  background: var(--accent-wash-strong);
+  background: var(--accent-wash);
 }
 /* The same control at the chip's scale, for an action that sits beside a state rather
    than after a field. The edge stays - without one it reads as a second value, and this
@@ -2165,7 +2165,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 }
 .console-edit-field .q-field--focused .q-field__control {
   border-color: var(--accent);
-  background: var(--accent-wash-strong);
+  background: var(--accent-wash);
 }
 /* What you typed is data, like a grid cell, so it rests at --ink-2 rather than the
    pure white Quasar leaves it at. A settings page is mostly long file paths in wide
