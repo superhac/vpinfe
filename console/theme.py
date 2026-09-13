@@ -95,6 +95,11 @@ _TOKENS = """
      the two alternating bands differently, so a run of selected rows stops reading as
      one block. */
   --row-select: #14314a;
+  /* The region the workbench works in, a step down from the panel around it. */
+  --surface-work: rgba(10, 5, 24, 0.55);
+  /* The brand magenta as a fill, for a row or an item under the pointer. Cyan answers
+     "which one" and is not available for this. */
+  --flair-wash: rgba(180, 41, 249, 0.14);
   --line: #2b1a4d;
   /* The visible edge, against --line's hairline: a menu, a dropped-file target and a
      panel header all need to be seen as an edge rather than felt as one. */
@@ -1469,7 +1474,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
      the header, so this starts at 0 or the band would not reach the panel's edge. */
   background: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 44px,
                               var(--panel-ground) 72px, var(--panel-ground) 80px,
-                              rgba(0, 0, 0, 0) 80px) !important;
+                              transparent 80px) !important;
 }
 /* Collapsed to the rail there is no window at all - the whole strip is panel, so it is
    opaque like every other part that is. The band above is untouched; only the cut to
@@ -1793,7 +1798,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 .console-viewer-bar {
   flex: 0 0 auto; padding: 8px 12px;
-  background: rgba(11, 5, 32, 0.9); border-bottom: 1px solid var(--line);
+  background: var(--surface-viewer); border-bottom: 1px solid var(--line);
 }
 /* Darker than Quasar's default: the art being judged is often bright. */
 .q-dialog__backdrop { background: var(--scrim-dialog) !important; }
@@ -2658,7 +2663,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
      that edge is a 400px stripe down a very wide region.
      Any alpha is a claim about what is behind it: this one is the page, and the tile
      fills inside here are measured against this. */
-  background-color: rgba(10, 5, 24, 0.55);
+  background-color: var(--surface-work);
   /* The window's two edges against the frame - left of it the rail, above it the
      header. Without the top one the panel just stops in mid-air where the paint ends. */
   border-left: 1px solid var(--line-soft);
@@ -2734,7 +2739,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    of standing in for it, and they still work where the band paints nothing and the
    rail's strip is what shows through. */
 .console-section-row:hover {
-  background-image: linear-gradient(rgba(180, 41, 249, 0.14), rgba(180, 41, 249, 0.14));
+  background-image: linear-gradient(var(--flair-wash), var(--flair-wash));
 }
 /* Carries the row's padding, so every pixel of the band picks the section. The right
    gutter is wider than the left to hold a mark in the corner. Reserved on every row
@@ -2812,7 +2817,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   border-radius: 6px; padding: 4px 10px; cursor: pointer;
   font-size: var(--fs-body);
                   color: var(--ink-2); }
-.console-index-item:hover { background: rgba(180, 41, 249, 0.14); }
+.console-index-item:hover { background: var(--flair-wash); }
 .console-bar { height: 6px; border-radius: 3px; background: var(--bar-track); }
 .console-bar > div { height: 100%; border-radius: 3px; background: var(--accent); }
 """

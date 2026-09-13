@@ -84,7 +84,7 @@ class LiteralTests(unittest.TestCase):
     it had always claimed to match. Fifty colors were there the whole time.
     """
 
-    CEILING = 28
+    CEILING = 24
 
     def test_no_new_color_is_typed_rather_than_named(self) -> None:
         found = _colors_typed_in(theme._FLAIR + theme._COMPONENTS)
