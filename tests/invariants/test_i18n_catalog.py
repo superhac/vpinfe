@@ -371,9 +371,18 @@ class TestCatalogs(unittest.TestCase):
             for k, v in SOURCE.items()}
         self.assertEqual(recorded, current, "run scripts/i18n.py --record")
 
+    def test_the_pseudo_locale_is_in_step_with_english(self) -> None:
+        """A stale `qps` makes the render check pass on words it can no longer see."""
+        pseudo = CATALOGS / "qps.json"
+        if not pseudo.is_file():
+            self.skipTest("no pseudo-locale generated")
+        held = json.loads(pseudo.read_text(encoding="utf-8"))
+        self.assertEqual(sorted(held), sorted(SOURCE),
+                         "run scripts/i18n.py --pseudo")
+
     def test_no_translation_holds_a_key_english_does_not(self) -> None:
         for path in sorted(CATALOGS.glob("*.json")):
-            if path.stem in ("en", "en.hashes"):
+            if path.stem in ("en", "en.hashes", "qps"):
                 continue
             with self.subTest(locale=path.stem):
                 extra = sorted(set(json.loads(path.read_text(encoding="utf-8"))) - set(SOURCE))

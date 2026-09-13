@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from common.games.ids import new_id
+from common.i18n import t
 
 logger = logging.getLogger("vpinfe.console.views")
 
@@ -145,3 +146,18 @@ def _sort_key(sort: Any) -> list[tuple[str, str]]:
     ordered = sorted((entry for entry in (sort or []) if entry.get("sort")),
                      key=lambda entry: entry.get("sortIndex") or 0)
     return [(str(entry.get("colId")), str(entry.get("sort"))) for entry in ordered]
+
+
+# The views VPinFE ships, and what to call them. Their *names* are identifiers - stored
+# in ui-preferences through `grid.layout_scope` - so the name never moves and this is
+# where it gets a word. A view somebody saved is not here: they named it, and their
+# words are theirs.
+BUILTIN_VIEW_NAMES = ("Machine", "Media", "Assets", "Table", "In this library")
+
+
+def builtin_name(name: str) -> str:
+    """What to call a view. A name we did not ship comes back untouched."""
+    said = str(name or "")
+    if said not in BUILTIN_VIEW_NAMES:
+        return said
+    return t(f"console.view.{said.lower().replace(' ', '_')}")

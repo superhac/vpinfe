@@ -1353,7 +1353,7 @@ def _view_name(view: Any) -> str:
     """Whatever it is called. A name somebody typed is shown as they typed it - the
     built-ins come first in the list and only a view of theirs offers to be deleted,
     which is enough to tell them apart without editing anybody's words."""
-    return view.name
+    return views.builtin_name(view.name)
 
 
 def _ask_name(save) -> None:

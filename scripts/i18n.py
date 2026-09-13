@@ -51,6 +51,36 @@ def referenced():
     return exact, {p for p in prefixes if p}
 
 
+# Every ASCII letter mapped to something that looks like it and is not it. A word that
+# reaches the screen still spelled in ASCII did not come through the catalog, which is
+# the whole of the check - see tests/theming for the run.
+_ACCENTS = str.maketrans(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    "\u00e0\u0180\u00e7\u0111\u00e8\u0192\u011d\u0125\u00ee\u0135\u0137\u0140"
+    "\u0271\u00f1\u00f6\u00fe\u01eb\u0159\u0161\u0163\u00fb\u1e7d\u0175\u1e8b"
+    "\u00fd\u017e"
+    "\u00c0\u0181\u00c7\u0110\u00c8\u0191\u011c\u0124\u00ce\u0134\u0136\u013f"
+    "\u1e3e\u00d1\u00d6\u00de\u01ea\u0158\u0160\u0162\u00db\u1e7c\u0174\u1e8a"
+    "\u00dd\u017d")
+
+
+def _accent(text):
+    """The same sentence, unreadable to a grep for English, with its slots intact."""
+    out, i = [], 0
+    while i < len(text):
+        if text[i] == "{":
+            end = text.find("}", i)
+            if end == -1:
+                out.append(text[i:])
+                break
+            out.append(text[i:end + 1])
+            i = end + 1
+            continue
+        out.append(text[i].translate(_ACCENTS))
+        i += 1
+    return "".join(out)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -59,6 +89,8 @@ def main():
                     help="translations written against English that has since changed")
     ap.add_argument("--unused", action="store_true", help="catalog keys nothing asks for")
     ap.add_argument("--coverage", action="store_true", help="percentage per locale, per tier")
+    ap.add_argument("--pseudo", action="store_true",
+                    help="write the qps pseudo-locale, for the runtime leak check")
     ap.add_argument("--record", action="store_true",
                     help=f"rewrite {HASHES.name} to match {SOURCE}.json, after a reword")
     args = ap.parse_args()
@@ -69,6 +101,15 @@ def main():
         HASHES.write_text(json.dumps({k: digest(v) for k, v in sorted(source.items())},
                                      indent=2) + "\n", encoding="utf-8")
         print(f"recorded {len(source)} keys in {HASHES.name}")
+        return 0
+
+    if args.pseudo:
+        out = {k: _accent(v) if isinstance(v, str)
+               else {kk: _accent(vv) for kk, vv in v.items()}
+               for k, v in source.items()}
+        path = CATALOGS / "qps.json"
+        path.write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"wrote {path.name}: {len(out)} entries")
         return 0
 
     if args.missing:

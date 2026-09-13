@@ -15,6 +15,8 @@ from typing import Any
 
 from nicegui import ui
 
+from common.i18n import t
+
 # Rows that are not a fact. A group's title and an action strip span both columns, so
 # every group keeps the one shared label width.
 HEADING = object()
@@ -81,8 +83,8 @@ def sections(entries: Sequence[tuple[Any, ...]], current: str,
              on_pick: Callable[[str], Any], *, rail_px: int = RAIL_PX) -> Any:
     """The rail and the region it opens into, returning the region.
 
-    `entries` are `(key, label)` with an optional third element for a hint and a fourth
-    for a mark drawn before the name, or `(GROUP, name)` for a heading over the rows
+    `entries` are `(key, catalog key)` with an optional third element for a hint's key
+    and a fourth for a mark drawn before the name, or `(GROUP, name)` for a heading over the rows
     that follow it.
 
     Two regions, not loose rows: the rail scrolls on its own and the open page beside it
@@ -98,9 +100,9 @@ def sections(entries: Sequence[tuple[Any, ...]], current: str,
                 hint = entry[2] if len(entry) > 2 else ""
                 mark = entry[3] if len(entry) > 3 else None
                 if key is GROUP:
-                    _rail_group(label, mark)
+                    _rail_group(t(label), mark)
                     continue
-                _rail_row(str(key), label, str(key) == current, on_pick, hint, mark)
+                _rail_row(str(key), t(label), str(key) == current, on_pick, t(hint), mark)
         work = ui.element("div").classes("min-w-0 console-section-work")
     return work
 

@@ -93,10 +93,16 @@ def language() -> str:
     return _language
 
 
+# Not a language. `qps` is the pseudo-locale the render check runs under - every letter
+# replaced by one that is not ASCII, so anything still readable on screen never went
+# through the catalog. Settable by hand for that test; never offered as a choice.
+PSEUDO = "qps"
+
+
 def available() -> tuple[str, ...]:
     """The catalogs on disk, so a settings control offers what exists."""
     return tuple(sorted(p.stem for p in CATALOGS.glob("*.json")
-                        if not p.stem.endswith(".hashes")))
+                        if not p.stem.endswith(".hashes") and p.stem != PSEUDO))
 
 
 def is_prose(key: str) -> bool:

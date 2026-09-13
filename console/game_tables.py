@@ -13,6 +13,9 @@ JOIN = " · "
 # The groups a fact belongs to, spelled once: the panel draws them as headings and the
 # grid's built-in views are named for them, so crossing between the two is not a
 # translation. Only the groups that have rows.
+# Shown, but also stored: `grid.layout_scope` keys saved column geometry on
+# "scope::view", so this name is in ui-preferences.json on every install that has
+# arranged the grid. It stays an identifier and `_view_name` resolves it.
 MACHINE = "Machine"
 # "Table File", not "File": a panel that also shows a table ini, a script and a rom
 # left a reader asking which file. Chris, 2026-09-01, with `Default Table` below.

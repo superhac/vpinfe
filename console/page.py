@@ -84,7 +84,7 @@ RAIL_PX = 57
 # bare heading, which would be the one thing in this rail that is not a place. It is a
 # disclosure rather than a destination: a row that both navigated and collapsed would
 # make one click mean two things, and the children are the destinations.
-NAV_PARENT = ("library", "Library", "inventory_2")
+NAV_PARENT = ("library", "console.section.library", "inventory_2")
 
 # The other container, and its three are the split between what a machine is configured
 # to do and what it has recorded doing. Records are places; configuration is a setting -
@@ -96,9 +96,9 @@ NAV_PARENT = ("library", "Library", "inventory_2")
 # Launchers sat under System until 2026-09-05 and never fitted - System's three are
 # configuration and records, and a launcher is neither. It was also the one child there
 # gated on a feature rather than on `core`, which is the tell.
-NAV_FRONTEND = ("frontend", "Frontend", "smart_display")
+NAV_FRONTEND = ("frontend", "console.section.frontend", "smart_display")
 
-NAV_SYSTEM = ("system", "System", "settings")
+NAV_SYSTEM = ("system", "console.section.system", "settings")
 
 # Which feature each destination answers for, `core` being the one every install has. An
 # install without a feature does not show its section at all - not greyed and not empty,
@@ -107,34 +107,35 @@ NAV_SYSTEM = ("system", "System", "settings")
 NavItem = tuple[str, str, str, str]
 
 NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] = (
-    (None, (("overview", "Overview", "space_dashboard", install_identity.OVERVIEW),)),
+    (None, (("overview", "console.section.overview", "space_dashboard",
+        install_identity.OVERVIEW),)),
     # Media sits with the grains of the library it is one of, ahead of the two that
     # organize it rather than being part of it. Locations is last: it is where the rest
     # comes from, but it is touched at setup and when a share breaks, and the first entry
     # here is also the Console's front door.
-    (NAV_PARENT, (("games", "Games", icons.GAMES, install_identity.LIBRARY),
-                  ("tables", "Tables", icons.TABLES, install_identity.LIBRARY),
-                  ("media", "Media", "perm_media", install_identity.LIBRARY),
-                  ("assets", "Assets", "widgets", install_identity.LIBRARY),
-                  ("collections", "Collections", "collections_bookmark",
+    (NAV_PARENT, (("games", "console.section.games", icons.GAMES, install_identity.LIBRARY),
+                  ("tables", "console.section.tables", icons.TABLES, install_identity.LIBRARY),
+                  ("media", "console.section.media", "perm_media", install_identity.LIBRARY),
+                  ("assets", "console.section.assets", "widgets", install_identity.LIBRARY),
+                  ("collections", "console.section.collections", "collections_bookmark",
                    install_identity.LIBRARY),
-                  ("tags", "Tags", "sell", install_identity.LIBRARY),
-                  ("locations", "Locations", "folder_open",
+                  ("tags", "console.section.tags", "sell", install_identity.LIBRARY),
+                  ("locations", "console.section.locations", "folder_open",
                    install_identity.LIBRARY))),
     # Subjects, not settings: both are collections of objects with per-row actions,
     # which is not what a page of (label, value) pairs does. The frontend's *settings*
     # stay in Settings, the way media's do - one holds things, the other holds values.
-    (NAV_FRONTEND, (("launchers", "Launchers", "rocket_launch",
+    (NAV_FRONTEND, (("launchers", "console.section.launchers", "rocket_launch",
                      install_identity.FRONTEND),
-                    ("themes", "Themes", "palette", install_identity.FRONTEND))),
-    (None, (("devices", "Devices", "devices", install_identity.DEVICES),
-            ("extensions", "Extensions", "extension", install_identity.CORE))),
+                    ("themes", "console.section.themes", "palette", install_identity.FRONTEND))),
+    (None, (("devices", "console.section.devices", "devices", install_identity.DEVICES),
+            ("extensions", "console.section.extensions", "extension", install_identity.CORE))),
     # Last, and always here: every other section exists because a feature is enabled,
     # and this is where features are switched on.
-    (NAV_SYSTEM, (("settings", "Settings", "tune", install_identity.CORE),
-                  ("metrics", "Metrics", "monitor_heart", install_identity.CORE),
-                  ("logs", "Logs", "description", install_identity.CORE),
-                  ("about", "About", "info", install_identity.CORE))),
+    (NAV_SYSTEM, (("settings", "console.section.settings", "tune", install_identity.CORE),
+                  ("metrics", "console.section.metrics", "monitor_heart", install_identity.CORE),
+                  ("logs", "console.section.logs", "description", install_identity.CORE),
+                  ("about", "console.section.about", "info", install_identity.CORE))),
 )
 
 
@@ -165,22 +166,22 @@ def landing_for(views: list[str]) -> str:
 # fact about the data behind the page, not a caption for it - printing "one row is one
 # collection" over a page of cards described something that was not on the screen.
 SECTIONS = {
-    "overview": "Overview",
-    "games": "Games",
-    "tables": "Tables",
-    "tags": "Tags",
-    "locations": "Locations",
-    "collections": "Collections",
-    "media": "Media",
-    "assets": "Assets",
-    "devices": "Devices",
-    "extensions": "Extensions",
-    "settings": "Settings",
-    "launchers": "Launchers",
-    "themes": "Themes",
-    "metrics": "Metrics",
-    "logs": "Logs",
-    "about": "About",
+    "overview": "console.section.overview",
+    "games": "console.section.games",
+    "tables": "console.section.tables",
+    "tags": "console.section.tags",
+    "locations": "console.section.locations",
+    "collections": "console.section.collections",
+    "media": "console.section.media",
+    "assets": "console.section.assets",
+    "devices": "console.section.devices",
+    "extensions": "console.section.extensions",
+    "settings": "console.section.settings",
+    "launchers": "console.section.launchers",
+    "themes": "console.section.themes",
+    "metrics": "console.section.metrics",
+    "logs": "console.section.logs",
+    "about": "console.section.about",
 }
 
 
@@ -215,14 +216,14 @@ _NAV_CLICK = """
 # selects: three of them select something and the rest do not, and one asking for a game
 # on a page with no games is the panel describing a different screen.
 EMPTY_PANE = {
-    "games": ("Game Details", "Select a game"),
-    "tables": ("Table Details", "Select a table"),
-    "collections": ("Collection", "Select a collection"),
-    "media": ("Media", "Select a kind of media"),
-    "assets": ("Assets", "Select a kind of file"),
-    "devices": ("Device", "Select a device"),
-    "locations": ("Location", "Select a location"),
-    "launchers": ("Launcher", "Select a launcher"),
+    "games": ("console.page.empty_game_details", "console.page.empty_select_a_game"),
+    "tables": ("console.page.empty_table_details", "console.page.empty_select_a_table"),
+    "collections": ("console.page.empty_collection", "console.page.empty_select_a_collection"),
+    "media": ("console.page.empty_media", "console.page.empty_select_a_kind_of_media"),
+    "assets": ("console.page.empty_assets", "console.page.empty_select_a_kind_of_file"),
+    "devices": ("console.page.empty_device", "console.page.empty_select_a_device"),
+    "locations": ("console.page.empty_location", "console.page.empty_select_a_location"),
+    "launchers": ("console.page.empty_launcher", "console.page.empty_select_a_launcher"),
 }
 
 # The pages the pane has a role on. Media is one of them: a row is one game's slot, so
@@ -924,7 +925,10 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         panel.clear()
         # The same two-line shape a selected game gets, so the header does not change
         # height or alignment as the selection comes and goes.
-        heading, prompt = EMPTY_PANE.get(state["view"], ("Game Details", "Select a game"))
+        heading, prompt = EMPTY_PANE.get(
+            state["view"],
+            ("console.page.empty_game_details", "console.page.empty_select_a_game"))
+        heading, prompt = t(heading), t(prompt)
         with workbench_title:
             ui.label(heading) \
                 .classes("text-base console-workbench-title leading-tight truncate")
@@ -941,7 +945,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         Here rather than in an app header because each pane already owns its chrome,
         and a fourth band would cost height on every page for one line.
         """
-        title = SECTIONS.get(state["view"], state["view"].title())
+        title = t(SECTIONS.get(state["view"], state["view"].title()))
         # The band the other two panes' headers use, so the page name sits in a fixed
         # rhythm rather than at whatever height its text makes. Not aligned *across*
         # panes - the nav's band is taller than its minimum and starts inside its own
@@ -1222,7 +1226,7 @@ def _nav_parent(parent: tuple[str, str, str], state: dict[str, Any],
             badge = ui.label("").classes("console-nav-badge")
             badge.set_visibility(False)
             badges[key] = badge
-        labels.append(ui.label(label).classes("console-nav-item whitespace-nowrap"))
+        labels.append(ui.label(t(label)).classes("console-nav-item whitespace-nowrap"))
         ui.space()
         caret = ui.icon("expand_more", size="20px").classes("opacity-60 shrink-0")
         labels.append(caret)
@@ -1269,7 +1273,7 @@ def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
         # `no-wrap` on the row and nowrap on the label. A rail entry is one line by
         # definition, and the rail scrolls once there are enough of them - which takes a
         # scrollbar's width off every row and was enough to break "Collections" in two.
-        labels.append(ui.label(label)
+        labels.append(ui.label(t(label))
                       .classes("console-nav-item whitespace-nowrap"))
     destinations[key] = row
     if held is not None and nested:

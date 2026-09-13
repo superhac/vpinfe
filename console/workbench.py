@@ -49,6 +49,7 @@ from console import (
     panel,
     stars,
     table_features,
+    views,
     vps_match,
 )
 from console import commands as commands_help
@@ -1295,7 +1296,7 @@ def _identity_rows(context: dict[str, Any]) -> None:
         return write
 
     entries: list[tuple[Any, Any]] = [
-        (HEADING, game_tables.MACHINE),
+        (HEADING, views.builtin_name(game_tables.MACHINE)),
         ("Name", _override(game.get("name") or "", found.get("name") or "",
                            "VPS", save("alt_title"))),
         ("Made by", f"{game.get('manufacturer') or '?'} "
@@ -4628,8 +4629,8 @@ def _add_control(context: dict[str, Any], members: list[dict]) -> None:
 SECTIONS: tuple[Section, ...] = (
     # The game first, then the file: a table belongs to a game, and reading down is
     # reading from the thing that contains to the thing contained.
-    Section("game_details", lambda _: "Game Details", _game_block),
-    Section("table_details", lambda _: "Table Details", _table_block,
+    Section("game_details", lambda _: t("console.workbench.section_game_details"), _game_block),
+    Section("table_details", lambda _: t("console.workbench.section_table_details"), _table_block,
             subjects=frozenset({"table"})),
     # Beside the game's own facts: the match is how this game is identified, and the
     # section exists so that is something a person can see and change rather than an
@@ -4641,16 +4642,17 @@ SECTIONS: tuple[Section, ...] = (
     Section("assets", _assets_label, _assets_block),
     # Two, not three. A rule and what it matches are one thing to look at, so the rule
     # sits in the browse region and the result in the dock beside it.
-    Section("location_details", lambda _: "Details", _location_details,
+    Section("location_details", lambda _: t("console.workbench.section_details"), _location_details,
             subjects=frozenset({"location"})),
     # A launcher, in reading order: what it is and what it runs, then the program's own
     # settings grouped as the app declares them, then what can be done to it.
-    Section("launcher_setup", lambda _: "Setup", _launcher_setup,
+    Section("launcher_setup", lambda _: t("console.workbench.section_setup"), _launcher_setup,
             subjects=frozenset({"launcher"})),
     *_launcher_config_sections(),
-    Section("launcher_actions", lambda _: "Actions", _launcher_actions,
+    Section("launcher_actions", lambda _: t("console.workbench.section_actions"), _launcher_actions,
             subjects=frozenset({"launcher"})),
-    Section("collection_details", lambda _: "Details", _collection_details,
+    Section("collection_details", lambda _: t("console.workbench.section_details"),
+            _collection_details,
             subjects=frozenset({"collection"})),
     Section("collection_contents", _contents_label, _collection_contents,
             subjects=frozenset({"collection"}), dock=True),
@@ -4659,16 +4661,17 @@ SECTIONS: tuple[Section, ...] = (
     # here at all - they are a door in Details into that install's own Console, because a
     # build's settings belong to that build and rendering them from here meant fetching
     # its schema over HTTP.
-    Section("device_details", lambda _: "Details", _device_details,
+    Section("device_details", lambda _: t("console.workbench.section_details"), _device_details,
             subjects=frozenset({"device"})),
-    Section("device_software", lambda _: "Software", _device_software,
+    Section("device_software", lambda _: t("console.workbench.section_software"), _device_software,
             subjects=frozenset({"device"})),
-    Section("device_capabilities", lambda _: "Capabilities", _device_capabilities,
+    Section("device_capabilities", lambda _: t("console.workbench.section_capabilities"),
+            _device_capabilities,
             subjects=frozenset({"device"})),
-    Section("device_logs", lambda _: "Logs", _device_logs,
+    Section("device_logs", lambda _: t("console.workbench.section_logs"), _device_logs,
             subjects=frozenset({"device"})),
     # Last, and it is the only one that changes anything: reading down the rail is
     # reading from what a device is to what can be done to it.
-    Section("device_actions", lambda _: "Actions", _device_actions,
+    Section("device_actions", lambda _: t("console.workbench.section_actions"), _device_actions,
             subjects=frozenset({"device"})),
 )
