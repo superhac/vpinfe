@@ -336,7 +336,7 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
                 .classes("console-fact-value truncate min-w-0")
             panel.action(t("console.settings.check_now"), now, icon="sync", inline=True)()
 
-    return [(panel.HEADING, "Catalog"), ("Last checked", checked)]
+    return [(panel.HEADING, "Catalog"), (t("console.settings.fact_last_checked"), checked)]
 
 
 async def _input_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:

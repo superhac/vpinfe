@@ -206,11 +206,9 @@ async def remove(library, row: dict[str, Any]) -> bool:
     """Asked about first. The games in it leave the library, and their records go with
     them - which is where they live, so they are there again if it comes back."""
     if not await confirm.ask(
-            f"Stop looking in {row.get('name') or 'this location'}?",
-            detail="The games in it leave the library. Nothing on disk is touched, and "
-                   "adding the folder again brings them back with their media and "
-                   "their history.",
-            confirm="Remove"):
+            t("console.locations.ask_stop_looking_in", value=(row.get('name') or 'this location')),
+            detail=t("console.locations.ask_the_games_in_it_leave_the"),
+            confirm=t("console.locations.ask_remove")):
         return False
     try:
         await run.io_bound(library.delete_location, row["location_id"])

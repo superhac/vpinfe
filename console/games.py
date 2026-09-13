@@ -214,7 +214,7 @@ def asset_columns(keys: list[str]) -> list[dict[str, Any]]:
 # Word -> how to draw it, derived from the vocabulary rather than restated. The cell
 # holds the word and the mark is drawn from it here; `console/data.py` has why.
 _MARK_BY_WORD = {
-    tier.noun: {"mark": tier.mark, "why": tier.why}
+    tier.noun: {"mark": tier.mark, "why": t(tier.why), "word": t(tier.noun)}
     for tier in (media_ownership.tier_for(key) for key in media_ownership.STATES)
 }
 
@@ -252,7 +252,7 @@ _MARK_RENDERER = (
     " + row.id + '\" data-kind=\"' + kind + '\">open_in_full</i></span>'; }"
     " const m = " + json.dumps(_MARK_BY_WORD) + ";"
     " const t = m[params.value]; if (!t) return '';"
-    " const tip = params.value + ' \u2014 ' + t.why;"
+    " const tip = t.word + ' \u2014 ' + t.why;"
     " return '<span class=\"console-mark ' + t.mark + '\" title=\"' + tip"
     " + '\"></span>'; }"
 )
@@ -421,9 +421,10 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                               "console-tier-key") as legend:
             for key in media_ownership.LEGEND:
                 tier = media_ownership.tier_for(key)
-                with ui.row().classes("items-center gap-1 no-wrap").tooltip(tier.why):
+                with ui.row().classes("items-center gap-1 no-wrap") \
+                        .tooltip(t(tier.why)):
                     ui.element("span").classes(f"console-mark {tier.mark}")
-                    ui.label(tier.noun)
+                    ui.label(t(tier.noun))
         legend.bind_visibility_from(view_picker, "value",
                                     lambda value: value == "builtin:Media")
         # The selection count sits with the total: it is the same fact - how much am I
@@ -985,9 +986,8 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     async def drop_script(row: dict[str, Any]) -> None:
         """Asked, because a patched table quietly becomes an unpatched one."""
         if not await confirm.ask(
-                "Delete the script beside this table?",
-                detail="The table goes back to the script inside its .vpx. Anything the "
-                       "sidecar held - a patch, an edit - goes with it.",
+                t("console.games.ask_delete_the_script_beside"),
+                detail=t("console.games.ask_the_table_goes_back_to_the"),
                 lines=[f"{Path(str(row.get('filename') or '')).stem}.vbs"]):
             return
         await act(library.delete_script, row["game_id"], row["id"],

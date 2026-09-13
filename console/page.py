@@ -296,7 +296,7 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
             await run.io_bound(library.abort_upload, drop.upload_id)
             return
         if analysis.get("error"):
-            ui.notify(t("console.page.could_not_read_that_drop", value=(analysis['error'])),
+            ui.notify(t("console.page.could_not_read_that_drop", exc=(analysis['error'])),
                       type="negative")
             await run.io_bound(library.abort_upload, drop.upload_id)
             return

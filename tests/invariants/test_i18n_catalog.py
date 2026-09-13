@@ -94,13 +94,15 @@ DISPLAY_ARG = {"column": 1, "two_line": 0, "intro": 0, "note": 0, "state": 0,
                "header": 0, "fact": 0, "action": 0, "trouble_mark": 0}
 # `search` only as `panel.search`: `re.search` is the same attribute name and its first
 # argument is a pattern, not a placeholder.
-QUALIFIED = {("panel", "search"): 0}
+QUALIFIED = {("panel", "search"): 0, ("confirm", "ask"): 0}
 DISPLAY_KWARGS = {"label", "text", "title", "placeholder", "tooltip", "help", "message",
                   "description", "caption", "hint", "said", "header", "headerName",
-                  # A column group is a header over other headers. `summary` and `reason`
-                  # are deliberately absent: they name OpenAPI metadata and a WebSocket
-                  # close reason far more often than they name anything on a screen.
-                  "group"}
+                  # A column group is a header over other headers. `detail` and
+                  # `confirm` are the confirm dialog's own - its question is a positional
+                  # argument, so QUALIFIED carries that half. `summary` and `reason` are
+                  # deliberately absent: they name OpenAPI metadata and a WebSocket close
+                  # reason far more often than anything on a screen.
+                  "group", "detail", "confirm"}
 # Constructors whose `description` and `title` are the API's own documentation - the
 # OpenAPI page and the capability list an integrator reads, not anything on a screen.
 # Same line §9 draws for logs and docs/: it says the same thing on every install.
@@ -372,6 +374,73 @@ class TestFrontendChrome(unittest.TestCase):
                 if key not in served:
                     missing.append(f"{path.relative_to(ROOT)}: {key}")
         self.assertEqual(missing, [], "the markup names a key the catalog does not hold")
+
+
+class TestPanelFactLabels(unittest.TestCase):
+    """`panel.facts` takes (label, control) pairs, so the label is never an argument.
+
+    Sixty-six of these were English after the render check called every section clean -
+    a panel only draws when something is selected, and the fixture selects nothing.
+    """
+
+    def test_no_pair_carries_a_bare_label(self) -> None:
+        import re as _re
+        offenders = []
+        for path in sorted((ROOT / "console").rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if not isinstance(node, ast.Tuple) or len(node.elts) != 2:
+                    continue
+                label, control = node.elts
+                if not (isinstance(label, ast.Constant)
+                        and isinstance(label.value, str)):
+                    continue
+                if not isinstance(control, (ast.Call, ast.Lambda, ast.Name, ast.IfExp,
+                                            ast.Attribute, ast.Subscript, ast.BoolOp)):
+                    continue
+                said = label.value.strip()
+                if len(said) < 3 or not said[:1].isupper():
+                    continue
+                if _re.fullmatch(r"[A-Za-z][A-Za-z '/-]*", said):
+                    offenders.append(f"{path.relative_to(ROOT)}:{label.lineno} "
+                                     f"({said!r}, ...)")
+        self.assertEqual(offenders, [], "a fact's label belongs in the catalog too")
+
+
+class TestParametersMatchTheirTemplate(unittest.TestCase):
+    """`t(key, exc=...)` against an entry that says `{reason}` renders the brace.
+
+    Four of these shipped, and every check I had passed over all four: the call is a
+    `t()` so nothing flags a literal, and the entry exists so nothing flags a miss. The
+    two only disagree when you read them together.
+    """
+
+    def test_every_call_fills_exactly_the_slots_its_entry_has(self) -> None:
+        import string
+        offenders = []
+        for root in ("console", "frontend", "httpapi", "common"):
+            for path in sorted((ROOT / root).rglob("*.py")):
+                if "__pycache__" in path.parts:
+                    continue
+                for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                    if not isinstance(node, ast.Call) \
+                       or getattr(node.func, "id", None) != "t":
+                        continue
+                    if not node.args or not isinstance(node.args[0], ast.Constant):
+                        continue
+                    entry = SOURCE.get(node.args[0].value)
+                    if not isinstance(entry, str):
+                        continue
+                    wants = {name for _, name, _, _
+                             in string.Formatter().parse(entry) if name}
+                    fills = {kw.arg for kw in node.keywords if kw.arg}
+                    if wants != fills:
+                        offenders.append(
+                            f"{path.relative_to(ROOT)}:{node.lineno} "
+                            f"{node.args[0].value} wants {sorted(wants)}, "
+                            f"gets {sorted(fills)}")
+        self.assertEqual(offenders, [], "a slot nobody fills renders as its own name")
 
 
 class TestCatalogs(unittest.TestCase):

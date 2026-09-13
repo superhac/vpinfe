@@ -452,8 +452,12 @@ def _run_ui():
     logger.info("Manager UI expected URLs: %s", ", ".join(_manager_ui_urls(_ui_port)))
     # One process serves the Console and the Manager UI, so this is where NiceGUI's own
     # language is settled for both: Quasar's pack and the reconnect overlay. Not on the
-    # @ui.page decorators - `resolve_language()` reads app.config per request, so leaving
-    # them unset is what keeps a language change a reload rather than a restart.
+    # @ui.page decorators - `resolve_language()` reads app.config per request, so this
+    # stays settable without re-registering the routes.
+    #
+    # That is *not* the same as a live language switch. 202 labels are built at import,
+    # in the module-level COLUMNS lists of eight Console pages, so changing the setting
+    # takes a restart. The setting's own description says so.
     ui.run(title='VPinFE Manager UI',
            favicon=_FAVICON,
            host=_ui_bind,

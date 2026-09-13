@@ -189,9 +189,15 @@ def choice_filter(choices: list[dict[str, Any]], *,
     `formatted=True` where the column writes its own: a tick column formats a boolean
     and would collide with one written here.
     """
+    # Only a string value is a token with a word for it. A boolean or a number is the
+    # cell's own content and the column formats it - keying this on `str(True)` built a
+    # map a JavaScript `true` never matched, and it landed *after* the column's own
+    # formatter in the dict, so every tick column printed `true`/`false`.
     shown = {} if formatted else {
-        str(one.get("value")): str(one.get("label")) for one in choices
-        if str(one.get("label") or "") != str(one.get("value") or "")}
+        one["value"]: str(one.get("label"))
+        for one in choices
+        if isinstance(one.get("value"), str) and one["value"]
+        and str(one.get("label") or "") != one["value"]}
     out: dict[str, Any] = {":filter": CHOICE_FILTER,
                            "filterParams": {"choices": choices}}
     if shown:

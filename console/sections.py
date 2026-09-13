@@ -260,7 +260,8 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
             not pending, "Format",
             "Every game is on the current format" if not pending
             else f"{pending} were written by an older build and can be brought forward",
-            None if not pending else ("Upgrade", lambda: on_start("upgrade")))
+            None if not pending else (t("console.sections.fact_upgrade"),
+                    lambda: on_start("upgrade")))
 
         # No action: the fix is on disk, in a file this cannot repair without guessing
         # what it was meant to say. Naming the folders is the whole of the help.
@@ -287,7 +288,7 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
                 True, "Backups",
                 f"{restorable} games have a saved copy"
                 + (f" from {when}" if when else "") + ", taken before an upgrade",
-                ("Restore", lambda: on_start("restore")))
+                (t("console.sections.fact_restore"), lambda: on_start("restore")))
 
 
 # --- The scripts the tables run ---------------------------------------------------
@@ -337,11 +338,13 @@ def table_scripts(library: Library) -> None:
                     True, "Script fixes",
                     "The community publishes script fixes that let a table run under "
                     "Standalone. Nothing has been asked yet.",
-                    ("Check", check))
+                    (t("console.sections.fact_check"), check))
                 return
             good, said = _scripts_said(found)
-            _metadata_row(good, "Script fixes", said,
-                          ("Fetch", fetch) if found.get("offered") else ("Check", check))
+            _metadata_row(good, t("console.sections.script_fixes"), said,
+                          (t("console.sections.fact_fetch"), fetch)
+                          if found.get("offered")
+                          else (t("console.sections.fact_check"), check))
 
     async def check() -> None:
         await run.io_bound(library.read_script_patches)
@@ -350,11 +353,9 @@ def table_scripts(library: Library) -> None:
     async def fetch() -> None:
         offered = list(library.script_patches().get("offered") or [])
         if not await confirm.ask(
-                f"Fetch fixes for {len(offered)} table(s)?",
-                detail="Each one lands as a .vbs beside the table it is for, and VPX "
-                       "runs it instead of the script the table ships with. A table "
-                       "that already has one is left alone.",
-                confirm="Fetch", danger=False):
+                t("console.sections.ask_fetch_fixes_for_table_s", len=(len(offered))),
+                detail=t("console.sections.ask_each_one_lands_as_a_vbs"),
+                confirm=t("console.sections.ask_fetch"), danger=False):
             return
         try:
             await run.io_bound(ApiClient().apply_script_patches)

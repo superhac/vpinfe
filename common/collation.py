@@ -29,14 +29,11 @@ _WHOLE_LETTERS = str.maketrans({
 _BULK = {
     "CJK": "漢",
     "HIRAGANA": "あ",
+    # Both kana answer with the same group: they collate together, and a reader should
+    # not have to know which of two lists to look in.
     "KATAKANA": "あ",
     "HANGUL": "가",
 }
-
-# Kana collate together, so the two of them answer with one group rather than two that
-# a reader would have to know to look in both of.
-_KATAKANA_TO_HIRAGANA = 0x60
-
 
 def fold(text: str) -> str:
     """Base letters, lowercased: what ordering and grouping both compare on.
@@ -87,8 +84,6 @@ def letter_of(text: str) -> str:
 
     script = _script(first)
     if script in _BULK:
-        if script == "KATAKANA":
-            first = chr(ord(first) - _KATAKANA_TO_HIRAGANA)
         return _BULK[script]
     # An alphabet of its own - Cyrillic, Greek, Hebrew, Arabic. Few enough letters that a
     # group each is a list somebody can read.

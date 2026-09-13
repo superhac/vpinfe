@@ -1306,13 +1306,14 @@ def _identity_rows(context: dict[str, Any]) -> None:
 
     entries: list[tuple[Any, Any]] = [
         (HEADING, views.builtin_name(game_tables.MACHINE)),
-        ("Name", _override(game.get("name") or "", found.get("name") or "",
+        (t("console.workbench.fact_name"), _override(game.get("name") or "",
+                found.get("name") or "",
                            "VPS", save("alt_title"))),
-        ("Made by", f"{game.get('manufacturer') or '?'} "
+        (t("console.workbench.fact_made_by"), f"{game.get('manufacturer') or '?'} "
                     f"{game.get('year') or ''}".strip()),
-        ("Type", game.get("type") or "-"),
-        ("Themes", ", ".join(game.get("themes") or []) or "-"),
-        ("Folder", PurePosixPath(folder).name or folder or "-"),
+        (t("console.workbench.fact_type"), game.get("type") or "-"),
+        (t("console.workbench.fact_themes"), ", ".join(game.get("themes") or []) or "-"),
+        (t("console.workbench.fact_folder"), PurePosixPath(folder).name or folder or "-"),
     ]
 
     record = game.get("user") or {}
@@ -1327,10 +1328,9 @@ def _identity_rows(context: dict[str, Any]) -> None:
 
     async def reset() -> None:
         if not await confirm.ask(
-                "Reset this game's play record?",
-                detail="Its rating, favorite and tags are kept. The counters cannot "
-                       "be recovered.",
-                confirm="Reset"):
+                t("console.workbench.ask_reset_this_game_s_play"),
+                detail=t("console.workbench.ask_its_rating_favorite_and"),
+                confirm=t("console.workbench.ask_reset")):
             return
         await _write(context, context["library"].reset_play_record,
                      context["game_id"])
@@ -1352,7 +1352,8 @@ def _identity_rows(context: dict[str, Any]) -> None:
         (HEADING, game_tables.FRONTEND),
         # Nothing supplies this but the user, so there is nothing to revert to - empty
         # means the frontend's own default, which is what clearing it says.
-        ("DOF event", _override(overrides.get("frontend_dof_event") or "", None,
+        (t("console.workbench.fact_dof_event"), _override(overrides.get("frontend_dof_event") or "",
+                None,
                                 "", save("frontend_dof_event"),
                                 hint=t("console.workbench.empty_uses_the_default"))),
     ]
@@ -1392,8 +1393,8 @@ def _table_rows(table: dict[str, Any],
         # row of dashes would say we looked. What it has is the name and whose it is.
         entries += [
             (HEADING, game_tables.KNOWN_AS),
-            ("Name", table.get("key") or "-"),
-            ("Program", table.get("app_name") or "-"),
+            (t("console.workbench.fact_name"), table.get("key") or "-"),
+            (t("console.workbench.fact_program"), table.get("app_name") or "-"),
             panel.note(t("console.workbench.its_program_finds_this_by")),
         ]
     elif reference:
@@ -1401,8 +1402,9 @@ def _table_rows(table: dict[str, Any],
         # different from every other one on the page.
         entries += [
             (HEADING, game_tables.ELSEWHERE),
-            ("Path", reference.get("resolved") or reference.get("path") or "-"),
-            ("Now", panel.state(
+            (t("console.workbench.fact_path"),
+                    reference.get("resolved") or reference.get("path") or "-"),
+            (t("console.workbench.fact_now"), panel.state(
                 game_tables.word_for(game_tables.REACH_WORDS,
                                      not reference.get("reachable")),
                 "on" if reference.get("reachable") else "warn")),
@@ -1413,16 +1415,16 @@ def _table_rows(table: dict[str, Any],
             entries.append(panel.note(
                 t("console.workbench.the_file_is_not_there")))
         entries += [
-            ("Version", table.get("version") or "-"),
-            ("Author", ", ".join(table.get("authors") or []) or "-"),
+            (t("console.workbench.fact_version"), table.get("version") or "-"),
+            (t("console.workbench.fact_author"), ", ".join(table.get("authors") or []) or "-"),
         ]
     else:
         entries += [
             (HEADING, game_tables.FILE),
-            ("Filename", table.get("filename") or "-"),
-            ("Version", table.get("version") or "-"),
-            ("Author", ", ".join(table.get("authors") or []) or "-"),
-            ("Hash", table.get("file_hash") or "-"),
+            (t("console.workbench.fact_filename"), table.get("filename") or "-"),
+            (t("console.workbench.fact_version"), table.get("version") or "-"),
+            (t("console.workbench.fact_author"), ", ".join(table.get("authors") or []) or "-"),
+            (t("console.workbench.fact_hash"), table.get("file_hash") or "-"),
         ]
 
     # Its own group. These say what the table implements, which is not the same
@@ -1437,7 +1439,7 @@ def _table_rows(table: dict[str, Any],
     # here: a finding jumps to where it is fixed.
     entries += [(HEADING, game_tables.LAUNCH)]
     present = bool(table.get("available"))
-    entries += [("Will run", _launch_state(table.get("launchable")))]
+    entries += [(t("console.workbench.fact_will_run"), _launch_state(table.get("launchable")))]
     # Only where there is a file of this game's to be on disk or not. Where it is is
     # already answered above for a reference, in words that fit it - and "Missing" is
     # what a deleted file says, which is not what an unmounted share is. An entry with
@@ -1448,7 +1450,7 @@ def _table_rows(table: dict[str, Any],
              _state(game_tables.word_for(game_tables.FILE_WORDS, not present),
                     "on" if present else "bad")))
     if not game_tables.is_keyed(table):
-        entries.append(("ROM", _rom_state(pinmame, rom, context=context)))
+        entries.append((t("console.workbench.fact_rom"), _rom_state(pinmame, rom, context=context)))
     if context is not None:
         entries += _table_override_rows(context, table, overrides)
         entries += [(FULL, _play_action(context, table))]
@@ -1466,10 +1468,9 @@ def _table_rows(table: dict[str, Any],
 
         async def reset() -> None:
             if not await confirm.ask(
-                    "Reset this table's play record?",
-                    detail="Its rating is kept, and the game's own record is not "
-                           "touched. The counters cannot be recovered.",
-                    confirm="Reset"):
+                    t("console.workbench.ask_reset_this_table_s_play"),
+                    detail=t("console.workbench.ask_its_rating_is_kept_and_the"),
+                    confirm=t("console.workbench.ask_reset")):
                 return
             await _write(context, context["library"].reset_play_record,
                          context["game_id"], table_id)
@@ -1487,7 +1488,7 @@ def _table_rows(table: dict[str, Any],
         entries += [
             (game_tables.DEFAULT_LABEL,
              said[0] if table.get("default") and said else "No"),
-            ("Hidden", game_tables.word_for(game_tables.HIDDEN_WORDS,
+            (t("console.workbench.fact_hidden"), game_tables.word_for(game_tables.HIDDEN_WORDS,
                                             bool(table.get("hidden")))),
         ]
     _rows(ui, entries)
@@ -1543,7 +1544,7 @@ async def _assets_block(context: dict[str, Any]) -> None:
                 # The hash travels with the asset rather than sitting in a group of
                 # identifiers. Only where there is a sidecar to have one.
                 if digest:
-                    entries.append(("Script hash", digest))
+                    entries.append((t("console.workbench.fact_script_hash"), digest))
         pinmame = (chosen.get("dependencies") or {}).get("pinmame") or {}
         if pinmame.get("effective") or pinmame.get("declared"):
             entries.append((_asset_name("rom"), _rom_state(
@@ -1599,7 +1600,8 @@ def _resolved_row(context: dict[str, Any], table: dict[str, Any], kind: str,
                 ui.label(word).classes("console-tier console-tier--off").tooltip(why)
             else:
                 tier = media_ownership.for_resolution(state.get("resolution"))
-                ui.label(tier.noun).classes(f"console-tier {tier.css}").tooltip(tier.why)
+                ui.label(t(tier.noun)).classes(f"console-tier {tier.css}") \
+                    .tooltip(t(tier.why))
             if name:
                 ui.label(name).classes("console-slot-file truncate").tooltip(name)
             if kind == "script":
@@ -1644,11 +1646,11 @@ def _launch_state(launchable: bool | None) -> Any:
 def _played_when(stamp: str | None) -> str:
     """A date, not a timestamp. Nobody reads a play record to the second."""
     if not stamp:
-        return "Never"
+        return t("console.workbench.never")
     try:
         return i18n.date(datetime.fromisoformat(stamp).astimezone())
     except ValueError:
-        return "Never"
+        return t("console.workbench.never")
 
 
 def _played_for(seconds: int) -> str:
@@ -1674,15 +1676,18 @@ def _play_rows(context: dict[str, Any], record: dict[str, Any], *,
     somebody sets, the counters are a record of what happened. Only the record can be
     reset, and the act sits under it rather than beside a row it does not belong to.
     """
-    rows: list[tuple[Any, Any]] = [("Rating", stars.draw(rating, on_rate))]
+    rows: list[tuple[Any, Any]] = [(t("console.workbench.fact_rating"), stars.draw(rating,
+            on_rate))]
     if favorite is not None:
-        rows.append(("Favorite", favorite))
+        rows.append((t("console.workbench.fact_favorite"), favorite))
     if tags is not None:
-        rows.append(("Tags", tags))
+        rows.append((t("console.workbench.fact_tags"), tags))
     rows += [
-        ("Last played", _played_when(record.get("last_played"))),
-        ("Times played", str(int(record.get("play_count") or 0) or "Never")),
-        ("Play time", _played_for(int(record.get("play_time_seconds") or 0))),
+        (t("console.workbench.fact_last_played"), _played_when(record.get("last_played"))),
+        (t("console.workbench.fact_times_played"),
+                str(int(record.get("play_count") or 0) or "Never")),
+        (t("console.workbench.fact_play_time"),
+                _played_for(int(record.get("play_time_seconds") or 0))),
     ]
     if context is not None and any(record.get(key) for key in
                                    ("last_played", "play_count", "play_time_seconds")):
@@ -1752,18 +1757,18 @@ async def _vps_block(context: dict[str, Any]) -> None:
         entries.append((FULL, _parked_match(context, parked)))
 
     if not vps_id:
-        entries += [("Entry", _state("Not matched", "warn"))]
+        entries += [(t("console.workbench.fact_entry"), _state("Not matched", "warn"))]
     else:
         found = await run.io_bound(library.vps_entry, vps_id)
         entries += [
             # The entry as a person reads it. The id is how the wire addresses it and
             # is the one thing a reader cannot check a match against.
-            ("Entry", _vps_entry_row(found, vps_id)),
-            ("Match", _state("Set by you" if chosen else "Discovered",
+            (t("console.workbench.fact_entry"), _vps_entry_row(found, vps_id)),
+            (t("console.workbench.fact_match"), _state("Set by you" if chosen else "Discovered",
                              "on" if chosen else "off")),
         ]
         if found.get("releases"):
-            entries.append(("Releases", str(found["releases"])))
+            entries.append((t("console.workbench.fact_releases"), str(found["releases"])))
         differs = await run.io_bound(library.vps_details, context["game_id"])
         if differs:
             entries.append((FULL, _details_differ(context, differs)))
@@ -1872,10 +1877,9 @@ def _parked_match(context: dict[str, Any], parked: dict[str, Any]) -> Callable[[
 
     async def discard() -> None:
         if not await confirm.ask(
-                "Discard the match you made earlier?",
-                detail="It is not in use either way. Discarding means looking it up "
-                       "again if you want it back.",
-                confirm="Discard"):
+                t("console.workbench.ask_discard_the_match_you_made"),
+                detail=t("console.workbench.ask_it_is_not_in_use_either"),
+                confirm=t("console.workbench.ask_discard")):
             return
         await _write(context, context["library"].set_game_overrides,
                      context["game_id"], {"alt_vps_id_previous": ""})
@@ -2033,7 +2037,8 @@ def _library_rows(context: dict[str, Any],
                                   bool(event.value)),
                 hint=t("console.workbench.keep_this_table_out_of_the"))
 
-    return [(game_tables.DEFAULT_LABEL, default_row), ("Hidden", hidden_row)]
+    return [(game_tables.DEFAULT_LABEL, default_row), (t("console.workbench.fact_hidden"),
+            hidden_row)]
 
 
 def _switch(value: bool, on_change: Callable[[Any], Any], *,
@@ -2083,10 +2088,10 @@ def _table_override_rows(context: dict[str, Any], table: dict[str, Any],
                 hint=t("console.workbench.remove_the_nvram_file_when"))
 
     return [
-        ("Launcher", _launcher_pick(context, table)),
+        (t("console.workbench.fact_launcher"), _launcher_pick(context, table)),
         panel_note_for_launcher(table),
         *_program_settings_row(context, table),
-        ("Clear NVRAM on exit", nvram),
+        (t("console.workbench.fact_clear_nvram_on_exit"), nvram),
     ]
 
 
@@ -2260,9 +2265,8 @@ async def _drop_script(context: dict[str, Any], table: dict[str, Any]) -> None:
     """Confirmed: whatever the sidecar held goes with it, and a patched table quietly
     becomes an unpatched one."""
     if not await confirm.ask(
-            "Delete the script beside this table?",
-            detail="The table goes back to the script inside its .vpx. Anything the "
-                   "sidecar held - a patch, an edit - goes with it.",
+            t("console.workbench.ask_delete_the_script_beside"),
+            detail=t("console.workbench.ask_the_table_goes_back_to_the"),
             lines=[f"{Path(table.get('filename') or '').stem}.vbs"]):
         return
     await _script_act(context, context["library"].delete_script,
@@ -2279,10 +2283,10 @@ async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
     panel cannot delete a table that returned while it was open.
     """
     if not await confirm.ask(
-            "Forget this table?",
-            detail="Its record goes; no file is deleted, because there is none. Put the "
-                   ".vpx back and refresh and it returns as a new table.",
-            lines=[table.get("filename") or "this table"], confirm="Forget"):
+            t("console.workbench.ask_forget_this_table"),
+            detail=t("console.workbench.ask_its_record_goes_no_file_is"),
+            lines=[table.get("filename") or t("console.workbench.this_table")],
+                    confirm=t("console.workbench.ask_forget")):
         return
     try:
         await run.io_bound(context["library"].forget_table,
@@ -2421,12 +2425,10 @@ async def _contain_table(context: dict[str, Any], table: dict[str, Any]) -> None
     """
     reference = table.get("reference") or {}
     if not await confirm.ask(
-            "Copy this table into the game?",
-            detail="It is copied, not moved - whatever else uses that file keeps it. "
-                   "Afterwards this game plays its own copy and no longer needs the "
-                   "place it came from.",
+            t("console.workbench.ask_copy_this_table_into_the"),
+            detail=t("console.workbench.ask_it_is_copied_not_moved"),
             lines=[reference.get("resolved") or reference.get("path") or ""],
-            confirm="Copy it in"):
+            confirm=t("console.workbench.ask_copy_it_in")):
         return
     try:
         await run.io_bound(context["library"].contain_table,
@@ -2985,9 +2987,18 @@ def _config_group_block(key: str) -> Callable[[dict[str, Any]], Any]:
 # saying so takes no word at all - an unmarked row is the untouched one, so a mark always
 # means somebody did something.
 CAME_FROM = {
-    "launcher": "From the launcher",
-    "folder": "From the folder",
-    "entry": "From this table",
+    "launcher": "console.workbench.came_from_launcher",
+    "folder": "console.workbench.came_from_folder",
+    "entry": "console.workbench.came_from_entry",
+}
+
+# The same three as a bare noun. `_clear_hint` used to strip "From " off the phrases
+# above, which is string surgery on an English prefix and the first thing a translation
+# breaks.
+FOLLOWS = {
+    "launcher": "console.workbench.follows_launcher",
+    "folder": "console.workbench.follows_folder",
+    "entry": "console.workbench.follows_entry",
 }
 
 
@@ -3004,7 +3015,7 @@ def _config_mark(held: dict, scope: str) -> Callable[[], None] | None:
         return panel.state(t("console.workbench.set_here"), "on")
     came = held.get("scope") or ""
     if came and came != scope:
-        return panel.state(CAME_FROM.get(came, "Inherited"), "off")
+        return panel.state(t(CAME_FROM.get(came, "console.workbench.inherited")), "off")
     return None
 
 
@@ -3014,7 +3025,8 @@ def _said_value(field, value: str) -> str:
     if value == "":
         return ""
     if getattr(field, "type", "") == "bool":
-        return "Off" if value in ("0", "false", "False") else "On"
+        return t("console.workbench.off") if value in ("0", "false",
+                "False") else t("console.workbench.on")
     for stored, label in getattr(field, "choices", ()) or ():
         if stored == value:
             return label
@@ -3026,9 +3038,11 @@ def _clear_hint(held: dict, field) -> str:
     where = held.get("fallback_scope") or ""
     said = _said_value(field, held.get("fallback") or "")
     if where:
-        whose = CAME_FROM.get(where, "the layer above").replace("From ", "")
-        return f"Will follow {whose}" + (f" ({said})" if said else "")
-    shown = _said_value(field, field.default) or "what the program does"
+        whose = t(FOLLOWS.get(where,
+                "console.workbench.follows_the_layer_above"))
+        return t("console.workbench.will_follow", whose=(whose),
+                said=(f" ({said})" if said else ""))
+    shown = _said_value(field, field.default) or t("console.workbench.what_the_program_does")
     return t("console.workbench.will_go_back_to", shown=(shown))
 
 
@@ -3234,14 +3248,14 @@ async def _launcher_setup(context: dict[str, Any]) -> None:
         return save
 
     entries: list[tuple[Any, Any]] = [
-        ("Name", panel.field(launcher["display_name"], rename,
+        (t("console.workbench.fact_name"), panel.field(launcher["display_name"], rename,
                              placeholder=launcher["app_name"])),
         panel.note(t("console.workbench.what_you_call_this_way_of")),
-        ("Runs", launcher["app_name"]),
+        (t("console.workbench.fact_runs"), launcher["app_name"]),
     ]
     if is_default:
         entries.append(panel.note(launchers_page.DEFAULT_HINT))
-    entries.append(("Enabled", panel.switch(
+    entries.append((t("console.workbench.fact_enabled"), panel.switch(
         launcher["enabled"], lambda e: flip(bool(e.value)), disabled=only_one,
         hint=t("console.workbench.the_only_launcher_this") if only_one else "")))
     entries.append(panel.note(
@@ -3347,8 +3361,9 @@ async def _config_backups(context: dict[str, Any], launcher: dict) -> None:
 
     entries: list[tuple[Any, Any]] = [(HEADING, "Settings file")]
     if named:
-        entries.append(("File", _file_value(named[0])))
-    entries.append(("Copies", _copies_value(held, take, found, context, playing)))
+        entries.append((t("console.workbench.fact_file"), _file_value(named[0])))
+    entries.append((t("console.workbench.fact_copies"), _copies_value(held, take, found, context,
+            playing)))
     entries.append(panel.note(
         t("console.workbench.kept_in",
                 value=(found.get('kept_in') or 'this install\'s configuration folder'))))
@@ -3400,10 +3415,9 @@ async def _restore_dialog(held: list[dict], context: dict[str, Any],
     async def put_back(name: str, dialog) -> None:
         dialog.close()
         if not await confirm.ask(
-                "Put this copy back?",
-                detail="A copy of the settings as they are now is taken first, so this "
-                       "can be undone.",
-                confirm="Restore"):
+                t("console.workbench.ask_put_this_copy_back"),
+                detail=t("console.workbench.ask_a_copy_of_the_settings_as"),
+                confirm=t("console.workbench.ask_restore")):
             return
         try:
             await run.io_bound(library.restore_config_backup, launcher_id, name)
@@ -3466,18 +3480,19 @@ async def _location_details(context: dict[str, Any]) -> None:
 
     entries: list[tuple[Any, Any]] = [
         (HEADING, "This location"),
-        ("Folder", panel.field(
+        (t("console.workbench.fact_folder"), panel.field(
             row["path"], save_path,
             status=panel.value_state("ok" if row["reachable"] else "missing",
                                      row["reason"]))),
-        ("Contains", panel.select(locations_page.KIND_LABELS, row["kind"], save_kind)),
-        ("State", _location_state(row)),
-        ("New games", _location_write_to(context, row)),
+        (t("console.workbench.fact_contains"), panel.select(locations_page.KIND_LABELS, row["kind"],
+                save_kind)),
+        (t("console.workbench.fact_state"), _location_state(row)),
+        (t("console.workbench.fact_new_games"), _location_write_to(context, row)),
     ]
     # Only where there is something to outrank. With one location the row would be a
     # control that cannot do anything and a word nobody needs to learn.
     if len(context.get("locations") or []) > 1:
-        entries += [("Priority", _location_priority(context, row)),
+        entries += [(t("console.workbench.fact_priority"), _location_priority(context, row)),
                     panel.note(t("console.workbench.which_location_wins_when"))]
     with ui.column().classes("gap-0 console-form"):
         _rows(ui, entries)
@@ -3567,11 +3582,9 @@ async def _adopt_shadowed(context: dict[str, Any], one: dict[str, Any]) -> None:
     install deliberately refuses to make on its own.
     """
     if not await confirm.ask(
-            "Make this its own game?",
-            detail="It gets a new id and joins the library beside the one that is "
-                   "answering now. Anything that named the shared id keeps pointing at "
-                   "that one. Nothing is moved or deleted.",
-            lines=[str(one.get("path") or "")], confirm="Make it its own"):
+            t("console.workbench.ask_make_this_its_own_game"),
+            detail=t("console.workbench.ask_it_gets_a_new_id_and_joins"),
+            lines=[str(one.get("path") or "")], confirm=t("console.workbench.ask_make_it_its_own")):
         return
     try:
         await run.io_bound(context["library"].adopt_shadowed,
@@ -3635,8 +3648,9 @@ async def _collection_details(context: dict[str, Any]) -> None:
     row = _collection(context)
     entries: list[tuple[Any, Any]] = [
         (HEADING, "This list"),
-        ("Name", _text_control(context, row, "name")),
-        ("Description", _text_control(context, row, "description", lines=3)),
+        (t("console.workbench.fact_name"), _text_control(context, row, "name")),
+        (t("console.workbench.fact_description"), _text_control(context, row, "description",
+                lines=3)),
         # Kind is not repeated here. It is a control in Contents, beside the rule and
         # the games it decides between, and a read-only copy of it here would be a
         # second home for one fact.
@@ -3962,13 +3976,13 @@ def _ordering_rows(context: dict[str, Any], row: dict[str, Any],
     """
     ordered = _order_control(context, row, arrangeable=arrangeable)
     entries: list[tuple[Any, Any]] = [(HEADING, "Presentation")]
-    entries.append(("Ordered by", ordered["by"]))
+    entries.append((t("console.workbench.fact_ordered_by"), ordered["by"]))
     if (row.get("order_by") or DEFAULT_ORDER_BY) != MANUAL_ORDER:
         # Not a setting that happens to be off: a direction on a hand-arranged list is
         # not a question, so the row is absent rather than disabled.
-        entries.append(("Direction", ordered["direction"]))
-    entries.append(("Paging", _paging_control(context, row)))
-    entries.append(("Limit", _limit_control(context, row)))
+        entries.append((t("console.workbench.fact_direction"), ordered["direction"]))
+    entries.append((t("console.workbench.fact_paging"), _paging_control(context, row)))
+    entries.append((t("console.workbench.fact_limit"), _limit_control(context, row)))
     _rows(ui, entries)
 
 

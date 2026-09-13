@@ -1652,7 +1652,7 @@ def _add_referenced_table(game, path: str):
         raise NotFoundError(t("error.games.there_is_no_file_there"), details={"path": target})
     if apps.app_for(os.path.basename(target)) is None:
         raise InvalidRequestError(
-            t("error.games.nothing_this_build_knows", basename=(os.path.basename(target))))
+            t("error.games.nothing_this_build_knows", name=(os.path.basename(target))))
     if locations.canonical(os.path.dirname(target)) == locations.canonical(game_dir):
         raise InvalidRequestError(
             t("error.games.that_file_is_already_in"))

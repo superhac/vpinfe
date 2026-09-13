@@ -185,10 +185,9 @@ async def _activate(library, theme: dict[str, Any], again: Callable[[], Any]) ->
     doing on another screen.
     """
     if not await confirm.ask(
-            f"Make {theme['name']} the active theme?",
-            detail="It takes effect the next time the frontend starts. Nothing "
-                   "restarts now.",
-            confirm="Make active", danger=False):
+            t("console.themes.ask_make_the_active_theme", value=(theme['name'])),
+            detail=t("console.themes.ask_it_takes_effect_the_next"),
+            confirm=t("console.themes.ask_make_active"), danger=False):
         return
     try:
         await run.io_bound(library.activate_theme, theme["key"])
@@ -201,10 +200,9 @@ async def _activate(library, theme: dict[str, Any], again: Callable[[], Any]) ->
 
 async def _remove(library, theme: dict[str, Any], again: Callable[[], Any]) -> None:
     if not await confirm.ask(
-            f"Remove {theme['name']}?",
-            detail="Its files are deleted. It can be installed again from here, and "
-                   "any settings you gave it go with it.",
-            confirm="Remove"):
+            t("console.themes.ask_remove", value=(theme['name'])),
+            detail=t("console.themes.ask_its_files_are_deleted_it"),
+            confirm=t("console.themes.ask_remove_2")):
         return
     try:
         await run.io_bound(library.remove_theme, theme["key"])

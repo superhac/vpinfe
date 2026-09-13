@@ -740,7 +740,7 @@ def patch_collection(name: str,
                 raise InvalidRequestError(t("error.collections.a_collection_needs_a_name"))
             if new_name in manager.get_collections_name():
                 raise ConflictError(t("error.collections.a_collection_named_already",
-                        new_name=(new_name)))
+                                      name=(new_name)))
             manager.rename_collection(name, new_name)
             final = new_name
 

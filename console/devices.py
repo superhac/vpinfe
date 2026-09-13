@@ -29,9 +29,9 @@ PRESENT, ABSENT, UNKNOWN = "present", "absent", "unknown"
 # What the absence costs, which is what the chip's color means everywhere else in the
 # here: an unoffered capability is ordinary, one nothing has asked about is not.
 _CHIP = {
-    PRESENT: ("Available", "on"),
-    ABSENT: ("Not offered", "off"),
-    UNKNOWN: ("Cannot be determined", "unknown"),
+    PRESENT: ("console.devices.capability_available", "on"),
+    ABSENT: ("console.devices.not_offered", "off"),
+    UNKNOWN: ("console.devices.cannot_be_determined", "unknown"),
 }
 
 # Why the name of a device that is not this one cannot be edited here. The install owns
@@ -50,7 +50,6 @@ WHY_NOT = {
     "macos_not_supported_yet": "console.devices.why_not.updating_in_place_is_not",
     "unsupported_platform": "console.devices.why_not.updating_in_place_is_not"
 }
-CANNOT_UPDATE = "This install cannot update itself."
 
 # What forgetting a device does, said before it is done. The registry is a record of what
 # this install has met, not a permission list, so this removes a row and nothing else.
@@ -160,7 +159,7 @@ def _connection_rows(device: dict[str, Any],
         if level != "on" and reason:
             rows.append(panel.note(reason))
 
-    rows.append(("Last seen",
+    rows.append((t("console.devices.fact_last_seen"),
                  _when(str(device.get("last_reachable") or "")) or "Never"))
     return rows
 
@@ -170,10 +169,9 @@ async def _confirm_forget(library: Any, device: dict[str, Any],
     """Drop the entry, having said what that does and does not do."""
     name = device_label(device)
     if not await confirm.ask(
-            f"Forget {name}?",
-            detail="This removes this install's entry for it. Nothing on that machine "
-                   "changes, and it comes back the next time it announces itself.",
-            confirm="Forget"):
+            t("console.devices.ask_forget", name=(name)),
+            detail=t("console.devices.ask_this_removes_this_install"),
+            confirm=t("console.devices.ask_forget_2")):
         return
     try:
         await run.io_bound(library.forget_device, str(device.get("device_id") or ""))
@@ -195,26 +193,28 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
     """
     rows: list[tuple[Any, Any]] = [(panel.HEADING, "Software")]
     if not update:
-        rows.append(("Version", panel.state(t("console.devices.not_known"), "unknown")))
+        rows.append((t("console.devices.fact_version"), panel.state(t("console.devices.not_known"),
+                "unknown")))
         if not is_local and client is None:
             rows.append(panel.note(t(UNREACHABLE_NOTE)))
         return rows
 
     current = str(update.get("current_version") or "unknown")
     if not update.get("update_available"):
-        rows.append(("Version", panel.state(current, "on")))
+        rows.append((t("console.devices.fact_version"), panel.state(current, "on")))
         return rows
 
     latest = str(update.get("latest_version") or "a newer build")
     if not update.get("update_supported"):
         reason = t(WHY_NOT.get(str(update.get("support_reason") or ""),
                                "console.devices.cannot_update"))
-        rows.append(("Version", panel.state(t("console.devices.available", latest=(latest)), "warn",
+        rows.append((t("console.devices.fact_version"), panel.state(t("console.devices.available",
+                latest=(latest)), "warn",
                                             beside=current)))
         rows.append(panel.note(reason))
         return rows
 
-    rows.append(("Version",
+    rows.append((t("console.devices.fact_version"),
             panel.state(t("console.devices.available", latest=(latest)), "warn", beside=current)))
     def update_action() -> None:
         with ui.element("div").classes("console-fact-edit"):
@@ -248,11 +248,11 @@ async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> Non
     # Console is not necessarily open on the machine the table is on.
     lines = [f"{running} is being played there and will be closed."] if running else []
     if not await confirm.ask(
-            f"Update {name} to {latest}?",
-            detail="The package is downloaded first, then VPinFE closes, the install "
-                   "is replaced and it starts again.",
+            t("console.devices.ask_update_to", name=(name), latest=(latest)),
+            detail=t("console.devices.ask_the_package_is_downloaded"),
             lines=lines,
-            confirm="Stop the table and update" if running else "Update",
+            confirm=t("console.devices.ask_stop_the_table_and_update") if running
+            else t("console.devices.ask_update"),
             danger=bool(running)):
         return
     await _start_update(client, name, bool(running))
@@ -519,9 +519,10 @@ async def _carrying_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
 
     async def forget(name: str) -> None:
         if not await confirm.ask(
-                f"Remove {name} from {device_label(device)}?",
-                detail="It comes off the device. Your own copy is untouched.",
-                confirm="Remove", danger=True):
+                t("console.devices.ask_remove_from", name=(name),
+                        device_label=(device_label(device))),
+                detail=t("console.devices.ask_it_comes_off_the_device"),
+                confirm=t("console.devices.ask_remove"), danger=True):
             return
         try:
             await run.io_bound(ApiClient().remove_from_device,
@@ -549,13 +550,12 @@ async def _carrying_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
 
 # Why a device's settings are somewhere else. Said where somebody is looking for them,
 # because "not here" without a reason reads as something missing.
-SETTINGS_NOTE = ("A machine's settings belong to the build running on it, so they are "
-                 "edited in its own Console rather than from here.")
+SETTINGS_NOTE = "console.devices.settings_note"
 
 # What is wrong when the door will not open. Both halves matter: one is a machine to go
 # and switch on, the other is an entry with nothing to dial.
 NO_DOOR = {
-    device_client.UNREACHABLE: "console.devices.not_answering",
+    device_client.UNREACHABLE: "console.devices.nothing_to_open",
     device_client.UNASKABLE: UNREACHABLE_NOTE,
 }
 
@@ -611,7 +611,7 @@ def settings_door(context: dict[str, Any]) -> list[tuple[Any, Any]]:
                          open_it, icon="open_in_new", inline=True,
                          enabled=not stopped)()
 
-    return [("", door), panel.note(t(stopped) if stopped else SETTINGS_NOTE)]
+    return [("", door), panel.note(t(stopped) if stopped else t(SETTINGS_NOTE))]
 
 
 async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
@@ -650,9 +650,10 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     ]
     if not _is_local(context):
         rows_out.append(panel.note(t("console.devices.remote_name_note")))
-    rows_out.append(("Kind", KIND_LABELS.get(str(device.get("kind") or "vpinfe"),
+    rows_out.append((t("console.devices.fact_kind"),
+            KIND_LABELS.get(str(device.get("kind") or "vpinfe"),
                                              "VPinFE")))
-    rows_out.append(("Features",
+    rows_out.append((t("console.devices.fact_features"),
                      settings_page.features_said(device.get("features"))
                      or "Not reported"))
     return rows_out
@@ -707,6 +708,7 @@ def capability_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
                                  context.get("local_capabilities") or set(),
                                  context.get("reach"))
         text, level = _CHIP[state]
+        text = t(text)
         out.append((humanize(capability), panel.state(text, level)))
     return out or [panel.intro(t("console.devices.this_device_declares"))]
 
@@ -756,7 +758,8 @@ def _action_control(context: dict[str, Any],
     async def go() -> None:
         if scope in _HEAVY and not await confirm.ask(
                 f"{label}?",
-                detail=f"This happens on {device_label(_of(context))}, now.",
+                detail=t("console.devices.ask_this_happens_on_now",
+                        device_label=(device_label(_of(context)))),
                 confirm=label):
             return
         client = _client_for(context)
@@ -825,8 +828,9 @@ def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     device = _of(context)
     library = context.get("library")
     out: list[tuple[Any, Any]] = [
-        ("First seen", _when(str(device.get("first_seen") or "")) or "Not known"),
-        ("Announced", _when(str(device.get("last_seen") or "")) or "Never"),
+        (t("console.devices.fact_first_seen"),
+                _when(str(device.get("first_seen") or "")) or "Not known"),
+        (t("console.devices.fact_announced"), _when(str(device.get("last_seen") or "")) or "Never"),
     ]
     if _is_local(context) or library is None:
         out.append(panel.note(

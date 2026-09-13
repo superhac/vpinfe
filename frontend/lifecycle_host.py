@@ -48,7 +48,9 @@ def _announce(request: lifecycle.Request) -> None:
         surface=request.origin.surface,
         address=request.origin.address,
         reason=request.reason,
-        description=request.describe(),
+        # The card asks a person, so it takes the label rather than the log's
+        # English. `describe()` stays what the log lines use.
+        description=lifecycle.label(*request.pair),
     )
 
 

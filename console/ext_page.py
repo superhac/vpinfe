@@ -219,7 +219,7 @@ def _reach(extension: dict) -> None:
     with ui.element("div").classes("console-card w-full"):
         entries: list[tuple[Any, Any]] = []
         if reaches:
-            entries.append(("Of the library", ", ".join(reaches)))
+            entries.append((t("console.ext_page.fact_of_the_library"), ", ".join(reaches)))
         if uses:
-            entries.append(("Of this machine", ", ".join(uses)))
+            entries.append((t("console.ext_page.fact_of_this_machine"), ", ".join(uses)))
         panel.facts(ui, entries)

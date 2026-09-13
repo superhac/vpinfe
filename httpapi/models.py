@@ -136,8 +136,8 @@ class Action(ApiModel):
     action: str
     label: str
     # The catalog key behind `label`, for a client that resolves its own words.
-    # `label` stays English and stays the fallback; this is additive, which is why
-    # it does not move the theme contract.
+    # `label` is this install's language; the key is what never moves. Additive, which
+    # is why it does not move the theme contract.
     label_key: str = ""
     available: bool = True
     reason: str = ""
@@ -408,8 +408,8 @@ class ConfigOptionInfo(ApiModel):
     default: str
     label: str
     # The catalog key behind `label`, for a client that resolves its own words.
-    # `label` stays English and stays the fallback; this is additive, which is why
-    # it does not move the theme contract.
+    # `label` is this install's language; the key is what never moves. Additive, which
+    # is why it does not move the theme contract.
     label_key: str = ""
     description: str = ""
     choices: list[str] = []
@@ -1025,8 +1025,8 @@ class MediaSlot(ApiModel):
     kind: str
     label: str
     # The catalog key behind `label`, for a client that resolves its own words.
-    # `label` stays English and stays the fallback; this is additive, which is why
-    # it does not move the theme contract.
+    # `label` is this install's language; the key is what never moves. Additive, which
+    # is why it does not move the theme contract.
     label_key: str = ""
     table: str = ""
     table_file: str = ""
@@ -1070,8 +1070,8 @@ class AssetSlot(ApiModel):
     kind: str
     label: str
     # The catalog key behind `label`, for a client that resolves its own words.
-    # `label` stays English and stays the fallback; this is additive, which is why
-    # it does not move the theme contract.
+    # `label` is this install's language; the key is what never moves. Additive, which
+    # is why it does not move the theme contract.
     label_key: str = ""
     table: str = ""
     table_file: str = ""
@@ -1814,8 +1814,8 @@ class FilterAxis(ApiModel):
     # where the rest of the app says "Type".
     label: str = ""
     # The catalog key behind `label`, for a client that resolves its own words.
-    # `label` stays English and stays the fallback; this is additive, which is why
-    # it does not move the theme contract.
+    # `label` is this install's language; the key is what never moves. Additive, which
+    # is why it does not move the theme contract.
     label_key: str = ""
     summary: str
     # Whether a criterion on this axis may hold several values, which is an OR across
@@ -1945,8 +1945,8 @@ class DetectedAssetInfo(ApiModel):
     kind: str
     label: str
     # The catalog key behind `label`, for a client that resolves its own words.
-    # `label` stays English and stays the fallback; this is additive, which is why
-    # it does not move the theme contract.
+    # `label` is this install's language; the key is what never moves. Additive, which
+    # is why it does not move the theme contract.
     label_key: str = ""
     media_kind: str
     root: str
@@ -1981,8 +1981,8 @@ class PlanItem(ApiModel):
     kind: str
     label: str
     # The catalog key behind `label`, for a client that resolves its own words.
-    # `label` stays English and stays the fallback; this is additive, which is why
-    # it does not move the theme contract.
+    # `label` is this install's language; the key is what never moves. Additive, which
+    # is why it does not move the theme contract.
     label_key: str = ""
     detail: str
     destination: str

@@ -49,9 +49,10 @@ async def confirm_replace(label: str, going: list[str]) -> bool:
     count hides: a whole family goes at this tier, so a .mp4 arriving over a .png takes
     the .png with it and the user never named that file.
     """
-    return await confirm.ask(f"Replace the {label.lower()} that is there?",
-                             detail="Replaced files are deleted, not kept.",
-                             lines=going, confirm="Replace")
+    return await confirm.ask(t("console.mediasource.ask_replace_the_that_is_there",
+            lower=(label.lower())),
+                             detail=t("console.mediasource.ask_replaced_files_are_deleted"),
+                             lines=going, confirm=t("console.mediasource.ask_replace"))
 
 
 class _Sources:

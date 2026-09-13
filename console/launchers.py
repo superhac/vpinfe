@@ -280,10 +280,9 @@ async def remove(library, state: dict[str, Any], redraw: Callable[[], None],
     """Asked about first, because it is the destructive one and it takes assignments
     with it - a table pointing here goes back to the default."""
     if not await confirm.ask(
-            f"Remove {launcher['display_name']}?",
-            detail="Tables that name it go back to the default launcher. Its settings "
-                   "are gone; the program and any file it points at are left alone.",
-            confirm="Remove"):
+            t("console.launchers.ask_remove", value=(launcher['display_name'])),
+            detail=t("console.launchers.ask_tables_that_name_it_go"),
+            confirm=t("console.launchers.ask_remove_2")):
         return
     try:
         await run.io_bound(library.delete_launcher, launcher["launcher_id"])

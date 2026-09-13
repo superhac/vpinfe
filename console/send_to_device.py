@@ -62,10 +62,10 @@ async def ask_where(games: list[dict[str, Any]]) -> None:
     if not picked:
         return
     if not await confirm.ask(
-            f"Send {len(games)} game(s) to {name_of(picked)}?",
-            detail="The table, its backglass, its settings and its rom go across, "
-                   "which is the same set an export holds. Artwork stays here.",
-            confirm="Send", danger=False):
+            t("console.send_to_device.ask_send_game_s_to", len=(len(games)),
+                    name_of=(name_of(picked))),
+            detail=t("console.send_to_device.ask_the_table_its_backglass"),
+            confirm=t("console.send_to_device.ask_send"), danger=False):
         return
     await send(games, picked)
 

@@ -364,6 +364,6 @@ def put_mapping(table_id: str, body: dict[str, Any] = Body(...)) -> dict[str, An
     wanted = str(body.get("launcher_id") or "").strip()
     store = launchers.get_launcher_store()
     if wanted and store.get(wanted) is None:
-        raise NotFoundError(t("error.launchers.no_launcher", wanted=(wanted)))
+        raise NotFoundError(t("error.launchers.no_launcher", launcher_id=(wanted)))
     store.assign(table_id, wanted)
     return {"table_id": table_id, "launcher_id": store.mapped(table_id)}

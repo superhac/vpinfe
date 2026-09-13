@@ -303,10 +303,9 @@ async def _remove(text: str, shown: str, store: Callable[[list], Any],
     # case `unrenderable` was written for, back when the same bindings were merely
     # invisible rather than one click from gone.
     if not input_registry.capturable(text) and not await confirm.ask(
-            f"Remove {shown}?",
-            detail="Nothing here can bind that again yet - it would have to go back "
-                   "into the settings file by hand.",
-            confirm="Remove"):
+            t("console.binding_editor.ask_remove", shown=(shown)),
+            detail=t("console.binding_editor.ask_nothing_here_can_bind_that"),
+            confirm=t("console.binding_editor.ask_remove_2")):
         return
     await store([one for one in held if str(one) != text])
 

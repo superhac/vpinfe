@@ -272,10 +272,8 @@ async def confirm_new_table_file(library, launcher_id: str,
         return False
     count = len(reaching)
     said = await confirm.ask(
-        f"{count} setting{'' if count == 1 else 's'} currently reach this table "
-        "from its folder.",
-        detail="Giving this table its own settings stops the folder reaching it, so "
-               "they are copied across and nothing it does changes. Everything else in "
-               "the folder is unaffected.",
-        confirm="Keep them")
+        t("console.app_settings.ask_setting_currently_reach", the_count=(count),
+                value=('' if count == 1 else 's')),
+        detail=t("console.app_settings.ask_giving_this_table_its_own"),
+        confirm=t("console.app_settings.ask_keep_them"))
     return True if said else None

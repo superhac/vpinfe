@@ -58,12 +58,11 @@ def build(rows: list[dict[str, Any]], library: Any,
         into = str(group[0].get("tag") or "")
         others = [str(r.get("tag")) for r in group[1:]]
         if not await confirm.ask(
-                f"Merge into “{into}”?",
-                detail="Every game carrying one of the others is retagged. This cannot "
-                       "be undone.",
+                t("console.tageditor.ask_merge_into", into=(into)),
+                detail=t("console.tageditor.ask_every_game_carrying_one_of"),
                 lines=[f"{r['tag']} - {r['games']} game"
                        f"{'' if r['games'] == 1 else 's'}" for r in group[1:]],
-                confirm="Merge"):
+                confirm=t("console.tageditor.ask_merge")):
             return
         await sweep(library.merge_tags, others + [into], into,
                 said=t("console.tageditor.merged_into", into=(into)))
@@ -79,10 +78,10 @@ def build(rows: list[dict[str, Any]], library: Any,
         tag = str(row.get("tag") or "")
         count = int(row.get("games") or 0)
         if not await confirm.ask(
-                f"Remove “{tag}” from every game?",
-                detail=f"{count} game{'' if count == 1 else 's'} carry it. A tag no game "
-                       "carries does not exist, so there is nothing to restore it from.",
-                confirm="Remove"):
+                t("console.tageditor.ask_remove_from_every_game", tag=(tag)),
+                detail=t("console.tageditor.ask_game_carry_it_a_tag_no", the_count=(count),
+                        value=('' if count == 1 else 's')),
+                confirm=t("console.tageditor.ask_remove")):
             return
         await sweep(library.delete_tag, tag, said=t("console.tageditor.removed", tag=(tag)))
 

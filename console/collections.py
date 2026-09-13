@@ -256,8 +256,8 @@ async def _ask_delete_many(picked: list[dict], library: Any, act: Callable) -> N
     # Eight, then a count: the list is here to say which ones, and a hundred names is
     # a dialog nobody reads to the end of.
     shown = names[:8] + ([f"...and {len(names) - 8} more"] if len(names) > 8 else [])
-    if await confirm.ask(f"Delete {len(names)} collections?",
-                         detail="The games stay in the library. Only the lists go.",
+    if await confirm.ask(t("console.collections.ask_delete_collections", len=(len(names))),
+                         detail=t("console.collections.ask_the_games_stay_in_the"),
                          lines=shown):
         for name in names:
             await act(library.delete_collection, name,
@@ -267,8 +267,8 @@ async def _ask_delete_many(picked: list[dict], library: Any, act: Callable) -> N
 async def _ask_delete(name: str, library: Any, act: Callable) -> None:
     """Asked, because a manual collection is somebody's hand-picked list and there is
     no undo behind this."""
-    if await confirm.ask(f"Delete “{name}”?",
-                         detail="The games stay in the library. Only the list goes."):
+    if await confirm.ask(t("console.collections.ask_delete", name=(name)),
+                         detail=t("console.collections.ask_the_games_stay_in_the_2")):
         await act(library.delete_collection, name,
                 said=t("console.collections.deleted", name=(name)))
 

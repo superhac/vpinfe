@@ -182,9 +182,10 @@ friends). Sub-resources are linked from `links` rather than assembled by the cli
 A resource that carries a `label` carries a `label_key` beside it — the filter axes, the
 config schema, media and asset slots, actions, and the upload plan.
 
-`label` is always English. It is the fallback, it is what a client that does nothing new
-keeps rendering, and it will not change meaning. `label_key` names the same string in the
-translation catalog, for a client that would rather resolve its own words:
+`label` is the words themselves, in whatever language this install speaks. It is what a
+client that does nothing new keeps rendering, and it will not change *meaning*.
+`label_key` names the same string in the translation catalog, for a client that would
+rather resolve its own words - the key never moves, whatever the label says:
 
 ```json
 { "name": "manufacturer", "label": "Manufacturer", "label_key": "filter.manufacturer.label" }

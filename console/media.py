@@ -161,12 +161,11 @@ async def fill(picked: list[dict[str, Any]], library: Any,
         return
     unmatched = sum(1 for row in wanted if not row.get("vps_id"))
     if not await confirm.ask(
-            f"Look for art for {len(wanted)} missing?",
-            detail="Anything found is copied into the game folder, named for the table "
-                   "or shared by all of them, whichever the row is.",
+            t("console.media.ask_look_for_art_for_missing", len=(len(wanted))),
+            detail=t("console.media.ask_anything_found_is_copied"),
             lines=([f"{unmatched} are not matched to VPS, so nothing can be looked up "
                     f"for those"] if unmatched else []),
-            confirm="Get art", danger=False):
+            confirm=t("console.media.ask_get_art"), danger=False):
         return
 
     filled = empty = failed = 0

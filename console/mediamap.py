@@ -184,7 +184,7 @@ def _tooltip(kind: str, entry: dict[str, Any]) -> str:
     """The file, and who uses it."""
     if not entry.get("present"):
         return f"No {media_label_map().get(kind, kind).lower()}"
-    parts = [str(entry.get("file") or ""), media_ownership.phrase(entry.get("via"))]
+    parts = [str(entry.get("file") or ""), t(media_ownership.phrase(entry.get("via")))]
     return "  ·  ".join(part for part in parts if part)
 
 
