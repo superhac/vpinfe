@@ -56,9 +56,10 @@ _TOKENS = """
      here is a photograph, so this one is translucent by nature rather than by choice. */
   --scrim-media: rgba(10, 5, 24, 0.72);
   --scrim-media-hover: rgba(10, 5, 24, 0.9);
-  /* What a dialog lays over the page it interrupts. Darker than the media plate: this
-     one is meant to put the page out of reach, not to keep a picture legible. */
-  --scrim-dialog: rgba(4, 2, 12, 0.78);
+  /* What covers the whole page to put it out of reach - behind a dialog, and behind
+     the prompt that has taken the keyboard. Darker than the media plate, which is
+     there to keep a picture legible rather than to interrupt. */
+  --scrim-page: rgba(4, 2, 12, 0.78);
 
   /* The accent as a fill. Two steps, because a control can be pointed at and engaged
      at the same time and the second has to be the louder one. */
@@ -604,7 +605,7 @@ body::before {
    the declared line token and a wash, the way every other chip in the vocabulary does. */
 .console-chip-quiet {
   color: var(--ink-2);
-  border: 1px solid rgba(155, 139, 189, 0.45);
+  border: 1px solid var(--quiet-edge);
   background: var(--quiet-wash);
 }
 .console-chip-warn { color: var(--tier-table); border: 1px solid var(--warm-edge); }
@@ -854,7 +855,7 @@ body::before {
   text-align: center;
   font-size: var(--fs-body);
   color: var(--ink);
-  background: rgba(9, 5, 20, 0.82);
+  background: var(--scrim-page);
   backdrop-filter: blur(2px);
 }
 /* A picker is a list to read down, not a question to answer, so it takes the room a
@@ -1602,7 +1603,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
   text-transform: uppercase;
   color: var(--ink) !important;
 }
-.ag-header-cell-menu-button, .ag-header-icon { color: rgba(255,255,255,0.85) !important; }
+.ag-header-cell-menu-button, .ag-header-icon { color: var(--ink) !important; }
 /* The filter button is the first child of the label container, so the container's
    direction decides which side it lands on - and AG Grid reverses it for a numeric
    column. That put the icon at the left edge on numbers and the right edge on
@@ -1817,7 +1818,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   background: var(--surface-viewer); border-bottom: 1px solid var(--line);
 }
 /* Darker than Quasar's default: the art being judged is often bright. */
-.q-dialog__backdrop { background: var(--scrim-dialog) !important; }
+.q-dialog__backdrop { background: var(--scrim-page) !important; }
 /* The video's transport, in the bar so it stays upright while the picture turns. */
 .console-viewer-transport { display: flex; align-items: center; gap: 10px; width: 100%; }
 .console-viewer-btn {
