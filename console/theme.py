@@ -82,13 +82,10 @@ _TOKENS = """
   /* Below the panels rather than above them: the grid's own ground, and the bed a
      thumbnail is shown against. */
   --surface-3: #140a2b;
-  /* Deeper still - the grid header, and the foot of the nav rail where the gradient
-     lands. */
+  /* Deeper still, and the one ground below the panel: the grid header, the foot of the
+     nav rail, the region the workbench works in, and the plate a picture is shown on.
+     Those were three values a unit and a half apart, which is not three decisions. */
   --surface-sunken: #0f0722;
-  /* The plate a picture is shown on, in a viewer or a hover preview. Within a unit of
-     --surface-sunken today and kept apart anyway: one is a panel and one is a ground,
-     and a light mode has to be free to make a panel the lighter of the two. */
-  --surface-viewer: #0b0520;
   /* Darker than the page, because a picture reads best against something that is not
      competing with it. */
   --surface-art: #06030f;
@@ -96,8 +93,6 @@ _TOKENS = """
      the two alternating bands differently, so a run of selected rows stops reading as
      one block. */
   --row-select: #14314a;
-  /* The region the workbench works in, a step down from the panel around it. */
-  --surface-work: rgba(10, 5, 24, 0.55);
   /* The brand magenta as a fill, for a row or an item under the pointer. Cyan answers
      "which one" and is not available for this. */
   --flair-wash: rgba(180, 41, 249, 0.14);
@@ -126,9 +121,6 @@ _TOKENS = """
      across a dark panel, and --line-soft sits close enough to the background that it
      read as nothing at all. */
   --line-band: rgba(203, 184, 234, 0.22);
-  /* What a panel is, against the page under it. Named because two surfaces need to
-     agree on it now that the workbench paints itself in parts. */
-  --panel-ground: #150a2e;
   /* A row you are pointing at, and the place you are actually on. Two steps, because
      they are two states - and the second has to be the louder one. It was not: the
      nav's current entry sat below the hover it competes with. */
@@ -418,7 +410,7 @@ body { background: var(--surface-0); }
    means the icon does not move horizontally when the workbench collapses. */
 .console-workbench .console-panel-header { padding-right: 18px !important; }
 .q-page-container, .q-page { background: transparent !important; }
-.q-drawer { background: var(--panel-ground) !important; }
+.q-drawer { background: var(--surface-1) !important; }
 
 /* The rail is three bands and only the middle one scrolls. The drawer's own content is
    the flex column; left to itself it scrolls whole, which took the title and the
@@ -568,7 +560,7 @@ body::before {
   object-fit: contain;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel-ground);
+  background: var(--surface-1);
 }
 .console-upload .q-uploader { background: none; border: 1px dashed var(--line-strong); }
 
@@ -1490,7 +1482,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
      80px is where the rows start; 16px of the workbench's own top padding sits above
      the header, so this starts at 0 or the band would not reach the panel's edge. */
   background: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 44px,
-                              var(--panel-ground) 72px, var(--panel-ground) 80px,
+                              var(--surface-1) 72px, var(--surface-1) 80px,
                               transparent 80px) !important;
 }
 /* Collapsed to the rail there is no window at all - the whole strip is panel, so it is
@@ -1498,7 +1490,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
    transparent goes, which is what let the page grid through a 57px strip. */
 .console-rail .console-workbench {
   background: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 44px,
-                              var(--panel-ground) 72px) !important;
+                              var(--surface-1) 72px) !important;
 }
 /* truncate only ellipsizes against a definite width. The column may shrink under
    min-w-0, but its labels have to be told to take that width or they overflow and get
@@ -1806,7 +1798,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* A panel over the page, sized by its content, so the media decides how big it is. */
 .console-viewer-card {
-  background: var(--surface-viewer) !important;
+  background: var(--surface-sunken) !important;
   max-width: 92vw; max-height: 88vh;
   display: flex; flex-direction: column;
   padding: 0 !important; overflow: hidden;
@@ -1815,7 +1807,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 .console-viewer-bar {
   flex: 0 0 auto; padding: 8px 12px;
-  background: var(--surface-viewer); border-bottom: 1px solid var(--line);
+  background: var(--surface-sunken); border-bottom: 1px solid var(--line);
 }
 /* Darker than Quasar's default: the art being judged is often bright. */
 .q-dialog__backdrop { background: var(--scrim-page) !important; }
@@ -2566,7 +2558,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    is a preview and not the viewer. It rides in a tooltip because the lists around it
    scroll, and anything drawn inside a scrolling box is clipped by it. */
 .console-thumb-peek {
-  background: var(--surface-viewer) !important; padding: 4px !important;
+  background: var(--surface-sunken) !important; padding: 4px !important;
   border: 1px solid var(--line); border-radius: 6px;
   max-width: none !important;
 }
@@ -2627,7 +2619,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   /* One lever for the rail's width, because the same control serves a narrow pane and
      a full-width page and the number appears three times here. */
   --rail-w: 152px;
-  background: linear-gradient(90deg, var(--panel-ground) 0 var(--rail-w),
+  background: linear-gradient(90deg, var(--surface-1) 0 var(--rail-w),
                               transparent var(--rail-w));
   display: grid;
   grid-template-columns: var(--rail-w) minmax(0, 1fr);
@@ -2680,7 +2672,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
      that edge is a 400px stripe down a very wide region.
      Any alpha is a claim about what is behind it: this one is the page, and the tile
      fills inside here are measured against this. */
-  background-color: var(--surface-work);
+  background-color: var(--surface-sunken);
   /* The window's two edges against the frame - left of it the rail, above it the
      header. Without the top one the panel just stops in mid-air where the paint ends. */
   border-left: 1px solid var(--line-soft);
@@ -2796,7 +2788,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
      scrollbar, and down here that scrollbar is the whole column's instead. */
   .console-section-rail { display: contents; }
   /* background-color, so a state tint layered on background-image sits over it. */
-  .console-section-row { background-color: var(--panel-ground); }
+  .console-section-row { background-color: var(--surface-1); }
   /* Takes what it needs and no more, so a short section does not leave a void with
      the rows stranded at the bottom edge.
 
