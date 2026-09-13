@@ -15,8 +15,10 @@ LOGO = "/static/img/vpinfe-logo.png"
 # the brand values are mapped onto those rather than restyling any of its parts.
 # The design tokens. Everything below refers to these rather than to a hex or a pixel
 # count, so a decision about the palette or the type scale is made once.
-_TOKENS = """
-:root {
+# The Synthwave palette: every color and every effect, and nothing else. A mode is
+# this block and no other change - `_STRUCTURE` below is what a mode may not touch.
+_SYNTHWAVE = """
+
   --ink: #eef9ff;        /* primary text            18.7:1 */
   --ink-2: #cbb8ea;      /* secondary text          11.1:1 */
   --ink-3: #9b8bbd;      /* help and hints           6.5:1 */
@@ -134,44 +136,6 @@ _TOKENS = """
   --surface-hover: #2a1a4a;
   --surface-current: #332057;
 
-  --fs-caption: 12px;
-  --fs-body: 14px;
-  --fs-title: 20px;
-  /* A stat, not prose - the one place a number is the content. */
-  --fs-display: 30px;
-
-  /* 44px where a finger is in scope; the Console is desk-first, so this is the floor. */
-  --target-min: 32px;
-  /* An action that sits beside a value rather than owning its row - see
-     `.console-action--inline`. Below the floor deliberately, and raised back to it where the
-     pointer is a finger. */
-  --target-inline: 22px;
-  /* A field sits in the fact rhythm rather than standing above it. Raised on touch
-     with the rest, below. */
-  --field-h: 26px;
-  /* A rating is five adjacent targets on one line, so it is sized on its own rather
-     than off `--target-min` - five 44px boxes is a row 220px wide, which is most of a
-     phone. Its own token so a surface can answer it without restyling the control. */
-  --star-size: 13px;
-  --star-gap: 2px;
-
-  /* One row of facts, sized as text. A row that *is* a field keeps the field's own
-     height; since such a field is never a swapped-in box, nothing jumps. */
-  /* The row, not the value: every kind of value - text, a chip, a field, a switch -
-     centres in a box this tall, so the air around one does not depend on which kind it
-     is. At 26 a text value sat 21px in 26 while a chip carried its own padding and read
-     roomier, which is the mismatch a reader sees as inconsistent spacing. */
-  --fact-row: 30px;
-
-  /* How far a label column may grow before a long label wraps instead. One long label
-     should cost its own row two lines, not push every control on the page away from the
-     label naming it. The pane's labels sit under this and never wrap. */
-  --label-max: 200px;
-  /* The floor under a select, for the caret and the longest option name a set happens
-     to hold. Text stretches because what you type has no length; a closed list of named
-     things does not. */
-  --select-min: 200px;
-
   /* What a draggable divider looks like, wherever one appears - a border color here
      reads as an edge rather than a handle. A divider is something you grab, so it takes
      WCAG 1.4.11's 3:1 like any other control: at .28 it measured 2.37 to 2.46 against the
@@ -188,10 +152,6 @@ _TOKENS = """
   --tier-table: var(--warm);
   --tier-quiet: var(--ink-3);
   --resize-line: rgba(255, 255, 255, 0.38);
-
-  /* The gutter a panel keeps from whatever it sits against. One value, so the browse
-     region and the work region do not each pick their own and land 4px apart. */
-  --panel-gutter: 16px;
 
   /* --- The effects layer -----------------------------------------------------------
      Synthwave carries three things the neutral modes will not: the backdrop grid, the
@@ -230,14 +190,64 @@ _TOKENS = """
                        var(--surface-1) 72px);
   /* A card is a panel with a little depth in it rather than a flat plate. */
   --card-bg: linear-gradient(180deg, rgba(26, 15, 53, 0.75) 0%, rgba(15, 7, 34, 0.75) 100%);
+  --scrollbar-thumb: rgba(155, 139, 189, 0.32);
+  --scrollbar-thumb-hover: rgba(155, 139, 189, 0.62);
+"""
+
+# Sizes, not colors. Density is a feature of this surface rather than a preference,
+# so a mode that changed the type scale would turn a designed density into somebody's
+# accident. These are stated once and every mode gets them.
+_STRUCTURE = """
+
+  --fs-caption: 12px;
+  --fs-body: 14px;
+  --fs-title: 20px;
+  /* A stat, not prose - the one place a number is the content. */
+  --fs-display: 30px;
+
+  /* 44px where a finger is in scope; the Console is desk-first, so this is the floor. */
+  --target-min: 32px;
+  /* An action that sits beside a value rather than owning its row - see
+     `.console-action--inline`. Below the floor deliberately, and raised back to it where the
+     pointer is a finger. */
+  --target-inline: 22px;
+  /* A field sits in the fact rhythm rather than standing above it. Raised on touch
+     with the rest, below. */
+  --field-h: 26px;
+  /* A rating is five adjacent targets on one line, so it is sized on its own rather
+     than off `--target-min` - five 44px boxes is a row 220px wide, which is most of a
+     phone. Its own token so a surface can answer it without restyling the control. */
+  --star-size: 13px;
+  --star-gap: 2px;
+
+  /* One row of facts, sized as text. A row that *is* a field keeps the field's own
+     height; since such a field is never a swapped-in box, nothing jumps. */
+  /* The row, not the value: every kind of value - text, a chip, a field, a switch -
+     centres in a box this tall, so the air around one does not depend on which kind it
+     is. At 26 a text value sat 21px in 26 while a chip carried its own padding and read
+     roomier, which is the mismatch a reader sees as inconsistent spacing. */
+  --fact-row: 30px;
+
+  /* How far a label column may grow before a long label wraps instead. One long label
+     should cost its own row two lines, not push every control on the page away from the
+     label naming it. The pane's labels sit under this and never wrap. */
+  --label-max: 200px;
+  /* The floor under a select, for the caret and the longest option name a set happens
+     to hold. Text stretches because what you type has no length; a closed list of named
+     things does not. */
+  --select-min: 200px;
+
+  /* The gutter a panel keeps from whatever it sits against. One value, so the browse
+     region and the work region do not each pick their own and land 4px apart. */
+  --panel-gutter: 16px;
 
   /* Quiet, not invisible: a scrollbar says a region has more in it, so hiding one
      hides that there is more to see. */
   --scrollbar-size: 10px;
-  --scrollbar-thumb: rgba(155, 139, 189, 0.32);
-  --scrollbar-thumb-hover: rgba(155, 139, 189, 0.62);
-}
+"""
 
+# Rules rather than values, so they belong with neither palette.
+_SCROLLBAR = """
 /* Both engines: pseudo-elements for WebKit and Blink, properties for Firefox. */
 * {
   scrollbar-width: thin;
@@ -259,6 +269,7 @@ _TOKENS = """
                                   background-clip: content-box; }
 ::-webkit-scrollbar-corner { background: transparent; }
 """
+
 
 
 # Density is per surface, not per stylesheet. The Console is desk-first and says so -
@@ -1650,9 +1661,26 @@ body.console-menu-open .q-tooltip { display: none !important; }
 """
 
 
-def apply_flair() -> None:
+# Every appearance mode this surface has. Synthwave is the only one built; Dark and Light
+# are the reason the palette is separable at all.
+PALETTES = {"synthwave": _SYNTHWAVE}
+DEFAULT_MODE = "synthwave"
+
+
+def palette_css(mode: str = DEFAULT_MODE) -> str:
+    """One mode's `:root` block: its palette, plus the sizes no mode may change.
+
+    A palette is one string rather than a dict of 65 values because the reasoning lives
+    in the comments beside them - why a wash is its own value, why two glows are not one
+    - and that is the half worth keeping when somebody writes the next mode.
+    """
+    return ":root {" + PALETTES[mode] + _STRUCTURE + "}\n"
+
+
+def apply_flair(mode: str = DEFAULT_MODE) -> None:
     # Tokens first: everything after this refers to them.
-    ui.add_css(_TOKENS)
+    ui.add_css(palette_css(mode))
+    ui.add_css(_SCROLLBAR)
     ui.add_css(_SURFACES)
     ui.add_css(_REMOTE)
     ui.add_css(_FLAIR)
@@ -1671,8 +1699,8 @@ def apply_surface(name: str) -> None:
 
 
 def _token(name: str) -> str:
-    """The value a token carries, read out of the block that declares it."""
-    match = re.search(rf"^\s*{name}:\s*([^;]+);", _TOKENS, re.MULTILINE)
+    """The value a token carries, read out of the palette that declares it."""
+    match = re.search(rf"^\s*{name}:\s*([^;]+);", PALETTES[DEFAULT_MODE], re.MULTILINE)
     if match is None:
         raise KeyError(name)
     return match.group(1).strip()

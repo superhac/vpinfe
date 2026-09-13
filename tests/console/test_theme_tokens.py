@@ -18,7 +18,8 @@ from console import theme
 
 # Every block that ships, in one string - a token may be defined in one and used in
 # another, and checking them apart would report both halves as broken.
-STYLESHEET = theme._TOKENS + theme._FLAIR + theme._COMPONENTS
+STYLESHEET = (theme.palette_css() + theme._SCROLLBAR
+              + theme._FLAIR + theme._COMPONENTS)
 
 DEFINED = re.compile(r"^\s*(--[a-z0-9-]+)\s*:", re.MULTILINE)
 USED = re.compile(r"var\(\s*(--[a-z0-9-]+)")
@@ -97,12 +98,12 @@ class LiteralTests(unittest.TestCase):
         self.assertLessEqual(
             len(found), self.CEILING,
             f"{len(found)} distinct unnamed colors, ceiling {self.CEILING}. "
-            "Name it in _TOKENS and use var().")
+            "Name it in the palette and use var().")
 
     def test_the_token_block_is_where_a_color_is_named(self) -> None:
-        """The other half: if the token block held no hex either, the count above would
+        """The other half: if the palette held no hex either, the count above would
         be passing because it is reading the wrong string."""
-        self.assertTrue(LITERAL.findall(theme._TOKENS))
+        self.assertTrue(LITERAL.findall(theme.palette_css()))
 
 
 if __name__ == "__main__":
