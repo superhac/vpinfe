@@ -78,6 +78,23 @@ _TOKENS = """
   --surface-0: #0a0518;
   --surface-1: #150a2e;
   --surface-2: #1a0f35;
+  /* Below the panels rather than above them: the grid's own ground, and the bed a
+     thumbnail is shown against. */
+  --surface-3: #140a2b;
+  /* Deeper still - the grid header, and the foot of the nav rail where the gradient
+     lands. */
+  --surface-sunken: #0f0722;
+  /* The plate a picture is shown on, in a viewer or a hover preview. Within a unit of
+     --surface-sunken today and kept apart anyway: one is a panel and one is a ground,
+     and a light mode has to be free to make a panel the lighter of the two. */
+  --surface-viewer: #0b0520;
+  /* Darker than the page, because a picture reads best against something that is not
+     competing with it. */
+  --surface-art: #06030f;
+  /* The row you are on. Opaque on purpose - a translucent selection composites over
+     the two alternating bands differently, so a run of selected rows stops reading as
+     one block. */
+  --row-select: #14314a;
   --line: #2b1a4d;
   /* The visible edge, against --line's hairline: a menu, a dropped-file target and a
      panel header all need to be seen as an edge rather than felt as one. */
@@ -413,11 +430,11 @@ body::before {
 .nicegui-aggrid {
   /* Depth comes from the tonal range, not from saturation: the page is nearly black,
      panels step up, the grid sits between them. The row alternation is deliberately
-     narrow - var(--surface-2) against #251447 read as two different colors rather than as
-     banding. */
-  --ag-background-color: #140a2b;
-  --ag-odd-row-background-color: #190e33;
-  --ag-header-background-color: #0f0722;
+     narrow - taking the odd row up to #251447 read as two different colors rather than
+     as banding. */
+  --ag-background-color: var(--surface-3);
+  --ag-odd-row-background-color: var(--surface-2);
+  --ag-header-background-color: var(--surface-sunken);
   --ag-row-hover-color: var(--surface-hover);
   --ag-border-color: var(--line);
   --ag-header-foreground-color: var(--ink-2);
@@ -432,7 +449,7 @@ body::before {
      what made it read as flat - nothing stood out because everything was the accent. */
   /* Opaque, not a wash: a translucent selection composites over the two alternating
      bands differently, so a run of selected rows never reads as one block. */
-  --ag-selected-row-background-color: #14314a;
+  --ag-selected-row-background-color: var(--row-select);
   --ag-range-selection-border-color: var(--accent);
   --ag-input-focus-border-color: var(--accent);
   --ag-checkbox-checked-color: var(--accent);
@@ -446,7 +463,7 @@ body::before {
    Set on the row, not --ag-selected-row-background-color, which AG Grid 34 ignores. */
 .ag-row-selected,
 .ag-row-selected.ag-row-odd {
-  background-color: #14314a !important;
+  background-color: var(--row-select) !important;
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
@@ -1299,7 +1316,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
   width: 100%;
   object-fit: contain;
   border-radius: 6px;
-  background: #140a2b;
+  background: var(--surface-3);
   border: 1px solid var(--line);
 }
 .console-tile-missing { border-style: dashed; }
@@ -1330,7 +1347,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
      carries purple fine; the items are #5898d4 and do not, so the ground under them
      has to be dark. 90px is just past the 59px header. */
   background: linear-gradient(180deg, var(--flair) 0px, #4a1e7c 60px, var(--surface-2) 90px,
-                              #0f0722 100%) !important;
+                              var(--surface-sunken) 100%) !important;
 }
 .console-nav-item {
   /* Sampled from 2.x: 14px at weight 500 with normal tracking. Mine were 12px with
@@ -1742,7 +1759,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   justify-content: center;
   overflow: hidden;
   border-radius: 4px;
-  background: #06030f;
+  background: var(--surface-art);
 }
 /* NiceGUI wraps raw HTML in a plain div, and a percentage height resolves against
    that - which has none. `display: contents` takes it out of layout so the media is
@@ -1767,7 +1784,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* A panel over the page, sized by its content, so the media decides how big it is. */
 .console-viewer-card {
-  background: #0b0520 !important;
+  background: var(--surface-viewer) !important;
   max-width: 92vw; max-height: 88vh;
   display: flex; flex-direction: column;
   padding: 0 !important; overflow: hidden;
@@ -2527,7 +2544,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    is a preview and not the viewer. It rides in a tooltip because the lists around it
    scroll, and anything drawn inside a scrolling box is clipped by it. */
 .console-thumb-peek {
-  background: #0b0520 !important; padding: 4px !important;
+  background: var(--surface-viewer) !important; padding: 4px !important;
   border: 1px solid var(--line); border-radius: 6px;
   max-width: none !important;
 }
