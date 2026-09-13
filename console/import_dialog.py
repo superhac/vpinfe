@@ -47,7 +47,7 @@ def _where(plan: dict[str, Any], item: dict[str, Any]) -> str:
     if item.get("action") == "replace_media":
         return rel.as_posix()
     if str(rel.parent) == ".":
-        return "the game folder"
+        return t("console.import_dialog.the_game_folder")
     if rel.name == str(item.get("name") or ""):
         return f"{rel.parent.as_posix()}/"
     return rel.as_posix()
@@ -81,7 +81,7 @@ async def _no_destination(library: Any, found: dict[str, Any],
                           others: list[dict[str, Any]]) -> str | None:
     """It cannot go where it was told to. Refuse, say why, and offer the rest."""
     if not others:
-        ui.notify(str(found.get("reason") or "There is nowhere to put a new game"),
+        ui.notify(str(found.get("reason") or t("console.import_dialog.there_is_nowhere_to_put_a")),
                   type="negative")
         return None
     return await _pick(library, str(found.get("reason") or ""), others,
@@ -164,7 +164,8 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-import-card"):
         if new_folder:
-            ui.label(t("console.import_dialog.import_from", value=(source or 'this drop'))) \
+            ui.label(t("console.import_dialog.import_from",
+                    value=(source or t("console.import_dialog.this_drop")))) \
                 .classes("console-confirm-title")
             ui.label(t("console.import_dialog.the_files_keep_their_names")) \
                 .classes("console-help")
@@ -192,7 +193,8 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
         def recount() -> None:
             wanted = sum(1 for value in chosen.values() if value)
             count.text = ("" if single else
-                          f"{wanted} of {len(items)} will be imported")
+                          t("console.import_dialog.of_will_be_imported", wanted=(wanted),
+                                  len=(len(items))))
 
         with rows:
             for one in items:
@@ -219,7 +221,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
         ui.notify(t("console.import_dialog.nothing_was_selected_so"), type="warning")
         return
 
-    note = ui.notification("Importing…", spinner=True, timeout=None)
+    note = ui.notification(t("console.import_dialog.importing"), spinner=True, timeout=None)
     try:
         report = await run.io_bound(
             library.upload_import, upload_id, game_dir=game_dir, rom_name=rom_name,

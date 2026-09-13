@@ -80,13 +80,13 @@ def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
         try:
             found = await run.io_bound(library.metrics, WINDOW_SECONDS)
         except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
-            show(f"Could not read this machine: {exc}")
+            show(t("console.metrics.could_not_read_this", exc=(exc)))
             return
         now = found.get("now") or {}
         if not now.get("measurable"):
             # Offered with the reason rather than hidden: a page that simply omits the
             # readings leaves somebody unsure whether the machine is fine or this is.
-            show(str(now.get("reason") or "This machine cannot report its readings."))
+            show(str(now.get("reason") or t("console.metrics.this_machine_cannot_report")))
             return
         show("")
         history = found.get("history") or []

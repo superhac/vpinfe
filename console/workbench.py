@@ -49,7 +49,6 @@ from console import (
     panel,
     stars,
     table_features,
-    views,
     vps_match,
 )
 from console import commands as commands_help
@@ -673,8 +672,8 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
     container.clear()
     title.clear()
     with container:
-        kind = ("Dynamic collection" if (row.get("type") or "") == "filter"
-                else "Manual collection")
+        kind = (t("console.workbench.dynamic_collection") if (row.get("type") or "") == "filter"
+                else t("console.workbench.manual_collection"))
         _title(title, row.get("name") or "", kind)
         # The rule being edited, which is not always the rule that is stored. Held on
         # the client rather than in this build of the panel, so a section change or a
@@ -822,7 +821,7 @@ def _prefix(game_id: str, table_id: str) -> str:
 def _media_label(context: dict[str, Any]) -> str:
     present, borrowed, total = mediamap.summary(
         context["library"].media.get(context["game_id"], {}))
-    label = f"Media ({present}/{total}"
+    label = t("console.workbench.media", present=(present), total=(total))
     return label + (f", {borrowed} borrowed)" if borrowed else ")") + _media_scope(context)
 
 
@@ -1305,7 +1304,7 @@ def _identity_rows(context: dict[str, Any]) -> None:
         return write
 
     entries: list[tuple[Any, Any]] = [
-        (HEADING, views.builtin_name(game_tables.MACHINE)),
+        (HEADING, game_tables.MACHINE),
         (t("console.workbench.fact_name"), _override(game.get("name") or "",
                 found.get("name") or "",
                            "VPS", save("alt_title"))),
@@ -1511,7 +1510,7 @@ def _assets_label(context: dict[str, Any]) -> str:
     # two rows were drawn - a header disagreeing with the list under it.
     have += sum(1 for kind, state in (game.get("assets") or {}).items()
                 if kind not in resolved and state.get("present"))
-    return f"Assets ({have})" if have else "Assets"
+    return t("console.workbench.assets_2", have=(have)) if have else t("console.workbench.assets")
 
 
 async def _assets_block(context: dict[str, Any]) -> None:
@@ -1535,7 +1534,7 @@ async def _assets_block(context: dict[str, Any]) -> None:
 
     entries: list[tuple[Any, Any]] = []
     if chosen is not None:
-        entries += [(HEADING, "This table")]
+        entries += [(HEADING, t("console.workbench.this_table_2"))]
         for kind, state in sorted(resolved.items()):
             entries.append((_asset_name(kind),
                             _resolved_row(context, chosen, kind, state)))
@@ -1551,7 +1550,7 @@ async def _assets_block(context: dict[str, Any]) -> None:
                 pinmame, str(pinmame.get("effective")
                              or pinmame.get("declared") or "-"))))
 
-    entries += [(HEADING, "The game folder")]
+    entries += [(HEADING, t("console.workbench.the_game_folder"))]
     for kind, state in sorted(folder.items()):
         # Already answered above, and more precisely: the table's own lookup says
         # which file wins, where the folder can only say one is somewhere in it.
@@ -1594,8 +1593,7 @@ def _resolved_row(context: dict[str, Any], table: dict[str, Any], kind: str,
             # that has no wrong answer: which script runs.
             if kind == "script":
                 word = game_tables.word_for(game_tables.SCRIPT_WORDS, external)
-                why = ("A .vbs beside the table, and VPX runs it instead of the one "
-                       "inside" if external
+                why = (t("console.workbench.a_vbs_beside_the_table_and") if external
                        else "The table runs the script inside its own .vpx")
                 ui.label(word).classes("console-tier console-tier--off").tooltip(why)
             else:
@@ -1613,7 +1611,8 @@ def _resolved_row(context: dict[str, Any], table: dict[str, Any], kind: str,
 def _present_row(present: bool) -> Any:
     """A folder-level kind, which is either there or not. No tier: nothing resolves it
     per table, and a tier would imply it could."""
-    return _state("Present" if present else "Missing", "on" if present else "off")
+    return _state(t("console.workbench.present") if present else t("console.workbench.missing"),
+            "on" if present else "off")
 
 
 def _script_actions(context: dict[str, Any], table: dict[str, Any],
@@ -1657,12 +1656,12 @@ def _played_for(seconds: int) -> str:
     """Play time in the largest unit that is still true, because the number is read at
     a glance and 41,400 seconds is not a length anybody pictures."""
     if seconds < 60:
-        return "None" if not seconds else f"{seconds} sec"
+        return t("console.workbench.none") if not seconds else f"{seconds} sec"
     minutes = seconds // 60
     if minutes < 90:
         return f"{minutes} min"
     hours, rest = divmod(minutes, 60)
-    return f"{hours} hr {rest} min" if rest else f"{hours} hr"
+    return t("console.workbench.hr_min", hours=(hours), rest=(rest)) if rest else f"{hours} hr"
 
 
 def _play_rows(context: dict[str, Any], record: dict[str, Any], *,
@@ -1685,7 +1684,7 @@ def _play_rows(context: dict[str, Any], record: dict[str, Any], *,
     rows += [
         (t("console.workbench.fact_last_played"), _played_when(record.get("last_played"))),
         (t("console.workbench.fact_times_played"),
-                str(int(record.get("play_count") or 0) or "Never")),
+                str(int(record.get("play_count") or 0) or t("console.workbench.never"))),
         (t("console.workbench.fact_play_time"),
                 _played_for(int(record.get("play_time_seconds") or 0))),
     ]
@@ -1757,14 +1756,16 @@ async def _vps_block(context: dict[str, Any]) -> None:
         entries.append((FULL, _parked_match(context, parked)))
 
     if not vps_id:
-        entries += [(t("console.workbench.fact_entry"), _state("Not matched", "warn"))]
+        entries += [(t("console.workbench.fact_entry"), _state(t("console.workbench.not_matched"),
+                "warn"))]
     else:
         found = await run.io_bound(library.vps_entry, vps_id)
         entries += [
             # The entry as a person reads it. The id is how the wire addresses it and
             # is the one thing a reader cannot check a match against.
             (t("console.workbench.fact_entry"), _vps_entry_row(found, vps_id)),
-            (t("console.workbench.fact_match"), _state("Set by you" if chosen else "Discovered",
+            (t("console.workbench.fact_match"), _state(t("console.workbench.set_by_you") if chosen
+                    else t("console.workbench.discovered"),
                              "on" if chosen else "off")),
         ]
         if found.get("releases"):
@@ -1780,8 +1781,12 @@ async def _vps_block(context: dict[str, Any]) -> None:
 
 # What the catalog calls these against what a person does. Only where the two differ:
 # `Manufacturer` needs no translating and a map that repeats it is a map nobody trusts.
-DETAIL_WORDS = {"Title": "Name", "IPDBId": "IPDB", "PinballPrimerTut": "Tutorial",
-                "Themes": "Theme"}
+DETAIL_WORDS = {
+    "Title": t("console.workbench.name"),
+    "IPDBId": "IPDB",
+    "PinballPrimerTut": t("console.workbench.tutorial"),
+    "Themes": t("console.workbench.theme"),
+}
 
 
 def _details_differ(context: dict[str, Any],
@@ -1835,7 +1840,7 @@ def _vps_entry_row(found: dict[str, Any], vps_id: str) -> Callable[[], None]:
                     .classes("console-action console-action--inline") \
                     .tooltip(t("console.workbench.open_on_vps")) \
                     .props("no-caps") \
-                    .set_text("View")
+                    .set_text(t("console.workbench.view"))
 
     return draw
 
@@ -1914,7 +1919,8 @@ def _rom_state(pinmame: dict[str, Any], rom: str,
     installed = pinmame.get("installed")
     if not pinmame.get("effective") or installed is None:
         return rom
-    chip = _state("Installed" if installed else "Not installed",
+    chip = _state(t("console.workbench.installed") if installed
+            else t("console.workbench.not_installed"),
                   "on" if installed else "warn", beside=rom)
     if installed or context is None:
         return chip
@@ -1946,15 +1952,15 @@ def _attention(table: dict[str, Any]) -> list[tuple[Any, Any]]:
         # and nothing here is lost; something with no file at all has nothing to play
         # it. The same sentence for all three would send somebody to the wrong fix.
         if game_tables.is_referenced(table):
-            faults.append("The place this table lives is not reachable")
+            faults.append(t("console.workbench.the_place_this_table_lives"))
         elif game_tables.is_keyed(table):
-            faults.append("Nothing on this machine can play it")
+            faults.append(t("console.workbench.nothing_on_this_machine"))
         else:
-            faults.append("The file is not on disk")
+            faults.append(t("console.workbench.the_file_is_not_on_disk"))
     if pinmame.get("effective") and pinmame.get("installed") is False:
-        faults.append(f"ROM {pinmame['effective']} is not installed")
+        faults.append(t("console.workbench.rom_is_not_installed", value=(pinmame['effective'])))
     if flex.get("detected") and not flex.get("installed"):
-        faults.append("The script uses FlexDMD, which is not installed")
+        faults.append(t("console.workbench.the_script_uses_flexdmd"))
     if not faults:
         return []
 
@@ -2009,7 +2015,8 @@ def _library_rows(context: dict[str, Any],
                 ui.button(t("console.workbench.make_default"),
                           on_click=lambda: act(library.set_default_table, game_id,
                                                table_id,
-                                               done="Now the game's default")) \
+                                               done=t(
+                                                   "console.workbench.now_the_game_s_default"))) \
                     .props("flat dense no-caps size=sm") \
                     .classes("console-action console-action--inline")
             elif (table.get("default_kind") or "") == game_tables.DERIVED:
@@ -2018,13 +2025,13 @@ def _library_rows(context: dict[str, Any],
                 # mercy of the next table installed.
                 ui.button(t("console.workbench.choose"),
                           on_click=lambda: act(library.set_default_table, game_id,
-                                               table_id, done="Chosen")) \
+                                               table_id, done=t("console.workbench.chosen"))) \
                     .props("flat dense no-caps size=sm") \
                     .classes("console-action console-action--inline")
             else:
                 ui.button(t("console.workbench.clear_choice"),
                           on_click=lambda: act(library.set_default_table, game_id, "",
-                                               done="Back to an automatic default")) \
+                                               done=t("console.workbench.back_to_an_automatic"))) \
                     .props("flat dense no-caps size=sm") \
                     .classes("console-action console-action--inline")
 
@@ -2117,8 +2124,8 @@ def _program_settings_row(context: dict[str, Any],
     if not name or not table.get("launcher_app_configurable"):
         return []
     changed = int(table.get("launcher_settings_here") or 0)
-    said = (f"Set here - {changed} changed" if changed
-            else f"Following {name}")
+    said = (t("console.workbench.set_here_changed", changed=(changed)) if changed
+            else t("console.workbench.following", name=(name)))
 
     # An async handler rather than a lambda that returns one: the panel hands what it
     # is given straight to the button, and a coroutine nobody awaits is a click that
@@ -2186,7 +2193,8 @@ def _launcher_pick(context: dict[str, Any], table: dict[str, Any]) -> Callable[[
     held = context.get("launchers") or []
     default_name = next((one["display_name"] for one in held
                          if one.get("is_default")), "")
-    options = {"": f"Default - {default_name}" if default_name else "Default"}
+    options = {"": t("console.workbench.default", default_name=(default_name)) if default_name
+            else t("console.workbench.default_2")}
     options.update({one["launcher_id"]: one["display_name"] for one in held})
     current = str(table.get("launcher") or "") if table.get("launcher_set_here") else ""
 
@@ -2257,8 +2265,8 @@ async def _extract_script(context: dict[str, Any], table: dict[str, Any]) -> Non
     """Not confirmed: it writes a new file and takes nothing away, and the way back is
     the Delete beside it."""
     await _script_act(context, context["library"].extract_script,
-                      table.get("id") or "", "Extracted - the table now runs the .vbs",
-                      "Could not extract the script")
+                      table.get("id") or "", t("console.workbench.extracted_the_table_now"),
+                      t("console.workbench.could_not_extract_the"))
 
 
 async def _drop_script(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -2270,8 +2278,8 @@ async def _drop_script(context: dict[str, Any], table: dict[str, Any]) -> None:
             lines=[f"{Path(table.get('filename') or '').stem}.vbs"]):
         return
     await _script_act(context, context["library"].delete_script,
-                      table.get("id") or "", "Deleted - the table runs its own script",
-                      "Could not delete the script")
+                      table.get("id") or "", t("console.workbench.deleted_the_table_runs_its"),
+                      t("console.workbench.could_not_delete_the"))
 
 
 async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -2387,7 +2395,7 @@ async def _add_referenced_table(context: dict[str, Any]) -> None:
         ui.label(t("console.workbench.for_a_table_on_a_share_or")).classes("console-help")
         # No suffix in the example: which ones are tables is the app registry's answer,
         # and hard-coding one here would be this surface deciding it.
-        typed = ui.input(placeholder="/path/to/the/table file") \
+        typed = ui.input(placeholder=t("console.workbench.path_to_the_table_file")) \
             .props("outlined dense debounce=0").classes("w-96")
 
         async def keep() -> None:
@@ -2557,7 +2565,8 @@ def _release_line(table: dict[str, Any]) -> None:
     made_by = ", ".join(str(name) for name in (source.get("authors") or [])[:3])
     told = " \u00b7 ".join(part for part in (version, made_by) if part)
     with ui.row().classes("items-center gap-2 w-full no-wrap console-member-table-line"):
-        ui.label(told or "A build the catalog no longer lists").classes("console-help truncate")
+        ui.label(told or t("console.workbench.a_build_the_catalog_no")) \
+            .classes("console-help truncate")
 
 
 def _release_button(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -2605,7 +2614,8 @@ def _match_line(context: dict[str, Any], kind: str, matched_to: Any) -> str:
                 str(record.get("version") or ""),
                 ", ".join(str(name) for name in (record.get("authors") or [])[:2]),
             ) if part)
-            return f"Matched to {told}" if told else t("console.workbench.matched_to_a_published")
+            return t("console.workbench.matched_to",
+                    told=(told)) if told else t("console.workbench.matched_to_a_published")
     # Worth saying: it is why no update will ever be reported for this file.
     return t("console.workbench.matched_to_a_file_the")
 
@@ -2683,7 +2693,7 @@ def _record_row(record: dict[str, Any], dialog: Any, bound: str) -> None:
     stamp = str(record.get("updated_at") or "")[:10]
     if stamp:
         meta.append(stamp)
-    name = str(record.get("version") or "") or "No version given"
+    name = str(record.get("version") or "") or t("console.workbench.no_version_given")
     if said == bound:
         name = f"{name}  ✓"
     candidates.choice(str(record.get("img_url") or ""), name,
@@ -2766,7 +2776,7 @@ def _release_row(release: dict[str, Any], dialog: Any, bound: str) -> None:
     stamp = str(release.get("updated_at") or "")[:10]
     if stamp:
         meta.append(stamp)
-    name = str(release.get("version") or "") or "No version given"
+    name = str(release.get("version") or "") or t("console.workbench.no_version_given")
     if said == bound:
         name = f"{name}  \u2713"
     candidates.choice(str(release.get("img_url") or ""), name,
@@ -3026,7 +3036,7 @@ def _said_value(field, value: str) -> str:
         return ""
     if getattr(field, "type", "") == "bool":
         return t("console.workbench.off") if value in ("0", "false",
-                "False") else t("console.workbench.on")
+                t("console.workbench.false")) else t("console.workbench.on")
     for stored, label in getattr(field, "choices", ()) or ():
         if stored == value:
             return label
@@ -3184,7 +3194,7 @@ SECTION_NOTES = {
     "Alpha": "console.workbench.section.alphanumeric_display_rendering",
     "Controller": "console.workbench.section.controller_integrations_and_extern",
     "Standalone": "console.workbench.section.standalone_runtime_behavior_and_ca",
-    "TableOption": "console.workbench.section.table_script_options_saved_by"
+    "TableOption": "console.workbench.section.table_script_options_saved_by",
 }
 
 
@@ -3264,7 +3274,7 @@ async def _launcher_setup(context: dict[str, Any]) -> None:
     if not _program_is_there(context):
         entries.append(panel.note(
             t("console.workbench.is_not_on_this_machine_so", value=(launcher['app_name']))))
-    entries.append((HEADING, "How it runs"))
+    entries.append((HEADING, t("console.workbench.how_it_runs")))
     for field in launcher.get("fields") or []:
         entries.append((field["label"],
                         settings_page.control_for(
@@ -3313,7 +3323,8 @@ async def _launcher_actions(context: dict[str, Any]) -> None:
 
 
 # Why a copy was taken, in the words somebody would use.
-BACKUP_REASONS = {"manual": "Taken by you", "before-restore": "Before a restore"}
+BACKUP_REASONS = {"manual": t("console.workbench.taken_by_you"),
+        "before-restore": t("console.workbench.before_a_restore")}
 
 
 def _app_keeps_settings(context: dict[str, Any]) -> bool:
@@ -3323,8 +3334,10 @@ def _app_keeps_settings(context: dict[str, Any]) -> bool:
 
 def _backup_when(one: dict) -> str:
     """When it was taken, as a person reads a date, with any label beside it."""
-    stamp = str(one.get("taken_at") or "")
-    said = f"{stamp[:10]} {stamp[11:16]}" if len(stamp) >= 16 else (stamp or "Unknown")
+    stamp = str(one.get("taken_at") or
+            "")
+    said = f"{stamp[:10]} {stamp[11:16]}" if len(stamp) >= 16 \
+        else (stamp or t("console.workbench.unknown"))
     label = str(one.get("label") or "")
     return f"{said} - {label}" if label else said
 
@@ -3359,14 +3372,14 @@ async def _config_backups(context: dict[str, Any], launcher: dict) -> None:
         ui.notify(t("console.workbench.copied"), type="positive")
         await context["rebuild"]()
 
-    entries: list[tuple[Any, Any]] = [(HEADING, "Settings file")]
+    entries: list[tuple[Any, Any]] = [(HEADING, t("console.workbench.settings_file"))]
     if named:
         entries.append((t("console.workbench.fact_file"), _file_value(named[0])))
     entries.append((t("console.workbench.fact_copies"), _copies_value(held, take, found, context,
             playing)))
     entries.append(panel.note(
         t("console.workbench.kept_in",
-                value=(found.get('kept_in') or 'this install\'s configuration folder'))))
+                value=(found.get('kept_in') or t("console.workbench.this_install_s")))))
     _rows(ui, entries)
 
 
@@ -3382,7 +3395,7 @@ def _file_value(path: str) -> Callable[[], None]:
 
 def _said_count(held: list[dict]) -> str:
     if not held:
-        return "None yet"
+        return t("console.workbench.none_yet")
     newest = _backup_when(held[0])
     return (f"1, taken {newest}" if len(held) == 1
             else f"{len(held)}, newest {newest}")
@@ -3479,7 +3492,7 @@ async def _location_details(context: dict[str, Any]) -> None:
             await write(kind=wanted)
 
     entries: list[tuple[Any, Any]] = [
-        (HEADING, "This location"),
+        (HEADING, t("console.workbench.this_location")),
         (t("console.workbench.fact_folder"), panel.field(
             row["path"], save_path,
             status=panel.value_state("ok" if row["reachable"] else "missing",
@@ -3623,9 +3636,9 @@ def _location_write_to(context: dict[str, Any],
 
     reason = ""
     if row["kind"] != "root":
-        reason = "A single game folder has no room for another game."
+        reason = t("console.workbench.a_single_game_folder_has")
     elif not row["writable"]:
-        reason = row["reason"] or "Nothing can be written here."
+        reason = row["reason"] or t("console.workbench.nothing_can_be_written")
     return panel.action(t("console.workbench.create_new_games_here"), choose,
                         enabled=row["writable"] and row["kind"] == "root", hint=reason)
 
@@ -3647,7 +3660,7 @@ async def _collection_details(context: dict[str, Any]) -> None:
     """What the collection is, rather than what is in it."""
     row = _collection(context)
     entries: list[tuple[Any, Any]] = [
-        (HEADING, "This list"),
+        (HEADING, t("console.workbench.this_list")),
         (t("console.workbench.fact_name"), _text_control(context, row, "name")),
         (t("console.workbench.fact_description"), _text_control(context, row, "description",
                 lines=3)),
@@ -3748,7 +3761,8 @@ def _image_slot(context: dict[str, Any], row: dict[str, Any]) -> None:
 
 def _contents_label(context: dict[str, Any]) -> str:
     got = (context.get("membership") or {}).get("playable")
-    return "Contents" if got is None else f"Contents ({got})"
+    return t("console.workbench.contents_2") if got is None else t("console.workbench.contents",
+            got=(got))
 
 
 async def _collection_contents(context: dict[str, Any]) -> None:
@@ -3799,7 +3813,8 @@ def _kind_control(context: dict[str, Any], row: dict[str, Any],
     over the games already named.
     """
     with ui.row().classes("items-center gap-3 w-full no-wrap"):
-        choice = ui.toggle({"manual": "Manual", "dynamic": "Dynamic"},
+        choice = ui.toggle({"manual": t("console.workbench.manual"),
+                "dynamic": t("console.workbench.dynamic")},
                            value="dynamic" if dynamic else "manual") \
             .props("dense no-caps unelevated").classes("console-kind-toggle")
 
@@ -3903,7 +3918,8 @@ def _axis_control(context: dict[str, Any], axis: dict[str, Any],
         if kind == "flag":
             # Three states, not two: absent says nothing about play, while true and
             # false are both criteria. A switch could only ever say two of the three.
-            control = ui.select({"": "Any", "yes": "Yes", "no": "No"},
+            control = ui.select({"": t("console.workbench.any"), "yes": t("console.workbench.yes"),
+                    "no": "No"},
                                 value={True: "yes", False: "no"}.get(
                                     current.get(name), "")) \
                 .props("dense outlined").classes("w-full min-w-0")
@@ -3954,8 +3970,8 @@ def _rule_sentence(context: dict[str, Any], row: dict[str, Any]) -> str:
             continue
         if name == "played":
             if current.get(name) is not None:
-                said.append("it has been played" if current[name]
-                            else "it has never been played")
+                said.append(t("console.workbench.it_has_been_played") if current[name]
+                            else t("console.workbench.it_has_never_been_played"))
             continue
         chosen = _selected(current.get(name))
         if chosen:
@@ -3975,7 +3991,7 @@ def _ordering_rows(context: dict[str, Any], row: dict[str, Any],
     they go, so that arrangement is undefined and the API refuses it.
     """
     ordered = _order_control(context, row, arrangeable=arrangeable)
-    entries: list[tuple[Any, Any]] = [(HEADING, "Presentation")]
+    entries: list[tuple[Any, Any]] = [(HEADING, t("console.workbench.presentation"))]
     entries.append((t("console.workbench.fact_ordered_by"), ordered["by"]))
     if (row.get("order_by") or DEFAULT_ORDER_BY) != MANUAL_ORDER:
         # Not a setting that happens to be off: a direction on a hand-arranged list is
@@ -3996,8 +4012,9 @@ def _paging_control(context: dict[str, Any],
     current = row.get("paging_group") or ""
 
     def draw() -> None:
-        field = ui.select({"": "Follow the frontend", "sort": "By sort group",
-                           "count": "By a fixed number"}, value=current) \
+        field = ui.select({"": t("console.workbench.follow_the_frontend"),
+                "sort": t("console.workbench.by_sort_group"),
+                           "count": t("console.workbench.by_a_fixed_number")}, value=current) \
             .props("dense outlined").classes("w-full min-w-0")
 
         async def changed() -> None:
@@ -4073,7 +4090,7 @@ async def _keep_result(context: dict[str, Any]) -> None:
 
 def _order_control(context: dict[str, Any], row: dict[str, Any],
                    *, arrangeable: bool) -> dict[str, Callable[[], None]]:
-    choices = {MANUAL_ORDER: "Manual", **SORT_LABELS} if arrangeable \
+    choices = {MANUAL_ORDER: t("console.workbench.manual"), **SORT_LABELS} if arrangeable \
         else dict(SORT_LABELS)
     current = row.get("order_by") or DEFAULT_ORDER_BY
     held: dict[str, Any] = {"by": current if current in choices else DEFAULT_ORDER_BY,
@@ -4210,7 +4227,8 @@ def _member_state(member: dict[str, Any]) -> str:
         return game_tables.GONE
     return _TABLE_STATE.get(str(tables[0].get("origin") or ""), game_tables.FOLLOWS)
 # Not a thing a reference points at, so it keeps its own word.
-_EXCLUDED = ("Excluded", "Kept out of this collection")
+_EXCLUDED = (t("console.workbench.excluded"),
+             t("console.workbench.kept_out_of_this"))
 
 
 def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
@@ -4466,15 +4484,17 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
         _table_menu_item(context, member, "", named,
                          game_tables.FOLLOWS,
                          game_tables.REFERENCE_WORDS[game_tables.FOLLOWS][0],
-                         chosen=not named,
-                         blocked="Already in this collection" if default_taken else "",
+                         chosen=not
+                                 named,
+                         blocked=t("console.workbench.already_in_this_collection")
+                         if default_taken else "",
                          under=game_tables.table_name(offers) if offers else "")
         for one in choices:
             table_id = str(one.get("id") or "")
             _table_menu_item(context, member, table_id, named,
                              game_tables.FIXED,
                              game_tables.table_name(one), chosen=table_id == named,
-                             blocked="Already in this collection"
+                             blocked=t("console.workbench.already_in_this_collection")
                              if table_id in taken else "")
         # The tournament case: a collection holding two versions of one game, each
         # named (COLLECTIONS 2.10 and 2.12). Switching this row cannot express it -

@@ -12,6 +12,8 @@ from collections.abc import Callable
 
 from nicegui import ui
 
+from common.i18n import t
+
 # A family with no frame of its own still gets a mark, so the slot is never empty.
 GLYPHS = {"audio": "graphic_eq"}
 FALLBACK = "description"
@@ -58,7 +60,7 @@ def _body(src: str, name: str, meta: str, tag: str, family: str, glyph: str,
 
 
 def row(src: str, name: str, meta: str, tag: str, take: Callable, *,
-        family: str = "image", glyph: str = "", action: str = "Use") -> None:
+        family: str = "image", glyph: str = "", action: str = t("console.candidates.use")) -> None:
     """What it looks like, what it is, and the one thing you can do with it."""
     with ui.row().classes("items-center gap-3 w-full no-wrap console-source-row"):
         _body(src, name, meta, tag, family, glyph)

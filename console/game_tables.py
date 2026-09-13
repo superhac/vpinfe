@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from common.i18n import t
+
 JOIN = " · "
 
 # The groups a fact belongs to, spelled once: the panel draws them as headings and the
@@ -16,26 +18,26 @@ JOIN = " · "
 # Shown, but also stored: `grid.layout_scope` keys saved column geometry on
 # "scope::view", so this name is in ui-preferences.json on every install that has
 # arranged the grid. It stays an identifier and `_view_name` resolves it.
-MACHINE = "Machine"
+MACHINE = t("console.view.machine")
 # "Table File", not "File": a panel that also shows a table ini, a script and a rom
 # left a reader asking which file. Chris, 2026-09-01, with `Default Table` below.
-FILE = "Table File"
-FEATURES = "Features"
+FILE = t("console.game_tables.table_file")
+FEATURES = t("console.game_tables.features")
 # What a keyed entry's group is called where the file group would be. There is no file,
 # so "Table File" would be a heading over a blank - and the thing it does have is the
 # name its program knows it by.
-KNOWN_AS = "Known As"
+KNOWN_AS = t("console.game_tables.known_as")
 # A referenced entry's group. Not "Table File", which reads as a file of this game's -
 # the whole point of one of these is that the file belongs somewhere else.
-ELSEWHERE = "Where It Is"
+ELSEWHERE = t("console.game_tables.where_it_is")
 
 # What a reference is doing right now. Notable first, like every pair here. **Not
 # Missing** - nothing is lost when a share has not mounted, and the word that tells
 # somebody a file was deleted is the wrong word for a location being away.
-REACH_WORDS = ("Unreachable", "Reachable")
-LAUNCH = "Launch"
-PLAY = "Play"
-FRONTEND = "Frontend"
+REACH_WORDS = (t("console.game_tables.unreachable"), t("console.game_tables.reachable"))
+LAUNCH = t("console.game_tables.launch")
+PLAY = t("console.game_tables.play")
+FRONTEND = t("console.game_tables.frontend")
 
 # What a reference points at: whichever table the game offers, or exactly one. `GONE` is
 # not a third kind - it is either of the two, naming something absent.
@@ -47,9 +49,11 @@ GONE = "missing"
 # same shape so they read as a pair. Short because this is read down a long list, where
 # a sentence per row is noise.
 REFERENCE_WORDS = {
-    FOLLOWS: ("Game Default", "Whichever table the game offers"),
-    FIXED: ("User Defined", "Only this table"),
-    GONE: ("Missing", "Not in this library"),
+    FOLLOWS: (t("console.game_tables.game_default"),
+            t("console.game_tables.whichever_table_the_game")),
+    FIXED: (t("console.game_tables.user_defined"), t("console.game_tables.only_this_table")),
+    GONE: (t("console.game_tables.missing_word"),
+           t("console.game_tables.not_in_this_library")),
 }
 
 # Drawn, not typed: as characters these are not a matched pair. Measured in the Console's
@@ -66,9 +70,9 @@ MARKS = {
 
 # The legend, because a tooltip cannot be the only one - it does not exist on a touch
 # device. It names the two states; the difference between them is its own tooltip.
-KEY_WORDS = ((FIXED, "User Defined"), (FOLLOWS, "Game Default"))
-KEY_DETAIL = ("User defined stays on the table it names. Game default follows the "
-              "game, so a replacement is picked up.")
+KEY_WORDS = ((FIXED, t("console.game_tables.user_defined")), (FOLLOWS,
+        t("console.game_tables.game_default")))
+KEY_DETAIL = (t("console.game_tables.user_defined_stays_on_the"))
 
 
 def native_key(table: dict[str, Any] | None) -> str:
@@ -104,34 +108,36 @@ CHOSEN = "user"
 DERIVED = "auto"
 
 DEFAULT_WORDS = {
-    CHOSEN: ("Chosen", "Stays on this table"),
-    DERIVED: ("Automatic", "May move when the library changes"),
+    CHOSEN: (t("console.game_tables.chosen"),
+             t("console.game_tables.stays_on_this_table")),
+    DERIVED: (t("console.game_tables.automatic"),
+              t("console.game_tables.may_move_when_the_library")),
 }
 
 # One name and one direction per fact, read by the column, the panel, the funnel and the
 # row menu. Notable is first; docs/conventions.md has why.
-HIDDEN_WORDS = ("Hidden", "Offered")
-FILE_WORDS = ("Missing", "Present")
+HIDDEN_WORDS = (t("console.game_tables.hidden"), t("console.game_tables.offered"))
+FILE_WORDS = (t("console.game_tables.missing"), t("console.game_tables.present"))
 # Which script runs, not how the file got there: VPX loads a `<table>.vbs` sidecar in
 # place of the one inside the .vpx, so the sidecar is an override and "Extracted" named
 # only its provenance. External is the notable half - it is the table running something
 # other than what its author shipped.
-SCRIPT_WORDS = ("External", "Internal")
+SCRIPT_WORDS = (t("console.game_tables.external"), t("console.game_tables.internal"))
 # Whether every required asset resolves. Notable first, like the pairs above, because
 # the ordinary table runs - a word on every row that says so tells a reader nothing.
 # Three-valued, so the unknown has its own word: a table nothing has parsed cannot be
 # called ready and has not been found wanting either.
-LAUNCH_WORDS = ("Blocked", "Ready")
+LAUNCH_WORDS = (t("console.game_tables.blocked"), t("console.game_tables.ready"))
 # Whether the catalog knows this machine. Notable first, and unmatched is the notable
 # half by a long way - a matched game is the ordinary case, and it is the unmatched one
 # that can look nothing up: no art, no release list, no update.
-VPS_WORDS = ("Unmatched", "Matched")
+VPS_WORDS = (t("console.game_tables.unmatched"), t("console.game_tables.matched"))
 
 # The label, not the state - "Default" alone left a reader asking "default what?" on a
 # panel that also has a default launcher and a default view. Named here so the grid and
 # the workbench cannot answer it differently. Chris, 2026-09-01.
-DEFAULT_LABEL = "Default Table"
-LAUNCH_UNKNOWN = "Unknown"
+DEFAULT_LABEL = t("console.game_tables.default_table")
+LAUNCH_UNKNOWN = t("console.game_tables.unknown")
 
 
 def word_for(pair: tuple[str, str], notable: bool) -> str:

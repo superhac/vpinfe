@@ -408,6 +408,29 @@ class TestPanelFactLabels(unittest.TestCase):
         self.assertEqual(offenders, [], "a fact's label belongs in the catalog too")
 
 
+class TestEveryKeyIsServed(unittest.TestCase):
+    """`t("a.key.nobody.added")` renders the key. Two shipped because a script that
+    rewrote the source aborted before it wrote the catalog, so the code asked for
+    entries that were never created."""
+
+    def test_no_call_asks_for_a_key_the_catalog_lacks(self) -> None:
+        offenders = []
+        for root in ("console", "frontend", "httpapi", "common"):
+            for path in sorted((ROOT / root).rglob("*.py")):
+                if "__pycache__" in path.parts:
+                    continue
+                for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                    if not isinstance(node, ast.Call) \
+                       or getattr(node.func, "id", None) != "t":
+                        continue
+                    if not node.args or not isinstance(node.args[0], ast.Constant):
+                        continue
+                    key = node.args[0].value
+                    if isinstance(key, str) and key not in SOURCE:
+                        offenders.append(f"{path.relative_to(ROOT)}:{node.lineno} {key}")
+        self.assertEqual(offenders, [], "the catalog has no entry for these")
+
+
 class TestParametersMatchTheirTemplate(unittest.TestCase):
     """`t(key, exc=...)` against an entry that says `{reason}` renders the brace.
 

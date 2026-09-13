@@ -160,7 +160,7 @@ def _connection_rows(device: dict[str, Any],
             rows.append(panel.note(reason))
 
     rows.append((t("console.devices.fact_last_seen"),
-                 _when(str(device.get("last_reachable") or "")) or "Never"))
+                 _when(str(device.get("last_reachable") or "")) or t("console.devices.never")))
     return rows
 
 
@@ -191,7 +191,7 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
     before ports were recorded cannot be reached, and one that is not answering has not
     said. Either way "up to date" would be a guess wearing a fact.
     """
-    rows: list[tuple[Any, Any]] = [(panel.HEADING, "Software")]
+    rows: list[tuple[Any, Any]] = [(panel.HEADING, t("console.devices.software"))]
     if not update:
         rows.append((t("console.devices.fact_version"), panel.state(t("console.devices.not_known"),
                 "unknown")))
@@ -204,7 +204,7 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
         rows.append((t("console.devices.fact_version"), panel.state(current, "on")))
         return rows
 
-    latest = str(update.get("latest_version") or "a newer build")
+    latest = str(update.get("latest_version") or t("console.devices.a_newer_build"))
     if not update.get("update_supported"):
         reason = t(WHY_NOT.get(str(update.get("support_reason") or ""),
                                "console.devices.cannot_update"))
@@ -233,7 +233,7 @@ async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> Non
     which may not be the one this page is open on - "Update to v3.1" does not say which
     one goes down, and by the time it has, saying so is too late.
     """
-    latest = str(update.get("latest_version") or "the published build")
+    latest = str(update.get("latest_version") or t("console.devices.the_published_build"))
     try:
         playing = await run.io_bound(client.play_state)
     except Exception as exc:  # noqa: BLE001 - a dialog that cannot say what it will do
@@ -246,7 +246,7 @@ async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> Non
 
     # Named, because "a table is running" is a fact the person asking may not have: the
     # Console is not necessarily open on the machine the table is on.
-    lines = [f"{running} is being played there and will be closed."] if running else []
+    lines = [t("console.devices.is_being_played_there_and", running=(running))] if running else []
     if not await confirm.ask(
             t("console.devices.ask_update_to", name=(name), latest=(latest)),
             detail=t("console.devices.ask_the_package_is_downloaded"),
@@ -277,7 +277,8 @@ def _hostname_placeholder(device: dict[str, Any], is_local: bool) -> str:
     """
     if not is_local:
         return str(device.get("display_name") or "")
-    return str(device.get("display_name") or "").strip() or "This machine's hostname"
+    return str(device.get("display_name") or "") \
+        .strip() or t("console.devices.this_machine_s_hostname")
 
 
 
@@ -322,24 +323,24 @@ _ALL = [definition["field"] for definition in COLUMNS if definition["field"] != 
 _SELF_FIRST = {"colId": "self", "sort": "desc", "sortIndex": 0}
 
 VIEWS: dict[str, list[str] | views.Preset] = {
-    "All devices": views.Preset(
+    t("console.devices.all_devices"): views.Preset(
         columns=("name", "kind", "state", "what", "last_seen"),
         sort=(_SELF_FIRST,
               {"colId": "state", "sort": "asc", "sortIndex": 1},
               {"colId": "name", "sort": "asc", "sortIndex": 2}),
         help=t("console.devices.every_device_this_install.help")),
-    "Answering": views.Preset(
+    t("console.view.answering"): views.Preset(
         columns=("name", "kind", "what", "address", "features"),
         sort=(_SELF_FIRST, {"colId": "name", "sort": "asc", "sortIndex": 1}),
         filters={"state": {"values": [_REACH[device_client.ANSWERING][0]]}},
         help=t("console.devices.what_is_switched_on_and.help")),
-    "Not answering": views.Preset(
+    t("console.devices.not_answering"): views.Preset(
         columns=("name", "kind", "state", "address", "last_seen"),
         sort=(_SELF_FIRST, {"colId": "last_seen", "sort": "asc", "sortIndex": 1}),
         filters={"state": {"values": [_REACH[device_client.UNREACHABLE][0],
                                       _REACH[device_client.UNASKABLE][0]]}},
         help=t("console.devices.devices_that_could_not_be.help")),
-    "Everything": views.Preset(
+    t("console.view.everything"): views.Preset(
         columns=tuple(_ALL),
         help=t("console.devices.every_row_and_every_column.help")),
 }
@@ -480,21 +481,21 @@ async def detail_groups(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     their own, because four of them hold three rows or fewer and a rail entry that opens
     one row is a click charged for nothing.
     """
-    rows_out: list[tuple[Any, Any]] = [(panel.HEADING, "Identity")]
+    rows_out: list[tuple[Any, Any]] = [(panel.HEADING, t("console.devices.identity"))]
     rows_out += await _identity_rows(context)
-    rows_out.append((panel.HEADING, "Connection"))
+    rows_out.append((panel.HEADING, t("console.devices.connection")))
     rows_out += _connection_rows(_of(context), context.get("reach"))
     if _of(context).get("kind") == device_registry.KIND_VPX_MOBILE:
         # A phone is not an install: no software, no lifecycle, no settings of ours to
         # open. What it has instead is the one thing this end can act on - the games it
         # is carrying - so that heading takes the place of Settings rather than being
         # added beside it.
-        rows_out.append((panel.HEADING, "Carrying"))
+        rows_out.append((panel.HEADING, t("console.devices.carrying")))
         rows_out += await _carrying_rows(context)
     else:
-        rows_out.append((panel.HEADING, "Settings"))
+        rows_out.append((panel.HEADING, t("console.devices.settings")))
         rows_out += settings_door(context)
-    rows_out.append((panel.HEADING, "This entry"))
+    rows_out.append((panel.HEADING, t("console.devices.this_entry")))
     rows_out += entry_rows(context)
     return rows_out
 
@@ -655,7 +656,7 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
                                              "VPinFE")))
     rows_out.append((t("console.devices.fact_features"),
                      settings_page.features_said(device.get("features"))
-                     or "Not reported"))
+                     or t("console.devices.not_reported")))
     return rows_out
 
 
@@ -829,8 +830,9 @@ def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     library = context.get("library")
     out: list[tuple[Any, Any]] = [
         (t("console.devices.fact_first_seen"),
-                _when(str(device.get("first_seen") or "")) or "Not known"),
-        (t("console.devices.fact_announced"), _when(str(device.get("last_seen") or "")) or "Never"),
+                _when(str(device.get("first_seen") or "")) or t("console.devices.not_known")),
+        (t("console.devices.fact_announced"),
+                _when(str(device.get("last_seen") or "")) or t("console.devices.never")),
     ]
     if _is_local(context) or library is None:
         out.append(panel.note(

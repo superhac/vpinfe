@@ -29,7 +29,8 @@ logger = logging.getLogger("vpinfe.console.themes")
 
 # What a theme says it needs. Named here because a number is not an answer: "3" is a
 # cabinet, and somebody choosing a theme is choosing against the screens they have.
-SCREENS = {1: "Desktop", 2: "Two screens", 3: "Cabinet"}
+SCREENS = {1: t("console.themes.desktop"), 2: t("console.themes.two_screens"),
+        3: t("console.themes.cabinet")}
 
 
 def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
@@ -68,7 +69,7 @@ async def _fill(library, state: dict[str, Any], redraw: Callable[[], None], body
 
 def _card(library, state: dict[str, Any], redraw: Callable[[], None], body,
           theme: dict[str, Any]) -> None:
-    classes = "console-card w-full console-theme-card"
+    classes = t("console.themes.console_card_w_full")
     if theme["active"]:
         classes += " console-theme-card--active"
     with ui.element("div").classes(classes):
@@ -103,13 +104,13 @@ def _heading(theme: dict[str, Any]) -> None:
         # One state chip, not four. A theme is exactly one of these, and drawing the
         # others as absent would put a badge on every card saying nothing.
         if theme["active"]:
-            _chip("Active", "console-tier--on")
+            _chip(t("console.themes.active"), "console-tier--on")
         elif theme["update_available"]:
-            _chip(f"Update to {theme['version']}", "console-tier--warn")
+            _chip(t("console.themes.update_to", value=(theme['version'])), "console-tier--warn")
         elif theme["installed"]:
-            _chip("Installed", "console-tier--off")
+            _chip(t("console.themes.installed_2"), "console-tier--off")
         if theme.get("configurable"):
-            _chip("Configurable", "console-tier--off")
+            _chip(t("console.themes.configurable"), "console-tier--off")
         if theme.get("url"):
             ui.link(t("console.themes.source"), theme["url"], new_tab=True).classes("console-help")
 
@@ -240,7 +241,7 @@ async def _configure(library, theme: dict[str, Any]) -> None:
         ui.label(found.get("title") or f"{theme['name']} settings") \
             .classes("console-confirm-title")
         ui.label(found.get("description")
-                 or "These belong to the theme and are saved into its own file.") \
+                 or t("console.themes.these_belong_to_the_theme")) \
             .classes("console-help")
         with ui.column().classes("w-full gap-3 console-theme-options"):
             panel.facts(ui, _rows(options, wanted))
@@ -376,4 +377,4 @@ def _expected(option: dict[str, Any], kind: str) -> str:
         return t("console.themes.expected_text_over_as_many")
     if kind == "json":
         return t("console.themes.expected_json_an_object_an")
-    return "Expected: text"
+    return t("console.themes.expected_text")

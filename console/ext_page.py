@@ -48,7 +48,7 @@ def build(extension: dict, back) -> None:
 
 def _settings(name: str, surfaces: dict) -> None:
     """What the extension is configured with, saved as each field is left."""
-    ui.label(str(surfaces.get("settings_label") or "Settings")) \
+    ui.label(str(surfaces.get("settings_label") or t("console.ext_page.settings"))) \
         .classes("console-group mt-4")
     card = ui.element("div").classes("console-card w-full")
     base = f"/ext/{name}{surfaces['settings']}"
@@ -127,7 +127,8 @@ def _actions(extension: dict, name: str) -> None:
 
 def _state(name: str, surfaces: dict) -> None:
     """What the extension is holding, and the couple of things you can do to a row."""
-    ui.label(str(surfaces.get("state_label") or "Held")).classes("console-group mt-4")
+    ui.label(str(surfaces.get("state_label") or t("console.ext_page.held"))) \
+        .classes("console-group mt-4")
     card = ui.element("div").classes("console-card w-full")
     base = f"/ext/{name}{surfaces['state']}"
     client = ApiClient()
@@ -146,7 +147,7 @@ def _state(name: str, surfaces: dict) -> None:
             if not rows:
                 # The empty state is the extension's to word: it knows what would be
                 # here and why there is none.
-                ui.label(str(found.get("empty") or "Nothing yet")) \
+                ui.label(str(found.get("empty") or t("console.ext_page.nothing_yet"))) \
                     .classes("console-help")
                 return
             for row in rows:
@@ -186,16 +187,16 @@ def _row(client, base: str, row: dict, redraw) -> None:
 # What a scope or capability is called on screen. The wire says `games:write`; a person
 # reading a consent list should not have to work out what that lets somebody do.
 PLAINLY = {
-    "games:read": "read your library",
-    "games:write": "add and change games",
-    "filesystem:read": "read folders you point it at",
-    "ui:mount": "add a page to the Console",
-    "config:own": "keep its own settings",
-    "net:outbound": "reach the internet",
-    "proc:spawn": "run other programs",
-    "hardware:usb": "talk to USB devices",
-    "fs:read": "read files",
-    "fs:write": "write files",
+    "games:read": t("console.ext_page.read_your_library"),
+    "games:write": t("console.ext_page.add_and_change_games"),
+    "filesystem:read": t("console.ext_page.read_folders_you_point_it"),
+    "ui:mount": t("console.ext_page.add_a_page_to_the_console"),
+    "config:own": t("console.ext_page.keep_its_own_settings"),
+    "net:outbound": t("console.ext_page.reach_the_internet"),
+    "proc:spawn": t("console.ext_page.run_other_programs"),
+    "hardware:usb": t("console.ext_page.talk_to_usb_devices"),
+    "fs:read": t("console.ext_page.read_files"),
+    "fs:write": t("console.ext_page.write_files"),
 }
 
 

@@ -135,7 +135,7 @@ def strip() -> None:
     }), once=True)
 
 
-def watch(*, heading: str = "Input detector") -> None:
+def watch(*, heading: str = t("console.input_watch.input_detector")) -> None:
     """The readout with its own heading, for a page that is not a list of settings."""
     ui.label(heading).classes("console-group")
     strip()

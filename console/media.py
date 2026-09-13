@@ -119,28 +119,28 @@ _ALL = [definition["field"] for definition in COLUMNS]
 # and says in `help` what it is for rather than what it filters - a reader can see which
 # rows are here; what they cannot see is why this was worth building a view for.
 VIEWS: dict[str, list[str] | views.Preset] = {
-    "Missing": views.Preset(
+    t("console.view.missing"): views.Preset(
         columns=("game", "label", "reason", "manufacturer", "year"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [_MISSING]}},
         help=t("console.media.the_art_you_do_not_have.help")),
-    "Orphans": views.Preset(
+    t("console.view.orphans"): views.Preset(
         columns=("game", "label", "reason", "table_file", "path"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [_ORPHAN]}},
         help=t("console.media.art_left_behind_when_a.help")),
-    "Unused": views.Preset(
+    t("console.view.unused"): views.Preset(
         columns=("game", "label", "reason", "used_by", "path", "source"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [_UNUSED]}},
         help=t("console.media.files_nothing_loads.help")),
-    "Sources": views.Preset(
+    t("console.view.sources"): views.Preset(
         columns=("game", "label", "used_by", "path", "source", "match"),
         sort=({"colId": "source", "sort": "asc", "sortIndex": 0},
               {"colId": "game", "sort": "asc", "sortIndex": 1}),
         filters={"reason": {"values": [""]}},
         help=t("console.media.where_your_art_came_from.help")),
-    "Everything": views.Preset(
+    t("console.view.everything"): views.Preset(
         columns=tuple(_ALL),
         help=t("console.media.every_row_nothing_hidden.help")),
 }
@@ -163,8 +163,8 @@ async def fill(picked: list[dict[str, Any]], library: Any,
     if not await confirm.ask(
             t("console.media.ask_look_for_art_for_missing", len=(len(wanted))),
             detail=t("console.media.ask_anything_found_is_copied"),
-            lines=([f"{unmatched} are not matched to VPS, so nothing can be looked up "
-                    f"for those"] if unmatched else []),
+            lines=([t("console.media.are_not_matched_to_vps_so", unmatched=(unmatched))]
+                    if unmatched else []),
             confirm=t("console.media.ask_get_art"), danger=False):
         return
 
@@ -189,9 +189,9 @@ async def fill(picked: list[dict[str, Any]], library: Any,
                            row["kind"], row["game_id"], exc)
             failed += 1
 
-    said = f"Filled {filled}"
+    said = t("console.media.filled", filled=(filled))
     if empty:
-        said += f", nothing published for {empty}"
+        said += t("console.media.nothing_published_for", empty=(empty))
     if failed:
         said += f", {failed} failed"
     ui.notify(said, type="positive" if filled else "warning")
@@ -218,10 +218,10 @@ def build(found: list[dict[str, Any]], library: Any,
 
     def said(picked: int) -> str:
         if picked:
-            return f"{picked} of {on_screen['rows']} selected"
+            return t("console.media.of_selected", picked=(picked), value=(on_screen['rows']))
         if on_screen["rows"] == len(built):
             return t("console.media.count_with_gaps", count=(len(built)), gaps=(gaps))
-        return f"{on_screen['rows']} of {len(built)} media"
+        return t("console.media.of_media", value=(on_screen['rows']), len=(len(built)))
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
         search = panel.search(t("console.media.search_media"))

@@ -207,12 +207,12 @@ def install(on_drop: Callable[[Drop], Any]) -> None:
             total = int(payload.get("total") or 0)
             done = int(payload.get("done") or 0)
             if total > 1:
-                _progress(state, f"Reading {done} of {total}…")
+                _progress(state, t("console.uploads.reading_of", done=(done), total=(total)))
             elif total:
-                _progress(state, "Reading…")
+                _progress(state, t("console.uploads.reading"))
         elif status == "error":
             _clear(state)
-            ui.notify(str(payload.get("message") or "That did not work"),
+            ui.notify(str(payload.get("message") or t("console.uploads.that_did_not_work")),
                       type="negative")
         elif status == "done":
             _clear(state)

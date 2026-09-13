@@ -16,7 +16,7 @@ from common.i18n import t
 
 
 async def ask(question: str, *, detail: str = "", lines: Iterable[str] = (),
-              confirm: str = "Delete", danger: bool = True) -> bool:
+              confirm: str = t("console.confirm.delete"), danger: bool = True) -> bool:
     """Put the question, and wait for an answer.
 
     `question` is the whole ask - "Delete the extracted script?", never "Are you sure?",

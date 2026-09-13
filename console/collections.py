@@ -66,7 +66,7 @@ COLUMNS = [
 # One built-in, and the control stays: a view is how you save your own, and a grid with
 # nothing to start from is a grid nobody saves a view of.
 COLLECTION_VIEWS: dict[str, list[str]] = {
-    "Overview": ["icon", "name", "kind", "count", "order", "limit"],
+    t("console.view.overview"): ["icon", "name", "kind", "count", "order", "limit"],
 }
 
 
@@ -113,7 +113,7 @@ def _order_line(row: dict[str, Any]) -> str:
     """
     by = row.get("order_by") or ""
     if by == "manual":
-        return "Manual"
+        return t("console.collections.manual")
     if not by:
         return ""
     direction = DIRECTION_LABELS.get(row.get("direction") or "", "")
@@ -165,7 +165,8 @@ def build(collections: list[dict[str, Any]], library: Any,
     def on_selected(rows_selected: list[dict[str, Any]]) -> None:
         picked[:] = rows_selected
         bulk.set_visibility(bool(rows_selected))
-        count.text = (f"{len(rows_selected)} of {len(built)} selected"
+        count.text = (t("console.collections.of_selected", len=(len(rows_selected)),
+                len2=(len(built)))
                       if rows_selected else f"{len(built)} collections")
 
     def on_context(row: dict | None) -> None:
@@ -255,7 +256,8 @@ async def _ask_delete_many(picked: list[dict], library: Any, act: Callable) -> N
         return
     # Eight, then a count: the list is here to say which ones, and a hundred names is
     # a dialog nobody reads to the end of.
-    shown = names[:8] + ([f"...and {len(names) - 8} more"] if len(names) > 8 else [])
+    shown = names[:8] + ([t("console.collections.and_more", value=(len(names) - 8))]
+            if len(names) > 8 else [])
     if await confirm.ask(t("console.collections.ask_delete_collections", len=(len(names))),
                          detail=t("console.collections.ask_the_games_stay_in_the"),
                          lines=shown):

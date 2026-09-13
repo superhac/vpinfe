@@ -406,7 +406,7 @@ def action(label: str, on_click: Callable[[], Any] | None = None, *, icon: str =
     def draw() -> None:
         classes = "console-action--inline" if inline else "console-action"
         if danger:
-            classes = f"console-action {classes} console-action--danger"
+            classes = t("console.panel.console_action_console", classes=(classes))
         control = ui.button(label, icon=icon or None,
                             on_click=None if js else on_click) \
             .props("flat dense no-caps size=sm").classes(classes)

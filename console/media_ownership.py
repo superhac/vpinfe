@@ -22,8 +22,8 @@ from common.media_specs import media_label_map
 
 # Who placed a file, where the answer is not a catalog. "Unknown" is honest and common:
 # anything predating the ledger, or placed with another tool, leaves no record.
-YOU = "You"
-UNKNOWN = "Unknown"
+YOU = t("console.media_ownership.you")
+UNKNOWN = t("console.media_ownership.unknown")
 
 
 def source_name(origin: str) -> str:

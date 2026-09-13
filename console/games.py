@@ -175,8 +175,8 @@ GAME_VIEWS: dict[str, list[str]] = {
     # filled at render time. Two views, not one: they answer different questions - what
     # a game looks like, and what it needs to play as intended - and a matrix that mixes
     # them is neither.
-    "Media": [],
-    "Assets": [],
+    t("console.view.media"): [],
+    t("console.view.assets"): [],
 }
 
 _ALL = [definition["field"] for definition in COLUMNS]
@@ -184,7 +184,7 @@ _ALL = [definition["field"] for definition in COLUMNS]
 
 # A renderer is a way of drawing a field, chosen per column. Two here, hardcoded, to
 # see whether the idea earns a registry: the same media field as a mark or as a picture.
-RENDERERS = ("Ticks", "Thumbnails")
+RENDERERS = (t("console.games.ticks"), t("console.games.thumbnails"))
 
 # What one row is: three grains of the library the user owns - the folder, the
 # launchable file inside it, and the asset that resolved for it. Everything here has to
@@ -406,11 +406,13 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         search = panel.search(t("console.games.search_games"))
         # The media preset is the library's own kinds, so it is only knowable here.
         presets = {**GAME_VIEWS,
-                   "Media": ["name", *[f"media_{kind}" for kind in kinds]],
-                   "Assets": ["name", *[f"asset_{key}" for key in library.asset_keys()]]}
+                   t("console.view.media"): ["name", *[f"media_{kind}" for kind in kinds]],
+                   t("console.view.assets"): ["name",
+                           *[f"asset_{key}" for key in library.asset_keys()]]}
         wire_views, view_picker, showing = view_control(library, SCOPE, presets,
                                                         all_fields, columns)
-        cells = ui.toggle(list(RENDERERS), value="Ticks").props("dense no-caps unelevated")
+        cells = ui.toggle(list(RENDERERS),
+                value=t("console.games.ticks")).props("dense no-caps unelevated")
         cells.bind_visibility_from(view_picker, "value",
                                    lambda value: value == "builtin:Media")
         ui.space()
@@ -458,7 +460,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     def on_select_rows(rows_selected: list[dict[str, Any]]):
         selected[:] = rows_selected
         actions.set_visibility(bool(rows_selected))
-        count.text = (f"{len(rows_selected)} of {len(rows)} selected"
+        count.text = (t("console.games.of_selected", len=(len(rows_selected)), len2=(len(rows)))
                       if rows_selected else f"{len(rows)} games")
 
     by_id = {row["id"]: row for row in rows}
@@ -595,7 +597,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         value left the filter matching whichever presentation was showing, so filtering
         by "All tables" broke the moment the thumbnails came on.
         """
-        thumbs = cells.value == "Thumbnails"
+        thumbs = cells.value == t("console.games.thumbnails")
         height = 60 if thumbs else 42
         ui.run_javascript(f"window.__hubThumbs = {str(thumbs).lower()}")
         table.run_grid_method("setGridOption", "rowHeight", height)
@@ -1352,8 +1354,11 @@ def view_control(library: Any, scope: str, presets: dict[str, list[str]],
 def _view_name(view: Any) -> str:
     """Whatever it is called. A name somebody typed is shown as they typed it - the
     built-ins come first in the list and only a view of theirs offers to be deleted,
-    which is enough to tell them apart without editing anybody's words."""
-    return views.builtin_name(view.name)
+    which is enough to tell them apart without editing anybody's words.
+
+    A built-in's name is already resolved where the view is declared, so there is
+    nothing to look up here - doing it again built a key out of the translation."""
+    return str(view.name or "")
 
 
 def _ask_name(save) -> None:

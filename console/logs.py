@@ -96,7 +96,7 @@ def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
             held[key] = value
             state[f"log_{key}"] = value
 
-        ui.select({"": "Stream", "digest": "Digest"},
+        ui.select({"": t("console.logs.stream"), "digest": t("console.logs.digest")},
                   value="digest" if held["digest"] else "") \
             .props("dense outlined").classes("w-32") \
             .on_value_change(lambda e: (remember("digest", bool(e.value)), reload()))
@@ -104,7 +104,7 @@ def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
         if len(held["sources"]) > 1:
             # Named separately rather than spanned: a rotation boundary is where an
             # install restarted, and reading across one silently would hide that.
-            ui.select({name: ("Current" if i == 0 else name)
+            ui.select({name: (t("console.logs.current") if i == 0 else name)
                        for i, name in enumerate(held["sources"])},
                       value=held["source"] or held["sources"][0]) \
                 .props("dense outlined").classes("w-40") \
@@ -112,7 +112,7 @@ def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
                                                      "" if e.value == held["sources"][0]
                                                      else e.value), reload()))
 
-        ui.select({one: (one.title() if one else "All levels") for one in LEVELS},
+        ui.select({one: (one.title() if one else t("console.logs.all_levels")) for one in LEVELS},
                   value=held["level"]).props("dense outlined").classes("w-36") \
             .on_value_change(lambda e: (remember("level", e.value or ""), reload()))
 

@@ -101,28 +101,28 @@ COLUMNS: list[dict[str, Any]] = [
 _ALL = [definition["field"] for definition in COLUMNS]
 
 VIEWS: dict[str, list[str] | views.Preset] = {
-    "Missing": views.Preset(
+    t("console.view.missing"): views.Preset(
         columns=("game", "label", "reason", "manufacturer", "year"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [MISSING]}},
         help=t("console.assets.what_a_table_could_use_and.help")),
-    "Orphans": views.Preset(
+    t("console.view.orphans"): views.Preset(
         columns=("game", "label", "reason", "table_file", "path"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [ORPHAN]}},
         help=t("console.assets.files_left_behind_when_a.help")),
-    "Unused": views.Preset(
+    t("console.view.unused"): views.Preset(
         columns=("game", "label", "reason", "used_by", "table_file", "path"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [UNUSED]}},
         help=t("console.assets.correctly_named_files_that.help")),
-    "Sources": views.Preset(
+    t("console.view.sources"): views.Preset(
         columns=("game", "label", "used_by", "path", "source", "match"),
         sort=({"colId": "source", "sort": "asc", "sortIndex": 0},
               {"colId": "game", "sort": "asc", "sortIndex": 1}),
         filters={"reason": {"values": [""]}},
         help=t("console.assets.where_the_files_you_rely.help")),
-    "Everything": views.Preset(
+    t("console.view.everything"): views.Preset(
         columns=tuple(_ALL),
         help=t("console.assets.every_row_nothing_hidden.help")),
 }
@@ -142,7 +142,7 @@ def build(found: list[dict[str, Any]], library: Any,
     def said() -> str:
         if on_screen["rows"] == len(built):
             return t("console.assets.count_with_gaps", count=(len(built)), gaps=(gaps))
-        return f"{on_screen['rows']} of {len(built)} assets"
+        return t("console.assets.of_assets", value=(on_screen['rows']), len=(len(built)))
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
         search = panel.search(t("console.assets.search_assets"))

@@ -18,7 +18,7 @@ from common.i18n import t
 from console import confirm, grid
 
 SUBJECT = "tag"
-LABEL = "Tags"
+LABEL = t("console.tageditor.tags")
 
 COLUMNS = [
     grid.column("tag", t("console.tageditor.tag"), 260, pinned="left"),

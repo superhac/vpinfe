@@ -333,7 +333,7 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
     if not plan.get("items"):
         reasons = sorted({str(one.get("reason") or "")
                           for one in plan.get("blocked") or ()})
-        ui.notify("; ".join(one for one in reasons if one) or "Nothing to import",
+        ui.notify("; ".join(one for one in reasons if one) or t("console.page.nothing_to_import"),
                   type="warning")
         await run.io_bound(library.abort_upload, drop.upload_id)
         return
@@ -678,7 +678,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 continue
             if found.get("state") == "failed":
                 ui.notify(t("console.page.the_scan_failed",
-                        value=(found.get('error') or 'no reason given')),
+                        value=(found.get('error') or t("console.page.no_reason_given"))),
                           type="negative")
             else:
                 ui.notify(t("console.page.the_library_is_up_to_date"), type="positive")

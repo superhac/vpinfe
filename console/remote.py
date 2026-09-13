@@ -34,9 +34,9 @@ logger = logging.getLogger("vpinfe.console.remote")
 NOW, PLAY, CONTROL = "now", "play", "control"
 
 SCREENS = (
-    (NOW, "Now", "radio_button_checked"),
-    (PLAY, "Play", "search"),
-    (CONTROL, "Control", "gamepad"),
+    (NOW, t("console.remote.now"), "radio_button_checked"),
+    (PLAY, t("console.remote.play"), "search"),
+    (CONTROL, t("console.remote.control"), "gamepad"),
 )
 
 
@@ -89,7 +89,7 @@ def targets(devices: list[dict[str, Any]], local_device_id: str) -> list[dict[st
 
 
 def target_name(device: dict[str, Any]) -> str:
-    return str(device.get("display_name") or "").strip() or "This machine"
+    return str(device.get("display_name") or "").strip() or t("console.remote.this_machine")
 
 
 def last_played(games: list[dict[str, Any]]) -> dict[str, Any]:
@@ -292,7 +292,7 @@ def _tabs(state: dict[str, Any], redraw) -> None:
 
 def _screen(state: dict[str, Any], client_for_target, redraw) -> None:
     if not state["target"]:
-        return _nothing("Nothing to drive from here")
+        return _nothing(t("console.remote.nothing_to_drive_from_here"))
     if state.get("reachable") is False:
         # Said before anything is pressed rather than as the answer to a press: a target
         # that is not there is a fact about the screen, not a failed request.
@@ -363,7 +363,8 @@ def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target,
 
     with ui.column().classes("w-full gap-1 console-card"):
         ui.label(t("console.remote.playing")).classes("console-card-title")
-        ui.label(str(play.get("game_name") or "A table")).classes("remote-headline")
+        ui.label(str(play.get("game_name") or t("console.remote.a_table"))) \
+            .classes("remote-headline")
     ui.button(t("console.remote.quit_table"), on_click=quit_table) \
         .props("no-caps flat").classes("remote-action remote-action--danger")
 
@@ -486,7 +487,7 @@ def _play(state: dict[str, Any], client_for_target, redraw) -> None:
         named = [one.get("name") for one in state.get("collections") or []
                  if one.get("name")]
         if named:
-            ui.select({"": "Whole library"} | {name: name for name in named},
+            ui.select({"": t("console.remote.whole_library")} | {name: name for name in named},
                       value=state.get("collection") or "", on_change=narrow) \
                 .props("dense outlined options-dense").classes("w-full")
 
@@ -499,7 +500,7 @@ def _play(state: dict[str, Any], client_for_target, redraw) -> None:
 def _game_list(found: list[dict[str, Any]], state: dict[str, Any],
                client_for_target, redraw) -> None:
     if not found:
-        return _nothing("Nothing by that name")
+        return _nothing(t("console.remote.nothing_by_that_name"))
     with ui.column().classes("w-full gap-0"):
         for game in found[:SHOWN_AT_ONCE]:
             _game_row(game, state, client_for_target, redraw)
@@ -623,12 +624,12 @@ def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet,
 # the wire carries. `collection_menu` is the wheel's list of collections; on screen it is
 # what that list is called.
 BUTTON_WORDS = {
-    "select": "Select",
-    "back": "Back",
-    "menu": "Menu",
-    "collection_menu": "Collections",
-    "tutorial": "Tutorial",
-    "exit": "Quit VPinFE",
+    "select": t("console.remote.select"),
+    "back": t("console.remote.back"),
+    "menu": t("console.remote.menu"),
+    "collection_menu": t("console.remote.collections"),
+    "tutorial": t("console.remote.tutorial"),
+    "exit": t("console.remote.quit_vpinfe"),
 }
 
 # The four that keep going while a thumb is down. The same four core repeats, and for
@@ -701,8 +702,8 @@ def _control(state: dict[str, Any], client_for_target, redraw) -> None:
     if str(target.get("kind") or "") == device_registry.KIND_VPX_MOBILE:
         # Said rather than shown as dead buttons: this is a real target and it really
         # can be played on, which is a different thing from being driveable.
-        return _nothing(f"{target_name(target)} plays tables but does not run VPinFE, "
-                        "so there is nothing here to drive")
+        return _nothing(t("console.remote.plays_tables_but_does_not",
+                target_name=(target_name(target))))
 
     play = state.get("play") or {}
     if play.get("launching"):
@@ -724,8 +725,10 @@ def _playing_instead(play: dict[str, Any], state: dict[str, Any], client_for_tar
                      redraw) -> None:
     with ui.column().classes("w-full gap-3 p-3"):
         with ui.column().classes("w-full gap-1 console-card"):
-            ui.label(t("console.remote.playing")).classes("console-card-title")
-            ui.label(str(play.get("game_name") or "A table")).classes("remote-headline")
+            ui.label(t("console.remote.playing")) \
+                .classes("console-card-title")
+            ui.label(str(play.get("game_name") or t("console.remote.a_table"))) \
+                .classes("remote-headline")
             ui.label(t("console.remote.the_wheel_is_not_listening")) \
                 .classes("remote-note")
         _playing(play, state, client_for_target, redraw)

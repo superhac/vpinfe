@@ -34,7 +34,7 @@ def phones(devices: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def name_of(device: dict[str, Any]) -> str:
-    return str(device.get("display_name") or "").strip() or "A device"
+    return str(device.get("display_name") or "").strip() or t("console.send_to_device.a_device")
 
 
 async def ask_where(games: list[dict[str, Any]]) -> None:

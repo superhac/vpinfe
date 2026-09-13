@@ -11,6 +11,7 @@ from urllib.parse import quote, urlencode
 import requests
 
 from common.config_access import NetworkConfig
+from common.i18n import t
 from common.paths import get_ini_config
 
 logger = logging.getLogger("vpinfe.console")
@@ -77,7 +78,8 @@ class ApiClient:
             details = found.get("details") or {}
         except ValueError:
             said = ""
-        raise ApiError(said or f"The API answered {response.status_code}",
+        raise ApiError(said or t("console.api.the_api_answered",
+                status_code=(response.status_code)),
                        details if isinstance(details, dict) else {})
 
     def _get(self, path: str) -> dict:

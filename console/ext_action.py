@@ -105,7 +105,7 @@ async def open_action(extension: str, action: dict) -> None:
                     _summary(summary)
                 _controls(list(found.get("fields") or []), values)
                 _lines(list(found.get("notes") or []),
-                       "Worth knowing" if summary else "")
+                       t("console.ext_action.worth_knowing") if summary else "")
                 if summary and not found.get("ready"):
                     ui.label(str(found.get("reason") or "")).classes("console-help")
             with buttons:
@@ -155,7 +155,7 @@ async def open_action(extension: str, action: dict) -> None:
                 await _watch(job_id)
                 return
             if started.get("ok") is False:
-                ui.notify(str(started.get("reason") or "It did not run"),
+                ui.notify(str(started.get("reason") or t("console.ext_action.it_did_not_run")),
                           type="negative")
                 return
             # Finished already. Some actions are one call and a sentence, and making
@@ -177,14 +177,14 @@ async def open_action(extension: str, action: dict) -> None:
             while True:
                 job = await run.io_bound(client.job, job_id)
                 bar.value = int(job.get("pct") or 0) / 100
-                said.text = str(job.get("message") or "Working")
+                said.text = str(job.get("message") or t("console.ext_action.working"))
                 if str(job.get("state")) not in ("running", "queued"):
                     break
                 await run.io_bound(_wait)
 
             close.enable()
-            heading.text = "What happened" if job.get("state") == "done" \
-                else "It did not finish"
+            heading.text = t("console.ext_action.what_happened") if job.get("state") == "done" \
+                else t("console.ext_action.it_did_not_finish")
             _report(body, job)
 
         step_now = {"found": step}
@@ -219,7 +219,7 @@ def _finished(body, buttons, dialog, answer: dict) -> None:
     body.clear()
     buttons.clear()
     with body:
-        said = str(answer.get("message") or "Done")
+        said = str(answer.get("message") or t("console.ext_action.done"))
         ui.label(said).classes("console-help")
         facts = [(one[0], one[1]) for one in (answer.get("summary") or [])]
         if facts:
@@ -269,7 +269,7 @@ def _report(body, job: dict) -> None:
     body.clear()
     with body:
         if job.get("state") == "failed":
-            ui.label(str(job.get("error") or "It did not finish")) \
+            ui.label(str(job.get("error") or t("console.ext_action.it_did_not_finish"))) \
                 .classes("console-help")
             return
         result = job.get("result") or {}

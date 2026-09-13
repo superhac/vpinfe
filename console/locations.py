@@ -62,10 +62,10 @@ COLUMNS = [
 ]
 
 LOCATION_VIEWS: dict[str, list[str]] = {
-    "Overview": ["name", "contains", "state", "new_games", "shadowed", "path"],
+    t("console.view.overview"): ["name", "contains", "state", "new_games", "shadowed", "path"],
     # Its own view rather than more columns on Overview: this one is read when
     # something is wrong, and the question is which location beats which.
-    "Priority": ["name", "priority", "shadowed", "state", "path"],
+    t("console.view.priority"): ["name", "priority", "shadowed", "state", "path"],
 }
 
 
@@ -87,7 +87,7 @@ def rows(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
         "state": state_of(one),
         # Blank on every other row rather than "No": a column that says the same thing
         # everywhere but once is a column about the exception.
-        "new_games": "Created here" if one.get("write_to") else "",
+        "new_games": t("console.locations.created_here") if one.get("write_to") else "",
         # From the list order, which is what the install reads it from. 1 is highest,
         # because a person counts places from one and this is a rank, not an index.
         "priority": place + 1,
@@ -206,7 +206,8 @@ async def remove(library, row: dict[str, Any]) -> bool:
     """Asked about first. The games in it leave the library, and their records go with
     them - which is where they live, so they are there again if it comes back."""
     if not await confirm.ask(
-            t("console.locations.ask_stop_looking_in", value=(row.get('name') or 'this location')),
+            t("console.locations.ask_stop_looking_in",
+                    value=(row.get('name') or t("console.locations.this_location"))),
             detail=t("console.locations.ask_the_games_in_it_leave_the"),
             confirm=t("console.locations.ask_remove")):
         return False

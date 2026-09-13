@@ -37,10 +37,11 @@ def scope_words(folder_tables: int, launcher_name: str) -> dict[str, str]:
     """What each scope is called, with the folder saying how many it reaches - a folder
     of one is a fact worth seeing before choosing it over the table."""
     return {
-        SCOPE_ENTRY: "This table",
-        SCOPE_FOLDER: (f"This folder - {folder_tables} tables" if folder_tables != 1
-                       else "This folder - 1 table"),
-        SCOPE_LAUNCHER: f"Everything {launcher_name} plays",
+        SCOPE_ENTRY: t("console.app_settings.this_table"),
+        SCOPE_FOLDER: (t("console.app_settings.this_folder_tables", folder_tables=(folder_tables))
+                if folder_tables != 1
+                       else t("console.app_settings.this_folder_1_table")),
+        SCOPE_LAUNCHER: t("console.app_settings.everything_plays", launcher_name=(launcher_name)),
     }
 
 
@@ -52,7 +53,7 @@ async def open_for_table(library, *, launcher_id: str, launcher_name: str,
         return
 
     state: dict[str, Any] = {"scope": SCOPE_ENTRY, "search": ""}
-    words = scope_words(folder_tables, launcher_name or "this launcher")
+    words = scope_words(folder_tables, launcher_name or t("console.app_settings.this_launcher"))
 
     with ui.dialog().props("maximized") as dialog, ui.card().classes(
             "w-full h-full console-panel"):
@@ -177,7 +178,7 @@ def _control(library, launcher_id: str, table_id: str, scope: str, field: dict,
             # do instead. Swallowing it would leave a control that appears to do
             # nothing, which is the thing a refusal exists to avoid.
             said = _refusal(exc)
-            ui.notify(said or f"Could not save it: {exc}",
+            ui.notify(said or t("console.app_settings.could_not_save_it", exc=(exc)),
                       type="warning" if said else "negative",
                       multi_line=bool(said), close_button=bool(said))
             await draw()

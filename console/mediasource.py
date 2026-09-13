@@ -160,8 +160,9 @@ class _Sources:
                          + (" console-placement-mark--on" if picked else ""))
         # The extension comes from the file, which on the upload tab is not chosen yet.
         self.filename_note.text = (
-            f"Saved as {self.chosen_extension}" if self.chosen_extension
-            else "The extension follows the file you choose")
+            t("console.mediasource.saved_as",
+                    chosen_extension=(self.chosen_extension)) if self.chosen_extension
+            else t("console.mediasource.the_extension_follows_the"))
 
     def note_extension(self, filename: str) -> None:
         """The picked file's extension, so the name shown is the name it will get."""
@@ -181,10 +182,11 @@ class _Sources:
         """
         self.dialog.close()
         chosen = self.placed_at or {}
-        where = ("for every table in this game" if not self.destination
-                 else f"for {_placement_label(chosen).removeprefix('Only ')}")
+        where = (t("console.mediasource.for_every_table_in_this") if not self.destination
+                 else t("console.mediasource.for_table",
+                        table=(_trimmed_stem(str(chosen.get("label") or "")))))
         unseen = ("" if self.destination == (self.table_id or "") else
-                  " - not what this view is showing")
+                  t("console.mediasource.not_what_this_view_is"))
         ui.notify(f"{message} {where}{unseen}", type="positive")
         await self.done()
 
@@ -350,7 +352,8 @@ class _Sources:
         """
         for kind, entry in (self.context.get("media") or {}).items():
             if entry.get("file") == name:
-                return f"already the {media_label_map().get(kind, kind).lower()}"
+                return t("console.mediasource.already_the", lower=(media_label_map().get(kind,
+                        kind).lower()))
         return ""
 
     # --- from the online catalogs --------------------------------------------
@@ -387,7 +390,7 @@ class _Sources:
         except Exception:
             self._known_sources = []
         await self._show_offers(self.online_body, self._own_id,
-                                game.get("name") or "this game")
+                                game.get("name") or t("console.mediasource.this_game"))
 
     def _searched(self) -> str:
         """Where we looked, for the one case that needs it: nothing came back.
@@ -430,7 +433,7 @@ class _Sources:
                           str(item.get("name") or ""), made,
                           lambda i=item: self._show_offers(
                               self.online_body, i.get("vps_id") or "",
-                              i.get("name") or "that game"),
+                              i.get("name") or t("console.mediasource.that_game")),
                           glyph="videogame_asset")
 
     async def _show_offers(self, body: ui.column, vps_id: str, name: str) -> None:
@@ -443,7 +446,7 @@ class _Sources:
         body.clear()
         # Named only when it is not this game's own: a heading that says the obvious on
         # every visit stops being read by the time it matters.
-        found_online = labels.plural(self.label) + " found online"
+        found_online = labels.plural(self.label) + t("console.mediasource.found_online")
         self.online_head.text = (found_online if vps_id == self._own_id
                                  else f"{found_online} for {name}")
         if not vps_id:
@@ -479,7 +482,8 @@ class _Sources:
                 return
             # Held: an ongoing notification never times out, so one nothing dismisses
             # outlives the answer it was waiting for.
-            fetching = ui.notification(f"Fetching from {source_name}...",
+            fetching = ui.notification(t("console.mediasource.fetching_from",
+                    source_name=(source_name)),
                                        spinner=True, timeout=None)
             try:
                 await run.io_bound(self.library.fetch_media, self.game_id,
@@ -490,7 +494,8 @@ class _Sources:
                 return
             finally:
                 fetching.dismiss()
-            await self.finish(f"{self.label} saved from {source_name}")
+            await self.finish(t("console.mediasource.saved_from", label=(self.label),
+                    source_name=(source_name)))
 
         # The source is the first thing on the row, because with several of them the
         # question "where is this from" comes before "is it any good".
@@ -508,9 +513,13 @@ def _placement_label(item: dict[str, Any]) -> str:
     label = str(item.get("label") or "")
     if not item.get("table"):
         return t("console.mediasource.all_tables_in_this_game")
+    return t("console.mediasource.only", trimmed=(_trimmed_stem(label)))
+
+
+def _trimmed_stem(label: str) -> str:
+    """The .vpx name without its extension, short enough to read."""
     stem = label[:-4] if label.lower().endswith(".vpx") else label
-    trimmed = stem if len(stem) <= 40 else "\u2026" + stem[-39:]
-    return f"Only {trimmed}"
+    return stem if len(stem) <= 40 else "\u2026" + stem[-39:]
 
 
 def _start_name(root: dict[str, Any]) -> str:

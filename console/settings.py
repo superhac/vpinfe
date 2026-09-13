@@ -43,8 +43,7 @@ KEPT_NOTE = ("What this library collects. Turning one off stops this install sho
 
 # Every source that ships is listed, switched off included: "why is that catalog not
 # coming up" is answered by seeing it sitting there off.
-SOURCES_NOTE = ("Which online catalogs are searched for artwork. All of them, until "
-                "you turn one off.")
+SOURCES_NOTE = (t("console.settings.which_online_catalogs_are"))
 
 # Everything VPS-shaped reads the local copy - matching, release lists, what a kind is
 # offered from - so this page is how fresh all of those answers are.
@@ -312,7 +311,7 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
 
     async def now() -> None:
         # Held: an ongoing notification never times out on its own.
-        checking = ui.notification("Checking VPSdb...", spinner=True, timeout=None)
+        checking = ui.notification(t("console.settings.checking_vpsdb"), spinner=True, timeout=None)
         try:
             done = await run.io_bound(library.sync_vps)
         except Exception as exc:  # noqa: BLE001
@@ -336,7 +335,8 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
                 .classes("console-fact-value truncate min-w-0")
             panel.action(t("console.settings.check_now"), now, icon="sync", inline=True)()
 
-    return [(panel.HEADING, "Catalog"), (t("console.settings.fact_last_checked"), checked)]
+    return [(panel.HEADING, t("console.settings.catalog")),
+            (t("console.settings.fact_last_checked"), checked)]
 
 
 async def _input_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
@@ -346,7 +346,7 @@ async def _input_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, 
     *this key does that*; somebody who does not know which physical button is which
     cannot use the row at all until something tells them. It sets nothing.
     """
-    return [(panel.HEADING, "Input detector"),
+    return [(panel.HEADING, t("console.settings.input_detector")),
             (panel.FULL, input_watch.strip)]
 
 
@@ -641,7 +641,7 @@ def section_rows(source, section: str, options: list[dict], values: dict,
         group = str(option.get("group") or "")
         if group and group != heading:
             entries.append((panel.HEADING, group))
-            if group == "Commands":
+            if group == t("console.settings.commands"):
                 # Said here rather than left to be discovered. It is already true - a
                 # launcher points at an arbitrary program - but this is the setting that
                 # makes it obvious, and it matters if the reach of this page ever changes.

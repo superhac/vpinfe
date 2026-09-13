@@ -35,7 +35,7 @@ def offered(context: str) -> tuple[Any, Callable[[], None]]:
                 ui.label("{" + one.name + "}").classes("console-token")
                 says = one.says
                 if one.name in later:
-                    says += " - only after it has finished"
+                    says += t("console.commands.only_after_it_has_finished")
                 ui.label(says).classes("console-help")
 
     def draw() -> None:

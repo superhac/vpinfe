@@ -11,11 +11,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from common.i18n import t
+
 # The names as their authors write them, which is how they appear in a table's notes
 # and on VPS. Case included: "nFozzy" and "FastFlips" are not sentence case by accident.
 LABELS = {
-    "nfozzy": "nFozzy", "fleep": "Fleep", "ssf": "SSF", "lut": "LUT",
-    "scorbit": "Scorbit", "fastflips": "FastFlips", "flexdmd": "FlexDMD",
+    "nfozzy": "nFozzy", "fleep": t("console.table_features.fleep"), "ssf": "SSF", "lut": "LUT",
+    "scorbit": t("console.table_features.scorbit"), "fastflips": "FastFlips", "flexdmd": "FlexDMD",
 }
 
 IN_SCRIPT = "in_script"
@@ -60,12 +62,13 @@ class State:
 # Not used draws nothing: most tables use most of these not at all, and a mark on every
 # one would bury the two states worth seeing.
 _STATES = {
-    IN_SCRIPT: State(IN_SCRIPT, "In the script", "console-tier--on", "",
-                     "The script uses it", glyph="\u2713", glyph_class="console-tick"),
-    UNUSED: State(UNUSED, "Not used", "console-tier--off", "",
-                  "The script does not use it"),
-    UNKNOWN: State(UNKNOWN, "Not parsed yet", "console-tier--unknown", "",
-                   "Nothing has read this table's script", glyph="?",
+    IN_SCRIPT: State(IN_SCRIPT, t("console.table_features.in_the_script"), "console-tier--on", "",
+                     t("console.table_features.the_script_uses_it"), glyph="\u2713",
+                             glyph_class="console-tick"),
+    UNUSED: State(UNUSED, t("console.table_features.not_used"), "console-tier--off", "",
+                  t("console.table_features.the_script_does_not_use_it")),
+    UNKNOWN: State(UNKNOWN, t("console.table_features.not_parsed_yet"), "console-tier--unknown", "",
+                   t("console.table_features.nothing_has_read_this"), glyph="?",
                    glyph_class="console-unknown"),
 }
 

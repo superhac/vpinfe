@@ -33,7 +33,7 @@ SCOPE = "console.launchers.columns"
 
 # Why a row is the default, where that is not obvious. Only on the one it applies to -
 # a note on every row would say nothing.
-DEFAULT_HINT = "Tables that name no launcher use this one."
+DEFAULT_HINT = t("console.launchers.tables_that_name_no")
 
 STATE_READY = "console.launchers.ready"
 STATE_OFF = "console.launchers.switched_off"
@@ -56,7 +56,7 @@ COLUMNS: list[dict[str, Any]] = [
 ]
 
 LAUNCHER_VIEWS: dict[str, list[str]] = {
-    "Overview": ["name", "app", "state", "default", "program"],
+    t("console.view.overview"): ["name", "app", "state", "default", "program"],
 }
 
 
@@ -88,7 +88,8 @@ def rows(held: list[dict], defaults: dict) -> list[dict[str, Any]]:
         "state": t(state_of(one)),
         # Blank on every other row rather than "No": a column that says the same thing
         # everywhere but once is a column about the exception.
-        "default": "Default" if defaults.get(one["app"]) == one["launcher_id"] else "",
+        "default": t("console.launchers.default") if defaults.get(one["app"]) ==
+                one["launcher_id"] else "",
         "program": str((one.get("settings") or {}).get("bin_path") or ""),
     } for one in held]
 
