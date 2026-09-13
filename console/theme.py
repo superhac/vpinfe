@@ -290,6 +290,105 @@ _DARK = """
 """
 
 
+# Conventional light: near-white page, white panels. Measured against the same floors as
+# the other two - text 4.5:1 on every surface, a control's edge 3:1, a chip's text 4.5:1
+# on its own fill.
+_LIGHT = """
+  /* Ink is near-black now, and every surface is near-white. Nothing else about the
+     type changes - the scale and the weights are `_STRUCTURE`'s and no mode touches them. */
+  --ink: #14171c;
+  --ink-2: #4a5361;
+  --ink-3: #5f6874;
+  /* Unlike either dark mode the interactive color is dark enough to be a fill as
+     well as text: white on it is 5.84:1, so Quasar's `primary` and the accent are one
+     color here. Same for the error fill. */
+  --accent: #0b63c4;
+  --positive: #0a7a4d;
+  --flair: #0b63c4;
+  --danger: #c02626;
+  --danger-hover: #9e1c1c;
+  --danger-fill: #c02626;
+  /* Solid tints, not translucency. Twelve percent of a hue over white is nearly
+     nothing, where over a dark panel it is a tint that keeps its hue - so a light mode
+     restates the value rather than reusing the alpha. */
+  --positive-wash: #e6f4ed;
+  --positive-edge: #7fb79b;
+  --danger-wash: #fdeaea;
+  --danger-edge: #df9494;
+  --warm-wash: #fdf3e0;
+  --warm-edge: #c9a05a;
+  --quiet-edge: #b9c0ca;
+  --quiet-wash: #eef0f3;
+  /* Neutral steps go *down* from white rather than up from black. */
+  --wash-hover: #f0f2f5;
+  --surface-lift: rgba(16, 24, 40, 0.03);
+  /* Over artwork: **light**, and this is the one that does not invert. The label on
+     this plate is `--ink`, which is near-black here - the dark plate the other modes use
+     would hide it. A picture reads against a quiet ground in either direction. */
+  --scrim-media: rgba(255, 255, 255, 0.82);
+  --scrim-media-hover: rgba(255, 255, 255, 0.93);
+  /* Over the page: dark, because a scrim puts what is behind it out of reach. */
+  --scrim-page: rgba(16, 24, 40, 0.45);
+  /* The accent as a fill, three steps, all solid. */
+  --accent-wash: #e8f1fc;
+  --accent-wash-on: #d3e5fa;
+  --drop-lit: #c4dcf8;
+  --wash-lift: #fafbfc;
+  --bar-track: #e4e7ec;
+  /* `--surface-1` and `--surface-2` are both white on purpose: elevation here is a
+     shadow and a hairline, not a lightness step, because a raised surface cannot go
+     lighter than white. That is what makes `--fx-glow-panel` real in this mode. */
+  --surface-0: #f4f6f8;
+  --surface-1: #ffffff;
+  --surface-2: #ffffff;
+  --surface-3: #eceef2;
+  --surface-sunken: #e4e7ec;
+  --surface-art: #e8eaef;
+  --row-select: #dbe9fa;
+  --flair-wash: #eef4fc;
+  --flair-wash-strong: #e0ebfa;
+  --notice-wash: #fdf8ec;
+  --notice-edge: #dcc79a;
+  --borrowed-edge: #b8791f;
+  --scrim-media-warm: rgba(253, 243, 224, 0.92);
+  --surface-band: rgba(16, 24, 40, 0.04);
+  /* `--line-strong` is 3.05:1 on the darkest surface a control sits on. */
+  --line: #d7dce3;
+  --line-strong: #808995;
+  --line-soft: #e8ebef;
+  --line-band: rgba(74, 83, 97, 0.22);
+  --surface-hover: #eef0f3;
+  --surface-current: #e3e8ef;
+  --warm: #8a5a00;
+  /* Derived, so they follow what this mode said above. The one warm color becomes a
+     brown here: amber on white is not readable. */
+  --tier-table: var(--warm);
+  --tier-quiet: var(--ink-3);
+  /* Black rather than white, and 3.18:1 on the darkest surface a divider lies on. */
+  --resize-line: rgba(0, 0, 0, 0.44);
+  /* Three of Synthwave's four still resolve to nothing. **The panel glow does not** -
+     on white it is the only thing separating a tile from the panel under it, so it
+     carries a real, quiet shadow instead. Elevation keeps its values and only the color
+     changes. */
+  --fx-backdrop: none;
+  --fx-glow-panel: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.10);
+  --fx-glow-nav: none;
+  --fx-glow-brand: none;
+  --fx-glow-text: none;
+  --viewer-shadow: 0 24px 60px rgba(16, 24, 40, 0.18);
+  --shadow-drag: 0 8px 24px rgba(16, 24, 40, 0.16);
+  --shadow-tooltip: 0 6px 20px rgba(16, 24, 40, 0.14);
+  --header-bg: var(--surface-1);
+  --nav-bg: var(--surface-1);
+  --workbench-bg: var(--surface-1);
+  --workbench-bg-rail: var(--surface-1);
+  --card-bg: var(--surface-1);
+  /* Quiet, not invisible. */
+  --scrollbar-thumb: rgba(74, 83, 97, 0.32);
+  --scrollbar-thumb-hover: rgba(74, 83, 97, 0.58);
+"""
+
+
 # Sizes, not colors. Density is a feature of this surface rather than a preference,
 # so a mode that changed the type scale would turn a designed density into somebody's
 # accident. These are stated once and every mode gets them.
@@ -1759,8 +1858,12 @@ body.console-menu-open .q-tooltip { display: none !important; }
 
 # Every appearance mode this surface has. Synthwave is the only one built; Dark and Light
 # are the reason the palette is separable at all.
-PALETTES = {"synthwave": _SYNTHWAVE, "dark": _DARK}
+PALETTES = {"synthwave": _SYNTHWAVE, "dark": _DARK, "light": _LIGHT}
 DEFAULT_MODE = "synthwave"
+# Whether Quasar should style its own components dark. Ours and Quasar's are two switches
+# on one decision: the tokens paint what we wrote, and this paints what the framework
+# draws for us. Synthwave is a dark palette even though it is not "Dark".
+QUASAR_DARK = {"synthwave": True, "dark": True, "light": False}
 
 
 def palette_css(mode: str = DEFAULT_MODE) -> str:

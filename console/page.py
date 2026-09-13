@@ -399,11 +399,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # The palette and Quasar's dark mode are two separate switches. The toggle button
     # that used to own the second one is gone, so it is set here - without it the shell
     # renders light while the tokens stay dark.
-    ui.dark_mode(True)
-    theme.apply_colors(mode if mode in theme.PALETTES else theme.DEFAULT_MODE)
-    # Dev hook while Phase 4 is unbuilt: ?mode=dark renders the neutral palette.
-    # The setting that replaces this is `general.hub_theme`.
-    theme.apply_flair(mode if mode in theme.PALETTES else theme.DEFAULT_MODE)
+    # Dev hook while Phase 4 is unbuilt: ?mode= picks the palette. The setting that
+    # replaces it is `general.hub_theme`.
+    chosen = mode if mode in theme.PALETTES else theme.DEFAULT_MODE
+    ui.dark_mode(theme.QUASAR_DARK[chosen])
+    theme.apply_colors(chosen)
+    theme.apply_flair(chosen)
     grid.install_filters()
     # The shell takes the viewport once, here, and every height below it is flex. The
     # old layout gave each pane its own calc(100vh - N) against chrome that later
