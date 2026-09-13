@@ -399,9 +399,9 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # The palette and Quasar's dark mode are two separate switches. The toggle button
     # that used to own the second one is gone, so it is set here - without it the shell
     # renders light while the tokens stay dark.
-    # Dev hook while Phase 4 is unbuilt: ?mode= picks the palette. The setting that
-    # replaces it is `general.hub_theme`.
-    chosen = mode if mode in theme.PALETTES else theme.DEFAULT_MODE
+    # `?mode=` looks at one without changing what the install is set to, which is how
+    # two modes get compared side by side. It is never written into the address.
+    chosen = theme.mode_or_default(mode) if mode else theme.configured_mode()
     ui.dark_mode(theme.QUASAR_DARK[chosen])
     theme.apply_colors(chosen)
     theme.apply_flair(chosen)

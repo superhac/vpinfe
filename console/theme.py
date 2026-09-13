@@ -1913,14 +1913,42 @@ body.console-menu-open .q-tooltip { display: none !important; }
 """
 
 
-# Every appearance mode this surface has. Synthwave is the only one built; Dark and Light
-# are the reason the palette is separable at all.
+# Every appearance mode this surface has values for.
 PALETTES = {"synthwave": _SYNTHWAVE, "dark": _DARK, "light": _LIGHT}
 DEFAULT_MODE = "synthwave"
+# The fourth mode, which has no values of its own: it asks the browser which of the two
+# neutral palettes to use. Synthwave is a deliberate pick rather than something an
+# operating system can ask for, so it is on neither side of this.
+SYSTEM = "system"
+SYSTEM_PALETTES = {"light": "light", "dark": "dark"}
+MODES = (*PALETTES, SYSTEM)
 # Whether Quasar should style its own components dark. Ours and Quasar's are two switches
 # on one decision: the tokens paint what we wrote, and this paints what the framework
-# draws for us. Synthwave is a dark palette even though it is not "Dark".
-QUASAR_DARK = {"synthwave": True, "dark": True, "light": False}
+# draws for us. Synthwave is a dark palette even though it is not "Dark", and `system`
+# is None, which is what NiceGUI calls auto - so Quasar reads the same signal we do.
+QUASAR_DARK = {"synthwave": True, "dark": True, "light": False, SYSTEM: None}
+
+# Where the install's choice is stored. Config rather than the browser: it belongs to
+# the install as a whole and the Console has no accounts to hang it on.
+MODE_SECTION, MODE_KEY = "general", "console_theme"
+
+
+def mode_or_default(name: str) -> str:
+    """The mode a stored or requested value asks for, or the default.
+
+    Tolerant on purpose. This reads a config file somebody may have edited and a query
+    parameter anybody may type, and neither is a reason for the Console not to draw.
+    """
+    said = str(name or "").strip().lower()
+    return said if said in MODES else DEFAULT_MODE
+
+
+def configured_mode() -> str:
+    """The mode this install is set to. Every Console surface asks this."""
+    from common.config_access import cfg_get
+    from common.paths import get_ini_config
+
+    return mode_or_default(cfg_get(get_ini_config(), MODE_SECTION, MODE_KEY))
 
 
 def palette_css(mode: str = DEFAULT_MODE) -> str:
@@ -1929,7 +1957,19 @@ def palette_css(mode: str = DEFAULT_MODE) -> str:
     A palette is one string rather than a dict of 65 values because the reasoning lives
     in the comments beside them - why a wash is its own value, why two glows are not one
     - and that is the half worth keeping when somebody writes the next mode.
+
+    `system` is the one mode that is not a plain `:root`. Media queries resolve before
+    first paint, so the page opens in the right palette; resolving it off the class
+    Quasar stamps at mount would flash the default palette on every load.
     """
+    if mode == SYSTEM:
+        # The sizes sit outside the queries. No mode may change them, so a copy in each
+        # branch would be two statements of a value that cannot differ.
+        blocks = [":root {" + _STRUCTURE + "}\n"]
+        blocks += [f"@media (prefers-color-scheme: {prefers}) {{\n:root {{"
+                   + PALETTES[palette] + "}\n" + _quasar_vars(palette) + "}\n"
+                   for prefers, palette in SYSTEM_PALETTES.items()]
+        return "".join(blocks)
     return ":root {" + PALETTES[mode] + _STRUCTURE + "}\n"
 
 
@@ -1962,30 +2002,89 @@ def _token(name: str, mode: str = DEFAULT_MODE) -> str:
     return match.group(1).strip()
 
 
-def apply_colors(mode: str = DEFAULT_MODE) -> None:
-    """Hand Quasar the brand set it paints its own components with.
+_REFERENCE = re.compile(r"var\(\s*(--[a-z0-9-]+)\s*(?:,([^()]*))?\)")
+
+
+def token(name: str, mode: str = DEFAULT_MODE) -> str:
+    """A token's value with every `var()` inside it expanded.
+
+    `_token` gives what the palette says, and a palette may answer with a reference -
+    Dark's rail is `var(--surface-1)` and Synthwave's is a gradient between three of
+    them. Inside the page that is exactly right, because the reference resolves against
+    the palette that declared it. It is wrong anywhere the value has to stand on its
+    own, and the theme picker is that place: it draws all three palettes on a page
+    painted in one of them, so an unexpanded reference would make every swatch show the
+    colors of the mode already in use.
+    """
+    def expand(match: re.Match) -> str:
+        try:
+            return _token(match.group(1), mode)
+        except KeyError:
+            return (match.group(2) or "").strip()
+
+    value = _token(name, mode)
+    # Bounded rather than "until it stops changing": this reads declarations, and a
+    # palette with a reference cycle in it should draw a wrong swatch, not hang.
+    for _ in range(8):
+        grown = _REFERENCE.sub(expand, value)
+        if grown == value:
+            break
+        value = grown
+    return value
+
+
+def _quasar_brand(mode: str) -> dict[str, str]:
+    """The brand set Quasar paints its own components with.
 
     Read off the tokens rather than kept beside them. A second copy of the palette is a
     second palette, and this one had already drifted: `warning` was a third amber, next
     to the two the stylesheet was busy collapsing into one.
     """
-    ui.colors(
-        primary=_token("--flair", mode),
-        secondary=_token("--accent", mode),
+    return {
+        "primary": _token("--flair", mode),
+        "secondary": _token("--accent", mode),
         # Quasar carries three slots for a second brand color and the Console designs
         # with one. All three take it, so a component reaching for any of them cannot
         # land on Quasar's stock purple.
-        accent=_token("--accent", mode),
-        positive=_token("--positive", mode),
+        "accent": _token("--accent", mode),
+        "positive": _token("--positive", mode),
         # Not --danger: Quasar fills an error toast with `negative` and writes white on
         # it, and the color that reads as text on a panel is not the one that carries
         # white on top. Two colors, one slot, so the palette names both.
-        negative=_token("--danger-fill", mode),
-        warning=_token("--warm", mode),
-        info=_token("--accent", mode),
-        dark=_token("--surface-2", mode),
-        dark_page=_token("--surface-0", mode),
-    )
+        "negative": _token("--danger-fill", mode),
+        "warning": _token("--warm", mode),
+        "info": _token("--accent", mode),
+        "dark": _token("--surface-2", mode),
+        "dark_page": _token("--surface-0", mode),
+    }
+
+
+def _quasar_vars(mode: str) -> str:
+    """The same brand set as CSS, for the mode that cannot be handed one.
+
+    `ui.colors()` takes one value each and `system` has two, picked in the browser, so
+    system states them in a media query instead.
+
+    On `body` and `!important`, which neither of the other modes needs. Quasar writes its
+    brand as an inline style on the body at boot - from NiceGUI's defaults, before any
+    page of ours runs - and an inline style beats any `:root` rule whatever its
+    specificity. A stylesheet `!important` is what outranks one, and it is the whole
+    reason this is not simply more of the palette block above.
+    """
+    return "body {\n" + "".join(
+        f"  --q-{name.replace('_', '-')}: {value} !important;\n"
+        for name, value in _quasar_brand(mode).items()) + "}\n"
+
+
+def apply_colors(mode: str = DEFAULT_MODE) -> None:
+    """Hand Quasar the brand set for this mode, where there is one to hand it.
+
+    `system` is handled in `palette_css` instead, and calling this for it would pick one
+    of its two palettes and pin the framework to that one whatever the browser reports.
+    """
+    if mode == SYSTEM:
+        return
+    ui.colors(**_quasar_brand(mode))
 
 
 # Components added with the section build-out. Kept apart from _FLAIR so the palette
@@ -2988,6 +3087,60 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    the window - a Save button below the fold is a Save button nobody finds. */
 .console-theme-config { max-width: 640px; width: 100%; }
 .console-theme-options { max-height: 60vh; overflow-y: auto; }
+
+/* --- the appearance picker ------------------------------------------------------- */
+/* Four miniatures of this surface, each in its own palette. Wrapping rather than
+   scrolling: the settings pane is draggable and four tiles in a column is a legible
+   shape, four tiles cut off at the third is not. */
+.console-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.console-swatch-tile {
+  appearance: none; font: inherit; color: inherit; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 6px; border-radius: 8px;
+  background: var(--surface-1); border: 1px solid var(--line);
+}
+.console-swatch-tile:hover { border-color: var(--accent); }
+.console-swatch-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The same edge the active frontend theme carries on its card. One idea, two pickers -
+   doubled here, because that card is 240px wide and carries a chip as well, and at a
+   quarter the size one hairline is not enough to find at a glance. */
+.console-swatch-tile--active {
+  border-color: var(--positive-edge);
+  box-shadow: 0 0 0 1px var(--positive-edge);
+}
+.console-swatch-tile[disabled] { cursor: default; opacity: 0.5; }
+.console-swatch {
+  width: 96px; height: 60px; display: flex; overflow: hidden;
+  border-radius: 6px; border: 1px solid var(--line);
+}
+/* One palette's miniature. Two of them side by side is what `system` looks like. */
+.console-swatch-part { flex: 1 1 0; min-width: 0; display: flex; }
+.console-swatch-rail { flex: none; width: 16px; }
+/* The split one is a single window shown both ways, not two machines side by side: one
+   rail down the left, and the work area changing palette halfway across. Two rails and
+   two framed panels read as two devices, which is a different claim entirely. */
+.console-swatch-part--left .console-swatch-rail { width: 10px; }
+.console-swatch-part--right .console-swatch-rail { display: none; }
+.console-swatch-part--left .console-swatch-work {
+  margin-right: 0; border-right: none;
+  border-top-right-radius: 0; border-bottom-right-radius: 0;
+}
+.console-swatch-part--right .console-swatch-work {
+  margin-left: 0; border-left: none;
+  border-top-left-radius: 0; border-bottom-left-radius: 0;
+}
+/* The rail against the work area is the contrast the palettes were built around, so the
+   preview is those two regions and nothing else. */
+.console-swatch-work {
+  flex: 1 1 auto; min-width: 0; margin: 5px 5px 5px 4px; padding: 4px;
+  border: 1px solid; border-radius: 3px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.console-swatch-flair { height: 3px; width: 34%; border-radius: 2px; flex: none; }
+/* Text, at the weight text has when you are looking at a page rather than reading it. */
+.console-swatch-line { height: 2px; border-radius: 1px; opacity: 0.45; flex: none; }
+.console-swatch-name { font-size: var(--fs-caption); color: var(--ink-2); }
+.console-swatch-tile--active .console-swatch-name { color: var(--ink); }
 
 /* A rail long enough to need grouping says what a run of rows is about. `.console-group`
    carries the treatment - this only puts it in the rail's column. */

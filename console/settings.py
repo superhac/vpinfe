@@ -26,7 +26,7 @@ from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.i18n import t
 from common.labels import humanize
 from common.media_specs import media_label_map
-from console import binding_editor, deeplink, input_watch, panel
+from console import binding_editor, deeplink, input_watch, panel, theme_picker
 from console import commands as commands_help
 
 logger = logging.getLogger("vpinfe.console.settings")
@@ -76,6 +76,7 @@ async def _write(library, section: str, key: str, value: Any) -> bool:
 # taught the tool should still be able to edit the value badly rather than not at all.
 EDITORS: dict[str, Callable[..., Callable[[], None]]] = {
     config_schema.EDITOR_BINDING: binding_editor.rows,
+    config_schema.EDITOR_CONSOLE_THEME: theme_picker.tiles,
 }
 
 

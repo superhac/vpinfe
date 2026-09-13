@@ -162,7 +162,10 @@ PATH_KINDS = ("file", "dir", "exe")
 # setting drawn with its ordinary control, not a surface silently asking for a tool
 # nobody registered.
 EDITOR_BINDING = "binding"
-EDITORS = (EDITOR_BINDING,)
+# A palette is picked by looking at it. The names carry almost nothing on their own -
+# "Synthwave" means something only once you have seen it - so the control shows each one.
+EDITOR_CONSOLE_THEME = "console_theme"
+EDITORS = (EDITOR_BINDING, EDITOR_CONSOLE_THEME)
 
 # What a `suggest` may name. Closed, so a typo is a setting with no suggestions rather
 # than a surface quietly asking for a list nobody serves.
@@ -418,6 +421,17 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             # Installed themes, and still typeable: a theme can be dropped into place
             # before this page has been reopened to notice it.
             suggest=SUGGEST_THEMES,
+        ),
+        ConfigOption(
+            "console_theme",
+            group="What you see here",
+            type="choice",
+            # Not `auto` like `language` below: this one defers to the operating system
+            # rather than to a language the OS names outright, and the two neutral
+            # palettes are the only answers an OS preference can give.
+            default="synthwave",
+            choices=("synthwave", "dark", "light", "system"),
+            editor=EDITOR_CONSOLE_THEME,
         ),
         ConfigOption(
             "language",

@@ -137,9 +137,13 @@ def _read_target(client: ApiClient) -> dict[str, Any]:
 @ui.page("/remote", title=t("console.remote.vpinfe_remote"), reconnect_timeout=300)
 async def remote_page(screen: str = "") -> None:
     """The remote. `screen` names which of the three, so a place can be linked to."""
-    ui.dark_mode(True)
-    theme.apply_colors()
-    theme.apply_flair()
+    # The same setting the desk surface reads. One install, one appearance - a phone
+    # showing a different palette from the workbench it is beside reads as a different
+    # product.
+    chosen = theme.configured_mode()
+    ui.dark_mode(theme.QUASAR_DARK[chosen])
+    theme.apply_colors(chosen)
+    theme.apply_flair(chosen)
     theme.apply_surface("remote")
     # The shell takes the viewport once and everything below it is flex, the same way
     # the Console's does - a pane that subtracts a fixed header height collapses the
