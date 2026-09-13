@@ -256,7 +256,28 @@ function t(key, english, params) {
       // Not offered, but a curated collection reports it and the label has to say so.
       manual: 'Curated',
     };
-    const sortLabel = (token) => SORT_LABELS[token] || token;
+    // The words for the tokens the filters are written in. `All` and `None` go to the
+    // API as they are - they mean "no filter" - so the token stays and only the label
+    // moves. English here is the fallback when the catalog has not loaded.
+    const WORD_KEYS = {
+      'All': 'frontend.collectionmenu.all', 'None': 'frontend.collectionmenu.none',
+      'Exact': 'frontend.collectionmenu.exact',
+      'Or Higher': 'frontend.collectionmenu.or_higher',
+      'Ascending': 'frontend.collectionmenu.ascending',
+      'Descending': 'frontend.collectionmenu.descending',
+      'Title': 'frontend.collectionmenu.title', 'Year': 'frontend.collectionmenu.year',
+      'Date Added': 'frontend.collectionmenu.date_added',
+      'Last Played': 'frontend.collectionmenu.last_played',
+      'Play Count': 'frontend.collectionmenu.play_count',
+      'Play Time': 'frontend.collectionmenu.play_time',
+      'Rating': 'frontend.collectionmenu.rating',
+      'Curated': 'frontend.collectionmenu.curated',
+      'letter': 'frontend.collectionmenu.by_letter',
+      'year': 'frontend.collectionmenu.by_year',
+      'rating': 'frontend.collectionmenu.by_rating',
+    };
+    const word = (said) => WORD_KEYS[said] ? t(WORD_KEYS[said], said) : said;
+    const sortLabel = (token) => word(SORT_LABELS[token] || token);
     // Tokens with labels, for the same reason the sorts above are: the value stored and
     // the value shown were the same string, so the display spelling was the vocabulary.
     let orderOptions = ['desc', 'asc'];
@@ -264,8 +285,9 @@ function t(key, english, params) {
     // Which dropdowns show something other than their stored value. The popup renders
     // the raw option, so without this the sort list reads `play_time_seconds`.
     const OPTION_LABELS = { sortby: SORT_LABELS, orderby: DIRECTION_LABELS };
-    const optionLabel = (type, value) => (OPTION_LABELS[type] || {})[value] || value;
-    const directionLabel = (token) => DIRECTION_LABELS[token] || token;
+    const optionLabel = (type, value) =>
+      word((OPTION_LABELS[type] || {})[value] || value);
+    const directionLabel = (token) => word(DIRECTION_LABELS[token] || token);
 
     // Current selections
     let collectionIndex = 0;
@@ -449,13 +471,17 @@ function t(key, english, params) {
       const state = await window.parent.vpin.callInternal('get_paging_state');
       if (!state) return;
       document.getElementById('paging-state').textContent = state.group === 'sort'
-        ? `Pages by ${state.kind}`
-        : `Pages ${state.size} at a time`;
+        ? t('frontend.collectionmenu.pages_by', 'Pages by {kind}',
+            { kind: word(state.kind) })
+        : t('frontend.collectionmenu.pages_of', 'Pages {size} at a time',
+            { size: state.size });
     }
 
     function updateTableCount() {
       const tableCount = window.parent.vpin.tableData ? window.parent.vpin.tableData.length : 0;
-      document.getElementById('table-count').textContent = `Table Count: ${tableCount}`;
+      document.getElementById('table-count').textContent =
+        t('frontend.collectionmenu.table_count', 'Table Count: {count}',
+          { count: tableCount });
     }
 
     function updateMenu() {
@@ -463,14 +489,14 @@ function t(key, english, params) {
         item.classList.toggle('selected', i === rows.cursor);
       });
 
-      document.getElementById('collection-value').textContent = collections[collectionIndex];
-      document.getElementById('letter-value').textContent = filterDisplayOverrides.letter || letters[letterIndex];
-      document.getElementById('theme-value').textContent = filterDisplayOverrides.theme || themes[themeIndex];
-      document.getElementById('type-value').textContent = filterDisplayOverrides.type || types[typeIndex];
-      document.getElementById('manufacturer-value').textContent = filterDisplayOverrides.manufacturer || manufacturers[manufacturerIndex];
-      document.getElementById('year-value').textContent = filterDisplayOverrides.year || years[yearIndex];
-      document.getElementById('rating-value').textContent = filterDisplayOverrides.rating || ratings[ratingIndex];
-      document.getElementById('ratingmode-value').textContent = filterDisplayOverrides.ratingmode || ratingModes[ratingModeIndex];
+      document.getElementById('collection-value').textContent = word(collections[collectionIndex]);
+      document.getElementById('letter-value').textContent = word(filterDisplayOverrides.letter || letters[letterIndex]);
+      document.getElementById('theme-value').textContent = word(filterDisplayOverrides.theme || themes[themeIndex]);
+      document.getElementById('type-value').textContent = word(filterDisplayOverrides.type || types[typeIndex]);
+      document.getElementById('manufacturer-value').textContent = word(filterDisplayOverrides.manufacturer || manufacturers[manufacturerIndex]);
+      document.getElementById('year-value').textContent = word(filterDisplayOverrides.year || years[yearIndex]);
+      document.getElementById('rating-value').textContent = word(filterDisplayOverrides.rating || ratings[ratingIndex]);
+      document.getElementById('ratingmode-value').textContent = word(filterDisplayOverrides.ratingmode || ratingModes[ratingModeIndex]);
       document.getElementById('sortby-value').textContent =
         sortLabel(filterDisplayOverrides.sortby || sortOptions[sortByIndex]);
       document.getElementById('orderby-value').textContent =

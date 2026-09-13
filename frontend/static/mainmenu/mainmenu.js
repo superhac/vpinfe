@@ -549,7 +549,9 @@ function updateMenu() {
 }
 
 function audioMenuLabel(muted) {
-  return `Frontend Audio: ${muted ? 'Off' : 'On'}`;
+  return t('frontend.mainmenu.audio', 'Frontend Audio: {state}',
+           { state: muted ? t('frontend.mainmenu.off', 'Off')
+                          : t('frontend.mainmenu.on', 'On') });
 }
 
 async function refreshAudioMenuLabel() {

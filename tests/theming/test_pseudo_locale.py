@@ -141,5 +141,51 @@ class PseudoLocaleTests(unittest.TestCase):
         self.assertEqual(leaked, {}, "these reached the screen without the catalog")
 
 
+class FrontendPseudoLocaleTests(unittest.TestCase):
+    """The cabinet's own chrome, which no static check reads.
+
+    The overlays are iframes with no core of their own, and most of what they show is
+    written at runtime by their own script - the audio item, every dropdown's current
+    value, the paging line. None of that is a literal in a display position, so this is
+    the only thing that sees it.
+    """
+
+    READ = ("(() => { const f = document.getElementById('%s');"
+            " return f && f.contentDocument ? f.contentDocument.body.innerText : ''; })()")
+
+    def test_the_menus_say_nothing_in_english(self) -> None:
+        if not chromium_path():
+            self.skipTest("no Chromium on this machine")
+        if not (ROOT / "common/i18n/catalogs/qps.json").is_file():
+            self.skipTest("no pseudo-locale; run scripts/i18n.py --pseudo")
+
+        async def look(instance) -> dict[str, list[str]]:
+            found: dict[str, list[str]] = {}
+            async with BrowserSession(chromium_path()) as browser:
+                await browser.navigate(instance.theme_url("playfield"))
+                await browser.wait_for("document.body.dataset.ready === 'true'",
+                                       timeout=90.0)
+                for overlay, frame in (("menu", "menu-frame"),
+                                       ("collectionMenu", "collection-menu-frame")):
+                    await browser.evaluate(f"window.vpin.toggleOverlay('{overlay}')")
+                    await asyncio.sleep(3)
+                    text = await browser.evaluate(self.READ % frame) or ""
+                    leaked = sorted({w.lower() for w in ASCII_WORD.findall(text)})
+                    if leaked:
+                        found[overlay] = leaked
+                    await browser.evaluate(f"window.vpin.toggleOverlay('{overlay}')")
+                    await asyncio.sleep(1)
+            return found
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_game(root, GAME)
+            with LiveInstance(root,
+                              extra_settings={("general", "language"): "qps"}) as instance:
+                leaked = asyncio.run(look(instance))
+
+        self.assertEqual(leaked, {}, "these reached the cabinet without the catalog")
+
+
 if __name__ == "__main__":
     unittest.main()
