@@ -104,6 +104,11 @@ _SYNTHWAVE = """
   /* Darker than the page, because a picture reads best against something that is not
      competing with it. */
   --surface-art: #06030f;
+  /* Which way round the grid alternates. Dark grounds put the darker color under and
+     the lighter stripe on top; Light has to do the reverse, or the grid is a grey slab
+     next to a white page. */
+  --grid-ground: var(--surface-3);
+  --grid-stripe: var(--surface-2);
   /* The row you are on. Opaque on purpose - a translucent selection composites over
      the two alternating bands differently, so a run of selected rows stops reading as
      one block. */
@@ -190,6 +195,9 @@ _SYNTHWAVE = """
   --viewer-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   --shadow-drag: 0 8px 24px rgba(0, 0, 0, 0.55);
   --shadow-tooltip: 0 6px 20px rgba(0, 0, 0, 0.45);
+  /* Synthwave and Dark separate the work region by lightness, which a light ground
+     cannot do - so there the well is drawn and here it is not. */
+  --well-shadow: none;
 
   /* The three grounds that are a gradient rather than a surface. Each resolves to a flat
      surface in a neutral mode. */
@@ -262,6 +270,8 @@ _DARK = """
   --surface-work: #0a0b0e;
   --surface-viewer: #0a0b0e;
   --surface-art: #08090b;
+  --grid-ground: var(--surface-3);
+  --grid-stripe: var(--surface-2);
   --row-select: #1b3a57;
   --flair-wash: rgba(76, 178, 255, 0.10);
   --flair-wash-strong: rgba(76, 178, 255, 0.16);
@@ -295,6 +305,7 @@ _DARK = """
   --viewer-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   --shadow-drag: 0 8px 24px rgba(0, 0, 0, 0.55);
   --shadow-tooltip: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --well-shadow: none;
   --header-bg: var(--surface-1);
   --nav-bg: var(--surface-1);
   --workbench-bg: var(--surface-1);
@@ -366,6 +377,8 @@ _LIGHT = """
   --surface-work: #ffffff;
   --surface-viewer: #ffffff;
   --surface-art: #f1f3f6;
+  --grid-ground: var(--surface-1);
+  --grid-stripe: #eceef2;
   --row-select: #dbe9fa;
   --flair-wash: #eef4fc;
   --flair-wash-strong: #e0ebfa;
@@ -407,8 +420,19 @@ _LIGHT = """
   --viewer-shadow: 0 24px 60px rgba(16, 24, 40, 0.18);
   --shadow-drag: 0 8px 24px rgba(16, 24, 40, 0.16);
   --shadow-tooltip: 0 6px 20px rgba(16, 24, 40, 0.14);
+  /* What makes the work region read as sunken rather than merely bounded. A border
+     draws a frame; depth is a soft falloff cast onto the surface, so this is an
+     inset shadow on the two edges that meet the chrome. */
+  --well-shadow: inset 1px 0 0 rgba(16, 24, 40, 0.10),
+                 inset 0 1px 0 rgba(16, 24, 40, 0.10),
+                 inset 7px 0 9px -7px rgba(16, 24, 40, 0.30),
+                 inset 0 7px 9px -7px rgba(16, 24, 40, 0.30);
   --header-bg: var(--surface-1);
-  --nav-bg: var(--surface-1);
+  /* Its own tint, not the page ground: the rail has to differ from the white content
+     *and* from the grid beside it, and the page ground cannot be moved far enough to do
+     that without dragging every other region with it. 8.9 from white, and --ink-3 still
+     reads on it at 4.58. */
+  --nav-bg: #e3e8ee;
   --workbench-bg: var(--surface-1);
   --workbench-bg-rail: var(--surface-1);
   --card-bg: var(--surface-1);
@@ -727,8 +751,8 @@ body::before {
      panels step up, the grid sits between them. The row alternation is deliberately
      narrow - taking the odd row up to #251447 read as two different colors rather than
      as banding. */
-  --ag-background-color: var(--surface-3);
-  --ag-odd-row-background-color: var(--surface-2);
+  --ag-background-color: var(--grid-ground);
+  --ag-odd-row-background-color: var(--grid-stripe);
   --ag-header-background-color: var(--surface-sunken);
   --ag-row-hover-color: var(--surface-hover);
   --ag-border-color: var(--line);
@@ -1812,7 +1836,10 @@ body.console-menu-open .q-tooltip { display: none !important; }
    stack. Top and bottom are the exception - the section row sits directly above and
    the section's own edge directly below, and without this the content is flush to
    both and reads as cut off at each end. */
-.console-workbench-body { padding: 8px 0; }
+/* The gutter the work region keeps from its own walls. It ran flush before, which was
+   invisible while the region was a dark well and obvious the moment it became a lit one:
+   a panel touching the wall reads as unfinished rather than as full-width. */
+.console-workbench-body { padding: 8px var(--panel-gutter); }
 .console-workbench .q-expansion-item .q-item {
   min-height: 32px;
   padding: 2px 10px;
@@ -2976,10 +3003,20 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
      Any alpha is a claim about what is behind it: this one is the page, and the tile
      fills inside here are measured against this. */
   background-color: var(--surface-work);
+  /* The well is drawn by an overlay rather than on the region itself. An inset
+     shadow paints above the background and *below* the children, so the first
+     thing scrolled up under it covered it - the depth vanished exactly when
+     there was something to have depth over. This sits on top and takes no
+     pointer events. */
+  position: relative;
   /* The window's two edges against the frame - left of it the rail, above it the
      header. Without the top one the panel just stops in mid-air where the paint ends. */
   border-left: 1px solid var(--line-soft);
   border-top: 1px solid var(--line-soft);
+}
+.console-section-work::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: var(--well-shadow); z-index: 2;
 }
 /* The workbench measures itself, so the layout changes the moment the drag crosses
    the width rather than when the mouse comes up. */
