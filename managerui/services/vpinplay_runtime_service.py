@@ -1,3 +1,10 @@
+"""Switching the active VPinPlay profile for the session.
+
+Asked of the extension that owns it rather than called directly. With nothing answering
+the page finds no profiles and can activate none, which is what an install without that
+extension should look like - not an error.
+"""
+
 from __future__ import annotations
 
 import json
@@ -6,14 +13,35 @@ from html import unescape
 from typing import Any
 from xml.etree import ElementTree
 
-from common.vpinplay_runtime import (
-    activate_alternate_profile,
-    clear_alternate_profile,
-    get_alternate_profile_state,
-    set_active_profile,
-    validate_profile_payload,
-)
+from common.extensions import services as ext_services
 
+# The shape the page reads when nothing answers: no profiles, none active.
+_NOBODY_SIGNED_IN = {"active": False, "profile": None, "active_games": 0,
+                     "profiles": [], "activeProfileKey": ""}
+
+
+def get_alternate_profile_state():
+    return ext_services.ask("guest.state") or _NOBODY_SIGNED_IN
+
+
+def activate_alternate_profile(payload, source_name: str = ""):
+    return (ext_services.ask("guest.activate", payload, source_name=source_name)
+            or _NOBODY_SIGNED_IN)
+
+
+def clear_alternate_profile(profile_key=None):
+    return ext_services.ask("guest.clear", profile_key) or _NOBODY_SIGNED_IN
+
+
+def set_active_profile(profile_key):
+    return ext_services.ask("guest.choose", profile_key) or _NOBODY_SIGNED_IN
+
+
+def validate_profile_payload(payload):
+    checked = ext_services.ask("guest.check", payload)
+    if checked is None:
+        raise ValueError("VPinPlay is not installed, so a profile cannot be read.")
+    return checked
 
 _PAYLOAD_COMMENT_RE = re.compile(r"<!--\s*VPINPLAY_PAYLOAD:(.*?)-->", re.DOTALL)
 

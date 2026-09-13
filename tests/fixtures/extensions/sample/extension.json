@@ -1,0 +1,11 @@
+{
+  "name": "sample",
+  "display_name": "Sample",
+  "version": "1.0.0",
+  "description": "Exercises every part of the extension contract and nothing real.",
+  "requires_platform": 1,
+  "scopes": ["games:read"],
+  "provides": ["read"],
+  "capabilities": ["config:own", "ui:mount"],
+  "events": ["noticed"]
+}

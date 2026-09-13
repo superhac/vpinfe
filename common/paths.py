@@ -1,3 +1,9 @@
+"""Where VPinFE keeps its own files.
+
+Resolved once at import, because a frozen build and a `--configdir` run have to agree
+on the answer before anything else reads it.
+"""
+
 from __future__ import annotations
 
 import os
@@ -5,7 +11,7 @@ from pathlib import Path
 
 from platformdirs import user_config_dir
 
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 
 
 def _resolve_config_dir() -> Path:
@@ -19,9 +25,29 @@ def _resolve_config_dir() -> Path:
     return Path(user_config_dir("vpinfe", "vpinfe"))
 
 
+# Where the app itself lives, as opposed to the user's config. Bundled assets sit
+# under it: frontend/static/, third_party/, main.py. Resolved here so no module has to count
+# its own directory levels - doing that is what broke when common/ gained
+# subpackages, and it broke silently everywhere a test did not happen to look.
+APP_ROOT = Path(__file__).resolve().parent.parent
+
+
+def bundled(*parts: str) -> Path:
+    """A file the build ships, wherever this copy of VPinFE is running from.
+
+    Measured rather than assumed, on a real frozen build of each kind: `APP_ROOT` and
+    `sys._MEIPASS` are the same directory - `_internal/` for a onedir build,
+    `Contents/Frameworks/` inside a macOS .app - and in a source checkout it is the
+    repo. So one expression covers every case, and the callers that each grew their own
+    chain of guesses do not need one.
+    """
+    return APP_ROOT.joinpath(*parts)
+
 CONFIG_DIR = _resolve_config_dir()
 VPINFE_INI_PATH = CONFIG_DIR / "vpinfe.ini"
-COLLECTIONS_PATH = CONFIG_DIR / "collections.ini"
+COLLECTIONS_PATH = CONFIG_DIR / "collections.json"
+# Read once and converted; kept as a name so a restore can still find its backups.
+COLLECTIONS_INI_PATH = CONFIG_DIR / "collections.ini"
 THEMES_DIR = CONFIG_DIR / "themes"
 PLUGIN_PROFILES_DIR = CONFIG_DIR / "plugin_profiles"
 USER_CONFIG_PATH = VPINFE_INI_PATH
@@ -41,17 +67,17 @@ def configure_nicegui_storage() -> str:
     return storage_path
 
 
-def get_ini_config() -> IniConfig:
+def get_ini_config() -> ConfigStore:
     ensure_config_dir()
-    return IniConfig(str(VPINFE_INI_PATH))
+    return ConfigStore(str(VPINFE_INI_PATH))
 
 
-def get_tables_path(default: str = "~/tables") -> str:
+def get_games_path(default: str = "~/tables") -> str:
     try:
-        config = get_ini_config()
-        table_root = config.config.get("Settings", "tablerootdir", fallback="").strip()
-        if table_root:
-            return os.path.expanduser(table_root)
+        from common.config_access import cfg_get
+        game_root = cfg_get(get_ini_config(), "Settings", "game_root_dir").strip()
+        if game_root:
+            return os.path.expanduser(game_root)
     except Exception:
         pass
     return os.path.expanduser(default)
