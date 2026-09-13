@@ -466,14 +466,19 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ConfigOption(
             "chrome_options",
             group="The browser it runs in",
-            type="string",
+            # One flag per line, which is what the help beside it has always said and
+            # what a one-line box could not take. Parsed with shell-style quoting, so a
+            # newline is whitespace and nothing about the stored value changes.
+            type="text",
+            lines=3,
             default="",
             aliases=("chromeoptions",),
         ),
         ConfigOption(
             "chrome_options_exclude",
             group="The browser it runs in",
-            type="string",
+            type="text",
+            lines=3,
             default="",
             aliases=("chromeoptionsexclude",),
         ),

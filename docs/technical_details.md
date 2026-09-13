@@ -77,8 +77,8 @@ uses an old spelling both still load.
 | `auto_update_media_on_startup` | bool | `false` | Auto Update Media on Startup |
 | `splashscreen` | bool | `false` | Enable Splash Screen |
 | `mute_audio` | bool | `false` | Mute Frontend Audio |
-| `chrome_options` | string |  | Additional Chrome Options |
-| `chrome_options_exclude` | string |  | Which of the built-in options to leave off, one per line. For the case where one of them is the problem and turning all of them off would take the rest with it. |
+| `chrome_options` | text |  | Additional Chrome Options |
+| `chrome_options_exclude` | text |  | Which of the built-in options to leave off, one per line. For the case where one of them is the problem and turning all of them off would take the rest with it. |
 | `disable_default_chrome_options` | bool | `false` | Disable Default Chrome Options |
 
 ### `frontend`
