@@ -34,6 +34,19 @@ _TOKENS = """
      the resting value rather than a decision. */
   --danger-hover: #ff8fb8;
 
+  /* What a state looks like when it is a fill or an edge rather than a word. Each is
+     its own value, not the family color at an opacity: the same percentage over a dark
+     panel and over a white one are not the same design, so the value is the decision
+     and a mode restates it. */
+  --positive-wash: rgba(0, 255, 159, 0.12);
+  --positive-edge: rgba(0, 255, 159, 0.45);
+  --danger-wash: rgba(255, 107, 157, 0.12);
+  --danger-edge: rgba(255, 107, 157, 0.45);
+  --warm-wash: rgba(255, 192, 97, 0.12);
+  --warm-edge: rgba(255, 192, 97, 0.45);
+  /* The off and unknown states, which share the help color's lilac. */
+  --quiet-edge: rgba(155, 139, 189, 0.55);
+
   --surface-0: #0a0518;
   --surface-1: #150a2e;
   --surface-2: #1a0f35;
@@ -529,7 +542,7 @@ body::before {
   border: 1px solid rgba(155, 139, 189, 0.45);
   background: rgba(155, 139, 189, 0.08);
 }
-.console-chip-warn { color: var(--tier-table); border: 1px solid rgba(255, 192, 97, 0.45); }
+.console-chip-warn { color: var(--tier-table); border: 1px solid var(--warm-edge); }
 
 /* Taking a binding off, on the chip that holds it. The same rule the row actions
    follow: gated on what the pointer can do, never on how wide the screen is, and
@@ -1678,9 +1691,9 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 
 /* A destructive action is still an action - it takes the same shape and says what it
    is with color on top, not instead. */
-.console-action.console-action--danger.q-btn { border-color: rgba(255, 107, 157, 0.45); }
+.console-action.console-action--danger.q-btn { border-color: var(--danger-edge); }
 .console-action.console-action--danger.q-btn:hover {
-  border-color: var(--danger); background: rgba(255, 107, 157, 0.12);
+  border-color: var(--danger); background: var(--danger-wash);
 }
 
 /* `size=sm` writes an inline font-size, which no selector outranks. */
@@ -2311,8 +2324,8 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 }
 /* Filled, because this is the exception in a folder and the one worth spotting. */
 .console-tier--table {
-  color: var(--tier-table); border-color: rgba(255, 192, 97, 0.45);
-  background: rgba(255, 192, 97, 0.12);
+  color: var(--tier-table); border-color: var(--warm-edge);
+  background: var(--warm-wash);
 }
 /* Outlined and quiet: the common case should be readable, not loud. */
 .console-tier--game { color: var(--tier-quiet); border-color: var(--line); }
@@ -2330,28 +2343,28 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    whose file this is, and their amber is the exception worth spotting. Green is
    present here; amber is reserved for something to go and fix. */
 .console-tier--on {
-  color: var(--positive); border-color: rgba(0, 255, 159, 0.45);
-  background: rgba(0, 255, 159, 0.12);
+  color: var(--positive); border-color: var(--positive-edge);
+  background: var(--positive-wash);
 }
 .console-tier--off {
-  color: var(--ink-2); border-color: rgba(155, 139, 189, 0.55);
+  color: var(--ink-2); border-color: var(--quiet-edge);
   background: rgba(155, 139, 189, 0.10);
 }
 .console-tier--unknown {
   color: var(--ink-2); border-style: dashed;
-  border-color: rgba(155, 139, 189, 0.55);
+  border-color: var(--quiet-edge);
   background: rgba(155, 139, 189, 0.06);
 }
 /* Broken, not merely absent: what this names stops the table working at all. The one
    red on the panel, so it means exactly that and nothing softer. */
 .console-tier--bad {
-  color: var(--danger); border-color: rgba(255, 107, 157, 0.45);
-  background: rgba(255, 107, 157, 0.12);
+  color: var(--danger); border-color: var(--danger-edge);
+  background: var(--danger-wash);
 }
 /* Dashed, because the thing it names is not there. */
 .console-tier--warn {
   color: var(--tier-table); border-style: dashed;
-  border-color: rgba(255, 192, 97, 0.45);
+  border-color: var(--warm-edge);
 }
 
 /* On a map tile the badge sits over the art, top left, opposite the enlarge. */
@@ -2570,7 +2583,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-theme-card { display: block; }
 /* The one that is playing, marked on the card rather than only by its chip - a column
    of cards is scanned before it is read. */
-.console-theme-card--active { border-color: rgba(0, 255, 159, 0.45); }
+.console-theme-card--active { border-color: var(--positive-edge); }
 .console-theme-preview {
   width: 240px; min-width: 240px; height: 150px;
   display: flex; align-items: center; justify-content: center;
