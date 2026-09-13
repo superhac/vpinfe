@@ -55,6 +55,25 @@ _TOKENS = """
   /* Laid over artwork so a control or a label on top of it stays readable. The ground
      here is a photograph, so this one is translucent by nature rather than by choice. */
   --scrim-media: rgba(10, 5, 24, 0.72);
+  --scrim-media-hover: rgba(10, 5, 24, 0.9);
+  /* What a dialog lays over the page it interrupts. Darker than the media plate: this
+     one is meant to put the page out of reach, not to keep a picture legible. */
+  --scrim-dialog: rgba(4, 2, 12, 0.78);
+
+  /* The accent as a fill. Two steps, because a control can be pointed at and engaged
+     at the same time and the second has to be the louder one. */
+  --accent-wash: rgba(0, 217, 255, 0.06);
+  --accent-wash-strong: rgba(0, 217, 255, 0.10);
+  /* Louder again, and only while a drag is actually over the target. */
+  --drop-lit: rgba(0, 217, 255, 0.16);
+
+  /* The faint plate a bare control sits on, so it reads as a control without an edge. */
+  --wash-lift: rgba(255, 255, 255, 0.02);
+  /* A zebra stripe. Near enough to --wash-hover to look like drift and it is not: a
+     stripe is always there and a hover is not, so a mode may want them apart. */
+  --wash-stripe: rgba(255, 255, 255, 0.055);
+  /* The unfilled part of a progress bar - a track, not a wash. */
+  --bar-track: rgba(255, 255, 255, 0.08);
 
   --surface-0: #0a0518;
   --surface-1: #150a2e;
@@ -625,7 +644,7 @@ body::before {
 .console-drop-slot {
   border-radius: 6px;
   border: 1px dashed var(--accent);
-  background: rgba(0, 217, 255, 0.06);
+  background: var(--accent-wash);
 }
 /* The keyboard's equivalent of being lifted. */
 .console-member-row.console-grabbed {
@@ -911,7 +930,7 @@ body::before {
   transition: opacity 90ms ease-out;
 }
 .ag-row:hover .console-cell-zoom { opacity: 0.75; }
-.console-cell-zoom:hover { opacity: 1; background: rgba(10, 5, 24, 0.9); }
+.console-cell-zoom:hover { opacity: 1; background: var(--scrim-media-hover); }
 
 .console-mark--set {
   border-radius: 0;
@@ -1147,7 +1166,7 @@ body.console-menu-open .q-tooltip { display: none !important; }
 /* Alternating ground. Rows are two lines tall here, so where one ends is not obvious
    from spacing alone - which is exactly when striping earns its keep. Kept very low
    contrast: it separates, it does not decorate. */
-.console-member-row:nth-child(even) { background: rgba(255, 255, 255, 0.055); }
+.console-member-row:nth-child(even) { background: var(--wash-stripe); }
 .console-member-row:hover { background: var(--surface-hover); }
 
 /* The row's action appears under the cursor. A column of identical glyphs down a long
@@ -1668,11 +1687,11 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 3px 10px !important;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--wash-lift);
 }
 .console-action.q-btn:hover {
   border-color: var(--accent);
-  background: rgba(0, 217, 255, 0.10);
+  background: var(--accent-wash-strong);
 }
 /* The same control at the chip's scale, for an action that sits beside a state rather
    than after a field. The edge stays - without one it reads as a second value, and this
@@ -1760,7 +1779,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   background: rgba(11, 5, 32, 0.9); border-bottom: 1px solid var(--line);
 }
 /* Darker than Quasar's default: the art being judged is often bright. */
-.q-dialog__backdrop { background: rgba(4, 2, 12, 0.78) !important; }
+.q-dialog__backdrop { background: var(--scrim-dialog) !important; }
 /* The video's transport, in the bar so it stays upright while the picture turns. */
 .console-viewer-transport { display: flex; align-items: center; gap: 10px; width: 100%; }
 .console-viewer-btn {
@@ -1865,7 +1884,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    what you meant, and it has to be visible before you let go. */
 body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-drop-lit {
-  background: rgba(0, 217, 255, 0.16) !important;
+  background: var(--drop-lit) !important;
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
@@ -2084,7 +2103,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   height: var(--field-h);
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--wash-lift);
   padding: 0 8px;
   transition: border-color 120ms, background 120ms;
 }
@@ -2112,11 +2131,11 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-edit-combo { flex: 1 1 auto; }
 .console-edit-field:hover .q-field__control {
   border-color: var(--accent);
-  background: rgba(0, 217, 255, 0.06);
+  background: var(--accent-wash);
 }
 .console-edit-field .q-field--focused .q-field__control {
   border-color: var(--accent);
-  background: rgba(0, 217, 255, 0.10);
+  background: var(--accent-wash-strong);
 }
 /* What you typed is data, like a grid cell, so it rests at --ink-2 rather than the
    pure white Quasar leaves it at. A settings page is mostly long file paths in wide
@@ -2425,7 +2444,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 }
 .console-source-trail { word-break: break-word; padding-bottom: 2px; }
 .console-source-row--pick:hover {
-  border-color: var(--accent); background: rgba(0, 217, 255, 0.06);
+  border-color: var(--accent); background: var(--accent-wash);
 }
 /* The one decision every way in feeds, so it sits above them rather than inside one.
    Set off by a rule, because it is a different kind of thing from a tab. */
@@ -2777,6 +2796,6 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   font-size: var(--fs-body);
                   color: var(--ink-2); }
 .console-index-item:hover { background: rgba(180, 41, 249, 0.14); }
-.console-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); }
+.console-bar { height: 6px; border-radius: 3px; background: var(--bar-track); }
 .console-bar > div { height: 100%; border-radius: 3px; background: var(--accent); }
 """
