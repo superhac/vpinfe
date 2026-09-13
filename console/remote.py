@@ -138,7 +138,7 @@ def _read_target(client: ApiClient) -> dict[str, Any]:
 async def remote_page(screen: str = "") -> None:
     """The remote. `screen` names which of the three, so a place can be linked to."""
     ui.dark_mode(True)
-    theme.apply_colors(dark=True)
+    theme.apply_colors()
     theme.apply_flair()
     theme.apply_surface("remote")
     # The shell takes the viewport once and everything below it is flex, the same way

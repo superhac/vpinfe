@@ -3,37 +3,9 @@
 from __future__ import annotations
 
 import json
+import re
 
 from nicegui import ui
-
-# Taken from managerui/static/manager.css, which is where the brand already lives: the
-# dark set is :root, the light set is [data-theme="light"] with the neons darkened for
-# contrast on white. Mapped onto Quasar's tokens so every component follows the palette
-# and nothing needs styling by hand.
-DARK: dict[str, str] = {
-    "primary": "#b429f9",
-    "secondary": "#00d9ff",
-    "accent": "#ff0a78",
-    "positive": "#00ff9f",
-    # Darker than the accent it used to share. Quasar fills an error toast with this
-    # and writes white on it: at #ff0a78 that measured 3.77:1, under the 4.5:1 that
-    # 14px needs, on the surface that reports failure.
-    "negative": "#e00068",
-    "warning": "#ffd93d",
-    "info": "#00d9ff",
-    "dark": "#1a0f35",
-    "dark_page": "#0a0518",
-}
-
-LIGHT: dict[str, str] = {
-    "primary": "#8e24c7",
-    "secondary": "#0099cc",
-    "accent": "#d4006d",
-    "positive": "#00a876",
-    "negative": "#c7004f",
-    "warning": "#d4a500",
-    "info": "#0099cc",
-}
 
 LOGO = "/static/img/vpinfe-logo.png"
 
@@ -1586,10 +1558,39 @@ def apply_surface(name: str) -> None:
         f"document.documentElement.dataset.surface = {json.dumps(name)}")
 
 
-def apply_colors(dark: bool) -> None:
-    """Swap the palette. The page owns the single ui.dark_mode element and passes its
-    value in - creating one per call leaves several fighting over the same body class."""
-    ui.colors(**(DARK if dark else LIGHT))
+def _token(name: str) -> str:
+    """The value a token carries, read out of the block that declares it."""
+    match = re.search(rf"^\s*{name}:\s*([^;]+);", _TOKENS, re.MULTILINE)
+    if match is None:
+        raise KeyError(name)
+    return match.group(1).strip()
+
+
+def apply_colors() -> None:
+    """Hand Quasar the brand set it paints its own components with.
+
+    Read off the tokens rather than kept beside them. A second copy of the palette is a
+    second palette, and this one had already drifted: `warning` was a third amber, next
+    to the two the stylesheet was busy collapsing into one.
+    """
+    ui.colors(
+        primary=_token("--flair"),
+        secondary=_token("--accent"),
+        # Quasar carries three slots for a second brand color and the Console designs
+        # with one. All three take it, so a component reaching for any of them cannot
+        # land on Quasar's stock purple.
+        accent=_token("--accent"),
+        positive=_token("--positive"),
+        # Not --danger, and measured: Quasar fills an error toast with `negative` and
+        # writes white on it, where --danger's #ff6b9d is 2.68:1. This is 4.81:1. The
+        # pink that reads as text on a panel and the pink that carries white on top of
+        # it are two colors, and Quasar has one slot for both.
+        negative="#e00068",
+        warning=_token("--warm"),
+        info=_token("--accent"),
+        dark=_token("--surface-2"),
+        dark_page=_token("--surface-0"),
+    )
 
 
 # Components added with the section build-out. Kept apart from _FLAIR so the palette
@@ -1625,15 +1626,16 @@ _COMPONENTS = """
   box-shadow: 0 0 0 2px var(--accent); border-color: var(--accent);
 }
 
-/* Flat buttons are text, and Quasar gives them `primary` - the flair color, at 4.4:1.
-   Element-qualified because that is what outranks Quasar's own .text-primary, which
-   matches ours and loads after it. */
+/* An idle icon button is not the loudest thing on its row, so a flat button is ink
+   rather than the brand color NiceGUI gives every button by default. The glyph is what
+   has to be repainted: Quasar's own .text-primary lands on the <button>, and it sits in
+   a cascade layer, which beats an unlayered !important whatever its specificity. The
+   label and the icon are inside it and nothing there competes. */
 .q-btn--flat, .q-btn--flat .q-icon,
-button.q-btn--flat.text-primary, button.q-btn--flat.text-primary .q-btn__content {
+button.q-btn--flat.text-primary .q-btn__content {
   color: var(--ink-2) !important;
 }
 .q-btn--flat:hover, .q-btn--flat:hover .q-icon,
-button.q-btn--flat.text-primary:hover,
 button.q-btn--flat.text-primary:hover .q-btn__content {
   color: var(--ink) !important;
 }

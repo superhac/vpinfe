@@ -400,7 +400,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # that used to own the second one is gone, so it is set here - without it the shell
     # renders light while the tokens stay dark.
     ui.dark_mode(True)
-    theme.apply_colors(dark=True)
+    theme.apply_colors()
     theme.apply_flair()
     grid.install_filters()
     # The shell takes the viewport once, here, and every height below it is flex. The
