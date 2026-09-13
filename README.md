@@ -18,6 +18,7 @@
 - Importing roms, pupacks, altcolor, and altsound.
 - Drag and drop importing of tables, assets, and media — drop files, zip/rar/7z archives, or whole table folders
 - Optional online ratings, scoring and play tracking via [VPin Play](https://www.vpinplay.com/). The [GitHub Project](https://github.com/superhac/vpinplay)
+- Localization ready — every word on screen comes from a translation catalog, so another language is a JSON file rather than a code change (English is what ships today)
 
 ### Support/Feedback
 Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)

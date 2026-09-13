@@ -46,7 +46,7 @@ def build(rows: list[dict[str, Any]], library: Any,
         try:
             changed = await run.io_bound(call, *args)
         except Exception as exc:
-            ui.notify(t("console.tageditor.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
             return
         ui.notify(t("console.tageditor.game_changed", said=(said), changed=(changed),
                 value=('' if changed == 1 else 's')),
@@ -58,50 +58,50 @@ def build(rows: list[dict[str, Any]], library: Any,
         into = str(group[0].get("tag") or "")
         others = [str(r.get("tag")) for r in group[1:]]
         if not await confirm.ask(
-                t("console.tageditor.ask_merge_into", into=(into)),
-                detail=t("console.tageditor.ask_every_game_carrying_one_of"),
+                t("console.tageditor.merge", into=(into)),
+                detail=t("console.tageditor.every_game_carrying_one"),
                 lines=[f"{r['tag']} - {r['games']} game"
                        f"{'' if r['games'] == 1 else 's'}" for r in group[1:]],
-                confirm=t("console.tageditor.ask_merge")):
+                confirm=t("word.merge")):
             return
         await sweep(library.merge_tags, others + [into], into,
-                said=t("console.tageditor.merged_into", into=(into)))
+                said=t("console.tageditor.merged", into=(into)))
 
     async def rename(row: dict[str, Any]) -> None:
         said = await _ask_for_a_name(str(row.get("tag") or ""))
         if not said or said == row.get("tag"):
             return
         await sweep(library.merge_tags, [str(row.get("tag"))], said,
-                    said=t("console.tageditor.renamed_to", said=(said)))
+                    said=t("console.tageditor.renamed", said=(said)))
 
     async def drop(row: dict[str, Any]) -> None:
         tag = str(row.get("tag") or "")
         count = int(row.get("games") or 0)
         if not await confirm.ask(
-                t("console.tageditor.ask_remove_from_every_game", tag=(tag)),
-                detail=t("console.tageditor.ask_game_carry_it_a_tag_no", the_count=(count),
+                t("console.tageditor.remove_every_game", tag=(tag)),
+                detail=t("console.tageditor.game_carry_tag_no", the_count=(count),
                         value=('' if count == 1 else 's')),
-                confirm=t("console.tageditor.ask_remove")):
+                confirm=t("word.remove")):
             return
         await sweep(library.delete_tag, tag, said=t("console.tageditor.removed", tag=(tag)))
 
     duplicates = rows_by_key(rows)
     if duplicates:
         with ui.element("div").classes("console-card w-full mb-2"):
-            ui.label(t("console.tageditor.these_look_like_the_same")).classes("console-card-title")
-            ui.label(t("console.tageditor.entry_keeps_what_you_typed")) \
+            ui.label(t("console.tageditor.look_like_same_tag")).classes("console-card-title")
+            ui.label(t("console.tageditor.entry_keeps_what_typed")) \
                 .classes("console-help")
             for group in duplicates:
                 with ui.row().classes("items-center gap-2 w-full no-wrap "
                                       "console-member-row"):
                     ui.label(" · ".join(f"{r['tag']} ({r['games']})" for r in group)) \
                         .classes("console-member-name grow min-w-0 truncate")
-                    ui.button(t("console.tageditor.merge"), on_click=lambda _, g=group: merge(g)) \
+                    ui.button(t("word.merge"), on_click=lambda _, g=group: merge(g)) \
                         .props("flat dense no-caps size=sm") \
                         .classes("console-action console-action--inline")
 
     if not rows:
-        ui.label(t("console.tageditor.no_tags_yet_tag_a_game")) \
+        ui.label(t("console.tageditor.no_tags_yet_tag")) \
             .classes("console-help p-4")
         return
 
@@ -117,7 +117,7 @@ def build(rows: list[dict[str, Any]], library: Any,
             ui.separator()
             ui.menu_item(t("console.tageditor.rename"),
                     lambda r=row: rename(r)).classes("console-menu-item")
-            ui.menu_item(t("console.tageditor.remove_from_every_game"), lambda r=row: drop(r)) \
+            ui.menu_item(t("console.tageditor.remove_every_game_2"), lambda r=row: drop(r)) \
                 .classes("console-menu-item console-menu-danger")
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
@@ -130,12 +130,12 @@ async def _ask_for_a_name(current: str) -> str:
     """A dialog that collects a value keeps its own shape - `docs/conventions.md` says
     the confirm treatment is for a question, not for a field."""
     with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label(t("console.tageditor.rename_this_tag")).classes("console-confirm-title")
-        ui.label(t("console.tageditor.every_game_carrying_it_is")).classes("console-help")
+        ui.label(t("console.tageditor.rename_tag")).classes("console-confirm-title")
+        ui.label(t("console.tageditor.every_game_carrying_retagged")).classes("console-help")
         field = ui.input(value=current).props("dense autofocus") \
             .classes("console-edit-field w-full")
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("console.tageditor.cancel"),
+            ui.button(t("word.cancel"),
                     on_click=lambda: dialog.submit("")).props("flat no-caps")
             ui.button(t("console.tageditor.rename_2"),
                     on_click=lambda: dialog.submit(field.value or "")) \

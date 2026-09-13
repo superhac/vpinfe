@@ -149,7 +149,7 @@ def _catalog() -> dict:
 def _game_or_404(game_id: str):
     game = _catalog().get(game_id)
     if game is None:
-        raise NotFoundError(t("error.games.no_game_with_id", game_id=(game_id)))
+        raise NotFoundError(t("error.games.no_game_id", game_id=(game_id)))
     return game
 
 
@@ -570,12 +570,12 @@ def create_game(body: models.NewGameRequest) -> models.GameResource:
     try:
         folder = game_service.create_game(body.name, body.location)
     except FileExistsError as exc:
-        raise ConflictError(t("error.games.there_is_already_a_folder"),
+        raise ConflictError(t("error.games.already_folder_name"),
                             details={"path": str(exc)}) from exc
     except ValueError as exc:
         raise InvalidRequestError(str(exc), details=_where_else(body.location)) from exc
     except OSError as exc:
-        raise ConflictError(t("error.games.could_not_create_it", exc=(exc))) from exc
+        raise ConflictError(t("error.games.could_not_create", exc=(exc))) from exc
 
     # Canonically, never by spelling. Re-reading one folder resolves the path it is
     # given, so the game just created carries the real path while every game a scan
@@ -589,7 +589,7 @@ def create_game(body: models.NewGameRequest) -> models.GameResource:
         # Saying so beats a 500: what was asked for happened, and what is wrong is that
         # the location it landed in is not one this install reads.
         raise ConflictError(
-            t("error.games.it_was_created_but_this"),
+            t("error.games.created_install_not_read"),
             details={"path": str(folder)})
     return get_game(game_identity.game_id(made))
 
@@ -687,7 +687,7 @@ def _table_stem_or_404(game, table_id: str) -> str:
     """The stem to resolve against, or 404 if that table is not this game's."""
     filename = media_lookup.table_filename(game, table_id)
     if not filename:
-        raise NotFoundError(t("error.games.this_game_has_no_such"),
+        raise NotFoundError(t("error.games.game_no_such_table"),
                             details={"game": getattr(game, "gameDirName", ""),
                                      "table": table_id})
     return Path(filename).stem
@@ -718,7 +718,7 @@ def _media_file_or_404(game, kind: str, table_stem: str | None,
     hit = _resolved_media(game_dir, table_stem).get(kind)
     path = hit.path if hit is not None else None
     if path is None or not path.is_file():
-        raise NotFoundError(t("error.games.this_game_has_no_media", kind=(kind)))
+        raise NotFoundError(t("error.games.game_no_media", kind=(kind)))
     return revalidating_file(path, request)
 
 
@@ -1019,7 +1019,7 @@ def import_media(game_id: str, kind: str, body: models.MediaImport) -> models.Me
     game = _game_or_404(game_id)
     source = filesystem.within_roots(body.path)
     if not source.is_file():
-        raise InvalidRequestError(t("error.games.that_is_not_a_file"), details={"path": body.path})
+        raise InvalidRequestError(t("error.games.not_file"), details={"path": body.path})
     return _into_slot(game, kind, body.table, source, game_id)
 
 
@@ -1045,7 +1045,7 @@ def fetch_media(game_id: str, kind: str, body: models.MediaFetch) -> models.Medi
     offer = asset_sources.url_for(body.source, kind, body.vps_id, body.size,
                                   enabled_ids())
     if offer is None:
-        raise NotFoundError(t("error.games.that_source_has_no_such"),
+        raise NotFoundError(t("error.games.source_no_such_art"),
                             details={"source": body.source, "vps_id": body.vps_id,
                                      "kind": kind, "size": body.size})
     with tempfile.TemporaryDirectory() as staging:
@@ -1225,7 +1225,7 @@ def extract_table_script(game_id: str, table_id: str) -> models.Table:
     filename = _table_filename_or_404(game, table_id)
     game_dir = Path(getattr(game, "fullPathGame", "") or "")
     if not (game_dir / filename).is_file():
-        raise NotFoundError(t("error.games.that_table_s_file_is_not"),
+        raise NotFoundError(t("error.games.table_s_file_not"),
                             details={"table": table_id})
     table_id = entry_for_filename(table_entries(game.meta_config), filename)[0]
     # Asked before the work rather than read out of the failure: with the table's file
@@ -1235,12 +1235,12 @@ def extract_table_script(game_id: str, table_id: str) -> models.Table:
         launch.binary_for(table_id, filename)
     except launch.LaunchUnavailableError as exc:
         raise FeatureUnavailableError(
-            t("error.games.extracting_a_script_runs", exc=(exc))
+            t("error.games.extracting_script_runs_visual", exc=(exc))
         ) from exc
     try:
         game_service.extract_vbs(game_dir, filename, table_id)
     except Exception as exc:
-        raise InvalidRequestError(t("error.games.could_not_extract_the", exc=(exc))) from exc
+        raise InvalidRequestError(t("error.games.could_not_extract_script", exc=(exc))) from exc
     return _table_or_404(game, table_id)
 
 
@@ -1257,7 +1257,7 @@ def delete_table_script(game_id: str, table_id: str) -> models.Table:
     game_dir = Path(getattr(game, "fullPathGame", "") or "")
     script = game_dir / f"{_table_stem_or_404(game, table_id)}.vbs"
     if not script.is_file():
-        raise NotFoundError(t("error.games.this_table_has_no_script"),
+        raise NotFoundError(t("error.games.table_no_script_beside"),
                             details={"table": table_id})
     script.unlink()
     return _table_or_404(game, table_id)
@@ -1511,7 +1511,7 @@ def put_vps_details(game_id: str) -> models.VpsDetails:
     game = _game_or_404(game_id)
     entry = _entry_for(game)
     if not entry:
-        raise NotFoundError(t("error.games.this_game_is_matched_to_no"),
+        raise NotFoundError(t("error.games.game_matched_no_vps"),
                             details={"game_id": game_id})
     adopt_vps_details(game, entry)
     return get_vps_details(game_id)
@@ -1543,7 +1543,7 @@ def _table_filename_or_404(game, table_id: str) -> str:
     entry = table_entries(load_game_meta(game)).get(table_id)
     filename = entry_filename(entry) if isinstance(entry, dict) else ""
     if not filename:
-        raise NotFoundError(t("error.games.this_game_has_no_such"),
+        raise NotFoundError(t("error.games.game_no_such_table"),
                             details={"game": getattr(game, "gameDirName", ""),
                                      "table": table_id})
     return filename
@@ -1553,7 +1553,7 @@ def _table_or_404(game, table_id: str) -> dict:
     found = next((t for t in _tables(game, game_to_row(game))
                   if t.get("id") == table_id), None)
     if found is None:
-        raise NotFoundError(t("error.games.this_game_has_no_such"), details={"table": table_id})
+        raise NotFoundError(t("error.games.game_no_such_table"), details={"table": table_id})
     return found
 
 
@@ -1574,20 +1574,20 @@ def import_table(game_id: str, body: models.TableImport) -> models.Table:
     game = _game_or_404(game_id)
     source = filesystem.within_roots(body.path)
     if not source.is_file():
-        raise InvalidRequestError(t("error.games.that_is_not_a_file"), details={"path": body.path})
+        raise InvalidRequestError(t("error.games.not_file"), details={"path": body.path})
     if apps.app_for(source.name) is None:
         raise InvalidRequestError(
-            t("error.games.nothing_this_build_knows", name=(source.name)))
+            t("error.games.nothing_build_knows_plays", name=(source.name)))
 
     game_dir = Path(getattr(game, "fullPathGame", "") or "")
     table_id = new_id()
     try:
         game_service.add_table_file(game_dir, source, table_id)
     except FileExistsError as exc:
-        raise ConflictError(t("error.games.this_game_already_has_a"),
+        raise ConflictError(t("error.games.game_already_file_name"),
                             details={"filename": str(exc)}) from exc
     except (OSError, ValueError) as exc:
-        raise ConflictError(t("error.games.could_not_bring_it_in", exc=(exc))) from exc
+        raise ConflictError(t("error.games.could_not_bring", exc=(exc))) from exc
 
     game.meta_config = load_game_meta(game)
     return _table_or_404(game, table_id)
@@ -1613,19 +1613,19 @@ def add_keyed_table(game_id: str, body: models.NewTableRequest) -> models.Table:
     app_id = str(body.app or "").strip()
     if apps.get(app_id) is None:
         raise InvalidRequestError(
-            t("error.games.no_app_called_this_build", app_id=(app_id),
+            t("error.games.no_app_called_build", app_id=(app_id),
                     join=(', '.join(app.id for app in apps.all_apps()))))
     if not apps.get(app_id).claim.accepts_keys:
         raise InvalidRequestError(
-            t("error.games.plays_files_not_names_it", app_name=(apps.app_name(app_id))))
+            t("error.games.plays_files_not_names", app_name=(apps.app_name(app_id))))
     key = str(body.key or "").strip()
     if not key:
-        raise InvalidRequestError(t("error.games.say_what_the_program_calls"))
+        raise InvalidRequestError(t("error.games.say_what_program_calls"))
 
     table_id = new_id()
     meta = MetaConfig(str(meta_file_path(game)))
     if not meta.add_keyed_table(app_id, key, table_id):
-        raise ConflictError(t("error.games.this_game_already_has_that"),
+        raise ConflictError(t("error.games.game_already_one"),
                             details={"app": app_id, "key": key})
     game.meta_config = load_game_meta(game)
     return _table_or_404(game, table_id)
@@ -1645,24 +1645,24 @@ def _add_referenced_table(game, path: str):
     game_dir = str(getattr(game, "fullPathGame", "") or "")
     target = os.path.expanduser(str(path or "").strip())
     if not target:
-        raise InvalidRequestError(t("error.games.say_where_the_file_is"))
+        raise InvalidRequestError(t("error.games.say_where_file"))
     if not os.path.isabs(target):
-        raise InvalidRequestError(t("error.games.give_the_full_path_to_the"))
+        raise InvalidRequestError(t("error.games.give_full_path_file"))
     if not os.path.isfile(target):
-        raise NotFoundError(t("error.games.there_is_no_file_there"), details={"path": target})
+        raise NotFoundError(t("error.games.no_file"), details={"path": target})
     if apps.app_for(os.path.basename(target)) is None:
         raise InvalidRequestError(
-            t("error.games.nothing_this_build_knows", name=(os.path.basename(target))))
+            t("error.games.nothing_build_knows_plays", name=(os.path.basename(target))))
     if locations.canonical(os.path.dirname(target)) == locations.canonical(game_dir):
         raise InvalidRequestError(
-            t("error.games.that_file_is_already_in"))
+            t("error.games.file_already_game_s"))
 
     # Relative where it survives the library moving, absolute where it would not.
     stored = locations.portable_reference(game_dir, target)
     table_id = new_id()
     meta = MetaConfig(str(meta_file_path(game)))
     if not meta.add_referenced_table(stored, table_id):
-        raise ConflictError(t("error.games.this_game_already_points"),
+        raise ConflictError(t("error.games.game_already_points_file"),
                             details={"path": stored})
     game.meta_config = load_game_meta(game)
     return _table_or_404(game, table_id)
@@ -1688,7 +1688,7 @@ def contain_table(game_id: str, table_id: str) -> models.Table:
     config = load_game_meta(game)
     entry = table_entries(config).get(table_id)
     if not isinstance(entry, dict) or not tables.entry_reference(entry):
-        raise NotFoundError(t("error.games.this_game_has_no_such_2"),
+        raise NotFoundError(t("error.games.game_no_such_reference"),
                             details={"table": table_id})
 
     game_dir = Path(getattr(game, "fullPathGame", "") or "")
@@ -1696,17 +1696,17 @@ def contain_table(game_id: str, table_id: str) -> models.Table:
                                             tables.entry_reference(entry)))
     if not source.is_file():
         raise ConflictError(
-            t("error.games.that_file_is_not_reachable"),
+            t("error.games.file_not_reachable_nothing"),
             details={"path": str(source)})
     landing = game_dir / source.name
     if landing.exists():
-        raise ConflictError(t("error.games.this_game_already_has_a"),
+        raise ConflictError(t("error.games.game_already_file_name"),
                             details={"filename": source.name})
 
     try:
         shutil.copy2(source, landing)
     except OSError as exc:
-        raise ConflictError(t("error.games.could_not_copy_it_in", exc=(exc))) from exc
+        raise ConflictError(t("error.games.could_not_copy", exc=(exc))) from exc
 
     meta = MetaConfig(str(meta_file_path(game)))
     if not meta.contain_referenced_table(table_id, source.name):
@@ -1714,7 +1714,7 @@ def contain_table(game_id: str, table_id: str) -> models.Table:
         # a file in the folder with nothing describing it becomes a second table on the
         # next scan, beside the reference that is still there.
         landing.unlink(missing_ok=True)
-        raise ConflictError(t("error.games.could_not_record_it"), details={"table": table_id})
+        raise ConflictError(t("error.games.could_not_record"), details={"table": table_id})
     game.meta_config = load_game_meta(game)
     return _table_or_404(game, table_id)
 
@@ -1733,7 +1733,7 @@ def delete_table(game_id: str, table_id: str) -> models.TableForgotten:
     config = load_game_meta(game)
     entry = table_entries(config).get(table_id)
     if not isinstance(entry, dict):
-        raise NotFoundError(t("error.games.this_game_has_no_such"),
+        raise NotFoundError(t("error.games.game_no_such_table"),
                             details={"game": getattr(game, "gameDirName", ""),
                                      "table": table_id})
     meta = MetaConfig(str(meta_file_path(game)))
@@ -1746,7 +1746,7 @@ def delete_table(game_id: str, table_id: str) -> models.TableForgotten:
         return {"forgotten": table_id}
 
     if not entry.get(ABSENT_SINCE_KEY):
-        raise ConflictError(t("error.games.that_table_s_file_is_still"),
+        raise ConflictError(t("error.games.table_s_file_still"),
                             details={"table": table_id,
                                      "filename": entry.get("filename", "")})
 
@@ -1812,10 +1812,10 @@ def put_game_details(game_id: str, body: models.GameDetails) -> models.GameResou
         game_service.set_details(Path(str(game.fullPathGame)),
                                  body.model_dump(exclude_unset=True))
     except FileNotFoundError as exc:
-        raise ConflictError(t("error.games.this_game_has_no_record_to"),
+        raise ConflictError(t("error.games.game_no_record_write"),
                             details={"path": str(exc)}) from exc
     except OSError as exc:
-        raise ConflictError(t("error.games.could_not_write_it", exc=(exc))) from exc
+        raise ConflictError(t("error.games.could_not_write_2", exc=(exc))) from exc
     return get_game(game_id)
 
 
@@ -1935,7 +1935,7 @@ def put_game_overrides(game_id: str,
     unknown = set(changes) - set(_GAME_OVERRIDES)
     if unknown:
         raise InvalidRequestError(
-            t("error.games.not_the_game_s_to_set", join=(', '.join(sorted(unknown)))))
+            t("error.games.not_game_s_set", join=(', '.join(sorted(unknown)))))
 
     game_dir = Path(game.fullPathGame)
     for name, value in changes.items():
@@ -1960,12 +1960,12 @@ def put_table_overrides(game_id: str, table_id: str,
     unknown = set(changes) - set(_TABLE_OVERRIDES)
     if unknown:
         raise InvalidRequestError(
-            t("error.games.not_a_table_s_to_set_these", join=(', '.join(sorted(unknown)))))
+            t("error.games.not_table_s_set", join=(', '.join(sorted(unknown)))))
 
     game_dir = Path(game.fullPathGame)
     entries = table_entries(load_game_meta(game))
     if table_id not in entries:
-        raise NotFoundError(t("error.games.no_table_with_id_in_game", table_id=(table_id),
+        raise NotFoundError(t("error.games.no_table_id_game", table_id=(table_id),
                 game_id=(game_id)))
     for name, value in changes.items():
         if not game_service.update_table_vpinfe_setting(game_dir, table_id, name,

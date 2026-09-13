@@ -78,7 +78,7 @@ class ApiClient:
             details = found.get("details") or {}
         except ValueError:
             said = ""
-        raise ApiError(said or t("console.api.the_api_answered",
+        raise ApiError(said or t("console.api.api_answered",
                 status_code=(response.status_code)),
                        details if isinstance(details, dict) else {})
 

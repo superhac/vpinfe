@@ -154,46 +154,46 @@
     <ul class="menu" id="menu">
       <li class="menu-item" id="collection-item">
         <span class="dropdown-label" data-i18n="frontend.collectionmenu.collections">Collections:</span>
-        <span class="dropdown-value" id="collection-value" data-i18n="frontend.collectionmenu.none">None</span>
+        <span class="dropdown-value" id="collection-value" data-i18n="word.none">None</span>
       </li>
       <li class="menu-item filter-separator" id="letter-item">
         <span class="dropdown-label" data-i18n="frontend.collectionmenu.starting_letter">Starting Letter:</span>
-        <span class="dropdown-value" id="letter-value" data-i18n="frontend.collectionmenu.all">All</span>
+        <span class="dropdown-value" id="letter-value" data-i18n="word.all">All</span>
       </li>
       <li class="menu-item" id="theme-item">
         <span class="dropdown-label" data-i18n="frontend.collectionmenu.theme">Theme:</span>
-        <span class="dropdown-value" id="theme-value" data-i18n="frontend.collectionmenu.all">All</span>
+        <span class="dropdown-value" id="theme-value" data-i18n="word.all">All</span>
       </li>
       <li class="menu-item" id="type-item">
         <span class="dropdown-label" data-i18n="frontend.collectionmenu.type">Type:</span>
-        <span class="dropdown-value" id="type-value" data-i18n="frontend.collectionmenu.all">All</span>
+        <span class="dropdown-value" id="type-value" data-i18n="word.all">All</span>
       </li>
       <li class="menu-item" id="manufacturer-item">
         <span class="dropdown-label" data-i18n="frontend.collectionmenu.manufacturer">Manufacturer:</span>
-        <span class="dropdown-value" id="manufacturer-value" data-i18n="frontend.collectionmenu.all">All</span>
+        <span class="dropdown-value" id="manufacturer-value" data-i18n="word.all">All</span>
       </li>
       <li class="menu-item" id="year-item">
-        <span class="dropdown-label" data-i18n="frontend.collectionmenu.year">Year:</span>
-        <span class="dropdown-value" id="year-value" data-i18n="frontend.collectionmenu.all">All</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.year_2">Year:</span>
+        <span class="dropdown-value" id="year-value" data-i18n="word.all">All</span>
       </li>
       <li class="menu-item" id="rating-item">
-        <span class="dropdown-label" data-i18n="frontend.collectionmenu.rating">Rating:</span>
-        <span class="dropdown-value" id="rating-value" data-i18n="frontend.collectionmenu.all">All</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.rating_2">Rating:</span>
+        <span class="dropdown-value" id="rating-value" data-i18n="word.all">All</span>
       </li>
       <li class="menu-item" id="ratingmode-item">
         <span class="dropdown-label" data-i18n="frontend.collectionmenu.rating_mode">Rating Mode:</span>
         <span class="dropdown-value" id="ratingmode-value" data-i18n="frontend.collectionmenu.exact">Exact</span>
       </li>
       <li class="menu-item" id="sortby-item">
-        <span class="dropdown-label" data-i18n="frontend.collectionmenu.sort_by">Sort By:</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.sort">Sort By:</span>
         <span class="dropdown-value" id="sortby-value" data-i18n="frontend.collectionmenu.title">Title</span>
       </li>
       <li class="menu-item" id="orderby-item">
-        <span class="dropdown-label" data-i18n="frontend.collectionmenu.order_by">Order By:</span>
+        <span class="dropdown-label" data-i18n="frontend.collectionmenu.order">Order By:</span>
         <span class="dropdown-value" id="orderby-value" data-i18n="frontend.collectionmenu.descending">Descending</span>
       </li>
       <li class="menu-item action-separator" id="save-filter-item" data-i18n="frontend.collectionmenu.save_filter">Save Filter...</li>
-      <li class="menu-item" id="close-item" data-i18n="frontend.collectionmenu.close">Close</li>
+      <li class="menu-item" id="close-item" data-i18n="word.close">Close</li>
     </ul>
 
     <div class="table-count" id="table-count" data-i18n="frontend.collectionmenu.table_count_0">Table Count: 0</div>
@@ -209,8 +209,8 @@
       <div style="font-size: 2.82vh; margin-bottom: 1vh;" data-i18n="frontend.collectionmenu.save_current_filter">Save Current Filter</div>
       <input type="text" id="filter-name-input" placeholder="Enter filter name..." style="width: 100%; padding: 0.5vh; font-size: 2.34vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.25vh; margin-bottom: 1vh;">
       <div style="display: flex; gap: 1vw;">
-        <button id="save-filter-btn" style="flex: 1; padding: 0.5vh; font-size: 2.34vh; background: #444; color: #fff; border: 1px solid #666; border-radius: 0.25vh; cursor: pointer;" data-i18n="frontend.collectionmenu.save">Save</button>
-        <button id="cancel-save-btn" style="flex: 1; padding: 0.5vh; font-size: 2.34vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.25vh; cursor: pointer;" data-i18n="frontend.collectionmenu.cancel">Cancel</button>
+        <button id="save-filter-btn" style="flex: 1; padding: 0.5vh; font-size: 2.34vh; background: #444; color: #fff; border: 1px solid #666; border-radius: 0.25vh; cursor: pointer;" data-i18n="word.save">Save</button>
+        <button id="cancel-save-btn" style="flex: 1; padding: 0.5vh; font-size: 2.34vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.25vh; cursor: pointer;" data-i18n="word.cancel">Cancel</button>
       </div>
       <div id="save-message" style="margin-top: 0.75vh; font-size: 1.88vh; text-align: center;"></div>
     </div>
@@ -260,21 +260,21 @@ function t(key, english, params) {
     // API as they are - they mean "no filter" - so the token stays and only the label
     // moves. English here is the fallback when the catalog has not loaded.
     const WORD_KEYS = {
-      'All': 'frontend.collectionmenu.all', 'None': 'frontend.collectionmenu.none',
+      'All': 'word.all', 'None': 'word.none',
       'Exact': 'frontend.collectionmenu.exact',
-      'Or Higher': 'frontend.collectionmenu.or_higher',
+      'Or Higher': 'frontend.collectionmenu.higher',
       'Ascending': 'frontend.collectionmenu.ascending',
       'Descending': 'frontend.collectionmenu.descending',
-      'Title': 'frontend.collectionmenu.title', 'Year': 'frontend.collectionmenu.year',
+      'Title': 'frontend.collectionmenu.title', 'Year': 'frontend.collectionmenu.year_2',
       'Date Added': 'frontend.collectionmenu.date_added',
       'Last Played': 'frontend.collectionmenu.last_played',
       'Play Count': 'frontend.collectionmenu.play_count',
       'Play Time': 'frontend.collectionmenu.play_time',
-      'Rating': 'frontend.collectionmenu.rating',
+      'Rating': 'frontend.collectionmenu.rating_2',
       'Curated': 'frontend.collectionmenu.curated',
-      'letter': 'frontend.collectionmenu.by_letter',
-      'year': 'frontend.collectionmenu.by_year',
-      'rating': 'frontend.collectionmenu.by_rating',
+      'letter': 'frontend.collectionmenu.letter',
+      'year': 'frontend.collectionmenu.year_2',
+      'rating': 'frontend.collectionmenu.rating_2',
     };
     const word = (said) => WORD_KEYS[said] ? t(WORD_KEYS[said], said) : said;
     const sortLabel = (token) => word(SORT_LABELS[token] || token);
@@ -471,9 +471,9 @@ function t(key, english, params) {
       const state = await window.parent.vpin.callInternal('get_paging_state');
       if (!state) return;
       document.getElementById('paging-state').textContent = state.group === 'sort'
-        ? t('frontend.collectionmenu.pages_by', 'Pages by {kind}',
+        ? t('frontend.collectionmenu.pages', 'Pages by {kind}',
             { kind: word(state.kind) })
-        : t('frontend.collectionmenu.pages_of', 'Pages {size} at a time',
+        : t('frontend.collectionmenu.pages_time', 'Pages {size} at a time',
             { size: state.size });
     }
 
@@ -828,7 +828,7 @@ function t(key, english, params) {
 
       if (!filterName) {
         message.textContent =
-          t('frontend.collectionmenu.name_the_filter', 'Please enter a filter name');
+          t('frontend.collectionmenu.please_enter_filter_name', 'Please enter a filter name');
         message.style.color = '#f88';
         return;
       }
@@ -845,7 +845,7 @@ function t(key, english, params) {
         (orderOptions[orderByIndex] !== "desc");
 
       if (!hasActiveFilters) {
-        message.textContent = t('frontend.collectionmenu.nothing_to_save',
+        message.textContent = t('frontend.collectionmenu.no_filters_sort_order',
           'No filters or sort order active. Set at least one before saving.');
         message.style.color = '#f88';
         return;

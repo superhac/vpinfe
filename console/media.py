@@ -35,13 +35,13 @@ _MISSING = media_ownership.tier_for(media_ownership.MISSING).noun
 # blank is a choice like any other in the funnel, and it needs a word there because
 # "match the empty ones" is not something a checkbox can say by being unlabelled.
 _REASON = {media_ownership.ORPHAN: _ORPHAN, media_ownership.UNUSED: _UNUSED}
-_REASON_CHOICES = ([{"value": "", "label": t("console.media.in_use")}]
+_REASON_CHOICES = ([{"value": "", "label": t("word.in_use")}]
                    + [{"value": word, "label": t(word)}
                       for word in (_MISSING, _ORPHAN, _UNUSED)])
 
 _SOURCE_CHOICES = ([{"value": name, "label": name}
                     for name in media_ownership.source_names()]
-                   + [{"value": "", "label": t("console.media.no_file")}])
+                   + [{"value": "", "label": t("word.no_file")}])
 
 
 def _standing_in(via: str) -> str:
@@ -82,35 +82,35 @@ def rows(found: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 # The groups the column picker offers, the way Games and Tables already group theirs.
-_FILE = "console.media.file"
+_FILE = "word.file"
 _GAME = "console.media.game"
-_SOURCE = "console.media.source"
+_SOURCE = "word.source"
 
 COLUMNS: list[dict[str, Any]] = [
     grid.column("game", t("console.media.game"), 200, pinned="left", group=t(_GAME),
-                help=t("console.media.the_game_folder_this_file.help")),
-    grid.column("label", t("console.media.kind"), 160, group=t(_FILE),
-                help=t("console.media.which_of_the_twenty_media.help")),
-    grid.column("used_by", t("console.media.used_by"), type="numericColumn", group=t(_FILE),
-                help=t("console.media.how_many_of_this_game_s.help")),
-    grid.column("reason", t("console.media.unused_reason"), 150, group=t(_FILE),
+                help=t("console.media.game_folder_file_belongs.help")),
+    grid.column("label", t("word.kind"), 160, group=t(_FILE),
+                help=t("console.media.twenty_media_kinds_row.help")),
+    grid.column("used_by", t("word.used_by"), type="numericColumn", group=t(_FILE),
+                help=t("console.media.how_many_game_s.help")),
+    grid.column("reason", t("word.unused_reason"), 150, group=t(_FILE),
                 **grid.choice_filter(_REASON_CHOICES),
-                help=t("console.media.why_this_file_is_not_the.help")),
+                help=t("console.media.why_file_not_one.help")),
     grid.column("table_file", t("console.media.table"), 200, group=t(_FILE),
-                help=t("console.media.the_vpx_this_file_is_named.help")),
-    grid.column("path", t("console.media.path"), 300, group=t(_FILE),
-                help=t("console.media.where_the_file_sits.help")),
-    grid.column("source", t("console.media.source"), 165, group=t(_SOURCE),
+                help=t("console.media.vpx_file_named_blank.help")),
+    grid.column("path", t("word.path"), 300, group=t(_FILE),
+                help=t("console.media.where_file_sits_relative.help")),
+    grid.column("source", t("word.source"), 165, group=t(_SOURCE),
                 **grid.choice_filter(_SOURCE_CHOICES),
-                help=t("console.media.who_put_the_file_here_as.help")),
+                help=t("console.media.put_file_far_anything.help")),
     grid.column("match", t("console.media.match"), 140, group=t(_SOURCE),
-                help=t("console.media.the_vps_file_somebody_said.help")),
-    grid.column("covered_by", t("console.media.covered_by"), 130, group=t(_FILE),
-                help=t("console.media.what_the_cabinet_shows_for.help")),
-    grid.column("manufacturer", t("console.media.manufacturer"), 150, group=t(_GAME),
-                help=t("console.media.who_made_the_machine.help")),
-    grid.column("year", t("console.media.year"), group=t(_GAME),
-            help=t("console.media.the_year_the_machine_was.help")),
+                help=t("console.media.vps_file_somebody_said.help")),
+    grid.column("covered_by", t("console.media.covered"), 130, group=t(_FILE),
+                help=t("console.media.what_cabinet_shows_kind.help")),
+    grid.column("manufacturer", t("word.manufacturer"), 150, group=t(_GAME),
+                help=t("help.who_made_it")),
+    grid.column("year", t("word.year"), group=t(_GAME),
+            help=t("help.year_released")),
 ]
 
 _ALL = [definition["field"] for definition in COLUMNS]
@@ -123,23 +123,23 @@ VIEWS: dict[str, list[str] | views.Preset] = {
         columns=("game", "label", "reason", "manufacturer", "year"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [_MISSING]}},
-        help=t("console.media.the_art_you_do_not_have.help")),
+        help=t("console.media.art_not_filter_one.help")),
     t("console.view.orphans"): views.Preset(
         columns=("game", "label", "reason", "table_file", "path"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [_ORPHAN]}},
-        help=t("console.media.art_left_behind_when_a.help")),
+        help=t("console.media.art_left_behind_table.help")),
     t("console.view.unused"): views.Preset(
         columns=("game", "label", "reason", "used_by", "path", "source"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [_UNUSED]}},
-        help=t("console.media.files_nothing_loads.help")),
+        help=t("console.media.files_nothing_loads_because.help")),
     t("console.view.sources"): views.Preset(
         columns=("game", "label", "used_by", "path", "source", "match"),
         sort=({"colId": "source", "sort": "asc", "sortIndex": 0},
               {"colId": "game", "sort": "asc", "sortIndex": 1}),
         filters={"reason": {"values": [""]}},
-        help=t("console.media.where_your_art_came_from.help")),
+        help=t("console.media.where_art_came_unattributed.help")),
     t("console.view.everything"): views.Preset(
         columns=tuple(_ALL),
         help=t("console.media.every_row_nothing_hidden.help")),
@@ -156,16 +156,16 @@ async def fill(picked: list[dict[str, Any]], library: Any,
     """
     wanted = [row for row in picked if not row.get("present")]
     if not wanted:
-        ui.notify(t("console.media.those_all_have_a_file"),
+        ui.notify(t("console.media.all_file_select_missing"),
                   type="warning")
         return
     unmatched = sum(1 for row in wanted if not row.get("vps_id"))
     if not await confirm.ask(
-            t("console.media.ask_look_for_art_for_missing", len=(len(wanted))),
-            detail=t("console.media.ask_anything_found_is_copied"),
-            lines=([t("console.media.are_not_matched_to_vps_so", unmatched=(unmatched))]
+            t("console.media.look_art_missing", len=(len(wanted))),
+            detail=t("console.media.anything_found_copied_game"),
+            lines=([t("console.media.not_matched_vps_nothing", unmatched=(unmatched))]
                     if unmatched else []),
-            confirm=t("console.media.ask_get_art"), danger=False):
+            confirm=t("console.media.get_art"), danger=False):
         return
 
     filled = empty = failed = 0
@@ -191,7 +191,7 @@ async def fill(picked: list[dict[str, Any]], library: Any,
 
     said = t("console.media.filled", filled=(filled))
     if empty:
-        said += t("console.media.nothing_published_for", empty=(empty))
+        said += t("console.media.nothing_published", empty=(empty))
     if failed:
         said += f", {failed} failed"
     ui.notify(said, type="positive" if filled else "warning")
@@ -218,10 +218,10 @@ def build(found: list[dict[str, Any]], library: Any,
 
     def said(picked: int) -> str:
         if picked:
-            return t("console.media.of_selected", picked=(picked), value=(on_screen['rows']))
+            return t("console.media.selected", picked=(picked), value=(on_screen['rows']))
         if on_screen["rows"] == len(built):
-            return t("console.media.count_with_gaps", count=(len(built)), gaps=(gaps))
-        return t("console.media.of_media", value=(on_screen['rows']), len=(len(built)))
+            return t("console.media.media_missing", count=(len(built)), gaps=(gaps))
+        return t("console.media.media", value=(on_screen['rows']), len=(len(built)))
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
         search = panel.search(t("console.media.search_media"))
@@ -232,9 +232,9 @@ def build(found: list[dict[str, Any]], library: Any,
         if rescan is not None:
             ui.button(icon="refresh", on_click=rescan) \
                 .props("flat dense round size=sm").classes("shrink-0") \
-                .tooltip(t("console.media.read_the_library_from_disk"))
+                .tooltip(t("console.media.read_library_disk_pick"))
         actions = ui.button(icon="more_vert").props("flat round dense") \
-            .tooltip(t("console.media.actions_for_the_selected"))
+            .tooltip(t("console.media.actions_selected_media"))
 
         async def refill() -> None:
             for game_id in {row["game_id"] for row in selected}:
@@ -244,10 +244,10 @@ def build(found: list[dict[str, Any]], library: Any,
 
         with actions:
             with ui.menu():
-                ui.menu_item(t("console.media.get_art_for_selected"),
+                ui.menu_item(t("console.media.get_art_selected"),
                              lambda: fill(list(selected), library, refill))
                 ui.separator()
-                ui.menu_item(t("console.media.clear_selection"),
+                ui.menu_item(t("word.clear_selection"),
                              lambda: table.run_grid_method("deselectAll"))
         actions.set_visibility(False)
 

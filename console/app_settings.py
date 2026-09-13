@@ -37,10 +37,10 @@ def scope_words(folder_tables: int, launcher_name: str) -> dict[str, str]:
     """What each scope is called, with the folder saying how many it reaches - a folder
     of one is a fact worth seeing before choosing it over the table."""
     return {
-        SCOPE_ENTRY: t("console.app_settings.this_table"),
-        SCOPE_FOLDER: (t("console.app_settings.this_folder_tables", folder_tables=(folder_tables))
+        SCOPE_ENTRY: t("console.app_settings.table"),
+        SCOPE_FOLDER: (t("console.app_settings.folder_tables", folder_tables=(folder_tables))
                 if folder_tables != 1
-                       else t("console.app_settings.this_folder_1_table")),
+                       else t("console.app_settings.folder_1_table")),
         SCOPE_LAUNCHER: t("console.app_settings.everything_plays", launcher_name=(launcher_name)),
     }
 
@@ -49,11 +49,11 @@ async def open_for_table(library, *, launcher_id: str, launcher_name: str,
                          table_id: str, folder_tables: int = 1,
                          on_done: Callable | None = None) -> None:
     if not launcher_id:
-        ui.notify(t("console.app_settings.this_table_has_no_launcher"), type="warning")
+        ui.notify(t("console.app_settings.table_no_launcher_configure"), type="warning")
         return
 
     state: dict[str, Any] = {"scope": SCOPE_ENTRY, "search": ""}
-    words = scope_words(folder_tables, launcher_name or t("console.app_settings.this_launcher"))
+    words = scope_words(folder_tables, launcher_name or t("console.app_settings.launcher"))
 
     with ui.dialog().props("maximized") as dialog, ui.card().classes(
             "w-full h-full console-panel"):
@@ -61,13 +61,13 @@ async def open_for_table(library, *, launcher_id: str, launcher_name: str,
             ui.label(t("console.app_settings.settings",
                     launcher_name=(launcher_name))).classes("console-card-title")
             ui.space()
-            ui.button(t("console.app_settings.done"),
+            ui.button(t("word.done"),
                     on_click=dialog.close).props("flat dense no-caps")
 
         # The picker before the settings, because it says where an edit will go and
         # that has to be readable before anything is edited rather than after.
         with ui.row().classes("items-center gap-3 w-full no-wrap px-3 pb-2"):
-            ui.label(t("console.app_settings.edits_go_to")).classes("console-label text-xs")
+            ui.label(t("console.app_settings.edits_go")).classes("console-label text-xs")
             scope = ui.select(words, value=state["scope"]) \
                 .props("dense outlined options-dense").classes("w-64")
             search = panel.search(t("console.app_settings.search_settings"))
@@ -104,7 +104,7 @@ async def _fill(library, launcher_id: str, table_id: str, state: dict[str, Any],
         found = await run.io_bound(library.launcher_config, launcher_id,
                                    table_id, scope)
     except Exception as exc:  # noqa: BLE001 - this says why, never 500s
-        panel.facts(ui, [panel.intro(t("console.app_settings.could_not_read_the", exc=(exc)))])
+        panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))])
         return
 
     groups = found.get("groups") or []
@@ -128,7 +128,7 @@ async def _fill(library, launcher_id: str, table_id: str, state: dict[str, Any],
     if not shown:
         panel.facts(ui, [panel.intro(
             t("console.app_settings.nothing_matches", value=(state['search'])) if wanted
-            else t("console.app_settings.has_no_settings_to_show", value=(words[scope])))])
+            else t("console.app_settings.no_settings_show", value=(words[scope])))])
 
 
 async def _group_rows(library, launcher_id: str, table_id: str, scope: str,
@@ -178,7 +178,7 @@ def _control(library, launcher_id: str, table_id: str, scope: str, field: dict,
             # do instead. Swallowing it would leave a control that appears to do
             # nothing, which is the thing a refusal exists to avoid.
             said = _refusal(exc)
-            ui.notify(said or t("console.app_settings.could_not_save_it", exc=(exc)),
+            ui.notify(said or t("said.could_not_save_it", exc=(exc)),
                       type="warning" if said else "negative",
                       multi_line=bool(said), close_button=bool(said))
             await draw()
@@ -212,7 +212,7 @@ def _aside(library, launcher_id: str, table_id: str, scope: str, field: dict,
             await run.io_bound(library.write_launcher_config, launcher_id,
                                {field["key"]: ""}, table=table_id, scope=scope)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.app_settings.could_not_clear_it", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_clear_it", exc=(exc)), type="negative")
             return
         await draw()
 
@@ -225,7 +225,7 @@ def _aside(library, launcher_id: str, table_id: str, scope: str, field: dict,
         with ui.row().classes("items-center gap-2 no-wrap"):
             mark()
             if held.get("set_here"):
-                panel.action(t("console.app_settings.clear"), wipe, inline=True,
+                panel.action(t("word.clear"), wipe, inline=True,
                         enabled=not playing,
                              hint=(t(workbench.PLAYING_NOTE) if playing
                                    else workbench._clear_hint(held, _Field)))()
@@ -273,8 +273,8 @@ async def confirm_new_table_file(library, launcher_id: str,
         return False
     count = len(reaching)
     said = await confirm.ask(
-        t("console.app_settings.ask_setting_currently_reach", the_count=(count),
+        t("console.app_settings.setting_currently_reach_table", the_count=(count),
                 value=('' if count == 1 else 's')),
-        detail=t("console.app_settings.ask_giving_this_table_its_own"),
-        confirm=t("console.app_settings.ask_keep_them"))
+        detail=t("console.app_settings.giving_table_own_settings"),
+        confirm=t("console.app_settings.keep_them"))
     return True if said else None

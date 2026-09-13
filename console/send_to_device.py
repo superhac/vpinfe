@@ -34,7 +34,7 @@ def phones(devices: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def name_of(device: dict[str, Any]) -> str:
-    return str(device.get("display_name") or "").strip() or t("console.send_to_device.a_device")
+    return str(device.get("display_name") or "").strip() or t("console.send_to_device.device")
 
 
 async def ask_where(games: list[dict[str, Any]]) -> None:
@@ -54,7 +54,7 @@ async def ask_where(games: list[dict[str, Any]]) -> None:
     if not found:
         # Said rather than hidden: the answer is "not yet", and somebody who has just
         # added a phone in Devices needs to know this is where it turns up.
-        ui.notify(t("console.send_to_device.no_devices_to_send_to_add"),
+        ui.notify(t("console.send_to_device.no_devices_send_add"),
                   type="warning")
         return
 
@@ -62,10 +62,10 @@ async def ask_where(games: list[dict[str, Any]]) -> None:
     if not picked:
         return
     if not await confirm.ask(
-            t("console.send_to_device.ask_send_game_s_to", len=(len(games)),
+            t("console.send_to_device.send_game_s", len=(len(games)),
                     name_of=(name_of(picked))),
-            detail=t("console.send_to_device.ask_the_table_its_backglass"),
-            confirm=t("console.send_to_device.ask_send"), danger=False):
+            detail=t("console.send_to_device.table_backglass_settings_rom"),
+            confirm=t("console.send_to_device.send"), danger=False):
         return
     await send(games, picked)
 
@@ -79,18 +79,18 @@ async def send(games: list[dict[str, Any]], device: dict[str, Any]) -> None:
     except Exception as exc:
         ui.notify(str(exc), type="negative")
         return
-    ui.notify(t("console.send_to_device.sending_to", len=(len(games)), name_of=(name_of(device))),
+    ui.notify(t("console.send_to_device.sending", len=(len(games)), name_of=(name_of(device))),
             type="positive")
 
 
 async def _which(found: list[dict[str, Any]]) -> dict[str, Any]:
     """Which device, when there is more than one."""
     with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label(t("console.send_to_device.send_to_which_device")).classes("console-confirm-title")
+        ui.label(t("console.send_to_device.send_device")).classes("console-confirm-title")
         for device in found:
             ui.button(name_of(device),
                       on_click=lambda _e=None, d=device: dialog.submit(d)) \
                 .props("flat no-caps align=left").classes("console-action w-full")
-        ui.button(t("console.send_to_device.cancel"), on_click=lambda: dialog.submit(None)) \
+        ui.button(t("word.cancel"), on_click=lambda: dialog.submit(None)) \
             .props("flat no-caps").classes("console-action")
     return await dialog or {}

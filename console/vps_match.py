@@ -40,10 +40,10 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
     """
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-confirm console-picker-dialog"):
-        ui.label(t("console.vps_match.match_this_game_to_vps")).classes("console-confirm-title")
+        ui.label(t("console.vps_match.match_game_vps")).classes("console-confirm-title")
         if place:
             ui.label(place).classes("console-help")
-        ui.label(t("console.vps_match.nothing_here_ranks_the")) \
+        ui.label(t("console.vps_match.nothing_ranks_results_pick")) \
             .classes("console-help")
         field = ui.input(value=str(game.get("name") or "")) \
             .props("dense autofocus clearable").classes("console-edit-field w-full")
@@ -55,10 +55,10 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
             found.clear()
             with found:
                 if not said:
-                    ui.label(t("console.vps_match.type_a_name_a_maker_or_a")).classes("console-help")
+                    ui.label(t("console.vps_match.type_name_maker_year")).classes("console-help")
                     return
                 if not rows:
-                    ui.label(t("console.vps_match.nothing_in_vps_matches", said=(said))) \
+                    ui.label(t("console.vps_match.nothing_vps_matches", said=(said))) \
                         .classes("console-help")
                     return
                 for row in rows:
@@ -77,7 +77,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
                 ui.button(t("console.vps_match.stop"), on_click=lambda: dialog.submit(STOPPED)) \
                     .props("flat no-caps")
             else:
-                ui.button(t("console.vps_match.cancel"),
+                ui.button(t("word.cancel"),
                         on_click=lambda: dialog.submit(CANCELLED)) \
                     .props("flat no-caps")
         await look()
@@ -105,7 +105,7 @@ async def walk(library: Any, games: list[dict[str, Any]]) -> None:
                                {"alt_vps_id": str(picked)})
         except Exception as exc:  # noqa: BLE001 - one bad write does not end the walk
             logger.exception("Could not set the match for %s", game.get("id"))
-            ui.notify(t("console.vps_match.could_not_set_that_match", exc=(exc)), type="negative")
+            ui.notify(t("console.vps_match.could_not_set_match", exc=(exc)), type="negative")
             continue
         changed += 1
     # Said once at the end rather than per game: a toast after every pick in a run of

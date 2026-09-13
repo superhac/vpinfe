@@ -43,7 +43,7 @@ KEPT_NOTE = ("What this library collects. Turning one off stops this install sho
 
 # Every source that ships is listed, switched off included: "why is that catalog not
 # coming up" is answered by seeing it sitting there off.
-SOURCES_NOTE = (t("console.settings.which_online_catalogs_are"))
+SOURCES_NOTE = (t("console.settings.online_catalogs_searched_artwork"))
 
 # Everything VPS-shaped reads the local copy - matching, release lists, what a kind is
 # offered from - so this page is how fresh all of those answers are.
@@ -65,7 +65,7 @@ async def _write(library, section: str, key: str, value: Any) -> bool:
     try:
         await run.io_bound(library.put_config, {section: {key: value}})
     except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-        ui.notify(t("console.settings.could_not_save_that", exc=(exc)), type="negative")
+        ui.notify(t("console.settings.could_not_save", exc=(exc)), type="negative")
         return False
     return True
 
@@ -263,7 +263,7 @@ async def _fill_kinds(library, rerender: Callable[[], None], body, note: str,
         known = await run.io_bound(items, library)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         with body:
-            panel.facts(ui, [panel.intro(t("console.settings.could_not_read_the", exc=(exc)))])
+            panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))])
         return
 
     stored = _listed(policy.get(key))
@@ -282,7 +282,7 @@ async def _fill_kinds(library, rerender: Callable[[], None], body, note: str,
         try:
             await run.io_bound(library.put_library_policy, {key: store})
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(t("console.settings.could_not_save_that", exc=(exc)), type="negative")
+            ui.notify(t("console.settings.could_not_save", exc=(exc)), type="negative")
             return
         rerender()
 
@@ -307,7 +307,7 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
     try:
         state = await run.io_bound(library.vps_sync_state)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
-        return [panel.intro(t("console.settings.could_not_read_the_sync", exc=(exc)))]
+        return [panel.intro(t("console.settings.could_not_read_sync", exc=(exc)))]
 
     async def now() -> None:
         # Held: an ongoing notification never times out on its own.
@@ -322,7 +322,7 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
         # "Already current" is the ordinary outcome and says itself; a positive toast
         # for it would make the rare one look the same as the common one.
         ui.notify(t("console.settings.catalog_updated") if done.get("changed")
-                else t("console.settings.already_up_to_date"),
+                else t("console.settings.already_date"),
                   type="positive" if done.get("changed") else "info")
         rerender()
 
@@ -331,12 +331,12 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
     def checked() -> None:
         with ui.element("div").classes("console-fact-edit"):
             ui.label(when.replace("T", " ").replace("Z",
-                    " UTC") if when else t("console.settings.never")) \
+                    " UTC") if when else t("word.never")) \
                 .classes("console-fact-value truncate min-w-0")
             panel.action(t("console.settings.check_now"), now, icon="sync", inline=True)()
 
     return [(panel.HEADING, t("console.settings.catalog")),
-            (t("console.settings.fact_last_checked"), checked)]
+            (t("console.settings.last_checked"), checked)]
 
 
 async def _input_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
@@ -346,7 +346,7 @@ async def _input_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, 
     *this key does that*; somebody who does not know which physical button is which
     cannot use the row at all until something tells them. It sets nothing.
     """
-    return [(panel.HEADING, t("console.settings.input_detector")),
+    return [(panel.HEADING, t("word.input_detector")),
             (panel.FULL, input_watch.strip)]
 
 
@@ -358,7 +358,7 @@ FOOTERS: dict[str, Callable] = {"vpsdb": _vps_foot, "input": _input_foot}
 def _checks_library() -> None:
     from console.sections import CHECKS
     entries: list[tuple[Any, Any]] = [panel.intro(
-        t("console.settings.each_check_runs_over_every"))]
+        t("console.settings.each_check_runs_every"))]
     for _, name, description, _pred in CHECKS:
         entries.append((name, panel.switch(True, lambda e: None)))
         entries.append(panel.note(description))
@@ -488,10 +488,10 @@ FEATURE_LABELS = {
 # What switching one on gets you. The name says which feature; this says what the install
 # then does, which is the half a person switching it on is actually choosing between.
 FEATURE_NOTES = {
-    install_identity.LIBRARY: "console.settings.feature.curate_the_game_library_on",
-    install_identity.FRONTEND: "console.settings.feature.launch_games_on_this_machine",
-    install_identity.DEVICES: "console.settings.feature.manage_the_other_vpinfe_installs",
-    install_identity.OVERVIEW: "console.settings.feature.add_a_front_page_summarising"
+    install_identity.LIBRARY: "console.settings.feature.curate_game_library_machine",
+    install_identity.FRONTEND: "console.settings.feature.launch_games_machine",
+    install_identity.DEVICES: "console.settings.feature.manage_other_vpinfe_installs",
+    install_identity.OVERVIEW: "console.settings.feature.add_front_page_summarising"
 }
 
 
@@ -513,13 +513,13 @@ IDENTITY = "identity"
 # on, so an install with none still has a way to fix itself from inside. Not a schema
 # page - `features` is a list in the file and a closed set on screen, and a
 # comma-separated text field is the wrong control for that.
-IDENTITY_PAGE: DevicePage = (IDENTITY, "console.settings.identity", BUILT_PAGE,
+IDENTITY_PAGE: DevicePage = (IDENTITY, "word.identity", BUILT_PAGE,
                              ("install",),
                              install_identity.CORE)
 
 # What the Identity page's group is called. This install, as against the Library group
 # below it, which is about the games rather than about the machine.
-IDENTITY_GROUP = "console.settings.this_install"
+IDENTITY_GROUP = "console.settings.install"
 
 
 def system_pages(features) -> list[tuple[str, DevicePage]]:
@@ -635,7 +635,7 @@ def section_rows(source, section: str, options: list[dict], values: dict,
                  for one in options}
     entries: list[tuple[Any, Any]] = []
     if not writable:
-        entries.append(panel.intro(t("console.settings.read_only_on_this_install")))
+        entries.append(panel.intro(t("console.settings.read_install")))
     heading = ""
     for option in _by_group(options):
         group = str(option.get("group") or "")
@@ -646,7 +646,7 @@ def section_rows(source, section: str, options: list[dict], values: dict,
                 # launcher points at an arbitrary program - but this is the setting that
                 # makes it obvious, and it matters if the reach of this page ever changes.
                 entries.append(panel.note(
-                    t("console.settings.these_run_as_whoever")))
+                    t("console.settings.run_whoever_vpinfe_running")))
         heading = group
         value = current.get(option["key"], option.get("default"))
         entries.append((option.get("label") or humanize(option["key"]),
@@ -692,7 +692,7 @@ async def build_device_page(source, context: dict[str, Any], schema: list[dict],
     blocks = [block for block in schema
               if str(block.get("name")) in sections and block.get("options")]
     if not blocks:
-        panel.facts(ui, [panel.intro(t("console.settings.this_device_declares"))])
+        panel.facts(ui, [panel.intro(t("console.settings.device_declares_nothing_page"))])
         return
 
     entries: list[tuple[Any, Any]] = []
@@ -794,7 +794,7 @@ async def _draw_system_page(library, redraw: Callable[[], None], body,
         offered = await _suggestions(library, schema, sections)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         with body:
-            panel.facts(ui, [panel.intro(t("console.settings.could_not_read_the", exc=(exc)))])
+            panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))])
         return
     with body:
         await build_device_page(library, {"library": library, "rebuild": redraw},
@@ -841,7 +841,7 @@ async def _identity_page(library, reported: str,
     try:
         values = await run.io_bound(library.config_values)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
-        panel.facts(ui, [panel.intro(t("console.settings.could_not_read_the", exc=(exc)))])
+        panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))])
         return
     held = dict(values.get("install") or {})
     on = _listed(held.get("features"))
@@ -863,12 +863,12 @@ async def _identity_page(library, reported: str,
     entries: list[tuple[Any, Any]] = [
         # The name it reports with nothing set is its hostname, so the placeholder is
         # that answer rather than the word for it.
-        (t("console.settings.name"), panel.field(str(held.get("display_name") or ""),
+        (t("word.name"), panel.field(str(held.get("display_name") or ""),
                                                  rename,
                              placeholder=reported)),
-        panel.note(t("console.settings.what_this_install_is")),
+        panel.note(t("console.settings.what_install_called_where")),
         (panel.HEADING, t("console.settings.features")),
-        panel.intro(t("console.settings.what_this_install_is_for")),
+        panel.intro(t("console.settings.what_install_each_one")),
     ]
     for name in install_identity.FEATURES:
         entries.append((t(FEATURE_LABELS[name]), panel.switch(

@@ -128,7 +128,7 @@ class Library:
         # one that has been slow before.
         took = time.perf_counter() - started
         logger.log(logging.INFO if took >= _SLOW_READ else logging.DEBUG,
-                   t("console.data.console_read_d_games_in"), len(self.games), took)
+                   t("console.data.console_read_d_games"), len(self.games), took)
 
     def _shared_media(self) -> dict[str, dict[str, Any]]:
         """Every game's shared media, from one listing rather than a call per game.

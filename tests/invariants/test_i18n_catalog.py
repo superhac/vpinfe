@@ -366,8 +366,10 @@ class TestFrontendChrome(unittest.TestCase):
         """A key with no entry renders as whatever English is between the tags, which
         looks right until the day somebody translates the catalog and that one does not
         move."""
-        served = {f"frontend.{k}" for k in SOURCE if k.startswith("frontend.")} | \
-                 {k for k in SOURCE if k.startswith("frontend.")}
+        # What `_serve_core_words` actually sends: the frontend's own namespace and the
+        # shared vocabulary. A key outside both would reach a page that was never given
+        # it, however present it is in the catalog.
+        served = {k for k in SOURCE if k.startswith(("frontend.", "word."))}
         missing = []
         for path in sorted(STATIC.rglob("*.html")):
             for key in re.findall(r'data-i18n="([^"]+)"', path.read_text(encoding="utf-8")):
@@ -415,7 +417,9 @@ class TestEveryKeyIsServed(unittest.TestCase):
 
     def test_no_call_asks_for_a_key_the_catalog_lacks(self) -> None:
         offenders = []
-        for root in ("console", "frontend", "httpapi", "common"):
+        # `tests` is in here because a re-key that rewrites the source and forgets the
+        # suite leaves an assertion naming a key nothing serves.
+        for root in ("console", "frontend", "httpapi", "common", "tests"):
             for path in sorted((ROOT / root).rglob("*.py")):
                 if "__pycache__" in path.parts:
                     continue

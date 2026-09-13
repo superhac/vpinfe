@@ -29,7 +29,7 @@ def build(extension: dict, back) -> None:
 
     with ui.row().classes("items-center gap-2 w-full"):
         ui.button(icon="arrow_back", on_click=lambda: back()) \
-            .props("flat dense round").tooltip(t("console.ext_page.back_to_extensions"))
+            .props("flat dense round").tooltip(t("console.ext_page.back_extensions"))
         ui.label(str(extension.get("display_name") or name)) \
             .classes("text-base console-workbench-title console-panel-heading")
         version = str(extension.get("version") or "")
@@ -114,7 +114,7 @@ def _actions(extension: dict, name: str) -> None:
     offered = list(extension.get("actions") or [])
     if not offered:
         return
-    ui.label(t("console.ext_page.actions")).classes("console-group mt-4")
+    ui.label(t("word.actions")).classes("console-group mt-4")
     with ui.element("div").classes("console-card w-full"), \
             ui.row().classes("items-center gap-2 w-full flex-wrap"):
         for action in offered:
@@ -139,7 +139,7 @@ def _state(name: str, surfaces: dict) -> None:
         except Exception as exc:  # noqa: BLE001
             card.clear()
             with card:
-                ui.label(t("console.ext_page.could_not_read_it", exc=(exc))).classes("console-help")
+                ui.label(t("console.ext_page.could_not_read", exc=(exc))).classes("console-help")
             return
         card.clear()
         rows = list(found.get("rows") or [])
@@ -187,14 +187,14 @@ def _row(client, base: str, row: dict, redraw) -> None:
 # What a scope or capability is called on screen. The wire says `games:write`; a person
 # reading a consent list should not have to work out what that lets somebody do.
 PLAINLY = {
-    "games:read": t("console.ext_page.read_your_library"),
-    "games:write": t("console.ext_page.add_and_change_games"),
-    "filesystem:read": t("console.ext_page.read_folders_you_point_it"),
-    "ui:mount": t("console.ext_page.add_a_page_to_the_console"),
-    "config:own": t("console.ext_page.keep_its_own_settings"),
-    "net:outbound": t("console.ext_page.reach_the_internet"),
+    "games:read": t("console.ext_page.read_library"),
+    "games:write": t("console.ext_page.add_change_games"),
+    "filesystem:read": t("console.ext_page.read_folders_point"),
+    "ui:mount": t("console.ext_page.add_page_console"),
+    "config:own": t("console.ext_page.keep_own_settings"),
+    "net:outbound": t("console.ext_page.reach_internet"),
     "proc:spawn": t("console.ext_page.run_other_programs"),
-    "hardware:usb": t("console.ext_page.talk_to_usb_devices"),
+    "hardware:usb": t("console.ext_page.talk_usb_devices"),
     "fs:read": t("console.ext_page.read_files"),
     "fs:write": t("console.ext_page.write_files"),
 }
@@ -216,11 +216,11 @@ def _reach(extension: dict) -> None:
     uses = [_plainly(str(one)) for one in extension.get("capabilities") or []]
     if not reaches and not uses:
         return
-    ui.label(t("console.ext_page.what_it_can_reach")).classes("console-group mt-4")
+    ui.label(t("console.ext_page.what_can_reach")).classes("console-group mt-4")
     with ui.element("div").classes("console-card w-full"):
         entries: list[tuple[Any, Any]] = []
         if reaches:
-            entries.append((t("console.ext_page.fact_of_the_library"), ", ".join(reaches)))
+            entries.append((t("console.ext_page.library"), ", ".join(reaches)))
         if uses:
-            entries.append((t("console.ext_page.fact_of_this_machine"), ", ".join(uses)))
+            entries.append((t("console.ext_page.machine"), ", ".join(uses)))
         panel.facts(ui, entries)

@@ -43,7 +43,7 @@ def _running(name: str):
         if record is None or not record.running:
             reason = record.reason if record is not None else "It is not installed"
             display = record.display_name if record is not None else name
-            raise FeatureUnavailableError(t("error.extensions.the_extension_is_not",
+            raise FeatureUnavailableError(t("error.extensions.extension_not_running",
                     display=(display), value=(reason or 'no reason recorded')))
 
     return Depends(check)

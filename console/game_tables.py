@@ -26,15 +26,15 @@ FEATURES = t("console.game_tables.features")
 # What a keyed entry's group is called where the file group would be. There is no file,
 # so "Table File" would be a heading over a blank - and the thing it does have is the
 # name its program knows it by.
-KNOWN_AS = t("console.game_tables.known_as")
+KNOWN_AS = t("console.game_tables.known")
 # A referenced entry's group. Not "Table File", which reads as a file of this game's -
 # the whole point of one of these is that the file belongs somewhere else.
-ELSEWHERE = t("console.game_tables.where_it_is")
+ELSEWHERE = t("console.game_tables.where")
 
 # What a reference is doing right now. Notable first, like every pair here. **Not
 # Missing** - nothing is lost when a share has not mounted, and the word that tells
 # somebody a file was deleted is the wrong word for a location being away.
-REACH_WORDS = (t("console.game_tables.unreachable"), t("console.game_tables.reachable"))
+REACH_WORDS = (t("word.unreachable"), t("console.game_tables.reachable"))
 LAUNCH = t("console.game_tables.launch")
 PLAY = t("console.game_tables.play")
 FRONTEND = t("console.game_tables.frontend")
@@ -50,10 +50,10 @@ GONE = "missing"
 # a sentence per row is noise.
 REFERENCE_WORDS = {
     FOLLOWS: (t("console.game_tables.game_default"),
-            t("console.game_tables.whichever_table_the_game")),
-    FIXED: (t("console.game_tables.user_defined"), t("console.game_tables.only_this_table")),
-    GONE: (t("console.game_tables.missing_word"),
-           t("console.game_tables.not_in_this_library")),
+            t("console.game_tables.whichever_table_game_offers")),
+    FIXED: (t("console.game_tables.user_defined"), t("console.game_tables.table")),
+    GONE: (t("console.game_tables.missing"),
+           t("console.game_tables.not_library")),
 }
 
 # Drawn, not typed: as characters these are not a matched pair. Measured in the Console's
@@ -72,7 +72,7 @@ MARKS = {
 # device. It names the two states; the difference between them is its own tooltip.
 KEY_WORDS = ((FIXED, t("console.game_tables.user_defined")), (FOLLOWS,
         t("console.game_tables.game_default")))
-KEY_DETAIL = (t("console.game_tables.user_defined_stays_on_the"))
+KEY_DETAIL = (t("console.game_tables.user_defined_stays_table"))
 
 
 def native_key(table: dict[str, Any] | None) -> str:
@@ -108,16 +108,16 @@ CHOSEN = "user"
 DERIVED = "auto"
 
 DEFAULT_WORDS = {
-    CHOSEN: (t("console.game_tables.chosen"),
-             t("console.game_tables.stays_on_this_table")),
+    CHOSEN: (t("word.chosen"),
+             t("console.game_tables.stays_table")),
     DERIVED: (t("console.game_tables.automatic"),
-              t("console.game_tables.may_move_when_the_library")),
+              t("console.game_tables.may_move_library_changes")),
 }
 
 # One name and one direction per fact, read by the column, the panel, the funnel and the
 # row menu. Notable is first; docs/conventions.md has why.
-HIDDEN_WORDS = (t("console.game_tables.hidden"), t("console.game_tables.offered"))
-FILE_WORDS = (t("console.game_tables.missing"), t("console.game_tables.present"))
+HIDDEN_WORDS = (t("word.hidden"), t("console.game_tables.offered"))
+FILE_WORDS = (t("console.game_tables.missing"), t("word.present"))
 # Which script runs, not how the file got there: VPX loads a `<table>.vbs` sidecar in
 # place of the one inside the .vpx, so the sidecar is an override and "Extracted" named
 # only its provenance. External is the notable half - it is the table running something
@@ -127,7 +127,7 @@ SCRIPT_WORDS = (t("console.game_tables.external"), t("console.game_tables.intern
 # the ordinary table runs - a word on every row that says so tells a reader nothing.
 # Three-valued, so the unknown has its own word: a table nothing has parsed cannot be
 # called ready and has not been found wanting either.
-LAUNCH_WORDS = (t("console.game_tables.blocked"), t("console.game_tables.ready"))
+LAUNCH_WORDS = (t("console.game_tables.blocked"), t("word.ready"))
 # Whether the catalog knows this machine. Notable first, and unmatched is the notable
 # half by a long way - a matched game is the ordinary case, and it is the unmatched one
 # that can look nothing up: no art, no release list, no update.
@@ -137,7 +137,7 @@ VPS_WORDS = (t("console.game_tables.unmatched"), t("console.game_tables.matched"
 # panel that also has a default launcher and a default view. Named here so the grid and
 # the workbench cannot answer it differently. Chris, 2026-09-01.
 DEFAULT_LABEL = t("console.game_tables.default_table")
-LAUNCH_UNKNOWN = t("console.game_tables.unknown")
+LAUNCH_UNKNOWN = t("word.unknown")
 
 
 def word_for(pair: tuple[str, str], notable: bool) -> str:

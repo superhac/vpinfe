@@ -105,9 +105,9 @@ def set_order(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """
     order = body.get("order")
     if not isinstance(order, list) or not order:
-        raise InvalidRequestError(t("error.locations.name_the_locations_in_the"))
+        raise InvalidRequestError(t("error.locations.name_locations_order_want"))
     if not locations.get_location_store().reorder([str(one) for one in order]):
-        raise NotFoundError(t("error.locations.none_of_those_are"))
+        raise NotFoundError(t("error.locations.none_locations_install"))
     return list_locations()
 
 
@@ -155,10 +155,10 @@ def put_location(location_id: str, body: dict[str, Any] = Body(...)) -> dict[str
     """
     wanted = str(location_id or "").strip()
     if not wanted:
-        raise InvalidRequestError(t("error.locations.a_location_needs_an_id"))
+        raise InvalidRequestError(t("error.locations.location_needs_id"))
     path = str(body.get("path") or "").strip()
     if not path:
-        raise InvalidRequestError(t("error.locations.a_location_needs_a_path"))
+        raise InvalidRequestError(t("error.locations.location_needs_path"))
     kind = str(body.get("kind") or locations.KIND_ROOT).strip()
     if kind not in locations.KINDS:
         raise InvalidRequestError(
@@ -219,14 +219,14 @@ def adopt_shadowed(location_id: str, body: dict[str, Any] = Body(...)) -> dict[s
         raise NotFoundError(t("error.locations.no_location_called", location_id=(location_id)))
     wanted = locations.canonical(str(body.get("path") or ""))
     if not wanted:
-        raise InvalidRequestError(t("error.locations.name_the_folder_to_give_an"))
+        raise InvalidRequestError(t("error.locations.name_folder_give_id"))
 
     found = _shadowed()
     one = next((entry for entry in found.under(location_id)
                 if locations.canonical(entry.path) == wanted), None)
     if one is None:
         raise NotFoundError(
-            t("error.locations.nothing_here_is_shadowed"),
+            t("error.locations.nothing_shadowed_path_may"),
             details={"path": str(body.get("path") or "")})
 
     from common.games.game_repository import all_games
@@ -235,7 +235,7 @@ def adopt_shadowed(location_id: str, body: dict[str, Any] = Body(...)) -> dict[s
                  if locations.canonical(str(getattr(held, "fullPathGame", "") or ""))
                  == wanted), None)
     if game is None:
-        raise NotFoundError(t("error.locations.that_folder_is_no_longer"))
+        raise NotFoundError(t("error.locations.folder_no_longer_library"))
     return {"path": one.path, "game_id": ensure_id(game, force_new=True)}
 
 

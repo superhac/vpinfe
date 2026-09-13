@@ -369,13 +369,13 @@ def column_menu(menu: Any, table: Any, columns: list[dict[str, Any]],
         .classes("console-menu-header")
     ui.separator()
     # One entry that says what it will do, rather than two where one is always a no-op.
-    ui.menu_item(t("console.grid.unpin") if pinned else t("console.grid.pin_left"),
+    ui.menu_item(t("word.unpin") if pinned else t("word.pin_left"),
                  lambda: table.run_grid_method(
                      "applyColumnState",
                      {"state": [{"colId": col_id,
                                  "pinned": None if pinned else "left"}]})) \
         .classes("console-menu-item")
-    ui.menu_item(t("console.grid.hide_column"),
+    ui.menu_item(t("word.hide_column"),
                  lambda: table.run_grid_method("setColumnsVisible", [col_id], False)) \
         .classes("console-menu-item")
     return True

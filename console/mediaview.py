@@ -219,7 +219,7 @@ def open_viewer(src: str, kind: str, label: str) -> None:
     family = media_family(kind)
     if family not in ("image", "video"):
         # Audio has no frame to enlarge and a document is not ours to render.
-        ui.notify(t("console.mediaview.has_nothing_to_enlarge", label=(label)), type="info")
+        ui.notify(t("console.mediaview.nothing_enlarge", label=(label)), type="info")
         return
 
     # A panel over a dimmed page rather than a takeover: the card is sized by what is
@@ -234,8 +234,8 @@ def open_viewer(src: str, kind: str, label: str) -> None:
             turn_left = ui.button(icon="rotate_left").props("flat dense round")
             turn_right = ui.button(icon="rotate_right").props("flat dense round")
             ui.button(icon="close", on_click=dialog.close).props("flat dense round")
-        turn_left.tooltip(t("console.mediaview.turn_a_quarter_left_view"))
-        turn_right.tooltip(t("console.mediaview.turn_a_quarter_right_view"))
+        turn_left.tooltip(t("console.mediaview.turn_quarter_left_view"))
+        turn_right.tooltip(t("console.mediaview.turn_quarter_right_view"))
 
         with ui.element("div").classes("console-viewer-stage"):
             # Sized by the script once it is on screen, which is also what has to

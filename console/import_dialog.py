@@ -47,7 +47,7 @@ def _where(plan: dict[str, Any], item: dict[str, Any]) -> str:
     if item.get("action") == "replace_media":
         return rel.as_posix()
     if str(rel.parent) == ".":
-        return t("console.import_dialog.the_game_folder")
+        return t("console.import_dialog.game_folder")
     if rel.name == str(item.get("name") or ""):
         return f"{rel.parent.as_posix()}/"
     return rel.as_posix()
@@ -66,7 +66,7 @@ async def ask_where(library: Any) -> str | None:
     try:
         found = await run.io_bound(library.new_game_destination)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.import_dialog.could_not_work_out_where", exc=(exc)), type="negative")
+        ui.notify(t("console.import_dialog.could_not_work_where", exc=(exc)), type="negative")
         return None
 
     others = list(found.get("alternatives") or [])
@@ -81,7 +81,7 @@ async def _no_destination(library: Any, found: dict[str, Any],
                           others: list[dict[str, Any]]) -> str | None:
     """It cannot go where it was told to. Refuse, say why, and offer the rest."""
     if not others:
-        ui.notify(str(found.get("reason") or t("console.import_dialog.there_is_nowhere_to_put_a")),
+        ui.notify(str(found.get("reason") or t("console.import_dialog.nowhere_put_new_game")),
                   type="negative")
         return None
     return await _pick(library, str(found.get("reason") or ""), others,
@@ -100,7 +100,7 @@ async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
                 *, offer_remember: bool) -> str | None:
     holds = {"id": str(offered[0].get("location_id") or ""), "stop_asking": False}
     with ui.dialog() as picker, ui.card().classes("console-confirm"):
-        ui.label(t("console.import_dialog.where_should_this_game_go")).classes("console-confirm-title")
+        ui.label(t("console.import_dialog.where_should_game_go")).classes("console-confirm-title")
         if reason:
             # The refusal leads, because it is the reason they are being asked at all.
             ui.label(reason).classes("console-help")
@@ -113,14 +113,14 @@ async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
         if offer_remember:
             # Offered here rather than only in Settings, because this is the moment
             # somebody knows whether they want to be asked again.
-            ui.checkbox(t("console.import_dialog.always_use_this_one_do_not"),
+            ui.checkbox(t("console.import_dialog.always_use_one_not"),
                         on_change=lambda e: holds.__setitem__("stop_asking",
                                                               bool(e.value))) \
                 .props("dense").classes("console-help")
         with ui.row().classes("justify-end gap-2 w-full pt-2"):
-            ui.button(t("console.import_dialog.cancel"), on_click=lambda: picker.submit(None)) \
+            ui.button(t("word.cancel"), on_click=lambda: picker.submit(None)) \
                 .props("flat no-caps")
-            ui.button(t("console.import_dialog.use_this"),
+            ui.button(t("console.import_dialog.use"),
                     on_click=lambda: picker.submit(holds["id"])) \
                 .props("no-caps")
 
@@ -135,7 +135,7 @@ async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
             await run.io_bound(library.set_location_write_to, said)
         except Exception as exc:  # noqa: BLE001
             # The import still goes where they said. Only the remembering failed.
-            ui.notify(t("console.import_dialog.could_not_remember_that", exc=(exc)), type="warning")
+            ui.notify(t("console.import_dialog.could_not_remember", exc=(exc)), type="warning")
     return said
 
 
@@ -164,13 +164,13 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-import-card"):
         if new_folder:
-            ui.label(t("console.import_dialog.import_from",
-                    value=(source or t("console.import_dialog.this_drop")))) \
+            ui.label(t("console.import_dialog.import_2",
+                    value=(source or t("console.import_dialog.drop")))) \
                 .classes("console-confirm-title")
-            ui.label(t("console.import_dialog.the_files_keep_their_names")) \
+            ui.label(t("console.import_dialog.files_keep_names_folder")) \
                 .classes("console-help")
         else:
-            ui.label(t("console.import_dialog.import_into",
+            ui.label(t("console.import_dialog.import_3",
                     name=(Path(str(plan.get('game_dir') or '')).name))) \
                 .classes("console-confirm-title")
             if not single and source:
@@ -193,7 +193,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
         def recount() -> None:
             wanted = sum(1 for value in chosen.values() if value)
             count.text = ("" if single else
-                          t("console.import_dialog.of_will_be_imported", wanted=(wanted),
+                          t("console.import_dialog.imported", wanted=(wanted),
                                   len=(len(items))))
 
         with rows:
@@ -202,7 +202,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
         recount()
 
         with ui.row().classes("justify-end gap-2 w-full pt-2"):
-            ui.button(t("console.import_dialog.cancel"), on_click=lambda: dialog.submit(False)) \
+            ui.button(t("word.cancel"), on_click=lambda: dialog.submit(False)) \
                 .props("flat no-caps")
             go = ui.button(t("console.import_dialog.import"),
                     on_click=lambda: dialog.submit(True)) \
@@ -218,7 +218,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
     wanted = None if single else [i for i, on in sorted(chosen.items()) if on]
     if wanted is not None and not wanted:
         await run.io_bound(library.abort_upload, upload_id)
-        ui.notify(t("console.import_dialog.nothing_was_selected_so"), type="warning")
+        ui.notify(t("console.import_dialog.nothing_selected_nothing_imported"), type="warning")
         return
 
     note = ui.notification(t("console.import_dialog.importing"), spinner=True, timeout=None)
@@ -231,7 +231,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
             selected=wanted, declared=declared)
     except Exception as exc:  # noqa: BLE001
         note.dismiss()
-        ui.notify(t("console.import_dialog.could_not_import_it", exc=(exc)), type="negative")
+        ui.notify(t("console.import_dialog.could_not_import", exc=(exc)), type="negative")
         await run.io_bound(library.abort_upload, upload_id)
         return
     note.dismiss()
@@ -241,7 +241,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
     if report.get("vps_error"):
         # The import worked and the match did not. Two facts, and rolling the second
         # into a failure would say the files did not land when they did.
-        ui.notify(t("console.import_dialog.imported_but_could_not", value=(report['vps_error'])),
+        ui.notify(t("console.import_dialog.imported_could_not_match", value=(report['vps_error'])),
                   type="warning")
     if on_done is not None:
         answer = on_done(report)
@@ -286,7 +286,7 @@ def _folder_row(library: Any, named: dict[str, Any], plan: dict[str, Any]) -> No
         ui.button(t("console.import_dialog.match"),
                 on_click=lambda: _match(library, named, field)) \
             .props("flat dense no-caps size=sm") \
-            .tooltip(t("console.import_dialog.name_the_folder_from_the"))
+            .tooltip(t("console.import_dialog.name_folder_upstream_record"))
     del plan
 
 
@@ -299,15 +299,15 @@ async def _match(library: Any, named: dict[str, Any], field: Any) -> None:
         ui.notify(t("console.import_dialog.could_not_search", exc=(exc)), type="negative")
         return
     if not found:
-        ui.notify(t("console.import_dialog.nothing_in_the_catalog"), type="warning")
+        ui.notify(t("console.import_dialog.nothing_catalog_matches_name"), type="warning")
         return
     offered = {str(one.get("vps_id") or ""):
                f"{one.get('name') or ''} ({one.get('manufacturer') or ''} "
                f"{one.get('year') or ''})".replace(" )", ")")
                for one in found}
     with ui.dialog() as picker, ui.card().classes("console-confirm"):
-        ui.label(t("console.import_dialog.which_one_is_this")).classes("console-confirm-title")
-        ui.label(t("console.import_dialog.the_folder_is_named_from")).classes("console-help")
+        ui.label(t("console.import_dialog.one")).classes("console-confirm-title")
+        ui.label(t("console.import_dialog.folder_named_record_other")).classes("console-help")
         # Pre-selected on the best match rather than left empty: the top hit is right
         # nearly always, and an empty picker asks somebody to re-read what they typed.
         holds = {"id": next(iter(offered), "")}
@@ -315,9 +315,9 @@ async def _match(library: Any, named: dict[str, Any], field: Any) -> None:
                   on_change=lambda e: holds.__setitem__("id", str(e.value or ""))) \
             .props("outlined dense").classes("w-full")
         with ui.row().classes("justify-end gap-2 w-full pt-2"):
-            ui.button(t("console.import_dialog.cancel"), on_click=lambda: picker.submit("")) \
+            ui.button(t("word.cancel"), on_click=lambda: picker.submit("")) \
                 .props("flat no-caps")
-            ui.button(t("console.import_dialog.use_this"),
+            ui.button(t("console.import_dialog.use"),
                     on_click=lambda: picker.submit(holds["id"])) \
                 .props("no-caps")
 

@@ -422,8 +422,12 @@ class CustomHTTPServer:
             to render six menu items.
             """
             from common import i18n
-            body = json.dumps({f"frontend.{k}": v
-                               for k, v in i18n.under("frontend").items()}).encode()
+            words = {f"frontend.{k}": v for k, v in i18n.under("frontend").items()}
+            # `word.` is the shared vocabulary - Cancel, Save, Close - which the menus
+            # use as much as the Console does. Without it they would ask for a key the
+            # page was never sent.
+            words.update({f"word.{k}": v for k, v in i18n.under("word").items()})
+            body = json.dumps(words).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))

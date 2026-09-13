@@ -294,11 +294,11 @@ async function refreshRatingMenuLabel(indexHint = null) {
 
     const savedRating = await window.parent.vpin.call('get_game_rating', idx);
     if (requestSeq !== ratingLabelRequestSeq) return;
-    ratingItem.innerHTML = `${t('frontend.mainmenu.rating', 'Rating')} (<span style="color:#ffd84d;">${ratingStarsText(savedRating)}</span>)`;
+    ratingItem.innerHTML = `${t('word.rating', 'Rating')} (<span style="color:#ffd84d;">${ratingStarsText(savedRating)}</span>)`;
     syncMenuWidthFromLongestLabel();
   } catch (_e) {
     if (requestSeq !== ratingLabelRequestSeq) return;
-    ratingItem.textContent = t('frontend.mainmenu.rating', 'Rating');
+    ratingItem.textContent = t('word.rating', 'Rating');
     syncMenuWidthFromLongestLabel();
   }
 }
@@ -516,7 +516,7 @@ window.receiveEvent = function(event) {
     const percent = event.total > 0 ? Math.round((event.current / event.total) * 100) : 0;
     document.getElementById('progress-bar').style.width = `${percent}%`;
     document.getElementById('progress-text').textContent =
-      t('frontend.mainmenu.progress', '{message} — {percent}%',
+      t('frontend.mainmenu.text', '{message} — {percent}%',
         { message: event.message, percent });
   } else if (event.type === 'buildmeta_log') {
     const logContainer = document.getElementById('log-container');
@@ -549,7 +549,7 @@ function updateMenu() {
 }
 
 function audioMenuLabel(muted) {
-  return t('frontend.mainmenu.audio', 'Frontend Audio: {state}',
+  return t('frontend.mainmenu.frontend_audio', 'Frontend Audio: {state}',
            { state: muted ? t('frontend.mainmenu.off', 'Off')
                           : t('frontend.mainmenu.on', 'On') });
 }

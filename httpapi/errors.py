@@ -114,7 +114,7 @@ def install_error_handlers(app, on_unhandled=None) -> None:
     @app.exception_handler(RequestValidationError)
     async def _validation_error(request, exc: RequestValidationError):
         return error_response(422, CODE_INVALID_REQUEST,
-                              t("error.envelope.validation_failed"), exc.errors())
+                              t("error.envelope.request_validation_failed"), exc.errors())
 
     @app.exception_handler(Exception)
     async def _unhandled(request, exc: Exception):
@@ -125,4 +125,4 @@ def install_error_handlers(app, on_unhandled=None) -> None:
                 on_unhandled(request)
             except Exception:
                 logger.exception("Reporting the failure failed as well")
-        return error_response(500, CODE_INTERNAL_ERROR, t("error.envelope.internal"))
+        return error_response(500, CODE_INTERNAL_ERROR, t("error.envelope.internal_server_error"))

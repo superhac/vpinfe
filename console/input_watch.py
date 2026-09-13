@@ -125,7 +125,7 @@ def strip() -> None:
     # Whose inputs, said plainly: this reads the browser's gamepads and keyboard, which
     # is the machine somebody is sitting at - not necessarily the one whose settings are
     # on screen. Configuring a cabinet from a laptop shows the laptop.
-    ui.label(t("console.input_watch.press_anything_to_see_what")).classes("console-help")
+    ui.label(t("console.input_watch.press_anything_see_what")).classes("console-help")
     # After the element exists in the document. Its own id is how the script finds it,
     # so two of these on one page do not write into each other.
     ui.timer(0.05, lambda: ui.run_javascript(_WATCH_JS % {
@@ -135,7 +135,7 @@ def strip() -> None:
     }), once=True)
 
 
-def watch(*, heading: str = t("console.input_watch.input_detector")) -> None:
+def watch(*, heading: str = t("word.input_detector")) -> None:
     """The readout with its own heading, for a page that is not a list of settings."""
     ui.label(heading).classes("console-group")
     strip()

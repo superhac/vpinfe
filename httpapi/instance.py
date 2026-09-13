@@ -241,12 +241,12 @@ def build_router(prefix: str, api_version: str) -> APIRouter:
         wanted = payload or models.UpdateRequest()
         context = await run_in_threadpool(get_install_context)
         if not context["supported"]:
-            raise FeatureUnavailableError(t("error.instance.this_install_cannot"),
+            raise FeatureUnavailableError(t("error.instance.install_cannot_replace_itself"),
                                           details={"support_reason": context["reason"]})
 
         playing = launch_state.current()
         if playing.launching and not wanted.stop_table:
-            raise ConflictError(t("error.instance.a_table_is_running"),
+            raise ConflictError(t("error.instance.table_running"),
                                 details={"game_name": playing.game_name})
 
         prepared = await run_in_threadpool(prepare_update)

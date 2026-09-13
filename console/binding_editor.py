@@ -174,7 +174,7 @@ def rows(option: dict[str, Any], value: Any, save: Callable[[Any], Any], *,
                 # as a binding whose name happened to be "Nothing bound".
                 ui.label(t("console.binding_editor.nothing_bound")) \
                     .classes("console-member-chip console-tier console-tier--warn") \
-                    .tooltip(t("console.binding_editor.nothing_triggers_this_bind"))
+                    .tooltip(t("console.binding_editor.nothing_triggers_bind_something"))
             if writable:
                 _capture(option, held, store, claimed)
 
@@ -211,7 +211,7 @@ def _chip(binding: str, store: Callable[..., Any], claimed_by: list[str],
         chip = ui.label(shown).classes(f"console-member-chip {tone}")
     if len(claimed_by) > 1:
         others = [_label_for(name) for name in claimed_by]
-        chip.tooltip(t("console.binding_editor.also_bound_to_only_the", _and=(_and(others))))
+        chip.tooltip(t("console.binding_editor.also_bound_first_one", _and=(_and(others))))
     elif text != shown:
         chip.tooltip(text)
     if not writable:
@@ -225,7 +225,7 @@ def _chip(binding: str, store: Callable[..., Any], claimed_by: list[str],
         # binding that is no longer there.
         ui.label("✕").classes("console-chip-remove") \
             .on("click.stop", lambda: _remove(text, shown, store, held)) \
-            .tooltip(t("console.binding_editor.remove", shown=(shown)))
+            .tooltip(t("console.binding_editor.remove_2", shown=(shown)))
 
 
 def _menu(chip: Any, binding: str, store: Callable[..., Any], held: list,
@@ -269,7 +269,7 @@ def _menu(chip: Any, binding: str, store: Callable[..., Any], held: list,
 
         holding = input_registry.hold_ms(binding)
         with ui.row().classes("items-center gap-2 no-wrap"):
-            ui.label(t("console.binding_editor.held_for")).classes("console-setting grow min-w-0")
+            ui.label(t("console.binding_editor.held")).classes("console-setting grow min-w-0")
             switch = ui.switch(value=bool(holding)) \
                 .props("dense color=positive").classes("console-fact-switch")
         seconds = ui.number(value=(holding or DEFAULT_HOLD_MS) / 1000,
@@ -283,10 +283,10 @@ def _menu(chip: Any, binding: str, store: Callable[..., Any], held: list,
         seconds.on_value_change(
             lambda: set_hold(round(float(seconds.value or 0) * 1000))
             if switch.value else None)
-        ui.label(t("console.binding_editor.how_long_it_has_to_be_held")) \
+        ui.label(t("console.binding_editor.how_long_held_before")) \
             .classes("console-help")
 
-        panel.action(t("console.binding_editor.remove_plain"),
+        panel.action(t("word.remove"),
                      lambda: _remove(now["text"], input_registry.describe(now["text"]),
                                      store, held),
                      icon="close", danger=True)()
@@ -303,9 +303,9 @@ async def _remove(text: str, shown: str, store: Callable[[list], Any],
     # case `unrenderable` was written for, back when the same bindings were merely
     # invisible rather than one click from gone.
     if not input_registry.capturable(text) and not await confirm.ask(
-            t("console.binding_editor.ask_remove", shown=(shown)),
-            detail=t("console.binding_editor.ask_nothing_here_can_bind_that"),
-            confirm=t("console.binding_editor.ask_remove_2")):
+            t("console.binding_editor.remove_2", shown=(shown)),
+            detail=t("console.binding_editor.nothing_can_bind_yet"),
+            confirm=t("word.remove")):
         return
     await store([one for one in held if str(one) != text])
 
@@ -330,14 +330,14 @@ def _capture(option: dict[str, Any], held: list, store: Callable[[list], Any],
         shown = input_registry.describe(selector)
         if input_registry.identity(selector) in [
                 input_registry.identity(one) for one in held]:
-            ui.notify(t("console.binding_editor.already_does_this", shown=(shown)), type="warning")
+            ui.notify(t("console.binding_editor.already", shown=(shown)), type="warning")
             return
         # Refused rather than taken with a warning. Dispatch gives a key to the first
         # action that lists it, so taking one that is spoken for would not move it - it
         # would make a binding that looks set and never fires.
         owner = _owner(selector, claimed, option)
         if owner:
-            ui.notify(t("console.binding_editor.is_already_take_it_off", shown=(shown),
+            ui.notify(t("console.binding_editor.already_take_off_first", shown=(shown),
                     owner=(owner)),
                       type="warning")
             return

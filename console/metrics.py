@@ -56,7 +56,7 @@ def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
         ui.label(t("console.metrics.graphics")).classes("console-group mt-2")
         with ui.element("div").classes("console-card w-full"):
             with ui.row().classes("items-center gap-3 w-full no-wrap"):
-                ui.label(t("console.metrics.watch_the_graphics_cards")) \
+                ui.label(t("console.metrics.watch_graphics_cards")) \
                     .classes("console-setting grow min-w-0")
                 # Through the shared control, which is where "on is green" is decided.
                 # Drawn by hand here it was the default color, so the one switch on this
@@ -80,13 +80,13 @@ def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
         try:
             found = await run.io_bound(library.metrics, WINDOW_SECONDS)
         except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
-            show(t("console.metrics.could_not_read_this", exc=(exc)))
+            show(t("console.metrics.could_not_read_machine", exc=(exc)))
             return
         now = found.get("now") or {}
         if not now.get("measurable"):
             # Offered with the reason rather than hidden: a page that simply omits the
             # readings leaves somebody unsure whether the machine is fine or this is.
-            show(str(now.get("reason") or t("console.metrics.this_machine_cannot_report")))
+            show(str(now.get("reason") or t("console.metrics.machine_cannot_report_readings")))
             return
         show("")
         history = found.get("history") or []
@@ -185,7 +185,7 @@ def _disk_row(disk: dict[str, Any]) -> None:
         if disk.get("error"):
             # A share that has gone away is exactly what this reports, and saying
             # nothing would show it as a path with no numbers.
-            ui.label(t("console.metrics.cannot_be_read")).classes("text-xs") \
+            ui.label(t("console.metrics.cannot_read")).classes("text-xs") \
                 .style(f"color: {_tone(100)}")
             return
         with ui.element("div").classes("w-40 shrink-0"):

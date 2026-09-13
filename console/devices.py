@@ -29,9 +29,9 @@ PRESENT, ABSENT, UNKNOWN = "present", "absent", "unknown"
 # What the absence costs, which is what the chip's color means everywhere else in the
 # here: an unoffered capability is ordinary, one nothing has asked about is not.
 _CHIP = {
-    PRESENT: ("console.devices.capability_available", "on"),
+    PRESENT: ("console.devices.available_2", "on"),
     ABSENT: ("console.devices.not_offered", "off"),
-    UNKNOWN: ("console.devices.cannot_be_determined", "unknown"),
+    UNKNOWN: ("console.devices.cannot_determined", "unknown"),
 }
 
 # Why the name of a device that is not this one cannot be edited here. The install owns
@@ -39,16 +39,16 @@ _CHIP = {
 
 # A device there is no way to call back. Not the same as one that is down, and it says
 # which: an install announces the port it answers on, and this one never did.
-UNREACHABLE_NOTE = "console.devices.unreachable_note"
+UNREACHABLE_NOTE = "console.devices.device_not_said_port"
 
 # Why an install cannot replace itself, in the words a person reads. The API answers with
 # the reason's name; the sentence for it belongs to whatever is showing it.
 WHY_NOT = {
-    "source_build": "console.devices.why_not.this_build_runs_from_source",
-    "non_release_build": "console.devices.why_not.this_build_was_not_published",
-    "unsupported_architecture": "console.devices.why_not.no_published_build_matches_this",
-    "macos_not_supported_yet": "console.devices.why_not.updating_in_place_is_not",
-    "unsupported_platform": "console.devices.why_not.updating_in_place_is_not"
+    "source_build": "console.devices.why_not.build_runs_source_updates",
+    "non_release_build": "console.devices.why_not.build_not_published_release",
+    "unsupported_architecture": "console.devices.why_not.no_published_build_matches",
+    "macos_not_supported_yet": "console.devices.why_not.updating_place_not_built",
+    "unsupported_platform": "console.devices.why_not.updating_place_not_built"
 }
 
 # What forgetting a device does, said before it is done. The registry is a record of what
@@ -87,7 +87,7 @@ _ACTION_ICONS = {
 _REACH = {
     device_client.ANSWERING: ("console.devices.answering", "on", "positive"),
     device_client.UNREACHABLE: ("console.devices.not_answering", "bad", "negative"),
-    device_client.UNASKABLE: ("console.devices.cannot_be_asked", "unknown", "grey"),
+    device_client.UNASKABLE: ("console.devices.cannot_asked", "unknown", "grey"),
 }
 
 
@@ -148,19 +148,19 @@ def _connection_rows(device: dict[str, Any],
 
     found = _REACH.get(str((reach or {}).get("state") or ""))
     if found is None:
-        rows.append((t("console.devices.state"),
+        rows.append((t("word.state"),
                      panel.state(t("console.devices.checking"), "unknown")))
     else:
         label, level, _color = found
         what = str((reach or {}).get("what") or "")
-        rows.append((t("console.devices.state"),
+        rows.append((t("word.state"),
                      panel.state(t(label), level, beside=what)))
         reason = str((reach or {}).get("reason") or "")
         if level != "on" and reason:
             rows.append(panel.note(reason))
 
-    rows.append((t("console.devices.fact_last_seen"),
-                 _when(str(device.get("last_reachable") or "")) or t("console.devices.never")))
+    rows.append((t("word.last_seen"),
+                 _when(str(device.get("last_reachable") or "")) or t("word.never")))
     return rows
 
 
@@ -169,14 +169,14 @@ async def _confirm_forget(library: Any, device: dict[str, Any],
     """Drop the entry, having said what that does and does not do."""
     name = device_label(device)
     if not await confirm.ask(
-            t("console.devices.ask_forget", name=(name)),
-            detail=t("console.devices.ask_this_removes_this_install"),
-            confirm=t("console.devices.ask_forget_2")):
+            t("console.devices.forget", name=(name)),
+            detail=t("console.devices.removes_install_s_entry"),
+            confirm=t("word.forget")):
         return
     try:
         await run.io_bound(library.forget_device, str(device.get("device_id") or ""))
     except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-        ui.notify(t("console.devices.could_not_forget_that", exc=(exc)), type="negative")
+        ui.notify(t("console.devices.could_not_forget_device", exc=(exc)), type="negative")
         return
     ui.notify(t("console.devices.forgot", name=(name)), type="positive")
     if rerender is not None:
@@ -191,9 +191,9 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
     before ports were recorded cannot be reached, and one that is not answering has not
     said. Either way "up to date" would be a guess wearing a fact.
     """
-    rows: list[tuple[Any, Any]] = [(panel.HEADING, t("console.devices.software"))]
+    rows: list[tuple[Any, Any]] = [(panel.HEADING, t("word.software"))]
     if not update:
-        rows.append((t("console.devices.fact_version"), panel.state(t("console.devices.not_known"),
+        rows.append((t("word.version"), panel.state(t("console.devices.not_known"),
                 "unknown")))
         if not is_local and client is None:
             rows.append(panel.note(t(UNREACHABLE_NOTE)))
@@ -201,24 +201,24 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
 
     current = str(update.get("current_version") or "unknown")
     if not update.get("update_available"):
-        rows.append((t("console.devices.fact_version"), panel.state(current, "on")))
+        rows.append((t("word.version"), panel.state(current, "on")))
         return rows
 
-    latest = str(update.get("latest_version") or t("console.devices.a_newer_build"))
+    latest = str(update.get("latest_version") or t("console.devices.newer_build"))
     if not update.get("update_supported"):
         reason = t(WHY_NOT.get(str(update.get("support_reason") or ""),
-                               "console.devices.cannot_update"))
-        rows.append((t("console.devices.fact_version"), panel.state(t("console.devices.available",
+                               "console.devices.install_cannot_update_itself"))
+        rows.append((t("word.version"), panel.state(t("console.devices.available",
                 latest=(latest)), "warn",
                                             beside=current)))
         rows.append(panel.note(reason))
         return rows
 
-    rows.append((t("console.devices.fact_version"),
+    rows.append((t("word.version"),
             panel.state(t("console.devices.available", latest=(latest)), "warn", beside=current)))
     def update_action() -> None:
         with ui.element("div").classes("console-fact-edit"):
-            panel.action(t("console.devices.update_to", latest=(latest)),
+            panel.action(t("console.devices.update_3", latest=(latest)),
                          lambda: _confirm_update(client, device_label(device), update),
                          icon="system_update_alt", inline=True)()
 
@@ -233,11 +233,11 @@ async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> Non
     which may not be the one this page is open on - "Update to v3.1" does not say which
     one goes down, and by the time it has, saying so is too late.
     """
-    latest = str(update.get("latest_version") or t("console.devices.the_published_build"))
+    latest = str(update.get("latest_version") or t("console.devices.published_build"))
     try:
         playing = await run.io_bound(client.play_state)
     except Exception as exc:  # noqa: BLE001 - a dialog that cannot say what it will do
-        ui.notify(t("console.devices.could_not_check_what_is", name=(name), exc=(exc)),
+        ui.notify(t("console.devices.could_not_check_what", name=(name), exc=(exc)),
                 type="negative")
         return
 
@@ -246,13 +246,13 @@ async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> Non
 
     # Named, because "a table is running" is a fact the person asking may not have: the
     # Console is not necessarily open on the machine the table is on.
-    lines = [t("console.devices.is_being_played_there_and", running=(running))] if running else []
+    lines = [t("console.devices.being_played_closed", running=(running))] if running else []
     if not await confirm.ask(
-            t("console.devices.ask_update_to", name=(name), latest=(latest)),
-            detail=t("console.devices.ask_the_package_is_downloaded"),
+            t("console.devices.update_2", name=(name), latest=(latest)),
+            detail=t("console.devices.package_downloaded_first_vpinfe"),
             lines=lines,
-            confirm=t("console.devices.ask_stop_the_table_and_update") if running
-            else t("console.devices.ask_update"),
+            confirm=t("console.devices.stop_table_update") if running
+            else t("console.devices.update"),
             danger=bool(running)):
         return
     await _start_update(client, name, bool(running))
@@ -262,11 +262,11 @@ async def _start_update(client: Any, name: str, stop_table: bool) -> None:
     try:
         await run.io_bound(lambda: client.perform_update(stop_table=stop_table))
     except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-        ui.notify(t("console.devices.could_not_start_the_update", exc=(exc)), type="negative")
+        ui.notify(t("console.devices.could_not_start_update", exc=(exc)), type="negative")
         return
     # Nothing to redraw towards. Updating this install takes the page's own server down;
     # updating another leaves it up but knowing nothing new until that device is back.
-    ui.notify(t("console.devices.update_staged_is", name=(name)), type="positive")
+    ui.notify(t("console.devices.update_staged_restarting_apply", name=(name)), type="positive")
 
 
 def _hostname_placeholder(device: dict[str, Any], is_local: bool) -> str:
@@ -278,7 +278,7 @@ def _hostname_placeholder(device: dict[str, Any], is_local: bool) -> str:
     if not is_local:
         return str(device.get("display_name") or "")
     return str(device.get("display_name") or "") \
-        .strip() or t("console.devices.this_machine_s_hostname")
+        .strip() or t("console.devices.machine_s_hostname")
 
 
 
@@ -296,22 +296,22 @@ COLUMNS: list[dict[str, Any]] = [
     # Never shown - it exists so every built-in view can sort this device to the top.
     # A column has to be declared to be sorted on, and this one is a fact about the row
     # rather than anything to read.
-    grid.column("self", t("console.devices.this_device"), hide=True,
-                help=t("console.devices.whether_this_is_the.help")),
-    grid.column("name", t("console.devices.name"), 200, pinned="left",
-                help=t("console.devices.what_this_device_calls.help")),
-    grid.column("kind", t("console.devices.kind"), 120, **grid.choice_filter(_KIND_CHOICES),
-                help=t("console.devices.a_vpinfe_install_answers.help")),
-    grid.column("state", t("console.devices.state"), 140, **grid.choice_filter(_STATE_CHOICES),
-                help=t("console.devices.whether_it_answered_when.help")),
-    grid.column("what", t("console.devices.running"), 160,
-                help=t("console.devices.what_answered_a_vpinfe.help")),
+    grid.column("self", t("console.devices.device_2"), hide=True,
+                help=t("console.devices.whether_install_reading_console.help")),
+    grid.column("name", t("word.name"), 200, pinned="left",
+                help=t("console.devices.what_device_calls_itself.help")),
+    grid.column("kind", t("word.kind"), 120, **grid.choice_filter(_KIND_CHOICES),
+                help=t("console.devices.vpinfe_install_answers_itself.help")),
+    grid.column("state", t("word.state"), 140, **grid.choice_filter(_STATE_CHOICES),
+                help=t("console.devices.whether_answered_install_last.help")),
+    grid.column("what", t("word.running"), 160,
+                help=t("console.devices.what_answered_vpinfe_install.help")),
     grid.column("address", t("console.devices.address"), 150,
-                help=t("console.devices.where_it_is_reached_read.help")),
-    grid.column("last_seen", t("console.devices.last_seen"), 170,
-                help=t("console.devices.when_it_was_last_known_to.help")),
+                help=t("console.devices.where_reached_read_off.help")),
+    grid.column("last_seen", t("word.last_seen"), 170,
+                help=t("console.devices.last_known_announced_install.help")),
     grid.column("features", t("console.devices.features"), 150,
-                help=t("console.devices.what_that_install_is_for.help")),
+                help=t("console.devices.what_install_curating_library.help")),
 ]
 
 # `self` is out: it is a sort key, not a column somebody picks.
@@ -328,21 +328,21 @@ VIEWS: dict[str, list[str] | views.Preset] = {
         sort=(_SELF_FIRST,
               {"colId": "state", "sort": "asc", "sortIndex": 1},
               {"colId": "name", "sort": "asc", "sortIndex": 2}),
-        help=t("console.devices.every_device_this_install.help")),
+        help=t("console.devices.every_device_install_met.help")),
     t("console.view.answering"): views.Preset(
         columns=("name", "kind", "what", "address", "features"),
         sort=(_SELF_FIRST, {"colId": "name", "sort": "asc", "sortIndex": 1}),
         filters={"state": {"values": [_REACH[device_client.ANSWERING][0]]}},
-        help=t("console.devices.what_is_switched_on_and.help")),
+        help=t("console.devices.what_switched_reachable_right.help")),
     t("console.devices.not_answering"): views.Preset(
         columns=("name", "kind", "state", "address", "last_seen"),
         sort=(_SELF_FIRST, {"colId": "last_seen", "sort": "asc", "sortIndex": 1}),
         filters={"state": {"values": [_REACH[device_client.UNREACHABLE][0],
                                       _REACH[device_client.UNASKABLE][0]]}},
-        help=t("console.devices.devices_that_could_not_be.help")),
+        help=t("console.devices.devices_could_not_reached.help")),
     t("console.view.everything"): views.Preset(
         columns=tuple(_ALL),
-        help=t("console.devices.every_row_and_every_column.help")),
+        help=t("console.devices.every_row_every_column.help")),
 }
 
 
@@ -405,10 +405,10 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
 
     def said() -> str:
         if on_screen["rows"] != len(built):
-            return t("console.devices.count_of", shown=(on_screen["rows"]),
+            return t("console.devices.devices_2", shown=(on_screen["rows"]),
                      count=(len(built)))
-        return t("console.devices.count_away", count=(len(built)), away=(away)) if away \
-            else t("console.devices.count", count=(len(built)))
+        return t("console.devices.devices_not_answering", count=(len(built)), away=(away)) if away \
+            else t("console.devices.devices", count=(len(built)))
 
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
         search = panel.search(t("console.devices.search_devices"))
@@ -481,7 +481,7 @@ async def detail_groups(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     their own, because four of them hold three rows or fewer and a rail entry that opens
     one row is a click charged for nothing.
     """
-    rows_out: list[tuple[Any, Any]] = [(panel.HEADING, t("console.devices.identity"))]
+    rows_out: list[tuple[Any, Any]] = [(panel.HEADING, t("word.identity"))]
     rows_out += await _identity_rows(context)
     rows_out.append((panel.HEADING, t("console.devices.connection")))
     rows_out += _connection_rows(_of(context), context.get("reach"))
@@ -495,7 +495,7 @@ async def detail_groups(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     else:
         rows_out.append((panel.HEADING, t("console.devices.settings")))
         rows_out += settings_door(context)
-    rows_out.append((panel.HEADING, t("console.devices.this_entry")))
+    rows_out.append((panel.HEADING, t("console.devices.entry")))
     rows_out += entry_rows(context)
     return rows_out
 
@@ -520,10 +520,10 @@ async def _carrying_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
 
     async def forget(name: str) -> None:
         if not await confirm.ask(
-                t("console.devices.ask_remove_from", name=(name),
+                t("console.devices.remove", name=(name),
                         device_label=(device_label(device))),
-                detail=t("console.devices.ask_it_comes_off_the_device"),
-                confirm=t("console.devices.ask_remove"), danger=True):
+                detail=t("console.devices.comes_off_device_own"),
+                confirm=t("word.remove"), danger=True):
             return
         try:
             await run.io_bound(ApiClient().remove_from_device,
@@ -535,12 +535,12 @@ async def _carrying_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
             context["rerender"]()
 
     if not held:
-        return [panel.note(t("console.devices.nothing_on_it_yet_send"))]
+        return [panel.note(t("console.devices.nothing_yet_send_games"))]
 
     def row(name: str) -> Callable[[], None]:
         def draw() -> None:
             with ui.element("div").classes("console-slot-actions"):
-                ui.button(t("console.devices.remove"), on_click=lambda _e=None: forget(name)) \
+                ui.button(t("word.remove"), on_click=lambda _e=None: forget(name)) \
                     .props("flat dense no-caps size=sm") \
                     .classes("console-action console-action--inline")
 
@@ -551,12 +551,12 @@ async def _carrying_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
 
 # Why a device's settings are somewhere else. Said where somebody is looking for them,
 # because "not here" without a reason reads as something missing.
-SETTINGS_NOTE = "console.devices.settings_note"
+SETTINGS_NOTE = "console.devices.machine_s_settings_belong"
 
 # What is wrong when the door will not open. Both halves matter: one is a machine to go
 # and switch on, the other is an entry with nothing to dial.
 NO_DOOR = {
-    device_client.UNREACHABLE: "console.devices.nothing_to_open",
+    device_client.UNREACHABLE: "console.devices.not_answering_nothing_open",
     device_client.UNASKABLE: UNREACHABLE_NOTE,
 }
 
@@ -608,7 +608,7 @@ def settings_door(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     def door() -> None:
         with ui.element("div").classes("console-fact-edit"):
             panel.action(t("console.devices.open_system") if here
-                    else t("console.devices.open_its_settings"),
+                    else t("console.devices.open_settings"),
                          open_it, icon="open_in_new", inline=True,
                          enabled=not stopped)()
 
@@ -637,24 +637,24 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
             await run.io_bound(library.put_config,
                                {"install": {"display_name": value.strip()}})
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(t("console.devices.could_not_save_that", exc=(exc)), type="negative")
+            ui.notify(t("console.devices.could_not_save", exc=(exc)), type="negative")
             return
         rebuild = context.get("rebuild")
         if rebuild is not None:
             await rebuild()
 
     rows_out: list[tuple[Any, Any]] = [
-        (t("console.devices.name"), panel.field(stored, rename,
+        (t("word.name"), panel.field(stored, rename,
                              placeholder=_hostname_placeholder(device,
                                                                _is_local(context)),
                              disabled=not editable)),
     ]
     if not _is_local(context):
-        rows_out.append(panel.note(t("console.devices.remote_name_note")))
-    rows_out.append((t("console.devices.fact_kind"),
+        rows_out.append(panel.note(t("console.devices.name_belongs_install_can")))
+    rows_out.append((t("word.kind"),
             KIND_LABELS.get(str(device.get("kind") or "vpinfe"),
                                              "VPinFE")))
-    rows_out.append((t("console.devices.fact_features"),
+    rows_out.append((t("console.devices.features"),
                      settings_page.features_said(device.get("features"))
                      or t("console.devices.not_reported")))
     return rows_out
@@ -711,7 +711,7 @@ def capability_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
         text, level = _CHIP[state]
         text = t(text)
         out.append((humanize(capability), panel.state(text, level)))
-    return out or [panel.intro(t("console.devices.this_device_declares"))]
+    return out or [panel.intro(t("console.devices.device_declares_nothing"))]
 
 
 # What a lifecycle action costs, which is what decides whether it is asked about twice.
@@ -739,9 +739,9 @@ async def action_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
         return [panel.intro(t("console.devices.could_not_ask",
                 device_label=(device_label(_of(context))), exc=(exc)))]
     if not offered:
-        return [panel.intro(t("console.devices.this_device_offers_nothing"))]
+        return [panel.intro(t("console.devices.device_offers_nothing"))]
 
-    rows_out: list[tuple[Any, Any]] = [panel.intro(t("console.devices.actions_note"))]
+    rows_out: list[tuple[Any, Any]] = [panel.intro(t("console.devices.happen_device_not_install"))]
     for entry in offered:
         rows_out.append(("", _action_control(context, entry)))
         if not entry.get("available") and entry.get("reason"):
@@ -759,7 +759,7 @@ def _action_control(context: dict[str, Any],
     async def go() -> None:
         if scope in _HEAVY and not await confirm.ask(
                 f"{label}?",
-                detail=t("console.devices.ask_this_happens_on_now",
+                detail=t("console.devices.happens_now",
                         device_label=(device_label(_of(context)))),
                 confirm=label):
             return
@@ -767,11 +767,11 @@ def _action_control(context: dict[str, Any],
         try:
             done = await run.io_bound(client.perform_action, scope, action)
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(t("console.devices.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
             return
         # A machine on its way down answers before it goes, so "performed" here means
         # the work was handed over rather than finished.
-        ui.notify(f"{label}" if done.get("performed") else t("console.devices.did_not_happen",
+        ui.notify(f"{label}" if done.get("performed") else t("console.devices.not_happen",
                 label=(label)),
                   type="positive" if done.get("performed") else "warning")
 
@@ -801,11 +801,11 @@ async def log_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     except Exception as exc:  # noqa: BLE001 - unreachable is a state, not a 500
         logger.info("Could not read the log on %s", device_label(_of(context)),
                     exc_info=True)
-        return [panel.intro(t("console.devices.could_not_read_the_log", exc=(exc)))]
+        return [panel.intro(t("console.devices.could_not_read_log", exc=(exc)))]
 
     records = list(found.get("records") or [])
     if not records:
-        return [panel.intro(t("console.devices.nothing_has_been_written"))]
+        return [panel.intro(t("console.devices.nothing_written_log_device"))]
     return [(panel.FULL, lambda: _log_lines(records, str(found.get("path") or "")))]
 
 
@@ -829,25 +829,25 @@ def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     device = _of(context)
     library = context.get("library")
     out: list[tuple[Any, Any]] = [
-        (t("console.devices.fact_first_seen"),
+        (t("console.devices.first_seen"),
                 _when(str(device.get("first_seen") or "")) or t("console.devices.not_known")),
-        (t("console.devices.fact_announced"),
-                _when(str(device.get("last_seen") or "")) or t("console.devices.never")),
+        (t("console.devices.announced"),
+                _when(str(device.get("last_seen") or "")) or t("word.never")),
     ]
     if _is_local(context) or library is None:
         out.append(panel.note(
-            t("console.devices.this_is_the_install_you")))
+            t("console.devices.install_reading_console_entry")))
         return out
 
     def forget_action() -> None:
         # In the fact rhythm's own wrapper, or the button takes the whole value column -
         # a destructive verb drawn as a full-width bar reads as a banner.
         with ui.element("div").classes("console-fact-edit"):
-            panel.action(t("console.devices.forget_this_device"),
+            panel.action(t("console.devices.forget_device"),
                          lambda: _confirm_forget(library, device,
                                                  context.get("rebuild")),
                          icon="delete_outline", inline=True, danger=True)()
 
-    out.append(panel.note(t("console.devices.forget_note")))
+    out.append(panel.note(t("console.devices.forgetting_device_removes_install")))
     out.append(("", forget_action))
     return out

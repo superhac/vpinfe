@@ -24,23 +24,23 @@ from console.data import Library
 # decoration: it is what the row's finding says, and writing it forces the check to be
 # about something a person can act on.
 CHECKS: tuple[tuple[str, str, str, Callable[[dict, dict, dict], bool]], ...] = (
-    ("rom_missing", t("console.sections.declared_rom_is_not"),
+    ("rom_missing", t("console.sections.declared_rom_not_installed"),
      "The table will not boot; PinMAME has nothing to load.",
      lambda g, m, x: bool(x.get("rom_missing"))),
     ("no_playfield", t("console.sections.no_playfield_image"),
-     t("console.sections.the_frontend_has_nothing"),
+     t("console.sections.frontend_nothing_show_game"),
      lambda g, m, x: not m.get("playfield", {}).get("present")),
     ("no_backglass", t("console.sections.no_backglass_image"),
-     t("console.sections.a_second_screen_will_sit"),
+     t("console.sections.second_screen_sit_empty"),
      lambda g, m, x: not m.get("backglass", {}).get("present")),
-    ("borrowed_wheel", t("console.sections.wheel_is_standing_in_for"),
-     t("console.sections.a_fallback_is_being_used"),
+    ("borrowed_wheel", t("console.sections.wheel_standing_something_else"),
+     t("console.sections.fallback_being_used_wheel"),
      lambda g, m, x: str(m.get("wheel", {}).get("via") or "").startswith("fallback:")),
-    ("no_media", t("console.sections.no_media_at_all"),
-     t("console.sections.nothing_resolved_for_any"),
+    ("no_media", t("console.sections.no_media_all"),
+     t("console.sections.nothing_resolved_kind_usually"),
      lambda g, m, x: not any(e.get("present") for e in m.values())),
     ("no_year", t("console.sections.no_year_recorded"),
-     t("console.sections.sorting_and_filtering_by"),
+     t("console.sections.sorting_filtering_year_place"),
      lambda g, m, x: not g.get("year")),
 )
 
@@ -113,19 +113,19 @@ def overview(library: Library, registry: list[dict], discovery: dict,
             ui.label(f"{(present / total_slots * 100 if total_slots else 0):.0f}%") \
                 .classes("console-kpi")
             _bar(present / total_slots if total_slots else 0)
-            ui.label(t("console.sections.of_slots", present=(present),
+            ui.label(t("console.sections.slots", present=(present),
                     total_slots=(total_slots))).classes("text-xs opacity-60")
         with _card(t("console.sections.needs_attention")):
             ui.label(str(open_findings)).classes("console-kpi")
-            ui.label(t("console.sections.findings_across_the")).classes("text-xs opacity-60")
+            ui.label(t("console.sections.findings_across_library")).classes("text-xs opacity-60")
         with _card(t("console.sections.devices")):
             ui.label(str(len(registry))).classes("console-kpi")
-            ui.label(t("console.sections.known_to_this_install")).classes("text-xs opacity-60")
-        with _card(t("console.sections.this_build")):
+            ui.label(t("console.sections.known_install")).classes("text-xs opacity-60")
+        with _card(t("console.sections.build")):
             ui.label(str(discovery.get("vpinfe_version") or "?")).classes("console-kpi")
             ui.label(t("console.sections.no_update_endpoint_yet")).classes("text-xs opacity-60")
 
-    ui.label(t("console.sections.coverage_by_kind")).classes("console-group mt-4")
+    ui.label(t("console.sections.coverage_kind")).classes("console-group mt-4")
     with ui.element("div").classes("console-card w-full"):
         # A filter says which games lack a topper. Nothing in a grid says "you have no
         # toppers at all" without filtering twenty kinds one at a time, which is the
@@ -170,12 +170,12 @@ def overview(library: Library, registry: list[dict], discovery: dict,
 
 
 _ASKS = {
-    "upgrade": (t("console.sections.bring_every_game_onto_the"),
-                t("console.sections.each_game_s_metadata_file"),
-                t("console.sections.upgrade"), False),
-    "restore": (t("console.sections.put_back_the_saved"),
-                t("console.sections.every_game_with_a_saved"),
-                t("console.sections.restore"), True),
+    "upgrade": (t("console.sections.bring_every_game_current"),
+                t("console.sections.each_game_s_metadata"),
+                t("word.upgrade"), False),
+    "restore": (t("console.sections.put_back_saved_metadata"),
+                t("console.sections.every_game_saved_copy"),
+                t("word.restore"), True),
 }
 
 
@@ -200,7 +200,7 @@ def _metadata_action(library: Library) -> Callable[[str], Any]:
         except Exception as exc:
             ui.notify(str(exc), type="negative")
             return
-        ui.notify(t("console.sections.under_way", word=(word)), type="positive")
+        ui.notify(t("console.sections.way", word=(word)), type="positive")
         # The counts this card is drawn from are now stale. Asked again off the loop,
         # for the same reason they were read there in the first place.
         await run.io_bound(library.read_metadata_state)
@@ -254,9 +254,9 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
     with ui.element("div").classes("console-card w-full"):
         _metadata_row(
             not pending, t("console.sections.format"),
-            t("console.sections.every_game_is_on_the") if not pending
-            else t("console.sections.were_written_by_an_older", pending=(pending)),
-            None if not pending else (t("console.sections.fact_upgrade"),
+            t("console.sections.every_game_current_format") if not pending
+            else t("console.sections.written_older_build_can", pending=(pending)),
+            None if not pending else (t("word.upgrade"),
                     lambda: on_start("upgrade")))
 
         # No action: the fix is on disk, in a file this cannot repair without guessing
@@ -264,16 +264,16 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
         _metadata_row(
             not unreadable, t("console.sections.readable"),
             t("console.sections.every_folder_s_metadata") if not unreadable
-            else t("console.sections.could_not_be_read_so_those", len=(len(unreadable)),
+            else t("console.sections.could_not_read_games", len=(len(unreadable)),
                     join=(', '.join(str(one.get('name') or '?') for one in unreadable[:4])))
-                 + (t("console.sections.and_more") if len(unreadable) > 4 else ""))
+                 + (t("console.sections.more") if len(unreadable) > 4 else ""))
 
         # Only when it is true. A row saying "nothing here was written by a newer build"
         # is a sentence about a thing that has never happened to most installs.
         if newer:
             _metadata_row(
-                False, t("console.sections.newer_than_this_build"),
-                t("console.sections.were_written_by_a_later", newer=(newer)))
+                False, t("console.sections.newer_build"),
+                t("console.sections.written_later_version_vpinfe", newer=(newer)))
 
         # A fact with an action rather than a warning: having backups is not a problem,
         # and a permanent amber row saying so would be one more thing to ignore.
@@ -281,9 +281,9 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
             when = _stamp(str(state.get("newest_backup") or ""))
             _metadata_row(
                 True, t("console.sections.backups"),
-                t("console.sections.games_have_a_saved_copy", restorable=(restorable))
-                + (f" from {when}" if when else "") + t("console.sections.taken_before_an_upgrade"),
-                (t("console.sections.fact_restore"), lambda: on_start("restore")))
+                t("console.sections.games_saved_copy", restorable=(restorable))
+                + (f" from {when}" if when else "") + t("console.sections.taken_before_upgrade"),
+                (t("word.restore"), lambda: on_start("restore")))
 
 
 # --- The scripts the tables run ---------------------------------------------------
@@ -301,17 +301,17 @@ def _scripts_said(found: dict[str, Any]) -> tuple[bool, str]:
     if found.get("reachable") is False:
         # Not the same as nothing to do, and it must not read that way: the library was
         # never examined.
-        return False, t("console.sections.the_index_could_not_be")
+        return False, t("console.sections.index_could_not_reached")
     offered = list(found.get("offered") or [])
     checked = int(found.get("checked") or 0)
     already = int(found.get("already") or 0)
     if offered:
-        shown = ", ".join(offered[:3]) + (t("console.sections.and_more") if len(offered) > 3
+        shown = ", ".join(offered[:3]) + (t("console.sections.more") if len(offered) > 3
                 else "")
-        return False, t("console.sections.of_can_take_a_published", len=(len(offered)),
+        return False, t("console.sections.can_take_published_fix", len=(len(offered)),
                 checked=(checked), shown=(shown))
-    running = t("console.sections.and_already_run_one", already=(already)) if already else ""
-    return True, t("console.sections.nothing_published_matches", checked=(checked),
+    running = t("console.sections.already_run_one", already=(already)) if already else ""
+    return True, t("console.sections.nothing_published_matches_tables", checked=(checked),
             running=(running))
 
 
@@ -334,14 +334,14 @@ def table_scripts(library: Library) -> None:
             if not found:
                 _metadata_row(
                     True, t("console.sections.script_fixes"),
-                    t("console.sections.the_community_publishes"),
-                    (t("console.sections.fact_check"), check))
+                    t("console.sections.community_publishes_script_fixes"),
+                    (t("console.sections.check"), check))
                 return
             good, said = _scripts_said(found)
             _metadata_row(good, t("console.sections.script_fixes"), said,
-                          (t("console.sections.fact_fetch"), fetch)
+                          (t("word.fetch"), fetch)
                           if found.get("offered")
-                          else (t("console.sections.fact_check"), check))
+                          else (t("console.sections.check"), check))
 
     async def check() -> None:
         await run.io_bound(library.read_script_patches)
@@ -350,16 +350,16 @@ def table_scripts(library: Library) -> None:
     async def fetch() -> None:
         offered = list(library.script_patches().get("offered") or [])
         if not await confirm.ask(
-                t("console.sections.ask_fetch_fixes_for_table_s", len=(len(offered))),
-                detail=t("console.sections.ask_each_one_lands_as_a_vbs"),
-                confirm=t("console.sections.ask_fetch"), danger=False):
+                t("console.sections.fetch_fixes_table_s", len=(len(offered))),
+                detail=t("console.sections.each_one_lands_vbs"),
+                confirm=t("word.fetch"), danger=False):
             return
         try:
             await run.io_bound(ApiClient().apply_script_patches)
         except Exception as exc:
             ui.notify(str(exc), type="negative")
             return
-        ui.notify(t("console.sections.fetching_under_way"), type="positive")
+        ui.notify(t("console.sections.fetching_way"), type="positive")
         await run.io_bound(library.read_script_patches)
         draw()
 
@@ -370,7 +370,7 @@ def table_scripts(library: Library) -> None:
 
 # What a state is called on screen. "Off" is the switch somebody set; "Stopped" is an
 # error taking one out, which is a different thing to be told and reads as one.
-STATE_WORDS = {"off": "console.sections.off",
+STATE_WORDS = {"off": "word.off",
                "failed": "console.sections.failed",
                "disabled": "console.sections.stopped"}
 # Off costs nothing - it is what was asked for. The other two are a feature that is not
@@ -382,7 +382,7 @@ def extensions(installed: list[dict], open_one=None) -> None:
     if not installed:
         with ui.element("div").classes("console-card w-full"):
             ui.label(t("console.sections.nothing_installed")).classes("console-setting")
-            ui.label(t("console.sections.an_extension_adds_a")).classes("console-help")
+            ui.label(t("console.sections.extension_adds_feature_install")).classes("console-help")
         return
 
     for found in installed:

@@ -248,11 +248,11 @@ def _slot_plan(upload_id: str, game_dir: str, media_kind: str) -> ImportPlan:
     one file only, because a slot holds one thing.
     """
     if not game_dir:
-        raise InvalidRequestError(t("error.uploads.a_slot_import_needs_the"))
+        raise InvalidRequestError(t("error.uploads.slot_import_needs_game"))
     session = _session_dir(upload_id)
     files = [one for one in session.iterdir() if one.is_file()]
     if [one for one in session.iterdir() if one.is_dir()] or len(files) != 1:
-        raise InvalidRequestError(t("error.uploads.drop_a_single_file_on_a"))
+        raise InvalidRequestError(t("error.uploads.drop_single_file_slot"))
     try:
         return build_media_slot_plan(files[0], game_dir=Path(game_dir),
                                      media_kind=media_kind)
@@ -321,7 +321,7 @@ def import_upload(upload_id: str,
     except ValueError as exc:
         raise ConflictError(str(exc)) from exc
     if vps_entry is not None and not plan.new_game_dir_name:
-        raise InvalidRequestError(t("error.uploads.vps_id_only_applies_to_new"))
+        raise InvalidRequestError(t("error.uploads.vps_id_applies_new"))
 
     # Folder naming precedence: explicit new_game_dir_name > VPS-derived > vpx stem.
     new_name = payload.new_game_dir_name
@@ -444,7 +444,7 @@ def vps_releases(vps_id: str,
 
     if listed_as != "tableFiles" and listed_as not in vps_kinds.BY_LISTING:
         raise InvalidRequestError(
-            t("error.uploads.vpsdb_lists_no_such_kind"),
+            t("error.uploads.vpsdb_lists_no_such"),
             details={"listed_as": listed_as,
                      "known": ["tableFiles", *sorted(vps_kinds.BY_LISTING)]})
     found = next((e for e in load_vpsdb() if str(e.get("id") or "") == vps_id), None)

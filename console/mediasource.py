@@ -49,10 +49,10 @@ async def confirm_replace(label: str, going: list[str]) -> bool:
     count hides: a whole family goes at this tier, so a .mp4 arriving over a .png takes
     the .png with it and the user never named that file.
     """
-    return await confirm.ask(t("console.mediasource.ask_replace_the_that_is_there",
+    return await confirm.ask(t("console.mediasource.replace",
             lower=(label.lower())),
-                             detail=t("console.mediasource.ask_replaced_files_are_deleted"),
-                             lines=going, confirm=t("console.mediasource.ask_replace"))
+                             detail=t("console.mediasource.replaced_files_deleted_not"),
+                             lines=going, confirm=t("word.replace"))
 
 
 class _Sources:
@@ -117,7 +117,7 @@ class _Sources:
         if not self.placements:
             return
         with ui.column().classes("w-full gap-0 console-destination"):
-            ui.label(t("console.mediasource.save_it_as")).classes("console-card-title")
+            ui.label(t("console.mediasource.save")).classes("console-card-title")
             for item in self.placements:
                 self._placement_choice(item)
             self.filename_note = ui.label("").classes("console-help console-destination-name")
@@ -160,9 +160,9 @@ class _Sources:
                          + (" console-placement-mark--on" if picked else ""))
         # The extension comes from the file, which on the upload tab is not chosen yet.
         self.filename_note.text = (
-            t("console.mediasource.saved_as",
+            t("console.mediasource.saved",
                     chosen_extension=(self.chosen_extension)) if self.chosen_extension
-            else t("console.mediasource.the_extension_follows_the"))
+            else t("console.mediasource.extension_follows_file_choose"))
 
     def note_extension(self, filename: str) -> None:
         """The picked file's extension, so the name shown is the name it will get."""
@@ -182,11 +182,11 @@ class _Sources:
         """
         self.dialog.close()
         chosen = self.placed_at or {}
-        where = (t("console.mediasource.for_every_table_in_this") if not self.destination
-                 else t("console.mediasource.for_table",
+        where = (t("console.mediasource.every_table_game") if not self.destination
+                 else t("console.mediasource.for",
                         table=(_trimmed_stem(str(chosen.get("label") or "")))))
         unseen = ("" if self.destination == (self.table_id or "") else
-                  t("console.mediasource.not_what_this_view_is"))
+                  t("console.mediasource.not_what_view_showing"))
         ui.notify(f"{message} {where}{unseen}", type="positive")
         await self.done()
 
@@ -202,7 +202,7 @@ class _Sources:
             going = await run.io_bound(self.library.displaced_by, self.game_id,
                                        self.destination, self.kind, filename)
         except Exception as exc:
-            ui.notify(t("console.mediasource.could_not_check_that_slot", exc=(exc)),
+            ui.notify(t("console.mediasource.could_not_check_slot", exc=(exc)),
                     type="negative")
             return False
         return not going or await confirm_replace(self.label, going)
@@ -217,7 +217,7 @@ class _Sources:
     # --- from the computer you are looking at this from ----------------------
 
     def upload_tab(self) -> None:
-        ui.label(t("console.mediasource.choose_a_file_on_the")) \
+        ui.label(t("console.mediasource.choose_file_computer_looking")) \
             .classes("console-help")
 
         async def arrived(event: Any) -> None:
@@ -230,12 +230,12 @@ class _Sources:
                 await run.io_bound(self.library.place_media, self.game_id,
                                    self.destination, self.kind, name, data)
             except Exception as exc:
-                ui.notify(t("console.mediasource.could_not_place_it", exc=(exc)), type="negative")
+                ui.notify(t("console.mediasource.could_not_place", exc=(exc)), type="negative")
                 return
             await self.finish(f"{self.label} saved")
 
         ui.upload(on_upload=arrived, auto_upload=True, max_files=1,
-                  label=t("console.mediasource.drop_a_file_here_or_browse")) \
+                  label=t("console.mediasource.drop_file_browse")) \
             .props("flat").classes("w-full console-source-upload")
 
     # --- from anywhere on the machine VPinFE runs on -------------------------
@@ -246,21 +246,21 @@ class _Sources:
             starts = await run.io_bound(self.library.browse_roots, self.game_id)
         except Exception as exc:
             with body:
-                ui.label(t("console.mediasource.could_not_read_this",
+                ui.label(t("console.mediasource.could_not_read_machine",
                         exc=(exc))).classes("console-help")
             return
         self.browse_roots = starts
         with body:
             if not starts:
-                ui.label(t("console.mediasource.no_folders_are_browsable")) \
+                ui.label(t("console.mediasource.no_folders_browsable_game")) \
                     .classes("console-help")
                 return
-            ui.label(t("console.mediasource.files_already_on_the")) \
+            ui.label(t("console.mediasource.files_already_machine_vpinfe")) \
                 .classes("console-help")
             # The control before what it controls: built the other way round, the
             # picker sits under the folder it chose.
             picker = (ui.select({item["path"]: _start_name(item) for item in starts},
-                                value=starts[0]["path"], label=t("console.mediasource.start_from"))
+                                value=starts[0]["path"], label=t("console.mediasource.start"))
                       .props("outlined dense").classes("w-full")
                       if len(starts) > 1 else None)
             listing = ui.column().classes("w-full gap-1")
@@ -275,7 +275,7 @@ class _Sources:
             here = await run.io_bound(self.library.browse, path)
         except Exception as exc:
             with listing:
-                ui.label(t("console.mediasource.could_not_read_that_folder",
+                ui.label(t("console.mediasource.could_not_read_folder",
                         exc=(exc))).classes("console-help")
             return
         family = media_family(self.kind)
@@ -297,7 +297,7 @@ class _Sources:
                         continue
                     shown += 1
                 if not shown:
-                    ui.label(t("console.mediasource.nothing_here_to_use_as",
+                    ui.label(t("console.mediasource.nothing_use",
                             lower=(self.label.lower()))) \
                         .classes("console-help")
                 elif len(here["entries"]) > _LIST_MAX:
@@ -335,7 +335,7 @@ class _Sources:
                 await run.io_bound(self.library.import_media, self.game_id,
                                    self.destination, self.kind, item["path"])
             except Exception as exc:
-                ui.notify(t("console.mediasource.could_not_bring_it_in", exc=(exc)),
+                ui.notify(t("console.mediasource.could_not_bring", exc=(exc)),
                         type="negative")
                 return
             await self.finish(f"{self.label} saved")
@@ -352,7 +352,7 @@ class _Sources:
         """
         for kind, entry in (self.context.get("media") or {}).items():
             if entry.get("file") == name:
-                return t("console.mediasource.already_the", lower=(media_label_map().get(kind,
+                return t("console.mediasource.already", lower=(media_label_map().get(kind,
                         kind).lower()))
         return ""
 
@@ -390,7 +390,7 @@ class _Sources:
         except Exception:
             self._known_sources = []
         await self._show_offers(self.online_body, self._own_id,
-                                game.get("name") or t("console.mediasource.this_game"))
+                                game.get("name") or t("console.mediasource.game_2"))
 
     def _searched(self) -> str:
         """Where we looked, for the one case that needs it: nothing came back.
@@ -415,7 +415,7 @@ class _Sources:
             return
         with results:
             if not found:
-                ui.label(t("console.mediasource.no_game_by_that_name_in")).classes("console-help")
+                ui.label(t("console.mediasource.no_game_name_vpsdb")).classes("console-help")
                 return
             for item in found:
                 self._game_choice(item)
@@ -433,7 +433,7 @@ class _Sources:
                           str(item.get("name") or ""), made,
                           lambda i=item: self._show_offers(
                               self.online_body, i.get("vps_id") or "",
-                              i.get("name") or t("console.mediasource.that_game")),
+                              i.get("name") or t("console.mediasource.game")),
                           glyph="videogame_asset")
 
     async def _show_offers(self, body: ui.column, vps_id: str, name: str) -> None:
@@ -451,21 +451,21 @@ class _Sources:
                                  else f"{found_online} for {name}")
         if not vps_id:
             with body:
-                ui.label(t("console.mediasource.this_game_has_no_vps_id_so")) \
+                ui.label(t("console.mediasource.game_no_vps_id")) \
                     .classes("console-help")
             return
         try:
             found = await run.io_bound(self.library.media_offers, vps_id, self.kind)
         except Exception as exc:
             with body:
-                ui.label(t("console.mediasource.could_not_reach_the",
+                ui.label(t("console.mediasource.could_not_reach_catalogs",
                         exc=(exc))).classes("console-help")
             return
         with body:
             if not found:
                 where = self._searched()
-                ui.label(t("console.mediasource.nothing_in", where=(where)) if where else
-                         t("console.mediasource.no_online_sources_are")).classes("console-help")
+                ui.label(t("console.mediasource.nothing", where=(where)) if where else
+                         t("console.mediasource.no_online_sources_switched")).classes("console-help")
                 return
             named = {item["id"]: item["name"]
                      for item in (self._known_sources or [])}
@@ -482,7 +482,7 @@ class _Sources:
                 return
             # Held: an ongoing notification never times out, so one nothing dismisses
             # outlives the answer it was waiting for.
-            fetching = ui.notification(t("console.mediasource.fetching_from",
+            fetching = ui.notification(t("console.mediasource.fetching",
                     source_name=(source_name)),
                                        spinner=True, timeout=None)
             try:
@@ -490,11 +490,11 @@ class _Sources:
                                    self.destination, self.kind, offer["source"],
                                    vps_id, size)
             except Exception as exc:
-                ui.notify(t("console.mediasource.could_not_fetch_it", exc=(exc)), type="negative")
+                ui.notify(t("console.mediasource.could_not_fetch", exc=(exc)), type="negative")
                 return
             finally:
                 fetching.dismiss()
-            await self.finish(t("console.mediasource.saved_from", label=(self.label),
+            await self.finish(t("console.mediasource.saved_2", label=(self.label),
                     source_name=(source_name)))
 
         # The source is the first thing on the row, because with several of them the
@@ -512,7 +512,7 @@ def _placement_label(item: dict[str, Any]) -> str:
     """
     label = str(item.get("label") or "")
     if not item.get("table"):
-        return t("console.mediasource.all_tables_in_this_game")
+        return t("console.mediasource.all_tables_game")
     return t("console.mediasource.only", trimmed=(_trimmed_stem(label)))
 
 
@@ -525,7 +525,7 @@ def _trimmed_stem(label: str) -> str:
 def _start_name(root: dict[str, Any]) -> str:
     """What to call a starting point. The game's own folder is not named after the
     folder, because the folder's name is the one thing already on screen above it."""
-    return (t("console.mediasource.this_game_s_folder") if root.get("source") == "game"
+    return (t("console.mediasource.game_s_folder") if root.get("source") == "game"
             else str(root.get("name") or root.get("path") or ""))
 
 
@@ -545,8 +545,8 @@ def open_sources(context: dict[str, Any], kind: str, label: str,
         # Ordered by how far the file has to travel: your own computer, this machine,
         # then the internet.
         with ui.tabs().props("dense no-caps align=left").classes("w-full") as tabs:
-            ui.tab("upload", label=t("console.mediasource.upload_a_file"), icon="upload_file")
-            ui.tab("browse", label=t("console.mediasource.on_this_machine"), icon="folder_open")
+            ui.tab("upload", label=t("console.mediasource.upload_file"), icon="upload_file")
+            ui.tab("browse", label=t("console.mediasource.machine"), icon="folder_open")
             ui.tab("online", label=t("console.mediasource.online"), icon="cloud_download")
         with ui.tab_panels(tabs, value="upload").classes("w-full console-sources-panels"):
             with ui.tab_panel("upload"):

@@ -3,7 +3,8 @@
 ### Summary
 vpinfe v3.0-beta.1. First preview of the 3.0 line: a stable id for every table, a
 documented HTTP API at `/api/v1`, media that resolves the way the rest of the hobby names
-it, and support for table folders holding more than one playable file. This is a preview
+it, support for table folders holding more than one playable file, and every word on screen
+coming from a translation catalog rather than the code that draws it. This is a preview
 build and it changes how your library is stored — read the next section first.
 
 ### Before you upgrade
@@ -31,6 +32,17 @@ build and it changes how your library is stored — read the next section first.
   pages working from other devices.
 
 ### What's New
+- **Core** — VPinFE is localization ready. Every word it puts on screen now comes from a
+  translation catalog rather than the code that draws it: the Console, the cabinet's menus
+  and overlays, the settings, the column headers, and the messages the API sends back.
+  English is the only language that ships and nothing looks any different, but adding
+  another one is a JSON file rather than a patch. `[general] language` picks it, and the
+  date pickers, pagination and grid filters follow along in the 69 locales the UI toolkit
+  already carries. Your library's own words — table names, manufacturers, anything you
+  typed — are never translated.
+- **Core** — Titles that are not plain English now sort and group the way you would expect.
+  `Ähre` files under A instead of after Z, `Ölçek` under O, and a library of Japanese tables
+  gets one letter group in the picker instead of one per kanji.
 - **Core** — VPinFE can ask before it quits or powers off the machine. Off by default,
   which is how it has always behaved; tick Confirm Before Exit on the Frontend settings
   page, or set `[frontend] confirm`. Closing the frontend never asks — those windows reopen

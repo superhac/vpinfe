@@ -136,19 +136,19 @@ def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
                                                           not held["follow"]),
                                                  reload())) \
                 .props("flat dense round size=sm")
-            follow.tooltip(t("console.logs.following_click_to_stop") if held["follow"]
-                           else t("console.logs.not_following_click_to"))
+            follow.tooltip(t("console.logs.following_click_stop") if held["follow"]
+                           else t("console.logs.not_following_click_follow"))
             if held["follow"]:
                 follow.props(add="color=primary")
         else:
             # A rotated file does not change, so following it is a control that would
             # do nothing. Refresh is what makes sense there.
             ui.button(icon="refresh", on_click=lambda: reload()) \
-                .props("flat dense round size=sm").tooltip(t("console.logs.read_it_again"))
+                .props("flat dense round size=sm").tooltip(t("word.read_it_again"))
 
         if held["path"]:
             ui.label(held["path"]).classes("console-help truncate max-w-xs") \
-                .tooltip(t("console.logs.where_this_file_is_for"))
+                .tooltip(t("console.logs.where_file_reading_rest"))
 
 
 async def _draw(viewport, held: dict[str, Any]) -> None:
@@ -167,12 +167,12 @@ async def _draw(viewport, held: dict[str, Any]) -> None:
     with viewport:
         if held.get("error"):
             panel.facts(ui,
-                    [panel.intro(t("console.logs.could_not_read_the_log", value=(held['error'])))])
+                    [panel.intro(t("console.logs.could_not_read_log", value=(held['error'])))])
             return
         if not held["records"]:
             panel.facts(ui, [panel.intro(
                 t("console.logs.nothing_matches") if held["level"] or held["contains"]
-                else t("console.logs.this_install_has_written"))])
+                else t("console.logs.install_written_nothing_yet"))])
             return
         if held["digest"]:
             _digest(held["records"])
@@ -225,7 +225,7 @@ def _digest(records: list[dict[str, Any]]) -> None:
 
     ordered = sorted(grouped.items(),
                      key=lambda item: (-_rank(item[1]["level"]), -item[1]["count"]))
-    ui.label(t("console.logs.distinct_in_records", len=(len(ordered)), len2=(len(records)))) \
+    ui.label(t("console.logs.distinct_records", len=(len(ordered)), len2=(len(records)))) \
         .classes("console-help px-3 pb-1")
     for (source, first_line), found in ordered:
         tone = devices_page.LOG_LEVELS.get(str(found["level"] or ""),

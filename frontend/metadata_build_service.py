@@ -67,4 +67,4 @@ def start_build(api, *, build_metadata_func, all_games_func, download_media=True
 
     threading.Thread(target=run_build, daemon=True).start()
     threading.Thread(target=process_events, daemon=True).start()
-    return {"success": True, "message": t("frontend.buildmeta.started")}
+    return {"success": True, "message": t("frontend.buildmeta.build_metadata_started")}

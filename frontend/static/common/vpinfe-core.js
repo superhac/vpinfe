@@ -1579,11 +1579,11 @@ class VPinFECore {
     question.className = "vpinfe-confirm-question";
     // One entry, so the question mark is the translator's - Spanish opens with
     // an inverted one and French puts a space before it.
-    question.textContent = this.t("frontend.confirm.question",
+    question.textContent = this.t("frontend.confirm.text",
                                   { what: asking.description });
     const hint = document.createElement("p");
     hint.className = "vpinfe-confirm-hint";
-    hint.textContent = this.t("frontend.confirm.how");
+    hint.textContent = this.t("frontend.confirm.select_confirm_back_cancel");
     card.appendChild(question);
     card.appendChild(hint);
     root.appendChild(card);

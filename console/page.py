@@ -216,14 +216,14 @@ _NAV_CLICK = """
 # selects: three of them select something and the rest do not, and one asking for a game
 # on a page with no games is the panel describing a different screen.
 EMPTY_PANE = {
-    "games": ("console.page.empty_game_details", "console.page.empty_select_a_game"),
-    "tables": ("console.page.empty_table_details", "console.page.empty_select_a_table"),
-    "collections": ("console.page.empty_collection", "console.page.empty_select_a_collection"),
-    "media": ("console.page.empty_media", "console.page.empty_select_a_kind_of_media"),
-    "assets": ("console.page.empty_assets", "console.page.empty_select_a_kind_of_file"),
-    "devices": ("console.page.empty_device", "console.page.empty_select_a_device"),
-    "locations": ("console.page.empty_location", "console.page.empty_select_a_location"),
-    "launchers": ("console.page.empty_launcher", "console.page.empty_select_a_launcher"),
+    "games": ("console.page.game_details", "console.page.select_game"),
+    "tables": ("console.page.table_details", "console.page.select_table"),
+    "collections": ("console.page.collection", "console.page.select_collection"),
+    "media": ("console.page.media", "console.page.select_kind_media"),
+    "assets": ("console.page.assets", "console.page.select_kind_file"),
+    "devices": ("console.page.device", "console.page.select_device"),
+    "locations": ("console.page.location", "console.page.select_location"),
+    "launchers": ("console.page.launcher", "console.page.select_launcher"),
 }
 
 # The pages the pane has a role on. Media is one of them: a row is one game's slot, so
@@ -292,24 +292,24 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
         try:
             analysis = await uploads.analysis_of(library, drop.upload_id)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.page.could_not_read_that_drop", exc=(exc)), type="negative")
+            ui.notify(t("console.page.could_not_read_drop", exc=(exc)), type="negative")
             await run.io_bound(library.abort_upload, drop.upload_id)
             return
         if analysis.get("error"):
-            ui.notify(t("console.page.could_not_read_that_drop", exc=(analysis['error'])),
+            ui.notify(t("console.page.could_not_read_drop", exc=(analysis['error'])),
                       type="negative")
             await run.io_bound(library.abort_upload, drop.upload_id)
             return
 
     if drop.target != uploads.TARGET_LIBRARY and not game_dir:
-        ui.notify(t("console.page.could_not_work_out_which"), type="negative")
+        ui.notify(t("console.page.could_not_work_game"), type="negative")
         await run.io_bound(library.abort_upload, drop.upload_id)
         return
 
     # A drop with no game named can only be a new one, and only if it brought a table.
     new_game = not game_dir and not media_kind
     if new_game and not analysis.get("has_game"):
-        ui.notify(t("console.page.drop_this_on_a_game_to_add"), type="warning")
+        ui.notify(t("console.page.drop_game_add_one"), type="warning")
         await run.io_bound(library.abort_upload, drop.upload_id)
         return
 
@@ -327,13 +327,13 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
                                   game_dir=game_dir, allow_new_game=new_game,
                                   media_kind=media_kind, location_id=where)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.page.could_not_work_out_where", exc=(exc)), type="negative")
+        ui.notify(t("console.page.could_not_work_where", exc=(exc)), type="negative")
         await run.io_bound(library.abort_upload, drop.upload_id)
         return
     if not plan.get("items"):
         reasons = sorted({str(one.get("reason") or "")
                           for one in plan.get("blocked") or ()})
-        ui.notify("; ".join(one for one in reasons if one) or t("console.page.nothing_to_import"),
+        ui.notify("; ".join(one for one in reasons if one) or t("console.page.nothing_import"),
                   type="warning")
         await run.io_bound(library.abort_upload, drop.upload_id)
         return
@@ -414,7 +414,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # reload loop and a page whose handlers were never wired, not as a slow page.
     with ui.column().classes("w-full h-full items-center justify-center gap-3") as loading:
         ui.spinner(size="lg").classes("text-primary")
-        ui.label(t("console.page.loading_the_console")).classes("text-sm opacity-60")
+        ui.label(t("console.page.loading_console")).classes("text-sm opacity-60")
 
     await ui.context.client.connected()
     loaded = await run.io_bound(_read_hub)
@@ -508,7 +508,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             nav_icon = ui.icon("menu_open", size="24px") \
                 .classes("opacity-70 shrink-0 cursor-pointer console-panel-toggle") \
                 .on("click", lambda: toggle_mini())
-            nav_icon.tooltip(t("console.page.show_or_hide_the"))
+            nav_icon.tooltip(t("console.page.show_hide_navigation"))
             # Larger and heavier than a nav item, like HA's own title. Row height may
             # differ from the items below - that is fine and expected; what has to stay
             # aligned is the icon column, which does not depend on the label's size.
@@ -650,7 +650,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         badge.set_visibility(True)
         badge.tooltip(t("console.page.update_waiting",
                 join=(', '.join(waiting))) if len(waiting) <= 3
-                      else t("console.page.devices_have_an_update", len=(len(waiting))))
+                      else t("console.page.devices_update_waiting", len=(len(waiting))))
 
     ui.timer(0.1, _look_for_update, once=True)
 
@@ -677,11 +677,11 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             if found.get("state") == "running":
                 continue
             if found.get("state") == "failed":
-                ui.notify(t("console.page.the_scan_failed",
+                ui.notify(t("console.page.scan_failed",
                         value=(found.get('error') or t("console.page.no_reason_given"))),
                           type="negative")
             else:
-                ui.notify(t("console.page.the_library_is_up_to_date"), type="positive")
+                ui.notify(t("console.page.library_date"), type="positive")
                 redraw()
             return
 
@@ -717,12 +717,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                     full_icon = ui.button(icon="open_in_full",
                                           on_click=lambda: toggle_full()) \
                         .props("flat dense round size=sm") \
-                        .tooltip(t("console.page.give_the_workbench_the"))
+                        .tooltip(t("console.page.give_workbench_whole_window"))
                 # Outside that row: it is the only way back once the rest have gone.
                 workbench_icon = ui.icon("menu_open", size="24px") \
                     .classes("opacity-70 shrink-0 cursor-pointer console-panel-toggle") \
                     .on("click", lambda: show_workbench(not state["workbench"]))
-                workbench_icon.tooltip(t("console.page.show_or_hide_the_workbench"))
+                workbench_icon.tooltip(t("console.page.show_hide_workbench"))
         # The scrolling belongs to the workbench's body column now, so the outline
         # beside it can stay put while that scrolls.
         panel = ui.column().classes("w-full gap-0 grow min-h-0 overflow-hidden")
@@ -882,7 +882,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             found = {p.get("device_id"): p
                      for p in await run.io_bound(ApiClient().probe_devices)}
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(t("console.page.could_not_ask_the_devices", exc=(exc)), type="negative")
+            ui.notify(t("console.page.could_not_ask_devices", exc=(exc)), type="negative")
             return
         state["device_reach"] = found
         render()
@@ -927,7 +927,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         # height or alignment as the selection comes and goes.
         heading, prompt = EMPTY_PANE.get(
             state["view"],
-            ("console.page.empty_game_details", "console.page.empty_select_a_game"))
+            ("console.page.game_details", "console.page.select_game"))
         heading, prompt = t(heading), t(prompt)
         with workbench_title:
             ui.label(heading) \
@@ -1293,5 +1293,5 @@ async def _read_the_library() -> dict | None:
         # Already running is the ordinary case here, not a failure worth a trace.
         ui.notify(t("console.page.could_not_start", exc=(exc)), type="warning")
         return None
-    ui.notify(t("console.page.reading_the_library_from"), type="positive")
+    ui.notify(t("console.page.reading_library_disk"), type="positive")
     return job

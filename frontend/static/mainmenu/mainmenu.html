@@ -10,8 +10,8 @@
 <body>
   <div id="menu-container">
     <ul class="menu" id="menu">
-      <li class="menu-item" id="rating-item" data-i18n="frontend.mainmenu.rating">Rating</li>
-      <li class="menu-item" id="audio-item" data-i18n="frontend.mainmenu.frontend_audio_on">Frontend Audio: On</li>
+      <li class="menu-item" id="rating-item" data-i18n="word.rating">Rating</li>
+      <li class="menu-item" id="audio-item" data-i18n="frontend.mainmenu.frontend_audio_2">Frontend Audio: On</li>
       <li class="menu-item" id="buildmeta-item" data-i18n="frontend.mainmenu.build_metadata">Build Metadata</li>
       <li class="menu-item" id="shutdown-item" data-i18n="frontend.mainmenu.shutdown">Shutdown</li>
       <li class="menu-item" id="quit-item" data-i18n="frontend.mainmenu.quit">Quit</li>
@@ -38,19 +38,19 @@
             <input type="checkbox" id="update-all-check" style="margin-right: 1vh; width: 2vh; height: 2vh;">
             <div>
               <div style="font-size: 2.2vh; font-weight: bold;" data-i18n="frontend.mainmenu.update_all_tables">Update All Tables</div>
-              <div style="font-size: 1.6vh; color: #999;" data-i18n="frontend.mainmenu.reparse_all_tables_even_if">Reparse all tables, even if meta.ini already exists</div>
+              <div style="font-size: 1.6vh; color: #999;" data-i18n="frontend.mainmenu.reparse_all_tables_even">Reparse all tables, even if meta.ini already exists</div>
             </div>
           </label>
           <label style="display: flex; align-items: center; cursor: pointer;">
             <input type="checkbox" id="download-media-check" checked style="margin-right: 1vh; width: 2vh; height: 2vh;">
             <div>
               <div style="font-size: 2.2vh; font-weight: bold;" data-i18n="frontend.mainmenu.download_media">Download Media</div>
-              <div style="font-size: 1.6vh; color: #999;" data-i18n="frontend.mainmenu.automatically_download">Automatically download table images from VPSdb</div>
+              <div style="font-size: 1.6vh; color: #999;" data-i18n="frontend.mainmenu.automatically_download_table_images">Automatically download table images from VPSdb</div>
             </div>
           </label>
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 1vh; margin-top: 3vh;">
-          <button id="buildmeta-cancel" style="padding: 1vh 2vh; background: #444; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh;" data-i18n="frontend.mainmenu.cancel">Cancel</button>
+          <button id="buildmeta-cancel" style="padding: 1vh 2vh; background: #444; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh;" data-i18n="word.cancel">Cancel</button>
           <button id="buildmeta-start" style="padding: 1vh 2vh; background: #2196F3; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh;" data-i18n="frontend.mainmenu.start_build">Start Build</button>
         </div>
       </div>
@@ -63,7 +63,7 @@
         <div id="log-container" style="background: #111; border-radius: 0.5vh; padding: 1vh; max-height: 30vh; overflow-y: auto; font-family: monospace; font-size: 1.4vh; color: #0f0;">
         </div>
         <div style="display: flex; justify-content: flex-end; margin-top: 2vh;">
-          <button id="buildmeta-close" style="padding: 1vh 2vh; background: #444; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh; display: none;" data-i18n="frontend.mainmenu.close">Close</button>
+          <button id="buildmeta-close" style="padding: 1vh 2vh; background: #444; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh; display: none;" data-i18n="word.close">Close</button>
         </div>
       </div>
     </div>
@@ -82,9 +82,9 @@
         <button class="rating-star" data-rating="5" style="font-size: 5vh; line-height: 1; background: transparent; border: none; color: #666; cursor: pointer;">☆</button>
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 1vh;">
-        <button id="rating-clear" style="padding: 1vh 2vh; background: #555; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh;" data-i18n="frontend.mainmenu.clear">Clear</button>
-        <button id="rating-cancel" style="padding: 1vh 2vh; background: #444; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh;" data-i18n="frontend.mainmenu.cancel">Cancel</button>
-        <button id="rating-save" style="padding: 1vh 2vh; background: #2196F3; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh;" data-i18n="frontend.mainmenu.save">Save</button>
+        <button id="rating-clear" style="padding: 1vh 2vh; background: #555; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh;" data-i18n="word.clear">Clear</button>
+        <button id="rating-cancel" style="padding: 1vh 2vh; background: #444; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh;" data-i18n="word.cancel">Cancel</button>
+        <button id="rating-save" style="padding: 1vh 2vh; background: #2196F3; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh;" data-i18n="word.save">Save</button>
       </div>
     </div>
   </div>

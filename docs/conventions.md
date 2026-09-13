@@ -169,6 +169,75 @@ somebody looks when they ask why.
 - Reference data — a schema version history beside its constant, a lookup table — is fine.
   That is data, not prose.
 
+## Words a person reads
+
+Every one of them comes from the catalog. `common/i18n/catalogs/en.json` holds the English,
+`t("key")` fetches it, and nothing renders a string written where it is shown.
+
+```python
+ui.label(t("console.games.no_table_selected"))
+ui.notify(t("said.could_not_do_that", exc=exc), type="negative")
+```
+
+`tests/invariants/test_i18n_catalog.py` fails the suite on a literal in a display position,
+so this is enforced rather than remembered. It knows the shapes strings have arrived in
+before: a bare argument, an f-string, a conditional, a `+` join, a dict value, a module
+constant, a function's return, and the first half of a `(label, control)` pair.
+
+### What is not a word
+
+Left in the code, and the checks know to leave them alone:
+
+- CSS classes, Quasar props, anything handed to `run_javascript`
+- log lines — a log says the same thing on every install, which is the point of it
+- API paths, event names, config keys, `.info` keys, theme folder names
+- **identifiers from somewhere else** — VPX's `vpinball.ini` section names, the fields the
+  VPS catalog uses, a device's declared capability. Those are their words, not ours
+- product names: VPinFE, VPX Mobile, and the community's own — Nfozzy, SSF, PuP-Pack
+- **table names, manufacturers, and everything else the library holds.** A Japanese table is
+  called what it is called
+
+### A token is not a label
+
+Where a string is both — a grid filter matches on it *and* a person reads it — the cell keeps
+the token and the display resolves it:
+
+```python
+_REACH = {device_client.ANSWERING: ("console.devices.answering", "on", "positive")}
+```
+
+`grid.choice_filter` puts the label on screen through `valueFormatter`. Translating the value
+instead would move what a saved view filters on.
+
+### Naming a key
+
+`<owner>.<module>.<what it says>` — named for what owns the string, never for the screen
+showing it. A label moves between screens constantly and never moves between owners.
+
+Three shared namespaces exist so a translator writes a word once:
+
+- `word.*` — one-sense vocabulary: `word.cancel`, `word.save`, `word.year`
+- `said.*` — a failure said the same way in several places
+- `help.*` — one column's explanation, wherever that column is drawn
+
+**Share a word only where the *sense* is the same, not the spelling.** `Table`, `Match`,
+`Media` and `Device` each carry several senses here, and folding them would force one
+translation on all of them.
+
+A leaf reads as a name, not as a truncated sentence: `put_all_clipboard`, not
+`put_all_of_it_on_the`. Prose keys end in `.help`, which is what marks them as the tier a
+locale may leave in English.
+
+### Adding a string
+
+1. Call `t("...")` with a key and add the English to `en.json`.
+2. If it takes a value, name the slot: `"{count} tables"`, filled as `t(key, count=n)`.
+   Never build a sentence by adding fragments — the join is different in most languages.
+3. `python3 scripts/i18n.py --record` and `--pseudo`, which keep the staleness hashes and the
+   render-check locale in step.
+
+`scripts/i18n.py` also answers `--missing`, `--stale`, `--unused` and `--coverage`.
+
 ## Logging
 
 Logs are read by one person trying to work out what happened, usually from the Logs page in

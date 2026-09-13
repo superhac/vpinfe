@@ -111,11 +111,11 @@ def put_launcher(launcher_id: str, body: dict[str, Any] = Body(...)) -> dict[str
     """
     wanted = str(launcher_id or "").strip()
     if not wanted:
-        raise InvalidRequestError(t("error.launchers.a_launcher_needs_an_id"))
+        raise InvalidRequestError(t("error.launchers.launcher_needs_id"))
     app_id = str(body.get("app") or "").strip()
     if apps.get(app_id) is None:
         raise InvalidRequestError(
-            t("error.launchers.no_app_called_this_build", app_id=(app_id),
+            t("error.launchers.no_app_called_build", app_id=(app_id),
                     join=(', '.join(app.id for app in apps.all_apps()))))
 
     store = launchers.get_launcher_store()
@@ -181,7 +181,7 @@ def launcher_config(launcher_id: str, table: str = "",
     settings = _launcher_settings(found)
     if scope not in config.scopes():
         raise InvalidRequestError(
-            t("error.launchers.no_scope_called_this_app", scope=(scope),
+            t("error.launchers.no_scope_called_app", scope=(scope),
                     join=(', '.join(config.scopes()))))
     values = config.read(scope, _game_file(table), settings)
     return {
@@ -233,14 +233,14 @@ def write_launcher_config(launcher_id: str,
     config = _config_of(found)
     if config is None:
         raise InvalidRequestError(
-            t("error.launchers.has_no_settings_of_its_own", app_name=(apps.app_name(found.app))))
+            t("error.launchers.no_settings_own_write", app_name=(apps.app_name(found.app))))
 
     scope = str(body.get("scope") or "launcher")
     if scope not in config.scopes():
         raise InvalidRequestError(t("error.launchers.no_scope_called", scope=(scope)))
     values = body.get("values") or {}
     if not isinstance(values, dict) or not values:
-        raise InvalidRequestError(t("error.launchers.name_at_least_one_setting"))
+        raise InvalidRequestError(t("error.launchers.name_least_one_setting"))
     settings = _launcher_settings(found)
     table = _game_file(str(body.get("table") or ""))
     writing = {str(k): str(v) for k, v in values.items()}
@@ -308,7 +308,7 @@ def take_config_backup(launcher_id: str,
     files = _config_files(found)
     if not files:
         raise InvalidRequestError(
-            t("error.launchers.keeps_no_settings_file_to", app_name=(apps.app_name(found.app))))
+            t("error.launchers.keeps_no_settings_file", app_name=(apps.app_name(found.app))))
     from common.games import config_backups
 
     taken = config_backups.take(launcher_id, files,
@@ -316,7 +316,7 @@ def take_config_backup(launcher_id: str,
                                 named=found.display_name)
     if not taken:
         raise InvalidRequestError(
-            t("error.launchers.nothing_to_copy_yet_the"))
+            t("error.launchers.nothing_copy_yet_file"))
     return {"taken": [_as_backup(one) for one in taken]}
 
 

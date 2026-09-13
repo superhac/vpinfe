@@ -73,7 +73,7 @@ def perform_action(background: BackgroundTasks,
     scope, action = payload.scope.strip().lower(), payload.action.strip().lower()
     if (scope, action) not in lifecycle.offered():
         raise InvalidRequestError(
-            t("error.actions.not_something_an_install", action=(action), scope=(scope)))
+            t("error.actions.not_something_install_get", action=(action), scope=(scope)))
     if not lifecycle.performable(scope, action):
         raise FeatureUnavailableError(NOT_WIRED,
                                       details={"scope": scope, "action": action})

@@ -62,13 +62,13 @@ class State:
 # Not used draws nothing: most tables use most of these not at all, and a mark on every
 # one would bury the two states worth seeing.
 _STATES = {
-    IN_SCRIPT: State(IN_SCRIPT, t("console.table_features.in_the_script"), "console-tier--on", "",
-                     t("console.table_features.the_script_uses_it"), glyph="\u2713",
+    IN_SCRIPT: State(IN_SCRIPT, t("console.table_features.script"), "console-tier--on", "",
+                     t("console.table_features.script_uses"), glyph="\u2713",
                              glyph_class="console-tick"),
     UNUSED: State(UNUSED, t("console.table_features.not_used"), "console-tier--off", "",
-                  t("console.table_features.the_script_does_not_use_it")),
+                  t("console.table_features.script_not_use")),
     UNKNOWN: State(UNKNOWN, t("console.table_features.not_parsed_yet"), "console-tier--unknown", "",
-                   t("console.table_features.nothing_has_read_this"), glyph="?",
+                   t("console.table_features.nothing_read_table_s"), glyph="?",
                    glyph_class="console-unknown"),
 }
 

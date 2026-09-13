@@ -23,7 +23,7 @@ from common.media_specs import media_label_map
 # Who placed a file, where the answer is not a catalog. "Unknown" is honest and common:
 # anything predating the ledger, or placed with another tool, leaves no record.
 YOU = t("console.media_ownership.you")
-UNKNOWN = t("console.media_ownership.unknown")
+UNKNOWN = t("word.unknown")
 
 
 def source_name(origin: str) -> str:
@@ -86,27 +86,27 @@ class Tier:
 # least specific, and a stand-in is the odd one out so it does not read as a degree of
 # the others.
 _TIERS = {
-    TABLE: Tier(TABLE, "console.media_ownership.noun_this_table",
-             "console.media_ownership.phrase_just_this_table", "console-tier--table",
-                "console-mark--full", "console.media_ownership.why_a_file_named_for_this"),
-    GAME: Tier(GAME, "console.media_ownership.noun_all_tables",
-             "console.media_ownership.phrase_shared_by_every_table", "console-tier--game",
-               "console-mark--outline", "console.media_ownership.why_a_file_the_whole_game"),
-    STAND_IN: Tier(STAND_IN, "console.media_ownership.noun_stand_in",
-             "console.media_ownership.phrase_standing_in_for_it", "console-tier--standin",
+    TABLE: Tier(TABLE, "console.media_ownership.table",
+             "console.media_ownership.table_2", "console-tier--table",
+                "console-mark--full", "console.media_ownership.file_named_table_uses"),
+    GAME: Tier(GAME, "console.media_ownership.all_tables",
+             "console.media_ownership.shared_every_table", "console-tier--game",
+               "console-mark--outline", "console.media_ownership.file_whole_game_shares"),
+    STAND_IN: Tier(STAND_IN, "console.media_ownership.stand",
+             "console.media_ownership.standing", "console-tier--standin",
                    "console-mark--set",
-                            "console.media_ownership.why_something_else_is_filling_this"),
-    MISSING: Tier(MISSING, "console.media_ownership.noun_missing",
-             "console.media_ownership.phrase_not_here", "console-tier--missing",
-                  "console-mark--dashed", "console.media_ownership.why_nothing_here"),
-    ORPHAN: Tier(ORPHAN, "console.media_ownership.noun_orphan",
-             "console.media_ownership.phrase_named_for_a_table_that",
+                            "console.media_ownership.something_else_filling_slot"),
+    MISSING: Tier(MISSING, "console.media_ownership.missing",
+             "console.media_ownership.not", "console-tier--missing",
+                  "console-mark--dashed", "console.media_ownership.nothing"),
+    ORPHAN: Tier(ORPHAN, "console.media_ownership.orphan",
+             "console.media_ownership.named_table_gone",
                  "console-tier--missing", "console-mark--dashed",
-                 "console.media_ownership.why_named_for_a_table_this"),
-    UNUSED: Tier(UNUSED, "console.media_ownership.noun_unused",
-             "console.media_ownership.phrase_covered_by_something_more_specific",
+                 "console.media_ownership.named_table_folder_not"),
+    UNUSED: Tier(UNUSED, "console.media_ownership.unused",
+             "console.media_ownership.covered_something_more_specific",
                  "console-tier--standin", "console-mark--set",
-                 "console.media_ownership.why_correctly_named_but_something_more"),
+                 "console.media_ownership.correctly_named_something_more"),
 }
 
 # Most specific first. `LEGEND` omits Missing, which a legend does not need - a blank
@@ -183,16 +183,16 @@ def sentence(via: str | None, *, viewing_a_table: bool = False) -> str:
     """
     key = key_of(via)
     if key == TABLE:
-        return t("console.media_ownership.only_this_table_uses_it")
+        return t("console.media_ownership.table_uses")
     if key == GAME:
-        return (t("console.media_ownership.this_table_has_none_of_its")
-                if viewing_a_table else t("console.media_ownership.every_table_in_this_game"))
+        return (t("console.media_ownership.table_none_own_uses")
+                if viewing_a_table else t("console.media_ownership.every_table_game_uses"))
     if key == STAND_IN:
         detail = str(via or "").split(":", 1)[-1]
         if str(via or "").startswith("set:"):
-            return t("console.media_ownership.from_the_set", detail=(detail))
+            return t("console.media_ownership.set", detail=(detail))
         borrowed = media_label_map().get(detail, detail).lower()
-        return t("console.media_ownership.standing_in_from_the_this", borrowed=(borrowed))
+        return t("console.media_ownership.standing_kind_none_own", borrowed=(borrowed))
     return ""
 
 

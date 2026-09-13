@@ -35,19 +35,19 @@ def offered(context: str) -> tuple[Any, Callable[[], None]]:
                 ui.label("{" + one.name + "}").classes("console-token")
                 says = one.says
                 if one.name in later:
-                    says += t("console.commands.only_after_it_has_finished")
+                    says += t("console.commands.after_finished")
                 ui.label(says).classes("console-help")
 
     def draw() -> None:
         if len(available) <= SHOW_ALL_UP_TO:
             with ui.column().classes("gap-1"):
-                ui.label(t("console.commands.each_stands_for_something")).classes("console-help")
+                ui.label(t("console.commands.each_stands_something_command")).classes("console-help")
                 rows()
             return
-        with ui.expansion(t("console.commands.names_you_can_use", len=(len(available)))) \
+        with ui.expansion(t("console.commands.names_can_use", len=(len(available)))) \
                 .props("dense dense-toggle").classes("console-tokens"):
             with ui.column().classes("gap-1 pt-1"):
-                ui.label(t("console.commands.each_stands_for_something")).classes("console-help")
+                ui.label(t("console.commands.each_stands_something_command")).classes("console-help")
                 rows()
 
     return (panel.ASIDE, draw)

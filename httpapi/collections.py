@@ -408,11 +408,11 @@ def create_collection(response: Response,
                       ) -> models.CollectionResource:
     name = request.name.strip()
     if not name:
-        raise InvalidRequestError(t("error.collections.a_collection_needs_a_name"))
+        raise InvalidRequestError(t("error.collections.collection_needs_name"))
 
     with get_collections_manager().mutate() as manager:
         if name in manager.get_collections_name():
-            raise ConflictError(t("error.collections.a_collection_named_already", name=(name)))
+            raise ConflictError(t("error.collections.collection_named_already_exists", name=(name)))
 
         # Criteria and hand-picked games together, if that is what was asked for.
         # COLLECTIONS 2.11 makes them combinable and derives the kind from what is
@@ -453,7 +453,7 @@ def _one_table_of(game_id: str, table_id: str) -> None:
     game = _catalog().get(game_id)
     known = {str(t.get("id")) for t in _tables(game, game_to_row(game))} if game else set()
     if table_id not in known:
-        raise NotFoundError(t("error.collections.has_no_table", game_id=(game_id),
+        raise NotFoundError(t("error.collections.no_table", game_id=(game_id),
                 table_id=(table_id)))
 
 
@@ -475,7 +475,7 @@ def add_member(name: str, game_id: str,
     2.11) and a member overrides what the criteria say for that game.
     """
     if game_id not in _catalog():
-        raise NotFoundError(t("error.collections.no_game_with_id", game_id=(game_id)))
+        raise NotFoundError(t("error.collections.no_game_id", game_id=(game_id)))
     table_id = (request.table if request else "") or ""
     _one_table_of(game_id, table_id)
     after = request.after_table if request else None
@@ -498,7 +498,7 @@ def set_member_table(name: str, game_id: str,
     would send a curated row to the end of the list.
     """
     if game_id not in _catalog():
-        raise NotFoundError(t("error.collections.no_game_with_id", game_id=(game_id)))
+        raise NotFoundError(t("error.collections.no_game_id", game_id=(game_id)))
     _one_table_of(game_id, request.table)
     with get_collections_manager().mutate() as manager:
         if name not in manager.get_collections_name():
@@ -530,7 +530,7 @@ def remove_member(name: str, game_id: str, table: str | None = None) -> Response
         here = [r for r in refs if r.get("game") == game_id
                 and (table is None or (r.get("table") or "") == table)]
         if not here:
-            raise NotFoundError(t("error.collections.is_not_in", game_id=(game_id), name=(name)))
+            raise NotFoundError(t("error.collections.not", game_id=(game_id), name=(name)))
         manager.remove_member(name, game_id, table)
     return Response(status_code=204)
 
@@ -546,7 +546,7 @@ def add_exclusion(name: str, game_id: str,
     substitutes for the other, and until now only naming had a route.
     """
     if game_id not in _catalog():
-        raise NotFoundError(t("error.collections.no_game_with_id", game_id=(game_id)))
+        raise NotFoundError(t("error.collections.no_game_id", game_id=(game_id)))
     table_id = (request.table if request else "") or ""
     _one_table_of(game_id, table_id)
     with get_collections_manager().mutate() as manager:
@@ -571,7 +571,7 @@ def remove_exclusion(name: str, game_id: str, table: str | None = None) -> Respo
         here = [r for r in excluded if r.get("game") == game_id
                 and (table is None or (r.get("table") or "") == table)]
         if not here:
-            raise NotFoundError(t("error.collections.is_not_excluded_from", game_id=(game_id),
+            raise NotFoundError(t("error.collections.not_excluded", game_id=(game_id),
                     name=(name)))
         manager.unexclude(name, game_id, table)
     return Response(status_code=204)
@@ -591,7 +591,7 @@ async def set_image(name: str, file: UploadFile = File(...)
     _row_or_404(name)
     content = await file.read()
     if not content:
-        raise InvalidRequestError(t("error.collections.that_file_is_empty"))
+        raise InvalidRequestError(t("error.collections.file_empty"))
     try:
         stored = await run_in_threadpool(save_collection_icon, file.filename or "", content)
     except ValueError as exc:
@@ -619,7 +619,7 @@ def get_image(name: str, request: Request):
     row = _row_or_404(name)
     here = collection_icon_path(row.get("image"))
     if here is None:
-        raise NotFoundError(t("error.collections.has_no_image", name=(name)))
+        raise NotFoundError(t("error.collections.no_image", name=(name)))
     # Named for the collection, not the file: a new image changes what this serves.
     return revalidating_file(here, request)
 
@@ -646,7 +646,7 @@ def members_from_filters(name: str) -> models.CollectionResource:
     _row_or_404(name)
     manager = get_collections_manager()
     if not manager.has_filters(name):
-        raise ConflictError(t("error.collections.has_no_criteria_to_keep", name=(name)))
+        raise ConflictError(t("error.collections.no_criteria_keep_result", name=(name)))
     entries = _resolved(name)
     refs = [{"game": game_identity.game_id(entry.game),
              "table": str(entry.table.get("id", ""))} for entry in entries]
@@ -691,7 +691,7 @@ def patch_collection(name: str,
             manager.set_limit(name, None)
         elif request.limit is not None:
             if request.limit < 1:
-                raise InvalidRequestError(t("error.collections.a_cap_of_fewer_than_one"))
+                raise InvalidRequestError(t("error.collections.cap_fewer_one_game"))
             manager.set_limit(name, request.limit)
 
         if request.description is not None:
@@ -708,7 +708,7 @@ def patch_collection(name: str,
             by = request.order_by or order["by"]
             if by not in SORT_LABELS and by != MANUAL_ORDER:
                 raise InvalidRequestError(
-                    t("error.collections.nothing_is_ordered_by", by=(by)),
+                    t("error.collections.nothing_ordered", by=(by)),
                     details={"choices": [*SORT_LABELS, MANUAL_ORDER]})
             # `manual` is the stored member array. A filter collection has none, so
             # the order would name something that does not exist.
@@ -719,11 +719,11 @@ def patch_collection(name: str,
             # fixed for on order_by.
             if wanted_paging and normalize_paging_group(wanted_paging) is None:
                 raise InvalidRequestError(
-                    t("error.collections.nothing_pages_by", wanted_paging=(wanted_paging)),
+                    t("error.collections.nothing_pages", wanted_paging=(wanted_paging)),
                     details={"choices": list(PAGING_GROUPS)})
             if by == MANUAL_ORDER and manager.is_filter_based(name):
                 raise ConflictError(
-                    t("error.collections.is_a_filter_collection_it", name=(name)))
+                    t("error.collections.filter_collection_no_arrangement", name=(name)))
             manager.set_order(name, by,
                               request.direction or order.get("direction")
                               or DEFAULT_DIRECTION,
@@ -737,9 +737,9 @@ def patch_collection(name: str,
         if request.name is not None and request.name.strip() != name:
             new_name = request.name.strip()
             if not new_name:
-                raise InvalidRequestError(t("error.collections.a_collection_needs_a_name"))
+                raise InvalidRequestError(t("error.collections.collection_needs_name"))
             if new_name in manager.get_collections_name():
-                raise ConflictError(t("error.collections.a_collection_named_already",
+                raise ConflictError(t("error.collections.collection_named_already_exists",
                                       name=(new_name)))
             manager.rename_collection(name, new_name)
             final = new_name
@@ -764,7 +764,7 @@ def set_order(name: str,
             raise NotFoundError(t("error.collections.no_collection_named", name=(name)))
         if manager.is_filter_based(name):
             raise ConflictError(
-                t("error.collections.is_a_filter_collection_its", name=(name)))
+                t("error.collections.filter_collection_order_comes", name=(name)))
         # Per ref, not per game: an order is over the rows, and one game can hold
         # several. `get_members` de-duplicates by design, so comparing
         # against it read 7 where the collection has 8 rows and refused every move.
@@ -778,7 +778,7 @@ def set_order(name: str,
             # without them, such a request failed with both lists empty and the caller
             # was told only that something was wrong.
             raise InvalidRequestError(
-                t("error.collections.an_order_must_list_exactly"),
+                t("error.collections.order_must_list_exactly"),
                 details={"missing": missing, "not_members": extra,
                          "sent": len(sent), "members": len(members)})
         # The stored refs, moved - not rebuilt from the ids sent. A member names a game

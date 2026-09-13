@@ -40,12 +40,12 @@ def act(payload: models.InputActionRequest, request: Request) -> models.InputAct
     action = (payload.action or "").strip()
     if not input_actions.known(action):
         raise InvalidRequestError(
-            t("error.input.no_input_action_called_one", action=(action),
+            t("error.input.no_input_action_called", action=(action),
                     join=(', '.join(one.name for one in input_registry.INPUT_ACTIONS))))
     phase = (payload.phase or TAP).strip().lower()
     if phase not in PHASES:
         raise InvalidRequestError(
-            t("error.input.a_phase_is_one_of_not", join=(', '.join(PHASES)), phase=(phase)))
+            t("error.input.phase_one_not", join=(', '.join(PHASES)), phase=(phase)))
 
     source = _source(payload.source, request)
     if phase == input_actions.RELEASE:

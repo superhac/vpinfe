@@ -46,22 +46,22 @@ async def _fill(library, state: dict[str, Any], redraw: Callable[[], None], body
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
         body.clear()
         with body:
-            panel.facts(ui, [panel.intro(t("console.themes.could_not_read_the_themes", exc=(exc)))])
+            panel.facts(ui, [panel.intro(t("console.themes.could_not_read_themes", exc=(exc)))])
         return
 
     themes = list(found.get("themes") or [])
     body.clear()
     with body:
         with ui.row().classes("items-center gap-2 w-full no-wrap px-1 pt-1"):
-            ui.label(t("console.themes.what_the_frontend_looks")) \
+            ui.label(t("console.themes.what_frontend_looks_like")) \
                 .classes("console-help grow min-w-0")
-            ui.button(t("console.themes.check_for_updates"), icon="refresh",
+            ui.button(t("console.themes.check_updates"), icon="refresh",
                       on_click=lambda: _fill(library, state, redraw, body,
                                              refresh=True)) \
                 .props("flat dense no-caps size=sm")
         if not themes:
             panel.facts(ui, [panel.intro(
-                t("console.themes.no_theme_sources_are"))])
+                t("console.themes.no_theme_sources_configured"))])
             return
         for theme in themes:
             _card(library, state, redraw, body, theme)
@@ -106,13 +106,13 @@ def _heading(theme: dict[str, Any]) -> None:
         if theme["active"]:
             _chip(t("console.themes.active"), "console-tier--on")
         elif theme["update_available"]:
-            _chip(t("console.themes.update_to", value=(theme['version'])), "console-tier--warn")
+            _chip(t("console.themes.update_2", value=(theme['version'])), "console-tier--warn")
         elif theme["installed"]:
-            _chip(t("console.themes.installed_2"), "console-tier--off")
+            _chip(t("word.installed"), "console-tier--off")
         if theme.get("configurable"):
             _chip(t("console.themes.configurable"), "console-tier--off")
         if theme.get("url"):
-            ui.link(t("console.themes.source"), theme["url"], new_tab=True).classes("console-help")
+            ui.link(t("word.source"), theme["url"], new_tab=True).classes("console-help")
 
 
 def _chip(text: str, tone: str) -> None:
@@ -152,7 +152,7 @@ def _actions(library, state: dict[str, Any], redraw: Callable[[], None], body,
                       on_click=lambda: _install(library, key, again)) \
                 .props("flat dense no-caps size=sm color=primary")
         if theme["installed"] and not theme["active"]:
-            ui.button(t("console.themes.make_active"), icon="check_circle",
+            ui.button(t("word.make_active"), icon="check_circle",
                       on_click=lambda: _activate(library, theme, again)) \
                 .props("flat dense no-caps size=sm")
         if theme.get("configurable"):
@@ -162,7 +162,7 @@ def _actions(library, state: dict[str, Any], redraw: Callable[[], None], body,
         if theme["installed"] and not theme["active"]:
             # Not on the active one: removing it would leave the frontend with no theme
             # at all, and the way out of that is a config file.
-            ui.button(t("console.themes.remove"), icon="delete",
+            ui.button(t("word.remove"), icon="delete",
                       on_click=lambda: _remove(library, theme, again)) \
                 .props("flat dense no-caps size=sm color=negative")
 
@@ -172,7 +172,7 @@ async def _install(library, key: str, again: Callable[[], Any]) -> None:
     try:
         await run.io_bound(library.install_theme, key)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.themes.could_not_install_it", exc=(exc)), type="negative")
+        ui.notify(t("console.themes.could_not_install", exc=(exc)), type="negative")
         return
     ui.notify(t("console.themes.installed", key=(key)), type="positive")
     await again()
@@ -186,29 +186,30 @@ async def _activate(library, theme: dict[str, Any], again: Callable[[], Any]) ->
     doing on another screen.
     """
     if not await confirm.ask(
-            t("console.themes.ask_make_the_active_theme", value=(theme['name'])),
-            detail=t("console.themes.ask_it_takes_effect_the_next"),
-            confirm=t("console.themes.ask_make_active"), danger=False):
+            t("console.themes.make_active_theme", value=(theme['name'])),
+            detail=t("console.themes.takes_effect_next_time"),
+            confirm=t("word.make_active"), danger=False):
         return
     try:
         await run.io_bound(library.activate_theme, theme["key"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.themes.could_not_make_it_active", exc=(exc)), type="negative")
+        ui.notify(t("console.themes.could_not_make_active", exc=(exc)), type="negative")
         return
-    ui.notify(t("console.themes.plays_when_the_frontend", value=(theme['name'])), type="positive")
+    ui.notify(t("console.themes.plays_frontend_next_starts", value=(theme['name'])),
+            type="positive")
     await again()
 
 
 async def _remove(library, theme: dict[str, Any], again: Callable[[], Any]) -> None:
     if not await confirm.ask(
-            t("console.themes.ask_remove", value=(theme['name'])),
-            detail=t("console.themes.ask_its_files_are_deleted_it"),
-            confirm=t("console.themes.ask_remove_2")):
+            t("console.themes.remove", value=(theme['name'])),
+            detail=t("console.themes.files_deleted_can_installed"),
+            confirm=t("word.remove")):
         return
     try:
         await run.io_bound(library.remove_theme, theme["key"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.themes.could_not_remove_it", exc=(exc)), type="negative")
+        ui.notify(t("said.could_not_remove_it", exc=(exc)), type="negative")
         return
     ui.notify(t("console.themes.removed", value=(theme['name'])), type="positive")
     await again()
@@ -223,7 +224,7 @@ async def _configure(library, theme: dict[str, Any]) -> None:
     try:
         found = await run.io_bound(library.theme_options, theme["key"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.themes.could_not_read_its", exc=(exc)), type="negative")
+        ui.notify(t("console.themes.could_not_read_settings", exc=(exc)), type="negative")
         return
 
     options = list(found.get("options") or [])
@@ -241,14 +242,14 @@ async def _configure(library, theme: dict[str, Any]) -> None:
         ui.label(found.get("title") or f"{theme['name']} settings") \
             .classes("console-confirm-title")
         ui.label(found.get("description")
-                 or t("console.themes.these_belong_to_the_theme")) \
+                 or t("console.themes.belong_theme_saved_own")) \
             .classes("console-help")
         with ui.column().classes("w-full gap-3 console-theme-options"):
             panel.facts(ui, _rows(options, wanted))
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("console.themes.cancel"), on_click=lambda: dialog.submit(False)) \
+            ui.button(t("word.cancel"), on_click=lambda: dialog.submit(False)) \
                 .props("flat no-caps")
-            ui.button(t("console.themes.save"),
+            ui.button(t("word.save"),
                     on_click=lambda: dialog.submit(True)).props("no-caps")
 
     if not await dialog:
@@ -256,7 +257,7 @@ async def _configure(library, theme: dict[str, Any]) -> None:
     try:
         await run.io_bound(library.save_theme_options, theme["key"], wanted)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.themes.could_not_save_those", exc=(exc)), type="negative")
+        ui.notify(t("console.themes.could_not_save_settings", exc=(exc)), type="negative")
         return
     ui.notify(t("console.themes.saved"), type="positive")
 
@@ -333,7 +334,7 @@ def _saver(option: dict[str, Any], wanted: dict[str, Any]) -> Callable[[Any], An
             try:
                 wanted[key] = json.loads(text)
             except json.JSONDecodeError as exc:
-                ui.notify(t("console.themes.that_is_not_json", value=(option.get('name') or key),
+                ui.notify(t("console.themes.not_json", value=(option.get('name') or key),
                         msg=(exc.msg)),
                           type="warning")
                 return False
@@ -365,16 +366,16 @@ def _expected(option: dict[str, Any], kind: str) -> str:
     No full stop: each of these is a fragment naming a shape, not a sentence about it.
     """
     if kind == "boolean":
-        return t("console.themes.expected_on_or_off")
+        return t("console.themes.expected_off")
     if kind == "number":
         low, high = option.get("min"), option.get("max")
         if low is not None and high is not None:
-            return t("console.themes.expected_a_number_between", low=(low), high=(high))
-        return t("console.themes.expected_a_number")
+            return t("console.themes.expected_number_between", low=(low), high=(high))
+        return t("console.themes.expected_number")
     if kind == "select":
-        return t("console.themes.expected_one_of_choices", len=(len(option.get('options') or [])))
+        return t("console.themes.expected_one_choices", len=(len(option.get('options') or [])))
     if kind == "textarea":
-        return t("console.themes.expected_text_over_as_many")
+        return t("console.themes.expected_text_many_lines")
     if kind == "json":
-        return t("console.themes.expected_json_an_object_an")
+        return t("console.themes.expected_json_object_array")
     return t("console.themes.expected_text")

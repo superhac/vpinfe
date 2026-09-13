@@ -115,7 +115,7 @@ def list_themes(refresh: bool = False) -> dict[str, Any]:
         registry = _loaded(refresh)
     except Exception as exc:  # noqa: BLE001 - a source that will not load is news
         raise ApiError("theme_source_unavailable",
-                       t("error.themes.could_not_read_the_theme", exc=(exc)),
+                       t("error.themes.could_not_read_theme", exc=(exc)),
                        status_code=503) from exc
     active = theme_service.get_active_theme()
     return {"active": active, "themes": _described(registry, active)}
@@ -145,12 +145,12 @@ def remove(key: str) -> dict[str, Any]:
 
     registry = _loaded()
     if not registry.is_installed(key):
-        raise NotFoundError(t("error.themes.is_not_installed", key=(key)))
+        raise NotFoundError(t("error.themes.not_installed", key=(key)))
     if key == theme_service.get_active_theme():
         # Refused rather than allowed with a warning: the frontend would come up with
         # no theme at all, and the way out of that is a config file.
         raise InvalidRequestError(
-            t("error.themes.is_the_active_theme_make", key=(key)))
+            t("error.themes.active_theme_make_another", key=(key)))
     try:
         theme_service.delete_theme(registry, key)
     except Exception as exc:  # noqa: BLE001
@@ -171,7 +171,7 @@ def activate(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     key = str(body.get("key") or "").strip()
     registry = _loaded()
     if not key or not registry.is_installed(key):
-        raise InvalidRequestError(t("error.themes.is_not_installed_2", value=(key or 'That theme')))
+        raise InvalidRequestError(t("error.themes.not_installed_2", value=(key or 'That theme')))
     theme_service.set_active_theme(key)
     return {"active": theme_service.get_active_theme()}
 
@@ -189,7 +189,7 @@ def options(key: str) -> dict[str, Any]:
 
     registry = _loaded()
     if not registry.is_installed(key):
-        raise NotFoundError(t("error.themes.is_not_installed", key=(key)))
+        raise NotFoundError(t("error.themes.not_installed", key=(key)))
     schema = theme_service.load_theme_option_schema(key, registry)
     if not schema:
         return {"key": key, "title": "", "description": "", "options": [], "values": {}}
@@ -212,10 +212,10 @@ def save_options(key: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
 
     registry = _loaded()
     if not registry.is_installed(key):
-        raise NotFoundError(t("error.themes.is_not_installed", key=(key)))
+        raise NotFoundError(t("error.themes.not_installed", key=(key)))
     try:
         theme_service.save_theme_option_values(key, dict(body.get("values") or {}),
                                                registry)
     except Exception as exc:  # noqa: BLE001
-        raise InvalidRequestError(t("error.themes.could_not_save_those", exc=(exc))) from exc
+        raise InvalidRequestError(t("error.themes.could_not_save_settings", exc=(exc))) from exc
     return {"key": key, "values": theme_service.get_theme_option_values(key, registry)}

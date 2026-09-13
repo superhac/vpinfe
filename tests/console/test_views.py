@@ -301,8 +301,10 @@ class FunnelChoiceTests(unittest.TestCase):
         glyph in the funnel would promise a mark that is never on screen."""
         choices = self._by_label(games._STATE_CHOICES)
 
-        self.assertEqual(choices[t("console.media_ownership.noun_missing")]["mark"], "")
-        self.assertTrue(choices[t("console.media_ownership.noun_this_table")]["mark"])
+        missing = t(media_ownership.tier_for(media_ownership.MISSING).noun)
+        table = t(media_ownership.tier_for(media_ownership.TABLE).noun)
+        self.assertEqual(choices[missing]["mark"], "")
+        self.assertTrue(choices[table]["mark"])
 
     def test_every_state_is_still_offered(self) -> None:
         """Dropping the mark is not dropping the choice - Missing is the one people

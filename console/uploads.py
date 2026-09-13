@@ -207,19 +207,19 @@ def install(on_drop: Callable[[Drop], Any]) -> None:
             total = int(payload.get("total") or 0)
             done = int(payload.get("done") or 0)
             if total > 1:
-                _progress(state, t("console.uploads.reading_of", done=(done), total=(total)))
+                _progress(state, t("console.uploads.reading_2", done=(done), total=(total)))
             elif total:
                 _progress(state, t("console.uploads.reading"))
         elif status == "error":
             _clear(state)
-            ui.notify(str(payload.get("message") or t("console.uploads.that_did_not_work")),
+            ui.notify(str(payload.get("message") or t("console.uploads.not_work")),
                       type="negative")
         elif status == "done":
             _clear(state)
             if state["busy"]:
                 # One at a time. A second import landing while the first is still being
                 # decided would have two dialogs answering for two different sessions.
-                ui.notify(t("console.uploads.finish_the_one_already"), type="warning")
+                ui.notify(t("console.uploads.finish_one_already_open"), type="warning")
                 return
             asyncio.create_task(_handle(state, payload, on_drop))
 
@@ -260,7 +260,7 @@ async def _handle(state: dict[str, Any], payload: dict[str, Any],
     except Exception:
         logger.exception("console: a drop could not be handled")
         with client:
-            ui.notify(t("console.uploads.that_drop_could_not_be"), type="negative")
+            ui.notify(t("console.uploads.drop_could_not_read"), type="negative")
     finally:
         state["busy"] = False
 

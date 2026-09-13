@@ -33,9 +33,9 @@ SCOPE = "console.launchers.columns"
 
 # Why a row is the default, where that is not obvious. Only on the one it applies to -
 # a note on every row would say nothing.
-DEFAULT_HINT = t("console.launchers.tables_that_name_no")
+DEFAULT_HINT = t("console.launchers.tables_name_no_launcher")
 
-STATE_READY = "console.launchers.ready"
+STATE_READY = "word.ready"
 STATE_OFF = "console.launchers.switched_off"
 STATE_BROKEN = "console.launchers.cannot_run"
 
@@ -43,16 +43,16 @@ _STATE_CHOICES = [{"value": one, "label": one}
                   for one in (t(STATE_READY), t(STATE_OFF), t(STATE_BROKEN))]
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.column("name", t("console.launchers.name"), 240, pinned="left",
-                help=t("console.launchers.what_you_called_this_way.help")),
-    grid.column("app", t("console.launchers.runs"), 180,
-                help=t("console.launchers.the_program_behind_it_it.help")),
-    grid.column("state", t("console.launchers.state"), 150, **grid.choice_filter(_STATE_CHOICES),
-                help=t("console.launchers.ready_it_is_switched_on.help")),
-    grid.column("default", t("console.launchers.default"), 110,
-                help=t("console.launchers.tables_that_name_no.help")),
-    grid.column("program", t("console.launchers.program"), 420,
-                help=t("console.launchers.the_executable_this.help")),
+    grid.column("name", t("word.name"), 240, pinned="left",
+                help=t("console.launchers.what_called_way_running.help")),
+    grid.column("app", t("word.runs"), 180,
+                help=t("console.launchers.program_behind_says_something.help")),
+    grid.column("state", t("word.state"), 150, **grid.choice_filter(_STATE_CHOICES),
+                help=t("console.launchers.ready_switched_program_cannot.help")),
+    grid.column("default", t("word.default"), 110,
+                help=t("console.launchers.tables_name_no_launcher.help")),
+    grid.column("program", t("word.program"), 420,
+                help=t("console.launchers.executable_launcher_runs.help")),
 ]
 
 LAUNCHER_VIEWS: dict[str, list[str]] = {
@@ -88,7 +88,7 @@ def rows(held: list[dict], defaults: dict) -> list[dict[str, Any]]:
         "state": t(state_of(one)),
         # Blank on every other row rather than "No": a column that says the same thing
         # everywhere but once is a column about the exception.
-        "default": t("console.launchers.default") if defaults.get(one["app"]) ==
+        "default": t("word.default") if defaults.get(one["app"]) ==
                 one["launcher_id"] else "",
         "program": str((one.get("settings") or {}).get("bin_path") or ""),
     } for one in held]
@@ -111,7 +111,8 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
         found = await run.io_bound(library.launchers)
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
         with body:
-            panel.facts(ui, [panel.intro(t("console.launchers.could_not_read_the_2", exc=(exc)))])
+            panel.facts(ui, [panel.intro(t("console.launchers.could_not_read_launchers",
+                    exc=(exc)))])
         return
 
     # Imported here: `workbench` imports this module, and `games` imports `workbench`,
@@ -125,7 +126,7 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
 
     with body:
         with ui.column().classes("w-full gap-1 px-3 pt-2 pb-1"):
-            ui.label(t("console.launchers.intro")).classes("console-help")
+            ui.label(t("console.launchers.each_one_way_running")).classes("console-help")
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
                 for app in apps_known:
                     ui.button(t("console.launchers.add", value=(app['name'])), icon="add",
@@ -142,7 +143,7 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
 
         if not built:
             panel.facts(ui, [panel.intro(
-                t("console.launchers.no_launchers_yet_add_one"))])
+                t("console.launchers.no_launchers_yet_add"))])
             return
 
         by_id = {row["id"]: row for row in built}
@@ -172,7 +173,7 @@ async def _add(library, state: dict[str, Any], redraw: Callable[[], None],
                            {"app": app["id"], "display_name": app["name"],
                             "enabled": True, "settings": {}})
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.launchers.could_not_add_it", exc=(exc)), type="negative")
+        ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
         return
     state["launcher"] = made
     redraw()
@@ -194,7 +195,7 @@ async def duplicate(library, state: dict[str, Any], redraw: Callable[[], None],
                            {**launcher, "launcher_id": made, "owns_ini": False,
                             "display_name": f"{launcher['display_name']} copy"})
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.launchers.could_not_duplicate_it", exc=(exc)), type="negative")
+        ui.notify(t("console.launchers.could_not_duplicate", exc=(exc)), type="negative")
         return
     state["launcher"] = made
     redraw()
@@ -209,7 +210,7 @@ async def copy_dialog(library, state: dict[str, Any], launcher: dict) -> None:
     try:
         known = await run.io_bound(library.devices)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.launchers.could_not_read_the_devices", exc=(exc)), type="negative")
+        ui.notify(t("console.launchers.could_not_read_devices", exc=(exc)), type="negative")
         return
     # Only other VPinFE installs. A phone runs no launcher, and this install already has
     # the launcher being copied.
@@ -223,9 +224,9 @@ async def copy_dialog(library, state: dict[str, Any], launcher: dict) -> None:
 
     picked: set[str] = set()
     with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label(t("console.launchers.copy_to_which_machines", value=(launcher['display_name']))) \
+        ui.label(t("console.launchers.copy_machines", value=(launcher['display_name']))) \
             .classes("console-confirm-title")
-        ui.label(t("console.launchers.it_arrives_with_the_same")) \
+        ui.label(t("console.launchers.arrives_same_name_same")) \
             .classes("console-help")
         for one in reachable:
             name = str(one.get("display_name") or one.get("device_id"))
@@ -233,12 +234,12 @@ async def copy_dialog(library, state: dict[str, Any], launcher: dict) -> None:
                 picked.add(str(d.get("device_id"))) if e.value
                 else picked.discard(str(d.get("device_id"))))) \
                 .props("dense")
-        also = ui.checkbox(t("console.launchers.also_copy_which_tables_use")).props("dense")
-        ui.label(t("console.launchers.a_one_way_copy_change_it")).classes("console-help")
+        also = ui.checkbox(t("console.launchers.also_copy_tables_use")).props("dense")
+        ui.label(t("console.launchers.one_way_copy_change")).classes("console-help")
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("console.launchers.cancel"),
+            ui.button(t("word.cancel"),
                     on_click=lambda: dialog.submit(None)).props("flat no-caps")
-            ui.button(t("console.launchers.copy"),
+            ui.button(t("word.copy"),
                     on_click=lambda: dialog.submit(True)).props("no-caps")
 
     if not await dialog:
@@ -262,7 +263,7 @@ async def _do_copy(library, launcher: dict, devices: list[dict],
             mappings = {table: to for table, to in (found.get("mappings") or {}).items()
                         if to == launcher["launcher_id"]}
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.launchers.could_not_read_the", exc=(exc)), type="negative")
+            ui.notify(t("console.launchers.could_not_read_assignments", exc=(exc)), type="negative")
             return
 
     def client_for(device):
@@ -281,14 +282,14 @@ async def remove(library, state: dict[str, Any], redraw: Callable[[], None],
     """Asked about first, because it is the destructive one and it takes assignments
     with it - a table pointing here goes back to the default."""
     if not await confirm.ask(
-            t("console.launchers.ask_remove", value=(launcher['display_name'])),
-            detail=t("console.launchers.ask_tables_that_name_it_go"),
-            confirm=t("console.launchers.ask_remove_2")):
+            t("console.launchers.remove", value=(launcher['display_name'])),
+            detail=t("console.launchers.tables_name_go_back"),
+            confirm=t("word.remove")):
         return
     try:
         await run.io_bound(library.delete_launcher, launcher["launcher_id"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.launchers.could_not_remove_it", exc=(exc)), type="negative")
+        ui.notify(t("said.could_not_remove_it", exc=(exc)), type="negative")
         return
     state["launcher"] = ""
     redraw()

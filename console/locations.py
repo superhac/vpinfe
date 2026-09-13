@@ -33,8 +33,8 @@ KIND_LABELS = {"root": "console.locations.game_folders",
 # The verb, for the buttons that make one. Not the same words as the column: adding is
 # an act and reads as one.
 ADD_LABELS = {
-    "root": "console.locations.add.add_a_folder_of_games",
-    "game": "console.locations.add.add_a_single_game"
+    "root": "console.locations.add.add_folder_games",
+    "game": "console.locations.add.add_single_game"
 }
 
 _KIND_CHOICES = [{"value": key, "label": t(label)} for key, label in KIND_LABELS.items()]
@@ -42,39 +42,39 @@ _KIND_CHOICES = [{"value": key, "label": t(label)} for key, label in KIND_LABELS
 COLUMNS = [
     # The folder leads and is pinned. It is what a person recognizes a location by, and
     # every other column is a fact about it.
-    grid.column("name", t("console.locations.folder"), 260, pinned="left",
-                help=t("console.locations.the_folder_this_location.help")),
-    grid.column("contains", t("console.locations.contains"), 140,
+    grid.column("name", t("word.folder"), 260, pinned="left",
+                help=t("console.locations.folder_location_last_two.help")),
+    grid.column("contains", t("word.contains"), 140,
             **grid.choice_filter(_KIND_CHOICES),
-                help=t("console.locations.game_folders_its_children.help")),
-    grid.column("state", t("console.locations.state"), 140,
-                help=t("console.locations.what_the_disk_says_right.help")),
+                help=t("console.locations.game_folders_children_games.help")),
+    grid.column("state", t("word.state"), 140,
+                help=t("console.locations.what_disk_says_right.help")),
     grid.column("new_games", t("console.locations.new_games"), 120,
-                help=t("console.locations.where_a_game_you_add_or.help")),
+                help=t("console.locations.where_game_add_import.help")),
     # Priority as a number rather than as position alone: the grid can be sorted by
     # any column, so the order you are looking at is not always the order that decides.
-    grid.column("priority", t("console.locations.priority"), 110, type="numericColumn",
-                help=t("console.locations.which_location_wins_when.help")),
+    grid.column("priority", t("word.priority"), 110, type="numericColumn",
+                help=t("console.locations.location_wins_two_them.help")),
     grid.column("shadowed", t("console.locations.shadowed"), 120, type="numericColumn",
-                help=t("console.locations.game_folders_here_whose_id.help")),
+                help=t("console.locations.game_folders_whose_id.help")),
     grid.column("path", t("console.locations.full_path"), 420,
-                help=t("console.locations.the_whole_path_for_telling.help")),
+                help=t("console.locations.whole_path_telling_two.help")),
 ]
 
 LOCATION_VIEWS: dict[str, list[str]] = {
     t("console.view.overview"): ["name", "contains", "state", "new_games", "shadowed", "path"],
     # Its own view rather than more columns on Overview: this one is read when
     # something is wrong, and the question is which location beats which.
-    t("console.view.priority"): ["name", "priority", "shadowed", "state", "path"],
+    t("word.priority"): ["name", "priority", "shadowed", "state", "path"],
 }
 
 
 def state_of(row: dict[str, Any]) -> str:
     """The fewest true words. Why is in the column's help and in the panel."""
     if not row.get("reachable"):
-        return t("console.locations.unreachable")
-    return t("console.locations.ready") if row.get("writable") \
-        else t("console.locations.read_only")
+        return t("word.unreachable")
+    return t("word.ready") if row.get("writable") \
+        else t("word.read_only")
 
 
 def rows(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -87,7 +87,7 @@ def rows(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
         "state": state_of(one),
         # Blank on every other row rather than "No": a column that says the same thing
         # everywhere but once is a column about the exception.
-        "new_games": t("console.locations.created_here") if one.get("write_to") else "",
+        "new_games": t("word.created_here") if one.get("write_to") else "",
         # From the list order, which is what the install reads it from. 1 is highest,
         # because a person counts places from one and this is a rank, not an index.
         "priority": place + 1,
@@ -114,7 +114,8 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
         found = await run.io_bound(library.locations)
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
         with body:
-            panel.facts(ui, [panel.intro(t("console.locations.could_not_read_the", exc=(exc)))])
+            panel.facts(ui, [panel.intro(t("console.locations.could_not_read_locations",
+                    exc=(exc)))])
         return
 
     # Imported here: `workbench` imports this module, and `games` imports `workbench`,
@@ -142,7 +143,7 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
 
         if not built:
             panel.facts(ui, [panel.intro(
-                t("console.locations.no_locations_yet_add_the"))])
+                t("console.locations.no_locations_yet_add"))])
             return
 
         by_id = {row["id"]: row for row in built}
@@ -180,8 +181,8 @@ def _ask_new(library, state: dict[str, Any], rerender: Callable[[], None] | None
             await _create(library, state, rerender, kind, wanted)
 
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("console.locations.cancel"), on_click=dialog.close).props("flat no-caps")
-            ui.button(t("console.locations.add"), on_click=keep).props("no-caps")
+            ui.button(t("word.cancel"), on_click=dialog.close).props("flat no-caps")
+            ui.button(t("word.add"), on_click=keep).props("no-caps")
     dialog.on("show", lambda: ui.run_javascript(
         f"document.getElementById('c{folder.id}').focus()"))
     dialog.open()
@@ -195,7 +196,7 @@ async def _create(library, state: dict[str, Any], rerender: Callable[[], None] |
     try:
         await run.io_bound(library.put_location, made, {"path": path, "kind": kind})
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.locations.could_not_add_it", exc=(exc)), type="negative")
+        ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
         return
     state["location"] = made
     if rerender is not None:
@@ -206,14 +207,14 @@ async def remove(library, row: dict[str, Any]) -> bool:
     """Asked about first. The games in it leave the library, and their records go with
     them - which is where they live, so they are there again if it comes back."""
     if not await confirm.ask(
-            t("console.locations.ask_stop_looking_in",
-                    value=(row.get('name') or t("console.locations.this_location"))),
-            detail=t("console.locations.ask_the_games_in_it_leave_the"),
-            confirm=t("console.locations.ask_remove")):
+            t("console.locations.stop_looking",
+                    value=(row.get('name') or t("console.locations.location_2"))),
+            detail=t("console.locations.games_leave_library_nothing"),
+            confirm=t("word.remove")):
         return False
     try:
         await run.io_bound(library.delete_location, row["location_id"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.locations.could_not_remove_it", exc=(exc)), type="negative")
+        ui.notify(t("said.could_not_remove_it", exc=(exc)), type="negative")
         return False
     return True

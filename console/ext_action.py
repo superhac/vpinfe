@@ -110,9 +110,9 @@ async def open_action(extension: str, action: dict) -> None:
                     ui.label(str(found.get("reason") or "")).classes("console-help")
             with buttons:
                 if history:
-                    ui.button(t("console.ext_action.back"), on_click=_back).props("flat no-caps")
+                    ui.button(t("word.back"), on_click=_back).props("flat no-caps")
                 else:
-                    ui.button(t("console.ext_action.cancel"),
+                    ui.button(t("word.cancel"),
                             on_click=lambda: dialog.submit(False)) \
                         .props("flat no-caps")
                 if summary:
@@ -122,7 +122,7 @@ async def open_action(extension: str, action: dict) -> None:
                     if not found.get("ready"):
                         go.disable()
                 else:
-                    ui.button(t("console.ext_action.next"), on_click=_next).props("no-caps")
+                    ui.button(t("word.next"), on_click=_next).props("no-caps")
 
         async def _next() -> None:
             try:
@@ -155,7 +155,7 @@ async def open_action(extension: str, action: dict) -> None:
                 await _watch(job_id)
                 return
             if started.get("ok") is False:
-                ui.notify(str(started.get("reason") or t("console.ext_action.it_did_not_run")),
+                ui.notify(str(started.get("reason") or t("console.ext_action.not_run")),
                           type="negative")
                 return
             # Finished already. Some actions are one call and a sentence, and making
@@ -169,7 +169,7 @@ async def open_action(extension: str, action: dict) -> None:
                 bar = ui.linear_progress(value=0, show_value=False).classes("w-full")
                 said = ui.label(t("console.ext_action.working")).classes("console-help")
             with buttons:
-                close = ui.button(t("console.ext_action.close"),
+                close = ui.button(t("word.close"),
                         on_click=lambda: dialog.submit(True)) \
                     .props("flat no-caps")
                 close.disable()
@@ -184,7 +184,7 @@ async def open_action(extension: str, action: dict) -> None:
 
             close.enable()
             heading.text = t("console.ext_action.what_happened") if job.get("state") == "done" \
-                else t("console.ext_action.it_did_not_finish")
+                else t("console.ext_action.not_finish")
             _report(body, job)
 
         step_now = {"found": step}
@@ -219,13 +219,13 @@ def _finished(body, buttons, dialog, answer: dict) -> None:
     body.clear()
     buttons.clear()
     with body:
-        said = str(answer.get("message") or t("console.ext_action.done"))
+        said = str(answer.get("message") or t("word.done"))
         ui.label(said).classes("console-help")
         facts = [(one[0], one[1]) for one in (answer.get("summary") or [])]
         if facts:
             panel.facts(ui, facts)
     with buttons:
-        ui.button(t("console.ext_action.close"),
+        ui.button(t("word.close"),
                 on_click=lambda: dialog.submit(True)).props("flat no-caps")
 
 
@@ -269,7 +269,7 @@ def _report(body, job: dict) -> None:
     body.clear()
     with body:
         if job.get("state") == "failed":
-            ui.label(str(job.get("error") or t("console.ext_action.it_did_not_finish"))) \
+            ui.label(str(job.get("error") or t("console.ext_action.not_finish"))) \
                 .classes("console-help")
             return
         result = job.get("result") or {}
@@ -282,22 +282,22 @@ def _report(body, job: dict) -> None:
                              if isinstance(value, (int, str))])
         held = list(result.get("already_here") or [])
         if held:
-            ui.label(t("console.ext_action.already_here",
+            ui.label(t("console.ext_action.already",
                     len=(len(held)))).classes("console-group mt-3")
             for row in held[:20]:
-                ui.label(t("console.ext_action.matched_by",
+                ui.label(t("console.ext_action.matched",
                            value=(row.get('name') or row.get('key')),
                            value2=(row.get('how') or 'name'))).classes("console-help")
             if len(held) > 20:
-                ui.label(t("console.ext_action.and_more",
+                ui.label(t("console.ext_action.more",
                         value=(len(held) - 20))).classes("console-help")
         missed = [row for row in (result.get("rows") or []) if row.get("error")]
         if missed:
-            ui.label(t("console.ext_action.did_not_come_across",
+            ui.label(t("console.ext_action.not_come_across",
                     len=(len(missed)))).classes("console-group mt-3")
             for row in missed[:20]:
                 ui.label(f"{row.get('name') or row.get('key')} - {row['error']}") \
                     .classes("console-help")
             if len(missed) > 20:
-                ui.label(t("console.ext_action.and_more",
+                ui.label(t("console.ext_action.more",
                         value=(len(missed) - 20))).classes("console-help")

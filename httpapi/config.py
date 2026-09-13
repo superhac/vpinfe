@@ -153,10 +153,10 @@ def put_values(values: dict[str, dict[str, Any]] = Body(...)) -> models.ConfigVa
 
     if unknown:
         raise InvalidRequestError(
-            t("error.config.not_settings_this_install", keys=", ".join(sorted(unknown))))
+            t("error.config.not_settings_install_get", keys=", ".join(sorted(unknown))))
     if refused:
         raise InvalidRequestError(
-            t("error.config.read_only_over_http", keys=", ".join(sorted(refused))))
+            t("error.config.read_http_theme_sources", keys=", ".join(sorted(refused))))
     if not staged:
         return get_values()
 
@@ -166,7 +166,7 @@ def put_values(values: dict[str, dict[str, Any]] = Body(...)) -> models.ConfigVa
         store.save()
     except Exception as exc:  # noqa: BLE001 - the caller gets the reason, not a 500
         logger.exception("Could not write the settings file")
-        raise ConflictError(t("error.config.could_not_write_the", exc=(exc))) from exc
+        raise ConflictError(t("error.config.could_not_write_settings", exc=(exc))) from exc
 
     if any(section == "install" and key == "display_name" for section, key, _ in staged):
         # The registry holds a copy of what each install reported. This one just changed
