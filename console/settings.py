@@ -26,7 +26,7 @@ from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.i18n import t
 from common.labels import humanize
 from common.media_specs import media_label_map
-from console import binding_editor, deeplink, input_watch, panel, theme_picker
+from console import binding_editor, deeplink, input_watch, offload, panel, theme_picker
 from console import commands as commands_help
 
 logger = logging.getLogger("vpinfe.console.settings")
@@ -267,8 +267,8 @@ async def _fill_kinds(library, rerender: Callable[[], None], body, note: str,
     try:
         # The library's, not this install's: two devices reading one library would otherwise
         # hold two answers to a question about one set of files.
-        policy = await run.io_bound(library.library_policy)
-        known = await run.io_bound(items, library)
+        policy = await offload.io(library.library_policy)
+        known = await offload.io(items, library)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         with body:
             panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))])
@@ -313,7 +313,7 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
     sizes a label column of its own and its values start somewhere else entirely.
     """
     try:
-        state = await run.io_bound(library.vps_sync_state)
+        state = await offload.io(library.vps_sync_state)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         return [panel.intro(t("console.settings.could_not_read_sync", exc=(exc)))]
 
@@ -321,7 +321,7 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
         # Held: an ongoing notification never times out on its own.
         checking = ui.notification(t("console.settings.checking_vpsdb"), spinner=True, timeout=None)
         try:
-            done = await run.io_bound(library.sync_vps)
+            done = await offload.io(library.sync_vps)
         except Exception as exc:  # noqa: BLE001
             ui.notify(t("console.settings.could_not_check", exc=(exc)), type="negative")
             return
@@ -796,9 +796,9 @@ async def _draw_system_page(library, redraw: Callable[[], None], body,
             build_library_page(library, redraw, key, kind)
         return
     try:
-        schema = await run.io_bound(library.config_schema)
-        values = await run.io_bound(library.config_values)
-        checks = await run.io_bound(library.config_path_checks)
+        schema = await offload.io(library.config_schema)
+        values = await offload.io(library.config_values)
+        checks = await offload.io(library.config_path_checks)
         offered = await _suggestions(library, schema, sections)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         with body:
@@ -824,7 +824,7 @@ async def _suggestions(library, schema: list[dict],
     offered: dict[str, Any] = {}
 
     if config_schema.SUGGEST_LIBRARIES in wanted:
-        found = await run.io_bound(library.discovered_installs)
+        found = await offload.io(library.discovered_installs)
         # Only the ones that have a library to read. An install that just launches games
         # has nothing to offer another that does the same.
         offered[config_schema.SUGGEST_LIBRARIES] = {
@@ -833,7 +833,7 @@ async def _suggestions(library, schema: list[dict],
             if install_identity.LIBRARY in (install.get("features") or [])}
 
     if config_schema.SUGGEST_THEMES in wanted:
-        known = await run.io_bound(library.themes)
+        known = await offload.io(library.themes)
         # Keyed by what is stored, labelled by what the theme calls itself - they are
         # usually the same word and a theme is free to make them differ.
         offered[config_schema.SUGGEST_THEMES] = {
@@ -843,7 +843,7 @@ async def _suggestions(library, schema: list[dict],
     if config_schema.SUGGEST_COLLECTIONS in wanted:
         # `collections()` answers from what the Collections page last read, which on
         # this page is nothing. This is already off the event loop, so read.
-        held = await run.io_bound(library.load_collections)
+        held = await offload.io(library.load_collections)
         offered[config_schema.SUGGEST_COLLECTIONS] = {
             str(row.get("name") or ""): str(row.get("name") or "")
             for row in held if row.get("name")}
@@ -866,7 +866,7 @@ async def _identity_page(library, reported: str,
                          redraw: Callable[[], None]) -> None:
     """What this install is called, and what it is for."""
     try:
-        values = await run.io_bound(library.config_values)
+        values = await offload.io(library.config_values)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))])
         return

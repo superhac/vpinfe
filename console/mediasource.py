@@ -21,7 +21,7 @@ from nicegui import run, ui
 from common import labels
 from common.i18n import t
 from common.media_specs import media_family, media_label_map
-from console import candidates, confirm, media_ownership
+from console import candidates, confirm, media_ownership, offload
 
 logger = logging.getLogger("vpinfe.console.mediasource")
 
@@ -90,7 +90,7 @@ class _Sources:
     async def load_placements(self) -> None:
         """Where a file could land here, so it can be chosen rather than inferred."""
         try:
-            body = await run.io_bound(self.library.placements, self.game_id, self.kind)
+            body = await offload.io(self.library.placements, self.game_id, self.kind)
         except Exception:
             logger.debug("No placements for %s", self.kind, exc_info=True)
             return
@@ -199,7 +199,7 @@ class _Sources:
         """
         self.note_extension(filename)
         try:
-            going = await run.io_bound(self.library.displaced_by, self.game_id,
+            going = await offload.io(self.library.displaced_by, self.game_id,
                                        self.destination, self.kind, filename)
         except Exception as exc:
             ui.notify(t("console.mediasource.could_not_check_slot", exc=(exc)),
@@ -243,7 +243,7 @@ class _Sources:
     async def browse_tab(self, body: ui.column) -> None:
         body.clear()
         try:
-            starts = await run.io_bound(self.library.browse_roots, self.game_id)
+            starts = await offload.io(self.library.browse_roots, self.game_id)
         except Exception as exc:
             with body:
                 ui.label(t("console.mediasource.could_not_read_machine",
@@ -272,7 +272,7 @@ class _Sources:
     async def _show_folder(self, listing: ui.column, path: str) -> None:
         listing.clear()
         try:
-            here = await run.io_bound(self.library.browse, path)
+            here = await offload.io(self.library.browse, path)
         except Exception as exc:
             with listing:
                 ui.label(t("console.mediasource.could_not_read_folder",
@@ -386,7 +386,7 @@ class _Sources:
         # Read for the names, which label the rows. Not announced up front - every row
         # says where it came from, so a list of the same names above it is furniture.
         try:
-            self._known_sources = await run.io_bound(self.library.media_sources)
+            self._known_sources = await offload.io(self.library.media_sources)
         except Exception:
             self._known_sources = []
         await self._show_offers(self.online_body, self._own_id,
@@ -407,7 +407,7 @@ class _Sources:
         if not query.strip():
             return
         try:
-            found = await run.io_bound(self.library.search_vps, query.strip())
+            found = await offload.io(self.library.search_vps, query.strip())
         except Exception as exc:
             with results:
                 ui.label(t("console.mediasource.could_not_search",
@@ -455,7 +455,7 @@ class _Sources:
                     .classes("console-help")
             return
         try:
-            found = await run.io_bound(self.library.media_offers, vps_id, self.kind)
+            found = await offload.io(self.library.media_offers, vps_id, self.kind)
         except Exception as exc:
             with body:
                 ui.label(t("console.mediasource.could_not_reach_catalogs",

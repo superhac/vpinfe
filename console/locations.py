@@ -19,6 +19,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
+from console import offload
 
 from . import confirm, grid, panel
 
@@ -111,7 +112,7 @@ def build(library, state: dict[str, Any],
 async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None], Any],
                 rerender: Callable[[], None] | None, body) -> None:
     try:
-        found = await run.io_bound(library.locations)
+        found = await offload.io(library.locations)
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
         with body:
             panel.facts(ui, [panel.intro(t("console.locations.could_not_read_locations",

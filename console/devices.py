@@ -11,6 +11,7 @@ from nicegui import run, ui
 from common import device_client, device_registry
 from common.i18n import t
 from common.labels import humanize
+from console import offload
 
 from . import confirm, grid, panel, views
 from . import settings as settings_page
@@ -235,7 +236,7 @@ async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> Non
     """
     latest = str(update.get("latest_version") or t("console.devices.published_build"))
     try:
-        playing = await run.io_bound(client.play_state)
+        playing = await offload.io(client.play_state)
     except Exception as exc:  # noqa: BLE001 - a dialog that cannot say what it will do
         ui.notify(t("console.devices.could_not_check_what", name=(name), exc=(exc)),
                 type="negative")
@@ -511,7 +512,7 @@ async def _carrying_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     device = _of(context)
     library = context.get("library")
     try:
-        held = await run.io_bound(ApiClient().device_games,
+        held = await offload.io(ApiClient().device_games,
                                   str(device.get("device_id") or ""))
     except Exception as exc:
         # The words the API used. A device that is switched off is the ordinary case
@@ -627,7 +628,7 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     stored = ""
     if editable:
         try:
-            values = await run.io_bound(library.config_values)
+            values = await offload.io(library.config_values)
             stored = str(((values or {}).get("install") or {}).get("display_name") or "")
         except Exception:  # noqa: BLE001 - an unreadable name is an empty field, not a 500
             editable = False
@@ -691,7 +692,7 @@ async def software_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     ask = update_checker(_is_local(context), client)
     if update is None and ask is not None:
         try:
-            update = await run.io_bound(ask)
+            update = await offload.io(ask)
         except Exception:  # noqa: BLE001 - unreachable is a state, not a 500
             logger.info("Could not ask %s what it is running",
                         device_label(device), exc_info=True)
@@ -730,7 +731,7 @@ async def action_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     if client is None:
         return [panel.intro(t(UNREACHABLE_NOTE))]
     try:
-        offered = await run.io_bound(client.actions)
+        offered = await offload.io(client.actions)
     except device_client.TooOldError as exc:
         return [panel.intro(str(exc))]
     except Exception as exc:  # noqa: BLE001 - unreachable is a state, not a 500
@@ -765,7 +766,7 @@ def _action_control(context: dict[str, Any],
             return
         client = _client_for(context)
         try:
-            done = await run.io_bound(client.perform_action, scope, action)
+            done = await offload.io(client.perform_action, scope, action)
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
             ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
             return
@@ -795,7 +796,7 @@ async def log_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     if client is None:
         return [panel.intro(t(UNREACHABLE_NOTE))]
     try:
-        found = await run.io_bound(client.logs, LOG_LIMIT)
+        found = await offload.io(client.logs, LOG_LIMIT)
     except device_client.TooOldError as exc:
         return [panel.intro(str(exc))]
     except Exception as exc:  # noqa: BLE001 - unreachable is a state, not a 500

@@ -16,7 +16,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import candidates
+from console import candidates, offload
 
 logger = logging.getLogger("vpinfe.console.vps_match")
 
@@ -51,7 +51,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
 
         async def look() -> None:
             said = str(field.value or "").strip()
-            rows = await run.io_bound(library.vps_search, said, 40) if said else []
+            rows = await offload.io(library.vps_search, said, 40) if said else []
             found.clear()
             with found:
                 if not said:

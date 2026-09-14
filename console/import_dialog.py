@@ -20,6 +20,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
+from console import offload
 
 logger = logging.getLogger("vpinfe.console.import_dialog")
 
@@ -64,7 +65,7 @@ async def ask_where(library: Any) -> str | None:
     it works but there is a choice, it asks only while somebody wants to be asked.
     """
     try:
-        found = await run.io_bound(library.new_game_destination)
+        found = await offload.io(library.new_game_destination)
     except Exception as exc:  # noqa: BLE001
         ui.notify(t("console.import_dialog.could_not_work_where", exc=(exc)), type="negative")
         return None
@@ -223,7 +224,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
 
     note = ui.notification(t("console.import_dialog.importing"), spinner=True, timeout=None)
     try:
-        report = await run.io_bound(
+        report = await offload.io(
             library.upload_import, upload_id, game_dir=game_dir, rom_name=rom_name,
             allow_new_game=allow_new_game, media_kind=media_kind,
             location_id=location_id, vps_id=str(named["vps_id"] or ""),
@@ -294,7 +295,7 @@ async def _match(library: Any, named: dict[str, Any], field: Any) -> None:
     """Offer what the catalog has for this name, and take the folder name from it."""
     term = str(field.value or "").split("(")[0].strip()
     try:
-        found = await run.io_bound(library.vps_search, term, 8)
+        found = await offload.io(library.vps_search, term, 8)
     except Exception as exc:  # noqa: BLE001
         ui.notify(t("console.import_dialog.could_not_search", exc=(exc)), type="negative")
         return

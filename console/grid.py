@@ -16,6 +16,7 @@ from nicegui import run, ui
 
 from common import i18n
 from common.i18n import t
+from console import offload
 
 logger = logging.getLogger("vpinfe.console.grid")
 
@@ -402,7 +403,7 @@ async def apply_layout(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]
 
     where = layout_scope(scope, view_of)
     try:
-        held = await run.io_bound(ApiClient().preferences, where)
+        held = await offload.io(ApiClient().preferences, where)
         stored = (held or {}).get("columns")
     except Exception:
         logger.warning("console: could not read column state for %s", where, exc_info=True)

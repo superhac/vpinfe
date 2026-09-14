@@ -20,7 +20,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import confirm, panel
+from console import confirm, offload, panel
 
 # One definition of both: the launcher's rail and this dialog are the same surface at
 # two scopes, and two spellings of "a table is playing" would drift.
@@ -101,7 +101,7 @@ async def _fill(library, launcher_id: str, table_id: str, state: dict[str, Any],
                 words: dict[str, str], draw: Callable) -> None:
     scope = state["scope"]
     try:
-        found = await run.io_bound(library.launcher_config, launcher_id,
+        found = await offload.io(library.launcher_config, launcher_id,
                                    table_id, scope)
     except Exception as exc:  # noqa: BLE001 - this says why, never 500s
         panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))])
@@ -109,7 +109,7 @@ async def _fill(library, launcher_id: str, table_id: str, state: dict[str, Any],
 
     groups = found.get("groups") or []
     values = found.get("values") or {}
-    playing = await run.io_bound(_playing, library)
+    playing = await offload.io(_playing, library)
     if playing:
         panel.facts(ui, [panel.note(t(PLAYING_NOTE))])
     wanted = state["search"]
@@ -264,7 +264,7 @@ async def confirm_new_table_file(library, launcher_id: str,
     question here is whether to go ahead, not which of two things to do.
     """
     try:
-        reaching = await run.io_bound(library.folder_settings_reaching, launcher_id,
+        reaching = await offload.io(library.folder_settings_reaching, launcher_id,
                                       table_id)
     except Exception:  # noqa: BLE001 - a confirm must not be the thing that breaks
         logger.exception("Could not read what the folder gives this table")

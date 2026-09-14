@@ -46,6 +46,7 @@ from console import (
     mediamap,
     mediasource,
     mediaview,
+    offload,
     panel,
     stars,
     table_features,
@@ -421,11 +422,11 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
     # And read *before* clearing. Clearing first left the panel empty for the whole
     # round trip, which after a write reads as the panel flashing black - the write,
     # the reread and the redraw are one act to the person who asked for it.
-    tables = await run.io_bound(library.tables_for, game_id)
+    tables = await offload.io(library.tables_for, game_id)
     # Off the loop and once, beside the tables: every table row offers the same list, so
     # asking per row would be one blocking HTTP call per table - and the Console consumes
     # its own process, so a blocking call here does not just cost time, it deadlocks.
-    held_launchers = await run.io_bound(_launchers_for_panel, library)
+    held_launchers = await offload.io(_launchers_for_panel, library)
 
     container.clear()
     title.clear()
@@ -505,7 +506,7 @@ async def _draw_location(container: ui.column, title: ui.column, library: Librar
         return
     # Read fresh rather than from the grid's copy: reachable and writable are answers
     # about this moment, and the panel is where they are acted on.
-    found = await run.io_bound(library.locations)
+    found = await offload.io(library.locations)
     held = list(found.get("locations") or [])
     row = next((one for one in held
                 if one.get("location_id") == location_id), None)
@@ -553,7 +554,7 @@ async def _draw_launcher(container: ui.column, title: ui.column, library: Librar
         return
     # Read fresh rather than from the grid's copy: every control in here writes, and a
     # rebuild that redrew from a stale row would show the edit undoing itself.
-    found = await run.io_bound(library.launchers)
+    found = await offload.io(library.launchers)
     held = list(found.get("launchers") or [])
     row = next((one for one in held if one.get("launcher_id") == launcher_id), None)
     if row is None:
@@ -561,8 +562,8 @@ async def _draw_launcher(container: ui.column, title: ui.column, library: Librar
                t("console.page.no_longer_install_2"))
         return
 
-    groups = await run.io_bound(library.launcher_config_groups, launcher_id)
-    playing = await run.io_bound(_playing, library)
+    groups = await offload.io(library.launcher_config_groups, launcher_id)
+    playing = await offload.io(_playing, library)
 
     container.clear()
     title.clear()
@@ -658,7 +659,7 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
     # All of it before the container is cleared. Clearing first held the panel empty
     # across three round trips, which is the black flash after changing a member's
     # table: the old panel stays up now until the new one is ready to replace it.
-    rows = await run.io_bound(library.load_collections)
+    rows = await offload.io(library.load_collections)
     row = next((entry for entry in rows if entry.get("name") == name), None)
     if row is None:
         _blank(container, title, t("console.page.collection"),
@@ -876,14 +877,14 @@ async def _media_block(context: dict[str, Any]) -> None:
 
     async def draw() -> None:
         table_id = context["lens"]
-        entries = await run.io_bound(library.media_for, game_id, table_id or None)
+        entries = await offload.io(library.media_for, game_id, table_id or None)
         # Only from the game's lens. Looking at one table, the badge on a slot already
         # says whose file it is, and marking the others would be noise about tables
         # that are not the subject.
         overrides = ({} if table_id else
                      await run.io_bound(library.media_overrides, game_id))
-        offered = await run.io_bound(_offered_media, context)
-        kept = await run.io_bound(_kept_kinds, context, "media")
+        offered = await offload.io(_offered_media, context)
+        kept = await offload.io(_kept_kinds, context, "media")
         holder.clear()
         with holder:
             mediamap.build(entries, _prefix(game_id, table_id),
@@ -918,7 +919,7 @@ async def _media_block(context: dict[str, Any]) -> None:
             detail = None
             if kind and kind in entries:
                 try:
-                    detail = await run.io_bound(library.media_detail, game_id,
+                    detail = await offload.io(library.media_detail, game_id,
                                                 table_id or None, kind)
                 except Exception:
                     logger.debug("No detail for %s", kind, exc_info=True)
@@ -1063,7 +1064,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
 
     async def remove() -> None:
         try:
-            result = await run.io_bound(library.remove_media, game_id, table_id, kind)
+            result = await offload.io(library.remove_media, game_id, table_id, kind)
         except Exception as exc:
             ui.notify(t("said.could_not_remove_it", exc=(exc)), type="negative")
             return
@@ -1535,7 +1536,7 @@ async def _assets_block(context: dict[str, Any]) -> None:
     game = context["game"]
     chosen = next((item for item in context["tables"]
                    if item.get("id") == context["lens"]), None)
-    kept = await run.io_bound(_kept_kinds, context, "asset")
+    kept = await offload.io(_kept_kinds, context, "asset")
     resolved = _only_kept((chosen or {}).get("assets") or {}, kept)
     folder = _only_kept(game.get("assets") or {}, kept)
 
@@ -1766,7 +1767,7 @@ async def _vps_block(context: dict[str, Any]) -> None:
         entries += [(t("console.workbench.entry"), _state(t("console.workbench.not_matched"),
                 "warn"))]
     else:
-        found = await run.io_bound(library.vps_entry, vps_id)
+        found = await offload.io(library.vps_entry, vps_id)
         entries += [
             # The entry as a person reads it. The id is how the wire addresses it and
             # is the one thing a reader cannot check a match against.
@@ -1777,7 +1778,7 @@ async def _vps_block(context: dict[str, Any]) -> None:
         ]
         if found.get("releases"):
             entries.append((t("console.workbench.releases"), str(found["releases"])))
-        differs = await run.io_bound(library.vps_details, context["game_id"])
+        differs = await offload.io(library.vps_details, context["game_id"])
         if differs:
             entries.append((FULL, _details_differ(context, differs)))
     entries.append((FULL, _change_match(context)))
@@ -2663,7 +2664,7 @@ async def _pick_a_record(context: dict[str, Any], listed_as: str, label: str,
     """
     library = context["library"]
     vps_id = str(context["game"].get("vps_id") or "")
-    records = await run.io_bound(_records_of, context, vps_id, listed_as)
+    records = await offload.io(_records_of, context, vps_id, listed_as)
 
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-confirm console-picker-dialog"):
@@ -2733,7 +2734,7 @@ async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> Non
     library = context["library"]
     entry = str(context["game"].get("vps_id") or "")
     bound = str((table.get("source") or {}).get("vps_file_id") or "")
-    releases = await run.io_bound(_releases_of, context, entry)
+    releases = await offload.io(_releases_of, context, entry)
 
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-confirm console-picker-dialog"):
@@ -3362,7 +3363,7 @@ async def _config_backups(context: dict[str, Any], launcher: dict) -> None:
     if not _app_keeps_settings(context):
         return
     try:
-        found = await run.io_bound(library.config_backups, launcher["launcher_id"])
+        found = await offload.io(library.config_backups, launcher["launcher_id"])
     except Exception as exc:  # noqa: BLE001
         _rows(ui, [panel.note(t("console.workbench.could_not_read_copies", exc=(exc)))])
         return
@@ -3567,7 +3568,7 @@ async def _shadowed_block(context: dict[str, Any], row: dict[str, Any]) -> None:
     if not int(row.get("shadowed") or 0):
         return
     try:
-        held = await run.io_bound(context["library"].shadowed_here,
+        held = await offload.io(context["library"].shadowed_here,
                                   row["location_id"])
     except Exception as exc:  # noqa: BLE001
         ui.notify(t("console.workbench.could_not_read_what_2", exc=(exc)), type="negative")
@@ -4196,7 +4197,7 @@ async def _preview_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
     filters = {key: value for key, value in _draft_filters(context, row).items()
                if key not in ("order_by", "direction")}
     try:
-        answer = await run.io_bound(library.preview_filters, filters, row.get("limit"))
+        answer = await offload.io(library.preview_filters, filters, row.get("limit"))
     except Exception as exc:
         ui.label(t("console.workbench.could_not_work",
                 exc=(exc))).classes("console-help text-warning")
@@ -4451,7 +4452,7 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
     game = str(member.get("game") or "")
     named = str(table.get("id") or "") if table.get("origin") == "named" else ""
     try:
-        choices = await run.io_bound(context["library"].tables_for, game)
+        choices = await offload.io(context["library"].tables_for, game)
     except Exception as exc:
         ui.notify(t("console.workbench.could_not_read_game", exc=(exc)), type="negative")
         return

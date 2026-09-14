@@ -22,9 +22,10 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
-from nicegui import context, run, ui
+from nicegui import context, ui
 
 from common.i18n import t
+from console import offload
 
 logger = logging.getLogger("vpinfe.console.uploads")
 
@@ -267,7 +268,7 @@ async def _handle(state: dict[str, Any], payload: dict[str, Any],
 
 async def analysis_of(library: Any, upload_id: str) -> dict[str, Any]:
     """What the install makes of what arrived."""
-    return await run.io_bound(library.upload_analysis, upload_id)
+    return await offload.io(library.upload_analysis, upload_id)
 
 
 def token() -> str:

@@ -19,7 +19,7 @@ from nicegui import run, ui
 
 from common.i18n import t
 from common.media_specs import media_label_map
-from console import confirm, grid, media_ownership, panel, views
+from console import confirm, grid, media_ownership, offload, panel, views
 from console.api import ApiClient
 from console.games import view_control
 
@@ -174,7 +174,7 @@ async def fill(picked: list[dict[str, Any]], library: Any,
             empty += 1
             continue
         try:
-            offers = await run.io_bound(ApiClient().media_offers,
+            offers = await offload.io(ApiClient().media_offers,
                                         row["vps_id"], row["kind"])
             if not offers:
                 empty += 1

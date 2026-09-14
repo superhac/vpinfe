@@ -18,6 +18,7 @@ from console import (
     ext_page,
     games,
     grid,
+    offload,
     remote,
     sections,
     tageditor,
@@ -323,7 +324,7 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
             return
 
     try:
-        plan = await run.io_bound(library.upload_plan, drop.upload_id,
+        plan = await offload.io(library.upload_plan, drop.upload_id,
                                   game_dir=game_dir, allow_new_game=new_game,
                                   media_kind=media_kind, location_id=where)
     except Exception as exc:  # noqa: BLE001
@@ -420,7 +421,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         ui.label(t("console.page.loading_console")).classes("text-sm opacity-60")
 
     await ui.context.client.connected()
-    loaded = await run.io_bound(_read_hub)
+    loaded = await offload.io(_read_hub)
     if ui.context.client.is_deleted:
         # Reading the library takes long enough that somebody can close the tab or
         # reload inside it, and there is then nothing to draw on and nothing to clear.
@@ -611,7 +612,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             if ask is None:
                 continue
             try:
-                found = await run.io_bound(ask)
+                found = await offload.io(ask)
             except Exception as exc:  # noqa: BLE001
                 # Debug, because a device being off is not news. This runs on every
                 # draw, so at any louder level a cabinet somebody switched off in
@@ -674,7 +675,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         for _ in range(150):
             await asyncio.sleep(0.2)
             try:
-                found = await run.io_bound(client.job, str(job.get("id") or ""))
+                found = await offload.io(client.job, str(job.get("id") or ""))
             except Exception:
                 return
             if found.get("state") == "running":
@@ -1084,7 +1085,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             # and off the loop, because it stats the disk and a share that has gone away
             # is exactly the case this reports.
             async def read_trouble_then_draw() -> None:
-                state["trouble"] = await run.io_bound(settings_page.local_trouble)
+                state["trouble"] = await offload.io(settings_page.local_trouble)
                 render()
                 mark_system()
             asyncio.create_task(read_trouble_then_draw())
@@ -1291,7 +1292,7 @@ async def _read_the_library() -> dict | None:
     one of the four was 2.x's framing from when the library was only tables.
     """
     try:
-        job = await run.io_bound(ApiClient().refresh_library)
+        job = await offload.io(ApiClient().refresh_library)
     except Exception as exc:
         # Already running is the ordinary case here, not a failure worth a trace.
         ui.notify(t("console.page.could_not_start", exc=(exc)), type="warning")

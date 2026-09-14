@@ -22,7 +22,7 @@ from nicegui import run, ui
 
 from common import path_checks
 from common.i18n import t
-from console import confirm, grid, panel
+from console import confirm, grid, offload, panel
 
 logger = logging.getLogger("vpinfe.console.launchers")
 
@@ -108,7 +108,7 @@ def build(library, state: dict[str, Any],
 async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None], Any],
                 redraw: Callable[[], None], body) -> None:
     try:
-        found = await run.io_bound(library.launchers)
+        found = await offload.io(library.launchers)
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
         with body:
             panel.facts(ui, [panel.intro(t("console.launchers.could_not_read_launchers",
@@ -208,7 +208,7 @@ async def copy_dialog(library, state: dict[str, Any], launcher: dict) -> None:
     find out: edit a cabinet's launcher afterwards and the two diverge.
     """
     try:
-        known = await run.io_bound(library.devices)
+        known = await offload.io(library.devices)
     except Exception as exc:  # noqa: BLE001
         ui.notify(t("console.launchers.could_not_read_devices", exc=(exc)), type="negative")
         return
@@ -259,7 +259,7 @@ async def _do_copy(library, launcher: dict, devices: list[dict],
     mappings = {}
     if with_mappings:
         try:
-            found = await run.io_bound(library.launchers)
+            found = await offload.io(library.launchers)
             mappings = {table: to for table, to in (found.get("mappings") or {}).items()
                         if to == launcher["launcher_id"]}
         except Exception as exc:  # noqa: BLE001
@@ -271,7 +271,7 @@ async def _do_copy(library, launcher: dict, devices: list[dict],
 
         return device_client.for_device(device)
 
-    outcomes = await run.io_bound(launcher_copy.copy_to, devices, [launcher],
+    outcomes = await offload.io(launcher_copy.copy_to, devices, [launcher],
                                   mappings, client_for=client_for)
     said = launcher_copy.said(outcomes)
     ui.notify(said, type="positive" if all(one.ok for one in outcomes) else "warning")

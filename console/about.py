@@ -22,10 +22,10 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from nicegui import run, ui
+from nicegui import ui
 
 from common.i18n import t
-from console import panel
+from console import offload, panel
 
 logger = logging.getLogger("vpinfe.console.about")
 
@@ -63,7 +63,7 @@ def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
 
     async def load(refresh: bool = False) -> None:
         try:
-            found = await run.io_bound(library.about, refresh)
+            found = await offload.io(library.about, refresh)
         except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
             body.clear()
             with body:

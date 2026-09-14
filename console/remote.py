@@ -26,7 +26,7 @@ from common import device_registry, install_identity
 from common.config_access import NetworkConfig
 from common.i18n import t
 from common.labels import humanize
-from console import stars, theme
+from console import offload, stars, theme
 from console.api import ApiClient, local_base_url
 
 logger = logging.getLogger("vpinfe.console.remote")
@@ -166,7 +166,7 @@ async def remote_page(screen: str = "") -> None:
         ui.label(t("console.remote.loading")).classes("text-sm opacity-60")
 
     await ui.context.client.connected()
-    loaded = await run.io_bound(_read_here)
+    loaded = await offload.io(_read_here)
     if ui.context.client.is_deleted:
         # Reading takes long enough that somebody can close the tab inside it, and there
         # is then nothing to draw on. Building anyway raises out of the page function and
@@ -362,7 +362,7 @@ def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target,
         except Exception as exc:
             ui.notify(str(exc), type="negative")
             return
-        state["play"] = await run.io_bound(client_for_target().play_state)
+        state["play"] = await offload.io(client_for_target().play_state)
         redraw()
 
     with ui.column().classes("w-full gap-1 console-card"):
@@ -477,7 +477,7 @@ def _play(state: dict[str, Any], client_for_target, redraw) -> None:
         state["collection_ids"] = None
         if state["collection"]:
             try:
-                found = await run.io_bound(client_for_target().collection_games,
+                found = await offload.io(client_for_target().collection_games,
                                            state["collection"])
                 state["collection_ids"] = {str(one.get("id") or "") for one in found}
             except Exception as exc:
@@ -588,7 +588,7 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target,
             if await write(client_for_target().launch, game["id"]):
                 sheet.close()
                 state["screen"] = NOW
-                state["play"] = await run.io_bound(client_for_target().play_state)
+                state["play"] = await offload.io(client_for_target().play_state)
                 redraw()
 
         ui.button(t("console.remote.launch"), icon="play_arrow", on_click=launch) \

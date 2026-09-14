@@ -21,6 +21,7 @@ from console import (
     grid,
     media_ownership,
     mediaview,
+    offload,
     panel,
     send_to_device,
     stars,
@@ -382,11 +383,10 @@ async def _launch(games: list[dict[str, Any]]) -> None:
     Launching is device-resident and starts something on a machine; doing it for
     several rows at once has no sensible meaning, so it is refused rather than looped.
     """
-    from nicegui import run
     if len(games) != 1:
         ui.notify(t("console.games.select_single_game_launch"), type="warning")
         return
-    await run.io_bound(ApiClient().launch, games[0]["id"])
+    await offload.io(ApiClient().launch, games[0]["id"])
     ui.notify(t("console.games.launching", get=(games[0].get('name'))), type="positive")
 
 
@@ -973,7 +973,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         row needs is decided by comparing what came back with what is showing, so this
         answers for an add, an edit and a removal without being told which it was.
         """
-        rows_now = await run.io_bound(library.load_tables)
+        rows_now = await offload.io(library.load_tables)
         fresh = table_rows([item for item in rows_now
                             if item.get("game_id") == game_id])
         transaction = row_transaction(by_id, game_id, fresh)
@@ -1023,7 +1023,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         # sub-resource describes a table and not where it sits in a library, so it
         # carries no game name, manufacturer, year or resolved rom - patching from it
         # blanked four columns on exactly the rows that had just been acted on.
-        rows_now = await run.io_bound(library.load_tables)
+        rows_now = await offload.io(library.load_tables)
         fresh = table_rows([item for item in rows_now
                             if item.get("game_id") == game_id])
         if gone:

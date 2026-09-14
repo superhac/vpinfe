@@ -12,10 +12,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from nicegui import run, ui
+from nicegui import ui
 
 from common.i18n import t
-from console import confirm, grid
+from console import confirm, grid, offload
 
 SUBJECT = "tag"
 LABEL = t("console.tageditor.tags")
@@ -44,7 +44,7 @@ def build(rows: list[dict[str, Any]], library: Any,
     """The editor. The duplicates lead, because they are what somebody came here for."""
     async def sweep(call: Callable[..., Any], *args: Any, said: str = "") -> None:
         try:
-            changed = await run.io_bound(call, *args)
+            changed = await offload.io(call, *args)
         except Exception as exc:
             ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
             return

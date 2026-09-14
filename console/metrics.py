@@ -16,10 +16,10 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from nicegui import run, ui
+from nicegui import ui
 
 from common.i18n import t
-from console import panel
+from console import offload, panel
 
 logger = logging.getLogger("vpinfe.console.metrics")
 
@@ -78,7 +78,7 @@ def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
 
     async def tick() -> None:
         try:
-            found = await run.io_bound(library.metrics, WINDOW_SECONDS)
+            found = await offload.io(library.metrics, WINDOW_SECONDS)
         except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
             show(t("console.metrics.could_not_read_machine", exc=(exc)))
             return
@@ -99,7 +99,7 @@ def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
         _fill_disks(disks, now.get("disks") or [])
         if held["watch_gpu"]:
             try:
-                held["gpu"] = await run.io_bound(library.gpu_metrics)
+                held["gpu"] = await offload.io(library.gpu_metrics)
             except Exception as exc:  # noqa: BLE001
                 held["gpu"] = {"available": False, "reason": str(exc), "gpus": []}
             _draw_cards(cards, held)

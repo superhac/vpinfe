@@ -23,7 +23,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import confirm, panel, settings
+from console import confirm, offload, panel, settings
 
 logger = logging.getLogger("vpinfe.console.themes")
 
@@ -42,7 +42,7 @@ def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
 async def _fill(library, state: dict[str, Any], redraw: Callable[[], None], body,
                 refresh: bool) -> None:
     try:
-        found = await run.io_bound(library.themes, refresh)
+        found = await offload.io(library.themes, refresh)
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
         body.clear()
         with body:
@@ -222,7 +222,7 @@ async def _configure(library, theme: dict[str, Any]) -> None:
     heard of, and the fallback for one is a text field rather than a refusal.
     """
     try:
-        found = await run.io_bound(library.theme_options, theme["key"])
+        found = await offload.io(library.theme_options, theme["key"])
     except Exception as exc:  # noqa: BLE001
         ui.notify(t("console.themes.could_not_read_settings", exc=(exc)), type="negative")
         return

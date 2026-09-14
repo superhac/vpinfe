@@ -20,7 +20,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import panel
+from console import offload, panel
 from console.api import ApiClient
 
 # How often to ask a running job how it is doing. A job here is minutes of copying, so a
@@ -85,7 +85,7 @@ async def open_action(extension: str, action: dict) -> None:
     values: dict[str, Any] = {}
     history: list[dict] = []
 
-    step = await run.io_bound(client.ext_get, base)
+    step = await offload.io(client.ext_get, base)
 
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-import-card"):
@@ -126,7 +126,7 @@ async def open_action(extension: str, action: dict) -> None:
 
         async def _next() -> None:
             try:
-                found = await run.io_bound(
+                found = await offload.io(
                 client.ext_post, f"{base}/check",
                 {"values": values, "step": str(step_now["found"].get("step") or "")})
             except Exception as exc:  # noqa: BLE001
@@ -145,7 +145,7 @@ async def open_action(extension: str, action: dict) -> None:
 
         async def _start() -> None:
             try:
-                started = await run.io_bound(client.ext_post, f"{base}/run",
+                started = await offload.io(client.ext_post, f"{base}/run",
                                              {"values": values})
             except Exception as exc:  # noqa: BLE001
                 ui.notify(str(exc), type="negative")
@@ -175,7 +175,7 @@ async def open_action(extension: str, action: dict) -> None:
                 close.disable()
 
             while True:
-                job = await run.io_bound(client.job, job_id)
+                job = await offload.io(client.job, job_id)
                 bar.value = int(job.get("pct") or 0) / 100
                 said.text = str(job.get("message") or t("console.ext_action.working"))
                 if str(job.get("state")) not in ("running", "queued"):

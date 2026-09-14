@@ -18,7 +18,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import ext_action, panel
+from console import ext_action, offload, panel
 from console.api import ApiClient
 
 
@@ -56,7 +56,7 @@ def _settings(name: str, surfaces: dict) -> None:
 
     async def draw() -> None:
         try:
-            found = await run.io_bound(client.ext_get, base)
+            found = await offload.io(client.ext_get, base)
         except Exception as exc:  # noqa: BLE001
             card.clear()
             with card:
@@ -135,7 +135,7 @@ def _state(name: str, surfaces: dict) -> None:
 
     async def draw() -> None:
         try:
-            found = await run.io_bound(client.ext_get, base)
+            found = await offload.io(client.ext_get, base)
         except Exception as exc:  # noqa: BLE001
             card.clear()
             with card:
