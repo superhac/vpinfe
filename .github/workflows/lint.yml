@@ -37,8 +37,13 @@ jobs:
 
       # tests/ was taken to zero on 2026-08-06. Unlike the new-file rule below this
       # covers every file in the package, so the foundation cannot drift back.
-      - name: Lint the test packages (blocking)
-        run: ruff check tests/ --output-format=github
+      #
+      # apps/, console/, extensions/ and httpapi/ are at zero too - the first three
+      # because they were written after the rules, httpapi because the service
+      # extraction rewrote it. Held here for the same reason tests/ is: a package that
+      # reached zero and is not held there goes back.
+      - name: Lint the packages that are clean (blocking)
+        run: ruff check tests/ apps/ console/ extensions/ httpapi/ --output-format=github
 
       # New files must be clean, so new code is born compliant while older code
       # is cleaned up when it is touched rather than in one enormous diff.
@@ -62,3 +67,34 @@ jobs:
           echo "Checking newly added files:"
           echo "$added" | sed 's/^/  /'
           ruff check --output-format=github $added
+
+  mypy:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      # The packages, the flags and the exclusions are all in pyproject.toml, so this
+      # run and a local one cannot disagree. See docs/conventions.md.
+      - name: Type check (advisory)
+        continue-on-error: true
+        run: mypy
+
+      # httpapi/ reached zero when the service extraction thinned the routes. Held there,
+      # because it is the wire contract: a return type that lies about what a route serves
+      # is a promise broken for every client.
+      #
+      # follow-imports=silent because naming a package still type checks everything it
+      # imports and reports that too, which would fail this on common/'s debt rather than
+      # on anything httpapi did.
+      - name: Type check the API surface (blocking)
+        run: mypy --follow-imports=silent httpapi
