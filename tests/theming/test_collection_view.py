@@ -68,7 +68,7 @@ class CollectionViewTests(TempTree):
 
     def _api(self, games=None):
         api = API.__new__(API)
-        api._iniConfig = _ini()
+        api._ini_config = _ini()
         api.library = LibraryResolver(_ini(), games=list(
             self.games if games is None else games))
         return api

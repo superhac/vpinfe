@@ -223,7 +223,7 @@ class WhatThePageSaysTests(LibraryTestCase):
         return write_game(self.root, "Dr. Dude", info=live, files=files)
 
     def _counts(self):
-        games = GameParser(str(self.root)).getAllGames()
+        games = GameParser(str(self.root)).get_all_games()
         return {
             "pending_upgrade": sum(1 for t in games if t.info_pending_upgrade),
             "restorable": sum(1 for t in games if t.info_restorable),

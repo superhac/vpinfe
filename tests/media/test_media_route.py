@@ -36,7 +36,7 @@ class LookupTests(TempTree):
     def setUp(self) -> None:
         super().setUp()
         _library(self.root)
-        self.games = GameParser(str(self.root)).getAllGames()
+        self.games = GameParser(str(self.root)).get_all_games()
 
     def test_it_finds_the_file_behind_a_kind(self) -> None:
         path = media_lookup.media_path(self.games, "tbl0000001", "wheel")
@@ -73,7 +73,7 @@ class PerTableResolutionTests(TempTree):
         }, files={"Default.vpx": b"vpx", "Other.vpx": b"vpx"},
             # A tier-1 wheel named for the table that is NOT the default.
             medias={"(Wheel) Other.png": b"\x89PNG other wheel"})
-        self.games = GameParser(str(self.root)).getAllGames()
+        self.games = GameParser(str(self.root)).get_all_games()
 
     def test_the_table_the_file_is_named_for_gets_it(self) -> None:
         found = media_lookup.media_path(self.games, "t2", "wheel")
@@ -96,7 +96,7 @@ class UnparsedGameTests(TempTree):
             "Info": {"Title": "Untouched"},
             "vpinfe": {"game_id": "untouched1", "schema": 2},
         }, medias={"wheel.png": b"\x89PNG"})
-        self.games = GameParser(str(self.root)).getAllGames()
+        self.games = GameParser(str(self.root)).get_all_games()
 
     def test_media_is_reachable_by_the_game_id(self) -> None:
         path = media_lookup.media_path(self.games, "untouched1", "wheel")
@@ -117,7 +117,7 @@ class RouteTests(unittest.TestCase):
         # The route asks the shared repository for the library. Patched rather than
         # injected: all_games rebuilds its parser when the configured games
         # root does not match, which it would not here.
-        cls.games = GameParser(str(cls.root)).getAllGames()
+        cls.games = GameParser(str(cls.root)).get_all_games()
         cls._patch = mock.patch("common.games.game_repository.all_games",
                                 return_value=cls.games)
         cls._patch.start()

@@ -92,7 +92,7 @@ def run_startup_migrations(games_root: Path, config_dir: Path) -> dict:
 
     unversioned = unversioned_count(games_root)
     table_ids = table_id_count(games_root)
-    games = GameParser(str(games_root)).getAllGames()
+    games = GameParser(str(games_root)).get_all_games()
     work["game_ids_minted"] = sum(1 for game in games if not game_id(game))
     ensure_unique_ids(games)
     ensure_unique_table_ids(games)
@@ -321,7 +321,7 @@ class LibraryTests(RevertTestCase):
         stamp - so "is it stamped" is the wrong question to ask of the file."""
         self._migrate()
         write_game(self.games_root, "New Game", info=None)
-        ensure_unique_ids(GameParser(str(self.games_root)).getAllGames())
+        ensure_unique_ids(GameParser(str(self.games_root)).get_all_games())
         made = self.games_root / "New Game" / "New Game.info"
         self.assertEqual(json.loads(made.read_text(encoding="utf-8")).keys(), {"vpinfe"})
 
@@ -380,7 +380,7 @@ class DryRunTests(RevertTestCase):
     def test_it_changes_nothing(self):
         self._migrate()
         write_game(self.games_root, "New Game", info=None)
-        ensure_unique_ids(GameParser(str(self.games_root)).getAllGames())
+        ensure_unique_ids(GameParser(str(self.games_root)).get_all_games())
         before = self._library_bytes()
         config_before = sorted(p.name for p in self.config_dir.iterdir())
 
@@ -392,7 +392,7 @@ class DryRunTests(RevertTestCase):
     def test_it_names_the_same_work_the_run_does(self):
         self._migrate()
         write_game(self.games_root, "New Game", info=None)
-        ensure_unique_ids(GameParser(str(self.games_root)).getAllGames())
+        ensure_unique_ids(GameParser(str(self.games_root)).get_all_games())
 
         planned = self._reset(dry_run=True)
         done = self._reset()

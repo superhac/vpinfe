@@ -53,24 +53,24 @@ class GameParser:
     RED_CONSOLE_TEXT = '\033[31m'
     RESET_CONSOLE_TEXT = '\033[0m'
 
-    def __init__(self, gamesRootFilePath, iniConfig=None):
-        self.gamesRootFilePath = Path(gamesRootFilePath)
+    def __init__(self, games_root_file_path, ini_config=None):
+        self.games_root_file_path = Path(games_root_file_path)
         self.playfieldvariant = "table"
         self.games: list[Game] = []
         self.missing_games: list[dict] = []
         self.unreadable_games: list[dict] = []
         self.active_sets: dict[str, str] = {}
-        if iniConfig:
-            media_cfg = MediaConfig.from_config(iniConfig)
+        if ini_config:
+            media_cfg = MediaConfig.from_config(ini_config)
             self.playfieldvariant = media_cfg.playfield_variant
             from common.media_specs import active_set_for
             wheelset = active_set_for("wheel", media_cfg.wheelset)
             if wheelset:
                 self.active_sets["wheel"] = wheelset
-        # Constructing reads the library; a loadGames(reload=True) after it reads it twice.
-        self.loadGames()
+        # Constructing reads the library; a load_games(reload=True) after it reads it twice.
+        self.load_games()
 
-    def loadGames(self, reload=False):  # reload if you want to rescan the games
+    def load_games(self, reload=False):  # reload if you want to rescan the games
         if not reload and self.games:
             return
 
@@ -79,11 +79,11 @@ class GameParser:
         self.missing_games.clear()
         self.unreadable_games.clear()
 
-        if not self.gamesRootFilePath.exists():
+        if not self.games_root_file_path.exists():
             return
 
         logger.info("Loading games and image paths...")
-        folders = [d for d in sorted(self.gamesRootFilePath.iterdir())
+        folders = [d for d in sorted(self.games_root_file_path.iterdir())
                    if d.is_dir() and not d.name.startswith('.')]
 
         # Reading a folder is almost entirely waiting: on the network share a real
@@ -193,7 +193,7 @@ class GameParser:
             game.altSoundExists = True
 
         try:
-            self.loadMetaData(game)
+            self.load_metadata(game)
         except InvalidMetaConfigError as exc:
             # This used to stop the whole library loading. Excluded rather than loaded
             # empty, so nothing can write over a file we could not read.
@@ -216,7 +216,7 @@ class GameParser:
 
         # Media after the default pick: tier 1 of the resolution chain keys off
         # the table that actually launches.
-        self.loadImagePaths(
+        self.load_image_paths(
             game,
             game_contents=game_contents,
             has_medias_dir="medias" in game_subdirs,
@@ -265,9 +265,9 @@ class GameParser:
             self.games.append(game)             # a folder that was not there before
         return game
 
-    def loadImagePaths(self, Game, game_contents=None, has_medias_dir=None,
-                       table_stem=None):
-        game_dir = Path(Game.fullPathGame)
+    def load_image_paths(self, game, game_contents=None, has_medias_dir=None,
+                         table_stem=None):
+        game_dir = Path(game.fullPathGame)
         medias_dir = game_dir / "medias"
 
         # Batch directory listings to minimize disk calls
@@ -287,39 +287,39 @@ class GameParser:
                             fname if rel == "." else f"{rel}/{fname}".replace(os.sep, "/"))
             except Exception:
                 medias_contents = set()
-        apply_media_specs(Game, game_contents, medias_contents, self.playfieldvariant,
+        apply_media_specs(game, game_contents, medias_contents, self.playfieldvariant,
                           table_stem, self.active_sets or None)
         # And again per table, off the same two listings. The walk is what costs; a
         # second resolution is set lookups, so a folder with one table pays almost
         # nothing and one with three answers honestly for all three.
-        Game.media_by_table = resolve_media_by_table(
-            Game.fullPathGame, game_contents, medias_contents,
+        game.media_by_table = resolve_media_by_table(
+            game.fullPathGame, game_contents, medias_contents,
             table_names(game_contents), self.playfieldvariant,
             self.active_sets or None)
 
-    def loadMetaData(self, Game):
-        meta_path = Path(Game.fullPathGame) / f"{Game.gameDirName}.info"
+    def load_metadata(self, game):
+        meta_path = Path(game.fullPathGame) / f"{game.gameDirName}.info"
         try:
             meta = MetaConfig(str(meta_path))
         except InvalidMetaConfigError as exc:
-            logger.error("Invalid metadata for game '%s': %s", Game.gameDirName, exc)
+            logger.error("Invalid metadata for game '%s': %s", game.gameDirName, exc)
             raise
-        Game.meta_config = meta.data
-        Game.info_pending_upgrade = meta.pending_migration
+        game.meta_config = meta.data
+        game.info_pending_upgrade = meta.pending_migration
 
-    def getGame(self, index):
+    def get_game(self, index):
         return self.games[index]
 
-    def getGameCount(self):
+    def get_game_count(self):
         return len(self.games)
 
-    def getAllGames(self):
+    def get_all_games(self):
         return list(self.games)
 
-    def getUnreadableGames(self):
+    def get_unreadable_games(self):
         """Folders whose .info could not be read, so the game was left out."""
         return [dict(row) for row in self.unreadable_games]
 
-    def getMissingGames(self):
+    def get_missing_games(self):
         return [dict(row) for row in self.missing_games]
 

@@ -194,9 +194,9 @@ class API:
         reaches announce(), which looks both up in the registry and logs.
         """
         announce(str(key), str(name))
-    def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None,
+    def __init__(self, ini_config, window_name=None, ws_bridge=None, frontend_browser=None,
                  library=None):
-        self._iniConfig = iniConfig
+        self._ini_config = ini_config
         self.window_name = window_name          # whatever the theme declared
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
         self.frontend_browser = frontend_browser  # ChromiumManager instance
@@ -207,7 +207,7 @@ class API:
             self.library = library
         self.jsGameDictData = None
         # Check for startup collection
-        startup_collection = cfg_get(self._iniConfig, 'general', 'startup_collection').strip()
+        startup_collection = cfg_get(self._ini_config, 'general', 'startup_collection').strip()
         if startup_collection:
             try:
                 self.set_tables_by_collection(startup_collection)
@@ -232,7 +232,7 @@ class API:
             # Loaded through this module's name, which is the one callers already patch
             # to stand a library up for a test - the resolver is an implementation
             # detail of where the games are held, not of how they are found.
-            existing = frontend_library.LibraryResolver(getattr(self, "_iniConfig", None),
+            existing = frontend_library.LibraryResolver(getattr(self, "_ini_config", None),
                                           games=all_games())
             self.__dict__["_library"] = existing
         return existing
@@ -302,7 +302,7 @@ class API:
     def _theme_contract(self) -> int:
         """Which shape the active theme asked for. Read per payload rather than cached,
         so switching themes does not need a restart to take effect."""
-        theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(self._iniConfig.config))
+        theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(self._ini_config.config))
         return declared_contract(theme_dir) if theme_dir else CURRENT_CONTRACT
 
     def _reset_to_default_view(self):
@@ -432,7 +432,7 @@ class API:
     def get_initial_table_index(self):
         # Position the wheel on the last-launched game at startup. Resolved
         # against the current (possibly filtered) view; 0 when disabled or unfound.
-        return last_game.resolve_last_table_index(self._iniConfig, self.entries)
+        return last_game.resolve_last_table_index(self._ini_config, self.entries)
 
 
     def get_collections(self):
@@ -564,7 +564,7 @@ class API:
         one place because two answers to this question is how the wheel and the menu
         would come to disagree about what a press just did.
         """
-        default, page_size = input_api.get_paging_config(self._iniConfig.config)
+        default, page_size = input_api.get_paging_config(self._ini_config.config)
         chosen = None
         name = self.current_collection
         if name:
@@ -611,24 +611,24 @@ class API:
         return output
 
     def get_bindings(self):
-        return input_api.get_bindings(self._iniConfig.config)
+        return input_api.get_bindings(self._ini_config.config)
 
     def get_joymaping(self):
-        return input_api.get_joymapping(self._iniConfig.config)
+        return input_api.get_joymapping(self._ini_config.config)
 
     def get_keymapping(self):
-        return input_api.get_keymapping(self._iniConfig.config)
+        return input_api.get_keymapping(self._ini_config.config)
 
     def get_mainmenu_config(self):
         try:
-            return config_api.get_mainmenu_config(self._iniConfig)
+            return config_api.get_mainmenu_config(self._ini_config)
         except Exception:
             logger.exception("Failed to reload ini before get_mainmenu_config")
             return {"hideQuitButton": False}
 
     def set_button_mapping(self, button_name, button_index):
         """Set a gamepad button mapping and save to config."""
-        return input_api.set_button_mapping(self._iniConfig, button_name, button_index)
+        return input_api.set_button_mapping(self._ini_config, button_name, button_index)
 
     def launch_table(self, index):
         """Launch what the wheel is sitting on.
@@ -645,7 +645,7 @@ class API:
         try:
             # The entry names the table, so the table the collection chose launches
             # rather than whatever the game defaults to.
-            launch.launch_game(game, self._iniConfig,
+            launch.launch_game(game, self._ini_config,
                                source=launch_state.SOURCE_FRONTEND,
                                table=entry.filename)
         except launch.LaunchUnavailableError as exc:
@@ -669,7 +669,7 @@ class API:
         # Where they are heading, for anything that can usefully get ahead of them. A
         # subscriber that does not care ignores it, the way every subscriber already
         # ignores what it was not written for.
-        events.emit(events.GAME_SELECTED, game=game, ini_config=self._iniConfig,
+        events.emit(events.GAME_SELECTED, game=game, ini_config=self._ini_config,
                     neighbors=self._neighbors(index))
         return {"success": True}
 
@@ -706,7 +706,7 @@ class API:
         return contributions.refresh(ext_data.descriptor_for(entry.game))
 
     def get_vpinplay_endpoint(self):
-        return config_api.get_vpinplay_endpoint(self._iniConfig.config)
+        return config_api.get_vpinplay_endpoint(self._ini_config.config)
 
     def get_game_rating(self, index):
         """Get User.Rating for a game index in the current filtered list."""
@@ -744,7 +744,7 @@ class API:
 
         return metadata_build_service.start_build(
             self,
-            build_metadata_func=lambda **kwargs: build_metadata(iniconfig=self._iniConfig,
+            build_metadata_func=lambda **kwargs: build_metadata(iniconfig=self._ini_config,
                     **kwargs),
             all_games_func=all_games,
             download_media=download_media,
@@ -752,26 +752,26 @@ class API:
         )
 
     def get_theme_config(self):
-        return theme_api.get_theme_config(self._iniConfig.config)
+        return theme_api.get_theme_config(self._ini_config.config)
 
     ###################
     ### For splash page
     ###################
 
     def get_splashscreen_enabled(self):
-        return config_api.get_splashscreen_enabled(self._iniConfig.config)
+        return config_api.get_splashscreen_enabled(self._ini_config.config)
 
     def get_audio_muted(self):
-        return theme_api.get_audio_muted(self._iniConfig.config)
+        return theme_api.get_audio_muted(self._ini_config.config)
 
     def set_audio_muted(self, muted):
         return config_api.set_audio_muted(self, muted)
 
     def get_theme_name(self):
-        return theme_api.get_theme_name(self._iniConfig.config)
+        return theme_api.get_theme_name(self._ini_config.config)
 
     def get_media_priorities(self):
-        return config_api.get_media_priorities(self._iniConfig.config)
+        return config_api.get_media_priorities(self._ini_config.config)
 
     def get_temporary_vpinplay_profile(self):
         """Who is playing as somebody else, if anything answers.
@@ -801,35 +801,35 @@ class API:
         return result
 
     def get_playfield_orientation(self):
-        return config_api.get_playfield_orientation(self._iniConfig.config)
+        return config_api.get_playfield_orientation(self._ini_config.config)
 
     def get_playfield_rotation(self):
-        return config_api.get_playfield_rotation(self._iniConfig.config)
+        return config_api.get_playfield_rotation(self._ini_config.config)
 
     def get_playfield_media_rotation(self):
-        return config_api.get_playfield_media_rotation(self._iniConfig.config)
+        return config_api.get_playfield_media_rotation(self._ini_config.config)
 
     def get_cab_mode(self):
-        return config_api.get_cab_mode(self._iniConfig.config)
+        return config_api.get_cab_mode(self._ini_config.config)
 
     def get_theme_assets_port(self):
-        return config_api.get_theme_assets_port(self._iniConfig.config)
+        return config_api.get_theme_assets_port(self._ini_config.config)
 
     def get_http_port(self):
-        return config_api.get_http_port(self._iniConfig.config)
+        return config_api.get_http_port(self._ini_config.config)
 
     def get_managerui_remote_link(self):
-        return config_api.get_managerui_remote_link(self._iniConfig.config)
+        return config_api.get_managerui_remote_link(self._ini_config.config)
 
     def get_managerui_vpinplay_multi_link(self):
-        return config_api.get_managerui_vpinplay_multi_link(self._iniConfig.config)
+        return config_api.get_managerui_vpinplay_multi_link(self._ini_config.config)
 
     def get_theme_contract(self):
         return self._theme_contract()
 
     def get_theme_windows(self):
-        theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(self._iniConfig.config))
+        theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(self._ini_config.config))
         return list(theme_windows.declared_windows(theme_dir, self._theme_contract()))
 
     def get_theme_index_page(self):
-        return theme_api.get_theme_index_page(self._iniConfig.config, self.get_my_window_name())
+        return theme_api.get_theme_index_page(self._ini_config.config, self.get_my_window_name())

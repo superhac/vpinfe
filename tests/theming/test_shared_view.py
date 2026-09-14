@@ -127,7 +127,7 @@ class SharedViewTests(unittest.TestCase):
         """`API.__new__(API)` is how paging and input mapping are tested - no library
         behind it, and no view handed in."""
         bare = API.__new__(API)
-        bare._iniConfig = _ini()
+        bare._ini_config = _ini()
         bare.filteredGames = entries_for(self.games)
 
         self.assertEqual(len(bare.entries), len(self.games))

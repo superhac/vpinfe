@@ -82,7 +82,7 @@ def _capture_theme_payload(games_root: Path) -> dict:
     parser = GameParser(str(games_root))
     # Contract 1: what a theme written before 3.0 receives. Capturing the current
     # contract would compare master against a shape no existing theme asks for.
-    games = (parser.getAllGames() if hasattr(parser, "getAllGames")
+    games = (parser.get_all_games() if hasattr(parser, "get_all_games")
              else parser.getAllTables())
     try:
         # 3.0 serves the view as entries and takes a contract; master hands its builder

@@ -67,7 +67,7 @@ def create_api_instances(iniconfig, logger):
             continue
 
         api = API(
-            iniConfig=iniconfig,
+            ini_config=iniconfig,
             window_name=window_name,
             ws_bridge=ws_bridge,
             frontend_browser=frontend_browser,

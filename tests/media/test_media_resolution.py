@@ -363,7 +363,7 @@ class ParserCasingTests(unittest.TestCase):
                 "VPXFile": {"filename": f"{TABLE}.vpx"},
             }), encoding="utf-8")
 
-            game = GameParser(tmp).getAllGames()[0]
+            game = GameParser(tmp).get_all_games()[0]
 
         self.assertTrue(game.pupPackExists, "PUPVideos holds a PUP pack")
         self.assertTrue(game.altColorExists)
@@ -450,7 +450,7 @@ class ParserOrderTests(unittest.TestCase):
             (root / "medias" / "(Wheel) some other build.png").write_bytes(b"png")
 
             parser = GameParser(tmp)
-            game = parser.getAllGames()[0]
+            game = parser.get_all_games()[0]
 
         self.assertEqual(os.path.basename(game.WheelImagePath),
                          f"(Wheel) {TABLE}.png",

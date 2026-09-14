@@ -32,13 +32,13 @@ class SingleGameRefreshTests(TempTree):
         config = configparser.ConfigParser()
         config.read_dict({"Settings": {"gamerootdir": str(self.root)}, "Media": {}})
         self.parser = GameParser(str(self.root), config)
-        self.parser.loadGames(reload=True)
+        self.parser.load_games(reload=True)
 
     def _rating(self, game):
         return game.meta_config.get("User", {}).get("Rating")
 
     def _by_name(self, name):
-        return next(t for t in self.parser.getAllGames() if t.gameDirName == name)
+        return next(t for t in self.parser.get_all_games() if t.gameDirName == name)
 
     def test_a_changed_folder_is_picked_up(self):
         _game_dir(self.root, "Bravo", rating=5)
@@ -61,18 +61,18 @@ class SingleGameRefreshTests(TempTree):
         for _ in range(3):
             self.parser.reload_game(str(self.root / "Alpha"))
 
-        self.assertEqual(self.parser.getGameCount(), 3)
+        self.assertEqual(self.parser.get_game_count(), 3)
 
     def test_a_folder_named_a_different_way_is_replaced_not_added(self):
         """The caller rarely spells a folder the way the listing did - a root reached
         through a symlink is the ordinary case, and on macOS every path under /var is
         one. Matching on the spelling appended a second copy on every refresh."""
-        before = self.parser.getGameCount()
+        before = self.parser.get_game_count()
 
         self.parser.reload_game(Path(str(self.root / "Bravo")).resolve())
 
-        self.assertEqual(self.parser.getGameCount(), before)
-        self.assertEqual([g.gameDirName for g in self.parser.getAllGames()].count("Bravo"),
+        self.assertEqual(self.parser.get_game_count(), before)
+        self.assertEqual([g.gameDirName for g in self.parser.get_all_games()].count("Bravo"),
                          1)
 
     def test_a_folder_that_appeared_is_added(self):
@@ -81,7 +81,7 @@ class SingleGameRefreshTests(TempTree):
         added = self.parser.reload_game(str(self.root / "Delta"))
 
         self.assertIsNotNone(added)
-        self.assertEqual(self.parser.getGameCount(), 4)
+        self.assertEqual(self.parser.get_game_count(), 4)
 
     def test_a_folder_that_went_away_is_dropped(self):
         for path in (self.root / "Alpha").iterdir():
@@ -91,8 +91,8 @@ class SingleGameRefreshTests(TempTree):
         gone = self.parser.reload_game(str(self.root / "Alpha"))
 
         self.assertIsNone(gone)
-        self.assertEqual(self.parser.getGameCount(), 2)
-        self.assertNotIn("Alpha", [t.gameDirName for t in self.parser.getAllGames()])
+        self.assertEqual(self.parser.get_game_count(), 2)
+        self.assertNotIn("Alpha", [t.gameDirName for t in self.parser.get_all_games()])
 
     def test_a_folder_with_no_table_is_not_a_game(self):
         empty = self.root / "Empty"
@@ -100,14 +100,14 @@ class SingleGameRefreshTests(TempTree):
         (empty / "readme.txt").write_text("nothing here", encoding="utf-8")
 
         self.assertIsNone(self.parser.reload_game(str(empty)))
-        self.assertEqual(self.parser.getGameCount(), 3)
+        self.assertEqual(self.parser.get_game_count(), 3)
 
     def test_a_game_that_loses_its_info_is_reported_missing(self):
         (self.root / "Bravo" / "Bravo.info").unlink()
 
         self.parser.reload_game(str(self.root / "Bravo"))
 
-        missing = [row["folder"] for row in self.parser.getMissingGames()]
+        missing = [row["folder"] for row in self.parser.get_missing_games()]
         self.assertEqual(missing, ["Bravo"])
 
     def test_a_game_that_regains_its_info_stops_being_missing(self):
@@ -117,7 +117,7 @@ class SingleGameRefreshTests(TempTree):
         _game_dir(self.root, "Bravo", rating=2)
         self.parser.reload_game(str(self.root / "Bravo"))
 
-        self.assertEqual(self.parser.getMissingGames(), [])
+        self.assertEqual(self.parser.get_missing_games(), [])
 
 
 class ChangeAnnouncementTests(TempTree):

@@ -170,8 +170,8 @@ def get_splashscreen_enabled(config):
 
 def set_audio_muted(api, muted):
     muted_flag = muted if isinstance(muted, bool) else is_truthy(muted)
-    cfg_set(api._iniConfig, "general", "mute_audio", bool(muted_flag))
-    api._iniConfig.save()
+    cfg_set(api._ini_config, "general", "mute_audio", bool(muted_flag))
+    api._ini_config.save()
     api.send_event_all_windows_incself({
         "type": "AudioMuteChanged",
         "muted": muted_flag,

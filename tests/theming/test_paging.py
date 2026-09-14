@@ -139,7 +139,7 @@ class TestApiGetPageIndex(unittest.TestCase):
         for key, value in input_values.items():
             parser.set("Input", key, value)
         api = API.__new__(API)
-        api._iniConfig = SimpleNamespace(config=parser)
+        api._ini_config = SimpleNamespace(config=parser)
         # The view holds entries, which is what an index from a theme addresses.
         api.filteredGames = entries_for(games)
         api.current_sort = order_by

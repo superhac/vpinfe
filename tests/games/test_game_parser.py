@@ -20,8 +20,8 @@ class GameParserTests(unittest.TestCase):
         parser.games = [SimpleNamespace(name="one")]
         parser.missing_games = [{"folder": "missing"}]
 
-        games = parser.getAllGames()
-        missing = parser.getMissingGames()
+        games = parser.get_all_games()
+        missing = parser.get_missing_games()
         games.clear()
         missing[0]["folder"] = "changed"
 
@@ -41,7 +41,7 @@ class GameParserTests(unittest.TestCase):
             (without_b2s / "No B2S (Bally 1991).vpx").write_text("")
 
             parser = GameParser(root)
-            by_name = {t.gameDirName: t for t in parser.getAllGames()}
+            by_name = {t.gameDirName: t for t in parser.get_all_games()}
 
             self.assertTrue(by_name["With B2S (Bally 1990)"].b2sExists)
             self.assertFalse(by_name["No B2S (Bally 1991)"].b2sExists)
@@ -59,7 +59,7 @@ class GameParserTests(unittest.TestCase):
             folder.mkdir()
             (folder / "Nothing To Play (Original 2024).info").write_text("{}")
 
-            by_name = {g.gameDirName: g for g in GameParser(root).getAllGames()}
+            by_name = {g.gameDirName: g for g in GameParser(root).get_all_games()}
 
             self.assertIn("Nothing To Play (Original 2024)", by_name)
             self.assertEqual(by_name["Nothing To Play (Original 2024)"].table_files, [])
@@ -75,10 +75,10 @@ class GameParserTests(unittest.TestCase):
             (folder / "No Record Yet (Bally 1990).vpx").write_text("")
 
             parser = GameParser(root)
-            by_name = {g.gameDirName: g for g in parser.getAllGames()}
+            by_name = {g.gameDirName: g for g in parser.get_all_games()}
 
             self.assertIn("No Record Yet (Bally 1990)", by_name)
-            self.assertEqual([row["folder"] for row in parser.getMissingGames()],
+            self.assertEqual([row["folder"] for row in parser.get_missing_games()],
                              ["No Record Yet (Bally 1990)"])
 
     def test_a_folder_with_neither_is_not_an_entry(self) -> None:
@@ -88,7 +88,7 @@ class GameParserTests(unittest.TestCase):
             (root / "Backglasses").mkdir()
             (root / "Backglasses" / "something.directb2s").write_text("")
 
-            self.assertEqual(GameParser(root).getAllGames(), [])
+            self.assertEqual(GameParser(root).get_all_games(), [])
 
     def test_an_entry_with_no_table_names_no_table(self) -> None:
         """Empty rather than the folder: `game_dir / ""` is the folder itself, and a
@@ -99,7 +99,7 @@ class GameParserTests(unittest.TestCase):
             folder.mkdir()
             (folder / "Nothing To Play (Original 2024).info").write_text("{}")
 
-            game = GameParser(root).getAllGames()[0]
+            game = GameParser(root).get_all_games()[0]
 
             self.assertEqual(game.fullPathVPXfile, "")
             self.assertIsNotNone(game.creation_time)
@@ -130,12 +130,12 @@ class ParallelScanTests(TempTree):
 
     def test_the_order_is_the_sorted_order_not_the_finishing_order(self) -> None:
         parser = self._library(40)
-        names = [g.gameDirName for g in parser.getAllGames()]
+        names = [g.gameDirName for g in parser.get_all_games()]
         self.assertEqual(names, sorted(names))
 
     def test_the_same_library_scans_the_same_way_every_time(self) -> None:
         self._library(40)
-        runs = {tuple(g.gameDirName for g in GameParser(str(self.root)).getAllGames())
+        runs = {tuple(g.gameDirName for g in GameParser(str(self.root)).get_all_games())
                 for _ in range(5)}
         self.assertEqual(len(runs), 1, "the scan is not deterministic")
 
@@ -145,11 +145,11 @@ class ParallelScanTests(TempTree):
         from common.games import game_parser
 
         self._library(4)
-        serial = [g.gameDirName for g in GameParser(str(self.root)).getAllGames()]
+        serial = [g.gameDirName for g in GameParser(str(self.root)).get_all_games()]
         original = game_parser._PARALLEL_SCAN_THRESHOLD
         game_parser._PARALLEL_SCAN_THRESHOLD = 1
         try:
-            parallel = [g.gameDirName for g in GameParser(str(self.root)).getAllGames()]
+            parallel = [g.gameDirName for g in GameParser(str(self.root)).get_all_games()]
         finally:
             game_parser._PARALLEL_SCAN_THRESHOLD = original
         self.assertEqual(serial, parallel)

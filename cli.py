@@ -97,7 +97,7 @@ def gamepadtest():
     ws_bridge = DeviceChannel(port=ws_port)
     chromium = ChromiumManager()
     api = API(
-        iniConfig=config_store,
+        ini_config=config_store,
         window_name="gamepad",
         ws_bridge=ws_bridge,
         frontend_browser=chromium,

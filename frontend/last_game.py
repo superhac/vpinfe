@@ -30,36 +30,36 @@ def entry_identity(entry) -> str:
     return str(game_id(getattr(entry, "game", entry)) or "").strip()
 
 
-def save_last_launched(iniConfig, game, table_id: str = "") -> None:
+def save_last_launched(ini_config, game, table_id: str = "") -> None:
     """Persist what just launched. Takes the two ids rather than an entry: no entry
     exists on the path a Remote or API launch takes."""
-    if not SettingsConfig.from_config(iniConfig).restore_last_table:
+    if not SettingsConfig.from_config(ini_config).restore_last_table:
         return
     identity = (str(table_id or "").strip()
                 or str(game_id(game) or "").strip())
     if not identity:
         return
-    parser = iniConfig.config
+    parser = ini_config.config
     if not parser.has_section(STATE_SECTION):
         parser.add_section(STATE_SECTION)
     if parser.get(STATE_SECTION, STATE_KEY, fallback="") == identity:
         return  # unchanged; skip the disk write
     parser.set(STATE_SECTION, STATE_KEY, identity)
     try:
-        iniConfig.save()
+        ini_config.save()
     except Exception:
         logger.exception("Could not persist last game selection")
 
 
-def resolve_last_table_index(iniConfig, entries) -> int:
+def resolve_last_table_index(ini_config, entries) -> int:
     """Return the index of the saved last row within `entries`, else 0.
 
     Returns 0 when the feature is off, nothing is saved, or the saved row
     isn't in the current view (e.g. filtered out by a startup collection).
     """
-    if not SettingsConfig.from_config(iniConfig).restore_last_table:
+    if not SettingsConfig.from_config(ini_config).restore_last_table:
         return 0
-    saved = cfg_get(iniConfig, STATE_SECTION, STATE_KEY, "").strip()
+    saved = cfg_get(ini_config, STATE_SECTION, STATE_KEY, "").strip()
     if not saved:
         return 0
     for index, entry in enumerate(entries):

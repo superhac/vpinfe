@@ -77,7 +77,7 @@ class UnreadableGameTests(TempTree):
         return d
 
     def test_one_truncated_file_costs_one_game_not_the_library(self):
-        """It used to cost all of them: the error came out of loadGames and the app saw
+        """It used to cost all of them: the error came out of load_games and the app saw
         zero tables, so a single bad file looked like an empty library."""
         good = json.dumps({"Info": {}, "User": {}})
         self._game("Good One", good)
@@ -86,8 +86,8 @@ class UnreadableGameTests(TempTree):
 
         parser = GameParser(str(self.root))
 
-        self.assertEqual(parser.getGameCount(), 2)
-        self.assertEqual([r["folder"] for r in parser.getUnreadableGames()], ["Bad One"])
+        self.assertEqual(parser.get_game_count(), 2)
+        self.assertEqual([r["folder"] for r in parser.get_unreadable_games()], ["Bad One"])
 
     def test_an_empty_file_counts_as_unreadable_too(self):
         self._game("Good One", json.dumps({"Info": {}}))
@@ -95,8 +95,8 @@ class UnreadableGameTests(TempTree):
 
         parser = GameParser(str(self.root))
 
-        self.assertEqual(parser.getGameCount(), 1)
-        self.assertEqual(len(parser.getUnreadableGames()), 1)
+        self.assertEqual(parser.get_game_count(), 1)
+        self.assertEqual(len(parser.get_unreadable_games()), 1)
 
     def test_the_unreadable_file_is_left_alone(self):
         """Excluded rather than loaded empty, so nothing can write over a file we could
@@ -110,13 +110,13 @@ class UnreadableGameTests(TempTree):
     def test_a_fixed_file_comes_back_on_the_next_scan(self):
         bad = self._game("Bad One", "{ truncated")
         parser = GameParser(str(self.root))
-        self.assertEqual(parser.getGameCount(), 0)
+        self.assertEqual(parser.get_game_count(), 0)
 
         (bad / "Bad One.info").write_text(json.dumps({"Info": {}}), encoding="utf-8")
-        parser.loadGames(reload=True)
+        parser.load_games(reload=True)
 
-        self.assertEqual(parser.getGameCount(), 1)
-        self.assertEqual(parser.getUnreadableGames(), [])
+        self.assertEqual(parser.get_game_count(), 1)
+        self.assertEqual(parser.get_unreadable_games(), [])
 
 
 
@@ -145,7 +145,7 @@ class StaleCountTests(TempTree):
         from common.games.game_identity import ensure_unique_ids
 
         parser = GameParser(str(self.root))
-        games = parser.getAllGames()
+        games = parser.get_all_games()
         self.assertTrue(all(t.info_pending_upgrade for t in games),
                         "they do need upgrading before the backfill runs")
 

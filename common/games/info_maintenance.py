@@ -25,7 +25,7 @@ logger = logging.getLogger("vpinfe.common.games.info_maintenance")
 
 
 def game_dirs(game_root, game_name: str | None = None) -> list[Path]:
-    """Game folders under the root. Not loadGames: that raises on the first bad `.info`."""
+    """Game folders under the root. Not load_games: that raises on the first bad `.info`."""
     root = Path(game_root)
     if not root.is_dir():
         return []

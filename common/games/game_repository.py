@@ -59,9 +59,9 @@ def _held(reload: bool) -> tuple[list[Any], bool]:
             parser = _PARSERS[location.path] = GameParser(location.path, get_ini_config())
             read = True
         elif reload:
-            parser.loadGames(reload=True)
+            parser.load_games(reload=True)
             read = True
-        for game in parser.getAllGames():
+        for game in parser.get_all_games():
             game.location_id = location.location_id
             games.append(game)
     return games, read
@@ -117,7 +117,7 @@ def games_under(games_root: str, config=None) -> list[Any]:
     here = locations.canonical(wanted)
     if any(locations.canonical(one.path) == here for one in locations.configured()):
         return all_games()
-    return list(GameParser(wanted, config or get_ini_config()).getAllGames())
+    return list(GameParser(wanted, config or get_ini_config()).get_all_games())
 
 
 def refresh_games() -> list[Any]:
@@ -146,7 +146,7 @@ def unreadable_games() -> list[dict[str, str]]:
     all_games()
     with _LOCK:
         return [dict(row) for parser in _PARSERS.values()
-                for row in parser.getUnreadableGames()]
+                for row in parser.get_unreadable_games()]
 
 
 def pending_upgrade_game_names() -> list[str]:
@@ -208,7 +208,7 @@ def get_missing_games(reload: bool = False) -> list[dict[str, str]]:
     all_games(reload=reload)
     with _LOCK:
         return [dict(row) for parser in _PARSERS.values()
-                for row in parser.getMissingGames()]
+                for row in parser.get_missing_games()]
 
 
 def collections_by_game_id() -> dict[str, list[str]]:
@@ -360,7 +360,7 @@ def get_game_name_map(reload: bool = False) -> dict[str, str]:
 def _parser_holding(game_dir: str) -> GameParser | None:
     """The parser for the location this folder is in, or None when nothing is loaded."""
     for path, parser in _PARSERS.items():
-        if not parser.getGameCount():
+        if not parser.get_game_count():
             continue
         try:
             if Path(game_dir).is_relative_to(Path(path).expanduser().resolve()):

@@ -138,7 +138,7 @@ def capture() -> dict:
         root = Path(tmp)
         build_library(root)
         parser = GameParser(str(root), _config())
-        games = parser.getAllGames()
+        games = parser.get_all_games()
 
         try:
             from tests.support.entries import entries_for

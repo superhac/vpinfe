@@ -141,13 +141,13 @@ class FrontendServiceTests(unittest.TestCase):
 
         events = []
         api = types.SimpleNamespace(
-            _iniConfig=DummyIni(),
+            _ini_config=DummyIni(),
             send_event_all_windows_incself=lambda event: events.append(event),
         )
 
         self.assertTrue(config_api.set_audio_muted(api, "true"))
         self.assertEqual(parser["general"]["mute_audio"], "true")
-        self.assertTrue(api._iniConfig.saved)
+        self.assertTrue(api._ini_config.saved)
         self.assertEqual(events, [{"type": "AudioMuteChanged", "muted": True}])
 
     def test_mainmenu_config_reports_the_setting_rather_than_raising(self):
@@ -202,7 +202,7 @@ class FrontendServiceTests(unittest.TestCase):
     def test_game_report_service_logs_unknown_game(self):
         parser_instance = mock.Mock()
         game = types.SimpleNamespace(gameDirName="Unknown")
-        parser_instance.getAllGames.return_value = [game]
+        parser_instance.get_all_games.return_value = [game]
         vps_instance = mock.Mock()
         vps_instance.__len__ = mock.Mock(return_value=0)
         vps_instance.parse_game_name_from_dir.return_value = {
@@ -216,7 +216,7 @@ class FrontendServiceTests(unittest.TestCase):
 
         with (
             mock.patch("common.games.game_report_service.games_under",
-                       return_value=parser_instance.getAllGames.return_value),
+                       return_value=parser_instance.get_all_games.return_value),
             mock.patch("common.games.game_report_service.VPSdb", return_value=vps_instance),
         ):
             game_report_service.list_unknown_games(iniconfig=ini, log=log)

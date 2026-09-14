@@ -35,13 +35,13 @@ def _tableparser_target(node) -> str | None:
 
 
 def _is_reload_of(node, name: str) -> bool:
-    """Whether this statement is `name.loadGames(...)`."""
+    """Whether this statement is `name.load_games(...)`."""
     if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Call):
         return False
     func = node.value.func
     return (
         isinstance(func, ast.Attribute)
-        and func.attr == "loadGames"
+        and func.attr == "load_games"
         and isinstance(func.value, ast.Name)
         and func.value.id == name
     )
@@ -65,7 +65,7 @@ class LibraryIsReadOnceTests(unittest.TestCase):
 
             with mock.patch.object(GameParser, "_build_game", counting_build):
                 parser = GameParser(root)
-                games = parser.getAllGames()
+                games = parser.get_all_games()
 
             self.assertEqual(len(games), 2)
             self.assertEqual(len(calls), 2, "the library was read more than once")
