@@ -54,7 +54,7 @@ class StandaloneScripts:
 
     HASHES_URL = "https://raw.githubusercontent.com/jsm174/vpx-standalone-scripts/refs/heads/master/hashes.json"
 
-    def __init__(self, games, progress_cb=None, auto_run: bool = True):
+    def __init__(self, games, progress_cb=None, auto_run: bool = True) -> None:
         self.hashes = None
         self.games = games
         self.progress_cb = progress_cb
@@ -73,11 +73,11 @@ class StandaloneScripts:
             logger.warning("Failed to download hash file from VPX-Standalone-Scripts")
         return self.hashes
 
-    def apply_patches(self):
+    def apply_patches(self) -> None:
         self.download_hashes()
         self.check_for_patches()
 
-    def check_for_patches(self):
+    def check_for_patches(self) -> None:
          if not self.hashes:
              return
          total = len(self.games) if self.games else 0
@@ -124,7 +124,7 @@ class StandaloneScripts:
         else:
             return False
 
-    def download_patch(self, filename, url):
+    def download_patch(self, filename, url) -> None:
         #logger.debug(f"Patched file installed: {filename}")
         try:
             download_file(url, Path(filename), chunk_size=1024)

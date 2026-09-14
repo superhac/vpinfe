@@ -733,7 +733,7 @@ def force_exit_after_handoff(delay_seconds: int = 8) -> None:
     hangs does not delay the update - it prevents it. Every surface that hands off wants
     this, so it lives beside the handoff rather than in whichever UI called it.
     """
-    def _worker():
+    def _worker() -> None:
         time.sleep(delay_seconds)
         logger.warning("Forcing process exit after update handoff; graceful shutdown "
                        "did not complete in %ss", delay_seconds)

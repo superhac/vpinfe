@@ -61,7 +61,7 @@ class UnresolvableCollectionError(Exception):
     answers a different question, and does it silently.
     """
 
-    def __init__(self, name: str, axes):
+    def __init__(self, name: str, axes) -> None:
         self.name = name
         self.axes = list(axes)
         super().__init__(
@@ -266,7 +266,7 @@ def resolve_games(name: str, collections, games) -> list[Any]:
 
     picked, seen = [], set()
 
-    def _add(game):
+    def _add(game) -> None:
         # By object, for the reason `resolve._take` gives: an unscanned game has no id.
         if id(game) in seen or game_id(game) in dropped_games:
             return
@@ -331,7 +331,7 @@ def resolve(name: str, collections, games) -> list[Entry]:
     ordered: list[Entry] = []
     seen: set[tuple[int, str]] = set()
 
-    def _take(game, entry):
+    def _take(game, entry) -> None:
         table_id = str(entry.get(TABLE_ID_KEY, ""))
         if table_id in dropped_tables or game_id(game) in dropped_games:
             return

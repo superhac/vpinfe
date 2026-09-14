@@ -237,7 +237,7 @@ def _criteria(filters: dict) -> dict:
     }
 
 
-def apply_collection(api, collection):
+def apply_collection(api, collection) -> None:
     """Show a collection: what it holds, in the order it says, applied once.
 
     A collection that filters also fills the menu's controls, so what it selects is
@@ -266,7 +266,7 @@ def _current_membership(api):
     return api.library.resolve_view(api.current_collection)
 
 
-def rebuild_view(api):
+def rebuild_view(api) -> None:
     """Re-derive the list from the library the view already holds.
 
     A collection's own stored sort is not reapplied. Choosing a collection applies it
@@ -277,7 +277,7 @@ def rebuild_view(api):
     api._rebuild_entries()
 
 
-def refresh_view(api):
+def refresh_view(api) -> None:
     """Re-derive the current view from the library, without changing what it is.
 
     Membership, order and the game objects themselves all go stale: a finished session
@@ -387,7 +387,7 @@ def page_jump_index(games, index, direction, order_by="title",
 
 
 
-def _sort_by_numeric_meta(games, field, reverse):
+def _sort_by_numeric_meta(games, field, reverse) -> None:
     games.sort(key=lambda game: game_title(game).lower())
     games.sort(key=lambda game: _numeric_meta_value(game, field), reverse=reverse)
 

@@ -184,7 +184,7 @@ class API:
         announce("ws-methods", name)
         return getattr(self, renamed)
 
-    def report_deprecated_use(self, key, name):
+    def report_deprecated_use(self, key, name) -> None:
         """Let the browser tell the log it used a legacy name.
 
         A theme runs in Chromium, so its use of a vpin.* alias is only visible in a
@@ -197,7 +197,7 @@ class API:
         """
         announce(str(key), str(name))
     def __init__(self, ini_config, window_name=None, ws_bridge=None, frontend_browser=None,
-                 library=None):
+                 library=None) -> None:
         self._ini_config = ini_config
         self.window_name = window_name          # whatever the theme declared
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
@@ -240,7 +240,7 @@ class API:
         return existing
 
     @library.setter
-    def library(self, value):
+    def library(self, value) -> None:
         self.__dict__["_library"] = value
 
     @property
@@ -248,7 +248,7 @@ class API:
         return self.library.all_games
 
     @all_games.setter
-    def all_games(self, value):
+    def all_games(self, value) -> None:
         self.library.all_games = value
 
     @property
@@ -256,7 +256,7 @@ class API:
         return self.library.filtered_games
 
     @filtered_games.setter
-    def filtered_games(self, value):
+    def filtered_games(self, value) -> None:
         self.library.filtered_games = value
 
     @property
@@ -264,7 +264,7 @@ class API:
         return self.library.current_filters
 
     @current_filters.setter
-    def current_filters(self, value):
+    def current_filters(self, value) -> None:
         self.library.current_filters = value
 
     @property
@@ -272,7 +272,7 @@ class API:
         return self.library.current_collection
 
     @current_collection.setter
-    def current_collection(self, value):
+    def current_collection(self, value) -> None:
         self.library.current_collection = value
 
     @property
@@ -280,7 +280,7 @@ class API:
         return self.library.current_sort
 
     @current_sort.setter
-    def current_sort(self, value):
+    def current_sort(self, value) -> None:
         self.library.current_sort = value
 
     @property
@@ -288,7 +288,7 @@ class API:
         return self.library.current_order
 
     @current_order.setter
-    def current_order(self, value):
+    def current_order(self, value) -> None:
         self.library.current_order = value
 
     ####################
@@ -307,7 +307,7 @@ class API:
         theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(self._ini_config.config))
         return declared_contract(theme_dir) if theme_dir else CURRENT_CONTRACT
 
-    def _reset_to_default_view(self):
+    def _reset_to_default_view(self) -> None:
         """Reset the shared view to its default order. See `View.reset_to_default`."""
         self.library.reset_to_default()
 
@@ -405,15 +405,15 @@ class API:
     def get_monitors(self):
         return monitors_as_dicts()
 
-    def send_event_all_windows(self, message):
+    def send_event_all_windows(self, message) -> None:
         if self.ws_bridge:
             self.ws_bridge.send_event_all(message, exclude=self.window_name)
 
-    def send_event(self, window_name, message):
+    def send_event(self, window_name, message) -> None:
         if self.ws_bridge:
             self.ws_bridge.send_event(window_name, message)
 
-    def send_event_all_windows_incself(self, message):
+    def send_event_all_windows_incself(self, message) -> None:
         if self.ws_bridge:
             self.ws_bridge.send_event_all_with_iframe(message)
 
@@ -446,7 +446,7 @@ class API:
     def get_collection_image_url(self, collection):
         return get_collection_image_url(collection)
 
-    def set_tables_by_collection(self, collection):
+    def set_tables_by_collection(self, collection) -> None:
         """Set filtered games based on collection from collections.ini."""
         game_state.apply_collection(self, collection)
 
@@ -529,7 +529,7 @@ class API:
         logger.debug("Filtered games count: %s", count)
         return count
 
-    def reset_filters(self):
+    def reset_filters(self) -> None:
         """Reset all VPSdb filters back to full game list."""
         self.current_filters = game_state.default_filter_state()
         self._reset_to_default_view()

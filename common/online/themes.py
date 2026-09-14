@@ -31,7 +31,7 @@ class ThemeRegistry:
     """Every theme available to install, gathered from all configured sources."""
 
     def __init__(self, timeout: int = 10, serves_contract: int = CURRENT_CONTRACT,
-                 sources: theme_sources.ThemeSources | None = None):
+                 sources: theme_sources.ThemeSources | None = None) -> None:
         # Read at load time, not here: constructing a registry should not touch the disk,
         # and every test that builds one would otherwise need a config file.
         self.sources = sources
@@ -78,7 +78,7 @@ class ThemeRegistry:
             return {}
         return themes
 
-    def load_registry(self):
+    def load_registry(self) -> None:
         sources = self.sources
         if sources is None:
             sources = theme_sources.from_config(get_ini_config())
@@ -143,7 +143,7 @@ class ThemeRegistry:
         chosen = theme_releases.fallback_release()
         return chosen, legacy_url or theme_releases.raw_url(base_url, "HEAD", "manifest.json"), index
 
-    def load_theme_manifests(self, default_only: bool = False):
+    def load_theme_manifests(self, default_only: bool = False) -> None:
         if not self.themes_index:
             raise ThemeRegistryError("Registry not loaded.")
 
@@ -205,7 +205,7 @@ class ThemeRegistry:
     # VALIDATION
     # =========================================================
 
-    def _validate_manifest(self, theme_key: str, manifest: dict):
+    def _validate_manifest(self, theme_key: str, manifest: dict) -> None:
         required_fields = [
             "name",
             "version",
@@ -258,14 +258,14 @@ class ThemeRegistry:
     # INSTALLATION
     # =========================================================
 
-    def auto_install_defaults(self):
+    def auto_install_defaults(self) -> None:
         """Auto-install all themes marked as default_install=True"""
         for key, theme in self.themes.items():
             if theme["registry_info"].get("default_install", False):
                 self.install_theme(key)
 
 
-    def install_theme(self, theme_key: str, force: bool = False):
+    def install_theme(self, theme_key: str, force: bool = False) -> None:
         if theme_key not in self.themes:
             raise ThemeRegistryError(f"Theme '{theme_key}' not loaded.")
 
@@ -347,7 +347,7 @@ class ThemeRegistry:
     # DELETE
     # =========================================================
 
-    def delete_theme(self, theme_key: str):
+    def delete_theme(self, theme_key: str) -> None:
         """Delete an installed theme. Raises if theme has default_install=True."""
         theme_data = self.themes.get(theme_key)
         if theme_data and theme_data["registry_info"].get("default_install", False):
@@ -371,7 +371,7 @@ class ThemeRegistry:
 # MAIN TEST
 # =============================================================
 
-def main():
+def main() -> None:
     logger.debug("Initializing Theme Manager...")
 
     registry = ThemeRegistry()

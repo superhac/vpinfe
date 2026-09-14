@@ -15,7 +15,7 @@ _requested = threading.Event()
 
 def handle_termination(request_shutdown) -> None:
     """Route SIGTERM/SIGINT/SIGBREAK into request_shutdown. The last caller wins."""
-    def _on_signal(signum, _frame):
+    def _on_signal(signum, _frame) -> None:
         # Hand the signal back to the default so a second Ctrl+C still kills us
         # outright. Shutdown waits on services, and one of them can hang.
         signal.signal(signum, signal.SIG_DFL)

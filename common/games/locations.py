@@ -117,7 +117,7 @@ def state_of(location: Location) -> LocationState:
 class LocationStore:
     """Every location this install looks in, and which one new entries are created in."""
 
-    def __init__(self, path: Path | str | None = None):
+    def __init__(self, path: Path | str | None = None) -> None:
         self.path = Path(path) if path is not None else LOCATIONS_PATH
         self._lock = threading.RLock()
 

@@ -155,7 +155,7 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
         logger.warning("Startup media sync enabled, but gamerootdir is empty. Skipping.")
         return False
 
-    def _worker():
+    def _worker() -> None:
         logger.info("Startup media sync enabled. Checking VPinMediaDB for missing/updated media...")
         try:
             result = build_metadata_func(download_media=True, update_all=True, user_media=False)
@@ -205,7 +205,7 @@ def build_mount_points(base_path: str, config_dir: Path, iniconfig):
     # Refresh the manufacturer reference from the cached VPSdb, off the boot
     # path - it exists for people reading it between runs, so boot is the one
     # guaranteed refresh even when no sync happens this session.
-    def _refresh_reference():
+    def _refresh_reference() -> None:
         from common.paths import CONFIG_DIR
         from common.shared_assets import vps_manufacturer_names, write_manufacturer_reference
 
@@ -239,7 +239,7 @@ def wait_for_manager_ui_ready(port: int, timeout_seconds: float = 15.0) -> None:
 
 
 def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, logger,
-        is_window_connected=None):
+        is_window_connected=None) -> None:
     # Only headless used to handle a signal, so killing the windowed frontend died where
     # it stood and skipped shutdown_services - the play data never reached VPinPlay, and
     # Chromium runs in its own session, so its windows outlived us on screen.
@@ -297,7 +297,7 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
 
 
 def shutdown_services(logger, *, iniconfig, ws_bridge, stop_dof, stop_dmd, http_server,
-                      nicegui_app, stop_manager_ui):
+                      nicegui_app, stop_manager_ui) -> None:
     logger.info("Shutting down services...")
     for label, action in (
         # Whether anything wants a last word before the machine goes down. Nothing

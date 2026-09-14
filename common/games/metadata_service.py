@@ -120,7 +120,7 @@ def build_metadata(
     return {"found": total, "not_found": not_found_games}
 
 
-def apply_vpx_patches(progress_cb=None, iniconfig: ConfigStore | None = None):
+def apply_vpx_patches(progress_cb=None, iniconfig: ConfigStore | None = None) -> None:
     config = _config(iniconfig)
     settings = SettingsConfig.from_config(config)
     games = games_under(settings.game_root_dir, config)

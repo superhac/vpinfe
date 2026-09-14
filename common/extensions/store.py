@@ -52,7 +52,7 @@ _NAME = re.compile(r"^[a-z][a-z0-9_]{1,39}$")
 
 class ExtensionStore:
     def __init__(self, path: Path | str | None = None,
-                 settings_dir: Path | str | None = None):
+                 settings_dir: Path | str | None = None) -> None:
         self.path = Path(path) if path is not None else EXTENSIONS_PATH
         # Beside the registry, not at the default, unless told otherwise. The two homes
         # are one store: a caller that relocates the registry and silently leaves the

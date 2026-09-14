@@ -53,7 +53,7 @@ class GameParser:
     RED_CONSOLE_TEXT = '\033[31m'
     RESET_CONSOLE_TEXT = '\033[0m'
 
-    def __init__(self, games_root_file_path, ini_config=None):
+    def __init__(self, games_root_file_path, ini_config=None) -> None:
         self.games_root_file_path = Path(games_root_file_path)
         self.playfieldvariant = "table"
         self.games: list[Game] = []
@@ -70,7 +70,7 @@ class GameParser:
         # Constructing reads the library; a load_games(reload=True) after it reads it twice.
         self.load_games()
 
-    def load_games(self, reload=False):  # reload if you want to rescan the games
+    def load_games(self, reload=False) -> None:  # reload if you want to rescan the games
         if not reload and self.games:
             return
 
@@ -266,7 +266,7 @@ class GameParser:
         return game
 
     def load_image_paths(self, game, game_contents=None, has_medias_dir=None,
-                         table_stem=None):
+                         table_stem=None) -> None:
         game_dir = Path(game.full_path_game)
         medias_dir = game_dir / "medias"
 
@@ -297,7 +297,7 @@ class GameParser:
             table_names(game_contents), self.playfieldvariant,
             self.active_sets or None)
 
-    def load_metadata(self, game):
+    def load_metadata(self, game) -> None:
         meta_path = Path(game.full_path_game) / f"{game.game_dir_name}.info"
         try:
             meta = MetaConfig(str(meta_path))

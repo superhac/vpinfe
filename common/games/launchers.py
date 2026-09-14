@@ -135,7 +135,7 @@ class Launcher:
 class LauncherStore:
     """Every launcher this install has, and which table uses which."""
 
-    def __init__(self, path: Path | str | None = None):
+    def __init__(self, path: Path | str | None = None) -> None:
         self.path = Path(path) if path is not None else LAUNCHERS_PATH
         self._lock = threading.RLock()
 

@@ -162,7 +162,7 @@ class VPSMediaDownloader:
         medias_dir = os.path.join(game.full_path_game, "medias")
         os.makedirs(medias_dir, exist_ok=True)
 
-        def record(result):
+        def record(result) -> None:
             """Only files we actually placed. download_media returns None for anything
             it declined to touch, so a user's artwork is never claimed as ours."""
             if result and meta_config:
@@ -172,7 +172,7 @@ class VPSMediaDownloader:
         # `key` indexes the remote manifest, so it is vpinmediadb's word for the thing
         # and not ours. They differ for three of them - see REMOTE_KEYS. The kind is no
         # longer passed for the ledger, which is keyed by path.
-        def process(metadata, key, filename, default_filename):
+        def process(metadata, key, filename, default_filename) -> None:
             record(self.download_media(game_id, metadata, key, filename, default_filename))
 
         process(game_media.get("1k"), REMOTE_KEYS["backglass"], game.bg_image_path,

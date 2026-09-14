@@ -83,35 +83,35 @@ def install(*, config_store, config_dir, frontend_browser, shutdown_event,
     if ws_bridge is not None:
         events.subscribe(events.LIFECYCLE_ACTING, _notice)
 
-    def stop_app(_request):
+    def stop_app(_request) -> None:
         # Both, because which one ends the wait depends on whether windows are open:
         # headless blocks on the event, windowed blocks on the browser.
         shutdown_event.set()
         frontend_browser.terminate_all()
 
-    def restart_app(_request):
+    def restart_app(_request) -> None:
         # main.py checks for this after the services are down, so the sentinel has to be
         # written before anything unblocks the loop.
         system_actions.request_app_restart(config_dir)
         stop_app(_request)
 
-    def stop_frontend(_request):
+    def stop_frontend(_request) -> None:
         frontend_browser.terminate_all()
 
-    def restart_frontend(_request):
+    def restart_frontend(_request) -> None:
         frontend_browser.terminate_all()
         if open_windows is not None:
             open_windows()
 
-    def stop_system(request):
+    def stop_system(request) -> None:
         system_actions.shutdown_system()
         stop_app(request)
 
-    def restart_system(request):
+    def restart_system(request) -> None:
         system_actions.reboot_system()
         stop_app(request)
 
-    def stop_table(_request):
+    def stop_table(_request) -> None:
         launch_state.stop()
 
     lifecycle.register_performer(lifecycle.VPINFE, lifecycle.STOP, stop_app)

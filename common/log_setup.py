@@ -119,7 +119,7 @@ class _ExpectedNoiseFilter(logging.Filter):
 
 
 class _ThirdPartyFilter(logging.Filter):
-    def __init__(self, include_third_party: bool):
+    def __init__(self, include_third_party: bool) -> None:
         super().__init__()
         self.include_third_party = include_third_party
 
@@ -132,7 +132,7 @@ class _ThirdPartyFilter(logging.Filter):
 
 
 class _WindowsFilter(logging.Filter):
-    def __init__(self, include_windows: bool):
+    def __init__(self, include_windows: bool) -> None:
         super().__init__()
         self.include_windows = include_windows
 

@@ -27,7 +27,7 @@ class VPSdb:
     VPS_DB_URL = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
     VPINMDB_URL = vpsdb_media.MANIFEST_URL
 
-    def __init__(self, root_game_dir, vpinfe_config_store):
+    def __init__(self, root_game_dir, vpinfe_config_store) -> None:
         logger.info("Initializing VPSdb")
 
         self._vpinfe_config_store = vpinfe_config_store
@@ -65,7 +65,7 @@ class VPSdb:
             playfieldvideoresolution=self.playfieldvideoresolution,
         )
 
-    def _write_manufacturer_reference(self):
+    def _write_manufacturer_reference(self) -> None:
         """Refresh the human-readable slug/alias/logo reference after a sync.
 
         Best-effort: a no-op when the shared assets root is not configured, and
@@ -135,7 +135,7 @@ class VPSdb:
         """Downloads the VPinMediaDB JSON index."""
         return VPinMediaDatabase(self.VPINMDB_URL).load()
 
-    def download_db(self):
+    def download_db(self) -> None:
         """Downloads the VPS database JSON."""
         self._cache.download_db()
 
@@ -143,7 +143,7 @@ class VPSdb:
         """Fetches the last update version string from VPSdb."""
         return self._cache.fetch_last_update()
 
-    def download_media_file(self, game_id, url, filename):
+    def download_media_file(self, game_id, url, filename) -> None:
         """Downloads a single media file by URL."""
         self._media_downloader.download_media_file(game_id, url, filename)
 
@@ -152,11 +152,7 @@ class VPSdb:
     def file_exists(self, path):
         return self._media_downloader.file_exists(path)
 
-    def download_media_for_game(self, game, id, meta_config=None):
+    def download_media_for_game(self, game, id, meta_config=None) -> None:
         """Download all associated media for a given game."""
         self._media_downloader.download_media_for_game(game, id, meta_config)
 
-    # ----------------------------------------------------------------------
-    def update_game(self, name, manufacturer, year):
-        """UI hook: updates progress label (requires UI integration)."""
-        self.progress_game_label.config(text=f"{name}\n({manufacturer} {year})")

@@ -38,7 +38,7 @@ class CustomHTTPServer:
         debug = False
         PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
 
-        def __init__(self, *args, mount_points=None, **kwargs):
+        def __init__(self, *args, mount_points=None, **kwargs) -> None:
             # normalize mount_points: ensure prefixes start+end with '/'
             mp = mount_points or {}
             normalized = {}
@@ -56,7 +56,7 @@ class CustomHTTPServer:
                     logger.debug("  %s -> %s", k, v)
             super().__init__(*args, **kwargs)
 
-        def log_debug(self, *args):
+        def log_debug(self, *args) -> None:
             if self.debug:
                 logger.debug("[HTTP] %s", " ".join(str(arg) for arg in args))
 
@@ -124,7 +124,7 @@ class CustomHTTPServer:
             self.log_debug("No matching mount point for", path)
             return self._refuse()
 
-        def end_headers(self):
+        def end_headers(self) -> None:
             # cache busting
             #self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
             #self.send_header('Pragma', 'no-cache')
@@ -215,7 +215,7 @@ class CustomHTTPServer:
 </html>
 """
 
-        def _send_pinball_primer_html(self, status_code, html_text):
+        def _send_pinball_primer_html(self, status_code, html_text) -> None:
             body = html_text.encode("utf-8")
             self.send_response(status_code)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -226,7 +226,7 @@ class CustomHTTPServer:
             except (ConnectionResetError, BrokenPipeError):
                 return
 
-        def _serve_pinball_primer_proxy(self):
+        def _serve_pinball_primer_proxy(self) -> None:
             query = urlsplit(self.path).query
             requested_url = ""
             for pair in query.split("&"):
@@ -268,7 +268,7 @@ class CustomHTTPServer:
             html_text = self._inject_base_tag(response.text, requested_url)
             self._send_pinball_primer_html(200, html_text)
 
-        def _serve_file(self, path, extra_headers=None):
+        def _serve_file(self, path, extra_headers=None) -> None:
             """Send a file, honoring a Range request the way video playback needs.
 
             The static mounts get this through translate_path; a route that resolved its
@@ -362,7 +362,7 @@ class CustomHTTPServer:
             })
             return True
 
-        def _serve_app_bootstrap(self, window_name):
+        def _serve_app_bootstrap(self, window_name) -> None:
             window_label = window_title(window_name)
             if window_label is None:
                 self.send_error(404, "Unknown app window")
@@ -414,7 +414,7 @@ class CustomHTTPServer:
             except (ConnectionResetError, BrokenPipeError):
                 return
 
-        def _serve_core_words(self):
+        def _serve_core_words(self) -> None:
             """Core's own chrome, for the pages core serves.
 
             Only the `frontend.` namespace: a theme page has no business with the
@@ -437,7 +437,7 @@ class CustomHTTPServer:
             except (ConnectionResetError, BrokenPipeError):
                 return
 
-        def do_GET(self):
+        def do_GET(self) -> None:
             """Override to handle Range requests for video streaming."""
             request_path = urlsplit(self.path).path
             if request_path.startswith("/app/"):
@@ -511,7 +511,7 @@ class CustomHTTPServer:
             except (ConnectionResetError, BrokenPipeError):
                 pass  # Client closed connection, that's fine
 
-        def do_OPTIONS(self):
+        def do_OPTIONS(self) -> None:
             self.send_response(200, "OK")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -520,16 +520,16 @@ class CustomHTTPServer:
             self.end_headers()
 
         # Keep default logging behavior or override to quiet it:
-        def log_message(self, fmt, *args):
+        def log_message(self, fmt, *args) -> None:
             # use our debug printer so messages are consistent
             if self.debug:
                 logger.debug("[HTTP] " + fmt % args)
 
-    def __init__(self, mount_points):
-        self.file_server = None
+    def __init__(self, mount_points) -> None:
+        self.file_server: ThreadingTCPServer | None = None
         self.mount_points = mount_points
 
-    def start_file_server(self, port=8000, bind=LOOPBACK):
+    def start_file_server(self, port=8000, bind=LOOPBACK) -> None:
         handler_class = partial(self.MultiDirHTTPRequestHandler, mount_points=self.mount_points)
         ThreadingTCPServer.allow_reuse_address = True
         # Loopback unless told otherwise: this serves the table library, so opening it
@@ -542,12 +542,12 @@ class CustomHTTPServer:
                            "serves the table library", bind)
         logger.info("Serving on http://%s:%s/", bind, port)
 
-    def stop_file_server(self):
+    def stop_file_server(self) -> None:
         if self.file_server:
             self.file_server.shutdown()
             self.file_server.server_close()
             logger.info("File server stopped.")
             self.file_server = None
 
-    def on_closed(self):
+    def on_closed(self) -> None:
         self.stop_file_server()

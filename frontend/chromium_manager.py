@@ -358,10 +358,13 @@ def sweep_stale_profiles():
 class ChromiumManager:
     """Manages Chromium subprocess lifecycle for multi-monitor display."""
 
-    def __init__(self):
-        self._processes = []  # [(window_name, process, temp_dir, monitor)]
+    def __init__(self) -> None:
+        # [(window_name, process, temp_dir, monitor)]. The monitor is screeninfo's,
+        # which ships no stubs.
+        self._processes: list[tuple[str, subprocess.Popen[Any], str, Any]] = []
         self._exit_event = threading.Event()
-        self._minimized_hwnds = []  # Windows only: [(window_name, hwnd)] awaiting restore
+        # Windows only: [(window_name, hwnd)] awaiting restore.
+        self._minimized_hwnds: list[tuple[str, int]] = []
         sweep_stale_profiles()
 
     def launch_window(
@@ -455,7 +458,7 @@ class ChromiumManager:
         self._processes.append((window_name, proc, user_data_dir, monitor))
         return proc
 
-    def launch_all_windows(self, iniconfig, base_url="http://127.0.0.1"):
+    def launch_all_windows(self, iniconfig, base_url="http://127.0.0.1") -> None:
         """Launch Chromium windows for all configured displays.
 
         Args:
@@ -555,7 +558,7 @@ class ChromiumManager:
         if sys.platform == "darwin":
             threading.Thread(target=self._focus_game_window_mac, daemon=True).start()
 
-    def _focus_game_window_mac(self):
+    def _focus_game_window_mac(self) -> None:
         """macOS: ensure focus goes to the table window after launch."""
         time.sleep(0.5)
         try:
@@ -582,7 +585,7 @@ class ChromiumManager:
         except Exception:
             logger.exception("macOS focus activation failed")
 
-    def activate_all_mac(self):
+    def activate_all_mac(self) -> None:
         """macOS: re-activate all Chromium windows after an external app (e.g. VPX) exits.
 
         Called after VPX exits so Chromium kiosk windows return to the foreground
@@ -721,7 +724,7 @@ class ChromiumManager:
             pass
         return descendants
 
-    def _kill_process_tree(self, proc, window_name, force=False):
+    def _kill_process_tree(self, proc, window_name, force=False) -> None:
         """Kill a Chromium process and all its children (renderers, GPU, zygote)."""
         if platform.system() == "Windows":
             # taskkill /T kills the entire process tree, /F forces it
@@ -750,7 +753,7 @@ class ChromiumManager:
                 except Exception:
                     logger.exception("kill %s failed", pid)
 
-    def terminate_all(self):
+    def terminate_all(self) -> None:
         """Terminate all Chromium processes immediately. Safe to call twice."""
         if not self._processes:
             self._exit_event.set()
@@ -779,11 +782,11 @@ class ChromiumManager:
         self._exit_event.set()
         logger.info("All browser windows closed.")
 
-    def request_exit(self):
+    def request_exit(self) -> None:
         """Unblock wait_for_exit and leave the windows to the caller."""
         self._exit_event.set()
 
-    def wait_for_exit(self, is_window_connected=None):
+    def wait_for_exit(self, is_window_connected=None) -> None:
         """Block until all Chromium processes have exited.
 
         This replaces the legacy UI main loop as the main blocking call.
@@ -793,7 +796,7 @@ class ChromiumManager:
         if not self._processes:
             return
 
-        def _monitor():
+        def _monitor() -> None:
             """Watch for any process to exit, then terminate all."""
             while self._processes and not self._exit_event.is_set():
                 for window_name, proc, _temp_dir, _ in list(self._processes):

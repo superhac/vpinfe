@@ -52,7 +52,7 @@ def _as_list(raw: Any) -> list[str]:
 class LibraryPolicy:
     """What one library collects, read and written whole."""
 
-    def __init__(self, path: Path | str | None = None):
+    def __init__(self, path: Path | str | None = None) -> None:
         self.path = Path(path) if path is not None else LIBRARY_POLICY_PATH
         self._lock = threading.RLock()
 

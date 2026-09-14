@@ -41,7 +41,7 @@ def get_realdmd_image_for_game(game, iniconfig=None) -> Path | None:
 class RealDmdUpdater:
     """Sends images to a physical DMD, one at a time and never from two threads at once."""
 
-    def __init__(self, iniconfig, window_name: str | None, show_image_func):
+    def __init__(self, iniconfig, window_name: str | None, show_image_func) -> None:
         self._iniconfig = iniconfig
         self._window_name = window_name or "unknown"
         self._show_image = show_image_func

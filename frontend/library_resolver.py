@@ -42,7 +42,7 @@ class LibraryResolver:
     one shared view makes a sort and a read genuinely concurrent.
     """
 
-    def __init__(self, ini_config, games=None):
+    def __init__(self, ini_config, games=None) -> None:
         self._ini_config = ini_config
         self.lock = threading.RLock()
 

@@ -55,7 +55,7 @@ def lookup(lib_path: str, roms_dir: str, names: list[str]) -> dict:
 
     hit: list[dict] = []
 
-    def on_game(game_ptr, _user):
+    def on_game(game_ptr, _user) -> None:
         game = game_ptr.contents
         hit.append({
             "clone_of": (game.clone_of or b"").decode() or None,

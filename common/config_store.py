@@ -140,7 +140,7 @@ class ConfigStore:
         self.config.remove_option(old_section, key)
         return True
 
-    def __init__(self, configfilepath):
+    def __init__(self, configfilepath) -> None:
 
         self.defaults = config_schema.defaults()
 
@@ -407,7 +407,7 @@ class ConfigStore:
             self.config.add_section(section)
         self.config.set(section, key, self._as_text(value))
 
-    def save(self):
+    def save(self) -> None:
         # The first save after reading an ini keeps a copy and leaves the original alone:
         # a downgrade needs the file the older build reads.
         if self._converted_from_ini and os.path.exists(self.ini_path):
@@ -423,7 +423,7 @@ class ConfigStore:
         write_atomic(self.json_path,
                      lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))
 
-    def format_defaults(self):
+    def format_defaults(self) -> None:
         for section, defaults in self.defaults.items():
             self.config.add_section(section)
             for key, value in defaults.items():

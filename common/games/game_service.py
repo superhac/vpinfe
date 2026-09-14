@@ -378,7 +378,7 @@ def associate_vps_to_folder(
         vps = VPSdb(SettingsConfig.from_config(config).game_root_dir, config)
 
         class _LightGame:
-            def __init__(self, folder: Path, vpx: Path):
+            def __init__(self, folder: Path, vpx: Path) -> None:
                 self.game_dir_name = folder.name
                 self.full_path_game = str(folder)
                 self.full_path_vpx_file = str(vpx)

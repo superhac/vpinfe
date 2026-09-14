@@ -136,7 +136,7 @@ class Device:
 class DeviceRegistry:
     """Every device this install knows, read and written whole."""
 
-    def __init__(self, path: Path | str | None = None):
+    def __init__(self, path: Path | str | None = None) -> None:
         self.path = Path(path) if path is not None else DEVICE_REGISTRY_PATH
         self._lock = threading.RLock()
 

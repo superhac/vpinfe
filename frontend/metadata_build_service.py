@@ -15,7 +15,7 @@ logger = logging.getLogger("vpinfe.frontend.metadata_build_service")
 def start_build(api, *, build_metadata_func, all_games_func, download_media=True, update_all=False):
     event_queue = Queue()
 
-    def progress_callback(current, total, message):
+    def progress_callback(current, total, message) -> None:
         logger.debug("[buildmeta] Progress: %s/%s - %s", current, total, message)
         event_queue.put({
             "type": "buildmeta_progress",
@@ -24,14 +24,14 @@ def start_build(api, *, build_metadata_func, all_games_func, download_media=True
             "message": message,
         })
 
-    def log_callback(message):
+    def log_callback(message) -> None:
         logger.info("[buildmeta] %s", message)
         event_queue.put({
             "type": "buildmeta_log",
             "message": message,
         })
 
-    def run_build():
+    def run_build() -> None:
         try:
             result = build_metadata_func(
                 download_media=download_media,
@@ -50,7 +50,7 @@ def start_build(api, *, build_metadata_func, all_games_func, download_media=True
         finally:
             event_queue.put({"type": "buildmeta_done"})
 
-    def process_events():
+    def process_events() -> None:
         try:
             logger.debug("[buildmeta] Event processor started")
             while True:

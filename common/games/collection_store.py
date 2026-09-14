@@ -240,7 +240,7 @@ class CollectionStore:
     schema 0/1 `collections.ini` beside the JSON is read once and converted on save.
     """
 
-    def __init__(self, path: str):
+    def __init__(self, path: str) -> None:
         # Either name is accepted: the JSON file is what we read and write, and a
         # caller still holding the ini path - a script, an old config - gets the same
         # collections rather than an empty list.
@@ -255,7 +255,7 @@ class CollectionStore:
         self._builtins = {name: dict(record) for name, record in BUILTIN_RECORDS.items()}
         self.reload()
 
-    def reload(self):
+    def reload(self) -> None:
         """Load from disk, discarding unsaved changes."""
         self.records: list[dict] = []
         self._schema = COLLECTIONS_SCHEMA
@@ -530,7 +530,7 @@ class CollectionStore:
     def get_all(self):
         return {name: self.get_members(name) for name in self.get_collections_name()}
 
-    def add_collection(self, section: str, members=None):
+    def add_collection(self, section: str, members=None) -> None:
         """Add a collection whose membership is an explicit list of games."""
         if self._record(section) is not None:
             raise ValueError(f"Section '{section}' already exists")
@@ -550,7 +550,7 @@ class CollectionStore:
         sort_by="Alpha",
         order_by="desc",
         played=None,
-    ):
+    ) -> None:
         """Add a filter-based collection."""
         if self._record(section) is not None:
             raise ValueError(f"Section '{section}' already exists")
@@ -586,10 +586,10 @@ class CollectionStore:
                            order.get(ORDER_DIRECTION_KEY, DEFAULT_DIRECTION))
         self.set_limit(section, limit)
 
-    def delete_collection(self, section: str):
+    def delete_collection(self, section: str) -> None:
         self.records.remove(self._require_mutable(section))
 
-    def rename_collection(self, old_name: str, new_name: str):
+    def rename_collection(self, old_name: str, new_name: str) -> None:
         record = self._require_mutable(old_name)
         if self._record(new_name) is not None:
             raise ValueError(f"Section '{new_name}' already exists")
@@ -598,7 +598,7 @@ class CollectionStore:
         record["name"] = new_name
 
     def add_member(self, section: str, member_id: str, table_id: str = "",
-                   after_table: str | None = None):
+                   after_table: str | None = None) -> None:
         """Add a game, or one specific table of it. Adding the same pairing twice is
         a no-op; adding a second table of a game already present is not.
 
@@ -623,7 +623,7 @@ class CollectionStore:
         record["members"] = members
 
     def remove_member(self, section: str, member_id: str,
-                      table_id: str | None = None):
+                      table_id: str | None = None) -> None:
         """Remove one ref, or every ref naming this game.
 
         `None` is every ref - what "remove this game" means. `""` is the *one* ref that
@@ -824,7 +824,7 @@ class CollectionStore:
             yield self
             self.save()
 
-    def save(self):
+    def save(self) -> None:
         """Write collections back to disk, atomically.
 
         Prefer `mutate` for a read-modify-write; calling this alone writes whatever this

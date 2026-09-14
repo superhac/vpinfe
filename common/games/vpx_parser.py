@@ -86,7 +86,7 @@ class VPXParser:
     # -------------------------------
     # Loading / extracting
     # -------------------------------
-    def load_game_values(self, vpx_file_values, ole):
+    def load_game_values(self, vpx_file_values, ole) -> None:
         for key, path in self.VPX_PATHS.items():
             if ole.exists(path):
                 with ole.openstream(path) as file:
@@ -94,7 +94,7 @@ class VPXParser:
             else:
                 vpx_file_values[key] = ""
 
-    def load_vb_code(self, ole, vpx_file_values):
+    def load_vb_code(self, ole, vpx_file_values) -> None:
         with ole.openstream(self.VPX_PATHS_BINARY['game_data']) as file:
             data = file.read()
 
@@ -107,7 +107,7 @@ class VPXParser:
         vbscript = data[offset + 4:offset + 4 + length].decode("utf-8", errors="ignore")
         vpx_file_values['game_data'] = self.ensure_msdos_line_endings(vbscript)
 
-    def load_sidecar_vb_code(self, vpx_file, vpx_file_values):
+    def load_sidecar_vb_code(self, vpx_file, vpx_file_values) -> None:
         vbs_path = pathlib.Path(vpx_file).with_suffix(".vbs")
         if not vbs_path.exists():
             return
@@ -115,7 +115,7 @@ class VPXParser:
         vbscript = vbs_path.read_bytes().decode("utf-8-sig", errors="ignore")
         vpx_file_values['game_data'] = self.ensure_msdos_line_endings(vbscript)
 
-    def calc_code_hash(self, vpx_file_values):
+    def calc_code_hash(self, vpx_file_values) -> None:
         vpx_file_values['vbs_hash'] = hashlib.sha256(
             vpx_file_values['game_data'].encode("utf-8")
         ).hexdigest()
@@ -164,7 +164,7 @@ class VPXParser:
             lines.append("".join(code))
         return "\n".join(lines)
 
-    def extract_rom_name(self, vpx_file_values):
+    def extract_rom_name(self, vpx_file_values) -> None:
         game_data = self.strip_vbscript_comments(vpx_file_values['game_data'])
         m = re.search(r'(?i)c?gamename\s*=\s*"([^"]+)"', game_data)
         m_opt = re.search(r'(?i)c?OptRom\s*=\s*"([^\s]+)"', game_data)
@@ -176,7 +176,7 @@ class VPXParser:
         else:
             vpx_file_values['rom'] = ""
 
-    def run_detectors(self, vpx_file_values):
+    def run_detectors(self, vpx_file_values) -> None:
         game_data_lower = vpx_file_values['game_data'].lower()
         detectors = {
             'detect_nfozzy': 'class flipperpolarity',
