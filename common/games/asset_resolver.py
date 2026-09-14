@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from common.games.asset_registry import spec_for
 
@@ -55,6 +56,21 @@ _SUPERSEDED_BY = {"pov": "ini"}
 BINDING_DEDICATED = "dedicated"
 BINDING_SHARED = "shared"
 BINDING_ORPHANED = "orphaned"
+
+
+def folder_listing(game_dir) -> tuple[list[str], list[str]]:
+    """A game folder's files and its subfolders, in the shape everything here takes.
+
+    One read per caller rather than one per kind: the resolvers below all answer from a
+    listing, and a folder on a network share is expensive to walk twice.
+    """
+    files: list[str] = []
+    subdirs: list[str] = []
+    path = Path(game_dir)
+    if path.is_dir():
+        for entry in path.iterdir():
+            (files if entry.is_file() else subdirs).append(entry.name)
+    return files, subdirs
 
 
 def _stem(name: str) -> str:

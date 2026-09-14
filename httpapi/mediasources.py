@@ -41,10 +41,11 @@ def list_sources() -> models.MediaSourceList:
     """
     wanted = enabled_ids()
     asked = {source.id for source in asset_sources.sources(wanted)}
-    return {"sources": [{"id": source.id, "name": source.name, "url": source.url,
-                         "enabled": source.id in asked,
-                         "kinds": sorted(source.kinds)}
-                        for source in asset_sources.BUILT_IN]}
+    return models.MediaSourceList.model_validate(
+        {"sources": [{"id": source.id, "name": source.name, "url": source.url,
+                      "enabled": source.id in asked,
+                      "kinds": sorted(source.kinds)}
+                     for source in asset_sources.BUILT_IN]})
 
 
 @router.get("/offers", summary="What the catalogs have for one game and kind",
@@ -57,6 +58,7 @@ def get_offers(vps_id: str = Query(...),
     out to a catalog on the caller's behalf, which is exactly what this is.
     """
     found = asset_sources.offers(kind, vps_id, enabled_ids())
-    return {"offers": [{"source": offer.source, "name": offer.name, "url": offer.url,
-                        "kind": offer.kind, "size": offer.size}
-                       for offer in found]}
+    return models.MediaOfferList.model_validate(
+        {"offers": [{"source": offer.source, "name": offer.name, "url": offer.url,
+                     "kind": offer.kind, "size": offer.size}
+                    for offer in found]})

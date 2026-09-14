@@ -18,6 +18,7 @@ import logging
 from fastapi import APIRouter, BackgroundTasks, Body
 
 from common import device_client, lifecycle
+from common.host import play_service
 from common.i18n import t
 
 from . import models, scopes
@@ -57,7 +58,7 @@ def list_actions() -> models.ActionList:
     """Every pair, offered or not: a surface greys one rather than hiding it, because two
     installs showing different buttons look like different products."""
     found = [_describe(scope, action) for scope, action in lifecycle.offered()]
-    return {"count": len(found), "actions": found}
+    return models.ActionList.model_validate({"count": len(found), "actions": found})
 
 
 @router.post("", summary="Do one of them",
@@ -82,18 +83,18 @@ def perform_action(background: BackgroundTasks,
     reason = payload.reason.strip() or "asked over the API"
     if (scope, action) in GOES_AWAY:
         background.add_task(_perform, scope, action, reason)
-        return {"scope": scope, "action": action, "what": what, "performed": True}
-    return {"scope": scope, "action": action, "what": what,
-            "performed": bool(_perform(scope, action, reason))}
+        return models.ActionResult.model_validate(
+            {"scope": scope, "action": action, "what": what, "performed": True})
+    return models.ActionResult.model_validate(
+        {"scope": scope, "action": action, "what": what,
+         "performed": bool(_perform(scope, action, reason))})
 
 
 def _perform(scope: str, action: str, reason: str) -> bool:
-    # Closing a table goes through the play route's own handler rather than straight to
-    # the lifecycle scope. That one checks whether a table is running first, so asking to
+    # Closing a table goes through the play service rather than straight to the
+    # lifecycle scope. That one checks whether a table is running first, so asking to
     # close one when none is reports honestly instead of reporting that it closed one.
     if (scope, action) == (lifecycle.TABLE, lifecycle.STOP):
-        from .play import stop_play
-
-        return bool(stop_play().get("stopped"))
+        return bool(play_service.stop_playing(reason)["stopped"])
     return device_client.local().request(
         scope, action, origin=lifecycle.Origin(lifecycle.SURFACE_API), reason=reason)

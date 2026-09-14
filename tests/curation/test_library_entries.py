@@ -20,10 +20,10 @@ import httpapi
 from common.games import remote_library
 from common.games.collection_resolver import Entry, resolve
 from common.games.collection_store import BUILTIN_ALL, CollectionStore
+from common.games.entry_lens import entry_resource
 from common.games.game_metadata import game_title
 from common.media_specs import MEDIA_SPECS
 from frontend import game_state
-from httpapi.collections import _entry_resource
 from tests.support.library import TempTree, fake_game, write_game
 
 try:
@@ -137,7 +137,7 @@ class LibraryEntriesTests(TempTree):
 
         entry = self._resolved([game])[0]
         local = json.loads(game_state.games_json([entry], contract=2))["entries"][0]
-        row = _entry_resource(entry)
+        row = entry_resource(entry)
         with patch.object(remote_library.http_client, "get_json",
                           lambda *a, **k: {"entries": [row]}):
             remote_entries = remote_library.fetch_entries("http://library.example:8001")

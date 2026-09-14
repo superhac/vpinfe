@@ -54,9 +54,10 @@ def act(payload: models.InputActionRequest, request: Request) -> models.InputAct
         input_actions.press(action, source=source, ttl_ms=payload.ttl_ms)
     else:
         input_actions.tap(action, source=source)
-    return {"action": action, "phase": phase,
-            "ttl_ms": input_actions.clamp_ttl(payload.ttl_ms),
-            "holding": sorted(input_actions.holding())}
+    return models.InputActionResult.model_validate(
+        {"action": action, "phase": phase,
+         "ttl_ms": input_actions.clamp_ttl(payload.ttl_ms),
+         "holding": sorted(input_actions.holding())})
 
 
 def _source(said: str, request: Request) -> str:

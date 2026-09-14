@@ -52,7 +52,7 @@ class VpsDetailTests(TempTree):
                         return_value=copy.deepcopy(CATALOG))
         patcher.start()
         self.addCleanup(patcher.stop)
-        patcher = patch("httpapi.games._catalog", return_value={GAME_ID: self.game})
+        patcher = patch("common.games.game_repository.catalog", return_value={GAME_ID: self.game})
         patcher.start()
         self.addCleanup(patcher.stop)
         self.client = TestClient(httpapi.create_api_app(),

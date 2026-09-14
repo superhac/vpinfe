@@ -41,7 +41,7 @@ MAY_NAME_IT = {
 # not, and everything below still asserts the difference.
 MAY_SURFACE_IT = {
     "common/games/game_repository.py",    # carries it on the row
-    "httpapi/games.py",                   # and onto the management resource
+    "common/games/game_lens.py",          # and onto the management resource
 }
 
 

@@ -19,7 +19,8 @@ from pathlib import Path
 from fastapi import APIRouter, Query
 
 from common import collation
-from common.games import asset_origin
+from common.games import asset_origin, game_repository, media_service, table_lens
+from common.games.game_repository import game_to_row
 from common.media_specs import (
     MEDIA_SPECS,
     media_candidates,
@@ -135,33 +136,31 @@ def list_media(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
     empty per-table row, which would say a table-specific file ought to exist, and a
     missing shared row in a folder where every table already has its own.
     """
-    from .games import _catalog, _media_contents, _media_settings, _tables, game_to_row
-
     kinds = [spec.kind for spec in MEDIA_SPECS]
     if kind:
         kinds = [item for item in kinds if item == kind]
     # Read once for the whole listing, and the folder walked once per game below.
-    # `_resolved_media` re-walks and re-reads the config on every call, which a lens
+    # `resolved_media` re-walks and re-reads the config on every call, which a lens
     # resolving each folder once per table plus once shared pays several times over.
-    variant, sets = _media_settings()
+    variant, sets = media_service.media_settings()
 
     def resolve(game_dir: Path, files: set[str], medias: set[str],
                 stem: str | None) -> dict:
         return resolve_media_entries(game_dir, files, medias, variant, stem, sets)
 
     found: list[dict] = []
-    for game_id, entry in _catalog().items():
+    for game_id, entry in game_repository.catalog().items():
         if game and game != game_id:
             continue
         row = game_to_row(entry)
         game_dir = Path(getattr(entry, "fullPathGame", "") or "")
         try:
-            files, medias = _media_contents(game_dir)
+            files, medias = media_service.media_contents(game_dir)
         except OSError:
             logger.warning("media: cannot read %s", game_dir)
             continue
 
-        tables = [table for table in _tables(entry, row) if table.get("id")]
+        tables = [table for table in table_lens.table_rows(entry, row) if table.get("id")]
         shared = resolve(game_dir, files, medias, None)
         # Resolved per table only to find the files named for one. The folder is walked
         # once above; each of these is set lookups against what it found.
@@ -256,4 +255,5 @@ def list_media(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
                                  collation.sort_key(item["table_file"])))
     total = len(found)
     window = found[offset:offset + limit] if limit else found[offset:]
-    return {"total": total, "offset": offset, "count": len(window), "media": window}
+    return models.MediaSlotList.model_validate(
+        {"total": total, "offset": offset, "count": len(window), "media": window})

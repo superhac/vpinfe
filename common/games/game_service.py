@@ -15,7 +15,7 @@ from common.config_access import SettingsConfig
 from common.config_store import ConfigStore
 from common.games import game_index_service, game_repository, info_maintenance, metadata_service
 from common.games.collection_store import CollectionStore
-from common.games.game_metadata import vpinfe_section
+from common.games.game_metadata import game_vps_id, vpinfe_section
 from common.games.game_repository import refresh_game
 from common.games.info_file import VPINFE_SECTION
 from common.games.tables import TABLES_KEY, default_table, recorded_default, table_entries
@@ -170,6 +170,14 @@ def find_vps_release(vps_file_id: str) -> dict:
             if str(release.get("id") or "") == wanted:
                 return release
     return {}
+
+
+def matched_vps_entry(game) -> dict:
+    """The catalog entry this game is matched to, effective id first."""
+    wanted = game_vps_id(game)
+    if not wanted:
+        return {}
+    return next((e for e in load_vpsdb() if str(e.get("id") or "") == wanted), {})
 
 
 def _plain(text: str) -> str:

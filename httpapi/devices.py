@@ -20,11 +20,13 @@ design - the install owns its own name and features, and this is a copy.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, Body, Request, Response
 
 from common import device_client, device_registry, discovery, install_identity
 from common.device_registry import get_device_registry
+from common.games import game_repository
 from common.i18n import t
 from common.paths import get_ini_config
 
@@ -45,7 +47,8 @@ def _resource(device) -> dict:
             dependencies=[requires(scopes.DEVICES_READ)])
 def list_devices() -> models.DeviceList:
     devices = get_device_registry().devices()
-    return {"count": len(devices), "devices": [_resource(p) for p in devices]}
+    return models.DeviceList.model_validate(
+        {"count": len(devices), "devices": [_resource(p) for p in devices]})
 
 
 # Ahead of `/{device_id}`, which would otherwise match the word.
@@ -58,12 +61,13 @@ def discovered_installs() -> models.DiscoveredList:
     decided about. It is what a picker offers and a person confirms.
     """
     found = discovery.peers()
-    return {"count": len(found),
-            "installs": [{"install_id": peer.install_id,
-                          "display_name": peer.display_name,
-                          "features": list(peer.features),
-                          "address": peer.address, "port": peer.port,
-                          "url": peer.url} for peer in found]}
+    return models.DiscoveredList.model_validate(
+        {"count": len(found),
+         "installs": [{"install_id": peer.install_id,
+                       "display_name": peer.display_name,
+                       "features": list(peer.features),
+                       "address": peer.address, "port": peer.port,
+                       "url": peer.url} for peer in found]})
 
 
 @router.get("/{device_id}", summary="One device",
@@ -72,7 +76,7 @@ def get_device(device_id: str) -> models.DeviceResource:
     device = get_device_registry().get(device_id)
     if device is None:
         raise NotFoundError(t("error.devices.no_device_device_id", device_id=(device_id)))
-    return _resource(device)
+    return models.DeviceResource(**_resource(device))
 
 
 @router.put("", summary="Record a device", status_code=200,
@@ -123,7 +127,7 @@ def announce(request: Request,
     )
     if device is None:
         raise InvalidRequestError(t("error.devices.device_needs_device_id"))
-    return _resource(device)
+    return models.DeviceResource(**_resource(device))
 
 
 @router.post("/probe", summary="Ask every device whether it is there",
@@ -150,7 +154,7 @@ async def probe_devices() -> models.DeviceProbeList:
         if found.get("state") == device_client.ANSWERING:
             await run_in_threadpool(registry.record_reachable, device.device_id)
         results.append({"device_id": device.device_id, **found})
-    return {"probes": results}
+    return models.DeviceProbeList.model_validate({"probes": results})
 
 
 @router.delete("/{device_id}", summary="Forget a device", status_code=204,
@@ -160,6 +164,13 @@ def forget(device_id: str):
     if not get_device_registry().forget(device_id):
         raise NotFoundError(t("error.devices.no_device_device_id", device_id=(device_id)))
     return Response(status_code=204)
+
+
+def _folder_or_404(game_id: str) -> Path:
+    folder = game_repository.game_folder(game_id)
+    if folder is None:
+        raise NotFoundError(t("error.games.no_game_id", game_id=(game_id)))
+    return folder
 
 
 def _mobile(device_id: str):
@@ -199,7 +210,8 @@ async def device_games(device_id: str) -> models.DeviceGameList:
             mobile_transfer.carried, device.address, device.port)
     except mobile_transfer.DeviceUnreachableError as exc:
         raise ConflictError(str(exc)) from exc
-    return {"device_id": device_id, "count": len(found), "games": found}
+    return models.DeviceGameList.model_validate(
+        {"device_id": device_id, "count": len(found), "games": found})
 
 
 @router.post("/{device_id}/games", summary="Send games to a VPX Mobile device",
@@ -216,10 +228,9 @@ def send_games(device_id: str, response: Response,
     from common.games import mobile_transfer
 
     from . import jobs as jobs_api
-    from .games import folder_of
 
     device = _mobile(device_id)
-    folders = [folder_of(game_id) for game_id in payload.games]
+    folders = [_folder_or_404(game_id) for game_id in payload.games]
     if not folders:
         raise InvalidRequestError(t("error.devices.name_least_one_game"))
 
@@ -241,7 +252,7 @@ def send_games(device_id: str, response: Response,
     except job_registry.JobBusyError as exc:
         raise ConflictError(str(exc)) from exc
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"
-    return jobs_api.resource(job)
+    return models.JobResource(**jobs_api.resource(job))
 
 
 @router.delete("/{device_id}/games/{name}", summary="Remove a game from a device",

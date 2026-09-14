@@ -13,8 +13,8 @@ from __future__ import annotations
 import unittest
 
 from common.games import collection_filters, collection_resolver, wire_entry
+from common.games.entry_lens import entry_resource
 from common.games.game_metadata import game_title, table_descriptor
-from httpapi.collections import _entry_resource
 from tests.support.entries import entries_for
 from tests.support.library import TempTree, fake_game, write_game
 
@@ -85,7 +85,7 @@ class WireEntryTests(TempTree):
             games.append(game)
 
         self.entries = entries_for(games)
-        self.wire = [_WireEntry(wire_entry.game_of(_entry_resource(entry)), entry.table_id)
+        self.wire = [_WireEntry(wire_entry.game_of(entry_resource(entry)), entry.table_id)
                      for entry in self.entries]
 
     def test_every_axis_matches_the_same_games(self) -> None:
@@ -124,7 +124,7 @@ class WireEntryTests(TempTree):
             with self.subTest(order=order):
                 before = [game_title(e.game)
                           for e in collection_resolver._ordered(list(self.wire), order)]
-                blanked = [_WireEntry(wire_entry.game_of(_entry_resource(e)), e.table_id)
+                blanked = [_WireEntry(wire_entry.game_of(entry_resource(e)), e.table_id)
                            for e in self.entries]
                 for entry in blanked:
                     if field == "creation_time":

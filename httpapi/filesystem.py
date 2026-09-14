@@ -18,6 +18,7 @@ from fastapi import APIRouter, Query
 from starlette.responses import FileResponse
 
 from common.config_access import SettingsConfig
+from common.games import game_repository
 from common.i18n import t
 from common.media_specs import AUDIO_FAMILY, DOC_FAMILY, IMAGE_FAMILY, VIDEO_FAMILY
 from common.paths import get_ini_config
@@ -123,13 +124,11 @@ def within_roots(raw: str) -> Path:
 def get_roots(game: str = Query("")) -> models.FilesystemRootList:
     """An empty list is the honest answer for an install with no library configured
     and nothing allowlisted - not an error, and not a reason to offer the whole disk."""
-    from .games import _catalog
-
     game_dir = ""
     if game:
-        found = _catalog().get(game)
+        found = game_repository.game_by_id(game)
         game_dir = str(getattr(found, "fullPathGame", "") or "") if found else ""
-    return {"roots": roots(game_dir)}
+    return models.FilesystemRootList.model_validate({"roots": roots(game_dir)})
 
 
 @router.get("/file", summary="One browsable media file",
@@ -190,5 +189,6 @@ def get_entries(path: str = Query(...)) -> models.FilesystemListing:
     # Null at a root, so a client knows where "up" stops without knowing the rules.
     parent = here.parent
     at_root = any(here == Path(item["path"]) for item in roots())
-    return {"path": str(here), "parent": None if at_root else str(parent),
-            "entries": folders + files}
+    return models.FilesystemListing.model_validate(
+        {"path": str(here), "parent": None if at_root else str(parent),
+         "entries": folders + files})

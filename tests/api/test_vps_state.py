@@ -53,11 +53,11 @@ class VpsStateTests(TempTree):
             patcher = patch(target, return_value=copy.deepcopy(value))
             patcher.start()
             self.addCleanup(patcher.stop)
-        patcher = patch("httpapi.games._catalog", return_value={GAME_ID: game})
+        patcher = patch("common.games.game_repository.catalog", return_value={GAME_ID: game})
         patcher.start()
         self.addCleanup(patcher.stop)
         # Keyed on the catalog's length, and every test here uses one entry.
-        from httpapi.games import _crowded_links_for
+        from common.games.library_vps_state import _crowded_links_for
         _crowded_links_for.cache_clear()
         self.client = TestClient(httpapi.create_api_app(),
                                  raise_server_exceptions=False)

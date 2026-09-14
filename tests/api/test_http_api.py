@@ -47,7 +47,7 @@ class ManufacturerEndpointTests(unittest.TestCase):
 
             with patch("httpapi.manufacturers._vps_names",
                        return_value=["Bally Manufacturing", "Bally Wulff"]), \
-                 patch("httpapi.manufacturers._catalog", return_value=catalog):
+                 patch("common.games.game_repository.catalog", return_value=catalog):
                 response = _client().get("/manufacturers")
 
         self.assertEqual(response.status_code, 200)

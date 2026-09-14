@@ -36,7 +36,7 @@ class EffectiveVpsIdTests(TempTree):
         folder = write_game(self.root, FOLDER, info=INFO, vpx=False,
                             files={f"{FOLDER}.vpx": b"vpx"})
         game = fake_game(folder, FOLDER, meta=INFO)
-        patcher = patch("httpapi.games._catalog", return_value={GAME_ID: game})
+        patcher = patch("common.games.game_repository.catalog", return_value={GAME_ID: game})
         patcher.start()
         self.addCleanup(patcher.stop)
         self.client = TestClient(httpapi.create_api_app(),
@@ -71,7 +71,7 @@ class EffectiveVpsIdTests(TempTree):
         folder = write_game(self.root, "Attack from Mars (Bally 1995)", info=plain,
                             vpx=False, files={"Attack from Mars (Bally 1995).vpx": b"v"})
         game = fake_game(folder, "Attack from Mars (Bally 1995)", meta=plain)
-        with patch("httpapi.games._catalog", return_value={GAME_ID: game}):
+        with patch("common.games.game_repository.catalog", return_value={GAME_ID: game}):
             body = self.client.get(f"/games/{GAME_ID}").json()
         found = body.get("game", body)
 

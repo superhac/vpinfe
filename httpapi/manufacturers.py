@@ -13,13 +13,13 @@ from collections import Counter
 
 from fastapi import APIRouter
 
+from common.games import game_repository
 from common.games.game_repository import game_to_row
 from common.paths import CONFIG_DIR
 from common.shared_assets import manufacturer_report, vps_manufacturer_names
 
 from . import models, scopes
 from .auth import requires
-from .games import _catalog
 
 router = APIRouter(prefix="/manufacturers", tags=["manufacturers"])
 
@@ -30,7 +30,7 @@ def _vps_names() -> list[str]:
 
 def _library_counts() -> Counter:
     return Counter(str(game_to_row(game).get("manufacturer", "") or "").strip()
-                   for game in _catalog().values())
+                   for game in game_repository.catalog().values())
 
 
 @router.get("", summary="Manufacturers, their slugs and logo coverage",
@@ -40,4 +40,4 @@ def list_manufacturers() -> models.ManufacturerList:
     names = set(_vps_names()) | (set(counts) - {""})
     rows = [{**entry, "games": counts.get(entry["name"], 0)}
             for entry in manufacturer_report(names)]
-    return {"manufacturers": rows}
+    return models.ManufacturerList.model_validate({"manufacturers": rows})

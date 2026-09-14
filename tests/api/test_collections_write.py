@@ -133,7 +133,7 @@ class Harness(unittest.TestCase):
     def use(self, manager, catalog=("g1", "g2", "g3")):
         self.manager = manager
         self._mgr = api.get_collections_manager
-        self._cat = api._catalog
+        self._cat = api.game_repository.catalog
         self._row = api._row_or_404
         self._res = api._resource_for
         # Restored too, or a test that relaxes the table check leaves it relaxed for
@@ -144,14 +144,17 @@ class Harness(unittest.TestCase):
         self._res_fn = api._resolved
         self._game_id = api.game_identity.game_id
         api.get_collections_manager = lambda: manager
-        api._catalog = lambda: {g: object() for g in catalog}
+        api.game_repository.catalog = lambda: {g: object() for g in catalog}
         api._row_or_404 = lambda name: {"name": name}
-        api._resource_for = lambda row: {"name": row["name"]}
+        api._resource_for = lambda row: {"name": row["name"], "type": "manual",
+                                        "image": None, "game_count": 0,
+                                        "filters": None,
+                                        "links": {"self": "", "games": ""}}
 
     def tearDown(self):
         if hasattr(self, "_mgr"):
             api.get_collections_manager = self._mgr
-            api._catalog = self._cat
+            api.game_repository.catalog = self._cat
             api._row_or_404 = self._row
             api._resource_for = self._res
             api._one_table_of = self._one

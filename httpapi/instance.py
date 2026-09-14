@@ -179,11 +179,11 @@ def build_router(prefix: str, api_version: str) -> APIRouter:
 
     @router.get("/", summary="API discovery", dependencies=[requires(scopes.INSTANCE_READ)])
     def discovery() -> models.Discovery:
-        return discovery_payload(prefix, api_version)
+        return models.Discovery(**discovery_payload(prefix, api_version))
 
     @router.get("/health", summary="Liveness check", dependencies=[requires(scopes.INSTANCE_READ)])
     def health() -> models.Health:
-        return {"status": "ok"}
+        return models.Health(status="ok")
 
     @router.get("/update", summary="Whether a newer build is published",
                 dependencies=[requires(scopes.INSTANCE_READ)])
@@ -206,10 +206,11 @@ def build_router(prefix: str, api_version: str) -> APIRouter:
             return await run_in_threadpool(check_for_updates)
         except Exception as exc:
             logger.warning("Could not check for updates: %s", exc)
-            return {"update_available": False, "error": str(exc),
-                    "current_version": get_version(), "latest_version": None,
-                    "update_supported": False, "support_reason": "check failed",
-                    "triplet": None, "asset_name": None}
+            return models.UpdateCheck.model_validate(
+                {"update_available": False, "error": str(exc),
+                 "current_version": get_version(), "latest_version": None,
+                 "update_supported": False, "support_reason": "check failed",
+                 "triplet": None, "asset_name": None})
 
     @router.post("/update", summary="Take the published build", status_code=202,
                  dependencies=[requires(scopes.SYSTEM_ADMIN)])
@@ -264,8 +265,9 @@ def build_router(prefix: str, api_version: str) -> APIRouter:
         # After the response: the staged updater waits on this pid, and quitting inside
         # the handler would take the process down before the caller was told anything.
         background.add_task(_quit_for_update)
-        return {"latest_version": prepared["latest_version"],
-                "stopped_table": stopped_table}
+        return models.UpdateStarted.model_validate(
+            {"latest_version": prepared["latest_version"],
+             "stopped_table": stopped_table})
 
     return router
 

@@ -1,7 +1,8 @@
-"""What the catalog lists against what the library holds, counted across every game.
+"""What the catalog lists against what the library holds, per game and across the library.
 
-The per-game answer is `GET /games/{id}/vps_state`; this is the same question asked of
-the whole library, which is the only way to see that a kind is held by nothing at all.
+`state_of` answers one game. The rollup asks the same question of every game, which is
+the only way to see that a kind is held by nothing at all - and it counts `state_of`'s
+answer rather than forming a second opinion of its own.
 
 On a job, because resolving media for every game measured 650ms over 149 folders.
 Resolving only the kinds this needs is not the fix it looks like: virtual kinds borrow
@@ -15,17 +16,140 @@ import json
 import logging
 import os
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from common import timestamps
+from common.games import (
+    asset_origin,
+    game_lens,
+    game_repository,
+    game_service,
+    media_service,
+    watching,
+)
+from common.games.game_service import load_vpsdb
 from common.games.media_service import CACHE_DIR
-from common.online import vps_kinds
+from common.online import obtainability, vps_kinds
 
 logger = logging.getLogger("vpinfe.common.games.library_vps_state")
 
 ROLLUP_PATH = CACHE_DIR / "vps-rollup.json"
 SCHEMA = 1
+
+
+@lru_cache(maxsize=1)
+def _crowded_links_for(size: int) -> frozenset[str]:
+    """The links standing behind enough records to be somewhere to browse.
+
+    Keyed on the catalog's length, which is a cheap stand-in for "the snapshot has been
+    replaced" - the alternative is walking 17,000 URLs on every request to answer a
+    question about the corpus that changes only when the corpus does.
+    """
+    return obtainability.crowded(
+        link.get("url")
+        for entry in load_vpsdb()
+        for kind in vps_kinds.BY_LISTING
+        for record in (entry.get(kind) or [])
+        for link in (record.get("urls") or []))
+
+
+def _crowded_links() -> frozenset[str]:
+    return _crowded_links_for(len(load_vpsdb()))
+
+
+# The inventory still answers for color and sound under the flat names it used before
+# the asset registry existed. Translated here rather than in the kind table, which
+# names the registry's kinds because those are the real ones.
+_INVENTORY_NAME = {"altcolor_serum": "alt_color", "altcolor_vni": "alt_color",
+                   "altsound": "alt_sound"}
+
+
+def _we_hold(kind, inventory: dict, media: dict) -> bool:
+    """Whether this game has any of what the entry is offering.
+
+    Any, not all: a kind maps to more than one of ours where VPS draws the line in a
+    different place, and holding either Serum or VNI is holding a colorization.
+    """
+    for name in kind.ours:
+        if kind.held_in == vps_kinds.MEDIA:
+            if (media.get(name) or {}).get("present"):
+                return True
+        elif (inventory.get(_INVENTORY_NAME.get(name, name)) or {}).get("present"):
+            return True
+    return False
+
+
+def _moved_since(records: list, baseline: str, dismissed: set) -> list:
+    """The records that changed upstream after this game's baseline.
+
+    No baseline means nobody has said when to start watching, and everything ever
+    published is not a useful first answer. A record with no `updatedAt` is never
+    reported: 48 in the catalog have none, and guessing is worse than silence.
+    """
+    start = timestamps.iso_to_epoch(baseline) if baseline else None
+    if start is None:
+        return []
+    moved = []
+    for record in records:
+        if str(record.get("id") or "") in dismissed:
+            continue
+        stamp = record.get("updatedAt")
+        try:
+            when = int(stamp) / 1000
+        except (TypeError, ValueError):
+            continue
+        if when > start:
+            moved.append(record)
+    return moved
+
+
+def state_of(game, game_id: str = "") -> dict:
+    """One game's state. The same answer the endpoint serves and the rollup counts,
+    so the two cannot form separate opinions.
+
+    `game_id` addresses the media links and selects this game's watching baseline.
+    """
+    entry = game_service.matched_vps_entry(game)
+    game_dir = Path(game.fullPathGame)
+    inventory = game_lens.inventory_assets(game_dir)
+    prefix = f"/api/v1/games/{game_id}/media"
+    media = media_service.media_entries(
+        media_service.resolved_media(game_dir, None), game_dir, prefix)
+    shared = _crowded_links()
+    # A record id is only in one kind's list, so the ids alone place every binding.
+    bound = {str(source.get("vps_file_id") or "")
+             for source in asset_origin.sources(game_dir).values()}
+    bound.discard("")
+    baseline = watching.since_for(game_id)
+    dismissed = watching.acknowledged(game_id) if game_id else {}
+
+    kinds = []
+    for kind in vps_kinds.KINDS:
+        records = list(entry.get(kind.listed_as) or []) if entry else []
+        answers = [obtainability.best_of(
+            [link.get("url") for link in (record.get("urls") or [])], shared)
+            for record in records]
+        moved = _moved_since(records, baseline,
+                             dismissed.get(kind.listed_as) or set())
+        kinds.append({
+            "kind": kind.listed_as,
+            "ours": list(kind.ours),
+            "held_in": kind.held_in,
+            "held": _we_hold(kind, inventory, media),
+            "identified": any(str(record.get("id") or "") in bound
+                              for record in records),
+            "updated": any(str(record.get("id") or "") in bound for record in moved),
+            "new_upstream": sum(1 for record in moved
+                                if str(record.get("id") or "") not in bound),
+            "listed": len(records),
+            "obtainable": sum(1 for word in answers
+                              if word == obtainability.AVAILABLE),
+            "why_not": sorted({word for word in answers
+                               if word != obtainability.AVAILABLE}),
+        })
+    return {"matched": bool(entry), "kinds": kinds}
 
 
 def stored() -> dict[str, Any]:
@@ -99,8 +223,13 @@ def compute(games: dict, per_game, reporter=None) -> dict[str, Any]:
     }
 
 
-def recompute(games: list, per_game, reporter=None) -> dict[str, Any]:
-    """Count it and keep it. What the job runs."""
+def recompute(games: dict, per_game, reporter=None) -> dict[str, Any]:
+    """Count it and keep it."""
     rollup = compute(games, per_game, reporter)
     store(rollup)
     return rollup
+
+
+def recount(reporter=None) -> dict[str, Any]:
+    """Count the whole library and keep the answer. What the job runs."""
+    return recompute(game_repository.catalog(), state_of, reporter)

@@ -40,7 +40,7 @@ class TableMediaTests(TempTree):
             medias={"wheel.png": b"\x89PNG",
                     f"(Playfield) {FOLDER} - VR.png": b"\x89PNG"})
         game = fake_game(folder, FOLDER, meta=INFO)
-        patcher = patch("httpapi.games._catalog", return_value={GAME_ID: game})
+        patcher = patch("common.games.game_repository.catalog", return_value={GAME_ID: game})
         patcher.start()
         self.addCleanup(patcher.stop)
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)

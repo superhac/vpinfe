@@ -32,7 +32,7 @@ class GameRatingTests(TempTree):
         folder = write_game(self.root, "Attack from Mars (Bally 1995)", info=_info())
         self.info_path = folder / "Attack from Mars (Bally 1995).info"
         self.game = fake_game(folder, "Attack from Mars (Bally 1995)", meta=_info())
-        patcher = patch("httpapi.games._catalog", return_value={GAME_ID: self.game})
+        patcher = patch("common.games.game_repository.catalog", return_value={GAME_ID: self.game})
         patcher.start()
         self.addCleanup(patcher.stop)
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)

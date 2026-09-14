@@ -43,6 +43,7 @@ def get_log(limit: int = Query(200, ge=1, le=MAX_RECORDS),
                                source=source)
     where = next((one for one in log_setup.log_files() if one.name == source),
                  log_setup.log_file()) if source else log_setup.log_file()
-    return {"count": len(found), "records": found,
-            "path": str(where) if where else "",
-            "sources": [one.name for one in log_setup.log_files()]}
+    return models.LogRecords.model_validate(
+        {"count": len(found), "records": found,
+         "path": str(where) if where else "",
+         "sources": [one.name for one in log_setup.log_files()]})

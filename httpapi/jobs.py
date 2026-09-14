@@ -34,7 +34,7 @@ def list_jobs(kind: str = Query("", description="Filter by job kind")) -> models
     found = job_registry.recent()
     if kind:
         found = [job for job in found if job.kind == kind]
-    return {"jobs": [resource(job) for job in found]}
+    return models.JobList.model_validate({"jobs": [resource(job) for job in found]})
 
 
 @router.get("/{job_id}", summary="One job",
@@ -48,4 +48,4 @@ def get_job(job_id: str) -> models.JobResource:
     job = job_registry.get(job_id)
     if job is None:
         raise NotFoundError(t("error.jobs.no_job_id", job_id=(job_id)))
-    return resource(job, with_result=True)
+    return models.JobResource(**resource(job, with_result=True))

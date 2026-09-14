@@ -20,8 +20,10 @@ from pathlib import Path
 from fastapi import APIRouter, Query
 
 from common import collation
-from common.games import asset_origin, asset_resolver
+from common.games import asset_origin, asset_resolver, game_repository, table_lens
 from common.games.asset_registry import spec_for
+from common.games.game_repository import game_to_row
+from common.games.tables import table_names
 
 from . import models, scopes
 from .auth import requires
@@ -119,8 +121,6 @@ def list_assets(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
     a table that was renamed or deleted - gets one too, and says so: it is the thing an
     audit of a folder wants to see, and nothing has ever shown it.
     """
-    from .games import _catalog, _listing, _tables, game_to_row, table_names
-
     kinds = [item.key for item in asset_resolver.VPX_ASSET_KINDS]
     folder_kinds = list(_FOLDER_KINDS)
     if kind:
@@ -129,18 +129,18 @@ def list_assets(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
     fallback = {item.key: item.folder_fallback for item in asset_resolver.VPX_ASSET_KINDS}
 
     found: list[dict] = []
-    for game_id, entry in _catalog().items():
+    for game_id, entry in game_repository.catalog().items():
         if game and game != game_id:
             continue
         row = game_to_row(entry)
         game_dir = Path(getattr(entry, "fullPathGame", "") or "")
         try:
-            files, subdirs = _listing(game_dir)
+            files, subdirs = asset_resolver.folder_listing(game_dir)
         except OSError:
             logger.warning("assets: cannot read %s", game_dir)
             continue
 
-        tables = [table for table in _tables(entry, row) if table.get("id")]
+        tables = [table for table in table_lens.table_rows(entry, row) if table.get("id")]
         by_filename = {str(table.get("filename") or ""): table for table in tables}
         inventory = asset_resolver.inventory(game_dir.name, files, table_names(files))
         recorded = asset_origin.sources(game_dir)
@@ -185,4 +185,5 @@ def list_assets(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
                                  collation.sort_key(str(item.get("table_file") or ""))))
     total = len(found)
     window = found[offset:offset + limit] if limit else found[offset:]
-    return {"total": total, "offset": offset, "count": len(window), "assets": window}
+    return models.AssetSlotList.model_validate(
+        {"total": total, "offset": offset, "count": len(window), "assets": window})

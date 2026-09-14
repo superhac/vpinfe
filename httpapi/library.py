@@ -10,12 +10,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Response
 
 from common import jobs as job_registry
-from common.games import game_service
+from common.games import entry_lens, game_service
 from common.games.library_policy import get_library_policy
 
 from . import jobs as jobs_api
 from . import models, scopes
 from .auth import requires
+from .criteria import criteria_for
 from .errors import ConflictError
 
 router = APIRouter(prefix="/library", tags=["library"])
@@ -33,19 +34,20 @@ def filters() -> models.FilterAxisList:
     from common.games.game_repository import all_games
 
     available = GameListFilters(all_games()).available_options()
-    return {"axes": [{"name": axis.name, "scope": axis.scope, "kind": axis.kind,
-                      # The name a reader sees, which the registry owns. Without it a
-                      # client derives one from the key and gets "Game type" where the
-                      # rest of the app says "Type". The registry owns the naming.
-                      "label": axis.label,
-                      "label_key": f"filter.{axis.name}.label",
-                      "summary": axis.summary,
-                      # Whether the axis takes several values, which is an OR across
-                      # them. Declared here so a client renders the right control
-                      # without knowing which axes exist.
-                      "many": axis.many,
-                      "values": available.get(axis.values_key)}
-                     for axis in AXES]}
+    return models.FilterAxisList.model_validate(
+        {"axes": [{"name": axis.name, "scope": axis.scope, "kind": axis.kind,
+                   # The name a reader sees, which the registry owns. Without it a
+                   # client derives one from the key and gets "Game type" where the
+                   # rest of the app says "Type". The registry owns the naming.
+                   "label": axis.label,
+                   "label_key": f"filter.{axis.name}.label",
+                   "summary": axis.summary,
+                   # Whether the axis takes several values, which is an OR across
+                   # them. Declared here so a client renders the right control
+                   # without knowing which axes exist.
+                   "many": axis.many,
+                   "values": available.get(axis.values_key)}
+                  for axis in AXES]})
 
 
 @router.post("/tags/merge", summary="Fold tags into one",
@@ -59,7 +61,8 @@ def merge_tags(payload: models.TagMerge) -> models.TagSweep:
     from common.games.game_metadata import retag_library
     from common.games.game_repository import all_games
 
-    return {"changed": retag_library(all_games(), payload.sources, payload.into)}
+    return models.TagSweep.model_validate(
+        {"changed": retag_library(all_games(), payload.sources, payload.into)})
 
 
 @router.delete("/tags/{tag}", summary="Remove a tag from every game",
@@ -70,7 +73,7 @@ def delete_tag(tag: str) -> models.TagSweep:
     from common.games.game_metadata import retag_library
     from common.games.game_repository import all_games
 
-    return {"changed": retag_library(all_games(), [tag], "")}
+    return models.TagSweep.model_validate({"changed": retag_library(all_games(), [tag], "")})
 
 
 @router.get("/entries", summary="The entries the whole library resolves to",
@@ -88,11 +91,10 @@ def entries() -> models.EntryList:
     from common.games.collections_service import get_collections_manager
     from common.games.game_repository import all_games
 
-    from .collections import _entry_resource
-
     resolved = resolve(BUILTIN_ALL, get_collections_manager(), all_games())
-    return {"collection": "", "count": len(resolved),
-            "entries": [_entry_resource(entry) for entry in resolved]}
+    return models.EntryList.model_validate(
+        {"collection": "", "count": len(resolved),
+         "entries": [entry_lens.entry_resource(entry) for entry in resolved]})
 
 
 @router.post("/preview", summary="What a rule would match, storing nothing",
@@ -109,20 +111,19 @@ def preview(request: models.PreviewRequest = Body(...)) -> models.EntryList:
     from common.games.collections_service import get_collections_manager
     from common.games.game_repository import all_games
 
-    from .collections import _criteria_for, _entry_resource
-
     manager = get_collections_manager()
     # Set for this call and cleared after it, because the store object outlives the
     # request and a leftover constraint would narrow the next reader's whole library.
     try:
-        manager.set_view_filters(_criteria_for(request.filters))
+        manager.set_view_filters(criteria_for(request.filters))
         resolved = resolve(BUILTIN_ALL, manager, all_games())
     finally:
         manager.set_view_filters(None)
     if request.limit and request.limit > 0:
         resolved = resolved[:request.limit]
-    return {"collection": "", "count": len(resolved),
-            "entries": [_entry_resource(entry) for entry in resolved]}
+    return models.EntryList.model_validate(
+        {"collection": "", "count": len(resolved),
+         "entries": [entry_lens.entry_resource(entry) for entry in resolved]})
 
 
 @router.post("/scan", summary="Rebuild game metadata from VPSdb", status_code=202,
@@ -147,7 +148,7 @@ def scan(response: Response,
         raise ConflictError(str(exc)) from exc
 
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"
-    return jobs_api.resource(job)
+    return models.JobResource(**jobs_api.resource(job))
 
 
 @router.get("/policy", summary="What this library collects",
@@ -158,7 +159,7 @@ def get_policy() -> models.LibraryPolicy:
     The library's, not a machine's - so every install reading it gets one answer
     rather than each carrying its own copy of a question about somebody else's files.
     """
-    return get_library_policy().values()
+    return models.LibraryPolicy(**get_library_policy().values())
 
 
 @router.put("/policy", summary="Change what this library collects",
@@ -173,7 +174,7 @@ def put_policy(payload: models.LibraryPolicyChange = Body(...)) -> models.Librar
     policy = get_library_policy()
     for key, value in payload.model_dump(exclude_unset=True).items():
         policy.set(key, value)
-    return policy.values()
+    return models.LibraryPolicy(**policy.values())
 
 
 @router.get("/watching", summary="Since when a catalog change counts as new",
@@ -184,7 +185,7 @@ def get_watching() -> models.Watching:
     look useless, which is the whole reason this is asked rather than assumed."""
     from common.games import watching
 
-    return {"since": watching.since()}
+    return models.Watching.model_validate({"since": watching.since()})
 
 
 @router.put("/watching", summary="Start watching from here",
@@ -195,7 +196,7 @@ def put_watching(payload: models.WatchingRequest) -> models.Watching:
     from common.games import watching
 
     watching.set_since(payload.since or watching.FROM_THE_BEGINNING)
-    return {"since": watching.since()}
+    return models.Watching.model_validate({"since": watching.since()})
 
 
 @router.post("/watching/acknowledge", summary="Dismiss one catalog change",
@@ -206,7 +207,7 @@ def acknowledge(payload: models.AcknowledgeRequest) -> models.Acknowledged:
     from common.games import watching
 
     watching.acknowledge(payload.game_id, payload.kind, payload.vps_file_id)
-    return {"ok": True}
+    return models.Acknowledged(ok=True)
 
 
 @router.get("/vps_state", summary="What the catalog lists across the whole library",
@@ -222,7 +223,8 @@ def library_vps_state() -> models.LibraryVpsState:
     """
     from common.games import library_vps_state as rollup
 
-    return rollup.stored() or {"computed": "", "games": 0, "matched": 0, "kinds": []}
+    return models.LibraryVpsState(
+        **rollup.stored() or {"computed": "", "games": 0, "matched": 0, "kinds": []})
 
 
 @router.post("/vps_state", summary="Count it again", status_code=202,
@@ -232,17 +234,15 @@ def recount_vps_state(response: Response) -> models.JobResource:
     beside a scan rather than queueing behind one."""
     from common.games import library_vps_state as rollup
 
-    from .games import _catalog, vps_state_of
-
     try:
         job = job_registry.submit(
             job_registry.KIND_VPS_ROLLUP,
-            lambda job: rollup.recompute(_catalog(), vps_state_of, job.reporter()))
+            lambda job: rollup.recount(job.reporter()))
     except job_registry.JobBusyError as exc:
         raise ConflictError(str(exc)) from exc
 
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"
-    return jobs_api.resource(job)
+    return models.JobResource(**jobs_api.resource(job))
 
 
 @router.post("/refresh", summary="Find tables added or removed on disk", status_code=202,
@@ -264,7 +264,7 @@ def refresh(response: Response) -> models.JobResource:
         raise ConflictError(str(exc)) from exc
 
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"
-    return jobs_api.resource(job)
+    return models.JobResource(**jobs_api.resource(job))
 
 
 @router.get("/info", summary="What the library's metadata files need",
@@ -279,15 +279,16 @@ def info_maintenance() -> models.InfoMaintenance:
     from common.games import game_repository
 
     counts = game_repository.info_maintenance_counts()
-    return {
-        "pending_upgrade": counts.get("pending_upgrade", 0),
-        "restorable": counts.get("restorable", 0),
-        "newer_than_us": counts.get("newer_than_us", 0),
-        "newest_backup": game_service.newest_backup_stamp() or "",
-        "pending_games": game_service.pending_upgrade_game_names(),
-        "restorable_games": game_service.restorable_game_names(),
-        "unreadable": game_repository.unreadable_games(),
-    }
+    return models.InfoMaintenance.model_validate(
+        {
+     "pending_upgrade": counts.get("pending_upgrade", 0),
+     "restorable": counts.get("restorable", 0),
+     "newer_than_us": counts.get("newer_than_us", 0),
+     "newest_backup": game_service.newest_backup_stamp() or "",
+     "pending_games": game_service.pending_upgrade_game_names(),
+     "restorable_games": game_service.restorable_game_names(),
+     "unreadable": game_repository.unreadable_games(),
+ })
 
 
 def _one_pass(response: Response, work) -> dict:
@@ -311,7 +312,7 @@ def _one_pass(response: Response, work) -> dict:
 def upgrade_info(response: Response) -> models.JobResource:
     """Accepted, not done. Each file is copied to `<name>.info.bak` before it is
     rewritten, which is what `/info/restore` puts back."""
-    return _one_pass(response, game_service.upgrade_info)
+    return models.JobResource(**_one_pass(response, game_service.upgrade_info))
 
 
 @router.post("/info/restore", summary="Put back the .info files saved before an upgrade",
@@ -319,7 +320,7 @@ def upgrade_info(response: Response) -> models.JobResource:
 def restore_info(response: Response) -> models.JobResource:
     """Accepted, not done. Everything written since the backup was taken goes with it -
     a rating set afterwards is in the new file, not the old one."""
-    return _one_pass(response, game_service.restore_info)
+    return models.JobResource(**_one_pass(response, game_service.restore_info))
 
 
 @router.get("/patches", summary="What script fixes are published for this library",
@@ -334,7 +335,7 @@ def script_patches() -> models.ScriptPatches:
     from common.games import standalone_scripts
     from common.games.game_repository import all_games
 
-    return standalone_scripts.offered_for(all_games())
+    return models.ScriptPatches(**standalone_scripts.offered_for(all_games()))
 
 
 @router.post("/patches", summary="Fetch the published script fixes", status_code=202,
@@ -354,4 +355,4 @@ def apply_script_patches(response: Response) -> models.JobResource:
     except job_registry.JobBusyError as exc:
         raise ConflictError(str(exc)) from exc
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"
-    return jobs_api.resource(job)
+    return models.JobResource(**jobs_api.resource(job))

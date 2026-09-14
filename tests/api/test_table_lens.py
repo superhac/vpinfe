@@ -40,7 +40,7 @@ class _Lens(TempTree):
         self.folder = write_game(self.root, FOLDER, info=INFO, vpx=False,
                                  files={DESKTOP: b"vpx", VR: b"vpx"})
         game = fake_game(self.folder, FOLDER, meta=INFO)
-        patcher = patch("httpapi.games._catalog", return_value={GAME_ID: game})
+        patcher = patch("common.games.game_repository.catalog", return_value={GAME_ID: game})
         patcher.start()
         self.addCleanup(patcher.stop)
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)

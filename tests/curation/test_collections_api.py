@@ -44,7 +44,7 @@ class CollectionsApiTests(TempTree):
             patcher = patch(target, lambda: manager)
             patcher.start()
             self.addCleanup(patcher.stop)
-        catalog_patch = patch("httpapi.collections._catalog", lambda: self.catalog)
+        catalog_patch = patch("common.games.game_repository.catalog", lambda: self.catalog)
         catalog_patch.start()
         self.addCleanup(catalog_patch.stop)
 
@@ -346,10 +346,9 @@ class MemberTableTests(TempTree):
             patcher = patch(target, lambda: manager)
             patcher.start()
             self.addCleanup(patcher.stop)
-        for target in ("httpapi.collections._catalog", "httpapi.games._catalog"):
-            patcher = patch(target, lambda: self.catalog)
-            patcher.start()
-            self.addCleanup(patcher.stop)
+        patcher = patch("common.games.game_repository.catalog", lambda: self.catalog)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
         self.client = TestClient(httpapi.create_api_app(),
                                  raise_server_exceptions=False)

@@ -8,17 +8,21 @@ import shutil
 from pathlib import Path
 from urllib.parse import quote
 
+from common.config_access import MediaConfig
+from common.games import asset_origin
 from common.games.game_metadata import reorder_leading_article, vpinfe_section
 from common.games.game_repository import all_games
 from common.games.info_file import MetaConfig
 from common.media_specs import (
     MEDIA_SPECS,
+    active_set_for,
     media_attr_kind_map,
     media_filename_map,
     media_label_map,
+    resolve_media_entries,
     resolve_media_files,
 )
-from common.paths import CONFIG_DIR, get_games_path
+from common.paths import CONFIG_DIR, get_games_path, get_ini_config
 
 logger = logging.getLogger("vpinfe.manager.media_service")
 
@@ -60,6 +64,77 @@ def media_url(*parts: str) -> str:
 def is_image_media_kind(kind: str) -> bool:
     filename = MEDIA_FILENAME_BY_KIND.get(kind, "")
     return Path(filename).suffix.lower() in IMAGE_EXTENSIONS
+
+
+def media_contents(game_dir: Path) -> tuple[set[str], set[str]]:
+    """What is in the folder and in medias/, as the resolver wants it.
+
+    medias/ comes back with relative paths, because a media set is a subfolder and the
+    resolver matches it by "wheels/<set>/<name>".
+    """
+    # Locally: the asset registry reads this module's image extensions at import.
+    from common.games import asset_resolver
+
+    files, subdirs = asset_resolver.folder_listing(game_dir)
+    medias: set[str] = set()
+    if "medias" in {name.lower() for name in subdirs}:
+        medias_dir = game_dir / "medias"
+        try:
+            for dirpath, _dirs, filenames in os.walk(medias_dir):
+                rel = os.path.relpath(dirpath, medias_dir)
+                for fname in filenames:
+                    medias.add(fname if rel == "." else
+                               f"{rel}/{fname}".replace(os.sep, "/"))
+        except OSError:
+            medias = set()
+    return set(files), medias
+
+
+def media_settings() -> tuple[str, dict[str, str] | None]:
+    """The playfield variant and any active media set, as the resolver takes them."""
+    media_cfg = MediaConfig.from_config(get_ini_config())
+    wheelset = active_set_for("wheel", media_cfg.wheelset)
+    return media_cfg.playfield_variant, ({"wheel": wheelset} if wheelset else None)
+
+
+def resolved_media(game_dir: Path, table_stem: str | None = None) -> dict:
+    """Every media kind against the folder as it is right now."""
+    files, medias = media_contents(game_dir)
+    variant, active_sets = media_settings()
+    return resolve_media_entries(game_dir, files, medias, variant,
+                                 table_stem, active_sets)
+
+
+def media_map(game_dir: Path, prefix: str, table_stem: str | None = None) -> dict:
+    """Every kind described for one game, or for one of its tables. Resolve and
+    describe together, so no caller can resolve for one table and describe another."""
+    return media_entries(resolved_media(game_dir, table_stem), game_dir, prefix)
+
+
+def media_entries(resolved: dict, game_dir: Path, prefix: str) -> dict:
+    """What a curator asks of a slot: does it resolve, how specific, and where from.
+
+    `via` is why this file is the one being used - "table", "game", "default",
+    "set:<name>" or "fallback:<kind>". `origin` is who put it there, which is a
+    different question with a different source: the .info ledger, read once per call
+    here rather than once per kind. Neither answer implies the other.
+    """
+    recorded = asset_origin.sources(game_dir)
+    hosts = {key: str(source.get("host", "") or "").strip()
+             for key, source in recorded.items()
+             if str(source.get("host", "") or "").strip()}
+    return {
+        key: {
+            "present": hit.path is not None,
+            "file": hit.path.name if hit.path is not None else None,
+            "path": asset_origin.path_of(game_dir, hit.path) or None,
+            "via": hit.tier,
+            "origin": asset_origin.origin_of(hosts, game_dir, hit.path) or None,
+            "matched_to": asset_origin.match_of(recorded, game_dir, hit.path) or None,
+            "links": {"self": f"{prefix}/{key}"} if hit.path is not None else {"self": None},
+        }
+        for key, hit in resolved.items()
+    }
 
 
 _SPEC_BY_KIND = {spec.kind: spec for spec in MEDIA_SPECS}

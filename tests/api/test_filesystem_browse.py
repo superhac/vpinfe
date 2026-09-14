@@ -36,7 +36,7 @@ class _Tree(TempTree):
         (self.outside / "secret.png").write_bytes(b"\x89PNGsecret")
 
         game = fake_game(self.folder, FOLDER, meta=INFO)
-        for target, value in (("httpapi.games._catalog", {GAME_ID: game}),):
+        for target, value in (("common.games.game_repository.catalog", {GAME_ID: game}),):
             patcher = patch(target, return_value=value)
             patcher.start()
             self.addCleanup(patcher.stop)

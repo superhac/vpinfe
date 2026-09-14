@@ -17,8 +17,8 @@ import unittest
 
 from common.games import collection_resolver
 from common.games.collection_filters import group_key
+from common.games.entry_lens import entry_resource
 from frontend import game_state
-from httpapi.collections import _entry_resource
 from tests.support.entries import entries_for
 from tests.support.library import TempTree, fake_game, write_game
 
@@ -55,7 +55,7 @@ class EntryLensParityTests(TempTree):
         # lenses built under different orders would not be the same resolution.
         self.theme = json.loads(game_state.games_json(
             self.entries, contract=2, order_by=ORDER_BY))["entries"][0]
-        self.wire = _entry_resource(self.entries[0],
+        self.wire = entry_resource(self.entries[0],
                                     group_key(ORDER_BY)(self.entries[0].game))
 
     def test_the_two_lenses_carry_the_same_fields(self) -> None:
@@ -160,7 +160,7 @@ class EntryLensParityTests(TempTree):
         # sort key, which is the same list this asserted when it was.
         hub_order = [game_state.game_title(e.game) for e in
                      collection_resolver._ordered(list(entries), "added", True)]
-        wire = [_entry_resource(e) for e in entries]
+        wire = [entry_resource(e) for e in entries]
         stamps = [row["game"]["created_at"] for row in wire]
         client_order = [game_state.game_title(e.game) for _, e in sorted(
             zip(stamps, entries, strict=True), key=lambda pair: pair[0],

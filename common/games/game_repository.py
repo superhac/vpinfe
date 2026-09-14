@@ -83,6 +83,23 @@ def all_games(reload: bool = False) -> list[Any]:
     return games
 
 
+def catalog() -> dict[str, Any]:
+    """Every game keyed by id. Writes a .info for any game that lacks one, so it is a
+    no-op once the library has been through it."""
+    return ensure_unique_ids(all_games())
+
+
+def game_by_id(game_id: str) -> Any | None:
+    """The game an id names, or None. One lookup, so nothing forms a second answer."""
+    return catalog().get(game_id)
+
+
+def game_folder(game_id: str) -> Path | None:
+    """The folder one game lives in, for a caller that has an id and needs the files."""
+    game = game_by_id(game_id)
+    return Path(str(game.fullPathGame)) if game is not None else None
+
+
 def games_under(games_root: str, config=None) -> list[Any]:
     """The library at `games_root`, from the cache when that is the configured one.
 
@@ -252,7 +269,8 @@ def game_to_row(game, collections_map: dict[str, list[str]] | None = None) -> di
         "pinball_primer_tut": first_meta_value(meta, ("Info", "PinballPrimerTut")),
         # Info carries what VPS knows; the table's own claim is the fallback and can
         # legitimately differ from it.
-        "manufacturer": first_meta_value(meta, ("Info", "Manufacturer")) or gf_value("manufacturer"),
+        "manufacturer": (first_meta_value(meta, ("Info", "Manufacturer"))
+                         or gf_value("manufacturer")),
         "year": first_meta_value(meta, ("Info", "Year")) or gf_value("year"),
         "type": first_meta_value(meta, ("Info", "Type")) or gf_value("type"),
         "themes": as_string_list(first_meta_value(meta, ("Info", "Themes"), default=[])),

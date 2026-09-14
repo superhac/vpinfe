@@ -18,14 +18,12 @@ import logging
 from fastapi import APIRouter, Body, File, Request, Response, UploadFile
 from starlette.concurrency import run_in_threadpool
 
-from common.extensions import contributions
-from common.games import game_identity
+from common.games import entry_lens, game_identity, game_lens, game_repository, table_lens
 from common.games.collection_filters import UNCONSTRAINED, group_key, group_kind
 from common.games.collection_resolver import (
     UnresolvableCollectionError,
     resolve,
     resolve_games,
-    visible_entries,
 )
 from common.games.collection_store import (
     DEFAULT_DIRECTION,
@@ -41,23 +39,14 @@ from common.games.collections_service import (
     get_collections_manager,
     get_collections_metadata,
 )
-from common.games.game_metadata import (
-    game_rating,
-    game_themes,
-    game_title,
-    play_record,
-    table_descriptor,
-)
-from common.games.media_lookup import resolved_kinds
 from common.i18n import t
-from common.shared_assets import manufacturer_logo_web_path
-from common.timestamps import epoch_to_iso
 from common.values import is_truthy
 
 from . import models, scopes
 from .auth import requires
+from .criteria import criteria_for
 from .errors import ConflictError, InvalidRequestError, NotFoundError
-from .games import _catalog, _resource, revalidating_file
+from .responses import revalidating_file
 
 logger = logging.getLogger("vpinfe.httpapi.collections")
 
@@ -77,14 +66,6 @@ def _many_out(value) -> list[str]:
     return parts or [UNCONSTRAINED]
 
 
-def _many_in(value) -> str:
-    """A criterion as it is stored. A list joins; a string is already stored form."""
-    if isinstance(value, list):
-        joined = ",".join(str(part).strip() for part in value if str(part).strip())
-        return joined or UNCONSTRAINED
-    return str(value or UNCONSTRAINED)
-
-
 def _links(name: str) -> dict:
     from urllib.parse import quote
 
@@ -98,7 +79,8 @@ def _resolved_count(name: str) -> int:
     size means - a rule's matches are stored nowhere and a stored member that names a
     game this library lost resolves to nothing."""
     try:
-        return len(resolve(name, get_collections_manager(), list(_catalog().values())))
+        return len(resolve(name, get_collections_manager(),
+                           list(game_repository.catalog().values())))
     except Exception:
         # A collection this build cannot resolve still has to list. Its own routes say
         # why; a number in a table is not the place to raise it.
@@ -159,13 +141,14 @@ def _row_or_404(name: str) -> dict:
 @router.get("", summary="List collections",
             dependencies=[requires(scopes.COLLECTIONS_READ)])
 def list_collections() -> models.CollectionList:
-    return {"collections": [_resource_for(row) for row in get_collections_metadata()]}
+    return models.CollectionList.model_validate(
+        {"collections": [_resource_for(row) for row in get_collections_metadata()]})
 
 
 @router.get("/{name}", summary="One collection",
             dependencies=[requires(scopes.COLLECTIONS_READ)])
 def get_collection(name: str) -> models.CollectionResource:
-    return _resource_for(_row_or_404(name))
+    return models.CollectionResource(**_resource_for(_row_or_404(name)))
 
 
 @router.get("/{name}/games", summary="The games in a collection",
@@ -181,13 +164,16 @@ def collection_games(name: str) -> models.GameList:
     # nothing launchable still belongs here. Sharing the resolver is what stops this
     # answering in one order while the frontend answers in another.
     try:
-        members = resolve_games(name, get_collections_manager(), list(_catalog().values()))
+        members = resolve_games(name, get_collections_manager(),
+                                list(game_repository.catalog().values()))
     except UnresolvableCollectionError as exc:
         raise ConflictError(str(exc), details={"unknown_filters": exc.axes}) from exc
-    resources = [_resource(game_to_row(game, by_collection), game_identity.game_id(game))
+    resources = [game_lens.game_resource(game_to_row(game, by_collection),
+                                        game_identity.game_id(game))
                  for game in members]
-    return {"total": len(resources), "offset": 0, "count": len(resources),
-            "games": resources}
+    return models.GameList.model_validate(
+        {"total": len(resources), "offset": 0, "count": len(resources),
+         "games": resources})
 
 
 @router.get("/{name}/members", summary="A collection's stored membership, and why",
@@ -207,7 +193,7 @@ def collection_members(name: str) -> models.CollectionMemberList:
     """
     _row_or_404(name)
     manager = get_collections_manager()
-    catalog = _catalog()
+    catalog = game_repository.catalog()
     excluded = manager.get_excluded_refs(name)
     excluded_games = {r["game"] for r in excluded if not r.get("table")}
     excluded_tables = {r["table"] for r in excluded if r.get("table")}
@@ -235,9 +221,10 @@ def collection_members(name: str) -> models.CollectionMemberList:
         members.append({**_member_row(ref["game"], "excluded",
                                       ref.get("table", ""), catalog, out),
                         "origin": "excluded", "included": False})
-    return {"collection": name, "count": len(members),
-            "playable": sum(1 for m in members if m["included"]),
-            "members": members}
+    return models.CollectionMemberList.model_validate(
+        {"collection": name, "count": len(members),
+         "playable": sum(1 for m in members if m["included"]),
+         "members": members})
 
 
 def _member_row(game_id: str, origin: str, named_table: str,
@@ -250,13 +237,12 @@ def _member_row(game_id: str, origin: str, named_table: str,
     """
     from common.games.game_repository import game_to_row
 
-    from .games import _tables
     excluded_games, excluded_tables = excluded
     game = catalog.get(game_id)
     if game is None:
         return {"game": game_id, "name": "", "origin": "missing",
                 "included": False, "ref_table": named_table, "tables": []}
-    known = _tables(game, game_to_row(game))
+    known = table_lens.table_rows(game, game_to_row(game))
     by_id = {str(t.get("id")): t for t in known}
     chosen = named_table or (str(known[0].get("id")) if known else "")
     tables = []
@@ -285,61 +271,6 @@ def _member_row(game_id: str, origin: str, named_table: str,
             "tables": tables}
 
 
-def _entry_resource(entry, group=None) -> dict:
-    """One entry as REST serves it.
-
-    `default` is computed, never read off the entry: it is the game's own choice and
-    lives in the vpinfe section, not on the table. visible_entries puts it first.
-    """
-    game_ident = game_identity.game_id(entry.game)
-    offered = visible_entries(entry.game)
-    default_id = offered[0].get("id", "") if offered else ""
-    meta = entry.game.meta_config or {}
-    info = meta.get("Info") or {}
-    vpinfe = meta.get("vpinfe") or {}
-    prefix = f"/api/v1/games/{game_ident}"
-    maker = str(info.get("Manufacturer", "") or "")
-    return {
-        "game": {
-            "id": game_ident,
-            "vps_id": str(info.get("VPSId", "") or ""),
-            "name": game_title(entry.game),
-            "manufacturer": maker,
-            "year": str(info.get("Year", "") or ""),
-            "type": str(info.get("Type", "") or ""),
-            "themes": game_themes(entry.game),
-            "dir_name": str(getattr(entry.game, "gameDirName", "") or ""),
-            "manufacturer_logo": manufacturer_logo_web_path(maker),
-            "created_at": epoch_to_iso(getattr(entry.game, "creation_time", None)) or None,
-            "rating": game_rating(entry.game),
-            "user": play_record(meta),
-            "ipdb_id": str(info.get("IPDBId", "") or ""),
-            "tutorial": str(info.get("PinballPrimerTut", "") or ""),
-            "overrides": {
-                "alt_title": str(vpinfe.get("alt_title", "") or ""),
-                "alt_vps_id": str(vpinfe.get("alt_vpsid", "") or ""),
-                "frontend_dof_event": str(vpinfe.get("frontend_dof_event", "") or ""),
-            },
-        },
-        "table": table_descriptor(entry.table, default_id=default_id),
-        "siblings": entry.siblings,
-        "assets": {
-            "pup_pack": bool(getattr(entry.game, "pupPackExists", False)),
-            "alt_color": bool(getattr(entry.game, "altColorExists", False)),
-            "alt_sound": bool(getattr(entry.game, "altSoundExists", False)),
-        },
-        "media": resolved_kinds(entry.game),
-        # None when the order has no groups; `group_by` on the list says which.
-        "group": group,
-        # What extensions have contributed. Here as well as in the theme payload
-        # because this lens exists to be what a frontend on another machine is built
-        # from, and one missing this renders a wheel with a badge short.
-        "ext": contributions.held(game_ident),
-        "links": {"game": prefix, "launch": f"{prefix}/launch",
-                  "media": f"{prefix}/media"},
-    }
-
-
 def _resolved(name: str):
     """The collection's entries, or a 409 naming what this build could not read.
 
@@ -347,7 +278,7 @@ def _resolved(name: str):
     question and does it silently. Every other collection still answers.
     """
     try:
-        return resolve(name, get_collections_manager(), list(_catalog().values()))
+        return resolve(name, get_collections_manager(), list(game_repository.catalog().values()))
     except UnresolvableCollectionError as exc:
         raise ConflictError(
             str(exc), details={"unknown_filters": exc.axes}) from exc
@@ -369,27 +300,11 @@ def collection_entries(name: str) -> models.EntryList:
     # lenses would come to disagree.
     order_by = get_collections_manager().get_order(name)["by"]
     key = group_key(order_by)
-    return {"collection": name, "count": len(entries),
-            "group_by": group_kind(order_by) if key is not None else "",
-            "entries": [_entry_resource(e, key(e.game) if key else None)
-                        for e in entries]}
-
-
-def _criteria_for(f) -> dict:
-    """A criteria block in the shape the store and the matcher read.
-
-    One translation, shared by what writes a collection and what previews one, so a
-    rule cannot resolve differently before and after it is saved. `game_type` is stored
-    as `table_type`, the spelling on disk from before the vocabulary alignment.
-    """
-    if f is None:
-        return {}
-    return {"letter": _many_in(f.letter), "theme": _many_in(f.theme),
-            "table_type": _many_in(f.game_type),
-            "manufacturer": _many_in(f.manufacturer), "year": _many_in(f.year),
-            "rating": f.rating,
-            "rating_or_higher": "true" if f.rating_or_higher else "false",
-            "played": f.played}
+    return models.EntryList.model_validate(
+        {"collection": name, "count": len(entries),
+         "group_by": group_kind(order_by) if key is not None else "",
+         "entries": [entry_lens.entry_resource(e, key(e.game) if key else None)
+                     for e in entries]})
 
 
 def _write_filters(manager, name: str, f) -> None:
@@ -399,7 +314,7 @@ def _write_filters(manager, name: str, f) -> None:
     block holds. `game_type` is stored as `table_type`, the spelling on disk from
     before the vocabulary alignment.
     """
-    manager.make_filter_collection(name, _criteria_for(f),
+    manager.make_filter_collection(name, criteria_for(f),
                                    order={"by": f.order_by, "direction": f.direction})
 
 
@@ -419,7 +334,7 @@ def create_collection(response: Response,
         # Criteria and hand-picked games together, if that is what was asked for.
         # COLLECTIONS 2.11 makes them combinable and derives the kind from what is
         # stored; refusing the pair was this API carrying 2.x's two kinds forward.
-        known = set(_catalog())
+        known = set(game_repository.catalog())
         unknown = [game_id for game_id in request.games if game_id not in known]
         if unknown:
             raise InvalidRequestError(t("error.collections.unknown_game_ids"),
@@ -431,7 +346,7 @@ def create_collection(response: Response,
             _write_filters(manager, name, request.filters)
 
     response.headers["Location"] = _links(name)["self"]
-    return _resource_for(_row_or_404(name))
+    return models.CollectionResource(**_resource_for(_row_or_404(name)))
 
 
 @router.delete("/{name}", summary="Delete a collection", status_code=204,
@@ -452,9 +367,9 @@ def _one_table_of(game_id: str, table_id: str) -> None:
         return
     from common.games.game_repository import game_to_row
 
-    from .games import _tables
-    game = _catalog().get(game_id)
-    known = {str(t.get("id")) for t in _tables(game, game_to_row(game))} if game else set()
+    game = game_repository.catalog().get(game_id)
+    known = ({str(row.get("id")) for row in table_lens.table_rows(game, game_to_row(game))}
+             if game else set())
     if table_id not in known:
         raise NotFoundError(t("error.collections.no_table", game_id=(game_id),
                 table_id=(table_id)))
@@ -477,7 +392,7 @@ def add_member(name: str, game_id: str,
     Works on any collection. Criteria and named members are combinable (COLLECTIONS
     2.11) and a member overrides what the criteria say for that game.
     """
-    if game_id not in _catalog():
+    if game_id not in game_repository.catalog():
         raise NotFoundError(t("error.collections.no_game_id", game_id=(game_id)))
     table_id = (request.table if request else "") or ""
     _one_table_of(game_id, table_id)
@@ -500,7 +415,7 @@ def set_member_table(name: str, game_id: str,
     a caller reaches the first without deleting the member and adding it back, which
     would send a curated row to the end of the list.
     """
-    if game_id not in _catalog():
+    if game_id not in game_repository.catalog():
         raise NotFoundError(t("error.collections.no_game_id", game_id=(game_id)))
     _one_table_of(game_id, request.table)
     with get_collections_manager().mutate() as manager:
@@ -548,7 +463,7 @@ def add_exclusion(name: str, game_id: str,
     says "everything except this" and still tracks whatever is added later. Neither
     substitutes for the other, and until now only naming had a route.
     """
-    if game_id not in _catalog():
+    if game_id not in game_repository.catalog():
         raise NotFoundError(t("error.collections.no_game_id", game_id=(game_id)))
     table_id = (request.table if request else "") or ""
     _one_table_of(game_id, table_id)
@@ -601,7 +516,7 @@ async def set_image(name: str, file: UploadFile = File(...)
         raise InvalidRequestError(str(exc)) from exc
     with get_collections_manager().mutate() as manager:
         manager.set_image(name, stored)
-    return _resource_for(_row_or_404(name))
+    return models.CollectionResource(**_resource_for(_row_or_404(name)))
 
 
 @router.delete("/{name}/image", summary="Clear a collection's image",
@@ -659,7 +574,7 @@ def members_from_filters(name: str) -> models.CollectionResource:
         for ref in writer.get_excluded_refs(name):
             writer.unexclude(name, ref["game"], ref.get("table", ""))
         writer.set_limit(name, None)
-    return _resource_for(_row_or_404(name))
+    return models.CollectionResource(**_resource_for(_row_or_404(name)))
 
 
 @router.patch("/{name}", summary="Change a collection",
@@ -681,7 +596,7 @@ def patch_collection(name: str,
             raise NotFoundError(t("error.collections.no_collection_named", name=(name)))
 
         if request.games is not None:
-            known = set(_catalog())
+            known = set(game_repository.catalog())
             unknown = [game_id for game_id in request.games if game_id not in known]
             if unknown:
                 raise InvalidRequestError(t("error.collections.unknown_game_ids"),
@@ -754,7 +669,7 @@ def patch_collection(name: str,
     if renamed_from is not None:
         follow_rename_in_settings(renamed_from, final)
 
-    return _resource_for(_row_or_404(final))
+    return models.CollectionResource(**_resource_for(_row_or_404(final)))
 
 
 @router.put("/{name}/order", summary="Set the order of a collection's games",

@@ -23,7 +23,7 @@ from common.games import library_vps_state as rollup
 
 
 def _state(matched=True, **held):
-    """One game's answer, in the shape `vps_state_of` produces."""
+    """One game's answer, in the shape `state_of` produces."""
     return {
         "matched": matched,
         "kinds": [{"kind": kind, "held": h, "identified": i, "listed": ll,
@@ -121,7 +121,7 @@ class RollupRouteTests(unittest.TestCase):
         self.assertEqual(body["kinds"], [])
 
     def test_counting_is_accepted_not_done(self) -> None:
-        with patch("httpapi.games._catalog", return_value={}):
+        with patch("common.games.game_repository.catalog", return_value={}):
             response = self.client.post("/library/vps_state")
 
         self.assertEqual(response.status_code, 202, response.text)

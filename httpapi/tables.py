@@ -16,6 +16,9 @@ import logging
 
 from fastapi import APIRouter, Query
 
+from common.games import game_repository, table_lens
+from common.games.game_repository import game_to_row
+
 from . import models, scopes
 from .auth import requires
 
@@ -34,10 +37,11 @@ def list_apps() -> models.LaunchAppList:
     """
     from common import apps
 
-    return {"apps": [{"id": app.id, "name": app.name,
-                      "suffixes": list(app.claim.suffixes),
-                      "accepts_keys": app.claim.accepts_keys}
-                     for app in apps.all_apps()]}
+    return models.LaunchAppList.model_validate(
+        {"apps": [{"id": app.id, "name": app.name,
+                   "suffixes": list(app.claim.suffixes),
+                   "accepts_keys": app.claim.accepts_keys}
+                  for app in apps.all_apps()]})
 
 
 @router.get("", summary="Every table in the library",
@@ -50,10 +54,8 @@ def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
     make: this list is read to be shown, and a table named only by its filename is the
     thing the games lens already fails at.
     """
-    from .games import _catalog, _tables, game_to_row
-
     found: list[dict] = []
-    for game_id, entry in _catalog().items():
+    for game_id, entry in game_repository.catalog().items():
         if game or "":
             if game != game_id:
                 continue
@@ -61,7 +63,7 @@ def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
         meta = getattr(entry, "meta_config", {}) or {}
         declared = meta.get("Info")
         info = declared if isinstance(declared, dict) else {}
-        for table in _tables(entry, row):
+        for table in table_lens.table_rows(entry, row):
             if not table.get("id"):
                 continue
             found.append({
@@ -109,4 +111,5 @@ def list_tables(limit: int = Query(0, ge=0), offset: int = Query(0, ge=0),
                                 (item["filename"] or item["key"]).lower()))
     total = len(found)
     window = found[offset:offset + limit] if limit else found[offset:]
-    return {"total": total, "offset": offset, "count": len(window), "tables": window}
+    return models.TableRowList.model_validate(
+        {"total": total, "offset": offset, "count": len(window), "tables": window})

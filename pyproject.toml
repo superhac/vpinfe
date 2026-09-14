@@ -40,3 +40,27 @@ extend-immutable-calls = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["apps", "common", "frontend", "httpapi", "managerui"]
+
+[tool.mypy]
+python_version = "3.14"
+# The packages that are checked. Named here rather than passed on the command line so the
+# hook, CI and a local run all measure the same thing.
+files = ["apps", "common", "console", "extensions", "frontend", "httpapi"]
+# apps/ and extensions/ hold namespace packages with no root __init__.py, because they are
+# discovered and loaded at runtime rather than imported by name. Without these two mypy
+# reads apps/generic as both "generic" and "apps.generic", stops on that one error and
+# checks nothing - a green run that measured nothing is worse than no run.
+explicit_package_bases = true
+mypy_path = "."
+# NiceGUI, DOF and the vendored third_party drops ship no stubs.
+ignore_missing_imports = true
+
+# managerui is not checked. The Console replaces it and it goes when the Manager UI does,
+# so annotating 13,000 lines buys nothing that outlives the removal. Its services/ layer is
+# already 98% annotated if that decision ever reverses; its pages/ are NiceGUI widget
+# chaining, which is also why they carry the E501 exemption above.
+
+[[tool.mypy.overrides]]
+# apps/ was born fully annotated. Locking it costs nothing and keeps it that way.
+module = "apps.*"
+disallow_untyped_defs = true

@@ -171,14 +171,14 @@ def _vps_entry(vps_id: str):
 
 @router.post("", summary="Begin an upload session", dependencies=[requires(scopes.UPLOADS_WRITE)])
 def begin_upload() -> models.UploadBegun:
-    return {"id": upload_session_service.begin_session().upload_id}
+    return models.UploadBegun(id=upload_session_service.begin_session().upload_id)
 
 
 @router.get("/{upload_id}", summary="Upload session summary",
              dependencies=[requires(scopes.UPLOADS_WRITE)])
 def get_upload(upload_id: str) -> models.UploadSummary:
     try:
-        return upload_session_service.finish_session(upload_id)
+        return models.UploadSummary(**upload_session_service.finish_session(upload_id))
     except UnknownSessionError as exc:
         raise NotFoundError(str(exc)) from exc
 
@@ -187,7 +187,7 @@ def get_upload(upload_id: str) -> models.UploadSummary:
              dependencies=[requires(scopes.UPLOADS_WRITE)])
 def abort_upload(upload_id: str) -> models.Acknowledged:
     upload_session_service.cleanup_session(upload_id)
-    return {"ok": True}
+    return models.Acknowledged(ok=True)
 
 
 @router.post("/{upload_id}/files", summary="Add a file to an upload session",
@@ -203,14 +203,14 @@ async def add_upload_file(upload_id: str, relpath: str = Form(...),
         raise NotFoundError(str(exc)) from exc
     except UnsafePathError as exc:
         raise InvalidRequestError(str(exc)) from exc
-    return {"bytes": written}
+    return models.FileStored(bytes=written)
 
 
 @router.get("/{upload_id}/analysis", summary="Analyze an upload session",
              dependencies=[requires(scopes.UPLOADS_WRITE)])
 def analyze_upload(upload_id: str) -> models.Analysis:
     analysis, _source = analyze_upload_session(_session_dir(upload_id))
-    return _analysis_to_dict(analysis)
+    return models.Analysis(**_analysis_to_dict(analysis))
 
 
 @router.post("/{upload_id}/plan", summary="Build an import plan",
@@ -219,8 +219,8 @@ def plan_upload(upload_id: str,
                 payload: models.PlanRequest = Body(default_factory=models.PlanRequest),
                 ) -> models.ImportPlanResource:
     if payload.media_kind:
-        return _plan_to_dict(_slot_plan(upload_id, payload.game_dir,
-                                        payload.media_kind))
+        return models.ImportPlanResource(
+            **_plan_to_dict(_slot_plan(upload_id, payload.game_dir, payload.media_kind)))
     analysis, _source = _analysis_for(upload_id)
     vps_entry = _vps_entry(payload.vps_id)
     try:
@@ -237,7 +237,7 @@ def plan_upload(upload_id: str,
         raise ConflictError(str(exc)) from exc
     if vps_entry is not None and plan.new_game_dir_name:
         plan = select_plan_items(plan, None, vps_folder_name(vps_entry))
-    return _plan_to_dict(plan)
+    return models.ImportPlanResource(**_plan_to_dict(plan))
 
 
 def _slot_plan(upload_id: str, game_dir: str, media_kind: str) -> ImportPlan:
@@ -307,7 +307,7 @@ def import_upload(upload_id: str,
             raise InvalidRequestError(str(exc)) from exc
         upload_session_service.cleanup_session(upload_id)
         report["blocked"] = blocked
-        return report
+        return models.ImportReport(**report)
     analysis, source_path = _analysis_for(upload_id)
     vps_entry = _vps_entry(payload.vps_id)
     try:
@@ -356,7 +356,7 @@ def import_upload(upload_id: str,
             logger.exception("VPS association failed after import")
             report["vps_associated"] = False
             report["vps_error"] = str(exc)
-    return report
+    return models.ImportReport(**report)
 
 
 def _vps_resource(entry: dict) -> dict:
@@ -390,7 +390,7 @@ def vps_entry(vps_id: str) -> models.VpsSearchResult:
     found = next((e for e in load_vpsdb() if str(e.get("id") or "") == vps_id), None)
     if found is None:
         raise NotFoundError(t("error.uploads.no_such_vps_entry"), details={"vps_id": vps_id})
-    return _vps_resource(found)
+    return models.VpsSearchResult(**_vps_resource(found))
 
 
 def _release_resource(release: dict) -> dict:
@@ -450,8 +450,8 @@ def vps_releases(vps_id: str,
     found = next((e for e in load_vpsdb() if str(e.get("id") or "") == vps_id), None)
     if found is None:
         raise NotFoundError(t("error.uploads.no_such_vps_entry"), details={"vps_id": vps_id})
-    return {"releases": [_release_resource(item)
-                         for item in (found.get(listed_as) or [])]}
+    return models.VpsReleases.model_validate(
+        {"releases": [_release_resource(item) for item in (found.get(listed_as) or [])]})
 
 
 @vps_router.get("/sync", summary="When the catalog was last checked",
@@ -462,9 +462,9 @@ def vps_sync_state() -> models.VpsSyncState:
     from common.paths import get_ini_config
 
     config = get_ini_config()
-    return {"schedule": vpsdb_sync.schedule(config),
-            "checked": vpsdb_sync.checked_at(config),
-            "due": vpsdb_sync.due(config)}
+    return models.VpsSyncState(schedule=vpsdb_sync.schedule(config),
+                               checked=vpsdb_sync.checked_at(config),
+                               due=vpsdb_sync.due(config))
 
 
 @vps_router.post("/sync", summary="Check VPSdb for a newer catalog now",
@@ -478,11 +478,13 @@ async def vps_sync() -> models.VpsSyncResult:
     from common.online import vpsdb_sync
     from common.paths import get_ini_config
 
-    return await run_in_threadpool(vpsdb_sync.sync, get_ini_config(), True)
+    return models.VpsSyncResult(
+        **await run_in_threadpool(vpsdb_sync.sync, get_ini_config(), True))
 
 
 @vps_router.get("/search", summary="Search VPSdb", dependencies=[requires(scopes.VPS_READ)])
 def search_vps(q: str = "", limit: int = 20) -> models.VpsSearchResults:
     from common.games.game_service import search_vpsdb
 
-    return {"results": [_vps_resource(e) for e in search_vpsdb(q, limit=limit)]}
+    return models.VpsSearchResults.model_validate(
+        {"results": [_vps_resource(e) for e in search_vpsdb(q, limit=limit)]})

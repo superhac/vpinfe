@@ -1,7 +1,7 @@
 """Stand a library in front of every module that imported the loader.
 
-`all_games` is bound into six modules by `from ... import`, so patching one of
-them leaves the other four holding the real function - which then scans whatever root the
+`all_games` is bound into five modules by `from ... import`, so patching one of
+them leaves the other three holding the real function - which then scans whatever root the
 suite before it configured. That reads as a flaky test and is not.
 """
 
@@ -19,7 +19,6 @@ LOADER_SITES = (
     "common.games.media_service",
     "frontend.api",
     "frontend.library_resolver",
-    "httpapi.games",
     "managerui.pages.remote",
 )
 

@@ -35,7 +35,7 @@ class PlacementTests(TempTree):
                                  files={DESKTOP: b"vpx", VR: b"vpx"},
                                  medias={"table.png": b"\x89PNGdefault"})
         game = fake_game(self.folder, FOLDER, meta=INFO)
-        patcher = patch("httpapi.games._catalog", return_value={GAME_ID: game})
+        patcher = patch("common.games.game_repository.catalog", return_value={GAME_ID: game})
         patcher.start()
         self.addCleanup(patcher.stop)
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
