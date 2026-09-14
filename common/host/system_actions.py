@@ -25,7 +25,8 @@ def request_app_restart(config_dir: Path) -> None:
     (config_dir / ".restart").touch()
 
 
-def restart_if_requested(config_dir: Path, logger, main_script: Path | None = None, sleep_func=None) -> None:
+def restart_if_requested(
+        config_dir: Path, logger, main_script: Path | None = None, sleep_func=None) -> None:
     restart_flag = config_dir / ".restart"
     if not restart_flag.exists():
         logger.info("No restart requested, exiting.")

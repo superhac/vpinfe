@@ -30,7 +30,8 @@ logger = logging.getLogger("vpinfe.common.games.game_play_service")
 def increment_start_count(game, table: str = "") -> None:
     config = clone_game_meta(game)
     if not config:
-        logger.warning("Could not increment StartCount: invalid game metadata for %s", game.gameDirName)
+        logger.warning(
+            "Could not increment StartCount: invalid game metadata for %s", game.gameDirName)
         return
 
     user = apply_start_count_update(config, table=table)
@@ -143,7 +144,8 @@ def parse_score_from_nvram(game) -> tuple[dict | None, str | None]:
         return None, None
 
     if not score_data:
-        logger.debug("Parsed score data for %s was empty, skipping metadata update", game.gameDirName)
+        logger.debug(
+            "Parsed score data for %s was empty, skipping metadata update", game.gameDirName)
         return None, None
 
     return score_data, score_path

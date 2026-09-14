@@ -111,7 +111,8 @@ def ensure_latest_roms_json(iniconfig) -> dict:
     if not iniconfig.config.has_section(RELEASE_SECTION):
         iniconfig.config.add_section(RELEASE_SECTION)
 
-    tracked_sha = iniconfig.config.get(RELEASE_SECTION, RELEASE_SHA_KEY, fallback="").strip().lower()
+    tracked_sha = iniconfig.config.get(
+        RELEASE_SECTION, RELEASE_SHA_KEY, fallback="").strip().lower()
 
     release_payload = _request_json(LATEST_RELEASE_URL)
     asset = _find_release_asset(release_payload)
@@ -148,7 +149,8 @@ def ensure_latest_roms_json(iniconfig) -> dict:
 
         ROMS_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
         temp_path.replace(ROMS_JSON_PATH)
-        iniconfig.config.set(RELEASE_SECTION, RELEASE_SHA_KEY, fingerprint or downloaded_sha.lower())
+        iniconfig.config.set(
+            RELEASE_SECTION, RELEASE_SHA_KEY, fingerprint or downloaded_sha.lower())
         iniconfig.save()
         logger.info("Updated roms.json at %s", ROMS_JSON_PATH)
         return {
@@ -162,4 +164,5 @@ def ensure_latest_roms_json(iniconfig) -> dict:
             if temp_path.exists():
                 temp_path.unlink()
         except Exception:
-            logger.debug("Could not remove temporary roms.json download: %s", temp_path, exc_info=True)
+            logger.debug(
+                "Could not remove temporary roms.json download: %s", temp_path, exc_info=True)

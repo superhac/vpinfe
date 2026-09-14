@@ -418,7 +418,9 @@ class GameListFilters:
             "rating_or_higher" if is_truthy(rating_or_higher) else "rating"]
         return [game for game in games if axis.matches(rating, game, {})]
 
-    def apply_filters(self, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=False):
+    def apply_filters(
+            self, letter=None, theme=None, game_type=None, manufacturer=None, year=None,
+            rating=None, rating_or_higher=False):
         """
         Apply multiple filters in combination.
         Returns filtered and sorted list of games.

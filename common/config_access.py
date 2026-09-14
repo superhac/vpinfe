@@ -108,7 +108,8 @@ def cfg_bool(source, section: str, key: str, fallback: bool = False) -> bool:
     try:
         return bool(parser.getboolean(section, key, fallback=fallback))
     except Exception:
-        return is_truthy(cfg_get(parser, section, key, "true" if fallback else "false"), default=fallback)
+        return is_truthy(
+            cfg_get(parser, section, key, "true" if fallback else "false"), default=fallback)
 
 
 def cfg_int(source, section: str, key: str, fallback: int = 0) -> int:

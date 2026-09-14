@@ -395,7 +395,8 @@ def associate_vps_to_folder(
                 self.DMDVideoPath = None
                 self.AudioPath = None
 
-        vps.downloadMediaForGame(_LightGame(game_dir, vpx_file), vps_entry.get("id"), meta_config=meta)
+        vps.downloadMediaForGame(
+            _LightGame(game_dir, vpx_file), vps_entry.get("id"), meta_config=meta)
 
     from common.games.media_service import invalidate_media_cache
     invalidate_media_cache()

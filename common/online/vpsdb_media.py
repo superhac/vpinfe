@@ -88,7 +88,9 @@ def published_url(media_index: dict | None, vps_id: str, kind: str,
 class VPSMediaDownloader:
     """Downloads a game's media from VPinMediaDB."""
 
-    def __init__(self, media_index: dict | None, *, playfieldvariant: str, playfieldresolution: str, playfieldvideoresolution: str) -> None:
+    def __init__(
+            self, media_index: dict | None, *, playfieldvariant: str, playfieldresolution: str,
+            playfieldvideoresolution: str) -> None:
         self.media_index = media_index or {}
         self.playfieldvariant = playfieldvariant
         self.playfieldresolution = playfieldresolution
@@ -177,12 +179,25 @@ class VPSMediaDownloader:
                 str(default_media_path(game.fullPathGame, "backglass", self.playfieldvariant)))
         process(game_media.get("1k"), REMOTE_KEYS["scoreview"], game.DMDImagePath,
                 str(default_media_path(game.fullPathGame, "scoreview", self.playfieldvariant)))
-        process(game_media, "wheel", game.WheelImagePath, str(default_media_path(game.fullPathGame, "wheel", self.playfieldvariant)))
-        process(game_media, "cab", game.CabImagePath, str(default_media_path(game.fullPathGame, "cab", self.playfieldvariant)))
-        process(game_media, "realdmd", game.realDMDImagePath, str(default_media_path(game.fullPathGame, "real_dmd", self.playfieldvariant)))
-        process(game_media, "realdmd_color", game.realDMDColorImagePath, str(default_media_path(game.fullPathGame, "real_dmd_color", self.playfieldvariant)))
-        process(game_media, "flyer", game.FlyerImagePath, str(default_media_path(game.fullPathGame, "flyer", self.playfieldvariant)))
-        process(game_media.get(self.playfieldresolution), self.playfieldvariant, game.PlayfieldImagePath, str(default_media_path(game.fullPathGame, "playfield", self.playfieldvariant)))
+        process(
+            game_media, "wheel", game.WheelImagePath,
+            str(default_media_path(game.fullPathGame, "wheel", self.playfieldvariant)))
+        process(
+            game_media, "cab", game.CabImagePath,
+            str(default_media_path(game.fullPathGame, "cab", self.playfieldvariant)))
+        process(
+            game_media, "realdmd", game.realDMDImagePath,
+            str(default_media_path(game.fullPathGame, "real_dmd", self.playfieldvariant)))
+        process(
+            game_media, "realdmd_color", game.realDMDColorImagePath,
+            str(default_media_path(game.fullPathGame, "real_dmd_color", self.playfieldvariant)))
+        process(
+            game_media, "flyer", game.FlyerImagePath,
+            str(default_media_path(game.fullPathGame, "flyer", self.playfieldvariant)))
+        process(
+            game_media.get(self.playfieldresolution), self.playfieldvariant,
+            game.PlayfieldImagePath,
+            str(default_media_path(game.fullPathGame, "playfield", self.playfieldvariant)))
         # Videos, and only the ones the index actually carries. There has never been
         # a bg_video at any resolution, so the backglass video is yours to supply.
         # Nor is there an fss_video: under table type fss the playfield video is
@@ -193,4 +208,6 @@ class VPSMediaDownloader:
                 REMOTE_KEYS["scoreview_video"], game.DMDVideoPath, str(scoreview_video))
         if self.playfieldvariant == "table":
             process(game_media.get(self.playfieldvideoresolution), "table_video", game.PlayfieldVideoPath, str(default_media_path(game.fullPathGame, "playfield_video", self.playfieldvariant)))
-        process(game_media, "audio", game.AudioPath, str(default_media_path(game.fullPathGame, "audio", self.playfieldvariant)))
+        process(
+            game_media, "audio", game.AudioPath,
+            str(default_media_path(game.fullPathGame, "audio", self.playfieldvariant)))

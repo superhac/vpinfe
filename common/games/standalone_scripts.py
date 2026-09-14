@@ -65,7 +65,9 @@ class StandaloneScripts:
     def downloadHashes(self):
         try:
             self.hashes = get_json(StandaloneScripts.hashsUrl)
-            logger.info("Retrieved hash file from VPX-Standalone-Scripts with %s patched tables.", len(self.hashes))
+            logger.info(
+                "Retrieved hash file from VPX-Standalone-Scripts with %s patched tables.",
+                len(self.hashes))
         except (requests.RequestException, ValueError):
             self.hashes = []
             logger.warning("Failed to download hash file from VPX-Standalone-Scripts")

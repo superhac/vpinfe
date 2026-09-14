@@ -143,7 +143,8 @@ def _dynamic_select_options(source: str) -> list[dict[str, Any]] | None:
             + [{"label": name, "value": name} for name in names])
 
 
-def load_theme_option_schema(theme_key: str, registry: ThemeRegistry | None = None) -> dict[str, Any] | None:
+def load_theme_option_schema(
+        theme_key: str, registry: ThemeRegistry | None = None) -> dict[str, Any] | None:
     theme_dir = get_installed_theme_dir(theme_key, registry)
     if theme_dir is None:
         return None
@@ -186,7 +187,8 @@ def load_theme_option_schema(theme_key: str, registry: ThemeRegistry | None = No
     }
 
 
-def get_theme_option_values(theme_key: str, registry: ThemeRegistry | None = None) -> dict[str, Any]:
+def get_theme_option_values(
+        theme_key: str, registry: ThemeRegistry | None = None) -> dict[str, Any]:
     schema = load_theme_option_schema(theme_key, registry)
     if schema is None:
         return {}

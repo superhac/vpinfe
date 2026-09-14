@@ -16,7 +16,8 @@ DEFAULT_TIMEOUT = 15
 DOWNLOAD_TIMEOUT = 60
 
 
-def get_json(url: str, *, timeout: int = DEFAULT_TIMEOUT, headers: dict[str, str] | None = None) -> Any:
+def get_json(
+        url: str, *, timeout: int = DEFAULT_TIMEOUT, headers: dict[str, str] | None = None) -> Any:
     response = requests.get(url, timeout=timeout, headers=headers)
     response.raise_for_status()
     try:
@@ -52,7 +53,8 @@ def post_json(url: str, payload: Any = None, *, timeout: int = DEFAULT_TIMEOUT,
         return None
 
 
-def get_text(url: str, *, timeout: int = DEFAULT_TIMEOUT, headers: dict[str, str] | None = None) -> str:
+def get_text(
+        url: str, *, timeout: int = DEFAULT_TIMEOUT, headers: dict[str, str] | None = None) -> str:
     response = requests.get(url, timeout=timeout, headers=headers)
     response.raise_for_status()
     return response.text

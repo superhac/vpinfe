@@ -1681,7 +1681,9 @@ def read_rom(
     if decoder is None:
         raise ValueError(f"No decoder registered for ROM '{resolved_rom_name}': {decoder_name}")
 
-    return decoder(resolved_filename, rom_config, settings) if settings is not None else decoder(resolved_filename, rom_config)
+    return decoder(
+        resolved_filename, rom_config,
+        settings) if settings is not None else decoder(resolved_filename, rom_config)
 
 
 def read_rom_with_source(

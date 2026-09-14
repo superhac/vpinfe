@@ -266,7 +266,9 @@ def _get_release_manifest(release_payload: dict) -> dict:
     if not manifest_url:
         raise UpdateError("Release manifest download URL is missing")
     manifest = _request_json(manifest_url)
-    logger.debug("Release manifest version=%s assets=%s", manifest.get("version"), sorted((manifest.get("assets") or {}).keys()))
+    logger.debug(
+        "Release manifest version=%s assets=%s", manifest.get("version"),
+        sorted((manifest.get("assets") or {}).keys()))
     return manifest
 
 
@@ -334,18 +336,22 @@ def check_for_updates() -> dict:
 
         result["update_available"] = latest_ver > current_ver
         if not result["update_available"]:
-            logger.info("Update check complete: already up to date at %s", context["current_version"])
+            logger.info(
+                "Update check complete: already up to date at %s", context["current_version"])
             return result
 
         if not context["supported"]:
-            logger.info("Update available but auto-update unsupported: support_reason=%s", result["support_reason"])
+            logger.info(
+                "Update available but auto-update unsupported: support_reason=%s",
+                result["support_reason"])
             return result
 
         manifest = _get_release_manifest(release_payload)
         resolved_triplet, asset_info = _resolve_manifest_asset(manifest, context["triplet"])
         if not asset_info:
             result["support_reason"] = "no_matching_asset"
-            logger.warning("Update available but manifest has no asset for triplet=%s", context["triplet"])
+            logger.warning(
+                "Update available but manifest has no asset for triplet=%s", context["triplet"])
             return result
         if resolved_triplet and resolved_triplet != context["triplet"]:
             logger.info(
@@ -357,13 +363,16 @@ def check_for_updates() -> dict:
         asset_name = asset_info.get("file")
         if not asset_name:
             result["support_reason"] = "asset_missing_file_name"
-            logger.warning("Update manifest asset missing file name for triplet=%s", context["triplet"])
+            logger.warning(
+                "Update manifest asset missing file name for triplet=%s", context["triplet"])
             return result
 
         asset = _find_release_asset(release_payload, asset_name)
         if not asset:
             result["support_reason"] = "asset_not_attached_to_release"
-            logger.warning("Release payload missing attached asset=%s for triplet=%s", asset_name, context["triplet"])
+            logger.warning(
+                "Release payload missing attached asset=%s for triplet=%s", asset_name,
+                context["triplet"])
             return result
 
         result["update_supported"] = True
@@ -378,7 +387,8 @@ def check_for_updates() -> dict:
         )
         return result
     except requests.RequestException as exc:
-        logger.exception("Update check failed with RequestException against %s: %s", LATEST_RELEASE_URL, exc)
+        logger.exception(
+            "Update check failed with RequestException against %s: %s", LATEST_RELEASE_URL, exc)
         result["error"] = "remote_check_failed"
         return result
     except Exception as exc:
@@ -430,7 +440,8 @@ def prepare_update() -> dict:
 
     stage_dir = UPDATES_DIR / latest_tag / (context["triplet"] or "unknown")
     stage_dir.mkdir(parents=True, exist_ok=True)
-    _append_log_line(LAST_UPDATE_LOG, f"[Updater] Preparing update {latest_tag} for {context['triplet']}")
+    _append_log_line(
+        LAST_UPDATE_LOG, f"[Updater] Preparing update {latest_tag} for {context['triplet']}")
 
     zip_path = stage_dir / asset_name
     if zip_path.exists() and _sha256_file(zip_path) != expected_sha:
@@ -588,7 +599,8 @@ def _ps_literal(value: str) -> str:
 
 
 def _cmd_literal(value: str) -> str:
-    return value.replace("^", "^^").replace("&", "^&").replace("<", "^<").replace(">", "^>").replace("|", "^|")
+    return value.replace(
+        "^", "^^").replace("&", "^&").replace("<", "^<").replace(">", "^>").replace("|", "^|")
 
 
 def _build_windows_update_script(prepared: dict, current_pid: int, log_path: Path) -> str:
@@ -652,7 +664,8 @@ try {{
     }}
     Write-Output "[Updater] Extraction complete"
 
-    $robocopyArgs = @($NewRoot, $InstallRoot, '/MIR', '/R:5', '/W:1', '/NFL', '/NDL', '/NJH', '/NJS', '/NP')
+    $robocopyArgs = @(
+        $NewRoot, $InstallRoot, '/MIR', '/R:5', '/W:1', '/NFL', '/NDL', '/NJH', '/NJS', '/NP')
     Write-Output "[Updater] Mirroring extracted install into place"
     & robocopy @robocopyArgs
     $robocopyExit = $LASTEXITCODE
@@ -735,15 +748,21 @@ def launch_prepared_update(prepared: dict) -> None:
     _prune_old_update_dirs(stage_dir)
     current_pid = os.getpid()
     log_path = stage_dir / "apply_update.log"
-    _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Launching detached updater for {prepared['latest_version']}")
+    _append_log_line(
+        Path(prepared["last_update_log"]),
+        f"[Updater] Launching detached updater for {prepared['latest_version']}")
 
     if platform.system() == "Windows":
         script_path = stage_dir / "apply_update.ps1"
         bootstrap_log_path = stage_dir / "bootstrap.log"
-        script_path.write_text(_build_windows_update_script(prepared, current_pid, log_path), encoding="utf-8")
-        _append_log_line(Path(prepared["last_update_log"]), f"[Updater] PowerShell script written to {script_path}")
+        script_path.write_text(
+            _build_windows_update_script(prepared, current_pid, log_path), encoding="utf-8")
+        _append_log_line(
+            Path(prepared["last_update_log"]),
+            f"[Updater] PowerShell script written to {script_path}")
         powershell_exe = _get_windows_powershell()
-        _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Using PowerShell at {powershell_exe}")
+        _append_log_line(
+            Path(prepared["last_update_log"]), f"[Updater] Using PowerShell at {powershell_exe}")
         bootstrap_path = stage_dir / "launch_update.cmd"
         bootstrap_path.write_text(
             _build_windows_bootstrap_script(
@@ -754,10 +773,15 @@ def launch_prepared_update(prepared: dict) -> None:
             ),
             encoding="utf-8",
         )
-        _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Bootstrap script written to {bootstrap_path}")
-        _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Bootstrap log path {bootstrap_log_path}")
+        _append_log_line(
+            Path(prepared["last_update_log"]),
+            f"[Updater] Bootstrap script written to {bootstrap_path}")
+        _append_log_line(
+            Path(prepared["last_update_log"]), f"[Updater] Bootstrap log path {bootstrap_log_path}")
         cmd_exe = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "cmd.exe")
-        _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Launching bootstrap via {cmd_exe} /c {bootstrap_path}")
+        _append_log_line(
+            Path(prepared["last_update_log"]),
+            f"[Updater] Launching bootstrap via {cmd_exe} /c {bootstrap_path}")
         flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
         subprocess.Popen(
             [
@@ -773,9 +797,11 @@ def launch_prepared_update(prepared: dict) -> None:
         return
 
     script_path = stage_dir / "apply_update.sh"
-    script_path.write_text(_build_posix_update_script(prepared, current_pid, log_path), encoding="utf-8")
+    script_path.write_text(
+        _build_posix_update_script(prepared, current_pid, log_path), encoding="utf-8")
     script_path.chmod(0o755)
-    _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Shell script written to {script_path}")
+    _append_log_line(
+        Path(prepared["last_update_log"]), f"[Updater] Shell script written to {script_path}")
     subprocess.Popen(
         ["/bin/sh", str(script_path)],
         start_new_session=True,

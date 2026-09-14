@@ -325,7 +325,8 @@ def build_media_slot_plan(source_path: Path, *, game_dir: Path, media_kind: str)
         suitable = suffix in IMAGE_EXTENSIONS
         expected = "an image file"
     if not suitable:
-        blocked = BlockedItem(asset, f"This slot expects {expected}, not {suffix or 'a file without extension'}")
+        blocked = BlockedItem(
+            asset, f"This slot expects {expected}, not {suffix or 'a file without extension'}")
         return ImportPlan(str(game_dir), "", "", (), (blocked,))
 
     destination = str(game_dir / "medias" / canonical)
