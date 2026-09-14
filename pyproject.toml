@@ -42,5 +42,7 @@ mypy_path = "."
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "apps.*"
+# Every function here is annotated. Held that way because it is the wire contract:
+# an unannotated handler is one whose payload nothing checks.
+module = ["apps.*", "httpapi.*"]
 disallow_untyped_defs = true

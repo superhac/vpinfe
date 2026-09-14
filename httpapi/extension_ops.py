@@ -18,6 +18,8 @@ named for the noun it acts on; an extension author is reading a list of things t
 
 from __future__ import annotations
 
+from typing import Any
+
 from common.extensions.games import offer
 from common.games import game_lens, game_ops, library_vps_state, media_ops, table_ops
 from common.host import play_service
@@ -29,12 +31,12 @@ def _vps_state(game_id: str) -> dict:
     return library_vps_state.state_of(game_lens.game_or_refuse(game_id), game_id)
 
 
-def _launch(game_id: str, table: str = ""):
+def _launch(game_id: str, table: str = "") -> dict:
     """Start a game. `table` picks one of its tables; left out, the default one."""
     return play_service.start(game_id, table or None)
 
 
-def _set_details(game_id: str, **fields):
+def _set_details(game_id: str, **fields: Any) -> dict:
     return game_ops.set_details(game_id, dict(fields))
 
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from .context import LOG_ROOT, ExtensionContext, logger_for
 from .contract import (
@@ -96,7 +97,13 @@ def granted_scopes() -> frozenset[str]:
     return registry().granted_scopes()
 
 
-def mounted() -> list[tuple[Record, object, str]]:
+def mounted() -> list[tuple[Record, Any, str]]:
+    """Each mounted extension, its router, and the scope its routes are gated on.
+
+    The router is Any rather than a named type: common/ does not know the web
+    framework, and `object` would be a narrower claim than the host makes - it cannot
+    be mounted without the caller casting it back.
+    """
     return registry().mounted()
 
 

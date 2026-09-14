@@ -15,8 +15,9 @@ import json
 import logging
 import threading
 from collections import deque
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from functools import lru_cache
+from typing import Any
 
 from fastapi import APIRouter, Header, Query
 from fastapi.encoders import jsonable_encoder
@@ -54,7 +55,7 @@ RETRY_MS = 3000
 HELLO_EVENT = "stream.hello"
 
 
-def _game_event(game=None, table_id=None, **_) -> dict:
+def _game_event(game: Any = None, table_id: str | None = None, **_: Any) -> dict:
     """The wire shape of a game lifecycle event.
 
     The bus carries the Game object and the whole ini config because its handlers
@@ -78,7 +79,7 @@ def _game_event(game=None, table_id=None, **_) -> dict:
     return {"game": reference, "table": table}
 
 
-def _job_event(**payload) -> dict:
+def _job_event(**payload: Any) -> dict:
     """The job shape, kept to the fields common/events.py documents.
 
     Picking the fields rather than forwarding the payload is what makes the shape a
@@ -88,12 +89,12 @@ def _job_event(**payload) -> dict:
             if name in payload}
 
 
-def _as_published(**payload) -> dict:
+def _as_published(**payload: Any) -> dict:
     """For events whose bus payload is already wire-safe."""
     return payload
 
 
-def _collections_event(**_payload) -> dict:
+def _collections_event(**_payload: Any) -> dict:
     """That the collections changed, and nothing about where they live.
 
     The bus carries the file's path so in-process handlers can log it. A subscriber on
@@ -103,7 +104,7 @@ def _collections_event(**_payload) -> dict:
     return {}
 
 
-def _lifecycle_event(**payload) -> dict:
+def _lifecycle_event(**payload: Any) -> dict:
     """What is happening, and which kind of surface asked for it.
 
     The origin's address is dropped: it means nothing outside this process, and would
@@ -244,7 +245,7 @@ def _dispatch(name: str, payload: dict) -> None:
 def _handler_for(name: str) -> Callable[..., None]:
     # The bus calls handlers as handler(**payload), so the event name has to be
     # carried by the closure rather than passed.
-    def handle(**payload) -> None:
+    def handle(**payload: Any) -> None:
         _dispatch(name, payload)
 
     return handle
@@ -331,7 +332,8 @@ def _snapshot_frames(wanted: frozenset[str] | None) -> list[str]:
     return frames
 
 
-async def _stream(wanted: frozenset[str] | None, last_event_id: str | None):
+async def _stream(wanted: frozenset[str] | None,
+                  last_event_id: str | None) -> AsyncIterator[str]:
     """Serve one client until it goes away or falls too far behind."""
     stream = _Stream(asyncio.get_running_loop(), wanted)
     with _lock:
@@ -373,7 +375,7 @@ async def subscribe(
                        description="Comma-separated event names. Empty means all of them."),
     last_event_id: str | None = Header(
         None, description="Resume point. Browsers send this on reconnect by themselves."),
-):
+) -> StreamingResponse:
     wanted = _parse_filter(names)
     return StreamingResponse(
         _stream(wanted, last_event_id),

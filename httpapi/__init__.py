@@ -145,7 +145,7 @@ def create_api_app() -> FastAPI:
     return api
 
 
-def register(app) -> None:
+def register(app: FastAPI) -> None:
     """Mount the API on the given FastAPI/NiceGUI app."""
     api = create_api_app()
 

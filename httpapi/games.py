@@ -18,7 +18,7 @@ from pathlib import Path
 from fastapi import APIRouter, Body, File, Query, Request, UploadFile
 from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, Response
 
 from common import media_browse
 from common.games import (
@@ -83,7 +83,7 @@ def get_media_overrides(game_id: str) -> models.MediaOverrideList:
 
 @router.get("/{game_id}/media/{kind}", summary="One shared media file",
             dependencies=[requires(scopes.GAMES_READ)])
-def get_game_media_file(game_id: str, kind: str, request: Request):
+def get_game_media_file(game_id: str, kind: str, request: Request) -> Response:
     return responses.revalidating_file(media_ops.media_file(game_id, kind), request)
 
 
@@ -96,7 +96,7 @@ def get_table_media(game_id: str, table_id: str) -> models.MediaList:
 @router.get("/{game_id}/tables/{table_id}/media/{kind}", summary="One table's media file",
             dependencies=[requires(scopes.GAMES_READ)])
 def get_table_media_file(game_id: str, table_id: str, kind: str,
-                         request: Request):
+                         request: Request) -> Response:
     return responses.revalidating_file(
         media_ops.media_file(game_id, kind, table_id), request)
 
@@ -441,7 +441,7 @@ def put_table_overrides(game_id: str, table_id: str,
 @router.get("/{game_id}/archive", summary="Download the game folder as an archive",
             dependencies=[requires(scopes.GAMES_READ)])
 def get_game_archive(request: Request, game_id: str, download_token: str = "",
-                     full: bool = False, file: str = ""):
+                     full: bool = False, file: str = "") -> FileResponse:
     if full:
         # The default bundle rides games:read; the whole folder is its own permission.
         # Local trust grants both today.
@@ -452,7 +452,7 @@ def get_game_archive(request: Request, game_id: str, download_token: str = "",
     archive = archive_service.archive_for(game_id, everything=full, table=file)
     logger.info("Created download archive: %s", archive.path)
 
-    def cleanup():
+    def cleanup() -> None:
         archive_service.cleanup_archive(archive)
         logger.info("Cleaned up temp archive: %s", archive.temp_dir)
 

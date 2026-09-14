@@ -7,10 +7,12 @@ cannot resolve differently before and after it is saved. `game_type` is stored a
 
 from __future__ import annotations
 
+from typing import Any
+
 from common.games.collection_filters import UNCONSTRAINED
 
 
-def many_in(value) -> str:
+def many_in(value: Any) -> str:
     """A criterion as it is stored. A list joins; a string is already stored form."""
     if isinstance(value, list):
         joined = ",".join(str(part).strip() for part in value if str(part).strip())
@@ -18,7 +20,7 @@ def many_in(value) -> str:
     return str(value or UNCONSTRAINED)
 
 
-def criteria_for(f) -> dict:
+def criteria_for(f: Any) -> dict:
     """A criteria block in the shape the store and the matcher read."""
     if f is None:
         return {}

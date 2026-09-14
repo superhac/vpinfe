@@ -6,11 +6,15 @@ The mechanism ships; the policy it enforces is dormant. See docs/http_api.md.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
+from typing import Any
 
-from fastapi import Depends, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.routing import APIRoute
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
+from starlette.routing import BaseRoute
 
 from common import extensions
 
@@ -97,7 +101,7 @@ def current_policy() -> LocalTrustPolicy:
     return _policy
 
 
-def set_policy(policy) -> None:
+def set_policy(policy: LocalTrustPolicy) -> None:
     """Swap the policy. For tests, and for whenever the deployment stops being local."""
     global _policy
     _policy = policy
@@ -106,18 +110,24 @@ def set_policy(policy) -> None:
 class ScopeMiddleware(BaseHTTPMiddleware):
     """Stamps the caller's identity on every request into the API."""
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request,
+                       call_next: RequestResponseEndpoint) -> Response:
         request.state.identity = _policy.identify(request)
         return await call_next(request)
 
 
 class ForbiddenError(ApiError):
-    def __init__(self, message: str = "Not permitted", *, details=None) -> None:
+    def __init__(self, message: str = "Not permitted", *,
+                 details: dict[str, Any] | None = None) -> None:
         super().__init__(CODE_FORBIDDEN, message, status_code=403, details=details)
 
 
-def requires(scope: str):
+def requires(scope: str) -> Any:
     """Declare the scope a route needs.
+
+    Any because that is what it returns: FastAPI declares `Depends(...) -> Any` so a
+    dependency can stand in for the value it resolves to. Narrowing it here would be
+    a claim the framework does not make.
 
     Fails closed: if the identity is missing the boundary did not run, and the answer
     is no rather than a guess.
@@ -148,13 +158,14 @@ def route_scope(route: APIRoute) -> str | None:
     return None
 
 
-def iter_api_routes(app):
+def iter_api_routes(app: FastAPI) -> Iterator[tuple[str, APIRoute]]:
     """Every route on the app, including those inside included routers.
 
     FastAPI does not flatten an included router into app.routes, so a plain walk
     misses everything mounted through include_router - which is nearly all of it.
     """
-    def walk(routes, prefix=""):
+    def walk(routes: Sequence[BaseRoute],
+             prefix: str = "") -> Iterator[tuple[str, APIRoute]]:
         for route in routes:
             if isinstance(route, APIRoute):
                 yield prefix + route.path, route
@@ -168,14 +179,14 @@ def iter_api_routes(app):
     yield from walk(app.routes)
 
 
-def assert_every_route_declares_a_scope(app) -> None:
+def assert_every_route_declares_a_scope(app: FastAPI) -> None:
     """Refuse to start with an unguarded route.
 
     The boundary is only un-bypassable if forgetting to use it is impossible, and the
     cheapest way to make it impossible is to not start.
     """
     missing = [
-        f"{','.join(sorted(route.methods))} {path}"
+        f"{','.join(sorted(route.methods or ()))} {path}"
         for path, route in iter_api_routes(app)
         if route_scope(route) is None
     ]

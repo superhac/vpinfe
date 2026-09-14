@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Body, Response
 
+from common import jobs as job_registry
 from common.games import game_service, library_ops
 
 from . import jobs as jobs_api
@@ -22,7 +23,7 @@ from .criteria import criteria_for
 router = APIRouter(prefix="/library", tags=["library"])
 
 
-def _accepted(response: Response, job) -> models.JobResource:
+def _accepted(response: Response, job: job_registry.Job) -> models.JobResource:
     """A started job, as the caller is handed it: where to watch, and what it is."""
     response.headers["Location"] = f"/api/v1/jobs/{job.id}"
     return models.JobResource(**jobs_api.resource(job))

@@ -77,7 +77,7 @@ async def probe_devices() -> models.DeviceProbeList:
 
 @router.delete("/{device_id}", summary="Forget a device", status_code=204,
                dependencies=[requires(scopes.DEVICES_WRITE)])
-def forget(device_id: str):
+def forget(device_id: str) -> Response:
     """Forgetting one that is still running only means it announces itself again."""
     device_ops.forget(device_id)
     return Response(status_code=204)
@@ -105,6 +105,6 @@ def send_games(device_id: str, response: Response,
 
 @router.delete("/{device_id}/games/{name}", summary="Remove a game from a device",
                status_code=204, dependencies=[requires(scopes.DEVICES_WRITE)])
-async def remove_game(device_id: str, name: str):
+async def remove_game(device_id: str, name: str) -> Response:
     await run_in_threadpool(mobile_ops.remove, device_id, name)
     return Response(status_code=204)

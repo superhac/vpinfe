@@ -8,8 +8,9 @@ gate, because the extension does not attach one.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, FastAPI, Request
 
 from common import extensions
 from common.i18n import t
@@ -32,7 +33,7 @@ def list_extensions() -> dict:
     return {"extensions": [record.as_dict() for record in extensions.records()]}
 
 
-def _running(name: str):
+def _running(name: str) -> Any:
     """Refuse on an extension's own routes while it is not running.
 
     Its scopes are revoked as well, so this is not the only thing in the way. It is the
@@ -49,7 +50,7 @@ def _running(name: str):
     return Depends(check)
 
 
-def mount(api) -> None:
+def mount(api: FastAPI) -> None:
     """Mount every router an extension registered, gated on the scope it declared.
 
     Once, at startup, whatever becomes of the extension after. A disabled one keeps its

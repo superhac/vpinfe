@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from starlette.requests import Request
 from starlette.responses import FileResponse, Response
 
 
-def revalidating_file(path: Path, request) -> Response:
+def revalidating_file(path: Path, request: Request) -> Response:
     """A file that is always asked about and rarely re-sent.
 
     These URLs name a slot rather than a file, so a replacement changes the bytes

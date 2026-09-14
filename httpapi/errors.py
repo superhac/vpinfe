@@ -9,10 +9,12 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+from fastapi import FastAPI
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.requests import Request
 
 from common import service_errors
 from common.i18n import t
@@ -112,7 +114,9 @@ def error_response(status_code: int, code: str, message: str,
     return JSONResponse(status_code=status_code, content={"error": error})
 
 
-def install_error_handlers(app, on_unhandled=None) -> None:
+def install_error_handlers(
+        app: FastAPI,
+        on_unhandled: Callable[[Request], None] | None = None) -> None:
     """Attach the envelope handlers. Only ever the /api/v1 app - these would turn the
     Manager UI's HTML error pages into JSON.
 
@@ -122,28 +126,30 @@ def install_error_handlers(app, on_unhandled=None) -> None:
     """
 
     @app.exception_handler(ApiError)
-    async def _api_error(request, exc: ApiError):
+    async def _api_error(request: Request, exc: ApiError) -> JSONResponse:
         return error_response(exc.status_code, exc.code, exc.message, exc.details)
 
     @app.exception_handler(service_errors.ServiceError)
-    async def _service_error(request, exc: service_errors.ServiceError):
+    async def _service_error(request: Request,
+                             exc: service_errors.ServiceError) -> JSONResponse:
         api = as_api_error(exc)
         return error_response(api.status_code, api.code, api.message, api.details)
 
     @app.exception_handler(StarletteHTTPException)
-    async def _http_error(request, exc: StarletteHTTPException):
+    async def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         code = _STATUS_CODES.get(exc.status_code)
         if code is None:
             code = CODE_INVALID_REQUEST if exc.status_code < 500 else CODE_INTERNAL_ERROR
         return error_response(exc.status_code, code, str(exc.detail))
 
     @app.exception_handler(RequestValidationError)
-    async def _validation_error(request, exc: RequestValidationError):
+    async def _validation_error(request: Request,
+                                exc: RequestValidationError) -> JSONResponse:
         return error_response(422, CODE_INVALID_REQUEST,
                               t("error.envelope.request_validation_failed"), exc.errors())
 
     @app.exception_handler(Exception)
-    async def _unhandled(request, exc: Exception):
+    async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
         # Log the cause; tell the client nothing beyond "we broke".
         logger.exception("Unhandled error serving %s %s", request.method, request.url.path)
         if on_unhandled is not None:
