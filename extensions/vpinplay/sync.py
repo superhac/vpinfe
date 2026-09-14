@@ -122,7 +122,7 @@ def _epoch(value: Any) -> int | None:
         return None
 
 
-def _score(value: Any):
+def _score(value: Any) -> dict | None:
     """A score is a reading off the hardware, which is a mapping of fields.
 
     Anything else is not one. A string here has been seen - a machine that writes its

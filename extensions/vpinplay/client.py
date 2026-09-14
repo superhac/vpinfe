@@ -13,6 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ def rating_url(endpoint: str, vps_id: str) -> str:
     return f"{base}/api/v1/tables/{urllib.parse.quote(wanted)}/cumulative-rating"
 
 
-def _number(value, fallback=None):
+def _number(value: Any, fallback: Any = None) -> Any:
     if isinstance(value, bool) or value is None or value == "":
         return fallback
     try:
@@ -39,7 +40,7 @@ def _number(value, fallback=None):
         return fallback
 
 
-def _as_text(value) -> str:
+def _as_text(value: Any) -> str:
     """What a year that is not a number falls back to.
 
     A string is kept as it came - "1995-06" and "unknown" are both things a catalog has
@@ -49,7 +50,7 @@ def _as_text(value) -> str:
     return value if isinstance(value, str) else ""
 
 
-def _whole(value):
+def _whole(value: Any) -> int | None:
     """A year as a whole number where it is one.
 
     The browser produced this and JavaScript has one number type, so 1995 came out of it
@@ -61,7 +62,7 @@ def _whole(value):
     return value
 
 
-def normalize(vps_id: str, payload) -> dict | None:
+def normalize(vps_id: str, payload: Any) -> dict | None:
     """The answer, in the shape a theme already reads.
 
     Every field is coerced rather than trusted: this is somebody else's server, and a

@@ -16,10 +16,13 @@ is left alone unless the user says to fill in what it is missing.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from . import gamestats, mapping
+from .source import SourceGame, SourceLibrary
 
 # The kinds of thing an import can bring, in the order they are asked about. `key` is
 # what the wizard calls the field; `label` is what a person reads.
@@ -165,7 +168,7 @@ def against(expected_counts: dict, actual: dict) -> list[dict]:
     return rows
 
 
-def derive_sources(library, chosen: dict | None = None) -> list[Source]:
+def derive_sources(library: SourceLibrary, chosen: dict | None = None) -> list[Source]:
     """Where each kind of thing appears to live, and whatever the user said instead.
 
     Derived first so the common case is one press. A value the user typed always wins,
@@ -234,10 +237,12 @@ def _under(root: str, *candidates: tuple[str, ...]) -> str:
     return ""
 
 
-def match_existing(library, existing: list[dict],
+def match_existing(library: SourceLibrary, existing: list[dict],
                    systems: list[str] | None = None,
-                   folder_name_for=None, source_id: str = "",
-                   kinds: tuple[str, ...] = (), companions_of=None) -> list[Match]:
+                   folder_name_for: Callable[[str], str] | None = None,
+                   source_id: str = "",
+                   kinds: tuple[str, ...] = (),
+                   companions_of: Callable[..., Any] | None = None) -> list[Match]:
     """Which of the source's games the library already holds.
 
     By the folder this import would create first, because that is what a previous run of
@@ -280,13 +285,14 @@ def match_existing(library, existing: list[dict],
 _QUOTES = str.maketrans("", "", "\"'‘’“”`")
 
 
-def _folded(name) -> str:
+def _folded(name: Any) -> str:
     """A folder name as it is compared: cased down, quotes taken off, spaces collapsed."""
     said = str(name or "").translate(_QUOTES).lower()
     return " ".join(said.split())
 
 
-def _games(library, systems: list[str] | None):
+def _games(library: SourceLibrary,
+           systems: list[str] | None) -> list[SourceGame]:
     """The games in the systems being brought across, which is not always all of them.
 
     A system somebody deselected has to drop out here rather than at the run, or what
@@ -298,11 +304,12 @@ def _games(library, systems: list[str] | None):
             for game in system.games]
 
 
-def build(library, existing: list[dict], chosen: dict | None = None,
+def build(library: SourceLibrary, existing: list[dict], chosen: dict | None = None,
           on_existing: str = DEFAULT_ON_EXISTING,
-          systems: list[str] | None = None, folder_name_for=None,
+          systems: list[str] | None = None,
+          folder_name_for: Callable[[str], str] | None = None,
           source_id: str = "", kinds: tuple[str, ...] = (),
-          companions_of=None) -> Plan:
+          companions_of: Callable[..., Any] | None = None) -> Plan:
     return Plan(sources=derive_sources(library, chosen),
                 matches=match_existing(library, existing, systems, folder_name_for,
                                        source_id, kinds, companions_of),

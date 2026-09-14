@@ -16,6 +16,7 @@ import io
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 STATS_FILE = "GameStats.csv"
 
@@ -108,7 +109,7 @@ def _played(row: dict) -> Played | None:
     )
 
 
-def _number(value) -> int | None:
+def _number(value: Any) -> int | None:
     said = str(value or "").strip()
     if not said:
         return None
@@ -118,21 +119,21 @@ def _number(value) -> int | None:
         return None
 
 
-def _flag(value) -> bool | None:
+def _flag(value: Any) -> bool | None:
     said = str(value or "").strip().lower()
     if not said:
         return None
     return said not in ("0", "no", "false")
 
 
-def _tags(value) -> tuple[str, ...]:
+def _tags(value: Any) -> tuple[str, ...]:
     said = str(value or "").strip()
     if not said:
         return ()
     return tuple(one.strip() for one in said.split(",") if one.strip())
 
 
-def _when(value) -> int | None:
+def _when(value: Any) -> int | None:
     """`20221211012447` as epoch seconds.
 
     Read as local time, because that is what the frontend wrote: it recorded when

@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from . import drivemap
 from .source import SourceGame, SourceLibrary, SourceMedia, SourceSystem
@@ -57,7 +59,7 @@ def _open(path: Path) -> sqlite3.Connection:
     return db
 
 
-def _text(row, column: str) -> str:
+def _text(row: sqlite3.Row, column: str) -> str:
     try:
         value = row[column]
     except (IndexError, KeyError):
@@ -65,11 +67,11 @@ def _text(row, column: str) -> str:
     return str(value).strip() if value is not None else ""
 
 
-def _hidden(value) -> bool:
+def _hidden(value: Any) -> bool:
     return str(value) in ("0", "False", "None")
 
 
-def _media_key(row) -> str:
+def _media_key(row: sqlite3.Row) -> str:
     """What this game's artwork is named after.
 
     Usually its name, and sometimes whatever the game says instead: a `MediaSearch`
@@ -83,7 +85,7 @@ def _media_key(row) -> str:
     return _text(row, "GameName")
 
 
-def _game_from(row, tables_dir: str) -> SourceGame | None:
+def _game_from(row: sqlite3.Row, tables_dir: str) -> SourceGame | None:
     name = _text(row, "GameName")
     if not name:
         return None
@@ -144,7 +146,7 @@ def read_media(media_root: Path | str, games: list[SourceGame]) -> list[SourceGa
             for game in games]
 
 
-def _playable(said: str, plays) -> bool:
+def _playable(said: str, plays: Callable[[str], bool] | None) -> bool:
     """Whether anything installed here plays what this emulator holds.
 
     An emulator that records no extension is kept: saying nothing is not saying no, and
@@ -158,7 +160,8 @@ def _playable(said: str, plays) -> bool:
     return bool(plays(suffix)) if plays else suffix == ".vpx"
 
 
-def read(root: Path | str, plays=None) -> SourceLibrary:
+def read(root: Path | str,
+         plays: Callable[[str], bool] | None = None) -> SourceLibrary:
     """Every emulator the database declares, and the games under each.
 
     The media root is derived from where the database actually is rather than read off

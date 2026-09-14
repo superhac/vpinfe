@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import os
 import xml.etree.ElementTree as ElementTree
+from collections.abc import Callable
 from pathlib import Path
 
 from .source import SourceGame, SourceLibrary, SourceMedia, SourceSystem
@@ -79,7 +80,7 @@ def _year_of(text: str) -> str:
     return digits[:4] if len(digits) >= 4 else ""
 
 
-def _game_from(element, root: Path) -> SourceGame | None:
+def _game_from(element: ElementTree.Element, root: Path) -> SourceGame | None:
     """One `<game>`. Returns None without a path: it is the only thing identifying the
     entry, since ES has no name attribute and nothing is derived from one."""
     values: dict[str, str] = {}
@@ -114,7 +115,8 @@ def _game_from(element, root: Path) -> SourceGame | None:
                       extras=extras, **values)  # type: ignore[arg-type]
 
 
-def read(root: Path | str, plays=None) -> SourceLibrary:
+def read(root: Path | str,
+         plays: Callable[[str], bool] | None = None) -> SourceLibrary:
     """Everything one gamelist describes.
 
     One system per root, because a root is the folder somebody pointed at and ES keeps

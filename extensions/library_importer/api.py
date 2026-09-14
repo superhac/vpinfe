@@ -9,11 +9,15 @@ there.
 from __future__ import annotations
 
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 from fastapi import APIRouter
 
 from . import adopt, emulationstation, pinballx, popper
 from . import plan as plan_for
+from .plan import Plan
+from .source import SourceLibrary
 
 # Asked in order, first to claim a folder wins. PinballX is looked for first
 # because it is the source somebody converting a pinball library actually has.
@@ -35,13 +39,13 @@ def _after(step: str) -> tuple[str, ...]:
     return STEPS[at + 1:] or (STEPS[-1],)
 
 
-def reader_for(root: Path):
+def reader_for(root: Path) -> ModuleType | None:
     """The reader that claims a folder, or None. First to claim it wins, and readers are
     asked in the order they are declared."""
     return next((one for one in READERS if one.detect(root)), None)
 
 
-def _state(ctx) -> dict:
+def _state(ctx: Any) -> dict:
     configured = ctx.config.get(SOURCE_KEY, "")
     if not configured:
         return {"path": "", "reachable": False, "source_id": "", "source_name": "",
@@ -59,7 +63,7 @@ def _state(ctx) -> dict:
             "source_name": reader.SOURCE_NAME, "reason": ""}
 
 
-def _preview(library) -> dict:
+def _preview(library: SourceLibrary) -> dict:
     """What was found, counted. The whole library would be megabytes and nobody reads a
     thousand rows to decide whether to go ahead."""
     systems = []
@@ -80,7 +84,7 @@ def _preview(library) -> dict:
             "systems": systems, "notes": list(library.notes)}
 
 
-def build(ctx) -> None:
+def build(ctx: Any) -> None:
     """Register the routes, and keep what core may read in step with the setting."""
     def follow_the_setting(*extra: str) -> None:
         """Tell core every folder this import will actually read from.
@@ -100,7 +104,7 @@ def build(ctx) -> None:
         wanted += [one for one in extra if one]
         ctx.files.set_roots(wanted)
 
-    def declare_roots(library, values) -> None:
+    def declare_roots(library: SourceLibrary, values: dict) -> None:
         """Tell core where this import will read, before anything tries to read there.
 
         Before the plan, not after it: the plan counts what travels with each table,
@@ -171,7 +175,7 @@ def build(ctx) -> None:
             ],
         }
 
-    def _reader_for(values: dict, path: Path):
+    def _reader_for(values: dict, path: Path) -> ModuleType | None:
         """The reader this source is to be read with.
 
         What somebody chose, where they chose; otherwise the first that claims the
@@ -238,8 +242,8 @@ def build(ctx) -> None:
         held = {key: values[key] for key, *_rest in plan_for.SOURCES if key in values}
         return held or None
 
-    def _sources_step(reader, library, made) -> dict:
-        fields = [{
+    def _sources_step(reader: ModuleType, library: SourceLibrary, made: Plan) -> dict:
+        fields: list[dict[str, Any]] = [{
             "key": source.key, "type": "path", "label": source.label,
             "value": source.path,
             "help": source.help + (" Worked out from the source."
@@ -265,7 +269,7 @@ def build(ctx) -> None:
             "fields": fields,
         }
 
-    def _existing_step(made) -> dict:
+    def _existing_step(made: Plan) -> dict:
         return {
             "step": "existing",
             "title": f"{len(made.already)} of these are already here",
@@ -282,7 +286,7 @@ def build(ctx) -> None:
                         if len(made.already) > 8 else []),
         }
 
-    def _summary_step(reader, library, made) -> dict:
+    def _summary_step(reader: ModuleType, library: SourceLibrary, made: Plan) -> dict:
         """Everything the previous steps decided, and what it comes to."""
         found = _preview(library)
         counts = plan_for.expected(made)
@@ -328,7 +332,7 @@ def build(ctx) -> None:
         systems = _systems(values)
         location = str(body.get("location") or "")
 
-        def work(job):
+        def work(job: Any) -> dict:
             library = reader.read(path, ctx.apps.plays, ctx.apps.names())
             declare_roots(library, values)
             job.log(f"Read {len(library.games)} games from {library.root}")

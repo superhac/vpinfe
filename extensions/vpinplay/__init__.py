@@ -13,6 +13,8 @@ says what it said before there was an extension.
 
 from __future__ import annotations
 
+from typing import Any
+
 from . import client, guest, sync
 
 # What the setting is called here. Core handed it over from its own configuration when
@@ -29,12 +31,12 @@ SYNC_ON_EXIT_KEY = "sync_on_exit"
 DEFAULT_ENDPOINT = "https://api.vpinplay.com:8888"
 
 
-def _truthy(value) -> bool:
+def _truthy(value: Any) -> bool:
     return str(value or "").strip().lower() in ("1", "true", "yes", "on")
 
 
-def register(ctx) -> None:
-    def rating_for(game):
+def register(ctx: Any) -> None:
+    def rating_for(game: Any) -> Any:
         """What VPinPlay says about one game, or None.
 
         Keyed on the catalog id, because that is what VPinPlay knows a table by. A game
@@ -48,7 +50,7 @@ def register(ctx) -> None:
 
     ctx.entries.contribute("vpinplay", rating_for)
 
-    def _record_play(game_key: str, elapsed_seconds: float, score_data=None) -> bool:
+    def _record_play(game_key: str, elapsed_seconds: float, score_data: Any = None) -> bool:
         """One finished session, where a guest is playing. Answers whether it was taken.
 
         False when nobody is signed in, which is how core knows to write the session to

@@ -12,9 +12,18 @@ something through them, the contract is short and that is worth finding out.
 
 from __future__ import annotations
 
+from typing import Any
+
 from . import api
 
 
-def register(ctx) -> None:
+def register(ctx: Any) -> None:
+    """Wire the extension up.
+
+    `ctx` is Any because an extension may import the contract and nothing else of
+    ours - the context is handed in, never imported, and the contract publishes no
+    type for it. Naming one here would breach the boundary
+    `tests/extensions/test_import_boundary.py` exists to hold.
+    """
     api.build(ctx)
     ctx.logger.info("%s source formats readable", len(api.READERS))

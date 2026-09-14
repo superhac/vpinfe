@@ -19,6 +19,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def _bytes_from(text: str) -> bytes:
         return b""
 
 
-def decode(raw: str):
+def decode(raw: str) -> Any:
     """A written value, as the thing it stands for, or None where we cannot say.
 
     None is an answer here rather than a failure: the caller keeps the raw text either

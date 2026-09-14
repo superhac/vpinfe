@@ -11,7 +11,7 @@ the library is.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import NotRequired, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 from . import mapping
 from .source import SourceGame, SourceLibrary
@@ -41,7 +41,7 @@ class AdoptedRow(TypedDict):
     joined: NotRequired[bool]
 
 
-def _bring_rom(ctx, game_id: str, rom: str, roms_dir: str) -> int:
+def _bring_rom(ctx: Any, game_id: str, rom: str, roms_dir: str) -> int:
     """The ROM set itself, if that folder has one by this name."""
     found = next((one for one in Path(roms_dir).glob(f"{rom}.*")
                   if one.is_file()), None)
@@ -57,7 +57,7 @@ def _bring_rom(ctx, game_id: str, rom: str, roms_dir: str) -> int:
         return 0
 
 
-def _bring_alt_data(ctx, game_id: str, rom: str, alt_dir: str) -> int:
+def _bring_alt_data(ctx: Any, game_id: str, rom: str, alt_dir: str) -> int:
     """Sound banks and color sets, which sit in folders named for the ROM.
 
     The layout is the one PIN2DMD and altsound document: `altcolor/<rom>/` and
@@ -80,7 +80,7 @@ def _bring_alt_data(ctx, game_id: str, rom: str, alt_dir: str) -> int:
     return brought
 
 
-def _remember(ctx, game_id: str, played) -> int:
+def _remember(ctx: Any, game_id: str, played: Any) -> int:
     """What the old frontend remembered about playing this game.
 
     The counters go through the one call that sets them; rating, favorite and tags are
@@ -111,7 +111,7 @@ def _remember(ctx, game_id: str, played) -> int:
     return brought
 
 
-def _put(ctx, game_id: str, kind: str, path: Path, rom: str) -> int:
+def _put(ctx: Any, game_id: str, kind: str, path: Path, rom: str) -> int:
     try:
         ctx.games.put_asset(game_id, kind, path, rom)
         return 1
@@ -122,9 +122,9 @@ def _put(ctx, game_id: str, kind: str, path: Path, rom: str) -> int:
         return 0
 
 
-def _one(ctx, source_id: str, game: SourceGame, kinds: tuple[str, ...],
-         location: str, name: str = "", sources=None,
-         history=None) -> AdoptedRow:
+def _one(ctx: Any, source_id: str, game: SourceGame, kinds: tuple[str, ...],
+         location: str, name: str = "", sources: Any = None,
+         history: Any = None) -> AdoptedRow:
     """One game, and what became of it. Returns a row for the report.
 
     The name is handed in because the caller has already asked core what folder it
@@ -183,7 +183,7 @@ def _one(ctx, source_id: str, game: SourceGame, kinds: tuple[str, ...],
     return row
 
 
-def _another_build(ctx, game: SourceGame, name: str, game_id: str) -> AdoptedRow:
+def _another_build(ctx: Any, game: SourceGame, name: str, game_id: str) -> AdoptedRow:
     """A second build of a machine the run has already made a game for.
 
     Its file joins that game rather than starting another one. The artwork does not:
@@ -220,8 +220,8 @@ def _history(path: str) -> dict:
     return {one.name.strip().lower(): one for one in found}
 
 
-def run(ctx, library: SourceLibrary, systems: list[str], location: str = "",
-        plan=None) -> dict:
+def run(ctx: Any, library: SourceLibrary, systems: list[str], location: str = "",
+        plan: Any = None) -> dict:
     """Convert the chosen systems. Answers with a row per game and the counts.
 
     A game that fails is recorded and the next one is tried. An import of six hundred

@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import xml.etree.ElementTree as ElementTree
+from collections.abc import Callable
 from pathlib import Path, PureWindowsPath
 
 from . import drivemap
@@ -160,7 +161,8 @@ def _plays_vpx(suffix: str) -> bool:
     return str(suffix or "").strip().lower() == PLAYABLE_EXTENSION
 
 
-def _is_playable(entry: dict, plays=_plays_vpx, known: tuple[str, ...] = ()) -> bool:
+def _is_playable(entry: dict, plays: Callable[[str], bool] = _plays_vpx,
+                 known: tuple[str, ...] = ()) -> bool:
     """Whether anything installed here could play what the system holds.
 
     Asked rather than assumed, because the answer changes: an extension that provides an
@@ -248,12 +250,13 @@ def read_pinbally_config(path: Path) -> tuple[list[dict], list[str]]:
     return found, []
 
 
-def _text(element, tag: str) -> str:
+def _text(element: ElementTree.Element, tag: str) -> str:
     found = element.find(tag)
     return (found.text or "").strip() if found is not None else ""
 
 
-def _game_from(element, tables: tuple[dict[str, str], dict[str, str]]) -> SourceGame | None:
+def _game_from(element: ElementTree.Element,
+               tables: tuple[dict[str, str], dict[str, str]]) -> SourceGame | None:
     """One `<game>` element. Returns None for one with no name, which is the only
     thing that makes it addressable - its media is found by it."""
     key = str(element.get("name", "") or "").strip()
@@ -292,7 +295,9 @@ def _game_from(element, tables: tuple[dict[str, str], dict[str, str]]) -> Source
                       extras=extras, **values)  # type: ignore[arg-type]
 
 
-def _table_index(tables_dir: Path, plays=_plays_vpx) -> tuple[dict[str, str], dict[str, str]]:
+def _table_index(tables_dir: Path,
+                 plays: Callable[[str], bool] = _plays_vpx,
+                 ) -> tuple[dict[str, str], dict[str, str]]:
     """The playable files in the tables folder, by stem: exact, and case-folded.
 
     **Playable, not everything.** A table sits beside its companions and they share its
@@ -375,7 +380,8 @@ def _database_text(path: Path) -> tuple[str | None, list[str]]:
 
 
 def read_database(path: Path | str, tables_dir: str = "",
-                  plays=_plays_vpx) -> tuple[list[SourceGame], list[str]]:
+                  plays: Callable[[str], bool] = _plays_vpx,
+                  ) -> tuple[list[SourceGame], list[str]]:
     """Every game in one database file."""
     path = Path(path)
     text, notes = _database_text(path)
@@ -469,7 +475,7 @@ def _here(recorded: str, root: Path) -> str:
     return found.path or ""
 
 
-def read(root: Path | str, plays=_plays_vpx,
+def read(root: Path | str, plays: Callable[[str], bool] = _plays_vpx,
          known_apps: tuple[str, ...] = ()) -> SourceLibrary:
     """Everything under one PinballX or PinballY root.
 
