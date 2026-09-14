@@ -338,11 +338,11 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
             if inspect.isawaitable(result):
                 await result
 
-        # Queried, not read off rowSelected: that payload can fail to serialise and its
+        # Queried, not read off rowSelected: that payload can fail to serialize and its
         # `selected` field arrives undefined.
         grid.on("selectionChanged", changed)
     if on_context is not None:
-        # Only `data`: the full payload can fail to serialise and is then never sent.
+        # Only `data`: the full payload can fail to serialize and is then never sent.
         grid.on("cellContextMenu",
                 lambda event: on_context((event.args or {}).get("data")), args=["data"])
     if on_header_context is not None:

@@ -273,7 +273,7 @@ def _write_replace(dest_file: Path, content: bytes) -> None:
     os.replace(tmp_file, dest_file)
 
 
-def replace_table(game_dir: Path, filename: str, content: bytes, file_type: str,
+def replace_table(game_dir: Path, filename: str, content: bytes, file_kind: str,
                   current_vpx_filename: str = "") -> dict[str, str]:
     game_dir = game_dir.expanduser()
     if not game_dir.exists() or not game_dir.is_dir():
@@ -282,7 +282,7 @@ def replace_table(game_dir: Path, filename: str, content: bytes, file_type: str,
     safe_name = _safe_upload_name(filename)
     ext = Path(safe_name).suffix.lower()
 
-    if file_type == "vpx":
+    if file_kind == "vpx":
         if ext != ".vpx":
             raise ValueError("Only .vpx files can update the table file")
 
@@ -319,14 +319,14 @@ def replace_table(game_dir: Path, filename: str, content: bytes, file_type: str,
 
         refresh_game(game_dir)
         return {
-            "file_type": "vpx",
+            "file_kind": "vpx",
             "filename": new_vpx.name,
             "game_dir": str(game_dir),
             "directb2s_filename": renamed_b2s,
             "ini_filename": renamed_ini,
         }
 
-    if file_type == "directb2s":
+    if file_kind == "directb2s":
         if ext != ".directb2s":
             raise ValueError("Only .directb2s files can update the backglass file")
 
@@ -337,7 +337,7 @@ def replace_table(game_dir: Path, filename: str, content: bytes, file_type: str,
 
         refresh_game(game_dir)
         return {
-            "file_type": "directb2s",
+            "file_kind": "directb2s",
             "filename": target_b2s.name,
             "game_dir": str(game_dir),
         }
@@ -670,7 +670,7 @@ def add_table_file(game_dir: Path, source: Path, table_id: str) -> dict:
     # What the table says about itself, read out of it now rather than left for the
     # sweep that enriches a whole library. A file that arrives unparsed has no ROM, no
     # authors and no version until something else comes along, and anything keyed on the
-    # ROM - a ROM set, a sound bank, a colour set - cannot be placed beside it meanwhile.
+    # ROM - a ROM set, a sound bank, a color set - cannot be placed beside it meanwhile.
     # The upload path parses on the spot for the same reason. Before the refresh, so the
     # refresh sees a described table rather than a bare filename.
     rom = ""

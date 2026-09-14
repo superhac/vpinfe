@@ -283,9 +283,9 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
 
     game_id, game_dir, media_kind = _drop_target(library, state, drop)
 
-    # A slot drop is not analysed at all, and that is the whole point of one: the cell
+    # A slot drop is not analyzed at all, and that is the whole point of one: the cell
     # said which game and which slot, so any image belongs on an image slot and is
-    # written under that slot's own name. Asking the analyser first rejected exactly
+    # written under that slot's own name. Asking the analyzer first rejected exactly
     # the file this is for - one whose name says nothing.
     analysis: dict = {}
     if not media_kind:
@@ -953,7 +953,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         # rhythm rather than at whatever height its text makes. Not aligned *across*
         # panes - the nav's band is taller than its minimum and starts inside its own
         # padding, and matching that would be a magic number against an accident.
-        # The title carries the buttons' 32px line height so the band centres one
+        # The title carries the buttons' 32px line height so the band centers one
         # height: centring boxes of different heights aligns boxes, not baselines.
         with ui.row().classes("items-center gap-2 w-full no-wrap") \
                 .style(f"min-height:{HEADER_H_PX}px"):

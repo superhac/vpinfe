@@ -473,7 +473,7 @@ _STRUCTURE = """
   /* One row of facts, sized as text. A row that *is* a field keeps the field's own
      height; since such a field is never a swapped-in box, nothing jumps. */
   /* The row, not the value: every kind of value - text, a chip, a field, a switch -
-     centres in a box this tall, so the air around one does not depend on which kind it
+     centers in a box this tall, so the air around one does not depend on which kind it
      is. At 26 a text value sat 21px in 26 while a chip carried its own padding and read
      roomier, which is the mismatch a reader sees as inconsistent spacing. */
   --fact-row: 30px;

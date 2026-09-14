@@ -1,7 +1,7 @@
 """Which monitors are attached, asked once and remembered.
 
 Every frontend window queries this from its own thread, and the X11 libraries behind
-it are not thread-safe, so the answer is serialised and cached.
+it are not thread-safe, so the answer is serialized and cached.
 """
 
 from __future__ import annotations

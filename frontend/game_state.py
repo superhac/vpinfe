@@ -204,7 +204,7 @@ def sort_state(order: dict) -> tuple[str, str]:
     nothing to translate and nothing to lose.
 
     `manual` passes through: apply_sort leaves the curator's array alone, deliberately
-    rather than by not recognising the name.
+    rather than by not recognizing the name.
     """
     return order["by"], order["direction"]
 

@@ -75,7 +75,7 @@ def choice(src: str, name: str, meta: str, pick: Callable, *,
     For the lists you scan rather than compare: forty candidates with forty buttons is
     forty times the same word. `row` is the one to use where the act wants naming.
 
-    The picture is small here, because these lists are the long ones and recognising a
+    The picture is small here, because these lists are the long ones and recognizing a
     thing is a smaller question than judging it.
     """
     element = ui.row().classes("items-center gap-3 w-full no-wrap console-source-row "

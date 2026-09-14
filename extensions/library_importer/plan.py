@@ -27,8 +27,8 @@ SOURCES = (
     ("tables", "Game files", "The .vpx or .fpt files themselves."),
     ("media", "Artwork", "Playfield, backglass, wheel and the rest."),
     ("roms", "ROMs", "The folder of ROM sets the old machine played from."),
-    ("altdata", "Sound and colour",
-     "AltSound banks and colour sets, in folders named for a ROM."),
+    ("altdata", "Sound and color",
+     "AltSound banks and color sets, in folders named for a ROM."),
     ("history", "Play history",
      "How often each game was played, and when it was last played."),
 )
@@ -184,7 +184,7 @@ def derive_sources(library, chosen: dict | None = None) -> list[Source]:
     # Nothing derives a registry export: a share does not carry one unless somebody
     # exported it on purpose, so this stays empty until it is pointed at.
     # VPinMAME keeps its own folders beside the emulator, not in it - a real machine
-    # recorded `rompath` as `<install>\VPinMame\roms`, and the sound and colour banks
+    # recorded `rompath` as `<install>\VPinMame\roms`, and the sound and color banks
     # sit beside that. So the emulator's own directory is where the search starts rather
     # than where it ends, and an empty answer leaves the field for somebody to fill.
     working = next((one.working_path for one in library.systems if one.working_path), "")

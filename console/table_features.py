@@ -52,7 +52,7 @@ class State:
     chip: str
     mark: str
     why: str
-    # How the state is drawn, and coloured. Characters, not the shaped circles: a
+    # How the state is drawn, and colored. Characters, not the shaped circles: a
     # dashed one already means Missing in the media tiers, and a table nobody has read
     # is not a missing one.
     glyph: str = ""

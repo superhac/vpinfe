@@ -158,7 +158,7 @@ async def remote_page(screen: str = "") -> None:
 
     # Before the client connects, which is the only time a page can add to its own body.
     # Adding it from inside the screen that uses it looked right and installed nothing:
-    # by then the page has been sent, and the pad had no behaviour at all.
+    # by then the page has been sent, and the pad had no behavior at all.
     ui.add_body_html(f"<script>{_HOLD_SCRIPT % {'renew': RENEW_MS}}</script>")
 
     with ui.column().classes("w-full h-full items-center justify-center gap-3") as loading:
@@ -720,7 +720,7 @@ def _control(state: dict[str, Any], client_for_target, redraw) -> None:
         with ui.column().classes("w-full gap-2"):
             for action in ("back", "menu", "collection_menu", "tutorial"):
                 _tap_button(action, client_for_target)
-        # Apart from the rest and in the danger colour: it ends the thing every other
+        # Apart from the rest and in the danger color: it ends the thing every other
         # button on this screen is for.
         _tap_button("exit", client_for_target, danger=True)
 

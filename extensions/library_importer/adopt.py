@@ -16,7 +16,7 @@ from . import mapping
 from .source import SourceGame, SourceLibrary
 
 # Where a ROM set and the folders keyed on it are placed, by the kind the registry knows
-# them as. A colour set comes in two formats and the file decides which, so both are
+# them as. A color set comes in two formats and the file decides which, so both are
 # tried against what is actually there.
 ALT_KINDS = {".crz": "altcolor_serum", ".cromc": "altcolor_serum",
              ".vni": "altcolor_vni", ".pal": "altcolor_vni"}
@@ -39,7 +39,7 @@ def _bring_rom(ctx, game_id: str, rom: str, roms_dir: str) -> int:
 
 
 def _bring_alt_data(ctx, game_id: str, rom: str, alt_dir: str) -> int:
-    """Sound banks and colour sets, which sit in folders named for the ROM.
+    """Sound banks and color sets, which sit in folders named for the ROM.
 
     The layout is the one PIN2DMD and altsound document: `altcolor/<rom>/` and
     `altsound/<rom>/`, beside each other under one root.
@@ -53,7 +53,7 @@ def _bring_alt_data(ctx, game_id: str, rom: str, alt_dir: str) -> int:
         if kind:
             brought += _put(ctx, game_id, kind, here, rom)
             continue
-        # A colour set's format is the file's to declare, not the folder's.
+        # A color set's format is the file's to declare, not the folder's.
         for one in sorted(here.iterdir()):
             said = ALT_KINDS.get(one.suffix.lower())
             if said:
@@ -64,7 +64,7 @@ def _bring_alt_data(ctx, game_id: str, rom: str, alt_dir: str) -> int:
 def _remember(ctx, game_id: str, played) -> int:
     """What the old frontend remembered about playing this game.
 
-    The counters go through the one call that sets them; rating, favourite and tags are
+    The counters go through the one call that sets them; rating, favorite and tags are
     opinions with routes of their own and go through those. A value the source never
     wrote is left alone rather than sent as a zero - a game nobody played and a game
     whose count was never recorded are different, and only one of them should overwrite

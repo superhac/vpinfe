@@ -390,7 +390,7 @@ async def build(container: ui.column, title: ui.column, library: Library,
         state["dock_grip_bound"] = True
         ui.on("hub_dock_px", lambda e: state.__setitem__("dock_px", int(e.args or 0))
               if e.args else None)
-    # Builds are serialised, and a superseded one gives up rather than drawing.
+    # Builds are serialized, and a superseded one gives up rather than drawing.
     # Without this the panel doubles: clearing happens before the tables fetch and the
     # drawing after it, so two builds that overlap both clear an empty container and
     # then both append. A drag can start three - the divider, the mode it settles, and
@@ -2014,7 +2014,7 @@ def _library_rows(context: dict[str, Any],
         said = game_tables.default_state(table.get("default_kind") or "")
         with ui.element("div").classes("console-fact-edit"):
             if is_default and said:
-                # No colour: green in this panel means installed, present, extracted -
+                # No color: green in this panel means installed, present, extracted -
                 # facts whose absence costs you a working table. A game has a default
                 # either way, so the word carries it and the palette keeps its meaning.
                 ui.label(said[0]).classes("console-tier console-tier--off").tooltip(said[1])
@@ -4369,7 +4369,7 @@ def _member_line(context: dict[str, Any], member: dict[str, Any],
     state = _member_state(member)
     chip = _EXCLUDED if origin == "excluded" else (
         game_tables.reference_state(state) if state == game_tables.GONE else None)
-    # The handle and the action sit outside the two text lines so they centre against
+    # The handle and the action sit outside the two text lines so they center against
     # the row rather than against its first line, which read as pinned to the name.
     with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row") \
             .props(f'data-origin="{origin}"'):

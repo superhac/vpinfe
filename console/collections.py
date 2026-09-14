@@ -38,7 +38,7 @@ KIND_LABELS = {"manual": "console.collections.manual",
 _NUMERIC = {"type": "numericColumn", "filter": "agNumberColumnFilter"}
 
 COLUMNS = [
-    # The icon leads. A collection is recognised by its picture in the wheel long
+    # The icon leads. A collection is recognized by its picture in the wheel long
     # before its name is read, and a list of collections that showed none of them was
     # asking the reader to work from the least distinctive thing about each.
     grid.column("icon", "", 56, pinned="left", sortable=False, filter=False),

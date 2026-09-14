@@ -154,7 +154,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                         ui.label(game_name).classes('text-sm').style('color: var(--ink-muted);')
                         update_status = ui.label('Choose a .vpx table file or .directb2s backglass file.').classes('text-xs').style('color: var(--ink-muted);')
 
-                        async def handle_game_update(e: events.UploadEventArguments, file_type: str):
+                        async def handle_game_update(e: events.UploadEventArguments, file_kind: str):
                             upload_name = e.file.name
                             data = await e.file.read()
                             client = update_client
@@ -168,10 +168,10 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                                     game_dir,
                                     upload_name,
                                     data,
-                                    file_type,
+                                    file_kind,
                                     row_data.get('filename', ''),
                                 )
-                                if result.get('file_type') == 'vpx':
+                                if result.get('file_kind') == 'vpx':
                                     row_data['filename'] = result.get('filename', row_data.get('filename', ''))
                                     game_index_service.update_row_by_path(game_dir, {'filename': row_data['filename']})
                                     with client:

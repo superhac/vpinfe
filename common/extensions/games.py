@@ -137,7 +137,7 @@ class ExtensionGames:
         return tuple(spec.kind for spec in MEDIA_SPECS)
 
     def existing(self) -> list[dict]:
-        """Every game already here, in the little an importer needs to recognise one.
+        """Every game already here, in the little an importer needs to recognize one.
 
         Not the whole library: what a second run is asking is "have I made this one
         before", and folder name, catalog id and title answer it. Anything more would be
@@ -234,7 +234,7 @@ class ExtensionGames:
         """Put a file or a whole folder where this kind of asset belongs.
 
         For the things that are neither the game file nor artwork: a ROM set, an
-        alternative sound bank, a colour set. Where each goes is the registry's answer,
+        alternative sound bank, a color set. Where each goes is the registry's answer,
         the same one an upload gets, so a library imported from another frontend puts
         them where an upload would have.
 

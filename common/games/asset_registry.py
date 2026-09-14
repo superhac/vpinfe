@@ -31,7 +31,7 @@ class AssetSpec:
     icon: str
     extensions: tuple[str, ...]     # lowercase; () for marker/folder-detected kinds
     requires_game: bool
-    # This asset needs a ROM to mean anything - a colour set or an alternative sound
+    # This asset needs a ROM to mean anything - a color set or an alternative sound
     # bank has nothing to attach to without one. A dependency between assets, and not
     # the same question as `required_to_launch`.
     requires_rom: bool

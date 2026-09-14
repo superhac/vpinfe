@@ -51,7 +51,7 @@ class TestScoreParser(unittest.TestCase):
             {
                 "rom": "agent777",
                 "resolved_rom": "agent777",
-                "score_type": "HIGH SCORE",
+                "score_kind": "HIGH SCORE",
                 "value": 123456,
             },
         )
@@ -70,7 +70,7 @@ class TestScoreParser(unittest.TestCase):
             {
                 "rom": "aar_101",
                 "resolved_rom": "aar_101",
-                "score_type": "Leaderboard",
+                "score_kind": "Leaderboard",
                 "entries": [
                     {
                         "section": "HIGH SCORES",
@@ -99,7 +99,7 @@ class TestScoreParser(unittest.TestCase):
             {
                 "rom": "Matrix",
                 "resolved_rom": "Matrix",
-                "score_type": "ini",
+                "score_kind": "ini",
                 "entries": [
                     {
                         "section": "Scores",
@@ -131,7 +131,7 @@ class TestScoreParser(unittest.TestCase):
             {
                 "rom": "aar_101",
                 "resolved_rom": "aar_101",
-                "score_type": "Leaderboard",
+                "score_kind": "Leaderboard",
                 "entries": [
                     {
                         "section": "HIGH SCORES",

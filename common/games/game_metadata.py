@@ -371,7 +371,7 @@ def reset_game_play_record(game) -> dict[str, Any]:
 
     Rating, favorite and tags are opinions somebody set; the counters are a record of
     what happened. Resetting is the common correction - a table launched twenty times
-    while it was being tested reads as a favourite forever otherwise - and it is the
+    while it was being tested reads as a favorite forever otherwise - and it is the
     one that needs no arithmetic from the user.
     """
     config = load_game_meta(game)

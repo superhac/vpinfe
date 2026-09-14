@@ -169,7 +169,7 @@ def settings_for(keys: list[Key], rom: str) -> dict:
     always and silently wrong for that one, which is the worst shape a bug can have.
 
     Only 11 values ever differed from `default` across that whole library, nearly all of
-    them DMD colour. So the merge is cheap and changes little - it is there for the rare
+    them DMD color. So the merge is cheap and changes little - it is there for the rare
     key, not the common one.
 
     `globals` is deliberately not merged in: rompath and the directories are facts about

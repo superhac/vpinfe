@@ -23,7 +23,7 @@ class ApiModel(BaseModel):
     """Base for every wire model.
 
     populate_by_name lets a field carry an alias for names Python will not take -
-    `self` in a links object being the one that forces it. FastAPI serialises by
+    `self` in a links object being the one that forces it. FastAPI serializes by
     alias, so the alias is what a client sees.
     """
 

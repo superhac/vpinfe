@@ -1613,7 +1613,7 @@ def format_result(rom_name: str, result: int | list[ParsedEntry]) -> list[str]:
 
     return lines
 
-def detect_score_type(rom_name: str, filename: str | None = None) -> str:
+def detect_score_kind(rom_name: str, filename: str | None = None) -> str:
     if rom_name in special_text_score_files:
         return "txt"
     if filename and Path(filename).suffix.lower() == ".ini":
@@ -1636,14 +1636,14 @@ def result_to_jsonable(
     filename: str | None = None,
 ) -> dict | None:
     resolved_rom_name = resolve_rom_name(rom_name)
-    score_type = detect_score_type(rom_name, filename)
+    score_kind = detect_score_kind(rom_name, filename)
     result = apply_default_initials(result)
 
     if isinstance(result, int):
         return {
             "rom": rom_name,
             "resolved_rom": resolved_rom_name,
-            "score_type": score_type,
+            "score_kind": score_kind,
             "value": result,
         }
 
@@ -1654,7 +1654,7 @@ def result_to_jsonable(
     return {
         "rom": rom_name,
         "resolved_rom": resolved_rom_name,
-        "score_type": score_type,
+        "score_kind": score_kind,
         "entries": [asdict(entry) for entry in filtered_entries],
     }
 
