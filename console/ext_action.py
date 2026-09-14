@@ -15,6 +15,7 @@ in.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from nicegui import run, ui
@@ -30,7 +31,19 @@ POLL_SECONDS = 1.0
 
 def _controls(fields: list[dict], values: dict[str, Any]) -> None:
     """Draw what the task asked for, in the Console's own grammar."""
-    entries = []
+    # Each control writes its own key, so the key is bound by a call rather than
+    # captured off the loop variable.
+    def changed(key: str, cast: Callable[[Any], Any]) -> Callable[[Any], None]:
+        def write(event: Any) -> None:
+            values[key] = cast(event.value)
+        return write
+
+    def typed(key: str) -> Callable[[str], None]:
+        def write(text: str) -> None:
+            values[key] = text
+        return write
+
+    entries: list[tuple[Any, Any]] = []
     for field in fields:
         key = str(field.get("key") or "")
         if not key:
@@ -42,20 +55,18 @@ def _controls(fields: list[dict], values: dict[str, Any]) -> None:
             choices = {str(one[0]): str(one[1]) for one in field.get("choices") or []}
             entries.append((label, panel.multi_select(
                 choices, list(values.get(key) or []),
-                lambda event, key=key: values.__setitem__(key, list(event.value or [])))))
+                changed(key, lambda value: list(value or [])))))
         elif kind == "select":
             choices = {str(one[0]): str(one[1]) for one in field.get("choices") or []}
             entries.append((label, panel.select(
                 choices, str(values.get(key) or ""),
-                lambda event, key=key: values.__setitem__(key, str(event.value or "")))))
+                changed(key, lambda value: str(value or "")))))
         elif kind == "switch":
             entries.append((label, panel.switch(
-                bool(values.get(key)),
-                lambda event, key=key: values.__setitem__(key, bool(event.value)))))
+                bool(values.get(key)), changed(key, bool))))
         else:
             entries.append((label, panel.field(
-                str(values.get(key) or ""),
-                lambda text, key=key: values.__setitem__(key, text))))
+                str(values.get(key) or ""), typed(key))))
         if field.get("help"):
             entries.append((panel.ASIDE, _aside(str(field["help"]))))
     panel.facts(ui, entries)

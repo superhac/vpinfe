@@ -294,10 +294,14 @@ async def _fill_kinds(library, rerender: Callable[[], None], body, note: str,
             return
         rerender()
 
+    # Bound by a call rather than captured off the loop variable, which a lambda
+    # would read only when it fires.
+    def flipper(name: str) -> Callable[[Any], Any]:
+        return lambda event: flip(name, bool(event.value))
+
     entries: list[tuple[Any, Any]] = [panel.intro(note)]
     for name, label in sorted(known.items(), key=lambda pair: pair[1]):
-        entries.append((label, panel.switch(
-            name in on, lambda e, n=name: flip(n, bool(e.value)))))
+        entries.append((label, panel.switch(name in on, flipper(name))))
     with body:
         panel.facts(ui, entries)
 
@@ -887,6 +891,11 @@ async def _identity_page(library, reported: str,
                         [name for name in install_identity.FEATURES if name in after]):
             _take_the_page_again()
 
+    # Bound by a call rather than captured off the loop variable, which a lambda
+    # would read only when it fires.
+    def flipper(name: str) -> Callable[[Any], Any]:
+        return lambda event: flip(name, bool(event.value))
+
     entries: list[tuple[Any, Any]] = [
         # The name it reports with nothing set is its hostname, so the placeholder is
         # that answer rather than the word for it.
@@ -898,8 +907,8 @@ async def _identity_page(library, reported: str,
         panel.intro(t("console.settings.what_install_each_one")),
     ]
     for name in install_identity.FEATURES:
-        entries.append((t(FEATURE_LABELS[name]), panel.switch(
-            name in on, lambda event, key=name: flip(key, bool(event.value)))))
+        entries.append((t(FEATURE_LABELS[name]),
+                        panel.switch(name in on, flipper(name))))
         entries.append(panel.note(t(FEATURE_NOTES[name])))
     panel.facts(ui, entries)
 

@@ -206,6 +206,7 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
     """
     def draw() -> None:
         with ui.element("div").classes("console-fact-edit"):
+            control: ui.textarea | ui.input
             if lines:
                 control = ui.textarea(placeholder=placeholder)
                 control.value = value
@@ -388,8 +389,11 @@ def number(value: Any, on_change: Callable[[Any], Any], *,
     return draw
 
 
-def action(label: str, on_click: Callable[[], Any] | None = None, *, icon: str = "",
-           inline: bool = False, danger: bool = False, hint: str = "",
+def action(label: str,
+           # The event or nothing, which is NiceGUI's own Handler type: `js` emits a
+           # result and this is what receives it.
+           on_click: Callable[[Any], Any] | Callable[[], Any] | None = None, *,
+           icon: str = "", inline: bool = False, danger: bool = False, hint: str = "",
            enabled: bool = True, js: str = "") -> Callable[[], None]:
     """A verb, which follows the value it acts on.
 

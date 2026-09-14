@@ -38,14 +38,20 @@ def send(device_id: str, game_ids, everything: bool = False) -> job_registry.Job
 
     def work(job) -> None:
         reporter = job.reporter()
+
+        # The whole transfer's progress, not one game's: what a person watching wants is
+        # how far through the twelve they are. `at` comes in by call so it is this
+        # folder's position and not wherever the loop has reached.
+        def reporting(at: int) -> mobile_transfer.Progress:
+            def sent(done: int, total: int, said: str) -> None:
+                reporter.progress(at * 100 + int(100 * done / max(total, 1)),
+                                  len(folders) * 100, said)
+            return sent
+
         for index, folder in enumerate(folders):
             reporter.progress(index, len(folders), f"Sending {folder.name}")
-            mobile_transfer.send(
-                folder, device.address, device.port, everything=everything,
-                # The whole transfer's progress, not one game's: what a person watching
-                # wants is how far through the twelve they are.
-                on_progress=lambda done, total, said, at=index: reporter.progress(
-                    at * 100 + int(100 * done / max(total, 1)), len(folders) * 100, said))
+            mobile_transfer.send(folder, device.address, device.port,
+                                 everything=everything, on_progress=reporting(index))
         reporter.progress(len(folders), len(folders),
                           f"Sent {len(folders)} to "
                           f"{device.display_name or device_id}")

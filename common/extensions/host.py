@@ -176,9 +176,10 @@ class Registry:
             register = getattr(module, "register", None)
             if not callable(register):
                 raise TypeError("its package defines no register(ctx)")
+            name = record.name
             context = ExtensionContext(
                 record.manifest, self._store,
-                on_failure=lambda why, name=record.name: self.disable(name, why))
+                on_failure=lambda why: self.disable(name, why))
             register(context)
             context.open = False
         except Exception as exc:

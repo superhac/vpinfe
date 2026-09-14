@@ -3702,6 +3702,7 @@ def _text_control(context: dict[str, Any], row: dict[str, Any], field: str,
         await _patch(context, {field: value})
 
     def draw() -> None:
+        control: ui.textarea | ui.input
         if lines:
             control = ui.textarea()
             control.value = row.get(field) or ""
