@@ -37,10 +37,7 @@ jobs:
       - name: Lint the packages that are clean (blocking)
         run: ruff check tests/ apps/ console/ extensions/ httpapi/ --output-format=github
 
-      # Naming, everywhere we write Python. common/ and frontend/ still carry line-length
-      # debt, so they cannot join the step above yet - but their names are clean and this
-      # is what keeps them that way. managerui is out, as it is everywhere: it retires
-      # with the Manager UI.
+      # Separate from the step above because these still carry line-length debt.
       - name: Lint naming (blocking)
         run: |
           ruff check apps common console extensions frontend httpapi cli.py main.py \
