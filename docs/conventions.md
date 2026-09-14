@@ -858,6 +858,9 @@ import after executing statements because config has to be resolved before anyth
 it tests reads `roms.json` and the config paths at import. Those exemptions are listed in
 `pyproject.toml` with their reasons.
 
+An exemption carries its reason, not the measurements behind it. A count in a config file
+goes stale and gets believed anyway. Put it in the commit that added the exemption.
+
 ### Auto-fix is not always safe
 
 `--fix` will remove an import it thinks is unused, including one that exists purely for its
