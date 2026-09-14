@@ -26,6 +26,7 @@ from nicegui import ui
 
 from common.i18n import t
 from console import offload, panel
+from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.about")
 
@@ -54,7 +55,7 @@ _COPY_JS = """() => {
 }"""
 
 
-def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
+def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
     """Read once when the page opens. None of it changes while VPinFE runs."""
     held: dict[str, Any] = {"text": ""}
 
@@ -75,7 +76,7 @@ def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
     ui.timer(0.01, load, once=True)
 
 
-def _draw(body, groups: list[dict[str, Any]], held: dict[str, Any],
+def _draw(body: Any, groups: list[dict[str, Any]], held: dict[str, Any],
           reload: Callable[..., Any]) -> None:
     body.clear()
     with body:

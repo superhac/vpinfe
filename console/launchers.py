@@ -15,7 +15,7 @@ names.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any
 
 from nicegui import run, ui
@@ -23,6 +23,7 @@ from nicegui import run, ui
 from common import path_checks
 from common.i18n import t
 from console import confirm, grid, offload, panel
+from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.launchers")
 
@@ -60,7 +61,7 @@ LAUNCHER_VIEWS: dict[str, list[str]] = {
 }
 
 
-def _broken(one: dict):
+def _broken(one: dict) -> Iterator[str]:
     """Every path this launcher names that the disk cannot answer for."""
     checks = one.get("checks") or {}
     labels = {field["key"]: field["label"] for field in one.get("fields") or []}
@@ -94,7 +95,7 @@ def rows(held: list[dict], defaults: dict) -> list[dict[str, Any]]:
     } for one in held]
 
 
-def build(library, state: dict[str, Any],
+def build(library: Library, state: dict[str, Any],
           on_select: Callable[[dict | None], Any],
           redraw: Callable[[], None]) -> None:
     """The grid. Read on every draw, because this page edits it and what the disk says
@@ -105,8 +106,8 @@ def build(library, state: dict[str, Any],
     ui.timer(0.01, lambda: _fill(library, state, on_select, redraw, body), once=True)
 
 
-async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None], Any],
-                redraw: Callable[[], None], body) -> None:
+async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[dict | None], Any],
+                redraw: Callable[[], None], body: Any) -> None:
     try:
         found = await offload.io(library.launchers)
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
@@ -158,7 +159,7 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
         wire_views(table)
 
 
-async def _add(library, state: dict[str, Any], redraw: Callable[[], None],
+async def _add(library: Library, state: dict[str, Any], redraw: Callable[[], None],
                app: dict) -> None:
     """A new launcher for an app, with nothing filled in.
 
@@ -179,7 +180,7 @@ async def _add(library, state: dict[str, Any], redraw: Callable[[], None],
     redraw()
 
 
-async def duplicate(library, state: dict[str, Any], redraw: Callable[[], None],
+async def duplicate(library: Library, state: dict[str, Any], redraw: Callable[[], None],
                      launcher: dict) -> None:
     """A copy, which is the case this feature exists for: change one thing - usually the
     configuration file - and you have a second way of running the same program.
@@ -201,7 +202,7 @@ async def duplicate(library, state: dict[str, Any], redraw: Callable[[], None],
     redraw()
 
 
-async def copy_dialog(library, state: dict[str, Any], launcher: dict) -> None:
+async def copy_dialog(library: Library, state: dict[str, Any], launcher: dict) -> None:
     """Pick the machines, see what it will do, then do it.
 
     A copy with no ongoing link, which the dialog says rather than leaving somebody to
@@ -252,7 +253,7 @@ async def copy_dialog(library, state: dict[str, Any], launcher: dict) -> None:
                    bool(also.value))
 
 
-async def _do_copy(library, launcher: dict, devices: list[dict],
+async def _do_copy(library: Library, launcher: dict, devices: list[dict],
                    with_mappings: bool) -> None:
     from common.games import launcher_copy
 
@@ -266,7 +267,7 @@ async def _do_copy(library, launcher: dict, devices: list[dict],
             ui.notify(t("console.launchers.could_not_read_assignments", exc=(exc)), type="negative")
             return
 
-    def client_for(device):
+    def client_for(device: Any) -> Any:
         from common import device_client
 
         return device_client.for_device(device)
@@ -277,7 +278,7 @@ async def _do_copy(library, launcher: dict, devices: list[dict],
     ui.notify(said, type="positive" if all(one.ok for one in outcomes) else "warning")
 
 
-async def remove(library, state: dict[str, Any], redraw: Callable[[], None],
+async def remove(library: Library, state: dict[str, Any], redraw: Callable[[], None],
                   launcher: dict) -> None:
     """Asked about first, because it is the destructive one and it takes assignments
     with it - a table pointing here goes back to the default."""

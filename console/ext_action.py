@@ -15,7 +15,7 @@ in.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from nicegui import run, ui
@@ -72,7 +72,7 @@ def _controls(fields: list[dict], values: dict[str, Any]) -> None:
     panel.facts(ui, entries)
 
 
-def _aside(text: str):
+def _aside(text: str) -> Any:
     def draw() -> None:
         ui.label(text).classes("console-help")
     return draw
@@ -204,7 +204,7 @@ async def open_action(extension: str, action: dict) -> None:
     await dialog
 
 
-def _summary(rows) -> None:
+def _summary(rows: list[Sequence[Any]]) -> None:
     """What the previous steps add up to, before anything is done about it.
 
     A row of one is a heading rather than a fact. Where a summary covers both what was
@@ -225,7 +225,7 @@ def _lines(lines: list[str], title: str) -> None:
         ui.label(str(line)).classes("console-help")
 
 
-def _finished(body, buttons, dialog, answer: dict) -> None:
+def _finished(body: Any, buttons: Any, dialog: Any, answer: dict) -> None:
     """An action that ran and is done, with whatever it wants to say about it."""
     body.clear()
     buttons.clear()
@@ -255,7 +255,7 @@ def _compare(rows: list[dict]) -> None:
     panel.facts(ui, entries)
 
 
-def _counts(want: int, got: int, short: int):
+def _counts(want: int, got: int, short: int) -> Any:
     def draw() -> None:
         with ui.row().classes("items-center gap-2"):
             ui.label(str(got)).classes("console-fact-value")
@@ -274,7 +274,7 @@ def _wait() -> None:
     time.sleep(POLL_SECONDS)
 
 
-def _report(body, job: dict) -> None:
+def _report(body: Any, job: dict) -> None:
     """What happened, once it has. The counts, and every game that did not come across -
     an import that says only "done" leaves somebody to find the gaps themselves."""
     body.clear()

@@ -903,10 +903,10 @@ class Library:
     def new_game_destination(self) -> dict:
         return self._client.new_game_destination()
 
-    def upload_plan(self, upload_id: str, **asked) -> dict:
+    def upload_plan(self, upload_id: str, **asked: Any) -> dict:
         return self._client.upload_plan(upload_id, **asked)
 
-    def upload_import(self, upload_id: str, **asked) -> dict:
+    def upload_import(self, upload_id: str, **asked: Any) -> dict:
         return self._client.upload_import(upload_id, **asked)
 
     def abort_upload(self, upload_id: str) -> None:

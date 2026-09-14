@@ -20,6 +20,7 @@ from nicegui import run, ui
 
 from common.i18n import t
 from console import offload
+from console.data import Library
 
 from . import confirm, grid, panel
 
@@ -98,7 +99,7 @@ def rows(locations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     } for place, one in enumerate(locations)]
 
 
-def build(library, state: dict[str, Any],
+def build(library: Library, state: dict[str, Any],
           on_select: Callable[[dict | None], Any],
           rerender: Callable[[], None] | None = None) -> None:
     """The grid. Read on every draw, because what the disk says changes without anybody
@@ -109,8 +110,8 @@ def build(library, state: dict[str, Any],
     ui.timer(0.01, lambda: _fill(library, state, on_select, rerender, body), once=True)
 
 
-async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None], Any],
-                rerender: Callable[[], None] | None, body) -> None:
+async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[dict | None], Any],
+                rerender: Callable[[], None] | None, body: Any) -> None:
     try:
         found = await offload.io(library.locations)
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
@@ -159,7 +160,7 @@ async def _fill(library, state: dict[str, Any], on_select: Callable[[dict | None
         wire_views(table)
 
 
-def _ask_new(library, state: dict[str, Any], rerender: Callable[[], None] | None,
+def _ask_new(library: Library, state: dict[str, Any], rerender: Callable[[], None] | None,
              kind: str) -> None:
     """The folder, asked before the row exists.
 
@@ -189,7 +190,7 @@ def _ask_new(library, state: dict[str, Any], rerender: Callable[[], None] | None
     dialog.open()
 
 
-async def _create(library, state: dict[str, Any], rerender: Callable[[], None] | None,
+async def _create(library: Library, state: dict[str, Any], rerender: Callable[[], None] | None,
                   kind: str, path: str) -> None:
     from common.games import locations as model
 
@@ -204,7 +205,7 @@ async def _create(library, state: dict[str, Any], rerender: Callable[[], None] |
         rerender()
 
 
-async def remove(library, row: dict[str, Any]) -> bool:
+async def remove(library: Library, row: dict[str, Any]) -> bool:
     """Asked about first. The games in it leave the library, and their records go with
     them - which is where they live, so they are there again if it comes back."""
     if not await confirm.ask(

@@ -17,6 +17,7 @@ Three screens, and they read as a sequence: what is happening, pick something, d
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from io import BytesIO
 from typing import Any
 
@@ -213,11 +214,11 @@ async def remote_page(screen: str = "") -> None:
 
     # Once per page, not once per draw. Registered inside the screen that uses them, a
     # handler would be added again on every redraw and one thumb would send N presses.
-    async def held(event) -> None:
+    async def held(event: Any) -> None:
         await _say(client_for_target, str((event.args or {}).get("action") or ""),
                    "press")
 
-    async def let_go(event) -> None:
+    async def let_go(event: Any) -> None:
         await _say(client_for_target, str((event.args or {}).get("action") or ""),
                    "release")
 
@@ -246,7 +247,7 @@ async def remote_page(screen: str = "") -> None:
 
 
 def _header(state: dict[str, Any], aimable: list[dict[str, Any]],
-            aim) -> None:
+            aim: Any) -> None:
     """The target, on every screen, because every action's meaning depends on it.
 
     Drawn as a picker only when there is a choice to make. With one target it is the
@@ -259,7 +260,7 @@ def _header(state: dict[str, Any], aimable: list[dict[str, Any]],
             names = {one["device_id"]: target_name(one) for one in aimable}
             by_id = {one["device_id"]: one for one in aimable}
 
-            async def chosen(event) -> None:
+            async def chosen(event: Any) -> None:
                 await aim(by_id.get(event.value, {}))
 
             ui.select(names, value=state["target"].get("device_id"),
@@ -275,7 +276,7 @@ def _header(state: dict[str, Any], aimable: list[dict[str, Any]],
                 .classes("remote-target-name truncate")
 
 
-def _tabs(state: dict[str, Any], redraw) -> None:
+def _tabs(state: dict[str, Any], redraw: Callable[[], None]) -> None:
     """The three screens, at the bottom, where a thumb is.
 
     Not a nav rail and not a drawer: with three destinations and one hand, the whole map
@@ -283,7 +284,7 @@ def _tabs(state: dict[str, Any], redraw) -> None:
     what the page can do.
     """
     for key, label, icon in SCREENS:
-        def go(_event=None, key=key) -> None:
+        def go(_event: Any=None, key: Any=key) -> None:
             state["screen"] = key
             redraw()
 
@@ -294,7 +295,9 @@ def _tabs(state: dict[str, Any], redraw) -> None:
             ui.label(label).classes("remote-tab-label")
 
 
-def _screen(state: dict[str, Any], client_for_target, redraw) -> None:
+def _screen(state: dict[str, Any],
+            client_for_target: Callable[[], Any],
+            redraw: Callable[[], None]) -> None:
     if not state["target"]:
         return _nothing(t("console.remote.nothing_drive"))
     if state.get("reachable") is False:
@@ -314,7 +317,7 @@ def _nothing(said: str) -> None:
         ui.label(said).classes("remote-empty text-center")
 
 
-def _unreachable(state: dict[str, Any], redraw) -> None:
+def _unreachable(state: dict[str, Any], redraw: Callable[[], None]) -> None:
     """The target is not there, and the way out is to ask it again.
 
     Nothing here says *why*: this end cannot tell a machine that is switched off from
@@ -338,7 +341,9 @@ def _unreachable(state: dict[str, Any], redraw) -> None:
             .props("no-caps flat").classes("remote-action")
 
 
-def _now(state: dict[str, Any], client_for_target, redraw) -> None:
+def _now(state: dict[str, Any],
+         client_for_target: Callable[[], Any],
+         redraw: Callable[[], None]) -> None:
     """What this machine is doing, and the one thing worth doing about it.
 
     What is playing, what work is running and anything wanting attention are three
@@ -354,8 +359,8 @@ def _now(state: dict[str, Any], client_for_target, redraw) -> None:
         _running_jobs(state)
 
 
-def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target,
-             redraw) -> None:
+def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target: Callable[[], Any],
+             redraw: Callable[[], None]) -> None:
     async def quit_table() -> None:
         try:
             await run.io_bound(client_for_target().stop_play)
@@ -373,7 +378,7 @@ def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target,
         .props("no-caps flat").classes("remote-action remote-action--danger")
 
 
-def _idle(state: dict[str, Any], redraw) -> None:
+def _idle(state: dict[str, Any], redraw: Callable[[], None]) -> None:
     """Nothing is playing, so this offers the one thing worth doing about that.
 
     The last game played, with its rating. That is the moment somebody has an opinion
@@ -462,17 +467,19 @@ def manual_collections(collections: list[dict[str, Any]]) -> list[str]:
             if str(one.get("type") or "") == "manual" and one.get("name")]
 
 
-def _play(state: dict[str, Any], client_for_target, redraw) -> None:
+def _play(state: dict[str, Any],
+          client_for_target: Callable[[], Any],
+          redraw: Callable[[], None]) -> None:
     """Find a game and start it.
 
     The search field is first because the library is longer than a screen, and a list
     longer than a screen is typed into rather than scrolled.
     """
-    async def typed(event) -> None:
+    async def typed(event: Any) -> None:
         state["find"] = str(event.value or "")
         redraw()
 
-    async def narrow(event) -> None:
+    async def narrow(event: Any) -> None:
         state["collection"] = str(event.value or "")
         state["collection_ids"] = None
         if state["collection"]:
@@ -502,7 +509,7 @@ def _play(state: dict[str, Any], client_for_target, redraw) -> None:
 
 
 def _game_list(found: list[dict[str, Any]], state: dict[str, Any],
-               client_for_target, redraw) -> None:
+               client_for_target: Callable[[], Any], redraw: Callable[[], None]) -> None:
     if not found:
         return _nothing(t("console.remote.nothing_name"))
     with ui.column().classes("w-full gap-0"):
@@ -515,14 +522,14 @@ def _game_list(found: list[dict[str, Any]], state: dict[str, Any],
             ui.label(t("console.remote.more_keep_typing", left=(left))).classes("remote-note p-3")
 
 
-def _game_row(game: dict[str, Any], state: dict[str, Any], client_for_target,
-              redraw) -> None:
+def _game_row(game: dict[str, Any], state: dict[str, Any], client_for_target: Callable[[], Any],
+              redraw: Callable[[], None]) -> None:
     """One game, and a tap opens it rather than starting it.
 
     Never tap-to-launch. A mis-tap that opens a sheet costs a tap to undo; a mis-tap
     that starts a table takes the machine away from whoever is on it.
     """
-    def open_sheet(_event=None) -> None:
+    def open_sheet(_event: Any=None) -> None:
         _game_sheet(game, state, client_for_target, redraw)
 
     with ui.row().on("click", open_sheet) \
@@ -537,8 +544,8 @@ def _game_row(game: dict[str, Any], state: dict[str, Any], client_for_target,
             ui.icon("favorite").classes("remote-row-mark")
 
 
-def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target,
-                redraw) -> None:
+def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target: Callable[[], Any],
+                redraw: Callable[[], None]) -> None:
     """One game, everything that can be done to it from here, and Launch at the foot.
 
     A sheet from the bottom rather than a screen of its own: what is being decided is
@@ -553,7 +560,7 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target,
         if made:
             ui.label(made).classes("remote-note")
 
-        async def write(call, *args) -> bool:
+        async def write(call: Any, *args: Any) -> bool:
             try:
                 await run.io_bound(call, *args)
             except Exception as exc:
@@ -597,8 +604,8 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target,
     sheet.open()
 
 
-def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet,
-                       write) -> None:
+def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet: Any,
+                       write: Any) -> None:
     """Put it in a list you keep.
 
     Shown disabled with the reason rather than hidden when there is nowhere to put it:
@@ -694,7 +701,9 @@ if (!window.__vpinRemoteHold) {
 """
 
 
-def _control(state: dict[str, Any], client_for_target, redraw) -> None:
+def _control(state: dict[str, Any],
+             client_for_target: Callable[[], Any],
+             redraw: Callable[[], None]) -> None:
     """Drive the frontend from here.
 
     Not the table. In-game input is VPX's own and reaches it as keystrokes; what these
@@ -725,8 +734,9 @@ def _control(state: dict[str, Any], client_for_target, redraw) -> None:
         _tap_button("exit", client_for_target, danger=True)
 
 
-def _playing_instead(play: dict[str, Any], state: dict[str, Any], client_for_target,
-                     redraw) -> None:
+def _playing_instead(play: dict[str, Any], state: dict[str, Any],
+                     client_for_target: Callable[[], Any],
+                     redraw: Callable[[], None]) -> None:
     with ui.column().classes("w-full gap-3 p-3"):
         with ui.column().classes("w-full gap-1 console-card"):
             ui.label(t("console.remote.playing")) \
@@ -738,7 +748,7 @@ def _playing_instead(play: dict[str, Any], state: dict[str, Any], client_for_tar
         _playing(play, state, client_for_target, redraw)
 
 
-def _pad(client_for_target) -> None:
+def _pad(client_for_target: Callable[[], Any]) -> None:
     """The four directions and select, laid out as they move.
 
     A cross rather than a list, because what these do is spatial - left and right step
@@ -761,7 +771,7 @@ def _held_button(action: str, icon: str, cls: str) -> None:
         .props(f'data-hold-action={action}')
 
 
-def _tap_button(action: str, client_for_target, *, danger: bool = False,
+def _tap_button(action: str, client_for_target: Callable[[], Any], *, danger: bool = False,
                 cls: str = "", icon_only: bool = False) -> None:
     async def tap() -> None:
         await _say(client_for_target, action, "tap")
@@ -781,7 +791,7 @@ def _tap_button(action: str, client_for_target, *, danger: bool = False,
         .set_text(said)
 
 
-async def _say(client_for_target, action: str, phase: str) -> None:
+async def _say(client_for_target: Callable[[], Any], action: str, phase: str) -> None:
     """One press, one renewal or one release, at whichever machine is aimed at.
 
     A failure is reported once and the gesture is abandoned rather than retried: a

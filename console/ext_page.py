@@ -13,6 +13,7 @@ nobody asks while using it.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from nicegui import run, ui
@@ -22,7 +23,7 @@ from console import ext_action, offload, panel
 from console.api import ApiClient
 
 
-def build(extension: dict, back) -> None:
+def build(extension: dict, back: Any) -> None:
     """Draw the page for one extension."""
     name = str(extension.get("name") or "")
     surfaces = dict(extension.get("surfaces") or {})
@@ -82,12 +83,13 @@ def _settings(name: str, surfaces: dict) -> None:
     ui.timer(0, draw, once=True)
 
 
-def _control(client, base: str, key: str, field: dict, redraw):
+def _control(client: Any, base: str, key: str, field: dict,
+             redraw: Callable[[], Awaitable[None]]) -> Any:
     """One setting, in the control its type asks for."""
     kind = str(field.get("type") or "string")
     value = field.get("value")
 
-    async def save(new_value) -> None:
+    async def save(new_value: Any) -> None:
         try:
             await run.io_bound(client.ext_put, base, {"values": {key: new_value}})
         except Exception as exc:  # noqa: BLE001
@@ -104,7 +106,7 @@ def _control(client, base: str, key: str, field: dict, redraw):
                        placeholder=str(field.get("placeholder") or ""))
 
 
-def _aside(text: str):
+def _aside(text: str) -> Any:
     def draw() -> None:
         ui.label(text).classes("console-help")
     return draw
@@ -156,7 +158,7 @@ def _state(name: str, surfaces: dict) -> None:
     ui.timer(0, draw, once=True)
 
 
-def _row(client, base: str, row: dict, redraw) -> None:
+def _row(client: Any, base: str, row: dict, redraw: Callable[[], Awaitable[None]]) -> None:
     async def press(key: str) -> None:
         try:
             await run.io_bound(client.ext_post, f"{base}/{key}",

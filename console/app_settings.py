@@ -21,6 +21,7 @@ from nicegui import run, ui
 
 from common.i18n import t
 from console import confirm, offload, panel
+from console.data import Library
 
 # One definition of both: the launcher's rail and this dialog are the same surface at
 # two scopes, and two spellings of "a table is playing" would drift.
@@ -45,7 +46,7 @@ def scope_words(folder_tables: int, launcher_name: str) -> dict[str, str]:
     }
 
 
-async def open_for_table(library, *, launcher_id: str, launcher_name: str,
+async def open_for_table(library: Library, *, launcher_id: str, launcher_name: str,
                          table_id: str, folder_tables: int = 1,
                          on_done: Callable | None = None) -> None:
     if not launcher_id:
@@ -97,7 +98,7 @@ def _find(state: dict[str, Any], text: str, draw: Callable) -> Any:
     return draw()
 
 
-async def _fill(library, launcher_id: str, table_id: str, state: dict[str, Any],
+async def _fill(library: Library, launcher_id: str, table_id: str, state: dict[str, Any],
                 words: dict[str, str], draw: Callable) -> None:
     scope = state["scope"]
     try:
@@ -131,7 +132,7 @@ async def _fill(library, launcher_id: str, table_id: str, state: dict[str, Any],
             else t("console.app_settings.no_settings_show", value=(words[scope])))])
 
 
-async def _group_rows(library, launcher_id: str, table_id: str, scope: str,
+async def _group_rows(library: Library, launcher_id: str, table_id: str, scope: str,
                       rows: list[dict], values: dict, draw: Callable,
                       playing: bool = False) -> None:
     """One group's settings, with where each value comes from and the way off it."""
@@ -151,7 +152,7 @@ async def _group_rows(library, launcher_id: str, table_id: str, scope: str,
         panel.facts(ui, entries)
 
 
-def _control(library, launcher_id: str, table_id: str, scope: str, field: dict,
+def _control(library: Library, launcher_id: str, table_id: str, scope: str, field: dict,
              held: dict, draw: Callable, playing: bool = False) -> Callable[[], None]:
     """The control always shows the effective value: you never look at a number that is
     not the one the program will use."""
@@ -198,7 +199,7 @@ def _control(library, launcher_id: str, table_id: str, scope: str, field: dict,
         writable=not playing)
 
 
-def _aside(library, launcher_id: str, table_id: str, scope: str, field: dict,
+def _aside(library: Library, launcher_id: str, table_id: str, scope: str, field: dict,
            held: dict, draw: Callable,
            playing: bool = False) -> Callable[[], None] | None:
     from console import workbench
@@ -251,7 +252,7 @@ def _as_text(value: Any) -> str:
     return "" if value is None else str(value)
 
 
-async def confirm_new_table_file(library, launcher_id: str,
+async def confirm_new_table_file(library: Library, launcher_id: str,
                                  table_id: str) -> bool | None:
     """Asked before a table gets a file of its own, where a folder file is reaching it.
 

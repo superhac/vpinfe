@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from nicegui import run, ui
@@ -140,7 +141,7 @@ NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] 
 )
 
 
-def nav_for(features) -> list[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]]]:
+def nav_for(features: Any) -> list[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]]]:
     """The rail this install has. A group whose entries have all gone goes with them -
     a disclosure with nothing under it is a control that does nothing.
 
@@ -272,7 +273,8 @@ def _read_hub() -> dict[str, Any]:
 # Five minutes to reconnect, not the default three seconds: a suspended background tab
 # goes quiet for longer than that, and a page deleted under one comes back as a reload.
 # On each route, because the timeout is the page's and these are two pages.
-async def _took_a_drop(library, state: dict, redraw, drop) -> None:
+async def _took_a_drop(
+        library: Library, state: dict, redraw: Callable[[], None], drop: Any) -> None:
     """What a drop meant, and the conversation that follows it.
 
     Where somebody let go is the whole of the targeting: a row names that game whatever
@@ -341,7 +343,7 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
         await run.io_bound(library.abort_upload, drop.upload_id)
         return
 
-    async def done(_report) -> None:
+    async def done(_report: Any) -> None:
         library.forget_media(game_id) if game_id else None
         await run.io_bound(library.refresh_after_import)
         redraw()
@@ -353,7 +355,7 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
         on_done=done)
 
 
-def _drop_target(library, state: dict, drop) -> tuple[str, str, str]:
+def _drop_target(library: Library, state: dict, drop: Any) -> tuple[str, str, str]:
     """(game id, game folder, media kind) for where a drop landed.
 
     The row id is the id of whatever that grid's rows are about - a game under Games, a
@@ -1061,7 +1063,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         _mark_trouble(badges.get("launchers"), at_launchers)
         _mark_trouble(badges.get("locations"), at_locations)
 
-    def _mark_trouble(badge, items) -> None:
+    def _mark_trouble(badge: Any, items: Any) -> None:
         """Red, and a count rather than the warm one beside Devices: an update waiting is
         worth doing when you get to it, and this is something already broken. The reasons
         go in the tooltip because the entry is the only place they fit before the page.
@@ -1251,7 +1253,7 @@ def _show_group(open_now: bool, caret: Any, held: list) -> None:
             row.set_visibility(open_now)
 
 
-def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render,
+def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render: Callable[..., Any],
               labels: list, destinations: dict, badges: dict, nested: bool = False,
               held: list | None = None) -> None:
     def choose() -> None:

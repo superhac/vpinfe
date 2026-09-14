@@ -29,6 +29,7 @@ from nicegui import ui
 from common.i18n import t
 from console import devices as devices_page
 from console import offload, panel
+from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.logs")
 
@@ -42,7 +43,7 @@ RECORDS = 500
 LEVELS = ("", "DEBUG", "INFO", "WARNING", "ERROR")
 
 
-def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
+def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
     """The control bar, and the viewport under it."""
     held: dict[str, Any] = {
         "level": state.get("log_level", ""),
@@ -88,7 +89,7 @@ def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
              lambda: load() if held["follow"] and not held["source"] else None)
 
 
-def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
+def _draw_bar(bar: Any, held: dict[str, Any], reload: Callable[[], Any],
               state: dict[str, Any]) -> None:
     bar.clear()
     with bar:
@@ -150,7 +151,7 @@ def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
                 .tooltip(t("console.logs.where_file_reading_rest"))
 
 
-async def _draw(viewport, held: dict[str, Any]) -> None:
+async def _draw(viewport: Any, held: dict[str, Any]) -> None:
     # Only when already at the bottom. A tail that yanks you away from the line you are
     # reading is worse than no tail at all.
     at_bottom = True

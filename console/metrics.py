@@ -20,6 +20,7 @@ from nicegui import ui
 
 from common.i18n import t
 from console import offload, panel
+from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.metrics")
 
@@ -36,7 +37,7 @@ WINDOW_SECONDS = 600
 WARN, BAD = 75.0, 90.0
 
 
-def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
+def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
     """Drawn once, then updated in place.
 
     Clearing and rebuilding on every tick was the first attempt and it is wrong: the
@@ -127,14 +128,14 @@ def _fill(card: dict[str, Any], value: Any, series: list[Any], said: str) -> Non
     _spark(card["spark"], [one for one in series if one is not None])
 
 
-def _fill_disks(target, disks: list[dict[str, Any]]) -> None:
+def _fill_disks(target: Any, disks: list[dict[str, Any]]) -> None:
     target.clear()
     with target:
         for disk in disks:
             _disk_row(disk)
 
 
-def _draw_cards(target, held: dict[str, Any]) -> None:
+def _draw_cards(target: Any, held: dict[str, Any]) -> None:
     """What the switch reveals. Its own function so the switch above it is built once
     and never replaced under somebody's finger."""
     target.clear()
@@ -197,7 +198,7 @@ def _disk_row(disk: dict[str, Any]) -> None:
             .classes("text-xs opacity-60 shrink-0")
 
 
-def _spark(target, series: list[float]) -> None:
+def _spark(target: Any, series: list[float]) -> None:
     """The shape of the last few minutes, drawn as bars rather than a line.
 
     A number says where it is; this says whether it got there. Nothing at all until

@@ -278,7 +278,7 @@ def value_state(state: str, reason: str = "") -> Callable[[Any], None]:
     A tick and a cross rather than a chip: this is about the text in the box beside it,
     and a chip in the append slot would be a second control where a mark is wanted.
     """
-    def draw(_control) -> None:
+    def draw(_control: Any) -> None:
         pair = _VALUE_STATES.get(state)
         if pair is None:
             return

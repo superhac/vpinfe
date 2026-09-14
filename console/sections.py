@@ -83,7 +83,7 @@ def findings(library: Library) -> dict[str, list[dict[str, Any]]]:
     return out
 
 
-def _card(title: str):
+def _card(title: str) -> Any:
     card = ui.element("div").classes("console-card")
     with card:
         ui.label(title).classes("console-card-title")
@@ -378,7 +378,7 @@ STATE_WORDS = {"off": "word.off",
 QUIET_STATES = frozenset({"off"})
 
 
-def extensions(installed: list[dict], open_one=None) -> None:
+def extensions(installed: list[dict], open_one: Callable[..., Any] | None = None) -> None:
     if not installed:
         with ui.element("div").classes("console-card w-full"):
             ui.label(t("console.sections.nothing_installed")).classes("console-setting")
@@ -389,7 +389,7 @@ def extensions(installed: list[dict], open_one=None) -> None:
         _extension_card(found, open_one)
 
 
-def _extension_card(found: dict, open_one=None) -> None:
+def _extension_card(found: dict, open_one: Callable[..., Any] | None = None) -> None:
     """One extension, as somebody browsing what is installed needs it.
 
     Its name, what it is for, and what they can do with it. Not what it may reach: a
@@ -417,7 +417,7 @@ def _extension_card(found: dict, open_one=None) -> None:
         _actions(found, open_one)
 
 
-def _actions(found: dict, open_one=None) -> None:
+def _actions(found: dict, open_one: Callable[..., Any] | None = None) -> None:
     """The verbs this extension offers.
 
     Drawn where the extension is, rather than given a place of its own in the rail: an

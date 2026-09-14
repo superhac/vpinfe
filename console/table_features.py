@@ -25,7 +25,7 @@ UNUSED = "unused"
 UNKNOWN = "unknown"
 
 
-def states_in(rows) -> list[str]:
+def states_in(rows: list[dict[str, Any]]) -> list[str]:
     """The states this library draws, in the vocabulary's own order.
 
     A legend names what a reader can see. Two things are not that: a state that draws

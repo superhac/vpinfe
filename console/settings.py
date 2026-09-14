@@ -28,6 +28,7 @@ from common.labels import humanize
 from common.media_specs import media_label_map
 from console import binding_editor, deeplink, input_watch, offload, panel, theme_picker
 from console import commands as commands_help
+from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.settings")
 
@@ -55,7 +56,7 @@ VPS_NOTE = ("Matching, release lists and what the catalog offers are read from a
 # is not a design, and because reading this list is the cheapest way to notice that a
 # page is in the wrong group.
 
-async def _write(library, section: str, key: str, value: Any) -> bool:
+async def _write(library: Library, section: str, key: str, value: Any) -> bool:
     """One setting, written when it is set.
 
     No save bar: a control that changes a value writes it, which is what every other
@@ -229,7 +230,7 @@ def _by_group(options: list[dict]) -> list[dict]:
     return [option for group in ordered.values() for option in group]
 
 
-def _saver(source, section: str, key: str) -> Callable[[Any], Any]:
+def _saver(source: Any, section: str, key: str) -> Callable[[Any], Any]:
     """Write one setting to a config section, for the control grammar to call."""
     async def save(value: Any) -> bool:
         return await _write(source, section, key, value)
@@ -237,7 +238,7 @@ def _saver(source, section: str, key: str) -> Callable[[Any], Any]:
     return save
 
 
-def _kind_page(library, rerender: Callable[[], None], note: str,
+def _kind_page(library: Library, rerender: Callable[[], None], note: str,
                section: str, key: str, items: Callable[[Any], dict[str, str]],
                mode: str) -> None:
     """A switch per thing, over one list in the config.
@@ -253,7 +254,7 @@ def _kind_page(library, rerender: Callable[[], None], note: str,
              once=True)
 
 
-def _listed(value) -> set[str]:
+def _listed(value: Any) -> set[str]:
     """A stored list, however the config layer hands it over - a list from JSON, or the
     comma string the ini holds."""
     if isinstance(value, str):
@@ -261,7 +262,7 @@ def _listed(value) -> set[str]:
     return {str(item).strip() for item in (value or []) if str(item).strip()}
 
 
-async def _fill_kinds(library, rerender: Callable[[], None], body, note: str,
+async def _fill_kinds(library: Library, rerender: Callable[[], None], body: Any, note: str,
                       section: str, key: str,
                       items: Callable[[Any], dict[str, str]], mode: str) -> None:
     try:
@@ -306,7 +307,7 @@ async def _fill_kinds(library, rerender: Callable[[], None], body, note: str,
         panel.facts(ui, entries)
 
 
-async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
+async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
     """When the catalog was last asked, and the way to ask now.
 
     A schedule is a setting and the schema renders it; "do it now" is not a setting and
@@ -351,7 +352,7 @@ async def _vps_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, An
             (t("console.settings.last_checked"), checked)]
 
 
-async def _input_foot(library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
+async def _input_foot(library: Library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
     """The input detector, under the bindings that name what it sees.
 
     Here because it is the same question one row up asked backwards. A binding says
@@ -474,7 +475,7 @@ DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
 )
 
 
-def pages_for_features(features) -> list[tuple[str, DevicePage]]:
+def pages_for_features(features: Any) -> list[tuple[str, DevicePage]]:
     """(group, page) for every page the features an install has can answer for.
 
     `core` is held whatever arrives, including nothing. Identity and features are not
@@ -507,7 +508,7 @@ FEATURE_NOTES = {
 }
 
 
-def features_said(features) -> str:
+def features_said(features: Any) -> str:
     """What an install is for, in a person's words.
 
     `core` is left out: every install has it, so a list naming it prints the same word
@@ -534,7 +535,7 @@ IDENTITY_PAGE: DevicePage = (IDENTITY, "word.identity", BUILT_PAGE,
 IDENTITY_GROUP = "console.settings.install"
 
 
-def system_pages(features) -> list[tuple[str, DevicePage]]:
+def system_pages(features: Any) -> list[tuple[str, DevicePage]]:
     """This install's own index: identity first, then whatever its features can answer
     for."""
     return [(IDENTITY_GROUP, IDENTITY_PAGE), *pages_for_features(features)]
@@ -546,7 +547,7 @@ def _page_holding(section: str) -> str:
                  if section in page[3]), "")
 
 
-def pages_in_trouble(items) -> dict[str, list[Any]]:
+def pages_in_trouble(items: Any) -> dict[str, list[Any]]:
     """Unmet requirements, keyed by the page that carries the setting.
 
     A requirement whose setting is on no page is logged rather than counted: a badge
@@ -568,7 +569,7 @@ def pages_in_trouble(items) -> dict[str, list[Any]]:
     return found
 
 
-def field_marks(items, checks: list[dict]) -> dict[tuple[str, str], dict]:
+def field_marks(items: Any, checks: list[dict]) -> dict[tuple[str, str], dict]:
     """What to draw beside each path field: what the disk said, then what a feature needs.
 
     The second overrides the first for the case that matters. A blank path draws nothing
@@ -601,7 +602,7 @@ def local_trouble() -> list[Any]:
         locations=[(one, locations.state_of(one)) for one in held])
 
 
-def build_library_page(library, rerender: Callable[[], None], key: str,
+def build_library_page(library: Library, rerender: Callable[[], None], key: str,
                        kind: str) -> None:
     """A library page, drawn where a device's rail asks for it.
 
@@ -626,7 +627,7 @@ def build_library_page(library, rerender: Callable[[], None], key: str,
     _kind_page(library, rerender, note, "", name, items, mode)
 
 
-def section_rows(source, section: str, options: list[dict], values: dict,
+def section_rows(source: Any, section: str, options: list[dict], values: dict,
                  writable: bool, rerender: Callable[[], None],
                  checks: dict[tuple[str, str], dict] | None = None,
                  suggestions: dict[str, Any] | None = None,
@@ -680,7 +681,7 @@ def section_rows(source, section: str, options: list[dict], values: dict,
     return entries
 
 
-async def build_device_page(source, context: dict[str, Any], schema: list[dict],
+async def build_device_page(source: Any, context: dict[str, Any], schema: list[dict],
                             values: dict, sections: tuple[str, ...],
                             checks: dict[tuple[str, str], dict] | None = None,
                             suggestions: dict[str, Any] | None = None) -> None:
@@ -727,7 +728,7 @@ async def build_device_page(source, context: dict[str, Any], schema: list[dict],
 
 
 
-def build_system(library, state: dict[str, Any], redraw: Callable[[], None],
+def build_system(library: Library, state: dict[str, Any], redraw: Callable[[], None],
                  discovery: dict[str, Any]) -> None:
     """This install's own configuration: the index, and the page it opens.
 
@@ -779,16 +780,16 @@ def build_system(library, state: dict[str, Any], redraw: Callable[[], None],
              once=True)
 
 
-def _said(items) -> str:
+def _said(items: Any) -> str:
     """The reasons behind one mark, in the words the check already wrote for the person
     who has to fix them. De-duplicated: two features needing one setting is two entries
     saying the same sentence."""
     return " ".join(dict.fromkeys(item.reason for item in items if item.reason))
 
 
-async def _draw_system_page(library, redraw: Callable[[], None], body,
+async def _draw_system_page(library: Library, redraw: Callable[[], None], body: Any,
                             page: DevicePage, discovery: dict[str, Any],
-                            trouble) -> None:
+                            trouble: Any) -> None:
     key, _label, kind, sections, _feature = page
     if key == IDENTITY:
         with body:
@@ -815,7 +816,7 @@ async def _draw_system_page(library, redraw: Callable[[], None], body,
                                 suggestions=offered)
 
 
-async def _suggestions(library, schema: list[dict],
+async def _suggestions(library: Library, schema: list[dict],
                        sections: tuple[str, ...]) -> dict[str, Any]:
     """The live lists this page's settings say are worth offering.
 
@@ -866,7 +867,7 @@ def _install_label(install: dict) -> str:
     return f"{name} - {url}" if name else url
 
 
-async def _identity_page(library, reported: str,
+async def _identity_page(library: Library, reported: str,
                          redraw: Callable[[], None]) -> None:
     """What this install is called, and what it is for."""
     try:

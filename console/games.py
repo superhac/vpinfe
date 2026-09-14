@@ -458,7 +458,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                              lambda: table.run_grid_method("deselectAll"))
         actions.set_visibility(False)
 
-    def on_select_rows(rows_selected: list[dict[str, Any]]):
+    def on_select_rows(rows_selected: list[dict[str, Any]]) -> None:
         selected[:] = rows_selected
         actions.set_visibility(bool(rows_selected))
         count.text = (t("console.games.selected", len=(len(rows_selected)), len2=(len(rows)))
@@ -466,7 +466,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
 
     by_id = {row["id"]: row for row in rows}
 
-    def focused(event) -> Any:
+    def focused(event: Any) -> Any:
         """The row the keyboard or a click landed on, and the part of it in question.
 
         A media cell is a question about one slot, so the panel opens there - out of a
@@ -485,7 +485,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                 state["section"] = section
         return on_select(row)
 
-    def zoom_media(event) -> None:
+    def zoom_media(event: Any) -> None:
         """Enlarge the file a cell is showing - the same viewer the media map opens."""
         args = event.args if isinstance(event.args, dict) else {}
         game_id, kind = str(args.get("game") or ""), str(args.get("kind") or "")
@@ -1159,7 +1159,8 @@ def _by_group(columns: list[dict[str, Any]]) -> list[tuple[str, list[dict]]]:
 
 def view_control(library: Any, scope: str,
                  presets: Mapping[str, list[str] | views.Preset],
-                 all_fields: list[str], columns: list[dict[str, Any]]):
+                 all_fields: list[str],
+                 columns: list[dict[str, Any]]) -> Any:
     """One control for how the rows are presented: which view, and what is in it.
 
     Built here in the toolbar and wired once the grid exists, because the widgets have
@@ -1369,7 +1370,7 @@ def _view_name(view: Any) -> str:
     return str(view.name or "")
 
 
-def _ask_name(save) -> None:
+def _ask_name(save: Callable[..., Any]) -> None:
     with ui.dialog() as dialog, ui.card():
         ui.label(t("console.games.save_view")).classes("console-card-title")
         # debounce=0 so the model is current the moment Save is pressed. Focus is put

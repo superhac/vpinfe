@@ -24,6 +24,7 @@ from nicegui import run, ui
 
 from common.i18n import t
 from console import confirm, offload, panel, settings
+from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.themes")
 
@@ -33,13 +34,13 @@ SCREENS = {1: t("console.themes.desktop"), 2: t("console.themes.two_screens"),
         3: t("console.themes.cabinet")}
 
 
-def build(library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
+def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
     body = ui.column().classes("w-full gap-3")
     ui.timer(0.01, lambda: _fill(library, state, redraw, body, refresh=False),
              once=True)
 
 
-async def _fill(library, state: dict[str, Any], redraw: Callable[[], None], body,
+async def _fill(library: Library, state: dict[str, Any], redraw: Callable[[], None], body: Any,
                 refresh: bool) -> None:
     try:
         found = await offload.io(library.themes, refresh)
@@ -67,7 +68,7 @@ async def _fill(library, state: dict[str, Any], redraw: Callable[[], None], body
             _card(library, state, redraw, body, theme)
 
 
-def _card(library, state: dict[str, Any], redraw: Callable[[], None], body,
+def _card(library: Library, state: dict[str, Any], redraw: Callable[[], None], body: Any,
           theme: dict[str, Any]) -> None:
     classes = t("console.themes.console_card_w_full")
     if theme["active"]:
@@ -135,7 +136,7 @@ def _said(theme: dict[str, Any]) -> str:
     return " · ".join(parts)
 
 
-def _actions(library, state: dict[str, Any], redraw: Callable[[], None], body,
+def _actions(library: Library, state: dict[str, Any], redraw: Callable[[], None], body: Any,
              theme: dict[str, Any]) -> None:
     key = theme["key"]
 
@@ -167,7 +168,7 @@ def _actions(library, state: dict[str, Any], redraw: Callable[[], None], body,
                 .props("flat dense no-caps size=sm color=negative")
 
 
-async def _install(library, key: str, again: Callable[[], Any]) -> None:
+async def _install(library: Library, key: str, again: Callable[[], Any]) -> None:
     ui.notify(t("console.themes.downloading", key=(key)), type="ongoing")
     try:
         await run.io_bound(library.install_theme, key)
@@ -178,7 +179,7 @@ async def _install(library, key: str, again: Callable[[], Any]) -> None:
     await again()
 
 
-async def _activate(library, theme: dict[str, Any], again: Callable[[], Any]) -> None:
+async def _activate(library: Library, theme: dict[str, Any], again: Callable[[], Any]) -> None:
     """Asked first, and the question says when it happens.
 
     The Manager UI restarts VPinFE here. This does not: a setting and a restart are two
@@ -200,7 +201,7 @@ async def _activate(library, theme: dict[str, Any], again: Callable[[], Any]) ->
     await again()
 
 
-async def _remove(library, theme: dict[str, Any], again: Callable[[], Any]) -> None:
+async def _remove(library: Library, theme: dict[str, Any], again: Callable[[], Any]) -> None:
     if not await confirm.ask(
             t("console.themes.remove", value=(theme['name'])),
             detail=t("console.themes.files_deleted_can_installed"),
@@ -215,7 +216,7 @@ async def _remove(library, theme: dict[str, Any], again: Callable[[], Any]) -> N
     await again()
 
 
-async def _configure(library, theme: dict[str, Any]) -> None:
+async def _configure(library: Library, theme: dict[str, Any]) -> None:
     """The theme's own options, drawn from what it declares.
 
     Its schema rather than ours: a theme can offer a control this install has never

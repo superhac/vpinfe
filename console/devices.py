@@ -456,7 +456,7 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
 # hand back fact rows, because what a device is and what may be asked of it belongs
 # with the device rather than with the panel that draws it.
 
-def _client_for(context: dict[str, Any]):
+def _client_for(context: dict[str, Any]) -> Any:
     """Who answers for this device. This install's own client for itself, the client
     that reaches it for anything else - both expose the same calls, which is what lets
     one page draw either."""
@@ -670,7 +670,7 @@ def connection_rows(device: dict[str, Any],
     return _connection_rows(device, reach)
 
 
-def update_checker(is_local: bool, client: Any):
+def update_checker(is_local: bool, client: Any) -> Any:
     """Whichever client can answer *this* device's update check.
 
     The local client is this process, and asking it to reach the network for a version

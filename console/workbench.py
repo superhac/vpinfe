@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path, PurePosixPath
@@ -1000,7 +1000,7 @@ def _offered_media(context: dict[str, Any]) -> dict[str, int]:
         return {}
 
 
-def _pick_slot(context: dict[str, Any], kind: str, draw) -> None:
+def _pick_slot(context: dict[str, Any], kind: str, draw: Any) -> None:
     """Pick a slot to see the detail of. Clicking the picked one again does nothing.
 
     It used to put the panel away, which made one control mean two things and cost the
@@ -1044,7 +1044,7 @@ def _spec(detail: dict[str, Any]) -> str:
 
 
 def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
-          detail: dict[str, Any] | None, draw,
+          detail: dict[str, Any] | None, draw: Any,
           differing: list[dict[str, Any]] | None = None) -> None:
     """One slot: the art at the size of the room, and what there is to know about it.
 
@@ -1306,7 +1306,7 @@ def _identity_rows(context: dict[str, Any]) -> None:
     found = game.get("discovered") or {}
     overrides = game.get("overrides") or {}
 
-    def save(key: str):
+    def save(key: str) -> Callable[[str], Awaitable[None]]:
         async def write(value: str) -> None:
             await _save_overrides(context, {key: value}, table=False)
         return write
@@ -2090,7 +2090,7 @@ def _table_override_rows(context: dict[str, Any], table: dict[str, Any],
     """What the user says about this file. None of these has a discovered value - each
     falls back to a setting that applies everywhere - so empty is the revert."""
 
-    def save(key: str):
+    def save(key: str) -> Callable[[Any], Awaitable[None]]:
         async def write(value: Any) -> None:
             await _save_overrides(context, {key: value}, table=True)
         return write
@@ -2229,7 +2229,7 @@ def _launcher_pick(context: dict[str, Any], table: dict[str, Any]) -> Callable[[
     return draw
 
 
-def _launchers_for_panel(library) -> list[dict[str, Any]]:
+def _launchers_for_panel(library: Library) -> list[dict[str, Any]]:
     """This install's launchers, with the default marked. Runs off the event loop.
 
     An empty list where the read fails: the panel is about a table, and a launcher list
@@ -2988,7 +2988,7 @@ def _config_group_label(key: str) -> Callable[[dict[str, Any]], str]:
     return said
 
 
-def _group(context: dict[str, Any], key: str):
+def _group(context: dict[str, Any], key: str) -> Any:
     return next((g for g in context.get("config_groups") or [] if g.key == key), None)
 
 
@@ -3038,7 +3038,7 @@ def _config_mark(held: dict, scope: str) -> Callable[[], None] | None:
     return None
 
 
-def _said_value(field, value: str) -> str:
+def _said_value(field: Any, value: str) -> str:
     """A value as somebody reads it rather than as it is stored. A switch is On or Off,
     never 1 or 0, and an enumerated setting is its own label."""
     if value == "":
@@ -3052,7 +3052,7 @@ def _said_value(field, value: str) -> str:
     return value
 
 
-def _clear_hint(held: dict, field) -> str:
+def _clear_hint(held: dict, field: Any) -> str:
     """What clearing it will leave in force, named rather than discovered by doing it."""
     where = held.get("fallback_scope") or ""
     said = _said_value(field, held.get("fallback") or "")
@@ -3065,7 +3065,7 @@ def _clear_hint(held: dict, field) -> str:
     return t("console.workbench.go_back", shown=(shown))
 
 
-def _beside(mark: Callable[[], None], held: dict, field,
+def _beside(mark: Callable[[], None], held: dict, field: Any,
             clear: Callable, playing: bool = False) -> Callable[[], None]:
     """The mark, and where it is somebody's own value, the way back off it.
 
@@ -3084,7 +3084,7 @@ def _beside(mark: Callable[[], None], held: dict, field,
     return draw
 
 
-def _run(clear: Callable, key: str):
+def _run(clear: Callable, key: str) -> Any:
     """`clear` builds the handler for one key, and a button wants the handler."""
     async def go() -> None:
         (await clear(key))()
@@ -3097,14 +3097,14 @@ def _run(clear: Callable, key: str):
 PLAYING_NOTE = "console.workbench.table_playing_machine_read"
 
 
-def _playing(library) -> bool:
+def _playing(library: Library) -> bool:
     try:
         return bool((library.play_state() or {}).get("launching"))
     except Exception:  # noqa: BLE001 - not knowing is not a reason to refuse to draw
         return False
 
 
-async def _config_rows(context: dict[str, Any], group) -> None:
+async def _config_rows(context: dict[str, Any], group: Any) -> None:
     """One group of the program's own settings, at the launcher scope.
 
     The value shown is always the one the program will use, never what this scope
@@ -3225,7 +3225,7 @@ def _as_text(value: Any) -> str:
     return "" if value is None else str(value)
 
 
-def _as_option(field) -> dict[str, Any]:
+def _as_option(field: Any) -> dict[str, Any]:
     """A declared field as the control grammar reads it. `choices` is a mapping so the
     label goes on screen where the stored value would otherwise be."""
     option: dict[str, Any] = {"key": field.key, "type": field.type,
@@ -3435,7 +3435,7 @@ async def _restore_dialog(held: list[dict], context: dict[str, Any],
     library = context["library"]
     launcher_id = context["launcher"]["launcher_id"]
 
-    async def put_back(name: str, dialog) -> None:
+    async def put_back(name: str, dialog: Any) -> None:
         dialog.close()
         if not await confirm.ask(
                 t("console.workbench.put_copy_back"),
@@ -3728,7 +3728,7 @@ def _image_slot(context: dict[str, Any], row: dict[str, Any]) -> None:
     library = context["library"]
     present = bool(row.get("image"))
 
-    async def upload(event) -> None:
+    async def upload(event: Any) -> None:
         import tempfile
         content = event.content.read()
         if not content:
@@ -3919,7 +3919,7 @@ def _axis_control(context: dict[str, Any], axis: dict[str, Any],
     values = list(axis.get("values") or [])
     summary = str(axis.get("summary") or "")
 
-    def changed(value) -> None:
+    def changed(value: Any) -> None:
         filters = _draft_filters(context, _collection(context))
         filters[name] = value
         context["draft"]["filters"] = filters
@@ -3957,7 +3957,7 @@ def _axis_control(context: dict[str, Any], axis: dict[str, Any],
     return draw
 
 
-def _selected(value) -> list[str]:
+def _selected(value: Any) -> list[str]:
     """A criterion as the list a multi-select shows. "All" is how a criterion says it
     constrains nothing, so it is an empty selection rather than a chip reading "All"."""
     if isinstance(value, list):
@@ -4146,7 +4146,7 @@ def _limit_control(context: dict[str, Any],
     """
     limit = row.get("limit")
 
-    async def save(value) -> None:
+    async def save(value: Any) -> None:
         if value in (None, ""):
             await _patch(context, {"clear_limit": True})
             return
@@ -4614,7 +4614,7 @@ def _member_action(context: dict[str, Any], member: dict[str, Any],
     tables = member.get("tables") or []
     table = str(tables[0].get("id", "")) if tables else ""
 
-    async def act(what, *args, said: str) -> None:
+    async def act(what: Any, *args: Any, said: str) -> None:
         try:
             await run.io_bound(what, *args)
         except Exception as exc:
