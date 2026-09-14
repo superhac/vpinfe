@@ -17,7 +17,7 @@ class TestVPXParser(unittest.TestCase):
             )
         }
 
-        parser.extractRomName(values)
+        parser.extract_rom_name(values)
 
         self.assertEqual(values["rom"], "mm_109c")
 
@@ -31,7 +31,7 @@ class TestVPXParser(unittest.TestCase):
             )
         }
 
-        parser.extractRomName(values)
+        parser.extract_rom_name(values)
 
         self.assertEqual(values["rom"], "active_first")
 
@@ -45,7 +45,7 @@ class TestVPXParser(unittest.TestCase):
             )
         }
 
-        parser.extractRomName(values)
+        parser.extract_rom_name(values)
 
         self.assertEqual(values["rom"], "quoted_ok")
 
@@ -58,14 +58,14 @@ class TestVPXParser(unittest.TestCase):
             )
         }
 
-        parser.extractRomName(values)
+        parser.extract_rom_name(values)
 
         self.assertEqual(values["rom"], "fallback_rom")
 
     def _detect(self, script: str) -> str:
         parser = VPXParser()
         values = {"game_data": script}
-        parser.runDetectors(values)
+        parser.run_detectors(values)
         return values["detect_pinmame"]
 
     def test_a_script_that_loads_vpm_drives_pinmame(self) -> None:
@@ -100,8 +100,8 @@ class TestVPXParser(unittest.TestCase):
             )
             values = {"game_data": "Const cGameName=\"embedded_active\""}
 
-            parser.loadSidecarVBCode(str(vpx_path), values)
-            parser.extractRomName(values)
+            parser.load_sidecar_vb_code(str(vpx_path), values)
+            parser.extract_rom_name(values)
 
             self.assertEqual(values["rom"], "sidecar_active")
 

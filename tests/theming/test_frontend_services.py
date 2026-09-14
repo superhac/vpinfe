@@ -205,9 +205,9 @@ class FrontendServiceTests(unittest.TestCase):
         parser_instance.getAllGames.return_value = [game]
         vps_instance = mock.Mock()
         vps_instance.__len__ = mock.Mock(return_value=0)
-        vps_instance.parseGameNameFromDir.return_value = {
+        vps_instance.parse_game_name_from_dir.return_value = {
             "name": "Unknown", "manufacturer": "", "year": ""}
-        vps_instance.lookupName.return_value = None
+        vps_instance.lookup_name.return_value = None
         logs = []
         ini = types.SimpleNamespace(config={"Settings": {"gamerootdir": "/games"}})
 

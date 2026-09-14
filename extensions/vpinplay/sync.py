@@ -67,7 +67,7 @@ def payload_for(game: dict, table: dict | None) -> dict | None:
             "runTime": _number(user.get("play_time_seconds")) // 60,
             "score": _score(user.get("score")),
         },
-        "vpxFile": {
+        "vpx_file": {
             "filename": _text(table.get("filename")),
             "filehash": _text(table.get("file_hash")),
             "version": _text(table.get("version")),

@@ -30,9 +30,9 @@ def list_missing_games(iniconfig: ConfigStore | None = None, log=None) -> None:
 
     games_found = []
     for game in games:
-        vps_search_data = vps.parseGameNameFromDir(game.gameDirName)
+        vps_search_data = vps.parse_game_name_from_dir(game.gameDirName)
         vps_data = (
-            vps.lookupName(
+            vps.lookup_name(
                 vps_search_data["name"],
                 vps_search_data["manufacturer"],
                 vps_search_data["year"],
@@ -69,9 +69,9 @@ def list_unknown_games(iniconfig: ConfigStore | None = None, log=None) -> None:
 
     current = 0
     for game in games:
-        vps_search_data = vps.parseGameNameFromDir(game.gameDirName)
+        vps_search_data = vps.parse_game_name_from_dir(game.gameDirName)
         vps_data = (
-            vps.lookupName(
+            vps.lookup_name(
                 vps_search_data["name"],
                 vps_search_data["manufacturer"],
                 vps_search_data["year"],

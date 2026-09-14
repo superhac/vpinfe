@@ -65,7 +65,7 @@ class EnrichmentTests(TempTree):
     def test_reading_fills_the_entry_in(self) -> None:
         game = self._game({"t2": {"id": "t2", "filename": VR}})
 
-        with patch("common.games.vpx_parser.VPXParser.singleFileExtract",
+        with patch("common.games.vpx_parser.VPXParser.single_file_extract",
                    return_value=PARSE):
             totals = enrich([game])
 
@@ -79,7 +79,7 @@ class EnrichmentTests(TempTree):
         game = self._game({"t2": {"id": "t2", "filename": VR,
                                   "hidden": True, "plays": 7}})
 
-        with patch("common.games.vpx_parser.VPXParser.singleFileExtract",
+        with patch("common.games.vpx_parser.VPXParser.single_file_extract",
                    return_value=PARSE):
             enrich([game])
 
@@ -91,7 +91,7 @@ class EnrichmentTests(TempTree):
     def test_a_file_that_will_not_read_is_counted_and_left_alone(self) -> None:
         game = self._game({"t2": {"id": "t2", "filename": VR}})
 
-        with patch("common.games.vpx_parser.VPXParser.singleFileExtract",
+        with patch("common.games.vpx_parser.VPXParser.single_file_extract",
                    return_value=None):
             totals = enrich([game])
 
@@ -110,7 +110,7 @@ class EnrichmentTests(TempTree):
             def log(self, message):
                 pass
 
-        with patch("common.games.vpx_parser.VPXParser.singleFileExtract",
+        with patch("common.games.vpx_parser.VPXParser.single_file_extract",
                    return_value=PARSE):
             enrich([game], _Reporter())
 

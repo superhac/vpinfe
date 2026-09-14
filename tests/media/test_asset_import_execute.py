@@ -185,7 +185,7 @@ class ImportExecuteTests(unittest.TestCase):
         plan = build_import_plan(analyze_path(zip_path), game_dir=game_dir)
         with mock.patch.object(asset_import_service, "refresh_game"), \
                 mock.patch.object(asset_import_service, "VPXParser") as parser:
-            parser.return_value.singleFileExtract.return_value = parsed
+            parser.return_value.single_file_extract.return_value = parsed
             execute_import_plan(plan, zip_path)
         return json.loads(info_path.read_text())
 

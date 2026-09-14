@@ -24,7 +24,7 @@ class VPXParser:
 
     logger = None
 
-    vpxPaths = {
+    VPX_PATHS = {
         'table_name': 'tableinfo/tablename',
         'version': 'tableinfo/tableversion',
         'author_name': 'tableinfo/authorname',
@@ -39,12 +39,12 @@ class VPXParser:
         'table_description': 'tableinfo/tabledescription',
     }
 
-    vpxPathsBinary = {
+    VPX_PATHS_BINARY = {
         'game_data': 'gamestg/gamedata',
         # 'gameStgVersion': 'gamestg/version'
     }
 
-    derivedPaths = {
+    DERIVED_PATHS = {
         'rom': '',
         'filename': '',
         'vbs_hash': '',
@@ -62,11 +62,11 @@ class VPXParser:
     # -------------------------------
     # Helpers
     # -------------------------------
-    def decodeBytesToString(self, fileio):
+    def decode_bytes_to_string(self, fileio):
         text = fileio.read().decode("latin-1")
         return text.replace('\x00', '')
 
-    def decodeBytesToInt(self, fileio):
+    def decode_bytes_to_int(self, fileio):
         # not implemented yet
         pass
 
@@ -86,62 +86,62 @@ class VPXParser:
     # -------------------------------
     # Loading / extracting
     # -------------------------------
-    def loadGameValues(self, vpxFileValues, ole):
-        for key, path in self.vpxPaths.items():
+    def load_game_values(self, vpx_file_values, ole):
+        for key, path in self.VPX_PATHS.items():
             if ole.exists(path):
                 with ole.openstream(path) as file:
-                    vpxFileValues[key] = self.decodeBytesToString(file)
+                    vpx_file_values[key] = self.decode_bytes_to_string(file)
             else:
-                vpxFileValues[key] = ""
+                vpx_file_values[key] = ""
 
-    def loadVBCode(self, ole, vpxFileValues):
-        with ole.openstream(self.vpxPathsBinary['game_data']) as file:
+    def load_vb_code(self, ole, vpx_file_values):
+        with ole.openstream(self.VPX_PATHS_BINARY['game_data']) as file:
             data = file.read()
 
         offset = self.find_code_offset_after(data)
         if offset == -1:
-            vpxFileValues['game_data'] = ""
+            vpx_file_values['game_data'] = ""
             return
 
         length = int.from_bytes(data[offset:offset + 4], "little", signed=True)
         vbscript = data[offset + 4:offset + 4 + length].decode("utf-8", errors="ignore")
-        vpxFileValues['game_data'] = self.ensure_msdos_line_endings(vbscript)
+        vpx_file_values['game_data'] = self.ensure_msdos_line_endings(vbscript)
 
-    def loadSidecarVBCode(self, vpxFile, vpxFileValues):
-        vbs_path = pathlib.Path(vpxFile).with_suffix(".vbs")
+    def load_sidecar_vb_code(self, vpx_file, vpx_file_values):
+        vbs_path = pathlib.Path(vpx_file).with_suffix(".vbs")
         if not vbs_path.exists():
             return
 
         vbscript = vbs_path.read_bytes().decode("utf-8-sig", errors="ignore")
-        vpxFileValues['game_data'] = self.ensure_msdos_line_endings(vbscript)
+        vpx_file_values['game_data'] = self.ensure_msdos_line_endings(vbscript)
 
-    def calcCodeHash(self, vpxFileValues):
-        vpxFileValues['vbs_hash'] = hashlib.sha256(
-            vpxFileValues['game_data'].encode("utf-8")
+    def calc_code_hash(self, vpx_file_values):
+        vpx_file_values['vbs_hash'] = hashlib.sha256(
+            vpx_file_values['game_data'].encode("utf-8")
         ).hexdigest()
 
-    def extractFile(self, file):
-        vpxFileValues = {
+    def extract_file(self, file):
+        vpx_file_values = {
             'filename': os.path.basename(file),
             'file_hash': self.sha256sum(file),
         }
 
         with olefile.OleFileIO(file) as ole:
-            self.loadGameValues(vpxFileValues, ole)
-            self.loadVBCode(ole, vpxFileValues)
+            self.load_game_values(vpx_file_values, ole)
+            self.load_vb_code(ole, vpx_file_values)
 
-        self.loadSidecarVBCode(file, vpxFileValues)
-        self.calcCodeHash(vpxFileValues)
-        self.extractRomName(vpxFileValues)
-        self.runDetectors(vpxFileValues)
+        self.load_sidecar_vb_code(file, vpx_file_values)
+        self.calc_code_hash(vpx_file_values)
+        self.extract_rom_name(vpx_file_values)
+        self.run_detectors(vpx_file_values)
 
-        return vpxFileValues
+        return vpx_file_values
 
     # -------------------------------
     # Extraction helpers
     # -------------------------------
     @staticmethod
-    def stripVBScriptComments(script):
+    def strip_vbscript_comments(script):
         lines = []
         for line in script.splitlines():
             code = []
@@ -164,20 +164,20 @@ class VPXParser:
             lines.append("".join(code))
         return "\n".join(lines)
 
-    def extractRomName(self, vpxFileValues):
-        game_data = self.stripVBScriptComments(vpxFileValues['game_data'])
+    def extract_rom_name(self, vpx_file_values):
+        game_data = self.strip_vbscript_comments(vpx_file_values['game_data'])
         m = re.search(r'(?i)c?gamename\s*=\s*"([^"]+)"', game_data)
         m_opt = re.search(r'(?i)c?OptRom\s*=\s*"([^\s]+)"', game_data)
 
         if m:
-            vpxFileValues['rom'] = m.group(1)
+            vpx_file_values['rom'] = m.group(1)
         elif m_opt:
-            vpxFileValues['rom'] = m_opt.group(1)
+            vpx_file_values['rom'] = m_opt.group(1)
         else:
-            vpxFileValues['rom'] = ""
+            vpx_file_values['rom'] = ""
 
-    def runDetectors(self, vpxFileValues):
-        game_data_lower = vpxFileValues['game_data'].lower()
+    def run_detectors(self, vpx_file_values):
+        game_data_lower = vpx_file_values['game_data'].lower()
         detectors = {
             'detect_nfozzy': 'class flipperpolarity',
             'detect_fleep': 'rubberstrongsoundfactor',
@@ -188,27 +188,27 @@ class VPXParser:
             'detect_flex': 'flexdmd',
         }
         for key, token in detectors.items():
-            vpxFileValues[key] = "true" if token in game_data_lower else "false"
+            vpx_file_values[key] = "true" if token in game_data_lower else "false"
 
         # Whether the script drives the PinMAME emulator, as opposed to declaring a
         # rom name only as a DOF key. On the comment-stripped script, unlike the
         # detectors above: EM tables commonly carry commented-out VPM code, and a
         # dead LoadVPM must not read as a live dependency.
-        stripped_lower = self.stripVBScriptComments(vpxFileValues['game_data']).lower()
+        stripped_lower = self.strip_vbscript_comments(vpx_file_values['game_data']).lower()
         drives_pinmame = ("loadvpm" in stripped_lower
                           or "vpminit" in stripped_lower
                           or re.search(r'createobject\s*\(\s*"vpinmame\.controller"',
                                        stripped_lower) is not None)
-        vpxFileValues['detect_pinmame'] = "true" if drives_pinmame else "false"
+        vpx_file_values['detect_pinmame'] = "true" if drives_pinmame else "false"
 
     # -------------------------------
     # Bulk ops
     # -------------------------------
-    def singleFileExtract(self, vpxFile):
-        if not os.path.exists(vpxFile):
-            logger.warning("File not found: %s", vpxFile)
+    def single_file_extract(self, vpx_file):
+        if not os.path.exists(vpx_file):
+            logger.warning("File not found: %s", vpx_file)
             return None
-        if not olefile.isOleFile(vpxFile):
-            logger.warning("Not an OLE file: %s", vpxFile)
+        if not olefile.isOleFile(vpx_file):
+            logger.warning("Not an OLE file: %s", vpx_file)
             return None
-        return self.extractFile(vpxFile)
+        return self.extract_file(vpx_file)

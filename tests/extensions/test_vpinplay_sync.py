@@ -66,7 +66,7 @@ class PayloadTests(unittest.TestCase):
 
     def test_the_dates_a_catalog_tells_builds_apart_by(self) -> None:
         """A mod saved today can be a release from years ago."""
-        found = sync.payload_for(GAME, TABLE)["vpxFile"]
+        found = sync.payload_for(GAME, TABLE)["vpx_file"]
 
         self.assertEqual(found["releaseDate"], "2020-01-01")
         self.assertEqual(found["saveDate"], "2021-02-03")
@@ -75,7 +75,7 @@ class PayloadTests(unittest.TestCase):
     def test_their_spelling_of_the_features_is_used(self) -> None:
         """Scorbit is the product; the service spells its field Scorebit. A name that
         drifts is dropped in silence by their models rather than refused."""
-        found = sync.payload_for(GAME, TABLE)["vpxFile"]
+        found = sync.payload_for(GAME, TABLE)["vpx_file"]
 
         self.assertTrue(found["detectScorebit"])
         self.assertTrue(found["detectNfozzy"])
@@ -85,7 +85,7 @@ class PayloadTests(unittest.TestCase):
         """Ours is three-valued; theirs is a boolean. Null has to become something and
         false is the only honest choice - claiming a feature nobody looked for is worse
         than under-reporting it."""
-        found = sync.payload_for(GAME, TABLE)["vpxFile"]
+        found = sync.payload_for(GAME, TABLE)["vpx_file"]
 
         self.assertIs(found["detectLUT"], False)
         self.assertIs(found["detectFlex"], False)
@@ -95,7 +95,7 @@ class PayloadTests(unittest.TestCase):
         found = sync.payload_for(GAME, None)
 
         self.assertEqual(found["info"]["vpsId"], "abcd1234")
-        self.assertEqual(found["vpxFile"]["filename"], "")
+        self.assertEqual(found["vpx_file"]["filename"], "")
 
 
     def test_only_a_reading_off_the_hardware_counts_as_a_score(self) -> None:

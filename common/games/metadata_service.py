@@ -72,9 +72,9 @@ def build_metadata(
         if progress_cb:
             reporter.progress(current, total, f"Processing {game.gameDirName}")
 
-        vpsSearchData = vps.parseGameNameFromDir(game.gameDirName)
+        vpsSearchData = vps.parse_game_name_from_dir(game.gameDirName)
         vpsData = (
-            vps.lookupName(
+            vps.lookup_name(
                 vpsSearchData["name"],
                 vpsSearchData["manufacturer"],
                 vpsSearchData["year"],
@@ -89,7 +89,7 @@ def build_metadata(
             continue
 
         log(f"Parsing VPX file: {game.fullPathVPXfile}")
-        vpxData = parservpx.singleFileExtract(game.fullPathVPXfile)
+        vpxData = parservpx.single_file_extract(game.fullPathVPXfile)
 
         if not vpxData:
             log(f"  - VPX file not found or failed to parse: {game.fullPathVPXfile}")
@@ -109,7 +109,7 @@ def build_metadata(
         # alone (common/online/vpsdb_media.py).
         if downloadMedia and not userMedia:
             try:
-                vps.downloadMediaForGame(game, vpsData["id"], meta_config=meta)
+                vps.download_media_for_game(game, vpsData["id"], meta_config=meta)
                 log("Downloaded media")
             except KeyError:
                 log("No media found")

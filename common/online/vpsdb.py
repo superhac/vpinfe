@@ -19,34 +19,34 @@ class VPSdb:
     along with associated media assets via VPinMediaDB.
     """
 
-    rootGameDir = None
+    root_game_dir = None
     data = None
-    _vpinfeConfigStore = None
+    _vpinfe_config_store = None
 
-    vpsUrlLastUpdate = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
-    vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
-    vpinmdbUrl = vpsdb_media.MANIFEST_URL
+    VPS_LAST_UPDATE_URL = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
+    VPS_DB_URL = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
+    VPINMDB_URL = vpsdb_media.MANIFEST_URL
 
-    def __init__(self, rootGameDir, vpinfeConfigStore):
+    def __init__(self, root_game_dir, vpinfe_config_store):
         logger.info("Initializing VPSdb")
 
-        self._vpinfeConfigStore = vpinfeConfigStore
+        self._vpinfe_config_store = vpinfe_config_store
         self._config_dir = CONFIG_DIR
         self._config_dir.mkdir(parents=True, exist_ok=True)
         self._cache = VPSDatabaseCache(
             self._config_dir,
-            self._vpinfeConfigStore,
-            db_url=VPSdb.vpsUrldb,
-            last_update_url=VPSdb.vpsUrlLastUpdate,
+            self._vpinfe_config_store,
+            db_url=VPSdb.VPS_DB_URL,
+            last_update_url=VPSdb.VPS_LAST_UPDATE_URL,
         )
         self._vpsdb_path = self._cache.path
-        self.rootGameDir = rootGameDir
+        self.root_game_dir = root_game_dir
         self.data = self._cache.ensure_current()
         logger.info("Total VPSdb entries: %s", len(self.data))
         self._write_manufacturer_reference()
 
         # Setup preferences
-        media_config = MediaConfig.from_config(self._vpinfeConfigStore)
+        media_config = MediaConfig.from_config(self._vpinfe_config_store)
         self.playfieldvariant = media_config.playfield_variant
         self.playfieldresolution = media_config.playfield_resolution
         self.playfieldvideoresolution = media_config.playfield_video_resolution
@@ -57,7 +57,7 @@ class VPSdb:
             self.playfieldvideoresolution,
         )
 
-        self.vpinmediadbjson = self.downloadMediaJson()
+        self.vpinmediadbjson = self.download_media_json()
         self._media_downloader = VPSMediaDownloader(
             self.vpinmediadbjson,
             playfieldvariant=self.playfieldvariant,
@@ -92,7 +92,7 @@ class VPSdb:
 
     # ----------------------------------------------------------------------
     # Game lookups
-    def lookupName(self, name, manufacturer, year):
+    def lookup_name(self, name, manufacturer, year):
         """Fuzzy search for a game by name, manufacturer, and year."""
         if not all((name, manufacturer, year)):
             return None
@@ -113,7 +113,7 @@ class VPSdb:
         logger.debug("No match found for: %s", name)
         return None
 
-    def parseGameNameFromDir(self, directory_name):
+    def parse_game_name_from_dir(self, directory_name):
         """
         Parses a directory name of format: 'Name (Manufacturer Year)'
         and ignores any suffix text after that block.
@@ -131,32 +131,32 @@ class VPSdb:
 
     # ----------------------------------------------------------------------
     # Remote content handling
-    def downloadMediaJson(self):
+    def download_media_json(self):
         """Downloads the VPinMediaDB JSON index."""
-        return VPinMediaDatabase(self.vpinmdbUrl).load()
+        return VPinMediaDatabase(self.VPINMDB_URL).load()
 
-    def downloadDB(self):
+    def download_db(self):
         """Downloads the VPS database JSON."""
         self._cache.download_db()
 
-    def downloadLastUpdate(self):
+    def download_last_update(self):
         """Fetches the last update version string from VPSdb."""
         return self._cache.fetch_last_update()
 
-    def downloadMediaFile(self, gameId, url, filename):
+    def download_media_file(self, game_id, url, filename):
         """Downloads a single media file by URL."""
-        self._media_downloader.download_media_file(gameId, url, filename)
+        self._media_downloader.download_media_file(game_id, url, filename)
 
     # ----------------------------------------------------------------------
     # Local file helpers
-    def fileExists(self, path):
+    def file_exists(self, path):
         return self._media_downloader.file_exists(path)
 
-    def downloadMediaForGame(self, game, id, meta_config=None):
+    def download_media_for_game(self, game, id, meta_config=None):
         """Download all associated media for a given game."""
         self._media_downloader.download_media_for_game(game, id, meta_config)
 
     # ----------------------------------------------------------------------
-    def updateGame(self, name, manufacturer, year):
+    def update_game(self, name, manufacturer, year):
         """UI hook: updates progress label (requires UI integration)."""
         self.progress_game_label.config(text=f"{name}\n({manufacturer} {year})")

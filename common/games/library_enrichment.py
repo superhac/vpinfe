@@ -1,7 +1,7 @@
 """Reading the tables discovery found, so an entry says more than its own name.
 
 Discovery is cheap because it only compares listings. This is the other half and it is
-not cheap: `extractFile` hashes the whole `.vpx` to fill `file_hash`, so enriching one
+not cheap: `extract_file` hashes the whole `.vpx` to fill `file_hash`, so enriching one
 table is a full file read. That is why this never runs inline - it belongs on a job,
 where it can report progress and be watched.
 
@@ -48,7 +48,7 @@ def pending(games) -> list[tuple[object, str, str]]:
 def _read(parser, game, filename: str) -> dict | None:
     path = Path(str(game.fullPathGame or "")) / filename
     try:
-        return parser.singleFileExtract(str(path))
+        return parser.single_file_extract(str(path))
     except Exception:
         logger.exception("Could not read %s", path)
         return None
@@ -71,7 +71,7 @@ def read_one(table: Path) -> dict | None:
     wrote the file it just copied.
     """
     try:
-        return _parser().singleFileExtract(str(table))
+        return _parser().single_file_extract(str(table))
     except Exception:
         logger.exception("Could not read %s", table)
         return None

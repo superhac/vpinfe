@@ -366,7 +366,7 @@ def associate_vps_to_folder(
 
     vpx_file = _find_vpx_file(game_dir, recorded)
     parser = VPXParser()
-    vpxdata = parser.singleFileExtract(str(vpx_file))
+    vpxdata = parser.single_file_extract(str(vpx_file))
 
     meta = MetaConfig(str(meta_path))
     meta.write_config_meta({"vpsdata": vps_entry, "vpxdata": vpxdata})
@@ -395,7 +395,7 @@ def associate_vps_to_folder(
                 self.DMDVideoPath = None
                 self.AudioPath = None
 
-        vps.downloadMediaForGame(
+        vps.download_media_for_game(
             _LightGame(game_dir, vpx_file), vps_entry.get("id"), meta_config=meta)
 
     from common.games.media_service import invalidate_media_cache

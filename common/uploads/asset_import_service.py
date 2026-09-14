@@ -581,7 +581,7 @@ def _record_replaced_table(game_dir: Path, vpx: Path, removed: str | None) -> No
     """
     try:
         meta = MetaConfig(str(game_dir / f"{game_dir.name}.info"))
-        parsed = VPXParser().singleFileExtract(str(vpx))
+        parsed = VPXParser().single_file_extract(str(vpx))
         if parsed or removed:
             meta.replace_table(removed, vpx.name, parsed)
     except Exception:
@@ -595,7 +595,7 @@ def _record_patched_table(game_dir: Path, vpx: Path, base_file: str, base_hash: 
     """
     try:
         meta = MetaConfig(str(game_dir / f"{game_dir.name}.info"))
-        parsed = VPXParser().singleFileExtract(str(vpx))
+        parsed = VPXParser().single_file_extract(str(vpx))
         if parsed:
             # A failed parse leaves the entry unparsed rather than filled with empties.
             meta.refresh_table(vpx.name, parsed)

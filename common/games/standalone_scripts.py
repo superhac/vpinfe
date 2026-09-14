@@ -52,7 +52,7 @@ class StandaloneScripts:
 
     """The community script patches, fetched and applied to a table that needs one."""
 
-    hashsUrl = "https://raw.githubusercontent.com/jsm174/vpx-standalone-scripts/refs/heads/master/hashes.json"
+    HASHES_URL = "https://raw.githubusercontent.com/jsm174/vpx-standalone-scripts/refs/heads/master/hashes.json"
 
     def __init__(self, games, progress_cb=None, auto_run: bool = True):
         self.hashes = None
@@ -62,9 +62,9 @@ class StandaloneScripts:
         if auto_run:
             self.apply_patches()
 
-    def downloadHashes(self):
+    def download_hashes(self):
         try:
-            self.hashes = get_json(StandaloneScripts.hashsUrl)
+            self.hashes = get_json(StandaloneScripts.HASHES_URL)
             logger.info(
                 "Retrieved hash file from VPX-Standalone-Scripts with %s patched tables.",
                 len(self.hashes))
@@ -73,14 +73,11 @@ class StandaloneScripts:
             logger.warning("Failed to download hash file from VPX-Standalone-Scripts")
         return self.hashes
 
-    def download_hashes(self):
-        return self.downloadHashes()
-
     def apply_patches(self):
-        self.downloadHashes()
-        self.checkForPatches()
+        self.download_hashes()
+        self.check_for_patches()
 
-    def checkForPatches(self):
+    def check_for_patches(self):
          if not self.hashes:
              return
          total = len(self.games) if self.games else 0
@@ -95,39 +92,39 @@ class StandaloneScripts:
              basepath = game.fullPathGame
              try:
                 meta = MetaConfig(basepath+"/"+game.gameDirName+".info")
-                vpxFileName = os.path.basename(game.fullPathVPXfile)
-                vpxFileVBSHash = meta.game_file_value(vpxFileName, 'vbs_hash')
-                if not vpxFileVBSHash:
+                vpx_file_name = os.path.basename(game.fullPathVPXfile)
+                vpx_file_vbs_hash = meta.game_file_value(vpx_file_name, 'vbs_hash')
+                if not vpx_file_vbs_hash:
                     raise KeyError('vbs_hash')
                 logger.info("Checking %s", game.gameDirName)
                 # One matching rule, shared with what the report offers. Two would be
                 # two answers to "does this table need a fix", and the one somebody was
                 # shown would not be the one that ran.
-                state, patch = state_of(game.fullPathVPXfile, vpxFileVBSHash, self.hashes)
+                state, patch = state_of(game.fullPathVPXfile, vpx_file_vbs_hash, self.hashes)
                 if state == ALREADY:
                     logger.info("A .vbs sidecar file already exists for that table. Assuming it is a patch.")
                     try:
-                        meta.set_table_value(vpxFileName, 'patch_applied', True)
+                        meta.set_table_value(vpx_file_name, 'patch_applied', True)
                     except Exception:
                         pass
                 elif state == OFFERED:
                     logger.info("Found a match for %s", game.fullPathVPXfile)
-                    self.downloadPatch(os.path.splitext(game.fullPathVPXfile)[0] + ".vbs",
+                    self.download_patch(os.path.splitext(game.fullPathVPXfile)[0] + ".vbs",
                                        patch["patched"]["url"])
                     try:
-                        meta.set_table_value(vpxFileName, 'patch_applied', True)
+                        meta.set_table_value(vpx_file_name, 'patch_applied', True)
                     except Exception:
                         pass
              except KeyError:
                  pass
 
-    def checkIfVBSFileExists(self, file):
+    def check_if_vbs_file_exists(self, file):
         if file.is_file():
             return True
         else:
             return False
 
-    def downloadPatch(self, filename, url):
+    def download_patch(self, filename, url):
         #logger.debug(f"Patched file installed: {filename}")
         try:
             download_file(url, Path(filename), chunk_size=1024)
@@ -159,7 +156,7 @@ def offered_for(games, hashes=None) -> dict:
     to do.
     """
     if hashes is None:
-        hashes = StandaloneScripts(games=[], auto_run=False).downloadHashes()
+        hashes = StandaloneScripts(games=[], auto_run=False).download_hashes()
     if not hashes:
         return {"reachable": False, "offered": [], "already": 0, "checked": 0}
 
