@@ -120,7 +120,8 @@ def read_config(root: Path | str) -> tuple[list[dict], list[str]]:
         return [], notes
 
     parser = configparser.ConfigParser(strict=False, interpolation=None)
-    parser.optionxform = str
+    # Assignment is configparser's own way to keep key case; typeshed says method.
+    parser.optionxform = str  # type: ignore[method-assign,assignment]
     try:
         parser.read_string(text)
     except configparser.Error as exc:
@@ -215,9 +216,9 @@ def read_pinbally_config(path: Path) -> tuple[list[dict], list[str]]:
     for line in text.splitlines():
         if line.lstrip().startswith("#"):
             continue
-        found = _PINBALLY_LINE.match(line)
-        if found:
-            number, key, value = found.groups()
+        matched = _PINBALLY_LINE.match(line)
+        if matched:
+            number, key, value = matched.groups()
             systems.setdefault(number, {})[(key or "name").lower()] = value
 
     found = []
@@ -285,8 +286,10 @@ def _game_from(element, tables: tuple[dict[str, str], dict[str, str]]) -> Source
         # extension is not recorded, so the listing is asked rather than assumed.
         file_path = _table_file(tables, key)
 
+    # The ignore is mypy reading `**values` as able to land on `themes` and `hidden`,
+    # which are given by name right here and so cannot take a string from the bag.
     return SourceGame(key=key, themes=themes, hidden=hidden, table_file=file_path,
-                      extras=extras, **values)
+                      extras=extras, **values)  # type: ignore[arg-type]
 
 
 def _table_index(tables_dir: Path, plays=_plays_vpx) -> tuple[dict[str, str], dict[str, str]]:

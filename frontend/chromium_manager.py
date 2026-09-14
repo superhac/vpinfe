@@ -19,7 +19,7 @@ import threading
 import time
 from collections import namedtuple
 from shutil import which
-from typing import NamedTuple
+from typing import Any, NamedTuple
 from urllib.parse import quote, urlparse
 
 from common import i18n
@@ -440,7 +440,7 @@ class ChromiumManager:
 
         # Launch in its own process group so we can kill the entire tree on shutdown
         # (Chromium spawns renderers, GPU, zygote children that must all be killed)
-        popen_kwargs = dict(env=env)
+        popen_kwargs: dict[str, Any] = {"env": env}
         if platform.system() != "Windows":
             popen_kwargs["start_new_session"] = True
 

@@ -10,6 +10,7 @@ import json
 import logging
 import re
 import sys
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import BinaryIO
@@ -424,11 +425,11 @@ def decode_smart_numeric_text_file(filename: str) -> list[ParsedEntry]:
     classified_lines: list[tuple[str, str | int]] = []
     for line in lines:
         if re.fullmatch(r"[+-]?\d+", line):
-            value = int(line)
-            if abs(value) >= 100:
-                classified_lines.append(("score", value))
+            number = int(line)
+            if abs(number) >= 100:
+                classified_lines.append(("score", number))
             else:
-                classified_lines.append(("control", value))
+                classified_lines.append(("control", number))
             continue
         classified_lines.append(("text", clean_text(line)))
 
@@ -485,11 +486,11 @@ def decode_smart_numeric_text_file(filename: str) -> list[ParsedEntry]:
         if 65 <= int_value <= 90:
             trailing_ascii_codes.append(int_value)
 
-    initials = ""
+    initials_text = ""
     if 2 <= len(trailing_ascii_codes) <= 4:
-        initials = "".join(chr(value) for value in trailing_ascii_codes)
+        initials_text = "".join(chr(value) for value in trailing_ascii_codes)
 
-    return _build_entries_from_scores_and_initials([best_score], [initials])
+    return _build_entries_from_scores_and_initials([best_score], [initials_text])
 
 
 def decode_score_key_value_text_file(filename: str) -> list[ParsedEntry]:
@@ -1445,7 +1446,8 @@ def is_standalone_ini_score_key(key: str) -> bool:
 
 def decode_ini_file(filename: str) -> list[ParsedEntry]:
     parser = configparser.ConfigParser(interpolation=None)
-    parser.optionxform = str
+    # Assignment is configparser's own way to keep key case; typeshed says method.
+    parser.optionxform = str  # type: ignore[method-assign,assignment]
     read_files = parser.read(filename, encoding="utf-8")
     if not read_files:
         raise FileNotFoundError(filename)
@@ -1529,7 +1531,9 @@ def decode_ini_file(filename: str) -> list[ParsedEntry]:
 
     return entries
 
-DECODERS = {
+# Callable[...], because these do not share a parameter list: the mixed leaderboard
+# takes the settings dict and the other seven do not.
+DECODERS: dict[str, Callable[..., int | list[ParsedEntry]]] = {
     "single_bcd_score": decode_single_bcd_score,
     "single_bcd_score_x10": decode_single_bcd_score_x10,
     "single_digit_score": decode_single_digit_score,

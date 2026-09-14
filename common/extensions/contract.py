@@ -120,7 +120,7 @@ def parse(raw: Any, *, source: str = "") -> Manifest:
                             "digits, hyphen and underscore, starting with a letter")
 
     try:
-        abi = int(raw.get("requires_platform"))
+        abi = int(raw.get("requires_platform", ""))
     except (TypeError, ValueError):
         raise ManifestError(f"{name}: requires_platform has to be a number") from None
     if abi not in SUPPORTED_ABI:

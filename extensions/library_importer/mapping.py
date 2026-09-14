@@ -176,7 +176,8 @@ def details_for(game: SourceGame) -> dict:
         "type": game.game_type,
         "ipdb_id": game.ipdb_id,
     }
-    said = {name: value for name, value in found.items() if str(value or "").strip()}
+    said: dict[str, str | list[str]] = {
+        name: value for name, value in found.items() if str(value or "").strip()}
     if game.themes:
         said["themes"] = list(game.themes)
     return said

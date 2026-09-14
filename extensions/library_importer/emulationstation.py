@@ -108,8 +108,10 @@ def _game_from(element, root: Path) -> SourceGame | None:
         return None
     # The filename stem is the key, because that is the only stable name an ES entry has
     # and it is what a person recognizes it by.
+    # The ignore is mypy reading `**values` as able to land on `media`, which is given
+    # by name right here and so cannot take a string from the bag.
     return SourceGame(key=Path(path).stem, table_file=path, media=tuple(media),
-                      extras=extras, **values)
+                      extras=extras, **values)  # type: ignore[arg-type]
 
 
 def read(root: Path | str, plays=None) -> SourceLibrary:

@@ -134,17 +134,5 @@ def register(ctx) -> None:
     ctx.serves.answer("guest.choose", guest.set_active_profile)
     ctx.serves.answer("guest.check", guest.validate_profile_payload)
 
-    def _record_start(game_key: str) -> bool:
-        """A session beginning, where a guest is playing. Answers whether it was taken."""
-        profile = guest.get_active_profile()
-        if profile is None:
-            return False
-        guest.record_game_start(game_key)
-        return True
-
-    # What core keeps a method for and no longer knows the answer to. A guest is signed
-    # in against VPinPlay's identity - a user id, initials and a machine id - so who is
-    # playing is this extension's question even though a theme has always asked core.
-
     ctx.logger.info("Contributing ratings from %s",
                     ctx.config.get(ENDPOINT_KEY, "") or DEFAULT_ENDPOINT)
