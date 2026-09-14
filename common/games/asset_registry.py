@@ -11,7 +11,7 @@ from common.games.media_service import IMAGE_EXTENSIONS
 from common.i18n import t
 from common.media_specs import MEDIA_SPECS, media_filename_map
 
-logger = logging.getLogger("vpinfe.manager.asset_registry")
+logger = logging.getLogger("vpinfe.common.games.asset_registry")
 
 # Archive containers are opened and inspected, never classified as a bare file.
 ARCHIVE_EXTENSIONS = frozenset({".zip", ".vpxz", ".rar", ".7z"})

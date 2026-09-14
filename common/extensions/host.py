@@ -25,7 +25,7 @@ from .context import ExtensionContext
 from .contract import MANIFEST_NAME, Manifest, ManifestError, read_manifest
 from .store import ExtensionStore, get_extension_store
 
-logger = logging.getLogger("vpinfe.common.extensions")
+logger = logging.getLogger("vpinfe.common.extensions.host")
 
 # Where an install keeps the ones it has, and where the build keeps the ones it ships.
 # Installed first: an extension somebody installed under the same name as one we ship is

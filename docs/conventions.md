@@ -276,9 +276,13 @@ logger = logging.getLogger("vpinfe.common.games.game_identity")
 logger = logging.getLogger("vpinfe.httpapi.games")
 ```
 
-Areas are `common`, `frontend`, `manager`, `httpapi`. Extensions get `vpinfe.ext.<name>`,
-issued by the extension context — an extension never logs into a core namespace, because the
-namespace is how "which extension did this?" stays answerable.
+Areas are `apps`, `common`, `console`, `frontend`, `httpapi` and `manager`. Extensions get
+`vpinfe.ext.<name>`, issued by the extension context — an extension never logs into a core
+namespace, because the namespace is how "which extension did this?" stays answerable.
+
+The rest of the name is the path to the module, so a logger says where to look and not
+merely which area to search. `tests/invariants/test_logging_conventions.py` checks that,
+because a module that moves and keeps its old name reports the wrong area from then on.
 
 ### The browser side
 

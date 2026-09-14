@@ -22,7 +22,7 @@ from common.games.tables import TABLES_KEY, default_table, recorded_default, tab
 from common.games.vpx_parser import VPXParser
 from common.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, get_games_path
 
-logger = logging.getLogger("vpinfe.manager.game_service")
+logger = logging.getLogger("vpinfe.common.games.game_service")
 
 VPSDB_JSON_PATH = VPINFE_INI_PATH.parent / "vpsdb.json"
 _vpsdb_cache: list[dict] | None = None

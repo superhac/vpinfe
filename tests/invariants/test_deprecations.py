@@ -105,7 +105,7 @@ class ShimAnnouncementTests(unittest.TestCase):
             ini = Path(tmp) / "vpinfe.ini"
             ini.write_text("[Settings]\ntablerootdir = /tmp/x\ncabmode = true\n",
                            encoding="utf-8")
-            with self.assertLogs("vpinfe.deprecations", level="INFO") as caught:
+            with self.assertLogs("vpinfe.common.deprecations", level="INFO") as caught:
                 ConfigStore(str(ini))
 
         joined = "\n".join(caught.output)
@@ -115,7 +115,7 @@ class ShimAnnouncementTests(unittest.TestCase):
 
     def test_it_says_so_once_and_then_stays_quiet(self) -> None:
         """The payload projection runs per game per refresh."""
-        with self.assertLogs("vpinfe.deprecations", level="INFO") as caught:
+        with self.assertLogs("vpinfe.common.deprecations", level="INFO") as caught:
             deprecations.announce("ws-methods", "get_table_rating")
             deprecations.announce("ws-methods", "get_table_rating")
             deprecations.announce("ws-methods", "set_table_rating")
@@ -132,7 +132,7 @@ class ShimAnnouncementTests(unittest.TestCase):
         from frontend.api import API
 
         api = object.__new__(API)
-        with self.assertLogs("vpinfe.deprecations", level="INFO") as caught:
+        with self.assertLogs("vpinfe.common.deprecations", level="INFO") as caught:
             forwarded = api.get_table_rating
 
         self.assertEqual(forwarded, api.get_game_rating)
@@ -141,7 +141,7 @@ class ShimAnnouncementTests(unittest.TestCase):
     def test_a_contract_1_theme_announces_the_projection(self) -> None:
         from frontend import theme_contract
 
-        with self.assertLogs("vpinfe.deprecations", level="INFO") as caught:
+        with self.assertLogs("vpinfe.common.deprecations", level="INFO") as caught:
             theme_contract.project({"meta": {}}, 1)
 
         self.assertIn("contract 1", "\n".join(caught.output))

@@ -14,7 +14,7 @@ from common.config_access import NetworkConfig
 from common.i18n import t
 from common.paths import get_ini_config
 
-logger = logging.getLogger("vpinfe.console")
+logger = logging.getLogger("vpinfe.console.api")
 
 _TIMEOUT = 15
 # An import copies files, which is disk work rather than a question - a pup pack is

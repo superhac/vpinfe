@@ -17,7 +17,7 @@ from nicegui import run, ui
 from common import i18n
 from common.i18n import t
 
-logger = logging.getLogger("vpinfe.console")
+logger = logging.getLogger("vpinfe.console.grid")
 
 DEFAULT_COL_DEF: dict[str, Any] = {
     "sortable": True,

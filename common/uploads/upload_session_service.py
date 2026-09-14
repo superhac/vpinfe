@@ -16,7 +16,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-logger = logging.getLogger("vpinfe.manager.upload_session")
+logger = logging.getLogger("vpinfe.common.uploads.upload_session_service")
 
 MAX_TOTAL_BYTES = 20 * 1024 ** 3      # 20 GiB per session (PUP packs are large)
 SESSION_TTL_SECONDS = 3600

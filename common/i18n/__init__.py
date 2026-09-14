@@ -20,7 +20,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger("vpinfe.i18n")
+logger = logging.getLogger("vpinfe.common.i18n")
 
 CATALOGS = Path(__file__).parent / "catalogs"
 SOURCE = "en"

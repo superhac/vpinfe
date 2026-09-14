@@ -24,7 +24,7 @@ from common.media_specs import (
 )
 from common.paths import CONFIG_DIR, get_games_path, get_ini_config
 
-logger = logging.getLogger("vpinfe.manager.media_service")
+logger = logging.getLogger("vpinfe.common.games.media_service")
 
 _media_cache: list[dict] | None = None
 _thumb_request_state: set[tuple[str, str, str]] = set()

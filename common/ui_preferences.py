@@ -18,7 +18,7 @@ from typing import Any
 
 from common.paths import CONFIG_DIR
 
-logger = logging.getLogger("vpinfe.ui_preferences")
+logger = logging.getLogger("vpinfe.common.ui_preferences")
 
 PREFERENCES_PATH = CONFIG_DIR / "ui-preferences.json"
 SCHEMA = 1

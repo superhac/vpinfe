@@ -219,7 +219,7 @@ class PatchAssetTests(unittest.TestCase):
                 archive.writestr("Mod.dif", bytes([ESC, EQL, 5]))
 
             plan = build_import_plan(analyze_path(zip_path), game_dir=game_dir)
-            with self.assertLogs("vpinfe.manager.asset_import", level="WARNING"):
+            with self.assertLogs("vpinfe.common.uploads.asset_import_service", level="WARNING"):
                 execute_import_plan(plan, zip_path)
 
             self.assertTrue((game_dir / "Mod.vpx").exists())

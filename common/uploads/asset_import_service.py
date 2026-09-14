@@ -37,7 +37,7 @@ from common.uploads.asset_analyzer_service import (
     open_source,
 )
 
-logger = logging.getLogger("vpinfe.manager.asset_import")
+logger = logging.getLogger("vpinfe.common.uploads.asset_import_service")
 
 _MEDIA_FILENAMES = media_filename_map("table")
 

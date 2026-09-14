@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-logger = logging.getLogger("vpinfe.deprecations")
+logger = logging.getLogger("vpinfe.common.deprecations")
 
 
 @dataclass(frozen=True)

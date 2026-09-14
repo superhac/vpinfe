@@ -16,7 +16,7 @@ from common import events, lifecycle
 from common.config_access import cfg_bool
 from common.host import launch_state, system_actions
 
-logger = logging.getLogger("vpinfe.frontend.lifecycle")
+logger = logging.getLogger("vpinfe.frontend.lifecycle_host")
 
 _config_store = None
 _bridge = None

@@ -35,7 +35,7 @@ except ImportError:  # pragma: no cover - optional dependency
     py7zr = None
 
 
-logger = logging.getLogger("vpinfe.manager.asset_analyzer")
+logger = logging.getLogger("vpinfe.common.uploads.asset_analyzer_service")
 
 _CHUNK = 1024 * 1024
 

@@ -12,7 +12,7 @@ from common.media_specs import MEDIA_SPECS, media_family, media_label_map
 from console import media_ownership
 from console.api import ApiClient
 
-logger = logging.getLogger("vpinfe.console")
+logger = logging.getLogger("vpinfe.console.data")
 
 # Long enough that somebody waited for it. A warm read is a fifth of a second and says
 # nothing; a cold one over a share has been seconds, and that is the number worth having

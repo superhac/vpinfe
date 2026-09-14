@@ -19,7 +19,7 @@ from datetime import timedelta
 from common import timestamps
 from common.config_access import cfg_get
 
-logger = logging.getLogger("vpinfe.common.vpsdb_sync")
+logger = logging.getLogger("vpinfe.common.online.vpsdb_sync")
 
 SECTION = "vpsdb"
 NEVER = "never"
