@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
 logger = logging.getLogger("vpinfe.common.i18n")
 
@@ -185,7 +185,7 @@ def nicegui_language() -> str | None:
         from nicegui.language import Language
     except Exception:
         return None
-    packs = set(Language.__args__)
+    packs = set(get_args(Language))
     for name in chain():
         if name in packs:
             return name

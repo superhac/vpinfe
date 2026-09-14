@@ -232,8 +232,8 @@ def ensure_thumb(game_dir_name: str, kind: str, source_path: str) -> str | None:
             if old != path:
                 old.unlink(missing_ok=True)
 
-        with Image.open(source_path) as img:
-            img = ImageOps.exif_transpose(img)
+        with Image.open(source_path) as opened:
+            img = ImageOps.exif_transpose(opened)
             has_alpha = (
                 img.mode in ("RGBA", "LA")
                 or (img.mode == "P" and "transparency" in img.info)

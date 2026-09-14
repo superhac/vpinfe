@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from common.games.game import Game
 from common.games.game_metadata import load_game_meta, persist_game_meta
 from common.games.tables import (
     TABLES_KEY,
@@ -27,7 +28,7 @@ from common.jobs import JobReporter
 logger = logging.getLogger("vpinfe.common.games.library_enrichment")
 
 
-def pending(games) -> list[tuple[object, str, str]]:
+def pending(games) -> list[tuple[Game, str, str]]:
     """Every (game, key, filename) an entry exists for and nothing has read yet.
 
     Counted before the work starts so a job can say how many of how many, which on a
@@ -90,7 +91,7 @@ def enrich(games, reporter: JobReporter | None = None) -> dict[str, int]:
 
     parser = _parser()
     by_game: dict[int, list[tuple[str, str]]] = {}
-    order: list[object] = []
+    order: list[Game] = []
     for game, key, filename in todo:
         if id(game) not in by_game:
             by_game[id(game)] = []

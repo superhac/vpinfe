@@ -173,51 +173,64 @@ def folder_kinds() -> tuple[str, ...]:
     return tuple(sorted(_FOLDERS))
 
 
+def _in_game(kind: str, base: Path, rom: str = "") -> Path:
+    """`folder_for` where the kind is known to have a folder.
+
+    Every kind routed through here does, and a rom-keyed one is only reached after the
+    ROM name has been checked, so None here would be a routing mistake rather than an
+    answer about this asset.
+    """
+    found = folder_for(kind, base, rom)
+    if found is None:
+        raise ValueError(f"{kind} has no folder inside a game")
+    return found
+
+
 def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
                 source_name: str, game_kind_action: str,
-                sidecar_stem: str = "") -> tuple[PlannedItem | None, BlockedItem | None]:
+                sidecar_stem: str = "") -> PlannedItem | BlockedItem:
+    """Where one detected asset lands, or why it cannot."""
     kind = asset.kind
     spec = spec_for(kind)
     if spec.requires_rom and not rom_name:
-        return None, BlockedItem(asset, "Table has no ROM name; import a ROM first")
+        return BlockedItem(asset, "Table has no ROM name; import a ROM first")
 
     if kind == "table":
         dest = base / _safe_upload_name(_basename(asset.entries[0].arcname))
-        return PlannedItem(asset, str(dest), game_kind_action), None
+        return PlannedItem(asset, str(dest), game_kind_action)
     if kind == "game_info":
         # Always written as <folder>.info — the parser matches it by folder name.
-        return PlannedItem(asset, str(base / f"{base.name}.info"), "write_info"), None
+        return PlannedItem(asset, str(base / f"{base.name}.info"), "write_info")
     if kind == "backglass":
         stem = sidecar_stem or vpx_stem or Path(_basename(asset.entries[0].arcname)).stem
-        return PlannedItem(asset, str(base / f"{stem}.directb2s"), "replace_b2s"), None
+        return PlannedItem(asset, str(base / f"{stem}.directb2s"), "replace_b2s")
     if kind == "ini":
         stem = sidecar_stem or vpx_stem or Path(_basename(asset.entries[0].arcname)).stem
-        return PlannedItem(asset, str(base / f"{stem}.ini"), "copy"), None
+        return PlannedItem(asset, str(base / f"{stem}.ini"), "copy")
     # Which folder each of these lands in is asked of the registry, not repeated here:
     # an import from another frontend puts the same things in the same places, and two
     # copies of the rule would be right until one of them changed.
     if kind == "rom":
         name, action = _rom_dest_name(asset, source_name)
-        return PlannedItem(asset, str(folder_for(kind, base) / name), action), None
+        return PlannedItem(asset, str(_in_game(kind, base) / name), action)
     if kind in ("altcolor_serum", "altcolor_vni"):
-        dest = (folder_for(kind, base, rom_name)
+        dest = (_in_game(kind, base, rom_name)
                 / _safe_upload_name(_basename(asset.entries[0].arcname)))
-        return PlannedItem(asset, str(dest), "copy"), None
+        return PlannedItem(asset, str(dest), "copy")
     if kind in ("altsound", "pup_pack", "music"):
-        return PlannedItem(asset, str(folder_for(kind, base, rom_name)),
-                           "extract_tree"), None
+        return PlannedItem(asset, str(_in_game(kind, base, rom_name)), "extract_tree")
     if kind == "readme":
         name = _safe_upload_name(_basename(asset.entries[0].arcname))
-        return PlannedItem(asset, str(base / name), "copy"), None
+        return PlannedItem(asset, str(base / name), "copy")
     if kind == "patch":
         if not vpx_stem:
-            return None, BlockedItem(asset, "No table to patch; import the base table first")
+            return BlockedItem(asset, "No table to patch; import the base table first")
         return PlannedItem(asset, str(base / _patched_vpx_name(asset, base, vpx_stem)),
-                           "apply_patch"), None
+                           "apply_patch")
     if kind == "media":
         filename = _MEDIA_FILENAMES.get(asset.media_kind, asset.media_kind)
-        return PlannedItem(asset, str(base / "medias" / filename), "replace_media"), None
-    return None, BlockedItem(asset, f"Unsupported asset type: {kind}")
+        return PlannedItem(asset, str(base / "medias" / filename), "replace_media")
+    return BlockedItem(asset, f"Unsupported asset type: {kind}")
 
 
 def _new_games_under(location_id: str = "") -> str:
@@ -265,9 +278,13 @@ def build_import_plan(analysis: AnalysisResult, *, game_dir: Path | None = None,
             / new_dir_name
         sidecar_stem = _sidecar_stem(analysis.assets, base, vpx_stem)
         for asset in analysis.assets:
-            item, block = _plan_asset(asset, base, vpx_stem, rom_name, analysis.source_name,
-                                      game_kind_action="copy", sidecar_stem=sidecar_stem)
-            (items if item else blocked).append(item or block)
+            planned = _plan_asset(asset, base, vpx_stem, rom_name,
+                                  analysis.source_name, game_kind_action="copy",
+                                  sidecar_stem=sidecar_stem)
+            if isinstance(planned, PlannedItem):
+                items.append(planned)
+            else:
+                blocked.append(planned)
         return ImportPlan(str(base), new_dir_name, "", tuple(items), tuple(blocked))
 
     if game_dir is not None:
@@ -280,9 +297,14 @@ def build_import_plan(analysis: AnalysisResult, *, game_dir: Path | None = None,
         # New-game creation is handled by the new_bundle branch above.
         sidecar_stem = _sidecar_stem(analysis.assets, base, vpx_stem)
         for asset in analysis.assets:
-            item, block = _plan_asset(asset, base, vpx_stem, rom_name, analysis.source_name,
-                                      game_kind_action="replace_vpx", sidecar_stem=sidecar_stem)
-            (items if item else blocked).append(item or block)
+            planned = _plan_asset(asset, base, vpx_stem, rom_name,
+                                  analysis.source_name,
+                                  game_kind_action="replace_vpx",
+                                  sidecar_stem=sidecar_stem)
+            if isinstance(planned, PlannedItem):
+                items.append(planned)
+            else:
+                blocked.append(planned)
         return ImportPlan(str(base), "", rom_name, tuple(items), tuple(blocked))
 
     for asset in analysis.assets:
@@ -732,13 +754,13 @@ def record_declared_identities(plan: ImportPlan, base: Path, declared) -> list[s
     written = []
     meta = None
     for name, identity in declared.items():
-        item = by_name.get(_basename(str(name)))
-        if item is None or identity is None or identity.is_empty:
+        named = by_name.get(_basename(str(name)))
+        if named is None or identity is None or identity.is_empty:
             continue
         if meta is None:
             # The .info is named for its folder, and MetaConfig wants the file.
             meta = MetaConfig(str(base / f"{base.name}.info"))
-        meta.add_asset(item.destination, identity.host or "declared",
+        meta.add_asset(named.destination, identity.host or "declared",
                        identity=identity)
         written.append(item.destination)
     return written

@@ -295,7 +295,8 @@ class VPXConfig:
                               settings: Mapping[str, Any]) -> dict[str, str]:
         """What a folder file is currently giving this table, for the confirm that has
         to be shown before a table file takes it off them."""
-        if table_layer(target) is not None and table_layer(target).suffix:
+        beside_the_table = table_layer(target)
+        if beside_the_table is not None and beside_the_table.suffix:
             beside = Path(target).with_suffix(".ini")
             if beside.is_file():
                 return {}

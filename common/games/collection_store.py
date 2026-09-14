@@ -244,11 +244,11 @@ class CollectionStore:
         # Either name is accepted: the JSON file is what we read and write, and a
         # caller still holding the ini path - a script, an old config - gets the same
         # collections rather than an empty list.
-        path = Path(path)
-        if path.suffix == ".ini":
-            self.ini_path, self.path = path, path.with_name(COLLECTIONS_NAME)
+        given = Path(path)
+        if given.suffix == ".ini":
+            self.ini_path, self.path = given, given.with_name(COLLECTIONS_NAME)
         else:
-            self.path, self.ini_path = path, path.with_name(COLLECTIONS_NAME_INI)
+            self.path, self.ini_path = given, given.with_name(COLLECTIONS_NAME_INI)
         self._converted_from_ini = False
         # This store's own copies: `set_view_filters` writes into `builtin:all`, and one
         # caller's view must not become another's.
@@ -361,7 +361,7 @@ class CollectionStore:
         and a record either has criteria or it does not.
         """
         record = self._record(section)
-        return bool(record) and FILTERS_KEY in record
+        return record is not None and FILTERS_KEY in record
 
     def is_filter_based(self, section: str):
         """The name most callers use. Derived, so a collection changes kind by gaining
@@ -437,7 +437,7 @@ class CollectionStore:
 
     def get_limit(self, section: str) -> int | None:
         """How many rows this collection keeps, or None for all of them."""
-        raw = self._require(section).get(LIMIT_KEY)
+        raw = self._require(section).get(LIMIT_KEY, "")
         try:
             value = int(raw)
         except (TypeError, ValueError):
@@ -655,11 +655,13 @@ class CollectionStore:
         record = self._require_mutable(section)
         members = _member_refs(record.get("members"))
         wanted = _member_ref({MEMBER_GAME_KEY: member_id, MEMBER_TABLE_KEY: was})
+        ref = _member_ref({MEMBER_GAME_KEY: member_id, MEMBER_TABLE_KEY: table_id})
         at = next((i for i, m in enumerate(members) if m == wanted), None)
-        if at is None:
+        # A blank member id addresses nothing, so neither ref is built and there is
+        # nothing in the collection it could be pointing at.
+        if at is None or ref is None:
             raise ValueError(
                 f"'{member_id}' does not name that table in collection '{section}'")
-        ref = _member_ref({MEMBER_GAME_KEY: member_id, MEMBER_TABLE_KEY: table_id})
         # Refused, not repaired. A pairing appears once (2.10), so pointing this ref at
         # a table another already names cannot be stored - and the obvious repair, of
         # dropping one of them, takes a row away without saying so. A caller that is

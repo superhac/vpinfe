@@ -195,30 +195,34 @@ def listing(limit: int = 0, offset: int = 0, game: str = "",
 
         for slot in kinds:
             hit = shared.get(slot)
-            path = hit.path if hit is not None and hit.tier in _SHARED_TIERS else None
+            shared_path = (hit.path if hit is not None and hit.tier in _SHARED_TIERS
+                           else None)
             mine = owned.get(slot) or []
             serves = len(tables) - len(mine)
             # A shared row that nothing falls through to is not a gap: every table has a
             # file of its own, so there is nothing for a shared file to serve. Kept where
             # a file is actually there, because a file on disk is a row whatever uses it.
-            if path is not None or serves > 0 or not tables:
+            if shared_path is not None or serves > 0 or not tables:
                 found.append({
                     **_row(game_id, row, slot, "", ""),
                     # Only ever about a file. A row with none says nothing here rather
                     # than how many tables would have used one, which is a different
                     # question wearing the same column.
-                    "serves": serves if path is not None else None,
-                    "present": path is not None,
-                    "file": path.name if path is not None else None,
-                    "path": asset_origin.path_of(game_dir, path) or None,
-                    "via": hit.tier if hit is not None and path is not None else None,
-                    "origin": asset_origin.origin_of(hosts, game_dir, path) or None,
-                    "matched_to": asset_origin.match_of(recorded, game_dir, path) or None,
+                    "serves": serves if shared_path is not None else None,
+                    "present": shared_path is not None,
+                    "file": shared_path.name if shared_path is not None else None,
+                    "path": asset_origin.path_of(game_dir, shared_path) or None,
+                    "via": (hit.tier if hit is not None and shared_path is not None
+                            else None),
+                    "origin": asset_origin.origin_of(hosts, game_dir,
+                                                     shared_path) or None,
+                    "matched_to": asset_origin.match_of(recorded, game_dir,
+                                                        shared_path) or None,
                     "standing_in": (hit.tier if hit is not None and hit.path is not None
                                     and hit.tier not in _SHARED_TIERS else ""),
                 })
                 for covered in _covered(game_dir, files, medias, slot, variant, sets,
-                                        None, _SHARED_TIERS, path):
+                                        None, _SHARED_TIERS, shared_path):
                     found.append(_unused(game_id, row, slot, covered, game_dir,
                                          recorded, hosts))
             for table in mine:

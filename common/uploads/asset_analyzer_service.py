@@ -27,12 +27,14 @@ from common.games.asset_registry import (
 try:
     import rarfile
 except ImportError:  # pragma: no cover - optional dependency
-    rarfile = None
+    # Absent is a state this module reads for; the name is a module or nothing.
+    rarfile = None  # type: ignore[assignment]
 
 try:
     import py7zr
 except ImportError:  # pragma: no cover - optional dependency
-    py7zr = None
+    # Absent is a state this module reads for; the name is a module or nothing.
+    py7zr = None  # type: ignore[assignment]
 
 
 logger = logging.getLogger("vpinfe.common.uploads.asset_analyzer_service")

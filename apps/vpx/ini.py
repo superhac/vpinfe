@@ -233,8 +233,8 @@ def written(ini: Ini, changes: dict[str, str],
 def _section_end(lines: list[str], section: str) -> int | None:
     """The line after the last one belonging to a section, or None if it has none."""
     start = next((n for n, raw in enumerate(lines)
-                  if _SECTION.match(raw.strip())
-                  and _SECTION.match(raw.strip()).group(1).strip() == section), None)
+                  if (heading := _SECTION.match(raw.strip()))
+                  and heading.group(1).strip() == section), None)
     if start is None:
         return None
     for n in range(start + 1, len(lines)):

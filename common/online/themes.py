@@ -133,10 +133,11 @@ class ThemeRegistry:
             return chosen, theme_releases.raw_url(base_url, pinned, "manifest.json"), index
 
         if declared:
-            chosen = theme_releases.pick(declared, self.serves_contract)
-            if chosen is None:
+            picked = theme_releases.pick(declared, self.serves_contract)
+            if picked is None:
                 return None, None, index
-            return chosen, theme_releases.raw_url(base_url, chosen.ref, "manifest.json"), index
+            return picked, theme_releases.raw_url(base_url, picked.ref,
+                                                  "manifest.json"), index
 
         legacy_url = str(entry.get("theme_manifest_url") or "").strip()
         chosen = theme_releases.fallback_release()

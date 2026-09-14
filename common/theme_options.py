@@ -108,7 +108,7 @@ def migrate_from_packages(themes_dir: Path) -> list[str]:
     return moved
 
 
-def save(folder: str, values: dict[str, Any], source: str = "") -> Path | None:
+def save(folder: str, values: dict[str, Any], source: str = "") -> Path:
     """Replace this theme's values. `source` is recorded, never read.
 
     It is written because a filename scheme is what would trap us later - changing one is
