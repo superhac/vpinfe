@@ -829,8 +829,14 @@ What that means in practice:
 The Manager UI is not checked. It is replaced by the Console and goes when the Manager UI
 does, so annotating it buys nothing that outlives the removal.
 
-The advisory-and-blocking split is the same idea as linting below: what is already clean is
-held clean, and the rest is a debt register rather than a wall.
+**All six checked packages report zero, and CI fails when they do not.** `mypy` with no
+arguments is the gate, so a finding anywhere in `apps`, `common`, `console`, `extensions`,
+`frontend` or `httpapi` fails the build. The API surface keeps its own step beside it, so
+it still fails on its own account rather than inside a whole-tree result.
+
+That is the whole of Tier 1 — the annotations that existed and were wrong. Annotations that
+are missing are a separate job and are not gated: the checker reports nothing about an
+unannotated function body, which is why zero here does not mean the tree is fully typed.
 
 ## Linting
 

@@ -74,12 +74,13 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
 
       # Packages, flags and exclusions all live in pyproject.toml, so this run and a
-      # local one cannot disagree.
-      - name: Type check (advisory)
-        continue-on-error: true
+      # local one cannot disagree. All six are at zero, so this is the gate: a package
+      # that reaches zero and is not held there goes back.
+      - name: Type check (blocking)
         run: mypy
 
-      # follow-imports=silent, or naming a package also reports everything it imports
-      # and this fails on common/'s debt rather than on anything httpapi did.
+      # follow-imports=silent, or naming a package also reports everything it imports.
+      # Kept beside the run above so the API surface still fails on its own account
+      # rather than inside a whole-tree result.
       - name: Type check the API surface (blocking)
         run: mypy --follow-imports=silent httpapi
