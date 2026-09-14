@@ -5,7 +5,6 @@ A VPX table is an OLE compound file, so this opens the container and pulls out t
 script and the fields VPinFE records. Nothing else in the tree parses the format.
 """
 
-import csv
 import hashlib
 import logging
 import os
@@ -59,17 +58,6 @@ class VPXParser:
         'detect_flex': '',
         'detect_pinmame': '',
     }
-
-    def __init__(self):
-        self.fieldnames = [
-            *self.vpxPaths.keys(),
-            *self.vpxPathsBinary.keys(),
-            *self.derivedPaths.keys()
-        ]
-        # remove fields not wanted in CSV
-        for key in ("game_data", "table_rules", "table_description"):
-            if key in self.fieldnames:
-                self.fieldnames.remove(key)
 
     # -------------------------------
     # Helpers
@@ -132,9 +120,6 @@ class VPXParser:
             vpxFileValues['game_data'].encode("utf-8")
         ).hexdigest()
 
-    def getAllVpxFilesFromDir(self, directory):
-        return [str(p) for p in pathlib.Path(directory).glob("*.vpx")]
-
     def extractFile(self, file):
         vpxFileValues = {
             'filename': os.path.basename(file),
@@ -151,17 +136,6 @@ class VPXParser:
         self.runDetectors(vpxFileValues)
 
         return vpxFileValues
-
-    # -------------------------------
-    # Printing
-    # -------------------------------
-    def printFileValues(self, vpxFileValues):
-        for key, value in vpxFileValues.items():
-            if key in ('game_data', 'table_rules', 'table_description'):
-                preview = (value[:50] + "....") if value else ""
-                logger.info("%s: \"%s\"", key, preview)
-            else:
-                logger.info("%s: \"%s\"", key, value)
 
     # -------------------------------
     # Extraction helpers
@@ -238,52 +212,3 @@ class VPXParser:
             logger.warning("Not an OLE file: %s", vpxFile)
             return None
         return self.extractFile(vpxFile)
-
-    def bulkFileExtract(self, vpxFileDir, writer):
-        files = self.getAllVpxFilesFromDir(vpxFileDir)
-        logger.info("Total Files: %s", len(files))
-        for file in files:
-            vpxFileValues = self.extractFile(file)
-            self.printFileValues(vpxFileValues)
-            if writer:
-                self.writeCSV(vpxFileValues, writer)
-
-    # -------------------------------
-    # CSV / DB ops
-    # -------------------------------
-    def writeCSV(self, vpxFileValues, writer):
-        for key in ("game_data", "table_rules", "table_description"):
-            vpxFileValues.pop(key, None)
-        writer.writerow(vpxFileValues)
-
-    def openCSV(self, csvOutFile):
-        csvFile = open(csvOutFile, 'w', newline='')
-        writer = csv.DictWriter(csvFile, fieldnames=self.fieldnames)
-        writer.writeheader()
-        return csvFile, writer
-
-    def createDBFromDir(self, vpxFileDir, csvOutFile):
-        csvFile, writer = self.openCSV(csvOutFile)
-        self.bulkFileExtract(vpxFileDir, writer)
-        csvFile.close()
-
-    def loadCSV(self, csvInFile):
-        with open(csvInFile, newline='') as f:
-            return list(csv.DictReader(f))
-
-    # -------------------------------
-    # Matchers
-    # -------------------------------
-    def findFileSHAMatch(self, games, vpxFileValues):
-        for game in games:
-            if vpxFileValues['file_hash'] == game['file_hash']:
-                logger.info("Found FILE hash match.")
-                return game
-        return None
-
-    def findCodeSHAMatch(self, games, vpxFileValues):
-        for game in games:
-            if vpxFileValues['vbs_hash'] == game['vbs_hash']:
-                logger.info("Found CODE hash match.")
-                return game
-        return None
