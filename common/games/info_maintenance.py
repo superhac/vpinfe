@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TypedDict
 
 from common.games.collection_store import (
     COLLECTIONS_NAME,
@@ -22,6 +23,22 @@ from common.games.info_migration import (
 from common.jobs import JobReporter
 
 logger = logging.getLogger("vpinfe.common.games.info_maintenance")
+
+
+class UpgradeResult(TypedDict):
+    upgraded: int
+    already_current: int
+    failed: int
+    # The folder and what went wrong with it, so a caller can name both.
+    failures: list[tuple[str, str]]
+
+
+class RestoreResult(TypedDict):
+    restored: int
+    nothing_to_restore: int
+    failed: int
+    failures: list[tuple[str, str]]
+    collections_restored: bool
 
 
 def game_dirs(game_root, game_name: str | None = None) -> list[Path]:
@@ -58,7 +75,7 @@ def upgrade_library(
     game_name: str | None = None,
     progress_cb=None,
     log_cb=None,
-) -> dict:
+) -> UpgradeResult:
     """Upgrade every table's `.info` in one pass.
 
     Startup already does the library, so this is the repair for what it did not reach.
@@ -68,7 +85,8 @@ def upgrade_library(
 
     folders = game_dirs(game_root, game_name)
     total = len(folders)
-    result = {"upgraded": 0, "already_current": 0, "failed": 0, "failures": []}
+    result: UpgradeResult = {"upgraded": 0, "already_current": 0, "failed": 0,
+                             "failures": []}
 
     log("Upgrading .info files. Each one is backed up first, so this can be undone.")
     reporter.progress(0, total, "Starting")
@@ -104,7 +122,7 @@ def restore_library(
     config_dir=None,
     progress_cb=None,
     log_cb=None,
-) -> dict:
+) -> RestoreResult:
     """Put back the newest readable backup in every folder that has one.
 
     All or nothing: nobody chose which games upgraded, so nobody can choose which return.
@@ -114,8 +132,8 @@ def restore_library(
 
     folders = game_dirs(game_root, game_name)
     total = len(folders)
-    result = {"restored": 0, "nothing_to_restore": 0, "failed": 0, "failures": [],
-              "collections_restored": False}
+    result: RestoreResult = {"restored": 0, "nothing_to_restore": 0, "failed": 0,
+                             "failures": [], "collections_restored": False}
 
     log("Restoring backups. Your current .info files are backed up first, so this can be "
         "undone too.")
@@ -171,7 +189,7 @@ def _files(count: int) -> str:
     return "1 .info file" if count == 1 else f"{count} .info files"
 
 
-def _upgrade_summary(result: dict) -> str:
+def _upgrade_summary(result: UpgradeResult) -> str:
     if not result["upgraded"]:
         return "Nothing to upgrade - every .info file is already on the current format."
     summary = (
@@ -186,7 +204,7 @@ def _upgrade_summary(result: dict) -> str:
     return summary
 
 
-def _restore_summary(result: dict) -> str:
+def _restore_summary(result: RestoreResult) -> str:
     if not result["restored"] and not result["collections_restored"]:
         return "Nothing to restore - there are no backups."
     if not result["restored"]:

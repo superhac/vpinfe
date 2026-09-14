@@ -11,6 +11,7 @@ the library is.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import NotRequired, TypedDict
 
 from . import mapping
 from .source import SourceGame, SourceLibrary
@@ -20,6 +21,24 @@ from .source import SourceGame, SourceLibrary
 # tried against what is actually there.
 ALT_KINDS = {".crz": "altcolor_serum", ".cromc": "altcolor_serum",
              ".vni": "altcolor_vni", ".pal": "altcolor_vni"}
+
+
+class AdoptedRow(TypedDict):
+    """One game and what became of it. `joined` is only on a second build
+    of a machine the run has already made a game for."""
+
+    key: str
+    name: str
+    game_id: str
+    table: bool
+    media: int
+    companions: int
+    roms: int
+    altdata: int
+    history: int
+    skipped_media: list[str]
+    error: str
+    joined: NotRequired[bool]
 
 
 def _bring_rom(ctx, game_id: str, rom: str, roms_dir: str) -> int:
@@ -104,7 +123,8 @@ def _put(ctx, game_id: str, kind: str, path: Path, rom: str) -> int:
 
 
 def _one(ctx, source_id: str, game: SourceGame, kinds: tuple[str, ...],
-         location: str, name: str = "", sources=None, history=None) -> dict:
+         location: str, name: str = "", sources=None,
+         history=None) -> AdoptedRow:
     """One game, and what became of it. Returns a row for the report.
 
     The name is handed in because the caller has already asked core what folder it
@@ -112,9 +132,9 @@ def _one(ctx, source_id: str, game: SourceGame, kinds: tuple[str, ...],
     game is counted under two names.
     """
     name = name or mapping.folder_name(game)
-    row = {"key": game.key, "name": name, "game_id": "", "table": False,
-           "media": 0, "companions": 0, "roms": 0, "altdata": 0, "history": 0,
-           "skipped_media": [], "error": ""}
+    row: AdoptedRow = {"key": game.key, "name": name, "game_id": "", "table": False,
+                       "media": 0, "companions": 0, "roms": 0, "altdata": 0,
+                       "history": 0, "skipped_media": [], "error": ""}
     try:
         game_id = ctx.games.create(name, location)
     except Exception as exc:
@@ -163,16 +183,17 @@ def _one(ctx, source_id: str, game: SourceGame, kinds: tuple[str, ...],
     return row
 
 
-def _another_build(ctx, game: SourceGame, name: str, game_id: str) -> dict:
+def _another_build(ctx, game: SourceGame, name: str, game_id: str) -> AdoptedRow:
     """A second build of a machine the run has already made a game for.
 
     Its file joins that game rather than starting another one. The artwork does not:
     what is already there was placed for the same machine, and a second build's playfield
     would replace it with a picture of the same table.
     """
-    row = {"key": game.key, "name": name, "game_id": game_id, "table": False,
-           "media": 0, "companions": 0, "roms": 0, "altdata": 0, "history": 0,
-           "skipped_media": [], "error": "", "joined": True}
+    row: AdoptedRow = {"key": game.key, "name": name, "game_id": game_id,
+                       "table": False, "media": 0, "companions": 0, "roms": 0,
+                       "altdata": 0, "history": 0, "skipped_media": [], "error": "",
+                       "joined": True}
     if not game.table_file:
         return row
     try:
