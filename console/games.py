@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import json
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -91,7 +91,7 @@ def _two(words: tuple[str, str]) -> list[dict[str, Any]]:
 # AG Grid infers `cellDataType: boolean` from the data and draws a checkbox for it,
 # and that renderer wins over any formatter - a boolean column meant to print a word or
 # a tick comes out blank without this. Every boolean column here turns it off.
-_NO_CHECKBOX = {":cellRenderer": None}
+_NO_CHECKBOX: dict[str, Any] = {":cellRenderer": None}
 
 _TICK = {
     ":valueFormatter": "params => params.value ? '\u2713' : ''",
@@ -138,8 +138,9 @@ COLUMNS = [
                 **_NO_CHECKBOX,
                 **{":valueFormatter":
                    "params => params.value ? "
-                   + json.dumps(game_tables.VPS_WORDS[0]) + " : ''"},
-                **grid.choice_filter(_two(game_tables.VPS_WORDS), formatted=True)),
+                   + json.dumps(game_tables.VPS_WORDS[0]) + " : ''",
+                   **grid.choice_filter(_two(game_tables.VPS_WORDS),
+                                        formatted=True)}),
     # No ROM or Version here: ROM is an asset (`asset_registry`), Version has no
     # game-level meaning, and both were the default table's shown as the game's.
     # Named for whose rating it is, because the tables grid has one too and "Rating"
@@ -147,8 +148,8 @@ COLUMNS = [
     grid.column("rating", t("console.games.game_rating"), group=t(_GAME),
                 help=t("console.games.rating_machine_0_5.help"),
                 cellClass="console-stars-cell",
-                **grid.choice_filter(_RATING_CHOICES),
-                **{":cellRenderer": stars.renderer("game")}),
+                **{**grid.choice_filter(_RATING_CHOICES),
+                   ":cellRenderer": stars.renderer("game")}),
 ]
 
 # Presets, not a replacement for choosing columns: a view sets which columns are
@@ -659,7 +660,7 @@ _FEATURE_RENDERER = (
 # The value is a boolean and null, so the funnel offers the three words rather than a
 # text box somebody has to know to type "true" into. Null arrives as "" - the component
 # reads an absent value that way, which is what makes "not parsed yet" pickable.
-_FEATURE_CHOICES = [
+_FEATURE_CHOICES: list[dict[str, Any]] = [
     {"value": True, "label": table_features.state_for(table_features.IN_SCRIPT).noun,
      "glyph": table_features.state_for(table_features.IN_SCRIPT).glyph,
      "glyphClass": table_features.state_for(table_features.IN_SCRIPT).glyph_class},
@@ -674,8 +675,8 @@ _FEATURES = "console.games.features"
 FEATURE_COLUMNS = [
     grid.column(f"feature_{key}", label, group=t(_FEATURES),
                 cellClass="console-media-cell",
-                **grid.choice_filter(_FEATURE_CHOICES),
-                **{":cellRenderer": _FEATURE_RENDERER})
+                **{**grid.choice_filter(_FEATURE_CHOICES),
+                   ":cellRenderer": _FEATURE_RENDERER})
     for key, label in table_features.LABELS.items()
 ]
 
@@ -712,8 +713,8 @@ TABLE_COLUMNS = [
     grid.column("rating", t("console.games.table_rating"), group=t(_TABLE),
                 help=t("console.games.rating_build_0_5.help"),
                 cellClass="console-stars-cell",
-                **grid.choice_filter(_RATING_CHOICES),
-                **{":cellRenderer": stars.renderer("table")}),
+                **{**grid.choice_filter(_RATING_CHOICES),
+                   ":cellRenderer": stars.renderer("table")}),
     # Each column's own words, not a generic pair: "Hidden: Yes" is a question about a
     # question, where "Hidden / Offered" is the fact and its opposite.
     grid.column("hidden", t("word.hidden"), group=t(_IN_PLAY),
@@ -1156,7 +1157,8 @@ def _by_group(columns: list[dict[str, Any]]) -> list[tuple[str, list[dict]]]:
     return [(heading, groups[heading]) for heading in order]
 
 
-def view_control(library: Any, scope: str, presets: dict[str, list[str]],
+def view_control(library: Any, scope: str,
+                 presets: Mapping[str, list[str] | views.Preset],
                  all_fields: list[str], columns: list[dict[str, Any]]):
     """One control for how the rows are presented: which view, and what is in it.
 

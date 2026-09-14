@@ -16,6 +16,7 @@ Physical layout - width, order, pinning - is the grid's, not a view's. See
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -68,7 +69,7 @@ class Preset:
     help: str = ""
 
 
-def builtins(presets: dict[str, list[str] | Preset]) -> list[View]:
+def builtins(presets: Mapping[str, list[str] | Preset]) -> list[View]:
     """The read-only starting points a grid declares."""
     return [View(id=f"builtin:{name}", name=name, builtin=True,
                  columns=tuple(preset.columns if isinstance(preset, Preset) else preset),

@@ -35,7 +35,8 @@ KIND_LABELS = {"manual": "console.collections.manual",
 # A number filters as a number: greater-than, less-than, between. AG Grid's default
 # filter is the text one, which offers "contains" over a count - and `agNumberColumnFilter`
 # is community, unlike the set filter this project cannot use.
-_NUMERIC = {"type": "numericColumn", "filter": "agNumberColumnFilter"}
+_NUMERIC: dict[str, Any] = {"type": "numericColumn",
+                            "filter": "agNumberColumnFilter"}
 
 COLUMNS = [
     # The icon leads. A collection is recognized by its picture in the wheel long
