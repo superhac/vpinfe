@@ -46,8 +46,18 @@ PRIVATE = re.compile(
     r"""(?xi)
     /Volumes/(?!(?:share|source|library|tables|media)\b)[A-Za-z0-9_-]+
     | /Users/(?!\.{3}/)[a-z0-9_.-]+/       # a home directory; `/Users/.../` is elided
+    | /home/(?!(?:\.{3}|cab|pi|player|someone|user)/)[a-z0-9_.-]+/
+                                          # the same on Linux, which is what a cabinet
+                                          # runs. The personas a test writes go through,
+                                          # exactly as the volume stand-ins above do.
     | \\\\[A-Za-z0-9_-]+\\[A-Za-z0-9_$-]+  # a UNC path to a named host
     """)
+
+
+# README.md shows a terminal transcript of a real table folder, and the person it names is
+# the project owner publishing his own username in his own project. That is authorship, not
+# somebody's private data leaking, so it is the one file this does not read.
+PUBLISHED_BY_THE_PERSON_IT_NAMES = {"README.md"}
 
 
 def _tracked() -> list[pathlib.Path]:
@@ -86,6 +96,8 @@ class IdentifierTests(unittest.TestCase):
         found = []
         for path in _tracked():
             if path.suffix.lower() in ASSET_SUFFIXES:
+                continue
+            if path.relative_to(REPO).as_posix() in PUBLISHED_BY_THE_PERSON_IT_NAMES:
                 continue
             try:
                 text = path.read_text(encoding="utf-8", errors="ignore")
