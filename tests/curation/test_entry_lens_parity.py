@@ -98,7 +98,7 @@ class EntryLensParityTests(TempTree):
         # Measured across 162 real tables as populated in none of them, and `type`
         # would put two meanings behind one word beside the game's - see
         # `table_descriptor`.
-        DECIDED_ABSENT = {"manufacturer", "year", "type"}
+        decided_absent = {"manufacturer", "year", "type"}
 
         from common.games.tables import DETECT_KEYS, PARSED_KEYS
 
@@ -107,7 +107,7 @@ class EntryLensParityTests(TempTree):
                     | {k.removeprefix("detect_") for k in DETECT_KEYS})
         detects = set(self.theme["table"]["detects"])
 
-        missing = declared - published - detects - DECIDED_ABSENT
+        missing = declared - published - detects - decided_absent
 
         self.assertEqual(missing, set(),
                          "a table's record declares these and no lens carries them")
