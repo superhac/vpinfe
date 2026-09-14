@@ -143,13 +143,13 @@ def _resolve_entry(game, named: str | None) -> tuple[str, dict]:
     """
     entries = table_entries(getattr(game, "meta_config", {}))
     if named is None:
-        found = tables.default_entry(
+        chosen = tables.default_entry(
             entries, game.game_dir_name or "",
             tables.recorded_default(
                 (getattr(game, "meta_config", None) or {}).get(info_file.VPINFE_SECTION),
                 entries))
-        if found[0] or found[1]:
-            return found
+        if chosen[0] or chosen[1]:
+            return chosen
         path = str(game.full_path_vpx_file or "")
         if not path:
             raise LaunchUnavailableError("This game has nothing to launch")

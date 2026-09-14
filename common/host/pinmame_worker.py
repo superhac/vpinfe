@@ -36,9 +36,9 @@ class PinmameGame(ctypes.Structure):
 class PinmameConfig(ctypes.Structure):
     # audioFormat, sampleRate, vpmPath, then twelve callback pointers we leave
     # null - catalog reads never start the machine.
-    _fields_ = ([("audioFormat", ctypes.c_int), ("sampleRate", ctypes.c_int),
-                 ("vpmPath", ctypes.c_char * PINMAME_MAX_PATH)]
-                + [(f"cb{i}", ctypes.c_void_p) for i in range(12)])
+    _fields_ = [("audioFormat", ctypes.c_int), ("sampleRate", ctypes.c_int),
+                ("vpmPath", ctypes.c_char * PINMAME_MAX_PATH),
+                *((f"cb{i}", ctypes.c_void_p) for i in range(12))]
 
 
 def lookup(lib_path: str, roms_dir: str, names: list[str]) -> dict:

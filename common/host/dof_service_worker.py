@@ -17,7 +17,9 @@ class _Worker:
     """Runs inside the helper process: takes events on stdin and hands them to DOF."""
 
     def __init__(self) -> None:
-        self._runner = None
+        # Any, because the class comes out of a runner file found on disk at start-up.
+        # There is no type for it here - the module is not part of this project.
+        self._runner: Any = None
         self._current_event: str | None = None
 
     def _emit(self, payload: dict[str, Any]) -> None:
