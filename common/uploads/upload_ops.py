@@ -332,8 +332,8 @@ def _associate(report: dict, vps_entry: dict) -> None:
 
     try:
         associate_vps_to_folder(Path(report["game_dir"]), vps_entry, True)
-        build_metadata(downloadMedia=True, updateAll=True,
-                       gameName=Path(report["game_dir"]).name)
+        build_metadata(download_media=True, update_all=True,
+                       game_name=Path(report["game_dir"]).name)
         report["vps_associated"] = True
     except Exception as exc:
         logging.getLogger("vpinfe.common.uploads.upload_ops").exception(

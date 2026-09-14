@@ -252,7 +252,7 @@ def apply_collection(api, collection):
     if name in store:
         api.current_filters = _filter_state(store.get_filters(name))
         api.current_sort, api.current_order = sort_state(store.get_order(name))
-    api.filteredGames = api.library.resolve_view(name)
+    api.filtered_games = api.library.resolve_view(name)
     api._rebuild_entries()
 
 
@@ -272,8 +272,8 @@ def rebuild_view(api):
     A collection's own stored sort is not reapplied. Choosing a collection applies it
     once; a player who sorted differently afterwards keeps that.
     """
-    api.filteredGames = _current_membership(api)
-    apply_sort(api.filteredGames, api.current_sort, api.current_order)
+    api.filtered_games = _current_membership(api)
+    apply_sort(api.filtered_games, api.current_sort, api.current_order)
     api._rebuild_entries()
 
 
@@ -287,7 +287,7 @@ def refresh_view(api):
     The view says where its library comes from. Reading the local one here would hand a
     install its own empty disk on the first refresh, throwing away what arrived.
     """
-    api.allGames = api.library.reload()
+    api.all_games = api.library.reload()
     rebuild_view(api)
 
 
@@ -325,9 +325,9 @@ def apply_filters(api, letter=None, theme=None, game_type=None, manufacturer=Non
         api.current_filters["rating_or_higher"] = is_truthy(rating_or_higher)
 
     api.current_sort, api.current_order = DEFAULT_ORDER_BY, DEFAULT_DIRECTION
-    api.filteredGames = _current_membership(api)
+    api.filtered_games = _current_membership(api)
     api._rebuild_entries()
-    return len(api.filteredGames)
+    return len(api.filtered_games)
 
 
 def apply_sort(games, order_by, direction=None):

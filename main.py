@@ -117,7 +117,7 @@ from starlette.responses import Response
 
 import console
 import httpapi
-from cli import parseArgs
+from cli import parse_args
 from frontend import lifecycle_host, runtime
 from managerui.managerui import _shutdown_event, set_first_run, start_manager_ui, stop_manager_ui
 from managerui.services import app_control
@@ -215,7 +215,7 @@ def _start_startup_media_sync():
     )
 
 
-cli_args = parseArgs() if len(sys.argv) > 0 else None
+cli_args = parse_args() if len(sys.argv) > 0 else None
 headless = cli_args and cli_args.headless
 
 # Register frontend theme assets before NiceGUI can start on the first-run path.

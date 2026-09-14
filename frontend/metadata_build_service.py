@@ -34,19 +34,19 @@ def start_build(api, *, build_metadata_func, all_games_func, download_media=True
     def run_build():
         try:
             result = build_metadata_func(
-                downloadMedia=download_media,
-                updateAll=update_all,
+                download_media=download_media,
+                update_all=update_all,
                 progress_cb=progress_callback,
                 log_cb=log_callback,
             )
             event_queue.put({"type": "buildmeta_complete", "result": result})
-            api.allGames = all_games_func(reload=True)
+            api.all_games = all_games_func(reload=True)
             # Re-derived rather than assigned: the view is a collection resolved to
             # entries, and the build has just replaced every game object behind it.
             game_state.rebuild_view(api)
         except Exception as exc:
             event_queue.put({"type": "buildmeta_error", "error": str(exc)})
-            logger.exception("buildMetaData failed")
+            logger.exception("build_metadata failed")
         finally:
             event_queue.put({"type": "buildmeta_done"})
 

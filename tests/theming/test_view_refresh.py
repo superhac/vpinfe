@@ -52,8 +52,8 @@ class _Api:
     def __init__(self, games, store, sort="title", order="asc",
                  collection=BUILTIN_ALL):
         self.library = _Library(games, store)
-        self.allGames = list(games)
-        self.filteredGames = []
+        self.all_games = list(games)
+        self.filtered_games = []
         self.current_filters = game_state.default_filter_state()
         self.current_collection = collection
         self.current_sort = sort
@@ -80,7 +80,7 @@ class ViewRefreshTests(unittest.TestCase):
         game_state.refresh_view(api)
 
     def _shown(self, api):
-        return [entry.game.gameDirName for entry in api.filteredGames]
+        return [entry.game.gameDirName for entry in api.filtered_games]
 
     def test_the_view_picks_up_the_replacement_game_object(self):
         """refresh_game swaps the object out. A view holding the old one never sees the
@@ -90,8 +90,8 @@ class ViewRefreshTests(unittest.TestCase):
 
         self._refresh(api, [fresh])
 
-        self.assertIs(api.allGames[0], fresh)
-        self.assertIs(api.filteredGames[0].game, fresh)
+        self.assertIs(api.all_games[0], fresh)
+        self.assertIs(api.filtered_games[0].game, fresh)
 
     def test_a_play_axis_reorders_the_wheel(self):
         library = [_game("Alpha", last_run=10), _game("Bravo", last_run=20)]

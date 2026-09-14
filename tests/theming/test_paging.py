@@ -141,7 +141,7 @@ class TestApiGetPageIndex(unittest.TestCase):
         api = API.__new__(API)
         api._ini_config = SimpleNamespace(config=parser)
         # The view holds entries, which is what an index from a theme addresses.
-        api.filteredGames = entries_for(games)
+        api.filtered_games = entries_for(games)
         api.current_sort = order_by
         return api
 

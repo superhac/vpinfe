@@ -23,10 +23,10 @@ def _config(config: ConfigStore | None = None) -> ConfigStore:
 
 
 def build_metadata(
-    downloadMedia: bool = True,
-    updateAll: bool = True,
-    gameName: str | None = None,
-    userMedia: bool = False,
+    download_media: bool = True,
+    update_all: bool = True,
+    game_name: str | None = None,
+    user_media: bool = False,
     progress_cb=None,
     log_cb=None,
     iniconfig: ConfigStore | None = None,
@@ -43,12 +43,12 @@ def build_metadata(
 
     games = games_under(settings.game_root_dir, config)
 
-    if gameName:
-        games = [game for game in games if game.gameDirName == gameName]
+    if game_name:
+        games = [game for game in games if game.gameDirName == game_name]
         if not games:
-            log(f"Table folder '{gameName}' not found")
+            log(f"Table folder '{game_name}' not found")
             return {"found": 0, "not_found": 0}
-        log(f"Processing single table: {gameName}")
+        log(f"Processing single table: {game_name}")
 
     total = len(games)
 
@@ -61,7 +61,7 @@ def build_metadata(
     for current, game in enumerate(games, 1):
         info_path = os.path.join(game.fullPathGame, f"{game.gameDirName}.info")
 
-        if os.path.exists(info_path) and not updateAll:
+        if os.path.exists(info_path) and not update_all:
             if progress_cb:
                 reporter.progress(current, total, f"Skipping {game.gameDirName}")
             continue
@@ -72,44 +72,44 @@ def build_metadata(
         if progress_cb:
             reporter.progress(current, total, f"Processing {game.gameDirName}")
 
-        vpsSearchData = vps.parse_game_name_from_dir(game.gameDirName)
-        vpsData = (
+        vps_search_data = vps.parse_game_name_from_dir(game.gameDirName)
+        vps_data = (
             vps.lookup_name(
-                vpsSearchData["name"],
-                vpsSearchData["manufacturer"],
-                vpsSearchData["year"],
+                vps_search_data["name"],
+                vps_search_data["manufacturer"],
+                vps_search_data["year"],
             )
-            if vpsSearchData
+            if vps_search_data
             else None
         )
 
-        if not vpsData:
+        if not vps_data:
             log("  - Not found in VPS")
             not_found_games += 1
             continue
 
         log(f"Parsing VPX file: {game.fullPathVPXfile}")
-        vpxData = parservpx.single_file_extract(game.fullPathVPXfile)
+        vpx_data = parservpx.single_file_extract(game.fullPathVPXfile)
 
-        if not vpxData:
+        if not vpx_data:
             log(f"  - VPX file not found or failed to parse: {game.fullPathVPXfile}")
             not_found_games += 1
             continue
 
         meta.write_config_meta({
-            "vpsdata": vpsData,
-            "vpxdata": vpxData,
+            "vpsdata": vps_data,
+            "vpxdata": vpx_data,
         })
 
         log(f"Created {game.gameDirName}.info")
 
-        # userMedia suppresses the fetch outright, for somebody supplying the whole
+        # user_media suppresses the fetch outright, for somebody supplying the whole
         # library themselves. Media already on disk needs no such flag: the
         # downloader compares hashes and leaves anything it cannot prove is ours
         # alone (common/online/vpsdb_media.py).
-        if downloadMedia and not userMedia:
+        if download_media and not user_media:
             try:
-                vps.download_media_for_game(game, vpsData["id"], meta_config=meta)
+                vps.download_media_for_game(game, vps_data["id"], meta_config=meta)
                 log("Downloaded media")
             except KeyError:
                 log("No media found")

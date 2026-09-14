@@ -88,9 +88,9 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                     try:
                         result = await run.io_bound(
                             game_service.build_metadata,
-                            downloadMedia=True,
-                            updateAll=True,
-                            gameName=game_dir_name,
+                            download_media=True,
+                            update_all=True,
+                            game_name=game_dir_name,
                         )
                         with client:
                             not_found = result.get('not_found', 0)

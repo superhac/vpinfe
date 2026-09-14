@@ -205,7 +205,7 @@ class API:
         # API on its own - a test, the gamepad diagnostic - gets a view of its own.
         if library is not None:
             self.library = library
-        self.jsGameDictData = None
+        self.js_game_dict_data = None
         # Check for startup collection
         startup_collection = cfg_get(self._ini_config, 'general', 'startup_collection').strip()
         if startup_collection:
@@ -242,19 +242,19 @@ class API:
         self.__dict__["_library"] = value
 
     @property
-    def allGames(self):  # noqa: N802 - the name game_state and themes already use
+    def all_games(self):
         return self.library.all_games
 
-    @allGames.setter
-    def allGames(self, value):  # noqa: N802
+    @all_games.setter
+    def all_games(self, value):
         self.library.all_games = value
 
     @property
-    def filteredGames(self):  # noqa: N802 - as above
+    def filtered_games(self):
         return self.library.filtered_games
 
-    @filteredGames.setter
-    def filteredGames(self, value):  # noqa: N802
+    @filtered_games.setter
+    def filtered_games(self, value):
         self.library.filtered_games = value
 
     @property
@@ -425,9 +425,9 @@ class API:
             self.library.refresh_if_stale(lambda: game_state.refresh_view(self))
         # Built once for the view, not once per window: three windows onto the same
         # library were each serializing an identical answer.
-        self.jsGameDictData = self.library.payload(
+        self.js_game_dict_data = self.library.payload(
             self._theme_contract(), collection=public_name(self.current_collection))
-        return self.jsGameDictData
+        return self.js_game_dict_data
 
     def get_initial_table_index(self):
         # Position the wheel on the last-launched game at startup. Resolved
@@ -488,7 +488,7 @@ class API:
         return public_name(self.current_collection) or 'None'
 
     def _filter_option(self, key: str):
-        return game_state.filter_options(self.allGames)[key]
+        return game_state.filter_options(self.all_games)[key]
 
     def get_filter_letters(self):
         return self._filter_option(_FILTER_OPTION_KEYS["letters"])
@@ -552,7 +552,7 @@ class API:
         self.current_order = normalize_direction(direction or "desc")
         logger.debug("Applying sort: %s %s", order_by, self.current_order)
 
-        count = game_state.apply_sort(self.filteredGames, order_by, self.current_order)
+        count = game_state.apply_sort(self.filtered_games, order_by, self.current_order)
         self._rebuild_entries()
         logger.debug("Sorted %s games by %s %s", count, order_by, self.current_order)
         return count
@@ -730,7 +730,7 @@ class API:
 
     def build_metadata(self, download_media=True, update_all=False):
         """
-        Trigger buildMetaData from the frontend.
+        Trigger build_metadata from the frontend.
         This runs in a background thread and returns progress/log updates via window events.
 
         Args:

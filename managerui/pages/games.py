@@ -405,8 +405,8 @@ def render_panel(tab=None):
                     try:
                         result = await run.io_bound(
                             game_service.build_metadata,
-                            downloadMedia=bool(download_media_switch.value),
-                            updateAll=bool(update_all_switch.value),
+                            download_media=bool(download_media_switch.value),
+                            update_all=bool(update_all_switch.value),
                             progress_cb=progress_cb,
                             log_cb=log_cb,
                         )
@@ -427,7 +427,7 @@ def render_panel(tab=None):
                         # Refresh the games list after completion
                         await perform_scan(silent=True)
                     except Exception as e:
-                        logger.exception('buildMetaData failed')
+                        logger.exception('build_metadata failed')
                         status_label.text = f"Error: {e}"
                         dialog_state['log_messages'].append(f"✗ Error: {e}")
                         log_container.clear()
@@ -545,7 +545,7 @@ def render_panel(tab=None):
                                     # Refresh games silently to reflect patch_applied flag
                                     await perform_scan(silent=True)
                                 except Exception as e:
-                                    logger.exception('vpxPatches failed')
+                                    logger.exception('vpx_patches failed')
                                     with client:
                                         patch_status_label.text = f"Error: {e}"
                                         ui.notify(f'Error: {e}', type='negative')

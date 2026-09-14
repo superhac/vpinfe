@@ -128,7 +128,7 @@ class SharedViewTests(unittest.TestCase):
         behind it, and no view handed in."""
         bare = API.__new__(API)
         bare._ini_config = _ini()
-        bare.filteredGames = entries_for(self.games)
+        bare.filtered_games = entries_for(self.games)
 
         self.assertEqual(len(bare.entries), len(self.games))
 

@@ -37,7 +37,7 @@ class TestCollectionSorting(unittest.TestCase):
 
     def test_api_last_run_sort_orders_all_collections_by_user_last_run(self) -> None:
         api = API.__new__(API)
-        api.filteredGames = [
+        api.filtered_games = [
             _game("Bravo", "vps-1", last_run=100),
             _game("Alpha", "vps-2", last_run=300),
             _game("Charlie", "vps-3", last_run="bad-value"),
@@ -49,13 +49,13 @@ class TestCollectionSorting(unittest.TestCase):
         self.assertEqual(count, 3)
         self.assertEqual(api.current_sort, "LastRun")
         self.assertEqual(
-            [game.meta_config["Info"]["Title"] for game in api.filteredGames],
+            [game.meta_config["Info"]["Title"] for game in api.filtered_games],
             ["Alpha", "Bravo", "Charlie"],
         )
 
     def test_api_runtime_sort_supports_descending_and_ascending_order(self) -> None:
         api = API.__new__(API)
-        api.filteredGames = [
+        api.filtered_games = [
             _game("Short", "vps-1", runtime=10),
             _game("Long", "vps-2", runtime=120),
             _game("Medium", "vps-3", runtime=45),
@@ -69,7 +69,7 @@ class TestCollectionSorting(unittest.TestCase):
         self.assertEqual(api.current_sort, "RunTime")
         self.assertEqual(api.current_order, "desc")
         self.assertEqual(
-            [game.meta_config["Info"]["Title"] for game in api.filteredGames],
+            [game.meta_config["Info"]["Title"] for game in api.filtered_games],
             ["Long", "Medium", "Short"],
         )
 
@@ -78,7 +78,7 @@ class TestCollectionSorting(unittest.TestCase):
         # The 2.x spelling still arrives from a stored filter and has to resolve.
         self.assertEqual(api.current_order, "asc")
         self.assertEqual(
-            [game.meta_config["Info"]["Title"] for game in api.filteredGames],
+            [game.meta_config["Info"]["Title"] for game in api.filtered_games],
             ["Short", "Medium", "Long"],
         )
 
@@ -89,7 +89,7 @@ class TestCollectionSorting(unittest.TestCase):
         every such game sorted as "" and the list came back in the order it went in.
         """
         api = API.__new__(API)
-        api.filteredGames = [
+        api.filtered_games = [
             Entry(game=_game("", "vps-1", game_dir_name="Gamma"), table={}, siblings=1),
             Entry(game=_game("", "vps-2", game_dir_name="Alpha"), table={}, siblings=1),
             Entry(game=_game("", "vps-3", game_dir_name="Beta"), table={}, siblings=1),
@@ -98,7 +98,7 @@ class TestCollectionSorting(unittest.TestCase):
 
         API.apply_sort(api, "title", "asc")
 
-        self.assertEqual([entry.game.gameDirName for entry in api.filteredGames],
+        self.assertEqual([entry.game.gameDirName for entry in api.filtered_games],
                          ["Alpha", "Beta", "Gamma"])
 
     def test_filter_collections_default_to_descending_order(self) -> None:

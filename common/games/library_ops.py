@@ -109,8 +109,8 @@ def scan(options) -> job_registry.Job:
     return start(job_registry.KIND_LIBRARY_SCAN,
                  lambda job: game_service.build_metadata(
                      job=job,
-                     downloadMedia=options.get("download_media", False),
-                     updateAll=options.get("update_all", False)))
+                     download_media=options.get("download_media", False),
+                     update_all=options.get("update_all", False)))
 
 
 def refresh() -> job_registry.Job:

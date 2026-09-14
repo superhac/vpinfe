@@ -206,7 +206,7 @@ class MetaConfig:
     PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
 
     def __init__(self, configfilepath):
-        self.configFilePath = configfilepath
+        self.config_file_path = configfilepath
         self.data = {}
         # The file as it was found, held only until a write backs it up.
         self._pre_migration = ""
@@ -377,16 +377,16 @@ class MetaConfig:
 
     def write_config(self):
         self._normalize_detection_flags()
-        os.makedirs(os.path.dirname(self.configFilePath), exist_ok=True)
+        os.makedirs(os.path.dirname(self.config_file_path), exist_ok=True)
         if self._pre_migration:
             # Before the first write of the new shape, and only then: one restore point
             # per schema bump, not one per rebuild. A failure here stops the write - the
             # backup exists for the person who needs to go back, so proceeding without
             # one would take away the only thing that makes this reversible.
-            saved = write_backup(self.configFilePath, self._pre_migration)
+            saved = write_backup(self.config_file_path, self._pre_migration)
             self._pre_migration = ""
             logger.info("Kept the pre-migration metadata at %s", saved)
-        write_json_atomic(self.configFilePath, self.data)
+        write_json_atomic(self.config_file_path, self.data)
 
     def get_config(self):
         return self.data
@@ -654,7 +654,7 @@ class MetaConfig:
         on Windows has to match one read on Linux.
         """
         try:
-            relative = os.path.relpath(str(path), os.path.dirname(self.configFilePath))
+            relative = os.path.relpath(str(path), os.path.dirname(self.config_file_path))
         except ValueError:
             # Different drive on Windows; there is nothing to record but the name.
             relative = os.path.basename(str(path))

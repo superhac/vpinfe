@@ -21,12 +21,12 @@ logger.info("Using config file at: %s", VPINFE_INI_PATH)
 config_store = ConfigStore(str(VPINFE_INI_PATH))
 
 
-def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, gameName: str = None, userMedia: bool = False, progress_cb=None, log_cb=None):
+def build_metadata(download_media: bool = True, update_all: bool = True, game_name: str = None, user_media: bool = False, progress_cb=None, log_cb=None):
     return metadata_service.build_metadata(
-        downloadMedia=downloadMedia,
-        updateAll=updateAll,
-        gameName=gameName,
-        userMedia=userMedia,
+        download_media=download_media,
+        update_all=update_all,
+        game_name=game_name,
+        user_media=user_media,
         progress_cb=progress_cb,
         log_cb=log_cb,
         iniconfig=config_store,
@@ -64,15 +64,15 @@ def reset_3x_state(config_only: bool = False, dry_run: bool = False,
         progress_cb=progress_cb, log_cb=log_cb)
 
 
-def listMissingGames():
+def list_missing_games():
     return game_report_service.list_missing_games(iniconfig=config_store, log=logger.info)
 
 
-def listUnknownGames():
+def list_unknown_games():
     return game_report_service.list_unknown_games(iniconfig=config_store, log=logger.info)
 
 
-def vpxPatches(progress_cb=None):
+def vpx_patches(progress_cb=None):
     return metadata_service.apply_vpx_patches(progress_cb=progress_cb, iniconfig=config_store)
 
 
@@ -115,7 +115,7 @@ def gamepadtest():
         http_server.on_closed()
 
 
-def parseArgs():
+def parse_args():
     """Parse and dispatch command-line arguments."""
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--version", action="store_true", help="Show the app version")
@@ -192,11 +192,11 @@ def parseArgs():
         sys.exit()
 
     if args.listmissing:
-        listMissingGames()
+        list_missing_games()
         sys.exit()
 
     if args.listunknown:
-        listUnknownGames()
+        list_unknown_games()
         sys.exit()
 
     # Kept as a stub because it shipped in 2.x and somebody has it in a script. It
@@ -224,7 +224,7 @@ def parseArgs():
         sys.exit()
 
     if args.buildmeta:
-        buildMetaData(downloadMedia=not args.no_media, updateAll=args.update_all, gameName=args.game, userMedia=args.user_media)
+        build_metadata(download_media=not args.no_media, update_all=args.update_all, game_name=args.game, user_media=args.user_media)
         sys.exit()
 
     if args.gamepadtest:
@@ -232,7 +232,7 @@ def parseArgs():
         sys.exit()
 
     if args.vpxpatch:
-        vpxPatches()
+        vpx_patches()
         sys.exit()
 
     return args
