@@ -16,10 +16,12 @@ that fails if an existing definition moves.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from typing import Any
 
 from common import collation
+from common.games.game import GameRecord
 from common.games.game_metadata import (
     game_last_run,
     game_manufacturer,
@@ -44,12 +46,12 @@ GAME_SCOPE = "game"
 TABLE_SCOPE = "table"
 
 
-def _values(criterion) -> set[str]:
+def _values(criterion: object) -> set[str]:
     """A criterion as the set of values it accepts. Comma-separated throughout."""
     return {part.strip() for part in str(criterion).split(",") if part.strip()}
 
 
-def letter_of(game) -> str:
+def letter_of(game: GameRecord) -> str:
     """The letter group a title sorts into. Digits and symbols share one bucket.
 
     The one definition, for paging and filtering both: a second is how `300` came to
@@ -60,44 +62,44 @@ def letter_of(game) -> str:
     return collation.letter_of(game_title(game))
 
 
-def _match_letter(criterion, game, table) -> bool:
+def _match_letter(criterion: object, game: GameRecord, table: dict) -> bool:
     return letter_of(game) in {str(v).upper() for v in _values(criterion)}
 
 
-def _match_theme(criterion, game, table) -> bool:
+def _match_theme(criterion: object, game: GameRecord, table: dict) -> bool:
     return bool(_values(criterion) & set(game_themes(game)))
 
 
-def _match_tag(criterion, game, table) -> bool:
+def _match_tag(criterion: object, game: GameRecord, table: dict) -> bool:
     """Any of the tags asked for. Case-sensitive, because the tags are: two spellings
     are two tags until somebody merges them, and matching across them would hide the
     duplicate the tag editor exists to find."""
     return bool(_values(criterion) & set(game_tags(game)))
 
 
-def _match_favorite(criterion, game, table) -> bool:
+def _match_favorite(criterion: object, game: GameRecord, table: dict) -> bool:
     return is_truthy(criterion) == bool(play_record(
         getattr(game, "meta_config", {})).get("favorite"))
 
 
-def _match_game_type(criterion, game, table) -> bool:
+def _match_game_type(criterion: object, game: GameRecord, table: dict) -> bool:
     return game_type(game) in _values(criterion)
 
 
-def _match_manufacturer(criterion, game, table) -> bool:
+def _match_manufacturer(criterion: object, game: GameRecord, table: dict) -> bool:
     return game_manufacturer(game) in _values(criterion)
 
 
-def _match_year(criterion, game, table) -> bool:
+def _match_year(criterion: object, game: GameRecord, table: dict) -> bool:
     return game_year(game) in _values(criterion)
 
 
-def _match_rating(criterion, game, table) -> bool:
+def _match_rating(criterion: object, game: GameRecord, table: dict) -> bool:
     wanted = {normalize_rating(v) for v in _values(criterion)}
     return game_rating(game) in wanted
 
 
-def _match_played(criterion, game, table) -> bool:
+def _match_played(criterion: object, game: GameRecord, table: dict) -> bool:
     """`true` selects the games with a play on record, `false` the ones without.
 
     Ordering the library by `last_played` cannot stand in for this: a game that has
@@ -107,7 +109,7 @@ def _match_played(criterion, game, table) -> bool:
     return (game_last_run(game) > 0) == is_truthy(criterion)
 
 
-def _match_rating_or_higher(criterion, game, table) -> bool:
+def _match_rating_or_higher(criterion: object, game: GameRecord, table: dict) -> bool:
     """Reads `rating` as a floor rather than a set. Declared as its own axis because
     that is how it is stored and how the UI presents it - a checkbox beside rating."""
     wanted = {normalize_rating(v) for v in _values(criterion)}
@@ -214,7 +216,7 @@ ORDERING_KEYS = frozenset({"sort_by", "order_by"})
 LEGACY_AXIS_NAMES = {"table_type": "game_type"}
 
 
-def criterion(stored: dict | None, name: str, default=None):
+def criterion(stored: dict | None, name: str, default: object = None) -> object:
     """One criterion out of a stored filter, under whichever spelling it was written.
 
     A file 2.x wrote holds `table_type`; one written now holds `game_type`. Readers that
@@ -234,7 +236,7 @@ def canonical_axis(name: str) -> str:
     return LEGACY_AXIS_NAMES.get(name, name)
 
 
-def is_unconstrained(criterion) -> bool:
+def is_unconstrained(criterion: object) -> bool:
     """Whether a criterion asks for nothing. Absent, empty and "All" all mean this."""
     return criterion in (None, "", UNCONSTRAINED) or not _values(criterion)
 
@@ -250,7 +252,7 @@ def unknown_axes(stored: dict | None) -> list[str]:
                   and canonical_axis(name) not in AXES_BY_NAME)
 
 
-def matches(stored: dict | None, game, table: dict | None = None) -> bool:
+def matches(stored: dict | None, game: GameRecord, table: dict | None = None) -> bool:
     """Whether one game, optionally via one of its tables, satisfies every criterion.
 
     An axis that constrains nothing is skipped; `rating_or_higher` reads the `rating`
@@ -289,26 +291,27 @@ def _reads_rating_as_a_floor(stored: dict) -> bool:
 class GameListFilters:
     """Filter games by various criteria: starting letter, theme, type, and rating."""
 
-    def __init__(self, games=None):
+    def __init__(self, games: Iterable[GameRecord] | None = None) -> None:
         self.games = list(games or [])
 
     @staticmethod
-    def _get_meta_value(game, section, key, fallback=""):
+    def _get_meta_value(game: GameRecord, section: str, key: str,
+                        fallback: Any = "") -> Any:
         """Helper to safely extract metadata values."""
         return get_meta_value(getattr(game, "meta_config", {}), section, key, fallback)
 
-    def get_available_letters(self):
+    def get_available_letters(self) -> list[str]:
         """The groups present, through `letter_of` so the list and matcher agree."""
         return sorted({letter_of(game) for game in self.games})
 
-    def get_available_themes(self):
+    def get_available_themes(self) -> list[str]:
         """Return sorted list of unique themes from all games."""
         themes = set()
         for game in self.games:
             themes.update(game_themes(game))
         return sorted(themes)
 
-    def get_available_types(self):
+    def get_available_types(self) -> list[str]:
         """Return sorted list of unique game types."""
         types = set()
         for game in self.games:
@@ -317,7 +320,7 @@ class GameListFilters:
                 types.add(current_type)
         return sorted(types)
 
-    def get_available_manufacturers(self):
+    def get_available_manufacturers(self) -> list[str]:
         """Return sorted list of unique manufacturers."""
         manufacturers = set()
         for game in self.games:
@@ -326,7 +329,7 @@ class GameListFilters:
                 manufacturers.add(manufacturer)
         return sorted(manufacturers)
 
-    def get_available_years(self):
+    def get_available_years(self) -> list[str]:
         """Return sorted list of unique years."""
         years = set()
         for game in self.games:
@@ -351,32 +354,32 @@ class GameListFilters:
                 seen.update(str(value) for value in axis.values_of(game) if value)
         return {key: sorted(values) for key, values in found.items()}
 
-    def _get_game_name(self, game):
+    def _get_game_name(self, game: GameRecord) -> str:
         """Get game name from either JSON or legacy format."""
         return game_title(game)
 
-    def _get_game_theme(self, game):
+    def _get_game_theme(self, game: GameRecord) -> list[str]:
         """Get game theme(s) from either JSON or legacy format."""
         return game_themes(game)
 
-    def _get_game_type(self, game):
+    def _get_game_type(self, game: GameRecord) -> str:
         """Get game type from either JSON or legacy format."""
         return game_type(game)
 
-    def _get_game_manufacturer(self, game):
+    def _get_game_manufacturer(self, game: GameRecord) -> str:
         """Get game manufacturer from either JSON or legacy format."""
         return game_manufacturer(game)
 
-    def _get_game_year(self, game):
+    def _get_game_year(self, game: GameRecord) -> str:
         """Get game year from either JSON or legacy format."""
         return game_year(game)
 
     @staticmethod
-    def _normalize_rating(value):
+    def _normalize_rating(value: Any) -> int:
         """Normalize rating values to an integer in the range 0..5."""
         return normalize_rating(value)
 
-    def _get_game_rating(self, game):
+    def _get_game_rating(self, game: GameRecord) -> int:
         """Get game rating from User.Rating metadata."""
         return game_rating(game)
 
@@ -384,33 +387,36 @@ class GameListFilters:
     # cannot disagree about what "manufacturer = Williams" selects. These stay because
     # the Manager UI and the frontend both call them one axis at a time.
 
-    def _by_axis(self, games, axis_name, criterion):
+    def _by_axis(self, games: list[GameRecord], axis_name: str,
+                 criterion: object) -> list[GameRecord]:
         if is_unconstrained(criterion):
             return games
         axis = AXES_BY_NAME[axis_name]
         return [game for game in games if axis.matches(criterion, game, {})]
 
-    def filter_by_letter(self, games, letter):
+    def filter_by_letter(self, games: list[GameRecord], letter: object) -> list[GameRecord]:
         """Filter games by starting letter of name. Supports comma-separated values."""
         return self._by_axis(games, "letter", letter)
 
-    def filter_by_theme(self, games, theme):
+    def filter_by_theme(self, games: list[GameRecord], theme: object) -> list[GameRecord]:
         """Filter games by theme. Supports comma-separated values."""
         return self._by_axis(games, "theme", theme)
 
-    def filter_by_type(self, games, game_type):
+    def filter_by_type(self, games: list[GameRecord], game_type: object) -> list[GameRecord]:
         """Filter games by type (EM, SS, etc.). Supports comma-separated values."""
         return self._by_axis(games, "game_type", game_type)
 
-    def filter_by_manufacturer(self, games, manufacturer):
+    def filter_by_manufacturer(self, games: list[GameRecord],
+                               manufacturer: object) -> list[GameRecord]:
         """Filter games by manufacturer. Supports comma-separated values."""
         return self._by_axis(games, "manufacturer", manufacturer)
 
-    def filter_by_year(self, games, year):
+    def filter_by_year(self, games: list[GameRecord], year: object) -> list[GameRecord]:
         """Filter games by year. Supports comma-separated values."""
         return self._by_axis(games, "year", year)
 
-    def filter_by_rating(self, games, rating, rating_or_higher=False):
+    def filter_by_rating(self, games: list[GameRecord], rating: object,
+                         rating_or_higher: Any = False) -> list[GameRecord]:
         """Filter games by rating, optionally reading it as a floor."""
         if is_unconstrained(rating):
             return games
@@ -419,8 +425,10 @@ class GameListFilters:
         return [game for game in games if axis.matches(rating, game, {})]
 
     def apply_filters(
-            self, letter=None, theme=None, game_type=None, manufacturer=None, year=None,
-            rating=None, rating_or_higher=False):
+            self, letter: str | None = None, theme: str | None = None,
+            game_type: str | None = None, manufacturer: str | None = None,
+            year: str | None = None, rating: str | None = None,
+            rating_or_higher: Any = False) -> list[GameRecord]:
         """
         Apply multiple filters in combination.
         Returns filtered and sorted list of games.
@@ -460,14 +468,14 @@ class GameListFilters:
 GROUP_KIND_FOR_ORDER = {"title": "letter", "year": "year", "rating": "rating"}
 
 
-def group_kind(order_by):
+def group_kind(order_by: str) -> str:
     """What kind of group this order has - `letter`, `year`, `rating` - or "" for none."""
     # Deferred: collection_store imports this module, so a top-level import would loop.
     from common.games.collection_store import ORDER_ALIASES
     return GROUP_KIND_FOR_ORDER.get(ORDER_ALIASES.get(order_by, order_by), "")
 
 
-def group_key(order_by):
+def group_key(order_by: str) -> Callable | None:
     """What group a game falls in under this order, or None if the order has none."""
     axis = AXES_BY_NAME.get(group_kind(order_by))
     return axis.groups if axis else None

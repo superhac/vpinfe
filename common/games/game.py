@@ -9,7 +9,26 @@ are frozen by the parity gate. The key and the attribute are separate things:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
+
+
+class GameRecord(Protocol):
+    """What the metadata accessors read a game through.
+
+    Three shapes answer: a `Game`, the wire lens a client builds out of an entry it was
+    sent, and a resolved entry, which forwards both of these to the game it holds. A
+    client has no folder on disk, so it cannot hold a `Game` - but the same filters and
+    the same sort keys have to answer there.
+
+    Read-only, deliberately: writing metadata needs the real `Game`, because the write
+    goes to the `.info` in its folder.
+    """
+
+    @property
+    def game_dir_name(self) -> str | None: ...
+
+    @property
+    def meta_config(self) -> dict[str, Any] | None: ...
 
 
 @dataclass

@@ -359,8 +359,8 @@ def associate_vps_to_folder(
     recorded = ""
     if meta_path.exists():
         try:
-            meta = MetaConfig(str(meta_path)).data
-            recorded = recorded_default(vpinfe_section(meta), table_entries(meta))
+            stored = MetaConfig(str(meta_path)).data
+            recorded = recorded_default(vpinfe_section(stored), table_entries(stored))
         except Exception:
             recorded = ""
 

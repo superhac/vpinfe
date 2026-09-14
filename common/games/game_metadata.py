@@ -7,9 +7,11 @@ written today answer the same questions here.
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from common.games.game import Game, GameRecord
 from common.games.ids import new_id
 from common.games.info_file import VPINFE_SECTION, MetaConfig
 from common.games.tables import (
@@ -141,7 +143,7 @@ def reorder_leading_article(title: Any) -> str:
     return text
 
 
-def game_title(game) -> str:
+def game_title(game: GameRecord) -> str:
     meta = normalize_meta(getattr(game, "meta_config", {}))
     vpinfe = vpinfe_section(meta)
     info = section(meta, "Info")
@@ -156,7 +158,7 @@ def game_title(game) -> str:
     return reorder_leading_article(raw)
 
 
-def game_tags(game) -> list[str]:
+def game_tags(game: GameRecord) -> list[str]:
     """The user's own words for a game. A set on the way out: `Tags` is a JSON list and
     nothing has stopped one holding the same word twice."""
     meta = normalize_meta(getattr(game, "meta_config", {}))
@@ -178,7 +180,7 @@ def normalize_tag(text: str) -> str:
     return " ".join(str(text or "").split())
 
 
-def set_game_tags(game, tags) -> list[str]:
+def set_game_tags(game: Game, tags: Iterable[str] | None) -> list[str]:
     """Write the whole set, returning what was stored.
 
     A whole-value write, like the rating: the set is the resource. Normalized and
@@ -198,7 +200,7 @@ def set_game_tags(game, tags) -> list[str]:
     return stored
 
 
-def retag_library(games, sources, into: str = "") -> int:
+def retag_library(games: Iterable[Game], sources: Iterable[str], into: str = "") -> int:
     """Rename, merge and delete are one sweep, and this is it.
 
     Renaming is merging one tag into a name nothing uses; deleting is merging into
@@ -229,7 +231,7 @@ def retag_library(games, sources, into: str = "") -> int:
     return touched
 
 
-def game_themes(game) -> list[str]:
+def game_themes(game: GameRecord) -> list[str]:
     """The game's themes. `Info.Themes` is ours and is a JSON list, so a scalar there is
     a bad value and stays visible as one - `as_string_list` has the reasoning, and this
     reads the same way it does. `VPSdb.theme` is scraped 2.x data where the repr form
@@ -253,28 +255,28 @@ def game_themes(game) -> list[str]:
     return [legacy]
 
 
-def game_type(game) -> str:
+def game_type(game: GameRecord) -> str:
     meta = normalize_meta(getattr(game, "meta_config", {}))
     return str(first_meta_value(meta, ("Info", "Type"), ("VPSdb", "type"), default="") or "")
 
 
-def game_manufacturer(game) -> str:
+def game_manufacturer(game: GameRecord) -> str:
     meta = normalize_meta(getattr(game, "meta_config", {}))
     return str(first_meta_value(meta, ("Info", "Manufacturer"), ("VPSdb", "manufacturer"), default="") or "")
 
 
-def game_year(game) -> str:
+def game_year(game: GameRecord) -> str:
     meta = normalize_meta(getattr(game, "meta_config", {}))
     value = first_meta_value(meta, ("Info", "Year"), ("VPSdb", "year"), default="")
     return str(value) if value else ""
 
 
-def game_rating(game) -> int:
+def game_rating(game: GameRecord) -> int:
     meta = normalize_meta(getattr(game, "meta_config", {}))
     return normalize_rating(get_meta_value(meta, "User", "Rating", 0))
 
 
-def game_last_run(game) -> int:
+def game_last_run(game: GameRecord) -> int:
     """When the game was last played, as the epoch integer `User.LastRun` is specced as.
 
     0 for a game with no play on record. Both the `played` axis and the `last_played`
@@ -288,7 +290,7 @@ def game_last_run(game) -> int:
         return 0
 
 
-def set_game_rating(game, rating: Any) -> int:
+def set_game_rating(game: Game, rating: Any) -> int:
     """Write `User.Rating`, returning what was stored.
 
     Re-reads from disk first, so a rating set from one surface does not overwrite
@@ -338,7 +340,7 @@ def table_rating(table: dict) -> int:
     return normalize_rating((table.get("user") or {}).get("rating", 0))
 
 
-def set_game_favorite(game, favorite: Any) -> bool:
+def set_game_favorite(game: Game, favorite: Any) -> bool:
     """Write `User.Favorite`, returning what was stored.
 
     A real boolean. The field has been in the tree since the initial checkin and
@@ -355,7 +357,7 @@ def set_game_favorite(game, favorite: Any) -> bool:
     return stored
 
 
-def set_table_rating(game, filename: str, rating: Any) -> int:
+def set_table_rating(game: Game, filename: str, rating: Any) -> int:
     """Write one table's rating, returning what was stored.
 
     Re-read from disk first, for the reason `set_game_rating` gives: two surfaces write
@@ -368,7 +370,7 @@ def set_table_rating(game, filename: str, rating: Any) -> int:
     return normalize_rating(rating)
 
 
-def reset_game_play_record(game) -> dict[str, Any]:
+def reset_game_play_record(game: Game) -> dict[str, Any]:
     """Put a game's counters back to nothing, leaving what was entered alone.
 
     Rating, favorite and tags are opinions somebody set; the counters are a record of
@@ -389,8 +391,9 @@ def reset_game_play_record(game) -> dict[str, Any]:
     return play_record(config)
 
 
-def set_game_play_record(game, *, play_count=None, run_time_seconds=None,
-                         last_played=None) -> dict[str, Any]:
+def set_game_play_record(game: Game, *, play_count: int | None = None,
+                         run_time_seconds: int | None = None,
+                         last_played: int | None = None) -> dict[str, Any]:
     """Write a game's counters to given values. The migration case, and only that.
 
     Resetting is the correction somebody makes about their own library; this is what a
@@ -417,7 +420,7 @@ def set_game_play_record(game, *, play_count=None, run_time_seconds=None,
     return play_record(config)
 
 
-def reset_table_play_record(game, filename: str) -> dict[str, Any]:
+def reset_table_play_record(game: Game, filename: str) -> dict[str, Any]:
     """The same, for one table's own counters."""
     config = load_game_meta(game)
     entry = get_or_create_table_user(config, filename)
@@ -453,7 +456,7 @@ def table_descriptor(table: dict, *, default_id: str = "") -> dict[str, Any]:
     `playfieldvariant` is a rendering mode rather than SS/EM, so publishing it as `type`
     beside the game's `type` would put two unrelated meanings behind one word.
     """
-    def parsed(key):
+    def parsed(key: str) -> str | None:
         """Null rather than "" so "not parsed" is distinct from "parsed as blank"."""
         return str(table.get(key, "") or "").strip() or None
 
@@ -495,13 +498,13 @@ def table_descriptor(table: dict, *, default_id: str = "") -> dict[str, Any]:
     }
 
 
-def game_frontend_dof_event(game) -> str:
+def game_frontend_dof_event(game: GameRecord) -> str:
     """The DOF effect a game asks for when selected, or "" to use the default."""
     meta = normalize_meta(getattr(game, "meta_config", {}))
     return str(vpinfe_section(meta).get("frontend_dof_event", "") or "").strip()
 
 
-def game_vps_id(game) -> str:
+def game_vps_id(game: GameRecord) -> str:
     meta = normalize_meta(getattr(game, "meta_config", {}))
     alt_vpsid = str(vpinfe_section(meta).get("alt_vpsid", "") or "").strip()
     if alt_vpsid:
@@ -509,7 +512,7 @@ def game_vps_id(game) -> str:
     return str(section(meta, "Info").get("VPSId", "") or "").strip()
 
 
-def base_game_vps_id(game) -> str:
+def base_game_vps_id(game: GameRecord) -> str:
     return str(section(getattr(game, "meta_config", {}), "Info").get("VPSId", "") or "").strip()
 
 
@@ -536,7 +539,7 @@ def run_time_seconds(meta: Any) -> int:
     return _as_int(section(meta, "User").get("RunTime")) * 60
 
 
-def _as_int(value, default: int = 0) -> int:
+def _as_int(value: Any, default: int = 0) -> int:
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -565,7 +568,7 @@ def table_source(entry: dict[str, Any] | None) -> dict[str, Any]:
     return dict(found) if isinstance(found, dict) else {}
 
 
-def set_table_source(game, filename: str, vps_file_id: str) -> dict[str, Any]:
+def set_table_source(game: Game, filename: str, vps_file_id: str) -> dict[str, Any]:
     """Record that somebody says this table is that release, or take it back.
 
     Merged into whatever `source` already holds rather than replacing it: a patched
@@ -605,7 +608,7 @@ def set_table_source(game, filename: str, vps_file_id: str) -> dict[str, Any]:
     return dict(source)
 
 
-def set_asset_source(game, path: str, vps_file_id: str) -> dict[str, Any]:
+def set_asset_source(game: Game, path: str, vps_file_id: str) -> dict[str, Any]:
     """Record that somebody says the file at this path is that VPS record, or take it
     back. The assets ledger's twin of `set_table_source`.
 
@@ -678,7 +681,7 @@ def _as_said(value: Any) -> Any:
     return str(value if value is not None else "").strip().lower()
 
 
-def adopt_vps_details(game, vps_entry: dict[str, Any]) -> dict[str, Any]:
+def adopt_vps_details(game: Game, vps_entry: dict[str, Any]) -> dict[str, Any]:
     """Make the game's details describe the entry it is matched to.
 
     Everything the entry describes, in one act rather than field by field: they are one
@@ -729,18 +732,18 @@ def get_or_create_table_user(config: dict[str, Any], native: str) -> dict[str, A
     return user
 
 
-def meta_file_path(game) -> Path:
-    return Path(game.full_path_game) / f"{game.game_dir_name}.info"
+def meta_file_path(game: Game) -> Path:
+    return Path(str(game.full_path_game)) / f"{game.game_dir_name}.info"
 
 
-def load_game_meta(game) -> dict[str, Any]:
+def load_game_meta(game: Game) -> dict[str, Any]:
     meta_path = meta_file_path(game)
     if meta_path.exists():
         return normalize_meta(MetaConfig(str(meta_path)).data)
     return normalize_meta(getattr(game, "meta_config", {}))
 
 
-def persist_game_meta(game, config: dict[str, Any]) -> None:
+def persist_game_meta(game: Game, config: dict[str, Any]) -> None:
     meta_file = MetaConfig(str(meta_file_path(game)))
     upgraded = meta_file.pending_migration
     meta_file.data = config

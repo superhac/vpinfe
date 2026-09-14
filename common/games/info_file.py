@@ -8,6 +8,7 @@ rather than overwritten.
 import json
 import logging
 import os
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from common.games import identity_claims
@@ -74,7 +75,7 @@ ASSETS_KEY = "assets"
 _warned_newer_schema: set[int] = set()
 
 
-def migrate_vpinfe_section(vpinfe):
+def migrate_vpinfe_section(vpinfe: object) -> dict[str, Any]:
     """Bring the VPinFE section up to the current schema, in memory.
 
     Idempotent; the stamp reaches disk on the next write. A section written by a newer
@@ -110,7 +111,7 @@ ALT_VPSID_KEY = "alt_vpsid"
 ALT_VPSID_PREVIOUS_KEY = "alt_vpsid_previous"
 
 
-def _park_alt_vpsid(vpinfe, table_filename):
+def _park_alt_vpsid(vpinfe: dict[str, Any], table_filename: str) -> None:
     """Set a manual VPS match aside when the table it was claimed against is replaced.
 
     It stops applying either way; what changes is that the user's typed value survives to
@@ -127,7 +128,7 @@ def _park_alt_vpsid(vpinfe, table_filename):
     }
 
 
-def _default_table_changed(chosen, previous_files, tables):
+def _default_table_changed(chosen: str, previous_files: dict, tables: dict) -> bool:
     """Whether the game's default table is a different file than it was.
 
     A manual VPS override is tied to the table it was chosen against, so replacing
@@ -144,7 +145,7 @@ def _default_table_changed(chosen, previous_files, tables):
 class InvalidMetaConfigError(ValueError):
     """Raised when a game's .info file exists but cannot be read as metadata."""
 
-    def __init__(self, path, reason):
+    def __init__(self, path: str, reason: str) -> None:
         self.path = path
         self.reason = reason
         super().__init__(f"Invalid game metadata file: {path} ({reason})")
@@ -153,7 +154,7 @@ class InvalidMetaConfigError(ValueError):
 PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
 
 
-def _primer_tutorial(vpsdata):
+def _primer_tutorial(vpsdata: object) -> str:
     """The primer link among an entry's tutorials, or "" where it lists none."""
     if not isinstance(vpsdata, dict):
         return ""
@@ -172,7 +173,7 @@ def _primer_tutorial(vpsdata):
     return ""
 
 
-def info_from_vps(vps_entry):
+def info_from_vps(vps_entry: dict | None) -> dict[str, Any]:
     """The `Info` block for one catalog entry.
 
     Info is wholly what VPS knows about the machine. Rom and Authors used to be copied
@@ -205,7 +206,7 @@ class MetaConfig:
 
     PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
 
-    def __init__(self, configfilepath):
+    def __init__(self, configfilepath: str) -> None:
         self.config_file_path = configfilepath
         self.data = {}
         # The file as it was found, held only until a write backs it up.
@@ -240,7 +241,7 @@ class MetaConfig:
         """
         return bool(self._pre_migration)
 
-    def write_config_meta(self, configdata):
+    def write_config_meta(self, configdata: dict[str, Any]) -> None:
         """
         Build the .info JSON structure
         """
@@ -323,7 +324,7 @@ class MetaConfig:
 
         self.write_config()
 
-    def _build_tables(self, configdata):
+    def _build_tables(self, configdata: dict[str, Any]) -> dict[str, dict]:
         """One entry per parsed table, keyed by filename.
 
         Callers pass `gamefiles` as {filename: parsed}. `vpxdata` alone is still
@@ -358,14 +359,14 @@ class MetaConfig:
             built[entry[TABLE_ID_KEY]] = entry
         return built
 
-    def _entries_by_id(self):
+    def _entries_by_id(self) -> dict:
         """The tables map keyed by id, converted in place so the next write persists it."""
         entries = table_entries(self.data)
         self.data[TABLES_KEY] = entries
         return entries
 
     @staticmethod
-    def _entry_for(entries, filename):
+    def _entry_for(entries: dict, filename: str) -> dict:
         """The entry describing this .vpx, minting one if the table is new to us."""
         _, entry = entry_for_filename(entries, filename)
         if entry:
@@ -375,7 +376,7 @@ class MetaConfig:
         entries[minted] = entry
         return entry
 
-    def write_config(self):
+    def write_config(self) -> None:
         self._normalize_detection_flags()
         os.makedirs(os.path.dirname(self.config_file_path), exist_ok=True)
         if self._pre_migration:
@@ -388,18 +389,18 @@ class MetaConfig:
             logger.info("Kept the pre-migration metadata at %s", saved)
         write_json_atomic(self.config_file_path, self.data)
 
-    def get_config(self):
+    def get_config(self) -> dict[str, Any]:
         return self.data
 
-    def strip_all_newlines(self, text):
+    def strip_all_newlines(self, text: str) -> str:
         return text.replace("\r\n", "").replace("\n", "")
 
-    def game_file_settings(self):
+    def game_file_settings(self) -> dict:
         """Per-table entries, keyed by filename. A folder can hold several tables
         of one game - desktop, VR, a patched variant - and they are peers."""
         return table_entries(self.data)
 
-    def set_table_hidden(self, filename, hidden):
+    def set_table_hidden(self, filename: str, hidden: bool) -> None:
         """Hide a table from the frontend, or unhide it.
 
         Hiding never deletes. A patch base has to stay on disk - the patched table
@@ -418,7 +419,7 @@ class MetaConfig:
                 settings.pop(entry.get(TABLE_ID_KEY), None)
         self.write_config()
 
-    def set_default_table(self, table_id):
+    def set_default_table(self, table_id: str) -> None:
         """Record which of a game's tables is the one to offer first.
 
         Stored as an id rather than a filename so the choice survives a rename, and
@@ -436,7 +437,7 @@ class MetaConfig:
             vpinfe.pop(DEFAULT_TABLE_KEY, None)
         self.write_config()
 
-    def forget_table(self, table_id):
+    def forget_table(self, table_id: str) -> bool:
         """Drop an absent table's record, once a person has decided it is not coming back.
 
         Only an entry discovery has stamped absent. While the file is on disk that entry
@@ -465,7 +466,7 @@ class MetaConfig:
         self.write_config()
         return True
 
-    def add_keyed_table(self, app, key, table_id):
+    def add_keyed_table(self, app: str, key: str, table_id: str) -> bool:
         """Record something this folder holds that has no file: a ROM its emulator looks
         up, a Pinball FX table id.
 
@@ -485,7 +486,7 @@ class MetaConfig:
         self.write_config()
         return True
 
-    def add_referenced_table(self, path, table_id):
+    def add_referenced_table(self, path: str, table_id: str) -> bool:
         """Record a game file that lives somewhere else.
 
         Stored as given - relative or absolute is the caller's decision, because only it
@@ -504,7 +505,7 @@ class MetaConfig:
         self.write_config()
         return True
 
-    def add_contained_table(self, filename, table_id):
+    def add_contained_table(self, filename: str, table_id: str) -> bool:
         """Record a game file that has just been copied into this folder.
 
         A scan would find the file on its own, but not before this call returns, and the
@@ -522,7 +523,7 @@ class MetaConfig:
         self.write_config()
         return True
 
-    def contain_referenced_table(self, table_id, filename):
+    def contain_referenced_table(self, table_id: str, filename: str) -> bool:
         """Turn a reference into a table of this game's own, once its file has been
         copied in. The copy is the caller's - this is the half that has to be one write.
 
@@ -538,7 +539,7 @@ class MetaConfig:
         self.write_config()
         return True
 
-    def forget_keyed_table(self, table_id):
+    def forget_keyed_table(self, table_id: str) -> bool:
         """Drop an entry the folder does not hold: one with no file at all, or one whose
         file is somewhere else. Nothing on disk here will mint either back, which is
         exactly why forgetting one is safe and forgetting a table that is there is not.
@@ -555,18 +556,18 @@ class MetaConfig:
         self.write_config()
         return True
 
-    def game_file_value(self, filename, key, default=""):
+    def game_file_value(self, filename: str, key: str, default: Any = "") -> Any:
         """One key off a specific table's entry."""
         _, value = entry_for_filename(table_entries(self.data), filename)
         return value.get(key, default) if isinstance(value, dict) else default
 
-    def set_table_value(self, filename, key, value):
+    def set_table_value(self, filename: str, key: str, value: Any) -> None:
         """Record something we did to a table, against that table."""
         entry = self._entry_for(self._entries_by_id(), filename)
         entry[key] = value
         self.write_config()
 
-    def refresh_table(self, filename, parsed):
+    def refresh_table(self, filename: str, parsed: dict | None) -> None:
         """Refresh what one table says about itself. Everything else on the entry -
         hidden, where it came from, later play stats - survives, as it does on a full
         rebuild.
@@ -575,7 +576,8 @@ class MetaConfig:
         entry.update(entry_from_parsed(parsed))
         self.write_config()
 
-    def replace_table(self, removed, filename, parsed):
+    def replace_table(self, removed: str | None, filename: str,
+                      parsed: dict | None) -> None:
         """One table replaced another on disk: describe the new one, forget the old.
 
         A gone table's entry is not kept - its history answers nothing once the file is
@@ -605,7 +607,8 @@ class MetaConfig:
                 _park_alt_vpsid(vpinfe, chosen)
         self.write_config()
 
-    def record_patch_source(self, filename, base_file, base_hash, patch_format):
+    def record_patch_source(self, filename: str, base_file: str, base_hash: str,
+                            patch_format: str) -> None:
         """Record a table we made ourselves: the base it came from, and the patch that
         made it. An ordinary .vpx has no source, which is the normal case.
 
@@ -619,7 +622,8 @@ class MetaConfig:
         }
         self.write_config()
 
-    def add_asset(self, path, host, md5="", identity=None):
+    def add_asset(self, path: str, host: str, md5: str = "",
+                  identity: identity_claims.DeclaredIdentity | None = None) -> None:
         """Record a file we placed, against the path we wrote it to.
 
         Origin only. What kind of media it is and which table it belongs to are read
@@ -646,7 +650,7 @@ class MetaConfig:
         self.data.setdefault(ASSETS_KEY, {})[key] = {"source": source}
         self.write_config()
 
-    def _asset_key(self, path):
+    def _asset_key(self, path: str) -> str:
         """A path relative to the game folder, with forward slashes.
 
         The .info travels with its folder, so an absolute path stops meaning anything
@@ -660,10 +664,10 @@ class MetaConfig:
             relative = os.path.basename(str(path))
         return relative.replace(os.sep, "/")
 
-    def _find_pinball_primer_tutorial(self, vpsdata):
+    def _find_pinball_primer_tutorial(self, vpsdata: object) -> str:
         return _primer_tutorial(vpsdata)
 
-    def _migrate_vpinfe(self):
+    def _migrate_vpinfe(self) -> None:
         """Apply the VPinFE section schema migration to the loaded data, in memory."""
         if not isinstance(self.data, dict):
             return
@@ -671,14 +675,14 @@ class MetaConfig:
         if isinstance(vpinfe, dict):
             self.data[VPINFE_SECTION] = migrate_vpinfe_section(vpinfe)
 
-    def _to_bool(self, val):
+    def _to_bool(self, val: Any) -> bool:
         if isinstance(val, bool):
             return val
         if isinstance(val, str):
             return val.strip().lower() in ("true", "1", "yes", "on")
         return val == 1
 
-    def _normalize_detection_flags(self):
+    def _normalize_detection_flags(self) -> None:
         """Detect flags as real booleans, on every table entry.
 
         The parser has handed back strings at times, and a JSON "false" is truthy to
