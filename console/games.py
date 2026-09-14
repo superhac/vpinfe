@@ -563,9 +563,9 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         # renderer of its own, and these columns bring theirs. The cell's value is a
         # word now, so a column left to render itself would print it - which is the
         # accident this replaces, not the intent.
-        table = grid.build(columns, rows, SCOPE, on_select_rows, on_context,
-                           on_header_context, view_of=showing)
-        context_menu = ui.context_menu()
+        table: ui.aggrid = grid.build(columns, rows, SCOPE, on_select_rows, on_context,
+                                      on_header_context, view_of=showing)
+        context_menu: ui.context_menu = ui.context_menu()
 
     async def refresh_game(game_id: str) -> None:
         """Put one game's row back on screen after something changed it.
@@ -961,9 +961,13 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         _fill(None, col_id=col_id, pinned=bool(entry.get("pinned")))
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        table = grid.build(table_columns, built, f"{SCOPE}.tables", on_select,
-                           on_context, on_header_context, view_of=showing)
-        menu = ui.context_menu()
+        # No selection handler: `on_select` is about the focused row, and the grid
+        # hands its selection handler the whole selected list. Passing it here raised
+        # on every checkbox click, and there is no bulk bar on this lens to feed.
+        table = grid.build(table_columns, built, f"{SCOPE}.tables",
+                           on_context=on_context,
+                           on_header_context=on_header_context, view_of=showing)
+        menu: ui.context_menu = ui.context_menu()
 
     async def refresh_game(game_id: str) -> None:
         """Put one game's rows back after something changed them.

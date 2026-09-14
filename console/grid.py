@@ -267,7 +267,7 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
           # Any, not None: NiceGUI takes a sync or an async handler and so do these,
           # so a coroutine is as valid a return as nothing. Its own Handler type is
           # spelled the same way, for the same reason.
-          on_select: Callable[[dict | None], Any] | None = None,
+          on_select_rows: Callable[[list[dict[str, Any]]], Any] | None = None,
           on_context: Callable[[dict | None], Any] | None = None,
           on_header_context: Callable[[str | None], Any] | None = None,
           html_fields: list[str] | None = None,
@@ -334,11 +334,11 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
     """)
     _restore(grid, scope, columns, view_of)
     _save_on_change(grid, scope, view_of)
-    if on_select is not None:
+    if on_select_rows is not None:
         async def changed() -> None:
             rows = await grid.get_selected_rows()
             # The count only; the focused row owns which game is on screen.
-            result = on_select(rows)
+            result = on_select_rows(rows)
             if inspect.isawaitable(result):
                 await result
 
