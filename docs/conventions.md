@@ -21,13 +21,16 @@ blocking.
 | Internal helpers | leading underscore | `_catalog()`, `_resource()` |
 
 Python does not use camelCase. PEP 8 permits it "only in contexts where that's already the
-prevailing style, to retain backwards compatibility" — which is why `gameDirName` still
-exists. It is legacy, not the standard.
+prevailing style, to retain backwards compatibility", which was the argument for the names
+2.x left behind. They are gone as of 3.0, and `tests/invariants/test_python_is_snake_case.py`
+is what keeps them gone.
 
 The distinction that decides these: a camelCase name **a theme reads** is a contract and
 stays, because renaming it costs every theme a change. A camelCase name that never leaves
-Python is just old, and `MetaConfig`'s was retired in 3.0 — `metaConfig`, `writeConfigMeta`
-and the rest are snake_case now. `gameDirName` is in the contract 1 payload, so it stays.
+Python is just old. So `gameDirName` is still a key in the contract 1 payload and always
+will be, and the attribute it is published from is `game.game_dir_name`. The key and the
+attribute are separate things — `frontend/game_state.py` maps one to the other, and
+`MediaSpec` carries both, as `attr` and `payload_key`.
 
 ### JavaScript
 
@@ -323,8 +326,8 @@ Pass arguments to the logger rather than formatting into it, so the work is skip
 level is off:
 
 ```python
-logger.debug("Assigned game id %s to %s", minted, game.gameDirName)     # yes
-logger.debug(f"Assigned game id {minted} to {game.gameDirName}")        # no
+logger.debug("Assigned game id %s to %s", minted, game.game_dir_name)   # yes
+logger.debug(f"Assigned game id {minted} to {game.game_dir_name}")      # no
 ```
 
 ### What we deliberately do not do
@@ -841,13 +844,18 @@ ruff check .          # what the CI advisory run reports
 ruff check . --fix    # apply the safe fixes
 ```
 
-CI runs it three ways:
+CI runs it four ways:
 
 - **Advisory over the whole tree.** Reports and does not fail. What it reports is legacy line
-  length and legacy naming in 2.x code. It is a visible debt register, not a gate.
+  length, and the Manager UI. It is a visible debt register, not a gate.
 - **Blocking on `tests/`.** The test packages were taken to zero findings and every file in
   them is checked, new or not. The tests are the foundation the rest of the cleanup is done
   against, so they are the one tree that is not allowed to drift.
+- **Blocking on the `N` rules, everywhere we write Python.** `apps`, `common`, `console`,
+  `extensions`, `frontend`, `httpapi`, `cli.py` and `main.py`, at zero. Naming went to zero
+  ahead of line length, so it gets its own step rather than waiting for `common/` and
+  `frontend/` to be clean enough to join the one above. `N` does not see a PascalCase
+  dataclass field, so `tests/invariants/test_python_is_snake_case.py` states the whole rule.
 - **Blocking on newly added files.** Any `.py` file added in a PR must be clean. This is what
   "get it right going forward" means in practice: new code is born compliant, and existing
   code is cleaned up when it is touched rather than in one enormous diff.
