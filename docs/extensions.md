@@ -83,7 +83,7 @@ application, and that is the guarantee the model rests on.
 | `ctx.games.launch_game(...)` | Start a game on this play host. Needs `launch:invoke`, which `games:write` does not grant |
 | `ctx.scope(action)` | The scope name for one of its declared actions |
 | `ctx.entries` | `contribute(key, fetch)` — add something to every entry a theme is handed |
-| `ctx.ui` | `action(...)` — offer a verb for the Console to draw. Needs `ui:mount` |
+| `ctx.ui` | `action(...)` — offer a verb for the Console to draw; `settings(base, label)` and `state(base, label)` — say where its settings and what it is holding can be read. All need `ui:mount` |
 | `ctx.add_router(router, scope=...)` | Serve routes under `/api/v1/ext/<name>/` |
 
 `ctx.games` is not a second implementation of the HTTP API — it calls the API's own route
