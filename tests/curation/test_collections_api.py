@@ -39,7 +39,7 @@ class CollectionsApiTests(TempTree):
         # One manager over a throwaway file, shared by the service and the test.
         manager = CollectionStore(self.path)
         self.manager = manager
-        for target in ("httpapi.collections.get_collections_manager",
+        for target in ("common.games.collection_ops.get_collections_manager",
                        "common.games.collections_service.get_collections_manager"):
             patcher = patch(target, lambda: manager)
             patcher.start()
@@ -341,7 +341,7 @@ class MemberTableTests(TempTree):
         open(self.path, "w").close()
         manager = CollectionStore(self.path)
         self.manager = manager
-        for target in ("httpapi.collections.get_collections_manager",
+        for target in ("common.games.collection_ops.get_collections_manager",
                        "common.games.collections_service.get_collections_manager"):
             patcher = patch(target, lambda: manager)
             patcher.start()
