@@ -576,7 +576,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         while something is running costs nothing the rest of the time.
         """
         try:
-            running = [job for job in await run.io_bound(ApiClient().jobs)
+            running = [job for job in await offload.io(ApiClient().jobs)
                        if job.get("state") == "running"]
         except Exception:
             job_line.set_visibility(False)
@@ -632,7 +632,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         # asking is the pull half of that timestamp.
         try:
             found = {p.get("device_id"): p
-                     for p in await run.io_bound(ApiClient().probe_devices)}
+                     for p in await offload.io(ApiClient().probe_devices)}
             state["device_reach"] = found
             if state.get("view") == "devices":
                 # render() empties the pane, so the device open in it is redrawn after -
@@ -884,7 +884,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         this is for when you have just gone and switched one on."""
         try:
             found = {p.get("device_id"): p
-                     for p in await run.io_bound(ApiClient().probe_devices)}
+                     for p in await offload.io(ApiClient().probe_devices)}
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
             ui.notify(t("console.page.could_not_ask_devices", exc=(exc)), type="negative")
             return

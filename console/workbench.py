@@ -2324,7 +2324,7 @@ async def _add_keyed_table(context: dict[str, Any]) -> None:
     """
     library = context["library"]
     try:
-        offered = [one for one in await run.io_bound(library.launch_apps)
+        offered = [one for one in await offload.io(library.launch_apps)
                    if one.get("accepts_keys")]
     except Exception as exc:  # noqa: BLE001
         ui.notify(t("console.workbench.could_not_read_what", exc=(exc)), type="negative")

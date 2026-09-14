@@ -577,7 +577,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         go, for a write that touched one row. `getRowId` is the row's id, so a
         transaction leaves all three alone.
         """
-        fresh = next((row for row in await run.io_bound(library.game_rows)
+        fresh = next((row for row in await offload.io(library.game_rows)
                       if row.get("id") == game_id), None)
         if fresh is None:
             return

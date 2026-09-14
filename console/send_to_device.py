@@ -16,7 +16,7 @@ from nicegui import run, ui
 
 from common import device_registry
 from common.i18n import t
-from console import confirm
+from console import confirm, offload
 from console.api import ApiClient
 
 logger = logging.getLogger("vpinfe.console.send_to_device")
@@ -47,7 +47,7 @@ async def ask_where(games: list[dict[str, Any]]) -> None:
     if not games:
         return
     try:
-        found = phones(await run.io_bound(ApiClient().devices))
+        found = phones(await offload.io(ApiClient().devices))
     except Exception as exc:
         ui.notify(str(exc), type="negative")
         return

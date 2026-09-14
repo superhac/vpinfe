@@ -193,7 +193,7 @@ async def remote_page(screen: str = "") -> None:
         if not state["target"]:
             return
         try:
-            state.update(await run.io_bound(_read_target, client_for_target()))
+            state.update(await offload.io(_read_target, client_for_target()))
             state["reachable"] = True
         except Exception as exc:
             logger.info("remote: %s did not answer: %s",
@@ -553,7 +553,7 @@ def _game_sheet(game: dict[str, Any], state: dict[str, Any], client_for_target,
         if made:
             ui.label(made).classes("remote-note")
 
-        async def write(call, *args) -> None:
+        async def write(call, *args) -> bool:
             try:
                 await run.io_bound(call, *args)
             except Exception as exc:
