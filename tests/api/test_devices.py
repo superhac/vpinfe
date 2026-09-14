@@ -35,7 +35,7 @@ class DeviceRegistryApiTests(TempTree):
         patcher = patch.object(registry_module, "get_device_registry", lambda: registry)
         patcher.start()
         self.addCleanup(patcher.stop)
-        also = patch("httpapi.devices.get_device_registry", lambda: registry)
+        also = patch("common.device_ops.get_device_registry", lambda: registry)
         also.start()
         self.addCleanup(also.stop)
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)

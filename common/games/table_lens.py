@@ -10,11 +10,13 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
+from typing import Any
 
 from common import apps
 from common.games import (
     asset_registry,
     asset_resolver,
+    game_repository,
     launchers,
     library_discovery,
     tables,
@@ -25,6 +27,7 @@ from common.games.game_metadata import (
     table_source,
     vpinfe_section,
 )
+from common.games.game_repository import game_to_row
 from common.games.game_service import find_vps_release
 from common.games.info_file import VPINFE_SECTION, MetaConfig
 from common.games.tables import (
@@ -336,3 +339,89 @@ def table_rows(game, row: dict) -> list[dict]:
             (chain or {}).get("installed"))
         entries.append(entry)
     return entries
+
+
+# -- the library seen by launchable file -------------------------------------------
+#
+# A game's row cannot tell its tables apart, which is the whole of what this is for. Not a
+# replacement for the game lens: identity and shared media are the game's, and saying so
+# four times over is worse than saying it once. These are peers.
+
+
+def launch_apps() -> dict[str, Any]:
+    """What can launch something in this library, and which files each one claims.
+
+    Answered rather than left as a constant, because a caller showing an App column
+    should read the list rather than carry its own copy of it.
+    """
+    return {"apps": [{"id": app.id, "name": app.name,
+                      "suffixes": list(app.claim.suffixes),
+                      "accepts_keys": app.claim.accepts_keys}
+                     for app in apps.all_apps()]}
+
+
+def library_rows(limit: int = 0, offset: int = 0, game: str = "") -> dict[str, Any]:
+    """One row per launchable file, each carrying the game it belongs to.
+
+    The game's name and maker ride along rather than being a lookup the caller has to
+    make: this list is read to be shown, and a table named only by its filename is the
+    thing the games lens already fails at.
+    """
+    found: list[dict] = []
+    for game_id, entry in game_repository.catalog().items():
+        if game or "":
+            if game != game_id:
+                continue
+        row = game_to_row(entry)
+        meta = getattr(entry, "meta_config", {}) or {}
+        declared = meta.get("Info")
+        info = declared if isinstance(declared, dict) else {}
+        for table in table_rows(entry, row):
+            if not table.get("id"):
+                continue
+            found.append({
+                "id": table["id"],
+                "game_id": game_id,
+                "game": str(info.get("Name", "") or row.get("name", "") or ""),
+                "manufacturer": str(info.get("Manufacturer", "") or ""),
+                "year": str(info.get("Year", "") or ""),
+                "filename": table.get("filename") or "",
+                # What names this entry where it has no file, and which of the two it
+                # is. A row showing a blank in the file column would read as a fault.
+                "form": table.get("form") or "contained",
+                "key": table.get("key") or "",
+                # As stored, which is what identifies the row. Where it resolves to and
+                # whether it is there belong to the panel, not to a grid cell.
+                "reference": ((table.get("reference") or {}).get("path") or ""),
+                "version": table.get("version") or "",
+                "authors": table.get("authors") or [],
+                "rating": int(table.get("rating") or 0),
+                "features": table.get("features") or {},
+                "assets": table.get("assets") or {},
+                # The rom this file actually resolves to, alias followed. One of the
+                # few things that genuinely differs between two tables of one game.
+                "rom": str((table.get("dependencies") or {})
+                           .get("pinmame", {}).get("effective", "") or ""),
+                "rom_installed": ((table.get("dependencies") or {})
+                                  .get("pinmame", {}).get("installed")),
+                "launchable": table.get("launchable"),
+                "user": table.get("user") or {},
+                "default": bool(table.get("default")),
+                "default_kind": str(table.get("default_kind") or ""),
+                "hidden": bool(table.get("hidden")),
+                "available": bool(table.get("available")),
+                "absent_since": table.get("absent_since"),
+                "app": table.get("app") or "",
+                "app_name": table.get("app_name") or "",
+                # The same three the games lens carries, so the two cannot describe one
+                # table differently.
+                "launcher": table.get("launcher") or "",
+                "launcher_name": table.get("launcher_name") or "",
+                "launcher_set_here": bool(table.get("launcher_set_here")),
+            })
+
+    found.sort(key=lambda item: (item["game"].lower(),
+                                (item["filename"] or item["key"]).lower()))
+    total = len(found)
+    window = found[offset:offset + limit] if limit else found[offset:]
+    return {"total": total, "offset": offset, "count": len(window), "tables": window}
