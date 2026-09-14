@@ -200,7 +200,7 @@ async def fill(picked: list[dict[str, Any]], library: Any,
 
 
 def build(found: list[dict[str, Any]], library: Any,
-          on_select: Callable[[dict | None], None],
+          on_select: Callable[[dict | None], Any],
           state: dict[str, Any] | None = None,
           rerender: Callable[[], None] | None = None,
           rescan: Callable[[], Any] | None = None) -> None:

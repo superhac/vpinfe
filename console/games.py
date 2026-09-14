@@ -391,7 +391,7 @@ async def _launch(games: list[dict[str, Any]]) -> None:
 
 
 def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
-          on_select: Callable[[dict | None], None],
+          on_select: Callable[[dict | None], Any],
           state: dict[str, Any] | None = None,
           rerender: Callable[[], None] | None = None,
           rescan: Callable[[], Any] | None = None) -> None:
@@ -881,7 +881,7 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def build_tables(rows: list[dict[str, Any]], library: Any,
-                 on_select: Callable[[dict | None], None],
+                 on_select: Callable[[dict | None], Any],
                  state: dict[str, Any] | None = None,
                  rerender: Callable[[], None] | None = None,
                  rescan: Callable[[], Any] | None = None) -> None:

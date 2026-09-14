@@ -264,9 +264,12 @@ def for_grid(columns: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
-          on_select: Callable[[dict | None], None] | None = None,
-          on_context: Callable[[dict | None], None] | None = None,
-          on_header_context: Callable[[str | None], None] | None = None,
+          # Any, not None: NiceGUI takes a sync or an async handler and so do these,
+          # so a coroutine is as valid a return as nothing. Its own Handler type is
+          # spelled the same way, for the same reason.
+          on_select: Callable[[dict | None], Any] | None = None,
+          on_context: Callable[[dict | None], Any] | None = None,
+          on_header_context: Callable[[str | None], Any] | None = None,
           html_fields: list[str] | None = None,
           view_of: Callable[[], str] | None = None) -> ui.aggrid:
     """A grid whose column layout is restored from, and saved to, the API.

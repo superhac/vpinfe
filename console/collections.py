@@ -122,7 +122,7 @@ def _order_line(row: dict[str, Any]) -> str:
 
 
 def build(collections: list[dict[str, Any]], library: Any,
-          on_select: Callable[[dict | None], None],
+          on_select: Callable[[dict | None], Any],
           state: dict[str, Any] | None = None,
           rerender: Callable[[], None] | None = None) -> None:
     state = state if state is not None else {}

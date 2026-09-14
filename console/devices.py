@@ -385,7 +385,7 @@ def _when(stamp: str) -> str:
 
 
 def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
-          on_select: Callable[[dict | None], None],
+          on_select: Callable[[dict | None], Any],
           probe: Callable[[], Any] | None = None,
           local_device_id: str | None = None) -> None:
     """Devices as a grid, so the selected row is what the workbench answers for.

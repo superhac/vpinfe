@@ -93,13 +93,16 @@ def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
     bar.clear()
     with bar:
         def remember(key: str, value: Any) -> None:
+            """Hold the choice, persist it, and redraw. Every caller wanted all three,
+            and said so as a tuple of two calls, which is not what a tuple is for."""
             held[key] = value
             state[f"log_{key}"] = value
+            reload()
 
         ui.select({"": t("console.logs.stream"), "digest": t("console.logs.digest")},
                   value="digest" if held["digest"] else "") \
             .props("dense outlined").classes("w-32") \
-            .on_value_change(lambda e: (remember("digest", bool(e.value)), reload()))
+            .on_value_change(lambda e: remember("digest", bool(e.value)))
 
         if len(held["sources"]) > 1:
             # Named separately rather than spanned: a rotation boundary is where an
@@ -108,22 +111,20 @@ def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
                        for i, name in enumerate(held["sources"])},
                       value=held["source"] or held["sources"][0]) \
                 .props("dense outlined").classes("w-40") \
-                .on_value_change(lambda e: (remember("source",
-                                                     "" if e.value == held["sources"][0]
-                                                     else e.value), reload()))
+                .on_value_change(
+                    lambda e: remember(
+                        "source", "" if e.value == held["sources"][0] else e.value))
 
         ui.select({one: (one.title() if one else t("console.logs.all_levels")) for one in LEVELS},
                   value=held["level"]).props("dense outlined").classes("w-36") \
-            .on_value_change(lambda e: (remember("level", e.value or ""), reload()))
+            .on_value_change(lambda e: remember("level", e.value or ""))
 
         ui.input(placeholder=t("console.logs.find"), value=held["contains"]) \
             .props("dense outlined clearable").classes("grow min-w-0") \
-            .on("keydown.enter", lambda e: (remember("contains",
-                                                     e.sender.value or ""), reload()))
+            .on("keydown.enter", lambda e: remember("contains", e.sender.value or ""))
 
         wrap = ui.button(icon="wrap_text",
-                         on_click=lambda: (remember("wrap", not held["wrap"]),
-                                           reload())) \
+                         on_click=lambda: remember("wrap", not held["wrap"])) \
             .props("flat dense round size=sm")
         wrap.tooltip(t("console.logs.wrap_long_lines") if not held["wrap"]
                 else t("console.logs.stop_wrapping"))
@@ -132,9 +133,7 @@ def _draw_bar(bar, held: dict[str, Any], reload: Callable[[], Any],
 
         if not held["source"]:
             follow = ui.button(icon="play_arrow" if held["follow"] else "pause",
-                               on_click=lambda: (remember("follow",
-                                                          not held["follow"]),
-                                                 reload())) \
+                               on_click=lambda: remember("follow", not held["follow"])) \
                 .props("flat dense round size=sm")
             follow.tooltip(t("console.logs.following_click_stop") if held["follow"]
                            else t("console.logs.not_following_click_follow"))
