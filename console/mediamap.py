@@ -132,7 +132,7 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
         f"console-mediatile console-mediatile--{state}"
         f"{' console-mediatile--on' if kind == selected else ''}")
     if on_pick is not None:
-        tile.classes("cursor-pointer").on("click", lambda k=kind: on_pick(k))
+        tile.classes("cursor-pointer").on("click", lambda: on_pick(kind))
     with tile:
         glyph = _glyph_for(kind)
         with ui.element("div").classes("console-mediatile-art") \
@@ -173,8 +173,9 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
                 ui.button(icon="open_in_full") \
                     .props("flat dense round size=sm") \
                     .classes("console-mediatile-zoom") \
-                    .on("click.stop", lambda k=kind: mediaview.open_viewer(
-                        f"{prefix}/{k}", k, media_label_map().get(k, k))) \
+                    .on("click.stop", lambda: mediaview.open_viewer(
+                        f"{prefix}/{kind}", kind,
+                        media_label_map().get(kind, kind))) \
                     .tooltip(t("word.enlarge"))
         ui.label(media_label_map().get(kind, kind)).classes("console-mediatile-cap")
     tile.tooltip(_tooltip(kind, entry))

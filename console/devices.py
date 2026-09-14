@@ -620,21 +620,24 @@ def settings_door(context: dict[str, Any]) -> list[tuple[Any, Any]]:
 async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     """What it is called, and what kind of thing it is."""
     device = _of(context)
-    library = context.get("library")
-    editable = _is_local(context) and library is not None
+    # The library this name can be written through, which only the install serving the
+    # page has. Its absence is what makes the field read-only, so the two cannot drift.
+    library = context.get("library") if _is_local(context) else None
 
     # What the install has been told to call itself, which is not what it reports: the
     # reported name already fell back to the hostname, so showing that as the value
     # leaves nothing to tell a chosen name from a defaulted one.
     stored = ""
-    if editable:
+    if library is not None:
         try:
             values = await offload.io(library.config_values)
             stored = str(((values or {}).get("install") or {}).get("display_name") or "")
         except Exception:  # noqa: BLE001 - an unreadable name is an empty field, not a 500
-            editable = False
+            library = None
 
     async def rename(value: str) -> None:
+        if library is None:
+            return
         try:
             await run.io_bound(library.put_config,
                                {"install": {"display_name": value.strip()}})
@@ -649,7 +652,7 @@ async def _identity_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
         (t("word.name"), panel.field(stored, rename,
                              placeholder=_hostname_placeholder(device,
                                                                _is_local(context)),
-                             disabled=not editable)),
+                             disabled=library is None)),
     ]
     if not _is_local(context):
         rows_out.append(panel.note(t("console.devices.name_belongs_install_can")))

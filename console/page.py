@@ -318,10 +318,12 @@ async def _took_a_drop(library, state: dict, redraw, drop) -> None:
     # answer can be "nowhere" and that is not something to discover halfway through.
     where = ""
     if new_game:
-        where = await import_dialog.ask_where(library)
-        if where is None:
+        # None is the cancel, which is not the same answer as the default location.
+        chosen = await import_dialog.ask_where(library)
+        if chosen is None:
             await run.io_bound(library.abort_upload, drop.upload_id)
             return
+        where = chosen
 
     try:
         plan = await offload.io(library.upload_plan, drop.upload_id,
@@ -459,7 +461,9 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                    views=[key for key, _label, _icon, _feature in nav_items],
                    sections=[item.key for item in workbench.SECTIONS])
 
-    labels: list[ui.label] = []
+    # Anything that hides with the rail, which is a label on most rows and a caret,
+    # an image or a spinner's line on the rest.
+    labels: list[ui.element] = []
     destinations: dict[str, ui.row] = {}
     # Deliberately not in `labels`: a badge has to survive the collapse to the icon
     # rail, because once the label has gone it is the only thing left that can say an

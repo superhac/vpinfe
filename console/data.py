@@ -732,7 +732,8 @@ class Library:
                  "alt_sound": ("altsound",)}
         return [row for row in (self._asset_rows or [])
                 if (row.get("kind") in kept
-                    or any(name in kept for name in pairs.get(row.get("kind"), ())))]
+                    or any(name in kept
+                           for name in pairs.get(str(row.get("kind") or ""), ())))]
 
     def has_asset_rows(self) -> bool:
         return self._asset_rows is not None

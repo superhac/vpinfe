@@ -258,8 +258,12 @@ def _draw_row(item: dict[str, Any], plan: dict[str, Any], chosen: dict[int, bool
     with ui.row().classes("items-center gap-2 w-full no-wrap console-import-row"):
         if not single:
             box = ui.checkbox(value=chosen[index]).props("dense")
-            box.on_value_change(lambda: (chosen.__setitem__(index, bool(box.value)),
-                                         changed()))
+
+            def picked() -> None:
+                chosen[index] = bool(box.value)
+                changed()
+
+            box.on_value_change(picked)
         # Fixed width, so the names beside them line up and the column reads down.
         ui.label(str(item.get("label") or item.get("kind") or "")) \
             .classes("console-import-kind")

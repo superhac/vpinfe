@@ -3929,10 +3929,11 @@ def _axis_control(context: dict[str, Any], axis: dict[str, Any],
         if kind == "flag":
             # Three states, not two: absent says nothing about play, while true and
             # false are both criteria. A switch could only ever say two of the three.
+            stored = current.get(name)
             control = ui.select({"": t("console.workbench.any"), "yes": t("word.yes"),
                     "no": "No"},
-                                value={True: "yes", False: "no"}.get(
-                                    current.get(name), "")) \
+                                value="yes" if stored is True
+                                else "no" if stored is False else "") \
                 .props("dense outlined").classes("w-full min-w-0")
             control.on_value_change(
                 lambda: changed({"": None, "yes": True, "no": False}[control.value]))

@@ -120,9 +120,12 @@ def build(rows: list[dict[str, Any]], library: Any,
             ui.menu_item(t("console.tageditor.remove_every_game_2"), lambda r=row: drop(r)) \
                 .classes("console-menu-item console-menu-danger")
 
+    def on_context(row: dict | None) -> None:
+        menu_row["row"] = row
+        fill(row)
+
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        grid.build(COLUMNS, rows, "console.tags", lambda _row: None,
-                   lambda row: (menu_row.__setitem__("row", row), fill(row)))
+        grid.build(COLUMNS, rows, "console.tags", on_context=on_context)
         menu = ui.context_menu()
 
 

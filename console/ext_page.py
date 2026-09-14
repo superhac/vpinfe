@@ -67,7 +67,7 @@ def _settings(name: str, surfaces: dict) -> None:
         with card:
             if found.get("help"):
                 ui.label(str(found["help"])).classes("console-help mb-2")
-            entries = []
+            entries: list[tuple[Any, Any]] = []
             for field in found.get("fields") or []:
                 key = str(field.get("key") or "")
                 if not key:
