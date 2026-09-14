@@ -148,7 +148,7 @@ def _game_file(table_id: str) -> str:
     if found is None:
         raise service_errors.NotFoundError(t("error.launchers.no_table_called", wanted=(wanted)))
     game, filename = found
-    return str(Path(str(getattr(game, "fullPathGame", "") or "")) / filename)
+    return str(Path(str(game.fullPathGame or "")) / filename)
 
 
 def app_config(launcher_id: str, table: str = "",

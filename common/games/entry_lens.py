@@ -44,7 +44,7 @@ def entry_resource(entry, group=None) -> dict:
             "year": str(info.get("Year", "") or ""),
             "type": str(info.get("Type", "") or ""),
             "themes": game_themes(entry.game),
-            "dir_name": str(getattr(entry.game, "gameDirName", "") or ""),
+            "dir_name": str(entry.game.gameDirName or ""),
             "manufacturer_logo": manufacturer_logo_web_path(maker),
             "created_at": epoch_to_iso(getattr(entry.game, "creation_time", None)) or None,
             "rating": game_rating(entry.game),
@@ -60,9 +60,9 @@ def entry_resource(entry, group=None) -> dict:
         "table": table_descriptor(entry.table, default_id=default_id),
         "siblings": entry.siblings,
         "assets": {
-            "pup_pack": bool(getattr(entry.game, "pupPackExists", False)),
-            "alt_color": bool(getattr(entry.game, "altColorExists", False)),
-            "alt_sound": bool(getattr(entry.game, "altSoundExists", False)),
+            "pup_pack": bool(entry.game.pupPackExists),
+            "alt_color": bool(entry.game.altColorExists),
+            "alt_sound": bool(entry.game.altSoundExists),
         },
         "media": resolved_kinds(entry.game),
         # None when the order has no groups; `group_by` on the list says which.

@@ -71,7 +71,7 @@ def _values(game, playing, launcher) -> dict[str, str]:
         "game_dir": str(playing.game_dir or ""),
         "table": str(playing.table or ""),
         "table_stem": Path(playing.table).stem if playing.table else "",
-        "game_name": str(getattr(game, "gameDirName", "") or ""),
+        "game_name": str(game.gameDirName or ""),
         "id": str(playing.entry_id or ""),
         # The app's own name for the entry. Something in the folder has none.
         "key": str(playing.key or ""),

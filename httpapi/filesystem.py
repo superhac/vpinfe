@@ -26,7 +26,7 @@ def get_roots(game: str = Query("")) -> models.FilesystemRootList:
     """An empty list is the honest answer for an install with no library configured and
     nothing allowlisted - not an error, and not a reason to offer the whole disk."""
     found = game_repository.game_by_id(game) if game else None
-    game_dir = str(getattr(found, "fullPathGame", "") or "") if found else ""
+    game_dir = str(found.fullPathGame or "") if found else ""
     return models.FilesystemRootList.model_validate(
         {"roots": media_browse.roots(game_dir)})
 

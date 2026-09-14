@@ -86,7 +86,7 @@ class Entry:
         return entry_filename(self.table)
 
     # A device's list is entries rather than games, and the frontend's sorts read these
-    # two off whatever they are handed. Forwarding beats teaching every sort both shapes.
+    # off whatever they are handed. Forwarding beats teaching every sort both shapes.
     @property
     def meta_config(self):
         return getattr(self.game, "meta_config", {})
@@ -94,6 +94,12 @@ class Entry:
     @property
     def creation_time(self):
         return getattr(self.game, "creation_time", None)
+
+    # The folder name is the last fallback for a title, so a game whose .info names no
+    # Title sorted as "" when the wheel re-sorted entries rather than games.
+    @property
+    def gameDirName(self):  # noqa: N802 - renamed with the attribute it forwards
+        return getattr(self.game, "gameDirName", None)
 
 
 def _user_value(game, key, fallback=0):
@@ -132,7 +138,7 @@ def visible_entries(game) -> list[dict]:
 
     meta = getattr(game, "meta_config", {})
     chosen = recorded_default(vpinfe_section(meta), entries) or resolve_default_name(
-        table_filenames(entries), getattr(game, "gameDirName", "") or "")
+        table_filenames(entries), game.gameDirName or "")
     default_id = entry_for_filename(entries, chosen)[0]
 
     rest = sorted((e for e in visible if e.get(TABLE_ID_KEY) != default_id),
@@ -149,7 +155,7 @@ def _unparsed_entry(game) -> list[dict]:
     and the frontend has always offered it, so it gets an entry with no id rather than
     disappearing until somebody runs a scan. The id arrives with the parse.
     """
-    path = str(getattr(game, "fullPathVPXfile", "") or "").strip()
+    path = str(game.fullPathVPXfile or "").strip()
     if not path:
         return []
     return [{TABLE_ID_KEY: "", TABLE_FILENAME_KEY: os.path.basename(path)}]

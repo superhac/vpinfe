@@ -15,7 +15,8 @@ import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from types import SimpleNamespace
+
+from common.games.game import Game
 
 
 class TempTree(unittest.TestCase):
@@ -71,15 +72,18 @@ def game_info(title: str = "Example", *, vps_id: str = "vps-1", game_id: str = "
 
 
 def fake_game(folder: Path | str, name: str = "Example", *,
-              meta: dict | None = None, **extra) -> SimpleNamespace:
+              meta: dict | None = None, **extra) -> Game:
     """What `GameParser` hands the rest of the app, without parsing anything.
 
     Thirteen files built this by hand, so the attribute names a consumer reads were
     written out thirteen times and a rename had to find all of them. Anything a test
     needs beyond the four common attributes it passes as `extra`, which is also how the
     optional `*Exists` flags and image paths get set.
+
+    A real `Game`, not a stand-in: every field is present with its real default, so a
+    consumer reading one a test did not think to set gets what the app would give it.
     """
-    game = SimpleNamespace(
+    game = Game(
         fullPathGame=str(folder),
         fullPathVPXfile=str(Path(folder) / f"{name}.vpx"),
         gameDirName=name,

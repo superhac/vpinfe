@@ -165,9 +165,9 @@ def offered_for(games, hashes=None) -> dict:
 
     offered, already, checked = [], 0, 0
     for game in games or ():
-        vpx_path = getattr(game, "fullPathVPXfile", "") or ""
-        folder = getattr(game, "fullPathGame", "") or ""
-        name = getattr(game, "gameDirName", "") or ""
+        vpx_path = game.fullPathVPXfile or ""
+        folder = game.fullPathGame or ""
+        name = game.gameDirName or ""
         if not vpx_path or not name:
             continue
         try:

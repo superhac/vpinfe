@@ -69,7 +69,7 @@ def ensure_id(game, *, force_new: bool = False) -> str:
     minted = new_id()
     vpinfe[ID_KEY] = minted
     persist_game_meta(game, config)
-    logger.debug("Assigned game id %s to %s", minted, getattr(game, "gameDirName", "?"))
+    logger.debug("Assigned game id %s to %s", minted, game.gameDirName)
     return minted
 
 
@@ -124,7 +124,7 @@ def _priority(games: Iterable[Any], order: Sequence[str] | None) -> list[Any]:
         games,
         key=lambda game: (rank.get(str(getattr(game, "location_id", "") or ""),
                                   unranked),
-                          str(getattr(game, "fullPathGame", "") or "")))
+                          str(game.fullPathGame or "")))
 
 
 def resolve_ids(games: Iterable[Any],
@@ -155,9 +155,9 @@ def resolve_ids(games: Iterable[Any],
             first = holder[current]
             shadowed.append(Shadowed(
                 game_id=current,
-                path=str(getattr(game, "fullPathGame", "") or ""),
+                path=str(game.fullPathGame or ""),
                 location_id=str(getattr(game, "location_id", "") or ""),
-                used_path=str(getattr(first, "fullPathGame", "") or ""),
+                used_path=str(first.fullPathGame or ""),
                 used_location_id=str(getattr(first, "location_id", "") or "")))
             continue
         by_id[current] = game

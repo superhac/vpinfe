@@ -1,8 +1,8 @@
 import unittest
-from types import SimpleNamespace
 from unittest import mock
 
 from common import events
+from common.games.game import Game
 from common.host import peripherals
 
 
@@ -165,8 +165,8 @@ class GameSelectionTests(unittest.TestCase):
 
     @staticmethod
     def _game(name="Medieval Madness"):
-        return SimpleNamespace(gameDirName=name,
-                               meta_config={"vpinfe": {"frontend_dof_event": "E901"}})
+        return Game(gameDirName=name,
+                    meta_config={"vpinfe": {"frontend_dof_event": "E901"}})
 
     def test_selection_is_subscribers_only(self) -> None:
         """A hook could abandon a selection. Nothing may stop the wheel moving."""

@@ -82,7 +82,7 @@ def archive_for(game_id: str, *, everything: bool = False,
 
     game = game_lens.game_or_refuse(game_id)
     try:
-        return create_vpxz_archive(getattr(game, "gameDirName", ""),
+        return create_vpxz_archive(game.gameDirName,
                                    everything=everything, table=table or None)
     except ValueError as exc:
         raise service_errors.RefusedError(t("error.games.invalid_game_path")) from exc

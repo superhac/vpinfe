@@ -47,12 +47,12 @@ def stem_or_refuse(game, table_id: str) -> str:
     if not filename:
         raise service_errors.NotFoundError(
             t("error.games.game_no_such_table"),
-            details={"game": getattr(game, "gameDirName", ""), "table": table_id})
+            details={"game": game.gameDirName, "table": table_id})
     return Path(filename).stem
 
 
 def _folder(game) -> Path:
-    return Path(getattr(game, "fullPathGame", "") or "")
+    return Path(game.fullPathGame or "")
 
 
 def _prefix(game_id: str, table_id: str = "") -> str:

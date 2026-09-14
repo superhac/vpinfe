@@ -273,7 +273,7 @@ def scan_media_games(reload: bool = False) -> list[dict]:
         return []
 
     for game in all_games(reload=reload):
-        root = getattr(game, "fullPathGame", "") or ""
+        root = game.fullPathGame or ""
         if not root:
             continue
         current_dir = Path(root).name

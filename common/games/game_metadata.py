@@ -150,7 +150,9 @@ def game_title(game) -> str:
         # A user-set alt_title wins on its own - it does not require an alt_vpsid -
         # and is left exactly as entered, never reordered.
         return alt_title
-    raw = str(info.get("Title", "") or get_meta_value(meta, "VPSdb", "name", "") or getattr(game, "gameDirName", "") or "").strip()
+    raw = str(info.get("Title", "")
+              or get_meta_value(meta, "VPSdb", "name", "")
+              or game.gameDirName or "").strip()
     return reorder_leading_article(raw)
 
 

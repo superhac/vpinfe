@@ -6,7 +6,6 @@ exclusion that outranks both, and `hidden` outranking everything.
 """
 
 import unittest
-from types import SimpleNamespace
 
 from common.games.collection_resolver import (
     UnresolvableCollectionError,
@@ -18,12 +17,13 @@ from common.games.collection_store import (
     CollectionStore,
     DuplicateMemberError,
 )
+from common.games.game import Game
 from tests.support.library import TempTree
 
 
 def _game(gid, title, tables, manufacturer="", rating=0, last_run=0, default=""):
     """A game whose tables map is keyed by id, as storage has it."""
-    return SimpleNamespace(
+    return Game(
         gameDirName=title,
         creation_time=0,
         meta_config={

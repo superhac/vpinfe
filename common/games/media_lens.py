@@ -146,7 +146,7 @@ def listing(limit: int = 0, offset: int = 0, game: str = "",
         if game and game != game_id:
             continue
         row = game_to_row(entry)
-        game_dir = Path(getattr(entry, "fullPathGame", "") or "")
+        game_dir = Path(entry.fullPathGame or "")
         try:
             files, medias = media_service.media_contents(game_dir)
         except OSError:

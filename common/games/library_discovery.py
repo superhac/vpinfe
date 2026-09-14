@@ -82,7 +82,7 @@ def discover(games) -> dict[str, int]:
             config, found, absent, returned = _reconcile(game, list(on_disk))
         except Exception:
             logger.exception("Could not reconcile tables for %s",
-                             getattr(game, "gameDirName", "?"))
+                             game.gameDirName)
             continue
         if not (found or absent or returned):
             continue
@@ -90,7 +90,7 @@ def discover(games) -> dict[str, int]:
             persist_game_meta(game, config)
         except Exception:
             logger.exception("Could not write tables for %s",
-                             getattr(game, "gameDirName", "?"))
+                             game.gameDirName)
             continue
         totals["found"] += found
         totals["absent"] += absent

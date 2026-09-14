@@ -3,13 +3,15 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
+from common.games.collection_resolver import Entry
 from common.games.collection_store import CollectionStore
 from frontend.api import API
 
 
 def _game(title, vpsid, last_run=None, altvpsid="", alttitle="", runtime=0,
-          start_count=0, creation_time=0):
+          start_count=0, creation_time=0, game_dir_name=""):
     return SimpleNamespace(
+        gameDirName=game_dir_name,
         meta_config={
             "Info": {
                 "Title": title,
@@ -79,6 +81,25 @@ class TestCollectionSorting(unittest.TestCase):
             [game.meta_config["Info"]["Title"] for game in api.filteredGames],
             ["Short", "Medium", "Long"],
         )
+
+    def test_a_game_with_no_title_in_its_info_still_sorts_by_its_folder(self) -> None:
+        """The wheel holds entries, and the title falls back to the folder name.
+
+        An entry forwarded `meta_config` and `creation_time` but not the folder name, so
+        every such game sorted as "" and the list came back in the order it went in.
+        """
+        api = API.__new__(API)
+        api.filteredGames = [
+            Entry(game=_game("", "vps-1", game_dir_name="Gamma"), table={}, siblings=1),
+            Entry(game=_game("", "vps-2", game_dir_name="Alpha"), table={}, siblings=1),
+            Entry(game=_game("", "vps-3", game_dir_name="Beta"), table={}, siblings=1),
+        ]
+        api.current_sort = "Alpha"
+
+        API.apply_sort(api, "title", "asc")
+
+        self.assertEqual([entry.game.gameDirName for entry in api.filteredGames],
+                         ["Alpha", "Beta", "Gamma"])
 
     def test_filter_collections_default_to_descending_order(self) -> None:
         with TemporaryDirectory() as tmp:

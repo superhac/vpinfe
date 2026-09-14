@@ -53,7 +53,7 @@ def create(name: str, location_id: str = "") -> dict:
     # the location's own spelling - and under /var on macOS those differ.
     wanted = locations.canonical(str(folder))
     made = next((game for game in game_lens.catalog().values()
-                 if locations.canonical(str(getattr(game, "fullPathGame", ""))) == wanted),
+                 if locations.canonical(str(game.fullPathGame)) == wanted),
                 None)
     if made is None:
         # The folder and its record are on disk and the library did not pick them up.
