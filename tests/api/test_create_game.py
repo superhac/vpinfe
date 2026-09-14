@@ -42,7 +42,7 @@ class CreateGameCase(unittest.TestCase):
         # configuration, so `within_roots` would be answering about a real library.
         # Resolved, the way the real one answers: /var is a symlink on macOS, and a root
         # that has not been through realpath matches nothing under it.
-        roots = patch("httpapi.filesystem.roots",
+        roots = patch("common.media_browse.roots",
                       side_effect=lambda game_dir="": [
                           {"path": str(self.elsewhere.resolve()), "name": "elsewhere",
                            "source": "configured"},

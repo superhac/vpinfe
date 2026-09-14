@@ -783,3 +783,68 @@ def launch_prepared_update(prepared: dict) -> None:
         stderr=subprocess.DEVNULL,
         stdin=subprocess.DEVNULL,
     )
+
+
+def check_now() -> dict:
+    """What this install could become, and whether it can get there itself.
+
+    Never raises: not knowing whether an update exists is not a reason to fail the
+    question, and `error` carries it.
+    """
+    from common.vpinfe_version import get_version
+
+    try:
+        return check_for_updates()
+    except Exception as exc:
+        logger.warning("Could not check for updates: %s", exc)
+        return {"update_available": False, "error": str(exc),
+                "current_version": get_version(), "latest_version": None,
+                "update_supported": False, "support_reason": "check failed",
+                "triplet": None, "asset_name": None}
+
+
+def take_published(*, stop_table: bool = False) -> dict:
+    """Stage the published build and hand off to the staged updater.
+
+    Order matters: the download happens before anything is stopped, so a failed or
+    unavailable update costs nobody their game. Only once there is a verified package does
+    a running table get closed.
+    """
+    from common import device_client, lifecycle, service_errors
+    from common.host import launch_state
+    from common.i18n import t
+
+    context = get_install_context()
+    if not context["supported"]:
+        raise service_errors.UnavailableError(
+            t("error.instance.install_cannot_replace_itself"),
+            details={"support_reason": context["reason"]})
+
+    playing = launch_state.current()
+    if playing.launching and not stop_table:
+        raise service_errors.BlockedError(t("error.instance.table_running"),
+                                          details={"game_name": playing.game_name})
+
+    prepared = prepare_update()
+
+    stopped_table = None
+    if playing.launching and device_client.local().request(
+            lifecycle.TABLE, lifecycle.STOP,
+            origin=lifecycle.Origin(lifecycle.SURFACE_API),
+            reason="making way for an update"):
+        stopped_table = playing.game_name
+
+    launch_prepared_update(prepared)
+    force_exit_after_handoff()
+    return {"latest_version": prepared["latest_version"],
+            "stopped_table": stopped_table}
+
+
+def quit_for_update() -> None:
+    """Go down the ordinary way, so the services shut down and the windows close."""
+    from common import device_client, lifecycle
+
+    device_client.local().request(
+        lifecycle.VPINFE, lifecycle.STOP,
+        origin=lifecycle.Origin(lifecycle.SURFACE_API),
+        reason="an update is staged")

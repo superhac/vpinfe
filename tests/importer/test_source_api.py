@@ -16,8 +16,8 @@ from fastapi.testclient import TestClient
 
 import httpapi
 from common import extensions
+from common import media_browse as filesystem
 from common.extensions import host, store
-from httpapi import filesystem
 
 REPO = Path(__file__).resolve().parents[2]
 FIXTURE = REPO / "tests" / "fixtures" / "pinballx"
@@ -118,7 +118,7 @@ class ReadRootTests(ImporterApiCase):
         # what the extension contributed. Unpatched, a developer whose library happens
         # to sit above the fixture would make the first of these pass for the wrong
         # reason.
-        roots = unittest.mock.patch("httpapi.filesystem.roots", return_value=[])
+        roots = unittest.mock.patch("common.media_browse.roots", return_value=[])
         roots.start()
         self.addCleanup(roots.stop)
 

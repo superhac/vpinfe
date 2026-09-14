@@ -13,8 +13,7 @@ from unittest.mock import patch
 
 import httpapi
 from common import device_registry as registry_module
-from common import discovery, install_identity
-from httpapi import instance
+from common import discovery, install_identity, install_presence
 from tests.support.library import TempTree
 
 try:
@@ -107,7 +106,8 @@ class RecordingWhatWasHeardTests(TempTree):
                                lambda: self.registry)
         patcher.start()
         self.addCleanup(patcher.stop)
-        also = patch("httpapi.instance.get_device_registry", lambda: self.registry)
+        also = patch("common.install_presence.get_device_registry",
+                     lambda: self.registry)
         also.start()
         self.addCleanup(also.stop)
 
@@ -120,7 +120,7 @@ class RecordingWhatWasHeardTests(TempTree):
 
     def test_an_install_that_manages_devices_files_what_it_heard(self) -> None:
         with self._with_features(install_identity.DEVICES):
-            instance._heard_from(self._peer())
+            install_presence._heard_from(self._peer())
 
         held = self.registry.get("Aaaa111111")
         self.assertEqual(held.display_name, "basement cab")
@@ -130,7 +130,7 @@ class RecordingWhatWasHeardTests(TempTree):
     def test_an_install_that_does_not_keeps_no_list(self) -> None:
         """Announcing is to everybody; what to do with it is each install's own."""
         with self._with_features(install_identity.FRONTEND):
-            instance._heard_from(self._peer())
+            install_presence._heard_from(self._peer())
 
         self.assertEqual(self.registry.devices(), [])
 

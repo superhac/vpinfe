@@ -47,7 +47,7 @@ class _Tree(TempTree):
         """Stand in for the configured roots, which is the only thing that widens this."""
         roots = [{"path": str(Path(p).resolve()), "name": Path(p).name,
                   "source": "library"} for p in paths]
-        patcher = patch("httpapi.filesystem.roots", return_value=roots)
+        patcher = patch("common.media_browse.roots", return_value=roots)
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -103,12 +103,12 @@ class RootTests(TempTree):
     """What makes a folder browsable, which is the whole of the boundary."""
 
     def _roots(self, library: str, configured: tuple[str, ...]):
+        from common import media_browse as filesystem
         from common.config_access import SettingsConfig
-        from httpapi import filesystem
 
         settings = SettingsConfig(game_root_dir=library, media_browse_dirs=configured)
         with patch.object(SettingsConfig, "from_config", return_value=settings), \
-                patch("httpapi.filesystem.get_ini_config", return_value=None):
+                patch("common.media_browse.get_ini_config", return_value=None):
             return filesystem.roots()
 
     def test_the_library_is_browsable_without_being_configured(self) -> None:

@@ -91,6 +91,14 @@ def _manifest() -> dict:
 _MANIFEST: dict | None = None
 
 
+def enabled_ids() -> tuple[str, ...]:
+    """The sources the owner wants asked. Empty means all of them."""
+    from common.config_access import MediaConfig
+    from common.paths import get_ini_config
+
+    return MediaConfig.from_config(get_ini_config()).asset_sources
+
+
 def sources(enabled: tuple[str, ...] | None = None) -> list[Source]:
     """The sources to ask, in the order they were declared.
 

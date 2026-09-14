@@ -130,7 +130,9 @@ feature-detect them. That is what keeps bumps rare enough to be worth doing prop
 - `common/` is a layer, not a bucket. Domain code goes in `common/games/`, `common/online/`
   or `common/host/`; `common/` itself holds only what knows nothing about any of them, and may
   never import from those packages. See `docs/common.md`.
-- Route handlers stay thin. Logic belongs in a service where the other callers can reach it.
+- Route handlers stay thin: a path, a scope, one service call, a model. Logic belongs in a
+  service under `common/` where the other callers can reach it, and nothing calls a handler.
+  A service refuses with `common/service_errors.py`; the API turns that into its envelope.
 - Files we ship that are not Python live in `<owner>/static/` — `frontend/static/` for what a
   browser fetches, `managerui/static/` for the Manager UI's, `common/host/static/` for what
   goes to hardware. Named for who owns them, so a directory does not become the home for

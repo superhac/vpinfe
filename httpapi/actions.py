@@ -1,55 +1,21 @@
-"""What this install can be told to do to itself.
+"""What this install can be told to do to itself, over the wire.
 
 The lifecycle vocabulary served over HTTP: close the table, reopen the frontend windows,
-restart VPinFE, reboot the machine. `common/lifecycle.py` already owns which pairs exist,
-what each is called and what performs it, so this serves that rather than restating it -
-a pair added there appears here without this file being touched.
-
-Two lists, not one. What the vocabulary allows is fixed by the build; what is wired up
-depends on the install, and a headless one owns no frontend windows. A button that
-reports success while nothing happened is worse than a button that is not offered, so
-both facts travel together.
+restart VPinFE, reboot the machine. `common/host/action_ops.py` answers; what is here is
+the path, the scope, and the one thing only a request has - a background task to hand the
+actions that take the answer with them.
 """
 
 from __future__ import annotations
 
-import logging
-
 from fastapi import APIRouter, BackgroundTasks, Body
 
-from common import device_client, lifecycle
-from common.host import play_service
-from common.i18n import t
+from common.host import action_ops
 
 from . import models, scopes
 from .auth import requires
-from .errors import FeatureUnavailableError, InvalidRequestError
-
-logger = logging.getLogger("vpinfe.httpapi.actions")
 
 router = APIRouter(prefix="/actions", tags=["actions"])
-
-# The ones that take the answer with them. A process that is stopping cannot report
-# whether it stopped, so these are handed to a background task and the response goes out
-# first - the same order `POST /update` uses, and for the same reason.
-GOES_AWAY = frozenset({
-    (lifecycle.VPINFE, lifecycle.STOP), (lifecycle.VPINFE, lifecycle.RESTART),
-    (lifecycle.SYSTEM, lifecycle.STOP), (lifecycle.SYSTEM, lifecycle.RESTART),
-})
-
-# Why an action is not offered, in the words a person reads. The API answers with the
-# fact; the sentence for it belongs to whatever is showing it, but a caller with no
-# surface of its own still needs one.
-NOT_WIRED = "Nothing on this install performs that."
-
-
-def _describe(scope: str, action: str) -> dict:
-    performable = lifecycle.performable(scope, action)
-    return {"scope": scope, "action": action,
-            "label": lifecycle.label(scope, action),
-            "label_key": f"action.{scope}.{action}",
-            "available": performable,
-            "reason": "" if performable else NOT_WIRED}
 
 
 @router.get("", summary="What this install can be asked to do",
@@ -57,8 +23,7 @@ def _describe(scope: str, action: str) -> dict:
 def list_actions() -> models.ActionList:
     """Every pair, offered or not: a surface greys one rather than hiding it, because two
     installs showing different buttons look like different products."""
-    found = [_describe(scope, action) for scope, action in lifecycle.offered()]
-    return models.ActionList.model_validate({"count": len(found), "actions": found})
+    return models.ActionList.model_validate(action_ops.listing())
 
 
 @router.post("", summary="Do one of them",
@@ -68,33 +33,20 @@ def perform_action(background: BackgroundTasks,
     """Confirm-announce-perform, through the same path every other surface takes.
 
     Never asks the caller to confirm: an HTTP request is over by the time anything here
-    could put the question, so whoever called put it to their own user first. That is
-    what the API origin means and it is why this passes no confirm scopes.
+    could put the question, so whoever called put it to their own user first. That is what
+    the API origin means and it is why this passes no confirm scopes.
+
+    A process that is stopping cannot report whether it stopped, so those go to a
+    background task and the response goes out first - the same order `POST /update` uses.
     """
-    scope, action = payload.scope.strip().lower(), payload.action.strip().lower()
-    if (scope, action) not in lifecycle.offered():
-        raise InvalidRequestError(
-            t("error.actions.not_something_install_get", action=(action), scope=(scope)))
-    if not lifecycle.performable(scope, action):
-        raise FeatureUnavailableError(NOT_WIRED,
-                                      details={"scope": scope, "action": action})
+    from common import lifecycle
 
-    what = lifecycle.describe(scope, action)
+    scope, action = action_ops.check(payload.scope, payload.action)
     reason = payload.reason.strip() or "asked over the API"
-    if (scope, action) in GOES_AWAY:
-        background.add_task(_perform, scope, action, reason)
-        return models.ActionResult.model_validate(
-            {"scope": scope, "action": action, "what": what, "performed": True})
+    body = {"scope": scope, "action": action,
+            "what": lifecycle.describe(scope, action)}
+    if (scope, action) in action_ops.GOES_AWAY:
+        background.add_task(action_ops.perform, scope, action, reason)
+        return models.ActionResult.model_validate({**body, "performed": True})
     return models.ActionResult.model_validate(
-        {"scope": scope, "action": action, "what": what,
-         "performed": bool(_perform(scope, action, reason))})
-
-
-def _perform(scope: str, action: str, reason: str) -> bool:
-    # Closing a table goes through the play service rather than straight to the
-    # lifecycle scope. That one checks whether a table is running first, so asking to
-    # close one when none is reports honestly instead of reporting that it closed one.
-    if (scope, action) == (lifecycle.TABLE, lifecycle.STOP):
-        return bool(play_service.stop_playing(reason)["stopped"])
-    return device_client.local().request(
-        scope, action, origin=lifecycle.Origin(lifecycle.SURFACE_API), reason=reason)
+        {**body, "performed": bool(action_ops.perform(scope, action, reason))})

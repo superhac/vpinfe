@@ -20,6 +20,7 @@ from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse
 
+from common import media_browse
 from common.games import (
     archive_service,
     game_lens,
@@ -30,7 +31,7 @@ from common.games import (
 )
 from common.host import play_service
 
-from . import filesystem, models, responses, scopes
+from . import models, responses, scopes
 from .auth import ForbiddenError, requires
 
 logger = logging.getLogger("vpinfe.httpapi.games")
@@ -118,7 +119,7 @@ def import_media(game_id: str, kind: str, body: models.MediaImport) -> models.Me
     game's media, and holding one of those is not permission for the other. Which paths
     this install may read is this layer's question, so it is answered here.
     """
-    source = filesystem.within_roots(body.path)
+    source = media_browse.within_roots(body.path)
     return models.MediaWritten(
         **media_ops.place_file(game_id, kind, body.table, source))
 
@@ -127,10 +128,8 @@ def import_media(game_id: str, kind: str, body: models.MediaImport) -> models.Me
              summary="Take a file from an online catalog into a slot",
              dependencies=[requires(scopes.GAMES_WRITE), requires(scopes.VPS_READ)])
 def fetch_media(game_id: str, kind: str, body: models.MediaFetch) -> models.MediaWritten:
-    from .mediasources import enabled_ids
-
     return models.MediaWritten(**media_ops.fetch_file(
-        game_id, kind, body.table, body.source, body.vps_id, body.size, enabled_ids()))
+        game_id, kind, body.table, body.source, body.vps_id, body.size))
 
 
 @router.get("/{game_id}/media/{kind}/detail", summary="One shared slot, in detail",
@@ -320,7 +319,7 @@ def import_table(game_id: str, body: models.TableImport) -> models.Table:
     """Both scopes, the same as putting artwork in a slot: it reads a file off the disk and
     it writes a game, and holding one of those is not permission for the other."""
     return models.Table(
-        **table_ops.import_file(game_id, str(filesystem.within_roots(body.path))))
+        **table_ops.import_file(game_id, str(media_browse.within_roots(body.path))))
 
 
 @router.post("/{game_id}/tables", summary="Add something this game holds with no file",

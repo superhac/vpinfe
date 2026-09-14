@@ -28,6 +28,9 @@ logger = logging.getLogger("vpinfe.common.input_actions")
 
 PRESS = "press"
 RELEASE = "release"
+# A tap is a press and a release in one, which is what a click or a key repeat is.
+TAP = "tap"
+PHASES = (TAP, PRESS, RELEASE)
 
 # Long enough to survive a missed renewal on a phone, short enough that a wheel started
 # by a lost release stops before anyone has to go and find out why. The caller is expected
@@ -92,6 +95,38 @@ def tap(action: str, *, source: str) -> None:
     """
     press(action, source=source)
     release(action, source=source)
+
+
+def act(action: str, phase: str, *, source: str,
+        ttl_ms: int | None = None) -> dict:
+    """One press, hold or release, named and put on the bus.
+
+    A press with no matching release expires on its own, so a caller holding a button
+    renews it - send `press` again with the same action - for as long as the thumb is
+    down. That is the same press as far as the frontend is concerned; only the first one
+    is announced.
+    """
+    from common import input_registry, service_errors
+    from common.i18n import t
+
+    action = (action or "").strip()
+    if not known(action):
+        raise service_errors.RefusedError(
+            t("error.input.no_input_action_called", action=(action),
+              join=(", ".join(one.name for one in input_registry.INPUT_ACTIONS))))
+    phase = (phase or TAP).strip().lower()
+    if phase not in PHASES:
+        raise service_errors.RefusedError(
+            t("error.input.phase_one_not", join=(", ".join(PHASES)), phase=(phase)))
+
+    if phase == RELEASE:
+        release(action, source=source)
+    elif phase == PRESS:
+        press(action, source=source, ttl_ms=ttl_ms)
+    else:
+        tap(action, source=source)
+    return {"action": action, "phase": phase, "ttl_ms": clamp_ttl(ttl_ms),
+            "holding": sorted(holding())}
 
 
 def release_all(*, source: str = "shutdown") -> None:

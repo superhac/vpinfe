@@ -318,7 +318,7 @@ def place_upload(game_id: str, kind: str, table_id: str, staged: Path,
 
 
 def fetch_file(game_id: str, kind: str, table_id: str, source: str, vps_id: str,
-               size: str, enabled_sources) -> dict:
+               size: str) -> dict:
     """Download what an online catalog publishes and put it in the slot.
 
     A source and an id, never a URL: the only links this follows are ones a source produced
@@ -331,7 +331,8 @@ def fetch_file(game_id: str, kind: str, table_id: str, source: str, vps_id: str,
     from common.http_client import download_file
     from common.online import asset_sources
 
-    offer = asset_sources.url_for(source, kind, vps_id, size, enabled_sources)
+    offer = asset_sources.url_for(source, kind, vps_id, size,
+                                  asset_sources.enabled_ids())
     if offer is None:
         raise service_errors.NotFoundError(
             t("error.games.source_no_such_art"),

@@ -787,26 +787,33 @@ don't recognize is never a reason to refuse to read a file.
 
 ## Adding routes
 
-Build an `APIRouter`, include it in `create_api_app()`, and let the envelope handle failures:
+A route is an adapter: a path, a scope, one call into a service, and a model. The service
+lives under `common/` and answers with plain domain data; the route is what turns that into
+the wire shape.
 
 ```python
 from fastapi import APIRouter
-from httpapi.errors import NotFoundError
+from common.games import game_lens
+from httpapi import models, scopes
+from httpapi.auth import requires
 
 router = APIRouter(prefix="/games", tags=["games"])
 
-@router.get("/{game_id}")
-def get_game(game_id: str) -> dict:
-    game = game_repository.find(game_id)
-    if game is None:
-        raise NotFoundError(f"No game with id {game_id}")
-    return game
+@router.get("/{game_id}", dependencies=[requires(scopes.GAMES_READ)])
+def get_game(game_id: str) -> models.GameResource:
+    return models.GameResource(**game_lens.detail(game_id))
 ```
 
-Routes stay thin. The logic already lives in the service layer (`common/`,
-`managerui/services/`), and the API is another adapter over it — the same services back the
-Manager UI and the WebSocket bridge. If a route is growing logic, that logic belongs in a
-service where the other callers can reach it too.
+**Nothing calls a route handler.** Extensions, the Console and the other route modules all
+reach the same service, so there is one implementation of every answer and no route doing
+double duty. A service module named `*_ops` writes, a `*_lens` reads; both return dicts,
+because `common/` may not import `httpapi` and so cannot hand back a response model.
+
+Refusals come back as one of the four in `common/service_errors.py` — not found, refused,
+blocked, unavailable — and a handler registered in `httpapi/errors.py` turns each into its
+envelope. A route only needs a `try`/`except` when it gives a status those four do not
+cover: an upload too large is 413, an unreadable session 422, a theme source that will not
+load 503.
 
 ## Testing
 

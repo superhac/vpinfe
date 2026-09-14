@@ -14,9 +14,7 @@ import logging
 
 from fastapi import APIRouter, Query
 
-from common.config_access import MediaConfig
 from common.online import asset_sources
-from common.paths import get_ini_config
 
 from . import models, scopes
 from .auth import requires
@@ -24,11 +22,6 @@ from .auth import requires
 logger = logging.getLogger("vpinfe.httpapi.mediasources")
 
 router = APIRouter(prefix="/media-sources", tags=["media-sources"])
-
-
-def enabled_ids() -> tuple[str, ...]:
-    """The sources the owner wants asked. Empty means all of them."""
-    return MediaConfig.from_config(get_ini_config()).asset_sources
 
 
 @router.get("", summary="The online artwork catalogs this install knows",
@@ -39,7 +32,7 @@ def list_sources() -> models.MediaSourceList:
     Disabled ones are listed rather than hidden, because "why is that catalog not
     coming up" is answered by seeing it sitting there switched off.
     """
-    wanted = enabled_ids()
+    wanted = asset_sources.enabled_ids()
     asked = {source.id for source in asset_sources.sources(wanted)}
     return models.MediaSourceList.model_validate(
         {"sources": [{"id": source.id, "name": source.name, "url": source.url,
@@ -57,7 +50,7 @@ def get_offers(vps_id: str = Query(...),
     VPS_READ rather than a scope of its own: that scope exists because the call goes
     out to a catalog on the caller's behalf, which is exactly what this is.
     """
-    found = asset_sources.offers(kind, vps_id, enabled_ids())
+    found = asset_sources.offers(kind, vps_id, asset_sources.enabled_ids())
     return models.MediaOfferList.model_validate(
         {"offers": [{"source": offer.source, "name": offer.name, "url": offer.url,
                      "kind": offer.kind, "size": offer.size}

@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 import httpapi
 from common import lifecycle
+from common.host import action_ops
 from tests.support.library import TempTree
 
 try:
@@ -112,7 +113,7 @@ class ActionsApiTests(TempTree):
         handed to a background task and the response goes out first."""
         done = self._offer("vpinfe", "restart")
 
-        with patch.object(httpapi.actions, "_perform",
+        with patch.object(action_ops, "perform",
                           side_effect=lambda *a: done.append(a)) as performed:
             body = self.client.post("/actions",
                                     json={"scope": "vpinfe", "action": "restart"}).json()
