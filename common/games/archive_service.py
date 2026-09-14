@@ -71,3 +71,20 @@ def create_vpxz_archive(game_dir_name: str, games_path: str | None = None, *,
 
 def cleanup_archive(archive: VpxzArchive) -> None:
     shutil.rmtree(archive.temp_dir, ignore_errors=True)
+
+
+def archive_for(game_id: str, *, everything: bool = False,
+                table: str = "") -> VpxzArchive:
+    """One game's archive, addressed the way every other game endpoint addresses one."""
+    from common import service_errors
+    from common.games import game_lens
+    from common.i18n import t
+
+    game = game_lens.game_or_refuse(game_id)
+    try:
+        return create_vpxz_archive(getattr(game, "gameDirName", ""),
+                                   everything=everything, table=table or None)
+    except ValueError as exc:
+        raise service_errors.RefusedError(t("error.games.invalid_game_path")) from exc
+    except FileNotFoundError as exc:
+        raise service_errors.NotFoundError(t("error.games.game_not_found")) from exc

@@ -1,9 +1,21 @@
-"""Closing the table this host is playing, and saying what was closed."""
+"""Starting and stopping a table on this host.
+
+Both halves in one place because they are one question - what is this machine playing -
+and every surface that asks it asks the same way.
+"""
 
 from __future__ import annotations
 
-from common import device_client, lifecycle
-from common.host import launch_state
+import logging
+import threading
+from pathlib import Path
+
+from common import device_client, lifecycle, service_errors
+from common.games import game_lens
+from common.host import launch, launch_state
+from common.paths import get_ini_config
+
+logger = logging.getLogger("vpinfe.common.host.play_service")
 
 
 def stop_playing(reason: str = "asked over the API") -> dict:
@@ -26,3 +38,32 @@ def stop_playing(reason: str = "asked over the API") -> dict:
         reason=reason)
     return {"stopped": bool(went_ahead),
             "game_name": state.game_name if went_ahead else None}
+
+
+def start(game_id: str, table: str | None = None) -> dict:
+    """Start a game and answer once it is starting, not once it is over.
+
+    The same path the wheel and the Remote Control page take, so a launch from anywhere
+    counts as a play and releases the peripherals like any other.
+    """
+    game = game_lens.game_or_refuse(game_id)
+    ini_config = get_ini_config()
+    try:
+        resolved = launch.check_launchable(game, ini_config, table)
+    except launch.LaunchBusyError as exc:
+        raise service_errors.BlockedError(str(exc)) from exc
+    except launch.UnknownTableError as exc:
+        raise service_errors.RefusedError(str(exc), details={"file": table}) from exc
+    except launch.LaunchUnavailableError as exc:
+        raise service_errors.UnavailableError(str(exc)) from exc
+
+    def run() -> None:
+        try:
+            launch.launch_game(game, ini_config, source=launch_state.SOURCE_API,
+                               table=table)
+        except Exception:
+            logger.exception("Launch of %s failed", game_id)
+
+    threading.Thread(target=run, daemon=True,
+                     name=f"api-launch-{game_id[:8]}").start()
+    return {"launching": True, "game_id": game_id, "file": Path(resolved).name}

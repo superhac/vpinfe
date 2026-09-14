@@ -6,6 +6,7 @@ Routes raise; the handlers here do the shaping. See docs/http_api.md.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from fastapi.encoders import jsonable_encoder
@@ -13,6 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from common import service_errors
 from common.i18n import t
 
 logger = logging.getLogger("vpinfe.httpapi.errors")
@@ -83,6 +85,25 @@ class FeatureUnavailableError(ApiError):
         super().__init__(CODE_FEATURE_UNAVAILABLE, message, status_code=501, details=details)
 
 
+# What a service refuses, and the envelope it comes out as. One table, registered once,
+# so a route does not carry a try/except that only renames the same four refusals.
+_SERVICE_ERRORS: tuple[tuple[type[service_errors.ServiceError],
+                          Callable[..., ApiError]], ...] = (
+    (service_errors.NotFoundError, NotFoundError),
+    (service_errors.RefusedError, InvalidRequestError),
+    (service_errors.BlockedError, ConflictError),
+    (service_errors.UnavailableError, FeatureUnavailableError),
+)
+
+
+def as_api_error(exc: service_errors.ServiceError) -> ApiError:
+    """The envelope for a refusal, for a caller that has to raise rather than return."""
+    for kind, envelope in _SERVICE_ERRORS:
+        if isinstance(exc, kind):
+            return envelope(str(exc), details=exc.details)
+    return ApiError(CODE_INTERNAL_ERROR, str(exc), status_code=500, details=exc.details)
+
+
 def error_response(status_code: int, code: str, message: str,
                    details: Any = None) -> JSONResponse:
     """Build an envelope response directly. Prefer raising ApiError."""
@@ -103,6 +124,11 @@ def install_error_handlers(app, on_unhandled=None) -> None:
     @app.exception_handler(ApiError)
     async def _api_error(request, exc: ApiError):
         return error_response(exc.status_code, exc.code, exc.message, exc.details)
+
+    @app.exception_handler(service_errors.ServiceError)
+    async def _service_error(request, exc: service_errors.ServiceError):
+        api = as_api_error(exc)
+        return error_response(api.status_code, api.code, api.message, api.details)
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_error(request, exc: StarletteHTTPException):

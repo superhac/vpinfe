@@ -1,13 +1,12 @@
 """What core lets an extension do to the library.
 
 An extension used to reach eight things where an HTTP client reached twenty-five, which
-is backwards: games are the thing extensions are mostly for. Core now hands the host its
-own route functions, so the two cannot answer differently.
+is backwards: games are the thing extensions are mostly for. Core hands the host the same
+services the routes call, so the two cannot answer differently.
 
-Called directly rather than over the wire - they are plain functions, and the scope gate
-lives in each route's dependencies, which only fires for a real request. So the gate is
-re-applied here, against the manifest, which is what makes declaring a scope mean
-something.
+The route's scope gate lives in its `dependencies=[...]` and only fires for a real
+request, so going straight to the service does not carry it. The gate is re-applied here,
+against the manifest, which is what makes declaring a scope mean something.
 """
 
 from __future__ import annotations

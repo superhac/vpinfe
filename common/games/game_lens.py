@@ -10,8 +10,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from common.games import asset_resolver
+from common import service_errors
+from common.games import asset_resolver, game_repository
+from common.games.game_repository import catalog, collections_by_game_id, game_to_row
 from common.games.tables import table_names
+from common.i18n import t
+
+__all__ = ["asset_summary", "catalog", "detail", "game_or_refuse", "game_resource",
+           "inventory_assets", "listing", "parked_match", "resource_of"]
 
 
 def parked_match(row: dict) -> dict | None:
@@ -113,3 +119,56 @@ def game_resource(row: dict, game_id: str) -> dict[str, Any]:
             "rating": f"{prefix}/rating",
         },
     }
+
+
+def game_or_refuse(game_id: str):
+    """The game an id names, or a refusal naming the id. One lookup, so nothing forms a
+    second answer to which game an id names."""
+    game = game_repository.game_by_id(game_id)
+    if game is None:
+        raise service_errors.NotFoundError(
+            t("error.games.no_game_id", game_id=(game_id)))
+    return game
+
+
+def resource_of(game_id: str) -> dict[str, Any]:
+    """One game, with the assets the last scan counted."""
+    game = game_or_refuse(game_id)
+    return game_resource(game_to_row(game, collections_by_game_id()), game_id)
+
+
+def detail(game_id: str) -> dict[str, Any]:
+    """One game, with its folder read again. What `GET /games/{id}` answers: the scan's
+    summary is a count, and a curator looking at one game wants the files."""
+    resource = resource_of(game_id)
+    resource["assets"] = inventory_assets(Path(resource["folder"]))
+    return resource
+
+
+def listing(q: str = "", limit: int = 0, offset: int = 0) -> dict[str, Any]:
+    """Every game, by name, optionally narrowed and paged.
+
+    Sorted before the search so the window is stable: a client paging through results has
+    to see the same order the last page came from.
+    """
+    collections = collections_by_game_id()
+    found = sorted(
+        ((game_to_row(game, collections), game_id)
+         for game_id, game in catalog().items()),
+        key=lambda pair: pair[0].get("name", "").lower())
+    resources = [game_resource(row, game_id) for row, game_id in found]
+
+    if q:
+        needle = q.strip().lower()
+        resources = [one for one in resources
+                     if needle in one["name"].lower()
+                     or needle in (one["manufacturer"] or "").lower()
+                     or needle in (one["rom"] or "").lower()]
+
+    total = len(resources)
+    if offset:
+        resources = resources[offset:]
+    if limit:
+        resources = resources[:limit]
+    return {"total": total, "offset": offset, "count": len(resources),
+            "games": resources}

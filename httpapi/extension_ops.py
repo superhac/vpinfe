@@ -4,59 +4,38 @@ One table, kept beside the routes rather than inside the extension host, because
 are core's functions and adding a route is the moment somebody should be deciding whether
 extensions get it too.
 
-**The route handlers are called directly, not over HTTP.** They are plain functions; the
-scope gate lives in each route's `dependencies=[...]`, which only applies to a request
-arriving over the wire. So an extension reaches exactly the code an HTTP client reaches,
-and the two cannot drift - which they had, silently, while the host kept its own smaller
-copy of the library.
+**Every operation here is the service the matching route calls.** The route is a thin
+adapter over the same function - it adds the path, the scope gate in its
+`dependencies=[...]`, and the response model, and nothing else. So an extension reaches
+exactly the code an HTTP client reaches, and the two cannot drift; the host cannot end up
+with a smaller copy of the library, which it silently had once before. The scope gate is
+not lost by going straight to the service: `offer` below names the scope for each one, and
+the host is what checks it.
 
-The names are what an extension calls them, not what the handler is called. A handler is
-named for its route; an extension author is reading a list of things they can do.
+The names are what an extension calls them, not what the service is called. A service is
+named for the noun it acts on; an extension author is reading a list of things they can do.
 """
 
 from __future__ import annotations
 
 from common.extensions.games import offer
+from common.games import game_lens, game_ops, library_vps_state, media_ops, table_ops
+from common.host import play_service
 
-from . import games, models, scopes
-
-
-def _details(game_id: str, **fields):
-    return games.put_game_details(game_id, models.GameDetails(**fields))
+from . import scopes
 
 
-def _rate_game(game_id: str, rating):
-    return games.put_game_rating(game_id, models.RatingRequest(rating=rating))
-
-
-def _rate_table(game_id: str, table_id: str, rating):
-    return games.put_table_rating(game_id, table_id, models.RatingRequest(rating=rating))
-
-
-def _tag(game_id: str, tags):
-    return games.put_game_tags(game_id, models.TagsRequest(tags=list(tags)))
-
-
-def _favorite(game_id: str, favorite: bool):
-    return games.put_game_favorite(game_id, models.FavoriteRequest(favorite=favorite))
-
-
-def _play_record(game_id: str, play_count=None, play_time_seconds=None,
-                 last_played=None):
-    """Set what a game arrives already having done. A field left out is left alone."""
-    return games.put_play_record(game_id, models.PlayRecordUpdate(
-        play_count=play_count, play_time_seconds=play_time_seconds,
-        last_played=last_played))
-
-
-def _default_table(game_id: str, table_id: str):
-    return games.put_default_table(game_id, models.TableDefault(table_id=table_id))
+def _vps_state(game_id: str) -> dict:
+    return library_vps_state.state_of(game_lens.game_or_refuse(game_id), game_id)
 
 
 def _launch(game_id: str, table: str = ""):
     """Start a game. `table` picks one of its tables; left out, the default one."""
-    return games.launch_game(
-        game_id, models.LaunchRequest(file=table) if table else None)
+    return play_service.start(game_id, table or None)
+
+
+def _set_details(game_id: str, **fields):
+    return game_ops.set_details(game_id, dict(fields))
 
 
 # Reading is one scope and writing another. Taking an entry's details from a catalog is
@@ -68,14 +47,14 @@ def _launch(game_id: str, table: str = ""):
 # somebody may be mid-game on is a third thing again. An extension that wants to start a
 # game asks for that by name, and whoever installs it reads it by name.
 READS = {
-    "list_games": games.list_games,
-    "get_game": games.get_game,
-    "game_tables": games.get_games,
-    "game_media": games.get_game_media,
-    "table_media": games.get_table_media,
-    "media_detail": games.get_game_media_detail,
-    "vps_state": games.get_vps_state,
-    "vps_details": games.get_vps_details,
+    "list_games": game_lens.listing,
+    "get_game": game_lens.detail,
+    "game_tables": table_ops.rows_of,
+    "game_media": media_ops.game_media,
+    "table_media": media_ops.table_media,
+    "media_detail": media_ops.detail,
+    "vps_state": _vps_state,
+    "vps_details": game_ops.vps_details,
 }
 
 LAUNCHES = {
@@ -83,18 +62,18 @@ LAUNCHES = {
 }
 
 WRITES = {
-    "set_details": _details,
-    "rate_game": _rate_game,
-    "rate_table": _rate_table,
-    "set_tags": _tag,
-    "set_favorite": _favorite,
-    "set_default_table": _default_table,
-    "set_play_record": _play_record,
-    "reset_play_record": games.reset_play_record,
-    "take_vps_details": games.put_vps_details,
-    "remove_media": games.delete_game_media,
-    "forget_table": games.delete_table,
-    "add_keyed_table": games.add_keyed_table,
+    "set_details": _set_details,
+    "rate_game": game_ops.set_rating,
+    "rate_table": table_ops.set_rating,
+    "set_tags": game_ops.set_tags,
+    "set_favorite": game_ops.set_favorite,
+    "set_default_table": table_ops.set_default,
+    "set_play_record": game_ops.set_play_record,
+    "reset_play_record": game_ops.reset_play_record,
+    "take_vps_details": game_ops.adopt_details,
+    "remove_media": media_ops.remove,
+    "forget_table": table_ops.forget,
+    "add_keyed_table": table_ops.add_keyed,
 }
 
 
