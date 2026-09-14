@@ -174,7 +174,8 @@ def build(collections: list[dict[str, Any]], library: Any,
         _fill(row)
 
     async def on_header_context(col_id: str | None) -> None:
-        state_now = await table.run_grid_method("getColumnState") or []
+        state_now: list[dict[str, Any]] = \
+            await table.run_grid_method("getColumnState") or []
         entry = next((c for c in state_now if c.get("colId") == col_id), {})
         _fill(None, col_id=col_id, pinned=bool(entry.get("pinned")))
 

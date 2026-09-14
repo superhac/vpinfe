@@ -71,7 +71,7 @@ def screen_key(window: str) -> str:
 
 
 # Themes already warned about, so a name is reported once rather than per window open.
-_warned_foreign = set()
+_warned_foreign: set[tuple[str, tuple[str, ...]]] = set()
 
 
 def _warn_on_foreign_names(theme_dir, contract: int, names) -> None:

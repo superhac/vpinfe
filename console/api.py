@@ -71,7 +71,10 @@ class ApiClient:
         """
         if response.ok:
             return
-        said, details = "", {}
+        said = ""
+        # `object`, not `dict`: this is whatever the wire sent, and the isinstance
+        # below is what decides it was a payload at all.
+        details: object = {}
         try:
             found = (response.json() or {}).get("error") or {}
             said = str(found.get("message") or "")
@@ -253,8 +256,8 @@ class ApiClient:
         """Catalog entries matching every word, already in a neutral order. No score
         comes back and none is wanted - the ranker was measured and retired."""
         _refuse_the_event_loop("/vps/search")
-        response = self._session.get(f"{self._base}/vps/search",
-                                     params={"q": term, "limit": limit},
+        params: dict[str, str | int] = {"q": term, "limit": limit}
+        response = self._session.get(f"{self._base}/vps/search", params=params,
                                      timeout=_TIMEOUT)
         self._answered(response)
         return list(response.json().get("results") or [])

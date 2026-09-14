@@ -229,7 +229,7 @@ def _ini_schema(parser) -> int:
                 pass
     return max(found, default=0)
 
-_warned_newer_schema = set()
+_warned_newer_schema: set[int] = set()
 
 
 class CollectionStore:

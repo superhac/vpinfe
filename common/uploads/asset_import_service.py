@@ -724,7 +724,7 @@ def record_declared_identities(plan: ImportPlan, base: Path, declared) -> list[s
     if not declared:
         return []
 
-    by_name = {}
+    by_name: dict[str, PlannedItem] = {}
     for item in plan.items:
         for entry in item.asset.entries:
             by_name.setdefault(_basename(entry.path), item)

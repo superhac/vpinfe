@@ -263,16 +263,18 @@ def build(found: list[dict[str, Any]], library: Any,
     async def on_header_context(col_id: str | None) -> None:
         # Asked of the grid rather than tracked here: a column can also be dragged in
         # and out of the pinned area, and a local flag would then be wrong.
-        state_now = await table.run_grid_method("getColumnState") or []
+        state_now: list[dict[str, Any]] = \
+            await table.run_grid_method("getColumnState") or []
         entry = next((c for c in state_now if c.get("colId") == col_id), {})
         menu.clear()
         with menu:
             grid.column_menu(menu, table, COLUMNS, col_id, bool(entry.get("pinned")))
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        table = grid.build(COLUMNS, built, SCOPE, on_select_rows,
-                           on_header_context=on_header_context, view_of=showing)
-        menu = ui.context_menu()
+        table: ui.aggrid = grid.build(COLUMNS, built, SCOPE, on_select_rows,
+                                      on_header_context=on_header_context,
+                                      view_of=showing)
+        menu: ui.context_menu = ui.context_menu()
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                       search.value or ""))

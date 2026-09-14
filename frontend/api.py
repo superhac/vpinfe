@@ -12,6 +12,7 @@ theme.
 """
 
 import logging
+from typing import Any
 
 from common import events, lifecycle
 from common.config_access import cfg_get
@@ -45,8 +46,9 @@ from frontend.theme_contract import CURRENT_CONTRACT, declared_contract
 # What a theme is told when nothing answers: the same thing core said when nobody was
 # signed in, so a cabinet with the extension disabled reads as one with no guest rather
 # than as one that is broken.
-_NOBODY_SIGNED_IN = {"active": False, "profile": None, "active_games": 0,
-                     "profiles": [], "activeProfileKey": ""}
+_NOBODY_SIGNED_IN: dict[str, Any] = {"active": False, "profile": None,
+                                     "active_games": 0, "profiles": [],
+                                     "activeProfileKey": ""}
 
 
 logger = logging.getLogger("vpinfe.frontend.api")

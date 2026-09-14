@@ -162,7 +162,8 @@ def build(found: list[dict[str, Any]], library: Any,
     async def on_header_context(col_id: str | None) -> None:
         # Asked of the grid rather than tracked here: a column can also be dragged in
         # and out of the pinned area, and a local flag would then be wrong.
-        state_now = await table.run_grid_method("getColumnState") or []
+        state_now: list[dict[str, Any]] = \
+            await table.run_grid_method("getColumnState") or []
         entry = next((c for c in state_now if c.get("colId") == col_id), {})
         menu.clear()
         with menu:

@@ -71,7 +71,7 @@ VPINFE_SECTION = "vpinfe"
 # specific one, and the same question applies to backglasses, ROMs and colorizations.
 ASSETS_KEY = "assets"
 
-_warned_newer_schema = set()
+_warned_newer_schema: set[int] = set()
 
 
 def migrate_vpinfe_section(vpinfe):

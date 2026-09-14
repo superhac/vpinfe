@@ -253,7 +253,7 @@ def resolve_games(name: str, collections, games) -> list[Any]:
     if unknown:
         raise UnresolvableCollectionError(name, unknown)
 
-    by_id = {}
+    by_id: dict[str, Any] = {}
     for game in games:
         found = game_id(game)
         if found:
@@ -315,7 +315,7 @@ def resolve(name: str, collections, games) -> list[Entry]:
     if unknown:
         raise UnresolvableCollectionError(name, unknown)
 
-    by_id = {}
+    by_id: dict[str, Any] = {}
     for game in games:
         found = game_id(game)
         if found:

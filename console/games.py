@@ -509,7 +509,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     async def on_header_context(col_id: str | None) -> None:
         # Asked of the grid rather than tracked here: the column can also be dragged in
         # and out of the pinned area, and a local flag would then be wrong.
-        current = await table.run_grid_method("getColumnState")
+        current: list[dict[str, Any]] = \
+            await table.run_grid_method("getColumnState") or []
         entry = next((c for c in current if c.get("colId") == col_id), {})
         _fill_menu(col_id=col_id, pinned=bool(entry.get("pinned")))
 
@@ -956,7 +957,8 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     async def on_header_context(col_id: str | None) -> None:
         # Asked of the grid rather than tracked here: the column can also be dragged in
         # and out of the pinned area, and a local flag would then be wrong.
-        state_now = await table.run_grid_method("getColumnState") or []
+        state_now: list[dict[str, Any]] = \
+            await table.run_grid_method("getColumnState") or []
         entry = next((c for c in state_now if c.get("colId") == col_id), {})
         _fill(None, col_id=col_id, pinned=bool(entry.get("pinned")))
 

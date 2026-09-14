@@ -89,7 +89,7 @@ def migrate_from_packages(themes_dir: Path) -> list[str]:
     these values are still sitting in. Existing user files are never overwritten - if
     one is there, this theme has already moved.
     """
-    moved = []
+    moved: list[str] = []
     if not themes_dir.is_dir():
         return moved
     for theme_dir in sorted(p for p in themes_dir.iterdir() if p.is_dir()):
