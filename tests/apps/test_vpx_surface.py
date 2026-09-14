@@ -55,6 +55,7 @@ BASELINE: dict[str, int] = {
     "common/games/launchers.py": 1,
     "common/games/library_discovery.py": 1,
     "common/games/library_enrichment.py": 2,
+    "common/games/library_ops.py": 1,
     "common/games/media_lookup.py": 2,
     "common/games/media_ops.py": 2,
     "common/games/media_placement.py": 1,

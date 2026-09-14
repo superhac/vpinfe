@@ -184,7 +184,7 @@ class TableFileSeedingTests(unittest.TestCase):
         pathlib.Path(folder, "Attack from Mars.ini").write_text(
             "[Player]\nBallTrail = 1\nFXAA = 3\n")
         self.beside = os.path.join(folder, "afm.ini")
-        patcher = patch("httpapi.launchers._game_file", return_value=self.table)
+        patcher = patch("common.games.launcher_ops._game_file", return_value=self.table)
         patcher.start()
         self.addCleanup(patcher.stop)
 
