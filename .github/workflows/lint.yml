@@ -6,8 +6,7 @@ on:
   pull_request:
     branches: [ master, vpinfe-3.0 ]
 
-# One run per branch. A second push supersedes the first rather than queueing behind
-# it - a tag run is exempt, because cancelling one halfway leaves a partial release.
+# A tag run is exempt: cancelling one halfway leaves a partial release.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
@@ -30,31 +29,16 @@ jobs:
       - name: Install ruff
         run: pip install -r requirements-dev.txt
 
-      # Reports the existing debt without failing. See docs/conventions.md.
+      # The advisory/blocking split is in docs/conventions.md.
       - name: Lint the whole tree (advisory)
         continue-on-error: true
         run: ruff check . --output-format=github --statistics
 
-      # tests/ was taken to zero on 2026-08-06. Unlike the new-file rule below this
-      # covers every file in the package, so the foundation cannot drift back.
-      #
-      # apps/, console/, extensions/ and httpapi/ are at zero too - the first three
-      # because they were written after the rules, httpapi because the service
-      # extraction rewrote it. Held here for the same reason tests/ is: a package that
-      # reached zero and is not held there goes back.
       - name: Lint the packages that are clean (blocking)
         run: ruff check tests/ apps/ console/ extensions/ httpapi/ --output-format=github
 
-      # New files must be clean, so new code is born compliant while older code
-      # is cleaned up when it is touched rather than in one enormous diff.
-      #
-      # -M20% because a file that moved packages and was rewritten scores below git's
-      # default 50% and comes back as added, which judges old code by the new-file rule.
-      # Lowered from 20% on 2026-08-05: merging master moved the base, and at 20% three
-      # relocated 2.x modules - game_repository, gameparser and vpsdb_media - came back
-      # as new. The vocabulary pass rewrote enough of their prose to drop them below it.
-      # At 5% all three are seen as the moves they are, and nothing genuinely new is
-      # excluded: the file count only falls from 94 to 86.
+      # -M5% so a file that moved packages and was rewritten is seen as the move it is.
+      # Git's default 50% returns it as added, which judges old code by the new-file rule.
       - name: Lint newly added files (blocking)
         if: github.event_name == 'pull_request'
         run: |
@@ -83,18 +67,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
 
-      # The packages, the flags and the exclusions are all in pyproject.toml, so this
-      # run and a local one cannot disagree. See docs/conventions.md.
+      # Packages, flags and exclusions all live in pyproject.toml, so this run and a
+      # local one cannot disagree.
       - name: Type check (advisory)
         continue-on-error: true
         run: mypy
 
-      # httpapi/ reached zero when the service extraction thinned the routes. Held there,
-      # because it is the wire contract: a return type that lies about what a route serves
-      # is a promise broken for every client.
-      #
-      # follow-imports=silent because naming a package still type checks everything it
-      # imports and reports that too, which would fail this on common/'s debt rather than
-      # on anything httpapi did.
+      # follow-imports=silent, or naming a package also reports everything it imports
+      # and this fails on common/'s debt rather than on anything httpapi did.
       - name: Type check the API surface (blocking)
         run: mypy --follow-imports=silent httpapi
