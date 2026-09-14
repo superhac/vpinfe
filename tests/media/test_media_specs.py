@@ -19,7 +19,7 @@ from tests.support.library import fake_game
 class MediaSpecTests(unittest.TestCase):
     def test_media_specs_apply_and_payload_use_shared_specs(self) -> None:
         root = os.path.join(os.sep, "tmp", "Table")
-        game = fake_game(root, PlayfieldImagePath=None, BGImagePath=None)
+        game = fake_game(root, playfield_image_path=None, bg_image_path=None)
 
         apply_media_specs(
             game,
@@ -28,8 +28,8 @@ class MediaSpecTests(unittest.TestCase):
             playfield_variant="fss",
         )
 
-        self.assertEqual(game.BGImagePath, os.path.join(root, "bg.png"))
-        self.assertEqual(game.PlayfieldImagePath, os.path.join(root, "medias", "fss.png"))
+        self.assertEqual(game.bg_image_path, os.path.join(root, "bg.png"))
+        self.assertEqual(game.playfield_image_path, os.path.join(root, "medias", "fss.png"))
         self.assertEqual(media_filename_map("fss")["playfield"], "fss.png")
         self.assertEqual(game_media_payload(game)["PlayfieldImagePath"],
                          os.path.join(root, "medias", "fss.png"))

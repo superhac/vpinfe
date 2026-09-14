@@ -198,8 +198,7 @@ async def _staged_write(game_id: str, kind: str, table_id: str, stem: str,
 async def put_game_media(game_id: str, kind: str,
                          file: UploadFile = File(...)) -> models.MediaWritten:
     """Named for the folder, so every table in it resolves this unless it has its own."""
-    stem = Path(getattr(game_lens.game_or_refuse(game_id),
-                        "fullPathGame", "") or "").name
+    stem = Path(game_lens.game_or_refuse(game_id).full_path_game or "").name
     return models.MediaWritten(**await _staged_write(game_id, kind, "", stem, file))
 
 

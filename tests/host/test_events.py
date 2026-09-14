@@ -165,7 +165,7 @@ class GameSelectionTests(unittest.TestCase):
 
     @staticmethod
     def _game(name="Medieval Madness"):
-        return Game(gameDirName=name,
+        return Game(game_dir_name=name,
                     meta_config={"vpinfe": {"frontend_dof_event": "E901"}})
 
     def test_selection_is_subscribers_only(self) -> None:

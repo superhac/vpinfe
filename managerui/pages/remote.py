@@ -104,7 +104,7 @@ def _launch_game(game: dict):
         ui.notify(str(exc), type='negative')
         return False
 
-    logger.info("Remote launching game: %s", resolved.gameDirName)
+    logger.info("Remote launching game: %s", resolved.game_dir_name)
     ui.notify(f'Remote Launching {game_name}...', type='info')
 
     def run_and_wait():

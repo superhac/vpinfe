@@ -365,10 +365,10 @@ class ParserCasingTests(unittest.TestCase):
 
             game = GameParser(tmp).get_all_games()[0]
 
-        self.assertTrue(game.pupPackExists, "PUPVideos holds a PUP pack")
-        self.assertTrue(game.altColorExists)
-        self.assertTrue(game.vniExists)
-        self.assertTrue(game.musicExists)
+        self.assertTrue(game.pup_pack_exists, "PUPVideos holds a PUP pack")
+        self.assertTrue(game.alt_color_exists)
+        self.assertTrue(game.vni_exists)
+        self.assertTrue(game.music_exists)
 
 
 class ImportSideTests(unittest.TestCase):
@@ -452,7 +452,7 @@ class ParserOrderTests(unittest.TestCase):
             parser = GameParser(tmp)
             game = parser.get_all_games()[0]
 
-        self.assertEqual(os.path.basename(game.WheelImagePath),
+        self.assertEqual(os.path.basename(game.wheel_image_path),
                          f"(Wheel) {TABLE}.png",
                          "the recorded build's wheel, not the other build's")
 

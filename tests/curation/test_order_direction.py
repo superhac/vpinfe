@@ -31,7 +31,7 @@ from tests.support.library import TempTree
 
 def _game(gid, title, last_run=0):
     return SimpleNamespace(
-        gameDirName=title,
+        game_dir_name=title,
         creation_time=0,
         meta_config={
             "Info": {"Title": title, "Manufacturer": "Bally", "Year": "1995",
@@ -178,7 +178,7 @@ class OrderDirectionMigrationTests(TempTree):
 
         entries = resolve("Recent", self._store(), games)
 
-        self.assertEqual([e.game.gameDirName for e in entries],
+        self.assertEqual([e.game.game_dir_name for e in entries],
                          ["Zaccaria", "Apollo 13"])
 
     def test_the_sorts_that_honoured_direction_are_left_alone(self) -> None:

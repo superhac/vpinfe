@@ -17,8 +17,8 @@ from common.games import game_identity
 
 def _game(game_id: str, path: str, location: str):
     return types.SimpleNamespace(
-        fullPathGame=path,
-        gameDirName=path.rsplit("/", 1)[-1],
+        full_path_game=path,
+        game_dir_name=path.rsplit("/", 1)[-1],
         location_id=location,
         meta_config={"vpinfe": {"game_id": game_id}} if game_id else {},
     )

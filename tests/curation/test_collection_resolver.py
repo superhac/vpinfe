@@ -24,7 +24,7 @@ from tests.support.library import TempTree
 def _game(gid, title, tables, manufacturer="", rating=0, last_run=0, default=""):
     """A game whose tables map is keyed by id, as storage has it."""
     return Game(
-        gameDirName=title,
+        game_dir_name=title,
         creation_time=0,
         meta_config={
             "Info": {"Title": title, "Manufacturer": manufacturer, "Year": "1995",
@@ -68,7 +68,7 @@ class ResolverTests(TempTree):
         return [(e.game.meta_config["vpinfe"]["game_id"], e.table_id) for e in entries]
 
     def _titles(self, name):
-        return [e.game.gameDirName for e in resolve(name, self.collections, self.games)]
+        return [e.game.game_dir_name for e in resolve(name, self.collections, self.games)]
 
     # --- the case the whole design exists for ------------------------------------
 
@@ -311,7 +311,7 @@ class ResolverTests(TempTree):
 
         entries = resolve("Everything", self.collections, self.games)
 
-        self.assertEqual([e.game.gameDirName for e in entries],
+        self.assertEqual([e.game.game_dir_name for e in entries],
                          ["The Addams Family", "Attack from Mars", "Medieval Madness"])
 
     def test_last_played_sorts_most_recent_first(self) -> None:
@@ -319,7 +319,7 @@ class ResolverTests(TempTree):
 
         entries = resolve("Recent", self.collections, self.games)
 
-        self.assertEqual([e.game.gameDirName for e in entries],
+        self.assertEqual([e.game.game_dir_name for e in entries],
                          ["Medieval Madness", "Attack from Mars", "The Addams Family"])
 
     def test_every_sort_reads_the_stored_direction(self) -> None:
@@ -355,7 +355,7 @@ class ResolverTests(TempTree):
 
         entries = resolve("Recent", self.collections, self.games)
 
-        self.assertEqual([e.game.gameDirName for e in entries],
+        self.assertEqual([e.game.game_dir_name for e in entries],
                          ["Medieval Madness", "Attack from Mars"])
 
     def test_a_limit_past_the_end_keeps_everything(self) -> None:
@@ -392,7 +392,7 @@ class ResolverTests(TempTree):
 
         games = resolve_games("Recent", self.collections, self.games)
 
-        self.assertEqual([g.gameDirName for g in games],
+        self.assertEqual([g.game_dir_name for g in games],
                          ["Medieval Madness", "Attack from Mars"])
 
     def test_two_resolutions_of_the_same_input_agree(self) -> None:
@@ -430,14 +430,14 @@ class ResolverTests(TempTree):
 
 
 class VisibleEntryTests(unittest.TestCase):
-    """A scanned game always carries `fullPathVPXfile`, so every fixture here sets it.
+    """A scanned game always carries `full_path_vpx_file`, so every fixture here sets it.
     Without it the unparsed-game fallback returns nothing and these tests pass whatever
     the filter does - which is how a game with every table hidden went on being offered.
     """
 
     def _game_with_path(self, tables):
         game = _game("x", "T", tables)
-        game.fullPathVPXfile = "/lib/T/a.vpx"
+        game.full_path_vpx_file = "/lib/T/a.vpx"
         return game
 
     def test_a_game_with_no_tables_offers_nothing(self) -> None:
@@ -485,7 +485,7 @@ class OrderDefaultTests(TempTree):
             self.collections.add_member("Favorites", gid)
 
     def _titles(self):
-        return [e.game.gameDirName
+        return [e.game.game_dir_name
                 for e in resolve("Favorites", self.collections, self.games)]
 
     def test_a_manual_collection_defaults_to_title_order(self) -> None:

@@ -16,8 +16,8 @@ from tests.support.library import fake_game
 
 def _game(title="Medieval Madness", tables=None, vpx="/g/MM/MM.vpx"):
     return fake_game(
-               "/g/MM", title, fullPathVPXfile=vpx,
-               pupPackExists=True, altColorExists=False, altSoundExists=False,
+               "/g/MM", title, full_path_vpx_file=vpx,
+               pup_pack_exists=True, alt_color_exists=False, alt_sound_exists=False,
                creation_time=0,
                meta={
             "Info": {"Title": title, "Manufacturer": "Williams", "Year": "1997",

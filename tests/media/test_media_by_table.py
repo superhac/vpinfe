@@ -61,8 +61,8 @@ class _Game:
             "tbl0000001": {"filename": DESKTOP},
             "tbl0000002": {"filename": VR},
         }}
-        self.PlayfieldImagePath = attrs.get("playfield")
-        self.WheelImagePath = attrs.get("wheel")
+        self.playfield_image_path = attrs.get("playfield")
+        self.wheel_image_path = attrs.get("wheel")
 
 
 class LookupTests(unittest.TestCase):

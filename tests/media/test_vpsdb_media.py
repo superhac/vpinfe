@@ -117,12 +117,12 @@ class RemoteVocabularyTests(unittest.TestCase):
 
     def _fetched(self) -> set[str]:
         with TemporaryDirectory() as tmp:
-            game = fake_game(tmp, BGImagePath=None, DMDImagePath=None,
-                             WheelImagePath=None, CabImagePath=None,
-                             realDMDImagePath=None, realDMDColorImagePath=None,
-                             FlyerImagePath=None, PlayfieldImagePath=None,
-                             PlayfieldVideoPath=None, DMDVideoPath=None,
-                             AudioPath=None)
+            game = fake_game(tmp, bg_image_path=None, dmd_image_path=None,
+                             wheel_image_path=None, cab_image_path=None,
+                             real_dmd_image_path=None, real_dmd_color_image_path=None,
+                             flyer_image_path=None, playfield_image_path=None,
+                             playfield_video_path=None, dmd_video_path=None,
+                             audio_path=None)
             dl = VPSMediaDownloader({"vps-1": self.ENTRY}, playfieldvariant="table",
                                     playfieldresolution="1k",
                                     playfieldvideoresolution="1k")
@@ -169,13 +169,13 @@ class RecordingTests(unittest.TestCase):
     def _game(self, root: Path):
         """Enough of a Game for download_media_for_game. Every media path points at
         the canonical name; only the wheel exists on disk in these tests."""
-        paths = {"BGImagePath": "bg.png", "DMDImagePath": "dmd.png",
-                 "WheelImagePath": "wheel.png", "CabImagePath": "cab.png",
-                 "realDMDImagePath": "realdmd.png",
-                 "realDMDColorImagePath": "realdmd-color.png",
-                 "FlyerImagePath": "flyer.png", "PlayfieldImagePath": "table.png",
-                 "DMDVideoPath": "dmd.mp4", "PlayfieldVideoPath": "table.mp4",
-                 "AudioPath": "audio.mp3"}
+        paths = {"bg_image_path": "bg.png", "dmd_image_path": "dmd.png",
+                 "wheel_image_path": "wheel.png", "cab_image_path": "cab.png",
+                 "real_dmd_image_path": "realdmd.png",
+                 "real_dmd_color_image_path": "realdmd-color.png",
+                 "flyer_image_path": "flyer.png", "playfield_image_path": "table.png",
+                 "dmd_video_path": "dmd.mp4", "playfield_video_path": "table.mp4",
+                 "audio_path": "audio.mp3"}
         game = fake_game(root, root.name)
         for attr, name in paths.items():
             setattr(game, attr, str(root / "medias" / name))

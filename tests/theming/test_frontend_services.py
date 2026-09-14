@@ -168,9 +168,9 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_realdmd_helpers_and_updater_process_pending(self):
         game = types.SimpleNamespace(
-            gameDirName="Example",
-            realDMDImagePath="/tmp/real_dmd.png",
-            realDMDColorImagePath="/tmp/realdmd-color.png",
+            game_dir_name="Example",
+            real_dmd_image_path="/tmp/real_dmd.png",
+            real_dmd_color_image_path="/tmp/realdmd-color.png",
             meta_config={"vpinfe": {"frontend_dof_event": "E901"}},
         )
         color_config = configparser.ConfigParser()
@@ -188,7 +188,7 @@ class FrontendServiceTests(unittest.TestCase):
         self.assertEqual(real_dmd.get_realdmd_image_for_game(game, standard_config),
                          standard_expected)
 
-        game.realDMDColorImagePath = ""
+        game.real_dmd_color_image_path = ""
         self.assertEqual(real_dmd.get_realdmd_image_for_game(game, color_config), standard_expected)
 
         calls = []
@@ -201,7 +201,7 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_game_report_service_logs_unknown_game(self):
         parser_instance = mock.Mock()
-        game = types.SimpleNamespace(gameDirName="Unknown")
+        game = types.SimpleNamespace(game_dir_name="Unknown")
         parser_instance.get_all_games.return_value = [game]
         vps_instance = mock.Mock()
         vps_instance.__len__ = mock.Mock(return_value=0)
@@ -239,8 +239,8 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
             game = types.SimpleNamespace(
-                fullPathGame=str(game_dir),
-                gameDirName="Example",
+                full_path_game=str(game_dir),
+                game_dir_name="Example",
                 meta_config=json.loads(info_path.read_text(encoding="utf-8")),
             )
 
@@ -278,8 +278,8 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
             game = types.SimpleNamespace(
-                fullPathGame=str(game_dir),
-                gameDirName="Example",
+                full_path_game=str(game_dir),
+                game_dir_name="Example",
                 meta_config=json.loads(info_path.read_text(encoding="utf-8")),
             )
 
@@ -314,8 +314,8 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
             game = types.SimpleNamespace(
-                fullPathGame=str(game_dir),
-                gameDirName="Example",
+                full_path_game=str(game_dir),
+                game_dir_name="Example",
                 meta_config={},
             )
 
@@ -348,8 +348,8 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
             game = types.SimpleNamespace(
-                fullPathGame=str(game_dir),
-                gameDirName="Example",
+                full_path_game=str(game_dir),
+                game_dir_name="Example",
                 meta_config={},
             )
 
@@ -373,8 +373,8 @@ class FrontendServiceTests(unittest.TestCase):
             vpx_nvram.write_bytes(b"vpx")
             info_nvram.write_bytes(b"info")
             game = types.SimpleNamespace(
-                fullPathGame=str(game_dir),
-                gameDirName="Example",
+                full_path_game=str(game_dir),
+                game_dir_name="Example",
                 meta_config={
                     "tables": {"Example.vpx": {"rom": "vpx_rom"}},
                     "vpinfe": {"delete_nvram_on_close": True},

@@ -79,8 +79,8 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
                 logger.warning(
                     "Table id %s is used by both %s/%s and %s/%s; assigning a new id "
                     "to the latter",
-                    current, other_game.gameDirName, other_file,
-                    game.gameDirName, filename)
+                    current, other_game.game_dir_name, other_file,
+                    game.game_dir_name, filename)
                 remixed += 1
             else:
                 minted += 1

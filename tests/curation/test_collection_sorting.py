@@ -11,7 +11,7 @@ from frontend.api import API
 def _game(title, vpsid, last_run=None, altvpsid="", alttitle="", runtime=0,
           start_count=0, creation_time=0, game_dir_name=""):
     return SimpleNamespace(
-        gameDirName=game_dir_name,
+        game_dir_name=game_dir_name,
         meta_config={
             "Info": {
                 "Title": title,
@@ -98,7 +98,7 @@ class TestCollectionSorting(unittest.TestCase):
 
         API.apply_sort(api, "title", "asc")
 
-        self.assertEqual([entry.game.gameDirName for entry in api.filtered_games],
+        self.assertEqual([entry.game.game_dir_name for entry in api.filtered_games],
                          ["Alpha", "Beta", "Gamma"])
 
     def test_filter_collections_default_to_descending_order(self) -> None:

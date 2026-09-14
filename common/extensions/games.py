@@ -154,7 +154,7 @@ class ExtensionGames:
             info = section(meta, "Info")
             found.append({
                 "game_id": game_identity.game_id(game),
-                "folder_name": Path(str(game.fullPathGame)).name,
+                "folder_name": Path(str(game.full_path_game)).name,
                 "name": game_title(game),
                 "vps_id": str(info.get("VPSId", "") or ""),
                 "ipdb_id": str(info.get("IPDBId", "") or ""),
@@ -178,7 +178,7 @@ class ExtensionGames:
 
     def folder(self, game_id: str) -> str:
         self._needs(GAMES_READ)
-        return str(self._game(game_id).fullPathGame)
+        return str(self._game(game_id).full_path_game)
 
     # -- writing --------------------------------------------------------------
 
@@ -191,7 +191,7 @@ class ExtensionGames:
         from common.games.game_repository import all_games
 
         made = next((game for game in all_games()
-                     if Path(str(game.fullPathGame)).resolve() == folder.resolve()), None)
+                     if Path(str(game.full_path_game)).resolve() == folder.resolve()), None)
         if made is None:
             raise LookupError(f"Created {folder} but this install does not read it")
         return game_identity.ensure_id(made)

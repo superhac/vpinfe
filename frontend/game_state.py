@@ -89,12 +89,12 @@ def _legacy_row(game, logo_cache) -> dict:
         meta["Info"] = info
 
     row = {
-        "gameDirName": game.gameDirName,
-        "fullPathGame": game.fullPathGame,
-        "fullPathVPXfile": game.fullPathVPXfile,
-        "pupPackExists": game.pupPackExists,
-        "altColorExists": game.altColorExists,
-        "altSoundExists": game.altSoundExists,
+        "gameDirName": game.game_dir_name,
+        "fullPathGame": game.full_path_game,
+        "fullPathVPXfile": game.full_path_vpx_file,
+        "pupPackExists": game.pup_pack_exists,
+        "altColorExists": game.alt_color_exists,
+        "altSoundExists": game.alt_sound_exists,
         "meta": meta,
     }
     row.update(game_media_payload(game))
@@ -130,8 +130,8 @@ def _entry_row(entry, logo_cache, group=None) -> dict:
             "year": str(info.get("Year", "") or ""),
             "type": str(info.get("Type", "") or ""),
             "themes": info.get("Themes") or [],
-            "dir_name": game.gameDirName,
-            "path": game.fullPathGame,
+            "dir_name": game.game_dir_name,
+            "path": game.full_path_game,
             "manufacturer_logo": logo_cache[maker],
             "created_at": epoch_to_iso(getattr(game, "creation_time", None)) or None,
             "user": play_record(meta),
@@ -149,11 +149,11 @@ def _entry_row(entry, logo_cache, group=None) -> dict:
         # `path` is the theme's alone: a local frontend opens the file, and REST cannot
         # carry a path that means anything on another machine.
         "table": table_descriptor(entry.table, default_id=_default_id(game)) | {
-            "path": game.fullPathVPXfile},
+            "path": game.full_path_vpx_file},
         "assets": {
-            "pup_pack": bool(game.pupPackExists),
-            "alt_color": bool(game.altColorExists),
-            "alt_sound": bool(game.altSoundExists),
+            "pup_pack": bool(game.pup_pack_exists),
+            "alt_color": bool(game.alt_color_exists),
+            "alt_sound": bool(game.alt_sound_exists),
         },
         "siblings": entry.siblings,
         # Which art exists, not where it lives. The URL is /media/<table id>/<kind> and the

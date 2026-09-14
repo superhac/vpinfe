@@ -126,7 +126,7 @@ def listing(limit: int = 0, offset: int = 0, game: str = "",
         if game and game != game_id:
             continue
         row = game_to_row(entry)
-        game_dir = Path(entry.fullPathGame or "")
+        game_dir = Path(entry.full_path_game or "")
         try:
             files, subdirs = asset_resolver.folder_listing(game_dir)
         except OSError:

@@ -379,21 +379,21 @@ def associate_vps_to_folder(
 
         class _LightGame:
             def __init__(self, folder: Path, vpx: Path):
-                self.gameDirName = folder.name
-                self.fullPathGame = str(folder)
-                self.fullPathVPXfile = str(vpx)
-                self.BGImagePath = None
-                self.DMDImagePath = None
-                self.PlayfieldImagePath = None
-                self.WheelImagePath = None
-                self.CabImagePath = None
-                self.realDMDImagePath = None
-                self.realDMDColorImagePath = None
-                self.FlyerImagePath = None
-                self.PlayfieldVideoPath = None
-                self.BGVideoPath = None
-                self.DMDVideoPath = None
-                self.AudioPath = None
+                self.game_dir_name = folder.name
+                self.full_path_game = str(folder)
+                self.full_path_vpx_file = str(vpx)
+                self.bg_image_path = None
+                self.dmd_image_path = None
+                self.playfield_image_path = None
+                self.wheel_image_path = None
+                self.cab_image_path = None
+                self.real_dmd_image_path = None
+                self.real_dmd_color_image_path = None
+                self.flyer_image_path = None
+                self.playfield_video_path = None
+                self.bg_video_path = None
+                self.dmd_video_path = None
+                self.audio_path = None
 
         vps.download_media_for_game(
             _LightGame(game_dir, vpx_file), vps_entry.get("id"), meta_config=meta)

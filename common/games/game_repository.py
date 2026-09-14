@@ -97,7 +97,7 @@ def game_by_id(game_id: str) -> Any | None:
 def game_folder(game_id: str) -> Path | None:
     """The folder one game lives in, for a caller that has an id and needs the files."""
     game = game_by_id(game_id)
-    return Path(str(game.fullPathGame)) if game is not None else None
+    return Path(str(game.full_path_game)) if game is not None else None
 
 
 def games_under(games_root: str, config=None) -> list[Any]:
@@ -152,7 +152,7 @@ def unreadable_games() -> list[dict[str, str]]:
 def pending_upgrade_game_names() -> list[str]:
     """Folders whose .info the upgrade did not reach, for the list its dialog shows."""
     return sorted(
-        (t.gameDirName for t in all_games()
+        (t.game_dir_name for t in all_games()
          if getattr(t, "info_pending_upgrade", False)),
         key=str.lower,
     )
@@ -168,7 +168,7 @@ def newest_backup_stamp() -> str:
 def restorable_game_names() -> list[str]:
     """Folders holding a saved copy of their .info, for the list a restore dialog shows."""
     return sorted(
-        (t.gameDirName for t in all_games() if getattr(t, "info_restorable", False)),
+        (t.game_dir_name for t in all_games() if getattr(t, "info_restorable", False)),
         key=str.lower,
     )
 
@@ -196,7 +196,7 @@ def refresh_game(game_dir: Path) -> list[Any]:
         games = all_games(reload=True)
 
     logger.debug("refresh_game %s elapsed=%.3fs", normalized, perf_counter() - started_at)
-    found = [game for game in games if str(Path(game.fullPathGame).resolve()) == normalized]
+    found = [game for game in games if str(Path(game.full_path_game).resolve()) == normalized]
 
     # Announced here rather than at each caller: every path that changes one game already
     # comes through this to be re-read, so a new one cannot forget to say so.
@@ -239,7 +239,7 @@ def game_to_row(game, collections_map: dict[str, list[str]] | None = None) -> di
     meta = game.meta_config or {}
     user = section(meta, "User")
     vpinfe = vpinfe_section(meta)
-    game_name = Path(game.fullPathGame).name
+    game_name = Path(game.full_path_game).name
     vpsid = first_meta_value(meta, ("Info", "VPSId"), default="")
     # The row describes one table - the game's default. A folder can hold several,
     # and the API lists them all separately; this is what the game-level views show.
@@ -258,7 +258,7 @@ def game_to_row(game, collections_map: dict[str, list[str]] | None = None) -> di
     row = {
         "name": str(vpinfe.get("alt_title", "") or "").strip() or found_title,
         "found_name": found_title,
-        "filename": gf_name or Path(game.fullPathVPXfile).name,
+        "filename": gf_name or Path(game.full_path_vpx_file).name,
         # vpsid and alt_vpsid correlate with VPSdb, VPinPlay and anything else keyed
         # by them. vpinfe_id is this install's own id (common/games/game_identity.py)
         # and is what identifies the game here - in the API, in events, in collection
@@ -294,14 +294,14 @@ def game_to_row(game, collections_map: dict[str, list[str]] | None = None) -> di
         "detectflex": gf_value("detect_flex"),
         "detectpinmame": gf_value("detect_pinmame"),
         "patch_applied": gf_value("patch_applied", False),
-        "game_dir": game.fullPathGame,
-        "b2s_exists": bool(game.b2sExists),
-        "pup_pack_exists": bool(game.pupPackExists),
-        "serum_exists": bool(game.altColorExists),
-        "vni_exists": bool(game.vniExists),
-        "alt_sound_exists": bool(game.altSoundExists),
-        "ini_exists": bool(game.iniExists),
-        "music_exists": bool(game.musicExists),
+        "game_dir": game.full_path_game,
+        "b2s_exists": bool(game.b2s_exists),
+        "pup_pack_exists": bool(game.pup_pack_exists),
+        "serum_exists": bool(game.alt_color_exists),
+        "vni_exists": bool(game.vni_exists),
+        "alt_sound_exists": bool(game.alt_sound_exists),
+        "ini_exists": bool(game.ini_exists),
+        "music_exists": bool(game.music_exists),
         "delete_nvram_on_close": vpinfe.get("delete_nvram_on_close", False),
         "alt_launcher": str(vpinfe.get("alt_launcher", "") or "").strip(),
         "plugin_profile": str(vpinfe.get("plugin_profile", "") or "").strip(),

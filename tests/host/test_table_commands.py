@@ -29,8 +29,8 @@ def _launcher(**settings: str):
 
 
 def _game():
-    return SimpleNamespace(fullPathGame="/games/Attack from Mars",
-                           gameDirName="Attack from Mars", location_id="loc1",
+    return SimpleNamespace(full_path_game="/games/Attack from Mars",
+                           game_dir_name="Attack from Mars", location_id="loc1",
                            meta_config={})
 
 

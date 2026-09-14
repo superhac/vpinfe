@@ -38,7 +38,7 @@ class SingleGameRefreshTests(TempTree):
         return game.meta_config.get("User", {}).get("Rating")
 
     def _by_name(self, name):
-        return next(t for t in self.parser.get_all_games() if t.gameDirName == name)
+        return next(t for t in self.parser.get_all_games() if t.game_dir_name == name)
 
     def test_a_changed_folder_is_picked_up(self):
         _game_dir(self.root, "Bravo", rating=5)
@@ -72,7 +72,7 @@ class SingleGameRefreshTests(TempTree):
         self.parser.reload_game(Path(str(self.root / "Bravo")).resolve())
 
         self.assertEqual(self.parser.get_game_count(), before)
-        self.assertEqual([g.gameDirName for g in self.parser.get_all_games()].count("Bravo"),
+        self.assertEqual([g.game_dir_name for g in self.parser.get_all_games()].count("Bravo"),
                          1)
 
     def test_a_folder_that_appeared_is_added(self):
@@ -92,7 +92,7 @@ class SingleGameRefreshTests(TempTree):
 
         self.assertIsNone(gone)
         self.assertEqual(self.parser.get_game_count(), 2)
-        self.assertNotIn("Alpha", [t.gameDirName for t in self.parser.get_all_games()])
+        self.assertNotIn("Alpha", [t.game_dir_name for t in self.parser.get_all_games()])
 
     def test_a_folder_with_no_table_is_not_a_game(self):
         empty = self.root / "Empty"

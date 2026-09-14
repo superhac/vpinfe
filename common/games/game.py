@@ -1,7 +1,9 @@
 """One game folder, as the rest of the app sees it.
 
-The attribute names are camelCase because a contract 1 theme reads them straight off
-the payload. They are frozen by the parity gate, not by preference.
+These names are ours. The contract 1 payload publishes several of them under camelCase
+keys a published theme reads - `game_dir_name` goes out as `gameDirName` - and those keys
+are frozen by the parity gate. The key and the attribute are separate things:
+`frontend/game_state.py` maps one to the other, and `media_specs` carries both.
 """
 
 from __future__ import annotations
@@ -12,43 +14,43 @@ from typing import Any
 
 @dataclass
 class Game:
-    gameDirName: str | None = None
-    fullPathGame: str | None = None
+    game_dir_name: str | None = None
+    full_path_game: str | None = None
     # Which location it was found in. What lets a report say "from the share that is
     # unreachable" rather than "missing".
     location_id: str = ""
-    fullPathVPXfile: str | None = None
+    full_path_vpx_file: str | None = None
     creation_time: float | None = None
 
-    pupPackExists: bool = False
-    altColorExists: bool = False
-    altSoundExists: bool = False
-    vniExists: bool = False
-    b2sExists: bool = False
-    iniExists: bool = False
-    musicExists: bool = False
+    pup_pack_exists: bool = False
+    alt_color_exists: bool = False
+    alt_sound_exists: bool = False
+    vni_exists: bool = False
+    b2s_exists: bool = False
+    ini_exists: bool = False
+    music_exists: bool = False
 
-    BGImagePath: str | None = None
-    DMDImagePath: str | None = None
-    PlayfieldImagePath: str | None = None
-    FSSImagePath: str | None = None
-    WheelImagePath: str | None = None
-    CabImagePath: str | None = None
-    realDMDImagePath: str | None = None
-    realDMDColorImagePath: str | None = None
-    FlyerImagePath: str | None = None
+    bg_image_path: str | None = None
+    dmd_image_path: str | None = None
+    playfield_image_path: str | None = None
+    fss_image_path: str | None = None
+    wheel_image_path: str | None = None
+    cab_image_path: str | None = None
+    real_dmd_image_path: str | None = None
+    real_dmd_color_image_path: str | None = None
+    flyer_image_path: str | None = None
 
-    PlayfieldVideoPath: str | None = None
-    BGVideoPath: str | None = None
-    DMDVideoPath: str | None = None
+    playfield_video_path: str | None = None
+    bg_video_path: str | None = None
+    dmd_video_path: str | None = None
 
-    AudioPath: str | None = None
-    InstructionCardImagePath: str | None = None
-    TopperPath: str | None = None
-    LoadingVideoPath: str | None = None
-    AudioLaunchPath: str | None = None
-    RuleSheetPath: str | None = None
-    LogoImagePath: str | None = None
+    audio_path: str | None = None
+    instruction_card_image_path: str | None = None
+    topper_path: str | None = None
+    loading_video_path: str | None = None
+    audio_launch_path: str | None = None
+    rule_sheet_path: str | None = None
+    logo_image_path: str | None = None
 
     # Every .vpx the scan found in the folder. Recorded because discovery reconciles it
     # against what the .info describes, and the listing is already in hand here - asking

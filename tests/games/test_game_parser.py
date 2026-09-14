@@ -41,10 +41,10 @@ class GameParserTests(unittest.TestCase):
             (without_b2s / "No B2S (Bally 1991).vpx").write_text("")
 
             parser = GameParser(root)
-            by_name = {t.gameDirName: t for t in parser.get_all_games()}
+            by_name = {t.game_dir_name: t for t in parser.get_all_games()}
 
-            self.assertTrue(by_name["With B2S (Bally 1990)"].b2sExists)
-            self.assertFalse(by_name["No B2S (Bally 1991)"].b2sExists)
+            self.assertTrue(by_name["With B2S (Bally 1990)"].b2s_exists)
+            self.assertFalse(by_name["No B2S (Bally 1991)"].b2s_exists)
 
             # game_to_row mirrors the flag for the UI
             self.assertTrue(game_to_row(by_name["With B2S (Bally 1990)"])["b2s_exists"])
@@ -59,7 +59,7 @@ class GameParserTests(unittest.TestCase):
             folder.mkdir()
             (folder / "Nothing To Play (Original 2024).info").write_text("{}")
 
-            by_name = {g.gameDirName: g for g in GameParser(root).get_all_games()}
+            by_name = {g.game_dir_name: g for g in GameParser(root).get_all_games()}
 
             self.assertIn("Nothing To Play (Original 2024)", by_name)
             self.assertEqual(by_name["Nothing To Play (Original 2024)"].table_files, [])
@@ -75,7 +75,7 @@ class GameParserTests(unittest.TestCase):
             (folder / "No Record Yet (Bally 1990).vpx").write_text("")
 
             parser = GameParser(root)
-            by_name = {g.gameDirName: g for g in parser.get_all_games()}
+            by_name = {g.game_dir_name: g for g in parser.get_all_games()}
 
             self.assertIn("No Record Yet (Bally 1990)", by_name)
             self.assertEqual([row["folder"] for row in parser.get_missing_games()],
@@ -101,7 +101,7 @@ class GameParserTests(unittest.TestCase):
 
             game = GameParser(root).get_all_games()[0]
 
-            self.assertEqual(game.fullPathVPXfile, "")
+            self.assertEqual(game.full_path_vpx_file, "")
             self.assertIsNotNone(game.creation_time)
 
     def test_standalone_scripts_can_be_constructed_without_running_network_work(self) -> None:
@@ -130,12 +130,12 @@ class ParallelScanTests(TempTree):
 
     def test_the_order_is_the_sorted_order_not_the_finishing_order(self) -> None:
         parser = self._library(40)
-        names = [g.gameDirName for g in parser.get_all_games()]
+        names = [g.game_dir_name for g in parser.get_all_games()]
         self.assertEqual(names, sorted(names))
 
     def test_the_same_library_scans_the_same_way_every_time(self) -> None:
         self._library(40)
-        runs = {tuple(g.gameDirName for g in GameParser(str(self.root)).get_all_games())
+        runs = {tuple(g.game_dir_name for g in GameParser(str(self.root)).get_all_games())
                 for _ in range(5)}
         self.assertEqual(len(runs), 1, "the scan is not deterministic")
 
@@ -145,11 +145,11 @@ class ParallelScanTests(TempTree):
         from common.games import game_parser
 
         self._library(4)
-        serial = [g.gameDirName for g in GameParser(str(self.root)).get_all_games()]
+        serial = [g.game_dir_name for g in GameParser(str(self.root)).get_all_games()]
         original = game_parser._PARALLEL_SCAN_THRESHOLD
         game_parser._PARALLEL_SCAN_THRESHOLD = 1
         try:
-            parallel = [g.gameDirName for g in GameParser(str(self.root)).get_all_games()]
+            parallel = [g.game_dir_name for g in GameParser(str(self.root)).get_all_games()]
         finally:
             game_parser._PARALLEL_SCAN_THRESHOLD = original
         self.assertEqual(serial, parallel)

@@ -17,7 +17,7 @@ def make_game(name="Example", manufacturer="", year="", game_type="",
               themes=None, rating=0):
     """A game as the metadata accessors read one: everything off meta_config."""
     return SimpleNamespace(
-        gameDirName=name,
+        game_dir_name=name,
         meta_config={
             "Info": {"Title": name, "Manufacturer": manufacturer,
                      "Year": year, "Type": game_type, "Themes": themes or []},

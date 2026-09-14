@@ -32,9 +32,9 @@ class _FakePopen:
 
 def _game(name="Example"):
     return types.SimpleNamespace(
-        fullPathVPXfile=f"/games/{name}/{name}.vpx",
-        fullPathGame=f"/games/{name}",
-        gameDirName=name,
+        full_path_vpx_file=f"/games/{name}/{name}.vpx",
+        full_path_game=f"/games/{name}",
+        game_dir_name=name,
         meta_config={},
     )
 
@@ -186,7 +186,7 @@ class PlayDataTests(LaunchTests):
     def test_the_table_that_was_launched_is_the_one_credited(self) -> None:
         """A folder can hold several tables, and the API can launch any of them."""
         game = _game()
-        game.fullPathVPXfile = "/games/Example/Example (VR).vpx"
+        game.full_path_vpx_file = "/games/Example/Example (VR).vpx"
 
         play = self._run(game=game)
 
@@ -280,9 +280,9 @@ def _keyed_game(app="generic", key="mm"):
     """A game whose only entry has no file at all - a ROM its emulator looks up, a
     Pinball FX table id. The folder holds the record and the media and nothing else."""
     return types.SimpleNamespace(
-        fullPathVPXfile="",
-        fullPathGame="/games/Medieval Madness",
-        gameDirName="Medieval Madness",
+        full_path_vpx_file="",
+        full_path_game="/games/Medieval Madness",
+        game_dir_name="Medieval Madness",
         meta_config={"tables": {"t9": {"id": "t9", "app": app, "key": key}}},
     )
 
@@ -363,7 +363,7 @@ class ReferencedEntryTests(LaunchTests):
 
     def _game_with(self, reference: str):
         return types.SimpleNamespace(
-            fullPathVPXfile="", fullPathGame=self.game_dir, gameDirName="AFM",
+            full_path_vpx_file="", full_path_game=self.game_dir, game_dir_name="AFM",
             meta_config={"tables": {"r1": {"id": "r1", "path": reference}}})
 
     def _check(self, game, table=None):

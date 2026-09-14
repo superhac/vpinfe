@@ -238,8 +238,8 @@ class PayloadTests(unittest.TestCase):
         game = fake_game(
                    "/games/Cactus Canyon (Bally 1998)", "Cactus Canyon (Bally 1998)",
                    meta={"Info": {"Manufacturer": "Bally Manufacturing"}},
-                   fullPathVPXfile="/games/Cactus Canyon (Bally 1998)/Cactus Canyon.vpx",
-                   pupPackExists=False, altColorExists=False, altSoundExists=False,
+                   full_path_vpx_file="/games/Cactus Canyon (Bally 1998)/Cactus Canyon.vpx",
+                   pup_pack_exists=False, alt_color_exists=False, alt_sound_exists=False,
                )
 
         with TemporaryDirectory() as tmp:

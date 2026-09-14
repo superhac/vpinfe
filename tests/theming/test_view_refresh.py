@@ -20,9 +20,9 @@ from frontend import game_state
 
 def _game(name, last_run=0, game_id=""):
     return types.SimpleNamespace(
-        gameDirName=name,
-        fullPathGame=f"/games/{name}",
-        fullPathVPXfile=f"/games/{name}/{name}.vpx",
+        game_dir_name=name,
+        full_path_game=f"/games/{name}",
+        full_path_vpx_file=f"/games/{name}/{name}.vpx",
         meta_config={"Info": {"Title": name}, "User": {"LastRun": last_run},
                      "vpinfe": {"game_id": game_id or name.lower()}},
     )
@@ -80,7 +80,7 @@ class ViewRefreshTests(unittest.TestCase):
         game_state.refresh_view(api)
 
     def _shown(self, api):
-        return [entry.game.gameDirName for entry in api.filtered_games]
+        return [entry.game.game_dir_name for entry in api.filtered_games]
 
     def test_the_view_picks_up_the_replacement_game_object(self):
         """refresh_game swaps the object out. A view holding the old one never sees the

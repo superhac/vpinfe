@@ -21,8 +21,8 @@ def get_realdmd_image_for_game(game, iniconfig=None) -> Path | None:
     if iniconfig is not None:
         priority = MediaConfig.from_config(iniconfig).realdmd_media_priority
 
-    standard_path = str(game.realDMDImagePath or "").strip()
-    color_path = str(game.realDMDColorImagePath or "").strip()
+    standard_path = str(game.real_dmd_image_path or "").strip()
+    color_path = str(game.real_dmd_color_image_path or "").strip()
     candidates = (
         (standard_path, color_path)
         if priority == "standard"

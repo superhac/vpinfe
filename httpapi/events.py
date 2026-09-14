@@ -71,7 +71,7 @@ def _game_event(game=None, table_id=None, **_) -> dict:
         return {"game": None}
 
     game_id = game_identity.game_id(game)
-    reference = {"id": game_id, "name": game.gameDirName}
+    reference = {"id": game_id, "name": game.game_dir_name}
     table = {"id": table_id} if table_id else None
     if game_id:
         reference["links"] = {"self": f"/api/v1/games/{game_id}"}

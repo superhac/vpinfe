@@ -58,7 +58,7 @@ def filename_or_refuse(game, table_id: str) -> str:
     if not filename:
         raise service_errors.NotFoundError(
             t("error.games.game_no_such_table"),
-            details={"game": game.gameDirName, "table": table_id})
+            details={"game": game.game_dir_name, "table": table_id})
     return filename
 
 
@@ -90,7 +90,7 @@ def extract_script(game_id: str, table_id: str) -> dict:
 
     game = game_lens.game_or_refuse(game_id)
     filename = filename_or_refuse(game, table_id)
-    game_dir = Path(game.fullPathGame or "")
+    game_dir = Path(game.full_path_game or "")
     if not (game_dir / filename).is_file():
         raise service_errors.NotFoundError(t("error.games.table_s_file_not"),
                                            details={"table": table_id})
@@ -120,7 +120,7 @@ def delete_script(game_id: str, table_id: str) -> dict:
     from common.games import media_ops
 
     game = game_lens.game_or_refuse(game_id)
-    game_dir = Path(game.fullPathGame or "")
+    game_dir = Path(game.full_path_game or "")
     script = game_dir / f"{media_ops.stem_or_refuse(game, table_id)}.vbs"
     if not script.is_file():
         raise service_errors.NotFoundError(t("error.games.table_no_script_beside"),
@@ -189,7 +189,7 @@ def set_overrides(game_id: str, table_id: str, changes: dict) -> dict:
         raise service_errors.RefusedError(
             t("error.games.not_table_s_set", join=(", ".join(sorted(unknown)))))
 
-    game_dir = Path(game.fullPathGame)
+    game_dir = Path(game.full_path_game)
     if table_id not in table_entries(load_game_meta(game)):
         raise service_errors.NotFoundError(
             t("error.games.no_table_id_game", table_id=(table_id), game_id=(game_id)))
@@ -221,7 +221,7 @@ def import_file(game_id: str, path: str) -> dict:
         raise service_errors.RefusedError(
             t("error.games.nothing_build_knows_plays", name=(source.name)))
 
-    game_dir = Path(game.fullPathGame or "")
+    game_dir = Path(game.full_path_game or "")
     table_id = new_id()
     try:
         game_service.add_table_file(game_dir, source, table_id)
@@ -278,7 +278,7 @@ def add_referenced(game_id: str, path: str) -> dict:
     and nothing here is lost.
     """
     game = game_lens.game_or_refuse(game_id)
-    game_dir = str(game.fullPathGame or "")
+    game_dir = str(game.full_path_game or "")
     target = os.path.expanduser(str(path or "").strip())
     if not target:
         raise service_errors.RefusedError(t("error.games.say_where_file"))
@@ -317,7 +317,7 @@ def contain(game_id: str, table_id: str) -> dict:
         raise service_errors.NotFoundError(t("error.games.game_no_such_reference"),
                                            details={"table": table_id})
 
-    game_dir = Path(game.fullPathGame or "")
+    game_dir = Path(game.full_path_game or "")
     source = Path(tables.resolved_reference(str(game_dir), tables.entry_reference(entry)))
     if not source.is_file():
         raise service_errors.BlockedError(t("error.games.file_not_reachable_nothing"),
@@ -357,7 +357,7 @@ def forget(game_id: str, table_id: str) -> dict:
     if not isinstance(entry, dict):
         raise service_errors.NotFoundError(
             t("error.games.game_no_such_table"),
-            details={"game": game.gameDirName, "table": table_id})
+            details={"game": game.game_dir_name, "table": table_id})
     meta = MetaConfig(str(meta_file_path(game)))
     if tables.entry_key(entry) or tables.entry_reference(entry):
         # Nothing in this folder will mint one of these again, which is exactly why

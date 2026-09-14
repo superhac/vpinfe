@@ -9,10 +9,10 @@ from tests.support.entries import entries_for
 
 
 def _game(title):
-    # fullPathVPXfile is what every game off a real scan carries, and what the view
+    # full_path_vpx_file is what every game off a real scan carries, and what the view
     # falls back to for a folder no metadata build has parsed yet.
     return SimpleNamespace(meta_config={"Info": {"Title": title}},
-                           fullPathVPXfile=f"/games/{title}/{title}.vpx")
+                           full_path_vpx_file=f"/games/{title}/{title}.vpx")
 
 
 def _games(*titles):

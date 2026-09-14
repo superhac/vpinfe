@@ -35,7 +35,7 @@ class AsStringListTests(unittest.TestCase):
 class LegacyMetadataFieldTests(unittest.TestCase):
     def test_metadata_display_helpers_handle_legacy_fields(self) -> None:
         game = SimpleNamespace(
-            gameDirName="Fallback",
+            game_dir_name="Fallback",
             meta_config={
                 "VPSdb": {
                     "name": "Legacy Name",

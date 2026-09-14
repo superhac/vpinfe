@@ -44,7 +44,7 @@ def build_metadata(
     games = games_under(settings.game_root_dir, config)
 
     if game_name:
-        games = [game for game in games if game.gameDirName == game_name]
+        games = [game for game in games if game.game_dir_name == game_name]
         if not games:
             log(f"Table folder '{game_name}' not found")
             return {"found": 0, "not_found": 0}
@@ -59,20 +59,20 @@ def build_metadata(
         reporter.progress(0, total, "Starting")
 
     for current, game in enumerate(games, 1):
-        info_path = os.path.join(game.fullPathGame, f"{game.gameDirName}.info")
+        info_path = os.path.join(game.full_path_game, f"{game.game_dir_name}.info")
 
         if os.path.exists(info_path) and not update_all:
             if progress_cb:
-                reporter.progress(current, total, f"Skipping {game.gameDirName}")
+                reporter.progress(current, total, f"Skipping {game.game_dir_name}")
             continue
 
         meta = MetaConfig(info_path)
 
-        log(f"Checking VPSdb for {game.gameDirName}")
+        log(f"Checking VPSdb for {game.game_dir_name}")
         if progress_cb:
-            reporter.progress(current, total, f"Processing {game.gameDirName}")
+            reporter.progress(current, total, f"Processing {game.game_dir_name}")
 
-        vps_search_data = vps.parse_game_name_from_dir(game.gameDirName)
+        vps_search_data = vps.parse_game_name_from_dir(game.game_dir_name)
         vps_data = (
             vps.lookup_name(
                 vps_search_data["name"],
@@ -88,11 +88,11 @@ def build_metadata(
             not_found_games += 1
             continue
 
-        log(f"Parsing VPX file: {game.fullPathVPXfile}")
-        vpx_data = parservpx.single_file_extract(game.fullPathVPXfile)
+        log(f"Parsing VPX file: {game.full_path_vpx_file}")
+        vpx_data = parservpx.single_file_extract(game.full_path_vpx_file)
 
         if not vpx_data:
-            log(f"  - VPX file not found or failed to parse: {game.fullPathVPXfile}")
+            log(f"  - VPX file not found or failed to parse: {game.full_path_vpx_file}")
             not_found_games += 1
             continue
 
@@ -101,7 +101,7 @@ def build_metadata(
             "vpxdata": vpx_data,
         })
 
-        log(f"Created {game.gameDirName}.info")
+        log(f"Created {game.game_dir_name}.info")
 
         # user_media suppresses the fetch outright, for somebody supplying the whole
         # library themselves. Media already on disk needs no such flag: the

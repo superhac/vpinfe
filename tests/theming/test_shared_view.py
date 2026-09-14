@@ -30,9 +30,9 @@ NAMES = ["Bravo", "Alpha", "Charlie"]
 def _game(title, created=0):
     return SimpleNamespace(
         meta_config={"Info": {"Title": title}, "User": {}},
-        gameDirName=title, fullPathGame=f"/g/{title}",
-        fullPathVPXfile=f"/g/{title}/{title}.vpx", creation_time=created,
-        pupPackExists=False, altColorExists=False, altSoundExists=False)
+        game_dir_name=title, full_path_game=f"/g/{title}",
+        full_path_vpx_file=f"/g/{title}/{title}.vpx", creation_time=created,
+        pup_pack_exists=False, alt_color_exists=False, alt_sound_exists=False)
 
 
 def _ini():

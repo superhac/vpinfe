@@ -179,7 +179,7 @@ def migrate_assignments(store: launchers.LauncherStore, games) -> dict[str, int]
 
         if not wanted:
             logger.warning("No launcher for plugin profile %r; leaving %s on the default",
-                           profile, game.gameDirName)
+                           profile, game.game_dir_name)
             continue
 
         for table_id in tables.table_entries(meta):
@@ -212,7 +212,7 @@ def _consume(game, vpinfe: dict) -> None:
         persist_game_meta(game, game.meta_config)
     except Exception:
         logger.exception("Could not rewrite %s without its launcher keys",
-                         game.gameDirName)
+                         game.game_dir_name)
 
 
 def _for_binary(path: str, shipped: launchers.Launcher | None) -> launchers.Launcher:

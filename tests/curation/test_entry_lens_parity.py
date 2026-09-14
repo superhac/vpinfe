@@ -48,7 +48,7 @@ class EntryLensParityTests(TempTree):
         super().setUp()
         folder = write_game(self.root, "Attack from Mars (Bally 1995)", info=META)
         game = fake_game(folder, "Attack from Mars (Bally 1995)", meta=META)
-        for attribute in ("pupPackExists", "altColorExists", "altSoundExists"):
+        for attribute in ("pup_pack_exists", "alt_color_exists", "alt_sound_exists"):
             setattr(game, attribute, False)
         self.entries = entries_for([game])
         # Both under the same order: the group each entry carries comes from it, and two

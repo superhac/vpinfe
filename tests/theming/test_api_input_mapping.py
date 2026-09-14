@@ -103,10 +103,10 @@ class TestApiInputMapping(unittest.TestCase):
             vpx_path.write_text("", encoding="utf-8")
 
             game = types.SimpleNamespace(
-                fullPathVPXfile=str(vpx_path),
+                full_path_vpx_file=str(vpx_path),
                 meta_config={},
-                gameDirName="Example",
-                fullPathGame=str(Path(tmp)),
+                game_dir_name="Example",
+                full_path_game=str(Path(tmp)),
             )
             mock_games.return_value = [game]
             from common.games.launchers import Launcher

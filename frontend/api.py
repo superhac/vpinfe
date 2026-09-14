@@ -649,7 +649,7 @@ class API:
                                source=launch_state.SOURCE_FRONTEND,
                                table=entry.filename)
         except launch.LaunchUnavailableError as exc:
-            logger.warning("Cannot launch %s: %s", game.gameDirName, exc)
+            logger.warning("Cannot launch %s: %s", game.game_dir_name, exc)
             return {"success": False, "reason": str(exc)}
         return {"success": True}
 
@@ -725,7 +725,7 @@ class API:
             return {"success": False, "reason": "invalid_index"}
 
         stored = set_game_rating(entry.game, rating)
-        logger.info("Updated User.Rating for %s -> %s", entry.game.gameDirName, stored)
+        logger.info("Updated User.Rating for %s -> %s", entry.game.game_dir_name, stored)
         return {"success": True, "rating": stored}
 
     def build_metadata(self, download_media=True, update_all=False):

@@ -189,7 +189,7 @@ class DisplayPathTests(TempTree):
 
     def test_a_migrated_collection_still_shows_on_the_game_row(self) -> None:
         game = _game(self.root, "Medieval Madness", vpsid="vps-mm", game_id="id-mm")
-        game.fullPathVPXfile = str(self.root / "Medieval Madness" / "MM.vpx")
+        game.full_path_vpx_file = str(self.root / "Medieval Madness" / "MM.vpx")
         collections = _collections(self.ini, {"Favorites": ["vps-mm"]})
 
         collections.migrate_membership_to_game_ids([game])
@@ -204,7 +204,7 @@ class DisplayPathTests(TempTree):
         tolerates this, so the row lookup has to as well or the two disagree.
         """
         game = _game(self.root, "Late Arrival", vpsid="vps-late", game_id="id-late")
-        game.fullPathVPXfile = str(self.root / "Late Arrival" / "Late.vpx")
+        game.full_path_vpx_file = str(self.root / "Late Arrival" / "Late.vpx")
         collections = _collections(self.ini, {"Favorites": ["vps-late"]})
         collections._stamp_schema()
         collections.save()
@@ -216,7 +216,7 @@ class DisplayPathTests(TempTree):
     def test_an_entry_keyed_by_alt_vps_id_still_shows(self) -> None:
         game = _game(self.root, "Repointed", vpsid="vps-base",
                        altvpsid="vps-alt", game_id="id-repointed")
-        game.fullPathVPXfile = str(self.root / "Repointed" / "Repointed.vpx")
+        game.full_path_vpx_file = str(self.root / "Repointed" / "Repointed.vpx")
         _collections(self.ini, {"Favorites": ["vps-alt"]})
 
         self.assertEqual(self._row_for(game)["collections"], ["Favorites"])
@@ -224,7 +224,7 @@ class DisplayPathTests(TempTree):
     def test_a_game_with_no_vps_id_shows_its_collections(self) -> None:
         """The row lookup has to key on the game id, not on anything VPS-derived."""
         game = _game(self.root, "Homebrew", vpsid="", game_id="id-home")
-        game.fullPathVPXfile = str(self.root / "Homebrew" / "Homebrew.vpx")
+        game.full_path_vpx_file = str(self.root / "Homebrew" / "Homebrew.vpx")
         _collections(self.ini, {"Favorites": ["id-home"]})
 
         self.assertEqual(self._row_for(game)["collections"], ["Favorites"])

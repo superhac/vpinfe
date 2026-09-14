@@ -134,8 +134,8 @@ class GameParser:
         rather than the library.
         """
         game = Game()
-        game.gameDirName = game_dir.name
-        game.fullPathGame = str(game_dir)
+        game.game_dir_name = game_dir.name
+        game.full_path_game = str(game_dir)
 
         game_contents = set()
         game_subdirs = set()
@@ -155,7 +155,7 @@ class GameParser:
             logger.exception("Failed to enumerate game directory: %s", game_dir)
 
         game.table_files = table_names(game_contents)
-        info_name = f"{game.gameDirName}.info"
+        info_name = f"{game.game_dir_name}.info"
         # A record alone is enough: an entry keeps its media, its curation and its play
         # history whether or not there is something here to launch. A table alone has to
         # be enough too - discovery writes the record on the first pass that sees the
@@ -170,7 +170,7 @@ class GameParser:
             game.info_backup_stamp = stamps[0].rsplit(BACKUP_MARKER, 1)[-1]
         if info_name not in game_contents:
             (self.missing_games if missing is None else missing).append({
-                'folder': game.gameDirName,
+                'folder': game.game_dir_name,
                 'path': str(game_dir),
             })
 
@@ -178,19 +178,19 @@ class GameParser:
         # itself. Media is a different thing and is loaded below. See
         # docs/conventions.md.
         if any(name.lower().endswith(".directb2s") for name in game_contents):
-            game.b2sExists = True
+            game.b2s_exists = True
         if "pupvideos" in game_subdirs:
-            game.pupPackExists = True
+            game.pup_pack_exists = True
         if "serum" in game_subdirs:
-            game.altColorExists = True
+            game.alt_color_exists = True
         if "vni" in game_subdirs:
-            game.vniExists = True
+            game.vni_exists = True
         if "music" in game_subdirs:
-            game.musicExists = True
+            game.music_exists = True
         if any(name.lower().endswith(".ini") for name in game_contents):
-            game.iniExists = True
+            game.ini_exists = True
         if "pinmame" in game_subdirs and (game_dir / "pinmame" / "altsound").is_dir():
-            game.altSoundExists = True
+            game.alt_sound_exists = True
 
         try:
             self.load_metadata(game)
@@ -198,7 +198,7 @@ class GameParser:
             # This used to stop the whole library loading. Excluded rather than loaded
             # empty, so nothing can write over a file we could not read.
             (self.unreadable_games if unreadable is None else unreadable).append({
-                'folder': game.gameDirName,
+                'folder': game.game_dir_name,
                 'path': str(game_dir),
                 'error': str(exc),
             })
@@ -212,7 +212,7 @@ class GameParser:
         chosen = default_table(game_contents, game_dir.name, recorded)
         # Empty rather than a path, because `game_dir / ""` is the folder and a reader
         # that stats it would be told there is a table here.
-        game.fullPathVPXfile = str(game_dir / chosen) if chosen else ""
+        game.full_path_vpx_file = str(game_dir / chosen) if chosen else ""
 
         # Media after the default pick: tier 1 of the resolution chain keys off
         # the table that actually launches.
@@ -224,7 +224,7 @@ class GameParser:
         )
         # The folder when there is no table, so "recently added" still orders an entry
         # that has nothing to stat.
-        stat_target = game.fullPathVPXfile or str(game_dir)
+        stat_target = game.full_path_vpx_file or str(game_dir)
         try:
             stat = os.stat(stat_target)
             game.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
@@ -254,7 +254,7 @@ class GameParser:
 
         game = self._build_game(game_dir) if game_dir.is_dir() else None
         for index, existing in enumerate(self.games):
-            if _resolved(existing.fullPathGame) == target:
+            if _resolved(existing.full_path_game) == target:
                 if game is None:
                     del self.games[index]        # the folder went away
                 else:
@@ -267,7 +267,7 @@ class GameParser:
 
     def load_image_paths(self, game, game_contents=None, has_medias_dir=None,
                          table_stem=None):
-        game_dir = Path(game.fullPathGame)
+        game_dir = Path(game.full_path_game)
         medias_dir = game_dir / "medias"
 
         # Batch directory listings to minimize disk calls
@@ -293,16 +293,16 @@ class GameParser:
         # second resolution is set lookups, so a folder with one table pays almost
         # nothing and one with three answers honestly for all three.
         game.media_by_table = resolve_media_by_table(
-            game.fullPathGame, game_contents, medias_contents,
+            game.full_path_game, game_contents, medias_contents,
             table_names(game_contents), self.playfieldvariant,
             self.active_sets or None)
 
     def load_metadata(self, game):
-        meta_path = Path(game.fullPathGame) / f"{game.gameDirName}.info"
+        meta_path = Path(game.full_path_game) / f"{game.game_dir_name}.info"
         try:
             meta = MetaConfig(str(meta_path))
         except InvalidMetaConfigError as exc:
-            logger.error("Invalid metadata for game '%s': %s", game.gameDirName, exc)
+            logger.error("Invalid metadata for game '%s': %s", game.game_dir_name, exc)
             raise
         game.meta_config = meta.data
         game.info_pending_upgrade = meta.pending_migration

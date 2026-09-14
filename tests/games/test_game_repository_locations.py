@@ -44,7 +44,7 @@ class ManyLocationTests(unittest.TestCase):
         with self._with(self.first, self.second):
             games = game_repository.all_games()
 
-        self.assertEqual({g.gameDirName: g.location_id for g in games},
+        self.assertEqual({g.game_dir_name: g.location_id for g in games},
                          {"One (Bally 1990)": "loc0", "Two (Gottlieb 1975)": "loc1"})
 
     def test_one_unreachable_location_does_not_empty_the_library(self) -> None:
@@ -53,7 +53,7 @@ class ManyLocationTests(unittest.TestCase):
         with self._with(self.root / "never-mounted", self.second):
             games = game_repository.all_games()
 
-        self.assertEqual([g.gameDirName for g in games], ["Two (Gottlieb 1975)"])
+        self.assertEqual([g.game_dir_name for g in games], ["Two (Gottlieb 1975)"])
 
     def test_dropping_a_location_drops_its_games(self) -> None:
         with self._with(self.first, self.second):
@@ -61,7 +61,7 @@ class ManyLocationTests(unittest.TestCase):
         with self._with(self.second):
             games = game_repository.all_games()
 
-        self.assertEqual([g.gameDirName for g in games], ["Two (Gottlieb 1975)"])
+        self.assertEqual([g.game_dir_name for g in games], ["Two (Gottlieb 1975)"])
         self.assertEqual(list(game_repository._PARSERS), [str(self.second)])
 
     def test_a_location_is_read_once_and_held(self) -> None:
@@ -79,7 +79,7 @@ class ManyLocationTests(unittest.TestCase):
             game_repository.all_games()
             found = game_repository.refresh_game(self.second / "Two (Gottlieb 1975)")
 
-        self.assertEqual([g.gameDirName for g in found], ["Two (Gottlieb 1975)"])
+        self.assertEqual([g.game_dir_name for g in found], ["Two (Gottlieb 1975)"])
         self.assertEqual([g.location_id for g in found], ["loc1"])
 
 

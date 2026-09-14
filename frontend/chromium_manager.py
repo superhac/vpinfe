@@ -616,13 +616,15 @@ class ChromiumManager:
         from ctypes import wintypes
 
         user32 = ctypes.WinDLL("user32", use_last_error=True)
-        WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        # Win32's own names, kept verbatim so a reader can look them up.
+        WNDENUMPROC = ctypes.WINFUNCTYPE(  # noqa: N806
+            wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
         user32.EnumWindows.argtypes = [WNDENUMPROC, wintypes.LPARAM]
         user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
         user32.IsWindowVisible.argtypes = [wintypes.HWND]
         user32.GetWindow.argtypes = [wintypes.HWND, wintypes.UINT]
 
-        GW_OWNER = 4
+        GW_OWNER = 4  # noqa: N806
         pids = {
             proc.pid: window_name
             for window_name, proc, _, _ in self._processes
@@ -662,7 +664,7 @@ class ChromiumManager:
             import ctypes
 
             user32 = ctypes.WinDLL("user32", use_last_error=True)
-            SW_MINIMIZE = 6
+            SW_MINIMIZE = 6  # noqa: N806 - Win32's own name
             for window_name, hwnd in self._win_find_our_hwnds():
                 user32.ShowWindow(hwnd, SW_MINIMIZE)
                 self._minimized_hwnds.append((window_name, hwnd))
@@ -691,7 +693,7 @@ class ChromiumManager:
             import ctypes
 
             user32 = ctypes.WinDLL("user32", use_last_error=True)
-            SW_RESTORE = 9
+            SW_RESTORE = 9  # noqa: N806 - Win32's own name
             # Table last: whichever window is restored last wins the foreground.
             ordered = sorted(minimized, key=lambda item: item[0] == "table")
             for window_name, hwnd in ordered:

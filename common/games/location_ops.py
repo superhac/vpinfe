@@ -201,7 +201,7 @@ def adopt(location_id: str, path: str) -> dict[str, Any]:
             details={"path": str(path or "")})
 
     game = next((held for held in game_repository.all_games()
-                 if locations.canonical(str(held.fullPathGame or ""))
+                 if locations.canonical(str(held.full_path_game or ""))
                  == wanted), None)
     if game is None:
         raise service_errors.NotFoundError(t("error.locations.folder_no_longer_library"))

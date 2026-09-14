@@ -46,7 +46,7 @@ def pending(games) -> list[tuple[object, str, str]]:
 
 
 def _read(parser, game, filename: str) -> dict | None:
-    path = Path(str(game.fullPathGame or "")) / filename
+    path = Path(str(game.full_path_game or "")) / filename
     try:
         return parser.single_file_extract(str(path))
     except Exception:
@@ -122,7 +122,7 @@ def enrich(games, reporter: JobReporter | None = None) -> dict[str, int]:
             persist_game_meta(game, config)
         except Exception:
             logger.exception("Could not write tables for %s",
-                             game.gameDirName)
+                             game.game_dir_name)
             continue
         totals["games"] += 1
 

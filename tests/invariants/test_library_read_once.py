@@ -130,7 +130,7 @@ class GamesUnderTests(TempTree):
                 again = self.repo.games_under(str(self.root))
                 parser.assert_not_called()
         self.assertEqual(len(first), 1)
-        self.assertEqual([g.gameDirName for g in again], ["Example"])
+        self.assertEqual([g.game_dir_name for g in again], ["Example"])
 
     def test_no_root_at_all_means_the_configured_one(self) -> None:
         write_game(self.root, "Example", info={"Info": {"Name": "Example"}})
@@ -149,7 +149,7 @@ class GamesUnderTests(TempTree):
 
         with self._configured(self.root):
             self.repo.games_under(str(self.root))
-            names = [g.gameDirName for g in self.repo.games_under(str(other))]
+            names = [g.game_dir_name for g in self.repo.games_under(str(other))]
 
         self.assertEqual(names, ["Elsewhere"])
 

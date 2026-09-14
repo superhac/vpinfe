@@ -165,7 +165,7 @@ class _Game:
     """Enough of a game for the assignment pass: its folder name and its metadata."""
 
     def __init__(self, name: str, vpinfe: dict, tables: dict | None = None):
-        self.gameDirName = name
+        self.game_dir_name = name
         self.meta_config = {"vpinfe": dict(vpinfe),
                             "tables": dict(tables or {"t-" + name: {"filename": "a.vpx"}})}
 

@@ -23,7 +23,7 @@ def _config(tmp: str) -> ConfigStore:
 
 def _game(game_id: str = "", name: str = "Game"):
     return SimpleNamespace(
-        gameDirName=name, fullPathGame=f"/games/{name}",
+        game_dir_name=name, full_path_game=f"/games/{name}",
         meta_config={"Info": {"Title": name}, "vpinfe": {"game_id": game_id}})
 
 

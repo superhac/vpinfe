@@ -3,12 +3,13 @@
 The kind names follow Visual Pinball's window names - `playfield`, `backglass`,
 `scoreview` - because a window name *is* a media kind here, and VPX is where those names
 come from. The files never moved: `bg.png` and `dmd.png` are what VPinMediaDB ships and
-what everyone has on disk, and the contract 1 payload attributes are frozen too. Kinds
+what everyone has on disk, and the contract 1 payload keys are frozen too. Kinds
 renamed, files frozen.
 
 `MEDIA_SPECS` is the declaration the rest of the tree reads: each kind's name, its
-attribute on a game, the filename it resolves to and the tokens it accepts. Naming
-a kind is what contract 2 hands a theme; the path is ours and stays here.
+attribute on a game, the key that attribute is published under, the filename it
+resolves to and the tokens it accepts. Naming a kind is what contract 2 hands a
+theme; the path is ours and stays here.
 """
 
 from __future__ import annotations
@@ -32,7 +33,12 @@ DOC_FAMILY = (".pdf", ".md", ".txt", ".html")
 @dataclass(frozen=True)
 class MediaSpec:
     kind: str
+    # The attribute on a Game. Ours, so it is snake_case like everything else.
     attr: str
+    # What the same value is called in the contract 1 payload. Frozen: a published
+    # theme reads these off the row, so the two names are separate things that
+    # happen to carry the same path.
+    payload_key: str
     filename_template: str
     # Which VPinMediaDB resolution bucket this kind is published under - "1k" for the
     # backglass and scoreview, the configured playfield resolution for the playfield.
@@ -72,14 +78,16 @@ class MediaSpec:
 MEDIA_SPECS = (
     MediaSpec(
         "backglass",
-        attr="BGImagePath",
+        attr="bg_image_path",
+        payload_key="BGImagePath",
         filename_template="bg.png",
         asset_group="1k",
         token="(Backglass)",
     ),
     MediaSpec(
         "scoreview",
-        attr="DMDImagePath",
+        attr="dmd_image_path",
+        payload_key="DMDImagePath",
         filename_template="dmd.png",
         asset_group="1k",
         token="(DMD)",
@@ -89,20 +97,23 @@ MEDIA_SPECS = (
     # playfield falls back to when it has none.
     MediaSpec(
         "playfield",
-        attr="PlayfieldImagePath",
+        attr="playfield_image_path",
+        payload_key="PlayfieldImagePath",
         filename_template="{playfield_variant}.png",
         asset_group="table_resolution",
         token="(Playfield)",
     ),
     MediaSpec(
         "playfield_fss",
-        attr="FSSImagePath",
+        attr="fss_image_path",
+        payload_key="FSSImagePath",
         filename_template="fss.png",
         token="(FSS)",
     ),
     MediaSpec(
         "wheel",
-        attr="WheelImagePath",
+        attr="wheel_image_path",
+        payload_key="WheelImagePath",
         filename_template="wheel.png",
         token="(Wheel)",
         fallback_kind="logo",
@@ -110,32 +121,37 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "cab",
-        attr="CabImagePath",
+        attr="cab_image_path",
+        payload_key="CabImagePath",
         filename_template="cab.png",
         token="(Cabinet)",
     ),
     MediaSpec(
         "real_dmd",
-        attr="realDMDImagePath",
+        attr="real_dmd_image_path",
+        payload_key="realDMDImagePath",
         filename_template="realdmd.png",
         token="(RealDMD)",
     ),
     MediaSpec(
         "real_dmd_color",
-        attr="realDMDColorImagePath",
+        attr="real_dmd_color_image_path",
+        payload_key="realDMDColorImagePath",
         filename_template="realdmd-color.png",
         token="(RealColorDMD)",
     ),
     MediaSpec(
         "flyer",
-        attr="FlyerImagePath",
+        attr="flyer_image_path",
+        payload_key="FlyerImagePath",
         filename_template="flyer.png",
         token="(Flyer)",
         alt_tokens=("(GameInfo)",),
     ),
     MediaSpec(
         "playfield_video",
-        attr="PlayfieldVideoPath",
+        attr="playfield_video_path",
+        payload_key="PlayfieldVideoPath",
         filename_template="{playfield_variant}.mp4",
         asset_group="table_video_resolution",
         token="(Playfield)",
@@ -143,7 +159,8 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "backglass_video",
-        attr="BGVideoPath",
+        attr="bg_video_path",
+        payload_key="BGVideoPath",
         filename_template="bg.mp4",
         asset_group="table_video_resolution",
         token="(Backglass)",
@@ -151,7 +168,8 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "scoreview_video",
-        attr="DMDVideoPath",
+        attr="dmd_video_path",
+        payload_key="DMDVideoPath",
         filename_template="dmd.mp4",
         asset_group="table_video_resolution",
         token="(DMD)",
@@ -159,7 +177,8 @@ MEDIA_SPECS = (
     ),
     MediaSpec(
         "audio",
-        attr="AudioPath",
+        attr="audio_path",
+        payload_key="AudioPath",
         filename_template="audio.mp3",
         token="(Audio)",
         family=AUDIO_FAMILY,
@@ -168,41 +187,47 @@ MEDIA_SPECS = (
     # outside its media scheme and we bring in so it gets the chain.
     MediaSpec(
         "instruction_card",
-        attr="InstructionCardImagePath",
+        attr="instruction_card_image_path",
+        payload_key="InstructionCardImagePath",
         filename_template="instructioncard.png",
         token="(InstructionCard)",
         alt_tokens=("(RuleCard)", "(GameHelp)"),
     ),
     MediaSpec(
         "topper",
-        attr="TopperPath",
+        attr="topper_path",
+        payload_key="TopperPath",
         filename_template="topper.png",
         token="(Topper)",
     ),
     MediaSpec(
         "topper_video",
-        attr="TopperVideoPath",
+        attr="topper_video_path",
+        payload_key="TopperVideoPath",
         filename_template="topper.mp4",
         token="(Topper)",
         family=VIDEO_FAMILY,
     ),
     MediaSpec(
         "loading",
-        attr="LoadingVideoPath",
+        attr="loading_video_path",
+        payload_key="LoadingVideoPath",
         filename_template="loading.mp4",
         token="(Loading)",
         family=VIDEO_FAMILY,
     ),
     MediaSpec(
         "audio_launch",
-        attr="AudioLaunchPath",
+        attr="audio_launch_path",
+        payload_key="AudioLaunchPath",
         filename_template="audiolaunch.mp3",
         token="(AudioLaunch)",
         family=AUDIO_FAMILY,
     ),
     MediaSpec(
         "rule_sheet",
-        attr="RuleSheetPath",
+        attr="rule_sheet_path",
+        payload_key="RuleSheetPath",
         filename_template="rulesheet.pdf",
         token="(RuleSheet)",
         family=DOC_FAMILY,
@@ -211,7 +236,8 @@ MEDIA_SPECS = (
     # is why the wheel falls back to it.
     MediaSpec(
         "logo",
-        attr="LogoImagePath",
+        attr="logo_image_path",
+        payload_key="LogoImagePath",
         filename_template="logo.png",
         token="(Logo)",
     ),
@@ -591,7 +617,7 @@ def apply_media_specs(game, game_contents: set[str], medias_contents: set[str],
                       playfield_variant: str = "table",
                       table_stem: str | None = None,
                       active_sets: dict[str, str] | None = None) -> None:
-    resolved = resolve_media_files(game.fullPathGame, game_contents,
+    resolved = resolve_media_files(game.full_path_game, game_contents,
                                    medias_contents, playfield_variant, table_stem,
                                    active_sets)
     for spec in MEDIA_SPECS:
@@ -601,7 +627,12 @@ def apply_media_specs(game, game_contents: set[str], medias_contents: set[str],
 
 
 def game_media_payload(game) -> dict[str, str | None]:
+    """The media half of a contract 1 row: the frozen key, the resolved path.
+
+    `topper_video` is declared here and not on Game - it is only ever set by the scan -
+    so the default is what a game that never resolved one answers with.
+    """
     return {
-        spec.attr: getattr(game, spec.attr, None)
+        spec.payload_key: getattr(game, spec.attr, None)
         for spec in MEDIA_SPECS
     }

@@ -22,11 +22,11 @@ from tests.support.library import TempTree
 
 def _game(gid, title, tables, manufacturer="", default=""):
     return SimpleNamespace(
-        gameDirName=title,
-        fullPathGame=f"/games/{title}",
-        fullPathVPXfile=f"/games/{title}/{title}.vpx",
+        game_dir_name=title,
+        full_path_game=f"/games/{title}",
+        full_path_vpx_file=f"/games/{title}/{title}.vpx",
         creation_time=0,
-        pupPackExists=False, altColorExists=False, altSoundExists=False,
+        pup_pack_exists=False, alt_color_exists=False, alt_sound_exists=False,
         meta_config={
             "Info": {"Title": title, "Manufacturer": manufacturer, "Year": "1995",
                      "Type": "SS", "Themes": []},
@@ -154,7 +154,7 @@ class CollectionViewTests(TempTree):
 
         api = self._api(fresh)
 
-        self.assertEqual([entry.game.gameDirName for entry in api.entries],
+        self.assertEqual([entry.game.game_dir_name for entry in api.entries],
                          ["Alpha", "Bravo"])
 
 

@@ -104,7 +104,7 @@ class SelectionTests(unittest.TestCase):
         from types import SimpleNamespace
 
         return SimpleNamespace(
-            gameDirName=name, fullPathGame=f"/library/{name}",
+            game_dir_name=name, full_path_game=f"/library/{name}",
             meta_config={"Info": {"Title": name, "VPSId": "vps-1"},
                          "vpinfe": {"game_id": game_id}})
 

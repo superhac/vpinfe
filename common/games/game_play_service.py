@@ -31,25 +31,25 @@ def increment_start_count(game, table: str = "") -> None:
     config = clone_game_meta(game)
     if not config:
         logger.warning(
-            "Could not increment StartCount: invalid game metadata for %s", game.gameDirName)
+            "Could not increment StartCount: invalid game metadata for %s", game.game_dir_name)
         return
 
     user = apply_start_count_update(config, table=table)
     persist_game_meta(game, config)
-    logger.debug("Updated User.StartCount for %s -> %s", game.gameDirName, user["StartCount"])
+    logger.debug("Updated User.StartCount for %s -> %s", game.game_dir_name, user["StartCount"])
 
 
 def add_play_time(game, elapsed_seconds: float, table: str = "") -> None:
     config = clone_game_meta(game)
     if not config:
-        logger.warning("Could not update RunTime: invalid game metadata for %s", game.gameDirName)
+        logger.warning("Could not update RunTime: invalid game metadata for %s", game.game_dir_name)
         return
 
     apply_runtime_update(config, elapsed_seconds, table=table)
     persist_game_meta(game, config)
     logger.info(
         "Updated play time for %s: +%ss (total=%ss)",
-        game.gameDirName,
+        game.game_dir_name,
         max(0, int(round(float(elapsed_seconds)))),
         run_time_seconds(config),
     )
@@ -120,32 +120,32 @@ def score_rom_from_meta(config: dict) -> str:
 def parse_score_from_nvram(game) -> tuple[dict | None, str | None]:
     config = clone_game_meta(game)
     if not config:
-        logger.warning("Could not parse Score: invalid game metadata for %s", game.gameDirName)
+        logger.warning("Could not parse Score: invalid game metadata for %s", game.game_dir_name)
         return None, None
 
     rom = score_rom_from_meta(config)
     if not rom:
-        logger.debug("No ROM name found for %s, skipping score update", game.gameDirName)
+        logger.debug("No ROM name found for %s, skipping score update", game.game_dir_name)
         return None, None
 
     try:
         from common.games.score_parser import read_rom_with_source, result_to_jsonable
 
-        parsed_result, score_path = read_rom_with_source(rom, game.fullPathGame)
+        parsed_result, score_path = read_rom_with_source(rom, game.full_path_game)
         score_data = result_to_jsonable(rom, parsed_result, score_path)
     except FileNotFoundError:
-        logger.debug("No score source found for %s and ROM %s", game.gameDirName, rom)
+        logger.debug("No score source found for %s and ROM %s", game.game_dir_name, rom)
         return None, None
     except KeyError:
         logger.debug("ROM %s is not supported for score parsing", rom)
         return None, None
     except Exception:
-        logger.exception("Failed to parse score data for %s", game.gameDirName)
+        logger.exception("Failed to parse score data for %s", game.game_dir_name)
         return None, None
 
     if not score_data:
         logger.debug(
-            "Parsed score data for %s was empty, skipping metadata update", game.gameDirName)
+            "Parsed score data for %s was empty, skipping metadata update", game.game_dir_name)
         return None, None
 
     return score_data, score_path
@@ -160,7 +160,7 @@ def apply_score_update(config: dict, score_data: dict) -> dict:
 def build_runtime_submission_meta(game, user_state: dict) -> dict:
     config = clone_game_meta(game)
     if not config:
-        logger.warning("Could not build runtime submission metadata for %s", game.gameDirName)
+        logger.warning("Could not build runtime submission metadata for %s", game.game_dir_name)
         return {}
 
     user = get_or_create_user_meta(config)
@@ -183,7 +183,7 @@ def build_runtime_submission_meta(game, user_state: dict) -> dict:
 def update_score_from_nvram(game) -> None:
     config = clone_game_meta(game)
     if not config:
-        logger.warning("Could not update Score: invalid game metadata for %s", game.gameDirName)
+        logger.warning("Could not update Score: invalid game metadata for %s", game.game_dir_name)
         return
 
     score_data, score_path = parse_score_from_nvram(game)
@@ -192,7 +192,7 @@ def update_score_from_nvram(game) -> None:
 
     apply_score_update(config, score_data)
     persist_game_meta(game, config)
-    logger.info("Updated User.Score for %s from %s", game.gameDirName, score_path)
+    logger.info("Updated User.Score for %s from %s", game.game_dir_name, score_path)
 
 
 def delete_nvram_if_configured(game) -> None:
@@ -206,7 +206,7 @@ def delete_nvram_if_configured(game) -> None:
         logger.warning("No ROM name found for table, skipping NVRAM deletion")
         return
 
-    nvram_path = Path(game.fullPathGame) / "pinmame" / "nvram" / f"{rom}.nv"
+    nvram_path = Path(game.full_path_game) / "pinmame" / "nvram" / f"{rom}.nv"
     if nvram_path.exists():
         nvram_path.unlink()
         logger.info("Deleted NVRAM file: %s", nvram_path)

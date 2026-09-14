@@ -53,7 +53,7 @@ def create(name: str, location_id: str = "") -> dict:
     # the location's own spelling - and under /var on macOS those differ.
     wanted = locations.canonical(str(folder))
     made = next((game for game in game_lens.catalog().values()
-                 if locations.canonical(str(game.fullPathGame)) == wanted),
+                 if locations.canonical(str(game.full_path_game)) == wanted),
                 None)
     if made is None:
         # The folder and its record are on disk and the library did not pick them up.
@@ -83,7 +83,7 @@ def set_details(game_id: str, values: dict) -> dict:
     """
     game = game_lens.game_or_refuse(game_id)
     try:
-        game_service.set_details(Path(str(game.fullPathGame)), values)
+        game_service.set_details(Path(str(game.full_path_game)), values)
     except FileNotFoundError as exc:
         raise service_errors.BlockedError(t("error.games.game_no_record_write"),
                                           details={"path": str(exc)}) from exc
@@ -142,7 +142,7 @@ def set_overrides(game_id: str, changes: dict) -> dict:
         raise service_errors.RefusedError(
             t("error.games.not_game_s_set", join=(", ".join(sorted(unknown)))))
 
-    game_dir = Path(game.fullPathGame)
+    game_dir = Path(game.full_path_game)
     for name, value in changes.items():
         if not game_service.update_vpinfe_setting(game_dir, GAME_OVERRIDES[name], value):
             raise service_errors.BlockedError(

@@ -31,15 +31,15 @@ class WireGame:
         user = game.get("user") or {}
         entry = entry or {}
         assets = entry.get("assets") or {}
-        self.gameDirName = game.get("dir_name") or ""
+        self.game_dir_name = game.get("dir_name") or ""
         self.creation_time = iso_to_epoch(game.get("created_at"))
         # Empty, not missing: they name that machine's disk, so an install holding them would
         # hold an address it cannot reach - but a reader still expects the attribute.
-        self.fullPathGame = ""
-        self.fullPathVPXfile = ""
-        self.pupPackExists = bool(assets.get("pup_pack"))
-        self.altColorExists = bool(assets.get("alt_color"))
-        self.altSoundExists = bool(assets.get("alt_sound"))
+        self.full_path_game = ""
+        self.full_path_vpx_file = ""
+        self.pup_pack_exists = bool(assets.get("pup_pack"))
+        self.alt_color_exists = bool(assets.get("alt_color"))
+        self.alt_sound_exists = bool(assets.get("alt_sound"))
         # `resolved_kinds` reports a kind when its attribute is non-empty and never reads
         # the value, so the kind's own name stands in for the path that was not sent.
         present = set(entry.get("media") or [])

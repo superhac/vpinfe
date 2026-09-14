@@ -140,7 +140,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         """The bus payload is in-process; the Game object and the ini config are not
         things to put on a socket."""
         game = SimpleNamespace(
-            gameDirName="Medieval Madness (Williams 1997)",
+            game_dir_name="Medieval Madness (Williams 1997)",
             meta_config={"vpinfe": {"game_id": "6f1c9a4e"}},
         )
         stream = self._open()
@@ -167,7 +167,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         await self._hello(stream)
 
         events.emit(events.GAME_SELECTED,
-                    game=SimpleNamespace(gameDirName="Unidentified", meta_config={}),
+                    game=SimpleNamespace(game_dir_name="Unidentified", meta_config={}),
                     ini_config=None)
         frame = await self._next(stream)
 
@@ -181,7 +181,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         await self._hello(stream)
 
         events.emit(events.TABLE_LAUNCHING,
-                    game=SimpleNamespace(gameDirName="Attack from Mars", meta_config={}),
+                    game=SimpleNamespace(game_dir_name="Attack from Mars", meta_config={}),
                     table_id="afm-1.2", ini_config=None)
         frame = await self._next(stream)
 
@@ -241,7 +241,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         await self._hello(stream)
 
         events.emit(events.GAME_CHANGED,
-                    game=SimpleNamespace(gameDirName="Medieval Madness",
+                    game=SimpleNamespace(game_dir_name="Medieval Madness",
                                          meta_config={"vpinfe": {"game_id": "6f1c9a4e"}}),
                     path="/mnt/library/Medieval Madness")
         frame = await self._next(stream)

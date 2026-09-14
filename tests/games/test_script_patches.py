@@ -62,9 +62,9 @@ class StateTests(unittest.TestCase):
 
 class _Game:
     def __init__(self, folder: Path, vpx: Path) -> None:
-        self.fullPathGame = str(folder)
-        self.fullPathVPXfile = str(vpx)
-        self.gameDirName = folder.name
+        self.full_path_game = str(folder)
+        self.full_path_vpx_file = str(vpx)
+        self.game_dir_name = folder.name
 
 
 class OfferedTests(unittest.TestCase):

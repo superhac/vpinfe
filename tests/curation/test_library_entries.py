@@ -129,7 +129,7 @@ class LibraryEntriesTests(TempTree):
         redo that lookup, so the answer has to survive the trip rather than be recomputed
         against a filesystem that does not have the files."""
         game = self.games[0]
-        for attribute in ("pupPackExists", "altColorExists", "altSoundExists"):
+        for attribute in ("pup_pack_exists", "alt_color_exists", "alt_sound_exists"):
             setattr(game, attribute, True)
         by_kind = {spec.kind: spec.attr for spec in MEDIA_SPECS}
         for kind in ("wheel", "playfield", "backglass"):

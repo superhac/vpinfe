@@ -125,7 +125,7 @@ class PlayEventTests(unittest.TestCase):
     def test_the_table_that_launched_is_recorded_not_just_its_game(self) -> None:
         """A game offers several tables, so the game alone comes back to the wrong row
         on an expanded wheel. The launch says which one it started."""
-        game = types.SimpleNamespace(gameDirName="Example")
+        game = types.SimpleNamespace(game_dir_name="Example")
         ini = types.SimpleNamespace(config={})
         self._register(ini)
 
@@ -137,7 +137,7 @@ class PlayEventTests(unittest.TestCase):
 
     def test_a_launch_that_names_no_table_still_records_its_game(self) -> None:
         """An older publisher, or a folder whose tables have no ids yet."""
-        game = types.SimpleNamespace(gameDirName="Example")
+        game = types.SimpleNamespace(game_dir_name="Example")
         ini = types.SimpleNamespace(config={})
         self._register(ini)
 

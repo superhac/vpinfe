@@ -152,7 +152,7 @@ def game_title(game) -> str:
         return alt_title
     raw = str(info.get("Title", "")
               or get_meta_value(meta, "VPSdb", "name", "")
-              or game.gameDirName or "").strip()
+              or game.game_dir_name or "").strip()
     return reorder_leading_article(raw)
 
 
@@ -730,7 +730,7 @@ def get_or_create_table_user(config: dict[str, Any], native: str) -> dict[str, A
 
 
 def meta_file_path(game) -> Path:
-    return Path(game.fullPathGame) / f"{game.gameDirName}.info"
+    return Path(game.full_path_game) / f"{game.game_dir_name}.info"
 
 
 def load_game_meta(game) -> dict[str, Any]:

@@ -43,7 +43,7 @@ class GameIdTests(TempTree):
 
     def test_reading_an_unassigned_game_returns_empty_and_writes_nothing(self) -> None:
         game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
-        info = Path(game.fullPathGame) / "Example.info"
+        info = Path(game.full_path_game) / "Example.info"
         before = info.read_text(encoding="utf-8")
 
         self.assertEqual(game_identity.game_id(game), "")
@@ -53,7 +53,7 @@ class GameIdTests(TempTree):
         game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
 
         minted = game_identity.ensure_id(game)
-        info = Path(game.fullPathGame) / "Example.info"
+        info = Path(game.full_path_game) / "Example.info"
         on_disk = json.loads(info.read_text(encoding="utf-8"))
 
         self.assertTrue(minted)
@@ -71,7 +71,7 @@ class GameIdTests(TempTree):
     def test_ensure_id_adopts_an_id_already_on_disk(self) -> None:
         """The in-memory copy can be stale; disk wins over minting a second id."""
         game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
-        info = Path(game.fullPathGame) / "Example.info"
+        info = Path(game.full_path_game) / "Example.info"
         info.write_text(json.dumps({"Info": {"VPSId": "vps-1"},
                                     "vpinfe": {"game_id": "already-here"}}),
                         encoding="utf-8")
@@ -86,7 +86,7 @@ class GameIdTests(TempTree):
         })
 
         game_identity.ensure_id(game)
-        info = Path(game.fullPathGame) / "Example.info"
+        info = Path(game.full_path_game) / "Example.info"
         on_disk = json.loads(info.read_text(encoding="utf-8"))
 
         self.assertEqual(on_disk["User"]["Rating"], 4)

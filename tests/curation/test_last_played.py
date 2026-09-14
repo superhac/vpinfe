@@ -22,7 +22,7 @@ from tests.support.library import TempTree
 
 def _game(gid, title, last_run=0):
     return SimpleNamespace(
-        gameDirName=title,
+        game_dir_name=title,
         creation_time=0,
         meta_config={
             "Info": {"Title": title, "Manufacturer": "Bally", "Year": "1995",

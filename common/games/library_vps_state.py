@@ -112,7 +112,7 @@ def state_of(game, game_id: str = "") -> dict:
     `game_id` addresses the media links and selects this game's watching baseline.
     """
     entry = game_service.matched_vps_entry(game)
-    game_dir = Path(game.fullPathGame)
+    game_dir = Path(game.full_path_game)
     inventory = game_lens.inventory_assets(game_dir)
     prefix = f"/api/v1/games/{game_id}/media"
     media = media_service.media_entries(

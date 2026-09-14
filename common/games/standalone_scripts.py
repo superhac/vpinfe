@@ -86,21 +86,21 @@ class StandaloneScripts:
              current += 1
              if self.progress_cb and total:
                  try:
-                     self.progress_cb(current - 1, total, f"Checking {game.gameDirName}")
+                     self.progress_cb(current - 1, total, f"Checking {game.game_dir_name}")
                  except Exception:
                      pass
-             basepath = game.fullPathGame
+             basepath = game.full_path_game
              try:
-                meta = MetaConfig(basepath+"/"+game.gameDirName+".info")
-                vpx_file_name = os.path.basename(game.fullPathVPXfile)
+                meta = MetaConfig(basepath+"/"+game.game_dir_name+".info")
+                vpx_file_name = os.path.basename(game.full_path_vpx_file)
                 vpx_file_vbs_hash = meta.game_file_value(vpx_file_name, 'vbs_hash')
                 if not vpx_file_vbs_hash:
                     raise KeyError('vbs_hash')
-                logger.info("Checking %s", game.gameDirName)
+                logger.info("Checking %s", game.game_dir_name)
                 # One matching rule, shared with what the report offers. Two would be
                 # two answers to "does this table need a fix", and the one somebody was
                 # shown would not be the one that ran.
-                state, patch = state_of(game.fullPathVPXfile, vpx_file_vbs_hash, self.hashes)
+                state, patch = state_of(game.full_path_vpx_file, vpx_file_vbs_hash, self.hashes)
                 if state == ALREADY:
                     logger.info("A .vbs sidecar file already exists for that table. Assuming it is a patch.")
                     try:
@@ -108,8 +108,8 @@ class StandaloneScripts:
                     except Exception:
                         pass
                 elif state == OFFERED:
-                    logger.info("Found a match for %s", game.fullPathVPXfile)
-                    self.download_patch(os.path.splitext(game.fullPathVPXfile)[0] + ".vbs",
+                    logger.info("Found a match for %s", game.full_path_vpx_file)
+                    self.download_patch(os.path.splitext(game.full_path_vpx_file)[0] + ".vbs",
                                        patch["patched"]["url"])
                     try:
                         meta.set_table_value(vpx_file_name, 'patch_applied', True)
@@ -162,9 +162,9 @@ def offered_for(games, hashes=None) -> dict:
 
     offered, already, checked = [], 0, 0
     for game in games or ():
-        vpx_path = game.fullPathVPXfile or ""
-        folder = game.fullPathGame or ""
-        name = game.gameDirName or ""
+        vpx_path = game.full_path_vpx_file or ""
+        folder = game.full_path_game or ""
+        name = game.game_dir_name or ""
         if not vpx_path or not name:
             continue
         try:

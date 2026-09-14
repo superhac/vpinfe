@@ -84,9 +84,9 @@ def fake_game(folder: Path | str, name: str = "Example", *,
     consumer reading one a test did not think to set gets what the app would give it.
     """
     game = Game(
-        fullPathGame=str(folder),
-        fullPathVPXfile=str(Path(folder) / f"{name}.vpx"),
-        gameDirName=name,
+        full_path_game=str(folder),
+        full_path_vpx_file=str(Path(folder) / f"{name}.vpx"),
+        game_dir_name=name,
         meta_config=meta if meta is not None else {},
     )
     for key, value in extra.items():

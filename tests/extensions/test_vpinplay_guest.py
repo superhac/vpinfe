@@ -48,7 +48,7 @@ class ProfilePlayTimeTests(unittest.TestCase):
         guest.add_game_runtime("/games/Example", 200, profile_key="p1")
         state = guest.get_game_user_state("/games/Example", "p1")
 
-        game = types.SimpleNamespace(gameDirName="Example", fullPathGame="/games/Example",
+        game = types.SimpleNamespace(game_dir_name="Example", full_path_game="/games/Example",
                                      meta_config={})
         with patch.object(game_play_service, "load_game_meta",
                           return_value={"Info": {"Title": "Example"}}):

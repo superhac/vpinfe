@@ -144,13 +144,13 @@ def _resolve_entry(game, named: str | None) -> tuple[str, dict]:
     entries = table_entries(getattr(game, "meta_config", {}))
     if named is None:
         found = tables.default_entry(
-            entries, game.gameDirName or "",
+            entries, game.game_dir_name or "",
             tables.recorded_default(
                 (getattr(game, "meta_config", None) or {}).get(info_file.VPINFE_SECTION),
                 entries))
         if found[0] or found[1]:
             return found
-        path = str(game.fullPathVPXfile or "")
+        path = str(game.full_path_vpx_file or "")
         if not path:
             raise LaunchUnavailableError("This game has nothing to launch")
         return "", {tables.TABLE_FILENAME_KEY: os.path.basename(path)}
@@ -168,7 +168,7 @@ def _resolve_entry(game, named: str | None) -> tuple[str, dict]:
 
     # A filename, so the folder decides whether it is real - not the record, which can
     # describe a file somebody has since deleted.
-    game_dir = str(game.fullPathGame or "")
+    game_dir = str(game.full_path_game or "")
     listing = []
     if game_dir and os.path.isdir(game_dir):
         listing = [name for name in os.listdir(game_dir)
@@ -182,7 +182,7 @@ def _resolve_entry(game, named: str | None) -> tuple[str, dict]:
 def _path_of(game, entry: dict) -> str:
     """The file an entry names, or "" for one with no file. Every path is built here, so
     nothing above this line handles one at all."""
-    game_dir = str(game.fullPathGame or "")
+    game_dir = str(game.full_path_game or "")
     reference = tables.entry_reference(entry)
     if reference:
         return tables.resolved_reference(game_dir, reference)
@@ -237,7 +237,7 @@ def _record_play(game, ini_config, elapsed_seconds: float, table: str = "") -> N
         game_play_service.update_score_from_nvram(game)
         return
 
-    game_key = str(game.fullPathGame or game.gameDirName or "")
+    game_key = str(game.full_path_game or game.game_dir_name or "")
     if not game_key:
         logger.warning("Skipping a guest's session: nothing identifies the table")
         return
@@ -246,7 +246,7 @@ def _record_play(game, ini_config, elapsed_seconds: float, table: str = "") -> N
     ext_services.ask("guest.record_play", game_key, elapsed_seconds, score_data)
     if score_data:
         logger.info("Captured a guest's score for %s from %s",
-                    game.gameDirName, score_path)
+                    game.game_dir_name, score_path)
 
 
 def check_launchable(game, ini_config, table: str | None = None) -> str:
@@ -307,7 +307,7 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
     launcher, asked_for = _launcher_for(table_id, entry)
     binary = _binary_of(launcher, asked_for)
     playing = apps.Entry(entry_id=table_id, table=vpx_path,
-                         game_dir=str(game.fullPathGame or ""),
+                         game_dir=str(game.full_path_game or ""),
                          key=tables.entry_key(entry))
 
     delete_vpinball_log_on_start_if_configured(
@@ -335,7 +335,7 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
         # anyone who heard table.launching - which is what stops a failure below from
         # leaving the frontend with its input suppressed for the life of the process.
         try:
-            launch_state.set_launching(game.gameDirName, source=source)
+            launch_state.set_launching(game.game_dir_name, source=source)
             cmd, marker = _plan(playing, binary, launcher)
             logger.info("Launching: %s", cmd)
             process = popen(
@@ -352,7 +352,7 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
             # session, and the game's own count moves only when nobody is.
             started = ext_services.ask(
                 "guest.record_start",
-                str(game.fullPathGame or game.gameDirName or ""))
+                str(game.full_path_game or game.game_dir_name or ""))
             if not started:
                 game_play_service.increment_start_count(
                     game, tables.entry_native_key(entry))
@@ -395,12 +395,12 @@ def table_for(game, table: str | None = None) -> str:
     """The file a launch would use, without launching it."""
     if table is not None:
         return table
-    game_dir = str(game.fullPathGame or "")
+    game_dir = str(game.full_path_game or "")
     listing = []
     if game_dir and os.path.isdir(game_dir):
         listing = [name for name in os.listdir(game_dir)
                    if os.path.isfile(os.path.join(game_dir, name))]
-    recorded = os.path.basename(str(game.fullPathVPXfile or ""))
+    recorded = os.path.basename(str(game.full_path_vpx_file or ""))
     return default_table(listing, os.path.basename(game_dir), recorded) or recorded
 
 # ---------------------------------------------------------------------------
