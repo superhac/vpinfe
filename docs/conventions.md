@@ -168,6 +168,10 @@ somebody looks when they ask why.
 
 - **No docstring where the name and signature already say it.** Write one when there is a real
   contract: what it raises, what it writes, what it deliberately does not do.
+- **Prose does not outweigh the code it describes.** A docstring longer than the function
+  under it is a sign the argument has been written down rather than the contract. Five lines
+  of code do not carry eleven lines of prose. Keep the contract, move the reasoning to the
+  commit message.
 - Reference data — a schema version history beside its constant, a lookup table — is fine.
   That is data, not prose.
 
@@ -788,6 +792,39 @@ element.
 a region *dim* the grid rather than sit behind it: what shows through is then the region's own
 alpha.
 
+## Typing
+
+Annotate what you write. A signature that says what it takes and what it gives back is the
+cheapest documentation there is — it sits where the reader already is, and unlike a docstring
+it can be checked.
+
+```bash
+mypy                  # the packages named in pyproject.toml, nothing else
+```
+
+`mypy` is that check, and it is the reason the annotations are worth writing. **An annotation
+nothing verifies is prose.** A function that claims `-> Path` and hands back `str | None` reads
+as a contract and behaves as a trap, and the only thing standing between those two is a
+checker that runs.
+
+What that means in practice:
+
+- **New code is annotated, and it is annotated honestly.** `Any` to quiet a complaint is worse
+  than no annotation, because it looks like an answer.
+- **A declared return type is a promise the function keeps.** Where a route declares a model,
+  it returns that model rather than a shape that resembles one.
+- **Silence a finding with a narrowing guard or a corrected type, not with `# type: ignore`.**
+  Where an ignore is genuinely right, it carries the reason on the same line — the rule is the
+  one `# noqa` follows below.
+- **The checked packages are listed in `pyproject.toml`** rather than passed on the command
+  line, so CI, the editor and a local run all measure the same thing.
+
+The Manager UI is not checked. It is replaced by the Console and goes when the Manager UI
+does, so annotating it buys nothing that outlives the removal.
+
+The advisory-and-blocking split is the same idea as linting below: what is already clean is
+held clean, and the rest is a debt register rather than a wall.
+
 ## Linting
 
 `ruff` handles formatting-adjacent rules, import order, PEP 8 naming and common bugs.
@@ -802,8 +839,8 @@ ruff check . --fix    # apply the safe fixes
 
 CI runs it three ways:
 
-- **Advisory over the whole tree.** Reports and does not fail. ~1,600 findings today, mostly
-  line length and legacy naming. It is a visible debt register, not a gate.
+- **Advisory over the whole tree.** Reports and does not fail. What it reports is legacy line
+  length and legacy naming in 2.x code. It is a visible debt register, not a gate.
 - **Blocking on `tests/`.** The test packages were taken to zero findings and every file in
   them is checked, new or not. The tests are the foundation the rest of the cleanup is done
   against, so they are the one tree that is not allowed to drift.
