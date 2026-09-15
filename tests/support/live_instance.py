@@ -43,7 +43,11 @@ class LiveInstance:
         # The library's asset port, which the real launcher reads out of its discovery
         # document. A test that stands up a library sets it from that instance.
         self.library_assets_port = 0
-        self._tmp = TemporaryDirectory(prefix="vpinfe-live-")
+        # No trailing hyphen on purpose. The Metrics page renders this path, and the
+        # pseudo-locale check reads the screen for bare English words - a hyphen is a
+        # word boundary, so "vpinfe-live-<random>" offered the suffix as a word and it
+        # was all letters about 6% of the time. A digit denies the boundary.
+        self._tmp = TemporaryDirectory(prefix="vpinfe-live0")
         self.config_dir = Path(self._tmp.name)
         self.proc: subprocess.Popen | None = None
         self.ports: dict[str, int] = {}

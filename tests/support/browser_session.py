@@ -27,8 +27,15 @@ import websockets
 
 
 def free_port() -> int:
+    """A port nothing holds. Probed the way the instance binds, not on loopback.
+
+    `http_bind` defaults to 0.0.0.0, so a port free on 127.0.0.1 can still be taken on
+    another interface and the instance then fails with "address already in use". Asking
+    for the same wildcard the instance asks for removes that half of it. The window
+    between this close and the instance's bind is still a race, and still open.
+    """
     with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
+        sock.bind(("", 0))
         return sock.getsockname()[1]
 
 

@@ -45,5 +45,5 @@ ignore_missing_imports = true
 # Every function in these is annotated, and stays that way. It started as the wire
 # contract - an unannotated handler is one whose payload nothing checks - and now covers
 # what the wire is built out of: the domain code under common/ and the theme surface.
-module = ["apps.*", "common.*", "extensions.*", "frontend.*", "httpapi.*"]
+module = ["apps.*", "common.*", "console.*", "extensions.*", "frontend.*", "httpapi.*"]
 disallow_untyped_defs = true
