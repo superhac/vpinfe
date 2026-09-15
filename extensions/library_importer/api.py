@@ -89,11 +89,10 @@ def build(ctx: Any) -> None:
     def follow_the_setting(*extra: str) -> None:
         """Tell core every folder this import will actually read from.
 
-        The install folder is not enough and assuming it was cost a whole run: a
+        The install folder is not enough, and assuming it is costs a whole run: a
         frontend keeps its database and artwork under its own roof, but the tables sit
-        wherever the emulator was installed - a real PinballY library recorded them two
-        directories away, and core refused all 581 of them because the importer had
-        resolved the path and never declared it.
+        wherever the emulator was installed, which can be anywhere. Core refuses every
+        one of them where the importer resolved the path and never declared it.
 
         So the roots follow what was resolved, not what was configured. Anything the
         plan points at is a folder this will open, and core cannot know that from the

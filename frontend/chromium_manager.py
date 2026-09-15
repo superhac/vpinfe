@@ -179,11 +179,11 @@ def _build_window_url(
 
     The ports travel in the url because they are what the page cannot ask for:
     everything else comes over the bridge, and asking needs the bridge port. Without
-    this they were settings the browser ignored, so moving a service left the frontend
+    them they are settings the browser ignores, and moving a service leaves the frontend
     dialling the old port forever.
 
-    Built once and appended to all three url forms - stating them per form is how the
-    frontend ended up asserting one machine in six places.
+    Built once and appended to all three url forms - stated per form, the frontend
+    asserts one machine in six places.
     """
     endpoints = (f"wsPort={ws_port}&themeAssetsPort={theme_assets_port}"
                  f"&libraryPort={http_port}")

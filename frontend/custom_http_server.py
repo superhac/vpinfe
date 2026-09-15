@@ -129,10 +129,6 @@ class CustomHTTPServer:
             return self._refuse()
 
         def end_headers(self) -> None:
-            # cache busting
-            #self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
-            #self.send_header('Pragma', 'no-cache')
-            #self.send_header('Expires', '0')
             # Always add CORS headers to every response
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")

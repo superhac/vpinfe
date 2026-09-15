@@ -92,8 +92,8 @@ def get_theme_config(config: ConfigSource) -> dict | None:
 
     Three sources, narrowing: config.json is the author's fixed settings, theme.json
     declares the options and their defaults, and the user's own file says what they
-    picked. Returning theme.json alone dropped every author value the moment a theme
-    had one option.
+    picked. Returning theme.json alone drops every author value the moment a theme has
+    one option.
     """
     theme_dir = resolve_theme_dir(get_theme_name(config))
     if not theme_dir:

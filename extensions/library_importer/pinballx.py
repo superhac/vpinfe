@@ -413,8 +413,7 @@ def read_media(media_root: Path | str, games: list[SourceGame]) -> list[SourceGa
     **Two names, because the two frontends disagree about which one they use.** PinballX
     names media after the `name` attribute, which is the table file. PinballY names it
     after the display name. Picking either one alone loses almost everything from the
-    other frontend. Both are offered and the
-    longest match wins, which is the rule that was already here.
+    other frontend. Both are offered and the longest match wins.
 
     Where two names are prefixes of one another the longer one wins, and it has to be
     decided across the whole database rather than per game: `Taxi 2.png` starts with
@@ -529,8 +528,8 @@ def read(root: Path | str, plays: Callable[[str], bool] = _plays_vpx,
                                     # machine wrote them down. Everything downstream
                                     # opens this: the plan offers it as the folder to
                                     # read from, and core is told to allow it. Handing
-                                    # on `P:\...` names a folder that cannot be read and
-                                    # cost a whole run of 581 files.
+                                    # on `P:\...` names a folder that cannot be read,
+                                    # which costs the whole run.
                                     tables_dir=declared_tables or recorded,
                                     # Resolved like the tables are, and for the same
                                     # reason: what is derived from it gets opened, and

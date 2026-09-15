@@ -71,10 +71,9 @@ _said_collisions: set[str] = set()
 def _say_what_collides(bound: dict[str, list[str]]) -> None:
     """A binding two actions hold is one that only ever fires the first of them.
 
-    Dispatch resolves a key to the first action listing it, so the loser does nothing and
-    says nothing - and until the Console's binding editor there was no surface anywhere
-    that would have shown it. An install that already holds one gets told here, because
-    the alternative is a player concluding their cabinet is broken.
+    Dispatch resolves a key to the first action listing it, so the loser does nothing
+    and says nothing. An install that holds one is told here, because the alternative is
+    a player concluding their cabinet is broken.
     """
     found = input_registry.collisions(bound)
     for binding, names in sorted(found.items()):

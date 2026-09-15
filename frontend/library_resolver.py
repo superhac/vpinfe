@@ -153,8 +153,8 @@ class LibraryResolver:
 
         Under the lock: a sort mutates `filtered_games` in place, so a rebuild racing one
         walks a list being reordered - and a reader can otherwise see `_entries` assigned
-        before `_entries_source` catches up. The window that produced that is small enough
-        to pass on a laptop and fail on a shared CI runner.
+        before `_entries_source` catches up. The window is small enough to pass under a
+        light load and fail under a heavy one.
         """
         with self.lock:
             games = self.filtered_games or []

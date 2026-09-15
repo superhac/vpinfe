@@ -65,8 +65,8 @@ def _game_event(game: Any = None, table_id: str | None = None, **_: Any) -> dict
     to "what does a game look like".
 
     `table` is which build launched, and it is why the launch events are named for a
-    table. The bus has carried it all along; it stopped here, so the wire had an event
-    called `table.launching` that said nothing about which table.
+    table. The bus carries it; dropping it here leaves the wire with an event called
+    `table.launching` that says nothing about which table.
     """
     if game is None:
         return {"game": None}
