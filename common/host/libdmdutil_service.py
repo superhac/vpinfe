@@ -3,8 +3,10 @@
 import logging
 import threading
 from pathlib import Path
+from typing import Any
 
 from common.config_access import cfg_get
+from common.config_store import ConfigStore
 from common.paths import bundled
 from common.third_party import find_named_path, import_module_from_path, third_party_base_candidates
 
@@ -16,7 +18,7 @@ _DEFAULT_REALDMD_IMAGE = bundled("common", "host", "static", "vpinfe_realdmd.png
 logger = logging.getLogger("vpinfe.common.host.libdmdutil_service")
 
 
-def _is_enabled(iniconfig) -> bool:
+def _is_enabled(iniconfig: ConfigStore) -> bool:
     try:
         return iniconfig.config.getboolean('libdmdutil', 'enabled', fallback=False)
     except Exception:
@@ -38,7 +40,7 @@ def _get_libdmdutil_base_candidates() -> list[Path]:
     return third_party_base_candidates('VPINFE_LIBDMDUTIL_DIR', 'libdmdutil')
 
 
-def _load_controller_class():
+def _load_controller_class() -> tuple[Any, Path]:
     candidates = _get_libdmdutil_base_candidates()
     wrapper_path = None
     for candidate in candidates:
@@ -81,7 +83,7 @@ def find_libdmdutil_file(*names: str) -> Path | None:
     return None
 
 
-def _build_controller_kwargs(iniconfig) -> dict[str, str]:
+def _build_controller_kwargs(iniconfig: ConfigStore) -> dict[str, str]:
     raw_serial_port = str(
         cfg_get(iniconfig, 'libdmdutil', 'zedmd_serial_port', '')
     ).strip()
@@ -111,7 +113,7 @@ def is_running() -> bool:
         return _CONTROLLER is not None
 
 
-def start_libdmdutil_service_if_enabled(iniconfig) -> bool:
+def start_libdmdutil_service_if_enabled(iniconfig: ConfigStore) -> bool:
     global _CONTROLLER, _CURRENT_IMAGE
     if not _is_enabled(iniconfig):
         return False
@@ -171,12 +173,12 @@ def stop_libdmdutil_service(clear: bool = False) -> bool:
         return False
 
 
-def restart_libdmdutil_service_if_enabled(iniconfig) -> bool:
+def restart_libdmdutil_service_if_enabled(iniconfig: ConfigStore) -> bool:
     stop_libdmdutil_service(clear=False)
     return start_libdmdutil_service_if_enabled(iniconfig)
 
 
-def show_image(iniconfig, image_path: str | Path | None) -> bool:
+def show_image(iniconfig: ConfigStore, image_path: str | Path | None) -> bool:
     global _CURRENT_IMAGE
     if not _is_enabled(iniconfig):
         return False

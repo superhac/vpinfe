@@ -17,12 +17,13 @@ import os
 
 from common import tokens
 from common.config_access import cfg_get, cfg_int
+from common.config_store import ConfigStore
 from common.host import commands, table_commands
 
 logger = logging.getLogger("vpinfe.common.host.vpinfe_commands")
 
 
-def on_start(ini_config) -> None:
+def on_start(ini_config: ConfigStore) -> None:
     """Anything a previous run left half done, and then this run's opening commands.
 
     The unfinished half goes first because it is putting the machine back to where the
@@ -35,12 +36,12 @@ def on_start(ini_config) -> None:
     _run(ini_config, "on_vpinfe_start", "VPinFE starts")
 
 
-def on_exit(ini_config) -> None:
+def on_exit(ini_config: ConfigStore) -> None:
     """This run's closing commands. Best effort: there is nothing left to stop."""
     _run(ini_config, "on_vpinfe_exit", "VPinFE exits")
 
 
-def _run(ini_config, key: str, when: str) -> None:
+def _run(ini_config: ConfigStore, key: str, when: str) -> None:
     text = cfg_get(ini_config, "general", key, "")
     if not str(text or "").strip():
         return

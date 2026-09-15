@@ -126,7 +126,7 @@ class _Worker:
 
 def _install_termination_handlers() -> None:
     """Turn a kill signal into a normal exit so the runner still gets stopped."""
-    def _terminate(_signum, _frame):
+    def _terminate(_signum: int, _frame: object) -> None:
         raise SystemExit(0)
 
     for name in ("SIGTERM", "SIGINT", "SIGBREAK"):

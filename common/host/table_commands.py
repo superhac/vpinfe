@@ -19,11 +19,14 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from common import tokens
+from common import apps, tokens
 from common.atomic_write import write_atomic
 from common.config_access import cfg_bool, cfg_get, cfg_int
+from common.config_store import ConfigStore
 from common.extensions import services as ext_services
 from common.games import tables
+from common.games.game import Game
+from common.games.launchers import Launcher
 from common.host import commands
 from common.paths import CONFIG_DIR
 
@@ -55,7 +58,7 @@ def player_name() -> str:
     return str(getattr(profile, "initials", "") or getattr(profile, "user_id", "") or "")
 
 
-def _values(game, playing, launcher) -> dict[str, str]:
+def _values(game: Game, playing: apps.Entry, launcher: Launcher | None) -> dict[str, str]:
     """What a command about this table may say. Strings, all of them, because they are
     going into an argument list.
 
@@ -83,7 +86,8 @@ def _values(game, playing, launcher) -> dict[str, str]:
     }
 
 
-def before(game, playing, launcher, ini_config) -> Around:
+def before(game: Game, playing: apps.Entry, launcher: Launcher | None,
+           ini_config: ConfigStore) -> Around:
     """The install's commands and then this launcher's, in that order.
 
     A failure stops the launch only where somebody said it should. What that means is a
@@ -145,7 +149,7 @@ def _run(text: str, around: Around, *, required: bool, whose: str) -> None:
     around.ran = around.ran or outcome.ran
 
 
-def _as_bool(value) -> bool:
+def _as_bool(value: object) -> bool:
     if isinstance(value, bool):
         return value
     return str(value or "").strip().lower() in ("1", "true", "yes", "on")

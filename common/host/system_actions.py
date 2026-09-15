@@ -6,9 +6,11 @@ decides whether to do it - that is `common.lifecycle`, which confirms first.
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from common.paths import APP_ROOT
@@ -26,7 +28,8 @@ def request_app_restart(config_dir: Path) -> None:
 
 
 def restart_if_requested(
-        config_dir: Path, logger, main_script: Path | None = None, sleep_func=None) -> None:
+        config_dir: Path, logger: logging.Logger, main_script: Path | None = None,
+        sleep_func: Callable[[float], None] | None = None) -> None:
     restart_flag = config_dir / ".restart"
     if not restart_flag.exists():
         logger.info("No restart requested, exiting.")

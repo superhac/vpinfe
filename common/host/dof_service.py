@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from common.config_access import cfg_bool
+from common.config_store import ConfigStore
 from common.paths import APP_ROOT
 from common.third_party import find_named_path, import_module_from_path, third_party_base_candidates
 
@@ -28,7 +29,7 @@ _EVENT_TOKEN_RE = re.compile(r'^([A-Za-z])(\d+)$')
 logger = logging.getLogger("vpinfe.common.host.dof_service")
 
 
-def _is_enabled(iniconfig) -> bool:
+def _is_enabled(iniconfig: ConfigStore | None) -> bool:
     """Whether the user asked for DOF.
 
     Through cfg_bool, which resolves the canonical `enable_dof` and the `enabledof` an
@@ -52,7 +53,7 @@ def _get_dof_base_candidates() -> list[Path]:
     return third_party_base_candidates('VPINFE_DOF_DIR', 'dof')
 
 
-def _load_runner_class():
+def _load_runner_class() -> tuple[Any, Path]:
     candidates = _get_dof_base_candidates()
     runner_path = None
     for candidate in candidates:
@@ -294,7 +295,7 @@ def _get_helper() -> _DofHelperProcess:
     return _HELPER
 
 
-def start_dof_service_if_enabled(iniconfig) -> bool:
+def start_dof_service_if_enabled(iniconfig: ConfigStore | None) -> bool:
     global _HELPER, _CURRENT_EVENT
     if not _is_enabled(iniconfig):
         return False
@@ -344,7 +345,7 @@ def stop_dof_service(timeout: float = 10.0) -> bool:
     return stopped
 
 
-def restart_dof_service_if_enabled(iniconfig) -> bool:
+def restart_dof_service_if_enabled(iniconfig: ConfigStore | None) -> bool:
     stop_dof_service()
     return start_dof_service_if_enabled(iniconfig)
 
@@ -369,7 +370,7 @@ def _resolve_frontend_event_token(event_token: str | None) -> str:
     return f"E{random.randint(900, 990)}"
 
 
-def send_dof_event_token(iniconfig, event_token: str) -> bool:
+def send_dof_event_token(iniconfig: ConfigStore | None, event_token: str) -> bool:
     global _CURRENT_EVENT
     if not _is_enabled(iniconfig):
         return False
@@ -410,7 +411,7 @@ def send_dof_event_token(iniconfig, event_token: str) -> bool:
     return True
 
 
-def clear_active_dof_event(iniconfig) -> bool:
+def clear_active_dof_event(iniconfig: ConfigStore | None) -> bool:
     global _CURRENT_EVENT
     if not _is_enabled(iniconfig):
         return False
@@ -434,6 +435,7 @@ def clear_active_dof_event(iniconfig) -> bool:
     return bool(response.get("cleared", False))
 
 
-def send_frontend_dof_event(iniconfig, event_token: str | None = None) -> bool:
+def send_frontend_dof_event(iniconfig: ConfigStore | None,
+                            event_token: str | None = None) -> bool:
     resolved_event = _resolve_frontend_event_token(event_token)
     return send_dof_event_token(iniconfig, resolved_event)

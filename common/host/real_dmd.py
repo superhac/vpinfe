@@ -9,14 +9,18 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from pathlib import Path
 
 from common.config_access import MediaConfig
+from common.config_store import ConfigStore
+from common.games.game import Game
 
 logger = logging.getLogger("vpinfe.common.host.real_dmd")
 
 
-def get_realdmd_image_for_game(game, iniconfig=None) -> Path | None:
+def get_realdmd_image_for_game(game: Game,
+                               iniconfig: ConfigStore | None = None) -> Path | None:
     priority = "color"
     if iniconfig is not None:
         priority = MediaConfig.from_config(iniconfig).realdmd_media_priority
@@ -41,7 +45,8 @@ def get_realdmd_image_for_game(game, iniconfig=None) -> Path | None:
 class RealDmdUpdater:
     """Sends images to a physical DMD, one at a time and never from two threads at once."""
 
-    def __init__(self, iniconfig, window_name: str | None, show_image_func) -> None:
+    def __init__(self, iniconfig: ConfigStore, window_name: str | None,
+                 show_image_func: Callable[[ConfigStore, Path | None], bool]) -> None:
         self._iniconfig = iniconfig
         self._window_name = window_name or "unknown"
         self._show_image = show_image_func

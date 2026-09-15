@@ -24,6 +24,7 @@ import shutil
 import subprocess
 import time
 from collections import deque
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -72,7 +73,7 @@ def measurable() -> tuple[bool, str]:
     return True, ""
 
 
-def read(paths=()) -> dict[str, Any]:
+def read(paths: Iterable[str] = ()) -> dict[str, Any]:
     """One reading. Cheap enough to call on a timer.
 
     `cpu_percent` is asked without an interval, so it is the load since the previous
@@ -175,7 +176,7 @@ def gpu() -> dict[str, Any]:
     return {"available": True, "reason": "", "gpus": found_cards}
 
 
-def _disks(paths) -> list[dict[str, Any]]:
+def _disks(paths: Iterable[str]) -> list[dict[str, Any]]:
     """One row per *volume*, not per path.
 
     Two watched paths on one disk are one answer, and printing it twice says the same
@@ -217,7 +218,7 @@ def _disk(path: str) -> dict[str, Any]:
     return entry
 
 
-def sample(paths=()) -> dict[str, Any]:
+def sample(paths: Iterable[str] = ()) -> dict[str, Any]:
     """Read once and keep it. What a page calls on its timer."""
     found = read(paths)
     if found["measurable"]:

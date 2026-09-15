@@ -15,6 +15,7 @@ import ctypes
 import json
 import sys
 import tempfile
+from typing import Any
 
 PINMAME_MAX_PATH = 512
 FILE_TYPE_ROMS = 0
@@ -55,7 +56,7 @@ def lookup(lib_path: str, roms_dir: str, names: list[str]) -> dict:
 
     hit: list[dict] = []
 
-    def on_game(game_ptr, _user) -> None:
+    def on_game(game_ptr: Any, _user: Any) -> None:
         game = game_ptr.contents
         hit.append({
             "clone_of": (game.clone_of or b"").decode() or None,

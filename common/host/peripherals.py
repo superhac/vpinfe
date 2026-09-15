@@ -8,8 +8,11 @@ to a selection is not - see the subscribers below.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from common import events
+from common.config_store import ConfigStore
+from common.games.game import Game
 from common.games.game_metadata import game_frontend_dof_event
 from common.host import real_dmd
 from common.host.dof_service import (
@@ -28,35 +31,38 @@ _registered = False
 _realdmd_updater: real_dmd.RealDmdUpdater | None = None
 
 
-def release_for_launch(**_payload) -> None:
+def release_for_launch(**_payload: Any) -> None:
     """Hand the peripherals over before the table starts."""
     stop_dof_service()
     stop_libdmdutil_service(clear=False)
 
 
-def reacquire_after_exit(*, ini_config=None, **_payload) -> None:
+def reacquire_after_exit(*, ini_config: ConfigStore | None = None,
+                         **_payload: Any) -> None:
     """Take the peripherals back once the table has exited."""
     start_dof_service_if_enabled(ini_config)
 
 
-def play_dof_effect(*, game=None, ini_config=None, **_payload) -> None:
+def play_dof_effect(*, game: Game | None = None, ini_config: ConfigStore | None = None,
+                    **_payload: Any) -> None:
     """Fire the table's DOF effect - solenoids and lights."""
     if game is None:
         return
     send_frontend_dof_event(ini_config, game_frontend_dof_event(game))
 
 
-def show_realdmd_art(*, game=None, ini_config=None, **_payload) -> None:
+def show_realdmd_art(*, game: Game | None = None, ini_config: ConfigStore | None = None,
+                     **_payload: Any) -> None:
     """Put the table's art on the real DMD panel."""
-    if game is None:
+    if game is None or ini_config is None:
         return
     _updater(ini_config).queue_image_update(
-        game.game_dir_name,
+        game.game_dir_name or "",
         real_dmd.get_realdmd_image_for_game(game, ini_config),
     )
 
 
-def _updater(ini_config) -> real_dmd.RealDmdUpdater:
+def _updater(ini_config: ConfigStore) -> real_dmd.RealDmdUpdater:
     """One updater for the process, not one per frontend window.
 
     Three windows each hold an API instance. Only the `table` window used to make

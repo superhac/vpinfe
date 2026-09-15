@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import sys
 import threading
+from typing import Any
 
 logger = logging.getLogger("vpinfe.common.host.display_service")
 
@@ -23,7 +24,8 @@ _monitors_lock = threading.Lock()
 _monitors_cache = None
 
 
-def _query_monitors():
+# screeninfo ships no stubs, so a monitor is only ever Any here.
+def _query_monitors() -> list[Any]:
     if sys.platform == "darwin":
         from frontend.chromium_manager import get_mac_screens
 
@@ -34,7 +36,7 @@ def _query_monitors():
     return get_monitors()
 
 
-def get_display_monitors(refresh: bool = False):
+def get_display_monitors(refresh: bool = False) -> list[Any]:
     """Every display this machine has, or none when it cannot say.
 
     Enumeration fails on a machine with no session attached - a headless server, a
@@ -55,7 +57,7 @@ def get_display_monitors(refresh: bool = False):
         return _monitors_cache
 
 
-def monitors_as_dicts():
+def monitors_as_dicts() -> list[dict[str, Any]]:
     return [
         {
             "name": f"Monitor {i}",

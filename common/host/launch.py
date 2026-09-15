@@ -20,11 +20,15 @@ import shlex
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from common import apps, events
+from common.config_store import ConfigStore
 from common.extensions import services as ext_services
 from common.games import game_play_service, info_file, launchers, tables
+from common.games.game import Game
 from common.games.tables import (
     default_table,
     entry_for_filename,
@@ -59,7 +63,7 @@ class LaunchBusyError(LaunchUnavailableError):
     so differently."""
 
 
-def _launcher_for(table_id: str, entry: dict):
+def _launcher_for(table_id: str, entry: dict) -> tuple[launchers.Launcher | None, str]:
     """Which launcher plays this entry, and whether it is the one it asked for.
 
     Returns (launcher, asked_for). They differ when an entry names a launcher that has
@@ -108,7 +112,7 @@ def binary_for(table_id: str, filename: str) -> str:
     return _binary_of(launcher, store.mapped(table_id))
 
 
-def _binary_of(launcher, asked_for: str) -> str:
+def _binary_of(launcher: launchers.Launcher | None, asked_for: str) -> str:
     """The program a launcher runs, checked before anything is announced."""
     if launcher is None:
         raise LaunchUnavailableError(
@@ -128,7 +132,7 @@ def _binary_of(launcher, asked_for: str) -> str:
     return str(resolved)
 
 
-def _resolve_entry(game, named: str | None) -> tuple[str, dict]:
+def _resolve_entry(game: Game, named: str | None) -> tuple[str, dict]:
     """(table id, entry) for the thing to launch.
 
     `named` is what a caller asked for by its native key - a filename for something in
@@ -179,7 +183,7 @@ def _resolve_entry(game, named: str | None) -> tuple[str, dict]:
     return found_id, found or {tables.TABLE_FILENAME_KEY: wanted}
 
 
-def _path_of(game, entry: dict) -> str:
+def _path_of(game: Game, entry: dict) -> str:
     """The file an entry names, or "" for one with no file. Every path is built here, so
     nothing above this line handles one at all."""
     game_dir = str(game.full_path_game or "")
@@ -192,7 +196,7 @@ def _path_of(game, entry: dict) -> str:
     return os.path.join(game_dir, filename)
 
 
-def _launch_env(launcher) -> dict:
+def _launch_env(launcher: launchers.Launcher) -> dict:
     env = os.environ.copy()
     env.update(parse_launch_env_overrides(str(launcher.value("launch_env") or "")))
 
@@ -205,7 +209,8 @@ def _launch_env(launcher) -> dict:
     return env
 
 
-def _plan(entry: apps.Entry, binary: str, launcher) -> tuple[list[str], str]:
+def _plan(entry: apps.Entry, binary: str,
+          launcher: launchers.Launcher) -> tuple[list[str], str]:
     """What to run, and what the app writes once it is actually up.
 
     Both come from the app the launcher wraps. `bin_path` is overwritten with the
@@ -224,7 +229,8 @@ def _plan(entry: apps.Entry, binary: str, launcher) -> tuple[list[str], str]:
             app.launch.session(settings).readiness_marker)
 
 
-def _record_play(game, ini_config, elapsed_seconds: float, table: str = "") -> None:
+def _record_play(game: Game, ini_config: ConfigStore, elapsed_seconds: float,
+                 table: str = "") -> None:
     """Play data for a finished session. Runs on every path, which it did not use to.
 
     A guest takes the session if one is signed in - their half hour is theirs and must
@@ -249,7 +255,8 @@ def _record_play(game, ini_config, elapsed_seconds: float, table: str = "") -> N
                     game.game_dir_name, score_path)
 
 
-def check_launchable(game, ini_config, table: str | None = None) -> str:
+def check_launchable(game: Game, ini_config: ConfigStore,
+                     table: str | None = None) -> str:
     """Raise if this launch could not go ahead, otherwise return the file it would run.
 
     Separate from `launch_game` because callers that launch on a thread still have
@@ -276,7 +283,7 @@ class ReferenceUnreachableError(LaunchUnavailableError):
     """
 
 
-def _reference_is_reachable(game, entry: dict) -> None:
+def _reference_is_reachable(game: Game, entry: dict) -> None:
     """A reference is only as good as the thing it points at, and the usual reason it
     fails is a share that has not mounted - which is temporary, and reads nothing like a
     deleted file."""
@@ -290,8 +297,9 @@ def _reference_is_reachable(game, entry: dict) -> None:
         "reachable from here.")
 
 
-def launch_game(game, ini_config, *, source: str, table: str | None = None,
-                 popen=None) -> None:
+def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
+                table: str | None = None,
+                popen: Callable[..., subprocess.Popen[Any]] | None = None) -> None:
     """Launch a game and stay with it until it exits. Blocking.
 
     Callers that must not block run this on a thread; the API and the Remote page
@@ -306,6 +314,8 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
     vpx_path = _path_of(game, entry)
     launcher, asked_for = _launcher_for(table_id, entry)
     binary = _binary_of(launcher, asked_for)
+    # _binary_of refuses a launcher that is missing or cannot run, so there is one here.
+    assert launcher is not None
     playing = apps.Entry(entry_id=table_id, table=vpx_path,
                          game_dir=str(game.full_path_game or ""),
                          key=tables.entry_key(entry))
@@ -366,7 +376,7 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
 
             # Draining stdout is not optional: the pipe fills and the child blocks on a
             # write if nobody reads it.
-            for line in process.stdout:
+            for line in process.stdout or ():
                 if not running and marker in line:
                     running = True
                     events.emit(events.TABLE_LAUNCHED, game=game, ini_config=ini_config)
@@ -391,7 +401,7 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
     game_play_service.delete_nvram_if_configured(game)
 
 
-def table_for(game, table: str | None = None) -> str:
+def table_for(game: Game, table: str | None = None) -> str:
     """The file a launch would use, without launching it."""
     if table is not None:
         return table
