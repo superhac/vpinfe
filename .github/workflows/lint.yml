@@ -34,17 +34,10 @@ jobs:
         continue-on-error: true
         run: ruff check . --output-format=github --statistics
 
-      - name: Lint the packages that are clean (blocking)
+      - name: Lint everywhere we write Python (blocking)
         run: |
           ruff check tests/ apps/ common/ console/ extensions/ frontend/ httpapi/ \
-            --output-format=github
-
-      # Separate from the step above because cli.py and main.py still carry line-length
-      # debt. Every package is in the step above now.
-      - name: Lint naming (blocking)
-        run: |
-          ruff check apps common console extensions frontend httpapi cli.py main.py \
-            --select N --output-format=github
+            cli.py main.py --output-format=github
 
       # -M5% so a file that moved packages and was rewritten is seen as the move it is.
       # Git's default 50% returns it as added, which judges old code by the new-file rule.

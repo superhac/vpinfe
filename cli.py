@@ -21,7 +21,9 @@ logger.info("Using config file at: %s", VPINFE_INI_PATH)
 config_store = ConfigStore(str(VPINFE_INI_PATH))
 
 
-def build_metadata(download_media: bool = True, update_all: bool = True, game_name: str = None, user_media: bool = False, progress_cb=None, log_cb=None):
+def build_metadata(download_media: bool = True, update_all: bool = True,
+                   game_name: str = None, user_media: bool = False,
+                   progress_cb=None, log_cb=None):
     return metadata_service.build_metadata(
         download_media=download_media,
         update_all=update_all,
@@ -121,20 +123,43 @@ def parse_args():
     parser.add_argument("--version", action="store_true", help="Show the app version")
     parser.add_argument("--listres", action="store_true", help="ID and list your screens")
     parser.add_argument("--listmissing", action="store_true", help="List the games from VPSdb")
-    parser.add_argument("--listunknown", action="store_true", help="List the games we can't match in VPSdb")
-    parser.add_argument("--configdir", metavar="DIR", help="Use DIR as the config directory (vpinfe.ini, themes, caches, logs) instead of the OS default. Same as the VPINFE_CONFIG_DIR env var; applied at startup in main.py.")
-    parser.add_argument("--buildmeta", action="store_true", help="Builds the .info file in each game dir")
-    parser.add_argument("--vpxpatch", action="store_true", help="Attempt to apply patches automatically")
-    parser.add_argument("--gamepadtest", action="store_true", help="Test and map your gamepad via JS API")
-    parser.add_argument("--headless", action="store_true", help="Run web servers/services only, skip the Chromium frontend")
-    parser.add_argument("--claim-user-media", action="store_true", help="Deprecated and does nothing; your own media is protected automatically")
+    parser.add_argument("--listunknown", action="store_true",
+                        help="List the games we can't match in VPSdb")
+    parser.add_argument("--configdir", metavar="DIR",
+                        help="Use DIR as the config directory (vpinfe.ini, themes, "
+                             "caches, logs) instead of the OS default. Same as the "
+                             "VPINFE_CONFIG_DIR env var; applied at startup in "
+                             "main.py.")
+    parser.add_argument("--buildmeta", action="store_true",
+                        help="Builds the .info file in each game dir")
+    parser.add_argument("--vpxpatch", action="store_true",
+                        help="Attempt to apply patches automatically")
+    parser.add_argument("--gamepadtest", action="store_true",
+                        help="Test and map your gamepad via JS API")
+    parser.add_argument("--headless", action="store_true",
+                        help="Run web servers/services only, skip the Chromium "
+                             "frontend")
+    parser.add_argument("--claim-user-media", action="store_true",
+                        help="Deprecated and does nothing; your own media is "
+                             "protected automatically")
 
     # Secondary args
-    parser.add_argument("--no-media", action="store_true", help="Do not download images when building the .info files")
-    parser.add_argument("--update-all", action="store_true", help="Reparse all games when building the .info files")
-    parser.add_argument("--user-media", action="store_true", help="With --buildmeta: skip vpinmediadb downloads entirely and supply all media yourself")
-    parser.add_argument("--upgrade-info", action="store_true", help="Upgrade every game's .info file to the current format, backing up each one first. Normally done automatically at startup; use this to finish an upgrade that was interrupted")
-    parser.add_argument("--restore-info", action="store_true", help="Put back the .info files saved before they were upgraded, for every game that has one. Your current .info is kept first")
+    parser.add_argument("--no-media", action="store_true",
+                        help="Do not download images when building the .info files")
+    parser.add_argument("--update-all", action="store_true",
+                        help="Reparse all games when building the .info files")
+    parser.add_argument("--user-media", action="store_true",
+                        help="With --buildmeta: skip vpinmediadb downloads entirely "
+                             "and supply all media yourself")
+    parser.add_argument("--upgrade-info", action="store_true",
+                        help="Upgrade every game's .info file to the current format, "
+                             "backing up each one first. Normally done automatically "
+                             "at startup; use this to finish an upgrade that was "
+                             "interrupted")
+    parser.add_argument("--restore-info", action="store_true",
+                        help="Put back the .info files saved before they were "
+                             "upgraded, for every game that has one. Your current "
+                             ".info is kept first")
     parser.add_argument("--reset-3x-state", action="store_true",
                         help="Remove the state 3.x wrote so the next start migrates "
                              "from scratch: its settings and collections files, the "
@@ -224,7 +249,8 @@ def parse_args():
         sys.exit()
 
     if args.buildmeta:
-        build_metadata(download_media=not args.no_media, update_all=args.update_all, game_name=args.game, user_media=args.user_media)
+        build_metadata(download_media=not args.no_media, update_all=args.update_all,
+                       game_name=args.game, user_media=args.user_media)
         sys.exit()
 
     if args.gamepadtest:

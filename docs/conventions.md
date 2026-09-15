@@ -850,18 +850,16 @@ ruff check .          # what the CI advisory run reports
 ruff check . --fix    # apply the safe fixes
 ```
 
-CI runs it four ways:
+CI runs it three ways:
 
-- **Advisory over the whole tree.** Reports and does not fail. What it reports is legacy line
-  length, and the Manager UI. It is a visible debt register, not a gate.
-- **Blocking on every package.** `tests`, `apps`, `common`, `console`, `extensions`,
-  `frontend` and `httpapi` are at zero findings and every file in them is checked, new or
-  not. A package joins this step when its line-length debt is paid off, and does not leave
-  it again - that is what stops the sweep that cleaned it from decaying.
-- **Blocking on the `N` rules, everywhere we write Python.** The packages above plus
-  `cli.py` and `main.py`. It is a separate step only because those two still carry
-  line-length debt; naming is at zero for them either way. `N` does not see a PascalCase
-  dataclass field, so `tests/invariants/test_python_is_snake_case.py` states the whole rule.
+- **Advisory over the whole tree.** Reports and does not fail. What it reports is the
+  Manager UI, which retires with it. It is a visible debt register, not a gate.
+- **Blocking everywhere we write Python.** `tests`, `apps`, `common`, `console`,
+  `extensions`, `frontend`, `httpapi`, `cli.py` and `main.py` — every rule we select, at
+  zero, every file checked whether it is new or not. Nothing leaves this step once it has
+  joined, which is what stops the sweep that cleaned it from decaying. `N` does not see a
+  PascalCase dataclass field, so `tests/invariants/test_python_is_snake_case.py` states
+  that rule in full.
 - **Blocking on newly added files.** Any `.py` file added in a PR must be clean. This is what
   "get it right going forward" means in practice: new code is born compliant, and existing
   code is cleaned up when it is touched rather than in one enormous diff.
