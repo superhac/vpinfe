@@ -29,14 +29,8 @@ from common import discovery
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 HARNESS_THEME = REPO_ROOT / "tests" / "fixtures" / "theme-harness"
 
-# What the instance says when something took its port between the probe and the
-# bind. Matched on the text because it comes back through the child's log, not as
-# an exception here - the errno is the child's and does not cross the process.
+# Matched as text: the errno belongs to the subprocess and never reaches this side.
 _PORT_TAKEN = "address already in use"
-
-# Two retries. The race is a narrow window and losing it three times running is a
-# machine with something else claiming ports, which is worth failing rather than
-# papering over.
 _START_ATTEMPTS = 3
 
 
@@ -66,14 +60,8 @@ class LiveInstance:
 
     def __enter__(self) -> LiveInstance:
         self._install_harness_theme()
-        # `free_port` closes its socket before the instance binds, so a port can be taken
-        # in between - by another test's instance, or by anything else on the machine.
-        # That is a race nothing here can close: only the instance can hold the port it
-        # is going to use, and it is a subprocess that binds after it starts.
-        #
-        # So it is caught rather than prevented, and only on the one condition that says
-        # it happened. Fresh ports each attempt, because the taken one stays taken.
-        # Anything else that kills the instance at startup raises on the first try.
+        # Retried only when the port was taken between the probe and the bind. Anything
+        # else that kills the instance raises on the first attempt.
         for attempt in range(_START_ATTEMPTS):
             self._write_config()
             self._start()
