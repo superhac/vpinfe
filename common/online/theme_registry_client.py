@@ -50,4 +50,5 @@ class ThemeRegistryClient:
                 continue
             response.raise_for_status()
             return BytesIO(response.content)
-        raise ThemeRegistryError(f"Failed to download {url} after {max_retries} retries (rate limited)")
+        raise ThemeRegistryError(
+            f"Failed to download {url} after {max_retries} retries (rate limited)")

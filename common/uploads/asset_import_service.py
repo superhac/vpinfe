@@ -311,7 +311,8 @@ def build_import_plan(analysis: AnalysisResult, *, game_dir: Path | None = None,
 
     for asset in analysis.assets:
         if spec_for(asset.kind).requires_game:
-            blocked.append(BlockedItem(asset, "Select a table row, or drop onto a table's detail dialog"))
+            blocked.append(BlockedItem(
+                asset, "Select a table row, or drop onto a table's detail dialog"))
         else:
             blocked.append(BlockedItem(asset, "Drop onto the Tables page to import as a new table"))
     return ImportPlan("", "", rom_name, (), tuple(blocked))
@@ -405,7 +406,8 @@ def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
     if not plan.new_game_dir_name:
         return replace(plan, items=chosen)
 
-    new_name = sanitize_dir_name(new_game_dir_name) if new_game_dir_name is not None else plan.new_game_dir_name
+    new_name = (sanitize_dir_name(new_game_dir_name) if new_game_dir_name is not None
+                else plan.new_game_dir_name)
     if not new_name:
         raise ValueError("Table folder name required")
     if new_name == plan.new_game_dir_name:
@@ -413,7 +415,8 @@ def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
 
     old_base = plan.game_dir
     new_base = str(Path(old_base).parent / new_name)
-    rebased = tuple(replace(item, destination=item.destination.replace(old_base, new_base, 1)) for item in chosen)
+    rebased = tuple(replace(item, destination=item.destination.replace(old_base, new_base, 1))
+                    for item in chosen)
     return replace(plan, game_dir=new_base, new_game_dir_name=new_name, items=rebased)
 
 
@@ -439,7 +442,8 @@ def _resolves_locally(key: str, value: object) -> bool:
         from common.paths import PLUGIN_PROFILES_DIR
 
         try:
-            return any(p.stem == text or p.name == text for p in Path(PLUGIN_PROFILES_DIR).iterdir())
+            return any(p.stem == text or p.name == text
+                       for p in Path(PLUGIN_PROFILES_DIR).iterdir())
         except OSError:
             return False
     return True
@@ -720,7 +724,8 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
             imported.append(item.asset.kind)
     except Exception as exc:
         if _is_rar_exec_error(exc):
-            raise ValueError("RAR extraction requires the 'unar' or 'unrar' tool to be installed") from exc
+            raise ValueError(
+                "RAR extraction requires the 'unar' or 'unrar' tool to be installed") from exc
         raise
     finally:
         source.close()

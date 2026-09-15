@@ -63,7 +63,8 @@ def _safe_join(base: Path, relative: str) -> Path:
 def _sweep() -> None:
     now = time.time()
     with _lock:
-        stale = [uid for uid, rec in _sessions.items() if now - rec["created"] > SESSION_TTL_SECONDS]
+        stale = [uid for uid, rec in _sessions.items()
+                 if now - rec["created"] > SESSION_TTL_SECONDS]
         records = [_sessions.pop(uid) for uid in stale]
     for rec in records:
         shutil.rmtree(rec["dir"], ignore_errors=True)

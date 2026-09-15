@@ -21,7 +21,8 @@ logger = logging.getLogger("vpinfe.common.online.vpsdb")
 
 class VPSdb:
     """
-    VPSdb class handles downloading, caching, and querying the Virtual Pinball Spreadsheet (VPS) database
+    VPSdb class handles downloading, caching, and querying the Virtual Pinball
+    Spreadsheet (VPS) database
     along with associated media assets via VPinMediaDB.
     """
 
@@ -112,7 +113,9 @@ class VPSdb:
                 continue
 
             # Compare manufacturers
-            if SequenceMatcher(None, manufacturer.lower(), game["manufacturer"].lower()).ratio() < 0.8:
+            likeness = SequenceMatcher(
+                None, manufacturer.lower(), game["manufacturer"].lower()).ratio()
+            if likeness < 0.8:
                 continue
 
             # Compare year

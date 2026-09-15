@@ -60,7 +60,8 @@ def get_text(
     return response.text
 
 
-def get_bytes(url: str, *, timeout: int = DOWNLOAD_TIMEOUT, headers: dict[str, str] | None = None) -> bytes:
+def get_bytes(url: str, *, timeout: int = DOWNLOAD_TIMEOUT,
+              headers: dict[str, str] | None = None) -> bytes:
     response = requests.get(url, timeout=timeout, headers=headers)
     response.raise_for_status()
     return response.content

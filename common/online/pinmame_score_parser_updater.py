@@ -119,7 +119,8 @@ def ensure_latest_roms_json(iniconfig: ConfigStore) -> dict:
     asset = _find_release_asset(release_payload)
     download_url = asset.get("browser_download_url")
     if not download_url:
-        raise ValueError("Latest pinmame-score-parser release asset is missing browser_download_url")
+        raise ValueError(
+            "Latest pinmame-score-parser release asset is missing browser_download_url")
 
     fingerprint = _release_fingerprint(release_payload, asset).lower()
     needs_download = not ROMS_JSON_PATH.exists()

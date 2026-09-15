@@ -1049,7 +1049,8 @@ def decode_crowned_datetime_entry(
         initials=initials,
         extra_lines=[
             f"CROWNED FOR THE {crown_count}{ordinal_suffix} TIME",
-            f"{data_bytes[3]} {month}, {data_bytes[0] * 256 + data_bytes[1]} {hour}:{data_bytes[5]:02d}{suffix}",
+            f"{data_bytes[3]} {month}, {data_bytes[0] * 256 + data_bytes[1]} "
+            f"{hour}:{data_bytes[5]:02d}{suffix}",
         ],
     )
 
@@ -1087,7 +1088,8 @@ def decode_datetime_entry(
         rank=entry["rank"],
         initials=initials,
         extra_lines=[
-            f"{data_bytes[3]} {month}, {data_bytes[0] * 256 + data_bytes[1]} {hour}:{data_bytes[5]:02d}{suffix}",
+            f"{data_bytes[3]} {month}, {data_bytes[0] * 256 + data_bytes[1]} "
+            f"{hour}:{data_bytes[5]:02d}{suffix}",
         ],
         multiline=True,
     )
@@ -1743,8 +1745,10 @@ if __name__ == "__main__":
         "simp": "/home/.../tables/The Simpsons (Data East 1990)",
         "hook_501":"/home/.../tables/Hook (Data East 1992)/pinmame/nvram/hook_501.nv",
         "eballdlx":"/home/.../tables/Eight Ball Deluxe (Bally 1981)/pinmame/nvram/eballdlx.nv",
-        "bttf_a27": "/home/.../tables/Back To The Future (Data East 1990)/pinmame/nvram/bttf_a27.nv",
-        "mtl_180hc": "/home/.../tables/Metallica Premium Monsters (Stern 2013)/pinmame/nvram/mtl_180h.nv",
+        "bttf_a27":
+            "/home/.../tables/Back To The Future (Data East 1990)/pinmame/nvram/bttf_a27.nv",
+        "mtl_180hc":
+            "/home/.../tables/Metallica Premium Monsters (Stern 2013)/pinmame/nvram/mtl_180h.nv",
     }
 
     for rom_name, game_dir in rom_files.items():

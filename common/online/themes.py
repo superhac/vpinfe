@@ -145,7 +145,8 @@ class ThemeRegistry:
 
         legacy_url = str(entry.get("theme_manifest_url") or "").strip()
         chosen = theme_releases.fallback_release()
-        return chosen, legacy_url or theme_releases.raw_url(base_url, "HEAD", "manifest.json"), index
+        manifest_url = legacy_url or theme_releases.raw_url(base_url, "HEAD", "manifest.json")
+        return chosen, manifest_url, index
 
     def load_theme_manifests(self, default_only: bool = False) -> None:
         if not self.themes_index:

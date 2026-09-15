@@ -40,8 +40,8 @@ def _candidates(section: str, key: str) -> list[tuple[str, str]]:
     for pair in (entry.legacy if entry else ()):
         if pair not in out:
             out.append(pair)
-    for pair in ((section, key), *((s, k) for s, k in
-                                   [(section, sp) for sp in config_schema.spellings(section, key)])):
+    asked = config_schema.spellings(section, key)
+    for pair in ((section, key), *((section, spelling) for spelling in asked)):
         if pair not in out:
             out.append(pair)
     return out
@@ -180,11 +180,13 @@ class SettingsConfig:
             rar_tool_path=cfg_get(source, "Settings", "rartoolpath", "").strip(),
             theme=theme,
             startup_collection=cfg_get(source, "Settings", "startup_collection", "").strip(),
-            auto_update_media_on_startup=cfg_bool(source, "Settings", "autoupdatemediaonstartup", False),
+            auto_update_media_on_startup=cfg_bool(
+                source, "Settings", "autoupdatemediaonstartup", False),
             mute_audio=cfg_bool(source, "Settings", "muteaudio", False),
             splashscreen=cfg_bool(source, "Settings", "splashscreen", False),
             chrome_options=cfg_get(source, "Settings", "chromeoptions", ""),
-            disable_default_chrome_options=cfg_bool(source, "Settings", "disabledefaultchromeoptions", False),
+            disable_default_chrome_options=cfg_bool(
+                source, "Settings", "disabledefaultchromeoptions", False),
             hide_quit_button=cfg_bool(source, "Settings", "MMhideQuitButton", False),
             restore_last_table=cfg_bool(source, "Settings", "restorelasttable", True),
             # Canonical section, not the "Settings" alias the rest of these carry: this
@@ -215,12 +217,19 @@ class MediaConfig:
             asset_sources=tuple(cfg_list(source, "media", "asset_sources")),
             playfield_variant=(cfg_get(source, "Media", "playfieldvariant", "table").strip().lower()
                             or "table"),
-            playfield_resolution=cfg_get(source, "Media", "playfieldresolution", "4k").strip().lower() or "4k",
-            playfield_video_resolution=cfg_get(source, "Media", "playfieldvideoresolution", "1k").strip().lower() or "1k",
-            playfield_media_priority=_media_priority(source, "playfieldmediapriority", ("image", "video"), "video"),
-            bg_media_priority=_media_priority(source, "bgmediapriority", ("image", "video"), "video"),
-            dmd_media_priority=_media_priority(source, "dmdmediapriority", ("image", "video"), "video"),
-            realdmd_media_priority=_media_priority(source, "realdmdmediapriority", ("standard", "color"), "color"),
+            playfield_resolution=(
+                cfg_get(source, "Media", "playfieldresolution", "4k").strip().lower() or "4k"),
+            playfield_video_resolution=(
+                cfg_get(source, "Media", "playfieldvideoresolution", "1k").strip().lower()
+                or "1k"),
+            playfield_media_priority=_media_priority(
+                source, "playfieldmediapriority", ("image", "video"), "video"),
+            bg_media_priority=_media_priority(
+                source, "bgmediapriority", ("image", "video"), "video"),
+            dmd_media_priority=_media_priority(
+                source, "dmdmediapriority", ("image", "video"), "video"),
+            realdmd_media_priority=_media_priority(
+                source, "realdmdmediapriority", ("standard", "color"), "color"),
             playfield_media_rotation=_media_rotation(
                 cfg_get(source, "Media", "playfieldmediarotation", "auto")),
         )

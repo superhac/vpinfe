@@ -854,13 +854,13 @@ CI runs it four ways:
 
 - **Advisory over the whole tree.** Reports and does not fail. What it reports is legacy line
   length, and the Manager UI. It is a visible debt register, not a gate.
-- **Blocking on `tests/`.** The test packages were taken to zero findings and every file in
-  them is checked, new or not. The tests are the foundation the rest of the cleanup is done
-  against, so they are the one tree that is not allowed to drift.
-- **Blocking on the `N` rules, everywhere we write Python.** `apps`, `common`, `console`,
-  `extensions`, `frontend`, `httpapi`, `cli.py` and `main.py`, at zero. Naming went to zero
-  ahead of line length, so it gets its own step rather than waiting for `common/` and
-  `frontend/` to be clean enough to join the one above. `N` does not see a PascalCase
+- **Blocking on every package.** `tests`, `apps`, `common`, `console`, `extensions`,
+  `frontend` and `httpapi` are at zero findings and every file in them is checked, new or
+  not. A package joins this step when its line-length debt is paid off, and does not leave
+  it again - that is what stops the sweep that cleaned it from decaying.
+- **Blocking on the `N` rules, everywhere we write Python.** The packages above plus
+  `cli.py` and `main.py`. It is a separate step only because those two still carry
+  line-length debt; naming is at zero for them either way. `N` does not see a PascalCase
   dataclass field, so `tests/invariants/test_python_is_snake_case.py` states the whole rule.
 - **Blocking on newly added files.** Any `.py` file added in a PR must be clean. This is what
   "get it right going forward" means in practice: new code is born compliant, and existing

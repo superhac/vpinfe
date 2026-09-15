@@ -168,7 +168,8 @@ def load_theme_option_schema(
         option_type = _normalize_option_type(raw_option.get("type"))
         option = dict(raw_option)
         option["key"] = key
-        option["name"] = str(raw_option.get("name") or raw_option.get("label") or key).strip() or key
+        named = raw_option.get("name") or raw_option.get("label") or key
+        option["name"] = str(named).strip() or key
         option["description"] = str(raw_option.get("description") or "").strip()
         option["type"] = option_type
         if option_type == "select":

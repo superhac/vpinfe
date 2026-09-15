@@ -247,7 +247,8 @@ def _find_vpx_file(game_dir: Path, preferred_filename: str = "") -> Path:
 
 
 def _find_directb2s_file(game_dir: Path, preferred_stem: str = "") -> Path | None:
-    b2s_files = sorted(path for path in game_dir.iterdir() if path.is_file() and path.suffix.lower() == ".directb2s")
+    b2s_files = sorted(path for path in game_dir.iterdir()
+                       if path.is_file() and path.suffix.lower() == ".directb2s")
     if not b2s_files:
         return None
 
@@ -260,7 +261,8 @@ def _find_directb2s_file(game_dir: Path, preferred_stem: str = "") -> Path | Non
 
 
 def _find_ini_file(game_dir: Path, preferred_stem: str = "") -> Path | None:
-    ini_files = sorted(path for path in game_dir.iterdir() if path.is_file() and path.suffix.lower() == ".ini")
+    ini_files = sorted(path for path in game_dir.iterdir()
+                       if path.is_file() and path.suffix.lower() == ".ini")
     if not ini_files:
         return None
 

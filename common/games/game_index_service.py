@@ -17,6 +17,10 @@ class GameIndex:
     searchable: list[tuple[str, dict]] = field(default_factory=list)
 
 
+# What a typed word is matched against. Named once because the index builds this blob
+# and an ad-hoc search rebuilds it, and two lists here would search different fields.
+_SEARCHABLE = ("name", "filename", "manufacturer", "year", "rom")
+
 _index = GameIndex()
 _loaded = False
 _missing_loaded = False
@@ -47,8 +51,7 @@ def _build_index(rows: list[dict], missing_rows: list[dict] | None = None) -> Ga
             by_game_id[str(game_id)] = row
 
         search_blob = " ".join(
-            str(row.get(key, "") or "")
-            for key in ("name", "filename", "manufacturer", "year", "rom")
+            str(row.get(key, "") or "") for key in _SEARCHABLE
         ).lower()
         searchable.append((search_blob, row))
 
@@ -130,7 +133,7 @@ def search_rows(term: str, *, limit: int = 20, rows: list[dict] | None = None) -
         return []
     if rows is not None:
         searchable = [
-            (" ".join(str(row.get(key, "") or "") for key in ("name", "filename", "manufacturer", "year", "rom")).lower(), row)
+            (" ".join(str(row.get(key, "") or "") for key in _SEARCHABLE).lower(), row)
             for row in rows
         ]
     else:

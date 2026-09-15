@@ -54,6 +54,9 @@ _PUP_MARKER_GLOBS = ("*option*.bat", "*screen*.bat")
 _PUP_FALLBACK_MIN_SUBDIRS = 10
 _PUP_FALLBACK_MIN_VIDEOS = 10
 
+_RAR_TOOL_MISSING = ("RAR extraction requires the 'unar' or 'unrar' tool to be "
+                     "installed")
+
 
 @dataclass(frozen=True)
 class SourceEntry:
@@ -326,7 +329,8 @@ def rar_tool_hint() -> str:
     if sys.platform == "darwin":
         how = "install it (for example, brew install unar)"
     else:
-        how = "install it from your distribution's package manager (usually the 'unar' or 'unrar' package)"
+        how = ("install it from your distribution's package manager "
+               "(usually the 'unar' or 'unrar' package)")
     return (f"RAR support needs the 'unar' or 'unrar' tool — {how}, "
             "or set the RAR tool path in Configuration.")
 
@@ -420,7 +424,8 @@ def _analyze_entries(
             claimed.add(e.path)
             has_game = True
             vpx_dirs.add(_parent(e.arcname))
-            assets.append(DetectedAsset("table", "Table", (e,), size=e.size, detail=_basename(e.arcname)))
+            assets.append(DetectedAsset("table", "Table", (e,),
+                                        size=e.size, detail=_basename(e.arcname)))
 
     # 1b. Game metadata — bundle-scoped only: a .info beside a claimed .vpx. A lone
     # .info stays unrecognized (wholesale metadata replacement is never inferred).
@@ -434,7 +439,8 @@ def _analyze_entries(
     for e in list(unclaimed()):
         if _suffix(e.arcname) == ".directb2s":
             claimed.add(e.path)
-            assets.append(DetectedAsset("backglass", "Backglass", (e,), size=e.size, detail=_basename(e.arcname)))
+            assets.append(DetectedAsset("backglass", "Backglass", (e,),
+                                        size=e.size, detail=_basename(e.arcname)))
 
     # Subtree claimers run before loose-file claimers so files inside a pack are not grabbed loose.
     # 3. AltSound
@@ -470,7 +476,8 @@ def _analyze_entries(
     for e in list(unclaimed()):
         if _suffix(e.arcname) in _SERUM_SUFFIXES:
             claimed.add(e.path)
-            assets.append(DetectedAsset("altcolor_serum", "Serum Color", (e,), size=e.size, detail=_basename(e.arcname)))
+            assets.append(DetectedAsset("altcolor_serum", "Serum Color", (e,),
+                                        size=e.size, detail=_basename(e.arcname)))
     vni_by_dir: dict[str, list[SourceEntry]] = {}
     for e in unclaimed():
         if _suffix(e.arcname) in {".vni", ".pal", ".pac"}:
@@ -495,7 +502,8 @@ def _analyze_entries(
         for e in list(unclaimed()):
             if _suffix(e.arcname) == ".zip":
                 claimed.add(e.path)
-                assets.append(DetectedAsset("rom", "ROM", (e,), size=e.size, detail=_basename(e.arcname)))
+                assets.append(DetectedAsset("rom", "ROM", (e,),
+                                            size=e.size, detail=_basename(e.arcname)))
 
     # 7b. Patch. A .dif is a delta against one exact base table, not an installable
     # artifact - it is
@@ -510,7 +518,8 @@ def _analyze_entries(
     for e in list(unclaimed()):
         if _suffix(e.arcname) == ".ini":
             claimed.add(e.path)
-            assets.append(DetectedAsset("ini", "Table INI", (e,), size=e.size, detail=_basename(e.arcname)))
+            assets.append(DetectedAsset("ini", "Table INI", (e,),
+                                        size=e.size, detail=_basename(e.arcname)))
 
     # 8b. The author's own notes - readme* any extension, and .nfo. Before media,
     # so a readme.png is the notes image, not wheel art. Narrow by design: a
@@ -569,7 +578,8 @@ def _find_pup_roots_by_shape(entries: list[SourceEntry]) -> list[str]:
             videos[root] = videos.get(root, 0) + 1
     roots = [
         root for root, dirs in subdirs.items()
-        if len(dirs) >= _PUP_FALLBACK_MIN_SUBDIRS and videos.get(root, 0) >= _PUP_FALLBACK_MIN_VIDEOS
+        if len(dirs) >= _PUP_FALLBACK_MIN_SUBDIRS
+        and videos.get(root, 0) >= _PUP_FALLBACK_MIN_VIDEOS
     ]
     return _dedupe_roots(roots)
 
@@ -676,8 +686,8 @@ def analyze_path(path: Path) -> AnalysisResult:
             entries = source.entries()
         except _rar_exec_errors() as exc:
             logger.warning("RAR backend unavailable: %s", exc)
-            return AnalysisResult(source.kind, source.name, (), False,
-                                  error="RAR extraction requires the 'unar' or 'unrar' tool to be installed")
+            return AnalysisResult(
+                source.kind, source.name, (), False, error=_RAR_TOOL_MISSING)
         except Exception:
             logger.exception("Failed to list source: %s", path)
             return AnalysisResult(

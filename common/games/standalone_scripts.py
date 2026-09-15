@@ -113,7 +113,8 @@ class StandaloneScripts:
                 # shown would not be the one that ran.
                 state, patch = state_of(vpx_path, vpx_file_vbs_hash, self.hashes)
                 if state == ALREADY:
-                    logger.info("A .vbs sidecar file already exists for that table. Assuming it is a patch.")
+                    logger.info("A .vbs sidecar file already exists for that table. "
+                                "Assuming it is a patch.")
                     try:
                         meta.set_table_value(vpx_file_name, 'patch_applied', True)
                     except Exception:

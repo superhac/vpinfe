@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ipaddress
 import socket
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
@@ -16,6 +15,7 @@ from common.config_access import (
     VPinPlayConfig,
     cfg_set,
 )
+from common.host.addresses import usable_ipv4
 from common.values import is_truthy
 
 if TYPE_CHECKING:
@@ -38,19 +38,12 @@ def _managerui_remote_urls(config: ConfigSource) -> list[str]:
     urls: list[str] = []
     seen_hosts: set[str] = set()
 
-    def is_usable_ipv4(value: str) -> bool:
-        try:
-            ip = ipaddress.ip_address((value or "").strip())
-        except ValueError:
-            return False
-        return ip.version == 4 and not ip.is_loopback and not ip.is_unspecified and not ip.is_link_local
-
     def detect_primary_ipv4() -> str:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
                 sock.connect(("8.8.8.8", 80))
                 candidate = str(sock.getsockname()[0]).strip()
-                return candidate if is_usable_ipv4(candidate) else ""
+                return candidate if usable_ipv4(candidate) else ""
         except Exception:
             return ""
 
@@ -76,7 +69,7 @@ def _managerui_remote_urls(config: ConfigSource) -> list[str]:
                 if family != socket.AF_INET:
                     continue
                 ip = str(sockaddr[0]).strip()
-                if not is_usable_ipv4(ip):
+                if not usable_ipv4(ip):
                     continue
                 add_host(ip)
         except Exception:
@@ -113,19 +106,12 @@ def _managerui_page_urls(config: ConfigSource, page: str) -> list[str]:
     urls: list[str] = []
     seen_hosts: set[str] = set()
 
-    def is_usable_ipv4(value: str) -> bool:
-        try:
-            ip = ipaddress.ip_address((value or "").strip())
-        except ValueError:
-            return False
-        return ip.version == 4 and not ip.is_loopback and not ip.is_unspecified and not ip.is_link_local
-
     def detect_primary_ipv4() -> str:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
                 sock.connect(("8.8.8.8", 80))
                 candidate = str(sock.getsockname()[0]).strip()
-                return candidate if is_usable_ipv4(candidate) else ""
+                return candidate if usable_ipv4(candidate) else ""
         except Exception:
             return ""
 
@@ -151,7 +137,7 @@ def _managerui_page_urls(config: ConfigSource, page: str) -> list[str]:
                 if family != socket.AF_INET:
                     continue
                 ip = str(sockaddr[0]).strip()
-                if not is_usable_ipv4(ip):
+                if not usable_ipv4(ip):
                     continue
                 add_host(ip)
         except Exception:

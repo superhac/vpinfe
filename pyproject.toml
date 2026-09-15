@@ -17,6 +17,10 @@ select = ["E", "W", "F", "I", "N", "UP", "B"]
 "tests/games/test_score_parser.py" = ["E402"]
 # NiceGUI widget chains. Wrapping one splits it across four lines. Pages only.
 "managerui/pages/*.py" = ["E501"]
+# Three scripts in string literals - sh, PowerShell, batch. A continuation is part of
+# each of those grammars, so a wrapped line is a different script. The file holds no
+# Python but the f-string wrappers, so the lifted rule cannot hide one.
+"common/online/update_scripts.py" = ["E501"]
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI's DI is calls in argument defaults, which B008 is right to flag anywhere else.

@@ -262,7 +262,8 @@ def game_type(game: GameRecord) -> str:
 
 def game_manufacturer(game: GameRecord) -> str:
     meta = normalize_meta(getattr(game, "meta_config", {}))
-    return str(first_meta_value(meta, ("Info", "Manufacturer"), ("VPSdb", "manufacturer"), default="") or "")
+    return str(first_meta_value(
+        meta, ("Info", "Manufacturer"), ("VPSdb", "manufacturer"), default="") or "")
 
 
 def game_year(game: GameRecord) -> str:

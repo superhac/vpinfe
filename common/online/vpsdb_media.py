@@ -140,7 +140,9 @@ class VPSMediaDownloader:
             return None
 
         remote_md5 = metadata.get(f"{key}_md5", "")
-        actual_path = filename if self.file_exists(filename) else (default_filename if self.file_exists(default_filename) else None)
+        actual_path = filename if self.file_exists(filename) else None
+        if actual_path is None and self.file_exists(default_filename):
+            actual_path = default_filename
 
         if actual_path:
             if not self.is_ours(actual_path, remote_md5):
@@ -213,7 +215,10 @@ class VPSMediaDownloader:
         process(game_media.get(self.playfieldvideoresolution),
                 REMOTE_KEYS["scoreview_video"], game.dmd_video_path, str(scoreview_video))
         if self.playfieldvariant == "table":
-            process(game_media.get(self.playfieldvideoresolution), "table_video", game.playfield_video_path, str(default_media_path(game_dir, "playfield_video", self.playfieldvariant)))
+            process(game_media.get(self.playfieldvideoresolution), "table_video",
+                    game.playfield_video_path,
+                    str(default_media_path(game_dir, "playfield_video",
+                                           self.playfieldvariant)))
         process(
             game_media, "audio", game.audio_path,
             str(default_media_path(game_dir, "audio", self.playfieldvariant)))

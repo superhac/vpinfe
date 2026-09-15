@@ -530,7 +530,8 @@ class API:
         Returns the count of filtered games.
         """
         logger.debug(
-            "Applying filters: letter=%s, theme=%s, type=%s, manufacturer=%s, year=%s, rating=%s, rating_or_higher=%s",
+            "Applying filters: letter=%s, theme=%s, type=%s, manufacturer=%s, "
+            "year=%s, rating=%s, rating_or_higher=%s",
             letter,
             theme,
             game_type,
