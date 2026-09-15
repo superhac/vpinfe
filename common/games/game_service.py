@@ -7,19 +7,24 @@ import logging
 import os
 import re
 import shutil
+from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
+from typing import Any
 
 from common import jobs
 from common.config_access import SettingsConfig
 from common.config_store import ConfigStore
 from common.games import game_index_service, game_repository, info_maintenance, metadata_service
 from common.games.collection_store import CollectionStore
+from common.games.game import GameRecord
 from common.games.game_metadata import game_vps_id, vpinfe_section
 from common.games.game_repository import refresh_game
 from common.games.info_file import VPINFE_SECTION
+from common.games.info_maintenance import RestoreResult, UpgradeResult
 from common.games.tables import TABLES_KEY, default_table, recorded_default, table_entries
 from common.games.vpx_parser import VPXParser
+from common.jobs import LogCallback, ProgressCallback
 from common.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, get_games_path
 
 logger = logging.getLogger("vpinfe.common.games.game_service")
@@ -32,7 +37,7 @@ def _fresh_config() -> ConfigStore:
     return ConfigStore(str(VPINFE_INI_PATH))
 
 
-def normalize_game_rating(value) -> int:
+def normalize_game_rating(value: Any) -> int:
     try:
         normalized = int(float(value))
     except (TypeError, ValueError):
@@ -81,7 +86,7 @@ def add_game_to_collection(game_id: str, collection_name: str) -> bool:
         return False
 
 
-def update_info_section(game_dir: Path, section: str, key: str, value) -> bool:
+def update_info_section(game_dir: Path, section: str, key: str, value: Any) -> bool:
     try:
         info_file = game_dir / f"{game_dir.name}.info"
         if not info_file.exists():
@@ -98,11 +103,12 @@ def update_info_section(game_dir: Path, section: str, key: str, value) -> bool:
         return False
 
 
-def update_vpinfe_setting(game_dir: Path, key: str, value) -> bool:
+def update_vpinfe_setting(game_dir: Path, key: str, value: Any) -> bool:
     return update_info_section(game_dir, VPINFE_SECTION, key, value)
 
 
-def update_table_vpinfe_setting(game_dir: Path, table_id: str, key: str, value) -> bool:
+def update_table_vpinfe_setting(game_dir: Path, table_id: str, key: str,
+                                value: Any) -> bool:
     """One table's own override, beside what was discovered about it, not on top of it.
 
     Under the table entry's own `vpinfe` key. A rebuild refreshes only what the parser
@@ -133,7 +139,7 @@ def update_table_vpinfe_setting(game_dir: Path, table_id: str, key: str, value) 
         return False
 
 
-def update_user_setting(game_dir: Path, key: str, value) -> bool:
+def update_user_setting(game_dir: Path, key: str, value: Any) -> bool:
     return update_info_section(game_dir, "User", key, value)
 
 
@@ -172,7 +178,7 @@ def find_vps_release(vps_file_id: str) -> dict:
     return {}
 
 
-def matched_vps_entry(game) -> dict:
+def matched_vps_entry(game: GameRecord) -> dict:
     """The catalog entry this game is matched to, effective id first."""
     wanted = game_vps_id(game)
     if not wanted:
@@ -457,13 +463,19 @@ def extract_vbs(game_dir: Path, vpx_filename: str, table_id: str = "") -> dict:
     return {'vbs_path': str(vbs_file), 'vbs_exists': vbs_file.is_file()}
 
 
-def _scan(job, *args, **kwargs):
+def _scan(job: jobs.Job, download_media: bool, update_all: bool,
+          game_name: str | None, user_media: bool) -> dict[str, int]:
     return metadata_service.build_metadata(
-        *args, iniconfig=_fresh_config(),
-        progress_cb=job.progress, log_cb=job.log, **kwargs)
+        download_media=download_media, update_all=update_all, game_name=game_name,
+        user_media=user_media, iniconfig=_fresh_config(),
+        progress_cb=job.progress, log_cb=job.log)
 
 
-def build_metadata(*args, progress_cb=None, log_cb=None, job=None, **kwargs):
+def build_metadata(download_media: bool = True, update_all: bool = True,
+                   game_name: str | None = None, user_media: bool = False,
+                   progress_cb: ProgressCallback | None = None,
+                   log_cb: LogCallback | None = None,
+                   job: jobs.Job | None = None) -> dict[str, int]:
     """A library scan is a job wherever it was started from.
 
     Routing the Manager UI's own scan through the registry costs it nothing - it
@@ -476,40 +488,41 @@ def build_metadata(*args, progress_cb=None, log_cb=None, job=None, **kwargs):
     unchanged.
     """
     if job is not None:
-        return _scan(job, *args, **kwargs)
+        return _scan(job, download_media, update_all, game_name, user_media)
     with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as tracked:
-        return _scan(tracked, *args, **kwargs)
+        return _scan(tracked, download_media, update_all, game_name, user_media)
 
 
-def info_maintenance_counts(reload: bool = False):
+def info_maintenance_counts(reload: bool = False) -> dict[str, int]:
     """What the Tables page needs to decide whether to offer upgrade or a restore."""
     return game_repository.info_maintenance_counts(reload=reload)
 
 
-def unreadable_games():
+def unreadable_games() -> list[dict[str, str]]:
     return game_repository.unreadable_games()
 
 
-def pending_upgrade_game_names():
+def pending_upgrade_game_names() -> list[str]:
     return game_repository.pending_upgrade_game_names()
 
 
-def newest_backup_stamp():
+def newest_backup_stamp() -> str:
     return game_repository.newest_backup_stamp()
 
 
-def collections_restorable():
+def collections_restorable() -> bool:
     """Whether a newer VPinFE left a collections file this build can put back."""
     from common.games.collection_store import restorable_collections_backup
 
     return bool(restorable_collections_backup(CONFIG_DIR))
 
 
-def restorable_game_names():
+def restorable_game_names() -> list[str]:
     return game_repository.restorable_game_names()
 
 
-def _as_a_job(work, progress_cb, log_cb, job):
+def _as_a_job[T](work: Callable[[jobs.Job], T], progress_cb: ProgressCallback | None,
+                 log_cb: LogCallback | None, job: jobs.Job | None) -> T:
     """Run one pass over the library's `.info` files, as a job either way.
 
     `job` is for a caller that started one already - the API submits to the registry and
@@ -531,25 +544,30 @@ def _as_a_job(work, progress_cb, log_cb, job):
     return result
 
 
-def upgrade_info(progress_cb=None, log_cb=None, *, job=None, **kwargs):
+def upgrade_info(progress_cb: ProgressCallback | None = None,
+                 log_cb: LogCallback | None = None, *, job: jobs.Job | None = None,
+                 game_name: str | None = None) -> UpgradeResult:
     """Upgrade every game's .info in one pass."""
     return _as_a_job(
         lambda owned: info_maintenance.upgrade_library(
-            get_games_path(), progress_cb=owned.progress, log_cb=owned.log, **kwargs),
+            get_games_path(), game_name=game_name,
+            progress_cb=owned.progress, log_cb=owned.log),
         progress_cb, log_cb, job)
 
 
-def restore_info(progress_cb=None, log_cb=None, *, job=None, **kwargs):
+def restore_info(progress_cb: ProgressCallback | None = None,
+                 log_cb: LogCallback | None = None, *, job: jobs.Job | None = None,
+                 game_name: str | None = None) -> RestoreResult:
     """Put back the .info files saved before upgrade, for every game that has one."""
     return _as_a_job(
         lambda owned: info_maintenance.restore_library(
-            get_games_path(), config_dir=CONFIG_DIR,
-            progress_cb=owned.progress, log_cb=owned.log, **kwargs),
+            get_games_path(), game_name=game_name, config_dir=CONFIG_DIR,
+            progress_cb=owned.progress, log_cb=owned.log),
         progress_cb, log_cb, job)
 
 
-def apply_vpx_patches(*args, **kwargs):
-    return metadata_service.apply_vpx_patches(*args, iniconfig=_fresh_config(), **kwargs)
+def apply_vpx_patches(progress_cb: ProgressCallback | None = None) -> None:
+    metadata_service.apply_vpx_patches(progress_cb=progress_cb, iniconfig=_fresh_config())
 
 
 # What a game's `Info` block holds, keyed by the name the wire uses. The block is

@@ -21,12 +21,14 @@ because the play lens and the management lens want different amounts of it.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
 from common import collation
 from common.games import collection_filters
-from common.games.collection_store import MANUAL_ORDER
+from common.games.collection_store import MANUAL_ORDER, CollectionStore
+from common.games.game import GameRecord, ScannedGame
 from common.games.game_identity import game_id
 from common.games.game_metadata import (
     game_rating,
@@ -61,7 +63,7 @@ class UnresolvableCollectionError(Exception):
     answers a different question, and does it silently.
     """
 
-    def __init__(self, name: str, axes) -> None:
+    def __init__(self, name: str, axes: Iterable[str]) -> None:
         self.name = name
         self.axes = list(axes)
         super().__init__(
@@ -88,28 +90,28 @@ class Entry:
     # A device's list is entries rather than games, and the frontend's sorts read these
     # off whatever they are handed. Forwarding beats teaching every sort both shapes.
     @property
-    def meta_config(self):
+    def meta_config(self) -> dict[str, Any] | None:
         return getattr(self.game, "meta_config", {})
 
     @property
-    def creation_time(self):
+    def creation_time(self) -> float | None:
         return getattr(self.game, "creation_time", None)
 
     # The folder name is the last fallback for a title, so a game whose .info names no
     # Title sorted as "" when the wheel re-sorted entries rather than games.
     @property
-    def game_dir_name(self):
+    def game_dir_name(self) -> str | None:
         return getattr(self.game, "game_dir_name", None)
 
 
-def _user_value(game, key, fallback=0):
+def _user_value(game: GameRecord, key: str, fallback: int = 0) -> int:
     try:
         return int(section(getattr(game, "meta_config", {}), "User").get(key, fallback) or 0)
     except (TypeError, ValueError):
         return fallback
 
 
-def _offerable(entry) -> bool:
+def _offerable(entry: dict) -> bool:
     """Whether the play lens may hand this table to a frontend.
 
     `hidden` is a choice - a patch base kept on disk without being playable. An
@@ -119,7 +121,7 @@ def _offerable(entry) -> bool:
     return entry.get("hidden") is not True and not entry.get(ABSENT_SINCE_KEY)
 
 
-def visible_entries(game) -> list[dict]:
+def visible_entries(game: ScannedGame) -> list[dict]:
     """A game's offerable tables, the default first and the rest by filename.
 
     Default first is what makes a member naming only a game deterministic: it takes the
@@ -147,7 +149,7 @@ def visible_entries(game) -> list[dict]:
     return head + rest
 
 
-def _unparsed_entry(game) -> list[dict]:
+def _unparsed_entry(game: ScannedGame) -> list[dict]:
     """The .vpx the scan found, for a game nothing has parsed yet.
 
     Its .info has no tables section - a folder that has never been through a metadata
@@ -161,7 +163,7 @@ def _unparsed_entry(game) -> list[dict]:
     return [{TABLE_ID_KEY: "", TABLE_FILENAME_KEY: os.path.basename(path)}]
 
 
-def _named_table(game, table_id: str) -> dict | None:
+def _named_table(game: GameRecord, table_id: str) -> dict | None:
     """The table a member named, unless it is hidden or its file is gone. Both are
     library-wide and beat a member: `hidden` exists so a patch base can stay on disk
     without being playable, and an absent file has nothing to launch."""
@@ -171,14 +173,16 @@ def _named_table(game, table_id: str) -> dict | None:
     return entry
 
 
-def _excluded(refs) -> tuple[set[str], set[str]]:
+def _excluded(refs: Iterable[dict]) -> tuple[set[str], set[str]]:
     """(whole games, individual tables) named by a collection's exclusions."""
     games = {r[MEMBER_GAME_KEY] for r in refs if MEMBER_TABLE_KEY not in r}
     tables = {r[MEMBER_TABLE_KEY] for r in refs if MEMBER_TABLE_KEY in r}
     return games, tables
 
 
-def _primary_key(order_by: str):
+# Any because the key's type is the field's: a title sorts as a tuple, a rating as an
+# int, a timestamp as a float, and there is no useful supertype a sort would accept.
+def _primary_key(order_by: str) -> Callable[[GameRecord], Any]:
     """The value a sort orders on, ascending in every case. Negating one here would put
     the field back to largest-first whatever `order.direction` says, which is the bug
     this shape exists to prevent - direction is applied once, by `_ordered`.
@@ -201,7 +205,7 @@ def _primary_key(order_by: str):
     return lambda game: collation.sort_key(game_title(game))
 
 
-def _tiebreak(entry) -> tuple:
+def _tiebreak(entry: Entry) -> tuple:
     """Title then table id, so a limited collection cuts the same rows every time."""
     return (game_title(entry.game).lower(), entry.table_id)
 
@@ -237,7 +241,7 @@ def order_games(games: list, order_by: str, descending: bool = False) -> list:
     return games
 
 
-def resolve_games(name: str, collections, games) -> list[Any]:
+def resolve_games(name: str, collections: CollectionStore, games: list[Any]) -> list[Any]:
     """The games a collection contains, for the management lens.
 
     Not the play lens: a game whose only .vpx is hidden, or which has none at all,
@@ -266,7 +270,7 @@ def resolve_games(name: str, collections, games) -> list[Any]:
 
     picked, seen = [], set()
 
-    def _add(game) -> None:
+    def _add(game: Any) -> None:
         # By object, for the reason `resolve._take` gives: an unscanned game has no id.
         if id(game) in seen or game_id(game) in dropped_games:
             return
@@ -293,7 +297,7 @@ def resolve_games(name: str, collections, games) -> list[Any]:
     order_by = order["by"] or DEFAULT_ORDER
     as_entries = {id(g): Entry(game=g, table={}, siblings=0) for g in picked + from_filters}
 
-    def _sorted(games, by, descending=False):
+    def _sorted(games: list[Any], by: str, descending: bool = False) -> list[Any]:
         return [e.game for e in
                 _ordered([as_entries[id(g)] for g in games], by, descending)]
 
@@ -305,7 +309,7 @@ def resolve_games(name: str, collections, games) -> list[Any]:
     return result[:limit] if limit else result
 
 
-def resolve(name: str, collections, games) -> list[Entry]:
+def resolve(name: str, collections: CollectionStore, games: list[Any]) -> list[Entry]:
     """The ordered entries a collection contains, one per game.
 
     `games` is the library. A game offering several tables contributes the one step 3
@@ -331,7 +335,7 @@ def resolve(name: str, collections, games) -> list[Entry]:
     ordered: list[Entry] = []
     seen: set[tuple[int, str]] = set()
 
-    def _take(game, entry) -> None:
+    def _take(game: Any, entry: dict) -> None:
         table_id = str(entry.get(TABLE_ID_KEY, ""))
         if table_id in dropped_tables or game_id(game) in dropped_games:
             return

@@ -16,13 +16,16 @@ shape is the caller's business, because the filters are its own vocabulary.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 from urllib.parse import quote
 
 from common import service_errors
 from common.games import entry_lens, game_identity, game_lens, game_repository, table_lens
 from common.games.collection_filters import UNCONSTRAINED, group_key, group_kind
 from common.games.collection_resolver import (
+    Entry,
     UnresolvableCollectionError,
     resolve,
     resolve_games,
@@ -32,6 +35,7 @@ from common.games.collection_store import (
     MANUAL_ORDER,
     PAGING_GROUPS,
     SORT_LABELS,
+    CollectionStore,
     DuplicateMemberError,
     normalize_paging_group,
 )
@@ -50,7 +54,7 @@ from common.values import is_truthy
 logger = logging.getLogger("vpinfe.common.games.collection_ops")
 
 
-def _many_out(value) -> list[str]:
+def _many_out(value: object) -> list[str]:
     """A stored criterion as the list a reader wants.
 
     Storage joins several values with a comma and the matcher splits them again, so this
@@ -91,7 +95,7 @@ def _resource_for(row: dict) -> dict:
     # for a collection that is ordered by anything else.
     order = get_collections_manager().get_order(name)
     if row["is_filter"]:
-        raw = get_collections_manager().get_filters(name)
+        raw = get_collections_manager().get_filters(name) or {}
         filters = {
             "letter": _many_out(raw.get("letter", "All")),
             "theme": _many_out(raw.get("theme", "All")),
@@ -134,7 +138,7 @@ def _row_or_refuse(name: str) -> dict:
         t("error.collections.no_collection_named", name=(name)))
 
 
-def _named_or_refuse(manager, name: str) -> None:
+def _named_or_refuse(manager: CollectionStore, name: str) -> None:
     if name not in manager.get_collections_name():
         raise service_errors.NotFoundError(
             t("error.collections.no_collection_named", name=(name)))
@@ -159,7 +163,7 @@ def _one_table_of(game_id: str, table_id: str) -> None:
             t("error.collections.no_table", game_id=(game_id), table_id=(table_id)))
 
 
-def _resolved(name: str):
+def _resolved(name: str) -> list[Entry]:
     """The collection's entries, or a refusal naming what this build could not read.
 
     Refusing beats resolving what is left: dropping a criterion answers a different
@@ -173,7 +177,7 @@ def _resolved(name: str):
             str(exc), details={"unknown_filters": exc.axes}) from exc
 
 
-def _resolved_games(name: str, manager=None):
+def _resolved_games(name: str, manager: CollectionStore | None = None) -> list[Any]:
     try:
         return resolve_games(name, manager or get_collections_manager(),
                              list(game_repository.catalog().values()))
@@ -319,7 +323,7 @@ def image_path(name: str) -> Path:
 # -- writes -----------------------------------------------------------------------
 
 
-def _known_games_or_refuse(games) -> None:
+def _known_games_or_refuse(games: Iterable[str]) -> None:
     known = set(game_repository.catalog())
     unknown = [game_id for game_id in games if game_id not in known]
     if unknown:
@@ -327,13 +331,15 @@ def _known_games_or_refuse(games) -> None:
                                           details={"ids": unknown})
 
 
-def _write_criteria(manager, name: str, criteria: dict, order: dict) -> None:
+def _write_criteria(manager: CollectionStore, name: str, criteria: dict,
+                    order: dict) -> None:
     """Store a criteria block and the order it carries. One writer for create and patch,
     so the two cannot disagree about which keys a block holds."""
     manager.make_filter_collection(name, criteria, order=order)
 
 
-def create(name: str, games=(), description: str = "", criteria: dict | None = None,
+def create(name: str, games: Iterable[str] = (), description: str = "",
+           criteria: dict | None = None,
            order: dict | None = None) -> dict:
     """Criteria and hand-picked games together, if that is what was asked for: the two are
     combinable and the kind is derived from what is stored."""
@@ -493,7 +499,7 @@ def keep_result(name: str) -> dict:
     return resource(name)
 
 
-def patch(name: str, *, new_name: str | None = None, games=None,
+def patch(name: str, *, new_name: str | None = None, games: Iterable[str] | None = None,
           criteria: dict | None = None, criteria_order: dict | None = None,
           limit: int | None = None, clear_limit: bool = False,
           description: str | None = None, image: str | None = None,
@@ -548,7 +554,7 @@ def patch(name: str, *, new_name: str | None = None, games=None,
     return resource(final)
 
 
-def _rename(manager, name: str, wanted: str) -> str:
+def _rename(manager: CollectionStore, name: str, wanted: str) -> str:
     new_name = wanted.strip()
     if not new_name:
         raise service_errors.RefusedError(
@@ -560,7 +566,8 @@ def _rename(manager, name: str, wanted: str) -> str:
     return new_name
 
 
-def _set_order_fields(manager, name: str, order_by: str | None, direction: str | None,
+def _set_order_fields(manager: CollectionStore, name: str, order_by: str | None,
+                      direction: str | None,
                       paging_group: str | None) -> None:
     order = manager.get_order(name)
     by = order_by or order["by"]
@@ -588,7 +595,7 @@ def _set_order_fields(manager, name: str, order_by: str | None, direction: str |
                       else order.get("paging_group"))
 
 
-def set_arrangement(name: str, games) -> None:
+def set_arrangement(name: str, games: list[str]) -> None:
     """The whole list, in order, atomically.
 
     Every id must already be a member: reordering is not a way to add one, and a list that

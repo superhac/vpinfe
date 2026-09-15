@@ -20,7 +20,7 @@ from common.games.info_migration import (
     replace_atomic,
     restorable_backup,
 )
-from common.jobs import JobReporter
+from common.jobs import JobReporter, LogCallback, ProgressCallback
 
 logger = logging.getLogger("vpinfe.common.games.info_maintenance")
 
@@ -41,7 +41,7 @@ class RestoreResult(TypedDict):
     collections_restored: bool
 
 
-def game_dirs(game_root, game_name: str | None = None) -> list[Path]:
+def game_dirs(game_root: str | Path, game_name: str | None = None) -> list[Path]:
     """Game folders under the root. Not load_games: that raises on the first bad `.info`."""
     root = Path(game_root)
     if not root.is_dir():
@@ -59,22 +59,22 @@ def _info_path(game_dir: Path) -> Path:
     return game_dir / f"{game_dir.name}.info"
 
 
-def pending_upgrade(game_dir) -> bool:
+def pending_upgrade(game_dir: str | Path) -> bool:
     """Whether this folder's `.info` still holds the 2.x shape. False if it cannot be read."""
-    game_dir = Path(game_dir)
-    if not _info_path(game_dir).exists():
+    folder = Path(game_dir)
+    if not _info_path(folder).exists():
         return False
     try:
-        return MetaConfig(str(_info_path(game_dir))).pending_migration
+        return MetaConfig(str(_info_path(folder))).pending_migration
     except (InvalidMetaConfigError, OSError):
         return False
 
 
 def upgrade_library(
-    game_root,
+    game_root: str | Path,
     game_name: str | None = None,
-    progress_cb=None,
-    log_cb=None,
+    progress_cb: ProgressCallback | None = None,
+    log_cb: LogCallback | None = None,
 ) -> UpgradeResult:
     """Upgrade every table's `.info` in one pass.
 
@@ -116,12 +116,12 @@ def upgrade_library(
 
 
 def restore_library(
-    game_root,
+    game_root: str | Path,
     game_name: str | None = None,
     max_schema: int = INFO_SCHEMA,
-    config_dir=None,
-    progress_cb=None,
-    log_cb=None,
+    config_dir: str | Path | None = None,
+    progress_cb: ProgressCallback | None = None,
+    log_cb: LogCallback | None = None,
 ) -> RestoreResult:
     """Put back the newest readable backup in every folder that has one.
 
@@ -174,7 +174,7 @@ def restore_library(
     return result
 
 
-def _restore_file(path, backup) -> None:
+def _restore_file(path: str | Path, backup: str | Path) -> None:
     """Put `backup` in place at `path`, keeping what is there now."""
     if Path(path).exists():
         copy_aside(str(path))

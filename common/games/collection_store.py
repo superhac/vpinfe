@@ -7,11 +7,13 @@ import json
 import logging
 import os
 import threading
+from collections.abc import Container, Iterable, Iterator
 from pathlib import Path
 
 from common import events
 from common.config_schema import PAGING_GROUP_ALIASES, PAGING_GROUPS
 from common.games import collection_filters
+from common.games.game import GameRecord
 from common.games.game_identity import game_id
 from common.games.game_metadata import (
     base_game_vps_id,
@@ -164,7 +166,7 @@ SORT_LABELS = {
 DIRECTION_LABELS = {"asc": "Ascending", "desc": "Descending"}
 
 
-def normalize_paging_group(value) -> str | None:
+def normalize_paging_group(value: object) -> str | None:
     """A paging choice as `sort`, `count`, or None for "follow the player".
 
     Anything unreadable becomes None rather than a guess: a collection that cannot say
@@ -177,7 +179,7 @@ def normalize_paging_group(value) -> str | None:
     return resolved if resolved in PAGING_GROUPS else None
 
 
-def normalize_direction(value) -> str:
+def normalize_direction(value: object) -> str:
     """A direction as `asc` or `desc`, whatever spelling it arrived in.
 
     The labels above are 2.x's stored spelling and still turn up in a criteria block, so
@@ -186,7 +188,7 @@ def normalize_direction(value) -> str:
     return "desc" if str(value or "").strip().lower().startswith("desc") else "asc"
 
 
-def _member_ref(value) -> dict | None:
+def _member_ref(value: object) -> dict | None:
     """One stored member as a ref, or None if there is nothing addressable in it."""
     if isinstance(value, str):
         value = value.strip()
@@ -203,7 +205,7 @@ def _member_ref(value) -> dict | None:
     return ref
 
 
-def _member_refs(values) -> list[dict]:
+def _member_refs(values: Iterable[object] | None) -> list[dict]:
     return [ref for ref in (_member_ref(v) for v in (values or [])) if ref]
 
 # What a filter collection stores, with the value meaning "unconstrained on this axis".
@@ -214,7 +216,7 @@ _FILTER_DEFAULTS = {
 }
 
 
-def _ini_schema(parser) -> int:
+def _ini_schema(parser: configparser.ConfigParser) -> int:
     """The highest version either reserved section declares, or 0 if none does.
 
     0 means "declares nothing", which `collections_schema` turns into None for a caller
@@ -335,7 +337,7 @@ class CollectionStore:
             raise ValueError(f"Collection {name!r} is builtin and cannot be edited")
         return record
 
-    def get_collections_name(self):
+    def get_collections_name(self) -> list[str]:
         return [r["name"] for r in self.records]
 
     def schema_version(self) -> int:
@@ -363,7 +365,7 @@ class CollectionStore:
         record = self._record(section)
         return record is not None and FILTERS_KEY in record
 
-    def is_filter_based(self, section: str):
+    def is_filter_based(self, section: str) -> bool:
         """The name most callers use. Derived, so a collection changes kind by gaining
         or losing criteria rather than by being told."""
         return self.has_filters(section)
@@ -375,7 +377,7 @@ class CollectionStore:
         record.pop(FILTERS_KEY, None)
         record.pop("type", None)
 
-    def get_filters(self, section: str):
+    def get_filters(self, section: str) -> dict | None:
         if not self.has_filters(section):
             return None
         stored = self._require(section).get("filters") or {}
@@ -514,7 +516,7 @@ class CollectionStore:
             return []
         return collection_filters.unknown_axes(record.get("filters"))
 
-    def get_members(self, section: str):
+    def get_members(self, section: str) -> list[str]:
         """The game ids a collection contains, in order and de-duplicated.
 
         The same game can appear more than once - two tables of it, at two positions -
@@ -527,10 +529,10 @@ class CollectionStore:
                 seen.append(ref[MEMBER_GAME_KEY])
         return seen
 
-    def get_all(self):
+    def get_all(self) -> dict[str, list[str]]:
         return {name: self.get_members(name) for name in self.get_collections_name()}
 
-    def add_collection(self, section: str, members=None) -> None:
+    def add_collection(self, section: str, members: Iterable[object] | None = None) -> None:
         """Add a collection whose membership is an explicit list of games."""
         if self._record(section) is not None:
             raise ValueError(f"Section '{section}' already exists")
@@ -540,21 +542,21 @@ class CollectionStore:
     def add_filter_collection(
         self,
         section: str,
-        letter="All",
-        theme="All",
-        game_type="All",
-        manufacturer="All",
-        year="All",
-        rating="All",
-        rating_or_higher="false",
-        sort_by="Alpha",
-        order_by="desc",
-        played=None,
+        letter: str = "All",
+        theme: str = "All",
+        game_type: str = "All",
+        manufacturer: str = "All",
+        year: str = "All",
+        rating: str = "All",
+        rating_or_higher: str = "false",
+        sort_by: str = "Alpha",
+        order_by: str = "desc",
+        played: bool | None = None,
     ) -> None:
         """Add a filter-based collection."""
         if self._record(section) is not None:
             raise ValueError(f"Section '{section}' already exists")
-        criteria = {
+        criteria: dict[str, str | bool] = {
             "letter": letter, "theme": theme, "game_type": game_type,
             "manufacturer": manufacturer, "year": year, "rating": rating,
             "rating_or_higher": rating_or_higher, "sort_by": sort_by,
@@ -644,7 +646,7 @@ class CollectionStore:
         record["members"] = keep
 
     def set_member_table(self, section: str, member_id: str, table_id: str,
-                         was: str = "") -> None:
+                         was: str | None = "") -> None:
         """Point an existing ref at a different table, keeping its position.
 
         Remove-then-add would do the same to the file and put the row at the end, which
@@ -672,7 +674,7 @@ class CollectionStore:
         members[at] = ref
         record["members"] = members
 
-    def set_members(self, section: str, members) -> None:
+    def set_members(self, section: str, members: Iterable[object] | None) -> None:
         """Replace the membership outright, taking game ids or refs. For a caller where
         the order is the point, which is the Manager UI saving a whole edit.
 
@@ -728,11 +730,11 @@ class CollectionStore:
         else:
             record.pop(COLLECTION_IMAGE_KEY, None)
 
-    def set_filter(self, section: str, key: str, value) -> None:
+    def set_filter(self, section: str, key: str, value: object) -> None:
         """One criterion on a filter collection."""
         self._require_mutable(section).setdefault("filters", {})[key] = value
 
-    def migrate_membership_to_game_ids(self, games) -> int:
+    def migrate_membership_to_game_ids(self, games: Iterable[GameRecord]) -> int:
         """Move VPS-keyed membership onto game ids. Returns how many entries moved.
 
         Runs once: the file records that it has been through this, so later startups
@@ -807,7 +809,7 @@ class CollectionStore:
         return moved
 
     @contextlib.contextmanager
-    def mutate(self):
+    def mutate(self) -> Iterator[CollectionStore]:
         """Read the file, change it, write it back, with no other writer in between.
 
         `write_atomic` already stops a reader seeing half a file. What it cannot stop is
@@ -856,7 +858,7 @@ class CollectionStore:
     # NEW JSON METADATA AWARE FILTERING
     # ------------------------------------------------------------------
 
-    def is_member(self, game, member_ids) -> bool:
+    def is_member(self, game: GameRecord, member_ids: Container[str]) -> bool:
         """Whether a game belongs to a collection whose membership is `member_ids`.
 
         Membership is the game's own id. VPS ids are still accepted because a file
@@ -880,37 +882,38 @@ COLLECTIONS_NAME = "collections.json"
 COLLECTIONS_NAME_INI = "collections.ini"
 
 
-def collections_schema(path) -> int | None:
+def collections_schema(path: str | Path) -> int | None:
     """The schema a saved collections file declares, or None if it predates versioning.
 
     Reads either format, because backups of both exist: a restore has to be able to
     look at a `collections.ini` copy written before the move to JSON.
     """
-    path = Path(path)
-    if COLLECTIONS_NAME_INI in path.name:
+    saved = Path(path)
+    if COLLECTIONS_NAME_INI in saved.name:
         parser = configparser.ConfigParser()
-        parser.read(path, encoding="utf-8")
+        parser.read(saved, encoding="utf-8")
         return _ini_schema(parser) or None
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(saved.read_text(encoding="utf-8"))
     except ValueError:
         return None
     return int(data.get(SCHEMA_KEY, 0) or 0) or None if isinstance(data, dict) else None
 
 
-def restorable_collections_backup(config_dir, max_schema: int = COLLECTIONS_SCHEMA) -> str | None:
+def restorable_collections_backup(config_dir: str | Path,
+                                  max_schema: int = COLLECTIONS_SCHEMA) -> str | None:
     """The saved collections file this build would put back, or None.
 
     Newest readable wins, same as a .info. A copy written by a newer build is stepped over.
     """
-    config_dir = Path(config_dir)
+    folder = Path(config_dir)
     try:
-        names = os.listdir(config_dir)
+        names = os.listdir(folder)
     except OSError:
         return None
     candidates = backup_names(names, COLLECTIONS_NAME) + backup_names(names, COLLECTIONS_NAME_INI)
     for name in sorted(candidates, reverse=True):
-        candidate = config_dir / name
+        candidate = folder / name
         try:
             schema = collections_schema(candidate)
         except (OSError, ValueError):

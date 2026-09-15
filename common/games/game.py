@@ -31,6 +31,18 @@ class GameRecord(Protocol):
     def meta_config(self) -> dict[str, Any] | None: ...
 
 
+class ScannedGame(GameRecord, Protocol):
+    """A game whose tables can be resolved.
+
+    The metadata says which tables a game has. The game file the scan found stands in
+    for a folder that has never been through a metadata build, which is the normal
+    state of a game somebody just added.
+    """
+
+    @property
+    def full_path_vpx_file(self) -> str | None: ...
+
+
 @dataclass
 class Game:
     game_dir_name: str | None = None

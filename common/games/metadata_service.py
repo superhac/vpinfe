@@ -11,7 +11,7 @@ from common.games.game_repository import games_under
 from common.games.info_file import MetaConfig
 from common.games.standalone_scripts import StandaloneScripts
 from common.games.vpx_parser import VPXParser
-from common.jobs import JobReporter
+from common.jobs import JobReporter, LogCallback, ProgressCallback
 from common.online.vpsdb import VPSdb
 from common.paths import get_ini_config
 
@@ -27,10 +27,10 @@ def build_metadata(
     update_all: bool = True,
     game_name: str | None = None,
     user_media: bool = False,
-    progress_cb=None,
-    log_cb=None,
+    progress_cb: ProgressCallback | None = None,
+    log_cb: LogCallback | None = None,
     iniconfig: ConfigStore | None = None,
-):
+) -> dict[str, int]:
     config = _config(iniconfig)
 
     reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
@@ -120,7 +120,8 @@ def build_metadata(
     return {"found": total, "not_found": not_found_games}
 
 
-def apply_vpx_patches(progress_cb=None, iniconfig: ConfigStore | None = None) -> None:
+def apply_vpx_patches(progress_cb: ProgressCallback | None = None,
+                      iniconfig: ConfigStore | None = None) -> None:
     config = _config(iniconfig)
     settings = SettingsConfig.from_config(config)
     games = games_under(settings.game_root_dir, config)
