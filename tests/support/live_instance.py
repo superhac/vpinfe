@@ -29,6 +29,16 @@ from common import discovery
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 HARNESS_THEME = REPO_ROOT / "tests" / "fixtures" / "theme-harness"
 
+# What the instance says when something took its port between the probe and the
+# bind. Matched on the text because it comes back through the child's log, not as
+# an exception here - the errno is the child's and does not cross the process.
+_PORT_TAKEN = "address already in use"
+
+# Two retries. The race is a narrow window and losing it three times running is a
+# machine with something else claiming ports, which is worth failing rather than
+# papering over.
+_START_ATTEMPTS = 3
+
 
 class LiveInstance:
     """Start `main.py --headless`, wait for it to serve, and stop it afterwards."""
@@ -55,8 +65,30 @@ class LiveInstance:
     # -- lifecycle ---------------------------------------------------------
 
     def __enter__(self) -> LiveInstance:
-        self._write_config()
         self._install_harness_theme()
+        # `free_port` closes its socket before the instance binds, so a port can be taken
+        # in between - by another test's instance, or by anything else on the machine.
+        # That is a race nothing here can close: only the instance can hold the port it
+        # is going to use, and it is a subprocess that binds after it starts.
+        #
+        # So it is caught rather than prevented, and only on the one condition that says
+        # it happened. Fresh ports each attempt, because the taken one stays taken.
+        # Anything else that kills the instance at startup raises on the first try.
+        for attempt in range(_START_ATTEMPTS):
+            self._write_config()
+            self._start()
+            try:
+                self._wait_until_serving()
+            except RuntimeError as exc:
+                last = attempt == _START_ATTEMPTS - 1
+                if last or _PORT_TAKEN not in str(exc).lower():
+                    raise
+                self._stop()
+                continue
+            return self
+        raise AssertionError("unreachable")
+
+    def _start(self) -> None:
         # To a file, not a pipe. Nothing drains a pipe until the process is stopped, so
         # a chatty startup fills the buffer and the child blocks on its own logging -
         # which looks exactly like an instance that never finished booting.
@@ -75,10 +107,9 @@ class LiveInstance:
             env={**os.environ, "VPINFE_CONFIG_DIR": str(self.config_dir),
                  discovery.OFF: "1", "PYTHONUNBUFFERED": "1"},
             stdout=self._log, stderr=subprocess.STDOUT, text=True)
-        self._wait_until_serving()
-        return self
 
-    def __exit__(self, *_exc) -> None:
+    def _stop(self) -> None:
+        """Take the instance down without touching the config dir it was built in."""
         if self.proc is not None:
             self.proc.terminate()
             try:
@@ -86,8 +117,13 @@ class LiveInstance:
             except subprocess.TimeoutExpired:
                 self.proc.kill()
                 self.proc.wait(timeout=30)
+            self.proc = None
         if getattr(self, "_log", None) is not None:
             self._log.close()
+            self._log = None
+
+    def __exit__(self, *_exc) -> None:
+        self._stop()
         self._tmp.cleanup()
 
     # -- setup -------------------------------------------------------------
