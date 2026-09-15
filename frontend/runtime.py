@@ -6,13 +6,17 @@ through `shutdown_services`, which is what writes the session's play data.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from common import discovery, shutdown
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
+from common.config_store import ConfigStore
 from common.extensions import services as ext_services
 from common.games import remote_library
 from common.host import system_actions
@@ -24,7 +28,7 @@ from frontend.custom_http_server import CustomHTTPServer
 from frontend.device_channel import DeviceChannel
 
 
-def window_configs(iniconfig=None):
+def window_configs(iniconfig: ConfigStore | None = None) -> list[tuple[str, str]]:
     """(window name, monitor key) for each window the active theme declares.
 
     Derived rather than fixed: a theme names its own windows, and the default depends on
@@ -41,7 +45,8 @@ def window_configs(iniconfig=None):
     return [(name, theme_windows.screen_key(name)) for name in windows]
 
 
-def create_api_instances(iniconfig, logger):
+def create_api_instances(iniconfig: ConfigStore,
+                         logger: logging.Logger) -> tuple[DeviceChannel, ChromiumManager]:
     _apply_theme_media_sets(iniconfig, logger)
     network = NetworkConfig.from_config(iniconfig)
     displays = DisplayConfig.from_config(iniconfig)
@@ -89,7 +94,8 @@ def create_api_instances(iniconfig, logger):
     return ws_bridge, frontend_browser
 
 
-def _report_shared_library(shared_library, logger) -> None:
+def _report_shared_library(shared_library: library_resolver.LibraryResolver,
+                           logger: logging.Logger) -> None:
     """Say whether the library this install reads is the one on its own disk, once, at
     startup.
 
@@ -116,7 +122,7 @@ def _report_shared_library(shared_library, logger) -> None:
         report["unverifiable"])
 
 
-def _apply_theme_media_sets(iniconfig, logger) -> None:
+def _apply_theme_media_sets(iniconfig: ConfigStore, logger: logging.Logger) -> None:
     """Push the active theme's set choices down to media resolution.
 
     common/ cannot read theme.json (layering), so the frontend does it once at
@@ -136,7 +142,9 @@ def _apply_theme_media_sets(iniconfig, logger) -> None:
         logger.exception("Could not apply the theme's media set choices")
 
 
-def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bool = False) -> bool:
+def start_startup_media_sync(iniconfig: ConfigStore, logger: logging.Logger,
+                             build_metadata_func: Callable[..., Any],
+                             started: bool = False) -> bool:
     if started:
         return True
 
@@ -174,7 +182,8 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
     return True
 
 
-def build_mount_points(base_path: str, config_dir: Path, iniconfig):
+def build_mount_points(base_path: str, config_dir: Path,
+                       iniconfig: ConfigStore) -> tuple[dict[str, str], str]:
     themes_dir = str(config_dir / "themes")
     collection_icons_dir = str(config_dir / "collection_icons")
     os.makedirs(themes_dir, exist_ok=True)
@@ -218,7 +227,8 @@ def build_mount_points(base_path: str, config_dir: Path, iniconfig):
     return mount_points, themes_dir
 
 
-def start_asset_server(mount_points, iniconfig):
+def start_asset_server(mount_points: dict[str, str],
+                       iniconfig: ConfigStore) -> CustomHTTPServer:
     http_server = CustomHTTPServer(mount_points)
     network = NetworkConfig.from_config(iniconfig)
     http_server.start_file_server(port=network.theme_assets_port,
@@ -238,8 +248,10 @@ def wait_for_manager_ui_ready(port: int, timeout_seconds: float = 15.0) -> None:
             time.sleep(0.5)
 
 
-def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, logger,
-        is_window_connected=None) -> None:
+def run_frontend_loop(headless: bool, iniconfig: ConfigStore,
+                      frontend_browser: ChromiumManager,
+                      shutdown_event: threading.Event, logger: logging.Logger,
+                      is_window_connected: Callable[[str], bool] | None = None) -> None:
     # Only headless used to handle a signal, so killing the windowed frontend died where
     # it stood and skipped shutdown_services - the play data never reached VPinPlay, and
     # Chromium runs in its own session, so its windows outlived us on screen.
@@ -296,8 +308,10 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
     frontend_browser.terminate_all()
 
 
-def shutdown_services(logger, *, iniconfig, ws_bridge, stop_dof, stop_dmd, http_server,
-                      nicegui_app, stop_manager_ui) -> None:
+def shutdown_services(logger: logging.Logger, *, iniconfig: ConfigStore,
+                      ws_bridge: DeviceChannel, stop_dof: Callable[[], Any],
+                      stop_dmd: Callable[..., Any], http_server: CustomHTTPServer,
+                      nicegui_app: Any, stop_manager_ui: Callable[[], Any]) -> None:
     logger.info("Shutting down services...")
     for label, action in (
         # Whether anything wants a last word before the machine goes down. Nothing
@@ -324,5 +338,5 @@ def shutdown_services(logger, *, iniconfig, ws_bridge, stop_dof, stop_dmd, http_
     logger.info("All services stopped.")
 
 
-def restart_if_requested(config_dir: Path, logger) -> None:
+def restart_if_requested(config_dir: Path, logger: logging.Logger) -> None:
     system_actions.restart_if_requested(config_dir, logger)

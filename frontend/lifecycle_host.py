@@ -11,10 +11,19 @@ this install rather than a part of it, and closing one leaves VPinFE and its win
 from __future__ import annotations
 
 import logging
+import threading
+from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from common import events, lifecycle
 from common.config_access import cfg_bool
+from common.config_store import ConfigStore
 from common.host import launch_state, system_actions
+
+if TYPE_CHECKING:
+    from frontend.chromium_manager import ChromiumManager
+    from frontend.device_channel import DeviceChannel
 
 logger = logging.getLogger("vpinfe.frontend.lifecycle_host")
 
@@ -22,7 +31,7 @@ _config_store = None
 _bridge = None
 
 
-def confirm_scopes():
+def confirm_scopes() -> tuple[str, ...]:
     """What asks first: quitting VPinFE and powering off the machine, or nothing.
 
     Stopping the frontend is not in it. The windows reopen from the Manager UI, so there
@@ -54,7 +63,8 @@ def _announce(request: lifecycle.Request) -> None:
     )
 
 
-def _notice(*, scope, action, surface, address, description, **_payload) -> None:
+def _notice(*, scope: str, action: str, surface: str, address: str,
+            description: str, **_payload: Any) -> None:
     """Tell the windows what is happening, unless they are the ones who asked.
 
     The rule is a notice on every listening surface that did not start it. The window
@@ -71,8 +81,10 @@ def _notice(*, scope, action, surface, address, description, **_payload) -> None
         _bridge.send_event_all(message)
 
 
-def install(*, config_store, config_dir, frontend_browser, shutdown_event,
-            ws_bridge=None, open_windows=None) -> None:
+def install(*, config_store: ConfigStore, config_dir: Path,
+            frontend_browser: ChromiumManager, shutdown_event: threading.Event,
+            ws_bridge: DeviceChannel | None = None,
+            open_windows: Callable[[], None] | None = None) -> None:
     """Wire this process's performers. Called once, from startup."""
     global _config_store, _bridge
     _config_store = config_store
@@ -83,35 +95,35 @@ def install(*, config_store, config_dir, frontend_browser, shutdown_event,
     if ws_bridge is not None:
         events.subscribe(events.LIFECYCLE_ACTING, _notice)
 
-    def stop_app(_request) -> None:
+    def stop_app(_request: lifecycle.Request) -> None:
         # Both, because which one ends the wait depends on whether windows are open:
         # headless blocks on the event, windowed blocks on the browser.
         shutdown_event.set()
         frontend_browser.terminate_all()
 
-    def restart_app(_request) -> None:
+    def restart_app(_request: lifecycle.Request) -> None:
         # main.py checks for this after the services are down, so the sentinel has to be
         # written before anything unblocks the loop.
         system_actions.request_app_restart(config_dir)
         stop_app(_request)
 
-    def stop_frontend(_request) -> None:
+    def stop_frontend(_request: lifecycle.Request) -> None:
         frontend_browser.terminate_all()
 
-    def restart_frontend(_request) -> None:
+    def restart_frontend(_request: lifecycle.Request) -> None:
         frontend_browser.terminate_all()
         if open_windows is not None:
             open_windows()
 
-    def stop_system(request) -> None:
+    def stop_system(request: lifecycle.Request) -> None:
         system_actions.shutdown_system()
         stop_app(request)
 
-    def restart_system(request) -> None:
+    def restart_system(request: lifecycle.Request) -> None:
         system_actions.reboot_system()
         stop_app(request)
 
-    def stop_table(_request) -> None:
+    def stop_table(_request: lifecycle.Request) -> None:
         launch_state.stop()
 
     lifecycle.register_performer(lifecycle.VPINFE, lifecycle.STOP, stop_app)

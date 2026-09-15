@@ -98,7 +98,7 @@ _LEGACY_ROW_KEYS = {
 # 2  the .info's own shape: meta.tables, meta.vpinfe, and neither of those on Info
 
 
-def declared_contract(theme_dir) -> int:
+def declared_contract(theme_dir: str | Path) -> int:
     """The contract a theme's declared minimum version implies, clamped to this build.
 
     Whether that minimum is newer than the build running is answered at install, not
@@ -126,7 +126,7 @@ def project(row: dict, level: int) -> dict:
     return _to_contract_1(row)
 
 
-def _to_bool(value) -> bool:
+def _to_bool(value: object) -> bool:
     """A detect flag as a real boolean. A JSON "false" is truthy to anything that reads
     it without care, and the parser has handed back strings before now."""
     if isinstance(value, bool):

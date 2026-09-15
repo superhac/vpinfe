@@ -14,8 +14,12 @@ three-screen cabinet, or make this file track window roles.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING, Any
 
 from common import events, input_actions
+
+if TYPE_CHECKING:
+    from frontend.device_channel import DeviceChannel
 
 logger = logging.getLogger("vpinfe.frontend.input_events")
 
@@ -29,7 +33,7 @@ _bridge = None
 
 
 def on_input_action(*, action: str, phase: str, source: str = "",
-                    **_payload) -> None:
+                    **_payload: Any) -> None:
     """Put one press or release in front of every window.
 
     `source` stays here and in the log. A theme that behaved differently depending on
@@ -42,7 +46,7 @@ def on_input_action(*, action: str, phase: str, source: str = "",
                                         "action": action, "phase": phase})
 
 
-def register(ws_bridge) -> None:
+def register(ws_bridge: DeviceChannel) -> None:
     """Attach the bridge to the input bus. Idempotent."""
     global _registered, _bridge
     _bridge = ws_bridge

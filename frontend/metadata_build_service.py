@@ -4,18 +4,26 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from queue import Queue
+from typing import TYPE_CHECKING, Any
 
 from common.i18n import t
 from frontend import game_state
 
+if TYPE_CHECKING:
+    from frontend.api import API
+
 logger = logging.getLogger("vpinfe.frontend.metadata_build_service")
 
 
-def start_build(api, *, build_metadata_func, all_games_func, download_media=True, update_all=False):
-    event_queue = Queue()
+def start_build(api: API, *, build_metadata_func: Callable[..., Any],
+                all_games_func: Callable[..., list[Any]],
+                download_media: bool = True,
+                update_all: bool = False) -> dict[str, Any]:
+    event_queue: Queue[dict[str, Any]] = Queue()
 
-    def progress_callback(current, total, message) -> None:
+    def progress_callback(current: int, total: int, message: str) -> None:
         logger.debug("[buildmeta] Progress: %s/%s - %s", current, total, message)
         event_queue.put({
             "type": "buildmeta_progress",
@@ -24,7 +32,7 @@ def start_build(api, *, build_metadata_func, all_games_func, download_media=True
             "message": message,
         })
 
-    def log_callback(message) -> None:
+    def log_callback(message: str) -> None:
         logger.info("[buildmeta] %s", message)
         event_queue.put({
             "type": "buildmeta_log",

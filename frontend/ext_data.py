@@ -12,10 +12,13 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable, Iterable, Sequence
+from typing import Any
 
 from common import events
 from common.extensions import contributions
 from common.games import game_identity
+from common.games.game import GameRecord
 from common.games.game_metadata import game_title, normalize_meta, section
 
 logger = logging.getLogger("vpinfe.frontend.ext_data")
@@ -24,7 +27,7 @@ _registered = False
 _broadcast = None
 
 
-def descriptor_for(game) -> dict:
+def descriptor_for(game: GameRecord) -> dict:
     """What a contributor is told about a game.
 
     A plain description and never our object: an extension holding one could reach the
@@ -40,7 +43,7 @@ def descriptor_for(game) -> dict:
     }
 
 
-def _fetch_and_tell(games) -> None:
+def _fetch_and_tell(games: Sequence[GameRecord]) -> None:
     """The selected game first, then the ones either side of it.
 
     In that order and not together: the player is looking at the first one, and a
@@ -61,7 +64,9 @@ def _fetch_and_tell(games) -> None:
                     "game_id": descriptor["game_id"], "ext": found})
 
 
-def on_selected(*, game=None, neighbors=(), **_payload) -> None:
+def on_selected(*, game: GameRecord | None = None,
+                neighbors: Iterable[GameRecord | None] = (),
+                **_payload: Any) -> None:
     """The player moved to a game. Ask about it, and about where they are heading.
 
     The neighbours are asked on the same signal and for the same reason media is
@@ -75,7 +80,7 @@ def on_selected(*, game=None, neighbors=(), **_payload) -> None:
                      name="ext-data").start()
 
 
-def register(broadcast) -> None:
+def register(broadcast: Callable[[dict], None]) -> None:
     """Attach to the bus. Safe to call more than once."""
     global _registered, _broadcast
     _broadcast = broadcast

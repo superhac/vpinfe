@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 
 from common.config_access import SettingsConfig, cfg_get
+from common.config_store import ConfigStore
+from common.games.collection_resolver import Entry
+from common.games.game import GameRecord
 from common.games.game_identity import game_id
 
 logger = logging.getLogger("vpinfe.frontend.last_game")
@@ -17,7 +21,7 @@ STATE_SECTION = "state"
 STATE_KEY = "last_table"
 
 
-def entry_identity(entry) -> str:
+def entry_identity(entry: Entry) -> str:
     """Stable id for one row of the wheel: the table's, falling back to its game's.
 
     A game offers several tables and a collection may name a particular one, so saving
@@ -30,7 +34,8 @@ def entry_identity(entry) -> str:
     return str(game_id(getattr(entry, "game", entry)) or "").strip()
 
 
-def save_last_launched(ini_config, game, table_id: str = "") -> None:
+def save_last_launched(ini_config: ConfigStore, game: GameRecord,
+                       table_id: str = "") -> None:
     """Persist what just launched. Takes the two ids rather than an entry: no entry
     exists on the path a Remote or API launch takes."""
     if not SettingsConfig.from_config(ini_config).restore_last_table:
@@ -51,7 +56,7 @@ def save_last_launched(ini_config, game, table_id: str = "") -> None:
         logger.exception("Could not persist last game selection")
 
 
-def resolve_last_table_index(ini_config, entries) -> int:
+def resolve_last_table_index(ini_config: ConfigStore, entries: Sequence[Entry]) -> int:
     """Return the index of the saved last row within `entries`, else 0.
 
     Returns 0 when the feature is off, nothing is saved, or the saved row

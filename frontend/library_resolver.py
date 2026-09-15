@@ -9,13 +9,17 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
+from typing import Any
 
 from common.config_access import NetworkConfig
+from common.config_store import ConfigStore
 from common.games import collection_resolver, remote_library
 from common.games.collection_store import (
     BUILTIN_ALL,
     DEFAULT_DIRECTION,
     DEFAULT_ORDER_BY,
+    CollectionStore,
     public_name,
 )
 from common.games.collections_service import get_collections_manager
@@ -25,7 +29,7 @@ from frontend import game_state
 logger = logging.getLogger("vpinfe.frontend.library_resolver")
 
 
-def library_url(ini_config) -> str:
+def library_url(ini_config: ConfigStore) -> str:
     """The install this one reads its library from, or "" when it holds its own."""
     try:
         return NetworkConfig.from_config(ini_config.config).library_url
@@ -42,7 +46,8 @@ class LibraryResolver:
     one shared view makes a sort and a read genuinely concurrent.
     """
 
-    def __init__(self, ini_config, games=None) -> None:
+    def __init__(self, ini_config: ConfigStore,
+                 games: list[Any] | None = None) -> None:
         self._ini_config = ini_config
         self.lock = threading.RLock()
 
@@ -67,7 +72,9 @@ class LibraryResolver:
         self.current_sort = DEFAULT_ORDER_BY
         self.current_order = DEFAULT_DIRECTION
 
-        self._entries: list | None = None
+        # `_entries_source` alone says whether a view has ever been built: it is the
+        # list `_entries` was derived from, and None until there is one.
+        self._entries: list[collection_resolver.Entry] = []
         self._entries_source: list | None = None
         self._payload: str | None = None
         self._payload_key: tuple | None = None
@@ -75,14 +82,14 @@ class LibraryResolver:
 
         self.reset_to_default()
 
-    def _load(self, collection: str = ""):
+    def _load(self, collection: str = "") -> list[Any]:
         """The library: another install's entries, or the local games. Different kinds of
         thing, which `rebuild_entries` knows."""
         if self._remote:
             return remote_library.fetch_entries(self._library_url, collection)
         return all_games()
 
-    def reload(self):
+    def reload(self) -> list[Any]:
         """The library again. A library that has gone quiet leaves the list alone: a
         stale wheel beats a screen emptying because one request failed."""
         try:
@@ -92,7 +99,7 @@ class LibraryResolver:
                          exc_info=True)
         return self.all_games
 
-    def collections(self):
+    def collections(self) -> CollectionStore:
         """This install's collections. One place to ask, so the view and the resolver
         behind it cannot end up reading two different files."""
         return get_collections_manager()
@@ -122,7 +129,7 @@ class LibraryResolver:
         with self.lock:
             self._stale = True
 
-    def refresh_if_stale(self, refresh) -> None:
+    def refresh_if_stale(self, refresh: Callable[[], None]) -> None:
         """Run `refresh` only if nothing has since. `refresh` takes no arguments."""
         with self.lock:
             if not self._stale:
@@ -141,7 +148,7 @@ class LibraryResolver:
         self._payload = None
 
     @property
-    def entries(self):
+    def entries(self) -> list[collection_resolver.Entry]:
         """What an index from a theme addresses. Rebuilt when the source list is
         replaced, so swapping `filtered_games` cannot leave a stale view behind.
 
@@ -152,7 +159,7 @@ class LibraryResolver:
         """
         with self.lock:
             games = self.filtered_games or []
-            if self._entries is None or self._entries_source is not games:
+            if self._entries_source is not games:
                 self.rebuild_entries()
             return self._entries
 

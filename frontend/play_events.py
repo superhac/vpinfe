@@ -14,9 +14,16 @@ from __future__ import annotations
 import logging
 import sys
 import threading
+from typing import TYPE_CHECKING, Any
 
 from common import events
+from common.config_store import ConfigStore
+from common.games.game import GameRecord
 from frontend.last_game import save_last_launched
+
+if TYPE_CHECKING:
+    from frontend.chromium_manager import ChromiumManager
+    from frontend.device_channel import DeviceChannel
 
 logger = logging.getLogger("vpinfe.frontend.play_events")
 
@@ -65,7 +72,8 @@ def _broadcast(message: dict) -> None:
         _bridge.send_event_all_with_iframe({**message, "type": legacy})
 
 
-def on_launching(*, game=None, table_id="", **_payload) -> None:
+def on_launching(*, game: GameRecord | None = None, table_id: str = "",
+                 **_payload: Any) -> None:
     """Suppress frontend input and record where the player was.
 
     Runs after every hook, so a peripheral that refused the launch has already
@@ -84,12 +92,12 @@ def on_launching(*, game=None, table_id="", **_payload) -> None:
             logger.exception("Could not get the frontend windows out of VPX's way")
 
 
-def on_launched(**_payload) -> None:
+def on_launched(**_payload: Any) -> None:
     """The table is actually up, not merely started."""
     _broadcast({"type": "TableRunning"})
 
 
-def on_exited(**_payload) -> None:
+def on_exited(**_payload: Any) -> None:
     """Always reached once a launch was announced, so input always comes back."""
     _broadcast({"type": "TableLaunchComplete"})
     if sys.platform == "darwin" and _browser is not None:
@@ -106,7 +114,7 @@ def on_exited(**_payload) -> None:
             logger.exception("Could not bring the frontend windows back")
 
 
-def on_play_recorded(**_payload) -> None:
+def on_play_recorded(**_payload: Any) -> None:
     """Send the windows back for the payload, now that the session is in it.
 
     Not on_exited: the exit is announced before the runtime and the score are written.
@@ -114,7 +122,7 @@ def on_play_recorded(**_payload) -> None:
     _broadcast({"type": "TableDataChange"})
 
 
-def on_game_changed(**_payload) -> None:
+def on_game_changed(**_payload: Any) -> None:
     """A game or the collections file changed. Coalesced, never immediate."""
     global _change_timer
     with _change_lock:
@@ -132,7 +140,8 @@ def _flush_game_changes() -> None:
     _broadcast({"type": "TableDataChange"})
 
 
-def register(ws_bridge, frontend_browser=None, ini_config=None) -> None:
+def register(ws_bridge: DeviceChannel, frontend_browser: ChromiumManager | None = None,
+             ini_config: ConfigStore | None = None) -> None:
     """Attach the frontend's reaction to the game lifecycle. Idempotent."""
     global _registered, _bridge, _browser, _ini_config
     _bridge = ws_bridge

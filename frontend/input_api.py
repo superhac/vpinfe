@@ -12,6 +12,7 @@ anything built against them.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from common import config_schema, input_registry
 from common.config_access import cfg_get
@@ -24,11 +25,12 @@ PAGING_GROUP_DEFAULT = config_schema.PAGING_GROUP_DEFAULT
 PAGING_SIZE_DEFAULT = 10
 
 
-def _parser(config):
+# The same shapes cfg_get accepts, for the same reason - see common/config_access.py.
+def _parser(config: Any) -> Any:
     return getattr(config, "config", config)
 
 
-def _raw(config, section, key) -> str | None:
+def _raw(config: Any, section: str, key: str) -> str | None:
     """Read exactly this key, or None. Deliberately not cfg_get: every legacy key of an
     action resolves to the same option, so cfg_get would answer `keytutorial` with
     whatever `joytutorial` holds."""
@@ -39,7 +41,7 @@ def _raw(config, section, key) -> str | None:
         return None
 
 
-def get_bindings(config) -> dict[str, list[str]]:
+def get_bindings(config: Any) -> dict[str, list[str]]:
     """Every action and what is bound to it, in order.
 
     A parser the store has migrated holds the list directly. One it has not - a config
@@ -86,7 +88,7 @@ def _say_what_collides(bound: dict[str, list[str]]) -> None:
             input_registry.describe(binding), ", ".join(names), names[0])
 
 
-def get_paging_config(config):
+def get_paging_config(config: Any) -> tuple[str, int]:
     """Return (paging_group, page_size), normalized to sane values.
 
     This is the player's default. A collection may override it - see the order block -
@@ -107,7 +109,7 @@ def get_paging_config(config):
     return paging_group, page_size
 
 
-def get_joymapping(config):
+def get_joymapping(config: Any) -> dict[str, str]:
     """The gamepad half, under the key names it used to have. Projected, never stored."""
     bindings = get_bindings(config)
     return {action.legacy_joy_key:
@@ -115,7 +117,7 @@ def get_joymapping(config):
             for action in input_registry.actions() if action.legacy_joy_key}
 
 
-def get_keymapping(config):
+def get_keymapping(config: Any) -> dict[str, str]:
     """The keyboard half, under the key names it used to have."""
     bindings = get_bindings(config)
     return {action.legacy_key_key:
@@ -123,7 +125,8 @@ def get_keymapping(config):
             for action in input_registry.actions() if action.legacy_key_key}
 
 
-def set_button_mapping(iniconfig, action_name, button_index):
+def set_button_mapping(iniconfig: Any, action_name: str,
+                       button_index: int) -> dict[str, Any]:
     """Bind a gamepad button to an action, keeping everything else bound to it.
 
     Accepts an action name or any `[Input]` key that used to be one, so the gamepad

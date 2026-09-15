@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 from frontend import theme_api
@@ -74,7 +75,8 @@ def screen_key(window: str) -> str:
 _warned_foreign: set[tuple[str, tuple[str, ...]]] = set()
 
 
-def _warn_on_foreign_names(theme_dir, contract: int, names) -> None:
+def _warn_on_foreign_names(theme_dir: str | Path, contract: int,
+                           names: Iterable[str]) -> None:
     """A theme declaring window names from a contract it does not serve.
 
     The theme still gets what it asked for - the name decides its page, its monitor and
@@ -100,7 +102,7 @@ def _warn_on_foreign_names(theme_dir, contract: int, names) -> None:
         ", ".join(CANONICAL[name] for name in foreign))
 
 
-def declared_windows(theme_dir, contract: int) -> tuple[str, ...]:
+def declared_windows(theme_dir: str | Path | None, contract: int) -> tuple[str, ...]:
     """The windows this theme wants, controller first."""
     default = DEFAULT_WINDOWS.get(contract, DEFAULT_WINDOWS[1])
     if theme_dir is None:
@@ -115,7 +117,8 @@ def declared_windows(theme_dir, contract: int) -> tuple[str, ...]:
     return _windows_with_a_page(theme_dir, default)
 
 
-def _windows_with_a_page(theme_dir, default: tuple[str, ...]) -> tuple[str, ...]:
+def _windows_with_a_page(theme_dir: str | Path,
+                         default: tuple[str, ...]) -> tuple[str, ...]:
     """The default, minus any window this theme has no page for.
 
     Only the default is trimmed - a declared window opens whether its page exists or not.
@@ -125,11 +128,11 @@ def _windows_with_a_page(theme_dir, default: tuple[str, ...]) -> tuple[str, ...]
     return present or default
 
 
-def controller(windows) -> str:
+def controller(windows: Sequence[str]) -> str:
     """The window that owns input, audio and the selection."""
     return windows[0] if windows else ""
 
 
-def launch_order(windows):
+def launch_order(windows: Iterable[str]) -> list[str]:
     """Controller last, so it ends up with focus."""
     return list(reversed(list(windows)))
