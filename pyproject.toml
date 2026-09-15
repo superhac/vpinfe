@@ -42,7 +42,8 @@ mypy_path = "."
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-# Every function here is annotated. Held that way because it is the wire contract:
-# an unannotated handler is one whose payload nothing checks.
-module = ["apps.*", "extensions.*", "httpapi.*"]
+# Every function in these is annotated, and stays that way. It started as the wire
+# contract - an unannotated handler is one whose payload nothing checks - and now covers
+# what the wire is built out of: the domain code under common/ and the theme surface.
+module = ["apps.*", "common.*", "extensions.*", "frontend.*", "httpapi.*"]
 disallow_untyped_defs = true
