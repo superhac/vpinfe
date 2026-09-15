@@ -136,6 +136,11 @@ class BrowserSession:
             self._proc.terminate()
             with suppress(Exception):
                 self._proc.wait(timeout=10)
+            for pipe in (self._proc.stdout, self._proc.stderr, self._proc.stdin):
+                if pipe is not None:
+                    with suppress(Exception):
+                        pipe.close()   # Popen does not, and the handle outlives the run
+            self._proc = None
         if self._profile:
             shutil.rmtree(self._profile, ignore_errors=True)
 

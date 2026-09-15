@@ -67,11 +67,12 @@ class LiveInstance:
             self._start()
             try:
                 self._wait_until_serving()
-            except RuntimeError as exc:
+            except BaseException as exc:
                 last = attempt == _START_ATTEMPTS - 1
-                if last or _PORT_TAKEN not in str(exc).lower():
+                retryable = isinstance(exc, RuntimeError) and _PORT_TAKEN in str(exc).lower()
+                self._stop()        # before the raise, not after: nothing else closes it
+                if last or not retryable:
                     raise
-                self._stop()
                 continue
             return self
         raise AssertionError("unreachable")
@@ -149,10 +150,12 @@ class LiveInstance:
             if self.proc.poll() is not None:
                 raise RuntimeError("VPinFE exited during startup:\n" + self.output())
             try:
-                urllib.request.urlopen(self.url("/themes/"), timeout=1).read()
+                with urllib.request.urlopen(self.url("/themes/"), timeout=1) as handle:
+                    handle.read()
                 return
-            except urllib.error.HTTPError:
-                return          # answering at all is what we are waiting for
+            except urllib.error.HTTPError as answered:
+                answered.close()   # an HTTPError is a response, and holds a socket
+                return             # answering at all is what we are waiting for
             except Exception:
                 time.sleep(0.25)
         raise TimeoutError("VPinFE never served its assets:\n" + self.output())
