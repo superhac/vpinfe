@@ -6,6 +6,8 @@ Each configured display gets its own Chromium process in --app mode,
 positioned on the correct monitor with fullscreen.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import platform

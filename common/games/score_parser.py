@@ -5,6 +5,8 @@ field offsets come from the community `roms.json` map rather than from us. What 
 back is initials and a score; making sense of a specific machine is that file's job.
 """
 
+from __future__ import annotations
+
 import configparser
 import json
 import logging

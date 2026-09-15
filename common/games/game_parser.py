@@ -4,6 +4,8 @@ Scanning is almost entirely waiting on the filesystem - a real library often sit
 a network share - so folders are read in parallel above a threshold.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor

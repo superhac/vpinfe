@@ -4,6 +4,8 @@ Bound to loopback and confined to the mounted directories: it exists to hand loc
 files to a local Chromium, and anything outside that is refused rather than resolved.
 """
 
+from __future__ import annotations
+
 # custom_http_server.py
 import http.server
 import json

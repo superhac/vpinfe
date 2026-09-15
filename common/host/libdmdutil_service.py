@@ -1,5 +1,7 @@
 """Driving a real DMD panel, in a child process for the same reason DOF is."""
 
+from __future__ import annotations
+
 import logging
 import threading
 from pathlib import Path

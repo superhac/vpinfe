@@ -1,5 +1,7 @@
 """The community script patches that make a table run under VPX Standalone."""
 
+from __future__ import annotations
+
 import logging
 import os
 from collections.abc import Callable, Iterable, Sequence

@@ -5,6 +5,8 @@ libraries that can take the whole app down with them, and a cabinet losing its l
 should not lose its frontend.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import os

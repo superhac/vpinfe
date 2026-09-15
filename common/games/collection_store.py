@@ -1,5 +1,7 @@
 """Collections on disk: what is in each one, and what a collection is allowed to be."""
 
+from __future__ import annotations
+
 # collection_store.py
 import configparser
 import contextlib

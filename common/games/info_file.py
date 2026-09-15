@@ -5,6 +5,8 @@ at every caller. A file is upgraded when it is read, and the old copy is set asi
 rather than overwritten.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import os

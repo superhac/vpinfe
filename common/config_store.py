@@ -9,6 +9,8 @@ In memory it is still a ConfigParser, so nothing above this module changed. What
 disk carries real booleans and integers, and a schema version.
 """
 
+from __future__ import annotations
+
 import configparser
 import json
 import logging

@@ -11,6 +11,8 @@ this process, which fans events out to all of them. Was `ws_bridge`: "bridge" sa
 where it sat rather than what it did, and dated from replacing 2.x's JS API bridge.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging

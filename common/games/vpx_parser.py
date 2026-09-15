@@ -5,6 +5,8 @@ A VPX table is an OLE compound file, so this opens the container and pulls out t
 script and the fields VPinFE records. Nothing else in the tree parses the format.
 """
 
+from __future__ import annotations
+
 import hashlib
 import logging
 import os

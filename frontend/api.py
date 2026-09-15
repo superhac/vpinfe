@@ -11,6 +11,8 @@ Renamed methods keep their old spelling as an alias rather than breaking a publi
 theme.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING, Any
 
