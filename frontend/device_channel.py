@@ -20,6 +20,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 import websockets
+from websockets.asyncio.server import ServerConnection
 
 from frontend.api import API, API_ALLOWED_METHODS
 
@@ -39,8 +40,7 @@ class DeviceChannel:
     def __init__(self, port: int = 8002) -> None:
         self.port = port
         self._api_instances: dict[str, API] = {}
-        # Keyed by window name. websockets ships no stubs, so a connection is Any.
-        self._connections: dict[str, Any] = {}
+        self._connections: dict[str, ServerConnection] = {}
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
         self._server: websockets.Server | None = None
@@ -106,16 +106,25 @@ class DeviceChannel:
             return True
         return urlparse(origin).hostname in LOOPBACK_HOSTS
 
-    async def _handle_connection(self, websocket: Any) -> None:
+    async def _handle_connection(self, websocket: ServerConnection) -> None:
         """Handle a new WebSocket connection from a Chromium window."""
-        origin = websocket.request.headers.get("Origin")
+        # A handler is only reached after a handshake, so there is always a request -
+        # but the Origin check below is what keeps another page on this machine off a
+        # channel that can power the machine down, and it must not be skipped because
+        # something arrived in a shape nobody expected.
+        request = websocket.request
+        if request is None:
+            logger.warning("Refused a websocket connection with no handshake request")
+            await websocket.close(code=1008, reason="no request")
+            return
+
+        origin = request.headers.get("Origin")
         if not self._origin_allowed(origin):
             logger.warning("Refused a websocket connection from origin %r", origin)
             await websocket.close(code=1008, reason="origin not allowed")
             return
 
         # Parse window name from query params
-        request = websocket.request
         parsed = urlparse(request.path if hasattr(request, 'path') else str(request))
         params = parse_qs(parsed.query)
         window_name = params.get('window', ['unknown'])[0]
@@ -164,7 +173,7 @@ class DeviceChannel:
             if self._connections.get(window_name) is websocket:
                 del self._connections[window_name]
 
-    async def _dispatch(self, window_name: str, websocket: Any,
+    async def _dispatch(self, window_name: str, websocket: ServerConnection,
                         data: dict[str, Any]) -> None:
         """Dispatch an incoming message from JS."""
         msg_type = data.get('type')
@@ -174,7 +183,7 @@ class DeviceChannel:
         else:
             logger.warning("Unknown message type from '%s': %s", window_name, msg_type)
 
-    async def _handle_api_call(self, window_name: str, websocket: Any,
+    async def _handle_api_call(self, window_name: str, websocket: ServerConnection,
                                data: dict[str, Any]) -> None:
         """Handle a JS→Python API call."""
         call_id = data.get('id')

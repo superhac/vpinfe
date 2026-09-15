@@ -24,7 +24,9 @@ _monitors_lock = threading.Lock()
 _monitors_cache = None
 
 
-# screeninfo ships no stubs, so a monitor is only ever Any here.
+# Two shapes with the same four fields: screeninfo's Monitor everywhere, and the
+# frontend's own MonitorInfo on macOS, where screeninfo's coordinates are not the ones
+# Chromium wants. Every reader here takes x, y, width and height and nothing else.
 def _query_monitors() -> list[Any]:
     if sys.platform == "darwin":
         from frontend.chromium_manager import get_mac_screens

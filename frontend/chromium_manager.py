@@ -280,9 +280,9 @@ def get_chromium_path() -> ChromiumPath:
 MonitorInfo = namedtuple("MonitorInfo", ["x", "y", "width", "height"])
 
 
-# A list of MonitorInfo, which is shaped like screeninfo's Monitor - the two are
-# interchangeable here and screeninfo ships no stubs, so a monitor is Any either way.
-def get_mac_screens() -> list[Any]:
+# MonitorInfo, which carries the same four fields as screeninfo's Monitor - see
+# common/host/display_service.py, where the two meet.
+def get_mac_screens() -> list[MonitorInfo]:
     """Get monitor info from NSScreen (macOS only).
 
     screeninfo.get_monitors() reports coordinates that can mismatch what
@@ -363,8 +363,8 @@ class ChromiumManager:
     """Manages Chromium subprocess lifecycle for multi-monitor display."""
 
     def __init__(self) -> None:
-        # [(window_name, process, temp_dir, monitor)]. The monitor is screeninfo's,
-        # which ships no stubs.
+        # [(window_name, process, temp_dir, monitor)]. The monitor is whichever of the
+        # two shapes this platform answers with.
         self._processes: list[tuple[str, subprocess.Popen[Any], str, Any]] = []
         self._exit_event = threading.Event()
         # Windows only: [(window_name, hwnd)] awaiting restore.
