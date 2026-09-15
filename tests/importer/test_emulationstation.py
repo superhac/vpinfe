@@ -45,7 +45,8 @@ class ReadTests(unittest.TestCase):
         kinds = {item.source_kind: item.path for item in self.by_key["afm"].media}
 
         self.assertEqual(sorted(kinds), ["image", "marquee", "video"])
-        self.assertTrue(kinds["image"].endswith("media/images/afm.png"))
+        self.assertEqual(Path(kinds["image"]).parts[-3:],
+                         ("media", "images", "afm.png"))
 
     def test_a_relative_path_resolves_against_the_folder_it_was_read_from(self) -> None:
         found = self.by_key["afm"].table_file

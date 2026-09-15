@@ -8,6 +8,7 @@ reported, and the only write is the one somebody asks for.
 from __future__ import annotations
 
 import unittest
+from pathlib import PurePath
 from unittest.mock import patch
 
 from starlette.testclient import TestClient
@@ -77,8 +78,11 @@ class ReportTests(_Priority):
 
         one = got.json()["shadowed"][0]
         self.assertEqual(one["game_id"], "gid0000001")
-        self.assertTrue(one["path"].endswith("backup/Attack from Mars"))
-        self.assertTrue(one["used_path"].endswith("tables/Attack from Mars"))
+        # Compared as path parts: the separator is the host's, and a string tail
+        # hard-codes one platform's.
+        self.assertEqual(PurePath(one["path"]).parts[-2:], ("backup", "Attack from Mars"))
+        self.assertEqual(PurePath(one["used_path"]).parts[-2:],
+                         ("tables", "Attack from Mars"))
         self.assertEqual(one["used_location_id"], "loc1")
 
     def test_the_list_is_answered_fresh_rather_than_stored(self) -> None:

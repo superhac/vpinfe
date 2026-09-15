@@ -22,7 +22,7 @@ class UsableTests(unittest.TestCase):
 
     def test_nothing_and_nonsense_are_not_addresses(self) -> None:
         self.assertFalse(addresses.usable_ipv4(""))
-        self.assertFalse(addresses.usable_ipv4("cbmacbookmax"))
+        self.assertFalse(addresses.usable_ipv4("a-hostname-not-an-address"))
         self.assertFalse(addresses.usable_ipv4("::1"))
 
 

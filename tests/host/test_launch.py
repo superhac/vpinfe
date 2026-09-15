@@ -11,6 +11,7 @@ import pathlib
 import tempfile
 import types
 import unittest
+from pathlib import PurePath
 from unittest import mock
 
 from common import events
@@ -269,7 +270,8 @@ class RefusalTests(LaunchTests):
         self.assertTrue(resolved.endswith("Other.vpx"))
 
     def test_the_default_is_the_game_s_own_file(self) -> None:
-        self.assertEqual(self._check(), "/games/Example/Example.vpx")
+        self.assertEqual(PurePath(self._check()).parts[-3:],
+                         ("games", "Example", "Example.vpx"))
 
 
 if __name__ == "__main__":

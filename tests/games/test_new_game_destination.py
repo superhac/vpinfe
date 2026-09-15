@@ -12,6 +12,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from common.games import locations
+from tests.support.skips import needs_posix_permissions
 
 
 class _Destinations(unittest.TestCase):
@@ -66,6 +67,7 @@ class RefusalTests(_Destinations):
         self.assertIsNone(found.location)
         self.assertIn("no longer here", found.reason)
 
+    @needs_posix_permissions
     def test_and_a_read_only_one_is_refused_too(self) -> None:
         import os
         os.chmod(self.root / "second", 0o500)

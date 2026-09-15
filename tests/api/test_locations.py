@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 
 import httpapi
 from common.games import locations
+from tests.support.skips import needs_posix_permissions
 
 
 def _client() -> TestClient:
@@ -68,6 +69,7 @@ class LocationApiTests(unittest.TestCase):
         self.assertFalse(row["reachable"])
         self.assertTrue(row["reason"])
 
+    @needs_posix_permissions
     def test_a_read_only_location_is_reachable_and_not_writable(self) -> None:
         path = self._folder("readonly")
         self._put("ro", path)

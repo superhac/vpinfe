@@ -45,6 +45,20 @@ GAME = "Attack from Mars"
 ASCII_WORD = re.compile(r"\b[A-Za-z]{4,}\b")
 
 
+def _machine_words(*paths: Path) -> set[str]:
+    """Words on screen only because of what this machine is called and where it runs.
+
+    Devices prints the hostname and Metrics prints the watched paths, so both carry words
+    no catalog owns. Derived rather than listed, because a list is one machine's.
+    """
+    import socket
+    import tempfile
+
+    sources = [socket.gethostname(), tempfile.gettempdir(), str(Path.home()),
+               *(str(p) for p in paths)]
+    return {w.lower() for s in sources for w in re.findall(r"[A-Za-z]{4,}", s)}
+
+
 def _icon_names() -> set[str]:
     """Material icons render their own name as ligature text, so the name is on screen.
 
@@ -96,9 +110,8 @@ class PseudoLocaleTests(unittest.TestCase):
             # the fixture game's own title, and this install's name
             {w.lower() for w in re.findall(r"[A-Za-z]{4,}", GAME)}
             | {"local", "dev"}
-            # the machine's hostname and the temp directories it runs from, which the
-            # Devices and Metrics pages report verbatim
-            | {"cbmacbookmax", "wired", "vpinfe", "folders", "live"}
+            # the product's own name, which About and Devices print
+            | {"vpinfe"}
             # a launcher is named by the config that declares it: "Visual Pinball",
             # "Generic". A name somebody typed is theirs.
             | {"visual", "pinball", "generic"}
@@ -137,6 +150,7 @@ class PseudoLocaleTests(unittest.TestCase):
             write_game(root, GAME)
             with LiveInstance(root,
                               extra_settings={("general", "language"): "qps"}) as instance:
+                allowed |= _machine_words(root, instance.config_dir)
                 leaked = asyncio.run(look(instance))
 
         self.assertEqual(leaked, {}, "these reached the screen without the catalog")

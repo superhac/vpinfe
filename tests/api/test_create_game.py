@@ -20,6 +20,7 @@ import httpapi
 from common.games import game_repository, locations
 from common.games.info_file import GAME_ID_KEY
 from tests.support.library import write_game
+from tests.support.skips import needs_posix_permissions
 
 
 class CreateGameCase(unittest.TestCase):
@@ -148,6 +149,7 @@ class CreateTests(CreateGameCase):
         self.assertEqual(found.status_code, 400)
         self.assertIn("nowhere", found.json()["error"]["message"])
 
+    @needs_posix_permissions
     def test_a_refusal_names_the_locations_that_would_have_worked(self) -> None:
         """The answer somebody needs is not only that it failed."""
         self.add_location(self.library, "one")

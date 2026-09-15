@@ -22,6 +22,7 @@ import tempfile
 import urllib.request
 from contextlib import suppress
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 import websockets
 
@@ -39,12 +40,7 @@ def free_port() -> int:
         return sock.getsockname()[1]
 
 
-def chromium_path() -> str | None:
-    """The browser VPinFE would use, or None when this machine has none.
-
-    Checked for real rather than trusted: a path that does not exist would launch
-    nothing and time out later as "never opened a page", which says nothing useful.
-    """
+def _installed_browser() -> str | None:
     with suppress(Exception):
         from frontend.chromium_manager import get_chromium_path
 
@@ -53,6 +49,27 @@ def chromium_path() -> str | None:
         if path and os.path.isfile(path) and os.access(path, os.X_OK):
             return path
     return None
+
+
+@lru_cache(maxsize=1)
+def chromium_path() -> str | None:
+    """A browser this machine can actually be driven through, or None.
+
+    Answers by launching one and connecting, not by finding a file: a browser that is
+    installed and cannot be driven makes every test using it fail rather than skip.
+    Cached, so the cost is one launch per run.
+    """
+    path = _installed_browser()
+    if path is None:
+        return None
+
+    async def drivable() -> bool:
+        with suppress(Exception):
+            async with BrowserSession(path):
+                return True
+        return False
+
+    return path if asyncio.run(drivable()) else None
 
 
 @dataclass
@@ -92,7 +109,10 @@ class BrowserSession:
             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
 
         endpoint = await self._page_endpoint(port)
-        self._ws = await websockets.connect(endpoint, max_size=None)
+        # 30s, not the 10s default: a cold CI runner can take longer than that to
+        # get Chrome to the point of answering a WebSocket upgrade, and the failure
+        # reads as a render regression rather than as a slow machine.
+        self._ws = await websockets.connect(endpoint, max_size=None, open_timeout=30)
         asyncio.create_task(self._pump())
         for domain in ("Page", "Runtime", "Network", "Log"):
             await self.send(f"{domain}.enable")

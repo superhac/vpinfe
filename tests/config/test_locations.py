@@ -18,6 +18,7 @@ from common.games.locations import (
     canonical,
     state_of,
 )
+from tests.support.skips import needs_posix_permissions
 
 
 def _config(**values) -> ConfigParser:
@@ -99,6 +100,7 @@ class WriteTargetTests(_WithStore, unittest.TestCase):
 
         self.assertEqual(self.store.write_to().location_id, second.location_id)
 
+    @needs_posix_permissions
     def test_an_unwritable_target_falls_back_to_one_that_works(self) -> None:
         """An install that has never been asked still has to be able to create
         something."""
@@ -125,6 +127,7 @@ class StateTests(unittest.TestCase):
         self.assertFalse(state.reachable)
         self.assertTrue(state.reason)
 
+    @needs_posix_permissions
     def test_a_read_only_share_is_reachable_and_not_writable(self) -> None:
         """A read-only export is a real case, and it belongs on the row beside
         reachable."""

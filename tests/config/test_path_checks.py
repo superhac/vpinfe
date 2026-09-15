@@ -13,6 +13,7 @@ from unittest import mock
 
 from common import config_schema, path_checks
 from tests.support.library import TempTree
+from tests.support.skips import needs_posix_permissions
 
 
 class PathCheckTests(TempTree):
@@ -58,6 +59,7 @@ class PathCheckTests(TempTree):
         self.assertEqual(state, path_checks.WRONG_KIND)
         self.assertIn("file", reason)
 
+    @needs_posix_permissions
     def test_a_program_that_cannot_be_run_is_its_own_state(self) -> None:
         """The path is right and the file is there. That is a permissions problem, not
         a typo, and the two are fixed differently."""
@@ -85,7 +87,10 @@ class PathCheckTests(TempTree):
         self.assertEqual(path_checks.check("exe", str(bundle))[0], path_checks.OK)
 
     def test_a_home_relative_path_is_expanded(self) -> None:
-        with mock.patch.dict(os.environ, {"HOME": str(self.root)}):
+        # `expanduser` reads HOME on POSIX and USERPROFILE on Windows, so a fixture
+        # that sets only one of them redirects `~` on one platform and not the other.
+        with mock.patch.dict(os.environ, {"HOME": str(self.root),
+                                          "USERPROFILE": str(self.root)}):
             self.assertEqual(path_checks.check("file", "~/a-file.ini")[0],
                              path_checks.OK)
 
