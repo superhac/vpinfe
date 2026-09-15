@@ -574,11 +574,10 @@ def _base_href() -> str:
     """The URL, carrying a digest of what is behind it.
 
     The file is served with an hour's max-age, which is the point of having it - but a
-    browser holding a copy will not ask again inside that hour, whatever the etag says.
-    So an upgrade would leave the old stylesheet on screen for up to an hour, which is a
-    thing the old inline delivery could not do. A different URL is the only way to make
-    a cached copy irrelevant, and deriving it from the bytes means it changes exactly
-    when they do.
+    browser holding a copy will not ask again inside that hour, whatever the etag says,
+    so an upgrade would leave the old stylesheet on screen for up to an hour. A different
+    URL is the only way to make a cached copy irrelevant, and deriving it from the bytes
+    means it changes exactly when they do.
     """
     from hashlib import sha256
 
@@ -664,8 +663,8 @@ def _quasar_brand(mode: str) -> dict[str, str]:
     """The brand set Quasar paints its own components with.
 
     Read off the tokens rather than kept beside them. A second copy of the palette is a
-    second palette, and this one had already drifted: `warning` was a third amber, next
-    to the two the stylesheet was busy collapsing into one.
+    second palette, and it drifts - a third amber beside the two the stylesheet already
+    collapses into one.
     """
     return {
         "primary": _token("--flair", mode),

@@ -65,7 +65,7 @@ class ApiClient:
         """Raise what the API said, not what HTTP said.
 
         `raise_for_status` throws away the body, so a considered message - "No Visual
-        Pinball on this machine..." - reached the panel as "501 Server Error: Not
+        Pinball on this machine..." - reaches the panel as "501 Server Error: Not
         Implemented for url: ...", which names our own route at a user and tells them
         nothing. Every write in this client goes through here for that reason.
         """
@@ -982,8 +982,8 @@ def _refuse_the_event_loop(path: str) -> None:
 
     These calls go to our own process. Made from the event loop they deadlock until the
     read times out, and what the user sees is the browser losing its socket - which
-    reads as a crash rather than as a blocking call. It cost two rounds of chasing the
-    wrong thing, so the mistake reports itself now. Every call belongs in run.io_bound.
+    reads as a crash rather than as a blocking call, so the mistake reports itself
+    instead. Every call belongs in run.io_bound.
     """
     try:
         asyncio.get_running_loop()

@@ -87,8 +87,7 @@ def rating_handler(rows_by_id: dict[str, Any], grid_of: Callable[[], Any],
     """One handler for both grids: write it, then repaint only the row that changed - a
     whole-grid refresh costs the scroll position and the selection for one number.
 
-    `grid_of` rather than the grid, because a caller wires this before the grid exists -
-    which the two closures this replaces did by reading a name bound later.
+    `grid_of` rather than the grid, because a caller wires this before the grid exists.
     """
     async def rate(event: Any) -> None:
         args = event.args if isinstance(event.args, dict) else {}

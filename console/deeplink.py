@@ -38,8 +38,8 @@ _FIELDS = (
 # somebody is meant to be able to read.
 # A value may belong to more than one place: a game, its section and its slot are as
 # meaningful on the Tables grid as on the Games one, because both answer for a game in
-# the workbench beside them. Left as a single name each, a table's section vanished from
-# the address the moment Tables became a place of its own.
+# the workbench beside them. Left as a single name each, a table's section is absent from
+# the address on any grid but the one it was declared for.
 # Media selects a game, a table and a slot the same way the other two do - a row there
 # is one game's slot - so leaving it out would drop the whole selection in silence.
 _PANEL = ("games", "tables", "media", "assets")

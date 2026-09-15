@@ -419,7 +419,7 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
     # event loop it blocks the server from answering it, the request times out
     # after 15s, and the browser reports the socket as lost rather than slow.
     #
-    # And read *before* clearing. Clearing first left the panel empty for the whole
+    # And read *before* clearing. Clearing first leaves the panel empty for the whole
     # round trip, which after a write reads as the panel flashing black - the write,
     # the reread and the redraw are one act to the person who asked for it.
     tables = await offload.io(library.tables_for, game_id)
@@ -656,9 +656,9 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
     # and a rebuild that redrew the values it just changed from a stale row would
     # show the edit undoing itself.
     #
-    # All of it before the container is cleared. Clearing first held the panel empty
-    # across three round trips, which is the black flash after changing a member's
-    # table: the old panel stays up now until the new one is ready to replace it.
+    # All of it before the container is cleared. Clearing first holds the panel empty
+    # across three round trips, which is a black flash after changing a member's table:
+    # the old panel stays up until the new one is ready to replace it.
     rows = await offload.io(library.load_collections)
     row = next((entry for entry in rows if entry.get("name") == name), None)
     if row is None:
@@ -898,10 +898,10 @@ async def _media_block(context: dict[str, Any]) -> None:
             #
             # Inside `with holder`, and that is not tidiness. `run_javascript` reaches
             # for the client through the current slot, and a redraw scheduled from a
-            # click runs on a bare task with no slot at all - so out here it raised,
-            # took the rest of this function with it, and the dock below never got
-            # cleared. The map updated, the editor kept whatever it had, and nothing
-            # said why.
+            # click runs on a bare task with no slot at all - so out here it raises,
+            # takes the rest of this function with it, and the dock below is never
+            # cleared. The map updates, the editor keeps whatever it had, and nothing
+            # says why.
             if context["slot"]["kind"]:
                 ui.run_javascript("""
                 requestAnimationFrame(() => {
@@ -946,7 +946,7 @@ def _preview(src: str, kind: str, label: str) -> None:
     """Present the file with an element that can actually play it.
 
     An <img> pointing at a .mp4 downloads the whole file and paints nothing - the slot
-    looked empty for a video that is there, and on a library that is not local the
+    reads as empty for a video that is there, and on a library that is not local the
     fetch is long enough to read as the page having stopped. `preload="metadata"` is
     what keeps the poster frame cheap: enough to show it, not the whole video.
     """
@@ -1145,8 +1145,8 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
         #
         # Labelled for what they are rather than for the tier their names put them at.
         # A losing file's tier says who *would* use it, and nothing does - so a file
-        # sitting under the one in use read "All tables" here while the media lens
-        # called the same file Unused, which is one of them being wrong.
+        # sitting under the one in use would read "All tables" here while the media lens
+        # calls the same file Unused, which is one of them being wrong.
         if len(also_here) > 1:
             with ui.column().classes("w-full gap-0 console-slot-others"):
                 ui.label(t("console.workbench.not_used")).classes("console-slot-others-title")
@@ -2005,11 +2005,11 @@ def _library_rows(context: dict[str, Any],
     def default_row() -> None:
         """The state, and the one act that changes it.
 
-        A switch stood here and could not tell the truth: the fact has three states -
-        the default because somebody chose it, the default because nothing did, and not
-        the default - so a two-state control had to say something else, and said
-        "Default table for game" while the grid said "User". The chip is the finding and
-        the button is the act, which is the panel's own convention.
+        Not a switch: the fact has three states - the default because somebody chose
+        it, the default because nothing did, and not the default - so a two-state
+        control has to say something else, and says "Default table for game" while the
+        grid says "User". The chip is the finding and the button is the act, which is
+        the panel's own convention.
         """
         said = game_tables.default_state(table.get("default_kind") or "")
         with ui.element("div").classes("console-fact-edit"):
@@ -2476,7 +2476,7 @@ def _tables_block(context: dict[str, Any]) -> None:
             .classes("console-card-title console-fact-heading grow")
         # Beside the list rather than hidden in a menu, and drawn even where the list
         # is empty: a folder with nothing in it yet is exactly where one of these is
-        # added, and returning early left that game with no way to gain anything.
+        # added, and returning early leaves that game with no way to gain anything.
         #
         # Two buttons rather than a menu of two. Both are always available, and a menu
         # that opens onto two items charges a click to say so.
@@ -2562,8 +2562,8 @@ def _release_line(table: dict[str, Any]) -> None:
     matcher has examined this and none exists, so a row that read "not matched" would
     be reporting a search that never happened.
 
-    Drawn from what the row already carries. Reaching for the release list here put a
-    blocking API call inside a synchronous draw, and the rows after it never appeared.
+    Drawn from what the row already carries. Reaching for the release list here puts a
+    blocking API call inside a synchronous draw, and the rows after it never appear.
     """
     source = table.get("source") or {}
     if not source.get("vps_file_id"):
@@ -2824,9 +2824,8 @@ def _default_mark(context: dict[str, Any], table: dict[str, Any], *,
                   since: str) -> None:
     """Which table the game offers, and the way to change it.
 
-    Chris asked for this - *"tables to be able to raise their hand and
-    say 'I am a default'"* - and the panel could only report it. A gone table is shown
-    unset and is not offerable: the game cannot default to a file that is not there.
+    Settable here rather than only reported. A gone table is shown unset and is not
+    offerable: the game cannot default to a file that is not there.
     """
     chosen = bool(table.get("default"))
     mark = ui.icon("radio_button_checked" if chosen else "radio_button_unchecked") \
@@ -4223,7 +4222,7 @@ async def _preview_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
 # `member.origin` is provenance - who put this here, a person or the rule - and
 # `tables[0].origin` is the axis this vocabulary is about: `named` means the member
 # holds to that table, `default` means it resolves through whatever the game offers.
-# Reading the wrong one made every stored member report as specific.
+# Reading the wrong one reports every stored member as specific.
 _TABLE_STATE = {
     "named": game_tables.FIXED,
     "default": game_tables.FOLLOWS,
@@ -4304,15 +4303,15 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
             for member in excluded:
                 _member_line(context, member)
     # `kept`, not `members`: the excluded rows are drawn in their own group below, so
-    # the indices the browser reports are into this list. Sending `members` sent the
-    # excluded ones too - a game both named and excluded appeared twice, and the route
-    # refused the whole move.
+    # the indices the browser reports are into this list. Sending `members` sends the
+    # excluded ones too - a game both named and excluded appears twice, and the route
+    # refuses the whole move.
     #
     # Handed to the listener through state rather than closed over, because the
-    # listener is registered **once**. Registering inside the draw added one on every
+    # listener is registered **once**. Registering inside the draw adds one on every
     # rebuild, and NiceGUI answers a changed listener set by re-rendering the page -
-    # which is why a reorder flashed the grid and the logo in the nav, neither of which
-    # this panel touches.
+    # which flashes the grid and the logo in the nav, neither of which this panel
+    # touches.
     held = context["state"]
     held["member_move"] = (context, kept) if arrange else None
     if arrange:
@@ -4409,9 +4408,9 @@ def _table_choice(context: dict[str, Any], member: dict[str, Any], state: str,
                   table: dict[str, Any], said: str, *, editable: bool) -> None:
     """The table line, and the menu that changes which table this member names.
 
-    Naming a table is a tool of its own - *exactly these, frozen* -
-    and the API has carried it since the member routes took a `table`. Nothing in the
-    UI reached it, so every row read `Game Default` whatever the collection stored.
+    Naming a table is a tool of its own - *exactly these, frozen* - and the API has
+    carried it since the member routes took a `table`. Without a way in from here every
+    row reads `Game Default` whatever the collection stored.
     """
     with ui.row().classes("items-center gap-2 no-wrap w-full min-w-0 "
                           "console-member-table-line") as line:
@@ -4457,9 +4456,9 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
         ui.notify(t("console.workbench.could_not_read_game", exc=(exc)), type="negative")
         return
     # Every table this collection already holds for this game - what its refs *resolve
-    # to*, not just what they name. Asking only about named tables offered the file a
-    # following ref already resolves to, so a one-table game was told it could add the
-    # table it has: "Add another" and "Uses" read as the same entry (Chris, 2026-08-30).
+    # to*, not just what they name. Asking only about named tables offers the file a
+    # following ref already resolves to, so a one-table game is told it could add the
+    # table it has, and "Add another" and "Uses" read as the same entry.
     # An excluded ref counts too: offering a table that is being kept out would add a
     # member the collection immediately drops again.
     spoken = {str(t.get("id") or "")
@@ -4514,7 +4513,7 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
             ui.separator()
             # "Insert", because it lands beside the row it was asked from rather than
             # at the end - and naming the game because this is the confusing half of
-            # the menu, where being explicit beats being short (Chris, 2026-08-31).
+            # the menu, where being explicit beats being short.
             # Not "another user defined": every item here wears the mark for that and
             # the key says what it means, so the state would restate what is on screen.
             ui.item_label(t("console.workbench.insert_another_table_game")).props("header") \

@@ -95,9 +95,9 @@ NAV_PARENT = ("library", "console.section.library", "inventory_2")
 # What the `frontend` feature owns, gathered the way Library gathers what `library` owns.
 # The rule the two of them make: a feature with more than one subject gets a container.
 #
-# Launchers sat under System until 2026-09-05 and never fitted - System's three are
-# configuration and records, and a launcher is neither. It was also the one child there
-# gated on a feature rather than on `core`, which is the tell.
+# Launchers belongs here rather than under System - System's three are configuration and
+# records, and a launcher is neither. It is also the only one gated on a feature rather
+# than on `core`, which is the tell.
 NAV_FRONTEND = ("frontend", "console.section.frontend", "smart_display")
 
 NAV_SYSTEM = ("system", "console.section.system", "settings")
@@ -741,9 +741,9 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     def show_workbench(shown: bool) -> None:
         """Collapse to a rail, never away.
 
-        Hiding it outright left no control to bring it back, which is the only reason
-        the floating tab existed. A rail keeps its own toggle on screen, so both panels
-        collapse the same way and nothing overlays the grid.
+        Hiding it outright leaves no control to bring it back. A rail keeps its own
+        toggle on screen, so both panels collapse the same way and nothing overlays the
+        grid.
         """
         state["workbench"] = shown
         workbench_icon.props(f'name={"menu_open" if shown else "menu"}')
@@ -870,8 +870,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         every other subject follows, so the panel needs no control of its own.
 
         A row of nothing is the grid settling, not a deselection: it fires a focus event
-        with no row while it restores its own state, and taking that literally emptied
-        the panel a moment after the page had opened one. There is no way to select no
+        with no row while it restores its own state, and taking that literally empties
+        the panel a moment after the page opened one. There is no way to select no
         device, so the last one stands.
         """
         if row and not state["workbench"]:
@@ -969,8 +969,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     def render() -> None:
         # A game shown beside a different destination is stale by definition.
         clear_workbench()
-        # The pane is not closed with it. It was, on the grounds that one left open
-        # describes nothing - but it has an empty state now, and `clear_workbench`
+        # The pane is not closed with it. It has an empty state, and `clear_workbench`
         # names it for whichever page you have arrived at. Its width and whether it is
         # open are how the workspace is arranged, and rearranging it on every move
         # between sections is the shell taking a decision back.

@@ -20,14 +20,13 @@ logger = logging.getLogger("vpinfe.console.data")
 _SLOW_READ = 1.0
 
 # The cell holds the *word*, never the mark. What a cell is worth filtering and sorting
-# on is the state; how it is drawn is the column's business. Holding the drawn mark made
-# the text filter match `<span class="console-mark console-mark--full">` - so typing "full" found
-# rows and typing "All tables" found none.
+# on is the state; how it is drawn is the column's business. Holding the drawn mark makes
+# the text filter match `<span class="console-mark console-mark--full">`, so typing "full"
+# finds rows and typing "All tables" finds none.
 #
-# The words are `media_ownership`'s, which is the module that owns them. The grid used to
-# keep its own five - splitting the folder-named file from the fixed-name slot - and that
-# split is about our filename conventions rather than anything a reader has a concept
-# for, which is the argument that module already makes.
+# The words are `media_ownership`'s, which is the module that owns them. A set of its own
+# here would split the folder-named file from the fixed-name slot, which is about our
+# filename conventions rather than anything a reader has a concept for.
 
 
 # A media slot, and what one nothing serves looks like. The fields the per-game read
@@ -751,9 +750,9 @@ class Library:
     def kinds_present(self) -> list[str]:
         """Kinds any game in this library actually has.
 
-        Seven of the twenty are empty across the whole testbed, and a column that is
-        blank for every row costs width and tells nobody anything. The user can still
-        add them back - the column picker holds every kind, this only sets the default.
+        A column blank for every row costs width and tells nobody anything, and a good
+        many kinds are empty across a whole library. The user can still add them back -
+        the column picker holds every kind, this only sets the default.
         """
         seen: set[str] = set()
         for entries in self.media.values():

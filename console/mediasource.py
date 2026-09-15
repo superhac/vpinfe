@@ -441,7 +441,7 @@ class _Sources:
 
         Named because this list and the search above it drift apart: you search for
         something else, and the files below go on being the ones you were already
-        looking at. Nothing said which game they belonged to.
+        looking at, with nothing to say which game they belong to.
         """
         body.clear()
         # Named only when it is not this game's own: a heading that says the obvious on

@@ -54,7 +54,7 @@ _GROUPED = {section for _key, _label, sections in GROUPS for section in sections
 # Read but never offered. `[Version]` is what the program wrote about itself rather than
 # something to set; the rest is state the program keeps in the same file - key bindings
 # written per device as somebody binds them, and the order plugins render in, worked out
-# when they load. None of it is a setting, and 59 rows of raw input bindings in a
+# when they load. None of it is a setting, and a page of raw input bindings in a
 # settings editor is noise somebody has to read past.
 HIDDEN_SECTIONS = frozenset({"Version", "RecentDir", "TableOverride"})
 HIDDEN_PREFIXES = ("Input.Mapping", "Input.Device")

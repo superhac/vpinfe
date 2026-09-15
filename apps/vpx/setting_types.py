@@ -1257,7 +1257,6 @@ TYPES: dict[str, str] = {
 # Saving a table's settings drops any value equal to the application's, so a
 # table cannot be pinned to what it already inherits - except for these, which
 # are kept. Declared by the `...Dyn` half of each macro pair.
-# 136 of them.
 CONTEXTUAL: frozenset[str] = frozenset({
     'Backglass.BackglassColorDepth',
     'Backglass.BackglassDisplay',

@@ -201,9 +201,8 @@ _HAS_CHOICES = [{"value": True, "label": t("word.present")},
 def asset_columns(keys: list[str]) -> list[dict[str, Any]]:
     """One column per asset kind, availability only.
 
-    A group rather than the single count that stood here, which was a count of *media*
-    under an Assets heading. What a reader wants is which of them a game has, and a
-    number cannot say that - the same argument that made media a group.
+    A group rather than a single count. What a reader wants is which of them a game
+    has, and a number cannot say that.
     """
     labels = {key: _asset_label(key) for key in keys}
     width = max((grid.header_width(label) for label in labels.values()), default=92)
@@ -595,8 +594,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         """Redraw the media cells as marks or as pictures.
 
         The *renderer* changes; the value never does. Swapping the picture into the
-        value left the filter matching whichever presentation was showing, so filtering
-        by "All tables" broke the moment the thumbnails came on.
+        value leaves the filter matching whichever presentation is showing, so filtering
+        by "All tables" breaks the moment the thumbnails come on.
         """
         thumbs = cells.value == t("console.games.thumbnails")
         height = 60 if thumbs else 42
@@ -605,7 +604,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         # The same number twice, because AG Grid keeps two: the option lays the row out,
         # `--ag-row-height` is what its stylesheet derives a cell's line height from and
         # it does not follow the option. Left behind, every cell in a taller row - the
-        # name as much as the picture - drew against a 39px line box and sat high in it.
+        # name as much as the picture - draws against the default line box and sits high
+        # in it.
         # Set on the node, never with `.style()`: mutating the element makes nicegui
         # rebuild the grid from `columnDefs`, losing every imperative call - which is
         # a view's columns, widths, sort and filters.
@@ -624,10 +624,10 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
 # rather than read. The value stays boolean underneath, which is what lets the column
 # sort and filter - a column of "Yes"/"" strings would sort alphabetically and filter
 # as text.
-# The community text filter does not read a boolean fine, which is what this used to
-# say: it offers a select reading "Choose one / True / False" - "Choose one" twice, since
-# the placeholder is also the first option, and the two words that follow are the wire's,
-# not a person's. Two choices in the column's own terms instead.
+# The community text filter does not read a boolean well: it offers a select reading
+# "Choose one / True / False" - "Choose one" twice, since the placeholder is also the
+# first option, and the two words that follow are the wire's, not a person's. Two
+# choices in the column's own terms instead.
 # One column per feature. Not used draws nothing at all, so what a reader sees down a
 # column is the tables that have it - and, where a scan is mid-flight, the ones nobody
 # has read yet. A tick for the plain yes, the same as the asset and media columns; the
@@ -745,9 +745,9 @@ def table_asset_columns(keys: list[str]) -> list[dict[str, Any]]:
     fact with more answers is a shaped circle, and these carry the media map's own
     marks because it is the same question about a different file.
 
-    This is the surface a recorded defect was waiting for: the games grid reports these
-    from a folder scan, so a game whose only `.directb2s` is named for one table reads
-    "has one" while its sibling launches without a backglass.
+    The games grid reports these from a folder scan, so a game whose only `.directb2s`
+    is named for one table reads "has one" while its sibling launches without a
+    backglass. This is the grain that answers it.
     """
     labels = {key: _asset_label(key) for key in keys}
     headers = {key: grid.two_line(label)

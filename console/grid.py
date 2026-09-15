@@ -361,9 +361,8 @@ def column_menu(menu: Any, table: Any, columns: list[dict[str, Any]],
                 col_id: str | None, pinned: bool) -> bool:
     """Fill a context menu with what can be done to a column, or answer False.
 
-    The header half of every grid's menu, in one place. It was written out per grid and
-    two of them simply never got it, which is how a grid ends up without pinning that
-    every other one has.
+    The header half of every grid's menu, in one place. Written out per grid, it is how
+    one ends up without the pinning every other one has.
     """
     if not col_id or col_id.startswith("ag-Grid-"):
         return False
@@ -418,7 +417,7 @@ async def apply_layout(grid: ui.aggrid, scope: str, columns: list[dict[str, Any]
     # Every column this grid has gets a definite width, not only the ones with one
     # stored: a view with no geometry of its own must go back to the definitions rather
     # than keep the last view's. `defaultState: {"width": None}` reads as if it would do
-    # this and does not - measured, a 505px name column survived the switch.
+    # this and does not - a widened column survives the switch.
     #
     # Pinning is deliberately not reset. It is set by the column definition rather than
     # by a layout, and forcing it here unpins the selection column.

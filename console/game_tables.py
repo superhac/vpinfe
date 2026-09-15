@@ -56,9 +56,9 @@ REFERENCE_WORDS = {
            t("console.game_tables.not_library")),
 }
 
-# Drawn, not typed: as characters these are not a matched pair. Measured in the Console's
-# own font at 15px, ● is 9.4px across and ◐ is 15px, so the smaller state read as a
-# speck. CSS circles are the same diameter by construction.
+# Drawn, not typed: as characters these are not a matched pair - in the Console's own
+# font the filled circle is far narrower than the half one, so it reads as a speck. CSS
+# circles are the same diameter by construction.
 #
 # Full and outline are the two ends of the ramp - the clearest pair there is, and this
 # vocabulary has only two states to spend.

@@ -266,10 +266,10 @@ async def _configure(library: Library, theme: dict[str, Any]) -> None:
 def _rows(options: list[dict[str, Any]], wanted: dict[str, Any]) -> list[tuple]:
     """The theme's options as settings rows, through the same grammar Settings uses.
 
-    A theme's settings are settings. Drawing them with a control vocabulary of their own
-    was a second answer to a question already answered, and the two drifted the moment
-    one of them gained a type - which is why the dispatch now lives in one place and this
-    only says what a theme option *is*.
+    A theme's settings are settings. A control vocabulary of their own is a second
+    answer to a question already answered, and the two drift the moment one gains a
+    type - so the dispatch lives in one place and this only says what a theme option
+    *is*.
     """
     rows: list[tuple] = []
     for option in options:

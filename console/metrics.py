@@ -40,9 +40,9 @@ WARN, BAD = 75.0, 90.0
 def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
     """Drawn once, then updated in place.
 
-    Clearing and rebuilding on every tick was the first attempt and it is wrong: the
-    graphics switch is a control somebody reaches for, and a control replaced under
-    their finger every two seconds cannot be clicked. Only the values move.
+    Never cleared and rebuilt on a tick: the graphics switch is a control somebody
+    reaches for, and one replaced under their finger every two seconds cannot be
+    clicked. Only the values move.
     """
     held: dict[str, Any] = {"gpu": None, "watch_gpu": bool(state.get("metrics_gpu"))}
 
