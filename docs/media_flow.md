@@ -1,5 +1,10 @@
 # Media Flow
 
+> Per-table media resolution is not covered here yet. A game folder can hold several
+> tables, each able to have its own art, and `common/games/media_lookup.py` is what
+> resolves that. This page still describes the game-level flow correctly.
+
+
 This document explains how per-game images, videos, and audio move from the filesystem into a VPinFE theme.
 
 ## Overview

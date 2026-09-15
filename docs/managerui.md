@@ -1,6 +1,13 @@
 # Manager UI Architecture
 
-The Manager UI is a NiceGUI application under `managerui/`. Its current refactor direction is to keep page rendering thin and move shared paths, styling, page metadata, and reusable UI primitives into small modules.
+The Manager UI is a NiceGUI application under `managerui/`.
+
+> **It is being retired, not refactored.** The Console replaces it. This page describes
+> what is still there so the removal has a checklist; it is not a guide to building on it.
+> New work goes in `console/`, and `docs/conventions.md` covers the Console's conventions.
+
+Page rendering is thin, with shared paths, styling, page metadata and reusable UI
+primitives in small modules.
 
 ## Structure
 
