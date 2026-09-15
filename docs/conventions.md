@@ -450,11 +450,21 @@ Two game identifiers exist and are not interchangeable:
 
 ## Console
 
-The stylesheet is the design system. `console/theme.py` holds every token and every class the
-console uses, and there is no second place a treatment is defined. **Grep it before inventing
-one** — a heading, a chip, a state, a control. Something that looks like it needs a new class
+The stylesheet is the design system. `console/static/console-base.css` holds every class the
+Console uses and `console/theme.py` holds the palette tokens, and there is no third place a
+treatment is defined. **Grep the stylesheet before inventing one** — a heading, a chip, a state, a control. Something that looks like it needs a new class
 usually has one already, and two spellings of the same idea is how a surface stops looking
 like one product.
+
+### Themes
+
+Four modes: `synthwave` (the default), `dark`, `light`, and `system`, which follows the
+operating system and resolves to one of the two neutral palettes. Set with
+`[general] console_theme`.
+
+A mode is a palette and nothing else. Structure, spacing and the type scale are shared, and
+a mode may not touch them: that is what keeps four modes from becoming four layouts. A
+palette states custom properties, and the rules that use them never name a color.
 
 **And grep the surface next door.** The class is half the answer; the other half is how the
 neighbouring vocabulary already decided the same question — which shape means "nothing here",
