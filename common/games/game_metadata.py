@@ -175,8 +175,8 @@ def game_tags(game: GameRecord) -> list[str]:
 
 def normalize_tag(text: str) -> str:
     """One tag, as it is stored. Trimmed, and internal runs collapsed - `Wide  Body `
-    must not become a second tag. Case is left alone on purpose: Chris, 2026-09-01,
-    the picker surfaces close matches and the user decides."""
+    must not become a second tag. Case is left alone on purpose: the picker surfaces
+    close matches and the user decides."""
     return " ".join(str(text or "").split())
 
 

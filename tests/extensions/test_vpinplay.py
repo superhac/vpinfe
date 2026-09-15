@@ -141,14 +141,14 @@ class HandoverTests(unittest.TestCase):
         from common.config_access import cfg_set
 
         cfg_set(self.config, "vpinplay", "api_endpoint", "https://mine.example:9000")
-        cfg_set(self.config, "vpinplay", "user_id", "chris")
+        cfg_set(self.config, "vpinplay", "user_id", "player-one")
         self.config.save()
 
         handover.seed(self.store, self.config)
 
         held = self.store.settings("vpinplay")
         self.assertEqual(held["endpoint"], "https://mine.example:9000")
-        self.assertEqual(held["user_id"], "chris")
+        self.assertEqual(held["user_id"], "player-one")
 
     def test_it_runs_once(self) -> None:
         from common.config_access import cfg_set
@@ -185,12 +185,12 @@ class HandoverTests(unittest.TestCase):
         """A reverted install has to still find what its user typed."""
         from common.config_access import cfg_get, cfg_set
 
-        cfg_set(self.config, "vpinplay", "user_id", "chris")
+        cfg_set(self.config, "vpinplay", "user_id", "player-one")
         self.config.save()
 
         handover.seed(self.store, self.config)
 
-        self.assertEqual(cfg_get(self.config, "vpinplay", "user_id"), "chris")
+        self.assertEqual(cfg_get(self.config, "vpinplay", "user_id"), "player-one")
 
 
 if __name__ == "__main__":

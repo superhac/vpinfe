@@ -4588,10 +4588,10 @@ def _add_table_item(context: dict[str, Any], game: str, table: dict[str, Any],
 
     with ui.menu_item(on_click=add).classes("console-menu-item"), \
             ui.row().classes("items-center gap-2 no-wrap w-full"):
-        # A plus, not the ● the entries above wear. Both groups named the same table
-        # with the same mark, so the pair read as one thing listed twice and the
-        # heading was the only thing telling them apart - which a heading loses at a
-        # glance (Chris, 2026-08-30). The mark carries the verb now.
+        # A plus, not the ● the entries above wear. Both groups would name the same
+        # table with the same mark, so the pair reads as one thing listed twice with
+        # the heading the only thing telling them apart - which a heading loses at a
+        # glance. The mark carries the verb instead.
         ui.icon("add").classes("console-menu-add")
         ui.label(game_tables.table_name(table)).classes("console-menu-table-name grow min-w-0")
 

@@ -2248,7 +2248,7 @@ class VPinFECore {
 
   // --- Chords -------------------------------------------------------------------
   //
-  // Chris, 2026-09-06: the members fire, and their repeat stops once every one of them
+  // The members fire, and their repeat stops once every one of them
   // is down. So holding both flippers moves the wheel one step each way and then exits,
   // rather than spinning it for the length of the hold - and no latency is added to a
   // flipper, which is the one thing that must not happen here.

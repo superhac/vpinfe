@@ -214,7 +214,7 @@ class ReadTests(unittest.TestCase):
         self.assertFalse([one for one in library.notes if "@eaDir" in one])
 
     def test_a_system_this_build_cannot_play_is_left_behind(self) -> None:
-        """Chris, 2026-09-10: only Visual Pinball, for now.
+        """Only Visual Pinball, for now.
 
         A source declares whatever its owner ever set up. Bringing in Future Pinball
         would make entries for games nothing here can launch, which is worse than not
@@ -226,8 +226,7 @@ class ReadTests(unittest.TestCase):
         self.assertNotIn("Future Pinball", [one.name for one in library.systems])
 
     def test_an_extension_can_make_a_skipped_system_importable(self) -> None:
-        """Chris, 2026-09-10: *"An extension supporting additional launcher should be
-        supported."*
+        """An extension supporting an additional launcher is supported too.
 
         This is what that buys. A Future Pinball library is read and dropped because
         nothing here plays `.fpt`; an extension providing an app for it changes the

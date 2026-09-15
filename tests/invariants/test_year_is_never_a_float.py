@@ -1,6 +1,6 @@
 """No year this project hands out is a float.
 
-Chris, 2026-09-10: *"At the end of that day, nothing should make it a float."* Whether a
+Nothing is allowed to make one a float. Whether a
 given year is a number or text is a per-surface answer and not settled here - the library
 hands out text, a catalog's own year comes back as a number - but a float is neither of
 those and is nobody's answer.

@@ -1,7 +1,7 @@
 """Nothing from anybody's own library is in the public tree.
 
-Chris, 2026-09-10: *"None of my library assets or metadata are allowed in the public
-repo."* This tree is public and the machines it gets developed against are not. A real
+No library asset and no library metadata belongs in the public repo. This tree is
+public and the machines it gets developed against are not. A real
 frontend install is the best possible test corpus and the worst possible thing to commit
 from, and the two facts pull in opposite directions every time somebody works from one.
 

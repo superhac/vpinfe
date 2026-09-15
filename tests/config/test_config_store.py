@@ -34,7 +34,7 @@ class ConfigStoreTests(TempTree):
 
 
 class FirstRunTests(ConfigStoreTests):
-    """Chris's acceptance criterion: a fresh install never needs the file opened."""
+    """The acceptance criterion: a fresh install never needs the file opened."""
 
     def test_a_fresh_install_writes_a_complete_config(self) -> None:
         store = ConfigStore(str(self.ini))

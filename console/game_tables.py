@@ -20,7 +20,7 @@ JOIN = " · "
 # arranged the grid. It stays an identifier and `_view_name` resolves it.
 MACHINE = t("console.view.machine")
 # "Table File", not "File": a panel that also shows a table ini, a script and a rom
-# left a reader asking which file. Chris, 2026-09-01, with `Default Table` below.
+# left a reader asking which file. Named alongside `Default Table` below.
 FILE = t("console.game_tables.table_file")
 FEATURES = t("console.game_tables.features")
 # What a keyed entry's group is called where the file group would be. There is no file,
@@ -135,7 +135,7 @@ VPS_WORDS = (t("console.game_tables.unmatched"), t("console.game_tables.matched"
 
 # The label, not the state - "Default" alone left a reader asking "default what?" on a
 # panel that also has a default launcher and a default view. Named here so the grid and
-# the workbench cannot answer it differently. Chris, 2026-09-01.
+# the workbench cannot answer it differently.
 DEFAULT_LABEL = t("console.game_tables.default_table")
 LAUNCH_UNKNOWN = t("word.unknown")
 

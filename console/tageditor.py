@@ -1,8 +1,8 @@
 
 """The tag editor: one row per tag, and the way to fix two spellings of one word.
 
-Entry does not fold case - Chris, 2026-09-01: surface close matches and let the user
-decide - so `sci-fi` and `Sci-Fi` can both exist. This is where that gets cleaned up,
+Entry does not fold case - the picker surfaces close matches and the user decides -
+so `sci-fi` and `Sci-Fi` can both exist. This is where that gets cleaned up,
 which is why merge is the headline here and rename is the same operation with one
 source.
 """

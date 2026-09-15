@@ -3,7 +3,7 @@
 A guest profile is deliberately temporary: it is cleared on shutdown, so a cabinet never
 comes back up still submitting scores under a visitor's name.
 
-**This is VPinPlay's, and lives here for that reason** - Chris, 2026-09-11. A guest on a
+**This is VPinPlay's, and lives here for that reason.** A guest on a
 shared cabinet reads like a general idea, and the state machine below would work for one;
 what makes it VPinPlay's is what a guest is *for*. The identity is theirs - a user id,
 initials and a machine id are the three things their service files a score under - and

@@ -578,7 +578,7 @@ describe("back at the root leaves", () => {
 
 // Chords: what a cabinet actually asks for. Hold both flippers to exit.
 //
-// The design decision these pin (Chris, 2026-09-06): the members fire, and their repeat
+// The design decision these pin: the members fire, and their repeat
 // stops once every one of them is down. So both flippers move the wheel one step each
 // way and then exit, instead of spinning it for the length of the hold - and no latency
 // is added to a flipper press, which is the one thing that must not happen here.
