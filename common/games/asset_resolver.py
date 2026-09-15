@@ -10,6 +10,7 @@ directory listings - nothing here is stored, so nothing here can go stale.
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -58,7 +59,7 @@ BINDING_SHARED = "shared"
 BINDING_ORPHANED = "orphaned"
 
 
-def folder_listing(game_dir) -> tuple[list[str], list[str]]:
+def folder_listing(game_dir: str | Path) -> tuple[list[str], list[str]]:
     """A game folder's files and its subfolders, in the shape everything here takes.
 
     One read per caller rather than one per kind: the resolvers below all answer from a
@@ -77,13 +78,13 @@ def _stem(name: str) -> str:
     return os.path.splitext(name)[0]
 
 
-def _by_lower(names) -> dict[str, str]:
+def _by_lower(names: Iterable[str]) -> dict[str, str]:
     """lowercase -> actual name. VPX matches companions case-insensitively."""
     return {name.lower(): name for name in names}
 
 
-def resolve_for_table(table: str, folder_name: str, files,
-                          kinds=VPX_ASSET_KINDS) -> dict:
+def resolve_for_table(table: str, folder_name: str, files: Iterable[str],
+                      kinds: Sequence[AssetKind] = VPX_ASSET_KINDS) -> dict:
     """The launch lens: what this table would use, kind by kind.
 
     Mirrors VPX's search order - a file named for the table wins, a file named
@@ -109,17 +110,18 @@ def resolve_for_table(table: str, folder_name: str, files,
                 continue
         resolved[kind.key] = {"resolution": RESOLUTION_NONE}
 
-    for kind, by in _SUPERSEDED_BY.items():
-        found = resolved.get(kind) or {}
+    for key, by in _SUPERSEDED_BY.items():
+        found = resolved.get(key) or {}
         if (found.get("resolution") in (RESOLUTION_DEDICATED, RESOLUTION_SHARED)
                 and (resolved.get(by) or {}).get("resolution")
                 in (RESOLUTION_DEDICATED, RESOLUTION_SHARED)):
-            resolved[kind] = {**found, "resolution": RESOLUTION_SUPERSEDED,
-                              "superseded_by": by}
+            resolved[key] = {**found, "resolution": RESOLUTION_SUPERSEDED,
+                             "superseded_by": by}
     return resolved
 
 
-def inventory(folder_name: str, files, tables, kinds=VPX_ASSET_KINDS) -> dict:
+def inventory(folder_name: str, files: Iterable[str], tables: Iterable[str],
+              kinds: Sequence[AssetKind] = VPX_ASSET_KINDS) -> dict:
     """The inventory lens: every asset file present, attributed.
 
     `dedicated` names the table it serves; `shared` is the folder-named
@@ -162,7 +164,7 @@ def parse_alias_file(text: str) -> dict[str, str]:
     return aliases
 
 
-def resolve_rom_chain(declared: str, aliases: dict[str, str], rom_files,
+def resolve_rom_chain(declared: str, aliases: dict[str, str], rom_files: Iterable[str],
                       required: bool | None = None) -> dict:
     """The pinmame dependency chain: declared -> alias -> effective -> installed.
 
@@ -270,7 +272,7 @@ def nvram_state(game_dir: str, effective_rom: str | None) -> dict:
             "modified_at": int(stat.st_mtime)}
 
 
-def flexdmd_state(subdirs, detected: bool | None) -> dict:
+def flexdmd_state(subdirs: Iterable[str], detected: bool | None) -> dict:
     """The flexdmd dependency: script-declared project folder, content on disk.
 
     `declared` stays None until the script extraction exists - the honest

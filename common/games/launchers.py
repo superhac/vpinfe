@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -294,7 +295,7 @@ class LauncherStore:
         write_atomic(self.path, lambda handle: json.dump(payload, handle, indent=2))
 
 
-def default_for(app_id: str, launchers) -> Launcher | None:
+def default_for(app_id: str, launchers: Iterable[Launcher]) -> Launcher | None:
     """The launcher a table of this app runs on when nothing says otherwise.
 
     The first enabled one, so the file's order answers "which is the default" rather than
@@ -304,7 +305,8 @@ def default_for(app_id: str, launchers) -> Launcher | None:
                  if one.app == app_id and one.enabled), None)
 
 
-def launcher_for_table(filename: str, table_id: str, launchers, mappings) -> Launcher | None:
+def launcher_for_table(filename: str, table_id: str, launchers: Iterable[Launcher],
+                       mappings: dict[str, str]) -> Launcher | None:
     """Which launcher plays this file. For callers that hold a name off a directory
     listing; anything holding an entry knows its app and asks the next one down."""
     app = apps.app_for(filename)
@@ -312,8 +314,8 @@ def launcher_for_table(filename: str, table_id: str, launchers, mappings) -> Lau
                               launchers, mappings)
 
 
-def launcher_for_entry(app_id: str, table_id: str, launchers,
-                       mappings) -> Launcher | None:
+def launcher_for_entry(app_id: str, table_id: str, launchers: Iterable[Launcher],
+                       mappings: dict[str, str]) -> Launcher | None:
     """Which launcher plays this entry: what it names, then the default for its app.
 
     By app rather than by filename, because an entry with no file has no suffix to

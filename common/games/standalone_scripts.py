@@ -2,10 +2,12 @@
 
 import logging
 import os
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 
 import requests
 
+from common.games.game import Game
 from common.games.info_file import MetaConfig
 from common.http_client import download_file, get_json
 
@@ -19,7 +21,7 @@ ALREADY = "already"      # a .vbs sidecar is beside the table, so it is running 
 NOTHING = "nothing"      # nothing published matches this table's script
 
 
-def match_for(vbs_hash: str, hashes) -> dict | None:
+def match_for(vbs_hash: str, hashes: Iterable[dict] | None) -> dict | None:
     """The published fix for one table's script, or None.
 
     Matched on the hash of the script the table actually runs, not on its name: the
@@ -34,7 +36,8 @@ def match_for(vbs_hash: str, hashes) -> dict | None:
     return None
 
 
-def state_of(vpx_path: str, vbs_hash: str, hashes) -> tuple[str, dict | None]:
+def state_of(vpx_path: str, vbs_hash: str,
+             hashes: Iterable[dict] | None) -> tuple[str, dict | None]:
     """What is offered for one table, and what it is already doing.
 
     A `.vbs` sidecar wins over anything published: the program runs that file in place
@@ -54,15 +57,17 @@ class StandaloneScripts:
 
     HASHES_URL = "https://raw.githubusercontent.com/jsm174/vpx-standalone-scripts/refs/heads/master/hashes.json"
 
-    def __init__(self, games, progress_cb=None, auto_run: bool = True) -> None:
-        self.hashes = None
+    def __init__(self, games: Sequence[Game],
+                 progress_cb: Callable[[int, int, str], None] | None = None,
+                 auto_run: bool = True) -> None:
+        self.hashes: list[dict] | None = None
         self.games = games
         self.progress_cb = progress_cb
         logger.info("VPX-Standalone-Scripts Patching System initialized.")
         if auto_run:
             self.apply_patches()
 
-    def download_hashes(self):
+    def download_hashes(self) -> list[dict]:
         try:
             self.hashes = get_json(StandaloneScripts.HASHES_URL)
             logger.info(
@@ -89,10 +94,14 @@ class StandaloneScripts:
                      self.progress_cb(current - 1, total, f"Checking {game.game_dir_name}")
                  except Exception:
                      pass
-             basepath = game.full_path_game
+             basepath = game.full_path_game or ""
+             vpx_path = game.full_path_vpx_file or ""
+             name = game.game_dir_name or ""
+             if not basepath or not vpx_path or not name:
+                 continue
              try:
-                meta = MetaConfig(basepath+"/"+game.game_dir_name+".info")
-                vpx_file_name = os.path.basename(game.full_path_vpx_file)
+                meta = MetaConfig(basepath+"/"+name+".info")
+                vpx_file_name = os.path.basename(vpx_path)
                 vpx_file_vbs_hash = meta.game_file_value(vpx_file_name, 'vbs_hash')
                 if not vpx_file_vbs_hash:
                     raise KeyError('vbs_hash')
@@ -100,16 +109,16 @@ class StandaloneScripts:
                 # One matching rule, shared with what the report offers. Two would be
                 # two answers to "does this table need a fix", and the one somebody was
                 # shown would not be the one that ran.
-                state, patch = state_of(game.full_path_vpx_file, vpx_file_vbs_hash, self.hashes)
+                state, patch = state_of(vpx_path, vpx_file_vbs_hash, self.hashes)
                 if state == ALREADY:
                     logger.info("A .vbs sidecar file already exists for that table. Assuming it is a patch.")
                     try:
                         meta.set_table_value(vpx_file_name, 'patch_applied', True)
                     except Exception:
                         pass
-                elif state == OFFERED:
-                    logger.info("Found a match for %s", game.full_path_vpx_file)
-                    self.download_patch(os.path.splitext(game.full_path_vpx_file)[0] + ".vbs",
+                elif state == OFFERED and patch:
+                    logger.info("Found a match for %s", vpx_path)
+                    self.download_patch(os.path.splitext(vpx_path)[0] + ".vbs",
                                        patch["patched"]["url"])
                     try:
                         meta.set_table_value(vpx_file_name, 'patch_applied', True)
@@ -118,13 +127,13 @@ class StandaloneScripts:
              except KeyError:
                  pass
 
-    def check_if_vbs_file_exists(self, file):
+    def check_if_vbs_file_exists(self, file: Path) -> bool:
         if file.is_file():
             return True
         else:
             return False
 
-    def download_patch(self, filename, url) -> None:
+    def download_patch(self, filename: str, url: str) -> None:
         #logger.debug(f"Patched file installed: {filename}")
         try:
             download_file(url, Path(filename), chunk_size=1024)
@@ -144,7 +153,8 @@ class StandaloneScripts:
             logger.warning("Failed to download %s: %s", filename, exc)
 
 
-def offered_for(games, hashes=None) -> dict:
+def offered_for(games: Iterable[Game] | None,
+                hashes: Sequence[dict] | None = None) -> dict:
     """What the published index has for this library, without changing anything.
 
     Its own pass rather than a flag on the applier, because what a person is deciding is

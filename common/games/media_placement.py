@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import shutil
+from collections.abc import Iterator
 from pathlib import Path
 
 from common.media_specs import MEDIA_SPECS
@@ -52,7 +53,7 @@ def target_name(kind: str, stem: str, extension: str) -> str:
     return f"{spec.token} {stem}{extension}"
 
 
-def _family_at_tier(game_dir: Path, kind: str, stem: str):
+def _family_at_tier(game_dir: Path, kind: str, stem: str) -> Iterator[Path]:
     """Every file already serving this kind at this stem's tier, whatever its extension.
 
     Both folders, because a library that predates `medias/` keeps its art beside the

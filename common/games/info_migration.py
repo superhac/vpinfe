@@ -18,6 +18,7 @@ import logging
 import os
 import shutil
 import tempfile
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -75,7 +76,7 @@ _DROPPED_INFO_KEYS = ("Rom",)
 
 
 
-def schema_of(data) -> int | None:
+def schema_of(data: object) -> int | None:
     """The schema a loaded .info declares, or None if it predates versioning.
 
     Only the section we write today counts - the old PascalCase `schema` numbered that
@@ -92,12 +93,12 @@ def schema_of(data) -> int | None:
         return None
 
 
-def is_versioned(data) -> bool:
+def is_versioned(data: object) -> bool:
     """Whether this file has been through the migration."""
     return schema_of(data) is not None
 
 
-def needs_migration(data) -> bool:
+def needs_migration(data: object) -> bool:
     """An unversioned file carrying anything 2.x wrote, or a migrated one 2.x wrote again.
 
     We never write VPXFile or Medias, so either in a stamped file is proof 2.x has been
@@ -125,7 +126,7 @@ def _rename(source: dict, mapping: dict) -> dict:
     return renamed
 
 
-def _table_entry(vpx_file: dict, authors) -> dict:
+def _table_entry(vpx_file: dict, authors: object) -> dict:
     entry = _rename(vpx_file, _TABLE_KEYS)
     entry["release_date"] = iso_from_authored_date(entry.get("release_date", ""))
     entry["save_date"] = iso_from_asctime(entry.get("save_date", ""))
@@ -184,7 +185,7 @@ def migrate(data: dict) -> dict:
     return migrated
 
 
-def backup_path(info_path, when: datetime | None = None) -> str:
+def backup_path(info_path: str | Path, when: datetime | None = None) -> str:
     """Where the pre-migration copy goes.
 
     Timestamped rather than .bak, so restore points accumulate instead of the last one
@@ -194,7 +195,7 @@ def backup_path(info_path, when: datetime | None = None) -> str:
     return f"{info_path}{BACKUP_MARKER}{stamp}"
 
 
-def backup_names(names, info_name: str) -> list[str]:
+def backup_names(names: Iterable[str], info_name: str) -> list[str]:
     """The pre-migration copies in a folder listing, newest first.
 
     Takes names so it can ride a scan already in progress; the stamp sorts lexically.
@@ -203,21 +204,22 @@ def backup_names(names, info_name: str) -> list[str]:
     return sorted((n for n in names if n.startswith(prefix)), reverse=True)
 
 
-def restorable_backup(game_dir, max_schema: int = INFO_SCHEMA, names=None) -> str | None:
+def restorable_backup(game_dir: str | Path, max_schema: int = INFO_SCHEMA,
+                      names: Iterable[str] | None = None) -> str | None:
     """The backup this build would restore here, or None.
 
     Newest readable wins; a newer one is stepped over rather than ending the search.
     Pass `names` when the folder is already listed - only folders with a backup pay.
     """
-    game_dir = Path(game_dir)
+    folder = Path(game_dir)
     if names is None:
         try:
-            names = os.listdir(game_dir)
+            names = os.listdir(folder)
         except OSError:
             return None
-    info_name = f"{game_dir.name}.info"
+    info_name = f"{folder.name}.info"
     for name in backup_names(names, info_name):
-        candidate = game_dir / name
+        candidate = folder / name
         try:
             schema = backup_schema(candidate)
         except (OSError, ValueError):
@@ -228,7 +230,7 @@ def restorable_backup(game_dir, max_schema: int = INFO_SCHEMA, names=None) -> st
     return None
 
 
-def backup_schema(path) -> int | None:
+def backup_schema(path: str | Path) -> int | None:
     """The schema a backup holds, or None when it predates versioning.
 
     Raises if the file cannot be read at all - the caller decides whether to skip it.
@@ -237,7 +239,7 @@ def backup_schema(path) -> int | None:
         return schema_of(json.load(handle))
 
 
-def replace_atomic(source, path) -> None:
+def replace_atomic(source: str | Path, path: str | Path) -> None:
     """Put `source` at `path` with no window where `path` is half written.
 
     A plain copy truncates first, and restore does that once per game across the library.
@@ -257,12 +259,12 @@ def replace_atomic(source, path) -> None:
 
 
 
-def write_json_atomic(path, data) -> None:
+def write_json_atomic(path: str | Path, data: object) -> None:
     """Write a .info atomically."""
     write_atomic(path, lambda handle: json.dump(data, handle, indent=4))
 
 
-def _free_backup_path(info_path, when: datetime | None = None) -> str:
+def _free_backup_path(info_path: str | Path, when: datetime | None = None) -> str:
     path = backup_path(info_path, when)
     while os.path.exists(path):        # never overwrite a restore point
         # A whole second, not the second field: replace(second=(s + 1) % 60) wraps 59 to
@@ -273,7 +275,8 @@ def _free_backup_path(info_path, when: datetime | None = None) -> str:
     return path
 
 
-def write_backup(info_path, original_text: str, when: datetime | None = None) -> str:
+def write_backup(info_path: str | Path, original_text: str,
+                 when: datetime | None = None) -> str:
     """Copy the file aside before it is rewritten, and prove the copy is readable.
 
     A truncated backup is worse than none: it is the one file whose failure is only
@@ -288,7 +291,7 @@ def write_backup(info_path, original_text: str, when: datetime | None = None) ->
     return path
 
 
-def copy_aside(info_path, when: datetime | None = None) -> str:
+def copy_aside(info_path: str | Path, when: datetime | None = None) -> str:
     """Keep the current file before a restore replaces it, whatever state it is in.
 
     No JSON check: a file too broken to parse is one somebody is restoring *because* it

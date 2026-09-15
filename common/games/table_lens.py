@@ -21,6 +21,7 @@ from common.games import (
     library_discovery,
     tables,
 )
+from common.games.game import Game
 from common.games.game_metadata import (
     table_play_record,
     table_rating,
@@ -70,7 +71,7 @@ def launcher_of(app_id: str, table_id: str) -> dict:
     }
 
 
-def _app_configurable(launcher) -> bool:
+def _app_configurable(launcher: launchers.Launcher | None) -> bool:
     if launcher is None:
         return False
     app = apps.get(launcher.app)
@@ -92,7 +93,7 @@ def table_overrides(entry: dict, folder: dict) -> dict:
     """One table's overrides, falling back to the folder's for a 2.x library."""
     own = entry.get(VPINFE_SECTION) or {}
 
-    def pick(key, default=""):
+    def pick(key: str, default: Any = "") -> Any:
         value = own.get(key, folder.get(key, default))
         return default if value in ("", None) else value
 
@@ -134,7 +135,7 @@ def _named_source(described_entry: dict) -> dict | None:
     return source
 
 
-def table_rows(game, row: dict) -> list[dict]:
+def table_rows(game: Game, row: dict) -> list[dict]:
     """The game's launchable artifacts.
 
     Enumerates what is actually in the folder rather than trusting the single
@@ -197,7 +198,7 @@ def table_rows(game, row: dict) -> list[dict]:
     # unchanged. Writes only ever land on the table.
     folder_vpinfe = vpinfe_section(game.meta_config)
 
-    def _tristate(value):
+    def _tristate(value: Any) -> bool | None:
         """detect* flags are three-valued: yes, no, and never parsed."""
         if isinstance(value, bool):
             return value

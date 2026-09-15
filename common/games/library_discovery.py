@@ -18,8 +18,10 @@ missed and left for a person to act on.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from typing import Any
 
+from common.games.game import Game
 from common.games.game_metadata import load_game_meta, persist_game_meta
 from common.games.tables import (
     ABSENT_SINCE_KEY,
@@ -32,7 +34,7 @@ from common.timestamps import utc_now_iso
 
 logger = logging.getLogger("vpinfe.common.games.library_discovery")
 
-def _reconcile(game, on_disk: list[str]) -> tuple[dict, int, int, int]:
+def _reconcile(game: Game, on_disk: list[str]) -> tuple[dict, int, int, int]:
     """The tables map this game should hold, and what changed to get there."""
     config = load_game_meta(game)
     entries = dict(table_entries(config))
@@ -64,7 +66,7 @@ def _reconcile(game, on_disk: list[str]) -> tuple[dict, int, int, int]:
     return config, found, absent, returned
 
 
-def discover(games) -> dict[str, int]:
+def discover(games: Iterable[Game]) -> dict[str, int]:
     """Reconcile every game's tables against the files the scan found on disk.
 
     Writes only where something changed, so a settled library costs a pass over what is

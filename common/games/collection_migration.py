@@ -7,7 +7,11 @@ from __future__ import annotations
 
 import logging
 
-from common.games.collection_store import COLLECTIONS_SCHEMA, MANUAL_ORDER
+from common.games.collection_store import (
+    COLLECTIONS_SCHEMA,
+    MANUAL_ORDER,
+    CollectionStore,
+)
 
 logger = logging.getLogger("vpinfe.common.games.collection_migration")
 
@@ -30,7 +34,7 @@ ORDER_DIRECTION_MIGRATION = "direction_applies_to_every_sort"
 DIRECTION_ALWAYS_APPLIED = ("title", "year", MANUAL_ORDER)
 
 
-def ensure_order_direction(collections) -> int:
+def ensure_order_direction(collections: CollectionStore) -> int:
     """Pin the direction the sorts that ignored it were actually showing. Returns how
     many collections moved."""
     if collections.has_migrated(ORDER_DIRECTION_MIGRATION):
@@ -57,7 +61,7 @@ def ensure_order_direction(collections) -> int:
     return len(moved)
 
 
-def ensure_last_played(collections) -> bool:
+def ensure_last_played(collections: CollectionStore) -> bool:
     """Give this file a Last Played that derives itself. Returns whether it wrote.
 
     Converts the row the launcher used to maintain, in place, keeping its name, icon and

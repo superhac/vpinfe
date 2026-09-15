@@ -16,10 +16,12 @@ from pathlib import Path
 
 from common import service_errors
 from common.games import asset_origin, game_lens, media_lookup, media_placement, media_service
+from common.games.game import Game
 from common.games.game_repository import game_to_row
 from common.i18n import t
 from common.media_specs import (
     MEDIA_SPECS,
+    MediaSpec,
     canonical_kind,
     media_candidates,
     media_family,
@@ -40,7 +42,7 @@ def kind_or_refuse(kind: str) -> str:
     return kind
 
 
-def stem_or_refuse(game, table_id: str) -> str:
+def stem_or_refuse(game: Game, table_id: str) -> str:
     """The stem a table's art is named after, or a refusal if that table is not this
     game's. Distinct from the filename lookup: this wants the name without its suffix."""
     filename = media_lookup.table_filename(game, table_id)
@@ -51,7 +53,7 @@ def stem_or_refuse(game, table_id: str) -> str:
     return Path(filename).stem
 
 
-def _folder(game) -> Path:
+def _folder(game: Game) -> Path:
     return Path(game.full_path_game or "")
 
 
@@ -200,7 +202,7 @@ def detail(game_id: str, kind: str, table_id: str = "") -> dict:
     }
 
 
-def _placement(game_dir: Path, kind: str, spec, table_id: str, stem: str,
+def _placement(game_dir: Path, kind: str, spec: MediaSpec, table_id: str, stem: str,
                label: str) -> dict:
     """One destination: what the file would be called there, and what it would take.
 

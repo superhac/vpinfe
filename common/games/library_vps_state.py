@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import tempfile
+from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -29,8 +30,10 @@ from common.games import (
     media_service,
     watching,
 )
+from common.games.game import Game
 from common.games.game_service import load_vpsdb
 from common.games.media_service import CACHE_DIR
+from common.jobs import JobReporter
 from common.online import obtainability, vps_kinds
 
 logger = logging.getLogger("vpinfe.common.games.library_vps_state")
@@ -66,7 +69,7 @@ _INVENTORY_NAME = {"altcolor_serum": "alt_color", "altcolor_vni": "alt_color",
                    "altsound": "alt_sound"}
 
 
-def _we_hold(kind, inventory: dict, media: dict) -> bool:
+def _we_hold(kind: vps_kinds.VpsKind, inventory: dict, media: dict) -> bool:
     """Whether this game has any of what the entry is offering.
 
     Any, not all: a kind maps to more than one of ours where VPS draws the line in a
@@ -105,14 +108,14 @@ def _moved_since(records: list, baseline: str, dismissed: set) -> list:
     return moved
 
 
-def state_of(game, game_id: str = "") -> dict:
+def state_of(game: Game, game_id: str = "") -> dict:
     """One game's state. The same answer the endpoint serves and the rollup counts,
     so the two cannot form separate opinions.
 
     `game_id` addresses the media links and selects this game's watching baseline.
     """
     entry = game_service.matched_vps_entry(game)
-    game_dir = Path(game.full_path_game)
+    game_dir = Path(str(game.full_path_game))
     inventory = game_lens.inventory_assets(game_dir)
     prefix = f"/api/v1/games/{game_id}/media"
     media = media_service.media_entries(
@@ -183,7 +186,8 @@ def store(rollup: dict[str, Any]) -> None:
 _TALLIES = ("holding", "identified", "listed", "obtainable", "updated", "new_upstream")
 
 
-def compute(games: dict, per_game, reporter=None) -> dict[str, Any]:
+def compute(games: dict, per_game: Callable[[Game, str], dict],
+            reporter: JobReporter | None = None) -> dict[str, Any]:
     """Count every kind across the library, from `{game_id: game}`.
 
     Keyed by id because each game is measured against its own watching baseline.
@@ -223,13 +227,14 @@ def compute(games: dict, per_game, reporter=None) -> dict[str, Any]:
     }
 
 
-def recompute(games: dict, per_game, reporter=None) -> dict[str, Any]:
+def recompute(games: dict, per_game: Callable[[Game, str], dict],
+              reporter: JobReporter | None = None) -> dict[str, Any]:
     """Count it and keep it."""
     rollup = compute(games, per_game, reporter)
     store(rollup)
     return rollup
 
 
-def recount(reporter=None) -> dict[str, Any]:
+def recount(reporter: JobReporter | None = None) -> dict[str, Any]:
     """Count the whole library and keep the answer. What the job runs."""
     return recompute(game_repository.catalog(), state_of, reporter)

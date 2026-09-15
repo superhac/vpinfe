@@ -83,7 +83,7 @@ def listing() -> dict[str, Any]:
     }
 
 
-def reorder(order) -> dict[str, Any]:
+def reorder(order: object) -> dict[str, Any]:
     """The order is the priority.
 
     A game folder carries its id, so one library reached through two locations holds

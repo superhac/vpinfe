@@ -147,7 +147,7 @@ def save_filter_collection(
     manufacturer: str = "All",
     year: str = "All",
     rating: str = "All",
-    rating_or_higher=False,
+    rating_or_higher: object = False,
     sort_by: str = "Alpha",
     order_by: str = "desc",
 ) -> None:

@@ -24,7 +24,7 @@ from common.games.info_migration import (
     restorable_backup,
 )
 from common.games.tables import TABLES_KEY
-from common.jobs import JobReporter
+from common.jobs import JobReporter, LogCallback, ProgressCallback
 
 logger = logging.getLogger("vpinfe.common.games.revert_3x")
 
@@ -85,15 +85,17 @@ def running_instance(http_port: int, timeout: float = 1.0) -> bool:
     return isinstance(document, dict) and document.get("name") == "VPinFE"
 
 
-def reset(game_root, config_dir, *, http_port: int, config_only: bool = False,
-          dry_run: bool = False, progress_cb=None, log_cb=None) -> dict:
+def reset(game_root: str | Path, config_dir: str | Path, *, http_port: int,
+          config_only: bool = False, dry_run: bool = False,
+          progress_cb: ProgressCallback | None = None,
+          log_cb: LogCallback | None = None) -> dict:
     """Remove 3.0's state. Raises InstanceRunningError when VPinFE is running.
 
     A live instance holds the settings and the collections in memory and writes them
     back complete with their markers, so the refusal is not caution. A dry run is
     allowed either way: it writes nothing.
     """
-    config_dir = Path(config_dir)
+    config_home = Path(config_dir)
     reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
 
     live = running_instance(http_port)
@@ -108,7 +110,7 @@ def reset(game_root, config_dir, *, http_port: int, config_only: bool = False,
         "removed_backups": 0,
         "failed": 0, "failures": [],
         # Never deleted, so this answer is the same before and after.
-        "end_state": (RESTORED_FROM_2X if (config_dir / "vpinfe.ini").exists()
+        "end_state": (RESTORED_FROM_2X if (config_home / "vpinfe.ini").exists()
                       else FRESH_INSTALL),
     }
     if live:
@@ -116,14 +118,15 @@ def reset(game_root, config_dir, *, http_port: int, config_only: bool = False,
 
     if not config_only:
         _reset_library(game_root, result, reporter, dry_run)
-    _reset_config(config_dir, result, dry_run)
+    _reset_config(config_home, result, dry_run)
 
     for line in _summary(result):
         reporter.log(line)
     return result
 
 
-def _reset_library(game_root, result: dict, reporter: JobReporter, dry_run: bool) -> None:
+def _reset_library(game_root: str | Path, result: dict, reporter: JobReporter,
+                   dry_run: bool) -> None:
     restorable, ours = _library_plan(game_root)
     result["deleted_info"] = sorted(game_dir.name for game_dir in ours)
 
@@ -177,7 +180,7 @@ def _keep_aside(config_dir: Path, result: dict) -> list[str]:
     return sorted(kept)
 
 
-def _library_plan(game_root) -> tuple[list[Path], list[Path]]:
+def _library_plan(game_root: str | Path) -> tuple[list[Path], list[Path]]:
     """Which folders get their 2.x `.info` back, and which lose the one 3.0 made.
 
     A folder with no unversioned backup and a 2.x-shaped `.info` is left alone: nothing

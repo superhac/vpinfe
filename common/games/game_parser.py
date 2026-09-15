@@ -11,6 +11,7 @@ from pathlib import Path
 from time import perf_counter
 
 from common.config_access import MediaConfig
+from common.config_store import ConfigStore
 from common.games.game import Game
 from common.games.game_metadata import vpinfe_section
 from common.games.info_file import InvalidMetaConfigError, MetaConfig
@@ -35,8 +36,13 @@ _SCAN_WORKERS = 16
 
 logger = logging.getLogger("vpinfe.common.games.game_parser")
 
+# What one folder's scan reports: the game, the folders with no table, and the ones whose
+# .info could not be read. Returned rather than appended to the parser, because the scan
+# runs on a thread pool.
+type ScanResult = tuple[Game | None, list[dict], list[dict]]
 
-def _resolved(path) -> str:
+
+def _resolved(path: str | Path) -> str:
     """One spelling per folder, for comparing two that may be written differently. A
     path that cannot be resolved is returned as it came rather than raising - it is
     being compared, not opened."""
@@ -53,7 +59,8 @@ class GameParser:
     RED_CONSOLE_TEXT = '\033[31m'
     RESET_CONSOLE_TEXT = '\033[0m'
 
-    def __init__(self, games_root_file_path, ini_config=None) -> None:
+    def __init__(self, games_root_file_path: str | Path,
+                 ini_config: ConfigStore | None = None) -> None:
         self.games_root_file_path = Path(games_root_file_path)
         self.playfieldvariant = "table"
         self.games: list[Game] = []
@@ -70,7 +77,7 @@ class GameParser:
         # Constructing reads the library; a load_games(reload=True) after it reads it twice.
         self.load_games()
 
-    def load_games(self, reload=False) -> None:  # reload if you want to rescan the games
+    def load_games(self, reload: bool = False) -> None:  # reload if you want to rescan the games
         if not reload and self.games:
             return
 
@@ -105,7 +112,7 @@ class GameParser:
             len(self.missing_games)
         )
 
-    def _scan_folders(self, folders):
+    def _scan_folders(self, folders: list[Path]) -> list[ScanResult]:
         """Every folder read, in the order they were listed.
 
         Results are collected in order rather than as they finish: the library is sorted,
@@ -121,13 +128,15 @@ class GameParser:
                                 thread_name_prefix="library-scan") as pool:
             return list(pool.map(self._scan_one, folders))
 
-    def _scan_one(self, game_dir):
+    def _scan_one(self, game_dir: Path) -> ScanResult:
         """One folder, with what it found kept local to this call."""
-        missing, unreadable = [], []
+        missing: list[dict] = []
+        unreadable: list[dict] = []
         game = self._build_game(game_dir, missing=missing, unreadable=unreadable)
         return game, missing, unreadable
 
-    def _build_game(self, game_dir, *, missing=None, unreadable=None):
+    def _build_game(self, game_dir: Path, *, missing: list[dict] | None = None,
+                    unreadable: list[dict] | None = None) -> Game | None:
         """One game folder, read from disk. Returns None when it holds no table.
 
         The whole of what a scan does per game, so refreshing one costs one folder
@@ -234,7 +243,7 @@ class GameParser:
         return game
 
 
-    def reload_game(self, game_dir):
+    def reload_game(self, game_dir: str | Path) -> Game | None:
         """Re-read one game folder in place. Returns the game, or None if it is gone.
 
         A rating, a rename or an import changes one folder, and rescanning the library
@@ -245,16 +254,16 @@ class GameParser:
         every path under /var is one. Matching the spelling meant the game was never
         found, so each refresh appended a second copy instead of replacing it.
         """
-        game_dir = Path(game_dir)
-        target = _resolved(game_dir)
+        folder = Path(game_dir)
+        target = _resolved(folder)
         self.missing_games = [row for row in self.missing_games
                               if _resolved(row["path"]) != target]
         self.unreadable_games = [r for r in self.unreadable_games
                                  if _resolved(r["path"]) != target]
 
-        game = self._build_game(game_dir) if game_dir.is_dir() else None
+        game = self._build_game(folder) if folder.is_dir() else None
         for index, existing in enumerate(self.games):
-            if _resolved(existing.full_path_game) == target:
+            if _resolved(str(existing.full_path_game)) == target:
                 if game is None:
                     del self.games[index]        # the folder went away
                 else:
@@ -265,9 +274,10 @@ class GameParser:
             self.games.append(game)             # a folder that was not there before
         return game
 
-    def load_image_paths(self, game, game_contents=None, has_medias_dir=None,
-                         table_stem=None) -> None:
-        game_dir = Path(game.full_path_game)
+    def load_image_paths(self, game: Game, game_contents: set[str] | None = None,
+                         has_medias_dir: bool | None = None,
+                         table_stem: str | None = None) -> None:
+        game_dir = Path(str(game.full_path_game))
         medias_dir = game_dir / "medias"
 
         # Batch directory listings to minimize disk calls
@@ -293,12 +303,12 @@ class GameParser:
         # second resolution is set lookups, so a folder with one table pays almost
         # nothing and one with three answers honestly for all three.
         game.media_by_table = resolve_media_by_table(
-            game.full_path_game, game_contents, medias_contents,
+            str(game.full_path_game), game_contents, medias_contents,
             table_names(game_contents), self.playfieldvariant,
             self.active_sets or None)
 
-    def load_metadata(self, game) -> None:
-        meta_path = Path(game.full_path_game) / f"{game.game_dir_name}.info"
+    def load_metadata(self, game: Game) -> None:
+        meta_path = Path(str(game.full_path_game)) / f"{game.game_dir_name}.info"
         try:
             meta = MetaConfig(str(meta_path))
         except InvalidMetaConfigError as exc:
@@ -307,19 +317,19 @@ class GameParser:
         game.meta_config = meta.data
         game.info_pending_upgrade = meta.pending_migration
 
-    def get_game(self, index):
+    def get_game(self, index: int) -> Game:
         return self.games[index]
 
-    def get_game_count(self):
+    def get_game_count(self) -> int:
         return len(self.games)
 
-    def get_all_games(self):
+    def get_all_games(self) -> list[Game]:
         return list(self.games)
 
-    def get_unreadable_games(self):
+    def get_unreadable_games(self) -> list[dict]:
         """Folders whose .info could not be read, so the game was left out."""
         return [dict(row) for row in self.unreadable_games]
 
-    def get_missing_games(self):
+    def get_missing_games(self) -> list[dict]:
         return [dict(row) for row in self.missing_games]
 

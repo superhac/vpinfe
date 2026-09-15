@@ -16,10 +16,13 @@ should not find it back on the next start.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from pathlib import Path
 
 from common.config_access import cfg_bool, cfg_get
+from common.config_store import ConfigStore
 from common.games import game_metadata, launchers, tables
+from common.games.game import Game
 from common.paths import PLUGIN_PROFILES_DIR
 
 logger = logging.getLogger("vpinfe.common.games.launcher_migration")
@@ -32,7 +35,7 @@ SEEDED = "seeded-from-config"
 SHIPPED_NAME = "Visual Pinball X"
 
 
-def seed(store: launchers.LauncherStore, config) -> bool:
+def seed(store: launchers.LauncherStore, config: ConfigStore) -> bool:
     """Give an install its launchers, once. Returns whether it wrote anything.
 
     The shipped one is written first, and that is what makes it the default: an
@@ -78,7 +81,7 @@ _OLD_SPELLINGS = {
 }
 
 
-def read_old_keys(config) -> dict[str, object]:
+def read_old_keys(config: ConfigStore) -> dict[str, object]:
     """The seven values, under whichever spelling the file happens to hold."""
     found: dict[str, object] = {}
     for field, section, key, is_bool in _OLD_KEYS:
@@ -122,7 +125,8 @@ def _from_profiles(shipped: launchers.Launcher) -> list[launchers.Launcher]:
 ASSIGNED = "assignments-from-info"
 
 
-def migrate_assignments(store: launchers.LauncherStore, games) -> dict[str, int]:
+def migrate_assignments(store: launchers.LauncherStore,
+                        games: Iterable[Game]) -> dict[str, int]:
     """Turn each table's own override into a launcher and an assignment.
 
     `alt_launcher` carried a raw binary path and `plugin_profile` a named ini, and they
@@ -196,7 +200,7 @@ def migrate_assignments(store: launchers.LauncherStore, games) -> dict[str, int]
     return counts
 
 
-def _consume(game, vpinfe: dict) -> None:
+def _consume(game: Game, vpinfe: dict) -> None:
     """Take the two keys out of this game's `.info`, now that a launcher holds them.
 
     Written per game rather than in one sweep at the end, so a failure part-way through
@@ -209,7 +213,7 @@ def _consume(game, vpinfe: dict) -> None:
     try:
         from common.games.game_metadata import persist_game_meta
 
-        persist_game_meta(game, game.meta_config)
+        persist_game_meta(game, game.meta_config or {})
     except Exception:
         logger.exception("Could not rewrite %s without its launcher keys",
                          game.game_dir_name)
@@ -232,7 +236,7 @@ def _for_binary(path: str, shipped: launchers.Launcher | None) -> launchers.Laun
     )
 
 
-def _profile_launcher(name: str, held) -> str:
+def _profile_launcher(name: str, held: Iterable[launchers.Launcher]) -> str:
     """The launcher the seeding pass made from this profile, by the name it gave it."""
     wanted = name.strip().lower()
     found = next((one for one in held
@@ -240,7 +244,7 @@ def _profile_launcher(name: str, held) -> str:
     return found.launcher_id if found is not None else ""
 
 
-def ensure_seeded(config) -> None:
+def ensure_seeded(config: ConfigStore) -> None:
     """Seed at startup, and never let it be the thing that stops an install starting."""
     try:
         seed(launchers.get_launcher_store(), config)

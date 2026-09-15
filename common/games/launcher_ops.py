@@ -16,6 +16,7 @@ from typing import Any
 
 from common import apps, path_checks, service_errors
 from common.games import config_backups, game_repository, launchers
+from common.games.config_backups import Backup
 from common.games.table_identity import find_table_by_id
 from common.i18n import t
 
@@ -122,7 +123,7 @@ def put(launcher_id: str, body: dict[str, Any]) -> dict[str, Any]:
     return _described(written)
 
 
-def _app_settings_surface(launcher: launchers.Launcher):
+def _app_settings_surface(launcher: launchers.Launcher) -> Any:
     """The app's own settings surface for this launcher, or None where its app has
     none. `generic` has none: it knows a program and arguments and nothing about what
     that program stores."""
@@ -250,7 +251,7 @@ def _config_files(launcher: launchers.Launcher) -> dict[str, str]:
     return dict(naming(_launcher_settings(launcher))) if naming else {}
 
 
-def _as_backup(one) -> dict[str, Any]:
+def _as_backup(one: Backup) -> dict[str, Any]:
     return {"name": one.name, "taken_at": one.taken_at, "reason": one.reason,
             "label": one.label, "size": one.size}
 

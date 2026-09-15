@@ -11,6 +11,7 @@ busy.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from common import jobs as job_registry
@@ -31,7 +32,7 @@ from common.games.game_metadata import retag_library
 from common.games.library_policy import get_library_policy
 
 
-def start(kind: str, work) -> job_registry.Job:
+def start(kind: str, work: Callable[[job_registry.Job], object]) -> job_registry.Job:
     """Put a library-wide pass on the queue, or refuse because one is already running."""
     try:
         return job_registry.submit(kind, work)
@@ -61,7 +62,7 @@ def filter_axes() -> dict[str, Any]:
                      for axis in AXES]}
 
 
-def merge_tags(sources, into: str) -> dict[str, Any]:
+def merge_tags(sources: Iterable[str], into: str) -> dict[str, Any]:
     """Across the library, because a tag is not owned by a game - half of them renamed
     is a worse state than either end of the merge."""
     return {"changed": retag_library(game_repository.all_games(), list(sources), into)}
@@ -104,7 +105,7 @@ def preview(criteria: dict, limit: int = 0) -> dict[str, Any]:
             "entries": [entry_lens.entry_resource(entry) for entry in resolved]}
 
 
-def scan(options) -> job_registry.Job:
+def scan(options: dict[str, Any]) -> job_registry.Job:
     """Rebuild game metadata from VPSdb. Writes a .info for every game it can match."""
     return start(job_registry.KIND_LIBRARY_SCAN,
                  lambda job: game_service.build_metadata(
@@ -132,7 +133,7 @@ def recount_vps_state() -> job_registry.Job:
                  lambda job: library_vps_state.recount(job.reporter()))
 
 
-def one_info_pass(work) -> job_registry.Job:
+def one_info_pass(work: Callable[..., object]) -> job_registry.Job:
     """The scan's job kind, because these rewrite exactly the files a scan does and two
     at once would interleave writes to the same file."""
     return start(job_registry.KIND_LIBRARY_SCAN, lambda job: work(job=job))

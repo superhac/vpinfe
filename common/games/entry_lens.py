@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from common.extensions import contributions
 from common.games import game_identity
-from common.games.collection_resolver import visible_entries
+from common.games.collection_resolver import Entry, visible_entries
 from common.games.game_metadata import (
     game_rating,
     game_themes,
@@ -21,7 +21,7 @@ from common.shared_assets import manufacturer_logo_web_path
 from common.timestamps import epoch_to_iso
 
 
-def entry_resource(entry, group=None) -> dict:
+def entry_resource(entry: Entry, group: str | None = None) -> dict:
     """One entry as REST serves it.
 
     `default` is computed, never read off the entry: it is the game's own choice and

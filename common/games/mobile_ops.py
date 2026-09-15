@@ -6,6 +6,8 @@ hand, so anything this end recorded about it would be a claim rather than a fact
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+from pathlib import Path
 from typing import Any
 
 from common import device_ops, service_errors
@@ -24,7 +26,8 @@ def carried_by(device_id: str) -> dict[str, Any]:
     return {"device_id": device_id, "count": len(found), "games": found}
 
 
-def send(device_id: str, game_ids, everything: bool = False) -> job_registry.Job:
+def send(device_id: str, game_ids: Iterable[str],
+         everything: bool = False) -> job_registry.Job:
     """A job, not an action.
 
     The lifecycle vocabulary is for things that happen at once - stop the table, reboot.
@@ -36,7 +39,7 @@ def send(device_id: str, game_ids, everything: bool = False) -> job_registry.Job
     if not folders:
         raise service_errors.RefusedError(t("error.devices.name_least_one_game"))
 
-    def work(job) -> None:
+    def work(job: job_registry.Job) -> None:
         reporter = job.reporter()
 
         # The whole transfer's progress, not one game's: what a person watching wants is
@@ -70,7 +73,7 @@ def remove(device_id: str, name: str) -> None:
         raise service_errors.BlockedError(str(exc)) from exc
 
 
-def _folder_or_refuse(game_id: str):
+def _folder_or_refuse(game_id: str) -> Path:
     folder = game_repository.game_folder(game_id)
     if folder is None:
         raise service_errors.NotFoundError(

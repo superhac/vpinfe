@@ -121,7 +121,7 @@ def game_resource(row: dict, game_id: str) -> dict[str, Any]:
     }
 
 
-def game_or_refuse(game_id: str):
+def game_or_refuse(game_id: str) -> Any:
     """The game an id names, or a refusal naming the id. One lookup, so nothing forms a
     second answer to which game an id names."""
     game = game_repository.game_by_id(game_id)

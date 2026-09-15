@@ -9,6 +9,7 @@ library came from.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from typing import Any
 from urllib.parse import quote, urljoin
 
@@ -50,7 +51,8 @@ def remote_services(library_url: str, *,
     return services if isinstance(services, dict) else {}
 
 
-def verify_shared_library(entries, local_games) -> dict[str, Any]:
+def verify_shared_library(entries: Iterable[Entry] | None,
+                          local_games: Iterable[Any] | None) -> dict[str, Any]:
     """Whether this install's own copy of the library is the one it reads, by content.
 
     Shared storage is what the split assumes and nothing checks: a `game_root_dir` that is

@@ -26,6 +26,7 @@ from pathlib import Path
 
 from common.atomic_write import write_atomic
 from common.config_access import cfg_get
+from common.config_store import ConfigStore
 from common.install_identity import mint_id
 from common.paths import CONFIG_DIR
 
@@ -431,7 +432,7 @@ def configured() -> list[Location]:
 SEEDED = "seeded-from-config"
 
 
-def seed(store: LocationStore, config) -> bool:
+def seed(store: LocationStore, config: ConfigStore) -> bool:
     """Give an install its locations, once, from the single root it was configured with.
 
     Marked so it never runs twice: somebody who removes a location should not find it
@@ -452,7 +453,7 @@ def seed(store: LocationStore, config) -> bool:
     return True
 
 
-def ensure_seeded(config) -> None:
+def ensure_seeded(config: ConfigStore) -> None:
     """Seed at startup, and never let it be the thing that stops an install starting."""
     try:
         seed(get_location_store(), config)

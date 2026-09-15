@@ -22,8 +22,9 @@ already exists for a launcher pointing at nothing.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 logger = logging.getLogger("vpinfe.common.games.launcher_copy")
 
@@ -56,6 +57,19 @@ class LocalWrites:
         return {"table_id": table_id, "launcher_id": launcher_id}
 
 
+class LauncherWriter(Protocol):
+    """What copying needs of a device client: the two writes it makes.
+
+    Named rather than taken as whatever the caller hands over, because `client_for`
+    decides how a machine is reached and this decides nothing about that.
+    """
+
+    def put_launcher(self, launcher_id: str, body: dict[str, Any]) -> dict[str, Any]: ...
+
+    def put_launcher_mapping(self, table_id: str,
+                             launcher_id: str) -> dict[str, Any]: ...
+
+
 @dataclass(frozen=True)
 class Outcome:
     """What happened for one device. `error` is empty where it worked.
@@ -76,7 +90,10 @@ class Outcome:
         return not self.error
 
 
-def copy_to(devices, launchers_to_send, mappings=None, *, client_for) -> list[Outcome]:
+def copy_to(devices: Iterable[dict[str, Any]],
+            launchers_to_send: Iterable[dict[str, Any]],
+            mappings: dict[str, str] | None = None, *,
+            client_for: Callable[[dict[str, Any]], LauncherWriter]) -> list[Outcome]:
     """Send launchers, and optionally the tables that name them, to each device.
 
     `client_for` builds the client for a device, so this does not decide how a machine is
@@ -97,7 +114,9 @@ def copy_to(devices, launchers_to_send, mappings=None, *, client_for) -> list[Ou
     return found
 
 
-def _send(device: dict[str, Any], sending, mappings, client_for) -> Outcome:
+def _send(device: dict[str, Any], sending: list[dict[str, Any]],
+          mappings: dict[str, str],
+          client_for: Callable[[dict[str, Any]], LauncherWriter]) -> Outcome:
     name = str(device.get("display_name") or device.get("device_id") or "?")
     device_id = str(device.get("device_id") or "")
     try:
@@ -139,7 +158,7 @@ def _body(launcher: dict[str, Any]) -> dict[str, Any]:
             "settings": dict(launcher.get("settings") or {})}
 
 
-def said(outcomes) -> str:
+def said(outcomes: Iterable[Outcome]) -> str:
     """One sentence for a notification, naming what did not work.
 
     Counts where it all worked, names where it did not: "3 devices" is enough when the

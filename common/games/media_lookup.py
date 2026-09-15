@@ -6,9 +6,12 @@ too: the scan records one resolution per .vpx, so two builds in a folder can dif
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from common.games import game_identity
+from common.games.game import GameRecord
 from common.games.game_metadata import normalize_meta
 from common.games.tables import entry_filename, table_entries
 from common.media_specs import MEDIA_SPECS, canonical_kind
@@ -16,13 +19,13 @@ from common.media_specs import MEDIA_SPECS, canonical_kind
 _ATTR_BY_KIND = {spec.kind: spec.attr for spec in MEDIA_SPECS}
 
 
-def resolved_kinds(game) -> list[str]:
+def resolved_kinds(game: GameRecord) -> list[str]:
     """The kinds this game has a file for, in spec order. Names, never paths."""
     return [kind for kind, attr in _ATTR_BY_KIND.items()
             if str(getattr(game, attr, "") or "").strip()]
 
 
-def game_for_table(games, table_id: str):
+def game_for_table(games: Sequence[Any], table_id: str) -> Any | None:
     """The game that owns a table id, or the game with that id.
 
     A folder no build has touched has no table ids yet but still has art, so its entry
@@ -37,13 +40,13 @@ def game_for_table(games, table_id: str):
     return game_identity.find_by_id(games, wanted)
 
 
-def table_filename(game, table_id: str) -> str:
+def table_filename(game: GameRecord, table_id: str) -> str:
     """The .vpx the id names, or "" when the id named the game rather than a table."""
     entries = table_entries(normalize_meta(getattr(game, "meta_config", {})))
     return entry_filename(entries.get(str(table_id or "").strip()))
 
 
-def media_path(games, table_id: str, kind: str) -> Path | None:
+def media_path(games: Sequence[Any], table_id: str, kind: str) -> Path | None:
     """The file behind /media/<table_id>/<kind>, or None if there is not one."""
     # A theme built against an older kind name still addresses media by it.
     kind = canonical_kind(kind)

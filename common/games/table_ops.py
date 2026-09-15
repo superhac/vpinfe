@@ -10,9 +10,11 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
+from typing import Any
 
 from common import apps, service_errors
 from common.games import game_lens, locations, table_lens, tables
+from common.games.game import Game
 from common.games.game_metadata import (
     load_game_meta,
     meta_file_path,
@@ -40,7 +42,7 @@ def rows_of(game_id: str) -> dict:
     return {"tables": table_lens.table_rows(game, game_to_row(game))}
 
 
-def row_or_refuse(game, table_id: str) -> dict:
+def row_or_refuse(game: Game, table_id: str) -> dict:
     """One table as the lens describes it, or a refusal naming it."""
     found = next((row for row in table_lens.table_rows(game, game_to_row(game))
                   if row.get("id") == table_id), None)
@@ -50,7 +52,7 @@ def row_or_refuse(game, table_id: str) -> dict:
     return found
 
 
-def filename_or_refuse(game, table_id: str) -> str:
+def filename_or_refuse(game: Game, table_id: str) -> str:
     """The .vpx an id names. Distinct from the media lens's stem lookup: this one wants
     the name on disk, not the stem a file would be named after."""
     entry = table_entries(load_game_meta(game)).get(table_id)
@@ -129,7 +131,7 @@ def delete_script(game_id: str, table_id: str) -> dict:
     return row_or_refuse(game, table_id)
 
 
-def set_rating(game_id: str, table_id: str, rating) -> dict:
+def set_rating(game_id: str, table_id: str, rating: Any) -> dict:
     """A table's own rating, which refines the game's rather than replacing it."""
     game = game_lens.game_or_refuse(game_id)
     set_table_rating(game, filename_or_refuse(game, table_id), rating)

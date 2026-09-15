@@ -6,7 +6,9 @@ here writes the game's `.info` and answers with what a caller would ask for next
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 from common import service_errors
 from common.games import game_identity, game_lens, game_service, locations
@@ -93,12 +95,12 @@ def set_details(game_id: str, values: dict) -> dict:
     return game_lens.detail(game_id)
 
 
-def set_rating(game_id: str, rating) -> dict:
+def set_rating(game_id: str, rating: Any) -> dict:
     """Set `User.Rating` on a game, 0-5."""
     return {"rating": set_game_rating(game_lens.game_or_refuse(game_id), rating)}
 
 
-def set_tags(game_id: str, tags) -> dict:
+def set_tags(game_id: str, tags: Iterable[str]) -> dict:
     """The whole set, not a bag: a repeat is dropped, and case is left alone so two
     spellings stay two tags until somebody merges them."""
     return {"tags": set_game_tags(game_lens.game_or_refuse(game_id), list(tags))}
@@ -109,8 +111,9 @@ def set_favorite(game_id: str, favorite: bool) -> dict:
     return {"favorite": set_game_favorite(game_lens.game_or_refuse(game_id), favorite)}
 
 
-def set_play_record(game_id: str, play_count=None, play_time_seconds=None,
-                    last_played=None) -> dict:
+def set_play_record(game_id: str, play_count: int | None = None,
+                    play_time_seconds: int | None = None,
+                    last_played: int | None = None) -> dict:
     """Set a game's counters, for a library that arrives already played.
 
     A library converted from another frontend carries a play count and a last-played date,
@@ -199,7 +202,7 @@ def adopt_details(game_id: str) -> dict:
     return vps_details(game_id)
 
 
-def _said(value) -> str:
+def _said(value: Any) -> str:
     """One line a person reads, whatever the field holds - a year is a number and themes
     are a list, and a caller rendering a comparison wants neither shape."""
     if isinstance(value, list):

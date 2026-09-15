@@ -12,7 +12,9 @@ whatever was recorded about it and the pass costs nothing on a library it has fi
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from pathlib import Path
+from typing import Protocol
 
 from common.games.game import Game
 from common.games.game_metadata import load_game_meta, persist_game_meta
@@ -28,7 +30,17 @@ from common.jobs import JobReporter
 logger = logging.getLogger("vpinfe.common.games.library_enrichment")
 
 
-def pending(games) -> list[tuple[Game, str, str]]:
+class TableReader(Protocol):
+    """What enrichment needs of a table reader: one file, read.
+
+    The capability rather than the program, for the reason `_parser` gives - this module
+    names the thing that reads a table file exactly once.
+    """
+
+    def single_file_extract(self, vpx_file: str) -> dict[str, str] | None: ...
+
+
+def pending(games: Iterable[Game]) -> list[tuple[Game, str, str]]:
     """Every (game, key, filename) an entry exists for and nothing has read yet.
 
     Counted before the work starts so a job can say how many of how many, which on a
@@ -46,7 +58,7 @@ def pending(games) -> list[tuple[Game, str, str]]:
     return todo
 
 
-def _read(parser, game, filename: str) -> dict | None:
+def _read(parser: TableReader, game: Game, filename: str) -> dict | None:
     path = Path(str(game.full_path_game or "")) / filename
     try:
         return parser.single_file_extract(str(path))
@@ -55,7 +67,7 @@ def _read(parser, game, filename: str) -> dict | None:
         return None
 
 
-def _parser():
+def _parser() -> TableReader:
     """The thing that reads a table file. One place names it, so this module's coupling
     to a particular program is a single line rather than one per caller."""
     from common.games.vpx_parser import VPXParser
@@ -78,7 +90,7 @@ def read_one(table: Path) -> dict | None:
         return None
 
 
-def enrich(games, reporter: JobReporter | None = None) -> dict[str, int]:
+def enrich(games: Iterable[Game], reporter: JobReporter | None = None) -> dict[str, int]:
     """Fill in what a parse knows for every table nothing has read.
 
     Written per game rather than per table: a folder with three unread builds is one

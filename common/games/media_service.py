@@ -10,6 +10,7 @@ from urllib.parse import quote
 
 from common.config_access import MediaConfig
 from common.games import asset_origin
+from common.games.game import GameRecord
 from common.games.game_metadata import reorder_leading_article, vpinfe_section
 from common.games.game_repository import all_games
 from common.games.info_file import MetaConfig
@@ -247,7 +248,7 @@ def ensure_thumb(game_dir_name: str, kind: str, source_path: str) -> str | None:
         return None
 
 
-def _game_meta_sections(game):
+def _game_meta_sections(game: GameRecord) -> tuple[dict, dict]:
     raw = game.meta_config or {}
     if not isinstance(raw, dict):
         raw = {}

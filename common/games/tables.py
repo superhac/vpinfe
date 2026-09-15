@@ -68,7 +68,7 @@ DETECT_KEYS = (
 )
 
 
-def _as_bool(value) -> bool:
+def _as_bool(value: object) -> bool:
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
@@ -76,7 +76,7 @@ def _as_bool(value) -> bool:
     return value == 1
 
 
-def parse_authors(value) -> list[str]:
+def parse_authors(value: object) -> list[str]:
     """Authors as the .vpx records them. Per table, never rolled up to the game."""
     if not value:
         return []

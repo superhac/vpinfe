@@ -14,8 +14,10 @@ from time import perf_counter
 from typing import Any
 
 from common import events
+from common.config_store import ConfigStore
 from common.games import locations
 from common.games.collection_store import CollectionStore
+from common.games.game import Game
 from common.games.game_identity import ensure_unique_ids
 from common.games.game_identity import game_id as vpinfe_id
 from common.games.game_metadata import (
@@ -100,7 +102,7 @@ def game_folder(game_id: str) -> Path | None:
     return Path(str(game.full_path_game)) if game is not None else None
 
 
-def games_under(games_root: str, config=None) -> list[Any]:
+def games_under(games_root: str, config: ConfigStore | None = None) -> list[Any]:
     """The library at `games_root`, from the cache when that is the configured one.
 
     Five callers built a parser of their own and rescanned everything, which on a network
@@ -235,17 +237,18 @@ def collections_by_game_id() -> dict[str, list[str]]:
     return mapping
 
 
-def game_to_row(game, collections_map: dict[str, list[str]] | None = None) -> dict[str, Any]:
+def game_to_row(game: Game,
+                collections_map: dict[str, list[str]] | None = None) -> dict[str, Any]:
     meta = game.meta_config or {}
     user = section(meta, "User")
     vpinfe = vpinfe_section(meta)
-    game_name = Path(game.full_path_game).name
+    game_name = Path(str(game.full_path_game)).name
     vpsid = first_meta_value(meta, ("Info", "VPSId"), default="")
     # The row describes one table - the game's default. A folder can hold several,
     # and the API lists them all separately; this is what the game-level views show.
     gf_name, gf = default_table(meta, folder_name=game_name)
 
-    def gf_value(key, default=""):
+    def gf_value(key: str, default: Any = "") -> Any:
         value = gf.get(key, None)
         return default if value in ("", None) else value
 
@@ -258,7 +261,7 @@ def game_to_row(game, collections_map: dict[str, list[str]] | None = None) -> di
     row = {
         "name": str(vpinfe.get("alt_title", "") or "").strip() or found_title,
         "found_name": found_title,
-        "filename": gf_name or Path(game.full_path_vpx_file).name,
+        "filename": gf_name or Path(str(game.full_path_vpx_file)).name,
         # vpsid and alt_vpsid correlate with VPSdb, VPinPlay and anything else keyed
         # by them. vpinfe_id is this install's own id (common/games/game_identity.py)
         # and is what identifies the game here - in the API, in events, in collection

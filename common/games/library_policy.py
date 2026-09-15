@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from common.atomic_write import write_atomic
+from common.config_store import ConfigStore
 from common.paths import CONFIG_DIR
 
 logger = logging.getLogger("vpinfe.common.games.library_policy")
@@ -90,7 +91,7 @@ class LibraryPolicy:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         write_atomic(self.path, lambda handle: json.dump(payload, handle, indent=2))
 
-    def adopt_from_config(self, config) -> bool:
+    def adopt_from_config(self, config: ConfigStore) -> bool:
         """Take what an install's config holds, once, and answer whether anything moved.
 
         Only where this file does not exist: after that the library owns these, and

@@ -11,6 +11,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from common.games.game import Game, GameRecord
 from common.games.game_metadata import (
     load_game_meta,
     normalize_meta,
@@ -33,7 +34,7 @@ __all__ = ["ID_ALPHABET", "ID_LENGTH", "ID_KEY", "ID_SECTION", "new_id",
            "Shadowed", "find_by_id"]
 
 
-def game_id(game) -> str:
+def game_id(game: GameRecord) -> str:
     """The table's id, or "" if it hasn't been assigned one. Never writes."""
     meta = normalize_meta(getattr(game, "meta_config", {}))
     return str(section(meta, ID_SECTION).get(ID_KEY, "") or "").strip()
@@ -47,7 +48,7 @@ def _vpinfe_section(config: dict[str, Any]) -> dict[str, Any]:
     return existing
 
 
-def ensure_id(game, *, force_new: bool = False) -> str:
+def ensure_id(game: Game, *, force_new: bool = False) -> str:
     """The table's id, minting and persisting one if it has none.
 
     Re-reads from disk first so a stale in-memory copy isn't written back. Raises if

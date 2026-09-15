@@ -13,9 +13,14 @@ import sys
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import BinaryIO
+from typing import TYPE_CHECKING, Any, BinaryIO
 
 from common.paths import USER_CONFIG_PATH, USER_ROMS_PATH
+
+if TYPE_CHECKING:
+    # The concrete views dict returns. An override may not widen them to
+    # KeysView/ItemsView, and neither name exists at runtime.
+    from _collections_abc import dict_items, dict_keys
 
 
 @dataclass
@@ -225,7 +230,7 @@ def load_roms() -> dict:
         return json.load(f)
 
 
-class _Roms(dict):
+class _Roms(dict[str, Any]):
     """The rom map, read the first time something asks for it.
 
     Read at import before this: importing the module raised `FileNotFoundError` wherever
@@ -245,23 +250,23 @@ class _Roms(dict):
             self._read = True
             super().update(load_roms())
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Any:
         self._ready()
         return super().__getitem__(key)
 
-    def get(self, key, default=None):
+    def get(self, key: str, default: Any = None) -> Any:
         self._ready()
         return super().get(key, default)
 
-    def __contains__(self, key) -> bool:
+    def __contains__(self, key: object) -> bool:
         self._ready()
         return super().__contains__(key)
 
-    def keys(self):
+    def keys(self) -> dict_keys[str, Any]:
         self._ready()
         return super().keys()
 
-    def items(self):
+    def items(self) -> dict_items[str, Any]:
         self._ready()
         return super().items()
 

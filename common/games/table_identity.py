@@ -10,6 +10,7 @@ import logging
 from collections.abc import Iterable
 from typing import Any
 
+from common.games.game import GameRecord
 from common.games.game_metadata import load_game_meta, persist_game_meta
 from common.games.ids import new_id
 from common.games.info_file import VPINFE_SECTION
@@ -26,7 +27,7 @@ from common.games.tables import (
 logger = logging.getLogger("vpinfe.common.games.table_identity")
 
 
-def table_ids(game) -> dict[str, str]:
+def table_ids(game: GameRecord) -> dict[str, str]:
     """{native key: id} for a game's tables, skipping entries with no id yet.
 
     The native key is the filename for something in the folder and `app:key` for
