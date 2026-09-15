@@ -16,6 +16,7 @@ notifying are separate, and only the first can block.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 from common.i18n import t, t_source
@@ -122,19 +123,20 @@ class _Registry:
 _registry = _Registry()
 
 
-def register_confirmer(surface: str, confirmer) -> None:
+def register_confirmer(surface: str, confirmer: Callable[[Request], bool]) -> None:
     """How to ask a person on `surface`. Returns True to proceed."""
     _registry.confirmers[surface] = confirmer
 
 
-def register_performer(scope: str, action: str, performer) -> None:
+def register_performer(scope: str, action: str,
+                       performer: Callable[[Request], object]) -> None:
     """What actually does it. One per scope/action, registered by the layer that owns it."""
     if (scope, action) not in _ALLOWED:
         raise ValueError(f"not a lifecycle action: {action} the {scope}")
     _registry.performers[(scope, action)] = performer
 
 
-def register_notifier(notifier) -> None:
+def register_notifier(notifier: Callable[[Request], object]) -> None:
     """Told about a request that is going ahead. Nothing waits on this and nothing may
     veto through it - it is how a surface that did not ask says what is about to happen."""
     # Registering the same one twice would announce twice; a performer cannot make that
@@ -190,7 +192,7 @@ def _known(scope: str, action: str) -> bool:
     return (scope, action) in PAIRS
 
 
-def needs_confirmation(request: Request, confirm_scopes) -> bool:
+def needs_confirmation(request: Request, confirm_scopes: Iterable[str] | None) -> bool:
     """Whether the user asked to be checked on this. By scope, because "ask before
     anything touches the system" is what people mean and a key per pair is a grid
     nobody fills in."""
@@ -198,7 +200,7 @@ def needs_confirmation(request: Request, confirm_scopes) -> bool:
     return request.scope in wanted
 
 
-def confirm(request: Request, confirm_scopes) -> bool:
+def confirm(request: Request, confirm_scopes: Iterable[str] | None) -> bool:
     """Ask, if this wants asking and there is somebody to ask.
 
     An unanswerable origin proceeds: a SIGTERM that waits on a dialog is a process that
@@ -234,7 +236,8 @@ def announce(request: Request) -> None:
             logger.exception("A lifecycle notifier failed; continuing")
 
 
-def request(scope: str, action: str, *, origin: Origin, confirm_scopes=(),
+def request(scope: str, action: str, *, origin: Origin,
+            confirm_scopes: Iterable[str] = (),
             reason: str = "") -> bool:
     """Confirm, announce, then do it. Returns whether it went ahead."""
     if (scope, action) not in _ALLOWED:

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from pathlib import Path
 
 from common.media_specs import IMAGE_FAMILY
@@ -92,7 +93,7 @@ def manufacturer_logo_web_path(name: str) -> str | None:
     return _entry(name, _alias_map(_assets_dir))["logo"]
 
 
-def manufacturer_report(names) -> list[dict]:
+def manufacturer_report(names: Iterable[object]) -> list[dict]:
     """One row per distinct name: slug, effective alias, resolved logo.
 
     This is the lookup made visible - the answer to "what filename would this
@@ -118,7 +119,7 @@ def vps_manufacturer_names(vpsdb_path: str | Path) -> list[str]:
                   key=str.lower)
 
 
-def write_manufacturer_reference(names) -> Path | None:
+def write_manufacturer_reference(names: Iterable[object]) -> Path | None:
     """Generate manufacturers-reference.json beside the alias maps.
 
     The reference is for people: open it to learn what slug a name computes,

@@ -14,10 +14,10 @@ theme; the path is ours and stays here.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from common.i18n import t
 
@@ -417,7 +417,8 @@ TIER_DEFAULT = "default"    # "wheel.png"-style fixed name; where vpinmediadb wr
 TIER_FALLBACK = "fallback"  # borrowed from fallback_kind; reported as "fallback:<kind>"
 
 
-def _finder(game_dir: Path, game_contents: set[str], medias_contents: set[str]):
+def _finder(game_dir: Path, game_contents: set[str],
+            medias_contents: set[str]) -> Callable[[str], Path | None]:
     """Case-insensitive lookup of one companion filename, medias/ before the root."""
     medias_dir = game_dir / "medias"
     in_medias = {name.lower(): name for name in medias_contents}
@@ -433,7 +434,7 @@ def _finder(game_dir: Path, game_contents: set[str], medias_contents: set[str]):
     return find
 
 
-def _tier_names(spec, folder_name: str, playfield_variant: str,
+def _tier_names(spec: MediaSpec, folder_name: str, playfield_variant: str,
                 table_stem: str | None, active: str | None
                 ) -> tuple[list[str], list[str], list[str], list[str]]:
     """What each tier would call this kind's file - table, game, set, default.
@@ -504,7 +505,9 @@ def resolve_media_entries(game_dir: str | Path, game_contents: set[str],
 
         # first= is bound as a default because it is rebuilt each iteration; closing
         # over the loop variable would make every kind use the last spec's finder.
-        def pick(names: list[str], tier: str, first=first) -> MediaHit | None:  # noqa: B006
+        def pick(names: list[str], tier: str,
+                 first: Callable[[list[str]], Path | None] = first
+                 ) -> MediaHit | None:  # noqa: B006
             hit = first(names)
             return MediaHit(hit, tier) if hit is not None else None
 
@@ -613,11 +616,13 @@ def resolve_media_by_table(game_dir: str | Path, game_contents: set[str],
     }
 
 
-def apply_media_specs(game, game_contents: set[str], medias_contents: set[str],
+# `game` is a Game, which this layer may not name: nothing in common/ itself imports
+# the games package. Any, because the folder is read off it directly.
+def apply_media_specs(game: Any, game_contents: set[str], medias_contents: set[str],
                       playfield_variant: str = "table",
                       table_stem: str | None = None,
                       active_sets: dict[str, str] | None = None) -> None:
-    resolved = resolve_media_files(game.full_path_game, game_contents,
+    resolved = resolve_media_files(str(game.full_path_game or ""), game_contents,
                                    medias_contents, playfield_variant, table_stem,
                                    active_sets)
     for spec in MEDIA_SPECS:
@@ -626,7 +631,7 @@ def apply_media_specs(game, game_contents: set[str], medias_contents: set[str],
             setattr(game, spec.attr, str(path))
 
 
-def game_media_payload(game) -> dict[str, str | None]:
+def game_media_payload(game: object) -> dict[str, str | None]:
     """The media half of a contract 1 row: the frozen key, the resolved path.
 
     `topper_video` is declared here and not on Game - it is only ever set by the scan -

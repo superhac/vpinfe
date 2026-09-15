@@ -24,12 +24,15 @@ import logging
 import os
 import socket
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from zeroconf import ServiceBrowser, ServiceInfo, ServiceStateChange, Zeroconf
 
 from common import install_identity
 from common.config_access import NetworkConfig
+from common.config_store import ConfigStore
 from common.vpinfe_version import get_version
 
 logger = logging.getLogger("vpinfe.common.discovery")
@@ -83,9 +86,10 @@ class _Discovery:
         self._info: ServiceInfo | None = None
         self._peers: dict[str, Peer] = {}
         self._mine = ""
-        self._on_peer = None
+        self._on_peer: Callable[[Peer], None] | None = None
 
-    def start(self, config, on_peer=None) -> None:
+    def start(self, config: ConfigStore,
+              on_peer: Callable[[Peer], None] | None = None) -> None:
         with self._lock:
             if self._zeroconf is not None:
                 return
@@ -97,7 +101,7 @@ class _Discovery:
                                            handlers=[self._changed])
             logger.info("Announcing this install on %s", SERVICE_TYPE)
 
-    def _announce(self, config, update: bool = False) -> None:
+    def _announce(self, config: ConfigStore, update: bool = False) -> None:
         # Both callers hold the lock and have already established this: `start` has just
         # constructed it, and `refresh` returns early without one.
         assert self._zeroconf is not None
@@ -161,7 +165,7 @@ class _Discovery:
         if gone is not None:
             logger.info("%s has gone quiet", gone.display_name or gone.install_id)
 
-    def refresh(self, config) -> None:
+    def refresh(self, config: ConfigStore) -> None:
         """Say the same thing again with what this install now calls itself. Silent when
         nothing is announcing: refreshing is what a rename does, and a rename on a machine
         with no network is not an error."""
@@ -198,7 +202,7 @@ class _Discovery:
 _discovery = _Discovery()
 
 
-def start(config, on_peer=None) -> None:
+def start(config: ConfigStore, on_peer: Callable[[Peer], None] | None = None) -> None:
     """Announce this install and start listening for the others.
 
     `on_peer` is called once per install heard from, on a thread of its own. What to do
@@ -218,7 +222,7 @@ def peers() -> list[Peer]:
     return _discovery.peers()
 
 
-def refresh(config) -> None:
+def refresh(config: ConfigStore) -> None:
     """Announce again, because what this install says about itself has changed."""
     try:
         _discovery.refresh(config)
@@ -230,7 +234,7 @@ def stop() -> None:
     _discovery.stop()
 
 
-def _as_peer(info) -> Peer | None:
+def _as_peer(info: Any) -> Peer | None:
     """One resolved announcement, or None if it did not carry an identity.
 
     A record without an install id is not a VPinFE install as far as we are concerned,
@@ -253,7 +257,7 @@ def _as_peer(info) -> Peer | None:
     )
 
 
-def _text(raw) -> str:
+def _text(raw: object) -> str:
     return raw.decode("utf-8", "replace") if isinstance(raw, bytes) else str(raw or "")
 
 

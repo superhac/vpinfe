@@ -16,6 +16,7 @@ import os
 import secrets
 import string
 from pathlib import Path
+from typing import Any
 
 from common import config_schema, input_registry
 from common.atomic_write import write_atomic
@@ -124,7 +125,7 @@ def _flatten(tree: dict, prefix: str = '') -> dict:
 class ConfigStore:
     """The settings file, read once and written atomically."""
 
-    def _move_option(self, old_section, new_section, key) -> bool:
+    def _move_option(self, old_section: str, new_section: str, key: str) -> bool:
         """Move one option to the section it lives in now, keeping the user's value.
 
         The destination section may not exist yet: this runs before the defaults are
@@ -140,7 +141,7 @@ class ConfigStore:
         self.config.remove_option(old_section, key)
         return True
 
-    def __init__(self, configfilepath) -> None:
+    def __init__(self, configfilepath: str | Path) -> None:
 
         self.defaults = config_schema.defaults()
 
@@ -341,7 +342,7 @@ class ConfigStore:
         if changed:
             self.save()
 
-    def _typed(self, section: str, key: str, raw: str):
+    def _typed(self, section: str, key: str, raw: str) -> Any:
         """The value as JSON should hold it. Unknown keys stay strings.
 
         An empty string stays empty rather than becoming 0 or null: several int settings
@@ -367,7 +368,7 @@ class ConfigStore:
         return text
 
     @staticmethod
-    def _as_text(value) -> str:
+    def _as_text(value: Any) -> str:
         """Back to what a ConfigParser holds, so nothing above this module changes."""
         if isinstance(value, bool):
             return 'true' if value else 'false'
@@ -387,7 +388,7 @@ class ConfigStore:
                 self.config.set(section, config_schema.canonical(section, key),
                                 self._as_text(value))
 
-    def value(self, section: str, key: str):
+    def value(self, section: str, key: str) -> Any:
         """One setting, typed the way this store would write it back.
 
         Public because the HTTP API needs what the Manager UI reached inside for. The
@@ -399,7 +400,7 @@ class ConfigStore:
         raw = cfg_get(self, section, key, fallback=entry.default if entry else "")
         return self._typed(section, key, raw)
 
-    def set_value(self, section: str, key: str, value) -> None:
+    def set_value(self, section: str, key: str, value: Any) -> None:
         """Stage one setting under its canonical name. `save()` writes the file."""
         section = config_schema.canonical_section(section)
         key = config_schema.canonical(section, key)

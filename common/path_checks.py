@@ -70,7 +70,7 @@ def check(kind: str, raw: str) -> tuple[str, str]:
     return OK, ""
 
 
-def check_option(option, value) -> tuple[str, str]:
+def check_option(option: object, value: str) -> tuple[str, str]:
     """The same, for a schema option that may not be a path at all."""
     return check(getattr(option, "path", ""), value)
 

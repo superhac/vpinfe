@@ -8,7 +8,8 @@ from __future__ import annotations
 import logging
 
 from common.config_access import cfg_get
-from common.device_registry import KIND_VPX_MOBILE, mint_device_id
+from common.config_store import ConfigStore
+from common.device_registry import KIND_VPX_MOBILE, DeviceRegistry, mint_device_id
 
 logger = logging.getLogger("vpinfe.common.device_migration")
 
@@ -20,7 +21,7 @@ MOBILE_DISPLAY_NAME = "VPX Mobile"
 DEFAULT_MOBILE_PORT = 2112
 
 
-def ensure_mobile_device(registry, config) -> int:
+def ensure_mobile_device(registry: DeviceRegistry, config: ConfigStore) -> int:
     """Import `[mobile]` as a `vpx_mobile` entry. Returns how many were created.
 
     Marked whatever the outcome, including when there was nothing to import: the marker
@@ -46,7 +47,7 @@ def ensure_mobile_device(registry, config) -> int:
     return 1
 
 
-def _port(config) -> int:
+def _port(config: ConfigStore) -> int:
     raw = cfg_get(config, MOBILE_SECTION, "device_port", "") or DEFAULT_MOBILE_PORT
     try:
         return int(str(raw).strip() or DEFAULT_MOBILE_PORT)

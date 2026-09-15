@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, date, datetime
+from typing import Any
 
 _MONTHS = {name.lower(): number for number, name in enumerate(
     ("January", "February", "March", "April", "May", "June",
@@ -23,7 +24,7 @@ def utc_now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def epoch_to_iso(value) -> str:
+def epoch_to_iso(value: Any) -> str:
     """An epoch integer as ISO, or "" if it is not one. For reading fields written
     before this was the standard.
 
@@ -48,7 +49,7 @@ def epoch_to_iso(value) -> str:
     return stamp.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def iso_to_epoch(value) -> float | None:
+def iso_to_epoch(value: object) -> float | None:
     """An ISO stamp back as epoch seconds, or None if it is not one. The inverse of
     `epoch_to_iso`, for reading a time that crossed the wire back into something that
     sorts as a number."""
@@ -58,7 +59,7 @@ def iso_to_epoch(value) -> float | None:
         return None
 
 
-def iso_from_asctime(value) -> str:
+def iso_from_asctime(value: object) -> str:
     """A C asctime stamp - `Tue Dec 13 16:03:21 2022` - as naive ISO. No Z: asctime
     carries no timezone, so claiming UTC would be inventing one."""
     try:
@@ -87,7 +88,7 @@ def _iso_day(year: int, month: int, day: int) -> str:
         return str(year)
 
 
-def iso_from_authored_date(value) -> str:
+def iso_from_authored_date(value: object) -> str:
     """An author-typed release date as ISO, at the precision the author gave.
 
     Both day-first and month-first orders turn up, so an ambiguous pair falls back to

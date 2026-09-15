@@ -12,6 +12,7 @@ import logging
 from common import device_registry, discovery, install_identity
 from common.config_access import NetworkConfig
 from common.device_registry import get_device_registry
+from common.discovery import Peer
 from common.paths import get_ini_config
 
 logger = logging.getLogger("vpinfe.common.install_presence")
@@ -53,7 +54,7 @@ def announce_on_the_network() -> None:
     discovery.start(config, on_peer=_heard_from)
 
 
-def _heard_from(peer) -> None:
+def _heard_from(peer: Peer) -> None:
     """File an install this one heard from, when managing devices is its job.
 
     The feature is read per announcement rather than once at startup, so switching it on

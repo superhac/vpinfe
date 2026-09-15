@@ -7,15 +7,17 @@ route as a user's own quit - anything else skips shutdown_services entirely.
 
 from __future__ import annotations
 
+import logging
 import signal
 import threading
+from collections.abc import Callable
 
 _requested = threading.Event()
 
 
-def handle_termination(request_shutdown) -> None:
+def handle_termination(request_shutdown: Callable[[], None]) -> None:
     """Route SIGTERM/SIGINT/SIGBREAK into request_shutdown. The last caller wins."""
-    def _on_signal(signum, _frame) -> None:
+    def _on_signal(signum: int, _frame: object) -> None:
         # Hand the signal back to the default so a second Ctrl+C still kills us
         # outright. Shutdown waits on services, and one of them can hang.
         signal.signal(signum, signal.SIG_DFL)
@@ -41,7 +43,7 @@ def requested() -> bool:
     return _requested.is_set()
 
 
-def exit_if_requested(logger) -> None:
+def exit_if_requested(logger: logging.Logger) -> None:
     """Leave between startup steps rather than being killed inside one."""
     if not _requested.is_set():
         return

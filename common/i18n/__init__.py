@@ -15,6 +15,7 @@ itself, because a missing translation is a blemish and a traceback is an outage.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import logging
 from pathlib import Path
@@ -217,7 +218,7 @@ def under(prefix: str) -> dict[str, str]:
 # neither is the same everywhere: "%d %b %Y" hardcodes both, and %b is English whatever
 # the language is unless setlocale has been called process-wide, which is not a thing to
 # do to a running app.
-def date(when) -> str:
+def date(when: dt.date) -> str:
     """A date as this language writes it. Short month, no leading zero on the day."""
     month = t(f"date.month.{when.month}")
     return t("date.short", day=when.day, month=month, year=when.year)

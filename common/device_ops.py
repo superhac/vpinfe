@@ -7,19 +7,20 @@ is asked rather than stored, and what a phone is carrying is asked of the phone.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 from common import device_client, device_registry, discovery, install_identity, service_errors
-from common.device_registry import get_device_registry
+from common.device_registry import Device, get_device_registry
 from common.i18n import t
 from common.paths import get_ini_config
 
 
-def _resource(device) -> dict:
+def _resource(device: Device) -> dict:
     return device.as_dict() | {"links": {"self": f"/api/v1/devices/{device.device_id}"}}
 
 
-def device_or_refuse(device_id: str):
+def device_or_refuse(device_id: str) -> Device:
     found = get_device_registry().get(device_id)
     if found is None:
         raise service_errors.NotFoundError(
@@ -27,7 +28,7 @@ def device_or_refuse(device_id: str):
     return found
 
 
-def mobile_or_refuse(device_id: str):
+def mobile_or_refuse(device_id: str) -> Device:
     """The device a phone operation is about, refusing anything that is not a phone.
 
     An install carries its own library and its own API; asking one what folders it holds
@@ -68,7 +69,7 @@ def discovered() -> dict[str, Any]:
                           "url": peer.url} for peer in found]}
 
 
-def announce(device_id: str, kind: str, display_name: str, features,
+def announce(device_id: str, kind: str, display_name: str, features: Iterable[str],
              port: int, *, declared_address: str = "",
              heard_from: str = "") -> dict[str, Any]:
     """Idempotent by `device_id`: announcing twice is one device, heard from twice.
@@ -115,7 +116,7 @@ def announce(device_id: str, kind: str, display_name: str, features,
     return _resource(device)
 
 
-def probe_one(device) -> dict[str, Any]:
+def probe_one(device: Device) -> dict[str, Any]:
     """Dial one device, and record it as reachable if it answered.
 
     One at a time and off the caller's loop: a machine that is off costs its own short

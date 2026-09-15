@@ -5,9 +5,12 @@ from __future__ import annotations
 import contextlib
 import os
 import tempfile
+from collections.abc import Callable
+from pathlib import Path
+from typing import IO
 
 
-def write_atomic(path, write) -> None:
+def write_atomic(path: str | Path, write: Callable[[IO[str]], None]) -> None:
     """Write a file so a reader sees the old one or the new one, never half of one.
 
     open(path, "w") truncates before writing, and the id backfill rewrites every .info in

@@ -13,6 +13,7 @@ migration.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
 from common.i18n import t
@@ -159,13 +160,13 @@ def binding_for_legacy(key: str, value: str) -> list[str]:
     return [f"{KEY_PREFIX}{part.strip()}" for part in raw.split(",") if part.strip()]
 
 
-def keys_in(bindings) -> list[str]:
+def keys_in(bindings: Iterable[str] | None) -> list[str]:
     """The keyboard key names in a binding list - what the UI's keyboard field shows."""
     return [b[len(KEY_PREFIX):] for b in bindings or ()
             if str(b).startswith(KEY_PREFIX) and "+" not in b and "@" not in b]
 
 
-def pad_buttons_in(bindings) -> list[str]:
+def pad_buttons_in(bindings: Iterable[str] | None) -> list[str]:
     """The plain gamepad button indexes - what the UI's controller field shows."""
     out = []
     for b in bindings or ():
@@ -390,7 +391,7 @@ def identity(binding: str) -> str:
     return f"{CHORD_PREFIX}{'+'.join(normalize(one) for one in members)}){suffix}"
 
 
-def holders(bound) -> dict[str, list[str]]:
+def holders(bound: Mapping[str, Iterable[str] | None] | None) -> dict[str, list[str]]:
     """Every binding, and which actions hold it.
 
     Compared by `identity`, so a chord written in either order is one binding and a key
@@ -410,7 +411,7 @@ def holders(bound) -> dict[str, list[str]]:
     return seen
 
 
-def collisions(bound) -> dict[str, list[str]]:
+def collisions(bound: Mapping[str, Iterable[str] | None] | None) -> dict[str, list[str]]:
     """Bindings more than one action holds.
 
     Nothing refused one before, anywhere. Dispatch resolves a key to the *first* action
@@ -422,7 +423,7 @@ def collisions(bound) -> dict[str, list[str]]:
             if len(names) > 1}
 
 
-def unrenderable(bindings) -> list[str]:
+def unrenderable(bindings: Iterable[str] | None) -> list[str]:
     """Bindings neither UI field can show - chords, holds, axes, a second pad.
 
     Kept and written back untouched: dropping them would delete a cabinet's

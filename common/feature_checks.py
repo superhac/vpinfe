@@ -14,10 +14,16 @@ a healthy install, and a mark that appears on everything says nothing.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 from common import install_identity, path_checks
 from common.config_access import cfg_get
+from common.config_store import ConfigStore
+
+if TYPE_CHECKING:
+    from common.config_schema import ConfigOption
 
 # Where the thing that fixes a requirement lives. A settings requirement ends at a field
 # on a settings page; a launcher one ends at the Launchers list, which is not a setting
@@ -65,7 +71,7 @@ class Unmet:
     where: str = WHERE_SETTINGS
 
 
-def _option(section: str, key: str):
+def _option(section: str, key: str) -> ConfigOption | None:
     from common import config_schema
 
     return next((o for o in config_schema.CONFIG_OPTIONS
@@ -78,8 +84,12 @@ def _option(section: str, key: str):
 NOT_ASKED = object()
 
 
-def unmet(config, features=None, launcher=NOT_ASKED,
-          locations=NOT_ASKED) -> list[Unmet]:
+# `launcher` and `locations` are handed in already resolved, and are Any because this
+# module may not import the domain package that would name their types - which is the
+# same reason they are passed at all rather than looked up here. NOT_ASKED means the
+# caller did not resolve them, which is not the same as resolving them to nothing.
+def unmet(config: ConfigStore, features: Iterable[str] | None = None,
+          launcher: Any = NOT_ASKED, locations: Any = NOT_ASKED) -> list[Unmet]:
     """Every requirement the enabled features do not satisfy, in feature order.
 
     One entry per (feature, setting), so a setting two features both need is reported
@@ -114,7 +124,7 @@ def unmet(config, features=None, launcher=NOT_ASKED,
     return found
 
 
-def _no_reachable_location(on, found) -> tuple[Unmet, ...]:
+def _no_reachable_location(on: list[str], found: Any) -> tuple[Unmet, ...]:
     """A library with nowhere to read, or nowhere it can currently reach.
 
     Reported against every feature that needs one, because the person is looking at one
@@ -142,7 +152,7 @@ def _no_reachable_location(on, found) -> tuple[Unmet, ...]:
                  for feature in wants)
 
 
-def _no_working_launcher(on, found) -> Unmet | None:
+def _no_working_launcher(on: list[str], found: Any) -> Unmet | None:
     """A frontend with nothing it can actually run a table with.
 
     Asked about the launcher the install would use rather than a config key, because that
@@ -172,7 +182,7 @@ def _no_working_launcher(on, found) -> Unmet | None:
                  state=state, reason=reason, where=WHERE_LAUNCHERS)
 
 
-def _no_library_to_read(config, on) -> Unmet | None:
+def _no_library_to_read(config: ConfigStore, on: list[str]) -> Unmet | None:
     """A frontend that holds no library of its own and has not been told which to read.
 
     Not guessed at, not even when exactly one install on the network has a library. A
@@ -189,6 +199,7 @@ def _no_library_to_read(config, on) -> Unmet | None:
                  reason="No library chosen, and this install holds none of its own.")
 
 
-def features_in_trouble(config, features=None) -> set[str]:
+def features_in_trouble(config: ConfigStore,
+                        features: Iterable[str] | None = None) -> set[str]:
     """Just the names, for a caller that only has to decide whether to mark something."""
     return {item.feature for item in unmet(config, features)}

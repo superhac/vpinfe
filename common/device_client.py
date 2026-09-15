@@ -14,8 +14,12 @@ this device can be asked" are different facts and one of them is a bug.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any, NoReturn
+
+if TYPE_CHECKING:
+    from common.config_store import ConfigStore
 
 logger = logging.getLogger("vpinfe.common.device_client")
 
@@ -79,7 +83,7 @@ class LocalDevice:
         return parse_additional_chromium_options(raw)
 
 
-    def bindings(self, config) -> dict[str, list[str]]:
+    def bindings(self, config: ConfigStore) -> dict[str, list[str]]:
         from frontend import input_api
 
         return input_api.get_bindings(config)
@@ -132,7 +136,7 @@ UNASKABLE = "unaskable"
 TOO_OLD = "That install is running a build without this."
 
 
-def probe(client) -> dict[str, Any]:
+def probe(client: LocalDevice | RemoteDevice | MobileDevice | None) -> dict[str, Any]:
     """Whether a device answers, and what is on the other end.
 
     One shape for both kinds, because a row shows one of them at a time: `state`, and a
@@ -176,7 +180,7 @@ class RemoteDevice:
     def parse_browser_options(self, raw: str) -> list[str]:
         raise NotThisDeviceError("Another machine's browser options cannot be read from here")
 
-    def bindings(self, config) -> dict[str, list[str]]:
+    def bindings(self, config: ConfigStore) -> dict[str, list[str]]:
         raise NotThisDeviceError("Another machine's input bindings cannot be read from here")
 
     def wants_confirmation(self, scope: str) -> bool:
@@ -336,8 +340,8 @@ class MobileDevice:
     def __init__(self, base_url: str) -> None:
         self.base_url = base_url.rstrip("/")
 
-    def __getattr__(self, name: str):
-        def refuse(*_args, **_kwargs):
+    def __getattr__(self, name: str) -> Callable[..., NoReturn]:
+        def refuse(*_args: Any, **_kwargs: Any) -> NoReturn:
             raise NotThisDeviceError(
                 f"A VPX Mobile device does not answer {name}")
         return refuse
@@ -363,7 +367,10 @@ def local() -> LocalDevice:
     return _local
 
 
-def for_device(device: dict[str, Any], local_device_id: str | None = None):
+def for_device(
+        device: dict[str, Any],
+        local_device_id: str | None = None
+) -> LocalDevice | RemoteDevice | MobileDevice | None:
     """The client for one registry entry, local or remote.
 
     A device is this process when its id is the one this install answers to. Everything

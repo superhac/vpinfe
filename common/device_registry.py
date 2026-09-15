@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -160,7 +161,8 @@ class DeviceRegistry:
     # -- writing -------------------------------------------------------------
 
     def record(self, device_id: str, *, kind: str = "", display_name: str = "",
-               features=(), address: str = "", port: int = 0) -> Device | None:
+               features: Iterable[str] = (), address: str = "",
+               port: int = 0) -> Device | None:
         """Note that a device exists, or that a known one has been heard from.
 
         `first_seen` is kept from the existing entry: a device is the same device
@@ -304,6 +306,6 @@ def get_device_registry() -> DeviceRegistry:
     return _registry
 
 
-def reset_for_tests(path=None) -> None:
+def reset_for_tests(path: Path | None = None) -> None:
     global _registry
     _registry = DeviceRegistry(path) if path is not None else None

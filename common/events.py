@@ -10,6 +10,7 @@ import logging
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 logger = logging.getLogger("vpinfe.common.events")
 
@@ -103,7 +104,7 @@ def unsubscribe(name: str, handler: Callable) -> None:
         slot.subscribers = [h for h in slot.subscribers if h is not handler]
 
 
-def emit(name: str, **payload) -> None:
+def emit(name: str, **payload: Any) -> None:
     """Run the hooks in order, then notify the subscribers.
 
     Hook failures propagate. Subscriber failures are logged and contained.

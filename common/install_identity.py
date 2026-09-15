@@ -10,6 +10,7 @@ import logging
 import socket
 
 from common.config_access import cfg_get, cfg_has, cfg_list, cfg_set
+from common.config_store import ConfigStore
 from common.games.ids import new_id
 
 logger = logging.getLogger("vpinfe.common.install_identity")
@@ -41,7 +42,7 @@ DEFAULT_FEATURES = (LIBRARY, FRONTEND, DEVICES)
 CORE = "core"
 
 
-def install_id(config) -> str:
+def install_id(config: ConfigStore) -> str:
     """This install's id, or "" if it has not been minted. Never writes."""
     return cfg_get(config, ID_SECTION, ID_KEY).strip()
 
@@ -53,7 +54,7 @@ def mint_id() -> str:
     return new_id()
 
 
-def ensure_id(config) -> str:
+def ensure_id(config: ConfigStore) -> str:
     """This install's id, minting and saving one if it has none. An id that is not on
     disk is not an identity: the next start would mint another and become someone else."""
     existing = install_id(config)
@@ -67,7 +68,7 @@ def ensure_id(config) -> str:
     return minted
 
 
-def display_name(config) -> str:
+def display_name(config: ConfigStore) -> str:
     """What to call this install, falling back to the hostname. Reading never writes the
     default down, so a renamed machine follows instead of keeping its first name."""
     configured = cfg_get(config, ID_SECTION, "display_name").strip()
@@ -84,7 +85,7 @@ def _hostname() -> str:
     return name or "VPinFE"
 
 
-def features(config) -> list[str]:
+def features(config: ConfigStore) -> list[str]:
     """What this install is for, in a stable order, `core` first because every one has it.
 
     Unrecognized falls back to the defaults rather than to none: a typo must not decide
@@ -109,5 +110,5 @@ def features(config) -> list[str]:
     return [CORE, *known]
 
 
-def has_feature(config, feature: str) -> bool:
+def has_feature(config: ConfigStore, feature: str) -> bool:
     return feature in features(config)

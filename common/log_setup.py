@@ -8,6 +8,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 DEFAULT_LOG_FILE_NAME = "vpinfe.log"
 DEFAULT_LOG_LEVEL = "INFO"
@@ -40,7 +41,7 @@ _THIRD_PARTY_LOGGERS = (
 )
 
 
-def _coerce_bool(value, default: bool) -> bool:
+def _coerce_bool(value: object, default: bool) -> bool:
     if value is None:
         return default
     if isinstance(value, bool):
@@ -152,7 +153,8 @@ def _normalize_third_party_loggers() -> None:
         logger.propagate = True
 
 
-def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = True) -> Path:
+def configure_logging(config_dir: Path, ini_config: Any = None,
+                      enable_file: bool = True) -> Path:
     global _CONFIGURED, _FILE_LOG_INITIALIZED, _INCLUDE_THIRD_PARTY, _INCLUDE_WINDOWS
 
     config_dir = Path(config_dir)
