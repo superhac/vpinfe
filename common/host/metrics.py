@@ -134,8 +134,8 @@ def gpu() -> dict[str, Any]:
 
     Behind its own call rather than folded into `read`: it shells out, and a page that
     is not showing GPUs should not pay for one every two seconds. Offered disabled with
-    the reason where nvtop is missing - decision 15's rule, and "no GPU section" and
-    "nvtop is not installed" are different answers.
+    the reason where nvtop is missing: "no GPU section" and "nvtop is not installed"
+    are different answers.
     """
     if not gpu_supported():
         return {"available": False,

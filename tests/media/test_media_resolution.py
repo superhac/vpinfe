@@ -215,8 +215,8 @@ class LogoTests(unittest.TestCase):
 
 
 class WheelSetTests(unittest.TestCase):
-    """Wheel sets: user override > active set > plain default (MEDIA decisions
-    6-8), plus the reserved virtual set "logo"."""
+    """Wheel sets: user override > active set > plain default, plus the reserved
+    virtual set "logo"."""
 
     def _resolve_sets(self, medias, active=None, root=()):
         return resolve_media_files(f"/games/{FOLDER}", set(root), set(medias),

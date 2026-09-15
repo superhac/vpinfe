@@ -1625,8 +1625,8 @@ def _present_row(present: bool) -> Any:
 
 def _script_actions(context: dict[str, Any], table: dict[str, Any],
                     external: bool) -> None:
-    """Extract a sidecar, or drop one. Section 14.4: the script is managed here and
-    Launch only reports it."""
+    """Extract a sidecar, or drop one. The script is managed here and Launch only
+    reports it."""
     if external:
         ui.button(t("word.delete"), on_click=lambda: _drop_script(context, table)) \
             .props("flat dense no-caps size=sm") \
@@ -1746,8 +1746,8 @@ def _vps_label(context: dict[str, Any]) -> str:
 async def _vps_block(context: dict[str, Any]) -> None:
     """What this game is matched to in the catalog, and the way to change it.
 
-    The match drives metadata, media lookup and update tracking, and until now the only
-    way to set it was typing an eight-character id into a text field. Section 15.
+    The match drives metadata, media lookup and update tracking. The alternative to
+    this block is typing an eight-character id into a text field.
 
     It does not judge the match. A ranker was measured and retired for being confidently
     wrong more than half the time, so nothing here says a match looks wrong or offers a
@@ -1920,8 +1920,8 @@ def _rom_state(pinmame: dict[str, Any], rom: str,
     The chain resolves aliases and audits the install, so the name alone is half an
     answer: what anybody wants of a rom is whether it will run.
 
-    A missing one carries the way *to* the fix rather than the fix. Section 14.3:
-    Launch reports and Assets manages, so a finding jumps to where the act lives.
+    A missing one carries the way *to* the fix rather than the fix: Launch reports and
+    Assets manages, so a finding jumps to where the act lives.
     """
     installed = pinmame.get("installed")
     if not pinmame.get("effective") or installed is None:
@@ -2459,9 +2459,9 @@ def _tables_block(context: dict[str, Any]) -> None:
     """This game's tables, and which one it offers first.
 
     A block inside Game Details rather than a rail entry of its own: most games hold one
-    table, so "Tables (1)" was a place you went to read a single row, and the rail holds
-    places. Section 7 already names this shape - a sub-table, a related collection with
-    its own columns.
+    table, so "Tables (1)" would be a place you went to read a single row, and the rail
+    holds places. This is the shape instead - a sub-table, a related collection with its
+    own columns.
 
     Version and author, never the filename - this is the block whose whole job is
     telling them apart, and filenames cannot.
@@ -2907,9 +2907,9 @@ def _device(context: dict[str, Any]) -> dict[str, Any]:
 async def _device_details(context: dict[str, Any]) -> None:
     """Everything a device is, in groups, read down in one go.
 
-    Descriptive, then operational, then what this install holds about it - which is section
-    14.2's order for the same reason it gives: what a thing *is* comes before what can
-    be done to it, and the record we keep of it is nobody's first question.
+    Descriptive, then operational, then what this install holds about it: what a thing
+    *is* comes before what can be done to it, and the record we keep of it is nobody's
+    first question.
     """
     with ui.column().classes("gap-0 console-form"):
         _rows(ui, await devices_page.detail_groups(context))
@@ -3777,9 +3777,9 @@ def _contents_label(context: dict[str, Any]) -> str:
 async def _collection_contents(context: dict[str, Any]) -> None:
     """The rule on the left, what it holds on the right.
 
-    Section 4's own principle - a rule shows its result - applied to the one place a
-    rule is written. The dock is where a picked thing goes for a game's media; here the
-    thing being looked at is the whole result, which is what the rule is *for*.
+    A rule shows its result, applied to the one place a rule is written. The dock is
+    where a picked thing goes for a game's media; here the thing being looked at is the
+    whole result, which is what the rule is *for*.
     """
     row = _collection(context)
     with ui.column().classes("gap-0 console-form w-full"):
@@ -3884,8 +3884,8 @@ def _is_dirty(context: dict[str, Any], row: dict[str, Any]) -> bool:
 def _axis_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
     """One control per axis, from the registry rather than a list written here.
 
-    Section 2.15 makes the registry the only place an axis is named, so a new one
-    appears the moment core declares it - including how many values it takes.
+    The registry is the only place an axis is named, so a new one appears the moment
+    core declares it - including how many values it takes.
     """
     current = _draft_filters(context, row)
     entries: list[tuple[Any, Any]] = []

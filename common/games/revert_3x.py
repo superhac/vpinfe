@@ -59,7 +59,7 @@ FRESH_INSTALL = "fresh_install"
 # schema 2 copy that an earlier --restore-info left in the folder.
 MAX_2X_SCHEMA = 0
 
-# The `.info` sections 3.0 introduced. 2.x wrote `VPinFE`, `VPXFile` and `Medias`, all
+# The `.info` sections introduced in 3.0. 2.x wrote `VPinFE`, `VPXFile` and `Medias`, all
 # three of which the migration renames or supersedes, so any of these in a file 2.x has
 # not since written over is proof 3.0 made it.
 OUR_SECTIONS = (VPINFE_SECTION, TABLES_KEY, ASSETS_KEY)

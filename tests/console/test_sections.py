@@ -102,9 +102,9 @@ class SectionTests(unittest.TestCase):
 
         `section=` in an address is resolved before a subject is settled - `deeplink`
         is handed every rail's keys, not one rail's - so two sections sharing a key
-        would make a link mean whichever one the reader happened to be on. Section 11
-        called this out and the `subjects` field is what answered it: a section says
-        which rails it appears in rather than a rail owning a namespace.
+        would make a link mean whichever one the reader happened to be on. The
+        `subjects` field is what answers it: a section says which rails it appears in
+        rather than a rail owning a namespace.
 
         Asserted rather than left to the docstring, because the pressure arrives with
         the next rail: Assets, the Tag Editor and the VPS section each want a short
@@ -135,9 +135,9 @@ class TablesBlockTests(unittest.TestCase):
     """A game's tables are a block inside Game Details, not a place of their own."""
 
     def test_no_rail_offers_tables_as_a_section(self) -> None:
-        """Most games hold one, so "Tables (1)" was a rail entry you went to in order to
-        read a single row - and the rail holds places. Section 7 already names the shape
-        it takes instead: a sub-table, a related collection with its own columns."""
+        """Most games hold one, so "Tables (1)" would be a rail entry you went to in
+        order to read a single row - and the rail holds places. It takes the other shape
+        instead: a sub-table, a related collection with its own columns."""
         for subject in ("game", "table"):
             with self.subTest(subject=subject):
                 keys = {item.key for item in workbench.sections_for(subject)}

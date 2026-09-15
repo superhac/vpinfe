@@ -8,6 +8,10 @@ A PreToolUse hook already refuses a write that adds one. It checks what a call a
 cannot see what predates it: two survived in `tests/` for weeks until a sweep found them.
 This is the half that looks at what is already here.
 
+It reads each file as one run of text rather than line by line. A pointer that wraps -
+"(MEDIA decisions" ending a line and "6-8)" starting the next - is invisible to a check
+that matches within a line, and is the same pointer.
+
 The rule, in `docs/conventions.md`: state the reason instead. If the reason is too long to
 state, it belongs in the design note alone and the code says nothing.
 """
@@ -18,6 +22,7 @@ import pathlib
 import re
 import subprocess
 import unittest
+from collections.abc import Callable
 
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 
@@ -30,6 +35,15 @@ PRIVATE_DOC = re.compile(r"[A-Za-z0-9_-]+\." + "local" + r"\.md")
 # named in caps with one of its section numbers, as in "<NOTE> 2.11". It reads like a
 # citation and points at the same unpublished file.
 CITED_SECTION = re.compile(r"\b([A-Z][A-Z0-9-]{3,})[ -][0-9]+\.[0-9]+")
+
+# The spelling that needs no note name at all, and the one every offender in the first
+# sweep of this used: the bare word and a number, as in "Section 14.2" or "decision 15".
+# A reader outside this machine has nothing to open either way.
+NUMBERED_SECTION = re.compile(r"\b[Ss]ections?\s+[0-9]|"
+                              r"\b[Dd]ecisions?\s+[0-9]|"
+                              r"\b[Nn]otes?\s+in\s+[0-9]")
+
+COMMENT_LEAD = re.compile(r"^(?:#+|//+)\s*")
 
 # Published standards read the same way and are the opposite case: a reader can open
 # them. The check is about a pointer nobody outside this machine can follow.
@@ -55,6 +69,30 @@ def _tracked() -> list[pathlib.Path]:
     return [REPO / one for one in found.stdout.split("\0") if one]
 
 
+def _flattened(text: str) -> tuple[str, Callable[[int], int]]:
+    """The file as one run of text, and a way back to the line an offset fell on.
+
+    Runs of whitespace collapse to a single space, so a pointer broken over two lines
+    reads as one, and a comment marker starting a continuation line goes with them - a
+    wrapped pointer is as common in a comment block as in a docstring. The map back is
+    what keeps the report a line number somebody can open.
+    """
+    flat = []
+    lines = []
+    for number, line in enumerate(text.splitlines(), 1):
+        if flat:
+            flat.append(" ")
+            lines.append(number)
+        for char in COMMENT_LEAD.sub("", line.strip()):
+            flat.append(char)
+            lines.append(number)
+
+    def line_of(offset: int) -> int:
+        return lines[min(offset, len(lines) - 1)] if lines else 1
+
+    return "".join(flat), line_of
+
+
 def _offenders() -> list[str]:
     out = []
     for path in _tracked():
@@ -67,14 +105,20 @@ def _offenders() -> list[str]:
             text = path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        for number, line in enumerate(text.splitlines(), 1):
-            if SECTION_MARK in line:
-                out.append(f"{relative}:{number}: names a section of a document")
-            if PRIVATE_DOC.search(line):
-                out.append(f"{relative}:{number}: names a note that is not published")
-            cited = CITED_SECTION.search(line)
-            if cited and cited.group(1) not in PUBLIC_STANDARDS:
-                out.append(f"{relative}:{number}: cites a section of an unpublished note")
+        flat, line_of = _flattened(text)
+        if SECTION_MARK in flat:
+            out.append(f"{relative}:{line_of(flat.index(SECTION_MARK))}: "
+                       "names a section of a document")
+        for found in PRIVATE_DOC.finditer(flat):
+            out.append(f"{relative}:{line_of(found.start())}: "
+                       "names a note that is not published")
+        for found in CITED_SECTION.finditer(flat):
+            if found.group(1) not in PUBLIC_STANDARDS:
+                out.append(f"{relative}:{line_of(found.start())}: "
+                           "cites a section of an unpublished note")
+        for found in NUMBERED_SECTION.finditer(flat):
+            out.append(f"{relative}:{line_of(found.start())}: "
+                       "cites a section of an unpublished note")
     return out
 
 
@@ -101,3 +145,13 @@ class PrivateDocPointerTests(unittest.TestCase):
         standard = CITED_SECTION.search("WCAG 1.4.11 puts a floor under it")
         self.assertIsNotNone(standard)
         self.assertIn(standard.group(1), PUBLIC_STANDARDS)
+        self.assertTrue(NUMBERED_SECTION.search("Section 14.2's order says so"))
+        self.assertTrue(NUMBERED_SECTION.search("offered disabled - decision 15's rule"))
+        self.assertTrue(NUMBERED_SECTION.search("see the note in 5.4a"))
+        self.assertFalse(NUMBERED_SECTION.search("the settings section of the file"))
+
+    def test_a_pointer_broken_over_two_lines_is_still_found(self) -> None:
+        """The shape that got past the line-by-line version of this."""
+        flat, line_of = _flattened("x = 1\n# ...plain default (MEDIA decisions\n# 6-8)\n")
+        self.assertTrue(NUMBERED_SECTION.search(flat))
+        self.assertEqual(line_of(flat.index("decisions")), 2)

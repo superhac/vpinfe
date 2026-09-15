@@ -36,8 +36,8 @@ class BuiltinViewTests(unittest.TestCase):
                     self.assertEqual(sorted(set(fields) - known), [])
 
     def test_a_view_is_named_for_the_group_it_matches(self) -> None:
-        """Section 14.1. The views read the constants rather than repeating them;
-        this says which are load-bearing, so renaming one fails here first."""
+        """The views read the constants rather than repeating them; this says which are
+        load-bearing, so renaming one fails here first."""
         self.assertIn(game_tables.MACHINE, games.GAME_VIEWS)
         for group in (game_tables.FILE, game_tables.LAUNCH, game_tables.FEATURES):
             self.assertIn(group, games.TABLE_VIEWS)
@@ -45,8 +45,8 @@ class BuiltinViewTests(unittest.TestCase):
 
 class GameRowTests(unittest.TestCase):
     def test_a_game_row_carries_no_table_level_facts(self) -> None:
-        """Both were the default table's reported as the game's - a game with two
-        builds declaring different roms has no single rom. Section 14.2a."""
+        """Both would be the default table's reported as the game's - a game with two
+        builds declaring different roms has no single rom."""
         library = data.Library.__new__(data.Library)
         library.games = [{"id": "g1", "name": "A", "rom": "afm_113b",
                           "version": "1.2", "table_count": 1}]
@@ -208,7 +208,7 @@ class PlayGroupTests(unittest.TestCase):
                 self.assertEqual(workbench._played_for(seconds), said)
 
     def test_never_played_says_so_rather_than_showing_nothing(self) -> None:
-        """An empty cell is not a state. Section 8: a value is a name or a state."""
+        """An empty cell is not a state: a value is a name or a state."""
         self.assertEqual(workbench._played_when(None), "Never")
         self.assertEqual(workbench._played_when(""), "Never")
         self.assertEqual(workbench._played_when("not a date"), "Never")

@@ -326,8 +326,8 @@ def chord_members(binding: str) -> tuple[str, ...]:
     text would call them different.
 
     The members are not looked at. The grammar's own example writes action names where
-    selectors would also read - see the note in 5.4a - and settling that is not this
-    function's to do; whichever it turns out to be, a chord is still its members.
+    selectors would also read, and settling which it is is not this function's to do;
+    whichever it turns out to be, a chord is still its members.
     """
     text = str(binding or "").strip()
     if not text.startswith(CHORD_PREFIX) or ")" not in text:
