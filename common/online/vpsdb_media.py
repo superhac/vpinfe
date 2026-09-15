@@ -23,10 +23,9 @@ MANIFEST_URL = "https://github.com/superhac/vpinmediadb/raw/refs/heads/main/vpin
 
 # Our media kinds against vpinmediadb's, and whether the entry files it under a
 # resolution. This is the manifest's vocabulary, not ours: it calls the backglass "bg"
-# and the score view "dmd", and a rename of our own windows to VPX's words once swept
-# those in with them. Nothing complained - `download_media` returns None for a key an
-# entry does not carry - so the whole symptom was art that never arrived, on the asset
-# vpinmediadb publishes for all but two of the games it knows.
+# and the score view "dmd", so a rename of our own windows sweeps these in with them if
+# they are read as ours. Nothing complains - `download_media` returns None for a key an
+# entry does not carry - and the only symptom is art that never arrives.
 MANIFEST_KINDS: dict[str, tuple[str, bool]] = {
     "backglass": ("bg", True),
     "scoreview": ("dmd", True),

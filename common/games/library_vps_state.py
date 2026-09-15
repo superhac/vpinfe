@@ -47,8 +47,8 @@ def _crowded_links_for(size: int) -> frozenset[str]:
     """The links standing behind enough records to be somewhere to browse.
 
     Keyed on the catalog's length, which is a cheap stand-in for "the snapshot has been
-    replaced" - the alternative is walking 17,000 URLs on every request to answer a
-    question about the corpus that changes only when the corpus does.
+    replaced" - walking every URL in the catalog on each request answers a question
+    about the corpus that changes only when the corpus does.
     """
     return obtainability.crowded(
         link.get("url")
@@ -89,7 +89,7 @@ def _moved_since(records: list, baseline: str, dismissed: set) -> list:
 
     No baseline means nobody has said when to start watching, and everything ever
     published is not a useful first answer. A record with no `updatedAt` is never
-    reported: 48 in the catalog have none, and guessing is worse than silence.
+    reported: guessing is worse than silence.
     """
     start = timestamps.iso_to_epoch(baseline) if baseline else None
     if start is None:

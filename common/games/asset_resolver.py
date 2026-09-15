@@ -30,9 +30,8 @@ class AssetKind:
 # is this module's own knowledge; the extension is the registry's, so a kind has one
 # declaration and adding an extension to it does not have to be remembered twice.
 # A script named for the folder stands in for one named for the table, the same way an
-# ini does. `pintable.cpp` falls back to `<folder>.vbs` when `<table>.vbs` is not there,
-# and this said otherwise - so a folder-named script read as absent while VPX was
-# running it.
+# ini does. `pintable.cpp` falls back to `<folder>.vbs` when `<table>.vbs` is not there;
+# saying otherwise here reads a folder-named script as absent while VPX is running it.
 _PER_TABLE = (("backglass", True), ("ini", True), ("script", True),
               ("pov", False), ("scv", True))
 

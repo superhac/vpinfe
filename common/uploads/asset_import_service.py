@@ -239,10 +239,10 @@ def _new_games_under(location_id: str = "") -> str:
     """The folder a new game is created in.
 
     The location marked "create new games here", not the configured root - locations
-    replaced that key, and reading it meant the control on screen stored a choice
-    nothing acted on. On a single-location install the two are the same folder, which
-    is why it went unnoticed: the seed makes the first location out of that root and
-    marks it as the target in the same breath.
+    replaced that key, and reading it leaves the control on screen storing a choice
+    nothing acts on. On a single-location install the two are the same folder, so that
+    goes unnoticed: the seed makes the first location out of that root and marks it as
+    the target in the same breath.
 
     Falls back to the root only where the location store has nothing to say, so an
     install that has not been through the seed still imports.

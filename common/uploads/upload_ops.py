@@ -259,8 +259,7 @@ def _declared_identities(declared: Mapping[str, Any] | None) -> dict:
 
     Rejected here rather than recorded and regretted: a claim that names an upstream
     record without saying how it is known, or that sends a basis outside the closed set,
-    is a caller asserting a confidence it has not earned - which is the failure the
-    matcher measurements ruled out for good.
+    is a caller asserting a confidence it has not earned.
     """
     if not declared:
         return {}

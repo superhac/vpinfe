@@ -73,7 +73,7 @@ def cfg_get(source: ConfigSource, section: str, key: str, fallback: str = "") ->
 
     Keys moved to snake_case at schema 2 and the old ones stay aliases, so a caller
     written against `gamerootdir` keeps working against a file that says
-    `game_root_dir`. Nothing had to be renamed at 143 call sites in one commit.
+    `game_root_dir`.
     """
     parser = _parser(source)
     # Each candidate is its own (section, key) pair - a key that moved sections has both
@@ -136,9 +136,9 @@ def cfg_list(source: ConfigSource, section: str, key: str) -> list[str]:
 def cfg_set(source: ConfigSource, section: str, key: str, value: Any) -> None:
     """Write a setting to wherever it lives now, under whatever name the caller knows.
 
-    Reads have resolved through the schema since the key renames; writes did not, so a
-    caller naming a section that has since been renamed wrote a second copy under the old
-    name - or raised, if the section had gone.
+    Writes resolve through the schema as reads do. Without that, a caller naming a
+    section that has since been renamed writes a second copy under the old name - or
+    raises, where the section has gone.
     """
     parser = _parser(source)
     section, key = config_schema.locate(section, key)

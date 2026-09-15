@@ -36,11 +36,10 @@ class AssetSpec:
     # the same question as `required_to_launch`.
     requires_rom: bool
     allow_multiple: bool
-    # Whether the table will not start without it. The line Chris drew: an asset is
-    # either required to launch or an experience enhancer, and until this existed the
-    # difference was undeclared - which is why the missing-ROM check had to be written
-    # by hand. It is what makes coverage mean anything: "4 of 13" reads the same today
-    # whether the absent one is a PUP pack or the ROM the table needs to run.
+    # Whether the table will not start without it: an asset is either required to launch
+    # or an experience enhancer. Undeclared, the difference has to be written by hand
+    # wherever it matters, and coverage means nothing - "4 of 13" reads the same whether
+    # the absent one is a PUP pack or the ROM the table needs to run.
     required_to_launch: bool = False
 
     @property
@@ -66,11 +65,10 @@ ASSET_SPECS = (
     # requires_game is doing real work here: applying it without the right base
     # produces a corrupt file rather than an error.
     AssetSpec("patch", "difference", (".dif",), True, False, True),
-    # The three VPX resolves per table by naming rule. They were declared only in
-    # asset_resolver, which carried its own copy of their extensions - so a kind was
-    # a launch fact there and nothing here, and an uploaded .vbs classified as
-    # nothing at all. None is required to launch: a table whose script is inside the
-    # .vpx runs, and the sidecar is an override.
+    # The three VPX resolves per table by naming rule. Declared here rather than only
+    # in asset_resolver: a kind known to the launch path and not to this one leaves an
+    # uploaded .vbs classified as nothing at all. None is required to launch - a table
+    # whose script is inside the .vpx runs, and the sidecar is an override.
     AssetSpec("script", "code", (".vbs",), True, False, False),
     AssetSpec("pov", "3d_rotation", (".pov",), True, False, False),
     AssetSpec("scv", "scoreboard", (".scv",), True, False, False),

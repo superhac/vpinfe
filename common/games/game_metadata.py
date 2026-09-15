@@ -343,9 +343,8 @@ def table_rating(table: dict) -> int:
 def set_game_favorite(game: Game, favorite: Any) -> bool:
     """Write `User.Favorite`, returning what was stored.
 
-    A real boolean. The field has been in the tree since the initial checkin and
-    every write until now was a zero-fill, so `0` is the only value any .info has
-    ever held - and the reader coerces, so an old one still reads false.
+    A real boolean. Every `.info` written before this holds the zero-fill `0`, and the
+    reader coerces, so an old one still reads false.
 
     Re-read from disk first, for the reason `set_game_rating` gives.
     """
@@ -487,8 +486,7 @@ def table_descriptor(table: dict, *, default_id: str = "") -> dict[str, Any]:
         #
         # The third one a table can hold is deliberately not here. It names a thing one
         # program does with one kind of hardware state, and a descriptor every app
-        # answers is the wrong place to teach that - the ratchet over how much of one
-        # program core knows about is what said so. It stays settable where it is.
+        # answers is the wrong place to teach that. It stays settable where it is.
         "overrides": {
             "alt_launcher": str(table.get("alt_launcher", "") or ""),
             "plugin_profile": str(table.get("plugin_profile", "") or ""),
@@ -704,8 +702,8 @@ def get_or_create_table_user(config: dict[str, Any], native: str) -> dict[str, A
 
     `native` is what names the entry within its game - a filename for something in the
     folder, `app:key` for something with no file. Matched on that rather than on the
-    filename alone, because an entry that has no file matches no filename and inventing
-    one for it added a second, phantom entry on every launch.
+    filename alone: an entry that has no file matches no filename, and inventing one for
+    it adds a second, phantom entry on every launch.
 
     The create is for files only, and it is safe that it is: an entry with no file
     cannot be launched before it has been added, so it is always already here.

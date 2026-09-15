@@ -619,8 +619,7 @@ def set_arrangement(name: str, games: list[str]) -> None:
         # The stored refs, moved - not rebuilt from the ids sent. A member names a game and
         # optionally one of its tables, and writing bare ids back is what `set_members`
         # warns about: every table this collection had *named* is discarded, and a game
-        # holding two of them collapses to one entry. Measured before this: a three-ref
-        # tournament list came back as two bare games, on a 204.
+        # holding two of them collapses to one entry, and the caller is told nothing.
         #
         # A game's own refs keep their relative order, and are dealt out one per occurrence:
         # a game listed twice takes its first stored ref at the first position and its

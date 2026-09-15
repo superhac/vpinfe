@@ -173,8 +173,8 @@ def vps_details(game_id: str) -> dict:
 
     Empty for a game that has never been re-matched: the details were written from the
     entry, so they agree with it by construction. Correcting a match is what fills this,
-    and it fills it completely - the details go on describing the machine the game used
-    to be.
+    and it fills it completely - the details go on describing the entry they were taken
+    from.
     """
     game = game_lens.game_or_refuse(game_id)
     entry = game_service.matched_vps_entry(game)

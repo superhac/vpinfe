@@ -42,7 +42,7 @@ def canonical(url: str) -> str:
     """A URL as the identity of a destination, for asking how many records share it.
 
     Host case, `www.` and a trailing slash are noise; the query is not. Dropping it
-    collapsed every `index.php?showfile=NNNN` onto one key and read four thousand
+    collapses every `index.php?showfile=NNNN` onto one key, which reads a whole site's
     release pages as a single crowded link.
     """
     parts = urlsplit((url or "").strip())

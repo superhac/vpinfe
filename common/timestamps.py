@@ -29,9 +29,9 @@ def epoch_to_iso(value: Any) -> str:
     before this was the standard.
 
     A value that is already an ISO stamp comes back as one rather than as nothing. The
-    spec says this field is an epoch and files in the wild disagree - one written as ISO
-    was being read as absent, so a game with a last-played date reported having none.
-    Refusing to read what is plainly there helps nobody.
+    spec says this field is an epoch and files in the wild disagree; reading one written
+    as ISO as absent reports a game with a last-played date as having none, and refusing
+    to read what is plainly there helps nobody.
     """
     try:
         stamp = datetime.fromtimestamp(int(value), UTC)

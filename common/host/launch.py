@@ -230,7 +230,7 @@ def _plan(entry: apps.Entry, binary: str,
 
 def _record_play(game: Game, ini_config: ConfigStore, elapsed_seconds: float,
                  table: str = "") -> None:
-    """Play data for a finished session. Runs on every path, which it did not use to.
+    """Play data for a finished session. Runs on every path.
 
     A guest takes the session if one is signed in - their half hour is theirs and must
     not land in the play count of a library that is not theirs. Nothing answering means
@@ -414,9 +414,7 @@ def table_for(game: Game, table: str | None = None) -> str:
 
 # ---------------------------------------------------------------------------
 # What to launch with: the alt launcher, the plugin profile, the environment
-# overrides and the command line they go into. Was common/host/launcher.py -
-# one module named launch and another named launcher said nothing about which
-# did what, and this half only ever had one caller outside the other half.
+# overrides and the command line they go into.
 # ---------------------------------------------------------------------------
 
 _ENV_KEY_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')

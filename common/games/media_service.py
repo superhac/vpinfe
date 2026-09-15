@@ -319,11 +319,11 @@ def replace_media_file(game_dir: Path, game_dir_name: str, kind: str,
                        uploaded_path: str) -> str:
     """Install an uploaded file as a game's media, keeping its real extension.
 
-    The old behavior copied bytes to the canonical name unchanged, so a .jpg
-    became JPEG bytes inside wheel.png - a file that lies. The name now keeps the
-    source extension when the kind's family accepts it, and any family sibling
-    with the same stem is removed from medias/ and the folder root, since an
-    earlier-family leftover would shadow the new file in resolution order.
+    The name keeps the source extension when the kind's family accepts it: copying
+    bytes to the canonical name unchanged puts JPEG bytes inside wheel.png, a file that
+    lies. Any family sibling with the same stem is removed from medias/ and the folder
+    root, since an earlier-family leftover would shadow the new file in resolution
+    order.
     """
     spec = _SPEC_BY_KIND[kind]
     canonical = MEDIA_FILENAME_BY_KIND[kind]

@@ -482,9 +482,9 @@ class CollectionStore:
         """Undo an exclusion: one ref, or every exclusion naming this game.
 
         `None` is every one of them - the game is wanted back whole. `""` is the *one*
-        exclusion that names no table, and an id is the one naming it. Those two were
-        the same value, which left an exclusion of a whole game impossible to undo
-        without also undoing the per-table ones somebody meant to keep.
+        exclusion that names no table, and an id is the one naming it. Collapsing those
+        two leaves an exclusion of a whole game impossible to undo without also undoing
+        the per-table ones somebody meant to keep.
         """
         record = self._require_mutable(section)
         excluded = _member_refs(record.get(EXCLUDED_KEY))

@@ -191,8 +191,7 @@ def capturable(binding: str) -> bool:
     """Whether pressing something could produce this binding again.
 
     Asked before offering to delete one: a surface that removes what nothing can rebuild
-    is a door that only opens one way, which is what `unrenderable` was written to
-    prevent back when the same bindings were merely invisible.
+    is a door that only opens one way.
     """
     text = str(binding or "").lower()
     return not any(mark in text for mark in _UNCAPTURABLE)
@@ -379,9 +378,9 @@ def identity(binding: str) -> str:
     identity.
 
     **A chord does not fold into its members, and that is the decision rather than an
-    oversight** (Chris, 2026-09-06): both flippers fire their own actions *and* the
-    chord, so a chord and a plain binding on one of its members are two bindings that
-    both work. What repeat does while a chord is held is dispatch's to answer.
+    oversight**: both flippers fire their own actions *and* the chord, so a chord and a
+    plain binding on one of its members are two bindings that both work. What repeat
+    does while a chord is held is dispatch's to answer.
     """
     text = str(binding or "").strip()
     members = chord_members(text)
@@ -397,7 +396,7 @@ def holders(bound: Mapping[str, Iterable[str] | None] | None) -> dict[str, list[
     Compared by `identity`, so a chord written in either order is one binding and a key
     written either way - `key:c` or `key:KeyC` - is one key. Dispatch matches on both of
     an event's tokens, so those two really are the same binding, and reading them as
-    different was how a clash could sit on the page unreported.
+    different leaves a clash sitting on the page unreported.
     """
     seen: dict[str, list[str]] = {}
     for name, bindings in dict(bound or {}).items():
@@ -414,10 +413,9 @@ def holders(bound: Mapping[str, Iterable[str] | None] | None) -> dict[str, list[
 def collisions(bound: Mapping[str, Iterable[str] | None] | None) -> dict[str, list[str]]:
     """Bindings more than one action holds.
 
-    Nothing refused one before, anywhere. Dispatch resolves a key to the *first* action
-    that lists it in declaration order, so the second binding is not a conflict a player
-    is asked about - it is a binding that silently does nothing, and the settings page
-    that let them make it showed no sign.
+    Dispatch resolves a key to the *first* action that lists it in declaration order, so
+    the second binding is not a conflict a player is asked about - it is a binding that
+    silently does nothing, on a settings page with no sign of it.
     """
     return {binding: names for binding, names in holders(bound).items()
             if len(names) > 1}

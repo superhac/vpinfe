@@ -235,11 +235,9 @@ def load_roms() -> dict:
 class _Roms(dict[str, Any]):
     """The rom map, read the first time something asks for it.
 
-    Read at import before this: importing the module raised `FileNotFoundError` wherever
-    `roms.json` was not on disk yet, which is any test that patches this module and any
-    caller that only wants the parsing helpers. `tests/theming` could never pass on its
-    own for that reason, so `tools/testfor.py` could not report the one suite it picks
-    for a change here - a tool nobody can trust the green of is not a tool.
+    Reading it at import raises `FileNotFoundError` wherever `roms.json` is not on disk
+    yet, which is any test that patches this module and any caller that only wants the
+    parsing helpers.
 
     A dict subclass rather than a function, because the module-level name is read
     directly at four call sites and by anything that imported it.
@@ -285,8 +283,6 @@ def get_default_initials() -> str:
     or not, and asking something that may not be there would leave them blank on a
     cabinet that had them before.
 
-    What this wants eventually is a setting of its own, because whose initials a
-    cabinet puts on a score is not a question about any one service.
     """
     parser = configparser.ConfigParser(interpolation=None)
     read_files = parser.read(USER_CONFIG_PATH, encoding="utf-8")

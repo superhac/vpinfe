@@ -34,8 +34,7 @@ GAMES_WRITE = "games:write"
 # Core fills this in, because these are core's own functions and the host is not the
 # place that knows them. Filled in rather than imported so this module stays underneath
 # the API rather than reaching up into it, and rather than reimplemented so the two
-# cannot answer differently - they already did, and it showed up as an importer that
-# guessed at core's folder-naming rule and got it wrong.
+# cannot answer differently - a second copy of core's folder-naming rule drifts from it.
 _OFFERED: dict[str, tuple[str, Callable[..., Any]]] = {}
 
 
@@ -171,10 +170,9 @@ class ExtensionGames:
 
         Asked rather than guessed. An importer needs this before it creates anything -
         to see what it already has, and to notice that two of its own games want the
-        same folder - and a second copy of the rule drifts from this one silently. It
-        did: `Star Trek: The Next Generation` and `Star Trek The Next Generation` are one
-        folder here and were two to the importer, so the second failed on a name that was
-        already taken.
+        same folder - and a second copy of the rule drifts from this one silently.
+        `Star Trek: The Next Generation` and `Star Trek The Next Generation` are one
+        folder here, and an importer reading them as two fails on a name already taken.
         """
         self._needs(GAMES_READ)
         from common.games.game_service import sanitize_dir_name

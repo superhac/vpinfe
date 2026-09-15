@@ -267,10 +267,9 @@ def rekey_by_id(entries: dict | None) -> dict:
     stats the id exists to protect.
 
     **An entry that already names itself is left alone**, whichever way it does it: a
-    filename, a path to a file elsewhere, or a key its app knows it by. Reading the map
-    key as a filename for one of those gives it a file that is not there and makes it
-    the one entry its folder can never find - which it did, twice, once per form, when
-    this asked about one of them instead of about all three.
+    filename, a path to a file elsewhere, or a key its app knows it by. Asking about one
+    of those three instead of all of them reads the map key as a filename, which gives
+    the entry a file that is not there and makes it the one its folder can never find.
     """
     if not isinstance(entries, dict):
         return {}

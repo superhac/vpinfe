@@ -103,10 +103,10 @@ def bundle_paths(game_dir: Path, *, everything: bool = False,
         return
 
     # What VPX would actually open for this table, asked of the resolver rather than
-    # matched by hand. Stem-matching here accepted the table's own companion *and* the
-    # folder-named fallback, but the resolver takes the dedicated one and stops - so a
-    # table with its own .directb2s shipped the shadowed one too. On one real game that
-    # was 54MB of 245MB the far side could never load.
+    # matched by hand. Stem-matching accepts the table's own companion *and* the
+    # folder-named fallback, where the resolver takes the dedicated one and stops - so a
+    # table with its own .directb2s would ship the shadowed one too, and the far side
+    # could never load it.
     resolved_companions = {
         str(picked["file"]).lower()
         for picked in resolve_for_table(

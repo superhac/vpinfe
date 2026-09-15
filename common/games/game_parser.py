@@ -95,11 +95,10 @@ class GameParser:
         folders = [d for d in sorted(self.games_root_file_path.iterdir())
                    if d.is_dir() and not d.name.startswith('.')]
 
-        # Reading a folder is almost entirely waiting: on the network share a real
-        # library lives on, the directory listings are 6.5s of a 7.4s scan and the
-        # parsing is under a second of it. Threads cover that wait - measured 1.02s to
-        # 0.11s across 654 folders - and the GIL costs nothing because nothing here is
-        # computing. A local disk sees a smaller win from the same change.
+        # Reading a folder is almost entirely waiting: on a network share the directory
+        # listings are nearly the whole scan and the parsing is a fraction of it. Threads
+        # cover that wait, and the GIL costs nothing because nothing here is computing. A
+        # local disk sees a smaller win from the same change.
         for game, missing, unreadable in self._scan_folders(folders):
             self.missing_games.extend(missing)
             self.unreadable_games.extend(unreadable)
@@ -253,8 +252,8 @@ class GameParser:
 
         Folders are matched resolved, because the caller rarely spells one the way the
         listing did: a root reached through a symlink is the ordinary case, and on macOS
-        every path under /var is one. Matching the spelling meant the game was never
-        found, so each refresh appended a second copy instead of replacing it.
+        every path under /var is one. Matching the spelling finds no game, so each
+        refresh appends a second copy instead of replacing it.
         """
         folder = Path(game_dir)
         target = _resolved(folder)

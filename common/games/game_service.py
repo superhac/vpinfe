@@ -581,9 +581,9 @@ def set_details(game_dir: Path, values: dict) -> dict:
     A patch: what is not sent is left alone, so a caller filling in a year does not have
     to restate a title it never knew. Sending a key empty does clear it.
 
-    Safe against a later rebuild, which was worth checking rather than assuming: the
-    metadata pass skips a folder that already has a record unless it is told to redo
-    everything, and skips again when the catalog cannot match it.
+    Safe against a later rebuild: the metadata pass skips a folder that already has a
+    record unless it is told to redo everything, and skips again when the catalog cannot
+    match it.
     """
     record = game_dir / f"{game_dir.name}.info"
     if not record.is_file():

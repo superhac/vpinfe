@@ -105,9 +105,8 @@ def game_folder(game_id: str) -> Path | None:
 def games_under(games_root: str, config: ConfigStore | None = None) -> list[Any]:
     """The library at `games_root`, from the cache when that is the configured one.
 
-    Five callers built a parser of their own and rescanned everything, which on a network
-    share was the whole cold scan again each time. Most of them want the library the app
-    already has; they just could not say so without assuming the root.
+    Most callers want the library the app already has, and building a parser of their
+    own rescans everything - on a network share, the whole cold scan again each time.
 
     A root that is none of the configured locations is genuinely a different library - a
     report run against another folder, a test - so it gets its own parse rather than

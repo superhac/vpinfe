@@ -104,7 +104,7 @@ def _match_played(criterion: object, game: GameRecord, table: dict) -> bool:
 
     Ordering the library by `last_played` cannot stand in for this: a game that has
     never been played sorts as a value rather than being left out, so "the last 30
-    played" over a library of 147 came back as 7 real rows and 23 nobody had touched.
+    played" comes back padded with games nobody has touched.
     """
     return (game_last_run(game) > 0) == is_truthy(criterion)
 
@@ -284,8 +284,7 @@ def _reads_rating_as_a_floor(stored: dict) -> bool:
 # ---------------------------------------------------------------------------
 # What there is to filter *on*, as opposed to whether a game matches. The Manager
 # UI asks for the letters, themes, types, manufacturers and years its controls
-# should offer, and the answer comes from the same axis definitions the matching
-# uses - which is why this was folded in from game_list_filters.py.
+# should offer, and the answer comes from the same axis definitions the matching uses.
 # ---------------------------------------------------------------------------
 
 class GameListFilters:
