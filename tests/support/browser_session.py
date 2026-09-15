@@ -55,10 +55,17 @@ def _installed_browser() -> str | None:
 def chromium_path() -> str | None:
     """A browser this machine can actually be driven through, or None.
 
-    Answers by launching one and connecting, not by finding a file: a browser that is
+    Answers by launching one and driving it, not by finding a file: a browser that is
     installed and cannot be driven makes every test using it fail rather than skip.
     Cached, so the cost is one launch per run.
+
+    The test workflow does not fetch a browser, which is the build job's. Linux and
+    Windows runners have none and skip; a macOS runner ships Chrome, drives it here and
+    then times out under load. `VPINFE_BROWSER_TESTS=1` asks for them anyway.
     """
+    if os.environ.get("CI") and not os.environ.get("VPINFE_BROWSER_TESTS"):
+        return None
+
     path = _installed_browser()
     if path is None:
         return None

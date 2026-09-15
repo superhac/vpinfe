@@ -37,7 +37,10 @@ jobs:
           pip install -r requirements.txt
 
       # The suite doesn't need the DOF/libdmdutil bundles or Chromium the build
-      # job fetches, so this stays a fast check that runs on its own.
+      # job fetches, so this stays a fast check that runs on its own. The
+      # browser-driven tests skip here for that reason: what they cover statically is
+      # covered by tests/invariants, and they run on a developer machine and before a
+      # release. VPINFE_BROWSER_TESTS=1 turns them on if a runner ever provides one.
       - name: Run tests
         run: python -m unittest discover -t . -s tests
 
