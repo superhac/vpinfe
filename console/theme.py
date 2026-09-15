@@ -597,7 +597,7 @@ def apply_flair(mode: str = DEFAULT_MODE) -> None:
     """The palette in the page, the rules from a file.
 
     The rules are the large half and they cannot vary - they name tokens and never
-    colours - so they are the same bytes on every page of every mode, and worth fetching
+    colors - so they are the same bytes on every page of every mode, and worth fetching
     once. The palette is the half that changes, it is about 40 lines, and putting it in
     the page is what makes a mode arrive with no second request and no flash.
 
