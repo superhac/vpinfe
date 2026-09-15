@@ -69,10 +69,13 @@ class DeviceChannel:
         logger.info("Device channel listening on ws://127.0.0.1:%s/", self.port)
 
     def _run_server(self) -> None:
-        """Run the async event loop in the daemon thread."""
+        """Run the async event loop in the daemon thread, and close it on the way out."""
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
-        self._loop.run_until_complete(self._serve())
+        try:
+            self._loop.run_until_complete(self._serve())
+        finally:
+            self._loop.close()
 
     async def _serve(self) -> None:
         """Start the WebSocket server and run until stopped."""
