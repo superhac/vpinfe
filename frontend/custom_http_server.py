@@ -15,6 +15,7 @@ import re
 import threading
 from functools import partial
 from socketserver import ThreadingTCPServer
+from typing import Any
 from urllib.parse import unquote, urlsplit
 
 import requests
@@ -38,7 +39,8 @@ class CustomHTTPServer:
         debug = False
         PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
 
-        def __init__(self, *args, mount_points=None, **kwargs) -> None:
+        def __init__(self, *args: Any, mount_points: dict[str, str] | None = None,
+                     **kwargs: Any) -> None:
             # normalize mount_points: ensure prefixes start+end with '/'
             mp = mount_points or {}
             normalized = {}
@@ -56,11 +58,11 @@ class CustomHTTPServer:
                     logger.debug("  %s -> %s", k, v)
             super().__init__(*args, **kwargs)
 
-        def log_debug(self, *args) -> None:
+        def log_debug(self, *args: Any) -> None:
             if self.debug:
                 logger.debug("[HTTP] %s", " ".join(str(arg) for arg in args))
 
-        def _refuse(self):
+        def _refuse(self) -> str:
             """A path that cannot exist, so the base class 404s.
 
             Anything not inside a declared mount is not ours to serve. This used to fall
@@ -69,7 +71,7 @@ class CustomHTTPServer:
             """
             return os.path.join(NOTHING_HERE, "denied")
 
-        def translate_path(self, path):
+        def translate_path(self, path: str) -> str:
             # 1) Strip query and fragment
             raw = path
             path = path.split('?', 1)[0].split('#', 1)[0]
@@ -139,7 +141,7 @@ class CustomHTTPServer:
             super().end_headers()
 
         @classmethod
-        def _is_allowed_pinball_primer_url(cls, url):
+        def _is_allowed_pinball_primer_url(cls, url: object) -> bool:
             if not isinstance(url, str):
                 return False
             normalized = url.strip()
@@ -149,7 +151,7 @@ class CustomHTTPServer:
             return parsed.scheme == "https" and parsed.netloc == "pinballprimer.github.io"
 
         @classmethod
-        def _inject_base_tag(cls, html_text, base_href):
+        def _inject_base_tag(cls, html_text: object, base_href: str) -> str:
             if not isinstance(html_text, str):
                 html_text = str(html_text or "")
             base_tag = f'<base href="{base_href}">'
@@ -164,7 +166,8 @@ class CustomHTTPServer:
             return f"<head>{base_tag}</head>{html_text}"
 
         @classmethod
-        def _build_pinball_primer_error_html(cls, message, requested_url=""):
+        def _build_pinball_primer_error_html(cls, message: object,
+                                             requested_url: str = "") -> str:
             safe_message = str(message or "Unable to load Pinball Primer tutorial.")
             safe_url = str(requested_url or "")
             return f"""<!doctype html>
@@ -215,7 +218,7 @@ class CustomHTTPServer:
 </html>
 """
 
-        def _send_pinball_primer_html(self, status_code, html_text) -> None:
+        def _send_pinball_primer_html(self, status_code: int, html_text: str) -> None:
             body = html_text.encode("utf-8")
             self.send_response(status_code)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -268,7 +271,8 @@ class CustomHTTPServer:
             html_text = self._inject_base_tag(response.text, requested_url)
             self._send_pinball_primer_html(200, html_text)
 
-        def _serve_file(self, path, extra_headers=None) -> None:
+        def _serve_file(self, path: str,
+                        extra_headers: dict[str, str] | None = None) -> None:
             """Send a file, honoring a Range request the way video playback needs.
 
             The static mounts get this through translate_path; a route that resolved its
@@ -319,7 +323,7 @@ class CustomHTTPServer:
             except (ConnectionResetError, BrokenPipeError):
                 return
 
-        def _serve_game_media(self, request_path):
+        def _serve_game_media(self, request_path: str) -> bool:
             """/media/<table_id>/<kind> - the art a theme asks for, addressed by id.
 
             Returns False when the shape does not match, so an unrelated /media/ path
@@ -362,7 +366,7 @@ class CustomHTTPServer:
             })
             return True
 
-        def _serve_app_bootstrap(self, window_name) -> None:
+        def _serve_app_bootstrap(self, window_name: str) -> None:
             window_label = window_title(window_name)
             if window_label is None:
                 self.send_error(404, "Unknown app window")
@@ -520,16 +524,16 @@ class CustomHTTPServer:
             self.end_headers()
 
         # Keep default logging behavior or override to quiet it:
-        def log_message(self, fmt, *args) -> None:
+        def log_message(self, fmt: str, *args: Any) -> None:
             # use our debug printer so messages are consistent
             if self.debug:
                 logger.debug("[HTTP] " + fmt % args)
 
-    def __init__(self, mount_points) -> None:
+    def __init__(self, mount_points: dict[str, str]) -> None:
         self.file_server: ThreadingTCPServer | None = None
         self.mount_points = mount_points
 
-    def start_file_server(self, port=8000, bind=LOOPBACK) -> None:
+    def start_file_server(self, port: int = 8000, bind: str = LOOPBACK) -> None:
         handler_class = partial(self.MultiDirHTTPRequestHandler, mount_points=self.mount_points)
         ThreadingTCPServer.allow_reuse_address = True
         # Loopback unless told otherwise: this serves the table library, so opening it

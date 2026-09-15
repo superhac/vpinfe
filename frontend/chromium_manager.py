@@ -18,12 +18,14 @@ import tempfile
 import threading
 import time
 from collections import namedtuple
+from collections.abc import Callable, Iterable
 from shutil import which
 from typing import Any, NamedTuple
 from urllib.parse import quote, urlparse
 
 from common import i18n
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig, cfg_get
+from common.config_store import ConfigStore
 from common.games import remote_library
 from common.log_setup import include_thirdparty_logs
 from common.paths import bundled
@@ -90,11 +92,11 @@ def parsed_or_none(raw_options: str, setting: str) -> list[str]:
 def get_builtin_chromium_options(
     window_name: str = "<window>",
     url: str = "<url>",
-    monitor=None,
+    monitor: Any = None,
     user_data_dir: str = "<temp profile dir>",
     mute_audio: bool = False,
     include_default_options: bool = True,
-    exclude_options=None,
+    exclude_options: Iterable[str] | None = None,
 ) -> list[str]:
     """Return VPinFE-managed Chromium flags without the executable path."""
     x = getattr(monitor, "x", "<x>")
@@ -132,7 +134,7 @@ class LibraryEndpoint(NamedTuple):
     assets_port: int
 
 
-def _library_endpoint(network) -> LibraryEndpoint:
+def _library_endpoint(network: NetworkConfig) -> LibraryEndpoint:
     """Resolve `network.library_url` into the addresses a window is launched with.
 
     With no library set the host is "" and every port is this install's, which is every
@@ -205,7 +207,7 @@ def _build_window_url(
     )
 
 
-def resource_path(relative_path):
+def resource_path(relative_path: str) -> str:
     """Kept as the name three call sites below use; `common.paths.bundled` is the answer."""
     return str(bundled(*relative_path.split("/")))
 
@@ -213,7 +215,7 @@ def resource_path(relative_path):
 ChromiumPath = namedtuple("ChromiumPath", ["path", "using_local_install"])
 
 
-def get_chromium_path():
+def get_chromium_path() -> ChromiumPath:
     """Get the platform-specific path to the Chromium binary.
 
     Returns a ChromiumPath(path, using_local_install); using_local_install is
@@ -278,7 +280,9 @@ def get_chromium_path():
 MonitorInfo = namedtuple("MonitorInfo", ["x", "y", "width", "height"])
 
 
-def get_mac_screens():
+# A list of MonitorInfo, which is shaped like screeninfo's Monitor - the two are
+# interchangeable here and screeninfo ships no stubs, so a monitor is Any either way.
+def get_mac_screens() -> list[Any]:
     """Get monitor info from NSScreen (macOS only).
 
     screeninfo.get_monitors() reports coordinates that can mismatch what
@@ -307,7 +311,7 @@ def get_mac_screens():
 PROFILE_PREFIX = "vpinfe_chromium_"
 
 
-def _profile_dirs_in_use():
+def _profile_dirs_in_use() -> set[str] | None:
     """Profile directories a running Chromium is holding, ours or anyone's."""
     try:
         import psutil
@@ -324,7 +328,7 @@ def _profile_dirs_in_use():
     return in_use
 
 
-def sweep_stale_profiles():
+def sweep_stale_profiles() -> int:
     """Remove profile directories left behind by a run that did not shut down.
 
     terminate_all clears up after itself, but a SIGKILL, a power cut or a `systemctl
@@ -369,15 +373,15 @@ class ChromiumManager:
 
     def launch_window(
         self,
-        window_name,
-        url,
-        monitor,
-        index,
-        mute_audio=False,
+        window_name: str,
+        url: str,
+        monitor: Any,
+        index: int,
+        mute_audio: bool = False,
         additional_options: str = "",
         include_default_options: bool = True,
         exclude_options: str = "",
-    ):
+    ) -> subprocess.Popen[Any]:
         """Launch one Chromium instance for a given monitor.
 
         Args:
@@ -458,7 +462,8 @@ class ChromiumManager:
         self._processes.append((window_name, proc, user_data_dir, monitor))
         return proc
 
-    def launch_all_windows(self, iniconfig, base_url="http://127.0.0.1") -> None:
+    def launch_all_windows(self, iniconfig: ConfigStore,
+                           base_url: str = "http://127.0.0.1") -> None:
         """Launch Chromium windows for all configured displays.
 
         Args:
@@ -608,13 +613,18 @@ class ChromiumManager:
         except Exception:
             logger.exception("macOS re-activation failed")
 
-    def _win_find_our_hwnds(self):
+    def _win_find_our_hwnds(self) -> list[tuple[str, int]]:
         """Windows: top-level HWNDs belonging to our Chromium browser processes.
 
         Chromium's browser process owns the visible kiosk window, so matching on
         the PIDs we spawned is enough. Invisible helper windows (message pumps,
         IME) share those PIDs, hence the visible + unowned filter.
+
+        Windows only, and it says so: both callers already check, and everything below
+        this line is ctypes calling Win32 directly.
         """
+        if sys.platform != "win32":
+            return []
         import ctypes
         from ctypes import wintypes
 
@@ -635,7 +645,7 @@ class ChromiumManager:
         }
         found = []
 
-        def _on_window(hwnd, _lparam):
+        def _on_window(hwnd: int, _lparam: int) -> bool:
             if not user32.IsWindowVisible(hwnd):
                 return True
             if user32.GetWindow(hwnd, GW_OWNER):
@@ -650,7 +660,7 @@ class ChromiumManager:
         user32.EnumWindows(WNDENUMPROC(_on_window), 0)
         return found
 
-    def minimize_all_windows(self):
+    def minimize_all_windows(self) -> int:
         """Windows: minimize our kiosk windows so VPX comes up as the foreground app.
 
         VPX pauses itself whenever its player window lacks focus, and Windows'
@@ -678,7 +688,7 @@ class ChromiumManager:
 
         return len(self._minimized_hwnds)
 
-    def restore_all_windows(self):
+    def restore_all_windows(self) -> int:
         """Windows: restore the kiosk windows minimized by minimize_all_windows().
 
         Safe to call more than once, and a no-op if nothing was minimized. The table
@@ -711,7 +721,7 @@ class ChromiumManager:
         return restored
 
     @staticmethod
-    def _get_descendant_pids(pid):
+    def _get_descendant_pids(pid: int) -> list[int]:
         """Recursively find all descendant PIDs via /proc on Linux."""
         descendants = []
         try:
@@ -724,7 +734,8 @@ class ChromiumManager:
             pass
         return descendants
 
-    def _kill_process_tree(self, proc, window_name, force=False) -> None:
+    def _kill_process_tree(self, proc: subprocess.Popen[Any], window_name: str,
+                           force: bool = False) -> None:
         """Kill a Chromium process and all its children (renderers, GPU, zygote)."""
         if platform.system() == "Windows":
             # taskkill /T kills the entire process tree, /F forces it
@@ -786,7 +797,8 @@ class ChromiumManager:
         """Unblock wait_for_exit and leave the windows to the caller."""
         self._exit_event.set()
 
-    def wait_for_exit(self, is_window_connected=None) -> None:
+    def wait_for_exit(self,
+                      is_window_connected: Callable[[str], bool] | None = None) -> None:
         """Block until all Chromium processes have exited.
 
         This replaces the legacy UI main loop as the main blocking call.
@@ -831,7 +843,7 @@ class ChromiumManager:
         # Block the main thread until exit is signaled
         self._exit_event.wait()
 
-    def get_process(self, window_name):
+    def get_process(self, window_name: str) -> subprocess.Popen[Any] | None:
         """Get the process for a specific window."""
         for name, proc, _temp_dir, _ in self._processes:
             if name == window_name:
@@ -839,6 +851,6 @@ class ChromiumManager:
         return None
 
     @property
-    def is_running(self):
+    def is_running(self) -> bool:
         """Check if any Chromium processes are still running."""
         return any(proc.poll() is None for _, proc, _, _ in self._processes)

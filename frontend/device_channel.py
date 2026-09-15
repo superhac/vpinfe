@@ -36,7 +36,7 @@ class DeviceChannel:
     # Public API methods that JS is allowed to call
     ALLOWED_METHODS = API_ALLOWED_METHODS
 
-    def __init__(self, port=8002) -> None:
+    def __init__(self, port: int = 8002) -> None:
         self.port = port
         self._api_instances: dict[str, API] = {}
         # Keyed by window name. websockets ships no stubs, so a connection is Any.
@@ -46,7 +46,7 @@ class DeviceChannel:
         self._server: websockets.Server | None = None
         self._stop_event = threading.Event()
 
-    def register_api(self, window_name, api_instance) -> None:
+    def register_api(self, window_name: str, api_instance: API) -> None:
         """Register an API instance for a window name."""
         self._api_instances[window_name] = api_instance
 
@@ -92,7 +92,7 @@ class DeviceChannel:
         self._server.close()
         await self._server.wait_closed()
 
-    def _origin_allowed(self, origin) -> bool:
+    def _origin_allowed(self, origin: str | None) -> bool:
         """Whether a handshake's Origin may open a channel that can power off the machine.
 
         A browser sets Origin itself and a page cannot forge it, so this is what keeps any
@@ -106,7 +106,7 @@ class DeviceChannel:
             return True
         return urlparse(origin).hostname in LOOPBACK_HOSTS
 
-    async def _handle_connection(self, websocket) -> None:
+    async def _handle_connection(self, websocket: Any) -> None:
         """Handle a new WebSocket connection from a Chromium window."""
         origin = websocket.request.headers.get("Origin")
         if not self._origin_allowed(origin):
@@ -164,7 +164,8 @@ class DeviceChannel:
             if self._connections.get(window_name) is websocket:
                 del self._connections[window_name]
 
-    async def _dispatch(self, window_name, websocket, data) -> None:
+    async def _dispatch(self, window_name: str, websocket: Any,
+                        data: dict[str, Any]) -> None:
         """Dispatch an incoming message from JS."""
         msg_type = data.get('type')
 
@@ -173,7 +174,8 @@ class DeviceChannel:
         else:
             logger.warning("Unknown message type from '%s': %s", window_name, msg_type)
 
-    async def _handle_api_call(self, window_name, websocket, data) -> None:
+    async def _handle_api_call(self, window_name: str, websocket: Any,
+                               data: dict[str, Any]) -> None:
         """Handle a JS→Python API call."""
         call_id = data.get('id')
         method = data.get('method')
@@ -233,7 +235,7 @@ class DeviceChannel:
     # Python-callable methods for pushing events to browsers
     # -----------------------------------------------------------
 
-    def send_event(self, window_name, message) -> None:
+    def send_event(self, window_name: str, message: dict[str, Any]) -> None:
         """Send an event to a specific window's browser."""
         if self._loop is None:
             return
@@ -242,7 +244,8 @@ class DeviceChannel:
             self._loop
         )
 
-    def send_event_all(self, message, exclude=None) -> None:
+    def send_event_all(self, message: dict[str, Any],
+                       exclude: str | None = None) -> None:
         """Broadcast an event to all connected windows, optionally excluding one."""
         if self._loop is None:
             return
@@ -251,7 +254,7 @@ class DeviceChannel:
             self._loop
         )
 
-    def send_event_all_with_iframe(self, message) -> None:
+    def send_event_all_with_iframe(self, message: dict[str, Any]) -> None:
         """Broadcast an event to all windows, including iframe forwarding."""
         if self._loop is None:
             return
@@ -260,7 +263,8 @@ class DeviceChannel:
             self._loop
         )
 
-    async def _send_event_async(self, window_name, message) -> None:
+    async def _send_event_async(self, window_name: str,
+                                message: dict[str, Any]) -> None:
         """Internal async: send event to one window."""
         ws = self._connections.get(window_name)
         if ws is None:
@@ -273,7 +277,9 @@ class DeviceChannel:
         except websockets.exceptions.ConnectionClosed:
             pass
 
-    async def _send_event_all_async(self, message, exclude=None, forward_iframe=False) -> None:
+    async def _send_event_all_async(self, message: dict[str, Any],
+                                    exclude: str | None = None,
+                                    forward_iframe: bool = False) -> None:
         """Internal async: broadcast event to windows."""
         payload = json.dumps({
             'type': 'event',

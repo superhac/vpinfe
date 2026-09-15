@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from common.extensions import contributions
 from common.games import collection_filters, collection_resolver, game_identity
@@ -12,7 +14,7 @@ from common.games.collection_filters import (
     group_key,
     group_kind,
 )
-from common.games.collection_resolver import visible_entries
+from common.games.collection_resolver import Entry, visible_entries
 from common.games.collection_store import (
     BUILTIN_ALL,
     DEFAULT_DIRECTION,
@@ -21,6 +23,7 @@ from common.games.collection_store import (
     normalize_direction,
 )
 from common.games.collections_service import save_filter_collection
+from common.games.game import Game, GameRecord, ScannedGame
 from common.games.game_metadata import (
     game_title,
     normalize_meta,
@@ -38,6 +41,9 @@ from common.values import is_truthy
 from frontend.input_api import PAGING_GROUP_ALIASES, PAGING_GROUP_DEFAULT
 from frontend.theme_contract import CURRENT_CONTRACT, project
 
+if TYPE_CHECKING:
+    from frontend.api import API
+
 logger = logging.getLogger("vpinfe.frontend.game_state")
 
 
@@ -49,7 +55,7 @@ logger = logging.getLogger("vpinfe.frontend.game_state")
 
 
 
-def default_filter_state():
+def default_filter_state() -> dict[str, Any]:
     return {
         "letter": None,
         "theme": None,
@@ -61,7 +67,7 @@ def default_filter_state():
     }
 
 
-def _legacy_row(game, logo_cache) -> dict:
+def _legacy_row(game: Game, logo_cache: dict[str, str | None]) -> dict:
     """One row in the shape every published theme reads.
 
     Built from the game exactly as it always was. Contract 2 is assembled separately
@@ -105,14 +111,15 @@ def _legacy_row(game, logo_cache) -> dict:
     return row
 
 
-def _default_id(game) -> str:
+def _default_id(game: ScannedGame) -> str:
     """Which of a game's tables is its default. Resolved the same way the REST lens
     resolves it, so a theme showing siblings agrees with an API client about which."""
     offered = visible_entries(game)
     return str(offered[0].get("id", "") or "") if offered else ""
 
 
-def _entry_row(entry, logo_cache, group=None) -> dict:
+def _entry_row(entry: Entry, logo_cache: dict[str, str | None],
+               group: Callable[[GameRecord], Any] | None = None) -> dict:
     """One entry in contract 2: the game, the table it is, and what resolved for it."""
     game = entry.game
     meta = normalize_meta(game.meta_config)
@@ -170,7 +177,7 @@ def _entry_row(entry, logo_cache, group=None) -> dict:
     }
 
 
-def games_json(entries, contract: int = CURRENT_CONTRACT, *,
+def games_json(entries: Sequence[Entry], contract: int = CURRENT_CONTRACT, *,
                collection: str = "", order_by: str = DEFAULT_ORDER_BY) -> str:
     """The theme payload, at the contract the theme asked for.
 
@@ -209,7 +216,7 @@ def sort_state(order: dict) -> tuple[str, str]:
     return order["by"], order["direction"]
 
 
-def _filter_state(criteria) -> dict:
+def _filter_state(criteria: dict | None) -> dict:
     """The menu's filter controls for a collection: what it selects on, or nothing."""
     if not criteria:
         return default_filter_state()
@@ -237,7 +244,7 @@ def _criteria(filters: dict) -> dict:
     }
 
 
-def apply_collection(api, collection) -> None:
+def apply_collection(api: API, collection: str) -> None:
     """Show a collection: what it holds, in the order it says, applied once.
 
     A collection that filters also fills the menu's controls, so what it selects is
@@ -256,7 +263,7 @@ def apply_collection(api, collection) -> None:
     api._rebuild_entries()
 
 
-def _current_membership(api):
+def _current_membership(api: API) -> list[Any]:
     """The entries the current view holds, off the library as it now stands."""
     if api.current_collection == BUILTIN_ALL:
         # The controls make a collection out of the *library* rather than narrowing the
@@ -266,7 +273,7 @@ def _current_membership(api):
     return api.library.resolve_view(api.current_collection)
 
 
-def rebuild_view(api) -> None:
+def rebuild_view(api: API) -> None:
     """Re-derive the list from the library the view already holds.
 
     A collection's own stored sort is not reapplied. Choosing a collection applies it
@@ -277,7 +284,7 @@ def rebuild_view(api) -> None:
     api._rebuild_entries()
 
 
-def refresh_view(api) -> None:
+def refresh_view(api: API) -> None:
     """Re-derive the current view from the library, without changing what it is.
 
     Membership, order and the game objects themselves all go stale: a finished session
@@ -291,9 +298,11 @@ def refresh_view(api) -> None:
     rebuild_view(api)
 
 
-def save_current_filter_collection(api, name, letter, theme, game_type, manufacturer,
-                                   year, order_by, rating, rating_or_higher,
-                                   direction="desc"):
+def save_current_filter_collection(api: API, name: str, letter: str, theme: str,
+                                   game_type: str, manufacturer: str, year: str,
+                                   order_by: str, rating: str,
+                                   rating_or_higher: object,
+                                   direction: str = "desc") -> dict[str, Any]:
     # The stored criteria keys are still 2.x's `sort_by` and `order_by`, where `order_by`
     # is the direction. That is on disk and stays; the names here say what they are.
     save_filter_collection(name, letter, theme, game_type, manufacturer, year, rating,
@@ -301,12 +310,14 @@ def save_current_filter_collection(api, name, letter, theme, game_type, manufact
     return {"success": True, "message": f"Filter collection '{name}' saved successfully"}
 
 
-def filter_options(games):
+def filter_options(games: Sequence[GameRecord]) -> dict[str, list[str]]:
     return GameListFilters(games).available_options()
 
 
-def apply_filters(api, letter=None, theme=None, game_type=None, manufacturer=None, year=None,
-        rating=None, rating_or_higher=None):
+def apply_filters(api: API, letter: str | None = None, theme: str | None = None,
+                  game_type: str | None = None, manufacturer: str | None = None,
+                  year: str | None = None, rating: str | None = None,
+                  rating_or_higher: object = None) -> int:
     """Filter the library. Setting a control is choosing a different collection - one
     made from the library - so it leaves whatever collection was on screen."""
     api.current_collection = BUILTIN_ALL
@@ -330,7 +341,7 @@ def apply_filters(api, letter=None, theme=None, game_type=None, manufacturer=Non
     return len(api.filtered_games)
 
 
-def apply_sort(games, order_by, direction=None):
+def apply_sort(games: list[Any], order_by: str, direction: str | None = None) -> int:
     """Re-order the wheel, in place, by one of the orders a collection can carry.
 
     This used to be a second sorter: five of the eight orders, keyed on the 2.x sort
@@ -348,8 +359,10 @@ def apply_sort(games, order_by, direction=None):
     return len(games)
 
 
-def page_jump_index(games, index, direction, order_by="title",
-                    paging_group=PAGING_GROUP_DEFAULT, page_size=10):
+def page_jump_index(games: Sequence[Any], index: int, direction: str,
+                    order_by: str = "title",
+                    paging_group: str = PAGING_GROUP_DEFAULT,
+                    page_size: int = 10) -> int:
     """The wheel index a page press lands on.
 
     Grouping by `sort` moves to the next boundary in whatever the list is ordered by -
@@ -387,12 +400,12 @@ def page_jump_index(games, index, direction, order_by="title",
 
 
 
-def _sort_by_numeric_meta(games, field, reverse) -> None:
+def _sort_by_numeric_meta(games: list[Any], field: str, reverse: bool) -> None:
     games.sort(key=lambda game: game_title(game).lower())
     games.sort(key=lambda game: _numeric_meta_value(game, field), reverse=reverse)
 
 
-def _numeric_meta_value(game, field):
+def _numeric_meta_value(game: GameRecord, field: str) -> int:
     meta = normalize_meta(getattr(game, "meta_config", {}))
     user = section(meta, "User")
     info = section(meta, "Info")
