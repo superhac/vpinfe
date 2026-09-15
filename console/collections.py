@@ -227,7 +227,7 @@ def _ask_new(library: Any, act: Callable) -> None:
 
     The kind used to be asked here and is not a question at creation: it is decided by
     what the collection ends up holding, and changed in the panel where the games and
-    the rule both are. Asking up front made it a mode, which is what COLLECTIONS 2.11
+    the rule both are. Asking up front made it a mode, which is what making them
     removed.
     """
     with ui.dialog() as dialog, ui.card():

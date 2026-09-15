@@ -1696,7 +1696,7 @@ class MemberRequest(ApiModel):
 
     Absent or empty means the game: a member resolves to whichever table is its
     default, and an exclusion removes the game entire. Naming a table holds the
-    collection to exactly that one - COLLECTIONS 2.10 and 2.12.
+    collection to exactly that one.
     """
 
     table: str = ""
@@ -1712,7 +1712,7 @@ class MemberTableRequest(ApiModel):
 
     Empty `table` hands the game back its default, so the member follows a replacement
     again. `was` names the ref being changed, which matters only where a game appears
-    more than once (COLLECTIONS 2.10); empty means the ref that names no table.
+    more than once; empty means the ref that names no table.
     """
 
     table: str = ""

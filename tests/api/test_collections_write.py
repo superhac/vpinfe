@@ -253,7 +253,7 @@ class PatchTests(Harness):
         self.assertEqual(self.manager.members, ["g1"])
 
     def test_games_and_filters_together_are_written(self):
-        """Both, in one patch. COLLECTIONS 2.11 makes them combinable and the resolver
+        """Both, in one patch. They are combinable and the resolver
         applies members over what the criteria matched - refusing the pair was this API
         carrying 2.x's two kinds forward."""
         self.use(Manager(["g1"]))
@@ -357,7 +357,7 @@ class PatchOrderTests(Harness):
 
 
 class NamedTableTests(Harness):
-    """A member names a game, or it names a table (COLLECTIONS 2.10). Until the route
+    """A member names a game, or it names a table. Until the route
     took a table it could only ever say the first."""
 
     def _tables(self, *ids):
@@ -406,7 +406,7 @@ class NamedTableTests(Harness):
 
 
 class ExclusionTests(Harness):
-    """The other half of COLLECTIONS 2.12. Naming a table freezes a choice; excluding
+    """The other half of naming a table. It freezes a choice; excluding
     one says "everything except this" and keeps tracking what is added later. Neither
     substitutes for the other, and only naming had a route."""
 

@@ -67,7 +67,7 @@ def get_game_collections() -> list[str]:
     try:
         collections = CollectionStore(str(COLLECTIONS_PATH))
         # Every collection can be added to. Criteria and hand-picked members are
-        # combinable (COLLECTIONS 2.11), so carrying a rule does not stop a collection
+        # combinable, so carrying a rule does not stop a collection
         # holding something somebody named.
         result.extend(collections.get_collections_name())
     except Exception:

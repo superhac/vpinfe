@@ -104,7 +104,7 @@ class CollectionsApiTests(TempTree):
         self.assertEqual(response.json()["filters"]["order_by"], "play_count")
 
     def test_criteria_and_named_games_are_stored_together(self) -> None:
-        """Not two kinds. COLLECTIONS 2.11 makes them combinable and the resolver
+        """Not two kinds. They are combinable and the resolver
         applies members over what the criteria matched, so a collection may follow a
         rule and still hold something somebody put there by hand."""
         response = self.client.post("/collections", json={

@@ -217,7 +217,7 @@ def collections_by_game_id() -> dict[str, list[str]]:
     """Collection names keyed by the game id membership is recorded under.
 
     Every collection that names this game, whether or not it also carries criteria:
-    COLLECTIONS 2.11 makes the two combinable, so a game hand-added to a collection
+    A rule and named members are combinable, so a game hand-added to a collection
     that also filters is a member of it and skipping those would under-report.
 
     What criteria match is still decided per game at display time and is not here -

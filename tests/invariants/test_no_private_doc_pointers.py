@@ -26,6 +26,16 @@ REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 SECTION_MARK = chr(0xA7)
 PRIVATE_DOC = re.compile(r"[A-Za-z0-9_-]+\." + "local" + r"\.md")
 
+# The other spelling, and the one that got past the first version of this: the note
+# named in caps with one of its section numbers, as in "<NOTE> 2.11". It reads like a
+# citation and points at the same unpublished file.
+CITED_SECTION = re.compile(r"\b([A-Z][A-Z0-9-]{3,})[ -][0-9]+\.[0-9]+")
+
+# Published standards read the same way and are the opposite case: a reader can open
+# them. The check is about a pointer nobody outside this machine can follow.
+PUBLIC_STANDARDS = frozenset({"WCAG", "ARIA", "HTML", "HTTP", "RFC", "ISO", "IEEE",
+                              "ECMA", "UNICODE", "POSIX", "SEMVER", "JSON"})
+
 # Only what git holds. An untracked note beside the code is nobody's business but this
 # machine's, and the design documents themselves are exactly that.
 SUFFIXES = {".py", ".md", ".js", ".toml", ".yml", ".yaml", ".spec", ".json"}
@@ -34,6 +44,8 @@ SUFFIXES = {".py", ".md", ".js", ".toml", ".yml", ".yaml", ".spec", ".json"}
 # they can actually open. Only a pointer *out* of the tree is the problem.
 ALLOWED = {
     "docs/conventions.md",
+    # This file has to spell the shapes out to test itself.
+    "tests/invariants/test_no_private_doc_pointers.py",
 }
 
 
@@ -58,9 +70,11 @@ def _offenders() -> list[str]:
         for number, line in enumerate(text.splitlines(), 1):
             if SECTION_MARK in line:
                 out.append(f"{relative}:{number}: names a section of a document")
-            hit = PRIVATE_DOC.search(line)
-            if hit:
+            if PRIVATE_DOC.search(line):
                 out.append(f"{relative}:{number}: names a note that is not published")
+            cited = CITED_SECTION.search(line)
+            if cited and cited.group(1) not in PUBLIC_STANDARDS:
+                out.append(f"{relative}:{number}: cites a section of an unpublished note")
     return out
 
 
@@ -82,3 +96,8 @@ class PrivateDocPointerTests(unittest.TestCase):
         self.assertIn(SECTION_MARK, f"see {SECTION_MARK}9 of the design")
         self.assertTrue(PRIVATE_DOC.search("read PLAYBACK." + "local" + ".md first"))
         self.assertFalse(PRIVATE_DOC.search("read docs/conventions.md first"))
+        self.assertTrue(CITED_SECTION.search("the two are combinable (NOTES 2.11)"))
+        self.assertFalse(CITED_SECTION.search("VPX 10.8.1 is the supported floor"))
+        standard = CITED_SECTION.search("WCAG 1.4.11 puts a floor under it")
+        self.assertIsNotNone(standard)
+        self.assertIn(standard.group(1), PUBLIC_STANDARDS)

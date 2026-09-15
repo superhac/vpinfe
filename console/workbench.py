@@ -4257,7 +4257,7 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
     playable = sum(1 for m in members if m.get("included"))
     with ui.row().classes("items-center gap-2 w-full no-wrap"):
         # Tables, not games: a collection resolves to entries and an entry is a table
-        # (COLLECTIONS 2.5), so a game that named two of its tables contributes two.
+        # so a game that named two of its tables contributes two.
         # Calling them games is wrong in exactly the case the count is needed for.
         total = len(members)
         word = "table" if total == 1 else "tables"
@@ -4411,7 +4411,7 @@ def _table_choice(context: dict[str, Any], member: dict[str, Any], state: str,
                   table: dict[str, Any], said: str, *, editable: bool) -> None:
     """The table line, and the menu that changes which table this member names.
 
-    COLLECTIONS 2.12 makes naming a table a tool of its own - *exactly these, frozen* -
+    Naming a table is a tool of its own - *exactly these, frozen* -
     and the API has carried it since the member routes took a `table`. Nothing in the
     UI reached it, so every row read `Game Default` whatever the collection stored.
     """
@@ -4509,7 +4509,7 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
                              blocked=t("console.workbench.already_collection")
                              if table_id in taken else "")
         # The tournament case: a collection holding two versions of one game, each
-        # named (COLLECTIONS 2.10 and 2.12). Switching this row cannot express it -
+        # named. Switching this row cannot express it -
         # that is one ref pointing somewhere else - so adding is its own verb.
         spare = [one for one in choices if str(one.get("id") or "") not in spoken]
         if spare:

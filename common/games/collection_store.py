@@ -361,7 +361,7 @@ class CollectionStore:
     def has_filters(self, section: str) -> bool:
         """Whether this collection carries criteria.
 
-        The block's presence, not the stored `type`: COLLECTIONS 2.11 derives the kind,
+        The block's presence, not the stored `type`: the kind is derived from it,
         and a record either has criteria or it does not.
         """
         record = self._record(section)
@@ -576,7 +576,7 @@ class CollectionStore:
                                limit: int | None = None) -> None:
         """Give a collection criteria, keeping its name, icon, position and members.
 
-        Membership stays: the two are combinable (COLLECTIONS 2.11). Dropping it here
+        Membership stays: a rule and named members are combinable. Dropping it here
         made "add a rule" destructive.
         """
         record = self._require_mutable(section)
@@ -653,7 +653,7 @@ class CollectionStore:
 
         Remove-then-add would do the same to the file and put the row at the end, which
         is the one thing a curated order cannot afford. `was` says which ref to move
-        when a game has several (COLLECTIONS 2.10); an empty `table_id` gives the game
+        when a game has several; an empty `table_id` gives the game
         back its default.
         """
         record = self._require_mutable(section)

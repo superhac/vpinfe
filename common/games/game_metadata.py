@@ -449,11 +449,9 @@ def table_descriptor(table: dict, *, default_id: str = "") -> dict[str, Any]:
     of what a table is on the wire rather than a few fields borrowed from its game. Built
     once here because the REST lens and the theme payload have to agree.
 
-    The .vpx's `companyname`, `companyyear` and `playfieldvariant` are deliberately absent.
-    Measured across 162 real tables they are populated in **none** of them - authors fill
-    in the filename, the version and the release date, and leave VPX's company fields
-    alone. The first two would also duplicate the game's, which VPSdb does populate, and
-    `playfieldvariant` is a rendering mode rather than SS/EM, so publishing it as `type`
+    The .vpx's `companyname`, `companyyear` and `playfieldvariant` are deliberately
+    absent. Authors leave the company fields alone and VPSdb populates the game's, and
+    `playfieldvariant` is a rendering mode rather than SS/EM - publishing it as `type`
     beside the game's `type` would put two unrelated meanings behind one word.
     """
     def parsed(key: str) -> str | None:

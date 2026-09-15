@@ -132,7 +132,7 @@ def get_collections_metadata() -> list[dict]:
             "image": image,
             "image_url": collection_icon_url(image),
             # The stored membership, whatever else the collection carries. Criteria and
-            # named members are combinable (COLLECTIONS 2.11), so reporting null for
+            # named members are combinable, so reporting null for
             # anything that filters hid the members it also held.
             "game_count": len(manager.get_members(name)),
         })
