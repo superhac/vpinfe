@@ -16,6 +16,9 @@ import logging
 
 from common import config_schema
 from common.config_access import cfg_get
+from common.config_store import ConfigStore
+
+from .store import ExtensionStore
 
 logger = logging.getLogger("vpinfe.common.extensions.handover")
 
@@ -40,7 +43,7 @@ def _default(section: str, key: str) -> str:
     return str(getattr(found, "default", "") or "").strip() if found else ""
 
 
-def seed(store, config) -> int:
+def seed(store: ExtensionStore, config: ConfigStore) -> int:
     """Give each extension what core was configured with, once.
 
     Only values somebody actually set, which is not the same as values that are there:

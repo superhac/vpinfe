@@ -18,8 +18,11 @@ from __future__ import annotations
 
 import logging
 import shlex
-from collections.abc import Mapping
-from typing import Any
+from collections.abc import Callable, Mapping
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from common.apps.contract import App, Entry, Session
 
 logger = logging.getLogger("vpinfe.common.extensions.provided_apps")
 
@@ -36,11 +39,12 @@ class _ExtensionLaunch:
     extension is the only thing that knows where its own arguments end.
     """
 
-    def __init__(self, name: str, command) -> None:
+    def __init__(self, name: str,
+                 command: Callable[[dict, dict], Any] | None) -> None:
         self._name = name
         self._command = command
 
-    def command(self, entry, settings: Mapping[str, Any]) -> list[str]:
+    def command(self, entry: Entry, settings: Mapping[str, Any]) -> list[str]:
         found = None
         if self._command is not None:
             found = self._command(_entry_as_data(entry), dict(settings))
@@ -51,19 +55,19 @@ class _ExtensionLaunch:
             return [str(one) for one in found]
         return _generic_command(entry, settings)
 
-    def session(self, settings: Mapping[str, Any]):
+    def session(self, settings: Mapping[str, Any]) -> Session:
         from common.apps.contract import SESSION_NONE, Session
 
         return Session(kind=SESSION_NONE)
 
 
-def _entry_as_data(entry) -> dict:
+def _entry_as_data(entry: Entry) -> dict:
     """The entry as plain data, for the same reason the app is described as plain data."""
     return {"entry_id": entry.entry_id, "game_dir": entry.game_dir,
             "table": entry.table, "key": entry.key}
 
 
-def _generic_command(entry, settings: Mapping[str, Any]) -> list[str]:
+def _generic_command(entry: Entry, settings: Mapping[str, Any]) -> list[str]:
     """What a launcher runs when its extension did not say. Deliberately the generic
     app's rule, because that is the answer somebody already reads in the settings help."""
     args = shlex.split(str(settings.get("args") or ""))
@@ -77,7 +81,7 @@ def _generic_command(entry, settings: Mapping[str, Any]) -> list[str]:
     return [str(settings.get("bin_path") or ""), *kept]
 
 
-def build(name: str, described: dict):
+def build(name: str, described: dict) -> App:
     """Assemble an `App` from what an extension described. Raises ValueError on nonsense.
 
     Validated here rather than trusted, because a bad app is not a bad request that
@@ -117,7 +121,7 @@ def build(name: str, described: dict):
     )
 
 
-def _suffix(value) -> str:
+def _suffix(value: object) -> str:
     """Lowercase, with the dot, because that is what `Claim` compares against."""
     found = str(value or "").strip().lower()
     if not found:
@@ -125,7 +129,7 @@ def _suffix(value) -> str:
     return found if found.startswith(".") else f".{found}"
 
 
-def _field(field_type, described) -> Any:
+def _field(field_type: Any, described: object) -> Any:
     if not isinstance(described, dict):
         raise ValueError(f"a field is described with a dict, not {type(described).__name__}")
     key = str(described.get("key") or "").strip()

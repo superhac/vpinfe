@@ -35,7 +35,7 @@ class ThemeInstallStore:
 
     @staticmethod
     def is_version_newer(remote: str, local: str) -> bool:
-        def parse(version: str):
+        def parse(version: str) -> list[int]:
             return [int(part) for part in version.split(".")]
         return parse(remote) > parse(local)
 

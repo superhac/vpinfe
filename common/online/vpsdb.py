@@ -3,8 +3,12 @@
 import logging
 import re
 from difflib import SequenceMatcher
+from typing import Any
 
 from common.config_access import MediaConfig
+from common.config_store import ConfigStore
+from common.games.game import Game
+from common.games.info_file import MetaConfig
 from common.online import vpsdb_media
 from common.online.vpsdb_cache import VPinMediaDatabase, VPSDatabaseCache
 from common.online.vpsdb_media import VPSMediaDownloader
@@ -19,15 +23,18 @@ class VPSdb:
     along with associated media assets via VPinMediaDB.
     """
 
-    root_game_dir = None
-    data = None
-    _vpinfe_config_store = None
+    # Declared, not defaulted: __init__ always sets all three, and `= None` gave every
+    # one of them a type it never actually holds.
+    root_game_dir: str
+    data: list[dict]
+    _vpinfe_config_store: ConfigStore
 
     VPS_LAST_UPDATE_URL = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
     VPS_DB_URL = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
     VPINMDB_URL = vpsdb_media.MANIFEST_URL
 
-    def __init__(self, root_game_dir, vpinfe_config_store) -> None:
+    def __init__(self, root_game_dir: str,
+                 vpinfe_config_store: ConfigStore) -> None:
         logger.info("Initializing VPSdb")
 
         self._vpinfe_config_store = vpinfe_config_store
@@ -81,18 +88,18 @@ class VPSdb:
 
     # ----------------------------------------------------------------------
     # Python container magic methods
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data) if self.data else 0
 
-    def __contains__(self, item):
+    def __contains__(self, item: object) -> bool:
         return item in self.data if self.data else False
 
-    def games(self):
+    def games(self) -> list[dict]:
         return self.data
 
     # ----------------------------------------------------------------------
     # Game lookups
-    def lookup_name(self, name, manufacturer, year):
+    def lookup_name(self, name: str, manufacturer: str, year: object) -> dict | None:
         """Fuzzy search for a game by name, manufacturer, and year."""
         if not all((name, manufacturer, year)):
             return None
@@ -113,7 +120,7 @@ class VPSdb:
         logger.debug("No match found for: %s", name)
         return None
 
-    def parse_game_name_from_dir(self, directory_name):
+    def parse_game_name_from_dir(self, directory_name: str) -> dict[str, Any] | None:
         """
         Parses a directory name of format: 'Name (Manufacturer Year)'
         and ignores any suffix text after that block.
@@ -131,7 +138,7 @@ class VPSdb:
 
     # ----------------------------------------------------------------------
     # Remote content handling
-    def download_media_json(self):
+    def download_media_json(self) -> dict | None:
         """Downloads the VPinMediaDB JSON index."""
         return VPinMediaDatabase(self.VPINMDB_URL).load()
 
@@ -139,20 +146,21 @@ class VPSdb:
         """Downloads the VPS database JSON."""
         self._cache.download_db()
 
-    def download_last_update(self):
+    def download_last_update(self) -> str | None:
         """Fetches the last update version string from VPSdb."""
         return self._cache.fetch_last_update()
 
-    def download_media_file(self, game_id, url, filename) -> None:
+    def download_media_file(self, game_id: str, url: str, filename: str) -> None:
         """Downloads a single media file by URL."""
         self._media_downloader.download_media_file(game_id, url, filename)
 
     # ----------------------------------------------------------------------
     # Local file helpers
-    def file_exists(self, path):
+    def file_exists(self, path: str | None) -> bool:
         return self._media_downloader.file_exists(path)
 
-    def download_media_for_game(self, game, id, meta_config=None) -> None:
+    def download_media_for_game(self, game: Game, id: str,
+                               meta_config: MetaConfig | None = None) -> None:
         """Download all associated media for a given game."""
         self._media_downloader.download_media_for_game(game, id, meta_config)
 

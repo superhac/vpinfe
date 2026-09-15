@@ -17,6 +17,7 @@ from typing import Any
 from common import service_errors
 from common.i18n import t
 from common.online import theme_service
+from common.online.themes import ThemeRegistry
 
 logger = logging.getLogger("vpinfe.common.online.theme_ops")
 
@@ -37,7 +38,7 @@ _lock = threading.RLock()
 _registry: Any = None
 
 
-def _loaded(refresh: bool = False):
+def _loaded(refresh: bool = False) -> ThemeRegistry:
     """The registry, read once and kept. Network work, so not per request."""
     global _registry
     with _lock:
@@ -46,7 +47,7 @@ def _loaded(refresh: bool = False):
         return _registry
 
 
-def _described(registry, active: str) -> list[dict[str, Any]]:
+def _described(registry: ThemeRegistry, active: str) -> list[dict[str, Any]]:
     found = registry.get_themes()
     try:
         updates = registry.check_for_updates(list(found))
@@ -54,7 +55,7 @@ def _described(registry, active: str) -> list[dict[str, Any]]:
         logger.warning("Could not check themes for updates", exc_info=True)
         updates = {}
 
-    out = []
+    out: list[dict[str, Any]] = []
     for key, entry in found.items():
         manifest = dict(entry.get("manifest") or {})
         info = dict(entry.get("registry_info") or {})

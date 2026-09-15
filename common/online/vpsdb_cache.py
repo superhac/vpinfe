@@ -9,6 +9,7 @@ from pathlib import Path
 import requests
 
 from common.config_access import cfg_get, cfg_set
+from common.config_store import ConfigStore
 from common.http_client import get_bytes, get_json, get_text
 
 logger = logging.getLogger("vpinfe.common.online.vpsdb_cache")
@@ -20,7 +21,7 @@ class VPSDatabaseCache:
     def __init__(
         self,
         config_dir: Path,
-        iniconfig,
+        iniconfig: ConfigStore,
         *,
         db_url: str,
         last_update_url: str,

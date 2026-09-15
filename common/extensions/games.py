@@ -14,9 +14,14 @@ core as a way to read somewhere it never declared.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from .contract import ContractError
+
+if TYPE_CHECKING:
+    from .context import ExtensionFiles
 
 logger = logging.getLogger("vpinfe.common.extensions.games")
 
@@ -31,10 +36,10 @@ GAMES_WRITE = "games:write"
 # the API rather than reaching up into it, and rather than reimplemented so the two
 # cannot answer differently - they already did, and it showed up as an importer that
 # guessed at core's folder-naming rule and got it wrong.
-_OFFERED: dict[str, tuple[str, object]] = {}
+_OFFERED: dict[str, tuple[str, Callable[..., Any]]] = {}
 
 
-def offer(name: str, scope: str, run) -> None:
+def offer(name: str, scope: str, run: Callable[..., Any]) -> None:
     """Core: let extensions call this, for anything declaring `scope`."""
     _OFFERED[name] = (scope, run)
 
@@ -49,12 +54,12 @@ def withdraw_all() -> None:
 
 
 class ExtensionGames:
-    def __init__(self, name: str, scopes, files) -> None:
+    def __init__(self, name: str, scopes: Iterable[str], files: ExtensionFiles) -> None:
         self._name = name
         self._scopes = frozenset(scopes)
         self._files = files
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Callable[..., Any]:
         """Anything core offered that this does not wrap itself.
 
         The named methods below stay because they are worth having a shape for - they
@@ -68,7 +73,7 @@ class ExtensionGames:
         scope, run = _OFFERED[name]
         self._needs(scope)
 
-        def call(*args, **kwargs):
+        def call(*args: Any, **kwargs: Any) -> Any:
             return run(*args, **kwargs)
 
         call.__name__ = name
@@ -88,7 +93,7 @@ class ExtensionGames:
                 f"{self._name} asks core to do something needing {scope}, which its "
                 "manifest does not declare")
 
-    def _source(self, path) -> Path:
+    def _source(self, path: str | Path) -> Path:
         """A file the extension is handing over, checked against what it declared.
 
         Tighter than the same check on the HTTP routes, and it can be: this one knows
@@ -117,7 +122,7 @@ class ExtensionGames:
                 f"{self._name} offered {wanted}, which is not inside any folder it says "
                 "it works from")
 
-    def _game(self, game_id: str):
+    def _game(self, game_id: str) -> Any:
         from common.games import game_identity
         from common.games.game_repository import all_games
 
@@ -196,7 +201,7 @@ class ExtensionGames:
             raise LookupError(f"Created {folder} but this install does not read it")
         return game_identity.ensure_id(made)
 
-    def add_table(self, game_id: str, path) -> dict:
+    def add_table(self, game_id: str, path: str | Path) -> dict:
         """Copy a game file into an entry, with whatever belongs to it.
 
         Answers with the table's id, the companions that came, and the ROM the table
@@ -214,7 +219,7 @@ class ExtensionGames:
         return {"table_id": table_id, "companions": tuple(found["companions"]),
                 "rom": found.get("rom", "")}
 
-    def companions_of(self, path) -> tuple[str, ...]:
+    def companions_of(self, path: str | Path) -> tuple[str, ...]:
         """What would come with this table if it were added. For counting beforehand,
         so a plan and the run that follows it agree."""
         self._needs(GAMES_READ)
@@ -230,7 +235,8 @@ class ExtensionGames:
 
         return folder_kinds()
 
-    def put_asset(self, game_id: str, kind: str, path, rom: str = "") -> str:
+    def put_asset(self, game_id: str, kind: str, path: str | Path,
+                  rom: str = "") -> str:
         """Put a file or a whole folder where this kind of asset belongs.
 
         For the things that are neither the game file nor artwork: a ROM set, an
@@ -272,7 +278,8 @@ class ExtensionGames:
         # path here - the same rule every other path this project hands out follows.
         return landing.relative_to(game_dir).as_posix()
 
-    def put_media(self, game_id: str, kind: str, path, table_stem: str = "") -> str:
+    def put_media(self, game_id: str, kind: str, path: str | Path,
+                  table_stem: str = "") -> str:
         """Put a file in one of an entry's media slots. Answers with what it landed as."""
         self._needs(GAMES_WRITE)
         from common.games import media_placement

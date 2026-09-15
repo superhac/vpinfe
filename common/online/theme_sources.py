@@ -8,7 +8,9 @@ lists are config-file only - see PAR-43 for why neither reaches the Manager UI.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Any
 
 from common.config_access import cfg_list
 
@@ -28,7 +30,7 @@ class ThemeSources:
     repositories: tuple[str, ...] = ()
 
 
-def from_config(source) -> ThemeSources:
+def from_config(source: Any) -> ThemeSources:
     return ThemeSources(
         registries=tuple(cfg_list(source, SECTION, "registries")),
         repositories=tuple(cfg_list(source, SECTION, "repositories")),
@@ -63,7 +65,7 @@ def name_of(index_key: str, entry: dict, manifest: dict) -> str:
     return index_key
 
 
-def merge(parts) -> dict:
+def merge(parts: Iterable[tuple[str, dict | None]]) -> dict:
     """One index from many sources, first mention winning and the loser logged.
 
     Settles registry keys only. A repository is keyed by its url until its manifest

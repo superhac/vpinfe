@@ -9,6 +9,7 @@ from tempfile import NamedTemporaryFile
 
 import requests
 
+from common.config_store import ConfigStore
 from common.paths import CONFIG_DIR, USER_ROMS_PATH
 
 logger = logging.getLogger("vpinfe.common.online.pinmame_score_parser_updater")
@@ -105,7 +106,7 @@ def _release_fingerprint(release_payload: dict, asset: dict) -> str:
     return ""
 
 
-def ensure_latest_roms_json(iniconfig) -> dict:
+def ensure_latest_roms_json(iniconfig: ConfigStore) -> dict:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
     if not iniconfig.config.has_section(RELEASE_SECTION):

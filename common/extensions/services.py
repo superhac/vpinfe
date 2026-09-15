@@ -21,6 +21,7 @@ import logging
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger("vpinfe.common.extensions.services")
 
@@ -67,7 +68,7 @@ def provided() -> tuple[str, ...]:
         return tuple(sorted(_services))
 
 
-def ask(name: str, *args, **kwargs):
+def ask(name: str, *args: Any, **kwargs: Any) -> Any:
     """Core: get the answer, or None if nothing provides it.
 
     None rather than raising, because "no extension is doing this" is the ordinary state

@@ -107,7 +107,9 @@ class ThemeRegistry:
         """
         return str(entry.get("url") or entry.get("theme_base_url") or "").strip()
 
-    def _resolve_release(self, base_url: str, entry: dict):
+    def _resolve_release(
+            self, base_url: str,
+            entry: dict) -> tuple[theme_releases.Release | None, str | None, Any]:
         """The release this build should run, and where its manifest is.
 
         Asks the author's index first. A theme without one is what every published theme
@@ -159,10 +161,10 @@ class ThemeRegistry:
                 continue
             theme_jobs.append((theme_key, theme_info, base_url))
 
-        def _load_one(job):
+        def _load_one(job: tuple[str, dict, str]) -> tuple[Any, ...]:
             theme_key, theme_info, base_url = job
             release, manifest_url, index = self._resolve_release(base_url, theme_info)
-            if release is None:
+            if release is None or manifest_url is None:
                 # Every release this theme offers needs a newer VPinFE than this one.
                 logger.debug("%s offers nothing this build can run", theme_key)
                 return theme_key, theme_info, None, None, None

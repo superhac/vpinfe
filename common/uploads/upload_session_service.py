@@ -15,6 +15,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from typing import IO
 
 logger = logging.getLogger("vpinfe.common.uploads.upload_session_service")
 
@@ -87,7 +88,7 @@ def _record(upload_id: str) -> dict:
     return rec
 
 
-def store_file(upload_id: str, relpath: str, stream) -> int:
+def store_file(upload_id: str, relpath: str, stream: IO[bytes]) -> int:
     """Stream a single uploaded file into the session directory at its relative path."""
     rec = _record(upload_id)
     dest = _safe_join(Path(rec["dir"]), relpath)

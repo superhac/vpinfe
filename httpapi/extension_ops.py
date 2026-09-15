@@ -18,6 +18,7 @@ named for the noun it acts on; an extension author is reading a list of things t
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from common.extensions.games import offer
@@ -48,7 +49,7 @@ def _set_details(game_id: str, **fields: Any) -> dict:
 # what is happening is not the same as causing it to happen, and stopping a table
 # somebody may be mid-game on is a third thing again. An extension that wants to start a
 # game asks for that by name, and whoever installs it reads it by name.
-READS = {
+READS: dict[str, Callable[..., Any]] = {
     "list_games": game_lens.listing,
     "get_game": game_lens.detail,
     "game_tables": table_ops.rows_of,
@@ -59,11 +60,11 @@ READS = {
     "vps_details": game_ops.vps_details,
 }
 
-LAUNCHES = {
+LAUNCHES: dict[str, Callable[..., Any]] = {
     "launch_game": _launch,
 }
 
-WRITES = {
+WRITES: dict[str, Callable[..., Any]] = {
     "set_details": _set_details,
     "rate_game": game_ops.set_rating,
     "rate_table": table_ops.set_rating,

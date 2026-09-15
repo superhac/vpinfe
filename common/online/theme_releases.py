@@ -7,6 +7,7 @@ rather than the registry.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 # What an author publishes, at the root of their default branch.
@@ -73,7 +74,7 @@ def releases_in(index: dict | None) -> list[Release]:
     return sorted(out, key=lambda r: r.contract, reverse=True)
 
 
-def pick(releases, serves_contract: int) -> Release | None:
+def pick(releases: Iterable[Release] | None, serves_contract: int) -> Release | None:
     """The highest release at or below what this build serves, or None if there is none.
 
     None means don't offer the theme: every line it publishes needs a newer VPinFE.
@@ -89,7 +90,7 @@ def fallback_release() -> Release:
     return Release(ASSUMED_CONTRACT, "HEAD")
 
 
-def for_ref(releases, ref: str) -> Release:
+def for_ref(releases: Iterable[Release] | None, ref: str) -> Release:
     """The release a pinned ref names, or an assumed one when nothing declares it.
 
     Matched on the bare form so `v2` finds a line written `refs/heads/v2`.

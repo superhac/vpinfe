@@ -8,8 +8,9 @@ confirm, and it can only be answered on this side - a caller cannot see the inst
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import IO, Any
 
 from common import service_errors
 from common.games import identity_claims
@@ -23,6 +24,7 @@ from common.uploads.asset_analyzer_service import (
 )
 from common.uploads.asset_import_service import (
     ImportPlan,
+    PlannedItem,
     build_import_plan,
     build_media_slot_plan,
     execute_import_plan,
@@ -74,7 +76,7 @@ def _analysis_to_dict(analysis: AnalysisResult) -> dict:
     }
 
 
-def _item_name(item) -> str:
+def _item_name(item: PlannedItem) -> str:
     """What the file being brought in is called, for a surface that lists what will land.
     Several files under one asset - a pup pack, a tree - are a count instead."""
     entries = [one for one in item.asset.entries if not one.is_dir]
@@ -83,7 +85,7 @@ def _item_name(item) -> str:
     return f"{len(entries)} files"
 
 
-def _replaces(plan: ImportPlan, item) -> str:
+def _replaces(plan: ImportPlan, item: PlannedItem) -> str:
     """What this item does to whatever is already there, said before it happens.
 
     Asked of the disk, so it belongs on this side: a caller cannot see the install's
@@ -156,14 +158,14 @@ def _session_dir(upload_id: str) -> Path:
         raise service_errors.NotFoundError(str(exc)) from exc
 
 
-def _analysis_for(upload_id: str):
+def _analysis_for(upload_id: str) -> tuple[AnalysisResult, Path]:
     analysis, source_path = analyze_upload_session(_session_dir(upload_id))
     if analysis.error:
         raise UnprocessableUploadError(analysis.error)
     return analysis, source_path
 
 
-def _vps_entry(vps_id: str):
+def _vps_entry(vps_id: str) -> dict | None:
     vps_id = (vps_id or "").strip()
     if not vps_id:
         return None
@@ -189,7 +191,7 @@ def abort(upload_id: str) -> None:
     upload_session_service.cleanup_session(upload_id)
 
 
-def add_file(upload_id: str, relpath: str, stream) -> dict[str, Any]:
+def add_file(upload_id: str, relpath: str, stream: IO[bytes]) -> dict[str, Any]:
     try:
         return {"bytes": upload_session_service.store_file(upload_id, relpath, stream)}
     except UnknownSessionError as exc:
@@ -224,14 +226,14 @@ def _slot_plan(upload_id: str, game_dir: str, media_kind: str) -> ImportPlan:
         raise service_errors.RefusedError(str(exc)) from exc
 
 
-def _built_plan(analysis, request) -> ImportPlan:
+def _built_plan(analysis: AnalysisResult, request: dict[str, Any]) -> ImportPlan:
     try:
         return build_import_plan(
             analysis,
             game_dir=Path(request["game_dir"]) if request.get("game_dir") else None,
-            rom_name=request.get("rom_name"),
+            rom_name=request.get("rom_name") or "",
             allow_new_game=request.get("allow_new_game", False),
-            location_id=request.get("location_id"),
+            location_id=request.get("location_id") or "",
         )
     except ValueError as exc:
         # Nowhere to put it. Something a person fixes - a share to mount, a location to
@@ -252,7 +254,7 @@ def plan_for(upload_id: str, request: dict[str, Any]) -> dict[str, Any]:
     return _plan_to_dict(plan)
 
 
-def _declared_identities(declared) -> dict:
+def _declared_identities(declared: Mapping[str, Any] | None) -> dict:
     """Turn the caller's declared identities into the vocabulary the writer speaks.
 
     Rejected here rather than recorded and regretted: a claim that names an upstream
@@ -275,7 +277,8 @@ def _declared_identities(declared) -> dict:
     return out
 
 
-def _run(plan: ImportPlan, source, declared, upload_id: str) -> dict[str, Any]:
+def _run(plan: ImportPlan, source: Path, declared: dict,
+         upload_id: str) -> dict[str, Any]:
     blocked = _blocked(plan)
     if not plan.items:
         raise NothingImportableError(t("error.uploads.no_importable_assets"),
@@ -289,7 +292,8 @@ def _run(plan: ImportPlan, source, declared, upload_id: str) -> dict[str, Any]:
     return report
 
 
-def execute(upload_id: str, request: dict[str, Any], declared=None) -> dict[str, Any]:
+def execute(upload_id: str, request: dict[str, Any],
+            declared: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Bring the session into the library, and clear it."""
     # Before the session is even looked up: a claim we cannot trust is a bad request
     # whichever upload it names, and saying so early keeps the reason readable.

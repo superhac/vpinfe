@@ -18,6 +18,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from common.config_store import ConfigStore
+
 from .context import LOG_ROOT, ExtensionContext, logger_for
 from .contract import (
     PLATFORM_ABI,
@@ -66,7 +68,7 @@ def set_registry(replacement: Registry) -> None:
     _registry = replacement
 
 
-def hand_over(config) -> int:
+def hand_over(config: ConfigStore) -> int:
     """Give each extension the settings core used to hold for it. Once, before loading."""
     from . import handover
 

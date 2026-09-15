@@ -11,7 +11,7 @@ import os
 import shutil
 import tempfile
 import zipfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 
@@ -25,6 +25,7 @@ from common.games.game_service import (
     ensure_dir,
     sanitize_dir_name,
 )
+from common.games.identity_claims import DeclaredIdentity
 from common.games.info_file import VPINFE_SECTION, MetaConfig
 from common.games.media_service import IMAGE_EXTENSIONS, replace_media_file
 from common.games.vpx_parser import VPXParser
@@ -32,6 +33,7 @@ from common.media_specs import media_filename_map
 from common.paths import get_games_path
 from common.uploads.asset_analyzer_service import (
     AnalysisResult,
+    AssetSource,
     DetectedAsset,
     SourceEntry,
     open_source,
@@ -126,7 +128,7 @@ def _patched_vpx_name(asset: DetectedAsset, base: Path, vpx_stem: str) -> str:
     return f"{name}.vpx"
 
 
-def _sidecar_stem(assets, base: Path, vpx_stem: str) -> str:
+def _sidecar_stem(assets: Iterable[DetectedAsset], base: Path, vpx_stem: str) -> str:
     """Which table a bundle's .directb2s and .ini belong to: the patched table when the
     bundle carries a patch, since they describe what the patch produces, not the base.
 
@@ -152,7 +154,7 @@ _FOLDERS: dict[str, tuple[str, ...]] = {
 }
 
 
-def folder_for(kind: str, game_dir, rom: str = "") -> Path | None:
+def folder_for(kind: str, game_dir: str | Path, rom: str = "") -> Path | None:
     """The folder inside a game that holds this kind, or None where it has no folder.
 
     None is an answer: a backglass and a table sit beside the game file and are named
@@ -422,11 +424,11 @@ _MANAGED_INFO_SECTIONS = {"Info", "User", VPINFE_SECTION, "tables", "assets", "M
 _MACHINE_LOCAL_INFO_KEYS = {"alt_launcher", "plugin_profile"}
 
 
-def _is_empty_value(value) -> bool:
+def _is_empty_value(value: object) -> bool:
     return value in (None, "", 0, [], {})
 
 
-def _resolves_locally(key: str, value) -> bool:
+def _resolves_locally(key: str, value: object) -> bool:
     """Machine-specific override values must exist on this machine to be adopted."""
     text = str(value or "")
     if not text:
@@ -483,7 +485,7 @@ def merge_info(incoming: dict, existing: dict) -> dict:
     return merged
 
 
-def _import_game_info(source, asset: DetectedAsset, base: Path) -> None:
+def _import_game_info(source: AssetSource, asset: DetectedAsset, base: Path) -> None:
     import json
 
     entry = asset.entries[0]
@@ -515,14 +517,15 @@ def _import_game_info(source, asset: DetectedAsset, base: Path) -> None:
 
 # --- Execution -------------------------------------------------------------
 
-def _extract_replace(source, entry: SourceEntry, dest: Path) -> None:
+def _extract_replace(source: AssetSource, entry: SourceEntry, dest: Path) -> None:
     ensure_dir(dest.parent)
     tmp = dest.with_name(f".{dest.name}.uploading")
     source.extract_member(entry.path, tmp)
     os.replace(tmp, dest)
 
 
-def _replace_vpx_from_file(source, asset: DetectedAsset, base: Path) -> None:
+def _replace_vpx_from_file(source: AssetSource, asset: DetectedAsset,
+                           base: Path) -> None:
     entry = asset.entries[0]
     safe = _safe_upload_name(_basename(entry.arcname))
     if not safe.lower().endswith(".vpx"):
@@ -559,7 +562,7 @@ def _replace_vpx_from_file(source, asset: DetectedAsset, base: Path) -> None:
     refresh_game(base)
 
 
-def _build_rom_zip(source, asset: DetectedAsset, dest: Path) -> None:
+def _build_rom_zip(source: AssetSource, asset: DetectedAsset, dest: Path) -> None:
     ensure_dir(dest.parent)
     tmp = dest.with_name(f".{dest.name}.uploading")
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -576,7 +579,7 @@ def _build_rom_zip(source, asset: DetectedAsset, dest: Path) -> None:
     os.replace(tmp, dest)
 
 
-def _extract_tree(source, asset: DetectedAsset, base_dir: Path) -> None:
+def _extract_tree(source: AssetSource, asset: DetectedAsset, base_dir: Path) -> None:
     for entry in asset.entries:
         if entry.is_dir:
             continue
@@ -585,7 +588,7 @@ def _extract_tree(source, asset: DetectedAsset, base_dir: Path) -> None:
         source.extract_member(entry.path, dest)
 
 
-def _import_media(source, asset: DetectedAsset, game_dir: Path) -> None:
+def _import_media(source: AssetSource, asset: DetectedAsset, game_dir: Path) -> None:
     entry = asset.entries[0]
     suffix = PurePosixPath(entry.arcname).suffix
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as handle:
@@ -627,7 +630,8 @@ def _record_patched_table(game_dir: Path, vpx: Path, base_file: str, base_hash: 
                        exc_info=True)
 
 
-def _apply_patch(source, asset: DetectedAsset, base: Path, dest: Path) -> None:
+def _apply_patch(source: AssetSource, asset: DetectedAsset, base: Path,
+                 dest: Path) -> None:
     """Apply a .dif to the table already in this folder, writing a new .vpx beside it.
 
     The base is chosen by size: a patch is built against the real table, and a folder can
@@ -733,7 +737,9 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
     }
 
 
-def record_declared_identities(plan: ImportPlan, base: Path, declared) -> list[str]:
+def record_declared_identities(
+        plan: ImportPlan, base: Path,
+        declared: Mapping[str, DeclaredIdentity | None] | None) -> list[str]:
     """Write what the sender said each file is into the game's `.info`.
 
     Keyed by the name the file arrived under, because that is the only name the sender

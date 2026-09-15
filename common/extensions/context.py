@@ -8,15 +8,18 @@ this?" is answerable from a log line, a config file or a scope.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from common import events as core_events
 
 from .contract import ContractError, Manifest
 from .games import ExtensionGames
 from .store import ExtensionStore
+
+if TYPE_CHECKING:
+    from common import jobs
 
 LOG_ROOT = "vpinfe.ext"
 
@@ -55,7 +58,7 @@ class ExtensionEvents:
         self.registered: list[tuple[str, Callable]] = []
 
     def subscribe(self, event: str, handler: Callable) -> None:
-        def contained(**payload) -> None:
+        def contained(**payload: Any) -> None:
             try:
                 handler(**payload)
             except Exception:
@@ -65,7 +68,7 @@ class ExtensionEvents:
         core_events.subscribe(event, contained)
         self.registered.append((event, contained))
 
-    def publish(self, event: str, **payload) -> None:
+    def publish(self, event: str, **payload: Any) -> None:
         wanted = str(event or "").strip()
         if wanted not in self._declared:
             raise ContractError(f"{self._name} publishes {wanted!r}, which its manifest "
@@ -94,7 +97,7 @@ class ExtensionFiles:
     def roots(self) -> tuple[str, ...]:
         return self._roots
 
-    def set_roots(self, paths) -> None:
+    def set_roots(self, paths: Iterable[str]) -> None:
         """Replace the set. The user moves a share or points somewhere else, and what
         core will accept has to follow rather than accumulate."""
         if not self._allowed:
@@ -117,7 +120,7 @@ class ExtensionServices:
     def __init__(self, name: str) -> None:
         self._name = name
 
-    def answer(self, service: str, run) -> None:
+    def answer(self, service: str, run: Callable[..., object]) -> None:
         """Answer this from now on. One extension per name."""
         from . import services
 
@@ -144,12 +147,12 @@ class ExtensionApps:
     read and dropped.
     """
 
-    def __init__(self, name: str, scopes) -> None:
+    def __init__(self, name: str, scopes: Iterable[str]) -> None:
         self._name = name
         self._scopes = frozenset(scopes)
         self._mine: list[str] = []
 
-    def provide(self, **described) -> str:
+    def provide(self, **described: Any) -> str:
         """Add an app, described in plain data. Answers with the id it took.
 
         `id`, `name`, `suffixes`, and optionally `accepts_keys`, `companions`,
@@ -299,7 +302,7 @@ class ExtensionEntries:
     def __init__(self, name: str) -> None:
         self._name = name
 
-    def contribute(self, key: str, fetch) -> None:
+    def contribute(self, key: str, fetch: Callable[[dict], object]) -> None:
         """Answer about one game at a time.
 
         `fetch` is given a plain description of the game - its ids and what is known
@@ -326,7 +329,7 @@ class ExtensionJobs:
     def __init__(self, name: str) -> None:
         self._name = name
 
-    def submit(self, kind: str, work):
+    def submit(self, kind: str, work: Callable[[jobs.Job], object]) -> jobs.Job:
         from common import jobs
 
         return jobs.submit(f"{self._name}.{str(kind or '').strip()}", work)

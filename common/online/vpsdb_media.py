@@ -9,6 +9,8 @@ from pathlib import Path
 
 import requests
 
+from common.games.game import Game
+from common.games.info_file import MetaConfig
 from common.http_client import download_file
 from common.media_specs import default_media_path
 
@@ -96,10 +98,10 @@ class VPSMediaDownloader:
         self.playfieldresolution = playfieldresolution
         self.playfieldvideoresolution = playfieldvideoresolution
 
-    def file_exists(self, path) -> bool:
+    def file_exists(self, path: str | None) -> bool:
         return bool(path and os.path.exists(path))
 
-    def download_media_file(self, game_id, url, filename) -> None:
+    def download_media_file(self, game_id: str, url: str, filename: str) -> None:
         logger.info("Downloading %s from %s", filename, url)
         try:
             download_file(url, Path(filename))
@@ -107,7 +109,7 @@ class VPSMediaDownloader:
         except requests.RequestException as exc:
             logger.warning("Failed to download %s for table %s: %s", filename, game_id, exc)
 
-    def local_md5(self, path) -> str:
+    def local_md5(self, path: str) -> str:
         """The file's own hash, or "" when it cannot be read."""
         try:
             with open(path, "rb") as handle:
@@ -119,7 +121,7 @@ class VPSMediaDownloader:
             logger.debug("Could not hash %s", path, exc_info=True)
             return ""
 
-    def is_ours(self, path, remote_md5) -> bool:
+    def is_ours(self, path: str, remote_md5: str) -> bool:
         """Whether a file on disk is the one vpinmediadb publishes.
 
         Decided by comparing hashes, not by whether we have a ledger entry for it.
@@ -132,7 +134,9 @@ class VPSMediaDownloader:
         """
         return bool(remote_md5) and self.local_md5(path) == remote_md5
 
-    def download_media(self, game_id, metadata, key, filename, default_filename):
+    def download_media(self, game_id: str, metadata: dict | None, key: str,
+                       filename: str | None,
+                       default_filename: str) -> tuple[str, str] | None:
         if not metadata or key not in metadata:
             return None
 
@@ -153,16 +157,18 @@ class VPSMediaDownloader:
             return default_filename, remote_md5
         return None
 
-    def download_media_for_game(self, game, game_id, meta_config=None) -> None:
+    def download_media_for_game(self, game: Game, game_id: str,
+                                meta_config: MetaConfig | None = None) -> None:
         if game_id not in self.media_index:
             logger.info("No media exists for %s (ID %s).", game.full_path_game, game_id)
             return
 
         game_media = self.media_index[game_id]
-        medias_dir = os.path.join(game.full_path_game, "medias")
+        game_dir = str(game.full_path_game or "")
+        medias_dir = os.path.join(game_dir, "medias")
         os.makedirs(medias_dir, exist_ok=True)
 
-        def record(result) -> None:
+        def record(result: tuple[str, str] | None) -> None:
             """Only files we actually placed. download_media returns None for anything
             it declined to touch, so a user's artwork is never claimed as ours."""
             if result and meta_config:
@@ -172,42 +178,43 @@ class VPSMediaDownloader:
         # `key` indexes the remote manifest, so it is vpinmediadb's word for the thing
         # and not ours. They differ for three of them - see REMOTE_KEYS. The kind is no
         # longer passed for the ledger, which is keyed by path.
-        def process(metadata, key, filename, default_filename) -> None:
+        def process(metadata: dict | None, key: str, filename: str | None,
+                    default_filename: str) -> None:
             record(self.download_media(game_id, metadata, key, filename, default_filename))
 
         process(game_media.get("1k"), REMOTE_KEYS["backglass"], game.bg_image_path,
-                str(default_media_path(game.full_path_game, "backglass", self.playfieldvariant)))
+                str(default_media_path(game_dir, "backglass", self.playfieldvariant)))
         process(game_media.get("1k"), REMOTE_KEYS["scoreview"], game.dmd_image_path,
-                str(default_media_path(game.full_path_game, "scoreview", self.playfieldvariant)))
+                str(default_media_path(game_dir, "scoreview", self.playfieldvariant)))
         process(
             game_media, "wheel", game.wheel_image_path,
-            str(default_media_path(game.full_path_game, "wheel", self.playfieldvariant)))
+            str(default_media_path(game_dir, "wheel", self.playfieldvariant)))
         process(
             game_media, "cab", game.cab_image_path,
-            str(default_media_path(game.full_path_game, "cab", self.playfieldvariant)))
+            str(default_media_path(game_dir, "cab", self.playfieldvariant)))
         process(
             game_media, "realdmd", game.real_dmd_image_path,
-            str(default_media_path(game.full_path_game, "real_dmd", self.playfieldvariant)))
+            str(default_media_path(game_dir, "real_dmd", self.playfieldvariant)))
         process(
             game_media, "realdmd_color", game.real_dmd_color_image_path,
-            str(default_media_path(game.full_path_game, "real_dmd_color", self.playfieldvariant)))
+            str(default_media_path(game_dir, "real_dmd_color", self.playfieldvariant)))
         process(
             game_media, "flyer", game.flyer_image_path,
-            str(default_media_path(game.full_path_game, "flyer", self.playfieldvariant)))
+            str(default_media_path(game_dir, "flyer", self.playfieldvariant)))
         process(
             game_media.get(self.playfieldresolution), self.playfieldvariant,
             game.playfield_image_path,
-            str(default_media_path(game.full_path_game, "playfield", self.playfieldvariant)))
+            str(default_media_path(game_dir, "playfield", self.playfieldvariant)))
         # Videos, and only the ones the index actually carries. There has never been
         # a bg_video at any resolution, so the backglass video is yours to supply.
         # Nor is there an fss_video: under table type fss the playfield video is
         # simply not offered, and asking would quietly fetch nothing.
-        scoreview_video = default_media_path(game.full_path_game, "scoreview_video",
+        scoreview_video = default_media_path(game_dir, "scoreview_video",
                                              self.playfieldvariant)
         process(game_media.get(self.playfieldvideoresolution),
                 REMOTE_KEYS["scoreview_video"], game.dmd_video_path, str(scoreview_video))
         if self.playfieldvariant == "table":
-            process(game_media.get(self.playfieldvideoresolution), "table_video", game.playfield_video_path, str(default_media_path(game.full_path_game, "playfield_video", self.playfieldvariant)))
+            process(game_media.get(self.playfieldvideoresolution), "table_video", game.playfield_video_path, str(default_media_path(game_dir, "playfield_video", self.playfieldvariant)))
         process(
             game_media, "audio", game.audio_path,
-            str(default_media_path(game.full_path_game, "audio", self.playfieldvariant)))
+            str(default_media_path(game_dir, "audio", self.playfieldvariant)))

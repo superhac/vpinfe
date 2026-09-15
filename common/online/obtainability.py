@@ -15,6 +15,7 @@ handful of tables is not a collection.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from urllib.parse import urlsplit
 
 AVAILABLE = "available"
@@ -53,7 +54,7 @@ def canonical(url: str) -> str:
     return f"{host}{parts.path.rstrip('/')}{query}{tail}"
 
 
-def crowded(urls) -> frozenset[str]:
+def crowded(urls: Iterable[str]) -> frozenset[str]:
     """The canonical links standing behind enough records to be somewhere to browse.
 
     Over the whole catalog, because the question is about the corpus rather than about
@@ -87,7 +88,7 @@ def classify(url: str, shared: frozenset[str] | None = None) -> str:
     return AVAILABLE
 
 
-def best_of(urls, shared: frozenset[str] | None = None) -> str:
+def best_of(urls: Iterable[str] | None, shared: frozenset[str] | None = None) -> str:
     """One answer for a record that lists several links: the most obtainable of them.
 
     A record offering a direct file and a forum thread offers the file - the thread

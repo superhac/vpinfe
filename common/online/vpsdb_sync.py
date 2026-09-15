@@ -18,6 +18,7 @@ from datetime import timedelta
 
 from common import timestamps
 from common.config_access import cfg_get
+from common.config_store import ConfigStore
 
 logger = logging.getLogger("vpinfe.common.online.vpsdb_sync")
 
@@ -33,16 +34,16 @@ EVERY = {
 }
 
 
-def schedule(config) -> str:
+def schedule(config: ConfigStore) -> str:
     return (cfg_get(config, SECTION, "refresh", "daily") or "daily").strip().lower()
 
 
-def checked_at(config) -> str:
+def checked_at(config: ConfigStore) -> str:
     """When the catalog was last asked, ISO 8601 UTC, or "" if it never has been."""
     return (cfg_get(config, SECTION, "checked", "") or "").strip()
 
 
-def due(config, now: float | None = None) -> bool:
+def due(config: ConfigStore, now: float | None = None) -> bool:
     """Whether a check is owed.
 
     Never checked counts as due whatever the schedule, short of `never`: a fresh install
@@ -58,7 +59,7 @@ def due(config, now: float | None = None) -> bool:
     return (moment or 0) - was >= EVERY[wanted].total_seconds()
 
 
-def stamp(config) -> None:
+def stamp(config: ConfigStore) -> None:
     """Record that the question was asked. Written whether or not anything came back:
     a catalog that cannot be reached must not be re-asked on every draw.
 
@@ -74,7 +75,7 @@ def stamp(config) -> None:
         save()
 
 
-def sync(config, force: bool = False) -> dict:
+def sync(config: ConfigStore, force: bool = False) -> dict:
     """Ask the catalog whether it has changed, and take it if it has.
 
     Returns what happened rather than a bool, because "checked and it was already
@@ -101,7 +102,7 @@ def sync(config, force: bool = False) -> dict:
 _WAKE_SECONDS = 60 * 60
 
 
-def start_watch(config, shutdown: threading.Event | None = None) -> threading.Thread:
+def start_watch(config: ConfigStore, shutdown: threading.Event | None = None) -> threading.Thread:
     """Keep the catalog current in the background, for as long as this process runs.
 
     A daemon thread rather than a job: nothing is waiting on it, it has no progress

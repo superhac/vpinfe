@@ -17,7 +17,7 @@ from common.config_access import SettingsConfig
 from common.config_store import ConfigStore
 from common.games import game_index_service, game_repository, info_maintenance, metadata_service
 from common.games.collection_store import CollectionStore
-from common.games.game import GameRecord
+from common.games.game import Game, GameRecord
 from common.games.game_metadata import game_vps_id, vpinfe_section
 from common.games.game_repository import refresh_game
 from common.games.info_file import VPINFE_SECTION
@@ -383,26 +383,13 @@ def associate_vps_to_folder(
         config = _fresh_config()
         vps = VPSdb(SettingsConfig.from_config(config).game_root_dir, config)
 
-        class _LightGame:
-            def __init__(self, folder: Path, vpx: Path) -> None:
-                self.game_dir_name = folder.name
-                self.full_path_game = str(folder)
-                self.full_path_vpx_file = str(vpx)
-                self.bg_image_path = None
-                self.dmd_image_path = None
-                self.playfield_image_path = None
-                self.wheel_image_path = None
-                self.cab_image_path = None
-                self.real_dmd_image_path = None
-                self.real_dmd_color_image_path = None
-                self.flyer_image_path = None
-                self.playfield_video_path = None
-                self.bg_video_path = None
-                self.dmd_video_path = None
-                self.audio_path = None
-
-        vps.download_media_for_game(
-            _LightGame(game_dir, vpx_file), vps_entry.get("id"), meta_config=meta)
+        # A Game with nothing resolved yet: the downloader reads the media paths to
+        # see what is already on disk, and for a folder being associated the answer is
+        # nothing. Every one of those fields already defaults to None.
+        fresh = Game(game_dir_name=game_dir.name, full_path_game=str(game_dir),
+                     full_path_vpx_file=str(vpx_file))
+        vps.download_media_for_game(fresh, str(vps_entry.get("id") or ""),
+                                    meta_config=meta)
 
     from common.games.media_service import invalidate_media_cache
     invalidate_media_cache()
