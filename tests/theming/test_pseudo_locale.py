@@ -27,7 +27,8 @@ from tests.support.live_instance import LiveInstance
 ROOT = Path(__file__).resolve().parents[2]
 
 # Sections whose screens are mostly not ours to translate, and so cannot be read this
-# way: `logs` is log lines (English on purpose - see §9 of the design), `themes` and
+# way: `logs` is log lines, English on purpose because a log is read by one person
+# working out what happened and moves between installs; `themes` and
 # `extensions` are third-party manifest text, and `about` is what the machine reports
 # about itself. Their chrome is covered by the static checks in
 # tests/invariants/test_i18n_catalog.py; this one would drown in their content.

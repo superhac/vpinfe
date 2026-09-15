@@ -105,7 +105,7 @@ DISPLAY_KWARGS = {"label", "text", "title", "placeholder", "tooltip", "help", "m
                   "group", "detail", "confirm"}
 # Constructors whose `description` and `title` are the API's own documentation - the
 # OpenAPI page and the capability list an integrator reads, not anything on a screen.
-# Same line §9 draws for logs and docs/: it says the same thing on every install.
+# Same line drawn for logs and docs/: it says the same thing on every install.
 API_DOCUMENTATION = {"Query", "Header", "Path", "Body", "Form", "File", "Depends",
                      "FastAPI", "APIRouter", "Capability", "Field"}
 
