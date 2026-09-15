@@ -54,3 +54,41 @@ jobs:
       - name: Run frontend tests
         run: npm test
         working-directory: tests/js
+
+  # A frozen build carries its own 3.14. A source checkout uses whatever the machine has,
+  # and the Debian a cabinet runs ships 3.13 - where annotations are evaluated where they
+  # are written rather than lazily. tests/invariants/test_annotations_are_deferred.py
+  # catches the cause; this catches anything else that only shows up on the older one.
+  imports-on-oldest:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Import every module
+        run: |
+          python - <<'PY'
+          import importlib, pathlib, sys
+          failed = []
+          for package in ("apps", "common", "console", "extensions", "frontend", "httpapi"):
+              for path in sorted(pathlib.Path(package).rglob("*.py")):
+                  name = ".".join(path.with_suffix("").parts)
+                  if name.endswith(".__init__"):
+                      name = name[: -len(".__init__")]
+                  try:
+                      importlib.import_module(name)
+                  except Exception as exc:
+                      failed.append(f"{name}: {type(exc).__name__}: {exc}")
+          for one in failed:
+              print(one)
+          sys.exit(1 if failed else 0)
+          PY
