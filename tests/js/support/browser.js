@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { after } from "node:test";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -12,6 +13,19 @@ import { dirname, join } from "node:path";
 // What `_serve_core_words` sends a page: the frontend's own namespace and the shared
 // vocabulary. Read from the real catalog so a test asserting on a word is asserting on
 // the word that ships, not on one written twice.
+// Every timer the stubbed browser hands out, so the file can end even if core left one
+// re-arming. Registered once: `after` at module scope runs when the test file is done.
+const timers = new Set();
+const intervals = new Set();
+
+after(() => {
+  for (const timer of timers) clearTimeout(timer);
+  for (const timer of intervals) clearInterval(timer);
+  timers.clear();
+  intervals.clear();
+});
+
+
 function coreWords() {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
   const all = JSON.parse(readFileSync(join(root, "common/i18n/catalogs/en.json"), "utf8"));
@@ -239,15 +253,14 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
     Number,
     Boolean,
     Error,
-    // Unreferenced, so a timer the code under test still has running cannot keep the
-    // runner alive after a test has passed. A browser page never exits and core's own
-    // timers are written for that - a held key repeats until it is released - so without
-    // this a test that presses without releasing hangs the suite rather than failing it.
+    // Tracked and cleared when the file ends, never unreferenced: an unreferenced timer
+    // cannot resolve a promise that is awaiting it, and core awaits one.
     setTimeout: (fn, ms, ...rest) => {
       const timer = setTimeout(fn, ms, ...rest);
-      return timer && timer.unref ? timer.unref() : timer;
+      timers.add(timer);
+      return timer;
     },
-    clearTimeout,
+    clearTimeout: (timer) => { timers.delete(timer); return clearTimeout(timer); },
     // Held rather than scheduled: the gamepad poll re-arms itself every frame, so a real
     // frame would spin a test forever. Keeping the callback lets a test that cares about
     // a held button step the poll itself - `frames.step()` - which is the only way to
@@ -256,9 +269,10 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
     cancelAnimationFrame: () => {},
     setInterval: (fn, ms, ...rest) => {
       const timer = setInterval(fn, ms, ...rest);
-      return timer && timer.unref ? timer.unref() : timer;
+      intervals.add(timer);
+      return timer;
     },
-    clearInterval,
+    clearInterval: (timer) => { intervals.delete(timer); return clearInterval(timer); },
     console,
   };
 }

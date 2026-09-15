@@ -65,7 +65,10 @@ def chromium_path() -> str | None:
 
     async def drivable() -> bool:
         with suppress(Exception):
-            async with BrowserSession(path):
+            async with BrowserSession(path) as session:
+                # Navigating, not just connecting: a browser can do the second and
+                # not the first.
+                await session.navigate("about:blank")
                 return True
         return False
 
