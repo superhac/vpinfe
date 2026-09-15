@@ -1,10 +1,9 @@
 """What belongs in a game export - one answer for every transport.
 
 The VPXZ download and the mobile Web Send are the same operation with different
-plumbing, and both used to ship the entire folder: every alternate table, all
-media, everything. The default is now a standalone bundle for one table -
-export a game, not a folder - which also makes multi-.vpx folders come out
-right. `everything=True` keeps the full-folder behavior as the explicit choice.
+plumbing, and they answer the same way. The default is a standalone bundle for one
+table - export a game, not a folder - which is also what makes a multi-.vpx folder
+come out right. `everything=True` ships the whole folder as the explicit choice.
 """
 
 from __future__ import annotations
@@ -64,9 +63,8 @@ def prune_info(info_text: str, bundled_arcnames: set[str]) -> str:
     The manifest should describe the archive, in both modes. Everything else in
     the file - authors, VPS identity, user data - passes through untouched.
 
-    Both keys are folder-relative paths, so this is a direct comparison. It used to
-    match basenames out of the old Medias `Path` field, which could not tell
-    medias/wheel.png from a wheel.png at the folder root.
+    Both keys are folder-relative paths, so this is a direct comparison. Matching on
+    basenames cannot tell medias/wheel.png from a wheel.png at the folder root.
     """
     try:
         data = json.loads(info_text)

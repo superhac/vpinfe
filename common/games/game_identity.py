@@ -134,7 +134,7 @@ def resolve_ids(games: Iterable[Any],
 
     A folder carries its id, so two folders holding one means the same game is in the
     library twice - a copy, or the same tree reached through two locations. Re-minting
-    the loser used to settle it silently, and that is a write to somebody's file to
+    the loser would settle it silently, and that is a write to somebody's file to
     resolve something only they can: it makes the copy a different game for good, and
     anything that named it goes with it.
 

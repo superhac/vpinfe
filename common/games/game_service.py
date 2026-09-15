@@ -202,11 +202,11 @@ def search_vpsdb(term: str, limit: int = 50) -> list[dict]:
     game's own name fail to find the game, which is the query a surface seeds by default.
 
     Sorted before the window is taken, and by name then year. Two reasons, and the
-    second is the one that mattered: this used to stop at `limit` in catalog order, so
-    the answer somebody wanted could be cut off by where it happened to sit in the file.
-    And there is no ranking, deliberately - a match scorer was measured here and retired
-    for being confidently wrong more than half the time, so an order that implies "best
-    first" would carry a confidence the evidence does not support.
+    second is the one that matters: stopping at `limit` in catalog order cuts off the
+    answer somebody wanted by where it happens to sit in the file. And there is no
+    ranking, deliberately - a scorer over this question is confidently wrong more often
+    than not, so an order implying "best first" would carry a confidence nothing
+    supports.
     """
     wanted = _plain(term or "").split()
     if not wanted:
@@ -640,10 +640,9 @@ def add_table_file(game_dir: Path, source: Path, table_id: str) -> dict:
     table with no id on the next scan, which is a worse state than the copy not having
     happened.
 
-    **Its companions come with it.** A table without its backglass is not the table -
-    measured on a real library, 696 of 702 tables had one beside them and 704 had
-    settings, and bringing the game file alone leaves every one of those behind. They
-    are copied after the table is recorded, and one that fails is reported rather than
+    **Its companions come with it.** A table without its backglass is not the table, and
+    a table without its settings is not set up; bringing the game file alone leaves both
+    behind. They are copied after the table is recorded, and one that fails is reported rather than
     losing the table that did arrive.
 
     Answers with what landed: the table's filename, and the companions that came too.

@@ -1,6 +1,6 @@
 """Every axis a filter collection can constrain, declared once.
 
-One definition per axis drives four things that used to be written out separately: what
+One definition per axis drives four things at once: what
 a stored filter may contain, how it matches, what control the Manager UI renders, and
 what the API's schema says. Adding an axis is an entry here.
 
@@ -122,7 +122,7 @@ class FilterAxis:
 
     `scope` says which object the criterion is about. It is what removes the ambiguity
     in `manufacturer`, `year` and `type`, which exist on a game *and* on each of its
-    tables and were previously resolved by accident.
+    tables, where the bare name resolves to whichever is reached first.
 
     `name` is stored and the label is shown, so a label can be reworded freely and a name
     never can - and the label is what a *reader* calls it, not a short form of the key.

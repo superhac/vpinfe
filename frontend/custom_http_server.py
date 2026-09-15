@@ -67,9 +67,9 @@ class CustomHTTPServer:
         def _refuse(self) -> str:
             """A path that cannot exist, so the base class 404s.
 
-            Anything not inside a declared mount is not ours to serve. This used to fall
-            through to SimpleHTTPRequestHandler, which resolves against the working
-            directory - so the whole install, .git included, was readable over HTTP.
+            Anything not inside a declared mount is not ours to serve. Falling through to
+            SimpleHTTPRequestHandler resolves against the working directory, which makes
+            the whole install - .git included - readable over HTTP.
             """
             return os.path.join(NOTHING_HERE, "denied")
 

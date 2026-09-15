@@ -65,9 +65,8 @@ def show_realdmd_art(*, game: Game | None = None, ini_config: ConfigStore | None
 def _updater(ini_config: ConfigStore) -> real_dmd.RealDmdUpdater:
     """One updater for the process, not one per frontend window.
 
-    Three windows each hold an API instance. Only the `table` window used to make
-    this call, enforced in the theme-served JS; on the bus every subscriber hears
-    every event, so the panel would be written three times over.
+    Three windows each hold an API instance, and on the bus every subscriber hears every
+    event - so one updater per window would write the panel three times over.
     """
     global _realdmd_updater
     if _realdmd_updater is None:

@@ -42,10 +42,11 @@ def get_display_monitors(refresh: bool = False) -> list[Any]:
     """Every display this machine has, or none when it cannot say.
 
     Enumeration fails on a machine with no session attached - a headless server, a
-    container, a session that has gone away - and it used to raise from here. The theme
-    asks for this list while it is starting up, so the throw left the frontend connected,
-    serving contract 2, and never finishing: a blank screen with everything reporting
-    healthy. No monitors is a thing callers already handle; not answering is not.
+    container, a session that has gone away - and raising from here would strand the
+    frontend. The theme asks for this list while it is starting up, so a throw leaves it
+    connected, serving contract 2, and never finishing: a blank screen with everything
+    reporting healthy. No monitors is a thing callers already handle; not answering is
+    not.
     """
     global _monitors_cache
     with _monitors_lock:

@@ -1,9 +1,8 @@
 """What the user set on a theme, kept where a theme update cannot reach it.
 
-The values used to be written into the installed theme package, and updating a theme
-deletes that package - so every update silently reset every option the user had chosen.
-They live in their own directory now, one file per theme, and survive an update, a
-reinstall and a delete.
+Updating a theme deletes the installed package, so an option written inside it is an
+option the next update silently resets. These live in their own directory instead, one
+file per theme, and survive an update, a reinstall and a delete.
 
 Keyed by folder name rather than by the registry key, because only the folder name is
 universal: a local or side-loaded theme has no registry entry, and `[Settings] theme`

@@ -205,10 +205,9 @@ def games_json(entries: Sequence[Entry], contract: int = CURRENT_CONTRACT, *,
 def sort_state(order: dict) -> tuple[str, str]:
     """The order a collection resolves by, and its direction.
 
-    It used to translate into the five 2.x sort names, which could not express year,
-    rating or play time - those came back as `Alpha`, so the wheel reported a title sort
-    for a collection ordered by something else. There is one vocabulary now, so there is
-    nothing to translate and nothing to lose.
+    One vocabulary, so there is nothing to translate and nothing to lose. The five 2.x
+    sort names cannot express year, rating or play time, and collapsing those to `Alpha`
+    reports a title sort for a collection ordered by something else.
 
     `manual` passes through: apply_sort leaves the curator's array alone, deliberately
     rather than by not recognizing the name.
@@ -344,13 +343,13 @@ def apply_filters(api: API, letter: str | None = None, theme: str | None = None,
 def apply_sort(games: list[Any], order_by: str, direction: str | None = None) -> int:
     """Re-order the wheel, in place, by one of the orders a collection can carry.
 
-    This used to be a second sorter: five of the eight orders, keyed on the 2.x sort
-    names, written to match `collection_resolver` and drifting from it by construction -
-    a collection ordered by year or rating had no name here at all, so it arrived as
-    `Alpha` and the wheel was sorted by title while claiming to be sorted by year.
+    One implementation, shared with `collection_resolver`. A second sorter here would
+    cover five of the eight orders and drift from the first by construction: a collection
+    ordered by year or rating has no name in the 2.x vocabulary, arrives as `Alpha`, and
+    the wheel sorts by title while claiming to sort by year.
 
-    Now there is one implementation. `order_by` is the collection's own token, and the
-    2.x spellings still arrive from the collection menu, so they are normalized first.
+    `order_by` is the collection's own token, and the 2.x spellings still arrive from the
+    collection menu, so they are normalized first.
     """
     order_by = ORDER_ALIASES.get(order_by, order_by)
     # A caller that names no direction gets descending, as it always has.

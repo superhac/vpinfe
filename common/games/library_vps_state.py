@@ -4,7 +4,7 @@
 the only way to see that a kind is held by nothing at all - and it counts `state_of`'s
 answer rather than forming a second opinion of its own.
 
-On a job, because resolving media for every game measured 650ms over 149 folders.
+On a job, because resolving media for every game is slow enough to be felt.
 Resolving only the kinds this needs is not the fix it looks like: virtual kinds borrow
 from `logo` and a `fallback_kind` borrows another kind's winner, so a filtered resolve
 answers differently rather than faster.

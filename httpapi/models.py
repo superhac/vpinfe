@@ -1510,10 +1510,10 @@ class CollectionFilters(ApiModel):
     the vocabulary the filter engine already uses, kept rather than translated so
     a client sees the same values the Manager UI shows.
 
-    `order_by` is the field the collection sorts on and `direction` is which way. They
-    used to be `sort_by` and `order_by`, which is what 2.x wrote into the criteria block
-    on disk - and there `order_by` is the direction. Carrying that up here gave one word
-    two meanings on the wire; the disk keeps its spelling, the wire does not repeat it."""
+    `order_by` is the field the collection sorts on and `direction` is which way. On disk
+    the 2.x criteria block spells them `sort_by` and `order_by`, and there `order_by` is
+    the direction - carrying that up here would give one word two meanings on the wire.
+    The disk keeps its spelling; the wire does not repeat it."""
 
     # The many-valued axes accept a list and are always reported as one. A criterion
     # has always been stored comma-joined and the matcher has always split it, so this
@@ -2231,8 +2231,8 @@ class VpsRelease(ApiModel):
     """One build of a machine, as VPSdb lists it.
 
     Every field is as optional as the catalog is. `img_url` is the exception worth
-    naming: it is present on 95% of releases where it is on 39% of the entries above,
-    so a surface over releases can lay out around having a picture.
+    naming: it is present on nearly every release where it is on a minority of the
+    entries above, so a surface over releases can lay out around having a picture.
     """
 
     vps_file_id: str

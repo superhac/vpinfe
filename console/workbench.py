@@ -1003,9 +1003,9 @@ def _offered_media(context: dict[str, Any]) -> dict[str, int]:
 def _pick_slot(context: dict[str, Any], kind: str, draw: Any) -> None:
     """Pick a slot to see the detail of. Clicking the picked one again does nothing.
 
-    It used to put the panel away, which made one control mean two things and cost the
-    selection to a mis-click. The detail sits beside the map rather than over it, so
-    there is nothing to dismiss - a slot stays picked until another is.
+    Putting the panel away would make one control mean two things and cost the selection
+    to a mis-click. The detail sits beside the map rather than over it, so there is
+    nothing to dismiss - a slot stays picked until another is.
     """
     slot = context["slot"]
     if slot["kind"] == kind:
@@ -1195,8 +1195,8 @@ async def _game_block(context: dict[str, Any]) -> None:
 
     Shown whichever subject is selected. A table belongs to a game, and the VPS match,
     the manufacturer and the theme are as true while you are looking at one of its files
-    as they are otherwise. Substituting one for the other, which this used to do, threw
-    away half of what somebody was looking at.
+    as they are otherwise. Substituting one for the other throws away half of what
+    somebody is looking at.
     """
     with ui.column().classes("gap-0 console-form"):
         _identity_rows(context)
@@ -1803,8 +1803,7 @@ def _details_differ(context: dict[str, Any],
 
     Absent the whole time until somebody corrects a match, which is the only thing that
     parts them: the details were written from the entry, so they agree with it until
-    the entry changes underneath them. Measured on a real library - across 71 matched
-    games, not one field disagreed.
+    the entry changes underneath them.
 
     Adopting is one act over all of them rather than a choice per field. They are one
     machine's facts, and taking this one's year beside that one's maker would describe
@@ -2190,9 +2189,8 @@ def panel_note_for_launcher(table: dict[str, Any]) -> tuple[Any, Any]:
 def _launcher_pick(context: dict[str, Any], table: dict[str, Any]) -> Callable[[], None]:
     """Which launcher plays this table, chosen from the ones this install has.
 
-    A picker, not a path. It used to be a free-text `alt_launcher` field, which asked
-    somebody to type a binary that nothing validated and that every other table would
-    have had to be told about separately.
+    A picker, not a path. A free-text field asks somebody to type a binary that nothing
+    validates, and every other table would have to be told about it separately.
 
     Empty is the default rather than a fourth state - an absent mapping already means
     "whichever is the default", and offering a blank as well as a default would be two
@@ -2659,8 +2657,8 @@ async def _pick_a_record(context: dict[str, Any], listed_as: str, label: str,
                          redraw: Callable[[], None]) -> None:
     """Bind one file to a record VPSdb publishes, or take the binding back.
 
-    The assets ledger's twin of `_pick_a_release`, unordered for the same reason: the
-    scorer that would rank these was measured at chance.
+    The assets ledger's twin of `_pick_a_release`, unordered for the same reason: a
+    scorer over this question is no better than chance.
     """
     library = context["library"]
     vps_id = str(context["game"].get("vps_id") or "")
@@ -2727,7 +2725,7 @@ async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> Non
     """Bind this table to one of the entry's builds, or take the binding back.
 
     Ordered as VPSdb holds them and marked with nothing: a scorer over this exact
-    question was measured at chance. What the panel does offer is the file's own
+    question is no better than chance. What the panel does offer is the file's own
     version and authors, which is not a ranking - it is the user's own data, put where
     they can compare it against the list rather than remembering it.
     """
@@ -2764,7 +2762,7 @@ def _yours(table: dict[str, Any]) -> None:
     """What this file says about itself, so the list is compared against something.
 
     A `.vpx` carries a version and its authors and VPS names releases by the same two,
-    which is the only honest handle here - VPS records a filename on 3% of them.
+    which is the only honest handle here - VPS records a filename on almost none of them.
     """
     said = str(table.get("version") or "")
     made_by = ", ".join(str(name) for name in (table.get("authors") or [])[:4])
@@ -3069,9 +3067,9 @@ def _beside(mark: Callable[[], None], held: dict, field: Any,
             clear: Callable, playing: bool = False) -> Callable[[], None]:
     """The mark, and where it is somebody's own value, the way back off it.
 
-    Clear only where there is something to clear. On every row it would be a control
-    that does nothing on almost all of them - 98% of this program's settings are
-    untouched - and a row of inert verbs teaches people to stop reading them.
+    Clear only where there is something to clear. Almost every setting in this program is
+    untouched, so on every row it would be a control that does nothing, and a row of
+    inert verbs teaches people to stop reading them.
     """
     def draw() -> None:
         with ui.row().classes("items-center gap-2 no-wrap"):
@@ -3796,9 +3794,9 @@ async def _collection_contents(context: dict[str, Any]) -> None:
 def _rule_region(context: dict[str, Any], row: dict[str, Any]) -> None:
     """What kind of collection this is, what fills it, and how it is presented.
 
-    Three regions, always in this order and always present. Rules used to be behind an
-    "Add a rule" button, which charged a click to reveal something permanent and hid
-    from a reader that a rule was possible at all.
+    Three regions, always in this order and always present. Putting rules behind an "Add
+    a rule" button charges a click to reveal something permanent, and hides from a reader
+    that a rule is possible at all.
     """
     dynamic = _is_dynamic(row) or _drafting(context)
     _kind_control(context, row, dynamic)

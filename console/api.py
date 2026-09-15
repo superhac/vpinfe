@@ -25,9 +25,9 @@ _IMPORT_TIMEOUT = 900
 def local_base_url() -> str:
     """This install's own API, always.
 
-    It used to follow the library setting, so an install reading somebody else's catalog
-    ran its whole Console against that machine - settings included, which is now exactly
-    the thing configuration must not do. Nothing is lost by pinning it: the nav is
+    Following the library setting would run the whole Console against another machine for
+    an install reading somebody else's catalog - settings included, which is exactly what
+    configuration must not do. Nothing is lost by pinning it: the nav is
     derived from features, so an install with no library of its own has no library
     sections for a remote catalog to fill.
     """
@@ -970,10 +970,9 @@ class ApiClient:
     def devices(self) -> list[dict]:
         """Every device this install knows, as it knows them.
 
-        This used to fold in two things the registry could not hold: the install you are
-        sitting at, and the one vpx_mobile device the ini could name. The registry records
-        itself at startup now, and a phone is a registry entry with a minted id, so both
-        are ordinary rows and this is a plain read.
+        A plain read. The install you are sitting at records itself at startup and a phone is
+        a registry entry with a minted id, so both are ordinary rows and nothing is folded
+        in here.
         """
         return self._get("/devices").get("devices", [])
 

@@ -226,10 +226,9 @@ def _ordered(entries: list, order_by: str, descending: bool = False) -> list:
 def order_games(games: list, order_by: str, descending: bool = False) -> list:
     """`games` in the order a collection would put them, sorted in place.
 
-    The wheel re-sorts games rather than entries, and used to do it through a second
-    implementation that knew five of the eight orders. This is that implementation
-    retired: one set of keys, one direction rule, and the same tiebreak - title, since
-    two games cannot share the table id an entry list tiebreaks on.
+    The wheel re-sorts games rather than entries, through this one implementation: one set
+    of keys, one direction rule, and the same tiebreak - title, since two games cannot
+    share the table id an entry list tiebreaks on.
 
     `manual` means the array is already the order, so it is left alone.
     """

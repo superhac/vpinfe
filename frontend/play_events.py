@@ -1,8 +1,7 @@
 """What the frontend does about a launch, wherever the launch came from.
 
-The window messages used to be written into the launch itself, which is why only
-launches started from the wheel produced them. They are subscribers now, so a
-launch from the Remote Control page or the API drives the windows the same way.
+The window messages are subscribers rather than part of the launch, so a launch from
+the Remote Control page or the API drives the windows the same way the wheel does.
 
 Registered once per process against the shared bridge - every API instance sends
 through the same one, so registering per window would send each message three

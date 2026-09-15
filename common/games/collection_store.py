@@ -631,9 +631,9 @@ class CollectionStore:
         """Remove one ref, or every ref naming this game.
 
         `None` is every ref - what "remove this game" means. `""` is the *one* ref that
-        names no table, and an id is the one naming it. Those two used to be the same
-        value, so deleting the row that follows a game's default deleted every other
-        row for that game as well, silently.
+        names no table, and an id is the one naming it. Collapsing those two deletes every
+        row for a game when only the one following its default was meant, and does it
+        silently.
         """
         record = self._require_mutable(section)
         members = _member_refs(record.get("members"))

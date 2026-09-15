@@ -37,9 +37,8 @@ def _safe_icon_stem(filename: str) -> str:
 def save_collection_icon(filename: str, content: bytes) -> str:
     """Write an icon and answer the name it was stored under.
 
-    In core rather than in the Manager UI, which is where it used to live: an icon is
-    a property of a collection, so every surface that edits one needs to write it and
-    only one of them could. A name already taken gets a counter rather than being
+    In core rather than in one surface: an icon is a property of a collection, so every
+    surface that edits one needs to write it. A name already taken gets a counter rather than being
     overwritten - two collections may reasonably both offer "logo.png".
     """
     suffix = Path(filename).suffix.lower()

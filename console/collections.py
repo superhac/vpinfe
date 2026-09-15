@@ -225,10 +225,9 @@ def build(collections: list[dict[str, Any]], library: Any,
 def _ask_new(library: Any, act: Callable) -> None:
     """A name. Nothing else.
 
-    The kind used to be asked here and is not a question at creation: it is decided by
-    what the collection ends up holding, and changed in the panel where the games and
-    the rule both are. Asking up front made it a mode, which is what making them
-    removed.
+    The kind is not a question at creation: it is decided by what the collection ends up
+    holding, and changed in the panel where the games and the rule both are. Asking up
+    front would make it a mode.
     """
     with ui.dialog() as dialog, ui.card():
         ui.label(t("console.collections.new_collection")).classes("console-card-title")

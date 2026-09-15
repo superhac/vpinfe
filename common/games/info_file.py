@@ -178,14 +178,13 @@ def _primer_tutorial(vpsdata: object) -> str:
 def info_from_vps(vps_entry: dict | None) -> dict[str, Any]:
     """The `Info` block for one catalog entry.
 
-    Info is wholly what VPS knows about the machine. Rom and Authors used to be copied
-    in from the parsed .vpx and were per-table values all along - they live on their
-    own tables entry now.
+    Info is wholly what VPS knows about the machine. Rom and Authors are per-table values
+    and live on the tables entry, not here.
 
-    A function rather than a method because associating a folder is no longer the only
-    time it is needed: correcting a match leaves every one of these describing the
-    machine the game used to be, and adopting the entry's details has to build the same
-    block the association would have built.
+    A function rather than a method because associating a folder is not the only time it
+    is needed: correcting a match leaves every one of these describing the entry they
+    were taken from, and adopting the new entry's details has to build the same block
+    the association would have built.
     """
     entry = vps_entry or {}
     info = {

@@ -144,9 +144,9 @@ async def set_image(name: str, file: UploadFile = File(...)
                     ) -> models.CollectionResource:
     """Upload an icon and hang it on this collection.
 
-    Served under /api/v1 rather than only in the Manager UI's own static tree, which is
-    where collection icons used to live: the filename was on the resource and no client
-    outside that one process could either write one or fetch it back.
+    Served under /api/v1 rather than only in one surface's own static tree: the filename
+    is on the resource, so a client outside that process has to be able to write one and
+    fetch it back.
     """
     content = await file.read()
     return models.CollectionResource(**await run_in_threadpool(

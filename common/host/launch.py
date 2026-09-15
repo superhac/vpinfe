@@ -1,8 +1,7 @@
 """Launching a game, once, for everybody.
 
-The wheel, the Remote Control page and the HTTP API all arrive here. They used to
-each run their own version, which is how one of them ended up recording play data
-and the others did not.
+The wheel, the Remote Control page and the HTTP API all arrive here, so there is one
+launch path and not three that drift - play data is recorded for all of them or none.
 
 Everything specific to a caller is a subscriber rather than an argument: the
 frontend's window messages and the last-table record are registered in `frontend/`,

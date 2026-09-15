@@ -91,9 +91,9 @@ def apply_start_count_update(config: dict, played_at: int | None = None,
 def apply_runtime_update(config: dict, elapsed_seconds: float, table: str = "") -> dict:
     """Add one session to the play time. Seconds, at both levels.
 
-    Each session used to be rounded up to a whole minute before it was added, so a
-    three-second look at a table cost a minute and a run of them ran the total away from
-    reality. The seconds are the record; the minutes are a view of it.
+    The seconds are the record; the minutes are a view of it. Rounding a session up to a
+    whole minute makes a three-second look at a table cost a minute, and a run of them
+    runs the total away from reality.
     """
     seconds = max(0, int(round(float(elapsed_seconds))))
     total = run_time_seconds(config) + seconds

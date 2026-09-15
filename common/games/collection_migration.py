@@ -64,7 +64,7 @@ def ensure_order_direction(collections: CollectionStore) -> int:
 def ensure_last_played(collections: CollectionStore) -> bool:
     """Give this file a Last Played that derives itself. Returns whether it wrote.
 
-    Converts the row the launcher used to maintain, in place, keeping its name, icon and
+    Converts a hand-maintained Last Played row, in place, keeping its name, icon and
     position - or creates one when there is none. A fresh install gets it too: nothing
     creates it on first launch any more, so seeding is the only way a new user has one.
 

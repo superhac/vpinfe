@@ -239,7 +239,7 @@ def _read_hub() -> dict[str, Any]:
     """Every blocking call the page needs, made once off the event loop.
 
     The Console consumes its own process over HTTP, so a synchronous page handler asking
-    the API for 147 games deadlocks: uvicorn cannot answer a request it is blocked
+    the API for the library deadlocks: uvicorn cannot answer a request it is blocked
     inside. Keeping the loop free is the cost of the boundary, and it is worth paying -
     the alternative is importing the services, which is what the boundary exists to
     prevent.
@@ -947,10 +947,10 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     def page_header() -> None:
         """The page's name, and nothing else.
 
-        It used to carry two controls that belonged to neither the page nor a row: a
-        library rescan, which is about the library and so shows in the library's own
-        toolbar, and a jobs readout, which is about the whole install and lives in the
-        rail's foot. Both drew on Settings and Devices, where neither meant anything.
+        Two controls belong to neither the page nor a row: a library rescan, which is about
+        the library and so shows in the library's own toolbar, and a jobs readout, which
+        is about the whole install and lives in the rail's foot. On Settings and Devices
+        neither would mean anything.
 
         Here rather than in an app header because each pane already owns its chrome,
         and a fourth band would cost height on every page for one line.

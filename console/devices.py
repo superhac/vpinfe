@@ -593,9 +593,9 @@ def door_reason(device: dict[str, Any], reach: dict[str, Any] | None,
 def settings_door(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     """The way into that install's own Console, or the reason there is not one.
 
-    A door rather than a section. Its settings used to be thirteen rail entries here,
-    drawn from a schema fetched over HTTP - which meant this build deciding how another
-    build's settings look, and that is exactly where version skew bites.
+    A door rather than a section. Drawing that install's settings here, from a schema
+    fetched over HTTP, would mean this build deciding how another build's settings look -
+    which is exactly where version skew bites.
     """
     device = _of(context)
     here = _is_local(context)

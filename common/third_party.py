@@ -39,10 +39,9 @@ def find_named_path(base: Path, names: tuple[str, ...]) -> Path | None:
 def third_party_base_candidates(env_var: str, package_dir: str) -> list[Path]:
     """Where to look for a bundled library: an override, then where the build put it.
 
-    This was five candidates. Measured on real frozen builds of both kinds, three of
-    them were the same directory reached three ways - `sys._MEIPASS` equals `APP_ROOT`,
-    and inside a .app both are `Contents/Frameworks`, which `Contents/Resources` mirrors
-    - and a fourth, the executable's own directory, is never where anything ships.
+    Two, because the other candidates are not distinct: `sys._MEIPASS` equals `APP_ROOT`,
+    and inside a .app both are `Contents/Frameworks`, which `Contents/Resources` mirrors.
+    The executable's own directory is never where anything ships.
     """
     candidates: list[Path] = []
 

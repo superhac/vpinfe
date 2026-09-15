@@ -48,7 +48,7 @@ class View:
 def mint_id() -> str:
     """A new custom view's id.
 
-    Minted rather than derived from the name, which is what it used to be. An id that is
+    Minted rather than derived from the name. An id that is
     a slug of the name changes when the name does, and anything keyed to it - geometry,
     most of all - is orphaned by a rename. The name is a label; this is the identity.
     """

@@ -1,8 +1,8 @@
 """Binds the lifecycle vocabulary to the things that actually start and stop.
 
 Every stop and restart of this process ends the same way: `run_frontend_loop` returns and
-`main.py` runs `shutdown_services`. Reaching for the browser directly is what used to skip
-it, so those performers only ever make that loop return.
+`main.py` runs `shutdown_services`. Reaching for the browser directly skips it, so those
+performers only ever make that loop return.
 
 Stopping a table is the exception and does not touch the loop: the table is a child of
 this install rather than a part of it, and closing one leaves VPinFE and its windows up.

@@ -875,6 +875,22 @@ it tests reads `roms.json` and the config paths at import. Those exemptions are 
 An exemption carries its reason, not the measurements behind it. A count in a config file
 goes stale and gets believed anyway. Put it in the commit that added the exemption.
 
+### A rule needs a check that reads the whole tree
+
+A check scoped to a diff has no memory. It sees a file at the moment something touches it
+and never again, so whatever is waved through once, or written before the rule existed, is
+invisible from then on — and the residue grows under a check that goes on reporting clean.
+Every convention here that has a test sits at zero. The ones that had only a report had
+been drifting for weeks, and nothing said so.
+
+So a convention is not established when it is written down here, and not when an editor
+warns about it. It is established when something reads the whole tree and fails. The
+warning is for fast feedback; the test is what makes the rule true.
+
+Some of a rule is not mechanizable, and that part stays a judgment — a check that fires on
+code that is fine is one everybody learns to wave through, which is the same failure from
+the other side. Gate the half a checker can be certain of, and let the rest be read.
+
 ### Auto-fix is not always safe
 
 `--fix` will remove an import it thinks is unused, including one that exists purely for its

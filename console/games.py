@@ -527,8 +527,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         """One menu, filled for whatever was right-clicked.
 
         Two menus cannot both hang off the grid wrapper, and the wrapper sees every
-        right-click - which is why the row menu used to appear over a header offering to
-        launch a column.
+        right-click - so one menu, filled from what was under the pointer. Otherwise the
+        row menu opens over a header, offering to launch a column.
         """
         context_menu.clear()
         with context_menu:
@@ -572,10 +572,9 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     async def refresh_game(game_id: str) -> None:
         """Put one game's row back on screen after something changed it.
 
-        A transaction rather than a page rebuild. Rebuilding is what this used to do,
-        and it reads as the grid flashing: scroll position, focus and the open panel all
-        go, for a write that touched one row. `getRowId` is the row's id, so a
-        transaction leaves all three alone.
+        A transaction rather than a page rebuild. A rebuild reads as the grid flashing:
+        scroll position, focus and the open panel all go, for a write that touched one
+        row. `getRowId` is the row's id, so a transaction leaves all three alone.
         """
         fresh = next((row for row in await offload.io(library.game_rows)
                       if row.get("id") == game_id), None)

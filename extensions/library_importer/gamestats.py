@@ -6,7 +6,7 @@ them, and nobody can reconstruct them by hand.
 
 `GameStats.csv` sits beside the frontend and is UTF-16 with a BOM, which is the same
 trap its ini carries - read as UTF-8 it fails outright. Every column is text and most
-are empty: of 746 rows in a real file, 92 had a play count and 33 had categories.
+are empty, so a blank is the normal case rather than a malformed row.
 """
 
 from __future__ import annotations

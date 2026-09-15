@@ -112,8 +112,8 @@ def as_string_list(value: Any) -> list[str]:
 
     These come back as lists from a normal metadata build, but a hand-edited or
     badly-written .info can hold a scalar - including a stringified list. One such
-    game used to be enough to make every consumer's type assumption wrong; now it
-    is contained here.
+    game is enough to make every consumer's type assumption wrong, so it is
+    contained here.
 
     A scalar becomes a one-item list rather than being parsed. Reading
     "['a', 'b']" back as two items would mean inventing a syntax for a file format
@@ -657,7 +657,7 @@ def vps_details_differ(config: dict[str, Any], vps_entry: dict[str, Any]) -> dic
 
     Empty for a game whose details came from the entry it is still matched to, which is
     every game that has never been re-matched. Correcting a match is what fills this:
-    the details go on describing the machine the game used to be.
+    the details go on describing the entry they were taken from.
     """
     from common.games.info_file import info_from_vps
 

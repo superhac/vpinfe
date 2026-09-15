@@ -302,14 +302,12 @@ def _table_index(tables_dir: Path,
 
     **Playable, not everything.** A table sits beside its companions and they share its
     stem - `Taxi.vpx`, `Taxi.directb2s`, `Taxi.vbs` - so an index of every file has
-    several answers for one name and returns whichever the directory listed first. A
-    real import recorded a game's script as its table that way, and the game then had no
-    table at all.
+    several answers for one name and returns whichever the directory listed first. That
+    records a game's script as its table and leaves the game with no table at all.
 
-    Listed once for the whole database rather than once per game. A real library put 654
-    games against a folder of some three thousand entries, and asking the folder each
-    time meant two million stat calls across a mounted drive - thirty seconds, for a
-    listing that does not change while it is being read.
+    Listed once for the whole database rather than once per game. Asking the folder again
+    for every game is a stat call per candidate across a mounted drive, for a listing
+    that does not change while it is being read.
 
     `scandir` rather than `iterdir` because it carries the file-or-directory answer back
     with the name, where `is_file()` is another call across the same mount.
@@ -350,10 +348,9 @@ BACKUP_SUFFIX = re.compile(r"\.old\[\d+\]$", re.IGNORECASE)
 def _database_text(path: Path) -> tuple[str | None, list[str]]:
     """The database as text, whatever it was written in.
 
-    These files carry no encoding declaration and are not reliably one encoding. A real
-    library read here was ASCII throughout except for eleven Windows-1252 bytes inside
-    table names - a middle dot in `1(dot)2(dot)3... (Talleres 1973)` - which is enough to
-    make a strict parse fail on the file and lose all 705 games.
+    These files carry no encoding declaration and are not reliably one encoding. One
+    Windows-1252 byte inside a table name - a middle dot, say - is enough to make a
+    strict parse fail on the whole file and lose every game in it.
 
     That is the shape worth guarding: an all-or-nothing loss caused by one cosmetic
     character in one name. So the encoding is tried rather than assumed, and the last
@@ -415,9 +412,8 @@ def read_media(media_root: Path | str, games: list[SourceGame]) -> list[SourceGa
 
     **Two names, because the two frontends disagree about which one they use.** PinballX
     names media after the `name` attribute, which is the table file. PinballY names it
-    after the display name. Measured against a real PinballY library of 654 games: 5
-    matched on the name attribute and 621 on the display name, so picking either one
-    alone loses almost everything from the other frontend. Both are offered and the
+    after the display name. Picking either one alone loses almost everything from the
+    other frontend. Both are offered and the
     longest match wins, which is the rule that was already here.
 
     Where two names are prefixes of one another the longer one wins, and it has to be

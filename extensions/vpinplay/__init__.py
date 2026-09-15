@@ -1,8 +1,8 @@
 """VPinPlay's cumulative rating, contributed to every entry.
 
-Core makes the call. This used to be the browser's job - the endpoint was handed to the
-page and every window on a cabinet asked the same question about the same game, losing
-the answers on each reload. A theme reads `entry.ext.vpinplay`, and `item.vpinplay` is
+Core makes the call. Leaving it to the browser hands the endpoint to the page, and every
+window on a cabinet then asks the same question about the same game and loses the answer
+on each reload. A theme reads `entry.ext.vpinplay`, and `item.vpinplay` is
 still written from it for the themes that were built before there was an `ext` slot.
 
 Signing in as a guest lives here too: core keeps the theme methods, because published

@@ -234,14 +234,14 @@ def column(field: str, header: str, width: int = 0, help: str = "",
     """A column sized to fit, which is its header unless the content needs more.
 
     **Omit `width`.** Pass one only where the values are longer than the header - a
-    title, an author, a filename - and it is a floor, not a target. Every width used to
-    be hand-picked, so a column of one-digit counts was as wide as somebody guessed
-    rather than as wide as it needs to be. Dragging narrower still works, and what the
-    user drags to is what persists.
+    title, an author, a filename - and it is a floor, not a target. Hand-picking every
+    width makes a column of one-digit counts as wide as somebody guessed rather than as
+    wide as it needs to be. Dragging narrower still works, and what the user drags to is
+    what persists.
 
-    Every multi-word header wraps, here rather than at each call site: it was applied
-    only where the columns were generated, so `Table Count` and the asset headers sat
-    on one line beside media headers that did not.
+    Every multi-word header wraps, here rather than at each call site: applied per call
+    site it reaches only the generated columns, and `Table Count` sits on one line beside
+    media headers that do not.
     """
     header = two_line(header)
     # `help` earns its place only where the header does not already say it. What the

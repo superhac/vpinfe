@@ -1,7 +1,7 @@
 """The library, held once and shared.
 
-Every page and endpoint reads games from here rather than re-scanning, which is what
-five callers each used to do. Re-reading a game replaces the object, so anything
+Every page and endpoint reads games from here rather than re-scanning. Re-reading a
+game replaces the object, so anything
 holding the old one is stale - `game.changed` is announced for that reason.
 """
 
@@ -178,9 +178,8 @@ def restorable_game_names() -> list[str]:
 def refresh_game(game_dir: Path) -> list[Any]:
     """Re-read one game folder, not the library.
 
-    The whole-library reload this used to do is why setting a star rating on a big
-    network share took minutes: every caller changes one folder and then paid to look
-    at all of them.
+    One folder, because every caller changes one. A whole-library reload makes setting a
+    star rating on a big network share take minutes.
     """
     normalized = str(Path(game_dir).expanduser().resolve())
     started_at = perf_counter()

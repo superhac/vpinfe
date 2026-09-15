@@ -557,10 +557,9 @@ class API:
         arrive from a stored filter and resolve.
         direction: 'asc' or 'desc'.
 
-        These used to be `sort_type` and `order_by`, where `order_by` was the direction -
-        one layer below, game_state.apply_sort uses the same word for the field. A stored
-        filter still writes the 2.x key `order_by` for a direction; nothing in code has to
-        repeat it.
+        A stored filter writes the 2.x key `order_by` for a direction, which is the
+        opposite of what the word means here and one layer below in
+        game_state.apply_sort. It is normalized on the way in; nothing in code repeats it.
         Returns the count of sorted games.
         """
         self.current_sort = order_by

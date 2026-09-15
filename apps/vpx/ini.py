@@ -77,8 +77,8 @@ class Ini:
 
         A key written with nothing after the `=` sets nothing. VPX's own header says so
         - "when a property is not defined (nothing after the equal sign), VPX will use
-        the default value for it" - and it writes every key it knows into the file, so
-        98% of them are blank. Reading blank as a value would make every setting in the
+        the default value for it" - and it writes every key it knows into the file, most
+        of them blank. Reading blank as a value would make every setting in the
         program look like somebody had chosen it.
         """
         found = self.settings.get(qualified)

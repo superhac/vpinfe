@@ -90,15 +90,14 @@ class ThemeInstallStore:
     def install_zip(self, theme_key: str, base_url: str, zip_data: BytesIO) -> None:
         """Install over any existing copy, without deleting anything.
 
-        Two ways this used to destroy a folder the user owned. It removed every entry
-        whose name merely *started with* the repo's, so installing `Reference` took
-        `Reference-mine` with it; and it then rmtree'd the destination outright, so a
-        registry key colliding with a local theme erased it. Neither asked, and an
-        update always threw away whatever was in the folder.
+        Two ways an installer can destroy a folder the user owns: removing every entry whose
+        name merely *starts with* the repo's, so installing `Reference` takes
+        `Reference-mine` with it, and rmtree'ing the destination outright, so a registry
+        key colliding with a local theme erases it.
 
-        Now the folder being replaced moves to <name>.previous, and the folder promoted
-        is the one this extraction actually created - found by diffing the directory
-        rather than by matching a name, because the name match is what went wrong.
+        So the folder being replaced moves to <name>.previous, and the folder promoted is
+        the one this extraction actually created - found by diffing the directory rather
+        than by matching a name, since a name match cannot tell those apart.
         """
         aside = self._set_aside(theme_key)
         before = set(os.listdir(self.themes_dir))

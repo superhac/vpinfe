@@ -2,9 +2,8 @@
 of that is.
 
 Deliberately unordered by anything resembling quality or likeness. A scorer over exactly
-that question was measured at chance and confidently wrong more than half the time, so an
-order implying "yours is probably this one" would carry a confidence the evidence does not
-support.
+that question is confidently wrong more often than not, so an order implying "yours is
+probably this one" would carry a confidence nothing supports.
 """
 
 from __future__ import annotations
@@ -56,8 +55,8 @@ def _release(release: dict) -> dict:
     """One build of a machine, in what somebody would recognize their own copy by.
 
     Version and authors, because that is what a `.vpx` carries and so what a person can
-    compare against. Not a filename: VPS records one on 3% of releases, so a surface built
-    around matching names would be empty almost always.
+    compare against. Not a filename: VPS records one on almost no releases, so a surface
+    built around matching names would be empty almost always.
     """
     urls = [str(item.get("url") or "") for item in (release.get("urls") or [])]
     return {
