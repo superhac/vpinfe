@@ -149,12 +149,14 @@ def source_media_path(game_dir: Path, kind: str,
         return None
     root = Path(game_dir)
     try:
-        game_contents = {e.name for e in os.scandir(root) if e.is_file()}
+        with os.scandir(root) as entries:
+            game_contents = {e.name for e in entries if e.is_file()}
     except OSError:
         return None
     medias_dir = root / "medias"
     try:
-        medias_contents = {e.name for e in os.scandir(medias_dir) if e.is_file()}
+        with os.scandir(medias_dir) as entries:
+            medias_contents = {e.name for e in entries if e.is_file()}
     except OSError:
         medias_contents = set()
     resolved = resolve_media_files(root, game_contents, medias_contents,

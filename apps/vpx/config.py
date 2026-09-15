@@ -97,9 +97,10 @@ def table_layer(table: str) -> Path | None:
     folder = game_file.parent
     wanted = f"{folder.name}.ini".lower()
     try:
-        for entry in os.scandir(folder):
-            if entry.is_file() and entry.name.lower() == wanted:
-                return Path(entry.path)
+        with os.scandir(folder) as entries:   # the return below exits part way through
+            for entry in entries:
+                if entry.is_file() and entry.name.lower() == wanted:
+                    return Path(entry.path)
     except OSError:
         return None
     return None
