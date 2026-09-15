@@ -14,11 +14,14 @@ from typing import Any
 from common import config_schema
 from common.values import is_truthy
 
+# A ConfigStore, the ConfigParser inside one, or nothing at all - a caller with no
+# config yet passes None and every reader below falls through to its fallback. Named
+# rather than left as a bare Any so a signature elsewhere can say it takes any of them;
+# it is Any because coping with whatever arrives is the point of this file.
+type ConfigSource = Any
 
-# A config source is a ConfigStore, a bare ConfigParser, or nothing at all - a caller
-# with no config yet passes None and every reader below falls through to its fallback.
-# Any rather than a union because coping with whatever arrives is the point of this file.
-def _parser(source: Any) -> Any:
+
+def _parser(source: ConfigSource) -> Any:
     return getattr(source, "config", source)
 
 
@@ -54,7 +57,7 @@ def _has(parser: Any, section: str, key: str) -> bool:
             return False
 
 
-def cfg_has(source: Any, section: str, key: str) -> bool:
+def cfg_has(source: ConfigSource, section: str, key: str) -> bool:
     """Whether a setting is written down at all, under any spelling it has ever had.
 
     Apart from `cfg_get` returning "": a value can be deliberately blank, and for a list
@@ -65,7 +68,7 @@ def cfg_has(source: Any, section: str, key: str) -> bool:
                for candidate_section, candidate_key in _candidates(section, key))
 
 
-def cfg_get(source: Any, section: str, key: str, fallback: str = "") -> str:
+def cfg_get(source: ConfigSource, section: str, key: str, fallback: str = "") -> str:
     """Read a setting under any spelling it has ever had.
 
     Keys moved to snake_case at schema 2 and the old ones stay aliases, so a caller
@@ -92,7 +95,7 @@ def cfg_get(source: Any, section: str, key: str, fallback: str = "") -> str:
     return fallback
 
 
-def cfg_options(source: Any, section: str) -> list[str]:
+def cfg_options(source: ConfigSource, section: str) -> list[str]:
     """Every key present in a section, or [] when it has none."""
     parser = _parser(source)
     try:
@@ -104,7 +107,7 @@ def cfg_options(source: Any, section: str) -> list[str]:
             return []
 
 
-def cfg_bool(source: Any, section: str, key: str, fallback: bool = False) -> bool:
+def cfg_bool(source: ConfigSource, section: str, key: str, fallback: bool = False) -> bool:
     parser = _parser(source)
     section, key = next(((sec, name) for sec, name in _candidates(section, key)
                          if _has(parser, sec, name)), (section, key))
@@ -115,7 +118,7 @@ def cfg_bool(source: Any, section: str, key: str, fallback: bool = False) -> boo
             cfg_get(parser, section, key, "true" if fallback else "false"), default=fallback)
 
 
-def cfg_int(source: Any, section: str, key: str, fallback: int = 0) -> int:
+def cfg_int(source: ConfigSource, section: str, key: str, fallback: int = 0) -> int:
     raw = cfg_get(source, section, key, str(fallback)).strip()
     if raw == "":
         return fallback
@@ -125,12 +128,12 @@ def cfg_int(source: Any, section: str, key: str, fallback: int = 0) -> int:
         return fallback
 
 
-def cfg_list(source: Any, section: str, key: str) -> list[str]:
+def cfg_list(source: ConfigSource, section: str, key: str) -> list[str]:
     """A list setting. JSON holds a real array; the parser above it holds them joined."""
     return [part.strip() for part in cfg_get(source, section, key).split(",") if part.strip()]
 
 
-def cfg_set(source: Any, section: str, key: str, value: Any) -> None:
+def cfg_set(source: ConfigSource, section: str, key: str, value: Any) -> None:
     """Write a setting to wherever it lives now, under whatever name the caller knows.
 
     Reads have resolved through the schema since the key renames; writes did not, so a

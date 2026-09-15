@@ -9,14 +9,13 @@ from typing import Any
 from urllib.parse import quote
 
 from common import theme_options
-from common.config_access import NetworkConfig, SettingsConfig
-from common.config_store import ConfigStore
+from common.config_access import ConfigSource, NetworkConfig, SettingsConfig
 from common.paths import THEMES_DIR
 
 logger = logging.getLogger("vpinfe.frontend.theme_api")
 
 
-def get_theme_name(config: ConfigStore) -> str:
+def get_theme_name(config: ConfigSource) -> str:
     return SettingsConfig.from_config(config).theme
 
 
@@ -88,7 +87,7 @@ def _build_theme_config_from_schema(schema: dict) -> dict | None:
     return config if found_option else None
 
 
-def get_theme_config(config: ConfigStore) -> dict | None:
+def get_theme_config(config: ConfigSource) -> dict | None:
     """The theme's config: what the author set, with the user's option values over it.
 
     Three sources, narrowing: config.json is the author's fixed settings, theme.json
@@ -115,11 +114,11 @@ def get_theme_config(config: ConfigStore) -> dict | None:
     return _deep_merge(authored or {}, options or {})
 
 
-def get_audio_muted(config: ConfigStore) -> bool:
+def get_audio_muted(config: ConfigSource) -> bool:
     return SettingsConfig.from_config(config).mute_audio
 
 
-def get_theme_index_page(config: ConfigStore, window_name: str) -> str:
+def get_theme_index_page(config: ConfigSource, window_name: str) -> str:
     port = NetworkConfig.from_config(config).theme_assets_port
     theme_name = quote(get_theme_name(config), safe="")
     return f"http://127.0.0.1:{port}/themes/{theme_name}/index_{window_name}.html?window={window_name}"

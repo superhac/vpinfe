@@ -12,8 +12,7 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
-from common.config_access import NetworkConfig
-from common.config_store import ConfigStore
+from common.config_access import ConfigSource, NetworkConfig
 from common.games import collection_resolver, remote_library
 from common.games.collection_store import (
     BUILTIN_ALL,
@@ -29,7 +28,7 @@ from frontend import game_state
 logger = logging.getLogger("vpinfe.frontend.library_resolver")
 
 
-def library_url(ini_config: ConfigStore) -> str:
+def library_url(ini_config: ConfigSource) -> str:
     """The install this one reads its library from, or "" when it holds its own."""
     try:
         return NetworkConfig.from_config(ini_config.config).library_url
@@ -46,7 +45,7 @@ class LibraryResolver:
     one shared view makes a sort and a read genuinely concurrent.
     """
 
-    def __init__(self, ini_config: ConfigStore,
+    def __init__(self, ini_config: ConfigSource,
                  games: list[Any] | None = None) -> None:
         self._ini_config = ini_config
         self.lock = threading.RLock()

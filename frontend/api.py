@@ -12,7 +12,7 @@ theme.
 """
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from common import events, lifecycle
 from common.config_access import cfg_get
@@ -42,6 +42,13 @@ from frontend import (
 )
 from frontend import library_resolver as frontend_library
 from frontend.theme_contract import CURRENT_CONTRACT, declared_contract
+
+if TYPE_CHECKING:
+    from common.config_store import ConfigStore
+    from common.games.collection_resolver import Entry
+    from common.games.game import Game
+    from frontend.chromium_manager import ChromiumManager
+    from frontend.device_channel import DeviceChannel
 
 # What a theme is told when nothing answers: the same thing core said when nobody was
 # signed in, so a cabinet with the extension disabled reads as one with no guest rather
@@ -173,7 +180,7 @@ class API:
 
     """One instance per frontend window. Only methods in API_ALLOWED_METHODS are reachable."""
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """Forward a pre-rename method name to its replacement.
 
         Only reached when normal lookup fails, so it costs nothing for current names.
@@ -184,7 +191,7 @@ class API:
         announce("ws-methods", name)
         return getattr(self, renamed)
 
-    def report_deprecated_use(self, key, name) -> None:
+    def report_deprecated_use(self, key: object, name: object) -> None:
         """Let the browser tell the log it used a legacy name.
 
         A theme runs in Chromium, so its use of a vpin.* alias is only visible in a
@@ -196,8 +203,10 @@ class API:
         reaches announce(), which looks both up in the registry and logs.
         """
         announce(str(key), str(name))
-    def __init__(self, ini_config, window_name=None, ws_bridge=None, frontend_browser=None,
-                 library=None) -> None:
+    def __init__(self, ini_config: ConfigStore, window_name: str | None = None,
+                 ws_bridge: DeviceChannel | None = None,
+                 frontend_browser: ChromiumManager | None = None,
+                 library: frontend_library.LibraryResolver | None = None) -> None:
         self._ini_config = ini_config
         self.window_name = window_name          # whatever the theme declared
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
@@ -207,7 +216,7 @@ class API:
         # API on its own - a test, the gamepad diagnostic - gets a view of its own.
         if library is not None:
             self.library = library
-        self.js_game_dict_data = None
+        self.js_game_dict_data: str | None = None
         # Check for startup collection
         startup_collection = cfg_get(self._ini_config, 'general', 'startup_collection').strip()
         if startup_collection:
@@ -221,7 +230,7 @@ class API:
     # these by name - keeps working against one shared object instead of a copy per
     # window.
     @property
-    def library(self):
+    def library(self) -> frontend_library.LibraryResolver:
         """The shared resolver, made on demand for a caller that never gave one.
 
         `API.__new__(API)` is a real pattern here: paging arithmetic and input mapping
@@ -240,65 +249,65 @@ class API:
         return existing
 
     @library.setter
-    def library(self, value) -> None:
+    def library(self, value: frontend_library.LibraryResolver) -> None:
         self.__dict__["_library"] = value
 
     @property
-    def all_games(self):
+    def all_games(self) -> list[Any]:
         return self.library.all_games
 
     @all_games.setter
-    def all_games(self, value) -> None:
+    def all_games(self, value: list[Any]) -> None:
         self.library.all_games = value
 
     @property
-    def filtered_games(self):
+    def filtered_games(self) -> list[Any]:
         return self.library.filtered_games
 
     @filtered_games.setter
-    def filtered_games(self, value) -> None:
+    def filtered_games(self, value: list[Any]) -> None:
         self.library.filtered_games = value
 
     @property
-    def current_filters(self):
+    def current_filters(self) -> dict[str, Any]:
         return self.library.current_filters
 
     @current_filters.setter
-    def current_filters(self, value) -> None:
+    def current_filters(self, value: dict[str, Any]) -> None:
         self.library.current_filters = value
 
     @property
-    def current_collection(self):
+    def current_collection(self) -> str:
         return self.library.current_collection
 
     @current_collection.setter
-    def current_collection(self, value) -> None:
+    def current_collection(self, value: str) -> None:
         self.library.current_collection = value
 
     @property
-    def current_sort(self):
+    def current_sort(self) -> str:
         return self.library.current_sort
 
     @current_sort.setter
-    def current_sort(self, value) -> None:
+    def current_sort(self, value: str) -> None:
         self.library.current_sort = value
 
     @property
-    def current_order(self):
+    def current_order(self) -> str:
         return self.library.current_order
 
     @current_order.setter
-    def current_order(self, value) -> None:
+    def current_order(self, value: str) -> None:
         self.library.current_order = value
 
     ####################
     ## Private Functions
     ####################
 
-    def _finish_setup(self):
+    def _finish_setup(self) -> None:
         pass
 
-    def _normalize_game_meta(self, game):
+    def _normalize_game_meta(self, game: Game) -> dict[str, Any]:
         return normalize_meta(game.meta_config)
 
     def _theme_contract(self) -> int:
@@ -316,7 +325,7 @@ class API:
         self.library.rebuild_entries()
 
     @property
-    def entries(self):
+    def entries(self) -> list[Entry]:
         """What the wheel steps through, and what an index from a theme addresses.
 
         The view's list, not this window's: every window onto the same library steps
@@ -324,7 +333,7 @@ class API:
         """
         return self.library.entries
 
-    def entry_at(self, index):
+    def entry_at(self, index: Any) -> Entry | None:
         """The entry a theme's index names, or None when it names nothing.
 
         An index is a position in *this window's* filtered list, so it means nothing
@@ -344,7 +353,7 @@ class API:
         except IndexError:
             return None
 
-    def game_id_at(self, index) -> str:
+    def game_id_at(self, index: Any) -> str:
         """The id of the game an index names, or "" - the addressable form of an index."""
         entry = self.entry_at(index)
         return game_identity.game_id(entry.game) if entry is not None else ""
@@ -354,22 +363,23 @@ class API:
     ## Public Functions
     ###################
 
-    def get_my_window_name(self):
+    def get_my_window_name(self) -> str:
         return self.window_name or "unknown"
 
-    def _origin(self):
+    def _origin(self) -> lifecycle.Origin:
         """This window is the address a confirmation goes back to."""
         return lifecycle.Origin(lifecycle.SURFACE_FRONTEND, self.window_name or "")
 
-    def close_app(self):
+    def close_app(self) -> bool:
         """Quit VPinFE. The 2.x spelling of `lifecycle_request('vpinfe', 'stop')`."""
         return self.lifecycle_request(lifecycle.VPINFE, lifecycle.STOP)
 
-    def shutdown_system(self):
+    def shutdown_system(self) -> bool:
         """Power off the host. The 2.x spelling of `lifecycle_request('system', 'stop')`."""
         return self.lifecycle_request(lifecycle.SYSTEM, lifecycle.STOP)
 
-    def lifecycle_needs_confirmation(self, scope, action):
+    def lifecycle_needs_confirmation(self, scope: object,
+                                     action: object) -> dict[str, Any]:
         """Whether to ask the user first, and what to ask - the browser draws the dialog.
 
         The question is put where the request came from, and the bridge to a window only
@@ -383,7 +393,8 @@ class API:
                 str(scope), str(action), self._origin()).describe(),
         }
 
-    def lifecycle_request(self, scope, action, reason="", confirmed=False):
+    def lifecycle_request(self, scope: str, action: str, reason: str = "",
+                          confirmed: object = False) -> bool:
         """Start, stop or restart the frontend, VPinFE or the machine.
 
         `confirmed` is the theme reporting that it already asked. A theme that never
@@ -402,22 +413,22 @@ class API:
                            self.window_name, action, scope)
             return False
 
-    def get_monitors(self):
+    def get_monitors(self) -> list[dict[str, Any]]:
         return monitors_as_dicts()
 
-    def send_event_all_windows(self, message) -> None:
+    def send_event_all_windows(self, message: dict[str, Any]) -> None:
         if self.ws_bridge:
             self.ws_bridge.send_event_all(message, exclude=self.window_name)
 
-    def send_event(self, window_name, message) -> None:
+    def send_event(self, window_name: str, message: dict[str, Any]) -> None:
         if self.ws_bridge:
             self.ws_bridge.send_event(window_name, message)
 
-    def send_event_all_windows_incself(self, message) -> None:
+    def send_event_all_windows_incself(self, message: dict[str, Any]) -> None:
         if self.ws_bridge:
             self.ws_bridge.send_event_all_with_iframe(message)
 
-    def get_tables(self, reset=False):
+    def get_tables(self, reset: bool = False) -> str:
         if reset:
             self._reset_to_default_view()
         else:
@@ -431,38 +442,38 @@ class API:
             self._theme_contract(), collection=public_name(self.current_collection))
         return self.js_game_dict_data
 
-    def get_initial_table_index(self):
+    def get_initial_table_index(self) -> int:
         # Position the wheel on the last-launched game at startup. Resolved
         # against the current (possibly filtered) view; 0 when disabled or unfound.
         return last_game.resolve_last_table_index(self._ini_config, self.entries)
 
 
-    def get_collections(self):
+    def get_collections(self) -> list[str]:
         return get_collection_names()
 
-    def get_collections_metadata(self):
+    def get_collections_metadata(self) -> list[dict]:
         return get_collections_metadata()
 
-    def get_collection_image_url(self, collection):
+    def get_collection_image_url(self, collection: str) -> str:
         return get_collection_image_url(collection)
 
-    def set_tables_by_collection(self, collection) -> None:
+    def set_tables_by_collection(self, collection: str) -> None:
         """Set filtered games based on collection from collections.ini."""
         game_state.apply_collection(self, collection)
 
     def save_filter_collection(
         self,
-        name,
-        letter="All",
-        theme="All",
-        game_type="All",
-        manufacturer="All",
-        year="All",
-        order_by="title",
-        rating="All",
-        rating_or_higher=False,
-        direction="desc",
-    ):
+        name: str,
+        letter: str = "All",
+        theme: str = "All",
+        game_type: str = "All",
+        manufacturer: str = "All",
+        year: str = "All",
+        order_by: str = "title",
+        rating: str = "All",
+        rating_or_higher: object = False,
+        direction: str = "desc",
+    ) -> dict[str, Any]:
         """Save current filter settings as a named collection."""
         try:
             return game_state.save_current_filter_collection(
@@ -472,43 +483,45 @@ class API:
         except ValueError as e:
             return {"success": False, "message": str(e)}
 
-    def get_current_filter_state(self):
+    def get_current_filter_state(self) -> dict[str, Any]:
         """Return current filter state for UI synchronization."""
         return self.current_filters
 
-    def get_current_sort_state(self):
+    def get_current_sort_state(self) -> str:
         """Return current sort state for UI synchronization."""
         return self.current_sort
 
-    def get_current_order_state(self):
+    def get_current_order_state(self) -> str:
         """Return current sort order for UI synchronization."""
         return self.current_order
 
-    def get_current_collection(self):
+    def get_current_collection(self) -> str:
         """Return current collection name for UI synchronization. The whole library has
         always answered 'None' here, and that is what `builtin:all` is."""
         return public_name(self.current_collection) or 'None'
 
-    def _filter_option(self, key: str):
+    def _filter_option(self, key: str) -> list[str]:
         return game_state.filter_options(self.all_games)[key]
 
-    def get_filter_letters(self):
+    def get_filter_letters(self) -> list[str]:
         return self._filter_option(_FILTER_OPTION_KEYS["letters"])
 
-    def get_filter_themes(self):
+    def get_filter_themes(self) -> list[str]:
         return self._filter_option(_FILTER_OPTION_KEYS["themes"])
 
-    def get_filter_types(self):
+    def get_filter_types(self) -> list[str]:
         return self._filter_option(_FILTER_OPTION_KEYS["types"])
 
-    def get_filter_manufacturers(self):
+    def get_filter_manufacturers(self) -> list[str]:
         return self._filter_option(_FILTER_OPTION_KEYS["manufacturers"])
 
-    def get_filter_years(self):
+    def get_filter_years(self) -> list[str]:
         return self._filter_option(_FILTER_OPTION_KEYS["years"])
 
-    def apply_filters(self, letter=None, theme=None, game_type=None, manufacturer=None, year=None,
-            rating=None, rating_or_higher=None):
+    def apply_filters(self, letter: str | None = None, theme: str | None = None,
+                      game_type: str | None = None, manufacturer: str | None = None,
+                      year: str | None = None, rating: str | None = None,
+                      rating_or_higher: object = None) -> int:
         """
         Apply VPSdb filters to the full game list.
         These filters work independently of collections.
@@ -534,7 +547,7 @@ class API:
         self.current_filters = game_state.default_filter_state()
         self._reset_to_default_view()
 
-    def apply_sort(self, order_by, direction=None):
+    def apply_sort(self, order_by: str, direction: str | None = None) -> int:
         """
         Sort the current filtered games.
         order_by: one of the orders a collection can carry - 'title', 'year', 'added',
@@ -559,7 +572,7 @@ class API:
         logger.debug("Sorted %s games by %s %s", count, order_by, self.current_order)
         return count
 
-    def paging_state(self):
+    def paging_state(self) -> dict[str, Any]:
         """What a page press does on the list showing now.
 
         The collection's own choice if it made one, otherwise the player's. Resolved in
@@ -567,7 +580,7 @@ class API:
         would come to disagree about what a press just did.
         """
         default, page_size = input_api.get_paging_config(self._ini_config.config)
-        chosen = None
+        chosen: str | None = None
         name = self.current_collection
         if name:
             try:
@@ -582,11 +595,11 @@ class API:
         return {"group": group, "kind": kind if group == "sort" else "",
                 "size": page_size}
 
-    def get_paging_state(self):
+    def get_paging_state(self) -> dict[str, Any]:
         """The same, for a surface that wants to say what a press will do."""
         return self.paging_state()
 
-    def get_page_index(self, index, direction):
+    def get_page_index(self, index: Any, direction: str) -> int:
         """
         Compute the target wheel index for a page next/prev request.
         Paging behavior comes from [input] paging_group/paging_size and the order
@@ -602,7 +615,7 @@ class API:
             paging["group"], paging["size"]
         )
 
-    def console_out(self, output, frame=""):
+    def console_out(self, output: Any, frame: str = "") -> Any:
         """A line from the browser. `frame` names an overlay within this window.
 
         The window comes from the connection rather than the caller, so it cannot be
@@ -612,27 +625,27 @@ class API:
         logger.info("[%s] %s", where, output)
         return output
 
-    def get_bindings(self):
+    def get_bindings(self) -> dict[str, list[str]]:
         return input_api.get_bindings(self._ini_config.config)
 
-    def get_joymaping(self):
+    def get_joymaping(self) -> dict[str, str]:
         return input_api.get_joymapping(self._ini_config.config)
 
-    def get_keymapping(self):
+    def get_keymapping(self) -> dict[str, str]:
         return input_api.get_keymapping(self._ini_config.config)
 
-    def get_mainmenu_config(self):
+    def get_mainmenu_config(self) -> dict[str, bool]:
         try:
             return config_api.get_mainmenu_config(self._ini_config)
         except Exception:
             logger.exception("Failed to reload ini before get_mainmenu_config")
             return {"hideQuitButton": False}
 
-    def set_button_mapping(self, button_name, button_index):
+    def set_button_mapping(self, button_name: str, button_index: int) -> dict[str, Any]:
         """Set a gamepad button mapping and save to config."""
         return input_api.set_button_mapping(self._ini_config, button_name, button_index)
 
-    def launch_table(self, index):
+    def launch_table(self, index: Any) -> dict[str, Any]:
         """Launch what the wheel is sitting on.
 
         The windows hear about it through the bus like everyone else, so nothing
@@ -655,7 +668,7 @@ class API:
             return {"success": False, "reason": str(exc)}
         return {"success": True}
 
-    def notify_table_selected(self, index):
+    def notify_table_selected(self, index: Any) -> dict[str, Any]:
         """Announce that the player moved to this game.
 
         Whatever reacts - a DOF effect, the real DMD, something not written yet -
@@ -675,7 +688,7 @@ class API:
                     neighbors=self._neighbors(index))
         return {"success": True}
 
-    def _neighbors(self, index):
+    def _neighbors(self, index: Any) -> list[Any]:
         """The games either side of the one just selected.
 
         One step each way and no further: the wheel is turned a step at a time, so the
@@ -689,7 +702,7 @@ class API:
                 found.append(entry.game)
         return found
 
-    def refresh_entry_data(self, game_id):
+    def refresh_entry_data(self, game_id: object) -> dict:
         """Ask the extensions about this game again, and answer with what they say.
 
         For a theme that has just changed something an extension reports on - rating a
@@ -707,15 +720,15 @@ class API:
         contributions.forget_game(wanted)
         return contributions.refresh(ext_data.descriptor_for(entry.game))
 
-    def get_vpinplay_endpoint(self):
+    def get_vpinplay_endpoint(self) -> str:
         return config_api.get_vpinplay_endpoint(self._ini_config.config)
 
-    def get_game_rating(self, index):
+    def get_game_rating(self, index: Any) -> int:
         """Get User.Rating for a game index in the current filtered list."""
         entry = self.entry_at(index)
         return game_rating(entry.game) if entry is not None else 0
 
-    def set_game_rating(self, index, rating):
+    def set_game_rating(self, index: Any, rating: Any) -> dict[str, Any]:
         """Set User.Rating (0-5) for a game index in the current filtered list.
 
         The index is converted here; the write itself is the one in common/, so a
@@ -730,7 +743,8 @@ class API:
         logger.info("Updated User.Rating for %s -> %s", entry.game.game_dir_name, stored)
         return {"success": True, "rating": stored}
 
-    def build_metadata(self, download_media=True, update_all=False):
+    def build_metadata(self, download_media: bool = True,
+                       update_all: bool = False) -> dict[str, Any]:
         """
         Trigger build_metadata from the frontend.
         This runs in a background thread and returns progress/log updates via window events.
@@ -753,29 +767,29 @@ class API:
             update_all=update_all,
         )
 
-    def get_theme_config(self):
+    def get_theme_config(self) -> dict | None:
         return theme_api.get_theme_config(self._ini_config.config)
 
     ###################
     ### For splash page
     ###################
 
-    def get_splashscreen_enabled(self):
+    def get_splashscreen_enabled(self) -> str:
         return config_api.get_splashscreen_enabled(self._ini_config.config)
 
-    def get_audio_muted(self):
+    def get_audio_muted(self) -> bool:
         return theme_api.get_audio_muted(self._ini_config.config)
 
-    def set_audio_muted(self, muted):
+    def set_audio_muted(self, muted: Any) -> bool:
         return config_api.set_audio_muted(self, muted)
 
-    def get_theme_name(self):
+    def get_theme_name(self) -> str:
         return theme_api.get_theme_name(self._ini_config.config)
 
-    def get_media_priorities(self):
+    def get_media_priorities(self) -> dict[str, str]:
         return config_api.get_media_priorities(self._ini_config.config)
 
-    def get_temporary_vpinplay_profile(self):
+    def get_temporary_vpinplay_profile(self) -> dict[str, Any]:
         """Who is playing as somebody else, if anything answers.
 
         The method stays here because published themes call it; what is behind it moved
@@ -785,7 +799,8 @@ class API:
         """
         return ext_services.ask("guest.state") or _NOBODY_SIGNED_IN
 
-    def set_temporary_vpinplay_profile(self, payload, source_name=""):
+    def set_temporary_vpinplay_profile(self, payload: Any,
+                                       source_name: str = "") -> dict[str, Any]:
         result = (ext_services.ask("guest.activate", payload, source_name=source_name)
                   or _NOBODY_SIGNED_IN)
         self.send_event_all_windows_incself({
@@ -794,7 +809,7 @@ class API:
         })
         return result
 
-    def clear_temporary_vpinplay_profile(self):
+    def clear_temporary_vpinplay_profile(self) -> dict[str, Any]:
         result = ext_services.ask("guest.clear") or _NOBODY_SIGNED_IN
         self.send_event_all_windows_incself({
             "type": "VPinPlayAlternateProfileChanged",
@@ -802,36 +817,36 @@ class API:
         })
         return result
 
-    def get_playfield_orientation(self):
+    def get_playfield_orientation(self) -> str:
         return config_api.get_playfield_orientation(self._ini_config.config)
 
-    def get_playfield_rotation(self):
+    def get_playfield_rotation(self) -> int:
         return config_api.get_playfield_rotation(self._ini_config.config)
 
-    def get_playfield_media_rotation(self):
+    def get_playfield_media_rotation(self) -> str:
         return config_api.get_playfield_media_rotation(self._ini_config.config)
 
-    def get_cab_mode(self):
+    def get_cab_mode(self) -> bool:
         return config_api.get_cab_mode(self._ini_config.config)
 
-    def get_theme_assets_port(self):
+    def get_theme_assets_port(self) -> int:
         return config_api.get_theme_assets_port(self._ini_config.config)
 
-    def get_http_port(self):
+    def get_http_port(self) -> int:
         return config_api.get_http_port(self._ini_config.config)
 
-    def get_managerui_remote_link(self):
+    def get_managerui_remote_link(self) -> dict[str, Any]:
         return config_api.get_managerui_remote_link(self._ini_config.config)
 
-    def get_managerui_vpinplay_multi_link(self):
+    def get_managerui_vpinplay_multi_link(self) -> dict[str, Any]:
         return config_api.get_managerui_vpinplay_multi_link(self._ini_config.config)
 
-    def get_theme_contract(self):
+    def get_theme_contract(self) -> int:
         return self._theme_contract()
 
-    def get_theme_windows(self):
+    def get_theme_windows(self) -> list[str]:
         theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(self._ini_config.config))
         return list(theme_windows.declared_windows(theme_dir, self._theme_contract()))
 
-    def get_theme_index_page(self):
+    def get_theme_index_page(self) -> str:
         return theme_api.get_theme_index_page(self._ini_config.config, self.get_my_window_name())

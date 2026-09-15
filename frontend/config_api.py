@@ -8,6 +8,7 @@ from io import BytesIO
 from typing import TYPE_CHECKING, Any
 
 from common.config_access import (
+    ConfigSource,
     DisplayConfig,
     MediaConfig,
     NetworkConfig,
@@ -15,14 +16,13 @@ from common.config_access import (
     VPinPlayConfig,
     cfg_set,
 )
-from common.config_store import ConfigStore
 from common.values import is_truthy
 
 if TYPE_CHECKING:
     from frontend.api import API
 
 
-def get_mainmenu_config(iniconfig: ConfigStore) -> dict[str, bool]:
+def get_mainmenu_config(iniconfig: ConfigSource) -> dict[str, bool]:
     # No re-read: the store holds the live config and every write goes through save().
     # This used to reload the ini here, which under JSON meant handing a configparser a
     # JSON file - it raised on every menu open, the caller fell back to its default, and
@@ -32,7 +32,7 @@ def get_mainmenu_config(iniconfig: ConfigStore) -> dict[str, bool]:
     }
 
 
-def _managerui_remote_urls(config: ConfigStore) -> list[str]:
+def _managerui_remote_urls(config: ConfigSource) -> list[str]:
     port = NetworkConfig.from_config(config).http_port
     hostname = socket.gethostname().strip()
     urls: list[str] = []
@@ -107,7 +107,7 @@ def _build_remote_qr_svg(url: str) -> str:
     return stream.getvalue().decode("utf-8")
 
 
-def _managerui_page_urls(config: ConfigStore, page: str) -> list[str]:
+def _managerui_page_urls(config: ConfigSource, page: str) -> list[str]:
     port = NetworkConfig.from_config(config).http_port
     hostname = socket.gethostname().strip()
     urls: list[str] = []
@@ -169,7 +169,7 @@ def _preferred_managerui_url(urls: list[str]) -> str:
     )
 
 
-def get_splashscreen_enabled(config: ConfigStore) -> str:
+def get_splashscreen_enabled(config: ConfigSource) -> str:
     return "true" if SettingsConfig.from_config(config).splashscreen else "false"
 
 
@@ -184,7 +184,7 @@ def set_audio_muted(api: API, muted: Any) -> bool:
     return muted_flag
 
 
-def get_vpinplay_endpoint(config: ConfigStore) -> str:
+def get_vpinplay_endpoint(config: ConfigSource) -> str:
     """Where VPinPlay is, for a theme that asks.
 
     A shim. Core does not fetch a rating any more - an extension does, and a theme reads
@@ -195,35 +195,35 @@ def get_vpinplay_endpoint(config: ConfigStore) -> str:
     return VPinPlayConfig.from_config(config).api_endpoint
 
 
-def get_media_priorities(config: ConfigStore) -> dict[str, str]:
+def get_media_priorities(config: ConfigSource) -> dict[str, str]:
     return MediaConfig.from_config(config).priority_payload()
 
 
-def get_playfield_orientation(config: ConfigStore) -> str:
+def get_playfield_orientation(config: ConfigSource) -> str:
     return DisplayConfig.from_config(config).playfield_orientation
 
 
-def get_playfield_rotation(config: ConfigStore) -> int:
+def get_playfield_rotation(config: ConfigSource) -> int:
     return DisplayConfig.from_config(config).playfield_rotation
 
 
-def get_playfield_media_rotation(config: ConfigStore) -> str:
+def get_playfield_media_rotation(config: ConfigSource) -> str:
     return MediaConfig.from_config(config).playfield_media_rotation
 
 
-def get_cab_mode(config: ConfigStore) -> bool:
+def get_cab_mode(config: ConfigSource) -> bool:
     return DisplayConfig.from_config(config).cab_mode
 
 
-def get_theme_assets_port(config: ConfigStore) -> int:
+def get_theme_assets_port(config: ConfigSource) -> int:
     return NetworkConfig.from_config(config).theme_assets_port
 
 
-def get_http_port(config: ConfigStore) -> int:
+def get_http_port(config: ConfigSource) -> int:
     return NetworkConfig.from_config(config).http_port
 
 
-def get_managerui_remote_link(config: ConfigStore) -> dict[str, Any]:
+def get_managerui_remote_link(config: ConfigSource) -> dict[str, Any]:
     urls = _managerui_remote_urls(config)
     preferred_url = _preferred_managerui_url(urls)
     return {
@@ -233,7 +233,7 @@ def get_managerui_remote_link(config: ConfigStore) -> dict[str, Any]:
     }
 
 
-def get_managerui_vpinplay_multi_link(config: ConfigStore) -> dict[str, Any]:
+def get_managerui_vpinplay_multi_link(config: ConfigSource) -> dict[str, Any]:
     urls = _managerui_page_urls(config, "vpinplay_account")
     preferred_url = _preferred_managerui_url(urls)
     return {
