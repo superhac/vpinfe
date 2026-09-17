@@ -43,6 +43,8 @@ NUMBERED_SECTION = re.compile(r"\b[Ss]ections?\s+[0-9]|"
                               r"\b[Dd]ecisions?\s+[0-9]|"
                               r"\b[Nn]otes?\s+in\s+[0-9]")
 
+DECISION_RECORD = re.compile(r"\badr[- ]?[0-9]|\badr/", re.I)
+
 COMMENT_LEAD = re.compile(r"^(?:#+|//+)\s*")
 
 # Published standards read the same way and are the opposite case: a reader can open
@@ -119,6 +121,9 @@ def _offenders() -> list[str]:
         for found in NUMBERED_SECTION.finditer(flat):
             out.append(f"{relative}:{line_of(found.start())}: "
                        "cites a section of an unpublished note")
+        for found in DECISION_RECORD.finditer(flat):
+            out.append(f"{relative}:{line_of(found.start())}: "
+                       "cites a decision record; say the conclusion instead")
     return out
 
 
@@ -145,6 +150,12 @@ class PrivateDocPointerTests(unittest.TestCase):
         standard = CITED_SECTION.search("WCAG 1.4.11 puts a floor under it")
         self.assertIsNotNone(standard)
         self.assertIn(standard.group(1), PUBLIC_STANDARDS)
+        for spelling in ("see ADR-0008", "see ADR 0008", "adr/0008-a-title",
+                         "docs/adr/0008", "adr0008"):
+            self.assertTrue(DECISION_RECORD.search(spelling), spelling)
+        for innocent in ("the quadrant is 0 based", "a padre", "address 0.0.0.0"):
+            self.assertFalse(DECISION_RECORD.search(innocent), innocent)
+
         self.assertTrue(NUMBERED_SECTION.search("Section 14.2's order says so"))
         self.assertTrue(NUMBERED_SECTION.search("offered disabled - decision 15's rule"))
         self.assertTrue(NUMBERED_SECTION.search("see the note in 5.4a"))
