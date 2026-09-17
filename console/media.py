@@ -87,7 +87,7 @@ _GAME = "console.media.game"
 _SOURCE = "word.source"
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.column("game", t("console.media.game"), 200, pinned="left", group=t(_GAME),
+    grid.identifier("game", t("console.media.game"), 200, pinned="left", group=t(_GAME),
                 help=t("console.media.game_folder_file_belongs.help")),
     grid.column("label", t("word.kind"), 160, group=t(_FILE),
                 help=t("console.media.twenty_media_kinds_row.help")),

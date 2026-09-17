@@ -714,6 +714,18 @@ element.
   fragments are not. "Nothing in it yet." is a fragment wearing a period.
 - **The shortest true word wins.** A chip reads `Missing`, not "Not in this library"; the
   sentence goes in the tooltip where it costs nothing.
+- **A grid marks the one column its rows are scanned by, and marks it on the column.**
+  The body reads at `--ink-2` and that column reads at `--ink`, so the thing you scan for
+  is the brightest thing in the row — a grid is most of the text on screen, and the top of
+  the ink scale applied to all of it reads relentless rather than crisp. Declare it with
+  `grid.identifier()` rather than `grid.column()`; `grid.build` refuses a set that does not
+  carry exactly one. **Scanned *by* is not the row's unique key**: the Media, Assets and
+  Tables grids are all scanned by game and all repeat it down the column, and the tables
+  grid's filename is the identifier of record precisely because it is unscannable — two
+  tables of one game share forty characters and differ in two, which is why it sits last
+  and widest instead. Never infer the column from where it sits: pinning is a layout
+  preference the header menu offers on every column, and a hierarchy resting on one moves
+  when a user rearranges their grid.
 - **A badge on every row is not a badge** — where the badge is *constant*. A chip reading
   the same thing on every row, or an action identical on all of them, says nothing and
   comes off. This does **not** cover a state that varies per row: that is data, and hiding

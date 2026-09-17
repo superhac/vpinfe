@@ -44,7 +44,7 @@ _KIND_CHOICES = [{"value": key, "label": t(label)} for key, label in KIND_LABELS
 COLUMNS = [
     # The folder leads and is pinned. It is what a person recognizes a location by, and
     # every other column is a fact about it.
-    grid.column("name", t("word.folder"), 260, pinned="left",
+    grid.identifier("name", t("word.folder"), 260, pinned="left",
                 help=t("console.locations.folder_location_last_two.help")),
     grid.column("contains", t("word.contains"), 140,
             **grid.choice_filter(_KIND_CHOICES),

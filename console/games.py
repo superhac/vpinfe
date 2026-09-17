@@ -109,7 +109,7 @@ _TICK = {
 # own click would move the focused row, and rating a row you can see is not a request
 # to go and look at it.
 COLUMNS = [
-    grid.column("name", t("word.name"), 280, pinned="left", group=t(_GAME),
+    grid.identifier("name", t("word.name"), 280, pinned="left", group=t(_GAME),
                 help=t("console.games.machine_library_names_one.help")),
     # Always, including 1: it is the only thing saying the row collapses its tables,
     # and it qualifies everything to its right. "Table Count" rather
@@ -687,7 +687,7 @@ _TABLE = "console.games.table"
 _IN_PLAY = "console.games.library"
 
 TABLE_COLUMNS = [
-    grid.column("game", t("console.games.game"), 240, pinned="left", group=t(_GAME),
+    grid.identifier("game", t("console.games.game"), 240, pinned="left", group=t(_GAME),
                 help=t("console.games.machine_build_several_rows.help")),
     grid.column("version", t("word.version"), group=t(_TABLE),
                 help=t("console.games.build_s_own_version.help")),

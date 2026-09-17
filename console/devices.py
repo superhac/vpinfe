@@ -299,7 +299,7 @@ COLUMNS: list[dict[str, Any]] = [
     # rather than anything to read.
     grid.column("self", t("console.devices.device_2"), hide=True,
                 help=t("console.devices.whether_install_reading_console.help")),
-    grid.column("name", t("word.name"), 200, pinned="left",
+    grid.identifier("name", t("word.name"), 200, pinned="left",
                 help=t("console.devices.what_device_calls_itself.help")),
     grid.column("kind", t("word.kind"), 120, **grid.choice_filter(_KIND_CHOICES),
                 help=t("console.devices.vpinfe_install_answers_itself.help")),

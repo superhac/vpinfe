@@ -287,8 +287,8 @@ body::before {
 }
 
 /* The identifier a row is scanned by stays at the top of the ink scale; everything
-   beside it supports it. Pinned left is where both grids put that column. */
-.ag-pinned-left-cols-container .ag-cell { color: var(--ink); }
+   beside it supports it. grid.identifier() puts this class on that column. */
+.ag-cell.console-cell-identifier { color: var(--ink); }
 /* Two states, one color: both answer "which one", and a second hue would read as a
    third meaning. Selected is a fill, focused is a band, and a row can be both.
    Set on the row, not --ag-selected-row-background-color, which AG Grid 34 ignores. */

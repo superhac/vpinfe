@@ -44,7 +44,7 @@ _STATE_CHOICES = [{"value": one, "label": one}
                   for one in (t(STATE_READY), t(STATE_OFF), t(STATE_BROKEN))]
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.column("name", t("word.name"), 240, pinned="left",
+    grid.identifier("name", t("word.name"), 240, pinned="left",
                 help=t("console.launchers.what_called_way_running.help")),
     grid.column("app", t("word.runs"), 180,
                 help=t("console.launchers.program_behind_says_something.help")),

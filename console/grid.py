@@ -252,6 +252,22 @@ def column(field: str, header: str, width: int = 0, help: str = "",
             "width": max(width, header_width(header))} | tip | extra
 
 
+# `console-base.css` colors this class.
+IDENTIFIER_CLASS = "console-cell-identifier"
+
+
+def identifier(field: str, header: str, width: int = 0, help: str = "",
+               **extra: Any) -> dict[str, Any]:
+    """The column this grid's rows are scanned *by*, which is not their unique key.
+
+    Exactly one per grid; `build` refuses anything else.
+    """
+    extra_classes = extra.pop("cellClass", "")
+    classes = f"{extra_classes} {IDENTIFIER_CLASS}".strip() if extra_classes \
+        else IDENTIFIER_CLASS
+    return column(field, header, width, help, cellClass=classes, **extra)
+
+
 # Ours, not AG Grid's: it names the group a column sits under in the column picker.
 # Carried on the definition so the list that declares the columns also declares their
 # order and their grouping, and stripped before the defs reach the grid.
@@ -276,7 +292,16 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
 
     `view_of` names the view showing now. Given one, geometry is stored per view - the
     grid outlives a view change, so without it every view shares one set of widths.
+
+    Raises `ValueError` unless exactly one column is a `grid.identifier()`.
     """
+    marked = [definition.get("field") for definition in columns
+              if IDENTIFIER_CLASS in str(definition.get("cellClass") or "")]
+    if len(marked) != 1:
+        raise ValueError(
+            f"{scope}: a grid declares exactly one grid.identifier() column, "
+            f"the one its rows are scanned by; this one declares {len(marked)}"
+            + (f" ({', '.join(str(m) for m in marked)})" if marked else ""))
     grid = ui.aggrid({
         "columnDefs": for_grid(columns),
         "rowData": rows,
