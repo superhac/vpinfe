@@ -268,6 +268,11 @@ def identifier(field: str, header: str, width: int = 0, help: str = "",
     return column(field, header, width, help, cellClass=classes, **extra)
 
 
+# Ours, not AG Grid's: what the picker calls a column that draws no header of its own.
+# Without it the picker falls back to the field name and prints `icon`.
+PICKER_KEY = "picker"
+
+
 # Ours, not AG Grid's: it names the group a column sits under in the column picker.
 # Carried on the definition so the list that declares the columns also declares their
 # order and their grouping, and stripped before the defs reach the grid.
@@ -276,7 +281,8 @@ GROUP_KEY = "group"
 
 def for_grid(columns: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The definitions as AG Grid wants them, without our own keys."""
-    return [{k: v for k, v in column.items() if k != GROUP_KEY} for column in columns]
+    return [{k: v for k, v in column.items() if k not in (GROUP_KEY, PICKER_KEY)}
+            for column in columns]
 
 
 def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,

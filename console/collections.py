@@ -42,7 +42,8 @@ COLUMNS = [
     # The icon leads. A collection is recognized by its picture in the wheel long
     # before its name is read, and a list of collections that showed none of them was
     # asking the reader to work from the least distinctive thing about each.
-    grid.column("icon", "", 56, pinned="left", sortable=False, filter=False),
+    grid.column("icon", "", 56, pinned="left", sortable=False, filter=False,
+                picker=t("word.icon")),
     grid.identifier("name", t("word.name"), 240, pinned="left",
                 help=t("console.collections.what_called_collection_what.help")),
     grid.column("kind", t("word.kind"),

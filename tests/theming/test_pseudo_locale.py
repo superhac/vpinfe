@@ -91,6 +91,30 @@ def _icon_names() -> set[str]:
     return out
 
 
+_OPEN_PICKER = """(() => {
+  const b = [...document.querySelectorAll('.q-btn')].filter(x => x.offsetParent)
+      .find(x => (x.innerText || '').includes('more_vert'));
+  if (!b) return 'no picker here';
+  b.click();
+  return 'opened';
+})()"""
+
+_PICKER_TEXT = """(() => {
+  const parts = [...document.querySelectorAll(
+      '.q-menu, .q-item, .console-group, .console-menu-item')]
+      .filter(x => x.offsetParent).map(x => x.innerText || '');
+  return parts.join('\\n');
+})()"""
+
+
+async def _picker_text(browser) -> str:
+    """What the column picker says, or "" on a page that has no picker."""
+    if await browser.evaluate(_OPEN_PICKER) != "opened":
+        return ""
+    await asyncio.sleep(1.5)
+    return await browser.evaluate(_PICKER_TEXT) or ""
+
+
 class PseudoLocaleTests(unittest.TestCase):
     """Slow: boots a real instance and a real browser. Worth it - see the docstring."""
 
@@ -118,6 +142,10 @@ class PseudoLocaleTests(unittest.TestCase):
             # `Last Played` is a collection *name*, written into collections.json - it
             # is stored data, and translating it would rename what is on disk
             | {"last", "played"}
+            # Table features named after the person or the product that made them -
+            # `console/table_features.py` writes these as literals for the same reason
+            # the launcher names above are literals. A translated nFozzy is a wrong one.
+            | {"nfozzy", "ssf", "lut", "fastflips", "flexdmd"}
             # `alt_color` and `alt_sound` are asset kinds the registry does not name, so
             # `httpapi/assets.py:_label` builds a label from the identifier. That is the
             # documented fallback for a kind from outside; the fix is to register the
@@ -139,6 +167,7 @@ class PseudoLocaleTests(unittest.TestCase):
                         timeout=90.0)
                     await asyncio.sleep(3)
                     text = await browser.evaluate("document.body.innerText") or ""
+                    text += await _picker_text(browser)
                     seen = {w.lower() for w in ASCII_WORD.findall(text)}
                     leaked = sorted(seen - allowed)
                     if leaked:

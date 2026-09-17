@@ -41,8 +41,8 @@ SCOPE = "console.games.columns"
 # of the list and least of the use - and last is where it already was, so the grouping
 # names a seam that was there rather than moving anything.
 _GAME = "console.games.game"
-_ASSETS = "console.games.assets"
-_MEDIA = "console.games.media"
+_ASSETS = "console.view.assets"
+_MEDIA = "console.view.media"
 
 # What the games resource calls an asset is not always what `asset_registry` calls it -
 # `settings` is the table INI, and one `alt_color` covers both Serum and VNI. Named
@@ -177,8 +177,8 @@ GAME_VIEWS: dict[str, list[str]] = {
     # filled at render time. Two views, not one: they answer different questions - what
     # a game looks like, and what it needs to play as intended - and a matrix that mixes
     # them is neither.
-    t("console.view.media"): [],
-    t("console.view.assets"): [],
+    t(_MEDIA): [],
+    t(_ASSETS): [],
 }
 
 _ALL = [definition["field"] for definition in COLUMNS]
@@ -406,8 +406,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         search = panel.search(t("console.games.search_games"))
         # The media preset is the library's own kinds, so it is only knowable here.
         presets = {**GAME_VIEWS,
-                   t("console.view.media"): ["name", *[f"media_{kind}" for kind in kinds]],
-                   t("console.view.assets"): ["name",
+                   t(_MEDIA): ["name", *[f"media_{kind}" for kind in kinds]],
+                   t(_ASSETS): ["name",
                            *[f"asset_{key}" for key in library.asset_keys()]]}
         wire_views, view_picker, showing = view_control(library, SCOPE, presets,
                                                         all_fields, columns)
@@ -900,7 +900,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
         search = panel.search(t("console.games.search_tables"))
         presets = {**TABLE_VIEWS,
-                   _ASSETS: ["game", "version", "author",
+                   t(_ASSETS): ["game", "version", "author",
                              *[f"asset_{key}" for key in TABLE_ASSET_KEYS]]}
         wire_views, view_picker, showing = view_control(library, f"{SCOPE}.tables",
                                                         presets, fields, table_columns)
@@ -1340,7 +1340,8 @@ def view_control(library: Any, scope: str,
                                 .classes("console-menu-header")
                         for definition in group:
                             field = definition["field"]
-                            label = str(definition.get("headerName") or field) \
+                            label = str(definition.get(grid.PICKER_KEY)
+                                        or definition.get("headerName") or field) \
                                 .replace("\n", " ")
                             ui.checkbox(label, value=field not in hidden,
                                         on_change=lambda event, f=field:
