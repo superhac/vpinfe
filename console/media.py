@@ -83,11 +83,11 @@ def rows(found: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 # The groups the column picker offers, the way Games and Tables already group theirs.
 _FILE = "word.file"
-_GAME = "console.media.game"
+_GAME = "word.game"
 _SOURCE = "word.source"
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.identifier("game", t("console.media.game"), 200, pinned="left", group=t(_GAME),
+    grid.identifier("game", t(_GAME), 200, pinned="left", group=t(_GAME),
                 help=t("console.media.game_folder_file_belongs.help")),
     grid.column("label", t("word.kind"), 160, group=t(_FILE),
                 help=t("console.media.twenty_media_kinds_row.help")),

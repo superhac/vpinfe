@@ -40,7 +40,7 @@ SCOPE = "console.games.columns"
 # the row *is*, what it rolls up, and what it has. Media sits last because it is most
 # of the list and least of the use - and last is where it already was, so the grouping
 # names a seam that was there rather than moving anything.
-_GAME = "console.games.game"
+_GAME = "word.game"
 _ASSETS = "console.view.assets"
 _MEDIA = "console.view.media"
 
@@ -109,7 +109,7 @@ _TICK = {
 # own click would move the focused row, and rating a row you can see is not a request
 # to go and look at it.
 COLUMNS = [
-    grid.identifier("name", t("word.name"), 280, pinned="left", group=t(_GAME),
+    grid.identifier("name", t(_GAME), 280, pinned="left", group=t(_GAME),
                 help=t("console.games.machine_library_names_one.help")),
     # Always, including 1: it is the only thing saying the row collapses its tables,
     # and it qualifies everything to its right. "Table Count" rather
@@ -687,7 +687,7 @@ _TABLE = "console.games.table"
 _IN_PLAY = "console.games.library"
 
 TABLE_COLUMNS = [
-    grid.identifier("game", t("console.games.game"), 240, pinned="left", group=t(_GAME),
+    grid.identifier("game", t(_GAME), 240, pinned="left", group=t(_GAME),
                 help=t("console.games.machine_build_several_rows.help")),
     grid.column("version", t("word.version"), group=t(_TABLE),
                 help=t("console.games.build_s_own_version.help")),

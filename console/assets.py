@@ -70,11 +70,11 @@ def rows(found: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 _FILE = "word.file"
-_GAME = "console.assets.game"
+_GAME = "word.game"
 _SOURCE = "word.source"
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.identifier("game", t("console.assets.game"), 200, pinned="left", group=t(_GAME),
+    grid.identifier("game", t(_GAME), 200, pinned="left", group=t(_GAME),
                 help=t("console.assets.game_folder_file_belongs.help")),
     grid.column("label", t("word.kind"), 160, group=t(_FILE),
                 help=t("console.assets.what_file_backglass_vpx.help")),
