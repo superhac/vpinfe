@@ -949,7 +949,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         bar = panel.grid_bar()
         presets = {**TABLE_VIEWS,
                    t(_ASSETS): views.Preset(
-                       columns=("game", "version", "author",
+                       columns=("game",
                                 *[f"asset_{key}" for key in TABLE_ASSET_KEYS]),
                        help=t("console.view.table_assets.help"))}
 

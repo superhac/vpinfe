@@ -36,9 +36,9 @@ from common.games.tables import table_entries
 from common.paths import COLLECTIONS_PATH, get_ini_config
 
 _LOCK = threading.Lock()
-# One parser per location, keyed by its path. A parser reads one root and knows nothing
-# about locations, which is what keeps the plural half here and out of the scan.
-_PARSERS: dict[str, GameParser] = {}
+# One parser per location, keyed by its path and kind. A parser reads one path and knows
+# nothing about locations, which is what keeps the plural half here and out of the scan.
+_PARSERS: dict[tuple[str, str], GameParser] = {}
 logger = logging.getLogger("vpinfe.common.games.game_repository")
 
 
@@ -50,15 +50,19 @@ def _held(reload: bool) -> tuple[list[Any], bool]:
     a second library being answered with the first one's games.
     """
     wanted = locations.configured()
-    for gone in [path for path in _PARSERS if path not in {one.path for one in wanted}]:
+    keys = {(one.path, one.kind) for one in wanted}
+    for gone in [key for key in _PARSERS if key not in keys]:
         _PARSERS.pop(gone)
 
     games: list[Any] = []
     read = False
     for location in wanted:
-        parser = _PARSERS.get(location.path)
+        key = (location.path, location.kind)
+        parser = _PARSERS.get(key)
         if parser is None:
-            parser = _PARSERS[location.path] = GameParser(location.path, get_ini_config())
+            parser = _PARSERS[key] = GameParser(
+                location.path, get_ini_config(),
+                one_game=location.kind == locations.KIND_GAME)
             read = True
         elif reload:
             parser.load_games(reload=True)
@@ -360,7 +364,7 @@ def get_game_name_map(reload: bool = False) -> dict[str, str]:
 
 def _parser_holding(game_dir: str) -> GameParser | None:
     """The parser for the location this folder is in, or None when nothing is loaded."""
-    for path, parser in _PARSERS.items():
+    for (path, _kind), parser in _PARSERS.items():
         if not parser.get_game_count():
             continue
         try:

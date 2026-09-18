@@ -62,8 +62,11 @@ class GameParser:
     RESET_CONSOLE_TEXT = '\033[0m'
 
     def __init__(self, games_root_file_path: str | Path,
-                 ini_config: ConfigStore | None = None) -> None:
+                 ini_config: ConfigStore | None = None, *,
+                 one_game: bool = False) -> None:
         self.games_root_file_path = Path(games_root_file_path)
+        # Whether this path is a game folder rather than a folder of them.
+        self.one_game = one_game
         self.playfieldvariant = "table"
         self.games: list[Game] = []
         self.missing_games: list[dict] = []
@@ -92,8 +95,9 @@ class GameParser:
             return
 
         logger.info("Loading games and image paths...")
-        folders = [d for d in sorted(self.games_root_file_path.iterdir())
-                   if d.is_dir() and not d.name.startswith('.')]
+        folders = ([self.games_root_file_path] if self.one_game
+                   else [d for d in sorted(self.games_root_file_path.iterdir())
+                         if d.is_dir() and not d.name.startswith('.')])
 
         # Reading a folder is almost entirely waiting: on a network share the directory
         # listings are nearly the whole scan and the parsing is a fraction of it. Threads

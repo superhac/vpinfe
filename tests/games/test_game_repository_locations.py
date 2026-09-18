@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.games import game_repository
-from common.games.locations import KIND_ROOT, Location
+from common.games.locations import KIND_GAME, KIND_ROOT, Location
 
 
 def _game_folder(root: Path, name: str) -> Path:
@@ -32,13 +32,35 @@ class ManyLocationTests(unittest.TestCase):
         game_repository._PARSERS.clear()
         self.addCleanup(game_repository._PARSERS.clear)
 
-    def _configured(self, *paths: Path) -> list[Location]:
-        return [Location(location_id=f"loc{n}", path=str(path), kind=KIND_ROOT)
+    def _configured(self, *paths: Path, kind: str = KIND_ROOT) -> list[Location]:
+        return [Location(location_id=f"loc{n}", path=str(path), kind=kind)
                 for n, path in enumerate(paths)]
 
-    def _with(self, *paths: Path):
+    def _with(self, *paths: Path, kind: str = KIND_ROOT):
         return mock.patch.object(game_repository.locations, "configured",
-                                 return_value=self._configured(*paths))
+                                 return_value=self._configured(*paths, kind=kind))
+
+    def test_a_location_that_is_one_game_reads_that_game(self) -> None:
+        folder = self.first / "One (Bally 1990)"
+
+        with self._with(folder, kind=KIND_GAME):
+            games = game_repository.all_games()
+
+        self.assertEqual([g.game_dir_name for g in games], ["One (Bally 1990)"])
+
+    def test_the_same_folder_read_as_a_root_finds_nothing_in_it(self) -> None:
+        folder = self.first / "One (Bally 1990)"
+
+        with self._with(folder, kind=KIND_ROOT):
+            self.assertEqual(game_repository.all_games(), [])
+
+    def test_changing_the_kind_rereads_the_same_path(self) -> None:
+        folder = self.first / "One (Bally 1990)"
+
+        with self._with(folder, kind=KIND_ROOT):
+            self.assertEqual(game_repository.all_games(), [])
+        with self._with(folder, kind=KIND_GAME):
+            self.assertEqual(len(game_repository.all_games()), 1)
 
     def test_every_location_is_read_and_each_game_says_where_it_came_from(self) -> None:
         with self._with(self.first, self.second):
@@ -62,7 +84,8 @@ class ManyLocationTests(unittest.TestCase):
             games = game_repository.all_games()
 
         self.assertEqual([g.game_dir_name for g in games], ["Two (Gottlieb 1975)"])
-        self.assertEqual(list(game_repository._PARSERS), [str(self.second)])
+        self.assertEqual([path for path, _kind in game_repository._PARSERS],
+                         [str(self.second)])
 
     def test_a_location_is_read_once_and_held(self) -> None:
         with self._with(self.first, self.second):

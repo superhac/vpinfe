@@ -14,7 +14,7 @@ from unittest import mock
 from common import events
 from common.games import game_repository
 from common.games.game_parser import GameParser
-from common.games.locations import Location
+from common.games.locations import KIND_ROOT, Location
 from tests.support.library import TempTree, write_game
 
 
@@ -147,7 +147,7 @@ class ChangeAnnouncementTests(TempTree):
 
         previous = dict(game_repository._PARSERS)
         game_repository._PARSERS.clear()
-        game_repository._PARSERS[str(self.root)] = parser
+        game_repository._PARSERS[(str(self.root), KIND_ROOT)] = parser
         self.addCleanup(game_repository._PARSERS.update, previous)
         self.addCleanup(game_repository._PARSERS.clear)
 
