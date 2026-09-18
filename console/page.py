@@ -947,26 +947,31 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             ui.label(prompt).classes("text-xs console-workbench-label leading-none truncate")
 
     def page_header() -> None:
-        """The page's name, and nothing else.
+        """The page's name, and one line saying what it is for.
 
         Two controls belong to neither the page nor a row: a library rescan, which is about
         the library and so shows in the library's own toolbar, and a jobs readout, which
         is about the whole install and lives in the rail's foot. On Settings and Devices
         neither would mean anything.
 
-        Here rather than in an app header because each pane already owns its chrome,
-        and a fourth band would cost height on every page for one line.
+        Here rather than in an app header because each pane already owns its chrome.
         """
         title = t(SECTIONS.get(state["view"], state["view"].title()))
+        purpose = t(f"console.purpose.{state['view']}")
         # The band the other two panes' headers use, so the page name sits in a fixed
         # rhythm rather than at whatever height its text makes. Not aligned *across*
         # panes - the nav's band is taller than its minimum and starts inside its own
         # padding, and matching that would be a magic number against an accident.
         # The title carries the buttons' 32px line height so the band centers one
         # height: centring boxes of different heights aligns boxes, not baselines.
-        with ui.row().classes("items-center gap-2 w-full no-wrap") \
+        with ui.column().classes("w-full gap-0 min-w-0") \
                 .style(f"min-height:{HEADER_H_PX}px"):
-            ui.label(title).classes("grow min-w-0 truncate console-page-title")
+            with ui.row().classes("items-center gap-2 w-full no-wrap"):
+                ui.label(title).classes("grow min-w-0 truncate console-page-title")
+            # A key with no entry draws as itself, so a page added without one says
+            # nothing rather than printing `console.purpose.<view>`.
+            if purpose and not purpose.startswith("console.purpose."):
+                ui.label(purpose).classes("console-page-purpose truncate")
 
     def render() -> None:
         # A game shown beside a different destination is stale by definition.

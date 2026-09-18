@@ -1874,6 +1874,14 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-fact-label { font-size: var(--fs-body); color: var(--ink-2); line-height: 1.3; }
 /* Sized to its text: a tooltip anchors to its parent, and a full-width label puts the
    bubble beside the word rather than under it. `max-width` keeps the truncation. */
+/* Under the page name, in the supporting voice: it is read once on arrival and never
+   scanned, so it recedes rather than competing with the title above it. */
+.console-page-purpose {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  line-height: 1.3;
+}
+
 .console-fact-value {
   font-size: var(--fs-body);
   color: var(--ink);
