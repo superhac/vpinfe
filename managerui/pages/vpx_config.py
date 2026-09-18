@@ -1,19 +1,17 @@
+"""VPX's own settings, edited through VPinFE rather than through its ini."""
+
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 from datetime import datetime
 from pathlib import Path
 
 from nicegui import ui
 
-from common.iniconfig import IniConfig
-from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 from managerui.services import vpx_config_service
-from managerui.services.vpx_config_service import FieldMeta, ParsedIni, SectionMeta
-from managerui.ui_helpers import load_page_style, attach_shell_save_bar
-
+from managerui.services.vpx_config_service import FieldMeta, ParsedIni
+from managerui.ui_helpers import attach_shell_save_bar, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.vpx_config")
 
@@ -93,8 +91,6 @@ def _load_vpx_ini_path() -> Path | None:
         return None
 
 
-_parse_comment_details = vpx_config_service.parse_comment_details
-_parse_ini = vpx_config_service.parse_ini
 
 
 def _build_display_sections(parsed: ParsedIni) -> list[dict]:
@@ -111,7 +107,7 @@ def _build_display_sections(parsed: ParsedIni) -> list[dict]:
                     continue
 
                 fallback = EDITOR_FALLBACK_COMMENTS.get(key, key)
-                label, description, default_text = _parse_comment_details([fallback])
+                label, description, default_text = vpx_config_service.parse_comment_details([fallback])
                 fields.append(
                     FieldMeta(
                         section=section_name,
@@ -175,22 +171,6 @@ def _write_updated_ini(
     vpx_config_service.write_updated_ini(ini_path, displayed_sections, values)
 
 
-def _backup_filename(ini_path: Path, reason: str = "manual") -> str:
-    return vpx_config_service.backup_filename(ini_path, reason)
-
-
-def _sanitize_backup_label(label: str) -> str:
-    return vpx_config_service.sanitize_backup_label(label)
-
-
-def _create_backup(ini_path: Path, reason: str = "manual", label: str = "") -> Path:
-    return vpx_config_service.create_backup(ini_path, reason, label)
-
-
-def _list_backups() -> list[Path]:
-    return vpx_config_service.list_backups()
-
-
 def _safe_mtime(path: Path) -> int | None:
     try:
         return path.stat().st_mtime_ns
@@ -249,7 +229,7 @@ def render_panel() -> None:
             return
 
         try:
-            parsed = _parse_ini(ini_path)
+            parsed = vpx_config_service.parse_ini(ini_path)
         except Exception as exc:
             logger.exception("Failed to parse %s", ini_path)
             with ui.card().classes("w-full p-5").style(
@@ -289,7 +269,7 @@ def render_panel() -> None:
         def reload_from_disk() -> None:
             nonlocal displayed_sections
             try:
-                reloaded = _parse_ini(ini_path)
+                reloaded = vpx_config_service.parse_ini(ini_path)
             except Exception as exc:
                 logger.exception("Failed to reload %s", ini_path)
                 ui.notify(f"Failed to reload VPinballX.ini: {exc}", type="negative")
@@ -365,7 +345,7 @@ def render_panel() -> None:
 
                 def _confirm_backup() -> None:
                     try:
-                        backup_path = _create_backup(
+                        backup_path = vpx_config_service.create_backup(
                             ini_path,
                             reason="manual",
                             label=str(backup_name_input.value or ""),
@@ -389,7 +369,7 @@ def render_panel() -> None:
             dialog.open()
 
         def restore_backup_dialog() -> None:
-            backups = _list_backups()
+            backups = vpx_config_service.list_backups()
 
             with ui.dialog() as dialog, ui.card().classes("w-full").style(
                 "background: var(--surface); border: 1px solid var(--line); min-width: min(92vw, 900px);"
@@ -429,7 +409,7 @@ def render_panel() -> None:
 
                                             def _restore(path: Path = backup) -> None:
                                                 try:
-                                                    safety_backup = _create_backup(ini_path, reason="pre-restore")
+                                                    safety_backup = vpx_config_service.create_backup(ini_path, reason="pre-restore")
                                                     shutil.copy2(path, ini_path)
                                                     dialog.close()
                                                     ui.notify(
@@ -464,7 +444,7 @@ def render_panel() -> None:
                 _write_updated_ini(ini_path, displayed_sections, inputs)
                 # Re-sync so our own write isn't mistaken for an external VPX change
                 # by the disk watcher (and so unsaved-edit detection stays accurate).
-                displayed_sections = _build_display_sections(_parse_ini(ini_path))
+                displayed_sections = _build_display_sections(vpx_config_service.parse_ini(ini_path))
                 disk_state["mtime"] = _safe_mtime(ini_path)
                 ui.notify("VPinballX.ini saved", type="positive")
             except Exception as exc:

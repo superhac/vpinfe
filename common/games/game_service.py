@@ -1,0 +1,741 @@
+"""What the Manager UI does to a game: rate it, re-match it, put it in a collection."""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import re
+import shutil
+from collections.abc import Callable
+from contextlib import suppress
+from pathlib import Path
+from typing import Any
+
+from common import jobs
+from common.config_access import SettingsConfig
+from common.config_store import ConfigStore
+from common.games import game_index_service, game_repository, info_maintenance, metadata_service
+from common.games.collection_store import CollectionStore
+from common.games.game import Game, GameRecord
+from common.games.game_metadata import game_vps_id, vpinfe_section
+from common.games.game_repository import refresh_game
+from common.games.info_file import VPINFE_SECTION
+from common.games.info_maintenance import RestoreResult, UpgradeResult
+from common.games.tables import TABLES_KEY, default_table, recorded_default, table_entries
+from common.games.vpx_parser import VPXParser
+from common.jobs import LogCallback, ProgressCallback
+from common.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, get_games_path
+
+logger = logging.getLogger("vpinfe.common.games.game_service")
+
+VPSDB_JSON_PATH = VPINFE_INI_PATH.parent / "vpsdb.json"
+_vpsdb_cache: list[dict] | None = None
+
+
+def _fresh_config() -> ConfigStore:
+    return ConfigStore(str(VPINFE_INI_PATH))
+
+
+def normalize_game_rating(value: Any) -> int:
+    try:
+        normalized = int(float(value))
+    except (TypeError, ValueError):
+        normalized = 0
+    return max(0, min(5, normalized))
+
+
+def ensure_vpsdb_downloaded() -> bool:
+    global _vpsdb_cache
+    from common.online.vpsdb import VPSdb
+    try:
+        config = _fresh_config()
+        VPSdb(SettingsConfig.from_config(config).game_root_dir, config)
+        _vpsdb_cache = None
+        return VPSDB_JSON_PATH.exists()
+    except Exception as e:
+        logger.error("Failed to ensure vpsdb: %s", e)
+        return VPSDB_JSON_PATH.exists()
+
+
+def get_game_collections_map() -> dict[str, list[str]]:
+    return game_repository.collections_by_game_id()
+
+
+def get_game_collections() -> list[str]:
+    result = []
+    try:
+        collections = CollectionStore(str(COLLECTIONS_PATH))
+        # Every collection can be added to. Criteria and hand-picked members are
+        # combinable, so carrying a rule does not stop a collection
+        # holding something somebody named.
+        result.extend(collections.get_collections_name())
+    except Exception:
+        pass
+    return result
+
+
+def add_game_to_collection(game_id: str, collection_name: str) -> bool:
+    try:
+        collections = CollectionStore(str(COLLECTIONS_PATH))
+        collections.add_member(collection_name, game_id)
+        collections.save()
+        return True
+    except Exception as e:
+        logger.error("Failed to add game to collection: %s", e)
+        return False
+
+
+def update_info_section(game_dir: Path, section: str, key: str, value: Any) -> bool:
+    try:
+        info_file = game_dir / f"{game_dir.name}.info"
+        if not info_file.exists():
+            logger.error("Info file not found: %s", info_file)
+            return False
+
+        data = json.loads(info_file.read_text(encoding="utf-8"))
+        data.setdefault(section, {})[key] = value
+        info_file.write_text(json.dumps(data, indent=4), encoding="utf-8")
+        refresh_game(game_dir)
+        return True
+    except Exception as e:
+        logger.error("Failed to update %s.%s: %s", section, key, e)
+        return False
+
+
+def update_vpinfe_setting(game_dir: Path, key: str, value: Any) -> bool:
+    return update_info_section(game_dir, VPINFE_SECTION, key, value)
+
+
+def update_table_vpinfe_setting(game_dir: Path, table_id: str, key: str,
+                                value: Any) -> bool:
+    """One table's own override, beside what was discovered about it, not on top of it.
+
+    Under the table entry's own `vpinfe` key. A rebuild refreshes only what the parser
+    produces and leaves the rest of an entry alone, so this survives a rescan without
+    being named anywhere - the same reason play stats can live there.
+
+    Per table rather than per game because these govern one file: which binary runs it,
+    which ini it launches with, whose nvram is its own. A folder holding a VPX table and
+    a Future Pinball one cannot answer for both with a single value.
+    """
+    try:
+        info_file = game_dir / f"{game_dir.name}.info"
+        if not info_file.exists():
+            logger.error("Info file not found: %s", info_file)
+            return False
+
+        data = json.loads(info_file.read_text(encoding="utf-8"))
+        entry = (data.get(TABLES_KEY) or {}).get(table_id)
+        if entry is None:
+            logger.error("No table %s in %s", table_id, info_file)
+            return False
+        entry.setdefault(VPINFE_SECTION, {})[key] = value
+        info_file.write_text(json.dumps(data, indent=4), encoding="utf-8")
+        refresh_game(game_dir)
+        return True
+    except Exception as e:
+        logger.error("Failed to update table %s %s: %s", table_id, key, e)
+        return False
+
+
+def update_user_setting(game_dir: Path, key: str, value: Any) -> bool:
+    return update_info_section(game_dir, "User", key, value)
+
+
+def load_vpsdb() -> list[dict]:
+    global _vpsdb_cache
+    if _vpsdb_cache is not None:
+        return _vpsdb_cache
+    try:
+        data = json.loads(VPSDB_JSON_PATH.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            _vpsdb_cache = data
+        else:
+            _vpsdb_cache = data.get("games") or data.get("items") or []
+    except Exception as e:
+        logger.error("Failed to load vpsdb.json: %s", e)
+        _vpsdb_cache = []
+    return _vpsdb_cache
+
+
+_NOT_A_WORD = re.compile(r"\W+", re.UNICODE)
+
+
+def find_vps_release(vps_file_id: str) -> dict:
+    """One build of one machine, by its own id, across the whole catalog.
+
+    Scanned rather than indexed: this answers a single table's "which build am I" on a
+    page draw, not a sweep. Build an index here the day something asks it per row.
+    """
+    wanted = (vps_file_id or "").strip()
+    if not wanted:
+        return {}
+    for entry in load_vpsdb():
+        for release in (entry.get("tableFiles") or []):
+            if str(release.get("id") or "") == wanted:
+                return release
+    return {}
+
+
+def matched_vps_entry(game: GameRecord) -> dict:
+    """The catalog entry this game is matched to, effective id first."""
+    wanted = game_vps_id(game)
+    if not wanted:
+        return {}
+    return next((e for e in load_vpsdb() if str(e.get("id") or "") == wanted), {})
+
+
+def _plain(text: str) -> str:
+    """Lowercased, with every run of punctuation as a space, for comparing names."""
+    return _NOT_A_WORD.sub(" ", text.lower()).strip()
+
+
+def search_vpsdb(term: str, limit: int = 50) -> list[dict]:
+    """Catalog entries matching every word, in a neutral order.
+
+    Every word has to appear somewhere in the name, maker or year, so "attack bally"
+    narrows rather than widens - which is what a person typing two words means.
+
+    Punctuation is not a word and does not have to line up. A library title is stored
+    with its article moved for sorting - "Addams Family, The" - and that comma made the
+    game's own name fail to find the game, which is the query a surface seeds by default.
+
+    Sorted before the window is taken, and by name then year. Two reasons, and the
+    second is the one that matters: stopping at `limit` in catalog order cuts off the
+    answer somebody wanted by where it happens to sit in the file. And there is no
+    ranking, deliberately - a scorer over this question is confidently wrong more often
+    than not, so an order implying "best first" would carry a confidence nothing
+    supports.
+    """
+    wanted = _plain(term or "").split()
+    if not wanted:
+        return []
+    found = []
+    for item in load_vpsdb():
+        haystack = _plain(" ".join(str(item.get(key) or "")
+                                   for key in ("name", "manufacturer", "year")))
+        if all(word in haystack for word in wanted):
+            found.append(item)
+    found.sort(key=lambda item: (str(item.get("name") or "").lower(),
+                                 str(item.get("year") or "")))
+    return found[:limit]
+
+
+def ensure_dir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def save_upload_bytes(dest_file: Path, content: bytes) -> None:
+    ensure_dir(dest_file.parent)
+    dest_file.write_bytes(content)
+
+
+def _safe_upload_name(filename: str) -> str:
+    safe_name = Path(filename or "").name
+    if not safe_name or safe_name in {".", ".."}:
+        raise ValueError("Invalid upload filename")
+    return safe_name
+
+
+def _find_vpx_file(game_dir: Path, preferred_filename: str = "") -> Path:
+    names = [path.name for path in game_dir.iterdir() if path.is_file()]
+    chosen = default_table(names, game_dir.name, Path(preferred_filename or "").name)
+    if not chosen:
+        raise FileNotFoundError(f"No .vpx found in {game_dir}")
+    return game_dir / chosen
+
+
+def _find_directb2s_file(game_dir: Path, preferred_stem: str = "") -> Path | None:
+    b2s_files = sorted(path for path in game_dir.iterdir()
+                       if path.is_file() and path.suffix.lower() == ".directb2s")
+    if not b2s_files:
+        return None
+
+    preferred_stem_lower = preferred_stem.lower()
+    if preferred_stem_lower:
+        for path in b2s_files:
+            if path.stem.lower() == preferred_stem_lower:
+                return path
+    return b2s_files[0]
+
+
+def _find_ini_file(game_dir: Path, preferred_stem: str = "") -> Path | None:
+    ini_files = sorted(path for path in game_dir.iterdir()
+                       if path.is_file() and path.suffix.lower() == ".ini")
+    if not ini_files:
+        return None
+
+    preferred_stem_lower = preferred_stem.lower()
+    if preferred_stem_lower:
+        for path in ini_files:
+            if path.stem.lower() == preferred_stem_lower:
+                return path
+    return ini_files[0]
+
+
+def _write_replace(dest_file: Path, content: bytes) -> None:
+    ensure_dir(dest_file.parent)
+    tmp_file = dest_file.with_name(f".{dest_file.name}.uploading")
+    tmp_file.write_bytes(content)
+    os.replace(tmp_file, dest_file)
+
+
+def replace_table(game_dir: Path, filename: str, content: bytes, file_kind: str,
+                  current_vpx_filename: str = "") -> dict[str, str]:
+    game_dir = game_dir.expanduser()
+    if not game_dir.exists() or not game_dir.is_dir():
+        raise FileNotFoundError(f"Table folder not found: {game_dir}")
+
+    safe_name = _safe_upload_name(filename)
+    ext = Path(safe_name).suffix.lower()
+
+    if file_kind == "vpx":
+        if ext != ".vpx":
+            raise ValueError("Only .vpx files can update the table file")
+
+        old_vpx = _find_vpx_file(game_dir, current_vpx_filename)
+        new_vpx = game_dir / safe_name
+        old_b2s = _find_directb2s_file(game_dir, old_vpx.stem)
+        old_ini = _find_ini_file(game_dir, old_vpx.stem)
+
+        if old_vpx.resolve() == new_vpx.resolve():
+            _write_replace(new_vpx, content)
+        else:
+            tmp_file = new_vpx.with_name(f".{new_vpx.name}.uploading")
+            tmp_file.write_bytes(content)
+            old_vpx.unlink()
+            os.replace(tmp_file, new_vpx)
+
+        renamed_b2s = ""
+        if old_b2s and old_b2s.exists():
+            new_b2s = game_dir / f"{new_vpx.stem}.directb2s"
+            if old_b2s.resolve() != new_b2s.resolve():
+                if new_b2s.exists():
+                    new_b2s.unlink()
+                os.replace(old_b2s, new_b2s)
+            renamed_b2s = new_b2s.name
+
+        renamed_ini = ""
+        if old_ini and old_ini.exists():
+            new_ini = game_dir / f"{new_vpx.stem}.ini"
+            if old_ini.resolve() != new_ini.resolve():
+                if new_ini.exists():
+                    new_ini.unlink()
+                os.replace(old_ini, new_ini)
+            renamed_ini = new_ini.name
+
+        refresh_game(game_dir)
+        return {
+            "file_kind": "vpx",
+            "filename": new_vpx.name,
+            "game_dir": str(game_dir),
+            "directb2s_filename": renamed_b2s,
+            "ini_filename": renamed_ini,
+        }
+
+    if file_kind == "directb2s":
+        if ext != ".directb2s":
+            raise ValueError("Only .directb2s files can update the backglass file")
+
+        current_vpx = _find_vpx_file(game_dir, current_vpx_filename)
+        old_b2s = _find_directb2s_file(game_dir, current_vpx.stem)
+        target_b2s = old_b2s if old_b2s else game_dir / f"{current_vpx.stem}.directb2s"
+        _write_replace(target_b2s, content)
+
+        refresh_game(game_dir)
+        return {
+            "file_kind": "directb2s",
+            "filename": target_b2s.name,
+            "game_dir": str(game_dir),
+        }
+
+    raise ValueError("Unsupported table update type")
+
+
+def associate_vps_to_folder(
+    game_dir: Path,
+    vps_entry: dict,
+    download_media: bool = False,
+) -> None:
+    from common.games.info_file import MetaConfig
+
+    if not game_dir.exists():
+        raise FileNotFoundError(f"Folder not found: {game_dir}")
+
+    meta_path = game_dir / f"{game_dir.name}.info"
+    recorded = ""
+    if meta_path.exists():
+        try:
+            stored = MetaConfig(str(meta_path)).data
+            recorded = recorded_default(vpinfe_section(stored), table_entries(stored))
+        except Exception:
+            recorded = ""
+
+    vpx_file = _find_vpx_file(game_dir, recorded)
+    parser = VPXParser()
+    vpxdata = parser.single_file_extract(str(vpx_file))
+
+    meta = MetaConfig(str(meta_path))
+    meta.write_config_meta({"vpsdata": vps_entry, "vpxdata": vpxdata})
+
+    if download_media:
+        from common.online.vpsdb import VPSdb
+
+        config = _fresh_config()
+        vps = VPSdb(SettingsConfig.from_config(config).game_root_dir, config)
+
+        # A Game with nothing resolved yet: the downloader reads the media paths to
+        # see what is already on disk, and for a folder being associated the answer is
+        # nothing. Every one of those fields already defaults to None.
+        fresh = Game(game_dir_name=game_dir.name, full_path_game=str(game_dir),
+                     full_path_vpx_file=str(vpx_file))
+        vps.download_media_for_game(fresh, str(vps_entry.get("id") or ""),
+                                    meta_config=meta)
+
+    from common.games.media_service import invalidate_media_cache
+    invalidate_media_cache()
+    refresh_game(game_dir)
+
+
+def scan_game_rows(reload: bool = False) -> list[dict]:
+    return game_index_service.scan_rows(reload=reload)
+
+
+def scan_missing_game_rows(reload: bool = False) -> list[dict]:
+    return game_index_service.scan_missing_rows(reload=reload)
+
+
+def extract_vbs(game_dir: Path, vpx_filename: str, table_id: str = "") -> dict:
+    """Run the VPX binary with -extractvbs to extract a table's .vbs script.
+
+    VPX writes the extracted .vbs next to the .vpx file (the game's root dir)
+    automatically, so we only need to invoke the binary and report the result.
+
+    Returns {'vbs_path': str} on success. Raises on failure.
+    """
+    import platform as _platform
+    import subprocess
+    import sys as _sys
+
+    from common.host.launch import binary_for
+
+    # Through the same resolution a launch uses, so the program that extracts a script is
+    # the one that would have played the table.
+    vpxbin_path = Path(binary_for(table_id, vpx_filename))
+
+    vpx_file = game_dir / vpx_filename
+    if not vpx_file.is_file():
+        raise FileNotFoundError(f"Table file not found: {vpx_file}")
+
+    # Match the launch env handling: on frozen Linux builds, restore the
+    # original LD_LIBRARY_PATH so VPX does not pick up incompatible bundled libs.
+    launch_env = os.environ.copy()
+    if _platform.system() == "Linux" and getattr(_sys, "frozen", False):
+        lp_orig = launch_env.get('LD_LIBRARY_PATH_ORIG')
+        if lp_orig is not None:
+            launch_env['LD_LIBRARY_PATH'] = lp_orig
+
+    cmd = [str(vpxbin_path), "-extractvbs", str(vpx_file)]
+    logger.info("Extracting VBS: %s", cmd)
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        env=launch_env,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        raise RuntimeError(f"VPX exited with code {result.returncode}: {detail}")
+
+    vbs_file = vpx_file.with_suffix('.vbs')
+    return {'vbs_path': str(vbs_file), 'vbs_exists': vbs_file.is_file()}
+
+
+def _scan(job: jobs.Job, download_media: bool, update_all: bool,
+          game_name: str | None, user_media: bool) -> dict[str, int]:
+    return metadata_service.build_metadata(
+        download_media=download_media, update_all=update_all, game_name=game_name,
+        user_media=user_media, iniconfig=_fresh_config(),
+        progress_cb=job.progress, log_cb=job.log)
+
+
+def build_metadata(download_media: bool = True, update_all: bool = True,
+                   game_name: str | None = None, user_media: bool = False,
+                   progress_cb: ProgressCallback | None = None,
+                   log_cb: LogCallback | None = None,
+                   job: jobs.Job | None = None) -> dict[str, int]:
+    """A library scan is a job wherever it was started from.
+
+    Routing the Manager UI's own scan through the registry costs it nothing - it
+    keeps its callbacks and its return value - and buys two things: the scan reaches
+    the event stream, and it shares the one-at-a-time rule with the API instead of
+    the two paths being able to rewrite the same .info files at once.
+
+    `job` is for a caller that already registered one; without it this call owns the
+    registration, which is what makes the Manager UI's existing call site work
+    unchanged.
+    """
+    if job is not None:
+        return _scan(job, download_media, update_all, game_name, user_media)
+    with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as tracked:
+        return _scan(tracked, download_media, update_all, game_name, user_media)
+
+
+def info_maintenance_counts(reload: bool = False) -> dict[str, int]:
+    """What the Tables page needs to decide whether to offer upgrade or a restore."""
+    return game_repository.info_maintenance_counts(reload=reload)
+
+
+def unreadable_games() -> list[dict[str, str]]:
+    return game_repository.unreadable_games()
+
+
+def pending_upgrade_game_names() -> list[str]:
+    return game_repository.pending_upgrade_game_names()
+
+
+def newest_backup_stamp() -> str:
+    return game_repository.newest_backup_stamp()
+
+
+def collections_restorable() -> bool:
+    """Whether a newer VPinFE left a collections file this build can put back."""
+    from common.games.collection_store import restorable_collections_backup
+
+    return bool(restorable_collections_backup(CONFIG_DIR))
+
+
+def restorable_game_names() -> list[str]:
+    return game_repository.restorable_game_names()
+
+
+def _as_a_job[T](work: Callable[[jobs.Job], T], progress_cb: ProgressCallback | None,
+                 log_cb: LogCallback | None, job: jobs.Job | None) -> T:
+    """Run one pass over the library's `.info` files, as a job either way.
+
+    `job` is for a caller that started one already - the API submits to the registry and
+    owns the job before the work begins, so registering a second here would refuse itself
+    as busy. Without one, this registers its own, which is what an in-process caller
+    needs.
+
+    A library scan rather than a kind of its own, in both cases: the point of the kind is
+    that two things rewriting the same `.info` files must not overlap, and these rewrite
+    exactly the files a scan does.
+    """
+    if job is not None:
+        result = work(job)
+    else:
+        with jobs.track(jobs.KIND_LIBRARY_SCAN,
+                        progress_cb=progress_cb, log_cb=log_cb) as owned:
+            result = work(owned)
+    game_repository.refresh_games()
+    return result
+
+
+def upgrade_info(progress_cb: ProgressCallback | None = None,
+                 log_cb: LogCallback | None = None, *, job: jobs.Job | None = None,
+                 game_name: str | None = None) -> UpgradeResult:
+    """Upgrade every game's .info in one pass."""
+    return _as_a_job(
+        lambda owned: info_maintenance.upgrade_library(
+            get_games_path(), game_name=game_name,
+            progress_cb=owned.progress, log_cb=owned.log),
+        progress_cb, log_cb, job)
+
+
+def restore_info(progress_cb: ProgressCallback | None = None,
+                 log_cb: LogCallback | None = None, *, job: jobs.Job | None = None,
+                 game_name: str | None = None) -> RestoreResult:
+    """Put back the .info files saved before upgrade, for every game that has one."""
+    return _as_a_job(
+        lambda owned: info_maintenance.restore_library(
+            get_games_path(), game_name=game_name, config_dir=CONFIG_DIR,
+            progress_cb=owned.progress, log_cb=owned.log),
+        progress_cb, log_cb, job)
+
+
+def apply_vpx_patches(progress_cb: ProgressCallback | None = None) -> None:
+    metadata_service.apply_vpx_patches(progress_cb=progress_cb, iniconfig=_fresh_config())
+
+
+# What a game's `Info` block holds, keyed by the name the wire uses. The block is
+# VPS-shaped and keeps its casing; everything of ours is snake_case, so the two are
+# mapped here rather than each caller knowing both spellings.
+DETAIL_FIELDS = {
+    "title": "Title",
+    "manufacturer": "Manufacturer",
+    "year": "Year",
+    "type": "Type",
+    "themes": "Themes",
+    "ipdb_id": "IPDBId",
+}
+
+
+def set_details(game_dir: Path, values: dict) -> dict:
+    """Describe the machine, for a game no catalog has matched.
+
+    Everything in `Info` normally arrives from VPSdb, and for most of the library that is
+    right. It leaves nothing for a game that came from somewhere else - an import from
+    another frontend carries a year and a manufacturer, and without this they would be
+    read and then dropped.
+
+    A patch: what is not sent is left alone, so a caller filling in a year does not have
+    to restate a title it never knew. Sending a key empty does clear it.
+
+    Safe against a later rebuild: the metadata pass skips a folder that already has a
+    record unless it is told to redo everything, and skips again when the catalog cannot
+    match it.
+    """
+    record = game_dir / f"{game_dir.name}.info"
+    if not record.is_file():
+        raise FileNotFoundError(str(record))
+
+    held = json.loads(record.read_text(encoding="utf-8"))
+    info = held.setdefault("Info", {})
+    if not isinstance(info, dict):
+        info = held["Info"] = {}
+    for name, key in DETAIL_FIELDS.items():
+        if name not in values:
+            continue
+        given = values[name]
+        info[key] = ([str(one).strip() for one in given if str(one).strip()]
+                     if key == "Themes" else str(given if given is not None else "").strip())
+
+    record.write_text(json.dumps(held, indent=4), encoding="utf-8")
+    refresh_game(game_dir)
+    return dict(info)
+
+
+def companions_beside(source: Path) -> list[Path]:
+    """The files that belong to this table, where it currently sits.
+
+    Matched on the exact stem rather than a prefix: a table called `Taxi` must not
+    collect what belongs to `Taxi 2`.
+
+    Which extensions count is the app's answer, not one written down here: what belongs
+    beside a table is a fact about the program that plays it, and the next app's list
+    will differ. A file nothing here plays has no companions, because nothing can say
+    what they would be.
+    """
+    from common import apps
+
+    app = apps.app_for(source.name)
+    wanted = set(app.claim.companions) if app else set()
+    if not wanted:
+        return []
+
+    stem = source.stem.lower()
+    try:
+        entries = sorted(one for one in source.parent.iterdir() if one.is_file())
+    except OSError:
+        return []
+    return [one for one in entries
+            if one != source and one.stem.lower() == stem
+            and one.suffix.lower() in wanted]
+
+
+def add_table_file(game_dir: Path, source: Path, table_id: str) -> dict:
+    """Copy a game file into a folder and record it, as one operation.
+
+    Both halves or neither: a file in the folder with nothing describing it becomes a
+    table with no id on the next scan, which is a worse state than the copy not having
+    happened.
+
+    **Its companions come with it.** A table without its backglass is not the table, and
+    a table without its settings is not set up; bringing the game file alone leaves both
+    behind. They are copied after the table is recorded, and one that fails is reported rather than
+    losing the table that did arrive.
+
+    Answers with what landed: the table's filename, and the companions that came too.
+    """
+    from common.games.info_file import MetaConfig
+
+    landing = game_dir / source.name
+    if landing.exists():
+        raise FileExistsError(source.name)
+
+    shutil.copy2(source, landing)
+    meta = MetaConfig(str(game_dir / f"{game_dir.name}.info"))
+    if not meta.add_contained_table(source.name, table_id):
+        landing.unlink(missing_ok=True)
+        raise ValueError(f"Could not record {source.name}")
+
+    brought = []
+    for one in companions_beside(source):
+        beside = game_dir / one.name
+        # Never over something already here. A second run, or a file somebody put there
+        # on purpose, is not ours to replace - the same rule the import applies to games.
+        if beside.exists():
+            continue
+        try:
+            shutil.copy2(one, beside)
+            brought.append(one.name)
+        except OSError as exc:
+            logger.warning("%s did not come with %s: %s", one.name, source.name, exc)
+
+    # What the table says about itself, read out of it now rather than left for the
+    # sweep that enriches a whole library. A file that arrives unparsed has no ROM, no
+    # authors and no version until something else comes along, and anything keyed on the
+    # ROM - a ROM set, a sound bank, a color set - cannot be placed beside it meanwhile.
+    # The upload path parses on the spot for the same reason. Before the refresh, so the
+    # refresh sees a described table rather than a bare filename.
+    rom = ""
+    try:
+        from common.games.library_enrichment import read_one
+
+        parsed = read_one(landing)
+        if parsed:
+            meta.replace_table("", source.name, parsed)
+            rom = str(parsed.get("rom") or "").strip()
+    except Exception:
+        logger.warning("Copied %s but could not read what it says about itself",
+                       source.name, exc_info=True)
+
+    refresh_game(game_dir)
+    return {"table": source.name, "companions": brought, "rom": rom}
+
+
+def sanitize_dir_name(name: str) -> str:
+    """Strip filesystem-reserved characters from a proposed game folder name."""
+    return "".join(c for c in (name or "") if c not in '<>:"/\\|?*').strip()
+
+
+def create_game(name: str, location_id: str = "") -> Path:
+    """Make a game folder with a record in it, and return the folder.
+
+    A folder is an entry because it holds a record, so the record is written here rather
+    than left to the next scan: an entry with no game file - a ROM, something a program
+    looks up by name - has nothing else to be found by.
+
+    Raises ValueError with the sentence to show when there is nowhere to create it, and
+    FileExistsError when something is already there.
+    """
+    from common.games import locations
+    from common.games.info_file import MetaConfig
+
+    wanted = sanitize_dir_name(name)
+    if not wanted:
+        raise ValueError("Say what to call it.")
+
+    where = locations.destination(location_id)
+    if where.location is None:
+        raise ValueError(where.reason)
+
+    folder = Path(where.path) / wanted
+    if folder.exists():
+        raise FileExistsError(str(folder))
+
+    folder.mkdir(parents=True)
+    try:
+        MetaConfig(str(folder / f"{wanted}.info")).write_config_meta({})
+    except Exception:
+        # A folder with no record is not an entry, so leaving one behind would put a
+        # directory in the library that nothing can see and nothing will clean up.
+        with suppress(OSError):
+            folder.rmdir()
+        raise
+
+    refresh_game(folder)
+    logger.info("Created game folder %s", folder)
+    return folder

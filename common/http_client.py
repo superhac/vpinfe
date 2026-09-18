@@ -1,3 +1,9 @@
+"""Fetching over HTTP, with a timeout every time.
+
+A thin wrapper over requests rather than a client: the point is that no call site can
+forget the timeout and hang the app on a server that never answers.
+"""
+
 from __future__ import annotations
 
 import json
@@ -6,12 +12,12 @@ from typing import Any
 
 import requests
 
-
 DEFAULT_TIMEOUT = 15
 DOWNLOAD_TIMEOUT = 60
 
 
-def get_json(url: str, *, timeout: int = DEFAULT_TIMEOUT, headers: dict[str, str] | None = None) -> Any:
+def get_json(
+        url: str, *, timeout: int = DEFAULT_TIMEOUT, headers: dict[str, str] | None = None) -> Any:
     response = requests.get(url, timeout=timeout, headers=headers)
     response.raise_for_status()
     try:
@@ -20,13 +26,42 @@ def get_json(url: str, *, timeout: int = DEFAULT_TIMEOUT, headers: dict[str, str
         raise ValueError(f"Invalid JSON returned from {url}") from exc
 
 
-def get_text(url: str, *, timeout: int = DEFAULT_TIMEOUT, headers: dict[str, str] | None = None) -> str:
+def put_json(url: str, payload: Any, *, timeout: int = DEFAULT_TIMEOUT,
+             headers: dict[str, str] | None = None) -> Any:
+    """PUT a JSON body and read the answer back. Same rule as the readers: a timeout
+    every time, so no call site can hang the app on a server that never answers."""
+    response = requests.put(url, json=payload, timeout=timeout, headers=headers)
+    response.raise_for_status()
+    try:
+        return response.json()
+    except json.JSONDecodeError:
+        return None
+
+
+def post_json(url: str, payload: Any = None, *, timeout: int = DEFAULT_TIMEOUT,
+              headers: dict[str, str] | None = None) -> Any:
+    """POST a JSON body and read the answer back.
+
+    An empty answer is None rather than an error: a 202 that says a thing was started
+    need not describe it, and one route here goes down as its own response is sent.
+    """
+    response = requests.post(url, json=payload, timeout=timeout, headers=headers)
+    response.raise_for_status()
+    try:
+        return response.json()
+    except json.JSONDecodeError:
+        return None
+
+
+def get_text(
+        url: str, *, timeout: int = DEFAULT_TIMEOUT, headers: dict[str, str] | None = None) -> str:
     response = requests.get(url, timeout=timeout, headers=headers)
     response.raise_for_status()
     return response.text
 
 
-def get_bytes(url: str, *, timeout: int = DOWNLOAD_TIMEOUT, headers: dict[str, str] | None = None) -> bytes:
+def get_bytes(url: str, *, timeout: int = DOWNLOAD_TIMEOUT,
+              headers: dict[str, str] | None = None) -> bytes:
     response = requests.get(url, timeout=timeout, headers=headers)
     response.raise_for_status()
     return response.content

@@ -1,0 +1,635 @@
+"""Checking for a new VPinFE release, and staging one to install on restart."""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+import os
+import platform
+import re
+import shutil
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+import requests
+
+from common.http_client import download_file, get_json
+from common.online.update_scripts import (
+    _build_posix_update_script,
+    _build_windows_bootstrap_script,
+    _build_windows_update_script,
+)
+from common.paths import CONFIG_DIR, UPDATES_DIR, bundled
+from common.vpinfe_version import get_version
+
+logger = logging.getLogger("vpinfe.common.online.app_updater")
+
+
+LAST_UPDATE_LOG = CONFIG_DIR / "last_update.log"
+LATEST_RELEASE_URL = "https://api.github.com/repos/superhac/vpinfe/releases/latest"
+USER_AGENT = "VPinFE-Updater"
+
+
+class UpdateError(RuntimeError):
+    """Raised when an update cannot be prepared or applied."""
+
+
+def _triplet_candidates(triplet: str) -> list[str]:
+    t = (triplet or "").strip()
+    if not t:
+        return []
+
+    slim_suffix = "-slim"
+    is_slim = t.endswith(slim_suffix)
+    base = t[:-len(slim_suffix)] if is_slim else t
+
+    aliases = {
+        "linux-arm64": "linux-aarch64",
+        "linux-aarch64": "linux-arm64",
+    }
+    candidates = [t]
+    alias_base = aliases.get(base)
+    if alias_base:
+        candidates.append(f"{alias_base}{slim_suffix}" if is_slim else alias_base)
+    return candidates
+
+
+def _resolve_manifest_asset(manifest: dict, triplet: str | None) -> tuple[str | None, dict | None]:
+    assets = manifest.get("assets") or {}
+    if not isinstance(assets, dict):
+        return None, None
+    for candidate in _triplet_candidates(triplet or ""):
+        asset = assets.get(candidate)
+        if asset:
+            return candidate, asset
+    return None, None
+
+
+def _parse_tag_version(tag: str) -> tuple[int, int, int] | None:
+    match = re.match(r"^v?(\d+)\.(\d+)\.(\d+)$", (tag or "").strip())
+    if not match:
+        return None
+    return int(match.group(1)), int(match.group(2)), int(match.group(3))
+
+
+def _request_json(url: str) -> dict:
+    logger.debug("Fetching JSON from %s", url)
+    payload = get_json(url, timeout=15, headers={"User-Agent": USER_AGENT})
+    if isinstance(payload, dict):
+        logger.debug("Fetched JSON from %s with keys=%s", url, sorted(payload.keys()))
+    else:
+        logger.debug("Fetched JSON from %s with type=%s", url, type(payload).__name__)
+    return payload
+
+
+def _download_file(url: str, dest: Path) -> None:
+    download_file(url, dest, timeout=60, headers={"User-Agent": USER_AGENT})
+
+
+def _append_log_line(path: Path, message: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as fh:
+        fh.write(message.rstrip() + "\n")
+
+
+def _prune_old_update_dirs(keep_dir: Path) -> None:
+    """Remove staged update directories other than the active one."""
+    UPDATES_DIR.mkdir(parents=True, exist_ok=True)
+    keep_dir = keep_dir.resolve()
+    for candidate in UPDATES_DIR.iterdir():
+        if not candidate.is_dir():
+            continue
+        try:
+            candidate_resolved = candidate.resolve()
+            keep_dir.relative_to(candidate_resolved)
+            continue
+        except ValueError:
+            pass
+        shutil.rmtree(candidate, ignore_errors=True)
+
+
+def _get_windows_powershell() -> str:
+    system_root = Path(os.environ.get("SystemRoot", r"C:\Windows"))
+    candidates = [
+        system_root / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe",
+        Path("powershell.exe"),
+    ]
+    for candidate in candidates:
+        if candidate.name.lower() == "powershell.exe" and str(candidate) == "powershell.exe":
+            resolved = shutil.which(str(candidate))
+            if resolved:
+                return resolved
+            continue
+        if candidate.exists():
+            return str(candidate)
+    return "powershell.exe"
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _find_release_asset(release_payload: dict, asset_name: str) -> dict | None:
+    for asset in release_payload.get("assets", []):
+        if asset.get("name") == asset_name:
+            return asset
+    return None
+
+
+def _bundled_chromium_exists() -> bool:
+    # `bundled()` is where the build puts data, and it is the first root checked. The
+    # other two stay: this decides whether an update may proceed, and a wrong "no" here
+    # is a user stuck on an old version. macOS is the case that earns the caution -
+    # Chromium.app is copied into the bundle after PyInstaller runs, by the workflow
+    # rather than by the spec.
+    roots: list[Path] = [bundled()]
+
+    exe_dir = Path(sys.executable).resolve().parent
+    roots.append(exe_dir)
+    roots.append(exe_dir / "_internal")
+
+    system = platform.system()
+    candidates: list[Path] = []
+    if system == "Linux":
+        candidates = [Path("chromium/linux/chrome/chrome")]
+    elif system == "Windows":
+        candidates = [
+            Path("chromium/windows/chrome-win/chrome.exe"),
+            Path("chromium/windows/chrome.exe"),
+        ]
+    elif system == "Darwin":
+        candidates = [Path("chromium/Chromium.app/Contents/MacOS/Chromium")]
+
+    for root in roots:
+        if not root:
+            continue
+        for candidate in candidates:
+            if (root / candidate).exists():
+                return True
+    return False
+
+
+def get_install_context() -> dict:
+    version = get_version()
+    system = platform.system()
+    machine = platform.machine().lower()
+
+    context = {
+        "current_version": version,
+        "supported": False,
+        "reason": None,
+        "triplet": None,
+        "install_root": None,
+        "launch_target": None,
+        "platform": system,
+        "is_frozen": bool(getattr(sys, "frozen", False)),
+    }
+
+    if not getattr(sys, "frozen", False):
+        context["reason"] = "source_build"
+        return context
+
+    if _parse_tag_version(version) is None:
+        context["reason"] = "non_release_build"
+        return context
+
+    exe_path = Path(sys.executable).resolve()
+    slim = not _bundled_chromium_exists()
+
+    if system == "Linux":
+        if machine in {"x86_64", "amd64"}:
+            triplet = "linux-x64"
+        elif machine in {"arm64", "aarch64"}:
+            triplet = "linux-arm64"
+        else:
+            context["reason"] = "unsupported_architecture"
+            return context
+        install_root = exe_path.parent
+        launch_target = install_root / "vpinfe"
+    elif system == "Windows":
+        triplet = "win-x64"
+        install_root = exe_path.parent
+        bat_launcher = install_root / "vpinfe.bat"
+        launch_target = bat_launcher if bat_launcher.exists() else exe_path
+    elif system == "Darwin":
+        if machine not in {"arm64", "aarch64"}:
+            context["reason"] = "unsupported_architecture"
+            return context
+        context["reason"] = "macos_not_supported_yet"
+        return context
+    else:
+        context["reason"] = "unsupported_platform"
+        return context
+
+    if slim:
+        triplet = f"{triplet}-slim"
+
+    context.update(
+        {
+            "supported": True,
+            "triplet": triplet,
+            "install_root": install_root,
+            "launch_target": launch_target,
+            "slim": slim,
+        }
+    )
+    logger.info(
+        "Install context resolved: version=%s frozen=%s platform=%s triplet=%s "
+        "supported=%s reason=%s install_root=%s launch_target=%s slim=%s",
+        context["current_version"],
+        context["is_frozen"],
+        context["platform"],
+        context["triplet"],
+        context["supported"],
+        context["reason"],
+        context["install_root"],
+        context["launch_target"],
+        context.get("slim"),
+    )
+    return context
+
+
+def _get_release_payload() -> dict:
+    payload = _request_json(LATEST_RELEASE_URL)
+    logger.debug("Latest release payload tag_name=%s", payload.get("tag_name"))
+    return payload
+
+
+def _get_release_manifest(release_payload: dict) -> dict:
+    manifest_asset = _find_release_asset(release_payload, "manifest.json")
+    if not manifest_asset:
+        raise UpdateError("Release manifest is missing")
+    manifest_url = manifest_asset.get("browser_download_url")
+    if not manifest_url:
+        raise UpdateError("Release manifest download URL is missing")
+    manifest = _request_json(manifest_url)
+    logger.debug(
+        "Release manifest version=%s assets=%s", manifest.get("version"),
+        sorted((manifest.get("assets") or {}).keys()))
+    return manifest
+
+
+def check_for_updates() -> dict:
+    context = get_install_context()
+    result = {
+        "update_available": False,
+        "error": None,
+        "current_version": context["current_version"],
+        "latest_version": None,
+        "update_supported": False,
+        "support_reason": context["reason"],
+        "triplet": context["triplet"],
+        "asset_name": None,
+    }
+    # Debug, all three of these: a check runs whenever a surface draws, so anything
+    # louder is three lines per page load saying what the last one said. What a caller
+    # needs is in the result it gets back.
+    logger.debug(
+        "Starting update check: current_version=%s triplet=%s supported=%s support_reason=%s",
+        result["current_version"],
+        result["triplet"],
+        context["supported"],
+        result["support_reason"],
+    )
+
+    try:
+        release_payload = _get_release_payload()
+        latest_tag = (release_payload.get("tag_name") or "").strip()
+        if not latest_tag:
+            result["error"] = "missing_latest_tag"
+            logger.warning("Update check failed: latest release payload missing tag_name")
+            return result
+
+        result["latest_version"] = latest_tag
+
+        current_ver = _parse_tag_version(context["current_version"])
+        latest_ver = _parse_tag_version(latest_tag)
+        logger.debug(
+            "Parsed versions for update check: current=%s parsed_current=%s "
+            "latest=%s parsed_latest=%s",
+            context["current_version"],
+            current_ver,
+            latest_tag,
+            latest_ver,
+        )
+
+        if current_ver is None:
+            result["update_available"] = True
+            if result["error"] is None:
+                result["error"] = "non_release_build"
+            # A source build has no version to compare and knows it - `support_reason`
+            # already says so, and it is not going to change while this process runs.
+            # A build that is meant to be a release and cannot be parsed is the odd
+            # one, and that is the one worth a warning.
+            _say = (logger.debug if context["reason"] == "source_build"
+                    else logger.warning)
+            _say("Update check treating current build as non-release: "
+                 "current_version=%s", context["current_version"])
+            return result
+
+        if latest_ver is None:
+            result["error"] = "latest_tag_unparseable"
+            logger.warning("Update check failed: latest tag is unparseable: %s", latest_tag)
+            return result
+
+        result["update_available"] = latest_ver > current_ver
+        if not result["update_available"]:
+            logger.info(
+                "Update check complete: already up to date at %s", context["current_version"])
+            return result
+
+        if not context["supported"]:
+            logger.info(
+                "Update available but auto-update unsupported: support_reason=%s",
+                result["support_reason"])
+            return result
+
+        manifest = _get_release_manifest(release_payload)
+        resolved_triplet, asset_info = _resolve_manifest_asset(manifest, context["triplet"])
+        if not asset_info:
+            result["support_reason"] = "no_matching_asset"
+            logger.warning(
+                "Update available but manifest has no asset for triplet=%s", context["triplet"])
+            return result
+        if resolved_triplet and resolved_triplet != context["triplet"]:
+            logger.info(
+                "Using compatible manifest triplet=%s for context triplet=%s",
+                resolved_triplet,
+                context["triplet"],
+            )
+
+        asset_name = asset_info.get("file")
+        if not asset_name:
+            result["support_reason"] = "asset_missing_file_name"
+            logger.warning(
+                "Update manifest asset missing file name for triplet=%s", context["triplet"])
+            return result
+
+        asset = _find_release_asset(release_payload, asset_name)
+        if not asset:
+            result["support_reason"] = "asset_not_attached_to_release"
+            logger.warning(
+                "Release payload missing attached asset=%s for triplet=%s", asset_name,
+                context["triplet"])
+            return result
+
+        result["update_supported"] = True
+        result["support_reason"] = None
+        result["asset_name"] = asset_name
+        logger.info(
+            "Update check complete: update_available=%s latest=%s asset=%s triplet=%s",
+            result["update_available"],
+            result["latest_version"],
+            result["asset_name"],
+            result["triplet"],
+        )
+        return result
+    except requests.RequestException as exc:
+        logger.exception(
+            "Update check failed with RequestException against %s: %s", LATEST_RELEASE_URL, exc)
+        result["error"] = "remote_check_failed"
+        return result
+    except Exception as exc:
+        logger.exception("Failed to check for updates: %s", exc)
+        result["error"] = "remote_check_failed"
+        return result
+
+
+def prepare_update() -> dict:
+    context = get_install_context()
+    if not context["supported"]:
+        raise UpdateError(context["reason"] or "update_not_supported")
+
+    release_payload = _get_release_payload()
+    latest_tag = (release_payload.get("tag_name") or "").strip()
+    current_ver = _parse_tag_version(context["current_version"])
+    latest_ver = _parse_tag_version(latest_tag)
+
+    if not latest_tag or latest_ver is None:
+        raise UpdateError("Could not determine the latest release")
+    if current_ver is None:
+        raise UpdateError("Automatic updates require a tagged release build")
+    if latest_ver <= current_ver:
+        raise UpdateError("Already on the latest version")
+
+    manifest = _get_release_manifest(release_payload)
+    resolved_triplet, asset_info = _resolve_manifest_asset(manifest, context["triplet"])
+    if not asset_info:
+        raise UpdateError(f"No release asset for {context['triplet']}")
+    if resolved_triplet and resolved_triplet != context["triplet"]:
+        logger.info(
+            "Preparing update using compatible manifest triplet=%s for context triplet=%s",
+            resolved_triplet,
+            context["triplet"],
+        )
+
+    asset_name = asset_info.get("file")
+    expected_sha = (asset_info.get("sha256") or "").strip().lower()
+    if not asset_name or not expected_sha:
+        raise UpdateError("Release manifest is incomplete")
+
+    asset = _find_release_asset(release_payload, asset_name)
+    if not asset:
+        raise UpdateError(f"Release asset {asset_name} was not found")
+
+    asset_url = asset.get("browser_download_url")
+    if not asset_url:
+        raise UpdateError(f"Release asset {asset_name} has no download URL")
+
+    stage_dir = UPDATES_DIR / latest_tag / (context["triplet"] or "unknown")
+    stage_dir.mkdir(parents=True, exist_ok=True)
+    _append_log_line(
+        LAST_UPDATE_LOG, f"[Updater] Preparing update {latest_tag} for {context['triplet']}")
+
+    zip_path = stage_dir / asset_name
+    if zip_path.exists() and _sha256_file(zip_path) != expected_sha:
+        _append_log_line(LAST_UPDATE_LOG, f"[Updater] Removing stale cached asset {zip_path}")
+        zip_path.unlink()
+
+    if not zip_path.exists():
+        temp_path = stage_dir / f"{asset_name}.part"
+        if temp_path.exists():
+            temp_path.unlink()
+        _append_log_line(LAST_UPDATE_LOG, f"[Updater] Downloading {asset_name} to {temp_path}")
+        _download_file(asset_url, temp_path)
+        actual_sha = _sha256_file(temp_path)
+        _append_log_line(LAST_UPDATE_LOG, f"[Updater] Downloaded asset sha256={actual_sha}")
+        if actual_sha != expected_sha:
+            temp_path.unlink(missing_ok=True)
+            raise UpdateError("Downloaded update failed checksum verification")
+        temp_path.replace(zip_path)
+        _append_log_line(LAST_UPDATE_LOG, f"[Updater] Cached verified asset at {zip_path}")
+    else:
+        _append_log_line(LAST_UPDATE_LOG, f"[Updater] Reusing cached asset {zip_path}")
+
+    return {
+        "latest_version": latest_tag,
+        "zip_path": str(zip_path),
+        "stage_dir": str(stage_dir),
+        "install_root": str(context["install_root"]),
+        "launch_target": str(context["launch_target"]),
+        "launch_exe": str(Path(context["install_root"]) / "vpinfe.exe"),
+        "platform": context["platform"],
+        "triplet": context["triplet"],
+        "asset_name": asset_name,
+        "last_update_log": str(LAST_UPDATE_LOG),
+    }
+
+
+
+
+def force_exit_after_handoff(delay_seconds: int = 8) -> None:
+    """Stop this process lingering after the updater has been handed the install.
+
+    The staged script waits on this pid before it swaps any files, so a shutdown that
+    hangs does not delay the update - it prevents it. Every surface that hands off wants
+    this, so it lives beside the handoff rather than in whichever UI called it.
+    """
+    def _worker() -> None:
+        time.sleep(delay_seconds)
+        logger.warning("Forcing process exit after update handoff; graceful shutdown "
+                       "did not complete in %ss", delay_seconds)
+        os._exit(0)
+
+    threading.Thread(target=_worker, daemon=True, name="update-force-exit").start()
+
+
+def launch_prepared_update(prepared: dict) -> None:
+    stage_dir = Path(prepared["stage_dir"])
+    stage_dir.mkdir(parents=True, exist_ok=True)
+    _prune_old_update_dirs(stage_dir)
+    current_pid = os.getpid()
+    log_path = stage_dir / "apply_update.log"
+    _append_log_line(
+        Path(prepared["last_update_log"]),
+        f"[Updater] Launching detached updater for {prepared['latest_version']}")
+
+    if platform.system() == "Windows":
+        script_path = stage_dir / "apply_update.ps1"
+        bootstrap_log_path = stage_dir / "bootstrap.log"
+        script_path.write_text(
+            _build_windows_update_script(prepared, current_pid, log_path), encoding="utf-8")
+        _append_log_line(
+            Path(prepared["last_update_log"]),
+            f"[Updater] PowerShell script written to {script_path}")
+        powershell_exe = _get_windows_powershell()
+        _append_log_line(
+            Path(prepared["last_update_log"]), f"[Updater] Using PowerShell at {powershell_exe}")
+        bootstrap_path = stage_dir / "launch_update.cmd"
+        bootstrap_path.write_text(
+            _build_windows_bootstrap_script(
+                powershell_exe=powershell_exe,
+                script_path=script_path,
+                stable_log=Path(prepared["last_update_log"]),
+                bootstrap_log=bootstrap_log_path,
+            ),
+            encoding="utf-8",
+        )
+        _append_log_line(
+            Path(prepared["last_update_log"]),
+            f"[Updater] Bootstrap script written to {bootstrap_path}")
+        _append_log_line(
+            Path(prepared["last_update_log"]), f"[Updater] Bootstrap log path {bootstrap_log_path}")
+        cmd_exe = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "cmd.exe")
+        _append_log_line(
+            Path(prepared["last_update_log"]),
+            f"[Updater] Launching bootstrap via {cmd_exe} /c {bootstrap_path}")
+        flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        subprocess.Popen(
+            [
+                cmd_exe,
+                "/c",
+                str(bootstrap_path),
+            ],
+            creationflags=flags,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+        )
+        return
+
+    script_path = stage_dir / "apply_update.sh"
+    script_path.write_text(
+        _build_posix_update_script(prepared, current_pid, log_path), encoding="utf-8")
+    script_path.chmod(0o755)
+    _append_log_line(
+        Path(prepared["last_update_log"]), f"[Updater] Shell script written to {script_path}")
+    subprocess.Popen(
+        ["/bin/sh", str(script_path)],
+        start_new_session=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+    )
+
+
+def check_now() -> dict:
+    """What this install could become, and whether it can get there itself.
+
+    Never raises: not knowing whether an update exists is not a reason to fail the
+    question, and `error` carries it.
+    """
+    from common.vpinfe_version import get_version
+
+    try:
+        return check_for_updates()
+    except Exception as exc:
+        logger.warning("Could not check for updates: %s", exc)
+        return {"update_available": False, "error": str(exc),
+                "current_version": get_version(), "latest_version": None,
+                "update_supported": False, "support_reason": "check failed",
+                "triplet": None, "asset_name": None}
+
+
+def take_published(*, stop_table: bool = False) -> dict:
+    """Stage the published build and hand off to the staged updater.
+
+    Order matters: the download happens before anything is stopped, so a failed or
+    unavailable update costs nobody their game. Only once there is a verified package does
+    a running table get closed.
+    """
+    from common import device_client, lifecycle, service_errors
+    from common.host import launch_state
+    from common.i18n import t
+
+    context = get_install_context()
+    if not context["supported"]:
+        raise service_errors.UnavailableError(
+            t("error.instance.install_cannot_replace_itself"),
+            details={"support_reason": context["reason"]})
+
+    playing = launch_state.current()
+    if playing.launching and not stop_table:
+        raise service_errors.BlockedError(t("error.instance.table_running"),
+                                          details={"game_name": playing.game_name})
+
+    prepared = prepare_update()
+
+    stopped_table = None
+    if playing.launching and device_client.local().request(
+            lifecycle.TABLE, lifecycle.STOP,
+            origin=lifecycle.Origin(lifecycle.SURFACE_API),
+            reason="making way for an update"):
+        stopped_table = playing.game_name
+
+    launch_prepared_update(prepared)
+    force_exit_after_handoff()
+    return {"latest_version": prepared["latest_version"],
+            "stopped_table": stopped_table}
+
+
+def quit_for_update() -> None:
+    """Go down the ordinary way, so the services shut down and the windows close."""
+    from common import device_client, lifecycle
+
+    device_client.local().request(
+        lifecycle.VPINFE, lifecycle.STOP,
+        origin=lifecycle.Origin(lifecycle.SURFACE_API),
+        reason="an update is staged")

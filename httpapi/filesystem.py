@@ -1,0 +1,51 @@
+"""Walking this machine's directories over the wire, so artwork can be picked from where
+it landed.
+
+`common/media_browse.py` decides what may be read and lists it. Reading a directory over
+HTTP is a real capability, so it is bounded rather than trusted: the game library, plus
+whatever folders the owner listed, and nothing else.
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Query
+from starlette.responses import FileResponse
+
+from common import media_browse
+from common.games import game_repository
+
+from . import models, scopes
+from .auth import requires
+
+router = APIRouter(prefix="/filesystem", tags=["filesystem"])
+
+
+@router.get("/roots", summary="Where browsing for media may start",
+            dependencies=[requires(scopes.FILESYSTEM_READ)])
+def get_roots(game: str = Query("")) -> models.FilesystemRootList:
+    """An empty list is the honest answer for an install with no library configured and
+    nothing allowlisted - not an error, and not a reason to offer the whole disk."""
+    found = game_repository.game_by_id(game) if game else None
+    game_dir = str(found.full_path_game or "") if found else ""
+    return models.FilesystemRootList.model_validate(
+        {"roots": media_browse.roots(game_dir)})
+
+
+@router.get("/file", summary="One browsable media file",
+            dependencies=[requires(scopes.FILESYSTEM_READ)])
+def get_file(path: str = Query(...)) -> FileResponse:
+    """Serve a file so it can be looked at before it is taken. Judging artwork means
+    seeing it, and a name and a byte count do not do that."""
+    return FileResponse(media_browse.media_file(path))
+
+
+@router.get("/entries", summary="What is in one folder",
+            dependencies=[requires(scopes.FILESYSTEM_READ)])
+def get_entries(path: str = Query(...)) -> models.FilesystemListing:
+    """Folders and media files, folders first, both by name.
+
+    Only media is listed. A directory walker that returns every file is a file browser,
+    and this exists to find artwork - a .vpx or a .ini in the list is noise at best and a
+    way to get a table file into an <img> at worst.
+    """
+    return models.FilesystemListing.model_validate(media_browse.entries(path))

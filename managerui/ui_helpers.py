@@ -1,3 +1,5 @@
+"""Small pieces every Manager UI page uses - styles, save bars, and teardown."""
+
 from __future__ import annotations
 
 from nicegui import ui

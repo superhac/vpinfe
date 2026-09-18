@@ -1,0 +1,11 @@
+{
+  "name": "library_importer",
+  "display_name": "Library Importer",
+  "version": "0.1.0",
+  "description": "Converts a library from another frontend into game folders.",
+  "requires_platform": 1,
+  "scopes": ["games:read", "games:write", "filesystem:read"],
+  "provides": ["read", "write"],
+  "capabilities": ["ui:mount", "config:own", "fs:read"],
+  "requires_features": ["library"]
+}

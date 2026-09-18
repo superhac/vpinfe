@@ -1,3 +1,9 @@
+"""Reading VPX's own ini so the Manager UI can present it as fields.
+
+The comments in that file are the only documentation each setting has, so they are
+parsed out and shown rather than discarded.
+"""
+
 from __future__ import annotations
 
 import os
@@ -7,10 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from common.iniconfig import IniConfig
-
-from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
-
+from managerui.paths import CONFIG_DIR
 
 VPX_BACKUP_DIR = CONFIG_DIR / "backups" / "vpx_ini"
 
@@ -188,8 +191,10 @@ def write_updated_ini(
 
 
 def load_vpx_ini_path() -> Path | None:
-    config = IniConfig(str(VPINFE_INI_PATH))
-    raw_path = config.config.get("Settings", "vpxinipath", fallback="").strip()
+    """The ini the install would launch with, which belongs to a launcher now."""
+    from common.games import launchers
+
+    raw_path = launchers.default_value("ini_path").strip()
     if not raw_path:
         return None
     return Path(os.path.expanduser(raw_path))

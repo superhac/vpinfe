@@ -1,0 +1,9 @@
+{
+  "name": "vpinplay",
+  "display_name": "VPinPlay",
+  "version": "1.0.0",
+  "description": "Shows what VPinPlay's players have rated a table.",
+  "requires_platform": 1,
+  "scopes": ["games:read"],
+  "capabilities": ["net:outbound", "config:own"]
+}
