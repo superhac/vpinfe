@@ -30,6 +30,42 @@ def _classes_named(node: ast.AST, wanted: str) -> bool:
                for inner in ast.walk(node))
 
 
+BAR_CONTAINER = "console-grid-bar"
+
+
+def _bars_without_the_container() -> list[str]:
+    """A `view_control` whose bar is not drawn inside a `console-grid-bar`."""
+    loose = []
+    for path in sorted(CONSOLE.glob("*.py")):
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        calls = [node for node in ast.walk(tree)
+                 if isinstance(node, ast.Call)
+                 and getattr(node.func, "id", getattr(node.func, "attr", "")) ==
+                 "view_control"
+                 and not isinstance(node.func, ast.Attribute)]
+        if not calls:
+            continue
+        if BAR_CONTAINER not in source:
+            loose += [f"console/{path.name}:{node.lineno}: a view control whose bar is "
+                      f"not drawn in a {BAR_CONTAINER}, so its two rows sit side by side"
+                      for node in calls]
+    return loose
+
+
+class EveryBarIsStacked(unittest.TestCase):
+
+    def test_none_is_loose(self):
+        loose = _bars_without_the_container()
+        self.assertEqual(loose, [], "\n" + "\n".join(loose))
+
+    def test_it_found_the_bars(self):
+        """An empty sweep passes and measures nothing, which reads the same as clean."""
+        seen = sum("view_control(" in p.read_text(encoding="utf-8")
+                   for p in CONSOLE.glob("*.py"))
+        self.assertGreater(seen, 5)
+
+
 class TheKeyIsNotAnAction(unittest.TestCase):
     """A key to a view's marks is drawn on the description line, not in the end."""
 

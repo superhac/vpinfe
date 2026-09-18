@@ -469,7 +469,6 @@
   "console.launchers.could_not_read_assignments": "Could not read the assignments: {exc}",
   "console.launchers.could_not_read_devices": "Could not read the devices: {exc}",
   "console.launchers.could_not_read_launchers": "Could not read the launchers: {exc}",
-  "console.launchers.each_one_way_running": "Each one is a way of running a table: which program, and how it is configured. Tables use the first one that is switched on unless they name another.",
   "console.launchers.executable_launcher_runs.help": "The executable this launcher runs",
   "console.launchers.launcher": "{len} launcher{value}",
   "console.launchers.no_launchers_yet_add": "No launchers yet. Add one and point it at the program that plays your tables.",

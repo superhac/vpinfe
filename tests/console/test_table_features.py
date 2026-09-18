@@ -7,7 +7,7 @@ the only way this vocabulary can be wrong in a way nobody notices.
 
 import unittest
 
-from console import games, table_features
+from console import games, grid, table_features
 
 
 class StateTests(unittest.TestCase):
@@ -83,10 +83,17 @@ class ViewTests(unittest.TestCase):
         columns = games.TABLE_VIEWS["Features"].columns
 
         self.assertEqual([c for c in columns if not c.startswith("feature_")],
-                         ["game", "version", "author"])
+                         ["game"])
         self.assertEqual({c.removeprefix("feature_") for c in columns
                           if c.startswith("feature_")},
                          set(table_features.LABELS))
+
+    def test_what_names_a_table_row_rides_on_the_identifier(self) -> None:
+        """Or the view lists rows nothing tells apart."""
+        named = next(c for c in games.TABLE_COLUMNS
+                     if grid.IDENTIFIER_CLASS in str(c.get("cellClass") or ""))
+
+        self.assertIn("said_built", str(named.get(":cellRenderer") or ""))
 
 
 if __name__ == "__main__":

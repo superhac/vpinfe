@@ -111,6 +111,7 @@ _TICK = {
 # to go and look at it.
 COLUMNS = [
     grid.identifier("name", t(_GAME), 280, pinned="left", group=t(_GAME),
+                subtitle="said",
                 help=t("console.games.machine_library_names_one.help")),
     # Always, including 1: it is the only thing saying the row collapses its tables,
     # and it qualifies everything to its right. "Table Count" rather
@@ -635,7 +636,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         by "All tables" breaks the moment the thumbnails come on.
         """
         thumbs = drawn["as"] == t("console.games.thumbnails")
-        height = 60 if thumbs else 42
+        height = 74 if thumbs else grid.TWO_LINE_ROW_PX
         ui.run_javascript(f"window.__hubThumbs = {str(thumbs).lower()}")
         table.run_grid_method("setGridOption", "rowHeight", height)
         # The same number twice, because AG Grid keeps two: the option lays the row out,
@@ -724,7 +725,8 @@ _TABLE = "console.games.table"
 _IN_PLAY = "console.games.library"
 
 TABLE_COLUMNS = [
-    grid.identifier("game", t(_GAME), 240, pinned="left", group=t(_GAME),
+    grid.identifier("game", t(_TABLE), 300, pinned="left", group=t(_GAME),
+                subtitle=("said", "", "said_built"),
                 help=t("console.games.machine_build_several_rows.help")),
     grid.column("version", t("word.version"), group=t(_TABLE),
                 help=t("console.games.build_s_own_version.help")),
@@ -807,8 +809,7 @@ TABLE_VIEWS: dict[str, list[str] | views.Preset] = {
     # both were app and on-disk state, which is whether this thing runs - so they are
     # Launch, once.
     game_tables.FILE: views.Preset(
-        columns=("game", "version", "author", "rating", "default_state",
-                 "hidden", "filename"),
+        columns=("game", "rating", "default_state", "hidden", "filename"),
         help=t("console.view.table_file.help")),
     game_tables.LAUNCH: views.Preset(
         columns=("game", "filename", "launcher", "rom", "default_state", "hidden",
@@ -817,8 +818,7 @@ TABLE_VIEWS: dict[str, list[str] | views.Preset] = {
     # Its own view, not seven more columns on Play: this is a matrix, the same shape as
     # Media on the games grid, and Play stays a list somebody can read across.
     game_tables.FEATURES: views.Preset(
-        columns=("game", "version", "author",
-                 *[f"feature_{key}" for key in table_features.LABELS]),
+        columns=("game", *[f"feature_{key}" for key in table_features.LABELS]),
         help=t("console.view.features.help")),
 }
 
@@ -904,6 +904,9 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
              **{f"asset_{key}": _resolved_word((row.get("assets") or {}).get(key))
                 for key in TABLE_ASSET_KEYS},
              "author": ", ".join(row.get("authors") or []),
+             "said": " ".join(str(row.get(k) or "").strip()
+                              for k in ("manufacturer", "year")).strip(),
+             "said_built": game_tables.table_name(row),
              # The name, not the id: `app_name` says why, and the column has to sort
              # and filter on what a reader can see rather than on what is stored.
              # The name plus a mark for chosen against inherited. One cell, because the

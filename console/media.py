@@ -87,7 +87,8 @@ _GAME = "word.game"
 _SOURCE = "word.source"
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.identifier("game", t(_GAME), 200, pinned="left", group=t(_GAME),
+    grid.identifier("game", t(_GAME), 240, pinned="left", group=t(_GAME),
+                subtitle="said",
                 help=t("console.media.game_folder_file_belongs.help")),
     grid.column("label", t("word.kind"), 160, group=t(_FILE),
                 help=t("console.media.twenty_media_kinds_row.help")),
@@ -120,7 +121,7 @@ _ALL = [definition["field"] for definition in COLUMNS]
 # rows are here; what they cannot see is why this was worth building a view for.
 VIEWS: dict[str, list[str] | views.Preset] = {
     t("console.view.missing"): views.Preset(
-        columns=("game", "label", "reason", "manufacturer", "year"),
+        columns=("game", "label", "reason"),
         sort=({"colId": "game", "sort": "asc", "sortIndex": 0},),
         filters={"reason": {"values": [_MISSING]}},
         help=t("console.media.art_not_filter_one.help")),

@@ -289,6 +289,44 @@ body::before {
 /* The identifier a row is scanned by stays at the top of the ink scale; everything
    beside it supports it. grid.identifier() puts this class on that column. */
 .ag-cell.console-cell-identifier { color: var(--ink); }
+
+/* AG Grid derives a cell's line height from this and it does not follow the row-height
+   option, so a taller row needs both set or its single-line cells sit high. */
+.console-grid-two-line { --ag-row-height: 56px; }
+
+/* The name, and under it what tells two rows apart. `min-height` on the line keeps its
+   space whether or not it has words. */
+.ag-cell.console-cell-two-line {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.25;
+}
+/* `block`, not a flex child: AG Grid puts a wrapper between the cell and the renderer's
+   output, so the two spans never blockify and sit on one line. */
+.console-cell-named {
+  display: block;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.console-cell-said {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  min-height: 1.25em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The panel header's two hues, pulled back toward hint weight by `--said-mix`, which
+   each palette sets for itself. Mixed from the tokens rather than written as two dimmer
+   colours, so a mode redefining the hues gets muted versions of its own. */
+.console-cell-made {
+  color: color-mix(in srgb, var(--accent) var(--said-mix, 42%), var(--ink-3));
+}
+.console-cell-built {
+  color: color-mix(in srgb, var(--tier-table) var(--said-mix, 42%), var(--ink-3));
+}
+.console-cell-join { color: var(--ink-3); opacity: 0.6; }
 /* Two states, one color: both answer "which one", and a second hue would read as a
    third meaning. Selected is a fill, focused is a band, and a row can be both.
    Set on the row, not --ag-selected-row-background-color, which AG Grid 34 ignores. */

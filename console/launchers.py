@@ -128,24 +128,23 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
     fields = [definition["field"] for definition in COLUMNS]
 
     with body:
-        with ui.column().classes("w-full gap-1 px-3 pt-2 pb-1"):
-            ui.label(t("console.launchers.each_one_way_running")).classes("console-help")
-            with ui.row().classes("items-center gap-2 w-full no-wrap"):
-                bar = panel.grid_bar()
-                wire_views, _picker, showing, describe = view_control(
-                    library, SCOPE, LAUNCHER_VIEWS, fields, COLUMNS, bar=bar)
-                describe()
-                with bar.top, panel.bar_end():
-                    search = panel.search(t("console.launchers.search_launchers"))
-                with bar.bottom, panel.bar_end():
-                    ui.label(t("console.launchers.launcher", len=(len(built)),
-                            value=('' if len(built) == 1 else 's'))) \
-                        .classes("text-xs console-label")
-                    panel.add_action(
-                        [(t("console.launchers.add", value=(one['name'])),
-                          (lambda a=one: _add(library, state, redraw, a)))
-                         for one in apps_known],
-                        empty=not built)
+        with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
+                              "console-panel console-grid-bar"):
+            bar = panel.grid_bar()
+            wire_views, _picker, showing, describe = view_control(
+                library, SCOPE, LAUNCHER_VIEWS, fields, COLUMNS, bar=bar)
+            describe()
+            with bar.top, panel.bar_end():
+                search = panel.search(t("console.launchers.search_launchers"))
+            with bar.bottom, panel.bar_end():
+                ui.label(t("console.launchers.launcher", len=(len(built)),
+                        value=('' if len(built) == 1 else 's'))) \
+                    .classes("text-xs console-label")
+                panel.add_action(
+                    [(t("console.launchers.add", value=(one['name'])),
+                      (lambda a=one: _add(library, state, redraw, a)))
+                     for one in apps_known],
+                    empty=not built)
 
         if not built:
             panel.facts(ui, [panel.intro(

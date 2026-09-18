@@ -469,7 +469,6 @@
   "console.launchers.could_not_read_assignments": "Çöûŀđ ñöţ řèàđ ţĥè àššîĝñɱèñţš: {exc}",
   "console.launchers.could_not_read_devices": "Çöûŀđ ñöţ řèàđ ţĥè đèṽîçèš: {exc}",
   "console.launchers.could_not_read_launchers": "Çöûŀđ ñöţ řèàđ ţĥè ŀàûñçĥèřš: {exc}",
-  "console.launchers.each_one_way_running": "Èàçĥ öñè îš à ŵàý öƒ řûññîñĝ à ţàƀŀè: ŵĥîçĥ þřöĝřàɱ, àñđ ĥöŵ îţ îš çöñƒîĝûřèđ. Ţàƀŀèš ûšè ţĥè ƒîřšţ öñè ţĥàţ îš šŵîţçĥèđ öñ ûñŀèšš ţĥèý ñàɱè àñöţĥèř.",
   "console.launchers.executable_launcher_runs.help": "Ţĥè èẋèçûţàƀŀè ţĥîš ŀàûñçĥèř řûñš",
   "console.launchers.launcher": "{len} ŀàûñçĥèř{value}",
   "console.launchers.no_launchers_yet_add": "Ñö ŀàûñçĥèřš ýèţ. Àđđ öñè àñđ þöîñţ îţ àţ ţĥè þřöĝřàɱ ţĥàţ þŀàýš ýöûř ţàƀŀèš.",

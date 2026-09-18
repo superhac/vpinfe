@@ -256,15 +256,50 @@ def column(field: str, header: str, width: int = 0, help: str = "",
 IDENTIFIER_CLASS = "console-cell-identifier"
 
 
+SUBTITLE_CLASS = "console-cell-said"
+TWO_LINE_CLASS = "console-cell-two-line"
+ONE_LINE_ROW_PX = 42
+TWO_LINE_ROW_PX = 56
+
+_SUBTITLE_RENDERER = (
+    "params => {"
+    " const d = params.data || {};"
+    " const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');"
+    " const made = d['{made}'] || '';"
+    " const built = {built};"
+    " const name = params.valueFormatted != null ? params.valueFormatted"
+    " : (params.value == null ? '' : params.value);"
+    " let said = '';"
+    " if (made) said += '<span class=\"console-cell-made\">' + esc(made) + '</span>';"
+    " if (made && built) said += '<span class=\"console-cell-join\"> \u00b7 </span>';"
+    " if (built) said += '<span class=\"console-cell-built\">' + esc(built) + '</span>';"
+    " return '<span class=\"console-cell-named\">' + esc(name)"
+    " + '</span><span class=\"{cls}\">' + said + '</span>'; }"
+)
+
+
 def identifier(field: str, header: str, width: int = 0, help: str = "",
+               subtitle: str | tuple[str, str, str] = "",
                **extra: Any) -> dict[str, Any]:
     """The column this grid's rows are scanned *by*, which is not their unique key.
 
     Exactly one per grid; `build` refuses anything else.
+
+    `subtitle` names the field holding the line drawn under the value, or a
+    `(made, "", built)` triple where the line has two parts to tell apart. Sorting and
+    filtering stay on `field`, so the line is shown and never scanned.
     """
     extra_classes = extra.pop("cellClass", "")
     classes = f"{extra_classes} {IDENTIFIER_CLASS}".strip() if extra_classes \
         else IDENTIFIER_CLASS
+    if subtitle:
+        made, _, built = (subtitle if isinstance(subtitle, tuple)
+                          else (subtitle, "", ""))
+        classes = f"{classes} {TWO_LINE_CLASS}"
+        extra.setdefault(":cellRenderer", _SUBTITLE_RENDERER
+                         .replace("{made}", made)
+                         .replace("{built}", f"d['{built}'] || ''" if built else "''")
+                         .replace("{cls}", SUBTITLE_CLASS))
     return column(field, header, width, help, cellClass=classes, **extra)
 
 
@@ -308,9 +343,12 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
             f"{scope}: a grid declares exactly one grid.identifier() column, "
             f"the one its rows are scanned by; this one declares {len(marked)}"
             + (f" ({', '.join(str(m) for m in marked)})" if marked else ""))
+    two_line = any(TWO_LINE_CLASS in str(definition.get("cellClass") or "")
+                   for definition in columns)
     grid = ui.aggrid({
         "columnDefs": for_grid(columns),
         "rowData": rows,
+        "rowHeight": TWO_LINE_ROW_PX if two_line else ONE_LINE_ROW_PX,
         "defaultColDef": DEFAULT_COL_DEF,
         # Clicking a cell takes focus and nothing else. Click-selection in multiRow
         # mode *replaces* the set, so a cell click would clear every checkbox a bulk
@@ -350,7 +388,8 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         # nicegui defaults this True, which fits columns to the grid width and so
         # overrides both the declared widths and any the user saved.
         auto_size_columns=False,
-    ).classes("w-full grow min-h-0")
+    ).classes("w-full grow min-h-0"
+              + (" console-grid-two-line" if two_line else ""))
 
     # Installed once per page. Idempotent, so a second grid does not stack it.
     ui.run_javascript("""

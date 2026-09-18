@@ -77,6 +77,12 @@ def _listed(section: dict, key: str) -> set[str]:
     return {str(item).strip() for item in value if str(item).strip()}
 
 
+def _said(*parts: Any) -> str:
+    """What tells two rows apart, under the name. Blank parts drop out; the space is
+    held by the cell, not by a placeholder."""
+    return " ".join(str(one).strip() for one in parts if str(one or "").strip())
+
+
 class Library:
     """Games, their media and their tables, fetched once per page load.
 
@@ -708,7 +714,8 @@ class Library:
         one. What a library says it does not collect governs what it is shown.
         """
         kept = self.kept_kinds()["media"]
-        return [row for row in (self._media_rows or []) if row.get("kind") in kept]
+        return [{**row, "said": _said(row.get("manufacturer"), row.get("year"))}
+                for row in (self._media_rows or []) if row.get("kind") in kept]
 
     def has_media_rows(self) -> bool:
         return self._media_rows is not None
@@ -729,7 +736,8 @@ class Library:
         kept = self.kept_kinds()["asset"]
         pairs = {"alt_color": ("altcolor_serum", "altcolor_vni"),
                  "alt_sound": ("altsound",)}
-        return [row for row in (self._asset_rows or [])
+        return [{**row, "said": _said(row.get("manufacturer"), row.get("year"))}
+                for row in (self._asset_rows or [])
                 if (row.get("kind") in kept
                     or any(name in kept
                            for name in pairs.get(str(row.get("kind") or ""), ())))]
@@ -994,6 +1002,8 @@ class Library:
                 "name": game.get("name") or "",
                 "manufacturer": game.get("manufacturer") or "",
                 "year": game.get("year") or "",
+                # Its own field, so sorting and filtering stay on the name.
+                "said": _said(game.get("manufacturer"), game.get("year")),
                 "game_type": game.get("type") or "",
                 # No rom or version: both were the default table's reported as the
                 # game's, the columns that showed them are gone, and nothing has read

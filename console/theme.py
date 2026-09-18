@@ -24,6 +24,7 @@ _SYNTHWAVE = """
   --ink: #eef9ff;        /* primary text            18.7:1 */
   --ink-2: #cbb8ea;      /* secondary text          11.1:1 */
   --ink-3: #9b8bbd;      /* help and hints           6.5:1 */
+  --said-mix: 42%;   /* hue a line under a name keeps */
   --accent: #00d9ff;     /* interactive text        11.8:1 */
   --positive: #00ff9f;   /* present, installed, in use */
   /* Fills, borders and gradients only: magenta measures 4.4:1, under the 4.5:1 text
@@ -228,6 +229,7 @@ _DARK = """
   --ink: #e6e9ee;
   --ink-2: #a9b1bd;
   --ink-3: #8a93a1;
+  --said-mix: 42%;   /* hue a line under a name keeps */
   /* Blue is the interactive color here, and `--flair` is the one a fill can carry
      white on: Quasar paints a filled button with it and writes white on top, which
      the accent at 2.3:1 cannot hold. */
@@ -328,6 +330,7 @@ _LIGHT = """
   --ink: #14171c;
   --ink-2: #4a5361;
   --ink-3: #5f6874;
+  --said-mix: 70%;   /* hue a line under a name keeps */
   /* Unlike either dark mode the interactive color is dark enough to be a fill as
      well as text: white on it is 5.84:1, so Quasar's `primary` and the accent are one
      color here. Same for the error fill. */
