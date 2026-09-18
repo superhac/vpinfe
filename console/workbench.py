@@ -131,6 +131,26 @@ _KEEP_SCROLL = """
 })()
 """
 
+
+
+def _rebuilds(context: dict[str, Any], subject: str,
+              again: Callable[[], Any]) -> Callable[[], Any]:
+    """A rebuild that puts the grid behind the panel right too."""
+    async def behind() -> None:
+        """The grid, put right. Every write needs this; only some need a rebuild."""
+        refresh = context.get("state", {}).get("refresh_game")
+        if callable(refresh) and context.get("game_id"):
+            await refresh(context["game_id"])
+
+    async def rebuild() -> None:
+        # Send nothing to the browser below this line. The slot is gone.
+        await again()
+        await behind()
+
+    context["saved"] = behind
+    return rebuild
+
+
 _ARRANGE = """
 (() => {
   const list = document.querySelector('.console-member-list');
@@ -454,12 +474,11 @@ async def _draw(container: ui.column, title: ui.column, library: Library,
                    "tables": tables, "launchers": held_launchers, "state": state,
                    "lens": table_id, "redraws": [], "slot": state["slot"]}
 
-        async def rebuild() -> None:
-            # The subject has to survive a rebuild. Left off, every rail click fell
-            # back to the game and the table's own sections vanished under the cursor.
-            await build(container, title, library, game_id, state, table_id)
-
-        context["rebuild"] = rebuild
+        # The subject has to survive a rebuild. Left off, every rail click fell
+        # back to the game and the table's own sections vanished under the cursor.
+        context["rebuild"] = _rebuilds(
+            context, f"{game_id}:{table_id}",
+            lambda: build(container, title, library, game_id, state, table_id))
         await _rail(context, "table" if table_id else "game", state)
 
 
@@ -526,10 +545,9 @@ async def _draw_location(container: ui.column, title: ui.column, library: Librar
                                    "locations": held, "state": state,
                                    "redraws": [], "dock": None}
 
-        async def rebuild() -> None:
-            await build_location(container, title, library, location_id, state)
-
-        context["rebuild"] = rebuild
+        context["rebuild"] = _rebuilds(
+            context, f"location:{location_id}",
+            lambda: build_location(container, title, library, location_id, state))
         await _rail(context, "location", state)
 
 
@@ -576,10 +594,9 @@ async def _draw_launcher(container: ui.column, title: ui.column, library: Librar
             "redraws": [], "dock": None,
         }
 
-        async def rebuild() -> None:
-            await build_launcher(container, title, library, launcher_id, state)
-
-        context["rebuild"] = rebuild
+        context["rebuild"] = _rebuilds(
+            context, f"launcher:{launcher_id}",
+            lambda: build_launcher(container, title, library, launcher_id, state))
         await _rail(context, "launcher", state)
 
 
@@ -628,12 +645,11 @@ async def _draw_device(container: ui.column, title: ui.column, library: Library,
             "reach": reach, "redraws": [], "dock": None,
         }
 
-        async def rebuild() -> None:
-            await build_device(container, title, library, device, state,
-                               local_device_id, device_capabilities,
-                               local_capabilities)
-
-        context["rebuild"] = rebuild
+        context["rebuild"] = _rebuilds(
+            context, f"device:{local_device_id}",
+            lambda: build_device(container, title, library, device, state,
+                                 local_device_id, device_capabilities,
+                                 local_capabilities))
         await _rail(context, "device", state)
 
 
@@ -685,10 +701,9 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
                                    "state": state, "draft": drafts.setdefault(name, {}),
                                    "redraws": [], "dock": None}
 
-        async def rebuild() -> None:
-            await build_collection(container, title, library, name, state)
-
-        context["rebuild"] = rebuild
+        context["rebuild"] = _rebuilds(
+            context, f"collection:{name}",
+            lambda: build_collection(container, title, library, name, state))
         await _rail(context, "collection", state)
 
 
@@ -1215,16 +1230,21 @@ async def _table_block(context: dict[str, Any]) -> None:
 
 
 async def _write(context: dict[str, Any], call: Callable[..., Any],
-                 *args: Any) -> None:
-    """One write, off the loop, then redraw. Off the loop because this is an HTTP call
-    to our own process: made on the event loop it blocks the server from answering it,
-    and the browser reports the socket as lost rather than slow."""
+                 *args: Any, shape: bool = True) -> None:
+    """One write, off the loop, then put right whatever it changed.
+
+    Off the loop because this is an HTTP call to our own process: made on the event
+    loop it blocks the server from answering it, and the browser reports the socket as
+    lost rather than slow.
+
+    `shape=False` where the panel is unchanged but for the value just saved.
+    """
     try:
         await run.io_bound(call, *args)
     except Exception as exc:
         ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
         return
-    await context["rebuild"]()
+    await (context["rebuild"]() if shape else context["saved"]())
 
 
 async def _save_overrides(context: dict[str, Any], changes: dict[str, Any], *,
@@ -1331,7 +1351,7 @@ def _identity_rows(context: dict[str, Any]) -> None:
 
     async def favorite(event: Any) -> None:
         await _write(context, context["library"].set_game_favorite,
-                     context["game_id"], bool(event.value))
+                     context["game_id"], bool(event.value), shape=False)
 
     async def reset() -> None:
         if not await confirm.ask(
@@ -1992,7 +2012,9 @@ def _library_rows(context: dict[str, Any],
     is_default = bool(table.get("default"))
     hidden = bool(table.get("hidden"))
 
-    async def act(call: Callable[..., Any], *args: Any, done: str = "") -> None:
+    async def act(call: Callable[..., Any], *args: Any, done: str = "",
+                  shape: bool = True) -> None:
+        """Perform a write. `shape=False` where only the saved value changed."""
         try:
             await run.io_bound(call, *args)
         except Exception as exc:
@@ -2000,7 +2022,7 @@ def _library_rows(context: dict[str, Any],
             return
         if done:
             ui.notify(done, type="positive")
-        await context["rebuild"]()
+        await (context["rebuild"]() if shape else context["saved"]())
 
     def default_row() -> None:
         """The state, and the one act that changes it.
@@ -2049,7 +2071,7 @@ def _library_rows(context: dict[str, Any],
         # surfaces asked opposite questions about one flag.
         _switch(hidden,
                 lambda event: act(library.set_table_hidden, game_id, table_id,
-                                  bool(event.value)),
+                                  bool(event.value), shape=False),
                 hint=t("console.workbench.keep_table_frontend"))
 
     return [(game_tables.DEFAULT_LABEL, default_row), (t("word.hidden"),
@@ -2220,7 +2242,9 @@ def _launcher_pick(context: dict[str, Any], table: dict[str, Any]) -> Callable[[
                 ui.notify(t("console.workbench.could_not_point_launcher", exc=(exc)),
                           type="negative")
                 return
-            await context["rebuild"]()
+            # The select already shows the choice, and the dot saying a table names its
+            # own launcher is the grid's column rather than anything in here.
+            await context["saved"]()
 
         field.on_value_change(changed)
 
@@ -2377,16 +2401,9 @@ async def _add_keyed_table(context: dict[str, Any]) -> None:
 async def _table_list_changed(context: dict[str, Any]) -> None:
     """Redraw the panel, and put the grid behind it right too.
 
-    The grid holds facts about a game that a write to its tables changes - the table
-    count, and under Tables the rows themselves - so a panel that refreshes alone leaves
-    a number on screen that is no longer true. The grid answers with a transaction on
-    the rows that changed rather than a rebuild, so scroll position, focus and the open
-    panel all survive it.
+    A name at the call site; `rebuild` does both.
     """
     await context["rebuild"]()
-    again = context.get("state", {}).get("refresh_game")
-    if callable(again):
-        await again(context["game_id"])
 
 
 async def _add_referenced_table(context: dict[str, Any]) -> None:
