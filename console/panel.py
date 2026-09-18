@@ -251,6 +251,25 @@ def field(value: str, on_save: Callable[[str], Any], *, lines: int = 0,
     return draw
 
 
+class GridBar:
+    """The bar above a grid: two rows, each with a left side and a right-aligned end."""
+
+    def __init__(self) -> None:
+        self.top = ui.row().classes("w-full items-center gap-2 no-wrap console-bar-row")
+        self.bottom = ui.row().classes(
+            "w-full items-center gap-2 no-wrap console-bar-row")
+
+
+def grid_bar() -> GridBar:
+    """Drawn into the caller's own panel row, which keeps its surface and spacing."""
+    return GridBar()
+
+
+def bar_end() -> Any:
+    """The right-aligned end of a bar row. It shrinks; the stylesheet says what gives."""
+    return ui.row().classes("items-center gap-2 no-wrap min-w-0 console-bar-end")
+
+
 def search(placeholder: str) -> Any:
     """The box above a grid that narrows what is in it.
 

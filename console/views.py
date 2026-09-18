@@ -40,8 +40,7 @@ class View:
     columns: tuple[str, ...] = ()
     sort: tuple[dict[str, Any], ...] = ()
     filters: dict[str, Any] = field(default_factory=dict)
-    # A built-in's own words for what it is for. A view the user saved has none: they
-    # named it, which is their description of it.
+    # What this view is for. Ours on a built-in, the user's on one they saved.
     help: str = ""
 
 
@@ -82,7 +81,7 @@ def builtins(presets: Mapping[str, list[str] | Preset]) -> list[View]:
 def to_record(view: View) -> dict[str, Any]:
     return {"id": view.id, "name": view.name, "builtin": view.builtin,
             "columns": list(view.columns), "sort": list(view.sort),
-            "filters": view.filters}
+            "filters": view.filters, "help": view.help}
 
 
 def from_record(record: dict[str, Any]) -> View:
@@ -93,7 +92,8 @@ def from_record(record: dict[str, Any]) -> View:
                 builtin=bool(record.get("builtin")),
                 columns=tuple(str(c) for c in (record.get("columns") or [])),
                 sort=tuple(record.get("sort") or []),
-                filters=dict(record.get("filters") or {}))
+                filters=dict(record.get("filters") or {}),
+                help=str(record.get("help") or ""))
 
 
 def stored(library: Any, scope: str) -> tuple[list[View], str]:

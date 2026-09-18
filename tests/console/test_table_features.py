@@ -80,7 +80,7 @@ class ViewTests(unittest.TestCase):
         self.assertIsNone(rows[0]["feature_ssf"])
 
     def test_the_features_view_shows_features_and_what_names_the_row(self) -> None:
-        columns = games.TABLE_VIEWS["Features"]
+        columns = games.TABLE_VIEWS["Features"].columns
 
         self.assertEqual([c for c in columns if not c.startswith("feature_")],
                          ["game", "version", "author"])

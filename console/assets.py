@@ -144,16 +144,20 @@ def build(found: list[dict[str, Any]], library: Any,
             return t("console.assets.assets_missing", count=(len(built)), gaps=(gaps))
         return t("console.assets.assets", value=(on_screen['rows']), len=(len(built)))
 
-    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
-        search = panel.search(t("console.assets.search_assets"))
-        wire_views, _picker, showing = view_control(library, SCOPE, VIEWS,
-                                                    _ALL, COLUMNS)
-        ui.space()
-        count = ui.label(said()).classes("text-xs console-label")
-        if rescan is not None:
-            ui.button(icon="refresh", on_click=rescan) \
-                .props("flat dense round size=sm").classes("shrink-0") \
-                .tooltip(t("console.assets.read_library_disk_pick"))
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
+                                  "console-panel console-grid-bar"):
+        bar = panel.grid_bar()
+        wire_views, _picker, showing, describe = view_control(library, SCOPE, VIEWS,
+                                                    _ALL, COLUMNS, bar=bar)
+        describe()
+        with bar.top, panel.bar_end():
+            search = panel.search(t("console.assets.search_assets"))
+        with bar.bottom, panel.bar_end():
+            count = ui.label(said()).classes("text-xs console-label")
+            if rescan is not None:
+                ui.button(icon="refresh", on_click=rescan) \
+                    .props("flat dense round size=sm").classes("shrink-0") \
+                    .tooltip(t("console.assets.read_library_disk_pick"))
 
     by_id = {row["id"]: row for row in built}
     ui.on("hub_row_focus",

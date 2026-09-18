@@ -19,7 +19,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import offload
+from console import offload, views
 from console.data import Library
 
 from . import confirm, grid, panel
@@ -63,11 +63,15 @@ COLUMNS = [
                 help=t("console.locations.whole_path_telling_two.help")),
 ]
 
-LOCATION_VIEWS: dict[str, list[str]] = {
-    t("console.view.overview"): ["name", "contains", "state", "new_games", "shadowed", "path"],
+LOCATION_VIEWS: dict[str, list[str] | views.Preset] = {
+    t("console.view.overview"): views.Preset(
+        columns=("name", "contains", "state", "new_games", "shadowed", "path"),
+        help=t("console.view.locations.help")),
     # Its own view rather than more columns on Overview: this one is read when
     # something is wrong, and the question is which location beats which.
-    t("word.priority"): ["name", "priority", "shadowed", "state", "path"],
+    t("word.priority"): views.Preset(
+        columns=("name", "priority", "shadowed", "state", "path"),
+        help=t("console.view.priority.help")),
 }
 
 
@@ -130,18 +134,23 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
 
     with body:
         with ui.row().classes(
-                "w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
-            for kind, label in ADD_LABELS.items():
-                ui.button(t(label), icon="add",
-                          on_click=lambda k=kind: _ask_new(library, state, rerender, k)) \
-                    .props("flat dense no-caps size=sm").classes("shrink-0 console-action")
-            search = panel.search(t("console.locations.search_locations"))
-            wire_views, _picker, showing = view_control(library, SCOPE,
-                                                        LOCATION_VIEWS, fields, COLUMNS)
-            ui.space()
-            ui.label(t("console.locations.location", len=(len(built)),
-                    value=('' if len(built) == 1 else 's'))) \
-                .classes("text-xs console-label")
+                "w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel console-grid-bar"):
+            bar = panel.grid_bar()
+            wire_views, _picker, showing, describe = view_control(
+                library, SCOPE, LOCATION_VIEWS, fields, COLUMNS, bar=bar)
+            describe()
+            with bar.top, panel.bar_end():
+                search = panel.search(t("console.locations.search_locations"))
+            with bar.bottom, panel.bar_end():
+                ui.label(t("console.locations.location", len=(len(built)),
+                        value=('' if len(built) == 1 else 's'))) \
+                    .classes("text-xs console-label")
+                for kind, label in ADD_LABELS.items():
+                    ui.button(t(label), icon="add",
+                              on_click=lambda k=kind: _ask_new(library, state,
+                                                               rerender, k)) \
+                        .props("flat dense no-caps size=sm") \
+                        .classes("shrink-0 console-action")
 
         if not built:
             panel.facts(ui, [panel.intro(

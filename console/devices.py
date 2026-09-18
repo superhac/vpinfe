@@ -411,16 +411,20 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
         return t("console.devices.devices_not_answering", count=(len(built)), away=(away)) if away \
             else t("console.devices.devices", count=(len(built)))
 
-    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
-        search = panel.search(t("console.devices.search_devices"))
-        _wire_views, _picker, showing = view_control(library, SCOPE, VIEWS,
-                                                    _ALL, COLUMNS)
-        ui.space()
-        count = ui.label(said()).classes("text-xs console-label")
-        if probe is not None:
-            ui.button(icon="refresh", on_click=probe) \
-                .props("flat dense round size=sm").classes("shrink-0") \
-                .tooltip(t("console.devices.ask_every_device_whether"))
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
+                                  "console-panel console-grid-bar"):
+        bar = panel.grid_bar()
+        _wire_views, _picker, showing, describe = view_control(library, SCOPE, VIEWS,
+                                                    _ALL, COLUMNS, bar=bar)
+        describe()
+        with bar.top, panel.bar_end():
+            search = panel.search(t("console.devices.search_devices"))
+        with bar.bottom, panel.bar_end():
+            count = ui.label(said()).classes("text-xs console-label")
+            if probe is not None:
+                ui.button(icon="refresh", on_click=probe) \
+                    .props("flat dense round size=sm").classes("shrink-0") \
+                    .tooltip(t("console.devices.ask_every_device_whether"))
 
     by_id = {row["id"]: row for row in built}
     ui.on("hub_row_focus",

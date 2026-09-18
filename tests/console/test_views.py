@@ -27,7 +27,9 @@ class BuiltinViewTests(unittest.TestCase):
             ("tables", games.TABLE_VIEWS, games.TABLE_COLUMNS),
         ):
             known = {definition["field"] for definition in columns}
-            for name, fields in presets.items():
+            for name, preset in presets.items():
+                fields = (preset.columns if isinstance(preset, views.Preset)
+                          else preset)
                 # Media and Assets are filled at render time from what the library
                 # reports it holds, so an empty preset here is the declaration.
                 if not fields:

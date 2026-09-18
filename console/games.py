@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import logging
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -167,18 +169,20 @@ VIEW_SECTIONS = {"builtin:Media": "media"}
 # rather than on Details and one more click.
 COLUMN_SECTIONS = {"vps_unmatched": "vps"}
 
-GAME_VIEWS: dict[str, list[str]] = {
+GAME_VIEWS: dict[str, list[str] | views.Preset] = {
     # Named for the workbench group it matches: a view and a panel
     # group about the same facts carry the same word, so crossing between the grid and
     # the panel is not a translation.
-    game_tables.MACHINE: ["name", "table_count", "manufacturer", "year", "game_type",
-                "themes", "vps_unmatched", "rating"],
+    game_tables.MACHINE: views.Preset(
+        columns=("name", "table_count", "manufacturer", "year", "game_type",
+                 "themes", "vps_unmatched", "rating"),
+        help=t("console.view.machine.help")),
     # Media and Assets are built from what the library reports it has, so both are
     # filled at render time. Two views, not one: they answer different questions - what
     # a game looks like, and what it needs to play as intended - and a matrix that mixes
     # them is neither.
-    t(_MEDIA): [],
-    t(_ASSETS): [],
+    t(_MEDIA): views.Preset(help=t("console.view.game_media.help")),
+    t(_ASSETS): views.Preset(help=t("console.view.game_assets.help")),
 }
 
 _ALL = [definition["field"] for definition in COLUMNS]
@@ -404,60 +408,69 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     selected: list[dict[str, Any]] = []
     context_row: list[dict[str, Any]] = []
 
-    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
-        search = panel.search(t("console.games.search_games"))
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
+                                  "console-panel console-grid-bar"):
+        bar = panel.grid_bar()
         # The media preset is the library's own kinds, so it is only knowable here.
         presets = {**GAME_VIEWS,
-                   t(_MEDIA): ["name", *[f"media_{kind}" for kind in kinds]],
-                   t(_ASSETS): ["name",
-                           *[f"asset_{key}" for key in library.asset_keys()]]}
-        wire_views, view_picker, showing = view_control(library, SCOPE, presets,
-                                                        all_fields, columns)
-        cells = ui.toggle(list(RENDERERS),
-                value=t("console.games.ticks")).props("dense no-caps unelevated")
-        cells.bind_visibility_from(view_picker, "value",
-                                   lambda value: value == "builtin:Media")
-        ui.space()
-        # Read from the vocabulary rather than restated here, and each entry carries
-        # its own explanation on hover - a legend that names a state without saying
-        # what it means is half a legend.
-        with ui.row().classes("items-center gap-3 no-wrap text-xs opacity-60 "
-                              "console-tier-key") as legend:
-            for key in media_ownership.LEGEND:
-                tier = media_ownership.tier_for(key)
-                with ui.row().classes("items-center gap-1 no-wrap") \
-                        .tooltip(t(tier.why)):
-                    ui.element("span").classes(f"console-mark {tier.mark}")
-                    ui.label(t(tier.noun))
-        legend.bind_visibility_from(view_picker, "value",
-                                    lambda value: value == "builtin:Media")
-        # The selection count sits with the total: it is the same fact - how much am I
-        # looking at - and it costs no vertical space of its own.
-        count = ui.label(t("console.games.games", len=(len(rows)))).classes("text-xs console-label")
-        if rescan is not None:
-            ui.button(icon="refresh", on_click=rescan) \
-                .props("flat dense round size=sm").classes("shrink-0") \
-                .tooltip(t("console.games.read_library_disk_pick"))
-        actions = ui.button(icon="more_vert").props("flat round dense") \
-            .tooltip(t("console.games.actions_selected_games"))
-        with actions:
-            with ui.menu():
-                ui.menu_item(t("console.games.rate_selected"), lambda: _rate(selected))
-                # Walks the selection one picker at a time rather than matching them in
-                # a run. Nothing here can tell a right match from a wrong one - the
-                # ranker that would have was measured and retired - so a person decides
-                # every one, and Skip leaves a game exactly as it was.
-                ui.menu_item(t("console.games.match_vps"),
-                             lambda: vps_match.walk(library, list(selected)))
-                # Where the games you have already picked go. From here rather than
-                # only from the device, because starting with the tables and choosing
-                # where they land is a different job from managing what a phone holds.
-                ui.menu_item(t("console.games.send_device"),
-                             lambda: send_to_device.ask_where(selected))
-                ui.separator()
-                ui.menu_item(t("word.clear_selection"),
-                             lambda: table.run_grid_method("deselectAll"))
-        actions.set_visibility(False)
+                   t(_MEDIA): views.Preset(
+                       columns=("name", *[f"media_{kind}" for kind in kinds]),
+                       help=t("console.view.game_media.help")),
+                   t(_ASSETS): views.Preset(
+                       columns=("name",
+                                *[f"asset_{key}" for key in library.asset_keys()]),
+                       help=t("console.view.game_assets.help"))}
+        wire_views, view_picker, showing, describe = view_control(
+            library, SCOPE, presets, all_fields, columns, bar=bar)
+        describe()
+        with bar.top, panel.bar_end():
+            cells = ui.toggle(list(RENDERERS),
+                    value=t("console.games.ticks")).props("dense no-caps unelevated")
+            cells.bind_visibility_from(view_picker, "value",
+                                       lambda value: value == "builtin:Media")
+            search = panel.search(t("console.games.search_games"))
+        with bar.bottom, panel.bar_end():
+            # Read from the vocabulary rather than restated here, and each entry carries
+            # its own explanation on hover - a legend that names a state without saying
+            # what it means is half a legend.
+            with ui.row().classes("items-center gap-3 no-wrap text-xs opacity-60 "
+                                  "console-tier-key") as legend:
+                for key in media_ownership.LEGEND:
+                    tier = media_ownership.tier_for(key)
+                    with ui.row().classes("items-center gap-1 no-wrap") \
+                            .tooltip(t(tier.why)):
+                        ui.element("span").classes(f"console-mark {tier.mark}")
+                        ui.label(t(tier.noun))
+            legend.bind_visibility_from(view_picker, "value",
+                                        lambda value: value == "builtin:Media")
+            # The selection count sits with the total: it is the same fact - how much am I
+            # looking at - and it costs no vertical space of its own.
+            count = ui.label(t("console.games.games", len=(len(rows)))) \
+                .classes("text-xs console-label")
+            if rescan is not None:
+                ui.button(icon="refresh", on_click=rescan) \
+                    .props("flat dense round size=sm").classes("shrink-0") \
+                    .tooltip(t("console.games.read_library_disk_pick"))
+            actions = ui.button(icon="more_vert").props("flat round dense") \
+                .tooltip(t("console.games.actions_selected_games"))
+            with actions:
+                with ui.menu():
+                    ui.menu_item(t("console.games.rate_selected"), lambda: _rate(selected))
+                    # Walks the selection one picker at a time rather than matching them in
+                    # a run. Nothing here can tell a right match from a wrong one - the
+                    # ranker that would have was measured and retired - so a person decides
+                    # every one, and Skip leaves a game exactly as it was.
+                    ui.menu_item(t("console.games.match_vps"),
+                                 lambda: vps_match.walk(library, list(selected)))
+                    # Where the games you have already picked go. From here rather than
+                    # only from the device, because starting with the tables and choosing
+                    # where they land is a different job from managing what a phone holds.
+                    ui.menu_item(t("console.games.send_device"),
+                                 lambda: send_to_device.ask_where(selected))
+                    ui.separator()
+                    ui.menu_item(t("word.clear_selection"),
+                                 lambda: table.run_grid_method("deselectAll"))
+            actions.set_visibility(False)
 
     def on_select_rows(rows_selected: list[dict[str, Any]]) -> None:
         selected[:] = rows_selected
@@ -764,7 +777,7 @@ def table_asset_columns(keys: list[str]) -> list[dict[str, Any]]:
             for key, header in headers.items()]
 
 
-TABLE_VIEWS: dict[str, list[str]] = {
+TABLE_VIEWS: dict[str, list[str] | views.Preset] = {
     # Default and Hidden ride in every preset: which table a game offers and whether it
     # is offered at all are the questions this view exists to answer, and a preset that
     # hides them is a list of files.
@@ -772,14 +785,20 @@ TABLE_VIEWS: dict[str, list[str]] = {
     # Named for the workbench groups. "Files" and "Play" were one question asked twice -
     # both were app and on-disk state, which is whether this thing runs - so they are
     # Launch, once.
-    game_tables.FILE: ["game", "version", "author", "rating", "default_state",
-                       "hidden", "filename"],
-    game_tables.LAUNCH: ["game", "filename", "launcher", "rom", "default_state", "hidden",
-                         "missing"],
+    game_tables.FILE: views.Preset(
+        columns=("game", "version", "author", "rating", "default_state",
+                 "hidden", "filename"),
+        help=t("console.view.table_file.help")),
+    game_tables.LAUNCH: views.Preset(
+        columns=("game", "filename", "launcher", "rom", "default_state", "hidden",
+                 "missing"),
+        help=t("console.view.launch.help")),
     # Its own view, not seven more columns on Play: this is a matrix, the same shape as
     # Media on the games grid, and Play stays a list somebody can read across.
-    game_tables.FEATURES: ["game", "version", "author",
-                 *[f"feature_{key}" for key in table_features.LABELS]],
+    game_tables.FEATURES: views.Preset(
+        columns=("game", "version", "author",
+                 *[f"feature_{key}" for key in table_features.LABELS]),
+        help=t("console.view.features.help")),
 }
 
 
@@ -901,13 +920,19 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     table_columns = TABLE_COLUMNS + table_asset_columns(list(TABLE_ASSET_KEYS))
     fields = [definition["field"] for definition in table_columns]
 
-    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
-        search = panel.search(t("console.games.search_tables"))
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
+                                  "console-panel console-grid-bar"):
+        bar = panel.grid_bar()
         presets = {**TABLE_VIEWS,
-                   t(_ASSETS): ["game", "version", "author",
-                             *[f"asset_{key}" for key in TABLE_ASSET_KEYS]]}
-        wire_views, view_picker, showing = view_control(library, f"{SCOPE}.tables",
-                                                        presets, fields, table_columns)
+                   t(_ASSETS): views.Preset(
+                       columns=("game", "version", "author",
+                                *[f"asset_{key}" for key in TABLE_ASSET_KEYS]),
+                       help=t("console.view.table_assets.help"))}
+        wire_views, view_picker, showing, describe = view_control(
+            library, f"{SCOPE}.tables", presets, fields, table_columns, bar=bar)
+        describe()
+        with bar.top, panel.bar_end():
+            search = panel.search(t("console.games.search_tables"))
         ui.space()
         # Every glyph column carries a legend, including the state
         # drawn as nothing, which is the one a reader is least able to work out from
@@ -1163,15 +1188,17 @@ def _by_group(columns: list[dict[str, Any]]) -> list[tuple[str, list[dict]]]:
 def view_control(library: Any, scope: str,
                  presets: Mapping[str, list[str] | views.Preset],
                  all_fields: list[str],
-                 columns: list[dict[str, Any]]) -> Any:
+                 columns: list[dict[str, Any]], *, bar: Any) -> Any:
     """One control for how the rows are presented: which view, and what is in it.
 
     Built here in the toolbar and wired once the grid exists, because the widgets have
     to sit above the grid and the behavior needs the grid to talk to.
 
-    Returns `(wire, picker, showing)`. Call `wire(table)` once the grid exists; the
-    picker is handed back so a caller can hang a binding off which view is showing, and
-    `showing()` answers the same question for the grid's own geometry.
+    Returns `(wire, picker, showing, describe)`. Call `wire(table)` once the grid
+    exists; the picker is handed back so a caller can hang a binding off which view is
+    showing, `showing()` answers the same question for the grid's own geometry, and
+    `describe()` draws the view's own line - called last, so it takes the row's full
+    width and falls to the foot of the bar.
     """
     custom, active = views.stored(library, scope)
     known = views.builtins(presets) + custom
@@ -1180,31 +1207,80 @@ def view_control(library: Any, scope: str,
     held: dict[str, Any] = {"views": known, "active": active, "custom": custom,
                             "modified": False}
 
-    picker = ui.select({view.id: _view_name(view) for view in known}, value=active,
-                       label=t("word.view")).props("dense outlined") \
-        .classes("w-52 console-view-picker")
-    # The selected view's own words for what it is for, on the control that names it.
-    # A view the user saved carries none - they named it, which is their description -
-    # so the tooltip goes rather than hovering an empty bubble.
-    with picker:
-        purpose = ui.tooltip("")
+    top = bar.top
+    with top:
+        picker = ui.select({view.id: _view_name(view) for view in known}, value=active,
+                           label=t("word.view")).props("dense outlined") \
+            .classes("w-52 console-view-picker")
     # Inside the button, not beside it: a q-menu anchors to its parent, and as a
     # sibling this one anchored to the toolbar row and opened 726px away.
-    menu_button = ui.button(icon="more_vert").props("flat dense round size=sm") \
-        .tooltip(t("console.games.columns_saving_view"))
-    with menu_button:
-        menu = ui.menu()
+    with top:
+        menu_button = ui.button(icon="more_vert").props("flat dense round size=sm") \
+            .classes("console-view-menu") \
+            .tooltip(t("console.games.columns_saving_view"))
+        with menu_button:
+            menu = ui.menu()
 
     def current() -> Any:
         return next(v for v in held["views"] if v.id == held["active"])
+
+    def _reoption(active: str) -> None:
+        """The picker's options, each carrying the view's own words.
+
+        `set_options` rebuilds them, so the description is put back after every call.
+        Written onto the option payload because NiceGUI has no public way to carry a
+        field the built-in slot does not know about.
+        """
+        picker.set_options({v.id: _view_name(v) for v in held["views"]}, value=active)
+        said_by_label = {_view_name(v): (v.help or "") for v in held["views"]}
+        for option in picker._props.get("options", []):
+            option["help"] = said_by_label.get(option.get("label"), "")
+        picker.update()
+
+    said: dict[str, Any] = {"box": None}
+
+    async def save_purpose(text: str) -> None:
+        view = current()
+        if view.builtin:
+            return
+        kept = [v if v.id != view.id else replace(v, help=text.strip())
+                for v in held["custom"]]
+        held["custom"] = kept
+        held["views"] = views.builtins(presets) + kept
+        await offload.io(views.remember, library, scope, kept, held["active"])
+
+    def describe() -> None:
+        """The view's own line, at the foot of the bar.
+
+        Drawn for a saved view whether or not anything has been written: it is the
+        control you write it in, and one that appears only once filled is one nobody
+        finds.
+        """
+        with bar.bottom:
+            said["box"] = ui.element("div").classes("min-w-0 grow console-view-purpose")
+        _show_purpose()
+
+    def _show_purpose() -> None:
+        box = said.get("box")
+        if box is None:
+            return
+        box.clear()
+        view = current()
+        text = getattr(view, "help", "") or ""
+        with box:
+            if view.builtin:
+                ui.label(text).classes("truncate console-view-purpose-text")
+            else:
+                panel.field(text,
+                            lambda said_now: asyncio.create_task(save_purpose(said_now)),
+                            placeholder=t("console.games.what_view_for"))()
 
     def wire(table: ui.aggrid) -> None:
         async def apply(view: Any) -> None:
             """Put a view on the grid: which columns, sorted how, filtered to what -
             and then this view's own widths, which the grid does not carry across a
             switch."""
-            purpose.text = getattr(view, "help", "") or ""
-            purpose.set_visibility(bool(purpose.text))
+            _show_purpose()
             wanted = views.visible_columns(view, all_fields)
             # Leaving the grid as it is keeps it usable, and the notify says why. The
             # old fallback showed every column instead, which reads as the view
@@ -1365,7 +1441,7 @@ def view_control(library: Any, scope: str,
             table.on(event, lambda: _refresh(), args=[])
         ui.timer(0, lambda: apply(current()), once=True)
 
-    return wire, picker, lambda: held["active"]
+    return wire, picker, lambda: held["active"], describe
 
 
 def _view_name(view: Any) -> str:

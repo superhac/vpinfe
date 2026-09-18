@@ -67,8 +67,10 @@ COLUMNS = [
 
 # One built-in, and the control stays: a view is how you save your own, and a grid with
 # nothing to start from is a grid nobody saves a view of.
-COLLECTION_VIEWS: dict[str, list[str]] = {
-    t("console.view.overview"): ["icon", "name", "kind", "count", "order", "limit"],
+COLLECTION_VIEWS: dict[str, list[str] | views.Preset] = {
+    t("console.view.overview"): views.Preset(
+        columns=("icon", "name", "kind", "count", "order", "limit"),
+        help=t("console.view.collections.help")),
 }
 
 
@@ -141,23 +143,27 @@ def build(collections: list[dict[str, Any]], library: Any,
         if rerender is not None:
             rerender()
 
-    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 console-panel"):
-        ui.button(t("console.collections.new_collection"), icon="add",
-                  on_click=lambda: _ask_new(library, act)) \
-            .props("flat dense no-caps size=sm").classes("shrink-0 console-action")
-        search = panel.search(t("console.collections.search_collections"))
-        wire_views, _picker, showing = view_control(library, SCOPE, COLLECTION_VIEWS,
-                                                    fields, COLUMNS)
-        ui.space()
-        count = ui.label(t("console.collections.collections",
-                len=(len(built)))).classes("text-xs console-label")
-        bulk = ui.button(icon="more_vert").props("flat round dense") \
-            .tooltip(t("console.collections.actions_selected_collections"))
-        with bulk, ui.menu():
-            ui.menu_item(t("console.collections.delete_selected"),
-                         lambda: _ask_delete_many(picked, library, act)) \
-                .classes("console-menu-item console-menu-danger")
-        bulk.set_visibility(False)
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
+                                  "console-panel console-grid-bar"):
+        bar = panel.grid_bar()
+        wire_views, _picker, showing, describe = view_control(
+            library, SCOPE, COLLECTION_VIEWS, fields, COLUMNS, bar=bar)
+        describe()
+        with bar.top, panel.bar_end():
+            search = panel.search(t("console.collections.search_collections"))
+        with bar.bottom, panel.bar_end():
+            count = ui.label(t("console.collections.collections",
+                    len=(len(built)))).classes("text-xs console-label")
+            ui.button(t("console.collections.new_collection"), icon="add",
+                      on_click=lambda: _ask_new(library, act)) \
+                .props("flat dense no-caps size=sm").classes("shrink-0 console-action")
+            bulk = ui.button(icon="more_vert").props("flat round dense") \
+                .tooltip(t("console.collections.actions_selected_collections"))
+            with bulk, ui.menu():
+                ui.menu_item(t("console.collections.delete_selected"),
+                             lambda: _ask_delete_many(picked, library, act)) \
+                    .classes("console-menu-item console-menu-danger")
+            bulk.set_visibility(False)
 
     by_id = {row["id"]: row for row in built}
     ui.on("hub_row_focus",

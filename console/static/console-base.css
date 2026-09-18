@@ -1876,6 +1876,72 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    bubble beside the word rather than under it. `max-width` keeps the truncation. */
 /* Under the page name, in the supporting voice: it is read once on arrival and never
    scanned, so it recedes rather than competing with the title above it. */
+/* Last in the bar whatever order it was built in, and on its own line: the controls
+   above it are the row, and this is what the row is currently showing. */
+/* The lens decides what every other control in the bar acts on, so it reads first -
+   and its description sits under it rather than across the row, where a full-width
+   child made the bar wrap into three lines. */
+
+/* Two rows. The top is the lens and what you search with; the bottom is what the lens
+   is for and what it currently holds. Each row's end is right-aligned and holds its
+   size, so the description takes every pixel the controls beside it do not. */
+.console-grid-bar { flex-direction: column; align-items: stretch; gap: 4px; }
+.console-bar-row { min-width: 0; }
+.console-bar-end { margin-left: auto; flex: 0 1 auto; min-width: 0; }
+/* Everything but the search box holds its size. */
+.console-bar-end > *:not(.q-field) { flex: 0 0 auto; }
+/* The search box gives way first and furthest; the picker only once that has run out,
+   and never below the point where a view name stops being readable. The menu beside it
+   is an icon and never shrinks. */
+.console-view-picker { flex: 0 1 13rem; flex-shrink: 1; min-width: 8rem; }
+.console-view-menu { flex: 0 0 auto; }
+.console-bar-end .q-field { flex: 0 1 16rem; flex-shrink: 6;
+                            min-width: 4rem; width: auto; }
+
+/* The description takes the row. `panel.field` wraps its input in a fact-edit box,
+   which is sized to its content in a panel and has to stretch here. */
+.console-view-purpose { flex: 1 1 auto; min-width: 0; }
+.console-view-purpose .console-fact-edit { flex: 1 1 auto; min-width: 0; width: 100%; }
+/* The second row carries text and a count, not controls to hit, so it gives back the
+   height a form row is padded for. */
+.console-view-purpose .q-field__control,
+.console-view-purpose .q-field__marginal { min-height: 28px; height: 28px; }
+.console-view-purpose .q-field__native { padding: 0; }
+/* In the bar it reads far more often than it is written, and beside a built-in's plain
+   line a bordered box says the two are different kinds of thing when they are the same
+   fact. The edge is there when you go to use it. The panel's own fields keep theirs:
+   there a field sits among values and the border is what says which one you can act on. */
+.console-view-purpose .console-edit-field .q-field__control {
+  border-color: transparent;
+  transition: border-color 120ms ease;
+}
+.console-view-purpose:hover .console-edit-field .q-field__control,
+.console-view-purpose .console-edit-field .q-field--focused .q-field__control,
+.console-view-purpose .console-edit-field:focus-within .q-field__control {
+  border-color: var(--line);
+}
+
+/* One height whichever form it takes, so the row beneath the search box lands level
+   with it. A built-in's is a line of text and a saved view's is the field you write in,
+   and centring the text is what makes the two agree. */
+.console-view-purpose {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+
+
+.console-view-purpose-text {
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  line-height: 1.3;
+}
+.console-view-purpose .q-field__control { min-height: 20px; }
+.console-view-purpose input {
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+
 .console-page-purpose {
   font-size: var(--fs-caption);
   color: var(--ink-3);

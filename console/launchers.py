@@ -22,7 +22,7 @@ from nicegui import run, ui
 
 from common import path_checks
 from common.i18n import t
-from console import confirm, grid, offload, panel
+from console import confirm, grid, offload, panel, views
 from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.launchers")
@@ -56,8 +56,10 @@ COLUMNS: list[dict[str, Any]] = [
                 help=t("console.launchers.executable_launcher_runs.help")),
 ]
 
-LAUNCHER_VIEWS: dict[str, list[str]] = {
-    t("console.view.overview"): ["name", "app", "state", "default", "program"],
+LAUNCHER_VIEWS: dict[str, list[str] | views.Preset] = {
+    t("console.view.overview"): views.Preset(
+        columns=("name", "app", "state", "default", "program"),
+        help=t("console.view.launchers.help")),
 }
 
 
@@ -129,18 +131,23 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
         with ui.column().classes("w-full gap-1 px-3 pt-2 pb-1"):
             ui.label(t("console.launchers.each_one_way_running")).classes("console-help")
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
-                for app in apps_known:
-                    ui.button(t("console.launchers.add", value=(app['name'])), icon="add",
-                              on_click=lambda a=app: _add(library, state, redraw, a)) \
-                        .props("flat dense no-caps size=sm").classes("console-action")
-                search = panel.search(t("console.launchers.search_launchers"))
-                wire_views, _picker, showing = view_control(library, SCOPE,
-                                                            LAUNCHER_VIEWS, fields,
-                                                            COLUMNS)
-                ui.space()
-                ui.label(t("console.launchers.launcher", len=(len(built)),
-                        value=('' if len(built) == 1 else 's'))) \
-                    .classes("text-xs console-label")
+                bar = panel.grid_bar()
+                wire_views, _picker, showing, describe = view_control(
+                    library, SCOPE, LAUNCHER_VIEWS, fields, COLUMNS, bar=bar)
+                describe()
+                with bar.top, panel.bar_end():
+                    search = panel.search(t("console.launchers.search_launchers"))
+                with bar.bottom, panel.bar_end():
+                    ui.label(t("console.launchers.launcher", len=(len(built)),
+                            value=('' if len(built) == 1 else 's'))) \
+                        .classes("text-xs console-label")
+                    for app in apps_known:
+                        ui.button(t("console.launchers.add", value=(app['name'])),
+                                  icon="add",
+                                  on_click=lambda a=app: _add(library, state,
+                                                              redraw, a)) \
+                            .props("flat dense no-caps size=sm") \
+                            .classes("console-action")
 
         if not built:
             panel.facts(ui, [panel.intro(
