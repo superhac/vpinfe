@@ -71,6 +71,28 @@ def facts(target: Any, entries: Sequence[tuple[Any, Any]]) -> None:
             _draw_value(target, value)
 
 
+_CLIPPED_JS = """
+if (!window.__hubClipWatch) {
+  window.__hubClipWatch = true;
+  const mark = () => {
+    for (const el of document.querySelectorAll('.console-fact-value')) {
+      el.classList.toggle('console-clipped', el.scrollWidth > el.clientWidth + 1);
+    }
+  };
+  const soon = () => requestAnimationFrame(() => requestAnimationFrame(mark));
+  new MutationObserver(soon).observe(document.body,
+                                     {childList: true, subtree: true});
+  new ResizeObserver(soon).observe(document.body);
+  soon();
+}
+"""
+
+
+def install_fact_tooltips() -> None:
+    """Watch which fact values are clipped. Once per page, before any panel."""
+    ui.run_javascript(_CLIPPED_JS)
+
+
 def _draw_value(target: Any, value: Any) -> None:
     if callable(value):
         value()

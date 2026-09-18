@@ -207,6 +207,7 @@ def asset_columns(keys: list[str]) -> list[dict[str, Any]]:
     labels = {key: _asset_label(key) for key in keys}
     width = max((grid.header_width(label) for label in labels.values()), default=92)
     return [grid.column(f"asset_{key}", label, width, group=t(_ASSETS),
+                        help=t("help.asset_kind", label=(label)),
                         cellStyle={"textAlign": "center"},
                         **{**_TICK, **grid.choice_filter(_HAS_CHOICES)})
             for key, label in sorted(labels.items(), key=lambda kv: kv[1].lower())]
@@ -347,6 +348,7 @@ def media_columns(kinds: list[str]) -> list[dict[str, Any]]:
     width = max((grid.header_width(header) for header in headers.values()), default=92)
     return [grid.column(f"media_{kind}", header, width,
                         cellClass="console-media-cell", group=t(_MEDIA),
+                        help=t("help.media_kind", label=(header)),
                         **grid.choice_filter(_STATE_CHOICES),
                         **{":cellRenderer": _MARK_RENDERER})
             for kind, header in headers.items()]
@@ -673,6 +675,7 @@ _FEATURES = "console.games.features"
 
 FEATURE_COLUMNS = [
     grid.column(f"feature_{key}", label, group=t(_FEATURES),
+                help=t("help.table_feature", label=(label)),
                 cellClass="console-media-cell",
                 **{**grid.choice_filter(_FEATURE_CHOICES),
                    ":cellRenderer": _FEATURE_RENDERER})
@@ -755,6 +758,7 @@ def table_asset_columns(keys: list[str]) -> list[dict[str, Any]]:
     width = max((grid.header_width(header) for header in headers.values()), default=92)
     return [grid.column(f"asset_{key}", header, width,
                         cellClass="console-media-cell", group=t(_ASSETS),
+                        help=t("help.table_asset_kind", label=(header)),
                         **grid.choice_filter(_STATE_CHOICES),
                         **{":cellRenderer": _MARK_RENDERER})
             for key, header in headers.items()]
@@ -1343,11 +1347,15 @@ def view_control(library: Any, scope: str,
                             label = str(definition.get(grid.PICKER_KEY)
                                         or definition.get("headerName") or field) \
                                 .replace("\n", " ")
-                            ui.checkbox(label, value=field not in hidden,
+                            box = ui.checkbox(label, value=field not in hidden,
                                         on_change=lambda event, f=field:
                                         table.run_grid_method("setColumnsVisible",
                                                               [f], event.value)) \
                                 .props("dense").classes("console-menu-item w-full")
+                            explains = str(definition.get("headerTooltip") or "")
+                            if explains:
+                                with box:
+                                    ui.tooltip(explains).classes("console-menu-tip")
 
         menu_button.on_click(fill_menu)
         picker.on_value_change(lambda event: pick(event.value))

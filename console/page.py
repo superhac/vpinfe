@@ -34,6 +34,7 @@ from console import locations as locations_page
 from console import logs as logs_page
 from console import media as media_page
 from console import metrics as metrics_page
+from console import panel as panel_parts
 from console import settings as settings_page
 from console import themes as themes_page
 from console.api import ApiClient
@@ -411,6 +412,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     theme.apply_colors(chosen)
     theme.apply_flair(chosen)
     grid.install_filters()
+    panel_parts.install_fact_tooltips()
     # The shell takes the viewport once, here, and every height below it is flex. The
     # old layout gave each pane its own calc(100vh - N) against chrome that later
     # changed, so a pane collapsed the moment the header it was subtracting went away.

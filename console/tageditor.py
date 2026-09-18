@@ -21,8 +21,10 @@ SUBJECT = "tag"
 LABEL = t("console.tageditor.tags")
 
 COLUMNS = [
-    grid.identifier("tag", t("console.tageditor.tag"), 260, pinned="left"),
-    grid.column("games", t("console.tageditor.games"), type="numericColumn"),
+    grid.identifier("tag", t("console.tageditor.tag"), 260, pinned="left",
+                    help=t("console.tageditor.tag.help")),
+    grid.column("games", t("console.tageditor.games"), type="numericColumn",
+                help=t("console.tageditor.games.help")),
 ]
 
 

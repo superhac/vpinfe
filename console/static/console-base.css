@@ -984,8 +984,16 @@ body::before {
 .console-devices-bar { padding: 8px 12px 0 12px; }
 .console-devices-sort { min-width: 120px; }
 
-/* A tooltip belonging to the control that opened a menu would sit on top of it. */
+/* A tooltip belonging to the control that opened a menu would sit on top of it. The
+   picker's own are the exception. */
 body.console-menu-open .q-tooltip { display: none !important; }
+body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; }
+
+/* Quasar gives a tooltip no width. Same ceiling and wrapping as the grid's own. */
+.q-tooltip {
+  white-space: pre-line;
+  max-width: 340px;
+}
 
 /* The grid's own tooltip, which is where a column explains itself. AG Grid renders the
    text verbatim, so `pre-line` is what makes a newline in the help a line on screen -
@@ -1864,7 +1872,16 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    lever: --ink-2 is the documented secondary at 11.1:1, and the help is --ink-3 at the
    caption size, so the three read as three. */
 .console-fact-label { font-size: var(--fs-body); color: var(--ink-2); line-height: 1.3; }
-.console-fact-value { font-size: var(--fs-body); color: var(--ink); }
+/* Sized to its text: a tooltip anchors to its parent, and a full-width label puts the
+   bubble beside the word rather than under it. `max-width` keeps the truncation. */
+.console-fact-value {
+  font-size: var(--fs-body);
+  color: var(--ink);
+  width: fit-content;
+  max-width: 100%;
+}
+/* No hover, no tooltip. `console-clipped` is set in the browser. */
+.console-fact-value:not(.console-clipped) { pointer-events: none; }
 /* One line of chips sits on the same pitch as every other row, and a wrapped one grows
    symmetrically around its label. The row carries the height rather than the label
    carrying a nudge: two hand-tuned paddings here put this row 28px into a 26px rhythm

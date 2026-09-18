@@ -710,8 +710,11 @@ element.
 - **A value is a name or a state, not a sentence.** Names keep their own casing
   (`Visual Pinball X`, `TAF_L7`); states are capitalized noun phrases. Show a display name
   rather than an id — an id on screen is a leak.
-- **A fragment takes no full stop.** Sentences are punctuated; labels, states, counts and
-  fragments are not. "Nothing in it yet." is a fragment wearing a period.
+- **A fragment takes no full stop, and neither does a lone sentence.** Labels, states,
+  counts and fragments never take one; a tooltip or a help line that is a single sentence
+  does not either, because the stop is doing no work when nothing follows it. Punctuate
+  where a second sentence makes the boundary worth marking. "Nothing in it yet." is a
+  fragment wearing a period.
 - **The shortest true word wins.** A chip reads `Missing`, not "Not in this library"; the
   sentence goes in the tooltip where it costs nothing.
 - **A grid marks the one column its rows are scanned by, and marks it on the column.**
