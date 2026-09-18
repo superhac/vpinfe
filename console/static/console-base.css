@@ -410,14 +410,6 @@ body::before {
 }
 /* A collection's icon, and the drop target that replaces it. Small: it identifies the
    collection in a wheel, it is not the content of this panel. */
-.console-collection-icon {
-  width: 64px; height: 64px;
-  object-fit: contain;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface-1);
-}
-.console-upload .q-uploader { background: none; border: 1px dashed var(--line-strong); }
 
 /* The rule, said in words above the controls that set it. Roomier than help text
    because it is the sentence somebody reads to check the rule says what they meant. */
@@ -824,18 +816,6 @@ body::before {
   transform: rotate(45deg) scale(0.82);
 }
 
-.console-member-mark {
-  /* Big enough that ● and ◐ are told apart. They differ by half a fill, which at 11px
-     is two or three pixels - measured on screen, both read as the same dot. */
-  font-size: 15px;
-  line-height: 1;
-  color: var(--ink-2);
-  flex: none;
-  width: 16px;
-  text-align: center;
-}
-.console-member-row:hover .console-member-mark { color: var(--accent); }
-
 /* The table line doubles as the control that changes which table this member names.
    The caret is the only added ink and it waits for a hover, so a list of forty rows
    reads as text; on touch, where there is no hover, it is simply always there. */
@@ -926,11 +906,6 @@ body::before {
 /* Something to go and do, in the colour this theme keeps for exactly that. The rail is
    already a lit surface, so the accent would make this one more glowing thing in it
    rather than the one worth acting on. */
-.console-update {
-  color: var(--warm);
-  font-weight: 600;
-}
-.console-update:hover { text-decoration: underline; }
 
 /* The icon of a rail entry, as a box a badge can be hung on. The badge belongs to the
    icon rather than the row because the icon is in both states and the label is not. */
@@ -942,9 +917,8 @@ body::before {
 }
 
 /* How many of something are waiting behind a rail entry, on the icon's upper right in
-   both states. Same warm as .console-update and for the same reason: it is the one thing in
-   a lit rail worth acting on. A count only - what it is about is on the page it leads
-   to. */
+   both states. Warm because it is the one thing in a lit rail worth acting on. A count
+   only - what it is about is on the page it leads to. */
 .console-nav-badge {
   background: var(--warm-fill);
   /* Its own ink, not --ink and not --surface-0: a number on a warm fill has to read
@@ -1019,8 +993,6 @@ body::before {
 
 /* The sort control above the devices rail. Aligned to the rail rather than the page, so
    it reads as belonging to the list it orders. */
-.console-devices-bar { padding: 8px 12px 0 12px; }
-.console-devices-sort { min-width: 120px; }
 
 /* A tooltip belonging to the control that opened a menu would sit on top of it. The
    picker's own are the exception. */
@@ -1188,25 +1160,6 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
 
 /* Tiles are deliberately plain: the art is the content, so the chrome around it stays
    quiet enough that an outlier stands out rather than the frame. */
-.console-tile { cursor: pointer; padding: 4px; border-radius: 8px; }
-.console-tile:hover { background: var(--surface-hover); }
-.console-tile-art {
-  width: 100%;
-  object-fit: contain;
-  border-radius: 6px;
-  background: var(--surface-3);
-  border: 1px solid var(--line);
-}
-.console-tile-missing { border-style: dashed; }
-.console-tile-label {
-  font-size: var(--fs-caption);
-  color: var(--accent);
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding-top: 2px;
-}
 
 .console-panel {
   background: var(--surface-2);
@@ -2409,7 +2362,6 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   font-size: var(--fs-body); color: var(--ink-2); word-break: break-all;
   line-height: 1.3;
 }
-.console-source-meta { word-break: break-all; }
 /* Big enough to judge the art by, which is the question the row exists to answer.
    A backglass at 64px told you a file was an image and nothing else. */
 .console-source-thumb {

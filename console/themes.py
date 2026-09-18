@@ -70,7 +70,7 @@ async def _fill(library: Library, state: dict[str, Any], redraw: Callable[[], No
 
 def _card(library: Library, state: dict[str, Any], redraw: Callable[[], None], body: Any,
           theme: dict[str, Any]) -> None:
-    classes = t("console.themes.console_card_w_full")
+    classes = "console-card w-full console-theme-card"
     if theme["active"]:
         classes += " console-theme-card--active"
     with ui.element("div").classes(classes):

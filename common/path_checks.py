@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 
 from common import config_schema
+from common.i18n import t
 from common.launcher_path import resolve_launcher_path
 
 # What the answer can be. `unset` is not a failure: most of these are optional, and a
@@ -26,9 +27,8 @@ WRONG_KIND = "wrong_kind"
 NOT_EXECUTABLE = "not_executable"
 
 _WANTED = {
-    "file": "a file",
-    "dir": "a folder",
-    "exe": "a program",
+    "file": "error.path.folder_wants_file",
+    "exe": "error.path.folder_wants_program",
 }
 
 
@@ -52,20 +52,20 @@ def check(kind: str, raw: str) -> tuple[str, str]:
         here = resolve_launcher_path(value)
 
     if not here.exists():
-        return MISSING, "Nothing is at that path."
+        return MISSING, t("error.path.nothing_there")
 
     if kind == "dir":
         if not here.is_dir():
-            return WRONG_KIND, "That is a file, and this wants a folder."
+            return WRONG_KIND, t("error.path.file_wants_folder")
         return OK, ""
 
     if here.is_dir():
-        return WRONG_KIND, f"That is a folder, and this wants {_WANTED[kind]}."
+        return WRONG_KIND, t(_WANTED[kind])
 
     if kind == "exe" and not os.access(here, os.X_OK):
         # Its own state rather than "missing": the path is right and the file is there,
         # which is a permissions problem and not a typo, and they are fixed differently.
-        return NOT_EXECUTABLE, "That file is not executable."
+        return NOT_EXECUTABLE, t("error.path.not_executable")
 
     return OK, ""
 

@@ -79,6 +79,36 @@ class TestRegistriesHoldNoWords(unittest.TestCase):
         self.assertEqual(offenders, [], "the catalog owns these words now")
 
 
+# Modules in `common` whose return values are words a surface shows.
+SPEAKS_TO_A_SURFACE = ("common/path_checks.py",)
+
+
+class TestWhatCommonHandsBackIsLookedUp(unittest.TestCase):
+
+    def test_no_returned_word_is_written_in_place(self) -> None:
+        offenders = []
+        for name in SPEAKS_TO_A_SURFACE:
+            path = ROOT / name
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if not isinstance(node, ast.Return) or node.value is None:
+                    continue
+                said = (node.value.elts if isinstance(node.value, ast.Tuple)
+                        else [node.value])
+                offenders += [
+                    f"{name}:{one.lineno} {one.value!r}" for one in said
+                    if isinstance(one, ast.Constant) and isinstance(one.value, str)
+                    and one.value.strip()]
+        self.assertEqual(offenders, [], "the catalog owns these words now")
+
+    def test_it_found_the_returns(self) -> None:
+        """An empty sweep passes and measures nothing, which reads the same as clean."""
+        seen = sum(1 for name in SPEAKS_TO_A_SURFACE
+                   for node in ast.walk(ast.parse(
+                       (ROOT / name).read_text(encoding="utf-8")))
+                   if isinstance(node, ast.Return))
+        self.assertGreater(seen, 5)
+
+
 # The display positions a string reaches a person through. Kept beside the check rather
 # than imported from the Console, so a surface cannot quietly widen what counts as not
 # being text.
