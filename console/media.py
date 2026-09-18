@@ -233,12 +233,12 @@ def build(found: list[dict[str, Any]], library: Any,
             search = panel.search(t("console.media.search_media"))
         with bar.bottom, panel.bar_end():
             count = ui.label(said(0)).classes("text-xs console-label")
+            actions = ui.button(icon="more_vert").props("flat round dense") \
+                .tooltip(t("console.media.actions_selected_media"))
             if rescan is not None:
                 ui.button(icon="refresh", on_click=rescan) \
                     .props("flat dense round size=sm").classes("shrink-0") \
                     .tooltip(t("console.media.read_library_disk_pick"))
-            actions = ui.button(icon="more_vert").props("flat round dense") \
-                .tooltip(t("console.media.actions_selected_media"))
 
         async def refill() -> None:
             for game_id in {row["game_id"] for row in selected}:
@@ -249,10 +249,12 @@ def build(found: list[dict[str, Any]], library: Any,
         with actions:
             with ui.menu():
                 ui.menu_item(t("console.media.get_art_selected"),
-                             lambda: fill(list(selected), library, refill))
+                             lambda: fill(list(selected), library, refill)) \
+                    .classes("console-menu-item")
                 ui.separator()
                 ui.menu_item(t("word.clear_selection"),
-                             lambda: table.run_grid_method("deselectAll"))
+                             lambda: table.run_grid_method("deselectAll")) \
+                    .classes("console-menu-item")
         actions.set_visibility(False)
 
     def on_select_rows(picked: list[dict[str, Any]]) -> None:

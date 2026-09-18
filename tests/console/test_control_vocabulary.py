@@ -27,14 +27,15 @@ CONTROLS = re.compile(r"ui\.(switch|checkbox|input|select|number|textarea)\(")
 # the grammar and is not counted. Raising a number is a decision: say what the control is
 # for, or use `panel`.
 BUDGET = {
-    "workbench.py": (17, "panel rows with bespoke wiring - chips, debounce, a disabled "
-                         "select carrying its own reason - plus one find box, and what "
-                         "the two add dialogs ask for: a name and a program for "
-                         "something with no file, a path for something elsewhere. All "
-                         "three are questions, not facts about a thing that exists "
-                         "yet"),
+    "workbench.py": (16, "panel rows with bespoke wiring - chips, debounce, a disabled "
+                         "select carrying its own reason - plus one find box, and the "
+                         "name and program the add dialog asks for. Questions, not "
+                         "facts about a thing that exists yet. The path a table is "
+                         "pointed at is a `panel.path_field` and is not among them"),
     "logs.py": (4, "the control bar above the viewport: two pickers, a level and a find"),
-    "games.py": (3, "the view picker in the toolbar, and two dialogs"),
+    "games.py": (3, "three dialog fields - a view's name and what it is for, and the "
+                    "rating prompt. The view picker is `panel.DescribedSelect`, which "
+                    "is where a picker whose options explain themselves lives"),
     "mediasource.py": (2, "a start picker and a search, both toolbar"),
     "launchers.py": (2, "checkboxes in the copy-to-device dialog"),
     "about.py": (1, "the textarea a browser that will not copy falls back to"),
@@ -50,9 +51,6 @@ BUDGET = {
     "app_settings.py": (1, "the scope picker in the dialog's toolbar, which is not a "
                            "fact row - it says where edits go rather than holding a "
                            "value of its own"),
-    "locations.py": (1, "the folder field in the add-a-location dialog, which is asked "
-                        "up front because a location with no folder set reads as "
-                        "unreachable - the same words a dropped share uses"),
     "tageditor.py": (1, "the inline tag field, which is the editor itself"),
     "remote.py": (3, "the target picker in the header, which says which machine every "
                      "action on the screen is about, and the find field and collection "

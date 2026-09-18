@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import inspect
 import json
 import logging
@@ -420,21 +419,31 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                        columns=("name",
                                 *[f"asset_{key}" for key in library.asset_keys()]),
                        help=t("console.view.game_assets.help"))}
-        wire_views, view_picker, showing, describe = view_control(
-            library, SCOPE, presets, all_fields, columns, bar=bar)
-        describe()
-        with bar.top, panel.bar_end():
-            cells = ui.toggle(list(RENDERERS),
-                    value=t("console.games.ticks")).props("dense no-caps unelevated")
-            cells.bind_visibility_from(view_picker, "value",
-                                       lambda value: value == "builtin:Media")
-            search = panel.search(t("console.games.search_games"))
-        with bar.bottom, panel.bar_end():
-            # Read from the vocabulary rather than restated here, and each entry carries
-            # its own explanation on hover - a legend that names a state without saying
-            # what it means is half a legend.
-            with ui.row().classes("items-center gap-3 no-wrap text-xs opacity-60 "
-                                  "console-tier-key") as legend:
+        drawn: dict[str, str] = {"as": t("console.games.ticks")}
+
+        def presentation() -> None:
+            """Marks or pictures, where every other thing about the view is set."""
+            if showing() != "builtin:Media":
+                return
+            ui.item_label(t("console.games.show_media_as")).props("header") \
+                .classes("console-menu-header")
+            ui.toggle(list(RENDERERS), value=drawn["as"],
+                      on_change=lambda event: _redraw(event.value)) \
+                .props("dense no-caps unelevated").classes("q-mx-sm q-mb-xs")
+
+        def _redraw(value: str) -> None:
+            drawn["as"] = value
+            apply_renderer()
+
+        def annotate() -> None:
+            """The key to the marks, on the line that says what the view is for.
+
+            Read from the vocabulary rather than restated here, and each entry carries
+            its own explanation on hover - a legend that names a state without saying
+            what it means is half a legend.
+            """
+            with ui.row().classes("items-center gap-3 no-wrap shrink-0 text-xs "
+                                  "opacity-60 console-tier-key") as legend:
                 for key in media_ownership.LEGEND:
                     tier = media_ownership.tier_for(key)
                     with ui.row().classes("items-center gap-1 no-wrap") \
@@ -443,34 +452,47 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                         ui.label(t(tier.noun))
             legend.bind_visibility_from(view_picker, "value",
                                         lambda value: value == "builtin:Media")
+
+        wire_views, view_picker, showing, describe = view_control(
+            library, SCOPE, presets, all_fields, columns, bar=bar,
+            presentation=presentation, annotate=annotate)
+        describe()
+        with bar.top, panel.bar_end():
+            search = panel.search(t("console.games.search_games"))
+        with bar.bottom, panel.bar_end():
             # The selection count sits with the total: it is the same fact - how much am I
             # looking at - and it costs no vertical space of its own.
             count = ui.label(t("console.games.games", len=(len(rows)))) \
                 .classes("text-xs console-label")
-            if rescan is not None:
-                ui.button(icon="refresh", on_click=rescan) \
-                    .props("flat dense round size=sm").classes("shrink-0") \
-                    .tooltip(t("console.games.read_library_disk_pick"))
             actions = ui.button(icon="more_vert").props("flat round dense") \
                 .tooltip(t("console.games.actions_selected_games"))
             with actions:
                 with ui.menu():
-                    ui.menu_item(t("console.games.rate_selected"), lambda: _rate(selected))
+                    ui.menu_item(t("console.games.rate_selected"),
+                                 lambda: _rate(selected)) \
+                        .classes("console-menu-item")
                     # Walks the selection one picker at a time rather than matching them in
                     # a run. Nothing here can tell a right match from a wrong one - the
                     # ranker that would have was measured and retired - so a person decides
                     # every one, and Skip leaves a game exactly as it was.
                     ui.menu_item(t("console.games.match_vps"),
-                                 lambda: vps_match.walk(library, list(selected)))
+                                 lambda: vps_match.walk(library, list(selected))) \
+                        .classes("console-menu-item")
                     # Where the games you have already picked go. From here rather than
                     # only from the device, because starting with the tables and choosing
                     # where they land is a different job from managing what a phone holds.
                     ui.menu_item(t("console.games.send_device"),
-                                 lambda: send_to_device.ask_where(selected))
+                                 lambda: send_to_device.ask_where(selected)) \
+                        .classes("console-menu-item")
                     ui.separator()
                     ui.menu_item(t("word.clear_selection"),
-                                 lambda: table.run_grid_method("deselectAll"))
+                                 lambda: table.run_grid_method("deselectAll")) \
+                        .classes("console-menu-item")
             actions.set_visibility(False)
+            if rescan is not None:
+                ui.button(icon="refresh", on_click=rescan) \
+                    .props("flat dense round size=sm").classes("shrink-0") \
+                    .tooltip(t("console.games.read_library_disk_pick"))
 
     def on_select_rows(rows_selected: list[dict[str, Any]]) -> None:
         selected[:] = rows_selected
@@ -612,7 +634,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         value leaves the filter matching whichever presentation is showing, so filtering
         by "All tables" breaks the moment the thumbnails come on.
         """
-        thumbs = cells.value == t("console.games.thumbnails")
+        thumbs = drawn["as"] == t("console.games.thumbnails")
         height = 60 if thumbs else 42
         ui.run_javascript(f"window.__hubThumbs = {str(thumbs).lower()}")
         table.run_grid_method("setGridOption", "rowHeight", height)
@@ -629,7 +651,6 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
             f"'--ag-row-height', '{height}px')")
         table.run_grid_method("redrawRows")
 
-    cells.on_value_change(apply_renderer)
     wire_views(table)
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText", search.value or ""))
@@ -928,41 +949,49 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                        columns=("game", "version", "author",
                                 *[f"asset_{key}" for key in TABLE_ASSET_KEYS]),
                        help=t("console.view.table_assets.help"))}
+
+        def annotate() -> None:
+            """Every glyph column carries a key, including the state drawn as nothing,
+            which is the one a reader is least able to work out from the grid.
+
+            The states this library actually has, though: a table is unparsed only
+            between discovery finding it and the enrichment job reaching it, so a line
+            explaining a mark nobody can see is spent on every visit for a window most
+            people never look through.
+            """
+            with ui.row().classes("items-center gap-3 no-wrap shrink-0 text-xs "
+                                  "opacity-60 console-tier-key") as legend:
+                # `shown`, not `state`: this function's own `state` is the page's, and a
+                # loop variable by that name quietly replaced it for everything after the
+                # legend - which nothing noticed until something further down wrote to it.
+                for key in table_features.states_in(built):
+                    shown = table_features.state_for(key)
+                    with ui.row().classes("items-center gap-1 no-wrap") \
+                            .tooltip(shown.why):
+                        if shown.glyph:
+                            ui.label(shown.glyph).classes(shown.glyph_class)
+                        else:
+                            ui.element("span").classes(
+                                f"console-mark {shown.mark}".strip()
+                                if shown.mark else "console-mark-none")
+                        ui.label(shown.noun)
+            legend.bind_visibility_from(view_picker, "value",
+                                        lambda value: value == "builtin:Features")
+
         wire_views, view_picker, showing, describe = view_control(
-            library, f"{SCOPE}.tables", presets, fields, table_columns, bar=bar)
+            library, f"{SCOPE}.tables", presets, fields, table_columns, bar=bar,
+            annotate=annotate)
         describe()
         with bar.top, panel.bar_end():
             search = panel.search(t("console.games.search_tables"))
-        ui.space()
-        # Every glyph column carries a legend, including the state
-        # drawn as nothing, which is the one a reader is least able to work out from
-        # the grid. The states this library actually has, though: a table is unparsed
-        # only between discovery finding it and the enrichment job reaching it, so a
-        # line explaining a mark nobody can see is spent on every visit for a window
-        # most people never look through.
-        with ui.row().classes("items-center gap-3 no-wrap text-xs opacity-60 "
-                              "console-tier-key") as legend:
-            # `shown`, not `state`: this function's own `state` is the page's, and a
-            # loop variable by that name quietly replaced it for everything after the
-            # legend - which nothing noticed until something further down wrote to it.
-            for key in table_features.states_in(built):
-                shown = table_features.state_for(key)
-                with ui.row().classes("items-center gap-1 no-wrap").tooltip(shown.why):
-                    if shown.glyph:
-                        ui.label(shown.glyph).classes(shown.glyph_class)
-                    else:
-                        ui.element("span").classes(f"console-mark {shown.mark}".strip()
-                                                   if shown.mark else "console-mark-none")
-                    ui.label(shown.noun)
-        legend.bind_visibility_from(view_picker, "value",
-                                    lambda value: value == "builtin:Features")
-        ui.label(t("console.games.tables_games", len=(len(built)),
-                len2=(len({r['game_id'] for r in built})))) \
-            .classes("text-xs console-label")
-        if rescan is not None:
-            ui.button(icon="refresh", on_click=rescan) \
-                .props("flat dense round size=sm").classes("shrink-0") \
-                .tooltip(t("console.games.read_library_disk_pick"))
+        with bar.bottom, panel.bar_end():
+            ui.label(t("console.games.tables_games", len=(len(built)),
+                    len2=(len({r['game_id'] for r in built})))) \
+                .classes("text-xs console-label")
+            if rescan is not None:
+                ui.button(icon="refresh", on_click=rescan) \
+                    .props("flat dense round size=sm").classes("shrink-0") \
+                    .tooltip(t("console.games.read_library_disk_pick"))
 
     # The workbench follows the focused row, the same way it does under Games - focus
     # rather than selection, so arrowing down the list is a sweep and the checkboxes
@@ -1188,7 +1217,9 @@ def _by_group(columns: list[dict[str, Any]]) -> list[tuple[str, list[dict]]]:
 def view_control(library: Any, scope: str,
                  presets: Mapping[str, list[str] | views.Preset],
                  all_fields: list[str],
-                 columns: list[dict[str, Any]], *, bar: Any) -> Any:
+                 columns: list[dict[str, Any]], *, bar: Any,
+                 presentation: Callable[[], None] | None = None,
+                 annotate: Callable[[], None] | None = None) -> Any:
     """One control for how the rows are presented: which view, and what is in it.
 
     Built here in the toolbar and wired once the grid exists, because the widgets have
@@ -1209,13 +1240,15 @@ def view_control(library: Any, scope: str,
 
     top = bar.top
     with top:
-        picker = ui.select({view.id: _view_name(view) for view in known}, value=active,
-                           label=t("word.view")).props("dense outlined") \
-            .classes("w-52 console-view-picker")
+        picker = panel.DescribedSelect(
+            {view.id: _view_name(view) for view in known}, value=active,
+            label=t("word.view"),
+            describes={_view_name(v): (v.help or "") for v in known}) \
+            .props("dense outlined").classes("w-52 console-view-picker")
     # Inside the button, not beside it: a q-menu anchors to its parent, and as a
     # sibling this one anchored to the toolbar row and opened 726px away.
     with top:
-        menu_button = ui.button(icon="more_vert").props("flat dense round size=sm") \
+        menu_button = ui.button(icon="tune").props("flat dense round size=sm") \
             .classes("console-view-menu") \
             .tooltip(t("console.games.columns_saving_view"))
         with menu_button:
@@ -1225,29 +1258,11 @@ def view_control(library: Any, scope: str,
         return next(v for v in held["views"] if v.id == held["active"])
 
     def _reoption(active: str) -> None:
-        """The picker's options, each carrying the view's own words.
-
-        `set_options` rebuilds them, so the description is put back after every call.
-        Written onto the option payload because NiceGUI has no public way to carry a
-        field the built-in slot does not know about.
-        """
+        """The picker's options, and the line each one carries."""
+        picker.describes = {_view_name(v): (v.help or "") for v in held["views"]}
         picker.set_options({v.id: _view_name(v) for v in held["views"]}, value=active)
-        said_by_label = {_view_name(v): (v.help or "") for v in held["views"]}
-        for option in picker._props.get("options", []):
-            option["help"] = said_by_label.get(option.get("label"), "")
-        picker.update()
 
     said: dict[str, Any] = {"box": None}
-
-    async def save_purpose(text: str) -> None:
-        view = current()
-        if view.builtin:
-            return
-        kept = [v if v.id != view.id else replace(v, help=text.strip())
-                for v in held["custom"]]
-        held["custom"] = kept
-        held["views"] = views.builtins(presets) + kept
-        await offload.io(views.remember, library, scope, kept, held["active"])
 
     def describe() -> None:
         """The view's own line, at the foot of the bar.
@@ -1256,8 +1271,10 @@ def view_control(library: Any, scope: str,
         control you write it in, and one that appears only once filled is one nobody
         finds.
         """
-        with bar.bottom:
-            said["box"] = ui.element("div").classes("min-w-0 grow console-view-purpose")
+        with bar.bottom, ui.row().classes("items-center gap-3 no-wrap console-view-line"):
+            said["box"] = ui.element("div").classes("min-w-0 console-view-purpose")
+            if annotate is not None:
+                annotate()
         _show_purpose()
 
     def _show_purpose() -> None:
@@ -1265,15 +1282,9 @@ def view_control(library: Any, scope: str,
         if box is None:
             return
         box.clear()
-        view = current()
-        text = getattr(view, "help", "") or ""
         with box:
-            if view.builtin:
-                ui.label(text).classes("truncate console-view-purpose-text")
-            else:
-                panel.field(text,
-                            lambda said_now: asyncio.create_task(save_purpose(said_now)),
-                            placeholder=t("console.games.what_view_for"))()
+            ui.label(getattr(current(), "help", "") or "") \
+                .classes("truncate console-view-purpose-text")
 
     def wire(table: ui.aggrid) -> None:
         async def apply(view: Any) -> None:
@@ -1352,7 +1363,7 @@ def view_control(library: Any, scope: str,
             await keep_views(view_id)
             await apply(current())
 
-        async def save(name: str) -> None:
+        async def save(name: str, said: str = "") -> None:
             shown, sort, model = await _seen()
             # Saving over a name replaces that view and keeps its id, so anything
             # keyed to it survives. A new name mints a new id - never a slug of the
@@ -1364,15 +1375,26 @@ def view_control(library: Any, scope: str,
                               name=wanted,
                               builtin=False, columns=shown,
                               sort=tuple(e for e in sort if e.get("sort")),
-                              filters=model)
+                              filters=model, help=said.strip())
             held["custom"] = [v for v in held["custom"] if v.id != view.id] + [view]
             held["views"] = views.builtins(presets) + held["custom"]
             held["active"] = view.id
             await keep_views(view.id)
-            picker.set_options({v.id: _view_name(v) for v in held["views"]},
-                               value=view.id)
+            _reoption(view.id)
             await _refresh()
             ui.notify(t("console.games.saved_view", name=(view.name)), type="positive")
+
+        async def rename(name: str, said: str = "") -> None:
+            """The view's words, changed without touching what it holds."""
+            view = current()
+            kept = [v if v.id != view.id
+                    else replace(v, name=name.strip(), help=said.strip())
+                    for v in held["custom"]]
+            held["custom"] = kept
+            held["views"] = views.builtins(presets) + kept
+            await keep_views(held["active"])
+            _reoption(held["active"])
+            _show_purpose()
 
         async def delete() -> None:
             view = current()
@@ -1382,8 +1404,7 @@ def view_control(library: Any, scope: str,
             held["views"] = views.builtins(presets) + held["custom"]
             held["active"] = held["views"][0].id
             await keep_views(held["active"])
-            picker.set_options({v.id: _view_name(v) for v in held["views"]},
-                               value=held["active"])
+            _reoption(held["active"])
             await apply(current())
 
         async def fill_menu() -> None:
@@ -1405,9 +1426,17 @@ def view_control(library: Any, scope: str,
                 if held["modified"]:
                     ui.menu_item(t("console.games.revert"), lambda: apply(current())) \
                         .classes("console-menu-item")
+                if not view.builtin:
+                    ui.menu_item(t("console.games.rename_view"),
+                                 lambda v=view: _ask_name(
+                                     rename, named=v.name, said=v.help,
+                                     title=t("console.games.rename_view"))) \
+                        .classes("console-menu-item")
                 if not view.builtin and not held["modified"]:
                     ui.menu_item(t("console.games.delete_view"), delete) \
                         .classes("console-menu-item console-menu-danger")
+                if presentation is not None:
+                    presentation()
                 ui.separator()
                 # An explicit column: the menu lays its children out inline otherwise,
                 # so twenty checkboxes wrap into a paragraph rather than a list.
@@ -1454,13 +1483,19 @@ def _view_name(view: Any) -> str:
     return str(view.name or "")
 
 
-def _ask_name(save: Callable[..., Any]) -> None:
+def _ask_name(save: Callable[..., Any], *, named: str = "",
+              said: str = "", title: str = "") -> None:
+    """Name a view and say what it is for, in one place."""
     with ui.dialog() as dialog, ui.card():
-        ui.label(t("console.games.save_view")).classes("console-card-title")
+        ui.label(title or t("console.games.save_view")).classes("console-card-title")
         # debounce=0 so the model is current the moment Save is pressed. Focus is put
         # here by the script below - Quasar's autofocus does not land in this dialog.
         name = ui.input(placeholder=t("console.games.name_view")) \
+            .props("outlined dense debounce=0 bottom-slots").classes("w-72")
+        name.value = named
+        purpose = ui.input(placeholder=t("console.games.what_view_for")) \
             .props("outlined dense debounce=0").classes("w-72")
+        purpose.value = said
 
         async def keep() -> None:
             if not (name.value or "").strip():
@@ -1469,7 +1504,7 @@ def _ask_name(save: Callable[..., Any]) -> None:
                 name.props('error error-message="Give it a name"')
                 return
             dialog.close()
-            await save(name.value)
+            await save(name.value, purpose.value or "")
 
         with ui.row().classes("justify-end gap-2 w-full"):
             ui.button(t("word.cancel"), on_click=dialog.close).props("flat no-caps")

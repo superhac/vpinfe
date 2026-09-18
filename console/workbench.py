@@ -2370,7 +2370,7 @@ async def _add_keyed_table(context: dict[str, Any]) -> None:
         # debounce=0 so the model is current the moment Add is pressed, and focus put
         # on show - Quasar's autofocus does not land in a dialog.
         typed = ui.input(placeholder=t("console.workbench.name_program_uses")) \
-            .props("outlined dense debounce=0").classes("w-72")
+            .props("outlined dense debounce=0 bottom-slots").classes("w-72")
 
         async def add() -> None:
             said = str(typed.value or "").strip()
@@ -2419,8 +2419,8 @@ async def _add_referenced_table(context: dict[str, Any]) -> None:
         ui.label(t("console.workbench.table_share_one_file")).classes("console-help")
         # No suffix in the example: which ones are tables is the app registry's answer,
         # and hard-coding one here would be this surface deciding it.
-        typed = ui.input(placeholder=t("console.workbench.path_table_file")) \
-            .props("outlined dense debounce=0").classes("w-96")
+        typed = panel.path_field(placeholder=t("console.workbench.path_table_file"),
+                                 wants="file")
 
         async def keep() -> None:
             said = str(typed.value or "").strip()

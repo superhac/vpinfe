@@ -18,6 +18,8 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.games import locations as model
+from common.games import tables
 from common.i18n import t
 from console import offload, views
 from console.data import Library
@@ -32,12 +34,6 @@ SCOPE = "locations"
 KIND_LABELS = {"root": "console.locations.game_folders",
                "game": "console.locations.one_game"}
 
-# The verb, for the buttons that make one. Not the same words as the column: adding is
-# an act and reads as one.
-ADD_LABELS = {
-    "root": "console.locations.add.add_folder_games",
-    "game": "console.locations.add.add_single_game"
-}
 
 _KIND_CHOICES = [{"value": key, "label": t(label)} for key, label in KIND_LABELS.items()]
 
@@ -141,16 +137,22 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
             describe()
             with bar.top, panel.bar_end():
                 search = panel.search(t("console.locations.search_locations"))
+            picked: list[dict[str, Any]] = []
             with bar.bottom, panel.bar_end():
-                ui.label(t("console.locations.location", len=(len(built)),
+                count = ui.label(t("console.locations.location", len=(len(built)),
                         value=('' if len(built) == 1 else 's'))) \
                     .classes("text-xs console-label")
-                for kind, label in ADD_LABELS.items():
-                    ui.button(t(label), icon="add",
-                              on_click=lambda k=kind: _ask_new(library, state,
-                                                               rerender, k)) \
-                        .props("flat dense no-caps size=sm") \
-                        .classes("shrink-0 console-action")
+                bulk = ui.button(icon="more_vert").props("flat round dense") \
+                    .tooltip(t("console.locations.actions_selected_locations"))
+                with bulk, ui.menu():
+                    ui.menu_item(t("console.locations.remove_selected"),
+                                 lambda: _remove_many(picked, library, rerender)) \
+                        .classes("console-menu-item console-menu-danger")
+                bulk.set_visibility(False)
+                panel.add_action(
+                    [(t("console.locations.add_location"),
+                      (lambda: _ask_new(library, state, rerender)))],
+                    empty=not built)
 
         if not built:
             panel.facts(ui, [panel.intro(
@@ -160,8 +162,18 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
         by_id = {row["id"]: row for row in built}
         ui.on("hub_row_focus",
               lambda event: on_select(by_id.get(grid.focused_row(event))))
+        def on_selected(rows_selected: list[dict[str, Any]]) -> None:
+            picked[:] = rows_selected
+            bulk.set_visibility(bool(rows_selected))
+            count.text = (t("console.locations.selected",
+                            len=(len(rows_selected)), len2=(len(built)))
+                          if rows_selected
+                          else t("console.locations.location", len=(len(built)),
+                                 value=('' if len(built) == 1 else 's')))
+
         with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-            table = grid.build(COLUMNS, built, SCOPE, view_of=showing)
+            table = grid.build(COLUMNS, built, SCOPE, on_select_rows=on_selected,
+                               view_of=showing)
         search.on_value_change(
             lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                           search.value or ""))
@@ -169,19 +181,65 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
         wire_views(table)
 
 
-def _ask_new(library: Library, state: dict[str, Any], rerender: Callable[[], None] | None,
-             kind: str) -> None:
+async def _remove_many(picked: list[dict[str, Any]], library: Library,
+                       rerender: Callable[[], None] | None) -> None:
+    """Several at once, asked once. One selected is named rather than counted - the
+    name is on the row, and "1 locations" is not a sentence."""
+    if not picked:
+        return
+    names = [str(row.get("name") or "") for row in picked]
+    one = len(names) == 1
+    shown = [] if one else names[:8] + ([t("said.and_more", value=(len(names) - 8))]
+            if len(names) > 8 else [])
+    if not await confirm.ask(
+            t("console.locations.stop_looking", value=(names[0])) if one
+            else t("console.locations.stop_looking_in", len=(len(names))),
+            detail=t("console.locations.games_leave_library_nothing") if one
+            else t("console.locations.games_leave_library_folders"),
+            lines=shown, confirm=t("word.remove")):
+        return
+    for row in picked:
+        try:
+            await offload.io(library.delete_location, str(row.get("id") or ""))
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("said.could_not_remove_it", exc=(exc)), type="negative")
+            return
+    if rerender is not None:
+        rerender()
+
+
+def _sort_it(found: dict[str, Any], state_now: str, said: str) -> str:
+    """Which kind the typed folder is, decided, and the line that says so.
+
+    Only for a folder that is there: the answer is what is inside it, and a path that
+    does not resolve has nothing inside to read.
+    """
+    game = state_now == "ok" and tables.is_game_folder(said)
+    found["kind"] = model.KIND_GAME if game else model.KIND_ROOT
+    if state_now != "ok":
+        return ""
+    return t("console.locations.one_game_folder" if game
+             else "console.locations.folder_of_games")
+
+
+def _ask_new(library: Library, state: dict[str, Any],
+             rerender: Callable[[], None] | None) -> None:
     """The folder, asked before the row exists.
 
     Not a placeholder row to edit afterwards, which is how Launchers adds one: a
     launcher with no program set reads as unconfigured, but a location with no folder
     reads as *unreachable* - the same words a share that has dropped uses. A row that
     looks broken the moment it is made is worse than one more dialog.
+
+    `found` carries what `_sort_it` decided; the workbench's select is where a miss is
+    corrected.
     """
     with ui.dialog() as dialog, ui.card():
-        ui.label(t(ADD_LABELS[kind])).classes("console-card-title")
-        folder = ui.input(placeholder="/path/to/your/games") \
-            .props("outlined dense debounce=0").classes("w-96")
+        ui.label(t("console.locations.add_location")).classes("console-card-title")
+        found: dict[str, Any] = {"kind": model.KIND_ROOT}
+        folder = panel.path_field(placeholder="/path/to/your/games", wants="dir",
+                                  on_checked=lambda state_now, said:
+                                      _sort_it(found, state_now, said))
 
         async def keep() -> None:
             wanted = (folder.value or "").strip()
@@ -189,7 +247,7 @@ def _ask_new(library: Library, state: dict[str, Any], rerender: Callable[[], Non
                 folder.props('error error-message="Name a folder"')
                 return
             dialog.close()
-            await _create(library, state, rerender, kind, wanted)
+            await _create(library, state, rerender, found["kind"], wanted)
 
         with ui.row().classes("justify-end gap-2 w-full"):
             ui.button(t("word.cancel"), on_click=dialog.close).props("flat no-caps")
@@ -201,8 +259,6 @@ def _ask_new(library: Library, state: dict[str, Any], rerender: Callable[[], Non
 
 async def _create(library: Library, state: dict[str, Any], rerender: Callable[[], None] | None,
                   kind: str, path: str) -> None:
-    from common.games import locations as model
-
     made = model.mint_location_id()
     try:
         await run.io_bound(library.put_location, made, {"path": path, "kind": kind})

@@ -16,6 +16,7 @@ from typing import Any
 from nicegui import ui
 
 from common.i18n import t
+from console import offload
 
 # Rows that are not a fact. A group's title and an action strip span both columns, so
 # every group keeps the one shared label width.
@@ -270,6 +271,34 @@ def bar_end() -> Any:
     return ui.row().classes("items-center gap-2 no-wrap min-w-0 console-bar-end")
 
 
+def add_action(choices: Any, *, empty: bool) -> Any:
+    """The verb that fills a page, from one choice or several.
+
+    Several collapse into one `+` with a menu rather than a row of identical glyphs:
+    two of the same icon side by side say there are two of something without saying
+    which is which.
+
+    An icon once there are rows and the full words while there are none: the bar is
+    scarce width on a page you already know, and a glyph is a guess on one you do not.
+    """
+    items = list(choices.items()) if isinstance(choices, dict) else list(choices)
+    if len(items) == 1:
+        label, act = items[0]
+        if empty:
+            return ui.button(label, icon="add", on_click=act) \
+                .props("flat dense no-caps size=sm").classes("shrink-0 console-action")
+        return ui.button(icon="add", on_click=act) \
+            .props("flat dense round size=sm").classes("shrink-0 console-action") \
+            .tooltip(label)
+
+    button = ui.button(icon="add").props("flat dense round size=sm") \
+        .classes("shrink-0 console-action")
+    with button, ui.menu():
+        for label, act in items:
+            ui.menu_item(label, act).classes("console-menu-item")
+    return button
+
+
 def search(placeholder: str) -> Any:
     """The box above a grid that narrows what is in it.
 
@@ -329,6 +358,95 @@ def value_state(state: str, reason: str = "") -> Callable[[Any], None]:
             mark.tooltip(reason)
 
     return draw
+
+
+class DescribedSelect(ui.select):
+    """A picker whose options each carry a line saying what they are for.
+
+    `describes` maps an option's label to its line. The slot reads it as `opt.help`,
+    and `console-menu-tip` is what keeps the tooltip visible while the menu is open.
+    """
+
+    SLOT = """
+        <q-item v-bind="props.itemProps">
+          <q-item-section>
+            <q-item-label>{{ props.opt.label }}</q-item-label>
+          </q-item-section>
+          <q-tooltip v-if="props.opt.help" class="console-menu-tip"
+                     anchor="center right" self="center left">
+            {{ props.opt.help }}
+          </q-tooltip>
+        </q-item>
+    """
+
+    def __init__(self, options: Any, *, value: Any, label: str,
+                 describes: dict[str, str] | None = None) -> None:
+        # Before `super().__init__`, which builds the payload for the first time.
+        self.describes: dict[str, str] = dict(describes or {})
+        super().__init__(options, value=value, label=label)
+        self.add_slot("option", self.SLOT)
+
+    def _update_options(self) -> None:
+        super()._update_options()
+        for option in self._props["options"]:
+            option["help"] = self.describes.get(str(option.get("label") or ""), "")
+
+    def describe_options(self, describes: dict[str, str]) -> None:
+        """The lines, and the rebuild that puts them on the payload."""
+        self.describes = dict(describes)
+        self.update()
+
+
+def hint(control: Any, said: str) -> None:
+    """A line under a field. The field must carry `bottom-slots`."""
+    if said:
+        control.props(f'hint="{said}"')
+    else:
+        control.props(remove="hint")
+
+
+def path_field(placeholder: str = "", *, wants: str, value: str = "",
+               width: str = "w-96",
+               on_checked: Callable[[str, str], str] | None = None) -> Any:
+    """A path typed by hand, saying whether it is there. Returns the input.
+
+    `wants` is what should be at the end of it - `dir`, `file` or `exe`, the words
+    `path_checks` answers in. The mark draws in the control's append slot, beside the
+    text it is about, and an empty box draws none.
+
+    `on_checked` returns the line to show under the field - what the path turned out to
+    be. It goes in the hint, the row the error message uses, so a field with something
+    to say and one without are the same height.
+
+    `debounce=0` stays on the input and the wait goes on a timer: a debounce here leaves
+    the value stale at the moment a button is pressed.
+    """
+    from common import path_checks
+
+    control = ui.input(placeholder=placeholder)
+    control.value = value
+    control.props("outlined dense debounce=0 bottom-slots").classes(width)
+    with control.add_slot("append"):
+        holder = ui.element("div").classes("console-value-state")
+    seen: dict[str, Any] = {"was": object()}
+
+    async def look() -> None:
+        said = str(control.value or "").strip()
+        if said == seen["was"]:
+            return
+        seen["was"] = said
+        state, why = await offload.io(path_checks.check, wants, said)
+        holder.clear()
+        with holder:
+            value_state(state, why)(control)
+        if on_checked is not None:
+            hint(control, on_checked(state, said))
+
+    # One timer comparing against what it last asked about, rather than one restarted
+    # per keystroke: a cancelled one-shot leaves an element behind and the restarts stop
+    # arriving, which shows up as a mark that answers the first path and no other.
+    ui.timer(0.3, look)
+    return control
 
 
 def select(options: Any, value: str, on_change: Callable[[Any], Any], *,

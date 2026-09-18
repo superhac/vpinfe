@@ -528,6 +528,32 @@ whatever it holds, so the air around one does not depend on its kind. At 26px a 
 value sat 21px in the row while a chip carried its own padding and read roomier — the
 same rhythm, felt as two. Content that wraps is the only thing that grows a row.
 
+**A picker's options say what they are for.** Where a view, a preset or a mode has a
+description, it goes on the option as a tooltip rather than only on the one already
+chosen - the reader is picking, which is the moment the difference between two of them
+matters. `panel.DescribedSelect` is the control. The wrapping is the standing tooltip
+treatment, 340px and `pre-line`, so a long line wraps rather than running off the screen.
+
+**A dialog is the size it opened at.** Nothing in a modal may change its height after it
+renders. The reader has already looked at the buttons and started moving; a field that
+grows when it finds something to say moves the one they were going to press. Quasar draws
+the row under an input only while something is in it, so a field that can show an error -
+or a line about what was typed - declares `bottom-slots` and keeps the row from the start.
+The error and that line share it, which is right: while something is wrong, the thing that
+is wrong is what the row is for.
+
+**A path the user types says whether it is there.** There is no file browser, so every
+path is typed blind, and the mark is the only thing between a typo and a record that never
+worked. `panel.path_field` is the control: a tick or a cross in the input's own append
+slot, updated as it is typed, the reason on hover, and nothing at all while the box is
+empty. `wants` names what should be at the end of it - `dir`, `file` or `exe` - because
+"that is a folder, and this wants a file" is the useful half of the answer. The same mark
+answers for a stored path once it has been written, from the same vocabulary.
+
+A field that names something *to be created* is not this. The import dialog asks what to
+call a new game's folder, where finding something already there is the failure, not the
+success.
+
 **A failed write shows what the API said, never what HTTP said.** `raise_for_status`
 discards the body, so "No Visual Pinball on this machine…" reached a user as
 `501 Server Error: Not Implemented for url: /api/v1/games/…/script` — a status line and
@@ -559,6 +585,41 @@ over twice, and the column picker offered a third set of words for the same colu
 A control that cannot hold every state of its fact is the tell that the vocabulary is
 about to drift: a switch stood for a three-state default — chosen, automatic, not the
 default — so it said something else, and the drift started there.
+
+### The bar above a grid is two rows
+
+Two rows, two questions. The top is **the lens**: which view, the menu that configures it,
+and the search that narrows it. The bottom is **the subject**: what the view is for, how
+much it holds, and what you can do to it. A control goes in the row whose question it
+answers.
+
+- **The view's description is text, never a field.** It reads the same whether the view is
+  ours or one you saved, and it stretches to take whatever width the controls beside it do
+  not. A name and a description are set where a view is saved and changed from its menu,
+  so the bar never carries a form control.
+- **Each row has a right-aligned end.** Search ends the top row; the count, then the
+  selection actions, then the page's own actions end the bottom one.
+- **A key to the marks a view draws sits on the description line**, right after it, and
+  the free width falls after the pair. It says how to read what is on screen, which is
+  the same question the description answers; in the right-hand end it reads as one more
+  control beside the count. Each entry still carries its own explanation on hover, and so
+  does each mark in the grid - the key is what says a vocabulary exists at all, which a
+  tooltip cannot do, on a touch screen or anywhere else.
+- **What gives way is decided, not incidental.** The search box shrinks first and
+  furthest - it is the only control here that loses nothing by being narrower. The view
+  picker follows, and never below the width where a view name stops being readable.
+  Nothing else shrinks.
+- **Two menus, two glyphs.** `tune` is everything about the view: its columns, its name,
+  its description, how it draws, and saving or deleting it. `more_vert` is what you can do
+  to the rows you have selected, and it appears only when some are. The same glyph for
+  both is how a reader learns that neither is worth reading.
+- **A setting that changes how the view draws lives in the view menu**, not on the bar.
+  Ticks against thumbnails is the case: it is chosen once and left, so a click's depth
+  costs nothing and the bar keeps the width.
+- **An action is an icon and a tooltip, until the page is empty.** Three spellings of one
+  verb fit no rule and cost the width the description needs. The empty state keeps the
+  full text button: that is where somebody meets the page for the first time, and an icon
+  there is a guess.
 
 ### An action sits with what it acts on
 

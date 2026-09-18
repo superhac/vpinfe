@@ -628,7 +628,8 @@ def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet: Any,
             .props("no-caps flat").classes("remote-action"):
         with ui.menu():
             for name in named:
-                ui.menu_item(name, on_click=lambda _e=None, name=name: add(name))
+                ui.menu_item(name, on_click=lambda _e=None, name=name: add(name)) \
+                    .classes("console-menu-item")
 
 
 # What each button asks for, in the words a person would use rather than the vocabulary

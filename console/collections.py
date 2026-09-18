@@ -154,9 +154,6 @@ def build(collections: list[dict[str, Any]], library: Any,
         with bar.bottom, panel.bar_end():
             count = ui.label(t("console.collections.collections",
                     len=(len(built)))).classes("text-xs console-label")
-            ui.button(t("console.collections.new_collection"), icon="add",
-                      on_click=lambda: _ask_new(library, act)) \
-                .props("flat dense no-caps size=sm").classes("shrink-0 console-action")
             bulk = ui.button(icon="more_vert").props("flat round dense") \
                 .tooltip(t("console.collections.actions_selected_collections"))
             with bulk, ui.menu():
@@ -164,6 +161,8 @@ def build(collections: list[dict[str, Any]], library: Any,
                              lambda: _ask_delete_many(picked, library, act)) \
                     .classes("console-menu-item console-menu-danger")
             bulk.set_visibility(False)
+            panel.add_action([(t("console.collections.new_collection"),
+                               lambda: _ask_new(library, act))], empty=not built)
 
     by_id = {row["id"]: row for row in built}
     ui.on("hub_row_focus",
@@ -239,7 +238,7 @@ def _ask_new(library: Any, act: Callable) -> None:
     with ui.dialog() as dialog, ui.card():
         ui.label(t("console.collections.new_collection")).classes("console-card-title")
         name = ui.input(placeholder=t("console.collections.name")) \
-            .props("outlined dense debounce=0").classes("w-72")
+            .props("outlined dense debounce=0 bottom-slots").classes("w-72")
 
         async def keep() -> None:
             if not (name.value or "").strip():

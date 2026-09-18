@@ -148,6 +148,23 @@ def table_names(names: Iterable[str]) -> list[str]:
     return sorted((n for n in names if n.lower().endswith(known)), key=str.lower)
 
 
+def is_game_folder(path: str | Path) -> bool:
+    """Whether this folder is itself a game, rather than a folder of them.
+
+    The same rule the scan applies to every child folder it walks: a table file, or the
+    record named after the folder. Either alone is enough - a record outlives the file
+    it described, and discovery writes one for a folder that arrived holding only a
+    table.
+    """
+    here = Path(path).expanduser()
+    try:
+        with os.scandir(here) as found:
+            names = [one.name for one in found if not one.is_dir()]
+    except OSError:
+        return False
+    return bool(table_names(names)) or f"{here.name}.info" in names
+
+
 def entry_filename(entry: dict | None) -> str:
     """The file an entry describes, or ""."""
     if not isinstance(entry, dict):

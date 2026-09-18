@@ -141,13 +141,11 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
                     ui.label(t("console.launchers.launcher", len=(len(built)),
                             value=('' if len(built) == 1 else 's'))) \
                         .classes("text-xs console-label")
-                    for app in apps_known:
-                        ui.button(t("console.launchers.add", value=(app['name'])),
-                                  icon="add",
-                                  on_click=lambda a=app: _add(library, state,
-                                                              redraw, a)) \
-                            .props("flat dense no-caps size=sm") \
-                            .classes("console-action")
+                    panel.add_action(
+                        [(t("console.launchers.add", value=(one['name'])),
+                          (lambda a=one: _add(library, state, redraw, a)))
+                         for one in apps_known],
+                        empty=not built)
 
         if not built:
             panel.facts(ui, [panel.intro(
