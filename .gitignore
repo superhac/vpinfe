@@ -34,9 +34,6 @@
 # it from the schema would delete the assertion along with the alias it guards.
 !tests/fixtures/config_legacy_names.json
 
-# The 2.x section names, frozen from the v2.6.1 defaults so a section respelled without
-# a SECTION_RENAMES entry fails here rather than on somebody's upgrade.
-!tests/fixtures/config_2x_sections.json
 
 # The theme the render smoke test drives. Its manifest declares the contract and the
 # windows, so without this the harness is a contract 1 theme and the test asserts nothing.

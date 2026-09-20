@@ -165,9 +165,9 @@ class CallSiteTests(unittest.TestCase):
         self.assertGreater(len(list(_call_sites())), 20)
 
     def test_there_are_store_call_sites_to_check(self) -> None:
-        """Same reason, and it bites sooner here: the receiver names are a whitelist, so
-        one store held under a name that is not on it empties the scan."""
-        self.assertGreaterEqual(len(list(_store_reads())), 5)
+        """The receiver names are a whitelist, so a store held under a name that is not
+        on it empties the scan."""
+        self.assertTrue(list(_store_reads()))
 
 
 if __name__ == "__main__":

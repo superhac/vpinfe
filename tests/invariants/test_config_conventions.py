@@ -25,8 +25,11 @@ SNAKE = re.compile(r"^[a-z][a-z0-9_]*$")
 # The outside witness: every spelling that has to keep resolving, frozen so that
 # deleting an alias fails here instead of on somebody's upgrade.
 FROZEN_NAMES = Path(__file__).resolve().parent.parent / "fixtures" / "config_legacy_names.json"
-# The sections a 2.x install could have written, taken from the v2.6.1 defaults.
-TWO_X_SECTIONS = Path(__file__).resolve().parent.parent / "fixtures" / "config_2x_sections.json"
+# Every section a 2.x install could have written, from the v2.6.1 defaults. A closed set:
+# 2.6.1 shipped, so nothing is ever added to it.
+TWO_X_SECTIONS = ("DOF", "Displays", "Input", "Logger", "Media", "Mobile", "Network",
+                  "Settings", "State", "VPSdb", "libdmdutil", "pinmame-score-parser",
+                  "vpinplay")
 
 
 class NamingTests(unittest.TestCase):
@@ -105,8 +108,7 @@ class CompatibilityTests(unittest.TestCase):
         moved_per_key = {"Displays", "Input"}
         declared = {option.section for option in config_schema.options()}
 
-        stale = sorted(section for section in
-                       json.loads(TWO_X_SECTIONS.read_text(encoding="utf-8"))
+        stale = sorted(section for section in TWO_X_SECTIONS
                        if section not in moved_per_key
                        and config_schema.canonical_section(section) not in declared)
 

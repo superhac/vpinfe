@@ -1474,9 +1474,8 @@ the kind lists that moved there for the same reason. Every former spelling still
 resolves, the 2.x `[Settings]` names included, through the same `legacy` machinery that
 carried the fourteen per-window keys, and each one is frozen in
 `tests/fixtures/config_legacy_names.json`. A config file written by 2.x reads unchanged
-and the store rewrites it to the new names on save, with the sections a 2.x install
-could have written frozen in `tests/fixtures/config_2x_sections.json`. A name that only
-ever existed inside a 3.0 build carries no such promise.
+and the store rewrites it to the new names on save. A name that only ever existed inside
+a 3.0 build carries no such promise.
 
 Separately, and the only part of this that is not a rename: the `themes` section was the
 sole member of `READ_ONLY_SECTIONS` and is now writable, so the active theme, the
