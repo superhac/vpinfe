@@ -78,7 +78,8 @@ class LibraryIsReadOnceTests(unittest.TestCase):
         """
         offenders = []
         for path in sorted(REPO_ROOT.rglob("*.py")):
-            if any(part in {".venv", "build", "third_party"} for part in path.parts):
+            if any(part in {".venv", ".claude", "build", "third_party"}
+                   for part in path.parts):
                 continue
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for node in ast.walk(tree):
