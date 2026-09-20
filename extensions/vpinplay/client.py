@@ -71,19 +71,19 @@ def normalize(vps_id: str, payload: Any) -> dict | None:
     """
     if not isinstance(payload, dict):
         return None
-    catalog = payload.get("vpsdb")
-    catalog = catalog if isinstance(catalog, dict) else {}
-    year = _whole(_number(catalog.get("year"), _as_text(catalog.get("year"))))
+    vps = payload.get("vpsdb")
+    vps = vps if isinstance(vps, dict) else {}
+    year = _whole(_number(vps.get("year"), _as_text(vps.get("year"))))
     count = _number(payload.get("ratingCount"))
     return {
         "vpsId": str(payload.get("vpsId") or vps_id or "").strip(),
         "cumulativeRating": _number(payload.get("cumulativeRating")),
         "ratingCount": 0 if count is None else max(0, int(count)),
         "vpsdb": {
-            "name": catalog.get("name") if isinstance(catalog.get("name"), str) else "",
-            "authors": catalog.get("authors") if isinstance(catalog.get("authors"), list) else [],
-            "manufacturer": (catalog.get("manufacturer")
-                             if isinstance(catalog.get("manufacturer"), str) else ""),
+            "name": vps.get("name") if isinstance(vps.get("name"), str) else "",
+            "authors": vps.get("authors") if isinstance(vps.get("authors"), list) else [],
+            "manufacturer": (vps.get("manufacturer")
+                             if isinstance(vps.get("manufacturer"), str) else ""),
             "year": year,
         },
         "fetchedAt": datetime.now(UTC).isoformat().replace("+00:00", "Z"),

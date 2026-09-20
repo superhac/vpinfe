@@ -2603,7 +2603,7 @@ def _release_line(table: dict[str, Any]) -> None:
     made_by = ", ".join(str(name) for name in (source.get("authors") or [])[:3])
     told = " \u00b7 ".join(part for part in (version, made_by) if part)
     with ui.row().classes("items-center gap-2 w-full no-wrap console-member-table-line"):
-        ui.label(told or t("console.workbench.build_catalog_no_longer")) \
+        ui.label(told or t("console.workbench.build_spreadsheet_no_longer")) \
             .classes("console-help truncate")
 
 
@@ -2655,7 +2655,7 @@ def _match_line(context: dict[str, Any], kind: str, matched_to: Any) -> str:
             return t("console.workbench.matched",
                     told=(told)) if told else t("console.workbench.matched_published_file")
     # Worth saying: it is why no update will ever be reported for this file.
-    return t("console.workbench.matched_file_catalog_no")
+    return t("console.workbench.matched_file_spreadsheet_no")
 
 
 def _match_button(context: dict[str, Any], kind: str, label: str,

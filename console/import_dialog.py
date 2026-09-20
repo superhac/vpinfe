@@ -304,7 +304,7 @@ async def _match(library: Any, named: dict[str, Any], field: Any) -> None:
         ui.notify(t("console.import_dialog.could_not_search", exc=(exc)), type="negative")
         return
     if not found:
-        ui.notify(t("console.import_dialog.nothing_catalog_matches_name"), type="warning")
+        ui.notify(t("console.import_dialog.nothing_spreadsheet_matches_name"), type="warning")
         return
     offered = {str(one.get("vps_id") or ""):
                f"{one.get('name') or ''} ({one.get('manufacturer') or ''} "

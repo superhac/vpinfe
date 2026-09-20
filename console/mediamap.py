@@ -145,8 +145,8 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
                 if offered:
                     ui.icon("cloud_download", size="16px") \
                         .classes("console-mediatile-offered") \
-                        .tooltip(t("console.mediamap.catalog", offered=(offered))
-                                 if offered > 1 else t("console.mediamap.one_catalog"))
+                        .tooltip(t("console.mediamap.in_spreadsheet", offered=(offered))
+                                 if offered > 1 else t("console.mediamap.one_in_spreadsheet"))
             elif glyph is not None:
                 ui.icon(glyph, size="18px").classes("text-primary opacity-80")
             elif media_family(kind) == "video":

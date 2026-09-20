@@ -1,7 +1,7 @@
 """Naming the VPS record a file is bound to, in the panel.
 
 The id is what gets stored and it is not something to put on screen, so the panel
-resolves it against the catalog it already has open. What this covers is the three
+resolves it against the spreadsheet it already has open. What this covers is the three
 answers that resolution has, because two of them look like nothing going wrong.
 """
 
@@ -39,12 +39,12 @@ class MatchLineTests(unittest.TestCase):
         would be on nearly every slot and tell nobody anything."""
         self.assertEqual(workbench._match_line(_context(), "wheel", None), "")
 
-    def test_a_record_the_catalog_dropped_still_says_so(self) -> None:
+    def test_a_record_the_spreadsheet_dropped_still_says_so(self) -> None:
         """Silence here would read as unbound, and the difference matters: no update
         can ever be reported for a file bound to something no longer listed."""
         line = workbench._match_line(_context(releases=[]), "wheel", RECORD)
 
-        self.assertEqual(line, "Matched to a file the catalog no longer lists")
+        self.assertEqual(line, "Matched to a file the spreadsheet no longer lists")
 
     def test_a_kind_vps_does_not_publish_says_nothing(self) -> None:
         line = workbench._match_line(_context(), "playfield", RECORD)
