@@ -124,7 +124,7 @@ def _said(theme: dict[str, Any]) -> str:
     """The facts that fit on one line: who made it, which version, what it needs."""
     parts = []
     if theme.get("author"):
-        parts.append(f"by {theme['author']}")
+        parts.append(t("console.themes.by", author=theme["author"]))
     version = theme.get("installed_version") or theme.get("version")
     if version and theme["update_available"]:
         parts.append(f"v{theme['installed_version']} → v{theme['version']}")
@@ -132,7 +132,7 @@ def _said(theme: dict[str, Any]) -> str:
         parts.append(f"v{version}")
     screens = theme.get("screens")
     if isinstance(screens, int):
-        parts.append(SCREENS.get(screens, f"{screens} screens"))
+        parts.append(SCREENS.get(screens, t("console.themes.screens", count=screens)))
     return " · ".join(parts)
 
 
