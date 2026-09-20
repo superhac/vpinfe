@@ -392,7 +392,7 @@ PAGE_NOTES: dict[str, str] = {
     "vpinfe.tools": "console.settings.note_tools",
     "library.updates": "console.settings.note_updates",
     "library.audit": "console.settings.note_audit",
-    "library.vpxmobile": "console.settings.note_vpxmobile",
+    "vpinfe.vpxmobile": "console.settings.note_vpxmobile",
 }
 
 
@@ -506,6 +506,8 @@ DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
         # answer media, so an OS dependency belongs to the machine that has to have it.
         ("vpinfe.tools", "console.settings.page_tools", SCHEMA_PAGE, ("tools",),
                  install_identity.CORE),
+        ("vpinfe.vpxmobile", "console.settings.page_vpxmobile", SCHEMA_PAGE,
+                 ("vpxmobile",), "devices"),
     )),
     ("console.settings.group_hardware", (
         ("hardware.displays", "console.settings.page_displays", SCHEMA_PAGE,
@@ -521,8 +523,6 @@ DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
                 ("vpsdb",), "library"),
         ("library.updates", "console.settings.page_updates", SCHEMA_PAGE, ("updates",),
                 "library"),
-        ("library.vpxmobile", "console.settings.page_vpxmobile", SCHEMA_PAGE, ("vpxmobile",),
-                "devices"),
     )),
     ("console.settings.group_frontend", (
         ("frontend.presentation", "console.settings.page_presentation", SCHEMA_PAGE,

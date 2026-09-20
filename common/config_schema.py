@@ -768,12 +768,14 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         "dof",
         ConfigOption(
             "enabled",
+            group="DOF",
             type="bool",
             default="false",
             aliases=("enabledof",),
         ),
         ConfigOption(
             "config_tool_api_key",
+            group="DOF",
             type="string",
             default="",
             aliases=("dofconfigtoolapikey",),
