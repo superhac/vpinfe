@@ -532,7 +532,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
 
     rate_row = stars.rating_handler(by_id, lambda: table, ApiClient)
 
-    ui.on("hub_row_focus", focused)
+    grid.on_row_focus(SCOPE, focused)
     ui.on("hub_media_zoom", zoom_media)
     ui.on("hub_rate", rate_row)
     ui.run_javascript(_CELL_MEDIA)
@@ -1002,8 +1002,8 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     by_id = {row["id"]: row for row in built}
     rate_row = stars.rating_handler(by_id, lambda: table, ApiClient)
 
-    ui.on("hub_row_focus",
-          lambda event: on_select(by_id.get(grid.focused_row(event))))
+    grid.on_row_focus(f"{SCOPE}.tables",
+                      lambda event: on_select(by_id.get(grid.focused_row(event))))
     ui.on("hub_rate", rate_row)
     ui.run_javascript(stars.CLICK_JS)
 

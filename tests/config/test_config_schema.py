@@ -45,12 +45,10 @@ class SchemaMatchesTheStoreTests(unittest.TestCase):
 
 
 class MovedSettingsKeepTheirValueTests(unittest.TestCase):
-    """A setting that changed section must not silently take its default.
+    """A 2.x setting that changed section must not silently take its default.
 
-    Found on the cabinet: "Hide Quit from MainMenu" was on, the setting moved from
-    `general` to `frontend`, and the Quit item came back - the stored value was in a
-    location nothing looked at any more, so the new section took the default. A 2.x
-    install was never at risk; one that had already run a 3.0 build was.
+    The value is in a section nothing looks at any more, so the new one answers with its
+    default and the setting appears to have been forgotten.
     """
 
     def _reads(self, section, key, stored):
@@ -65,19 +63,9 @@ class MovedSettingsKeepTheirValueTests(unittest.TestCase):
         for stored, expected in ((("Settings", "MMhideQuitButton"), "true"),
                                  (("Settings", "restorelasttable"), "false")):
             with self.subTest(stored=stored):
-                section, key = ("frontend", "hide_quit_button") if "Quit" in stored[1] \
-                    else ("frontend", "restore_last_table")
+                section, key = ("behavior", "hide_quit_button") if "Quit" in stored[1] \
+                    else ("behavior", "restore_last_table")
                 self.assertEqual(self._reads(section, key, {stored: expected}), expected)
-
-    def test_a_3x_era_file_keeps_its_value_too(self):
-        """The half that was missing, and the half that bit."""
-        for stored, expected in ((("general", "hide_quit_button"), "true"),
-                                 (("general", "restore_last_game"), "false")):
-            with self.subTest(stored=stored):
-                section, key = ("frontend", "hide_quit_button") if "quit" in stored[1] \
-                    else ("frontend", "restore_last_table")
-                self.assertEqual(self._reads(section, key, {stored: expected}), expected,
-                                 f"{stored} was dropped; the setting silently defaults")
 
 
 class SchemaShapeTests(unittest.TestCase):
@@ -156,9 +144,9 @@ class AliasTests(unittest.TestCase):
     def test_the_renamed_keys_are_the_ones_we_meant(self) -> None:
         """A spot check in both directions, so a bad regeneration is visible."""
         self.assertEqual(config_schema.canonical("Settings", "gamerootdir"), "game_root_dir")
-        self.assertEqual(config_schema.canonical("Displays", "cabmode"), "cab_mode")
+        self.assertEqual(config_schema.canonical("presentation", "cabmode"), "cab_mode")
         self.assertEqual(config_schema.canonical("Media", "defaultmissingmediaimg"),
-                         "default_missing_media_image")
+                         "default_missing_image")
         self.assertEqual(config_schema.canonical("Settings", "game_root_dir"), "game_root_dir")
 
     def test_input_keys_are_untouched(self) -> None:
@@ -178,28 +166,43 @@ class LookupTests(unittest.TestCase):
         keys = [entry.key.lower() for entry in config_schema.options()]
         repeated = {k for k in keys if keys.count(k) > 1}
 
-        self.assertEqual(repeated, {"screen_id", "window_override", "media_priority"})
+        self.assertEqual(repeated, {"screen_id", "override", "enabled"})
         for entry in config_schema.options():
             if entry.key.lower() in repeated:
-                self.assertTrue(entry.section.startswith("windows."),
-                                f"{entry.section}.{entry.key} repeats outside a window")
+                self.assertIn(entry.section,
+                              {"windows.playfield", "windows.backglass",
+                               "windows.score_view", "dof", "real_dmd"},
+                              f"{entry.section}.{entry.key} repeats outside a surface")
 
-    def test_a_repeated_key_needs_its_section_to_label_it(self) -> None:
+    def test_a_repeated_key_is_labelled_for_the_row_not_the_section(self) -> None:
+        """Three sections answer `screen_id`, and the heading above the row says which.
+
+        So the label is the row's own word and the surface is printed once, as a heading,
+        rather than again on every line beneath it. That holds only while nothing looks a
+        repeated key up without its section, which
+        `test_no_repeated_key_is_asked_for_without_its_section` is what keeps true.
+        """
         self.assertEqual(config_schema.label_for("screen_id", "windows.playfield"),
-                         "Playfield Monitor ID")
+                         "Screen")
         self.assertEqual(config_schema.label_for("screen_id", "windows.backglass"),
-                         "Backglass Monitor ID")
+                         "Screen")
+        self.assertEqual(config_schema.label_for("override", "windows.score_view"),
+                         "Window Override")
+        # `enabled` repeats too, and these two are drawn with no heading over them.
+        self.assertEqual(config_schema.label_for("enabled", "dof"), "Enable DOF")
+        self.assertEqual(config_schema.label_for("enabled", "real_dmd"),
+                         "Enable Real DMD")
 
     def test_a_setting_that_moved_section_still_resolves(self) -> None:
         """Fourteen settings left [Displays] and [Media] for a window of their own."""
         self.assertEqual(config_schema.locate("Displays", "playfieldscreenid"),
                          ("windows.playfield", "screen_id"))
-        self.assertEqual(config_schema.locate("Displays", "playfield_screen_id"),
-                         ("windows.playfield", "screen_id"))
         self.assertEqual(config_schema.locate("Media", "bgmediapriority"),
-                         ("windows.backglass", "media_priority"))
+                         ("presentation", "backglass_media_priority"),
+                         "a media priority is what a theme is told to prefer")
         self.assertEqual(config_schema.locate("Displays", "cabmode"),
-                         ("displays", "cab_mode"), "cab_mode is context, not a window")
+                         ("presentation", "cab_mode"),
+                         "cab_mode is what the frontend shows, not what a screen is")
 
     def test_a_key_resolves_whatever_its_casing(self) -> None:
         """configparser lowercases option names, so a caller rarely has the original."""

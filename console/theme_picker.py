@@ -72,25 +72,39 @@ def tiles(option: dict[str, Any], value: Any, save: Callable[[Any], Any], *,
           rerender: Callable[[], None] | None = None) -> Callable[[], None]:
     """The four modes, side by side, the one in use marked on its edge.
 
-    The page reloads on a change rather than repainting in place: the palette is one
-    block of custom properties injected when the page is built, and every surface below
-    reads it from there. Swapping it under a live page is a second delivery path for the
-    same values, and this is one click on a settings page.
+    The palette is rewritten in place rather than the page reloading. Every surface
+    reads the mode from custom properties, so nothing below has to be redrawn - and a
+    reload took the settings page back to the top, which is a long way from the control
+    that was just used.
     """
-    chosen = theme.mode_or_default(str(value or ""))
+    held = {"mode": theme.mode_or_default(str(value or ""))}
 
     def draw() -> None:
+        made: dict[str, Any] = {}
+        note = None
+
+        def mark() -> None:
+            """The edge on the one in use, moved rather than redrawn."""
+            for key, tile in made.items():
+                on = key == held["mode"]
+                tile.classes(add="console-swatch-tile--active") if on \
+                    else tile.classes(remove="console-swatch-tile--active")
+                tile.props(f'aria-pressed="{str(on).lower()}"')
+            if note is not None:
+                note.set_visibility(held["mode"] == theme.SYSTEM)
+
         with ui.element("div").classes("console-swatches"):
             for mode in theme.MODES:
-                classes = "console-swatch-tile"
-                if mode == chosen:
-                    classes += " console-swatch-tile--active"
                 async def pick(mode: str = mode) -> None:
-                    if mode != chosen and await save(mode):
-                        ui.navigate.reload()
+                    if mode == held["mode"] or not await save(mode):
+                        return
+                    held["mode"] = mode
+                    theme.repaint(mode)
+                    mark()
 
-                tile = ui.element("button").classes(classes) \
-                    .props(f'type="button" aria-pressed="{str(mode == chosen).lower()}"')
+                tile = ui.element("button").classes("console-swatch-tile") \
+                    .props('type="button"')
+                made[mode] = tile
                 if writable:
                     tile.on("click", pick)
                 else:
@@ -98,8 +112,9 @@ def tiles(option: dict[str, Any], value: Any, save: Callable[[Any], Any], *,
                 with tile:
                     _swatch(mode)
                     ui.label(t(NAMES[mode])).classes("console-swatch-name")
-        if chosen == theme.SYSTEM:
-            # The only one of the four whose behavior is not in its picture.
-            ui.label(t("console.settings.theme_follows_system")).classes("console-help")
+        # The only one of the four whose behavior is not in its picture. Always drawn
+        # and shown for `system` alone, so picking it does not change the page's height.
+        note = ui.label(t("console.settings.theme_follows_system")).classes("console-help")
+        mark()
 
     return draw

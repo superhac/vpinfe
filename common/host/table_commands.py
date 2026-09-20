@@ -95,15 +95,15 @@ def before(game: Game, playing: apps.Entry, launcher: Launcher | None,
     and only they know which they wrote.
     """
     around = Around(values=_values(game, playing, launcher))
-    around.timeout = cfg_int(ini_config, "general", "command_timeout",
+    around.timeout = cfg_int(ini_config, "commands", "timeout",
                              commands.DEFAULT_TIMEOUT)
-    around.install_after = cfg_get(ini_config, "general", "on_table_exit", "")
+    around.install_after = cfg_get(ini_config, "table_commands", "on_exit", "")
     settings = ({one.key: launcher.value(one.key) for one in launcher.fields()}
                 if launcher is not None else {})
     around.launcher_after = str(settings.get("on_table_exit") or "")
 
-    _run(cfg_get(ini_config, "general", "on_table_start", ""), around,
-         required=cfg_bool(ini_config, "general", "table_start_required", False),
+    _run(cfg_get(ini_config, "table_commands", "on_start", ""), around,
+         required=cfg_bool(ini_config, "table_commands", "start_required", False),
          whose="this install")
     _run(str(settings.get("on_table_start") or ""), around,
          required=_as_bool(settings.get("on_start_required")),

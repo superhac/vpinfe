@@ -38,7 +38,7 @@ def confirm_scopes() -> tuple[str, ...]:
     is nothing to lose and it is the scope you would meet most often - a prompt there is
     the one that trains you to dismiss prompts.
     """
-    if _config_store is None or not cfg_bool(_config_store, "frontend", "confirm"):
+    if _config_store is None or not cfg_bool(_config_store, "behavior", "confirm"):
         return ()
     return (lifecycle.VPINFE, lifecycle.SYSTEM)
 

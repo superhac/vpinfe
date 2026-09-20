@@ -40,7 +40,7 @@ def _is_enabled(iniconfig: ConfigStore | None) -> bool:
     that is not there rather than raising, so the branch meant to try the new name never
     runs and DOF stays off for anyone whose config has been migrated.
     """
-    return cfg_bool(iniconfig, 'DOF', 'enable_dof', False)
+    return cfg_bool(iniconfig, 'dof', 'enabled', False)
 
 
 def _find_named_path(base: Path, names: tuple[str, ...]) -> Path | None:

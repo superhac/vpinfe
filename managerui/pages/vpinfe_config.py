@@ -40,36 +40,36 @@ IGNORED_SECTIONS = {
 # Icons for each section (fallback to 'settings' if not defined)
 SECTION_ICONS = {
     'general': 'folder_open',
-    'frontend': 'view_carousel',
+    'behavior': 'view_carousel',
     'input': 'sports_esports',
     'logger': 'terminal',
     'media': 'perm_media',
-    'displays': 'monitor',
     'dof': 'key',
-    'libdmdutil': 'developer_board',
+    'real_dmd': 'developer_board',
 }
 
 SECTION_DESCRIPTIONS = {
     'general': 'Core paths, startup behavior, and theme defaults.',
-    'frontend': 'How the wheel behaves - what it opens on, and what the menu offers.',
-    'displays': 'Monitor assignments and playfield orientation settings.',
+    'behavior': 'How the wheel behaves - what it opens on, and what the menu offers.',
     'input': 'Controller and input-related preferences.',
     'logger': 'Verbosity, terminal logging, and quick log access.',
     'media': 'Default media handling and fallback asset preferences.',
     'network': 'Ports and services used by the local frontend stack.',
-    'mobile': 'Connection details for external mobile devices.',
+    'vpxmobile': 'Connection details for external mobile devices.',
     'dof': 'Direct Output Framework integration and sync tools.',
-    'libdmdutil': 'libdmdutil integration settings for DMD hardware support.',
+    'real_dmd': 'A physical score display wired to this cabinet.',
 }
 
 
 # One section per window since [Displays] was split up, so a per-window control is
 # picked by (section, key) rather than by a key that spelled its window into its name.
-WINDOW_SECTIONS = ('windows.playfield', 'windows.backglass', 'windows.scoreview')
+WINDOW_SECTIONS = ('windows.playfield', 'windows.backglass', 'windows.score_view')
 
-# media_priority now repeats across the window sections; the real DMD is hardware
-# rather than a window, so its own key stays in [media].
-MEDIA_PRIORITY_KEYS = ('media_priority', 'realdmd_media_priority')
+# One key per surface, all in [presentation]. The real DMD's is picked out below
+# because it chooses a frame rather than a media kind.
+MEDIA_PRIORITY_KEYS = ('playfield_media_priority', 'backglass_media_priority',
+                       'score_view_media_priority', 'real_dmd_media_priority')
+
 
 def tracked_values(inputs, binding_inputs):
     """Every value the save bar watches, keyed by what identifies it.
@@ -241,27 +241,27 @@ def render_panel(tab=None):
     def update_chrome_options_preview():
         if chrome_options_preview is None:
             return
-        settings_inputs = inputs.get('general', {})
+        settings_inputs = inputs.get('chromium', {})
         disable_defaults = _as_bool(
             getattr(
-                settings_inputs.get('disable_default_chrome_options'),
+                settings_inputs.get('disable_defaults'),
                 'value',
-                cfg_get(config, 'general', 'disable_default_chrome_options', 'false'),
+                cfg_get(config, 'chromium', 'disable_defaults', 'false'),
             )
         )
         exclude_raw = str(
             getattr(
-                settings_inputs.get('chrome_options_exclude'),
+                settings_inputs.get('options_exclude'),
                 'value',
-                cfg_get(config, 'general', 'chrome_options_exclude', ''),
+                cfg_get(config, 'chromium', 'options_exclude', ''),
             )
             or ''
         ).strip()
         additional_raw = str(
             getattr(
-                settings_inputs.get('chrome_options'),
+                settings_inputs.get('options'),
                 'value',
-                cfg_get(config, 'general', 'chrome_options', ''),
+                cfg_get(config, 'chromium', 'options', ''),
             )
             or ''
         ).strip()
@@ -282,8 +282,8 @@ def render_panel(tab=None):
         # every window's monitor picker is labelled for the backglass.
         friendly_label = get_friendly_name(key, section)
         special_label_above = (
-            (section == 'libdmdutil' and key == 'enabled')
-            or (section == 'libdmdutil' and key == 'pin2dmd_enabled')
+            (section == 'real_dmd' and key == 'enabled')
+            or (section == 'real_dmd' and key == 'pin2dmd_enabled')
         )
         is_checkbox = is_checkbox_field(section, key)
 
@@ -292,9 +292,9 @@ def render_panel(tab=None):
         ):
             label_widget = None
             if not is_checkbox or special_label_above:
-                if section == 'libdmdutil' and key == 'enabled':
-                    label_text = 'libdmdutil Service'
-                elif section == 'libdmdutil' and key == 'pin2dmd_enabled':
+                if section == 'real_dmd' and key == 'enabled':
+                    label_text = 'Real DMD'
+                elif section == 'real_dmd' and key == 'pin2dmd_enabled':
                     label_text = 'PIN2DMD'
                 else:
                     label_text = friendly_label
@@ -306,7 +306,7 @@ def render_panel(tab=None):
                         )
                 label_widget = ui.label(label_text).classes('config-field-label')
 
-            if section == 'general' and key == 'startup_collection':
+            if section == 'behavior' and key == 'startup_collection':
                 collection_options = _get_collection_names()
                 if value and value not in collection_options:
                     collection_options.append(value)
@@ -319,12 +319,12 @@ def render_panel(tab=None):
                     value=value,
                     placeholder='KEY=value KEY2="value with spaces"'
                 ).props('outlined autogrow').classes('config-input config-input-env')
-            elif section == 'general' and key == 'chrome_options':
+            elif section == 'chromium' and key == 'options':
                 inp = ui.textarea(
                     value=value,
                     placeholder='--disable-accelerated-video-decode\n--ozone-platform=x11'
                 ).props('outlined autogrow').classes('config-input config-input-env')
-            elif section == 'general' and key == 'theme':
+            elif section == 'themes' and key == 'active':
                 theme_options = _get_installed_theme_names()
                 if value and value not in theme_options:
                     theme_options.append(value)
@@ -332,10 +332,11 @@ def render_panel(tab=None):
                     options=theme_options,
                     value=value
                 ).props('outlined dense options-dense').classes('config-input')
-            elif key in MEDIA_PRIORITY_KEYS and section in ('media', *WINDOW_SECTIONS):
+            elif key in MEDIA_PRIORITY_KEYS and section == 'presentation':
                 normalized_priority = str(value or '').strip().lower()
-                if key == 'realdmd_media_priority':
-                    priority_options = {'color': 'Colorized frame', 'standard': 'Standard frame'}
+                if key == 'real_dmd_media_priority':
+                    priority_options = {'color': 'Colorized frame', 'video': 'Video',
+                                        'image': 'Image'}
                     priority_value = normalized_priority if normalized_priority in priority_options else 'color'
                 else:
                     priority_options = {'video': 'Video', 'image': 'Image'}
@@ -344,7 +345,7 @@ def render_panel(tab=None):
                     options=priority_options,
                     value=priority_value
                 ).props('outlined dense options-dense').classes('config-input')
-            elif section == 'input' and key == 'paging_group':
+            elif section == 'behavior' and key == 'paging_group':
                 normalized_paging = str(value or '').strip().lower()
                 # A config written before 3.0 holds the old spelling; show it as what it
                 # resolves to rather than falling back to the default and losing the choice.
@@ -361,7 +362,7 @@ def render_panel(tab=None):
                     text='Enable' if special_label_above else friendly_label,
                     value=(value == "true")
                 ).classes('config-input')
-                if section == 'displays' and key == 'cab_mode':
+                if section == 'presentation' and key == 'cab_mode':
                     inp.tooltip(
                         'Presents VPinFE for playing standing at a cabinet: larger text and '
                         'targets, and no controls that need a mouse. It does not rotate '
@@ -439,7 +440,7 @@ def render_panel(tab=None):
             inputs[section][key] = inp
             if (section, key) in launch_preview_keys:
                 inp.on_value_change(lambda _: update_launch_preview())
-            if section == 'general' and key == 'chrome_options':
+            if section == 'chromium' and key == 'options':
                 inp.on_value_change(lambda _: update_chrome_options_preview())
 
     binding_inputs: dict[str, dict[str, object]] = {}
@@ -933,7 +934,7 @@ def render_panel(tab=None):
                                                         for key in priority_keys:
                                                             value = config.config.get(section, key, fallback='')
                                                             build_config_input(section, key, value)
-                                    elif section == 'mobile':
+                                    elif section == 'vpxmobile':
                                         rename_enabled_key = 'rename_mask_to_default_ini'
                                         rename_mask_key = 'rename_mask_to_default_ini_mask'
                                         normal_mobile_options = [
@@ -989,7 +990,7 @@ def render_panel(tab=None):
                                                         icon='cloud_download',
                                                         on_click=run_dof_online_update,
                                                     ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
-                                    elif section == 'libdmdutil':
+                                    elif section == 'real_dmd':
                                         service_key = 'enabled'
                                         zedmd_keys = ['zedmd_serial_port', 'zedmd_wifi_address']
                                         pin2dmd_keys = ['pin2dmd_enabled']

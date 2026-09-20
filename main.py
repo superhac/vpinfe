@@ -291,7 +291,7 @@ except Exception:
 try:
     from common.config_access import cfg_int
     from common.games.library_refresh import start_periodic
-    start_periodic(cfg_int(config_store, "Settings", "library_refresh_minutes", 0))
+    start_periodic(cfg_int(config_store, "updates", "refresh_minutes", 0))
 except Exception:
     logger.exception("Could not start the periodic library refresh")
 
@@ -360,7 +360,7 @@ start_dof_service_if_enabled(config_store)
 # Point the archive analyzer at a configured RAR tool (blank = auto-detect from PATH)
 from common.uploads.asset_analyzer_service import configure_rar_tool
 
-configure_rar_tool(cfg_get(config_store, 'Settings', 'rar_tool_path', '').strip())
+configure_rar_tool(cfg_get(config_store, 'tools', 'rar_path', '').strip())
 
 # Create API instances and register with WebSocket bridge
 create_api_instances()

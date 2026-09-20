@@ -18,84 +18,117 @@ uses an old spelling both still load.
 
 <!-- generated from common/config_schema.py by tests/support/config_reference.py -->
 
-### `windows.backglass`
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `screen_id` | int |  | Backglass Monitor ID |
-| `window_override` | string |  | Position and size for this window, as x,y,width,height. Empty means no override. |
-| `media_priority` | choice (video, image) | `video` | Backglass Media Priority |
-
-### `windows.scoreview`
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `screen_id` | int |  | DMD Monitor ID |
-| `window_override` | string |  | Position and size for this window, as x,y,width,height. Empty means no override. |
-| `media_priority` | choice (video, image) | `video` | DMD Media Priority |
-
 ### `windows.playfield`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `screen_id` | int | `0` | Playfield Monitor ID |
+| `screen_id` | int | `0` | Screen |
 | `orientation` | choice (landscape, portrait) | `landscape` | How the playfield screen is physically mounted. Portrait means it is turned on its side in the cabinet. This does not rotate anything by itself - it tells themes what shape to lay out for. |
 | `rotation` | choice (0, 90, 180, 270) | `0` | How far VPinFE turns its own display so it faces the player. Leave at 0 if your operating system already rotates this screen. |
-| `variant` | choice (table, fss) | `table` | Which playfield artwork this library holds: table.png, or fss.png for art captured in Visual Pinball's Full Single Screen mode. |
-| `resolution` | choice (4k, 1k) | `4k` | Default Table Resolution |
-| `video_resolution` | choice (4k, 1k) | `1k` | Default Table Video Resolution |
-| `media_priority` | choice (video, image) | `video` | Table Media Priority |
-| `media_rotation` | choice (auto, 0, 90, 180, 270) | `auto` | How far to turn playfield artwork so it fills the screen. auto measures each image and turns only when it disagrees with the surface. |
 
-### `displays`
+### `windows.backglass`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `screen_id` | int |  | Screen |
+| `override` | string |  | Position and size for this window, as x,y,width,height. Empty means no override. |
+
+### `windows.score_view`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `screen_id` | int |  | Screen |
+| `override` | string |  | Position and size for this window, as x,y,width,height. Empty means no override. |
+
+### `general`
+
+Runtime state written by VPinFE, not shown in the Manager UI.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `game_root_dir` | string |  | The folder holding your table folders, one folder per game. |
+| `hidden_media_kinds` | list |  | Kinds of artwork this library does not collect. VPinFE stops showing and counting them; the files stay where they are. |
+| `hidden_asset_kinds` | list |  | Kinds of supporting file this library does not collect - an all-EM library has no ROMs. A table that will not launch still says so. |
+
+### `commands`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `timeout` | int | `15` | Seconds before a command is given up on. One that never finishes would mean no table launches again. |
+| `on_vpinfe_start` | text |  | One command per line, run before anything else. Written the way a shell splits arguments, but nothing else a shell does - for a pipe, point at a script. |
+| `on_vpinfe_exit` | text |  | Run last. These run even if VPinFE is stopping because something went wrong. |
+
+### `table_commands`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `on_start` | text |  | Run before every table, whichever launcher plays it, and before that launcher's own commands. |
+| `on_exit` | text |  | Run after every table. They run whenever the ones above ran, even if the table never started. |
+| `start_required` | bool | `false` | On, a command that fails before a table starts stops it launching - for something the table cannot do without, like a share to mount. Off, the failure is noted and the table starts anyway. |
+
+### `chromium`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `options` | text |  | Additional Chrome Options |
+| `options_exclude` | text |  | Which of the built-in options to leave off, one per line. For the case where one of them is the problem and turning all of them off would take the rest with it. |
+| `disable_defaults` | bool | `false` | Disable Default Chrome Options |
+
+### `console`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `theme` | choice (synthwave, dark, light, system) | `synthwave` | How the Console and the remote look. System follows whether this computer is set to light or dark. |
+
+### `tools`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `rar_path` | string |  | Path to unar or unrar. Blank auto-detects one on this machine. |
+
+### `assets`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `dir` | string |  | Root folder for assets shared across games rather than owned by one, such as manufacturer logos. Served at /assets/ and defaults to assets/ under the VPinFE config dir. |
+
+### `updates`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `refresh_minutes` | int | `0` | How often to re-read the library from disk, in minutes. It picks up everything, not just tables - media and assets added or removed beside them too. Zero never does, which is the default because a read walks every game folder: fine locally, real traffic on a network share. It can always be asked to read it now. |
+| `auto_update_media` | bool | `false` | Update Media on Startup |
+| `ask_where_new_games_go` | bool | `true` | On, an import that could go to more than one place asks which. Off, it goes to the one marked for new games without asking. Never asked where there is only one place it could go. |
+
+### `presentation`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `cab_mode` | bool | `false` | Presents VPinFE for playing standing at a cabinet: larger text and targets, and no controls that need a mouse. It does not rotate anything. |
+| `playfield_media_rotation` | choice (auto, 0, 90, 180, 270) | `auto` | How far to turn playfield artwork so it fills the screen. auto measures each image and turns only when it disagrees with the surface. |
+| `playfield_media_priority` | choice (video, image) | `video` | Playfield Media Priority |
+| `backglass_media_priority` | choice (video, image) | `video` | Backglass Media Priority |
+| `score_view_media_priority` | choice (video, image) | `video` | Score View Media Priority |
+| `real_dmd_media_priority` | choice (color, video, image) | `color` | Real DMD Media Priority |
 
-### `general`
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `ask_where_new_games_go` | bool | `true` | On, an import that could go to more than one place asks which. Off, it goes to the one marked for new games without asking. Never asked where there is only one place it could go. |
-| `on_vpinfe_start` | text |  | One command per line, run before anything else. Written the way a shell splits arguments, but nothing else a shell does - for a pipe, point at a script. |
-| `on_vpinfe_exit` | text |  | Run last. These run even if VPinFE is stopping because something went wrong. |
-| `on_table_start` | text |  | Run before every table, whichever launcher plays it, and before that launcher's own commands. |
-| `on_table_exit` | text |  | Run after every table. They run whenever the ones above ran, even if the table never started. |
-| `command_timeout` | int | `15` | Seconds before a command is given up on. One that never finishes would mean no table launches again. |
-| `table_start_required` | bool | `false` | On, a command that fails before a table starts stops it launching - for something the table cannot do without, like a share to mount. Off, the failure is noted and the table starts anyway. |
-| `game_root_dir` | string |  | The folder holding your table folders, one folder per game. |
-| `hidden_media_kinds` | list |  | Kinds of artwork this library does not collect. VPinFE stops showing and counting them; the files stay where they are. |
-| `hidden_asset_kinds` | list |  | Kinds of supporting file this library does not collect - an all-EM library has no ROMs. A table that will not launch still says so. |
-| `media_browse_dirs` | list |  | Extra folders you can pick artwork from when adding media by hand. The game library is always available; anywhere else has to be listed here before VPinFE will read it. |
-| `assets_dir` | string |  | Root folder for assets shared across games rather than owned by one, such as manufacturer logos. Served at /assets/ and defaults to assets/ under the VPinFE config dir. |
-| `rar_tool_path` | string |  | Path to unar or unrar. Blank auto-detects one on this machine. |
-| `theme` | string | `Revolution` | Active Theme |
-| `console_theme` | choice (synthwave, dark, light, system) | `synthwave` | How the Console and the remote look. System follows whether this computer is set to light or dark. |
-| `language` | choice (auto, en) | `auto` | What language VPinFE speaks. Auto follows the operating system. Takes effect after a restart. Table names and everything else your library holds are never translated. |
-| `startup_collection` | string |  | Default Startup Collection |
-| `library_refresh_minutes` | int | `0` | How often to re-read the library from disk, in minutes. It picks up everything, not just tables - media and assets added or removed beside them too. Zero never does, which is the default because a read walks every game folder: fine locally, real traffic on a network share. It can always be asked to read it now. |
-| `auto_update_media_on_startup` | bool | `false` | Auto Update Media on Startup |
-| `splashscreen` | bool | `false` | Enable Splash Screen |
-| `mute_audio` | bool | `false` | Mute Frontend Audio |
-| `chrome_options` | text |  | Additional Chrome Options |
-| `chrome_options_exclude` | text |  | Which of the built-in options to leave off, one per line. For the case where one of them is the problem and turning all of them off would take the rest with it. |
-| `disable_default_chrome_options` | bool | `false` | Disable Default Chrome Options |
-
-### `frontend`
+### `behavior`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `paging_group` | choice (sort, count) | `sort` | Page by |
 | `paging_size` | int | `10` | Paging Size |
+| `startup_collection` | string |  | Default Startup Collection |
+| `restore_last_table` | bool | `true` | Restore Last Table |
+| `splashscreen` | bool | `false` | Enable Splash Screen |
 | `confirm` | bool | `false` | Ask before quitting VPinFE or powering off the machine. Closing the frontend never asks - the windows reopen from the Manager UI, so there is nothing to lose. Off is how VPinFE has always behaved, and the question is put to whichever surface asked. |
 | `hide_quit_button` | bool | `false` | Hide Quit from the Main Menu |
-| `restore_last_table` | bool | `true` | Restore Last Table |
+| `mute_audio` | bool | `false` | Mute Frontend Audio |
 
 ### `themes`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
+| `active` | string | `Revolution` | Active Theme |
 | `registries` | list | `https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json` | Catalogs to offer themes from, most trusted first. The stock registry is an entry like any other, so a mirrored or offline install can replace or drop it. |
 | `repositories` | list |  | Individual theme repos, each one a theme in its own right. Resolved before the registries, and named for the repo with any vpinfe-theme- prefix removed. |
 
@@ -110,11 +143,14 @@ uses an old spelling both still load.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `default_missing_media_image` | string |  | Default Missing Media Image |
+| `playfield_variant` | choice (table, fss) | `table` | Which playfield artwork this library holds: table.png, or fss.png for art captured in Visual Pinball's Full Single Screen mode. |
+| `playfield_resolution` | choice (4k, 1k) | `4k` | Playfield Resolution |
+| `playfield_video_resolution` | choice (4k, 1k) | `1k` | Playfield Video Resolution |
+| `browse_dirs` | list |  | Extra folders you can pick artwork from when adding media by hand. The game library is always available; anywhere else has to be listed here before VPinFE will read it. |
+| `wheelset` | string |  | Name of the wheel art set to use library-wide, a folder under a game's medias/wheels/. The reserved name logo shows each game's logo instead. Blank means plain wheels, and the active theme can override this with its own wheelSet option. |
+| `default_missing_image` | string |  | Default Missing Media Image |
 | `thumb_cache_max_mb` | int | `500` | Thumbnail Cache Max (MB) |
 | `asset_sources` | list |  | Which online catalogs are searched for artwork. Empty means all of them. Names come from the sources list this install reports. |
-| `wheelset` | string |  | Name of the wheel art set to use library-wide, a folder under a game's medias/wheels/. The reserved name logo shows each game's logo instead. Blank means plain wheels, and the active theme can override this with its own wheelSet option. |
-| `realdmd_media_priority` | choice (color, video, image) | `color` | Real DMD Priority |
 
 ### `install`
 
@@ -123,6 +159,7 @@ uses an old spelling both still load.
 | `id` | string |  | Written by VPinFE on first start, and not meant to be edited. Installs are told apart by this, so changing it makes this a different install. |
 | `display_name` | string |  | What to call this device where one is listed. Defaults to this machine's hostname. Nothing is addressed by it, so renaming is safe. |
 | `features` | list | `library,frontend,devices` | What this install is for: curating the game library (library), launching games on this machine (frontend), managing the other installs on your network (devices), and a rollup of all three (overview). Each one it has decides what the Console shows. Overview is the one that has to be asked for. Left empty the install is for nothing yet, and System is still there to configure it with. |
+| `language` | choice (auto, en) | `auto` | What language VPinFE speaks. Auto follows the operating system. Takes effect after a restart. Table names and everything else your library holds are never translated. |
 
 ### `vpsdb`
 
@@ -130,7 +167,7 @@ uses an old spelling both still load.
 | --- | --- | --- | --- |
 | `last` | string |  |  |
 | `checked` | string |  |  |
-| `refresh` | choice (never, daily, weekly, monthly) | `daily` | How often to ask VPSdb whether it has changed. |
+| `refresh` | choice (never, daily, weekly, monthly) | `daily` | How often to ask whether the spreadsheet has changed. Matching, release lists and what a kind is offered from all read the copy kept on this machine, so this is how fresh those answers are. Checking is cheap; the copy is only downloaded when it has actually changed. |
 
 ### `state`
 
@@ -164,28 +201,28 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `enable_dof` | bool | `false` | Enable DOF |
-| `dof_config_tool_api_key` | string |  | DOF Config Tool API Key |
+| `enabled` | bool | `false` | Enable DOF |
+| `config_tool_api_key` | string |  | DOF Config Tool API Key |
 
-### `libdmdutil`
+### `real_dmd`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `enabled` | bool | `false` | Enable libdmdutil |
+| `enabled` | bool | `false` | Enable Real DMD |
 | `pin2dmd_enabled` | bool | `false` | Enable PIN2DMD |
 | `pixelcade_serial_port` | string |  | Pixelcade Serial Port |
 | `zedmd_serial_port` | string |  | ZeDMD Serial Port |
 | `zedmd_wifi_address` | string |  | ZeDMD Wi-Fi Address |
 
-### `mobile`
+### `vpxmobile`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `device_ip` | string |  | Mobile Device IP |
-| `device_port` | int | `2112` | Mobile Device Port |
-| `chunk_size` | int | `1048576` | Mobile Chunk Size |
-| `rename_mask_to_default_ini` | bool | `false` | Where a table has no configuration file of its own, send the masked one in its place under the name the table expects. |
-| `rename_mask_to_default_ini_mask` | string |  | The word between the table name and .ini - cab sends tablename.cab.ini as tablename.ini. |
+| `device_ip` | string |  | Device IP |
+| `device_port` | int | `2112` | Device Port |
+| `chunk_size` | int | `1048576` | Chunk Size |
+| `send_masked_config` | bool | `false` | Where a table has no configuration file of its own, send the masked one in its place under the name the table expects. |
+| `config_mask` | string |  | The word between the table name and .ini - cab sends tablename.cab.ini as tablename.ini. |
 
 ### `vpinplay`
 

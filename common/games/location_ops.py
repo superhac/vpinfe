@@ -126,7 +126,7 @@ def destination() -> dict[str, Any]:
 
 
 def _asks() -> bool:
-    return cfg_bool(get_ini_config(), "general", "ask_where_new_games_go", True)
+    return cfg_bool(get_ini_config(), "updates", "ask_where_new_games_go", True)
 
 
 def put(location_id: str, path: str, kind: str = "") -> dict[str, Any]:

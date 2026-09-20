@@ -146,7 +146,7 @@ class FrontendServiceTests(unittest.TestCase):
         )
 
         self.assertTrue(config_api.set_audio_muted(api, "true"))
-        self.assertEqual(parser["general"]["mute_audio"], "true")
+        self.assertEqual(parser["behavior"]["mute_audio"], "true")
         self.assertTrue(api._ini_config.saved)
         self.assertEqual(events, [{"type": "AudioMuteChanged", "muted": True}])
 
@@ -158,10 +158,10 @@ class FrontendServiceTests(unittest.TestCase):
         path that is not there, which is why a missing file does not reproduce it.
         """
         parser = configparser.ConfigParser()
-        parser["frontend"] = {"hide_quit_button": "true"}
+        parser["behavior"] = {"hide_quit_button": "true"}
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / "vpinfe.json"
-            path.write_text(json.dumps({"frontend": {"hide_quit_button": True}}))
+            path.write_text(json.dumps({"behavior": {"hide_quit_button": True}}))
             ini = types.SimpleNamespace(config=parser, configfilepath=str(path))
 
             self.assertEqual(config_api.get_mainmenu_config(ini), {"hideQuitButton": True})

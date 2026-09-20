@@ -73,7 +73,7 @@ class TypedValueTests(ConfigStoreTests):
         ConfigStore(str(self.ini))
         settings = self._payload()[SETTINGS_KEY]
 
-        self.assertIs(settings["displays"]["cab_mode"], False)
+        self.assertIs(settings["presentation"]["cab_mode"], False)
         self.assertEqual(settings["network"]["http_port"], 8001)
         self.assertIsInstance(settings["network"]["http_port"], int)
 
@@ -102,12 +102,12 @@ class TypedValueTests(ConfigStoreTests):
 
     def test_values_survive_the_round_trip_as_text(self) -> None:
         first = ConfigStore(str(self.ini))
-        first.config.set("displays", "cab_mode", "true")
+        first.config.set("presentation", "cab_mode", "true")
         first.config.set("network", "http_port", "9001")
         first.save()
 
         second = ConfigStore(str(self.ini))
-        self.assertTrue(second.config.getboolean("displays", "cab_mode"))
+        self.assertTrue(second.config.getboolean("presentation", "cab_mode"))
         self.assertEqual(second.config.get("network", "http_port"), "9001")
 
 
@@ -154,7 +154,7 @@ class IniConversionTests(ConfigStoreTests):
 
         settings = self._payload()[SETTINGS_KEY]
         self.assertEqual(settings["windows"]["playfield"]["screen_id"], 2)
-        self.assertIs(settings["displays"]["cab_mode"], True)
+        self.assertIs(settings["presentation"]["cab_mode"], True)
 
     def test_conversion_happens_once(self) -> None:
         self._write_ini("[Settings]\ngamerootdir = /my/tables\n")
@@ -205,25 +205,25 @@ class RetiredValueTests(ConfigStoreTests):
 
         ConfigStore(str(self.ini))
 
-        self.assertEqual(self._payload()["settings"]["frontend"]["paging_group"], "sort")
+        self.assertEqual(self._payload()["settings"]["behavior"]["paging_group"], "sort")
 
     def test_a_json_written_before_the_rename_is_corrected_in_place(self) -> None:
         """The cab hit this: the key migrated, the value did not, and nothing was
         converting an ini any more so no migration was going to reach it."""
         store = ConfigStore(str(self.ini))
-        store.config.set("frontend", "paging_group", "numeric")
+        store.config.set("behavior", "paging_group", "numeric")
         store.save()
 
         ConfigStore(str(self.ini))
 
-        self.assertEqual(self._payload()["settings"]["frontend"]["paging_group"], "count")
+        self.assertEqual(self._payload()["settings"]["behavior"]["paging_group"], "count")
 
     def test_a_current_value_is_left_alone(self) -> None:
-        self.ini.write_text("[frontend]\npaging_group = count\n", encoding="utf-8")
+        self.ini.write_text("[behavior]\npaging_group = count\n", encoding="utf-8")
 
         ConfigStore(str(self.ini))
 
-        self.assertEqual(self._payload()["settings"]["frontend"]["paging_group"], "count")
+        self.assertEqual(self._payload()["settings"]["behavior"]["paging_group"], "count")
 
 
 class RetiredRoleTests(ConfigStoreTests):
@@ -327,7 +327,7 @@ class ConfirmSwitchTests(ConfigStoreTests):
         self.json.write_text(json.dumps({"schema": 2, "settings": {"lifecycle": stored}}),
                              encoding="utf-8")
         ConfigStore(str(self.ini))
-        return self._payload()["settings"]["frontend"]["confirm"]
+        return self._payload()["settings"]["behavior"]["confirm"]
 
     def test_any_scope_named_means_keep_asking(self) -> None:
         for scopes in (["app", "system"], ["system"], ["frontend"]):
@@ -340,7 +340,7 @@ class ConfirmSwitchTests(ConfigStoreTests):
     def test_a_fresh_install_does_not_ask(self) -> None:
         """Off is how VPinFE has always behaved."""
         ConfigStore(str(self.ini))
-        self.assertIs(self._payload()["settings"]["frontend"]["confirm"], False)
+        self.assertIs(self._payload()["settings"]["behavior"]["confirm"], False)
 
 
 class MovedSectionTests(ConfigStoreTests):
@@ -361,8 +361,8 @@ class MovedSectionTests(ConfigStoreTests):
     def test_a_customised_value_moves_with_the_setting(self) -> None:
         after = self._written({"input": {"paging_group": "count", "paging_size": 25}})
 
-        self.assertEqual(after["frontend"]["paging_group"], "count")
-        self.assertEqual(after["frontend"]["paging_size"], 25)
+        self.assertEqual(after["behavior"]["paging_group"], "count")
+        self.assertEqual(after["behavior"]["paging_size"], 25)
 
     def test_the_old_entries_do_not_linger(self) -> None:
         """A leftover is not harmless: the settings page renders what the file holds."""
@@ -377,11 +377,11 @@ class MovedSectionTests(ConfigStoreTests):
         Either step alone would have lost it."""
         after = self._written({"lifecycle": {"confirm": ["app", "system"]}})
 
-        self.assertIs(after["frontend"]["confirm"], True)
+        self.assertIs(after["behavior"]["confirm"], True)
 
     def test_a_file_that_never_had_them_gets_the_defaults(self) -> None:
         after = self._written({"general": {}})
 
-        self.assertEqual(after["frontend"]["paging_size"], 10)
-        self.assertIs(after["frontend"]["confirm"], False)
+        self.assertEqual(after["behavior"]["paging_size"], 10)
+        self.assertIs(after["behavior"]["confirm"], False)
 

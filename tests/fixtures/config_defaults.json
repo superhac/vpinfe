@@ -1,43 +1,38 @@
 {
-  "displays": {
-    "cab_mode": "false"
+  "assets": {
+    "dir": ""
   },
-  "dof": {
-    "dof_config_tool_api_key": "",
-    "enable_dof": "false"
-  },
-  "frontend": {
+  "behavior": {
     "confirm": "false",
     "hide_quit_button": "false",
+    "mute_audio": "false",
     "paging_group": "sort",
     "paging_size": "10",
-    "restore_last_table": "true"
+    "restore_last_table": "true",
+    "splashscreen": "false",
+    "startup_collection": ""
   },
-  "general": {
-    "ask_where_new_games_go": "true",
-    "assets_dir": "",
-    "auto_update_media_on_startup": "false",
-    "chrome_options": "",
-    "chrome_options_exclude": "",
-    "command_timeout": "15",
-    "disable_default_chrome_options": "false",
-    "console_theme": "synthwave",
-    "game_root_dir": "",
-    "hidden_asset_kinds": "",
-    "hidden_media_kinds": "",
-    "language": "auto",
-    "library_refresh_minutes": "0",
-    "media_browse_dirs": "",
-    "mute_audio": "false",
-    "on_table_exit": "",
-    "on_table_start": "",
+  "chromium": {
+    "disable_defaults": "false",
+    "options": "",
+    "options_exclude": ""
+  },
+  "commands": {
     "on_vpinfe_exit": "",
     "on_vpinfe_start": "",
-    "rar_tool_path": "",
-    "splashscreen": "false",
-    "startup_collection": "",
-    "table_start_required": "false",
-    "theme": "Revolution"
+    "timeout": "15"
+  },
+  "console": {
+    "theme": "synthwave"
+  },
+  "dof": {
+    "config_tool_api_key": "",
+    "enabled": "false"
+  },
+  "general": {
+    "game_root_dir": "",
+    "hidden_asset_kinds": "",
+    "hidden_media_kinds": ""
   },
   "input": {
     "back": "key:KeyB",
@@ -54,14 +49,8 @@
   "install": {
     "display_name": "",
     "features": "library,frontend,devices",
-    "id": ""
-  },
-  "libdmdutil": {
-    "enabled": "false",
-    "pin2dmd_enabled": "false",
-    "pixelcade_serial_port": "",
-    "zedmd_serial_port": "",
-    "zedmd_wifi_address": ""
+    "id": "",
+    "language": "auto"
   },
   "logger": {
     "level": "debug",
@@ -69,17 +58,13 @@
   },
   "media": {
     "asset_sources": "",
-    "default_missing_media_image": "",
-    "realdmd_media_priority": "color",
+    "browse_dirs": "",
+    "default_missing_image": "",
+    "playfield_resolution": "4k",
+    "playfield_variant": "table",
+    "playfield_video_resolution": "1k",
     "thumb_cache_max_mb": "500",
     "wheelset": ""
-  },
-  "mobile": {
-    "chunk_size": "1048576",
-    "device_ip": "",
-    "device_port": "2112",
-    "rename_mask_to_default_ini": "false",
-    "rename_mask_to_default_ini_mask": ""
   },
   "network": {
     "http_bind": "0.0.0.0",
@@ -93,12 +78,41 @@
   "pinmame_score_parser": {
     "roms_update_sha": ""
   },
+  "presentation": {
+    "backglass_media_priority": "video",
+    "cab_mode": "false",
+    "playfield_media_priority": "video",
+    "playfield_media_rotation": "auto",
+    "real_dmd_media_priority": "color",
+    "score_view_media_priority": "video"
+  },
+  "real_dmd": {
+    "enabled": "false",
+    "pin2dmd_enabled": "false",
+    "pixelcade_serial_port": "",
+    "zedmd_serial_port": "",
+    "zedmd_wifi_address": ""
+  },
   "state": {
     "last_table": ""
   },
+  "table_commands": {
+    "on_exit": "",
+    "on_start": "",
+    "start_required": "false"
+  },
   "themes": {
+    "active": "Revolution",
     "registries": "https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json",
     "repositories": ""
+  },
+  "tools": {
+    "rar_path": ""
+  },
+  "updates": {
+    "ask_where_new_games_go": "true",
+    "auto_update_media": "false",
+    "refresh_minutes": "0"
   },
   "vpinplay": {
     "api_endpoint": "https://api.vpinplay.com:8888",
@@ -112,24 +126,24 @@
     "last": "",
     "refresh": "daily"
   },
+  "vpxmobile": {
+    "chunk_size": "1048576",
+    "config_mask": "",
+    "device_ip": "",
+    "device_port": "2112",
+    "send_masked_config": "false"
+  },
   "windows.backglass": {
-    "media_priority": "video",
-    "screen_id": "",
-    "window_override": ""
+    "override": "",
+    "screen_id": ""
   },
   "windows.playfield": {
-    "media_priority": "video",
-    "media_rotation": "auto",
     "orientation": "landscape",
-    "resolution": "4k",
     "rotation": "0",
-    "screen_id": "0",
-    "variant": "table",
-    "video_resolution": "1k"
+    "screen_id": "0"
   },
-  "windows.scoreview": {
-    "media_priority": "video",
-    "screen_id": "",
-    "window_override": ""
+  "windows.score_view": {
+    "override": "",
+    "screen_id": ""
   }
 }

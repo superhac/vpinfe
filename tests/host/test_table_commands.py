@@ -16,9 +16,9 @@ from common import apps
 from common.host import commands, table_commands
 
 
-def _config(**general: str) -> configparser.ConfigParser:
+def _config(**settings: str) -> configparser.ConfigParser:
     parser = configparser.ConfigParser()
-    parser["general"] = dict(general)
+    parser["table_commands"] = dict(settings)
     return parser
 
 
@@ -64,7 +64,7 @@ class OrderTests(unittest.TestCase):
         around = table_commands.before(
             _game(), _playing(),
             _launcher(on_table_start="launcher-pre", on_table_exit="launcher-post"),
-            _config(on_table_start="install-pre", on_table_exit="install-post"))
+            _config(on_start="install-pre", on_exit="install-post"))
         table_commands.after(around, started_at=None)
 
         self.assertEqual(
@@ -128,8 +128,8 @@ class FailureTests(unittest.TestCase):
                                side_effect=commands.CommandRefusedError("no share")):
             with self.assertRaises(commands.CommandRefusedError) as raised:
                 table_commands.before(_game(), _playing(), _launcher(),
-                                      _config(on_table_start="mount",
-                                              table_start_required="true"))
+                                      _config(on_start="mount",
+                                              start_required="true"))
 
         self.assertIn("no share", str(raised.exception))
 
@@ -145,7 +145,7 @@ class FailureTests(unittest.TestCase):
             with self.assertRaises(commands.CommandRefusedError):
                 table_commands.before(
                     _game(), _playing(), _launcher(),
-                    _config(on_table_start="mount", table_start_required="true"))
+                    _config(on_start="mount", start_required="true"))
 
         self.assertTrue(table_commands._remember.called)
 
@@ -182,7 +182,7 @@ class UnfinishedTests(unittest.TestCase):
                                return_value=commands.Outcome(ran=True)):
             table_commands.before(
                 _game(), _playing(), _launcher(on_table_exit="unmute"),
-                _config(on_table_start="mute", on_table_exit="restart-service"))
+                _config(on_start="mute", on_exit="restart-service"))
 
         self.assertTrue(table_commands.PENDING_PATH.exists())
 
@@ -200,7 +200,7 @@ class UnfinishedTests(unittest.TestCase):
                                return_value=commands.Outcome(ran=True)):
             around = table_commands.before(
                 _game(), _playing(), _launcher(),
-                _config(on_table_start="mute", on_table_exit="unmute"))
+                _config(on_start="mute", on_exit="unmute"))
             table_commands.after(around, started_at=None)
 
         self.assertFalse(table_commands.PENDING_PATH.exists())

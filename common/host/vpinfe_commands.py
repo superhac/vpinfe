@@ -42,12 +42,12 @@ def on_exit(ini_config: ConfigStore) -> None:
 
 
 def _run(ini_config: ConfigStore, key: str, when: str) -> None:
-    text = cfg_get(ini_config, "general", key, "")
+    text = cfg_get(ini_config, "commands", key, "")
     if not str(text or "").strip():
         return
     outcome = commands.run(
         text, {"player": table_commands.player_name()}, context=tokens.VPINFE,
-        timeout=cfg_int(ini_config, "general", "command_timeout",
+        timeout=cfg_int(ini_config, "commands", "timeout",
                         commands.DEFAULT_TIMEOUT),
         on_failure=commands.BEST_EFFORT, env=os.environ.copy())
     for failed in outcome.failed:

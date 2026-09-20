@@ -220,7 +220,7 @@ class API:
             self.library = library
         self.js_game_dict_data: str | None = None
         # Check for startup collection
-        startup_collection = cfg_get(self._ini_config, 'general', 'startup_collection').strip()
+        startup_collection = cfg_get(self._ini_config, 'behavior', 'startup_collection').strip()
         if startup_collection:
             try:
                 self.set_tables_by_collection(startup_collection)

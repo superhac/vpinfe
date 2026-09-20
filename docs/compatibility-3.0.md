@@ -1451,3 +1451,40 @@ paths.
 
 Nothing published declares contract 2, so this reshapes a surface no theme reads yet.
 
+
+**PAR-93 — `general` splits into sections named for what they hold, and theme sources
+become writable.** Every settable option leaves `general` for `install`, `console`,
+`commands`, `table_commands`, `chromium`, `behavior`, `presentation`, `themes`, `media`,
+`assets`, `updates` or `tools`, and `general` keeps only the three internal keys nothing
+offers as settings. Five sections are renamed for what they hold rather than for the
+library or the surface behind them: `frontend` to `behavior`, `library` to `updates`,
+`libdmdutil` to `real_dmd`, `mobile` to `vpxmobile`, and `windows.scoreview` to
+`windows.score_view`.
+
+The per-window sections give up what was never a screen's: the four media priorities and
+the playfield's media rotation go to `presentation`, and the playfield's artwork variant
+and two resolutions go back to `media`, which is where 2.x held them. `windows.playfield`
+keeps its screen id, mounting and rotation; `windows.backglass` and
+`windows.score_view` keep a screen id and a window override. `real_dmd` gives up its
+priority the same way. `presentation` is a new section for what the frontend shows,
+every member of which is already served to themes over the bridge.
+
+A new `library.hidden_checks` in `library.json` says which library checks report, beside
+the kind lists that moved there for the same reason. Every former spelling still
+resolves, the 2.x `[Settings]` names included, through the same `legacy` machinery that
+carried the fourteen per-window keys, and each one is frozen in
+`tests/fixtures/config_legacy_names.json`. A config file written by any earlier build
+reads unchanged; the store rewrites it to the new names on save.
+
+Separately, and the only part of this that is not a rename: the `themes` section was the
+sole member of `READ_ONLY_SECTIONS` and is now writable, so the active theme, the
+registries and the repositories can be set from the Console. It was read-only because a
+theme source is a URL VPinFE fetches installable themes from, which are code the frontend
+runs, and `LocalTrustPolicy` gives a network caller the same scopes as a local one with
+`network.http_bind` defaulting to `0.0.0.0`. Opened deliberately, with the origin the auth
+layer already records as what closes it again.
+*Why:* a section named `general` records that nobody decided where a setting goes, and it
+had collected six unrelated subjects on one page. A settings page draws a whole config
+section and `_page_holding` answers with the first page holding one, so a section on six
+pages puts a failing check's badge on the wrong page five times out of six. Covered by
+`tests/invariants/test_config_conventions.py` and `tests/console/test_system.py`.

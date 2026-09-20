@@ -97,12 +97,12 @@ class PathCheckTests(TempTree):
 
 class PathOptionTests(unittest.TestCase):
     def test_the_settings_that_name_something_on_disk(self) -> None:
-        """Declared on the option rather than matched on the key: `assets_dir` is a
-        directory and `rar_tool_path` is a program."""
+        """Declared on the option rather than matched on the key: `assets.dir` is a
+        directory and `tools.rar_path` is a program."""
         found = {(o.section, o.key): o.path for o in path_checks.path_options()}
 
-        self.assertEqual(found.get(("general", "assets_dir")), "dir")
-        self.assertEqual(found.get(("general", "rar_tool_path")), "exe")
+        self.assertEqual(found.get(("assets", "dir")), "dir")
+        self.assertEqual(found.get(("tools", "rar_path")), "exe")
 
     def test_the_library_root_is_not_one_of_them(self) -> None:
         """It is a location now, and internal - so it is not a setting anybody is

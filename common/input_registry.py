@@ -61,13 +61,13 @@ class InputAction:
 INPUT_ACTIONS: tuple[InputAction, ...] = (
     InputAction(
         "previous",
-        group="Moving through the library",
+        group="Navigation",
         bindings=("key:ArrowLeft", "key:ShiftLeft"),
         legacy=("joyleft", "keyleft"),
     ),
     InputAction(
         "next",
-        group="Moving through the library",
+        group="Navigation",
         bindings=("key:ArrowRight", "key:ShiftRight"),
         legacy=("joyright", "keyright"),
     ),
@@ -77,49 +77,46 @@ INPUT_ACTIONS: tuple[InputAction, ...] = (
     # core answered it two ways.
     InputAction(
         "page_previous",
-        group="Moving through the library",
+        group="Navigation",
         bindings=("key:PageUp", "key:ArrowUp"),
         legacy=("joypageup", "keypageup", "joyup", "keyup"),
     ),
     InputAction(
         "page_next",
-        group="Moving through the library",
+        group="Navigation",
         bindings=("key:PageDown", "key:ArrowDown"),
         legacy=("joypagedown", "keypagedown", "joydown", "keydown"),
     ),
     InputAction(
         "select",
-        group="Playing",
+        group="Navigation",
         bindings=("key:Enter",),
         legacy=("joyselect", "keyselect"),
     ),
     InputAction(
         "back",
-        group="Playing",
+        group="Navigation",
         bindings=("key:KeyB",),
         legacy=("joyback", "keyback"),
     ),
     InputAction(
         "menu",
-        group="Opening something",
         bindings=("key:KeyM",),
         legacy=("joymenu", "keymenu"),
     ),
     InputAction(
         "collection_menu",
-        group="Opening something",
         bindings=("key:KeyC",),
         legacy=("joycollectionmenu", "keycollectionmenu"),
     ),
     InputAction(
         "tutorial",
-        group="Opening something",
         bindings=("key:KeyT",),
         legacy=("joytutorial", "keytutorial"),
     ),
     InputAction(
         "exit",
-        group="Playing",
+        group="Navigation",
         bindings=("key:Escape", "key:KeyQ"),
         legacy=("joyexit", "keyexit"),
     ),

@@ -28,6 +28,32 @@ MANAGER_UI = Path(__file__).resolve().parents[2] / "managerui"
 # Sections that are not ours: VPX's own ini, which we render but do not own.
 FOREIGN_SECTIONS = {"DefaultCamera", "TableOverride", "DMD", "Alpha", "Standalone"}
 
+# 2.x spellings, which this page still reads a config by. They are section names the
+# schema resolves rather than ones it declares.
+FORMER_SECTIONS = {"Settings", "Input", "Media", "displays"}
+
+
+def _named_sections(tree: ast.AST) -> set[str]:
+    """Every section a `section == ...` test names on its own.
+
+    `_named_pairs` sees only a section tested together with a key, so a branch that turns
+    on the section alone - the card layouts for the real DMD and VPX Mobile - went on
+    naming a section that had been renamed, and simply stopped drawing.
+    """
+    found: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Compare):
+            continue
+        if getattr(node.left, "id", getattr(node.left, "attr", "")) != "section":
+            continue
+        for comparator in node.comparators:
+            if isinstance(comparator, ast.Constant) and isinstance(comparator.value, str):
+                found.add(comparator.value)
+            elif isinstance(comparator, (ast.Tuple, ast.List, ast.Set)):
+                found.update(e.value for e in comparator.elts
+                             if isinstance(e, ast.Constant) and isinstance(e.value, str))
+    return found
+
 
 def _live_pairs() -> set[tuple[str, str]]:
     return {(option.section, option.key) for option in CONFIG_OPTIONS}
@@ -74,6 +100,18 @@ class ManagerUiConfigKeyTests(unittest.TestCase):
                     stale.append(f"{path.name}: {section}.{key} now lives at {moved}")
         self.assertEqual(stale, [], "Manager UI names settings that have moved: " + str(stale))
 
+    def test_a_branch_on_a_section_names_one_that_exists(self) -> None:
+        """A branch keyed on a section that has been renamed silently draws nothing."""
+        live = {option.section for option in CONFIG_OPTIONS}
+        stale = []
+        for path in sorted(MANAGER_UI.rglob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for section in sorted(_named_sections(tree)):
+                if section in live or section in FOREIGN_SECTIONS or section in FORMER_SECTIONS:
+                    continue
+                stale.append(f"{path.name}: section == {section!r}")
+        self.assertEqual(stale, [], "the Manager UI branches on sections that are gone")
+
     def test_section_presentation_maps_use_live_names(self) -> None:
         """An icon or blurb keyed by a name no section has silently falls back."""
         from managerui.pages.vpinfe_config import SECTION_DESCRIPTIONS, SECTION_ICONS
@@ -84,6 +122,29 @@ class ManagerUiConfigKeyTests(unittest.TestCase):
                 with self.subTest(map=label, section=section):
                     self.assertIn(section, live_sections)
                     self.assertEqual(canonical_section(section), section)
+
+    def test_no_repeated_key_is_asked_for_without_its_section(self) -> None:
+        """`get_friendly_name(key)` answers whichever section declared the key first.
+
+        A repeated key is labelled for its row - three sections call `screen_id` "Screen"
+        and let the heading name the surface - so a lookup that leaves the section out
+        can no longer tell a backglass screen from a playfield one.
+        """
+        repeated = {option.key for option in CONFIG_OPTIONS
+                    if sum(1 for other in CONFIG_OPTIONS if other.key == option.key) > 1}
+        bare = []
+        for path in sorted(MANAGER_UI.rglob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call) or len(node.args) != 1:
+                    continue
+                if getattr(node.func, "id", getattr(node.func, "attr", "")) \
+                        != "get_friendly_name":
+                    continue
+                named = node.args[0]
+                if isinstance(named, ast.Constant) and named.value in repeated:
+                    bare.append(f"{path.name}:{node.lineno} asks for {named.value!r}")
+        self.assertEqual(bare, [], "pass the section: this key exists in several")
 
     def test_repeated_keys_are_labelled_per_section(self) -> None:
         """A key that exists in several sections needs the section to be named right."""

@@ -20,11 +20,9 @@ from common.paths import get_ini_config
 
 logger = logging.getLogger("vpinfe.common.config_service")
 
-# Theme sources are URLs VPinFE fetches code from. Reading them is fine; setting them is
-# how a hostile write turns into code execution on the cabinet, so it stays a deliberate
-# edit of the file. Enforced here rather than left to a caller to respect, because a rule
-# only a caller enforces is not a rule.
-READ_ONLY_SECTIONS = frozenset({"themes"})
+# Sections served over the API and refused a write. Empty; the refusal path below is
+# what a caller-origin check would reuse.
+READ_ONLY_SECTIONS: frozenset[str] = frozenset()
 
 
 class UnknownSettingsError(ValueError):

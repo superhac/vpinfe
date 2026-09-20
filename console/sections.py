@@ -33,9 +33,6 @@ CHECKS: tuple[tuple[str, str, str, Callable[[dict, dict, dict], bool]], ...] = (
     ("no_backglass", t("console.sections.no_backglass_image"),
      t("console.sections.second_screen_sit_empty"),
      lambda g, m, x: not m.get("backglass", {}).get("present")),
-    ("borrowed_wheel", t("console.sections.wheel_standing_something_else"),
-     t("console.sections.fallback_being_used_wheel"),
-     lambda g, m, x: str(m.get("wheel", {}).get("via") or "").startswith("fallback:")),
     ("no_media", t("console.sections.no_media_all"),
      t("console.sections.nothing_resolved_kind_usually"),
      lambda g, m, x: not any(e.get("present") for e in m.values())),
@@ -65,14 +62,29 @@ def rollups(library: Library) -> dict[str, dict[str, Any]]:
     return out
 
 
+def reported(library: Library) -> tuple:
+    """The checks this library asks to hear about.
+
+    The library's answer, not this install's: a gap is a fact about the files, so two
+    installs reading one library report the same ones. An unreadable policy reports
+    everything, which is the answer a fresh library gives anyway.
+    """
+    try:
+        hidden = {str(one) for one in (library.library_policy().get("hidden_checks") or [])}
+    except Exception:  # noqa: BLE001 - a report that cannot read a preference still runs
+        hidden = set()
+    return tuple(one for one in CHECKS if one[0] not in hidden)
+
+
 def findings(library: Library) -> dict[str, list[dict[str, Any]]]:
-    """Run every check over the library. Keyed by check, so a section can show counts."""
-    out: dict[str, list[dict[str, Any]]] = {key: [] for key, _, _, _ in CHECKS}
+    """Run the checks this library asks for. Keyed by check, so a section shows counts."""
+    asked = reported(library)
+    out: dict[str, list[dict[str, Any]]] = {key: [] for key, _, _, _ in asked}
     extra = rollups(library)
     for game in library.games:
         entries = library.media.get(game["id"], {})
         facts = extra.get(game["id"], {})
-        for key, _, _, predicate in CHECKS:
+        for key, _, _, predicate in asked:
             try:
                 if predicate(game, entries, facts):
                     out[key].append(game)
@@ -145,8 +157,8 @@ def overview(library: Library, registry: list[dict], discovery: dict,
 
     ui.label(t("console.sections.what_needs_attention")).classes("console-group mt-4")
     with ui.element("div").classes("console-card w-full"):
-        for key, name, description, _ in CHECKS:
-            games = found[key]
+        for key, name, description, _ in reported(library):
+            games = found.get(key) or []
             with ui.row().classes("items-center gap-3 w-full no-wrap py-1"):
                 ui.icon("error" if games else "check_circle", size="18px") \
                     .classes("text-warning" if games else "text-positive")

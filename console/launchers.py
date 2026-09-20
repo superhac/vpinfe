@@ -152,8 +152,8 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
             return
 
         by_id = {row["id"]: row for row in built}
-        ui.on("hub_row_focus",
-              lambda event: on_select(by_id.get(grid.focused_row(event))))
+        grid.on_row_focus(SCOPE,
+                          lambda event: on_select(by_id.get(grid.focused_row(event))))
         with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
             table = grid.build(COLUMNS, built, SCOPE, view_of=showing)
         search.on_value_change(

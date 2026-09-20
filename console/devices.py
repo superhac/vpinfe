@@ -427,8 +427,8 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
                     .tooltip(t("console.devices.ask_every_device_whether"))
 
     by_id = {row["id"]: row for row in built}
-    ui.on("hub_row_focus",
-          lambda event: on_select(by_id.get(grid.focused_row(event))))
+    grid.on_row_focus(SCOPE,
+                      lambda event: on_select(by_id.get(grid.focused_row(event))))
 
     async def on_header_context(col_id: str | None) -> None:
         state_now: list[dict[str, Any]] = \

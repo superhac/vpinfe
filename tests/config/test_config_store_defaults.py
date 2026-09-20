@@ -12,12 +12,12 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("libdmdutil"))
-            self.assertEqual(config.config.get("libdmdutil", "enabled"), "false")
-            self.assertEqual(config.config.get("libdmdutil", "pin2dmd_enabled"), "false")
-            self.assertEqual(config.config.get("libdmdutil", "pixelcade_serial_port"), "")
-            self.assertEqual(config.config.get("libdmdutil", "zedmd_serial_port"), "")
-            self.assertEqual(config.config.get("libdmdutil", "zedmd_wifi_address"), "")
+            self.assertTrue(config.config.has_section("real_dmd"))
+            self.assertEqual(config.config.get("real_dmd", "enabled"), "false")
+            self.assertEqual(config.config.get("real_dmd", "pin2dmd_enabled"), "false")
+            self.assertEqual(config.config.get("real_dmd", "pixelcade_serial_port"), "")
+            self.assertEqual(config.config.get("real_dmd", "zedmd_serial_port"), "")
+            self.assertEqual(config.config.get("real_dmd", "zedmd_wifi_address"), "")
 
     def test_adds_missing_libdmdutil_defaults_to_existing_config(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -26,12 +26,12 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("libdmdutil"))
-            self.assertEqual(config.config.get("libdmdutil", "enabled"), "false")
-            self.assertEqual(config.config.get("libdmdutil", "pin2dmd_enabled"), "false")
-            self.assertEqual(config.config.get("libdmdutil", "pixelcade_serial_port"), "")
-            self.assertEqual(config.config.get("libdmdutil", "zedmd_serial_port"), "")
-            self.assertEqual(config.config.get("libdmdutil", "zedmd_wifi_address"), "")
+            self.assertTrue(config.config.has_section("real_dmd"))
+            self.assertEqual(config.config.get("real_dmd", "enabled"), "false")
+            self.assertEqual(config.config.get("real_dmd", "pin2dmd_enabled"), "false")
+            self.assertEqual(config.config.get("real_dmd", "pixelcade_serial_port"), "")
+            self.assertEqual(config.config.get("real_dmd", "zedmd_serial_port"), "")
+            self.assertEqual(config.config.get("real_dmd", "zedmd_wifi_address"), "")
 
     def test_adds_the_shipped_input_bindings(self) -> None:
         """One list per action, each binding naming its own input."""
@@ -56,7 +56,7 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("general"))
-            self.assertEqual(config.config.get("frontend", "hide_quit_button"), "false")
+            self.assertEqual(config.config.get("behavior", "hide_quit_button"), "false")
 
     def test_splashscreen_defaults_off(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -64,8 +64,8 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("general"))
-            self.assertEqual(config.config.get("general", "splashscreen"), "false")
+            self.assertTrue(config.config.has_section("behavior"))
+            self.assertEqual(config.config.get("behavior", "splashscreen"), "false")
 
     def test_chrome_options_default_empty(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -73,8 +73,8 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("general"))
-            self.assertEqual(config.config.get("general", "chrome_options"), "")
+            self.assertTrue(config.config.has_section("chromium"))
+            self.assertEqual(config.config.get("chromium", "options"), "")
 
     def test_disable_default_chrome_options_defaults_off(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -82,9 +82,9 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("general"))
+            self.assertTrue(config.config.has_section("chromium"))
             self.assertEqual(
-                config.config.get("general", "disable_default_chrome_options"), "false")
+                config.config.get("chromium", "disable_defaults"), "false")
 
     def test_restore_last_game_defaults_on(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -93,7 +93,7 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("general"))
-            self.assertEqual(config.config.get("frontend", "restore_last_table"), "true")
+            self.assertEqual(config.config.get("behavior", "restore_last_table"), "true")
 
     def test_state_section_lasttable_defaults_empty(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -111,7 +111,7 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertEqual(config.config.get("general", "splashscreen"), "true")
+            self.assertEqual(config.config.get("behavior", "splashscreen"), "true")
 
     def test_a_renamed_key_keeps_the_users_value(self) -> None:
         """The rename must run before defaults are filled in.
@@ -131,9 +131,9 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertEqual(config.config.get("general", "game_root_dir"), "/old/path")
-            self.assertEqual(config.config.get("frontend", "restore_last_table"), "false")
-            # Both of these also moved into their window's own section at schema 3.
-            self.assertEqual(config.config.get("windows.playfield", "variant"), "fss")
+            self.assertEqual(config.config.get("behavior", "restore_last_table"), "false")
+            # The artwork fact went back to [media]; the rotation is the screen's.
+            self.assertEqual(config.config.get("media", "playfield_variant"), "fss")
             self.assertEqual(config.config.get("windows.playfield", "rotation"), "270")
             self.assertEqual(config.config.get("state", "last_table"), "Foo")
             self.assertFalse(config.config.has_option("general", "tablerootdir"),
@@ -157,12 +157,12 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertEqual(config.config.get("displays", "cab_mode"), "true")
-            self.assertEqual(config.config.get("dof", "enable_dof"), "true")
-            self.assertEqual(config.config.get("general", "splashscreen"), "true")
+            self.assertEqual(config.config.get("presentation", "cab_mode"), "true")
+            self.assertEqual(config.config.get("dof", "enabled"), "true")
+            self.assertEqual(config.config.get("behavior", "splashscreen"), "true")
             # and the old spellings are gone, so the move is not repeated
             self.assertFalse(config.config.has_option("general", "cab_mode"))
-            self.assertFalse(config.config.has_option("general", "enable_dof"))
+            self.assertFalse(config.config.has_option("general", "enabled"))
             self.assertFalse(config.config.has_option("displays", "splashscreen"))
 
     def test_a_moved_option_does_not_overwrite_a_value_already_there(self) -> None:
@@ -176,7 +176,7 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertEqual(config.config.get("displays", "cab_mode"), "false")
+            self.assertEqual(config.config.get("presentation", "cab_mode"), "false")
             self.assertFalse(config.config.has_option("general", "cab_mode"))
 
 

@@ -12,7 +12,7 @@ from common.host import libdmdutil_service
 class LibDmdUtilServiceTests(unittest.TestCase):
     def setUp(self):
         self.config = configparser.ConfigParser()
-        self.config["libdmdutil"] = {"enabled": "true"}
+        self.config["real_dmd"] = {"enabled": "true"}
         self.iniconfig = mock.Mock(config=self.config)
         self.addCleanup(self._reset_service_state)
         self._reset_service_state()

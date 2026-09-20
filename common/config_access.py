@@ -179,7 +179,7 @@ class SettingsConfig:
             assets_dir=cfg_get(source, "Settings", "assetsdir", "").strip(),
             rar_tool_path=cfg_get(source, "Settings", "rartoolpath", "").strip(),
             theme=theme,
-            startup_collection=cfg_get(source, "Settings", "startup_collection", "").strip(),
+            startup_collection=cfg_get(source, "behavior", "startup_collection", "").strip(),
             auto_update_media_on_startup=cfg_bool(
                 source, "Settings", "autoupdatemediaonstartup", False),
             mute_audio=cfg_bool(source, "Settings", "muteaudio", False),
@@ -191,7 +191,7 @@ class SettingsConfig:
             restore_last_table=cfg_bool(source, "Settings", "restorelasttable", True),
             # Canonical section, not the "Settings" alias the rest of these carry: this
             # one is new in 3.0 and never lived anywhere else.
-            media_browse_dirs=tuple(cfg_list(source, "general", "media_browse_dirs")),
+            media_browse_dirs=tuple(cfg_list(source, "media", "browse_dirs")),
         )
 
 
@@ -357,7 +357,7 @@ def _extra_screen_ids(source: Any) -> dict:
         sections = []
     for section in sections:
         window = section.split(".", 1)[1]
-        if window in {"playfield", "backglass", "scoreview"}:
+        if window in {"playfield", "backglass", "score_view"}:
             continue
         value = cfg_get(source, section, "screen_id").strip()
         if value:
@@ -393,7 +393,7 @@ class DisplayConfig:
                 cfg_get(source, "Displays", "playfieldorientation", "landscape")),
             playfield_rotation=_quarter_turn(
                 cfg_int(source, "Displays", "playfieldrotation", 0)),
-            cab_mode=cfg_bool(source, "displays", "cab_mode", False),
+            cab_mode=cfg_bool(source, "presentation", "cab_mode", False),
             extra_screen_ids=_extra_screen_ids(source),
         )
 

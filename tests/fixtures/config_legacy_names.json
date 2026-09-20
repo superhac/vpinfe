@@ -1,39 +1,15 @@
 [
   [
     "DOF",
-    "dof_config_tool_api_key",
-    "dof",
-    "dof_config_tool_api_key"
-  ],
-  [
-    "DOF",
     "dofconfigtoolapikey",
     "dof",
-    "dof_config_tool_api_key"
-  ],
-  [
-    "DOF",
-    "enable_dof",
-    "dof",
-    "enable_dof"
+    "config_tool_api_key"
   ],
   [
     "DOF",
     "enabledof",
     "dof",
-    "enable_dof"
-  ],
-  [
-    "Displays",
-    "bg_screen_id",
-    "windows.backglass",
-    "screen_id"
-  ],
-  [
-    "Displays",
-    "bg_window_override",
-    "windows.backglass",
-    "window_override"
+    "enabled"
   ],
   [
     "Displays",
@@ -45,61 +21,25 @@
     "Displays",
     "bgwindowoverride",
     "windows.backglass",
-    "window_override"
-  ],
-  [
-    "Displays",
-    "cab_mode",
-    "displays",
-    "cab_mode"
+    "override"
   ],
   [
     "Displays",
     "cabmode",
-    "displays",
+    "presentation",
     "cab_mode"
   ],
   [
     "Displays",
-    "dmd_screen_id",
-    "windows.scoreview",
-    "screen_id"
-  ],
-  [
-    "Displays",
-    "dmd_window_override",
-    "windows.scoreview",
-    "window_override"
-  ],
-  [
-    "Displays",
     "dmdscreenid",
-    "windows.scoreview",
+    "windows.score_view",
     "screen_id"
   ],
   [
     "Displays",
     "dmdwindowoverride",
-    "windows.scoreview",
-    "window_override"
-  ],
-  [
-    "Displays",
-    "playfield_orientation",
-    "windows.playfield",
-    "orientation"
-  ],
-  [
-    "Displays",
-    "playfield_rotation",
-    "windows.playfield",
-    "rotation"
-  ],
-  [
-    "Displays",
-    "playfield_screen_id",
-    "windows.playfield",
-    "screen_id"
+    "windows.score_view",
+    "override"
   ],
   [
     "Displays",
@@ -266,23 +206,17 @@
   [
     "Input",
     "pagingsize",
-    "frontend",
+    "behavior",
     "paging_size"
   ],
   [
     "Input",
     "pagingtype",
-    "frontend",
+    "behavior",
     "paging_group"
   ],
   [
     "Logger",
-    "console",
-    "logger",
-    "terminal"
-  ],
-  [
-    "logger",
     "console",
     "logger",
     "terminal"
@@ -295,111 +229,75 @@
   ],
   [
     "Media",
-    "bg_media_priority",
-    "windows.backglass",
-    "media_priority"
-  ],
-  [
-    "Media",
     "bgmediapriority",
-    "windows.backglass",
-    "media_priority"
-  ],
-  [
-    "Media",
-    "default_missing_media_image",
-    "media",
-    "default_missing_media_image"
+    "presentation",
+    "backglass_media_priority"
   ],
   [
     "Media",
     "defaultmissingmediaimg",
     "media",
-    "default_missing_media_image"
-  ],
-  [
-    "Media",
-    "dmd_media_priority",
-    "windows.scoreview",
-    "media_priority"
+    "default_missing_image"
   ],
   [
     "Media",
     "dmdmediapriority",
-    "windows.scoreview",
-    "media_priority"
-  ],
-  [
-    "Media",
-    "playfield_media_priority",
-    "windows.playfield",
-    "media_priority"
-  ],
-  [
-    "Media",
-    "playfield_media_rotation",
-    "windows.playfield",
-    "media_rotation"
+    "presentation",
+    "score_view_media_priority"
   ],
   [
     "Media",
     "playfield_resolution",
-    "windows.playfield",
-    "resolution"
+    "media",
+    "playfield_resolution"
   ],
   [
     "Media",
     "playfield_variant",
-    "windows.playfield",
-    "variant"
+    "media",
+    "playfield_variant"
   ],
   [
     "Media",
     "playfield_video_resolution",
-    "windows.playfield",
-    "video_resolution"
+    "media",
+    "playfield_video_resolution"
   ],
   [
     "Media",
     "playfieldmediapriority",
-    "windows.playfield",
-    "media_priority"
+    "presentation",
+    "playfield_media_priority"
   ],
   [
     "Media",
     "playfieldmediarotation",
-    "windows.playfield",
-    "media_rotation"
+    "presentation",
+    "playfield_media_rotation"
   ],
   [
     "Media",
     "playfieldresolution",
-    "windows.playfield",
-    "resolution"
+    "media",
+    "playfield_resolution"
   ],
   [
     "Media",
     "playfieldvariant",
-    "windows.playfield",
-    "variant"
+    "media",
+    "playfield_variant"
   ],
   [
     "Media",
     "playfieldvideoresolution",
-    "windows.playfield",
-    "video_resolution"
-  ],
-  [
-    "Media",
-    "realdmd_media_priority",
     "media",
-    "realdmd_media_priority"
+    "playfield_video_resolution"
   ],
   [
     "Media",
     "realdmdmediapriority",
-    "media",
-    "realdmd_media_priority"
+    "presentation",
+    "real_dmd_media_priority"
   ],
   [
     "Media",
@@ -418,72 +316,6 @@
     "wheelset",
     "media",
     "wheelset"
-  ],
-  [
-    "Mobile",
-    "chunk_size",
-    "mobile",
-    "chunk_size"
-  ],
-  [
-    "Mobile",
-    "chunksize",
-    "mobile",
-    "chunk_size"
-  ],
-  [
-    "Mobile",
-    "device_ip",
-    "mobile",
-    "device_ip"
-  ],
-  [
-    "Mobile",
-    "device_port",
-    "mobile",
-    "device_port"
-  ],
-  [
-    "Mobile",
-    "deviceip",
-    "mobile",
-    "device_ip"
-  ],
-  [
-    "Mobile",
-    "deviceport",
-    "mobile",
-    "device_port"
-  ],
-  [
-    "Mobile",
-    "rename_mask_to_default_ini",
-    "mobile",
-    "rename_mask_to_default_ini"
-  ],
-  [
-    "Mobile",
-    "rename_mask_to_default_ini_mask",
-    "mobile",
-    "rename_mask_to_default_ini_mask"
-  ],
-  [
-    "Mobile",
-    "renamemasktodefaultini",
-    "mobile",
-    "rename_mask_to_default_ini"
-  ],
-  [
-    "Mobile",
-    "renamemasktodefaultinimask",
-    "mobile",
-    "rename_mask_to_default_ini_mask"
-  ],
-  [
-    "Network",
-    "manager_ui_port",
-    "network",
-    "http_port"
   ],
   [
     "Network",
@@ -518,80 +350,44 @@
   [
     "Settings",
     "MMhideQuitButton",
-    "frontend",
+    "behavior",
     "hide_quit_button"
   ],
   [
     "Settings",
-    "assets_dir",
-    "general",
-    "assets_dir"
-  ],
-  [
-    "Settings",
     "assetsdir",
-    "general",
-    "assets_dir"
-  ],
-  [
-    "Settings",
-    "auto_update_media_on_startup",
-    "general",
-    "auto_update_media_on_startup"
+    "assets",
+    "dir"
   ],
   [
     "Settings",
     "autoupdatemediaonstartup",
-    "general",
-    "auto_update_media_on_startup"
-  ],
-  [
-    "Settings",
-    "cab_mode",
-    "displays",
-    "cab_mode"
+    "updates",
+    "auto_update_media"
   ],
   [
     "Settings",
     "cabmode",
-    "displays",
+    "presentation",
     "cab_mode"
   ],
   [
     "Settings",
-    "chrome_options",
-    "general",
-    "chrome_options"
-  ],
-  [
-    "Settings",
-    "chrome_options_exclude",
-    "general",
-    "chrome_options_exclude"
-  ],
-  [
-    "Settings",
     "chromeoptions",
-    "general",
-    "chrome_options"
+    "chromium",
+    "options"
   ],
   [
     "Settings",
     "chromeoptionsexclude",
-    "general",
-    "chrome_options_exclude"
-  ],
-  [
-    "Settings",
-    "disable_default_chrome_options",
-    "general",
-    "disable_default_chrome_options"
+    "chromium",
+    "options_exclude"
   ],
   [
     "Settings",
     "disabledefaultchromeoptions",
-    "general",
-    "disable_default_chrome_options"
+    "chromium",
+    "disable_defaults"
   ],
   [
     "Settings",
@@ -607,105 +403,45 @@
   ],
   [
     "Settings",
-    "global_game_ini_override_enabled",
-    "general",
-    "global_game_ini_override_enabled"
-  ],
-  [
-    "Settings",
-    "global_game_ini_override_mask",
-    "general",
-    "global_game_ini_override_mask"
-  ],
-  [
-    "Settings",
-    "global_ini_override",
-    "general",
-    "global_ini_override"
-  ],
-  [
-    "Settings",
-    "hide_quit_button",
-    "frontend",
-    "hide_quit_button"
-  ],
-  [
-    "Settings",
-    "mute_audio",
-    "general",
-    "mute_audio"
-  ],
-  [
-    "Settings",
     "muteaudio",
-    "general",
+    "behavior",
     "mute_audio"
-  ],
-  [
-    "Settings",
-    "rar_tool_path",
-    "general",
-    "rar_tool_path"
   ],
   [
     "Settings",
     "rartoolpath",
-    "general",
-    "rar_tool_path"
+    "tools",
+    "rar_path"
   ],
   [
     "Settings",
-    "restore_last_game",
-    "frontend",
+    "restorelastgame",
+    "behavior",
+    "restore_last_table"
+  ],
+  [
+    "Settings",
+    "restorelasttable",
+    "behavior",
     "restore_last_table"
   ],
   [
     "Settings",
     "splashscreen",
-    "general",
+    "behavior",
     "splashscreen"
   ],
   [
     "Settings",
-    "startup_collection",
-    "general",
-    "startup_collection"
-  ],
-  [
-    "Settings",
     "theme",
-    "general",
-    "theme"
-  ],
-  [
-    "Settings",
-    "vpx_bin_path",
-    "general",
-    "vpx_bin_path"
-  ],
-  [
-    "Settings",
-    "vpx_ini_path",
-    "general",
-    "vpx_ini_path"
-  ],
-  [
-    "Settings",
-    "vpx_launch_env",
-    "general",
-    "vpx_launch_env"
-  ],
-  [
-    "Settings",
-    "vpx_log_delete_on_start",
-    "general",
-    "vpx_log_delete_on_start"
+    "themes",
+    "active"
   ],
   [
     "State",
-    "last_game",
+    "lasttable",
     "state",
-    "last_game"
+    "last_table"
   ],
   [
     "VPSdb",
@@ -714,58 +450,70 @@
     "last"
   ],
   [
+    "behavior",
+    "MMhideQuitButton",
+    "behavior",
+    "hide_quit_button"
+  ],
+  [
+    "behavior",
+    "restorelasttable",
+    "behavior",
+    "restore_last_table"
+  ],
+  [
     "displays",
     "cabmode",
-    "displays",
+    "presentation",
     "cab_mode"
   ],
   [
     "dof",
     "dofconfigtoolapikey",
     "dof",
-    "dof_config_tool_api_key"
+    "config_tool_api_key"
   ],
   [
     "dof",
     "enabledof",
     "dof",
-    "enable_dof"
+    "enabled"
   ],
   [
     "general",
     "MMhideQuitButton",
-    "frontend",
+    "behavior",
     "hide_quit_button"
   ],
   [
     "general",
     "assetsdir",
-    "general",
-    "assets_dir"
+    "assets",
+    "dir"
   ],
   [
     "general",
     "autoupdatemediaonstartup",
-    "general",
-    "auto_update_media_on_startup"
+    "updates",
+    "auto_update_media"
   ],
   [
     "general",
     "chromeoptions",
-    "general",
-    "chrome_options"
+    "chromium",
+    "options"
   ],
   [
     "general",
     "chromeoptionsexclude",
-    "general",
-    "chrome_options_exclude"
+    "chromium",
+    "options_exclude"
   ],
   [
     "general",
     "disabledefaultchromeoptions",
-    "general",
-    "disable_default_chrome_options"
+    "chromium",
+    "disable_defaults"
   ],
   [
     "general",
@@ -775,51 +523,69 @@
   ],
   [
     "general",
-    "muteaudio",
+    "language",
+    "install",
+    "language"
+  ],
+  [
     "general",
+    "muteaudio",
+    "behavior",
     "mute_audio"
   ],
   [
     "general",
     "rartoolpath",
+    "tools",
+    "rar_path"
+  ],
+  [
     "general",
-    "rar_tool_path"
+    "restorelastgame",
+    "behavior",
+    "restore_last_table"
   ],
   [
-    "libdmdutil",
-    "pin2dmdenabled",
-    "libdmdutil",
-    "pin2dmd_enabled"
+    "general",
+    "splashscreen",
+    "behavior",
+    "splashscreen"
   ],
   [
-    "libdmdutil",
-    "pixelcadedevice",
-    "libdmdutil",
-    "pixelcade_serial_port"
+    "general",
+    "theme",
+    "themes",
+    "active"
   ],
   [
-    "libdmdutil",
-    "zedmddevice",
-    "libdmdutil",
-    "zedmd_serial_port"
+    "install",
+    "roles",
+    "install",
+    "features"
   ],
   [
-    "libdmdutil",
-    "zedmdwifiaddr",
-    "libdmdutil",
-    "zedmd_wifi_address"
+    "logger",
+    "console",
+    "logger",
+    "terminal"
+  ],
+  [
+    "logger",
+    "terminal",
+    "logger",
+    "terminal"
   ],
   [
     "media",
     "defaultmissingmediaimg",
     "media",
-    "default_missing_media_image"
+    "default_missing_image"
   ],
   [
     "media",
     "realdmdmediapriority",
-    "media",
-    "realdmd_media_priority"
+    "presentation",
+    "real_dmd_media_priority"
   ],
   [
     "media",
@@ -828,34 +594,28 @@
     "thumb_cache_max_mb"
   ],
   [
-    "mobile",
-    "chunksize",
-    "mobile",
-    "chunk_size"
+    "network",
+    "hub_bind",
+    "network",
+    "http_bind"
   ],
   [
-    "mobile",
-    "deviceip",
-    "mobile",
-    "device_ip"
+    "network",
+    "hub_port",
+    "network",
+    "http_port"
   ],
   [
-    "mobile",
-    "deviceport",
-    "mobile",
-    "device_port"
+    "network",
+    "manager_ui_bind",
+    "network",
+    "http_bind"
   ],
   [
-    "mobile",
-    "renamemasktodefaultini",
-    "mobile",
-    "rename_mask_to_default_ini"
-  ],
-  [
-    "mobile",
-    "renamemasktodefaultinimask",
-    "mobile",
-    "rename_mask_to_default_ini_mask"
+    "network",
+    "manager_ui_port",
+    "network",
+    "http_port"
   ],
   [
     "network",
@@ -894,6 +654,42 @@
     "roms_update_sha"
   ],
   [
+    "presentation",
+    "cabmode",
+    "presentation",
+    "cab_mode"
+  ],
+  [
+    "real_dmd",
+    "pin2dmdenabled",
+    "real_dmd",
+    "pin2dmd_enabled"
+  ],
+  [
+    "real_dmd",
+    "pixelcadedevice",
+    "real_dmd",
+    "pixelcade_serial_port"
+  ],
+  [
+    "real_dmd",
+    "zedmddevice",
+    "real_dmd",
+    "zedmd_serial_port"
+  ],
+  [
+    "real_dmd",
+    "zedmdwifiaddr",
+    "real_dmd",
+    "zedmd_wifi_address"
+  ],
+  [
+    "state",
+    "lasttable",
+    "state",
+    "last_table"
+  ],
+  [
     "vpinplay",
     "apiendpoint",
     "vpinplay",
@@ -918,93 +714,33 @@
     "user_id"
   ],
   [
-    "network",
-    "manager_ui_port",
-    "network",
-    "http_port"
+    "vpxmobile",
+    "chunksize",
+    "vpxmobile",
+    "chunk_size"
   ],
   [
-    "network",
-    "manager_ui_bind",
-    "network",
-    "http_bind"
+    "vpxmobile",
+    "deviceip",
+    "vpxmobile",
+    "device_ip"
   ],
   [
-    "Settings",
-    "restorelasttable",
-    "frontend",
-    "restore_last_table"
+    "vpxmobile",
+    "deviceport",
+    "vpxmobile",
+    "device_port"
   ],
   [
-    "State",
-    "lasttable",
-    "state",
-    "last_table"
+    "vpxmobile",
+    "renamemasktodefaultini",
+    "vpxmobile",
+    "send_masked_config"
   ],
   [
-    "frontend",
-    "restorelasttable",
-    "frontend",
-    "restore_last_table"
-  ],
-  [
-    "state",
-    "lasttable",
-    "state",
-    "last_table"
-  ],
-  [
-    "frontend",
-    "MMhideQuitButton",
-    "frontend",
-    "hide_quit_button"
-  ],
-  [
-    "general",
-    "hide_quit_button",
-    "frontend",
-    "hide_quit_button"
-  ],
-  [
-    "general",
-    "restore_last_game",
-    "frontend",
-    "restore_last_table"
-  ],
-  [
-    "Settings",
-    "restorelastgame",
-    "frontend",
-    "restore_last_table"
-  ],
-  [
-    "general",
-    "restorelastgame",
-    "frontend",
-    "restore_last_table"
-  ],
-  [
-    "logger",
-    "terminal",
-    "logger",
-    "terminal"
-  ],
-  [
-    "network",
-    "hub_port",
-    "network",
-    "http_port"
-  ],
-  [
-    "network",
-    "hub_bind",
-    "network",
-    "http_bind"
-  ],
-  [
-    "install",
-    "roles",
-    "install",
-    "features"
+    "vpxmobile",
+    "renamemasktodefaultinimask",
+    "vpxmobile",
+    "config_mask"
   ]
 ]

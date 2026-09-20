@@ -61,7 +61,7 @@ SECTION_RENAMES = {
     'Displays': 'displays',
     'Logger': 'logger',
     'Media': 'media',
-    'Mobile': 'mobile',
+    'Mobile': 'vpxmobile',
     'Network': 'network',
     'State': 'state',
     'VPSdb': 'vpsdb',
@@ -187,118 +187,56 @@ def in_section(section: str, *options: ConfigOption) -> tuple[ConfigOption, ...]
 
 CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     *in_section(
-        "windows.backglass",
-        ConfigOption(
-            "screen_id",
-            type="int",
-            default="",
-            legacy=(("Displays", "bg_screen_id"), ("Displays", "bgscreenid")),
-        ),
-        ConfigOption(
-            "window_override",
-            type="string",
-            default="",
-            legacy=(("Displays", "bg_window_override"), ("Displays", "bgwindowoverride")),
-        ),
-        ConfigOption(
-            "media_priority",
-            type="choice",
-            default="video",
-            choices=("video", "image"),
-            legacy=(("Media", "bg_media_priority"), ("Media", "bgmediapriority")),
-        ),
-    ),
-    *in_section(
-        "windows.scoreview",
-        ConfigOption(
-            "screen_id",
-            type="int",
-            default="",
-            legacy=(("Displays", "dmd_screen_id"), ("Displays", "dmdscreenid")),
-        ),
-        ConfigOption(
-            "window_override",
-            type="string",
-            default="",
-            legacy=(("Displays", "dmd_window_override"), ("Displays", "dmdwindowoverride")),
-        ),
-        ConfigOption(
-            "media_priority",
-            type="choice",
-            default="video",
-            choices=("video", "image"),
-            legacy=(("Media", "dmd_media_priority"), ("Media", "dmdmediapriority")),
-        ),
-    ),
-    *in_section(
         "windows.playfield",
         ConfigOption(
             "screen_id",
             type="int",
             default="0",
-            legacy=(("Displays", "playfield_screen_id"), ("Displays", "playfieldscreenid")),
+            legacy=(("Displays", "playfieldscreenid"),),
         ),
         ConfigOption(
             "orientation",
             type="choice",
             default="landscape",
             choices=("landscape", "portrait"),
-            legacy=(("Displays", "playfield_orientation"), ("Displays", "playfieldorientation")),
+            legacy=(("Displays", "playfieldorientation"),),
         ),
         ConfigOption(
             "rotation",
             type="choice",
             default="0",
             choices=("0", "90", "180", "270"),
-            legacy=(("Displays", "playfield_rotation"), ("Displays", "playfieldrotation")),
-        ),
-        ConfigOption(
-            "variant",
-            type="choice",
-            default="table",
-            choices=("table", "fss"),
-            legacy=(("Media", "playfield_variant"), ("Media", "playfieldvariant")),
-        ),
-        ConfigOption(
-            "resolution",
-            type="choice",
-            default="4k",
-            choices=("4k", "1k"),
-            legacy=(("Media", "playfield_resolution"), ("Media", "playfieldresolution")),
-        ),
-        ConfigOption(
-            "video_resolution",
-            type="choice",
-            default="1k",
-            choices=("4k", "1k"),
-            legacy=(("Media", "playfield_video_resolution"), ("Media", "playfieldvideoresolution")),
-        ),
-        ConfigOption(
-            "media_priority",
-            type="choice",
-            default="video",
-            choices=("video", "image"),
-            legacy=(("Media", "playfield_media_priority"), ("Media", "playfieldmediapriority")),
-        ),
-        ConfigOption(
-            "media_rotation",
-            type="choice",
-            default="auto",
-            choices=("auto", "0", "90", "180", "270"),
-            legacy=(("Media", "playfield_media_rotation"), ("Media", "playfieldmediarotation")),
+            legacy=(("Displays", "playfieldrotation"),),
         ),
     ),
     *in_section(
-        "displays",
-            # It lived in [Settings] before it was display context. Declared here
-            # rather than chained through SettingsConfig, which is how a parser
-            # that had not been migrated used to resolve it.
+        "windows.backglass",
         ConfigOption(
-            "cab_mode",
-            type="bool",
-            default="false",
-            aliases=("cabmode",),
-            legacy=(("Settings", "cabmode"), ("Settings", "cab_mode")),
+            "screen_id",
+            type="int",
+            default="",
+            legacy=(("Displays", "bgscreenid"),),
+        ),
+        ConfigOption(
+            "override",
+            type="string",
+            default="",
+            legacy=(("Displays", "bgwindowoverride"),),
+        ),
+    ),
+    *in_section(
+        "windows.score_view",
+        ConfigOption(
+            "screen_id",
+            type="int",
+            default="",
+            legacy=(("Displays", "dmdscreenid"),),
+        ),
+        ConfigOption(
+            "override",
+            type="string",
+            default="",
+            legacy=(("Displays", "dmdwindowoverride"),),
         ),
     ),
     # Seven Visual Pinball settings left this section for the launcher that owns them:
@@ -309,64 +247,11 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     # file once. What is left here belongs to the install itself.
     *in_section(
         "general",
-        # `locations.json` holds this now, because a library can be in more than one
-        # place and a single string cannot say so. Kept and internal rather than
-        # deleted: a value still in a file has to keep resolving, and it is what the
-        # first run seeds the locations from.
-        # Commands somebody asks to run around VPinFE and around a table. These belong
-        # to the install rather than to a launcher: they are about the machine's state -
-        # an audio route, a display, a service to stop - and they run whichever launcher
-        # plays the table. A launcher having an opinion about VPinFE starting is
-        # nonsense, which is why there are two pairs here and one on the launcher.
-        ConfigOption(
-            "ask_where_new_games_go",
-            group="Where things are",
-            type="bool",
-            default="true",
-        ),
-        ConfigOption(
-            "on_vpinfe_start",
-            group="Commands",
-            type="text",
-            lines=3,
-            default="",
-        ),
-        ConfigOption(
-            "on_vpinfe_exit",
-            group="Commands",
-            type="text",
-            lines=3,
-            default="",
-        ),
-        ConfigOption(
-            "on_table_start",
-            group="Commands",
-            type="text",
-            lines=3,
-            default="",
-        ),
-        ConfigOption(
-            "on_table_exit",
-            group="Commands",
-            type="text",
-            lines=3,
-            default="",
-        ),
-        ConfigOption(
-            "command_timeout",
-            group="Commands",
-            type="int",
-            default="15",
-        ),
-        ConfigOption(
-            "table_start_required",
-            group="Commands",
-            type="bool",
-            default="false",
-        ),
+        # Runtime state that happens to live in the config file. Nothing settable is left
+        # here. `locations.json` holds the library root now, and this seeds it on first
+        # run.
         ConfigOption(
             "game_root_dir",
-            group="Where things are",
             type="string",
             path="dir",
             default="",
@@ -391,128 +276,203 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             # value still in a config file keeps resolving for a build that reads it.
             internal=True,
         ),
+    ),
+    # Commands the install runs around itself. `table_commands` below is the same, around
+    # a table, and a launcher's own are in `launchers.json`.
+    *in_section(
+        "commands",
+        # Declared first because it governs every command here and in `table_commands`.
         ConfigOption(
-            "media_browse_dirs",
-            group="Where things are",
-            type="list",
-            default="",
-        ),
-        ConfigOption(
-            "assets_dir",
-            group="Where things are",
-            type="string",
-            path="dir",
-            default="",
-            aliases=("assetsdir",),
-        ),
-        ConfigOption(
-            "rar_tool_path",
-            group="Where things are",
-            type="string",
-            path="exe",
-            default="",
-            aliases=("rartoolpath",),
-        ),
-        ConfigOption(
-            "theme",
-            group="What a player sees",
-            type="string",
-            default="Revolution",
-            # Installed themes, and still typeable: a theme can be dropped into place
-            # before this page has been reopened to notice it.
-            suggest=SUGGEST_THEMES,
-        ),
-        ConfigOption(
-            "console_theme",
-            group="What you see here",
-            type="choice",
-            # Not `auto` like `language` below: this one defers to the operating system
-            # rather than to a language the OS names outright, and the two neutral
-            # palettes are the only answers an OS preference can give.
-            default="synthwave",
-            choices=("synthwave", "dark", "light", "system"),
-            editor=EDITOR_CONSOLE_THEME,
-        ),
-        ConfigOption(
-            "language",
-            group="What a player sees",
-            type="choice",
-            # `auto` reads the operating system, which is right on a cabinet somebody
-            # set up in their own language and never opened this page.
-            default="auto",
-            choices=("auto",) + i18n.available(),
-        ),
-        ConfigOption(
-            "startup_collection",
-            group="What a player sees",
-            type="string",
-            default="",
-            # Only a collection that exists can be opened on, but the list is not closed:
-            # a cabinet can be set up before the collection it will open on is made.
-            suggest=SUGGEST_COLLECTIONS,
-        ),
-        ConfigOption(
-            "library_refresh_minutes",
-            group="Reading the library",
+            "timeout",
             type="int",
-            default="0",
+            default="15",
+            legacy=(),
         ),
         ConfigOption(
-            "auto_update_media_on_startup",
-            group="Reading the library",
+            "on_vpinfe_start",
+            type="text",
+            lines=3,
+            default="",
+            legacy=(),
+        ),
+        ConfigOption(
+            "on_vpinfe_exit",
+            type="text",
+            lines=3,
+            default="",
+            legacy=(),
+        ),
+    ),
+    # The same, around a table, and run by whichever launcher plays it.
+    *in_section(
+        "table_commands",
+        ConfigOption(
+            "on_start",
+            type="text",
+            lines=3,
+            default="",
+            legacy=(),
+        ),
+        ConfigOption(
+            "on_exit",
+            type="text",
+            lines=3,
+            default="",
+            legacy=(),
+        ),
+        ConfigOption(
+            "start_required",
             type="bool",
             default="false",
-            aliases=("autoupdatemediaonstartup",),
+            legacy=(),
         ),
+    ),
+    # The browser the frontend runs in.
+    *in_section(
+        "chromium",
         ConfigOption(
-            "splashscreen",
-            group="What a player sees",
-            type="bool",
-            default="false",
-        ),
-        ConfigOption(
-            "mute_audio",
-            group="What a player sees",
-            type="bool",
-            default="false",
-            aliases=("muteaudio",),
-        ),
-        ConfigOption(
-            "chrome_options",
-            group="The browser it runs in",
+            "options",
             # One flag per line, which is what the help beside it has always said and
             # what a one-line box could not take. Parsed with shell-style quoting, so a
             # newline is whitespace and nothing about the stored value changes.
             type="text",
             lines=3,
             default="",
-            aliases=("chromeoptions",),
+            legacy=(("general", "chromeoptions"),),
         ),
         ConfigOption(
-            "chrome_options_exclude",
-            group="The browser it runs in",
+            "options_exclude",
             type="text",
             lines=3,
             default="",
-            aliases=("chromeoptionsexclude",),
+            legacy=(("general", "chromeoptionsexclude"),),
         ),
         ConfigOption(
-            "disable_default_chrome_options",
-            group="The browser it runs in",
+            "disable_defaults",
             type="bool",
             default="false",
-            aliases=("disabledefaultchromeoptions",),
+            legacy=(("general", "disabledefaultchromeoptions"),),
+        ),
+    ),
+    # What the Console looks like, as against what the frontend shows a player.
+    *in_section(
+        "console",
+        ConfigOption(
+            "theme",
+            type="choice",
+            # Not `auto` like `install.language`: this one defers to the operating system
+            # rather than to a language the OS names outright, and the two neutral
+            # palettes are the only answers an OS preference can give.
+            default="synthwave",
+            choices=("synthwave", "dark", "light", "system"),
+            editor=EDITOR_CONSOLE_THEME,
+            legacy=(),
+        ),
+    ),
+    # Programs on this machine VPinFE shells out to. Each is discovered first, and set
+    # here only where discovery finds nothing or picks the wrong one.
+    *in_section(
+        "tools",
+        ConfigOption(
+            "rar_path",
+            type="string",
+            path="exe",
+            default="",
+            legacy=(("general", "rartoolpath"),),
+        ),
+    ),
+    # Art a theme or the frontend draws that is not a game's own.
+    *in_section(
+        "assets",
+        ConfigOption(
+            "dir",
+            group="Local Sources",
+            type="string",
+            path="dir",
+            default="",
+            legacy=(("general", "assetsdir"),),
+        ),
+    ),
+    # The library as something this install reads, as against `media`, which is what it
+    # collects.
+    *in_section(
+        "updates",
+        ConfigOption(
+            "refresh_minutes",
+            type="int",
+            default="0",
+            legacy=(),
+        ),
+        ConfigOption(
+            "auto_update_media",
+            type="bool",
+            default="false",
+            legacy=(("general", "autoupdatemediaonstartup"),),
+        ),
+        ConfigOption(
+            "ask_where_new_games_go",
+            type="bool",
+            default="true",
+            legacy=(),
+        ),
+    ),
+    # What the frontend shows, as against what it does. Every one is served to themes
+    # over the bridge, so renaming a key here changes what a published theme reads.
+    *in_section(
+        "presentation",
+        ConfigOption(
+            "cab_mode",
+            type="bool",
+            default="false",
+            aliases=("cabmode",),
+            legacy=(("displays", "cabmode"), ("Settings", "cabmode")),
+        ),
+        ConfigOption(
+            "playfield_media_rotation",
+            type="choice",
+            default="auto",
+            choices=("auto", "0", "90", "180", "270"),
+            legacy=(("Media", "playfieldmediarotation"),),
+        ),
+        ConfigOption(
+            "playfield_media_priority",
+            type="choice",
+            default="video",
+            choices=("video", "image"),
+            legacy=(("Media", "playfieldmediapriority"),),
+        ),
+        ConfigOption(
+            "backglass_media_priority",
+            type="choice",
+            default="video",
+            choices=("video", "image"),
+            legacy=(("Media", "bgmediapriority"),),
+        ),
+        ConfigOption(
+            "score_view_media_priority",
+            type="choice",
+            default="video",
+            choices=("video", "image"),
+            legacy=(("Media", "dmdmediapriority"),),
+        ),
+        ConfigOption(
+            "real_dmd_media_priority",
+            type="choice",
+            default="color",
+            choices=("color", "video", "image"),
+            legacy=(("media", "realdmdmediapriority"),),
         ),
     ),
     # How the frontend behaves, as against `themes`, which is what is installed. Both of
     # these were in `general` beside genuinely global settings, on a Manager UI page
     # nobody looks at for wheel behavior.
     *in_section(
-        "frontend",
+        "behavior",
         # How far a page press moves the wheel. Not in `input`, which is which button
         # does what: these say what the frontend does when one is pressed.
         ConfigOption(
             "paging_group",
+            group="Navigation",
             type="choice",
             default=PAGING_GROUP_DEFAULT,
             choices=PAGING_GROUPS,
@@ -520,28 +480,24 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ),
         ConfigOption(
             "paging_size",
+            group="Navigation",
             type="int",
             default="10",
             legacy=(("Input", "pagingsize"),),
         ),
         ConfigOption(
-            "confirm",
-            type="bool",
-            default="false",
-        ),
-        ConfigOption(
-            "hide_quit_button",
-            type="bool",
-            default="false",
-            aliases=("MMhideQuitButton",),
-            # The 2.x location, then the one 3.0 briefly used. The second is not
-            # compatibility for a shipped release - 3.0 has none - it is so an install
-            # that already ran a 3.0 build keeps the setting instead of silently
-            # defaulting. It can go once no such install is left.
-            legacy=(("Settings", "MMhideQuitButton"), ("general", "hide_quit_button")),
+            "startup_collection",
+            group="Startup",
+            type="string",
+            default="",
+            # Only a collection that exists can be opened on, but the list is not closed:
+            # a cabinet can be set up before the collection it will open on is made.
+            suggest=SUGGEST_COLLECTIONS,
+            legacy=(),
         ),
         ConfigOption(
             "restore_last_table",
+            group="Startup",
             type="bool",
             default="true",
             # `restorelastgame` was 3.0's and never shipped; 2.x wrote `restorelasttable`,
@@ -550,13 +506,53 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             # As above: 2.x's location first, then the two spellings a 3.0 build wrote -
             # `restore_last_game` into the JSON, and `restorelastgame` into the ini it
             # converted from.
-            legacy=(("Settings", "restorelasttable"),
-                    ("general", "restore_last_game"),
-                    ("Settings", "restorelastgame")),
+            legacy=(("Settings", "restorelasttable"), ("Settings", "restorelastgame")),
+        ),
+        ConfigOption(
+            "splashscreen",
+            group="Startup",
+            type="bool",
+            default="false",
+            legacy=(("general", "splashscreen"),),
+        ),
+        ConfigOption(
+            "confirm",
+            group="Exit",
+            type="bool",
+            default="false",
+        ),
+        ConfigOption(
+            "hide_quit_button",
+            group="Exit",
+            type="bool",
+            default="false",
+            aliases=("MMhideQuitButton",),
+            # The 2.x location, then the one 3.0 briefly used. The second is not
+            # compatibility for a shipped release - 3.0 has none - it is so an install
+            # that already ran a 3.0 build keeps the setting instead of silently
+            # defaulting. It can go once no such install is left.
+            legacy=(("Settings", "MMhideQuitButton"),),
+        ),
+        ConfigOption(
+            "mute_audio",
+            group="Audio",
+            type="bool",
+            default="false",
+            legacy=(("general", "muteaudio"),),
         ),
     ),
     *in_section(
         "themes",
+        # Which one is running, as against the two lists below, which say where themes
+        # are found. Installed themes, and still typeable: a theme can be dropped into
+        # place before this page has been reopened to notice it.
+        ConfigOption(
+            "active",
+            type="string",
+            default="Revolution",
+            suggest=SUGGEST_THEMES,
+            legacy=(("general", "theme"),),
+        ),
         ConfigOption(
             "registries",
             type="list",
@@ -586,7 +582,44 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     *in_section(
         "media",
         ConfigOption(
-            "default_missing_media_image",
+            "playfield_variant",
+            group="Playfield Artwork",
+            type="choice",
+            default="table",
+            choices=("table", "fss"),
+            legacy=(("Media", "playfieldvariant"),),
+        ),
+        ConfigOption(
+            "playfield_resolution",
+            group="Playfield Artwork",
+            type="choice",
+            default="4k",
+            choices=("4k", "1k"),
+            legacy=(("Media", "playfieldresolution"),),
+        ),
+        ConfigOption(
+            "playfield_video_resolution",
+            group="Playfield Artwork",
+            type="choice",
+            default="1k",
+            choices=("4k", "1k"),
+            legacy=(("Media", "playfieldvideoresolution"),),
+        ),
+        ConfigOption(
+            "browse_dirs",
+            group="Local Sources",
+            type="list",
+            default="",
+            legacy=(),
+        ),
+        ConfigOption(
+            "wheelset",
+            group="Wheels",
+            type="string",
+            default="",
+        ),
+        ConfigOption(
+            "default_missing_image",
             type="string",
             default="",
             aliases=("defaultmissingmediaimg",),
@@ -603,18 +636,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             default="",
             # Moved to library.json with the two kind lists, for the same reason.
             internal=True,
-        ),
-        ConfigOption(
-            "wheelset",
-            type="string",
-            default="",
-        ),
-        ConfigOption(
-            "realdmd_media_priority",
-            type="choice",
-            default="color",
-            choices=("color", "video", "image"),
-            aliases=("realdmdmediapriority",),
         ),
     ),
     *in_section(
@@ -637,6 +658,15 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             default="library,frontend,devices",
             aliases=("roles",),
         ),
+        ConfigOption(
+            "language",
+            type="choice",
+            # `auto` reads the operating system, which is right on a cabinet somebody
+            # set up in their own language and never opened this page.
+            default="auto",
+            choices=("auto",) + i18n.available(),
+            legacy=(("general", "language"),),
+        ),
     ),
     *in_section(
         "vpsdb",
@@ -657,6 +687,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ),
         ConfigOption(
             "refresh",
+            group="Virtual Pinball Spreadsheet",
             type="choice",
             default="daily",
             choices=("never", "daily", "weekly", "monthly"),
@@ -686,47 +717,47 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         "network",
         ConfigOption(
             "theme_assets_port",
-            group="What this install serves",
+            group="Local Services",
             type="int",
             default="8000",
             aliases=("themeassetsport",),
         ),
         ConfigOption(
             "theme_assets_bind",
-            group="What this install serves",
+            group="Local Services",
             type="string",
             default="127.0.0.1",
         ),
         ConfigOption(
             "ws_port",
-            group="What this install serves",
+            group="Local Services",
             type="int",
             default="8002",
             aliases=("wsport",),
         ),
         ConfigOption(
             "http_port",
-            group="What this install serves",
+            group="Local Services",
             type="int",
             default="8001",
             aliases=("hub_port", "manager_ui_port", "manageruiport"),
         ),
         ConfigOption(
             "library_url",
-            group="The library it reads",
+            group="Remote Services",
             type="string",
             default="",
             suggest=SUGGEST_LIBRARIES,
         ),
         ConfigOption(
             "verify_shared_library",
-            group="The library it reads",
+            group="Remote Services",
             type="bool",
             default="false",
         ),
         ConfigOption(
             "http_bind",
-            group="What this install serves",
+            group="Local Services",
             type="string",
             default="0.0.0.0",
             aliases=("hub_bind", "manager_ui_bind"),
@@ -735,20 +766,20 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     *in_section(
         "dof",
         ConfigOption(
-            "enable_dof",
+            "enabled",
             type="bool",
             default="false",
             aliases=("enabledof",),
         ),
         ConfigOption(
-            "dof_config_tool_api_key",
+            "config_tool_api_key",
             type="string",
             default="",
             aliases=("dofconfigtoolapikey",),
         ),
     ),
     *in_section(
-        "libdmdutil",
+        "real_dmd",
         ConfigOption(
             "enabled",
             type="bool",
@@ -780,7 +811,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ),
     ),
     *in_section(
-        "mobile",
+        "vpxmobile",
         ConfigOption(
             "device_ip",
             type="string",
@@ -800,13 +831,13 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             aliases=("chunksize",),
         ),
         ConfigOption(
-            "rename_mask_to_default_ini",
+            "send_masked_config",
             type="bool",
             default="false",
             aliases=("renamemasktodefaultini",),
         ),
         ConfigOption(
-            "rename_mask_to_default_ini_mask",
+            "config_mask",
             type="string",
             default="",
             aliases=("renamemasktodefaultinimask",),
@@ -919,9 +950,12 @@ def spellings(section: str, key: str) -> tuple[str, ...]:
 def by_key(key: str) -> ConfigOption | None:
     """Look up without knowing the section.
 
-    Safe because no key is used in two sections, which a test pins - and needed because
-    configparser lowercases option names on read, so a caller holding a key off the file
-    has neither the section nor the original casing.
+    Needed because configparser lowercases option names on read, so a caller holding a
+    key off the file has neither the section nor the original casing.
+
+    A key is not unique across sections - `screen_id` and `media_priority` are each in
+    several - so this answers with the first declared. Pass the section wherever you have
+    it; `label_for` says the same.
     """
     wanted = str(key or "").strip().lower()
     for candidate in CONFIG_OPTIONS:

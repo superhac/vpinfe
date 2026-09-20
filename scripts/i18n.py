@@ -21,8 +21,12 @@ PROSE_LEAVES = {"help", "description", "summary"}
 
 # Where a key can be written. A key built at runtime - `f"filter.{name}.label"` - is
 # found by its prefix, because the whole point of deriving it is that it is not typed out.
+# A prefix carries at least one dot, so `f"c{...}"` is not read as a namespace: as a
+# prefix, `c` matches every key beginning with it and the report goes quiet.
 KEY_TEXT = re.compile(r"""["']([a-z][a-z0-9_]*(?:\.[a-z0-9_{}]+)+)["']""")
-KEY_FSTRING = re.compile(r"""f["']([a-z][a-z0-9_]*(?:\.[a-z0-9_]*)*)\{""")
+KEY_FSTRING = re.compile(r"""f["']([a-z][a-z0-9_]*(?:\.[a-z0-9_]*)+)\{""")
+# `i18n.under("grid")` asks for a whole namespace at once and names no key in it.
+KEY_UNDER = re.compile(r"""under\(\s*["']([a-z][a-z0-9_.]*)["']""")
 
 
 def load(name):
@@ -48,6 +52,7 @@ def referenced():
         text = path.read_text(encoding="utf-8", errors="ignore")
         exact.update(KEY_TEXT.findall(text))
         prefixes.update(KEY_FSTRING.findall(text))
+        prefixes.update(f"{name.rstrip('.')}." for name in KEY_UNDER.findall(text))
     return exact, {p for p in prefixes if p}
 
 

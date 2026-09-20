@@ -44,16 +44,20 @@ CONFIG_SCHEMA = 2
 # (from, to, key) for options that changed section. Applied on every read, so an ini
 # written by any earlier build lands in the right place.
 _MOVED_OPTIONS = (
-    ('Settings', 'Displays', 'cabmode'),
+    # What the frontend shows, not what a screen is. Two hops because a 3.0 build already
+    # relocated it once, and the more recent location is listed first: `_move_option`
+    # keeps what it finds at the destination, so whichever runs first wins.
+    ('Displays', 'presentation', 'cabmode'),
+    ('Settings', 'presentation', 'cabmode'),
     ('Settings', 'DOF', 'enabledof'),
     ('Displays', 'Settings', 'splashscreen'),
     # `input` is which button does what; how far a press moves the wheel is what the
     # frontend does when one is pressed. Moved rather than declared afresh: a file
     # already holding these keeps its values, and the old entries go rather than
     # lingering as a second copy the settings page would render beside the new one.
-    ('input', 'frontend', 'paging_group'),
-    ('input', 'frontend', 'paging_size'),
-    ('lifecycle', 'frontend', 'confirm'),
+    ('input', 'behavior', 'paging_group'),
+    ('input', 'behavior', 'paging_size'),
+    ('lifecycle', 'behavior', 'confirm'),
 )
 
 
@@ -67,7 +71,7 @@ def _generate_machine_id(length: int = 64) -> str:
 # and the schema's own choices said otherwise. One entry today - `paging_group` is the
 # only choice option of twelve whose values moved - so this is a lookup, not a framework.
 _RENAMED_VALUES = {
-    ('frontend', 'paging_group'): config_schema.PAGING_GROUP_ALIASES,
+    ('behavior', 'paging_group'): config_schema.PAGING_GROUP_ALIASES,
 }
 
 # The same, for a setting that holds several values at once. Separate because a list is
@@ -282,18 +286,18 @@ class ConfigStore:
                                 ','.join(f for f in order if f in now))
                 changed = True
 
-        # `frontend.confirm` was a list of scopes and is a switch now. Anything naming a
+        # `behavior.confirm` was a list of scopes and is a switch now. Anything naming a
         # scope meant "ask me", so it becomes on; empty meant "never", so it becomes off.
         # Read rather than coerced: a stored "app,system" is not a boolean, and letting the
         # type conversion have it would answer no to someone who asked to be asked.
-        if self.config.has_option('frontend', 'confirm'):
-            raw = self.config.get('frontend', 'confirm').strip()
+        if self.config.has_option('behavior', 'confirm'):
+            raw = self.config.get('behavior', 'confirm').strip()
             if raw.lower() not in ('', 'true', 'false'):
                 announce('confirm-scopes-to-switch', raw)
-                self.config.set('frontend', 'confirm', 'true')
+                self.config.set('behavior', 'confirm', 'true')
                 changed = True
             elif not raw:
-                self.config.set('frontend', 'confirm', 'false')
+                self.config.set('behavior', 'confirm', 'false')
                 changed = True
 
         # Add any missing default options
@@ -312,9 +316,9 @@ class ConfigStore:
             changed = True
 
         # Normalize blank theme values back to the configured default.
-        current_theme = self.config.get('general', 'theme', fallback='').strip()
+        current_theme = self.config.get('themes', 'active', fallback='').strip()
         if not current_theme:
-            self.config.set('general', 'theme', self.defaults['general']['theme'])
+            self.config.set('themes', 'active', self.defaults['themes']['active'])
             changed = True
 
         # Migrate misspelled vpinplay.initals to vpinplay.initials if present.

@@ -46,15 +46,10 @@ KEPT_NOTE = ("What this library collects. Turning one off stops this install sho
 # coming up" is answered by seeing it sitting there off.
 SOURCES_NOTE = (t("console.settings.online_catalogs_searched_artwork"))
 
-# Everything VPS-shaped reads the local copy - matching, release lists, what a kind is
-# offered from - so this page is how fresh all of those answers are.
-VPS_NOTE = ("Matching, release lists and what the catalog offers are read from a copy "
-            "kept on this machine. Checking is cheap; the copy is only downloaded when "
-            "it has actually changed.")
+# The library's answer, not this install's, so two machines reading one library report
+# the same gaps. Turning one off stops it being counted, never fixes what it found.
+CHECKS_NOTE = t("console.settings.checks_note")
 
-# What each page will hold. Written out because an index whose destinations are unknown
-# is not a design, and because reading this list is the cheapest way to notice that a
-# page is in the wrong group.
 
 async def _write(library: Library, section: str, key: str, value: Any) -> bool:
     """One setting, written when it is set.
@@ -213,21 +208,18 @@ def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
 
 
 def _by_group(options: list[dict]) -> list[dict]:
-    """The section's settings gathered under their headings.
+    """The section's settings gathered under their headings, the ungrouped last.
 
-    Gathered rather than assumed contiguous: the schema declares settings in the order
-    they were added, so two of one group can end up either side of another, and a
-    renderer that emitted a heading on every change would print one twice.
-
-    The ungrouped come first, which is where a setting sits when it needs no explaining.
-    Groups follow in the order their first setting is declared, and within a group the
-    declaration order stands - so ordering a page is done by moving a line in the schema
-    rather than by keeping a second list in step with it.
+    Gathered rather than assumed contiguous: two settings of one group can be declared
+    either side of another, and a renderer emitting a heading on every change prints one
+    twice. Declaration order decides everything else, so a page is ordered by moving a
+    line in the schema.
     """
-    ordered: dict[str, list[dict]] = {"": []}
+    ordered: dict[str, list[dict]] = {}
     for option in options:
         ordered.setdefault(str(option.get("group") or ""), []).append(option)
-    return [option for group in ordered.values() for option in group]
+    loose = ordered.pop("", [])
+    return [option for group in ordered.values() for option in group] + loose
 
 
 def _saver(source: Any, section: str, key: str) -> Callable[[Any], Any]:
@@ -264,16 +256,21 @@ def _listed(value: Any) -> set[str]:
 
 async def _fill_kinds(library: Library, rerender: Callable[[], None], body: Any, note: str,
                       section: str, key: str,
-                      items: Callable[[Any], dict[str, str]], mode: str) -> None:
+                      items: Callable[[Any], dict[str, str]], mode: str) -> list:
+    """The switches, drawn into `body` - or returned when `body` is None, for a page that
+    orders them among its own settings rather than beside them."""
     try:
         # The library's, not this install's: two devices reading one library would otherwise
         # hold two answers to a question about one set of files.
         policy = await offload.io(library.library_policy)
         known = await offload.io(items, library)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
+        said = [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))]
+        if body is None:
+            return said
         with body:
-            panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))])
-        return
+            panel.facts(ui, said)
+        return said
 
     stored = _listed(policy.get(key))
     # An `enabled` list reads empty as everything, so what is on is the whole set until
@@ -300,11 +297,24 @@ async def _fill_kinds(library: Library, rerender: Callable[[], None], body: Any,
     def flipper(name: str) -> Callable[[Any], Any]:
         return lambda event: flip(name, bool(event.value))
 
-    entries: list[tuple[Any, Any]] = [panel.intro(note)]
+    entries: list[tuple[Any, Any]] = [panel.lede(note)]
     for name, label in sorted(known.items(), key=lambda pair: pair[1]):
         entries.append((label, panel.switch(name in on, flipper(name))))
+    if body is None:
+        return entries
     with body:
         panel.facts(ui, entries)
+    return entries
+
+
+async def _kind_rows(library: Library, rerender: Callable[[], None],
+                     page: str) -> list:
+    """One registry's switches as entries, for a page that orders them among its own."""
+    found = KIND_PAGES.get(page)
+    if found is None:
+        return []
+    note, _section, name, items, mode = found
+    return await _fill_kinds(library, rerender, None, note, "", name, items, mode)
 
 
 async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
@@ -334,7 +344,7 @@ async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tupl
             checking.dismiss()
         # "Already current" is the ordinary outcome and says itself; a positive toast
         # for it would make the rare one look the same as the common one.
-        ui.notify(t("console.settings.catalog_updated") if done.get("changed")
+        ui.notify(t("console.settings.vpsdb_updated") if done.get("changed")
                 else t("console.settings.already_date"),
                   type="positive" if done.get("changed") else "info")
         rerender()
@@ -348,8 +358,9 @@ async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tupl
                 .classes("console-fact-value truncate min-w-0")
             panel.action(t("console.settings.check_now"), now, icon="sync", inline=True)()
 
-    return [(panel.HEADING, t("console.settings.catalog")),
-            (t("console.settings.last_checked"), checked)]
+    # No heading of its own: the group above already names the catalog, and a second
+    # one here read as a separate subject.
+    return [(t("console.settings.last_checked"), checked)]
 
 
 async def _input_foot(library: Library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
@@ -367,15 +378,34 @@ async def _input_foot(library: Library, rerender: Callable[[], None]) -> list[tu
 # reading that answers a question its settings raise.
 FOOTERS: dict[str, Callable] = {"vpsdb": _vps_foot, "input": _input_foot}
 
+# page -> the line under its heading. Optional: a page whose name says the whole thing
+# takes none.
+PAGE_NOTES: dict[str, str] = {
+    "vpinfe.commands": "console.settings.run_whoever_vpinfe_running",
+    "frontend.table_commands": "console.settings.run_whoever_vpinfe_running",
+    "vpinfe.console": "console.settings.note_console",
+    "vpinfe.logger": "console.settings.note_logger",
+    "frontend.themes": "console.settings.note_themes",
+    "frontend.chromium": "console.settings.note_chromium",
+    "hardware.output": "console.settings.note_output",
+    "frontend.presentation": "console.settings.note_presentation",
+    "vpinfe.tools": "console.settings.note_tools",
+    "library.updates": "console.settings.note_updates",
+    "library.audit": "console.settings.note_audit",
+    "library.vpxmobile": "console.settings.note_vpxmobile",
+}
 
-def _checks_library() -> None:
-    from console.sections import CHECKS
-    entries: list[tuple[Any, Any]] = [panel.intro(
-        t("console.settings.each_check_runs_every"))]
-    for _, name, description, _pred in CHECKS:
-        entries.append((name, panel.switch(True, lambda e: None)))
-        entries.append(panel.note(description))
-    panel.facts(ui, entries)
+
+def page_head(key: str) -> None:
+    """A page's name above its settings, and the line saying what it is for.
+
+    `panel.header`'s treatment rather than a heading inside the panel: the cyan one is
+    for a group within a page, and using it for the page's own name ranked the two the
+    same.
+    """
+    said = PAGE_NOTES.get(key, "")
+    panel.header(_page_label(key), t(said) if said else "")
+
 
 # The two kind pages are not schema pages. What they switch is a *list* in the config,
 # and the switches themselves come from the two registries - which `common/` may not
@@ -394,30 +424,51 @@ KIND_PAGES: dict[str, tuple[str, str, str, Callable[[Any], dict[str, str]], str]
     "media_sources": (SOURCES_NOTE, "", "asset_sources",
                       lambda library: {s["id"]: s["name"]
                                        for s in library.media_sources()}, "enabled"),
+    "library_checks": (CHECKS_NOTE, "", "hidden_checks",
+                       lambda _: _check_labels(), "hidden"),
 }
 
-PAGES: dict[str, Callable[[], None]] = {
-    "checks_library": _checks_library,
-}
+
+def _check_labels() -> dict[str, str]:
+    from console.sections import CHECKS
+    return {key: name for key, name, _description, _predicate in CHECKS}
+
+PAGES: dict[str, Callable[[], None]] = {}
 
 
 
 def _page_label(key: str) -> str:
-    """A page's name, from the one place it is written."""
-    found = next((label for _group, pages in DEVICE_INDEX
-                  for item, label, _kind, _sections, _feature in pages if item == key), "")
+    """A page's name, from the one place it is written.
+
+    Identity is searched too: it is pinned by `system_pages` rather than declared in the
+    index, so looking only at the index answered a page the rail draws with its own key.
+    """
+    pages = [page for _group, group_pages in DEVICE_INDEX for page in group_pages]
+    pages.append(IDENTITY_PAGE)
+    found = next((label for item, label, _kind, _sections, _feature in pages
+                  if item == key), "")
     return t(found) if found else key
+
+
+# A section that heads a page shared with others, where the key makes a poor heading:
+# `windows.playfield` humanizes to "Windows Playfield", and the screen is the Playfield.
+SECTION_LABELS: dict[str, str] = {
+    "windows.playfield": "console.settings.section_playfield",
+    "real_dmd": "console.settings.section_real_dmd",
+    "windows.backglass": "console.settings.section_backglass",
+    "windows.score_view": "console.settings.section_score_view",
+}
 
 
 def _section_label(key: str) -> str:
     """What to call a config section on screen.
 
-    A page's own name where a page is that one section, otherwise the key made readable.
-    `windows.playfield` is two words joined by a dot, and humanize alone leaves the dot.
+    A page's own name where a page is that one section, otherwise a declared heading,
+    otherwise the key made readable.
     """
     named = next((label for _group, pages in DEVICE_INDEX
                   for _item, label, _kind, sections, _feature in pages
-                  if sections == (key,)), "")
+                  if sections == (key,)), "") or SECTION_LABELS.get(key, "")
     return t(named) if named else " ".join(humanize(part) for part in key.split("."))
 
 
@@ -437,42 +488,65 @@ SCHEMA_PAGE, KIND_PAGE, BUILT_PAGE = "schema", "kind", "built"
 DevicePage = tuple[str, str, str, tuple[str, ...], str]
 
 DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
-    ("console.settings.group_library", (
-        ("media_kinds", "console.settings.page_media_kinds", KIND_PAGE, (), "library"),
-        ("asset_kinds", "console.settings.page_asset_kinds", KIND_PAGE, (), "library"),
-        ("media_sources", "console.settings.page_media_sources", KIND_PAGE, (), "library"),
-        ("checks_library", "console.settings.page_checks_library", BUILT_PAGE, (), "library"),
-    )),
-    ("console.settings.group_hardware", (
-        ("displays", "console.settings.page_displays", SCHEMA_PAGE,
-         ("displays", "windows.playfield", "windows.backglass", "windows.scoreview"),
-         "frontend"),
-        ("input", "console.settings.page_input", SCHEMA_PAGE, ("input",), "frontend"),
-        ("feedback", "console.settings.page_feedback", SCHEMA_PAGE, ("dof", "libdmdutil"),
-                "frontend"),
-    )),
-    ("console.settings.group_vpinfe",
-            (
-        ("general", "console.settings.page_general", SCHEMA_PAGE, ("general",),
-                 install_identity.CORE),
-        ("network", "console.settings.page_network", SCHEMA_PAGE, ("network",),
+    # The install itself, as against the cabinet it drives, what a player sees, what it
+    # collects and what it talks to. Identity leads it and is pinned by `system_pages`.
+    ("console.settings.group_vpinfe", (
+        ("vpinfe.network", "console.settings.page_network", SCHEMA_PAGE, ("network",),
                  install_identity.CORE),
         # How much is written down and where it goes. The records themselves are a
         # place of their own under System, so this page is named for the act rather
         # than for them - two things called Logs is one too many.
-        ("logging", "console.settings.page_logging", SCHEMA_PAGE, ("logger",),
+        ("vpinfe.logger", "console.settings.page_logger", SCHEMA_PAGE, ("logger",),
                  install_identity.CORE),
-        ("frontend", "console.settings.page_frontend", SCHEMA_PAGE, ("frontend",), "frontend"),
-        ("media", "console.settings.page_media", SCHEMA_PAGE, ("media",), "library"),
+        ("vpinfe.console", "console.settings.page_console", SCHEMA_PAGE, ("console",),
+                 install_identity.CORE),
+        ("vpinfe.commands", "console.settings.page_commands", SCHEMA_PAGE, ("commands",),
+                 "frontend"),
+        # This install's, not the library's: nvtop answers Metrics and ffmpeg would
+        # answer media, so an OS dependency belongs to the machine that has to have it.
+        ("vpinfe.tools", "console.settings.page_tools", SCHEMA_PAGE, ("tools",),
+                 install_identity.CORE),
     )),
-    ("console.settings.group_integrations",
-            (
-        ("vps", "console.settings.page_vps", SCHEMA_PAGE, ("vpsdb",), "library"),
-        ("vpinplay", "console.settings.page_vpinplay", SCHEMA_PAGE, ("vpinplay",),
-                 install_identity.CORE),
-        ("mobile", "console.settings.page_mobile", SCHEMA_PAGE, ("mobile",), "devices"),
+    ("console.settings.group_hardware", (
+        ("hardware.displays", "console.settings.page_displays", SCHEMA_PAGE,
+         ("windows.playfield", "windows.backglass", "windows.score_view", "real_dmd"),
+         "frontend"),
+        ("hardware.input", "console.settings.page_input", SCHEMA_PAGE, ("input",), "frontend"),
+        ("hardware.output", "console.settings.page_output", SCHEMA_PAGE, ("dof",), "frontend"),
+    )),
+    ("console.settings.group_library", (
+        ("library.media", "console.settings.page_media", SCHEMA_PAGE, ("media",), "library"),
+        ("library.assets", "console.settings.page_assets", SCHEMA_PAGE, ("assets",), "library"),
+        ("library.audit", "console.settings.page_audit", SCHEMA_PAGE,
+                ("vpsdb",), "library"),
+        ("library.updates", "console.settings.page_updates", SCHEMA_PAGE, ("updates",),
+                "library"),
+        ("library.vpxmobile", "console.settings.page_vpxmobile", SCHEMA_PAGE, ("vpxmobile",),
+                "devices"),
+    )),
+    ("console.settings.group_frontend", (
+        ("frontend.presentation", "console.settings.page_presentation", SCHEMA_PAGE,
+                ("presentation",), "frontend"),
+        ("frontend.behavior", "console.settings.page_behavior", SCHEMA_PAGE, ("behavior",),
+                "frontend"),
+        ("frontend.themes", "console.settings.page_themes", SCHEMA_PAGE, ("themes",), "frontend"),
+        ("frontend.table_commands", "console.settings.page_table_commands", SCHEMA_PAGE,
+                ("table_commands",), "frontend"),
+        ("frontend.chromium", "console.settings.page_chromium", SCHEMA_PAGE, ("chromium",),
+                "frontend"),
     )),
 )
+
+# A schema page that also draws switches from a registry, ordered among its settings
+# rather than beside them.
+# page -> ((registry, its heading, the schema heading it sits above), ...). An empty
+# third entry puts the block at the foot.
+PAGE_KINDS: dict[str, tuple[tuple[str, str, str], ...]] = {
+    "library.audit": (("library_checks", "console.settings.heading_reporting", ""),),
+    "library.media": (("media_kinds", "console.settings.heading_kinds", "Local Sources"),
+              ("media_sources", "console.settings.heading_online_sources", "Wheels")),
+    "library.assets": (("asset_kinds", "console.settings.heading_kinds", "Local Sources"),),
+}
 
 
 def pages_for_features(features: Any) -> list[tuple[str, DevicePage]]:
@@ -520,19 +594,19 @@ def features_said(features: Any) -> str:
                      if str(name) != install_identity.CORE)
 
 
-IDENTITY = "identity"
+IDENTITY = "vpinfe.install"
 
 # The one page that is pinned rather than filtered: this is where features are switched
 # on, so an install with none still has a way to fix itself from inside. Not a schema
 # page - `features` is a list in the file and a closed set on screen, and a
 # comma-separated text field is the wrong control for that.
-IDENTITY_PAGE: DevicePage = (IDENTITY, "word.identity", BUILT_PAGE,
+IDENTITY_PAGE: DevicePage = (IDENTITY, "console.settings.page_install", BUILT_PAGE,
                              ("install",),
                              install_identity.CORE)
 
-# What the Identity page's group is called. This install, as against the Library group
-# below it, which is about the games rather than about the machine.
-IDENTITY_GROUP = "console.settings.install"
+# The same group the rest of the install's own pages are in, so it leads them rather than
+# sitting in a group of one. `system_pages` puts it first and nothing filters it.
+IDENTITY_GROUP = "console.settings.group_vpinfe"
 
 
 def system_pages(features: Any) -> list[tuple[str, DevicePage]]:
@@ -649,17 +723,15 @@ def section_rows(source: Any, section: str, options: list[dict], values: dict,
     entries: list[tuple[Any, Any]] = []
     if not writable:
         entries.append(panel.intro(t("console.settings.read_install")))
+
+    names_groups = any(option.get("group") for option in options)
     heading = ""
     for option in _by_group(options):
         group = str(option.get("group") or "")
+        if not group and names_groups:
+            group = t("console.settings.group_other")
         if group and group != heading:
             entries.append((panel.HEADING, group))
-            if group == t("console.settings.commands"):
-                # Said here rather than left to be discovered. It is already true - a
-                # launcher points at an arbitrary program - but this is the setting that
-                # makes it obvious, and it matters if the reach of this page ever changes.
-                entries.append(panel.note(
-                    t("console.settings.run_whoever_vpinfe_running")))
         heading = group
         value = current.get(option["key"], option.get("default"))
         entries.append((option.get("label") or humanize(option["key"]),
@@ -674,9 +746,9 @@ def section_rows(source: Any, section: str, options: list[dict], values: dict,
             entries.append(panel.note(option["description"]))
         # Under the last field of a pair, where somebody has just read what it does and
         # is about to type into it.
-        if option["key"] == "on_vpinfe_exit":
+        if section == "commands" and option["key"] == "on_vpinfe_exit":
             entries.append(commands_help.offered(tokens.VPINFE))
-        elif option["key"] == "on_table_exit":
+        elif section == "table_commands" and option["key"] == "on_exit":
             entries.append(commands_help.offered(tokens.TABLE))
     return entries
 
@@ -684,7 +756,8 @@ def section_rows(source: Any, section: str, options: list[dict], values: dict,
 async def build_device_page(source: Any, context: dict[str, Any], schema: list[dict],
                             values: dict, sections: tuple[str, ...],
                             checks: dict[tuple[str, str], dict] | None = None,
-                            suggestions: dict[str, Any] | None = None) -> None:
+                            suggestions: dict[str, Any] | None = None,
+                            blocks: list[tuple[str, list]] | None = None) -> None:
     """One page of a device's settings, drawn exactly as this install's are.
 
     Several config sections can make one page - a machine's screens are four of them -
@@ -702,18 +775,16 @@ async def build_device_page(source: Any, context: dict[str, Any], schema: list[d
         if rebuild is not None:
             ui.timer(0.01, rebuild, once=True)
 
-    blocks = [block for block in schema
-              if str(block.get("name")) in sections and block.get("options")]
-    if not blocks:
+    drawn = [block for block in schema
+             if str(block.get("name")) in sections and block.get("options")]
+    if not drawn:
         panel.facts(ui, [panel.intro(t("console.settings.device_declares_nothing_page"))])
         return
 
     entries: list[tuple[Any, Any]] = []
-    for block in blocks:
+    for block in drawn:
         name = str(block.get("name"))
-        # A heading only where the page draws more than one section: over a page that
-        # is one section it would name the page a second time.
-        if len(blocks) > 1:
+        if len(drawn) > 1:
             entries.append((panel.HEADING, _section_label(name)))
         entries += section_rows(source, name, block["options"], values,
                                 bool(block.get("writable")), rerender, checks,
@@ -724,7 +795,20 @@ async def build_device_page(source: Any, context: dict[str, Any], schema: list[d
         foot = FOOTERS.get(name)
         if foot is not None and source is context.get("library"):
             entries += await foot(source, rerender)
-    panel.facts(ui, entries)
+    panel.facts(ui, _spliced(entries, blocks or []))
+
+
+def _spliced(entries: list, blocks: list[tuple[str, list]]) -> list:
+    """Registry blocks put above the heading each one names, or at the foot.
+
+    By heading rather than by index: a block says which part of the page it belongs
+    above, and moving a setting in the schema moves the heading with it.
+    """
+    for above, rows in blocks:
+        at = next((i for i, one in enumerate(entries)
+                   if one[0] is panel.HEADING and str(one[1]) == above), len(entries))
+        entries = entries[:at] + rows + entries[at:]
+    return entries
 
 
 
@@ -771,7 +855,8 @@ def build_system(library: Library, state: dict[str, Any], redraw: Callable[[], N
 
     work = panel.sections(entries, chosen, pick, rail_px=RAIL_PX)
     with work:
-        body = ui.column().classes("min-w-0 overflow-auto gap-0 console-workbench-body")
+        body = ui.column().classes("min-w-0 overflow-auto gap-0 console-workbench-body "
+                                   "console-settings-body")
     # On a timer, because a page reads the schema and the values over HTTP and the draw
     # it is part of runs on the event loop, where the client refuses a call.
     ui.timer(0.01,
@@ -793,11 +878,13 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
     key, _label, kind, sections, _feature = page
     if key == IDENTITY:
         with body:
+            page_head(key)
             await _identity_page(library, str(discovery.get("display_name") or ""),
                                  redraw)
         return
     if kind != SCHEMA_PAGE:
         with body:
+            page_head(key)
             build_library_page(library, redraw, key, kind)
         return
     try:
@@ -809,11 +896,16 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
         with body:
             panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))])
         return
+    blocks = []
+    for registry, heading, above in PAGE_KINDS.get(key, ()):
+        rows = await _kind_rows(library, redraw, registry)
+        blocks.append((above, [(panel.HEADING, t(heading)), *rows]))
     with body:
+        page_head(key)
         await build_device_page(library, {"library": library, "rebuild": redraw},
                                 schema, values, sections,
                                 checks=field_marks(trouble, checks),
-                                suggestions=offered)
+                                suggestions=offered, blocks=blocks)
 
 
 async def _suggestions(library: Library, schema: list[dict],
@@ -897,6 +989,12 @@ async def _identity_page(library: Library, reported: str,
     def flipper(name: str) -> Callable[[Any], Any]:
         return lambda event: flip(name, bool(event.value))
 
+    language = config_schema.option("install", "language")
+
+    async def relanguage(event: Any) -> None:
+        if await _write(library, "install", "language", event.value):
+            _take_the_page_again()
+
     entries: list[tuple[Any, Any]] = [
         # The name it reports with nothing set is its hostname, so the placeholder is
         # that answer rather than the word for it.
@@ -904,6 +1002,15 @@ async def _identity_page(library: Library, reported: str,
                                                  rename,
                              placeholder=reported)),
         panel.note(t("console.settings.what_install_called_where")),
+    ]
+    if language is not None:
+        entries.append((language.label or humanize(language.key),
+                        panel.select(list(language.choices),
+                                     str(held.get("language") or language.default),
+                                     relanguage)))
+        if language.description:
+            entries.append(panel.note(language.description))
+    entries += [
         (panel.HEADING, t("console.settings.features")),
         panel.intro(t("console.settings.what_install_each_one")),
     ]

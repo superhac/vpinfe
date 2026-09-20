@@ -16,7 +16,7 @@ logger = logging.getLogger("vpinfe.common.device_migration")
 # 2.x could hold one mobile device, as two keys in [mobile]. It becomes a registry entry,
 # after which several can coexist and the keys are read by nothing.
 MOBILE_MIGRATION = "mobile_ini_becomes_a_device"
-MOBILE_SECTION = "mobile"
+MOBILE_SECTION = "vpxmobile"
 MOBILE_DISPLAY_NAME = "VPX Mobile"
 DEFAULT_MOBILE_PORT = 2112
 

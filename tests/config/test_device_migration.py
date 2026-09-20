@@ -21,9 +21,9 @@ from common.device_registry import DeviceRegistry
 
 def _config(**mobile) -> ConfigParser:
     parser = ConfigParser()
-    parser.add_section("mobile")
+    parser.add_section("vpxmobile")
     for key, value in mobile.items():
-        parser.set("mobile", key, str(value))
+        parser.set("vpxmobile", key, str(value))
     return parser
 
 

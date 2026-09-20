@@ -96,7 +96,7 @@ class LastLaunchedTests(unittest.TestCase):
     def test_disabled_skips_save_and_resolve(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            config.config.set("frontend", "restore_last_table", "false")
+            config.config.set("behavior", "restore_last_table", "false")
             entries = [_entry("Tbl1111111"), _entry("Tbl2222222")]
 
             last_game.save_last_launched(config, entries[1].game, "Tbl2222222")

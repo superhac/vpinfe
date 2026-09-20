@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import re
+import weakref
+from typing import Any
 
 from nicegui import ui
 
@@ -206,13 +208,16 @@ _SYNTHWAVE = """
      surface in a neutral mode. */
   --header-bg: linear-gradient(135deg, var(--flair) 0%, #4a1e7c 50%,
                var(--surface-0) 100%);
-  --nav-bg: linear-gradient(180deg, var(--flair) 0px, #4a1e7c 60px, var(--surface-2) 90px,
+  /* Two colour pairs, one fade. The hues differ per pane on purpose; the stops do not -
+     0px, the 48px header's foot, the pane's surface 24px later. Each keeps only the
+     tail its own pane needs. */
+  --nav-bg: linear-gradient(180deg, var(--flair) 0px, #4a1e7c 48px, var(--surface-2) 72px,
             var(--surface-sunken) 100%);
-  --workbench-bg: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 44px,
+  --workbench-bg: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 48px,
                   var(--surface-1) 72px, var(--surface-1) 80px, transparent 80px);
   /* The same band without the transparent tail, for the rail's copy, which has nothing
      below it to show through to. */
-  --workbench-bg-rail: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 44px,
+  --workbench-bg-rail: linear-gradient(180deg, #4a1e7c 0px, #2a1a52 48px,
                        var(--surface-1) 72px);
   /* A card is a panel with a little depth in it rather than a flat plate. */
   --card-bg: linear-gradient(180deg, rgba(26, 15, 53, 0.75) 0%, rgba(15, 7, 34, 0.75) 100%);
@@ -485,6 +490,14 @@ _STRUCTURE = """
      should cost its own row two lines, not push every control on the page away from the
      label naming it. The pane's labels sit under this and never wrap. */
   --label-max: 200px;
+
+  /* The measure: how wide anything holding words may get. A control wider than the
+     value it expects invites the wrong answer and costs the eye a journey to find where
+     the value ends, and a line of help past this is hard to read whatever it is about.
+     One number for controls and their help, so the column has a single right edge.
+     In rem, not ch: `ch` is the element's own font size, so the same 62ch is two
+     different widths on a control and on the caption under it. */
+  --measure: 30rem;
   /* The floor under a select, for the caret and the longest option name a set happens
      to hold. Text stretches because what you type has no length; a closed list of named
      things does not. */
@@ -517,7 +530,7 @@ QUASAR_DARK = {"synthwave": True, "dark": True, "light": False, SYSTEM: None}
 
 # Where the install's choice is stored. Config rather than the browser: it belongs to
 # the install as a whole and the Console has no accounts to hang it on.
-MODE_SECTION, MODE_KEY = "general", "console_theme"
+MODE_SECTION, MODE_KEY = "console", "theme"
 
 
 def mode_or_default(name: str) -> str:
@@ -557,7 +570,9 @@ def palette_css(mode: str = DEFAULT_MODE) -> str:
                    + PALETTES[palette] + "}\n" + _quasar_vars(palette) + "}\n"
                    for prefers, palette in SYSTEM_PALETTES.items()]
         return "".join(blocks)
-    return ":root {" + PALETTES[mode] + _STRUCTURE + "}\n"
+    # The brand as CSS for every mode, not only the one that cannot be handed a value.
+    # One delivery path is what lets a mode change under a live page.
+    return ":root {" + PALETTES[mode] + _STRUCTURE + "}\n" + _quasar_vars(mode)
 
 
 # Where the rules live, and where they are served from. Through `bundled` rather than
@@ -596,6 +611,34 @@ def _base_href() -> str:
 BASE_HREF = _base_href()
 
 
+# The one element the palette lives in, so a change rewrites it rather than stacking a
+# second block that has to outrank the first.
+PALETTE_ID = "console-palette"
+
+# Per client: the switch that tells Quasar to style its own components dark.
+_DARK_SWITCH: weakref.WeakKeyDictionary[Any, Any] = weakref.WeakKeyDictionary()
+
+
+def apply_mode(mode: str = DEFAULT_MODE) -> None:
+    """The palette, the rules and Quasar's dark switch. Once, as a page is built."""
+    _DARK_SWITCH[ui.context.client] = ui.dark_mode(QUASAR_DARK[mode])
+    apply_flair(mode)
+
+
+def repaint(mode: str) -> None:
+    """Change the mode under a live page, with nothing else redrawn.
+
+    The palette is custom properties and the brand is `--q-*`, so every surface already
+    reading them follows without being rebuilt.
+    """
+    dark = _DARK_SWITCH.get(ui.context.client)
+    if dark is not None:
+        dark.value = QUASAR_DARK[mode]
+    ui.run_javascript(
+        f"document.getElementById({json.dumps(PALETTE_ID)}).textContent = "
+        f"{json.dumps(palette_css(mode))};")
+
+
 def apply_flair(mode: str = DEFAULT_MODE) -> None:
     """The palette in the page, the rules from a file.
 
@@ -608,7 +651,7 @@ def apply_flair(mode: str = DEFAULT_MODE) -> None:
     file states rules, so neither can outrank the other: a custom property is resolved
     where it is used, not where it is declared.
     """
-    ui.add_css(palette_css(mode))
+    ui.add_head_html(f'<style id="{PALETTE_ID}">{palette_css(mode)}</style>')
     ui.add_head_html(f'<link rel="stylesheet" href="{BASE_HREF}">')
 
 

@@ -2488,7 +2488,7 @@ def _tables_block(context: dict[str, Any]) -> None:
     # Only where there is a choice to describe. A count beside one row says nothing.
     said = t("console.workbench.tables_2", count=(len(tables))) if len(tables) > 1 \
         else t("console.workbench.table_3")
-    with ui.row().classes("items-center gap-2 w-full no-wrap"):
+    with ui.row().classes("items-center gap-2 w-full no-wrap console-heading-row"):
         ui.label(said if tables else t("console.workbench.tables")) \
             .classes("console-card-title console-fact-heading grow")
         # Beside the list rather than hidden in a menu, and drawn even where the list
@@ -2512,44 +2512,58 @@ def _tables_block(context: dict[str, Any]) -> None:
         since = str(table.get("absent_since") or "")
         here = str(table.get("id") or "") == showing
         with ui.column().classes("gap-0 w-full console-member-row"):
-            with ui.row().classes("items-center gap-2 w-full no-wrap"):
+            # Chips gathered before anything is drawn: they wrap under the name rather
+            # than competing with it for the line, and an empty run must draw no row.
+            chips: list[tuple[str, str, str]] = []
+            if since:
+                # Stated, not judged: how long it has been gone is what tells a
+                # deletion from a share that was late mounting, and that call is
+                # the user's.
+                chips.append((game_tables.word_for(game_tables.FILE_WORDS, True),
+                              "console-tier console-tier--warn",
+                              t("console.workbench.not_disk_since", value=(since[:10]))))
+            elif table.get("default"):
+                # Qualifies *the default*, so it belongs only where there is one -
+                # the mark has already said which row that is, and "how was it
+                # decided" is not a question a non-default table answers.
+                say = game_tables.default_state(table.get("default_kind") or "")
+                if say:
+                    chips.append((say[0], "console-chip-quiet", say[1]))
+            # On every row that has one, because which program plays a file is
+            # exactly what separates a VPX build from a Future Pinball one - it
+            # used to appear only where the game had a single table, which is when
+            # it distinguishes nothing.
+            launcher = str(table.get("launcher_name") or "")
+            if launcher:
+                chips.append((launcher, "console-tier console-tier--off", ""))
+
+            with ui.row().classes("items-start gap-2 w-full no-wrap"):
                 # On every row, and leading. `docs/conventions.md`: show varying state
                 # on every row rather than let a reader take meaning from absence -
                 # which is what a chip on the default alone asked them to do. A game
                 # has exactly one default, so the control that says so is a radio.
                 _default_mark(context, table, since=since)
-                name = ui.label(game_tables.table_name(table)) \
-                    .classes("console-member-name grow min-w-0 truncate") \
-                    .tooltip(str(table.get("filename") or ""))
-                # Which of them the panel beside this is about. Without it the block
-                # repeats the grid you are already looking at; with it, it is where
-                # you are - this game has two, you are on one, that one is default.
-                if here:
-                    name.classes(add="console-member-name--here")
-                if since:
-                    # Stated, not judged: how long it has been gone is what tells a
-                    # deletion from a share that was late mounting, and that call is
-                    # the user's.
-                    name.classes(add="opacity-60")
-                    ui.label(game_tables.word_for(game_tables.FILE_WORDS, True)) \
-                        .classes("console-member-chip console-tier console-tier--warn") \
-                        .tooltip(t("console.workbench.not_disk_since", value=(since[:10])))
-                elif table.get("default"):
-                    # Qualifies *the default*, so it belongs only where there is one -
-                    # the mark has already said which row that is, and "how was it
-                    # decided" is not a question a non-default table answers.
-                    say = game_tables.default_state(table.get("default_kind") or "")
-                    if say:
-                        ui.label(say[0]).classes("console-member-chip console-chip-quiet") \
-                            .tooltip(say[1])
-                # On every row that has one, because which program plays a file is
-                # exactly what separates a VPX build from a Future Pinball one - it
-                # used to appear only where the game had a single table, which is when
-                # it distinguishes nothing.
-                launcher = str(table.get("launcher_name") or "")
-                if launcher:
-                    ui.label(launcher) \
-                        .classes("console-member-chip console-tier console-tier--off")
+                # The name and what qualifies it on one line, wrapping only when the
+                # line runs out - and wrapping onto the name's own left edge rather
+                # than the radio's, because they belong to the name. One unwrapped row
+                # spent the name's width on the chips and left a file called "VP..."
+                # to tell two builds apart.
+                with ui.row().classes("items-center gap-2 grow min-w-0 "
+                                      "console-member-main"):
+                    name = ui.label(game_tables.table_name(table)) \
+                        .classes("console-member-name min-w-0 truncate") \
+                        .tooltip(str(table.get("filename") or ""))
+                    # Which of them the panel beside this is about. Without it the block
+                    # repeats the grid you are already looking at; with it, it is where
+                    # you are - this game has two, you are on one, that one is default.
+                    if here:
+                        name.classes(add="console-member-name--here")
+                    if since:
+                        name.classes(add="opacity-60")
+                    for text, tone, why in chips:
+                        chip = ui.label(text).classes(f"console-member-chip {tone}")
+                        if why:
+                            chip.tooltip(why)
                 with ui.element("div").classes("console-row-action"):
                     if game_tables.is_referenced(table):
                         ui.button(icon="south_west",

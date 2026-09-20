@@ -12,6 +12,7 @@ is tested for the one thing only it does, which is turning a refusal into a stat
 from __future__ import annotations
 
 import unittest
+import unittest.mock
 
 from fastapi.testclient import TestClient
 
@@ -63,11 +64,11 @@ class ConfigServiceTests(unittest.TestCase):
         self.assertTrue(internal, "expected some internal options to exist")
         self.assertFalse(served & internal)
 
-    def test_theme_sources_are_described_but_not_writable(self):
+    def test_theme_sources_are_writable(self):
         sections = {s["name"]: s for s in config_service.schema()["sections"]}
-        self.assertIn("themes", sections, "a client should still see they exist")
-        self.assertFalse(sections["themes"]["writable"])
-        self.assertTrue(all(not o["writable"] for o in sections["themes"]["options"]))
+        self.assertIn("themes", sections)
+        self.assertTrue(sections["themes"]["writable"])
+        self.assertTrue(all(o["writable"] for o in sections["themes"]["options"]))
 
     # --- writes ---------------------------------------------------------------
 
@@ -93,12 +94,20 @@ class ConfigServiceTests(unittest.TestCase):
         self.assertEqual(self.store.written, {})
         self.assertEqual(self.store.saves, 0)
 
-    def test_a_theme_source_is_refused(self):
-        with self.assertRaises(config_service.ReadOnlySettingsError) as caught:
-            config_service.set_values({"themes": {"registries": "http://elsewhere"}})
+    def test_a_theme_source_is_written(self):
+        config_service.set_values({"themes": {"registries": "http://elsewhere"}})
+        self.assertIn(("themes", "registries"), self.store.written)
+
+    def test_nothing_is_read_only_and_the_refusal_still_works(self):
+        """The set is empty, not gone: the path that refuses a write is what a later
+        origin check reuses, so it is exercised rather than left to rot."""
+        self.assertEqual(config_service.READ_ONLY_SECTIONS, frozenset())
+        with unittest.mock.patch.object(config_service, "READ_ONLY_SECTIONS",
+                                        frozenset({"themes"})):
+            with self.assertRaises(config_service.ReadOnlySettingsError) as caught:
+                config_service.set_values({"themes": {"registries": "http://elsewhere"}})
         self.assertEqual(caught.exception.keys, ["themes.registries"])
         self.assertEqual(self.store.written, {})
-        self.assertEqual(self.store.saves, 0)
 
     def test_an_empty_patch_writes_nothing(self):
         config_service.set_values({})
@@ -140,11 +149,10 @@ class ConfigRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400, response.text)
         self.assertIn("not_a_setting", response.text)
 
-    def test_a_theme_source_is_a_bad_request_naming_it(self):
+    def test_a_theme_source_is_accepted(self):
         response = self.client.put("/config",
                                    json={"themes": {"registries": "http://elsewhere"}})
-        self.assertEqual(response.status_code, 400, response.text)
-        self.assertIn("themes.registries", response.text)
+        self.assertEqual(response.status_code, 200, response.text)
 
 
 if __name__ == "__main__":

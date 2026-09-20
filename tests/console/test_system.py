@@ -144,18 +144,18 @@ class SystemIndexTests(unittest.TestCase):
     def test_a_page_belonging_to_a_feature_goes_with_it(self) -> None:
         held = _pages([install_identity.DEVICES])
 
-        self.assertNotIn("media_kinds", held)
-        self.assertNotIn("displays", held)
-        self.assertIn("mobile", held)
+        self.assertNotIn("library.media", held)
+        self.assertNotIn("hardware.displays", held)
+        self.assertIn("library.vpxmobile", held)
 
     def test_the_install_wide_pages_are_always_offered(self) -> None:
         """They name `core`, which is how a page says it is here on every install
         rather than leaving that to an empty string a reader has to know about."""
         held = _pages([install_identity.DEVICES])
 
-        self.assertIn("general", held)
-        self.assertIn("network", held)
-        self.assertIn("logging", held)
+        self.assertIn("vpinfe.console", held)
+        self.assertIn("vpinfe.network", held)
+        self.assertIn("vpinfe.logger", held)
 
     def test_every_page_names_a_feature(self) -> None:
         """`core` where it belongs to the install as a whole. An unnamed one would be
@@ -170,8 +170,8 @@ class SystemIndexTests(unittest.TestCase):
         """The whole point of `core`: the screen that switches a feature back on is the
         one screen an install with everything off still has."""
         self.assertEqual(_pages([install_identity.CORE]),
-                         [settings_page.IDENTITY, "general", "network", "logging",
-                          "vpinplay"])
+                         [settings_page.IDENTITY, "vpinfe.network", "vpinfe.logger",
+                          "vpinfe.console", "vpinfe.tools"])
 
 
 class AddressTests(unittest.TestCase):
@@ -198,9 +198,9 @@ class TroubleTests(unittest.TestCase):
                                     key=key, state=state, reason="Nothing is there.")
 
     def test_a_requirement_is_keyed_by_the_page_that_holds_it(self) -> None:
-        held = settings_page.pages_in_trouble([self._unmet("general", "vpx_bin_path")])
+        held = settings_page.pages_in_trouble([self._unmet("network", "library_url")])
 
-        self.assertEqual(list(held), ["general"])
+        self.assertEqual(list(held), ["vpinfe.network"])
 
     def test_a_setting_on_no_page_is_dropped_rather_than_counted(self) -> None:
         """A badge that leads nowhere is worse than no badge."""

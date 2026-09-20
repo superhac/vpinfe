@@ -483,32 +483,32 @@ def _build_web_send_panel():
     saved_ip = cfg_get(cfg, 'Mobile', 'device_ip', '').strip()
     saved_port = cfg_get(cfg, 'Mobile', 'device_port', '2112').strip()
     saved_chunk = cfg_get(cfg, 'Mobile', 'chunk_size', '1048576').strip()
-    saved_rename_mask = cfg_get(cfg, 'Mobile', 'rename_mask_to_default_ini', 'false').strip().lower() == 'true'
-    saved_rename_mask_value = cfg_get(cfg, 'Mobile', 'rename_mask_to_default_ini_mask', '').strip()
+    saved_rename_mask = cfg_get(cfg, 'vpxmobile', 'send_masked_config', 'false').strip().lower() == 'true'
+    saved_rename_mask_value = cfg_get(cfg, 'vpxmobile', 'config_mask', '').strip()
 
     def _save_ip(e):
         ip_val = e.value.strip() if e.value else ''
-        cfg_set(cfg, 'mobile', 'device_ip', ip_val)
+        cfg_set(cfg, 'vpxmobile', 'device_ip', ip_val)
         cfg.save()
 
     def _save_port(e):
         port_val = e.value.strip() if e.value else '2112'
-        cfg_set(cfg, 'mobile', 'device_port', port_val)
+        cfg_set(cfg, 'vpxmobile', 'device_port', port_val)
         cfg.save()
 
     def _save_chunk(e):
         chunk_val = e.value.strip() if e.value else '1048576'
-        cfg_set(cfg, 'mobile', 'chunk_size', chunk_val)
+        cfg_set(cfg, 'vpxmobile', 'chunk_size', chunk_val)
         cfg.save()
 
     def _save_rename_mask_enabled(e):
         enabled_val = bool(e.value)
-        cfg_set(cfg, 'mobile', 'rename_mask_to_default_ini', bool(enabled_val))
+        cfg_set(cfg, 'vpxmobile', 'send_masked_config', bool(enabled_val))
         cfg.save()
 
     def _save_rename_mask_value(e):
         mask_val = e.value.strip() if e.value else ''
-        cfg_set(cfg, 'mobile', 'rename_mask_to_default_ini_mask', mask_val)
+        cfg_set(cfg, 'vpxmobile', 'config_mask', mask_val)
         cfg.save()
 
     ui.label("This uses the the built in web server on the mobile version of vpx for Android and iOS. It allows you seamlessly transfer your tables onto your mobile device.  You must turn it on in the settings in VPX on your mobile device.  Also note this same location will show you your IP and PORT.  Thats what you put into the device configuration settings below.  The device must be kept on and VPX running when doing transfers. ").classes('text-sm mb-4').style('color: var(--ink-muted) !important;')

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import client, guest, sync
+from . import client, guest, settings, sync
 
 # What the setting is called here. Core handed it over from its own configuration when
 # this extension first loaded, so an install that was already using VPinPlay finds it
@@ -135,6 +135,11 @@ def register(ctx: Any) -> None:
 
     ctx.serves.answer("guest.choose", guest.set_active_profile)
     ctx.serves.answer("guest.check", guest.validate_profile_payload)
+
+    reading, writing = settings.routers(ctx, DEFAULT_ENDPOINT)
+    ctx.add_router(reading, scope=ctx.scope("read"))
+    ctx.add_router(writing, scope=ctx.scope("write"))
+    ctx.ui.settings("/settings")
 
     ctx.logger.info("Contributing ratings from %s",
                     ctx.config.get(ENDPOINT_KEY, "") or DEFAULT_ENDPOINT)

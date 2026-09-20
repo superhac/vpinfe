@@ -42,9 +42,10 @@ from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.page")
 
-# Both panel headers are pinned to this, so the two toggles sit at the same height
-# whatever their labels do. Left to the text, one was 52px and the other 22px.
-HEADER_H_PX = 52
+# Every pane's header band. `.console-nav-header` and `.console-workbench` carry the
+# same two numbers in the stylesheet.
+HEADER_H_PX = 48
+HEADER_TOP_PX = 8
 
 # Wide enough for the longest label at the nested indent, with the scrollbar the
 # rail now needs: "Collections" indented is the widest thing in here.
@@ -408,9 +409,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # `?mode=` looks at one without changing what the install is set to, which is how
     # two modes get compared side by side. It is never written into the address.
     chosen = theme.mode_or_default(mode) if mode else theme.configured_mode()
-    ui.dark_mode(theme.QUASAR_DARK[chosen])
-    theme.apply_colors(chosen)
-    theme.apply_flair(chosen)
+    theme.apply_mode(chosen)
     grid.install_filters()
     panel_parts.install_fact_tooltips()
     # The shell takes the viewport once, here, and every height below it is flex. The
@@ -776,11 +775,11 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
 
 
     with splitter.before:
-        # 2.x's own 24px at the sides and bottom, which is what separates the content
-        # from the two panels either side and lets the backdrop read as a backdrop.
-        # None at the top: the header band starts there, and it is the thing that has
-        # to line up with the other two panes' headers.
-        content = ui.column().classes("w-full h-full gap-0 px-6 pb-6")
+        # 2.x's own 24px at the sides and bottom, which separates the content from the
+        # two panels either side and lets the backdrop read as a backdrop. The top is
+        # the header offset the other two panes use, not this one.
+        content = ui.column().classes("w-full h-full gap-0 px-6 pb-6") \
+            .style(f"padding-top:{HEADER_TOP_PX}px")
 
     def toggle_full() -> None:
         """The list never goes away - it steps back to the rail every panel here
@@ -1166,7 +1165,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                        f"{games.SCOPE}.tables" + views.VIEWS_SUFFIX)
 
     def go(view: str) -> None:
-        state["view"] = view
+        leave_for(state, view)
         # redraw, not render: a destination whose data is read on demand has to read it
         # before it draws, and arriving is exactly when that is first true.
         redraw()
@@ -1259,11 +1258,23 @@ def _show_group(open_now: bool, caret: Any, held: list) -> None:
             row.set_visibility(open_now)
 
 
+def leave_for(state: dict[str, Any], view: str) -> None:
+    """Point the shell at another destination, dropping what was selected on the last.
+
+    Both ways of arriving somewhere else come through here, or one of them keeps the
+    selection.
+    """
+    if view != state["view"]:
+        state["game"] = ""
+        state["table"] = ""
+    state["view"] = view
+
+
 def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render: Callable[..., Any],
               labels: list, destinations: dict, badges: dict, nested: bool = False,
               held: list | None = None) -> None:
     def choose() -> None:
-        state["view"] = key
+        leave_for(state, key)
         render()
         deeplink.sync(state)
 

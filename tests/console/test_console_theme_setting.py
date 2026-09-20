@@ -24,12 +24,12 @@ from console import theme, theme_picker
 
 class VocabularyTests(unittest.TestCase):
     def test_the_schema_offers_exactly_the_modes_that_exist(self) -> None:
-        option = config_schema.option("general", theme.MODE_KEY)
+        option = config_schema.option(theme.MODE_SECTION, theme.MODE_KEY)
         self.assertIsNotNone(option, "the setting is gone")
         self.assertEqual(sorted(option.choices), sorted(theme.MODES))
 
     def test_the_default_is_the_palette_default(self) -> None:
-        option = config_schema.option("general", theme.MODE_KEY)
+        option = config_schema.option(theme.MODE_SECTION, theme.MODE_KEY)
         self.assertEqual(option.default, theme.DEFAULT_MODE)
         self.assertIn(option.default, theme.MODES)
 
@@ -46,7 +46,7 @@ class VocabularyTests(unittest.TestCase):
                 self.assertNotEqual(t(key), key, "no word for this mode")
 
     def test_the_editor_the_setting_asks_for_is_one_that_exists(self) -> None:
-        option = config_schema.option("general", theme.MODE_KEY)
+        option = config_schema.option(theme.MODE_SECTION, theme.MODE_KEY)
         self.assertIn(option.editor, config_schema.EDITORS)
 
 
@@ -58,8 +58,8 @@ class StoredValueTests(unittest.TestCase):
         that the section and key this reads are the ones the setting is stored under,
         and a stub that answers whatever it is asked cannot tell."""
         parser = configparser.ConfigParser()
-        parser.add_section("general")
-        parser.set("general", theme.MODE_KEY, stored)
+        parser.add_section(theme.MODE_SECTION)
+        parser.set(theme.MODE_SECTION, theme.MODE_KEY, stored)
         with mock.patch("common.paths.get_ini_config", return_value=parser):
             return theme.configured_mode()
 

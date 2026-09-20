@@ -7,7 +7,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from common.config_access import cfg_get
+from common.config_access import cfg_bool, cfg_get
 from common.config_store import ConfigStore
 from common.paths import bundled
 from common.third_party import find_named_path, import_module_from_path, third_party_base_candidates
@@ -21,13 +21,10 @@ logger = logging.getLogger("vpinfe.common.host.libdmdutil_service")
 
 
 def _is_enabled(iniconfig: ConfigStore) -> bool:
-    try:
-        return iniconfig.config.getboolean('libdmdutil', 'enabled', fallback=False)
-    except Exception:
-        raw = str(
-            iniconfig.config.get('libdmdutil', 'enabled', fallback='false')
-        ).strip().lower()
-        return raw in ('1', 'true', 'yes', 'on')
+    # Through `cfg_bool` rather than the parser: the parser answers the one section name
+    # it is handed, so a read straight off it sees neither a renamed section nor a 2.x
+    # spelling, and a real DMD that is switched on reports itself off.
+    return cfg_bool(iniconfig, 'real_dmd', 'enabled', False)
 
 
 def _find_named_path(base: Path, names: tuple[str, ...]) -> Path | None:
@@ -87,13 +84,13 @@ def find_libdmdutil_file(*names: str) -> Path | None:
 
 def _build_controller_kwargs(iniconfig: ConfigStore) -> dict[str, str]:
     raw_serial_port = str(
-        cfg_get(iniconfig, 'libdmdutil', 'zedmd_serial_port', '')
+        cfg_get(iniconfig, 'real_dmd', 'zedmd_serial_port', '')
     ).strip()
     if raw_serial_port:
         return {'device': raw_serial_port}
 
     raw_host = str(
-        cfg_get(iniconfig, 'libdmdutil', 'zedmd_wifi_address', '')
+        cfg_get(iniconfig, 'real_dmd', 'zedmd_wifi_address', '')
     ).strip()
     if raw_host:
         return {'host': raw_host}

@@ -88,6 +88,8 @@ BASELINE: dict[str, int] = {
     "console/media_ownership.py": 2,
     "console/mediasource.py": 2,
     "console/sections.py": 2,
+    # Both lines are the VPX Mobile page id and its note key. They go when the page does.
+    "console/settings.py": 2,
     "console/table_features.py": 1,
     "console/theme.py": 2,
     "console/workbench.py": 31,

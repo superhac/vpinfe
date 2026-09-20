@@ -461,6 +461,7 @@ class LibraryPolicy(ApiModel):
     hidden_media_kinds: list[str] = Field(default_factory=list)
     hidden_asset_kinds: list[str] = Field(default_factory=list)
     asset_sources: list[str] = Field(default_factory=list)
+    hidden_checks: list[str] = Field(default_factory=list)
 
 
 class LibraryPolicyChange(ApiModel):
@@ -470,6 +471,7 @@ class LibraryPolicyChange(ApiModel):
     hidden_media_kinds: list[str] | None = None
     hidden_asset_kinds: list[str] | None = None
     asset_sources: list[str] | None = None
+    hidden_checks: list[str] | None = None
 
 
 class ConfigPathCheck(ApiModel):

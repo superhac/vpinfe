@@ -40,7 +40,12 @@ MIGRATES_FROM: dict[str, tuple[str, str]] = {
     "asset_sources": ("media", "asset_sources"),
 }
 
-KEYS = tuple(MIGRATES_FROM)
+# Answers this file holds that never lived in a config, so they have no prior home to
+# migrate from. `hidden_checks` is which library checks stay quiet: a gap is a fact about
+# the files, so two installs reading one library report the same gaps.
+OWN_KEYS = ("hidden_checks",)
+
+KEYS = tuple(MIGRATES_FROM) + OWN_KEYS
 
 
 def _as_list(raw: Any) -> list[str]:

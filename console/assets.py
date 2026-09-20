@@ -161,8 +161,8 @@ def build(found: list[dict[str, Any]], library: Any,
                     .tooltip(t("console.assets.read_library_disk_pick"))
 
     by_id = {row["id"]: row for row in built}
-    ui.on("hub_row_focus",
-          lambda event: on_select(by_id.get(grid.focused_row(event))))
+    grid.on_row_focus(SCOPE,
+                      lambda event: on_select(by_id.get(grid.focused_row(event))))
 
     async def on_header_context(col_id: str | None) -> None:
         # Asked of the grid rather than tracked here: a column can also be dragged in

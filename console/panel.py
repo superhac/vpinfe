@@ -26,6 +26,10 @@ FULL = object()
 # to the row. Across both columns it starts at the label's edge and reads as a caption
 # for the label instead.
 ASIDE = object()
+# Both columns, for a line belonging to the heading above it. Sits tight under the
+# heading and leaves room before the first row, so it reads as part of the heading
+# rather than as something between two groups.
+LEDE = object()
 
 # A rail row that names the rows under it rather than opening anything.
 GROUP = object()
@@ -35,9 +39,17 @@ GROUP = object()
 RAIL_PX = 152
 
 
-def header(name: str) -> None:
-    """What the content under it is about, where the rail row is too far away to say it."""
-    ui.label(name).classes("text-base console-workbench-title console-panel-heading")
+def header(name: str, note: str = "") -> None:
+    """What the content under it is about, where the rail row is too far away to say it.
+
+    `note` is drawn inside the same rule as the name.
+    """
+    if not note:
+        ui.label(name).classes("text-base console-workbench-title console-panel-heading")
+        return
+    with ui.element("div").classes("console-panel-heading"):
+        ui.label(name).classes("text-base console-workbench-title")
+        ui.label(note).classes("console-help console-panel-note")
 
 
 def facts(target: Any, entries: Sequence[tuple[Any, Any]]) -> None:
@@ -58,6 +70,10 @@ def facts(target: Any, entries: Sequence[tuple[Any, Any]]) -> None:
                 continue
             if label is FULL:
                 with target.element("div").classes("console-fact-full"):
+                    value()
+                continue
+            if label is LEDE:
+                with target.element("div").classes("console-fact-full console-fact-lede"):
                     value()
                 continue
             if label is ASIDE:
@@ -308,7 +324,7 @@ def search(placeholder: str) -> Any:
     itself.
     """
     return ui.input(placeholder=placeholder) \
-        .props("dense outlined clearable").classes("w-64")
+        .props("dense outlined clearable clear-icon=close").classes("w-64")
 
 
 def trouble_mark(reason: str = "") -> Callable[[], None]:
@@ -509,7 +525,8 @@ def combo(value: str, options: Any, on_change: Callable[[Any], Any], *,
         with ui.element("div").classes("console-fact-edit"):
             control = ui.select(offered, value=value or None, on_change=on_change,
                                 with_input=True, new_value_mode="add-unique")
-            control.props("dense borderless options-dense clearable input-debounce=0")
+            control.props("dense borderless options-dense clearable clear-icon=close "
+                          "input-debounce=0")
             if placeholder:
                 control.props(f'placeholder="{placeholder}"')
             control.classes("console-edit-field console-edit-select console-edit-combo")
@@ -594,6 +611,14 @@ def note(text: str) -> tuple[Any, Callable[[], None]]:
         ui.label(text).classes("console-help")
 
     return (ASIDE, draw)
+
+
+def lede(text: str) -> tuple[Any, Callable[[], None]]:
+    """The line under a heading that says what the group is for."""
+    def draw() -> None:
+        ui.label(text).classes("console-help")
+
+    return (LEDE, draw)
 
 
 def intro(text: str) -> tuple[Any, Callable[[], None]]:

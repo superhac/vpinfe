@@ -9,6 +9,7 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import weakref
 from collections.abc import Callable
 from typing import Any
 
@@ -207,6 +208,29 @@ def choice_filter(choices: list[dict[str, Any]], *,
     return out
 
 
+def on_row_focus(scope: str, handler: Callable[[Any], Any]) -> None:
+    """Call `handler` for focus events from this grid, and no other."""
+    held = _row_focus_handlers()
+    held[scope] = handler
+    if held.get("__listening__") is None:
+        held["__listening__"] = True
+
+        def dispatch(event: Any) -> Any:
+            args = event.args if isinstance(event.args, dict) else {}
+            mine = _row_focus_handlers().get(str(args.get("scope") or ""))
+            return mine(event) if mine is not None else None
+
+        ui.on("hub_row_focus", dispatch)
+
+
+# Weak, so a client that has gone takes its handlers with it.
+_ROW_FOCUS: weakref.WeakKeyDictionary[Any, dict[str, Any]] = weakref.WeakKeyDictionary()
+
+
+def _row_focus_handlers() -> dict[str, Any]:
+    return _ROW_FOCUS.setdefault(ui.context.client, {})
+
+
 def focused_row(event: Any) -> str:
     """The row id out of a focus event, and `focused_column` the column it landed in.
 
@@ -368,7 +392,8 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         ":onCellFocused":
             "params => { const r = params.api.getDisplayedRowAtIndex(params.rowIndex); "
             "if (r) emitEvent('hub_row_focus', "
-            "{id: r.data.id, col: params.column && params.column.getColId()}); "
+            "{id: r.data.id, col: params.column && params.column.getColId(), "
+            f"scope: {json.dumps(scope)}}}); "
             "window.__hubFocusRow = params.rowIndex; "
             "window.__hubMarkFocus && window.__hubMarkFocus(); }",
         # Rows are recycled as you scroll, so the mark rides the wrong row without
@@ -391,6 +416,10 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
     ).classes("w-full grow min-h-0"
               + (" console-grid-two-line" if two_line else ""))
 
+    ui.run_javascript(
+        f"if (window.__hubFocusScope !== {json.dumps(scope)}) {{"
+        f" window.__hubFocusScope = {json.dumps(scope)};"
+        " window.__hubFocusRow = null; }")
     # Installed once per page. Idempotent, so a second grid does not stack it.
     ui.run_javascript("""
     window.__hubMarkFocus = () => {

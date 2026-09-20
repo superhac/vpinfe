@@ -220,9 +220,10 @@ body { background: var(--surface-0); }
    right drawer on purpose: the nav wants that breathing room, the workbench does not,
    because it has far more to fit. */
 .console-workbench {
-  /* Gap goes, top padding stays: the gap was the double-spacing, but the 16px top is
-     what puts this header level with the nav's, which keeps it. */
-  padding: 16px 0 0 !important;
+  /* Gap goes, top padding stays: the gap was the double-spacing, but the top is what
+     puts this header level with the nav's and the page's, which keeps it. Same number
+     in all three - `HEADER_TOP_PX`. */
+  padding: 8px 0 0 !important;
   gap: 0 !important;
 }
 /* 18px is what centring a 20px icon in the 57px rail produces, so matching it here
@@ -235,6 +236,8 @@ body { background: var(--surface-0); }
    the flex column; left to itself it scrolls whole, which took the title and the
    version off the top and bottom as soon as the entries outgrew the height. */
 .q-drawer--left .q-drawer__content {
+  /* The third of the three panes, held clear of its top edge by `HEADER_TOP_PX`. */
+  padding-top: 8px !important;
   display: flex; flex-direction: column; overflow: hidden;
 }
 .q-drawer--left .console-nav-header,
@@ -557,7 +560,7 @@ body::before {
   font-size: var(--fs-caption);
   color: var(--ink-3);
   line-height: 1.2;
-  /* Not `.console-help`, whose 62ch cap and looser leading are for prose. This is a
+  /* Not `.console-help`, whose measure cap and looser leading are for prose. This is a
      label under another label. */
   padding-left: 1px;
 }
@@ -1202,8 +1205,9 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
    label's row, which was the wrong element - the title it now matches sits in 2.x's
    header bar with nothing drawn behind it. */
 .console-nav-header {
-  min-height: 59px;
-  padding: 12px !important;
+  /* `HEADER_H_PX`. */
+  min-height: 48px;
+  padding: 4px 12px !important;
   /* Quasar's .row wraps, and the title's width is whatever `sans-serif` resolves to on
      the machine. Where that lands on a wider face the label dropped under the icon and
      took the header to 90px. Nothing in here may shrink below its own width either, or
@@ -1332,6 +1336,8 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
   margin-bottom: 12px;
   border-bottom: 1px solid var(--line-soft);
 }
+/* The header's own line, inside the rule with the name it belongs to. */
+.console-panel-note { margin-top: 4px; }
 /* Tight: this panel carries a lot and the default expansion chrome is mostly air. */
 .console-workbench .q-expansion-item {
   border: 1px solid var(--line);
@@ -1665,7 +1671,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    argument for the settings pages, so it gets a class rather than ad-hoc utilities. */
 .console-help {
   font-size: var(--fs-caption); color: var(--ink-3); line-height: 1.4;
-  max-width: 62ch;
+  max-width: var(--measure);
 }
 .console-setting { font-size: var(--fs-body); color: var(--ink); font-weight: 600; }
 
@@ -1718,7 +1724,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   grid-template-columns: max-content 1fr;
   gap: 2px 10px;
   align-items: baseline;
-  max-width: 62ch;
+  max-width: var(--measure);
 }
 .console-token {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -1912,6 +1918,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 }
 
 .console-page-purpose {
+  padding-bottom: 8px;
   font-size: var(--fs-caption);
   color: var(--ink-3);
   line-height: 1.3;
@@ -1941,6 +1948,46 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 /* A value the user may set. The read state and the edit state are one element, so the
    alignment cannot drift and nothing moves on the first click. */
 .console-fact-edit { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+/* A control is as wide as the value it holds, capped at the measure - not as wide as
+   the pane, which says nothing about what goes in it. What is naturally short stays
+   short, and the help under it takes the same measure, so the value column reads as one
+   column.
+
+   Settings only. The workbench is a pane the reader sizes deliberately, and a control
+   that ignored the width they just dragged out would be answering a question they did
+   not ask. Prose keeps its measure in both: a long line is hard to read whatever pane
+   it is in. */
+.console-settings-body .console-fact-edit { max-width: var(--measure); }
+/* Text, a path, a list: the whole measure, because a value that truncates is unreadable
+   and these are the ones that run long. */
+.console-settings-body .console-fact-edit .q-textarea,
+.console-settings-body .console-fact-edit .console-edit-combo { width: 100%; }
+/* A number is a few characters. Wider is an invitation to type something that is not
+   one. */
+.console-settings-body .console-fact-edit .q-field--dense input[type="number"] {
+  max-width: 6ch;
+}
+.console-settings-body .console-fact-edit .q-input:has(input[type="number"]) {
+  width: auto;
+}
+/* One of a known set: as wide as the longest option needs and no wider. */
+.console-settings-body .console-fact-edit .q-select:not(.console-edit-combo) {
+  width: auto;
+  min-width: 12ch;
+}
+/* Quasar builds a field `items-start` and gives its input a 28px line in a 26px box, so
+   the text sat against the top of its own control. The row carries the height and the
+   content centres, the way every other value in a panel does. */
+.console-edit-field.q-field { align-items: center; }
+/* The way out of a value, not the value. Quasar's clear is a filled disc that fills its
+   24px box beside a caret that barely marks its own, which made it the loudest thing in
+   the row. */
+.q-field__focusable-action {
+  font-size: 18px;
+  color: var(--ink-3);
+}
+.q-field__focusable-action:hover { color: var(--ink-2); }
 /* An action follows the value it acts on. It used to be pushed to the panel's right
    edge for a column of verbs, which assumed the value fills the row: a stretching field
    ends near that edge, but a chip is 60px wide and the verb landed a panel-width away
@@ -2058,6 +2105,36 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   margin-top: 14px;
   padding: 12px 0 4px;
 }
+/* A heading sharing its line with actions. The space above and the rule move to the
+   row: left on the heading, its own top padding sits inside a centred flex line and
+   drops the word below the buttons beside it. */
+.console-heading-row {
+  border-top: 1px solid var(--line-soft);
+  margin-top: 14px;
+  /* The sides are `.console-facts`' own, so this heading starts on the same edge as
+     every other one. Drawn outside that grid, it was a heading 12px left of the rest. */
+  padding: 12px 12px 4px;
+}
+.console-heading-row .console-fact-heading {
+  border-top: none;
+  margin-top: 0;
+  padding: 0;
+}
+
+/* One shape for every chip on a member row - the row states the size and the tone
+   classes bring only colour. `.console-tier` carries its own 11px and sits later in
+   this file, so a row of three chips drew in two sizes. */
+.console-member-chip.console-tier {
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+  padding: 1px 7px;
+}
+/* The name and its chips share a line and wrap together, so a chip that will not fit
+   drops onto the name's own left edge rather than squeezing the name. The name yields
+   only once it is alone on the line and still too long. */
+.console-member-main { flex-wrap: wrap; row-gap: 2px; }
+.console-member-main > .console-member-name { flex: 0 1 auto; }
+
 /* The first group opens the section - there is nothing above it to be separated from,
    and a rule there would read as the section's own top edge. */
 .console-facts > .console-fact-heading:first-child {
@@ -2065,6 +2142,11 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 }
 /* Actions and the attention block: the width of the panel, not of a value. */
 .console-fact-full { grid-column: 1 / -1; padding: 4px 0; min-width: 0; }
+/* A heading's own line. Tight above so the two read as one thing, loose below so the
+   first row is not crowded against it. The heading gives up its own gap when a lede
+   follows, which is the half that makes the pair hold together. */
+.console-fact-heading:has(+ .console-fact-lede) { padding-bottom: 2px; }
+.console-fact-lede { padding: 0 0 14px; }
 /* A line about the control above it, so it sits under the control and not under the
    label - across both columns it starts at the label's edge and reads as a caption for
    the label instead. Tight to what it explains and loose to the next row, which is what

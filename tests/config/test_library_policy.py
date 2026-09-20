@@ -35,6 +35,7 @@ class LibraryPolicyTests(TempTree):
         """Empty in all three, so a kind added in a later version arrives switched on."""
         self.assertEqual(self.policy.values(),
                          {"hidden_media_kinds": [], "hidden_asset_kinds": [],
+                      "hidden_checks": [],
                           "asset_sources": []})
 
     def test_what_is_set_is_what_is_read_back(self) -> None:
@@ -109,7 +110,8 @@ class AdoptionTests(TempTree):
         self.assertTrue(empty.adopt_from_config(_config({})))
         self.assertEqual(empty.values(), {"hidden_media_kinds": [],
                                           "hidden_asset_kinds": [],
-                                          "asset_sources": []})
+                                          "asset_sources": [],
+                                          "hidden_checks": []})
 
     def test_it_runs_once_and_never_undoes_a_later_change(self) -> None:
         """The trap this exists to avoid: re-reading a config that still carries the old
