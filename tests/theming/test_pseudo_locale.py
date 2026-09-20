@@ -248,6 +248,7 @@ class FrontendPseudoLocaleTests(unittest.TestCase):
             return true;
           })()
         """
+        # Not a direct call to __vpinWordsChanged: that passes with core's half deleted.
         arrive = ("document.getElementById('collection-menu-frame')"
                   ".dispatchEvent(new Event('load'))")
 
