@@ -35,11 +35,11 @@ def _size(count: int | None) -> str:
     if not count:
         return ""
     size = float(count)
-    for unit in ("B", "KB", "MB", "GB"):
-        if size < 1024 or unit == "GB":
+    for unit in ("B", "KB", "MB"):
+        if size < 1024:
             return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
         size /= 1024
-    return ""
+    return f"{size:.1f} GB"
 
 
 async def confirm_replace(label: str, going: list[str]) -> bool:
