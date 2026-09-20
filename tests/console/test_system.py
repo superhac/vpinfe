@@ -171,7 +171,7 @@ class SystemIndexTests(unittest.TestCase):
         one screen an install with everything off still has."""
         self.assertEqual(_pages([install_identity.CORE]),
                          [settings_page.IDENTITY, "vpinfe.network", "vpinfe.logger",
-                          "vpinfe.console", "vpinfe.tools"])
+                          "vpinfe.console", "vpinfe.commands", "vpinfe.tools"])
 
 
 class AddressTests(unittest.TestCase):

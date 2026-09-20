@@ -68,7 +68,7 @@ def collection_icon_path(filename: str | None) -> Path | None:
 
 
 def follow_rename_in_settings(old_name: str, new_name: str) -> None:
-    """Move `general.startup_collection` along with the collection it names.
+    """Move `behavior.startup_collection` along with the collection it names.
 
     The setting holds a name because a collection has no id to hold instead, so without
     this a rename leaves it naming a collection that is not there. The frontend logs the
@@ -76,23 +76,23 @@ def follow_rename_in_settings(old_name: str, new_name: str) -> None:
     as something broken.
     """
     store = get_ini_config()
-    if str(store.value("general", "startup_collection") or "").strip() != old_name:
+    if str(store.value("behavior", "startup_collection") or "").strip() != old_name:
         return
-    store.set_value("general", "startup_collection", new_name)
+    store.set_value("behavior", "startup_collection", new_name)
     store.save()
 
 
 def forget_in_settings(name: str) -> None:
-    """Clear `general.startup_collection` when the collection it names is deleted.
+    """Clear `behavior.startup_collection` when the collection it names is deleted.
 
     The alternative is leaving it naming something gone, which shows the whole library
     and raises on every start. This shows the whole library and says so on the settings
     screen, which is the same outcome told honestly.
     """
     store = get_ini_config()
-    if str(store.value("general", "startup_collection") or "").strip() != name:
+    if str(store.value("behavior", "startup_collection") or "").strip() != name:
         return
-    store.set_value("general", "startup_collection", "")
+    store.set_value("behavior", "startup_collection", "")
     store.save()
 
 

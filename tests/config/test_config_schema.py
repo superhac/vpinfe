@@ -115,7 +115,14 @@ class SchemaShapeTests(unittest.TestCase):
                                     ("media", "asset_sources"),
                                     # `locations.json` holds this now, for the same
                                     # reason and on the same terms.
-                                    ("general", "game_root_dir")})
+                                    ("general", "game_root_dir"),
+                                    # The extension's own store holds these now, for
+                                    # the same reason and on the same terms.
+                                    ("vpinplay", "sync_on_exit"),
+                                    ("vpinplay", "api_endpoint"),
+                                    ("vpinplay", "user_id"),
+                                    ("vpinplay", "initials"),
+                                    ("vpinplay", "machine_id")})
         self.assertNotIn(("State", "last_game"),
                          {(e.section, e.key) for e in config_schema.settable()})
 

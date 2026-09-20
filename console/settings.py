@@ -501,7 +501,7 @@ DEVICE_INDEX: tuple[tuple[str, tuple[DevicePage, ...]], ...] = (
         ("vpinfe.console", "console.settings.page_console", SCHEMA_PAGE, ("console",),
                  install_identity.CORE),
         ("vpinfe.commands", "console.settings.page_commands", SCHEMA_PAGE, ("commands",),
-                 "frontend"),
+                 install_identity.CORE),
         # This install's, not the library's: nvtop answers Metrics and ffmpeg would
         # answer media, so an OS dependency belongs to the machine that has to have it.
         ("vpinfe.tools", "console.settings.page_tools", SCHEMA_PAGE, ("tools",),

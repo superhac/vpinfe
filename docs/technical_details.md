@@ -226,6 +226,8 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 
 ### `vpinplay`
 
+Runtime state written by VPinFE, not shown in the Manager UI.
+
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `sync_on_exit` | bool | `false` | Sync on Exit |

@@ -564,6 +564,36 @@
     "features"
   ],
   [
+    "libdmdutil",
+    "enabled",
+    "real_dmd",
+    "enabled"
+  ],
+  [
+    "libdmdutil",
+    "pin2dmdenabled",
+    "real_dmd",
+    "pin2dmd_enabled"
+  ],
+  [
+    "libdmdutil",
+    "pixelcadedevice",
+    "real_dmd",
+    "pixelcade_serial_port"
+  ],
+  [
+    "libdmdutil",
+    "zedmddevice",
+    "real_dmd",
+    "zedmd_serial_port"
+  ],
+  [
+    "libdmdutil",
+    "zedmdwifiaddr",
+    "real_dmd",
+    "zedmd_wifi_address"
+  ],
+  [
     "logger",
     "console",
     "logger",

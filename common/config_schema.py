@@ -66,6 +66,7 @@ SECTION_RENAMES = {
     'State': 'state',
     'VPSdb': 'vpsdb',
     'DOF': 'dof',
+    'libdmdutil': 'real_dmd',
     'pinmame-score-parser': 'pinmame_score_parser',
 }
 
@@ -845,34 +846,41 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     ),
     *in_section(
         "vpinplay",
+        # Held by the extension's own store after handover, and still read from here by
+        # `frontend/config_api.py` and `common/games/score_parser.py`.
         ConfigOption(
             "sync_on_exit",
             type="bool",
             default="false",
             aliases=("synconexit",),
+            internal=True,
         ),
         ConfigOption(
             "api_endpoint",
             type="string",
             default="https://api.vpinplay.com:8888",
             aliases=("apiendpoint",),
+            internal=True,
         ),
         ConfigOption(
             "user_id",
             type="string",
             default="",
             aliases=("userid",),
+            internal=True,
         ),
         ConfigOption(
             "initials",
             type="string",
             default="",
+            internal=True,
         ),
         ConfigOption(
             "machine_id",
             type="string",
             default="",
             aliases=("machineid",),
+            internal=True,
         ),
     ),
 ) + _input_options()

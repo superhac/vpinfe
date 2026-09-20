@@ -1,4 +1,4 @@
-"""Renaming a collection used to leave `general.startup_collection` behind.
+"""Renaming a collection used to leave `behavior.startup_collection` behind.
 
 The setting holds a name because a collection has no id to hold instead. So renaming
 one the frontend was set to open on left the setting naming something that no longer
@@ -10,6 +10,10 @@ following, which is the same outcome the frontend already fell back to, said out
 
 These pin the following, not the storage. A collection id would make the whole problem
 go away and there is no id yet.
+
+The section comes from the schema rather than a literal. Spelled by hand it was
+`general` on both sides, so the fake answered to the same wrong name the service asked
+for and the pair agreed with each other while the setting sat in `behavior`.
 """
 
 from __future__ import annotations
@@ -17,14 +21,18 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
+from common import config_schema
 from common.games import collections_service
+
+SECTION = next(o.section for o in config_schema.options()
+               if o.key == "startup_collection")
 
 
 class _Store:
     """The settings file, as much of it as this cares about."""
 
     def __init__(self, startup: str) -> None:
-        self.values = {("general", "startup_collection"): startup}
+        self.values = {(SECTION, "startup_collection"): startup}
         self.saved = 0
 
     def value(self, section: str, key: str):
@@ -38,7 +46,7 @@ class _Store:
 
     @property
     def startup(self):
-        return self.values[("general", "startup_collection")]
+        return self.values[(SECTION, "startup_collection")]
 
 
 class StartupCollectionFollowsRenameTests(unittest.TestCase):
