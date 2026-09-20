@@ -763,7 +763,8 @@ def _action_control(context: dict[str, Any],
     """One verb, asked about first where it costs the machine."""
     scope = str(entry.get("scope") or "")
     action = str(entry.get("action") or "")
-    label = str(entry.get("label") or f"{action} the {scope}")
+    label = str(entry.get("label")
+                or t("console.devices.action_the_scope", action=action, scope=scope))
 
     async def go() -> None:
         if scope in _HEAVY and not await confirm.ask(

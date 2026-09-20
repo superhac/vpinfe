@@ -184,7 +184,8 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
 def _tooltip(kind: str, entry: dict[str, Any]) -> str:
     """The file, and who uses it."""
     if not entry.get("present"):
-        return f"No {media_label_map().get(kind, kind).lower()}"
+        return t("console.mediamap.no_kind",
+                 kind=media_label_map().get(kind, kind).lower())
     parts = [str(entry.get("file") or ""), t(media_ownership.phrase(entry.get("via")))]
     return "  ·  ".join(part for part in parts if part)
 

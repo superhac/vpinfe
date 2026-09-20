@@ -232,7 +232,7 @@ class _Sources:
             except Exception as exc:
                 ui.notify(t("console.mediasource.could_not_place", exc=(exc)), type="negative")
                 return
-            await self.finish(f"{self.label} saved")
+            await self.finish(t("console.mediasource.label_saved", label=self.label))
 
         ui.upload(on_upload=arrived, auto_upload=True, max_files=1,
                   label=t("console.mediasource.drop_file_browse")) \
@@ -338,7 +338,7 @@ class _Sources:
                 ui.notify(t("console.mediasource.could_not_bring", exc=(exc)),
                         type="negative")
                 return
-            await self.finish(f"{self.label} saved")
+            await self.finish(t("console.mediasource.label_saved", label=self.label))
 
         self.candidate(self.library.browsed_file_url(item["path"]), item["name"],
                        _size(item.get("size_bytes")), self._in_use(item["name"]), take)
@@ -448,7 +448,8 @@ class _Sources:
         # every visit stops being read by the time it matters.
         found_online = labels.plural(self.label) + t("console.mediasource.found_online")
         self.online_head.text = (found_online if vps_id == self._own_id
-                                 else f"{found_online} for {name}")
+                                 else t("console.mediasource.found_online_for",
+                                        found=found_online, name=name))
         if not vps_id:
             with body:
                 ui.label(t("console.mediasource.game_no_vps_id")) \

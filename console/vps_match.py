@@ -95,7 +95,9 @@ async def walk(library: Any, games: list[dict[str, Any]]) -> None:
     total = len(games)
     changed = 0
     for index, game in enumerate(games, 1):
-        picked = await ask(library, game, place=f"{index} of {total}", walking=True)
+        picked = await ask(library, game, walking=True,
+                           place=t("console.vps_match.index_of_total",
+                                   index=index, total=total))
         if picked == STOPPED:
             break
         if picked is CANCELLED:
@@ -126,7 +128,8 @@ def _match_row(row: dict[str, Any], dialog: Any) -> None:
     said = [" ".join(str(row.get(k) or "") for k in ("manufacturer", "year")).strip()]
     count = int(row.get("releases") or 0)
     if count:
-        said.append(f"{count} release{'' if count == 1 else 's'}")
+        said.append(t("console.vps_match.release" if count == 1
+                      else "console.vps_match.releases", count=count))
     candidates.choice(str(row.get("img_url") or ""), str(row.get("name") or ""),
                       " · ".join(part for part in said if part),
                       lambda: dialog.submit(str(row.get("vps_id") or "")),

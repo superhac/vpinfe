@@ -62,8 +62,9 @@ def build(rows: list[dict[str, Any]], library: Any,
         if not await confirm.ask(
                 t("console.tageditor.merge", into=(into)),
                 detail=t("console.tageditor.every_game_carrying_one"),
-                lines=[f"{r['tag']} - {r['games']} game"
-                       f"{'' if r['games'] == 1 else 's'}" for r in group[1:]],
+                lines=[t("console.tageditor.tag_game" if r["games"] == 1
+                         else "console.tageditor.tag_games",
+                         tag=r["tag"], count=r["games"]) for r in group[1:]],
                 confirm=t("word.merge")):
             return
         await sweep(library.merge_tags, others + [into], into,

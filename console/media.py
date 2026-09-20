@@ -51,7 +51,7 @@ def _standing_in(via: str) -> str:
     showing something, and both are true: the file belongs to another slot.
     """
     if via.startswith("set:"):
-        return f"Set: {via.split(':', 1)[1]}"
+        return t("console.media.set_named", name=via.split(":", 1)[1])
     if via.startswith("fallback:"):
         kind = via.split(":", 1)[1]
         return media_label_map().get(kind, kind)
@@ -190,11 +190,15 @@ async def fill(picked: list[dict[str, Any]], library: Any,
                            row["kind"], row["game_id"], exc)
             failed += 1
 
-    said = t("console.media.filled", filled=(filled))
-    if empty:
-        said += t("console.media.nothing_published", empty=(empty))
-    if failed:
-        said += f", {failed} failed"
+    if empty and failed:
+        said = t("console.media.filled_empty_failed", filled=(filled), empty=(empty),
+                 failed=(failed))
+    elif empty:
+        said = t("console.media.filled_empty", filled=(filled), empty=(empty))
+    elif failed:
+        said = t("console.media.filled_failed", filled=(filled), failed=(failed))
+    else:
+        said = t("console.media.filled", filled=(filled))
     ui.notify(said, type="positive" if filled else "warning")
     if filled:
         await after()

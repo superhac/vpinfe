@@ -499,7 +499,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         selected[:] = rows_selected
         actions.set_visibility(bool(rows_selected))
         count.text = (t("console.games.selected", len=(len(rows_selected)), len2=(len(rows)))
-                      if rows_selected else f"{len(rows)} games")
+                      if rows_selected
+                      else t("console.games.games", len=len(rows)))
 
     by_id = {row["id"]: row for row in rows}
 

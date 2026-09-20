@@ -174,7 +174,8 @@ def build(collections: list[dict[str, Any]], library: Any,
         bulk.set_visibility(bool(rows_selected))
         count.text = (t("console.collections.selected", len=(len(rows_selected)),
                 len2=(len(built)))
-                      if rows_selected else f"{len(built)} collections")
+                      if rows_selected
+                      else t("console.collections.collections", len=len(built)))
 
     def on_context(row: dict | None) -> None:
         # The menu acts on the row under the cursor, not on the selection.

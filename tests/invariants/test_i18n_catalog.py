@@ -6,6 +6,7 @@ recorded hash that has drifted means `--stale` stops reporting.
 """
 
 import ast
+import importlib.util
 import json
 import re
 import unittest
@@ -367,6 +368,81 @@ class TestApiErrorMessages(unittest.TestCase):
         self.assertEqual(offenders, [], "call t() and put the words in the catalog")
 
 
+# An f-string reaching one of these is not a word anybody reads.
+NOT_ON_SCREEN = {
+    "run_javascript", "add_body_html", "add_head_html", "html", "classes", "props",
+    "style", "dumps", "loads", "getLogger", "debug", "info", "warning", "error",
+    "exception", "critical",
+    # The ones the Console does show are the API's own errors, read by
+    # TestApiErrorMessages.
+    "ValueError", "TypeError", "RuntimeError", "CancelledError", "KeyError", "OSError",
+    "FileNotFoundError", "NotImplementedError",
+}
+# A literal carrying one of these is markup, a URL or a selector rather than prose.
+NOT_PROSE = re.compile(r"[<>?&/=;{}#]")
+BYTE_UNITS = {"B", "KB", "MB", "GB", "TB"}
+
+
+def _is_identifier(said: str) -> bool:
+    """`asset_`, `.tables`, `builtin:`: a name being built, not words being joined.
+
+    Whitespace tells them apart, and it is read unstripped: `builtin:` is one token and
+    `"Set: "` is a word with a value after it. Prose this short - `by`, `of`, `No` -
+    never carries a dot, an underscore or a colon.
+    """
+    body = said.strip()
+    if not body or any(c.isspace() for c in body):
+        return False
+    if re.search(r"[_.\-]", body):
+        return True
+    # `builtin:`, `location:` - an id namespace. Prose puts a space after its colon,
+    # which is the whole of the difference between that and `"Set: "`.
+    return body.endswith(":") and not any(c.isspace() for c in said)
+
+
+def _glued_words(node: ast.JoinedStr) -> str:
+    """The typed half of an f-string: everything outside its slots."""
+    return "".join(v.value for v in node.values
+                   if isinstance(v, ast.Constant) and isinstance(v.value, str))
+
+
+class _Fstrings(ast.NodeVisitor):
+    """Every f-string, with the calls it sits inside, so context can excuse it."""
+
+    def __init__(self) -> None:
+        self.found: list[tuple[int, str]] = []
+        self.calls: list[str] = []
+
+    def visit_Call(self, node: ast.Call) -> None:
+        name = getattr(node.func, "attr", None) or getattr(node.func, "id", None) or ""
+        self.calls.append(name)
+        self.generic_visit(node)
+        self.calls.pop()
+
+    def visit_JoinedStr(self, node: ast.JoinedStr) -> None:
+        said = _glued_words(node)
+        if not set(self.calls) & NOT_ON_SCREEN and not NOT_PROSE.search(said) \
+           and not _is_identifier(said) and said.strip() not in BYTE_UNITS \
+           and re.search(r"[A-Za-z]{2,}", said):
+            self.found.append((node.lineno, said))
+        self.generic_visit(node)
+
+
+class TestNoWordGluedToAValue(unittest.TestCase):
+    """An f-string whose typed half is a word rather than a token or a class."""
+
+    def test_no_fstring_in_the_console_carries_a_word(self) -> None:
+        offenders = []
+        for path in sorted((ROOT / "console").rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            seen = _Fstrings()
+            seen.visit(ast.parse(path.read_text(encoding="utf-8")))
+            offenders += [f"{path.relative_to(ROOT)}:{line} f{said.strip()[:38]!r}"
+                          for line, said in seen.found]
+        self.assertEqual(offenders, [], "call t() with a named slot instead")
+
+
 class TestFrontendChrome(unittest.TestCase):
     """The frontend serves its own markup, so the Python check cannot see any of it."""
 
@@ -463,6 +539,52 @@ class TestEveryKeyIsServed(unittest.TestCase):
                     if isinstance(key, str) and key not in SOURCE:
                         offenders.append(f"{path.relative_to(ROOT)}:{node.lineno} {key}")
         self.assertEqual(offenders, [], "the catalog has no entry for these")
+
+
+def _scan() -> tuple[set[str], set[str]]:
+    """Every key the Python asks for, exact and by prefix.
+
+    Imported from `scripts/i18n.py` rather than restated here, so the translator's
+    `--unused` report and this gate cannot come to different answers.
+    """
+    spec = importlib.util.spec_from_file_location("i18n_script",
+                                                  ROOT / "scripts" / "i18n.py")
+    assert spec is not None and spec.loader is not None, "scripts/i18n.py is gone"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.referenced()
+
+
+def _markup_keys() -> set[str]:
+    """Keys the frontend's own pages name, which no scan of the Python sees."""
+    found: set[str] = set()
+    for path in sorted(STATIC.rglob("*")):
+        if path.suffix not in (".html", ".js") or not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        found.update(re.findall(r'data-i18n="([^"]+)"', text))
+        found.update(m[0] for m in re.findall(
+            r"""["']([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+)["']""", text))
+    return found
+
+
+class TestTheCatalogHoldsNothingSpare(unittest.TestCase):
+    """The other direction: an entry nothing asks for.
+
+    It renders nowhere, so no screen looks wrong and nothing above this has anything to
+    say about it. The translator is handed it to translate along with the rest.
+    """
+
+    def test_no_entry_is_asked_for_by_nothing(self) -> None:
+        exact, derived = _scan()
+        asks = exact | _markup_keys()
+        # A key reaching a surface inside a block is asked for as much as one written
+        # out: AG Grid takes `grid.*` as a single dictionary, so no search for one of
+        # those keys finds anything. `referenced()` reports those namespaces among its
+        # prefixes, which is why nothing here needs to know which they are.
+        spare = [key for key in sorted(SOURCE)
+                 if key not in asks and not key.startswith(tuple(derived))]
+        self.assertEqual(spare, [], "nothing asks for these; drop them from every catalog")
 
 
 class TestParametersMatchTheirTemplate(unittest.TestCase):

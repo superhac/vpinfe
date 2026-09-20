@@ -837,8 +837,10 @@ def _prefix(game_id: str, table_id: str) -> str:
 def _media_label(context: dict[str, Any]) -> str:
     present, borrowed, total = mediamap.summary(
         context["library"].media.get(context["game_id"], {}))
-    label = t("console.workbench.media", present=(present), total=(total))
-    return label + (f", {borrowed} borrowed)" if borrowed else ")") + _media_scope(context)
+    label = (t("console.workbench.media_borrowed", present=(present), total=(total),
+               borrowed=(borrowed)) if borrowed
+             else t("console.workbench.media", present=(present), total=(total)))
+    return label + _media_scope(context)
 
 
 def _media_scope(context: dict[str, Any]) -> str:
@@ -1400,7 +1402,8 @@ def _table_rows(table: dict[str, Any],
     effective = str(pinmame.get("effective") or "")
     rom = effective or declared or "-"
     if declared and effective and declared != effective:
-        rom = f"{effective}  (declared {declared})"
+        rom = t("console.workbench.effective_declared",
+                effective=(effective), declared=(declared))
 
     # Grouped by what a fact is about, one vocabulary shared with the views and the
     # grid. Each group carries the actions that work on it.
@@ -1684,12 +1687,14 @@ def _played_for(seconds: int) -> str:
     """Play time in the largest unit that is still true, because the number is read at
     a glance and 41,400 seconds is not a length anybody pictures."""
     if seconds < 60:
-        return t("word.none") if not seconds else f"{seconds} sec"
+        return t("word.none") if not seconds \
+            else t("console.workbench.sec", count=seconds)
     minutes = seconds // 60
     if minutes < 90:
-        return f"{minutes} min"
+        return t("console.workbench.min", count=minutes)
     hours, rest = divmod(minutes, 60)
-    return t("console.workbench.hr_min", hours=(hours), rest=(rest)) if rest else f"{hours} hr"
+    return (t("console.workbench.hr_min", hours=(hours), rest=(rest)) if rest
+            else t("console.workbench.hr", count=hours))
 
 
 def _play_rows(context: dict[str, Any], record: dict[str, Any], *,
@@ -2175,7 +2180,7 @@ def _program_settings_row(context: dict[str, Any],
                       on_click=open_them) \
                 .props("flat dense no-caps size=sm").classes("console-action--inline")
 
-    return [(f"{name} settings", draw)]
+    return [(t("console.workbench.name_settings", name=name), draw)]
 
 
 async def _open_table_settings(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -3435,8 +3440,8 @@ def _said_count(held: list[dict]) -> str:
     if not held:
         return t("console.workbench.none_yet")
     newest = _backup_when(held[0])
-    return (f"1, taken {newest}" if len(held) == 1
-            else f"{len(held)}, newest {newest}")
+    return (t("console.workbench.one_taken", newest=(newest)) if len(held) == 1
+            else t("console.workbench.some_newest", count=len(held), newest=(newest)))
 
 
 def _copies_value(held: list[dict], take: Callable, found: dict,
@@ -4015,11 +4020,13 @@ def _rule_sentence(context: dict[str, Any], row: dict[str, Any]) -> str:
             continue
         chosen = _selected(current.get(name))
         if chosen:
-            said.append(f"{_axis_label(axis)} is "
-                        + " or ".join(f"\u201c{v}\u201d" for v in chosen))
+            said.append(t("console.workbench.axis_is", axis=_axis_label(axis),
+                          values=t("console.workbench.or_join").join(
+                              f"\u201c{v}\u201d" for v in chosen)))
     if not said:
         return t("console.workbench.everything_library_far")
-    return t("console.workbench.every_game_where") + ", and ".join(said) + "."
+    return t("console.workbench.every_game_where",
+             clauses=t("console.workbench.and_join").join(said))
 
 
 def _ordering_rows(context: dict[str, Any], row: dict[str, Any],

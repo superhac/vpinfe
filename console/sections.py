@@ -293,8 +293,9 @@ def metadata(state: dict[str, Any], on_start: Callable[[str], Any]) -> None:
             when = _stamp(str(state.get("newest_backup") or ""))
             _metadata_row(
                 True, t("console.sections.backups"),
-                t("console.sections.games_saved_copy", restorable=(restorable))
-                + (f" from {when}" if when else "") + t("console.sections.taken_before_upgrade"),
+                (t("console.sections.games_saved_copy_from", restorable=(restorable),
+                   when=(when)) if when
+                 else t("console.sections.games_saved_copy", restorable=(restorable))),
                 (t("word.restore"), lambda: on_start("restore")))
 
 

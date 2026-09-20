@@ -370,6 +370,7 @@ def _label_for(name: str) -> str:
 
 
 def _and(names: list[str]) -> str:
-    if len(names) < 3:
-        return " and ".join(names)
-    return f"{', '.join(names[:-1])} and {names[-1]}"
+    if len(names) < 2:
+        return names[0] if names else ""
+    return t("console.binding_editor.and_last",
+             most=", ".join(names[:-1]), last=names[-1])

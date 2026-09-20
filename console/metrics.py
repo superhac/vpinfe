@@ -252,7 +252,7 @@ def _size(value: Any) -> str:
 def _bytes_said(used: Any, total: Any) -> str:
     if used is None or total is None:
         return ""
-    return f"{_size(used)} of {_size(total)}"
+    return t("console.metrics.used_of_total", used=_size(used), total=_size(total))
 
 
 def _load_said(load: Any) -> str:

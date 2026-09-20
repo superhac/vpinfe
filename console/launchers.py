@@ -198,7 +198,8 @@ async def duplicate(library: Library, state: dict[str, Any], redraw: Callable[[]
     try:
         await run.io_bound(library.put_launcher, made,
                            {**launcher, "launcher_id": made, "owns_ini": False,
-                            "display_name": f"{launcher['display_name']} copy"})
+                            "display_name": t("console.launchers.copy_of",
+                                              name=launcher["display_name"])})
     except Exception as exc:  # noqa: BLE001
         ui.notify(t("console.launchers.could_not_duplicate", exc=(exc)), type="negative")
         return
