@@ -17,7 +17,9 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO
 
-from common.paths import USER_CONFIG_PATH, USER_ROMS_PATH
+from common.config_access import cfg_get
+from common.extensions.store import get_extension_store
+from common.paths import USER_ROMS_PATH, get_ini_config
 
 if TYPE_CHECKING:
     # The concrete views dict returns. An override may not widen them to
@@ -277,18 +279,12 @@ roms = _Roms()
 def get_default_initials() -> str:
     """Whose initials go on a score the machine did not record any for.
 
-    Read from the `[vpinplay]` section, which is where the only such setting has ever
-    lived - and deliberately still read from core rather than asked of the extension
-    that now owns VPinPlay. A score needs initials whether that extension is installed
-    or not, and asking something that may not be there would leave them blank on a
-    cabinet that had them before.
-
+    The extension's answer, or the config's where the extension holds none.
     """
-    parser = configparser.ConfigParser(interpolation=None)
-    read_files = parser.read(USER_CONFIG_PATH, encoding="utf-8")
-    if not read_files:
-        return ""
-    return parser.get("vpinplay", "initials", fallback="").strip()
+    held = str(get_extension_store().settings("vpinplay").get("initials") or "").strip()
+    if held:
+        return held
+    return str(cfg_get(get_ini_config(), "vpinplay", "initials", "") or "").strip()
 
 
 def apply_default_initials(result: int | list[ParsedEntry]) -> int | list[ParsedEntry]:

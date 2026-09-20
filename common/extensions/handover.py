@@ -5,9 +5,8 @@ which of its own settings belong to which extension; nothing here lets an extens
 for a setting, which is what keeps `config:own` from being decorative.
 
 The same shape as the launchers and the locations leaving `vpinfe.ini`: read the old
-place, write the new, mark it, never look again. Copied rather than moved - a reverted
-install has to still find what its user typed, so the old section stays as history and
-this build simply stops reading it.
+place, write the new, mark it, never look again. Copied rather than moved: the old
+section goes on answering wherever the extension does not.
 """
 
 from __future__ import annotations

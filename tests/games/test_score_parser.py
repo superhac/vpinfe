@@ -1,3 +1,4 @@
+import contextlib
 import json
 import tempfile
 import unittest
@@ -23,6 +24,21 @@ paths.USER_ROMS_PATH = _test_config_dir / "roms.json"
 paths.USER_CONFIG_PATH = _test_config_dir / "vpinfe.ini"
 from common.games import score_parser
 from common.games.score_parser import ParsedEntry, result_to_jsonable
+
+
+@contextlib.contextmanager
+def _initials_held_by(extension: str = "", config: str = ""):
+    """The two places initials can live, so a test says which one is answering."""
+    store = type("_Store", (), {
+        "settings": lambda _self, _name: {"initials": extension} if extension else {},
+    })()
+    with mock.patch.object(score_parser, "get_extension_store", lambda: store), \
+            mock.patch.object(score_parser, "get_ini_config",
+                              lambda: {"vpinplay": {"initials": config}}), \
+            mock.patch.object(score_parser, "cfg_get",
+                              lambda src, section, key, default="":
+                                  (src.get(section) or {}).get(key) or default):
+        yield
 
 
 class TestScoreParser(unittest.TestCase):
@@ -117,14 +133,11 @@ class TestScoreParser(unittest.TestCase):
         )
 
     def test_result_to_jsonable_uses_vpinplay_initials_for_blank_entries(self) -> None:
-        with TemporaryDirectory() as temp_dir:
-            config_path = Path(temp_dir) / "vpinfe.ini"
-            config_path.write_text("[vpinplay]\ninitials = JSM\n", encoding="utf-8")
-            with mock.patch.object(score_parser, "USER_CONFIG_PATH", config_path):
-                result = result_to_jsonable(
-                    "aar_101",
-                    [ParsedEntry(section="HIGH SCORES", rank=1, initials="", score=1000)],
-                )
+        with _initials_held_by(extension="JSM"):
+            result = result_to_jsonable(
+                "aar_101",
+                [ParsedEntry(section="HIGH SCORES", rank=1, initials="", score=1000)],
+            )
 
         self.assertEqual(
             result,
@@ -148,28 +161,37 @@ class TestScoreParser(unittest.TestCase):
             },
         )
 
+    def test_initials_come_from_the_extension_that_holds_them(self) -> None:
+        """The handover moved them there, and its settings surface is where they are
+        typed, so a config left holding an older answer does not win."""
+        with _initials_held_by(extension="NEO", config="OLD"):
+            self.assertEqual(score_parser.get_default_initials(), "NEO")
+
+    def test_the_config_answers_when_the_extension_holds_none(self) -> None:
+        """An install that has not run the handover yet, or has VPinPlay switched off."""
+        with _initials_held_by(config="OLD"):
+            self.assertEqual(score_parser.get_default_initials(), "OLD")
+
+    def test_initials_nobody_has_set_are_blank(self) -> None:
+        with _initials_held_by():
+            self.assertEqual(score_parser.get_default_initials(), "")
+
     def test_result_to_jsonable_preserves_existing_initials(self) -> None:
-        with TemporaryDirectory() as temp_dir:
-            config_path = Path(temp_dir) / "vpinfe.ini"
-            config_path.write_text("[vpinplay]\ninitials = JSM\n", encoding="utf-8")
-            with mock.patch.object(score_parser, "USER_CONFIG_PATH", config_path):
-                result = result_to_jsonable(
-                    "aar_101",
-                    [ParsedEntry(section="HIGH SCORES", rank=1, initials="AAA", score=1000)],
-                )
+        with _initials_held_by(extension="JSM"):
+            result = result_to_jsonable(
+                "aar_101",
+                [ParsedEntry(section="HIGH SCORES", rank=1, initials="AAA", score=1000)],
+            )
 
         self.assertEqual(result["entries"][0]["initials"], "AAA")
 
     def test_result_to_jsonable_does_not_fill_blank_non_score_entries(self) -> None:
-        with TemporaryDirectory() as temp_dir:
-            config_path = Path(temp_dir) / "vpinfe.ini"
-            config_path.write_text("[vpinplay]\ninitials = JSM\n", encoding="utf-8")
-            with mock.patch.object(score_parser, "USER_CONFIG_PATH", config_path):
-                result = result_to_jsonable(
-                    "aar_101",
-                    [ParsedEntry(section="HIGH SCORES", rank=1, initials="",
-                                 extra_lines=["SPECIAL"])],
-                )
+        with _initials_held_by(extension="JSM"):
+            result = result_to_jsonable(
+                "aar_101",
+                [ParsedEntry(section="HIGH SCORES", rank=1, initials="",
+                             extra_lines=["SPECIAL"])],
+            )
 
         self.assertEqual(result["entries"][0]["initials"], "")
 
