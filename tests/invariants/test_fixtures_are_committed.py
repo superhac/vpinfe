@@ -57,6 +57,7 @@ class FixturesAreCommittedTests(unittest.TestCase):
         expected = {
             "config_defaults.json",
             "config_legacy_names.json",
+            "config_2x_sections.json",
             "parity_baseline_master.json",
             "theme_payload.json",
             "theme-harness/manifest.json",

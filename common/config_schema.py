@@ -494,7 +494,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             # Only a collection that exists can be opened on, but the list is not closed:
             # a cabinet can be set up before the collection it will open on is made.
             suggest=SUGGEST_COLLECTIONS,
-            legacy=(),
+            legacy=(("general", "startup_collection"),),
         ),
         ConfigOption(
             "restore_last_table",

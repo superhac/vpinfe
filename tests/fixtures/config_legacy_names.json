@@ -553,6 +553,12 @@
   ],
   [
     "general",
+    "startup_collection",
+    "behavior",
+    "startup_collection"
+  ],
+  [
+    "general",
     "theme",
     "themes",
     "active"

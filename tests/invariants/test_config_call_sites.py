@@ -53,6 +53,11 @@ def _call_sites():
 # section name off the parser on purpose.
 OWNS_THE_OLD_NAMES = {"common/config_store.py"}
 
+# The store's own accessors, which take the section and the key as the first two
+# arguments rather than after a source.
+STORE_ACCESSORS = {"value", "set_value"}
+STORES = {"store", "config_store", "ini_config"}
+
 # Methods only a parser has, plus the ones it shares with a dict and so are counted only
 # when called with a section and a key.
 PARSER_ONLY = {"getboolean", "getfloat", "has_section", "remove_section"}
@@ -93,6 +98,33 @@ def _raw_reads():
                 yield rel, node.lineno, first.value
 
 
+def _store_reads():
+    """(file, line, section, key) for every store accessor called with both names literal."""
+    for path in sorted(REPO.rglob("*.py")):
+        rel = path.relative_to(REPO).as_posix()
+        if rel.startswith((".venv/", ".claude/", "tests/", "third_party/",
+                           "managerui/maps/")) or rel in OWNS_THE_OLD_NAMES:
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                continue
+            if node.func.attr not in STORE_ACCESSORS or len(node.args) < 2:
+                continue
+            receiver = getattr(node.func.value, "attr", None) or \
+                getattr(node.func.value, "id", "")
+            if receiver not in STORES:
+                continue
+            section, key = node.args[0], node.args[1]
+            if not (isinstance(section, ast.Constant) and isinstance(key, ast.Constant)):
+                continue
+            if isinstance(section.value, str) and isinstance(key.value, str):
+                yield rel, node.lineno, section.value, key.value
+
+
 class CallSiteTests(unittest.TestCase):
     def test_every_setting_read_is_one_the_schema_declares(self) -> None:
         unknown = []
@@ -119,9 +151,23 @@ class CallSiteTests(unittest.TestCase):
                          "read it with cfg_get or cfg_bool, which resolve a renamed "
                          "section and a 2.x spelling")
 
+    def test_every_setting_the_store_is_asked_for_is_one_the_schema_declares(self) -> None:
+        """A pair naming no declared setting reads as None, which a caller cannot tell
+        from a setting nobody set."""
+        unknown = [f"{rel}:{line} asks the store for {section}.{key}"
+                   for rel, line, section, key in _store_reads()
+                   if config_schema.option(*config_schema.locate(section, key)) is None]
+        self.assertEqual(sorted(unknown), [],
+                         "declare it, or read the section the setting moved to")
+
     def test_there_are_call_sites_to_check(self) -> None:
         """The scan is a regex-shaped thing; an empty result would pass silently."""
         self.assertGreater(len(list(_call_sites())), 20)
+
+    def test_there_are_store_call_sites_to_check(self) -> None:
+        """Same reason, and it bites sooner here: the receiver names are a whitelist, so
+        one store held under a name that is not on it empties the scan."""
+        self.assertGreaterEqual(len(list(_store_reads())), 5)
 
 
 if __name__ == "__main__":

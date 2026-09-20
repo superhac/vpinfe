@@ -25,6 +25,8 @@ SNAKE = re.compile(r"^[a-z][a-z0-9_]*$")
 # The outside witness: every spelling that has to keep resolving, frozen so that
 # deleting an alias fails here instead of on somebody's upgrade.
 FROZEN_NAMES = Path(__file__).resolve().parent.parent / "fixtures" / "config_legacy_names.json"
+# The sections a 2.x install could have written, taken from the v2.6.1 defaults.
+TWO_X_SECTIONS = Path(__file__).resolve().parent.parent / "fixtures" / "config_2x_sections.json"
 
 
 class NamingTests(unittest.TestCase):
@@ -93,6 +95,23 @@ class CompatibilityTests(unittest.TestCase):
                          | {pair for e in config_schema.options() for pair in e.legacy
                             if pair not in frozen})
         self.assertEqual(missing, [], "new aliases go in tests/fixtures/config_legacy_names.json")
+
+    def test_every_2x_section_still_names_a_section_the_schema_has(self) -> None:
+        """Every section a 2.x file can hold resolves to one the schema still declares.
+
+        `Displays` and `Input` are exempt: their keys moved one at a time and carry
+        their own `legacy` pairs, so neither section name outlives the move.
+        """
+        moved_per_key = {"Displays", "Input"}
+        declared = {option.section for option in config_schema.options()}
+
+        stale = sorted(section for section in
+                       json.loads(TWO_X_SECTIONS.read_text(encoding="utf-8"))
+                       if section not in moved_per_key
+                       and config_schema.canonical_section(section) not in declared)
+
+        self.assertEqual(stale, [], "add it to SECTION_RENAMES, or move its keys one at "
+                                    "a time with a legacy pair each")
 
     def test_a_current_section_is_left_alone(self) -> None:
         for section in {o.section for o in config_schema.options()}:

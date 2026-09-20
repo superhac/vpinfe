@@ -202,6 +202,26 @@ class TroubleTests(unittest.TestCase):
 
         self.assertEqual(list(held), ["vpinfe.network"])
 
+    def test_a_section_is_drawn_by_no_more_than_one_page(self) -> None:
+        """`_page_holding` answers with the first page that draws a section, so a
+        section on two pages sends every badge for it to whichever comes first.
+
+        A page drawing several sections is the other direction and is fine: Displays
+        draws four, and each of the four still names Displays back.
+        """
+        seen: dict[str, str] = {}
+        twice = []
+        for _group, pages in settings_page.DEVICE_INDEX:
+            for entry in pages:
+                for section in entry[3]:
+                    if section in seen:
+                        twice.append(f"{section} is on {seen[section]} and {entry[0]}")
+                    seen[section] = entry[0]
+
+        self.assertEqual(sorted(twice), [],
+                         "a page names a whole section, so two pages drawing one puts "
+                         "its badge on the wrong page")
+
     def test_a_setting_on_no_page_is_dropped_rather_than_counted(self) -> None:
         """A badge that leads nowhere is worse than no badge."""
         with self.assertLogs("vpinfe.console.settings", level="WARNING"):
