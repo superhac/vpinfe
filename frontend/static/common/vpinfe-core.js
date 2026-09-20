@@ -817,7 +817,10 @@ class VPinFECore {
         if (iframe.contentDocument) this.applyWords(iframe.contentDocument);
         // An overlay does not load core, so anything it writes at runtime reads this.
         // Its own `t()` falls back to the English in the page when it is not here yet.
-        if (iframe.contentWindow) iframe.contentWindow.__vpinWords = this.#words;
+        if (iframe.contentWindow) {
+          iframe.contentWindow.__vpinWords = this.#words;
+          iframe.contentWindow.__vpinWordsChanged?.();
+        }
       } catch (error) {
         console.warn("[i18n] Could not fill an overlay's words", error);
       }

@@ -230,6 +230,57 @@ class FrontendPseudoLocaleTests(unittest.TestCase):
 
         self.assertEqual(leaked, {}, "these reached the cabinet without the catalog")
 
+    def test_a_menu_rewrites_itself_when_the_catalog_lands_late(self) -> None:
+        """An overlay that drew before the catalog arrived draws again when it does."""
+        if not chromium_path():
+            self.skipTest("no Chromium on this machine")
+        if not (ROOT / "common/i18n/catalogs/qps.json").is_file():
+            self.skipTest("no pseudo-locale; run scripts/i18n.py --pseudo")
+
+        line = ("document.getElementById('collection-menu-frame').contentDocument"
+                ".getElementById('paging-state').textContent")
+        empty_it = """
+          (() => {
+            const frame = document.getElementById('collection-menu-frame').contentWindow;
+            frame.__vpinWords = {};
+            if (!frame.__vpinWordsChanged) return false;
+            frame.__vpinWordsChanged();
+            return true;
+          })()
+        """
+        arrive = ("document.getElementById('collection-menu-frame')"
+                  ".dispatchEvent(new Event('load'))")
+
+        async def look(instance) -> tuple:
+            async with BrowserSession(chromium_path()) as browser:
+                await browser.navigate(instance.theme_url("playfield"))
+                await browser.wait_for("document.body.dataset.ready === 'true'",
+                                       timeout=90.0)
+                await browser.evaluate("window.vpin.toggleOverlay('collectionMenu')")
+                await asyncio.sleep(3)
+                said = await browser.evaluate(line)
+
+                told = await browser.evaluate(empty_it)
+                await asyncio.sleep(1)
+                bare = await browser.evaluate(line)
+
+                await browser.evaluate(arrive)
+                await asyncio.sleep(1)
+                return said, bare, await browser.evaluate(line), told
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_game(root, GAME)
+            with LiveInstance(root,
+                              extra_settings={("general", "language"): "qps"}) as instance:
+                said, bare, again, told = asyncio.run(look(instance))
+
+        self.assertTrue(told, "an overlay declares no way to be told the catalog arrived")
+        self.assertTrue(ASCII_WORD.search(bare),
+                        f"blanking the words should leave English behind, got {bare!r}")
+        self.assertEqual(again, said, "core handed the words over and the line did not "
+                                      "change")
+
 
 if __name__ == "__main__":
     unittest.main()

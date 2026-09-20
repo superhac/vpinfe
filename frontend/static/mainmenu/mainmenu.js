@@ -303,6 +303,10 @@ async function refreshRatingMenuLabel(indexHint = null) {
   }
 }
 
+window.__vpinWordsChanged = () => {
+  refreshRatingMenuLabel();
+};
+
 function handleInput(input) {
   if (!menuConfigLoaded || !menu || !menu.length) return;
 

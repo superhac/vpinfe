@@ -506,6 +506,10 @@ function t(key, english, params) {
       updatePagingState();
     }
 
+    window.__vpinWordsChanged = () => {
+      if (rows) updateMenu();
+    };
+
     function normalizeRatingMode() {
       if (ratings[ratingIndex] === 'All') {
         ratingModeIndex = 0;
