@@ -548,8 +548,19 @@ def game_frontend_dof_event(game: GameRecord) -> str:
     return str(vpinfe_section(meta).get("frontend_dof_event", "") or "").strip()
 
 
+def declared_no_match(meta: dict[str, Any]) -> bool:
+    """Whether somebody has said this machine is in no catalog.
+
+    `alt_vpsid` null says so. Absent or empty says nothing, and the scan's answer stands.
+    """
+    vpinfe = vpinfe_section(meta)
+    return "alt_vpsid" in vpinfe and vpinfe["alt_vpsid"] is None
+
+
 def game_vps_id(game: GameRecord) -> str:
     meta = normalize_meta(getattr(game, "meta_config", {}))
+    if declared_no_match(meta):
+        return ""
     alt_vpsid = str(vpinfe_section(meta).get("alt_vpsid", "") or "").strip()
     if alt_vpsid:
         return alt_vpsid

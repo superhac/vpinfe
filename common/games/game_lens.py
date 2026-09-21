@@ -67,7 +67,8 @@ def game_resource(row: dict, game_id: str) -> dict[str, Any]:
         # match was wrong, and every other field here is already the value in force -
         # `name` is the alt title the moment one is set. `discovered` below is what an
         # undo reverts to, and is the only place the superseded id belongs.
-        "vps_id": row.get("alt_vpsid", "") or row.get("vpsid", ""),
+        "vps_id": ("" if row.get("alt_vpsid", "") is None
+                   else row.get("alt_vpsid", "") or row.get("vpsid", "")),
         "name": row.get("name", ""),
         "manufacturer": row.get("manufacturer", ""),
         "year": str(row.get("year") or ""),

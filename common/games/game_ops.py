@@ -156,6 +156,16 @@ def set_overrides(game_id: str, changes: dict) -> dict:
     return game_lens.detail(game_id)["overrides"]
 
 
+def declare_no_match(game_id: str) -> dict:
+    """Say this machine is in no catalog, and answer with the overrides that leaves."""
+    game = game_lens.game_or_refuse(game_id)
+    if not game_service.update_vpinfe_setting(Path(game.full_path_game),
+                                              "alt_vpsid", None):
+        raise service_errors.BlockedError(
+            t("error.games.could_not_write", name=("alt_vps_id")))
+    return game_lens.detail(game_id)["overrides"]
+
+
 def set_file_source(game_id: str, path: str, vps_file_id: str) -> dict:
     """Bind one media or asset file to the upstream record somebody says it is.
 

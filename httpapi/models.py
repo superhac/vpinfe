@@ -514,7 +514,9 @@ class GameOverrides(ApiModel):
     """
 
     alt_title: str = ""
-    alt_vps_id: str = ""
+    # `null` says this machine is in no catalog, which is not the same as "" - that is
+    # nobody having looked, and the scan's answer stands.
+    alt_vps_id: str | None = ""
     frontend_dof_event: str = ""
     alt_manufacturer: str = ""
     alt_year: str = ""

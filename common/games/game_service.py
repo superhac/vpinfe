@@ -223,6 +223,8 @@ def route_legacy_match(data: dict, folder_name: str = "") -> str:
     vpinfe = data.get(VPINFE_SECTION)
     if not isinstance(vpinfe, dict):
         return ""
+    if "alt_vpsid" in vpinfe and vpinfe["alt_vpsid"] is None:
+        return "kept"
     wanted = str(vpinfe.get("alt_vpsid", "") or "").strip()
     if not wanted or not load_vpsdb():
         return ""

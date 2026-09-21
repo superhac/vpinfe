@@ -441,6 +441,14 @@ def put_table_overrides(game_id: str, table_id: str,
         **table_ops.set_overrides(game_id, table_id, _sent(payload)))
 
 
+@router.delete("/{game_id}/vps_match", summary="Say this game is in no catalog",
+               dependencies=[requires(scopes.GAMES_WRITE)])
+def delete_game_vps_match(game_id: str) -> models.GameOverrides:
+    """Different from clearing the override, which puts the scan's answer back. This says
+    there is no answer, and the scan's is not to be used."""
+    return models.GameOverrides.model_validate(game_ops.declare_no_match(game_id))
+
+
 @router.get("/{game_id}/archive", summary="Download the game folder as an archive",
             dependencies=[requires(scopes.GAMES_READ)])
 def get_game_archive(request: Request, game_id: str, download_token: str = "",

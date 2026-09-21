@@ -23,6 +23,7 @@ from common.games.game_identity import game_id as vpinfe_id
 from common.games.game_metadata import (
     GAME_OVERRIDES,
     as_string_list,
+    declared_no_match,
     default_table,
     first_meta_value,
     game_discovered,
@@ -322,7 +323,10 @@ def game_to_row(game: Game,
         "alt_launcher": str(vpinfe.get("alt_launcher", "") or "").strip(),
         "plugin_profile": str(vpinfe.get("plugin_profile", "") or "").strip(),
         "alt_title": str(vpinfe.get("alt_title", "") or "").strip(),
-        "alt_vpsid": str(vpinfe.get("alt_vpsid", "") or "").strip(),
+        # None survives: null is somebody saying there is no match, and `or ""` here
+        # would turn that into "no opinion" and let the scan's answer stand again.
+        "alt_vpsid": (None if declared_no_match(meta)
+                      else str(vpinfe.get("alt_vpsid", "") or "").strip()),
         **{GAME_OVERRIDES[name][0]: answered[name]
            for name in ("manufacturer", "year", "type", "themes", "ipdb_id")},
         "frontend_dof_event": str(vpinfe.get("frontend_dof_event", "") or "").strip(),
