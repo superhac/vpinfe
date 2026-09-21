@@ -21,8 +21,6 @@ from common.i18n import t
 from console import panel
 
 # Below this many, a list is shorter than the control that would fold it away.
-SHOW_ALL_UP_TO = 3
-
 
 def offered(context: str) -> tuple[Any, Callable[[], None]]:
     """The names a command in this context may use, under the fields it applies to."""
@@ -39,11 +37,6 @@ def offered(context: str) -> tuple[Any, Callable[[], None]]:
                 ui.label(says).classes("console-help")
 
     def draw() -> None:
-        if len(available) <= SHOW_ALL_UP_TO:
-            with ui.column().classes("gap-1"):
-                ui.label(t("console.commands.each_stands_something_command")).classes("console-help")
-                rows()
-            return
         with ui.expansion(t("console.commands.names_can_use", len=(len(available)))) \
                 .props("dense dense-toggle").classes("console-disclosure console-tokens"):
             with ui.column().classes("gap-1 pt-1"):

@@ -1761,9 +1761,6 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-disclosure .q-item__section--side {
   padding-left: 4px; padding-right: 0; min-width: 0; color: var(--accent);
 }
-.console-disclosure .q-expansion-item__container > .q-item:hover {
-  text-decoration: underline; text-underline-offset: 2px;
-}
 .console-token-list {
   display: grid;
   grid-template-columns: max-content 1fr;
