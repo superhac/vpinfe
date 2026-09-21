@@ -206,7 +206,8 @@ def _version(said: Any) -> str:
 _NAV_CLICK = """
 (() => {
   document.addEventListener('click', (event) => {
-    const link = event.target.closest && event.target.closest('a.console-nav-row');
+    const link = event.target.closest && event.target.closest(
+      'a.console-nav-row, a.console-link--inplace');
     if (!link) return;
     if (event.button !== 0 || event.metaKey || event.ctrlKey ||
         event.shiftKey || event.altKey) return;

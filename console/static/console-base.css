@@ -1517,6 +1517,29 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   white-space: nowrap;
 }
 
+/* A link. Underlined at rest and in `--accent`, which the palette declares as the colour
+   of interactive text - the underline is what separates a link from a heading or a lit
+   state, which are the accent's other jobs. Unmarked means it stays in the app; the only
+   link that carries an icon is one that leaves it. */
+.console-link, .console-link:visited {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  cursor: pointer;
+}
+.console-link:hover { text-decoration-thickness: 2px; }
+/* The mark sits after the words and never wraps away from them: an arrow alone on the
+   next line reads as a control rather than as part of the label it qualifies. */
+.console-link-out { display: inline-flex; align-items: center; gap: 3px; min-width: 0; }
+/* The words give way, the mark does not: a name too long for the column truncates and
+   the mark stays on the row, because a mark that has been pushed off is a link that no
+   longer says it leaves. */
+.console-link-out > :first-child {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.console-link-out .q-icon { font-size: 1em; flex: 0 0 auto; }
+
 /* A destructive action is still an action - it takes the same shape and says what it
    is with color on top, not instead. */
 .console-action.console-action--danger.q-btn { border-color: var(--danger-edge); }

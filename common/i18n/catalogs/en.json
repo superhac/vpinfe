@@ -1187,8 +1187,6 @@
   "console.workbench.now_used_all_tables": "Now used by all tables in this game",
   "console.workbench.one_taken": "1, taken {newest}",
   "console.workbench.open": "Open {lower}",
-  "console.workbench.open_table": "Open this table",
-  "console.workbench.open_vps": "Open on VPS",
   "console.workbench.or_join": " or ",
   "console.workbench.ordered": "Ordered by",
   "console.workbench.own_game_now": "It is its own game now",

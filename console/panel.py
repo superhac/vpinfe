@@ -600,6 +600,49 @@ def action(label: str,
     return draw
 
 
+def link(label: str, *, to: str, on_click: Callable[[], Any] | None = None,
+         hint: str = "") -> Callable[[], None]:
+    """A link to somewhere else in the Console.
+
+    An anchor, never a click handler on a label. A destination has an address, so a row
+    that only listens for a click hides that from the browser and kills "open in a new
+    tab", middle-click and copy-link-address on it.
+
+    With `on_click` the row also takes `console-link--inplace`, which is what the page's
+    click handler looks for: it stops the browser following the href on a plain click and
+    leaves every modified one alone, so the fast path works and the address still means
+    something. Without one the browser simply follows the href.
+
+    Carries no icon; `link_out` is the one that does.
+    """
+    def draw() -> None:
+        row = ui.link(label, target=to).classes("console-link")
+        if on_click is not None:
+            row.classes("console-link--inplace")
+            row.on("click", on_click)
+        if hint:
+            row.tooltip(hint)
+
+    return draw
+
+
+def link_out(label: str, *, to: str, hint: str = "") -> Callable[[], None]:
+    """A link that leaves the Console, opening in a new tab and marked `open_in_new`.
+
+    `label` is the thing being opened wherever the surface has one to give - a name
+    already on the row reads better than a verb added beside it.
+    """
+    def draw() -> None:
+        row = ui.link(target=to, new_tab=True).classes("console-link console-link-out")
+        with row:
+            ui.label(label)
+            ui.icon("open_in_new")
+        if hint:
+            row.tooltip(hint)
+
+    return draw
+
+
 def note(text: str) -> tuple[Any, Callable[[], None]]:
     """The sentence under a control that says what it does.
 

@@ -113,7 +113,7 @@ def _heading(theme: dict[str, Any]) -> None:
         if theme.get("configurable"):
             _chip(t("console.themes.configurable"), "console-tier--off")
         if theme.get("url"):
-            ui.link(t("word.source"), theme["url"], new_tab=True).classes("console-help")
+            panel.link_out(t("word.source"), to=theme["url"])()
 
 
 def _chip(text: str, tone: str) -> None:

@@ -17,6 +17,7 @@ import logging
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from functools import partial
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote
@@ -848,6 +849,17 @@ def _media_scope(context: dict[str, Any]) -> str:
     return ""
 
 
+def _table_address(context: dict[str, Any], table_id: str) -> str:
+    """Where `_go_to_table` would land, as an address a browser can follow.
+
+    Built through `deeplink.query` rather than by formatting a string here, so the link
+    and the state the click produces cannot drift a field apart.
+    """
+    return "/console?" + deeplink.query({"view": "tables",
+                                         "game": context.get("game_id") or "",
+                                         "table": table_id})
+
+
 def _go_to_table(context: dict[str, Any], table_id: str) -> None:
     """Follow a differing table into its own lens.
 
@@ -981,8 +993,7 @@ def _preview(src: str, kind: str, label: str) -> None:
     else:
         # A rule sheet is a document; there is no element that previews one usefully
         # in a panel this size, and a broken <img> would say it is missing.
-        ui.link(t("console.workbench.open", lower=(label.lower())), src,
-                new_tab=True).classes("console-help")
+        panel.link_out(t("console.workbench.open", lower=(label.lower())), to=src)()
 
 
 def _kept_kinds(context: dict[str, Any], family: str) -> set[str] | None:
@@ -1181,12 +1192,14 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
         for other in (differing or []):
             with ui.row().classes("items-center gap-2 w-full no-wrap console-slot-differs"):
                 media_ownership.badge("table")
-                ui.label(_table_line(other) or other.get("filename") or "") \
-                    .classes("console-slot-other-file").tooltip(other.get("file") or "")
-                ui.button(icon="arrow_forward", on_click=lambda o=other: _go_to_table(
-                    context, o.get("table") or "")) \
-                    .props("flat dense round size=sm").classes("shrink-0") \
-                    .tooltip(t("console.workbench.open_table"))
+                said = _table_line(other) or other.get("filename") or ""
+                # Bound here rather than as a lambda default: the default is how a loop
+                # variable is usually captured, and it makes the callable take an
+                # argument that `panel.link` does not pass.
+                other_id = str(other.get("table") or "")
+                panel.link(said, to=_table_address(context, other_id),
+                           on_click=partial(_go_to_table, context, other_id),
+                           hint=other.get("file") or "")()
 
         with ui.row().classes("items-center gap-2 w-full console-slot-actions") \
                 .style("flex-wrap:wrap"):
@@ -1861,14 +1874,15 @@ def _vps_entry_row(found: dict[str, Any], vps_id: str) -> Callable[[], None]:
         with ui.element("div").classes("console-fact-edit"):
             said = str(found.get("name") or "")
             made = " ".join(str(found.get(k) or "") for k in ("manufacturer", "year"))
-            ui.label(f"{said} - {made.strip()}" if said else vps_id) \
-                .classes("console-fact-value truncate min-w-0").tooltip(vps_id)
-            if found.get("url"):
-                ui.link(target=str(found["url"]), new_tab=True) \
-                    .classes("console-action console-action--inline") \
-                    .tooltip(t("console.workbench.open_vps")) \
-                    .props("no-caps") \
-                    .set_text(t("word.view"))
+            told = f"{said} - {made.strip()}" if said else vps_id
+            url = str(found.get("url") or "")
+            # The id is the tooltip: it is the one thing on this row a reader cannot
+            # check against the catalog by eye.
+            if url:
+                panel.link_out(told, to=url, hint=vps_id)()
+            else:
+                ui.label(told).classes("console-fact-value truncate min-w-0") \
+                    .tooltip(vps_id)
 
     return draw
 
