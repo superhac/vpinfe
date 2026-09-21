@@ -99,7 +99,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
                 for row in rows:
                     this = str(row.get("vps_id") or "")
                     _entry_row(row, pick=partial(take, this),
-                               chosen=this == picked["id"])
+                               chosen=this == picked["id"], bound=this == bound)
 
         async def look() -> None:
             said = str(field.value or "").strip()
@@ -165,22 +165,20 @@ def _seed(game: dict[str, Any]) -> str:
 
 
 def _entry_row(row: dict[str, Any], *, pick: Callable[[], None] | None = None,
-               chosen: bool = False,
+               chosen: bool = False, bound: bool = False,
                trailing: Callable[[], None] | None = None) -> None:
     """One VPS entry, in the shape the games grid draws a game in.
 
     `pick` absent draws it without making it a target. `trailing` puts one control at
     the end, after the way out to the catalog.
     """
-    said = [" ".join(str(row.get(k) or "") for k in ("manufacturer", "year")).strip()]
-    count = int(row.get("releases") or 0)
-    if count:
-        said.append(t("console.vps_match.release" if count == 1
-                      else "console.vps_match.releases", count=count))
+    said = " ".join(str(row.get(k) or "") for k in ("manufacturer", "year")).strip()
     url = str(row.get("url") or "")
 
     def end() -> None:
         with ui.row().classes("items-center gap-2 no-wrap shrink-0"):
+            if bound:
+                panel.state(t("console.vps_match.current"), "on")()
             if url:
                 # Or reading the entry would also pick it.
                 with ui.element("div").on("click.stop", lambda: None):
@@ -190,8 +188,7 @@ def _entry_row(row: dict[str, Any], *, pick: Callable[[], None] | None = None,
                     trailing()
 
     candidates.choice(str(row.get("img_url") or ""), str(row.get("name") or ""),
-                      " · ".join(part for part in said if part),
-                      pick, glyph=icons.GAMES, chosen=chosen,
+                      said, pick, glyph=icons.GAMES, chosen=chosen,
                       trailing=end, entry=True)
 
 

@@ -992,14 +992,13 @@
   "console.views.untitled": "Untitled",
   "console.vps_match.clear_match": "Clear match",
   "console.vps_match.could_not_set_match": "Could not set that match: {exc}",
+  "console.vps_match.current": "Current",
   "console.vps_match.current_match": "Current match",
   "console.vps_match.index_of_total": "{index} of {total}",
   "console.vps_match.match_named": "Match {name} to Virtual Pinball Spreadsheet",
   "console.vps_match.match_set": "{changed} match{value} set",
   "console.vps_match.nothing_changed": "Nothing changed",
   "console.vps_match.nothing_vps_matches": "Nothing in VPS matches “{said}”",
-  "console.vps_match.release": "{count} release",
-  "console.vps_match.releases": "{count} releases",
   "console.vps_match.results": {
     "one": "{count} result",
     "other": "{count} results"

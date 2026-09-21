@@ -2036,7 +2036,14 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    height, and pinning it hid two of every three lines behind a scrollbar. */
 .console-edit-field.q-textarea .q-field__control { height: auto; padding: 4px 8px; }
 .console-edit-field .q-field__control::before,
-.console-edit-field .q-field__control::after { border: none; }
+.console-edit-field .q-field__control::after { border: none; display: none; }
+/* Quasar's own focus rule, drawn under the edge this class already draws. Two edges on
+   one control, at two heights, is what it looked like. */
+.console-edit-field.q-field--focused .q-field__control::after,
+.console-edit-field .q-field__control > .q-field__native + .q-field__marginal { border: none; }
+/* The clear control sits on the text's line, not below it: a dense field sets its own
+   height and Quasar's append slot does not follow it. */
+.console-edit-field .q-field__append { align-self: center; height: auto; }
 /* No cap. 56ch was tried and cropped "/Users/.../VPinballX/10.8/VPinballX.ini" with room
    to spare beside it, which is the failure this file already describes: a cropped value
    reads as broken, not as restraint. A settings page is mostly long paths, so the width
