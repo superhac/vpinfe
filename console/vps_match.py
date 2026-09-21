@@ -38,20 +38,33 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
     `walking` splits Cancel into Skip and Stop, which are different intents in a run and
     cannot share one button.
     """
+    bound = str(game.get("vps_id") or "")
+    entry = await offload.io(library.vps_entry, bound) if bound else {}
+    now = " - ".join(part for part in (
+        str(entry.get("name") or ""),
+        " ".join(str(entry.get(k) or "") for k in ("manufacturer", "year")).strip(),
+    ) if part) or bound or t("console.workbench.not_matched")
+
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-confirm console-picker-dialog"):
-        ui.label(t("console.vps_match.match_game_vps")).classes("console-confirm-title")
+        ui.label(t("console.vps_match.match_named",
+                   name=(str(game.get("name") or "")))) \
+            .classes("console-confirm-title")
         if place:
             ui.label(place).classes("console-help")
-        ui.label(t("console.vps_match.nothing_ranks_results_pick")) \
-            .classes("console-help")
+        with ui.row().classes("items-baseline gap-2 w-full no-wrap console-picker-now"):
+            ui.label(t("console.vps_match.now")).classes("console-fact-label")
+            ui.label(now).classes("console-fact-value truncate min-w-0")
         field = ui.input(value=_seed(game)) \
             .props("dense autofocus clearable").classes("console-edit-field w-full")
+        heading = ui.label("").classes("console-group")
         found = ui.column().classes("w-full gap-0 console-source-list")
 
         async def look() -> None:
             said = str(field.value or "").strip()
             rows = await offload.io(library.vps_search, said, 40) if said else []
+            heading.text = (t("console.vps_match.results", count=len(rows))
+                            if said else "")
             found.clear()
             with found:
                 if not said:
@@ -61,6 +74,8 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
                     ui.label(t("console.vps_match.nothing_vps_matches", said=(said))) \
                         .classes("console-help")
                     return
+                ui.label(t("console.vps_match.in_the_order_vps_lists")) \
+                    .classes("console-help")
                 for row in rows:
                     _match_row(row, dialog)
 
@@ -68,10 +83,11 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
         ui.button(t("console.vps_match.search"), icon=verbs.SEARCH,
                 on_click=look).props("flat dense no-caps size=sm") \
             .classes("console-action")
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("console.vps_match.clear_match"),
-                icon=verbs.UNMATCH, on_click=lambda: dialog.submit(CLEARED)) \
-                .props("flat no-caps")
+        with ui.row().classes("items-center justify-end gap-2 w-full"):
+            if bound:
+                ui.button(t("console.vps_match.clear_match"),
+                    icon=verbs.UNMATCH, on_click=lambda: dialog.submit(CLEARED)) \
+                    .props("flat no-caps")
             if walking:
                 ui.button(t("console.vps_match.skip"),
                     icon=verbs.SKIP, on_click=lambda: dialog.submit(CANCELLED)) \
