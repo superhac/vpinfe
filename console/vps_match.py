@@ -45,7 +45,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
             ui.label(place).classes("console-help")
         ui.label(t("console.vps_match.nothing_ranks_results_pick")) \
             .classes("console-help")
-        field = ui.input(value=str(game.get("name") or "")) \
+        field = ui.input(value=_seed(game)) \
             .props("dense autofocus clearable").classes("console-edit-field w-full")
         found = ui.column().classes("w-full gap-0 console-source-list")
 
@@ -115,6 +115,17 @@ async def walk(library: Any, games: list[dict[str, Any]]) -> None:
     ui.notify(t("console.vps_match.match_set", changed=(changed),
             value=('' if changed == 1 else 'es')) if changed
               else t("console.vps_match.nothing_changed"), type="positive" if changed else "info")
+
+
+def _seed(game: dict[str, Any]) -> str:
+    """The query the search opens on: a starting point, visible and editable."""
+    said = str(game.get("name") or "")
+    if game.get("vps_id"):
+        return said
+    answered = game.get("overrides") or {}
+    parts = [said] + [str(answered.get(key) or "").strip()
+                      for key in ("alt_manufacturer", "alt_year")]
+    return " ".join(part for part in parts if part)
 
 
 def _match_row(row: dict[str, Any], dialog: Any) -> None:

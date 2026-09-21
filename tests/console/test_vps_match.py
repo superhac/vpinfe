@@ -54,6 +54,33 @@ def walk_answering(answers: list, chosen: list[dict[str, Any]]) -> FakeLibrary:
     return library
 
 
+class TheSeedQuery(unittest.TestCase):
+    def test_a_matched_game_searches_on_its_name(self) -> None:
+        said = vps_match._seed({"name": "Bad Cats", "vps_id": "abc",
+                                "overrides": {"alt_manufacturer": "Williams"}})
+
+        self.assertEqual(said, "Bad Cats")
+
+    def test_an_unmatched_game_adds_what_somebody_answered(self) -> None:
+        said = vps_match._seed({"name": "Bad Cats", "vps_id": "",
+                                "overrides": {"alt_manufacturer": "Williams",
+                                              "alt_year": "1989"}})
+
+        self.assertEqual(said, "Bad Cats Williams 1989")
+
+    def test_nothing_answered_leaves_the_name_alone(self) -> None:
+        said = vps_match._seed({"name": "Bad Cats", "vps_id": "", "overrides": {}})
+
+        self.assertEqual(said, "Bad Cats")
+
+    def test_a_parsed_value_is_not_a_seed(self) -> None:
+        said = vps_match._seed({"name": "Bad Cats", "vps_id": "",
+                                "manufacturer": "Some Homebrew Co", "year": "2011",
+                                "overrides": {}})
+
+        self.assertEqual(said, "Bad Cats")
+
+
 class TheWalk(unittest.TestCase):
 
     def test_a_pick_is_written_against_the_game_it_was_asked_for(self) -> None:
