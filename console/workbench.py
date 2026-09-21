@@ -1341,7 +1341,6 @@ def _identity_rows(context: dict[str, Any]) -> None:
     # every game and repeating it costs the only column that has to hold a name.
     folder = str(game.get("folder") or "")
     found = game.get("discovered") or {}
-    overrides = game.get("overrides") or {}
 
     def save(key: str) -> Callable[[str], Awaitable[None]]:
         async def write(value: str) -> None:
@@ -1349,7 +1348,6 @@ def _identity_rows(context: dict[str, Any]) -> None:
         return write
 
     entries: list[tuple[Any, Any]] = [
-        (HEADING, game_tables.MACHINE),
         (t("word.name"), _override(game.get("name") or "",
                 found.get("name") or "",
                            "VPS", save("alt_title"))),
@@ -1360,7 +1358,14 @@ def _identity_rows(context: dict[str, Any]) -> None:
         (t("word.folder"), PurePosixPath(folder).name or folder or "-"),
     ]
 
+    _rows(ui, entries)
+
+
+def _game_play_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """The game's own record, and the one frontend setting it carries."""
+    game = context["game"]
     record = game.get("user") or {}
+    overrides = game.get("overrides") or {}
 
     async def rate(value: int) -> None:
         await _write(context, context["library"].set_game_rating,
@@ -1369,6 +1374,10 @@ def _identity_rows(context: dict[str, Any]) -> None:
     async def favorite(event: Any) -> None:
         await _write(context, context["library"].set_game_favorite,
                      context["game_id"], bool(event.value), shape=False)
+
+    async def retag(chosen: list[str]) -> None:
+        await _write(context, context["library"].set_game_tags,
+                     context["game_id"], chosen)
 
     async def reset() -> None:
         if not await confirm.ask(
@@ -1379,29 +1388,65 @@ def _identity_rows(context: dict[str, Any]) -> None:
         await _write(context, context["library"].reset_play_record,
                      context["game_id"])
 
-    entries += [(HEADING, game_tables.PLAY)]
-    async def retag(chosen: list[str]) -> None:
-        await _write(context, context["library"].set_game_tags,
-                     context["game_id"], chosen)
+    async def save_dof(value: str) -> None:
+        await _save_overrides(context, {"frontend_dof_event": value}, table=False)
 
-    entries += _play_rows(context, record, rating=int(game.get("rating") or 0),
-                          on_rate=rate, on_reset=reset,
-                          favorite=lambda: _switch(bool(record.get("favorite")),
-                                                   favorite,
-                                                   hint=t("console.workbench.yours_frontend_can_filter")),
-                          tags=_tag_picker(list(record.get("tags") or []),
-                                           context["library"].tags(), retag))
+    rows = _play_rows(context, record, rating=int(game.get("rating") or 0),
+                      on_rate=rate, on_reset=reset,
+                      favorite=lambda: _switch(bool(record.get("favorite")), favorite,
+                                               hint=t("console.workbench.yours_frontend_can_filter")),
+                      tags=_tag_picker(list(record.get("tags") or []),
+                                       context["library"].tags(), retag))
+    # Empty is the revert: nothing but the user supplies this, and clearing it asks for
+    # the frontend's own effect.
+    rows.append((t("console.workbench.dof_event"),
+                 _override(overrides.get("frontend_dof_event") or "", None, "",
+                           save_dof,
+                           hint=t("console.workbench.empty_uses_default_effect"))))
+    return rows
 
-    entries += [
-        (HEADING, game_tables.FRONTEND),
-        # Nothing supplies this but the user, so there is nothing to revert to - empty
-        # means the frontend's own default, which is what clearing it says.
-        (t("console.workbench.dof_event"), _override(overrides.get("frontend_dof_event") or "",
-                None,
-                                "", save("frontend_dof_event"),
-                                hint=t("console.workbench.empty_uses_default_effect"))),
-    ]
-    _rows(ui, entries)
+
+def _table_play_rows(context: dict[str, Any],
+                     table: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """This file's own record, and what the frontend does with it."""
+    record = table.get("user") or {}
+    table_id = str(table.get("id") or "")
+
+    async def rate(value: int) -> None:
+        await _write(context, context["library"].set_table_rating,
+                     context["game_id"], table_id, value)
+
+    async def reset() -> None:
+        if not await confirm.ask(
+                t("console.workbench.reset_table_s_play"),
+                detail=t("console.workbench.rating_kept_game_s"),
+                confirm=t("word.reset"), icon=verbs.RESET):
+            return
+        await _write(context, context["library"].reset_play_record,
+                     context["game_id"], table_id)
+
+    rows = _play_rows(context, record, rating=int(table.get("rating") or 0),
+                      on_rate=rate, on_reset=reset)
+    return rows + _library_rows(context, table)
+
+
+async def _play_block(context: dict[str, Any]) -> None:
+    """What has been done with this, and what the frontend does with it.
+
+    Under a table both levels show, each under its own heading.
+    """
+    chosen = next((row for row in context["tables"]
+                   if row.get("id") == context["lens"]), None)
+    entries: list[tuple[Any, Any]] = []
+    if chosen is None:
+        entries += _game_play_rows(context)
+    else:
+        entries += [(HEADING, t("console.workbench.game_details"))]
+        entries += _game_play_rows(context)
+        entries += [(HEADING, t("console.workbench.table_details"))]
+        entries += _table_play_rows(context, chosen)
+    with ui.column().classes("gap-0 console-form"):
+        _rows(ui, entries)
 
 
 def _table_rows(table: dict[str, Any],
@@ -1500,42 +1545,6 @@ def _table_rows(table: dict[str, Any],
         entries += _table_override_rows(context, table, overrides)
         entries += [(FULL, _play_action(context, table))]
 
-    # What somebody thinks of this file, and what they have done with it. The game's
-    # record is the headline; a table that has been played while its sibling has not
-    # is the thing the game's total cannot say.
-    if context is not None:
-        record = table.get("user") or {}
-        table_id = str(table.get("id") or "")
-
-        async def rate(value: int) -> None:
-            await _write(context, context["library"].set_table_rating,
-                         context["game_id"], table_id, value)
-
-        async def reset() -> None:
-            if not await confirm.ask(
-                    t("console.workbench.reset_table_s_play"),
-                    detail=t("console.workbench.rating_kept_game_s"),
-                    confirm=t("word.reset"), icon=verbs.RESET):
-                return
-            await _write(context, context["library"].reset_play_record,
-                         context["game_id"], table_id)
-
-        entries += [(HEADING, game_tables.PLAY)]
-        entries += _play_rows(context, record, rating=int(table.get("rating") or 0),
-                              on_rate=rate, on_reset=reset)
-
-    # What the frontend does with it. Settings, where Launch above is findings.
-    entries += [(HEADING, game_tables.FRONTEND)]
-    if context is not None:
-        entries += _library_rows(context, table)
-    else:
-        said = game_tables.default_state(table.get("default_kind") or "")
-        entries += [
-            (game_tables.DEFAULT_LABEL,
-             said[0] if table.get("default") and said else "No"),
-            (t("word.hidden"), game_tables.word_for(game_tables.HIDDEN_WORDS,
-                                            bool(table.get("hidden")))),
-        ]
     _rows(ui, entries)
 
 
@@ -4767,6 +4776,7 @@ SECTIONS: tuple[Section, ...] = (
     Section("game_details", lambda _: t("console.workbench.game_details"), _game_block),
     Section("table_details", lambda _: t("console.workbench.table_details"), _table_block,
             subjects=frozenset({"table"})),
+    Section("play", lambda _: game_tables.PLAY, _play_block),
     # Beside the game's own facts: the match is how this game is identified, and the
     # section exists so that is something a person can see and change rather than an
     # opaque id in a text field.
