@@ -17,7 +17,7 @@ from nicegui import ui
 
 from common.i18n import t
 from common.media_specs import media_family, media_label_map
-from console import media_ownership, mediaview
+from console import media_ownership, mediaview, verbs
 
 # Top of the cabinet down to the floor. Kinds on the same row are the same screen shown
 # two ways - a still and its video - and share a row so the pair reads as one slot.
@@ -170,7 +170,7 @@ def _tile(prefix: str, kind: str, entry: dict[str, Any],
             if state != "missing" and media_family(kind) in ("image", "video"):
                 # click.stop, or enlarging would also pick the tile and redraw the
                 # panel out from under the dialog.
-                ui.button(icon="open_in_full") \
+                ui.button(icon=verbs.ENLARGE) \
                     .props("flat dense round size=sm") \
                     .classes("console-mediatile-zoom") \
                     .on("click.stop", lambda: mediaview.open_viewer(

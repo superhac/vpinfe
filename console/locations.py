@@ -21,7 +21,7 @@ from nicegui import run, ui
 from common.games import locations as model
 from common.games import tables
 from common.i18n import t
-from console import offload, views
+from console import offload, verbs, views
 from console.data import Library
 
 from . import confirm, grid, panel
@@ -142,7 +142,7 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
                 count = ui.label(t("console.locations.location", len=(len(built)),
                         value=('' if len(built) == 1 else 's'))) \
                     .classes("text-xs console-label")
-                bulk = ui.button(icon="more_vert").props("flat round dense") \
+                bulk = ui.button(icon=verbs.MORE).props("flat round dense") \
                     .tooltip(t("console.locations.actions_selected_locations"))
                 with bulk, ui.menu():
                     ui.menu_item(t("console.locations.remove_selected"),
@@ -196,7 +196,7 @@ async def _remove_many(picked: list[dict[str, Any]], library: Library,
             else t("console.locations.stop_looking_in", len=(len(names))),
             detail=t("console.locations.games_leave_library_nothing") if one
             else t("console.locations.games_leave_library_folders"),
-            lines=shown, confirm=t("word.remove")):
+            lines=shown, confirm=t("word.remove"), icon=verbs.REMOVE):
         return
     for row in picked:
         try:
@@ -250,8 +250,9 @@ def _ask_new(library: Library, state: dict[str, Any],
             await _create(library, state, rerender, found["kind"], wanted)
 
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), on_click=dialog.close).props("flat no-caps")
-            ui.button(t("word.add"), on_click=keep).props("no-caps")
+            ui.button(t("word.cancel"),
+                icon=verbs.CANCEL, on_click=dialog.close).props("flat no-caps")
+            ui.button(t("word.add"), icon=verbs.ADD, on_click=keep).props("no-caps")
     dialog.on("show", lambda: ui.run_javascript(
         f"document.getElementById('c{folder.id}').focus()"))
     dialog.open()
@@ -277,7 +278,7 @@ async def remove(library: Library, row: dict[str, Any]) -> bool:
             t("console.locations.stop_looking",
                     value=(row.get('name') or t("console.locations.location_2"))),
             detail=t("console.locations.games_leave_library_nothing"),
-            confirm=t("word.remove")):
+            confirm=t("word.remove"), icon=verbs.REMOVE):
         return False
     try:
         await run.io_bound(library.delete_location, row["location_id"])

@@ -26,7 +26,7 @@ from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.i18n import t
 from common.labels import humanize
 from common.media_specs import media_label_map
-from console import binding_editor, deeplink, input_watch, offload, panel, theme_picker
+from console import binding_editor, deeplink, input_watch, offload, panel, theme_picker, verbs
 from console import commands as commands_help
 from console.data import Library
 
@@ -356,7 +356,7 @@ async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tupl
             ui.label(when.replace("T", " ").replace("Z",
                     " UTC") if when else t("word.never")) \
                 .classes("console-fact-value truncate min-w-0")
-            panel.action(t("console.settings.check_now"), now, icon="sync", inline=True)()
+            panel.action(t("console.settings.check_now"), now, icon=verbs.REFRESH, inline=True)()
 
     # No heading of its own: the group above already names the catalog, and a second
     # one here read as a separate subject.

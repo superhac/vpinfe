@@ -13,15 +13,18 @@ from collections.abc import Iterable
 from nicegui import ui
 
 from common.i18n import t
+from console import verbs
 
 
 async def ask(question: str, *, detail: str = "", lines: Iterable[str] = (),
-              confirm: str = t("word.delete"), danger: bool = True) -> bool:
+              confirm: str = t("word.delete"), icon: str = verbs.DELETE,
+              danger: bool = True) -> bool:
     """Put the question, and wait for an answer.
 
     `question` is the whole ask - "Delete the extracted script?", never "Are you sure?",
     which asks nothing. `lines` names files where a count would hide which ones. The
-    `confirm` button is the verb that does the thing, so it reads without the question.
+    `confirm` button is the verb that does the thing, so it reads without the question,
+    and `icon` is that verb's drawing - pass both or neither.
     """
     with ui.dialog() as dialog, ui.card().classes("console-confirm"):
         ui.label(question).classes("console-confirm-title")
@@ -31,8 +34,8 @@ async def ask(question: str, *, detail: str = "", lines: Iterable[str] = (),
             ui.label(line).classes("console-confirm-line")
         with ui.row().classes("justify-end gap-2 w-full"):
             # Cancel first and quiet: the destructive verb is the one to be aimed at.
-            ui.button(t("word.cancel"), on_click=lambda: dialog.submit(False)) \
+            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(False)) \
                 .props("flat no-caps")
-            ui.button(confirm, on_click=lambda: dialog.submit(True)) \
+            ui.button(confirm, icon=icon, on_click=lambda: dialog.submit(True)) \
                 .props("no-caps" + (" color=negative" if danger else ""))
     return bool(await dialog)

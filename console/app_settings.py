@@ -20,7 +20,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import confirm, offload, panel
+from console import confirm, offload, panel, verbs
 from console.data import Library
 
 # One definition of both: the launcher's rail and this dialog are the same surface at
@@ -62,7 +62,7 @@ async def open_for_table(library: Library, *, launcher_id: str, launcher_name: s
             ui.label(t("console.app_settings.settings",
                     launcher_name=(launcher_name))).classes("console-card-title")
             ui.space()
-            ui.button(t("word.done"),
+            ui.button(t("word.done"), icon=verbs.DONE,
                     on_click=dialog.close).props("flat dense no-caps")
 
         # The picker before the settings, because it says where an edit will go and
@@ -226,7 +226,7 @@ def _aside(library: Library, launcher_id: str, table_id: str, scope: str, field:
         with ui.row().classes("items-center gap-2 no-wrap"):
             mark()
             if held.get("set_here"):
-                panel.action(t("word.clear"), wipe, inline=True,
+                panel.action(t("word.clear"), wipe, icon=verbs.CLEAR, inline=True,
                         enabled=not playing,
                              hint=(t(workbench.PLAYING_NOTE) if playing
                                    else workbench._clear_hint(held, _Field)))()
@@ -277,5 +277,5 @@ async def confirm_new_table_file(library: Library, launcher_id: str,
         t("console.app_settings.setting_currently_reach_table", the_count=(count),
                 value=('' if count == 1 else 's')),
         detail=t("console.app_settings.giving_table_own_settings"),
-        confirm=t("console.app_settings.keep_them"))
+        confirm=t("console.app_settings.keep_them"), icon=verbs.KEEP)
     return True if said else None

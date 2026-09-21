@@ -15,7 +15,7 @@ from typing import Any
 from nicegui import ui
 
 from common.i18n import t
-from console import confirm, grid, offload
+from console import confirm, grid, offload, verbs
 
 SUBJECT = "tag"
 LABEL = t("console.tageditor.tags")
@@ -65,7 +65,7 @@ def build(rows: list[dict[str, Any]], library: Any,
                 lines=[t("console.tageditor.tag_game" if r["games"] == 1
                          else "console.tageditor.tag_games",
                          tag=r["tag"], count=r["games"]) for r in group[1:]],
-                confirm=t("word.merge")):
+                confirm=t("word.merge"), icon=verbs.MERGE):
             return
         await sweep(library.merge_tags, others + [into], into,
                 said=t("console.tageditor.merged", into=(into)))
@@ -84,7 +84,7 @@ def build(rows: list[dict[str, Any]], library: Any,
                 t("console.tageditor.remove_every_game", tag=(tag)),
                 detail=t("console.tageditor.game_carry_tag_no", the_count=(count),
                         value=('' if count == 1 else 's')),
-                confirm=t("word.remove")):
+                confirm=t("word.remove"), icon=verbs.REMOVE):
             return
         await sweep(library.delete_tag, tag, said=t("console.tageditor.removed", tag=(tag)))
 
@@ -99,7 +99,8 @@ def build(rows: list[dict[str, Any]], library: Any,
                                       "console-member-row"):
                     ui.label(" · ".join(f"{r['tag']} ({r['games']})" for r in group)) \
                         .classes("console-member-name grow min-w-0 truncate")
-                    ui.button(t("word.merge"), on_click=lambda _, g=group: merge(g)) \
+                    ui.button(t("word.merge"),
+                        icon=verbs.MERGE, on_click=lambda _, g=group: merge(g)) \
                         .props("flat dense no-caps size=sm") \
                         .classes("console-action console-action--inline")
 
@@ -141,9 +142,9 @@ async def _ask_for_a_name(current: str) -> str:
         field = ui.input(value=current).props("dense autofocus") \
             .classes("console-edit-field w-full")
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"),
+            ui.button(t("word.cancel"), icon=verbs.CANCEL,
                     on_click=lambda: dialog.submit("")).props("flat no-caps")
-            ui.button(t("console.tageditor.rename_2"),
+            ui.button(t("console.tageditor.rename_2"), icon=verbs.RENAME,
                     on_click=lambda: dialog.submit(field.value or "")) \
                 .props("no-caps")
     return str(await dialog or "")

@@ -27,7 +27,7 @@ from common import device_registry, install_identity
 from common.config_access import NetworkConfig
 from common.i18n import t
 from common.labels import humanize
-from console import offload, stars, theme
+from console import offload, stars, theme, verbs
 from console.api import ApiClient, local_base_url
 
 logger = logging.getLogger("vpinfe.console.remote")
@@ -337,7 +337,7 @@ def _unreachable(state: dict[str, Any], redraw: Callable[[], None]) -> None:
     with ui.column().classes("w-full items-center justify-center grow gap-3 p-6"):
         ui.label(t("console.remote.not_answering", target_name=(target_name(state['target'])))) \
             .classes("remote-empty text-center")
-        ui.button(t("console.remote.try"), icon="refresh", on_click=again) \
+        ui.button(t("console.remote.try"), icon=verbs.REFRESH, on_click=again) \
             .props("no-caps flat").classes("remote-action")
 
 
@@ -374,7 +374,7 @@ def _playing(play: dict[str, Any], state: dict[str, Any], client_for_target: Cal
         ui.label(t("console.remote.playing")).classes("console-card-title")
         ui.label(str(play.get("game_name") or t("console.remote.table"))) \
             .classes("remote-headline")
-    ui.button(t("console.remote.quit_table"), on_click=quit_table) \
+    ui.button(t("console.remote.quit_table"), icon=verbs.STOP, on_click=quit_table) \
         .props("no-caps flat").classes("remote-action remote-action--danger")
 
 
@@ -614,7 +614,7 @@ def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet: Any,
     """
     named = manual_collections(state.get("collections") or [])
     if not named:
-        ui.button(t("console.remote.add_collection"), icon="playlist_add") \
+        ui.button(t("console.remote.add_collection"), icon=verbs.ADD_TO_LIST) \
             .props("no-caps flat disable").classes("remote-action") \
             .tooltip(t("console.remote.no_lists_own_yet"))
         return
@@ -624,7 +624,7 @@ def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet: Any,
             ui.notify(t("console.remote.added", name=(name)), type="positive")
             sheet.close()
 
-    with ui.button(t("console.remote.add_collection"), icon="playlist_add") \
+    with ui.button(t("console.remote.add_collection"), icon=verbs.ADD_TO_LIST) \
             .props("no-caps flat").classes("remote-action"):
         with ui.menu():
             for name in named:
@@ -867,7 +867,7 @@ def invite(labels: list) -> None:
             # somebody gets this, and an address nobody can read out is one they cannot
             # type either.
             ui.label(said).classes("console-help text-center")
-            ui.button(t("word.close"), on_click=sheet.close) \
+            ui.button(t("word.close"), icon=verbs.CLOSE, on_click=sheet.close) \
                 .props("flat no-caps").classes("console-action")
         sheet.open()
 

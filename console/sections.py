@@ -15,6 +15,7 @@ from nicegui import run, ui
 
 from common.i18n import t
 from common.media_specs import media_label_map
+from console import verbs
 from console.data import Library
 
 # name, one-line description, predicate over (game, media entries).
@@ -167,7 +168,8 @@ def overview(library: Library, registry: list[dict], discovery: dict,
                     # The sentence is the finding. Without it a count is a puzzle.
                     ui.label(description).classes("console-help")
                 ui.label(f"{len(games)}").classes("text-sm opacity-70 shrink-0")
-                ui.button(t("console.sections.show"), on_click=lambda k=key: go("games")) \
+                ui.button(t("console.sections.show"),
+                    icon=verbs.GO, on_click=lambda k=key: go("games")) \
                     .props("flat dense no-caps size=sm").classes("shrink-0") \
                     .set_enabled(bool(games))
 
@@ -184,10 +186,10 @@ def overview(library: Library, registry: list[dict], discovery: dict,
 _ASKS = {
     "upgrade": (t("console.sections.bring_every_game_current"),
                 t("console.sections.each_game_s_metadata"),
-                t("word.upgrade"), False),
+                t("word.upgrade"), verbs.ACCEPT, False),
     "restore": (t("console.sections.put_back_saved_metadata"),
                 t("console.sections.every_game_saved_copy"),
-                t("word.restore"), True),
+                t("word.restore"), verbs.RESTORE, True),
 }
 
 
@@ -202,8 +204,8 @@ def _metadata_action(library: Library) -> Callable[[str], Any]:
     from console.api import ApiClient
 
     async def start(which: str) -> None:
-        title, detail, word, danger = _ASKS[which]
-        if not await confirm.ask(title, detail=detail, confirm=word, danger=danger):
+        title, detail, word, icon, danger = _ASKS[which]
+        if not await confirm.ask(title, detail=detail, confirm=word, icon=icon, danger=danger):
             return
         client = ApiClient()
         call = client.upgrade_info if which == "upgrade" else client.restore_info
@@ -246,7 +248,7 @@ def _metadata_row(good: bool, name: str, said: str,
             ui.label(said).classes("console-help")
         if action is not None:
             label, run = action
-            ui.button(label, on_click=run) \
+            ui.button(label, icon=verbs.GO, on_click=run) \
                 .props("flat dense no-caps size=sm").classes("shrink-0")
 
 
@@ -365,7 +367,7 @@ def table_scripts(library: Library) -> None:
         if not await confirm.ask(
                 t("console.sections.fetch_fixes_table_s", len=(len(offered))),
                 detail=t("console.sections.each_one_lands_vbs"),
-                confirm=t("word.fetch"), danger=False):
+                confirm=t("word.fetch"), icon=verbs.FETCH, danger=False):
             return
         try:
             await run.io_bound(ApiClient().apply_script_patches)
@@ -452,6 +454,7 @@ def _actions(found: dict, open_one: Callable[..., Any] | None = None) -> None:
             # under the extension's name, and saying it twice on one card is a sentence
             # that tells nobody anything they cannot see.
             ui.button(str(action.get("label") or action.get("key") or ""),
+                      icon=verbs.RUN,
                       on_click=lambda _e=None, action=action:
                           ext_action.open_action(name, action)) \
                 .props("no-caps outline") \

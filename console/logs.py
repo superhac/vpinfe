@@ -28,7 +28,7 @@ from nicegui import ui
 
 from common.i18n import t
 from console import devices as devices_page
-from console import offload, panel
+from console import offload, panel, verbs
 from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.logs")
@@ -124,7 +124,7 @@ def _draw_bar(bar: Any, held: dict[str, Any], reload: Callable[[], Any],
             .props("dense outlined clearable").classes("grow min-w-0") \
             .on("keydown.enter", lambda e: remember("contains", e.sender.value or ""))
 
-        wrap = ui.button(icon="wrap_text",
+        wrap = ui.button(icon=verbs.WRAP,
                          on_click=lambda: remember("wrap", not held["wrap"])) \
             .props("flat dense round size=sm")
         wrap.tooltip(t("console.logs.wrap_long_lines") if not held["wrap"]
@@ -143,7 +143,7 @@ def _draw_bar(bar: Any, held: dict[str, Any], reload: Callable[[], Any],
         else:
             # A rotated file does not change, so following it is a control that would
             # do nothing. Refresh is what makes sense there.
-            ui.button(icon="refresh", on_click=lambda: reload()) \
+            ui.button(icon=verbs.REFRESH, on_click=lambda: reload()) \
                 .props("flat dense round size=sm").tooltip(t("word.read_it_again"))
 
         if held["path"]:

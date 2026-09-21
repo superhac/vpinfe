@@ -23,7 +23,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import confirm, offload, panel, settings
+from console import confirm, offload, panel, settings, verbs
 from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.themes")
@@ -56,7 +56,7 @@ async def _fill(library: Library, state: dict[str, Any], redraw: Callable[[], No
         with ui.row().classes("items-center gap-2 w-full no-wrap px-1 pt-1"):
             ui.label(t("console.themes.what_frontend_looks_like")) \
                 .classes("console-help grow min-w-0")
-            ui.button(t("console.themes.check_updates"), icon="refresh",
+            ui.button(t("console.themes.check_updates"), icon=verbs.REFRESH,
                       on_click=lambda: _fill(library, state, redraw, body,
                                              refresh=True)) \
                 .props("flat dense no-caps size=sm")
@@ -149,7 +149,7 @@ def _actions(library: Library, state: dict[str, Any], redraw: Callable[[], None]
                       on_click=lambda: _install(library, key, again)) \
                 .props("flat dense no-caps size=sm")
         elif theme["update_available"]:
-            ui.button(t("console.themes.update"), icon="system_update_alt",
+            ui.button(t("console.themes.update"), icon=verbs.UPDATE,
                       on_click=lambda: _install(library, key, again)) \
                 .props("flat dense no-caps size=sm color=primary")
         if theme["installed"] and not theme["active"]:
@@ -157,13 +157,13 @@ def _actions(library: Library, state: dict[str, Any], redraw: Callable[[], None]
                       on_click=lambda: _activate(library, theme, again)) \
                 .props("flat dense no-caps size=sm")
         if theme.get("configurable"):
-            ui.button(t("console.themes.configure"), icon="tune",
+            ui.button(t("console.themes.configure"), icon=verbs.TUNE,
                       on_click=lambda: _configure(library, theme)) \
                 .props("flat dense no-caps size=sm")
         if theme["installed"] and not theme["active"]:
             # Not on the active one: removing it would leave the frontend with no theme
             # at all, and the way out of that is a config file.
-            ui.button(t("word.remove"), icon="delete",
+            ui.button(t("word.remove"), icon=verbs.REMOVE,
                       on_click=lambda: _remove(library, theme, again)) \
                 .props("flat dense no-caps size=sm color=negative")
 
@@ -189,7 +189,7 @@ async def _activate(library: Library, theme: dict[str, Any], again: Callable[[],
     if not await confirm.ask(
             t("console.themes.make_active_theme", value=(theme['name'])),
             detail=t("console.themes.takes_effect_next_time"),
-            confirm=t("word.make_active"), danger=False):
+            confirm=t("word.make_active"), icon=verbs.ACTIVATE, danger=False):
         return
     try:
         await run.io_bound(library.activate_theme, theme["key"])
@@ -205,7 +205,7 @@ async def _remove(library: Library, theme: dict[str, Any], again: Callable[[], A
     if not await confirm.ask(
             t("console.themes.remove", value=(theme['name'])),
             detail=t("console.themes.files_deleted_can_installed"),
-            confirm=t("word.remove")):
+            confirm=t("word.remove"), icon=verbs.REMOVE):
         return
     try:
         await run.io_bound(library.remove_theme, theme["key"])
@@ -248,9 +248,9 @@ async def _configure(library: Library, theme: dict[str, Any]) -> None:
         with ui.column().classes("w-full gap-3 console-theme-options"):
             panel.facts(ui, _rows(options, wanted))
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), on_click=lambda: dialog.submit(False)) \
+            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(False)) \
                 .props("flat no-caps")
-            ui.button(t("word.save"),
+            ui.button(t("word.save"), icon=verbs.SAVE,
                     on_click=lambda: dialog.submit(True)).props("no-caps")
 
     if not await dialog:

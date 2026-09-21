@@ -21,7 +21,7 @@ from nicegui import run, ui
 from common import labels
 from common.i18n import t
 from common.media_specs import media_family, media_label_map
-from console import candidates, confirm, media_ownership, offload
+from console import candidates, confirm, media_ownership, offload, verbs
 
 logger = logging.getLogger("vpinfe.console.mediasource")
 
@@ -52,7 +52,7 @@ async def confirm_replace(label: str, going: list[str]) -> bool:
     return await confirm.ask(t("console.mediasource.replace",
             lower=(label.lower())),
                              detail=t("console.mediasource.replaced_files_deleted_not"),
-                             lines=going, confirm=t("word.replace"))
+                             lines=going, confirm=t("word.replace"), icon=verbs.REPLACE)
 
 
 class _Sources:
@@ -546,9 +546,9 @@ def open_sources(context: dict[str, Any], kind: str, label: str,
         # Ordered by how far the file has to travel: your own computer, this machine,
         # then the internet.
         with ui.tabs().props("dense no-caps align=left").classes("w-full") as tabs:
-            ui.tab("upload", label=t("console.mediasource.upload_file"), icon="upload_file")
+            ui.tab("upload", label=t("console.mediasource.upload_file"), icon=verbs.FROM_FILE)
             ui.tab("browse", label=t("console.mediasource.machine"), icon="folder_open")
-            ui.tab("online", label=t("console.mediasource.online"), icon="cloud_download")
+            ui.tab("online", label=t("console.mediasource.online"), icon=verbs.FROM_ONLINE)
         with ui.tab_panels(tabs, value="upload").classes("w-full console-sources-panels"):
             with ui.tab_panel("upload"):
                 sources.upload_tab()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import logging
@@ -27,6 +28,7 @@ from console import (
     send_to_device,
     stars,
     table_features,
+    verbs,
     views,
     vps_match,
     workbench,
@@ -378,8 +380,7 @@ async def _rate(games: list[dict[str, Any]]) -> None:
     with ui.dialog() as dialog, ui.card():
         ui.label(t("console.games.rate_game_s", len=(len(games)))).classes("text-sm")
         with ui.row():
-            for value in range(6):
-                ui.button(str(value), on_click=lambda v=value: apply(v)).props("flat dense")
+            stars.draw(0, lambda n: asyncio.create_task(apply(n)))()
     dialog.open()
 
 
@@ -465,7 +466,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
             # looking at - and it costs no vertical space of its own.
             count = ui.label(t("console.games.games", len=(len(rows)))) \
                 .classes("text-xs console-label")
-            actions = ui.button(icon="more_vert").props("flat round dense") \
+            actions = ui.button(icon=verbs.MORE).props("flat round dense") \
                 .tooltip(t("console.games.actions_selected_games"))
             with actions:
                 with ui.menu():
@@ -491,7 +492,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                         .classes("console-menu-item")
             actions.set_visibility(False)
             if rescan is not None:
-                ui.button(icon="refresh", on_click=rescan) \
+                ui.button(icon=verbs.REFRESH, on_click=rescan) \
                     .props("flat dense round size=sm").classes("shrink-0") \
                     .tooltip(t("console.games.read_library_disk_pick"))
 
@@ -993,7 +994,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                     len2=(len({r['game_id'] for r in built})))) \
                 .classes("text-xs console-label")
             if rescan is not None:
-                ui.button(icon="refresh", on_click=rescan) \
+                ui.button(icon=verbs.REFRESH, on_click=rescan) \
                     .props("flat dense round size=sm").classes("shrink-0") \
                     .tooltip(t("console.games.read_library_disk_pick"))
 
@@ -1252,7 +1253,7 @@ def view_control(library: Any, scope: str,
     # Inside the button, not beside it: a q-menu anchors to its parent, and as a
     # sibling this one anchored to the toolbar row and opened 726px away.
     with top:
-        menu_button = ui.button(icon="tune").props("flat dense round size=sm") \
+        menu_button = ui.button(icon=verbs.TUNE).props("flat dense round size=sm") \
             .classes("console-view-menu") \
             .tooltip(t("console.games.columns_saving_view"))
         with menu_button:
@@ -1511,8 +1512,9 @@ def _ask_name(save: Callable[..., Any], *, named: str = "",
             await save(name.value, purpose.value or "")
 
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), on_click=dialog.close).props("flat no-caps")
-            save_button = ui.button(t("word.save"), on_click=keep).props("no-caps")
+            ui.button(t("word.cancel"),
+                icon=verbs.CANCEL, on_click=dialog.close).props("flat no-caps")
+            save_button = ui.button(t("word.save"), icon=verbs.SAVE, on_click=keep).props("no-caps")
     # Focused when Quasar says the dialog has finished opening. Anything earlier is
     # overridden by its own focus handling, whatever the delay.
     dialog.on("show", lambda: ui.run_javascript(

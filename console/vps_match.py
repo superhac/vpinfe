@@ -16,7 +16,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import candidates, offload
+from console import candidates, offload, verbs
 
 logger = logging.getLogger("vpinfe.console.vps_match")
 
@@ -65,19 +65,22 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
                     _match_row(row, dialog)
 
         field.on("keydown.enter", look)
-        ui.button(t("console.vps_match.search"),
+        ui.button(t("console.vps_match.search"), icon=verbs.SEARCH,
                 on_click=look).props("flat dense no-caps size=sm") \
             .classes("console-action")
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("console.vps_match.clear_match"), on_click=lambda: dialog.submit(CLEARED)) \
+            ui.button(t("console.vps_match.clear_match"),
+                icon=verbs.UNMATCH, on_click=lambda: dialog.submit(CLEARED)) \
                 .props("flat no-caps")
             if walking:
-                ui.button(t("console.vps_match.skip"), on_click=lambda: dialog.submit(CANCELLED)) \
+                ui.button(t("console.vps_match.skip"),
+                    icon=verbs.SKIP, on_click=lambda: dialog.submit(CANCELLED)) \
                     .props("flat no-caps")
-                ui.button(t("console.vps_match.stop"), on_click=lambda: dialog.submit(STOPPED)) \
+                ui.button(t("console.vps_match.stop"),
+                    icon=verbs.STOP, on_click=lambda: dialog.submit(STOPPED)) \
                     .props("flat no-caps")
             else:
-                ui.button(t("word.cancel"),
+                ui.button(t("word.cancel"), icon=verbs.CANCEL,
                         on_click=lambda: dialog.submit(CANCELLED)) \
                     .props("flat no-caps")
         await look()

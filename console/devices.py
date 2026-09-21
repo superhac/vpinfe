@@ -11,7 +11,7 @@ from nicegui import run, ui
 from common import device_client, device_registry
 from common.i18n import t
 from common.labels import humanize
-from console import offload
+from console import offload, verbs
 
 from . import confirm, grid, panel, views
 from . import settings as settings_page
@@ -172,7 +172,7 @@ async def _confirm_forget(library: Any, device: dict[str, Any],
     if not await confirm.ask(
             t("console.devices.forget", name=(name)),
             detail=t("console.devices.removes_install_s_entry"),
-            confirm=t("word.forget")):
+            confirm=t("word.forget"), icon=verbs.FORGET):
         return
     try:
         await run.io_bound(library.forget_device, str(device.get("device_id") or ""))
@@ -221,7 +221,7 @@ def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
         with ui.element("div").classes("console-fact-edit"):
             panel.action(t("console.devices.update_3", latest=(latest)),
                          lambda: _confirm_update(client, device_label(device), update),
-                         icon="system_update_alt", inline=True)()
+                         icon=verbs.UPDATE, inline=True)()
 
     rows.append(("", update_action))
     return rows
@@ -252,7 +252,7 @@ async def _confirm_update(client: Any, name: str, update: dict[str, Any]) -> Non
             t("console.devices.update_2", name=(name), latest=(latest)),
             detail=t("console.devices.package_downloaded_first_vpinfe"),
             lines=lines,
-            confirm=t("console.devices.stop_table_update") if running
+            confirm=t("console.devices.stop_table_update"), icon=verbs.STOP if running
             else t("console.devices.update"),
             danger=bool(running)):
         return
@@ -422,7 +422,7 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
         with bar.bottom, panel.bar_end():
             count = ui.label(said()).classes("text-xs console-label")
             if probe is not None:
-                ui.button(icon="refresh", on_click=probe) \
+                ui.button(icon=verbs.REFRESH, on_click=probe) \
                     .props("flat dense round size=sm").classes("shrink-0") \
                     .tooltip(t("console.devices.ask_every_device_whether"))
 
@@ -529,7 +529,7 @@ async def _carrying_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
                 t("console.devices.remove", name=(name),
                         device_label=(device_label(device))),
                 detail=t("console.devices.comes_off_device_own"),
-                confirm=t("word.remove"), danger=True):
+                confirm=t("word.remove"), icon=verbs.REMOVE, danger=True):
             return
         try:
             await run.io_bound(ApiClient().remove_from_device,
@@ -546,7 +546,8 @@ async def _carrying_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     def row(name: str) -> Callable[[], None]:
         def draw() -> None:
             with ui.element("div").classes("console-slot-actions"):
-                ui.button(t("word.remove"), on_click=lambda _e=None: forget(name)) \
+                ui.button(t("word.remove"),
+                    icon=verbs.REMOVE, on_click=lambda _e=None: forget(name)) \
                     .props("flat dense no-caps size=sm") \
                     .classes("console-action console-action--inline")
 
@@ -765,13 +766,14 @@ def _action_control(context: dict[str, Any],
     action = str(entry.get("action") or "")
     label = str(entry.get("label")
                 or t("console.devices.action_the_scope", action=action, scope=scope))
+    icon = verbs.STOP if action in ("stop", "restart") else verbs.RUN
 
     async def go() -> None:
         if scope in _HEAVY and not await confirm.ask(
                 f"{label}?",
                 detail=t("console.devices.happens_now",
                         device_label=(device_label(_of(context)))),
-                confirm=label):
+                confirm=label, icon=icon):
             return
         client = _client_for(context)
         try:

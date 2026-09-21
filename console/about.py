@@ -25,7 +25,7 @@ from typing import Any
 from nicegui import ui
 
 from common.i18n import t
-from console import offload, panel
+from console import offload, panel, verbs
 from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.about")
@@ -88,7 +88,7 @@ def _draw(body: Any, groups: list[dict[str, Any]], held: dict[str, Any],
                          icon="content_copy",
                          hint=t("console.about.put_all_clipboard"),
                          js=_COPY_JS % json.dumps(held["text"]))()
-            panel.action(t("console.about.refresh"), lambda: reload(True), icon="refresh",
+            panel.action(t("console.about.refresh"), lambda: reload(True), icon=verbs.REFRESH,
                          hint=t("word.read_it_again"))()
         # One list for all of them, headings inside it, the way Settings next door
         # draws its sections: a list per group sizes a label column per group, and the
@@ -122,7 +122,7 @@ def _show_to_copy(text: str) -> None:
             .classes("console-help")
         ui.textarea(value=text).props("outlined readonly rows=18") \
             .classes("w-full console-log")
-        panel.action(t("word.close"), dialog.close)()
+        panel.action(t("word.close"), dialog.close, icon=verbs.CLOSE)()
     dialog.open()
     # Found in the document rather than through the element's own id: `getElement`
     # answers with the Vue component, whose root here is a fragment, so there is no

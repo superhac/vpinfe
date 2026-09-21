@@ -20,7 +20,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import offload
+from console import offload, verbs
 
 logger = logging.getLogger("vpinfe.console.import_dialog")
 
@@ -119,9 +119,9 @@ async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
                                                               bool(e.value))) \
                 .props("dense").classes("console-help")
         with ui.row().classes("justify-end gap-2 w-full pt-2"):
-            ui.button(t("word.cancel"), on_click=lambda: picker.submit(None)) \
+            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: picker.submit(None)) \
                 .props("flat no-caps")
-            ui.button(t("console.import_dialog.use"),
+            ui.button(t("console.import_dialog.use"), icon=verbs.ACCEPT,
                     on_click=lambda: picker.submit(holds["id"])) \
                 .props("no-caps")
 
@@ -203,9 +203,9 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
         recount()
 
         with ui.row().classes("justify-end gap-2 w-full pt-2"):
-            ui.button(t("word.cancel"), on_click=lambda: dialog.submit(False)) \
+            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(False)) \
                 .props("flat no-caps")
-            go = ui.button(t("console.import_dialog.import"),
+            go = ui.button(t("console.import_dialog.import"), icon=verbs.IMPORT,
                     on_click=lambda: dialog.submit(True)) \
                 .props("no-caps")
             if not items:
@@ -288,7 +288,7 @@ def _folder_row(library: Any, named: dict[str, Any], plan: dict[str, Any]) -> No
         field = ui.input(value=str(named["folder"] or "")) \
             .props("outlined dense debounce=0").classes("grow")
         field.on_value_change(lambda: named.__setitem__("folder", field.value or ""))
-        ui.button(t("console.import_dialog.match"),
+        ui.button(t("console.import_dialog.match"), icon=verbs.MATCH,
                 on_click=lambda: _match(library, named, field)) \
             .props("flat dense no-caps size=sm") \
             .tooltip(t("console.import_dialog.name_folder_upstream_record"))
@@ -320,9 +320,9 @@ async def _match(library: Any, named: dict[str, Any], field: Any) -> None:
                   on_change=lambda e: holds.__setitem__("id", str(e.value or ""))) \
             .props("outlined dense").classes("w-full")
         with ui.row().classes("justify-end gap-2 w-full pt-2"):
-            ui.button(t("word.cancel"), on_click=lambda: picker.submit("")) \
+            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: picker.submit("")) \
                 .props("flat no-caps")
-            ui.button(t("console.import_dialog.use"),
+            ui.button(t("console.import_dialog.use"), icon=verbs.ACCEPT,
                     on_click=lambda: picker.submit(holds["id"])) \
                 .props("no-caps")
 

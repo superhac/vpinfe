@@ -24,7 +24,7 @@ from nicegui import ui
 
 from common import input_registry
 from common.i18n import t
-from console import confirm, panel
+from console import confirm, panel, verbs
 
 logger = logging.getLogger("vpinfe.console.binding_editor")
 
@@ -305,7 +305,7 @@ async def _remove(text: str, shown: str, store: Callable[[list], Any],
     if not input_registry.capturable(text) and not await confirm.ask(
             t("console.binding_editor.remove_2", shown=(shown)),
             detail=t("console.binding_editor.nothing_can_bind_yet"),
-            confirm=t("word.remove")):
+            confirm=t("word.remove"), icon=verbs.REMOVE):
         return
     await store([one for one in held if str(one) != text])
 

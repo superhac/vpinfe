@@ -25,6 +25,7 @@ from console import (
     tageditor,
     theme,
     uploads,
+    verbs,
     views,
     workbench,
 )
@@ -722,11 +723,11 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 with workbench_actions:
                     # Stepping the list from in here, so a sweep does not need the grid
                     # on screen - which is the point of Full.
-                    ui.button(icon="keyboard_arrow_up", on_click=lambda: _step(-1)) \
+                    ui.button(icon=verbs.COLLAPSE, on_click=lambda: _step(-1)) \
                         .props("flat dense round size=sm").tooltip(t("console.page.previous_game"))
-                    ui.button(icon="keyboard_arrow_down", on_click=lambda: _step(1)) \
+                    ui.button(icon=verbs.EXPAND, on_click=lambda: _step(1)) \
                         .props("flat dense round size=sm").tooltip(t("console.page.next_game"))
-                    full_icon = ui.button(icon="open_in_full",
+                    full_icon = ui.button(icon=verbs.ENLARGE,
                                           on_click=lambda: toggle_full()) \
                         .props("flat dense round size=sm") \
                         .tooltip(t("console.page.give_workbench_whole_window"))

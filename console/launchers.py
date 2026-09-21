@@ -22,7 +22,7 @@ from nicegui import run, ui
 
 from common import path_checks
 from common.i18n import t
-from console import confirm, grid, offload, panel, views
+from console import confirm, grid, offload, panel, verbs, views
 from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.launchers")
@@ -243,9 +243,9 @@ async def copy_dialog(library: Library, state: dict[str, Any], launcher: dict) -
         also = ui.checkbox(t("console.launchers.also_copy_tables_use")).props("dense")
         ui.label(t("console.launchers.one_way_copy_change")).classes("console-help")
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"),
+            ui.button(t("word.cancel"), icon=verbs.CANCEL,
                     on_click=lambda: dialog.submit(None)).props("flat no-caps")
-            ui.button(t("word.copy"),
+            ui.button(t("word.copy"), icon=verbs.COPY,
                     on_click=lambda: dialog.submit(True)).props("no-caps")
 
     if not await dialog:
@@ -290,7 +290,7 @@ async def remove(library: Library, state: dict[str, Any], redraw: Callable[[], N
     if not await confirm.ask(
             t("console.launchers.remove", value=(launcher['display_name'])),
             detail=t("console.launchers.tables_name_go_back"),
-            confirm=t("word.remove")):
+            confirm=t("word.remove"), icon=verbs.REMOVE):
         return
     try:
         await run.io_bound(library.delete_launcher, launcher["launcher_id"])

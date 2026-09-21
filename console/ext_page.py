@@ -19,7 +19,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import ext_action, offload, panel
+from console import ext_action, offload, panel, verbs
 from console.api import ApiClient
 
 
@@ -121,6 +121,7 @@ def _actions(extension: dict, name: str) -> None:
             ui.row().classes("items-center gap-2 w-full flex-wrap"):
         for action in offered:
             ui.button(str(action.get("label") or action.get("key") or ""),
+                      icon=verbs.RUN,
                       on_click=lambda _e=None, action=action:
                           ext_action.open_action(name, action)) \
                 .props("no-caps outline") \
@@ -181,7 +182,7 @@ def _row(client: Any, base: str, row: dict, redraw: Callable[[], Awaitable[None]
         # Two at most, and that is the whole of what a row can offer.
         for action in list(row.get("actions") or [])[:2]:
             key = str(action.get("key") or "")
-            ui.button(str(action.get("label") or ""),
+            ui.button(str(action.get("label") or ""), icon=verbs.RUN,
                       on_click=lambda _e=None, key=key: press(key)) \
                 .props("flat dense no-caps")
 

@@ -17,7 +17,7 @@ from nicegui import run, ui
 
 from common.games.collection_store import DIRECTION_LABELS, SORT_LABELS
 from common.i18n import t
-from console import confirm, grid, panel, views
+from console import confirm, grid, panel, verbs, views
 from console.games import view_control
 
 logger = logging.getLogger("vpinfe.console.collections")
@@ -154,7 +154,7 @@ def build(collections: list[dict[str, Any]], library: Any,
         with bar.bottom, panel.bar_end():
             count = ui.label(t("console.collections.collections",
                     len=(len(built)))).classes("text-xs console-label")
-            bulk = ui.button(icon="more_vert").props("flat round dense") \
+            bulk = ui.button(icon=verbs.MORE).props("flat round dense") \
                 .tooltip(t("console.collections.actions_selected_collections"))
             with bulk, ui.menu():
                 ui.menu_item(t("console.collections.delete_selected"),
@@ -250,8 +250,10 @@ def _ask_new(library: Any, act: Callable) -> None:
                       said=t("console.collections.created", strip=(name.value.strip())))
 
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), on_click=dialog.close).props("flat no-caps")
-            ui.button(t("console.collections.create"), on_click=keep).props("no-caps")
+            ui.button(t("word.cancel"),
+                icon=verbs.CANCEL, on_click=dialog.close).props("flat no-caps")
+            ui.button(t("console.collections.create"),
+                icon=verbs.CREATE, on_click=keep).props("no-caps")
     dialog.on("show", lambda: ui.run_javascript(
         f"document.getElementById('c{name.id}').focus()"))
     dialog.open()

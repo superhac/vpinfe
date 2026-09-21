@@ -1,0 +1,77 @@
+"""Every button carries an icon, and the drawing comes from `console/verbs.py`."""
+
+from __future__ import annotations
+
+import ast
+import pathlib
+import unittest
+
+REPO = pathlib.Path(__file__).resolve().parent.parent.parent
+CONSOLE = REPO / "console"
+
+NAME_PICKERS = {("send_to_device.py", "name_of")}
+
+
+def _sources() -> list[tuple[pathlib.Path, ast.Module]]:
+    return [(p, ast.parse(p.read_text(encoding="utf-8")))
+            for p in sorted(CONSOLE.rglob("*.py"))]
+
+
+def _button_calls(tree: ast.Module) -> list[ast.Call]:
+    got = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        owner = node.func.value
+        if not isinstance(owner, ast.Name):
+            continue
+        if (owner.id, node.func.attr) in (("ui", "button"), ("panel", "action")):
+            got.append(node)
+    return got
+
+
+def _labelled(node: ast.Call) -> bool:
+    """A button with a first positional argument is one that shows words."""
+    return bool(node.args)
+
+
+def _excused(path: pathlib.Path, node: ast.Call) -> bool:
+    first = node.args[0] if node.args else None
+    name = first.func.id if isinstance(first, ast.Call) and isinstance(
+        first.func, ast.Name) else ""
+    return (path.name, name) in NAME_PICKERS
+
+
+class TestEveryButtonCarriesAnIcon(unittest.TestCase):
+    def test_no_button_is_text_alone(self) -> None:
+        offenders = []
+        for path, tree in _sources():
+            for node in _button_calls(tree):
+                if not _labelled(node) or _excused(path, node):
+                    continue
+                if not any(kw.arg == "icon" for kw in node.keywords):
+                    offenders.append(f"{path.relative_to(REPO)}:{node.lineno}")
+        self.assertEqual(offenders, [], "give it an icon from console/verbs.py")
+
+    def test_every_drawing_is_declared(self) -> None:
+        from console import verbs
+        allowed = verbs.declared()
+        offenders = []
+        for path, tree in _sources():
+            if path.name == "verbs.py":
+                continue
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.keyword) or node.arg != "icon":
+                    continue
+                if isinstance(node.value, ast.Constant) and isinstance(
+                        node.value.value, str):
+                    if node.value.value not in allowed:
+                        offenders.append(
+                            f"{path.relative_to(REPO)}:{node.lineno} "
+                            f"{node.value.value!r}")
+        self.assertEqual(offenders, [],
+                         "name it in console/verbs.py rather than here")
+
+
+if __name__ == "__main__":
+    unittest.main()

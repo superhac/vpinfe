@@ -21,7 +21,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import offload, panel
+from console import offload, panel, verbs
 from console.api import ApiClient
 
 # How often to ask a running job how it is doing. A job here is minutes of copying, so a
@@ -121,19 +121,20 @@ async def open_action(extension: str, action: dict) -> None:
                     ui.label(str(found.get("reason") or "")).classes("console-help")
             with buttons:
                 if history:
-                    ui.button(t("word.back"), on_click=_back).props("flat no-caps")
+                    ui.button(t("word.back"), icon=verbs.BACK, on_click=_back).props("flat no-caps")
                 else:
-                    ui.button(t("word.cancel"),
+                    ui.button(t("word.cancel"), icon=verbs.CANCEL,
                             on_click=lambda: dialog.submit(False)) \
                         .props("flat no-caps")
                 if summary:
                     go = ui.button(str(found.get("confirm")
                                        or action.get("label") or "Go"),
+                                   icon=verbs.RUN,
                                    on_click=_start).props("no-caps")
                     if not found.get("ready"):
                         go.disable()
                 else:
-                    ui.button(t("word.next"), on_click=_next).props("no-caps")
+                    ui.button(t("word.next"), icon=verbs.NEXT, on_click=_next).props("no-caps")
 
         async def _next() -> None:
             try:
@@ -180,7 +181,7 @@ async def open_action(extension: str, action: dict) -> None:
                 bar = ui.linear_progress(value=0, show_value=False).classes("w-full")
                 said = ui.label(t("console.ext_action.working")).classes("console-help")
             with buttons:
-                close = ui.button(t("word.close"),
+                close = ui.button(t("word.close"), icon=verbs.CLOSE,
                         on_click=lambda: dialog.submit(True)) \
                     .props("flat no-caps")
                 close.disable()
@@ -236,7 +237,7 @@ def _finished(body: Any, buttons: Any, dialog: Any, answer: dict) -> None:
         if facts:
             panel.facts(ui, facts)
     with buttons:
-        ui.button(t("word.close"),
+        ui.button(t("word.close"), icon=verbs.CLOSE,
                 on_click=lambda: dialog.submit(True)).props("flat no-caps")
 
 

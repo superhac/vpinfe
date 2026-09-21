@@ -20,7 +20,7 @@ from typing import Any
 from nicegui import ui
 
 from common.i18n import t
-from console import grid, media_ownership, panel, views
+from console import grid, media_ownership, panel, verbs, views
 from console.games import view_control
 
 logger = logging.getLogger("vpinfe.console.assets")
@@ -156,7 +156,7 @@ def build(found: list[dict[str, Any]], library: Any,
         with bar.bottom, panel.bar_end():
             count = ui.label(said()).classes("text-xs console-label")
             if rescan is not None:
-                ui.button(icon="refresh", on_click=rescan) \
+                ui.button(icon=verbs.REFRESH, on_click=rescan) \
                     .props("flat dense round size=sm").classes("shrink-0") \
                     .tooltip(t("console.assets.read_library_disk_pick"))
 

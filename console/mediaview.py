@@ -15,6 +15,7 @@ from nicegui import ui
 
 from common.i18n import t
 from common.media_specs import media_family
+from console import verbs
 
 # Rotated a quarter turn, the picture's visual bounds swap - so the limits that keep it
 # inside the window have to swap with them, or a turned landscape frame runs off the
@@ -231,8 +232,8 @@ def open_viewer(src: str, kind: str, label: str) -> None:
                 ui.html(_TRANSPORT).classes("grow min-w-0")
             else:
                 ui.space()
-            turn_left = ui.button(icon="rotate_left").props("flat dense round")
-            turn_right = ui.button(icon="rotate_right").props("flat dense round")
+            turn_left = ui.button(icon=verbs.ROTATE_LEFT).props("flat dense round")
+            turn_right = ui.button(icon=verbs.ROTATE_RIGHT).props("flat dense round")
             ui.button(icon="close", on_click=dialog.close).props("flat dense round")
         turn_left.tooltip(t("console.mediaview.turn_quarter_left_view"))
         turn_right.tooltip(t("console.mediaview.turn_quarter_right_view"))

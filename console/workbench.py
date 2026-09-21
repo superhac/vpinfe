@@ -51,6 +51,7 @@ from console import (
     panel,
     stars,
     table_features,
+    verbs,
     vps_match,
 )
 from console import commands as commands_help
@@ -1129,7 +1130,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                 # On the picture, where the map puts it. Images only: a video keeps its
                 # native controls here, and those carry a full-screen button already.
                 if media_family(kind) == "image":
-                    ui.button(icon="open_in_full",
+                    ui.button(icon=verbs.ENLARGE,
                               on_click=lambda s=src, k=kind, la=label:
                                   mediaview.open_viewer(s, k, la)) \
                         .props("flat dense round size=sm") \
@@ -1204,7 +1205,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
         with ui.row().classes("items-center gap-2 w-full console-slot-actions") \
                 .style("flex-wrap:wrap"):
             ui.button(t("word.replace") if present else t("word.add"),
-                      icon="add_photo_alternate",
+                      icon=verbs.ADD_ART,
                       on_click=lambda: mediasource.open_sources(context, kind, label,
                                                                 draw)) \
                 .props("flat dense no-caps size=sm").classes("console-action")
@@ -1212,11 +1213,12 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                 # Beside the acts on the bytes: a slot holding nothing has no identity.
                 _match_button(context, kind, label,
                               detail if detail.get("path") else entry, draw)
-                ui.button(t("word.remove"), on_click=remove) \
+                ui.button(t("word.remove"), icon=verbs.REMOVE, on_click=remove) \
                     .props("flat dense no-caps size=sm") \
                     .classes("console-action console-action--danger")
             if can_share:
-                ui.button(t("console.workbench.give_all_tables"), on_click=share) \
+                ui.button(t("console.workbench.give_all_tables"),
+                    icon=verbs.SHARE, on_click=share) \
                     .props("flat dense no-caps size=sm").classes("console-action")
 
 
@@ -1372,7 +1374,7 @@ def _identity_rows(context: dict[str, Any]) -> None:
         if not await confirm.ask(
                 t("console.workbench.reset_game_s_play"),
                 detail=t("console.workbench.rating_favorite_tags_kept"),
-                confirm=t("word.reset")):
+                confirm=t("word.reset"), icon=verbs.RESET):
             return
         await _write(context, context["library"].reset_play_record,
                      context["game_id"])
@@ -1513,7 +1515,7 @@ def _table_rows(table: dict[str, Any],
             if not await confirm.ask(
                     t("console.workbench.reset_table_s_play"),
                     detail=t("console.workbench.rating_kept_game_s"),
-                    confirm=t("word.reset")):
+                    confirm=t("word.reset"), icon=verbs.RESET):
                 return
             await _write(context, context["library"].reset_play_record,
                          context["game_id"], table_id)
@@ -1664,11 +1666,12 @@ def _script_actions(context: dict[str, Any], table: dict[str, Any],
     """Extract a sidecar, or drop one. The script is managed here and Launch only
     reports it."""
     if external:
-        ui.button(t("word.delete"), on_click=lambda: _drop_script(context, table)) \
+        ui.button(t("word.delete"),
+            icon=verbs.DELETE, on_click=lambda: _drop_script(context, table)) \
             .props("flat dense no-caps size=sm") \
             .classes("console-action console-action--inline console-action--danger")
     else:
-        ui.button(t("console.workbench.extract"),
+        ui.button(t("console.workbench.extract"), icon=verbs.EXTRACT,
                 on_click=lambda: _extract_script(context, table)) \
             .props("flat dense no-caps size=sm") \
             .classes("console-action console-action--inline")
@@ -1861,7 +1864,8 @@ def _details_differ(context: dict[str, Any],
                     ui.label(str(item.get("ours") or "-")).classes("console-diff-was")
                     ui.icon("arrow_forward").classes("console-diff-arrow")
                     ui.label(str(item.get("theirs") or "-")).classes("console-help truncate")
-            ui.button(t("console.workbench.use_entry_s_details"), on_click=adopt) \
+            ui.button(t("console.workbench.use_entry_s_details"),
+                icon=verbs.ACCEPT, on_click=adopt) \
                 .props("flat dense no-caps size=sm").classes("console-action")
 
     return draw
@@ -1945,9 +1949,9 @@ async def _confirm_details(differs: list[dict[str, Any]]) -> list[str]:
                 for item in rows:
                     _detail_choice(item, chosen)
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), on_click=lambda: dialog.submit(False)) \
+            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(False)) \
                 .props("flat no-caps")
-            ui.button(t("console.workbench.use_selected"),
+            ui.button(t("console.workbench.use_selected"), icon=verbs.ACCEPT,
                       on_click=lambda: dialog.submit(True)).props("flat no-caps")
 
     if not await dialog:
@@ -1990,7 +1994,7 @@ def _rom_state(pinmame: dict[str, Any], rom: str,
 
     def draw() -> None:
         chip()
-        ui.button(t("console.workbench.assets"), icon="chevron_right",
+        ui.button(t("console.workbench.assets"), icon=verbs.DRILL,
                   on_click=lambda: _choose(context, "assets")) \
             .props("flat dense no-caps size=sm") \
             .classes("console-action console-action--inline") \
@@ -2077,7 +2081,7 @@ def _library_rows(context: dict[str, Any],
                 # either way, so the word carries it and the palette keeps its meaning.
                 ui.label(said[0]).classes("console-tier console-tier--off").tooltip(said[1])
             if not is_default:
-                ui.button(t("word.make_default"),
+                ui.button(t("word.make_default"), icon=verbs.MAKE_DEFAULT,
                           on_click=lambda: act(library.set_default_table, game_id,
                                                table_id,
                                                done=t(
@@ -2088,13 +2092,13 @@ def _library_rows(context: dict[str, Any],
                 # The way to stop it moving. Nothing else in the UI could pin the table
                 # a game had already landed on, so an automatic default stayed at the
                 # mercy of the next table installed.
-                ui.button(t("console.workbench.choose"),
+                ui.button(t("console.workbench.choose"), icon=verbs.CHOOSE,
                           on_click=lambda: act(library.set_default_table, game_id,
                                                table_id, done=t("word.chosen"))) \
                     .props("flat dense no-caps size=sm") \
                     .classes("console-action console-action--inline")
             else:
-                ui.button(t("word.clear_choice"),
+                ui.button(t("word.clear_choice"), icon=verbs.CLEAR,
                           on_click=lambda: act(
                               library.set_default_table, game_id, "",
                               done=t("console.workbench.back_automatic_default"))) \
@@ -2207,7 +2211,7 @@ def _program_settings_row(context: dict[str, Any],
         with ui.row().classes("items-center gap-2 no-wrap"):
             panel.state(said, "on" if changed else "off")()
             ui.button(t("console.workbench.edit") if changed
-                    else t("console.workbench.set_table"),
+                    else t("console.workbench.set_table"), icon=verbs.EDIT,
                       on_click=open_them) \
                 .props("flat dense no-caps size=sm").classes("console-action--inline")
 
@@ -2361,7 +2365,7 @@ async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
             t("console.workbench.forget_table"),
             detail=t("console.workbench.record_goes_no_file"),
             lines=[table.get("filename") or t("console.workbench.table_2")],
-                    confirm=t("word.forget")):
+                    confirm=t("word.forget"), icon=verbs.FORGET):
         return
     try:
         await run.io_bound(context["library"].forget_table,
@@ -2426,8 +2430,9 @@ async def _add_keyed_table(context: dict[str, Any]) -> None:
             await _table_list_changed(context)
 
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), on_click=dialog.close).props("flat no-caps")
-            ui.button(t("word.add"), on_click=add).props("no-caps")
+            ui.button(t("word.cancel"),
+                icon=verbs.CANCEL, on_click=dialog.close).props("flat no-caps")
+            ui.button(t("word.add"), icon=verbs.ADD, on_click=add).props("no-caps")
 
     dialog.on("show", lambda: ui.run_javascript(
         f"document.getElementById('c{typed.id}').focus()"))
@@ -2474,8 +2479,9 @@ async def _add_referenced_table(context: dict[str, Any]) -> None:
             await _table_list_changed(context)
 
         with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), on_click=dialog.close).props("flat no-caps")
-            ui.button(t("word.add"), on_click=keep).props("no-caps")
+            ui.button(t("word.cancel"),
+                icon=verbs.CANCEL, on_click=dialog.close).props("flat no-caps")
+            ui.button(t("word.add"), icon=verbs.ADD, on_click=keep).props("no-caps")
 
     dialog.on("show", lambda: ui.run_javascript(
         f"document.getElementById('c{typed.id}').focus()"))
@@ -2496,7 +2502,7 @@ async def _contain_table(context: dict[str, Any], table: dict[str, Any]) -> None
             t("console.workbench.copy_table_game"),
             detail=t("console.workbench.copied_not_moved_whatever"),
             lines=[reference.get("resolved") or reference.get("path") or ""],
-            confirm=t("console.workbench.copy")):
+            confirm=t("console.workbench.copy"), icon=verbs.COPY):
         return
     try:
         await run.io_bound(context["library"].contain_table,
@@ -2533,11 +2539,11 @@ def _tables_block(context: dict[str, Any]) -> None:
         #
         # Two buttons rather than a menu of two. Both are always available, and a menu
         # that opens onto two items charges a click to say so.
-        ui.button(t("console.workbench.point_file"),
+        ui.button(t("console.workbench.point_file"), icon=verbs.BROWSE,
                   on_click=lambda: _add_referenced_table(context)) \
             .props("flat dense no-caps size=sm") \
             .tooltip(t("console.workbench.table_lives_somewhere_else"))
-        ui.button(t("console.workbench.add_name"),
+        ui.button(t("console.workbench.add_name"), icon=verbs.ADD,
                   on_click=lambda: _add_keyed_table(context)) \
             .props("flat dense no-caps size=sm") \
             .tooltip(t("console.workbench.something_own_program_finds"))
@@ -2602,7 +2608,7 @@ def _tables_block(context: dict[str, Any]) -> None:
                             chip.tooltip(why)
                 with ui.element("div").classes("console-row-action"):
                     if game_tables.is_referenced(table):
-                        ui.button(icon="south_west",
+                        ui.button(icon=verbs.CONTAIN,
                                   on_click=lambda _, t=table: _contain_table(context, t)) \
                             .props("flat dense round size=sm") \
                             .tooltip(t("console.workbench.copy_game"))
@@ -2706,7 +2712,7 @@ def _match_button(context: dict[str, Any], kind: str, label: str,
         return
     bound = str(entry.get("matched_to") or "")
     button = ui.button(t("console.workbench.change_match_2") if bound
-            else t("console.workbench.match"),
+            else t("console.workbench.match"), icon=verbs.MATCH,
                        on_click=lambda: _pick_a_record(context, listed.listed_as,
                                                        label, path, bound, redraw)) \
         .props("flat dense no-caps size=sm").classes("console-action")
@@ -2744,9 +2750,9 @@ async def _pick_a_record(context: dict[str, Any], listed_as: str, label: str,
                 _record_row(item, dialog, bound)
         with ui.row().classes("justify-end gap-2 w-full"):
             if bound:
-                ui.button(t("word.clear"), on_click=lambda: dialog.submit("")) \
+                ui.button(t("word.clear"), icon=verbs.CLEAR, on_click=lambda: dialog.submit("")) \
                     .props("flat no-caps")
-            ui.button(t("word.cancel"), on_click=lambda: dialog.submit(None)) \
+            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(None)) \
                 .props("flat no-caps")
 
     picked = await dialog
@@ -2813,9 +2819,9 @@ async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> Non
                 _release_row(item, dialog, bound)
         with ui.row().classes("justify-end gap-2 w-full"):
             if bound:
-                ui.button(t("word.clear"), on_click=lambda: dialog.submit("")) \
+                ui.button(t("word.clear"), icon=verbs.CLEAR, on_click=lambda: dialog.submit("")) \
                     .props("flat no-caps")
-            ui.button(t("word.cancel"), on_click=lambda: dialog.submit(None)) \
+            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(None)) \
                 .props("flat no-caps")
 
     picked = await dialog
@@ -3142,9 +3148,10 @@ def _beside(mark: Callable[[], None], held: dict, field: Any,
             mark()
             if held.get("set_here"):
                 panel.action(t("word.clear"), lambda: _run(clear, field.key),
-                        inline=True,
+                             icon=verbs.CLEAR, inline=True,
                              enabled=not playing,
-                             hint=t(PLAYING_NOTE) if playing else _clear_hint(held, field))()
+                             hint=t(PLAYING_NOTE) if playing
+                             else _clear_hint(held, field))()
     return draw
 
 
@@ -3377,16 +3384,16 @@ async def _launcher_actions(context: dict[str, Any]) -> None:
     with ui.column().classes("gap-2 console-form px-3 py-2"):
         await _config_backups(context, launcher)
         with ui.row().classes("items-center gap-2 no-wrap"):
-            ui.button(t("console.workbench.duplicate"),
+            ui.button(t("console.workbench.duplicate"), icon=verbs.DUPLICATE,
                       on_click=lambda: launchers_page.duplicate(
                           library, state, again, launcher)) \
                 .props("flat dense no-caps size=sm")
             if state.get("can_manage_devices"):
-                ui.button(t("console.workbench.copy_devices"),
+                ui.button(t("console.workbench.copy_devices"), icon=verbs.COPY,
                           on_click=lambda: launchers_page.copy_dialog(
                               library, state, launcher)) \
                     .props("flat dense no-caps size=sm")
-            remove = ui.button(t("word.remove"),
+            remove = ui.button(t("word.remove"), icon=verbs.REMOVE,
                                on_click=lambda: launchers_page.remove(
                                    library, state, again, launcher)) \
                 .props("flat dense no-caps size=sm color=negative")
@@ -3483,9 +3490,10 @@ def _copies_value(held: list[dict], take: Callable, found: dict,
     def draw() -> None:
         with ui.row().classes("items-center gap-2 no-wrap"):
             ui.label(_said_count(held)).classes("console-fact-value truncate min-w-0")
-            panel.action(t("console.workbench.copy_now"), take, inline=True, enabled=not playing,
+            panel.action(t("console.workbench.copy_now"), take, icon=verbs.COPY,
+                         inline=True, enabled=not playing,
                          hint=t(PLAYING_NOTE) if playing else "")()
-            panel.action(t("word.restore"), choose, inline=True,
+            panel.action(t("word.restore"), choose, icon=verbs.RESTORE, inline=True,
                          enabled=bool(held) and not playing,
                          hint=(t(PLAYING_NOTE) if playing
                                else "" if held
@@ -3504,7 +3512,7 @@ async def _restore_dialog(held: list[dict], context: dict[str, Any],
         if not await confirm.ask(
                 t("console.workbench.put_copy_back"),
                 detail=t("console.workbench.copy_settings_now_taken"),
-                confirm=t("word.restore")):
+                confirm=t("word.restore"), icon=verbs.RESTORE):
             return
         try:
             await run.io_bound(library.restore_config_backup, launcher_id, name)
@@ -3521,7 +3529,8 @@ async def _restore_dialog(held: list[dict], context: dict[str, Any],
             _rows(ui, [(_backup_when(one),
                         _one_copy(one, put_back, dialog, playing)) for one in held])
         with ui.row().classes("justify-end w-full"):
-            ui.button(t("word.cancel"), on_click=dialog.close).props("flat no-caps")
+            ui.button(t("word.cancel"),
+                icon=verbs.CANCEL, on_click=dialog.close).props("flat no-caps")
     dialog.open()
 
 
@@ -3536,7 +3545,8 @@ def _one_copy(one: dict, put_back: Callable, dialog: Any,
         with ui.row().classes("items-center gap-2 no-wrap"):
             if reason:
                 panel.state(reason, "off")()
-            panel.action(t("console.workbench.put_back"), go, inline=True, enabled=not playing)()
+            panel.action(t("console.workbench.put_back"), go, icon=verbs.RESTORE,
+                         inline=True, enabled=not playing)()
     return draw
 
 
@@ -3611,9 +3621,9 @@ def _location_priority(context: dict[str, Any],
     def draw() -> None:
         with ui.row().classes("items-center gap-2 no-wrap"):
             ui.label(f"{place + 1} of {len(order)}").classes("console-fact-value")
-            up = ui.button(icon="arrow_upward", on_click=lambda: move(-1)) \
+            up = ui.button(icon=verbs.UP, on_click=lambda: move(-1)) \
                 .props("flat dense round size=sm").tooltip(t("console.workbench.higher_priority"))
-            down = ui.button(icon="arrow_downward", on_click=lambda: move(1)) \
+            down = ui.button(icon=verbs.DOWN, on_click=lambda: move(1)) \
                 .props("flat dense round size=sm").tooltip(t("console.workbench.lower_priority"))
             if place == 0:
                 up.disable()
@@ -3654,7 +3664,7 @@ async def _shadowed_block(context: dict[str, Any], row: dict[str, Any]) -> None:
                     .classes("console-member-name grow min-w-0 truncate") \
                     .tooltip(str(one.get("path") or ""))
                 with ui.element("div").classes("console-row-action"):
-                    ui.button(t("console.workbench.make_own_game_2"),
+                    ui.button(t("console.workbench.make_own_game_2"), icon=verbs.SPLIT,
                               on_click=lambda _, o=one: _adopt_shadowed(context, o)) \
                         .props("flat dense no-caps size=sm")
             ui.label(t("console.workbench.answered", value=(one.get('used_path') or ''))) \
@@ -3671,7 +3681,8 @@ async def _adopt_shadowed(context: dict[str, Any], one: dict[str, Any]) -> None:
     if not await confirm.ask(
             t("console.workbench.make_own_game"),
             detail=t("console.workbench.gets_new_id_joins"),
-            lines=[str(one.get("path") or "")], confirm=t("console.workbench.make_own")):
+            lines=[str(one.get("path") or "")],
+            confirm=t("console.workbench.make_own"), icon=verbs.SPLIT):
         return
     try:
         await run.io_bound(context["library"].adopt_shadowed,
@@ -3714,6 +3725,7 @@ def _location_write_to(context: dict[str, Any],
     elif not row["writable"]:
         reason = row["reason"] or t("console.workbench.nothing_can_written")
     return panel.action(t("console.workbench.create_new_games"), choose,
+                        icon=verbs.CREATE,
                         enabled=row["writable"] and row["kind"] == "root", hint=reason)
 
 
@@ -3726,7 +3738,7 @@ def _location_actions(context: dict[str, Any], row: dict[str, Any]) -> None:
                 reload_page()
 
     with ui.row().classes("items-center gap-2 no-wrap px-3 py-2"):
-        ui.button(t("word.remove"), on_click=forget) \
+        ui.button(t("word.remove"), icon=verbs.REMOVE, on_click=forget) \
             .props("flat dense no-caps size=sm color=negative")
 
 
@@ -3830,7 +3842,7 @@ def _image_slot(context: dict[str, Any], row: dict[str, Any]) -> None:
                       on_click=lambda: upload_control.run_method("pickFiles")) \
                 .props("flat dense no-caps size=sm").classes("console-action")
             if present:
-                ui.button(t("word.remove"), on_click=clear) \
+                ui.button(t("word.remove"), icon=verbs.REMOVE, on_click=clear) \
                     .props("flat dense no-caps size=sm")
 
 
@@ -4116,10 +4128,11 @@ def _rule_actions(context: dict[str, Any], row: dict[str, Any]) -> None:
             ui.button(t("console.workbench.save_rule"), icon="check",
                       on_click=lambda: _save_rule(context)) \
                 .props("dense no-caps unelevated size=sm")
-            ui.button(t("word.discard"), on_click=lambda: _discard_rule(context)) \
+            ui.button(t("word.discard"), icon=verbs.DISCARD,
+                      on_click=lambda: _discard_rule(context)) \
                 .props("flat dense no-caps size=sm")
         elif _is_dynamic(row):
-            ui.button(t("console.workbench.keep_what_found"), icon="push_pin",
+            ui.button(t("console.workbench.keep_what_found"), icon=verbs.PIN,
                       on_click=lambda: _keep_result(context)) \
                 .props("flat dense no-caps size=sm").classes("console-action") \
                 .tooltip(t("console.workbench.store_games_drop_rule"))
@@ -4693,7 +4706,7 @@ def _member_action(context: dict[str, Any], member: dict[str, Any],
     # table resolves to one all the same, and sending that back matched nothing.
     ref_table = str(member.get("ref_table") or "")
     if origin == "excluded":
-        ui.button(icon="undo",
+        ui.button(icon=verbs.REVERT,
                   on_click=lambda: act(library.unexclude_from_collection, name, game,
                                        ref_table, said=t("console.workbench.back_list"))) \
             .props("flat dense round size=sm").tooltip(t("console.workbench.put_back_2"))

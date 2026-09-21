@@ -13,6 +13,7 @@ from collections.abc import Callable
 from nicegui import ui
 
 from common.i18n import t
+from console import verbs
 
 # A family with no frame of its own still gets a mark, so the slot is never empty.
 GLYPHS = {"audio": "graphic_eq"}
@@ -64,7 +65,8 @@ def row(src: str, name: str, meta: str, tag: str, take: Callable, *,
     """What it looks like, what it is, and the one thing you can do with it."""
     with ui.row().classes("items-center gap-3 w-full no-wrap console-source-row"):
         _body(src, name, meta, tag, family, glyph)
-        ui.button(action, on_click=take).props("flat dense no-caps size=sm") \
+        ui.button(action, icon=verbs.ACCEPT, on_click=take) \
+            .props("flat dense no-caps size=sm") \
             .classes("console-action shrink-0")
 
 

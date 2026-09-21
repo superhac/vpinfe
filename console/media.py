@@ -19,7 +19,7 @@ from nicegui import run, ui
 
 from common.i18n import t
 from common.media_specs import media_label_map
-from console import confirm, grid, media_ownership, offload, panel, views
+from console import confirm, grid, media_ownership, offload, panel, verbs, views
 from console.api import ApiClient
 from console.games import view_control
 
@@ -166,7 +166,7 @@ async def fill(picked: list[dict[str, Any]], library: Any,
             detail=t("console.media.anything_found_copied_game"),
             lines=([t("console.media.not_matched_vps_nothing", unmatched=(unmatched))]
                     if unmatched else []),
-            confirm=t("console.media.get_art"), danger=False):
+            confirm=t("console.media.get_art"), icon=verbs.FETCH, danger=False):
         return
 
     filled = empty = failed = 0
@@ -238,10 +238,10 @@ def build(found: list[dict[str, Any]], library: Any,
             search = panel.search(t("console.media.search_media"))
         with bar.bottom, panel.bar_end():
             count = ui.label(said(0)).classes("text-xs console-label")
-            actions = ui.button(icon="more_vert").props("flat round dense") \
+            actions = ui.button(icon=verbs.MORE).props("flat round dense") \
                 .tooltip(t("console.media.actions_selected_media"))
             if rescan is not None:
-                ui.button(icon="refresh", on_click=rescan) \
+                ui.button(icon=verbs.REFRESH, on_click=rescan) \
                     .props("flat dense round size=sm").classes("shrink-0") \
                     .tooltip(t("console.media.read_library_disk_pick"))
 

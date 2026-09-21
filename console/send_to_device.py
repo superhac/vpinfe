@@ -16,7 +16,7 @@ from nicegui import run, ui
 
 from common import device_registry
 from common.i18n import t
-from console import confirm, offload
+from console import confirm, offload, verbs
 from console.api import ApiClient
 
 logger = logging.getLogger("vpinfe.console.send_to_device")
@@ -65,7 +65,7 @@ async def ask_where(games: list[dict[str, Any]]) -> None:
             t("console.send_to_device.send_game_s", len=(len(games)),
                     name_of=(name_of(picked))),
             detail=t("console.send_to_device.table_backglass_settings_rom"),
-            confirm=t("console.send_to_device.send"), danger=False):
+            confirm=t("console.send_to_device.send"), icon=verbs.SEND, danger=False):
         return
     await send(games, picked)
 
@@ -91,6 +91,6 @@ async def _which(found: list[dict[str, Any]]) -> dict[str, Any]:
             ui.button(name_of(device),
                       on_click=lambda _e=None, d=device: dialog.submit(d)) \
                 .props("flat no-caps align=left").classes("console-action w-full")
-        ui.button(t("word.cancel"), on_click=lambda: dialog.submit(None)) \
+        ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(None)) \
             .props("flat no-caps").classes("console-action")
     return await dialog or {}
