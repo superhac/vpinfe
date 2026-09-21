@@ -18,11 +18,24 @@ from common.config_store import ConfigStore
 from common.games import game_index_service, game_repository, info_maintenance, metadata_service
 from common.games.collection_store import CollectionStore
 from common.games.game import Game, GameRecord
-from common.games.game_metadata import GAME_OVERRIDES, game_vps_id, vpinfe_section
+from common.games.game_metadata import (
+    CONFIRMED_BY_USER,
+    GAME_OVERRIDES,
+    SOURCE_KEY,
+    game_vps_id,
+    vpinfe_section,
+)
 from common.games.game_repository import refresh_game
 from common.games.info_file import VPINFE_SECTION
 from common.games.info_maintenance import RestoreResult, UpgradeResult
-from common.games.tables import TABLES_KEY, default_table, recorded_default, table_entries
+from common.games.tables import (
+    TABLES_KEY,
+    default_table,
+    entry_for_filename,
+    recorded_default,
+    table_entries,
+    table_filenames,
+)
 from common.games.vpx_parser import VPXParser
 from common.jobs import LogCallback, ProgressCallback
 from common.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, get_games_path
@@ -184,6 +197,56 @@ def matched_vps_entry(game: GameRecord) -> dict:
     if not wanted:
         return {}
     return next((e for e in load_vpsdb() if str(e.get("id") or "") == wanted), {})
+
+
+def classify_vps_id(vps_id: str) -> str:
+    """Whether an id names a machine, one of its builds, or nothing the catalog holds.
+
+    `"entry"`, `"release"`, or `""` - and `""` also where the catalog is not loaded,
+    which a caller has to tell apart from an id that is genuinely unknown.
+    """
+    wanted = (vps_id or "").strip()
+    if not wanted:
+        return ""
+    for entry in load_vpsdb():
+        if str(entry.get("id") or "") == wanted:
+            return "entry"
+    return "release" if find_vps_release(wanted) else ""
+
+
+def route_legacy_match(data: dict, folder_name: str = "") -> str:
+    """Put an `alt_vpsid` where the id it holds belongs, and say what was done.
+
+    Returns `"kept"`, `"bound"`, `"dropped"`, or `""` where there was nothing to route.
+    Mutates `data`. A no-op while the catalog is empty.
+    """
+    vpinfe = data.get(VPINFE_SECTION)
+    if not isinstance(vpinfe, dict):
+        return ""
+    wanted = str(vpinfe.get("alt_vpsid", "") or "").strip()
+    if not wanted or not load_vpsdb():
+        return ""
+
+    found = classify_vps_id(wanted)
+    if found == "entry":
+        return "kept"
+
+    vpinfe["alt_vpsid"] = ""
+    if found != "release":
+        return "dropped"
+
+    entries = table_entries(data)
+    filename = default_table(table_filenames(entries), folder_name,
+                             recorded_default(vpinfe, entries))
+    _, entry = entry_for_filename(entries, filename)
+    if not entry:
+        return "dropped"
+    source = dict(entry.get(SOURCE_KEY) or {})
+    source["vps_file_id"] = wanted
+    source["confirmed_by"] = CONFIRMED_BY_USER
+    entry[SOURCE_KEY] = source
+    data[TABLES_KEY] = entries
+    return "bound"
 
 
 def _plain(text: str) -> str:
@@ -540,7 +603,8 @@ def upgrade_info(progress_cb: ProgressCallback | None = None,
     return _as_a_job(
         lambda owned: info_maintenance.upgrade_library(
             get_games_path(), game_name=game_name,
-            progress_cb=owned.progress, log_cb=owned.log),
+            progress_cb=owned.progress, log_cb=owned.log,
+            route_match=route_legacy_match),
         progress_cb, log_cb, job)
 
 

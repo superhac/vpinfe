@@ -949,8 +949,23 @@ machine `Info.VPSId` names - so tying it to the file was right for what it held.
 it as the machine match, where a file has no bearing on it. Clearing it cost the user their
 correction at the exact moment they were most likely to be making one, which is why 2.x's
 own Manager UI re-orders rebuild-then-save to defeat its own deletion. A 2.x value naming a
-build is routed to that table's `source` instead of being read as a machine - see PAR-48.
+build is routed to that table's `source` instead of being read as a machine - see PAR-94.
 Covered by `tests/games/test_game_identity.py` and `tests/games/test_info_file.py`.
+
+**PAR-94 — A 2.x VPS match naming a build is bound to the table, not read as the machine.**
+On upgrade, `vpinfe.alt_vpsid` is looked up in the catalog. An id naming an entry stays as
+the match. An id naming one of that entry's `tableFiles` moves to the default table's
+`source.vps_file_id` with `confirmed_by: user`, where the upload path and the release
+picker already write, and the match falls back to `Info.VPSId`. An id the catalog does not
+hold is dropped. Nothing is routed while the catalog is empty.
+*Why:* 2.x stored a release id under this key, and 3.0 resolves the key against entries -
+so a migrated value was looked up among machines and found in none of them, leaving the
+game effectively unmatched. Measured on a real record: `butCgIcLzI` is a `tableFiles`
+record under entry `kGBkVb-v`, and after routing the game resolves to the machine while
+the table carries the build. Decided by lookup rather than by assuming an intent, because
+both populations exist - the field was built as a release id and its 2.x help text called
+it an override of the VPS ID the Manager UI shows. Covered by
+`tests/games/test_legacy_match_routing.py`.
 
 **PAR-46 — An upload can say what its files are, instead of being guessed at.** The import
 endpoint accepts a `declared` map, keyed by the name each file arrived under, carrying

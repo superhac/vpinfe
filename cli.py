@@ -42,8 +42,11 @@ def _game_root_dir():
 
 
 def upgrade_info_files(game_name: str = None, progress_cb=None, log_cb=None):
+    from common.games import game_service
+
     return info_maintenance.upgrade_library(
-        _game_root_dir(), game_name=game_name, progress_cb=progress_cb, log_cb=log_cb)
+        _game_root_dir(), game_name=game_name, progress_cb=progress_cb, log_cb=log_cb,
+        route_match=game_service.route_legacy_match)
 
 
 def restore_info_files(game_name: str = None, progress_cb=None, log_cb=None):

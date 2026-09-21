@@ -6,6 +6,7 @@ Neither walk stops on a bad file, and neither re-reads a `.vpx`.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import TypedDict
 
@@ -31,6 +32,10 @@ class UpgradeResult(TypedDict):
     failed: int
     # The folder and what went wrong with it, so a caller can name both.
     failures: list[tuple[str, str]]
+    # What became of the 2.x VPS matches: bound to the table they name, or dropped
+    # because the catalog holds no such id.
+    matches_bound: int
+    matches_dropped: int
 
 
 class RestoreResult(TypedDict):
@@ -75,10 +80,15 @@ def upgrade_library(
     game_name: str | None = None,
     progress_cb: ProgressCallback | None = None,
     log_cb: LogCallback | None = None,
+    route_match: Callable[[dict, str], str] | None = None,
 ) -> UpgradeResult:
     """Upgrade every table's `.info` in one pass.
 
     Startup already does the library, so this is the repair for what it did not reach.
+
+    `route_match` is given each migrated record and the folder it came from, and says
+    what it did with the 2.x VPS match. Injected because deciding that needs the
+    catalog, which is a layer above this one.
     """
     reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
     log = reporter.log
@@ -86,7 +96,7 @@ def upgrade_library(
     folders = game_dirs(game_root, game_name)
     total = len(folders)
     result: UpgradeResult = {"upgraded": 0, "already_current": 0, "failed": 0,
-                             "failures": []}
+                             "failures": [], "matches_bound": 0, "matches_dropped": 0}
 
     log("Upgrading .info files. Each one is backed up first, so this can be undone.")
     reporter.progress(0, total, "Starting")
@@ -102,6 +112,14 @@ def upgrade_library(
             if not meta.pending_migration:
                 result["already_current"] += 1
                 continue
+            if route_match is not None:
+                routed = route_match(meta.data, game_dir.name)
+                if routed == "bound":
+                    result["matches_bound"] += 1
+                    log(f"Bound the VPS match to the table it names: {game_dir.name}")
+                elif routed == "dropped":
+                    result["matches_dropped"] += 1
+                    log(f"Dropped a VPS match the catalog does not hold: {game_dir.name}")
             meta.write_config()
         except (InvalidMetaConfigError, OSError) as exc:
             result["failed"] += 1
