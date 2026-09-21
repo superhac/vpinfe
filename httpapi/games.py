@@ -297,10 +297,13 @@ def get_vps_details(game_id: str) -> models.VpsDetails:
 
 @router.put("/{game_id}/vps_details", summary="Take the entry's details",
             dependencies=[requires(scopes.GAMES_WRITE)])
-def put_vps_details(game_id: str) -> models.VpsDetails:
-    """Returns the disagreement that is left, which is none - a client that just adopted
-    is about to redraw the panel, and this is what it would ask for next."""
-    return models.VpsDetails.model_validate(game_ops.adopt_details(game_id))
+def put_vps_details(game_id: str,
+                    body: models.VpsAdoptRequest | None = None) -> models.VpsDetails:
+    """Returns the disagreement that is left - none when everything was taken, and the
+    rest when a caller named only some. A client is about to redraw the panel, and this
+    is what it would ask for next."""
+    return models.VpsDetails.model_validate(
+        game_ops.adopt_details(game_id, (body.fields or None) if body else None))
 
 
 @router.put("/{game_id}/default_table", summary="Which table this game offers first",

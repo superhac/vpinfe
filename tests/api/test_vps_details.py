@@ -143,6 +143,61 @@ class VpsDetailTests(TempTree):
         written = json.loads((self.folder / f"{FOLDER}.info").read_text())
         self.assertEqual(written["vpinfe"]["alt_ipdb_id"], "4032")
 
+    def test_a_field_the_record_lacks_is_reported_as_new(self) -> None:
+        path = self.folder / f"{FOLDER}.info"
+        written = json.loads(path.read_text())
+        written["Info"].pop("IPDBId")
+        path.write_text(json.dumps(written))
+        self.game.meta_config = written
+
+        found = {item["field"]: item["new"]
+                 for item in self.client.get(
+                     f"/games/{GAME_ID}/vps_details").json()["differs"]}
+
+        self.assertEqual(found, {"IPDBId": True})
+
+    def test_a_field_that_differs_is_not_new(self) -> None:
+        self._rematch(OTHER)
+
+        found = {item["field"]: item["new"]
+                 for item in self.client.get(
+                     f"/games/{GAME_ID}/vps_details").json()["differs"]}
+
+        self.assertTrue(found)
+        self.assertNotIn(True, found.values())
+
+    def test_only_the_named_fields_are_taken(self) -> None:
+        self._rematch(OTHER)
+
+        self.client.put(f"/games/{GAME_ID}/vps_details",
+                        json={"fields": ["Manufacturer", "Year"]})
+
+        stored = self._stored()
+        self.assertEqual(stored["Manufacturer"], "Data East")
+        self.assertEqual(stored["Year"], 1991)
+        self.assertEqual(stored["Title"], "The Addams Family", "not named, not taken")
+        self.assertEqual(sorted(self._differs()), ["IPDBId", "Themes", "Title"])
+
+    def test_naming_nothing_takes_everything(self) -> None:
+        """A caller that sends no list means the whole entry, which is what the button
+        offering all of them does."""
+        self._rematch(OTHER)
+
+        self.client.put(f"/games/{GAME_ID}/vps_details", json={"fields": []})
+
+        self.assertEqual(self._differs(), {})
+
+    def test_a_field_that_does_not_differ_is_ignored(self) -> None:
+        """A surface may send back what it was shown, and what it was shown can be
+        stale by the time it answers."""
+        self._rematch(OTHER)
+
+        response = self.client.put(f"/games/{GAME_ID}/vps_details",
+                                   json={"fields": ["Manufacturer", "NotAField"]})
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self._stored()["Manufacturer"], "Data East")
+
     def test_a_game_matched_to_nothing_has_nothing_to_compare(self) -> None:
         self._rematch("")
         path = self.folder / f"{FOLDER}.info"

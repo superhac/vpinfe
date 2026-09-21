@@ -213,10 +213,12 @@ class ApiClient:
         self._answered(response)
         return list((response.json() or {}).get("differs") or [])
 
-    def adopt_vps_details(self, game_id: str) -> None:
-        """Take the entry's details, all of them - they are one machine's facts."""
+    def adopt_vps_details(self, game_id: str,
+                          fields: list[str] | None = None) -> None:
+        """Take the named details from the entry. None takes every one that differs."""
         _refuse_the_event_loop(f"/games/{game_id}/vps_details")
         response = self._session.put(f"{self._base}/games/{game_id}/vps_details",
+                                     json={"fields": list(fields or [])},
                                      timeout=_TIMEOUT)
         self._answered(response)
 

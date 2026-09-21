@@ -2165,11 +2165,22 @@ class LibraryVpsState(ApiModel):
 
 class VpsFieldDiff(ApiModel):
     """One detail the game and its entry disagree about, both sides as one line each -
-    a year is a number and themes are a list, and a comparison wants neither shape."""
+    a year is a number and themes are a list, and a comparison wants neither shape.
+
+    `new` means the record says nothing and the entry does, so taking it fills a gap
+    rather than replacing what the library already shows.
+    """
 
     field: str
     ours: str
     theirs: str
+    new: bool = False
+
+
+class VpsAdoptRequest(ApiModel):
+    """Which details to take. Empty takes every one that differs."""
+
+    fields: list[str] = Field(default_factory=list)
 
 
 class VpsDetails(ApiModel):

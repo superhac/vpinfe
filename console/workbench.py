@@ -1894,8 +1894,65 @@ async def _pick_a_match(context: dict[str, Any]) -> None:
     picked = await vps_match.ask(context["library"], context["game"])
     if picked is vps_match.CANCELLED:
         return
-    await _write(context, context["library"].set_game_overrides, context["game_id"],
-                 {"alt_vps_id": str(picked)})
+    library = context["library"]
+    try:
+        await run.io_bound(library.set_game_overrides, context["game_id"],
+                           {"alt_vps_id": str(picked)})
+        differs = await run.io_bound(library.vps_details, context["game_id"])
+        if differs:
+            wanted = await _confirm_details(differs)
+            if wanted:
+                await run.io_bound(library.adopt_vps_details, context["game_id"], wanted)
+    except Exception as exc:
+        ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+    await context["rebuild"]()
+
+
+async def _confirm_details(differs: list[dict[str, Any]]) -> list[str]:
+    """Ask which of the new entry's details to take, and answer with their names.
+
+    Everything is ticked to start, so confirming without reading takes the whole entry -
+    which is what somebody who has just said "this is that machine" means.
+    """
+    chosen = {str(item.get("field") or ""): True for item in differs}
+
+    with ui.dialog().props("persistent") as dialog, \
+            ui.card().classes("console-confirm console-picker-dialog"):
+        ui.label(t("console.workbench.use_new_entry_details")) \
+            .classes("console-confirm-title")
+        with ui.column().classes("w-full gap-0 console-source-list"):
+            for new in (False, True):
+                rows = [one for one in differs if bool(one.get("new")) is new]
+                if not rows:
+                    continue
+                ui.label(t("console.workbench.details_new") if new
+                         else t("console.workbench.details_changed")) \
+                    .classes("console-card-title")
+                for item in rows:
+                    _detail_choice(item, chosen)
+        with ui.row().classes("justify-end gap-2 w-full"):
+            ui.button(t("word.cancel"), on_click=lambda: dialog.submit(False)) \
+                .props("flat no-caps")
+            ui.button(t("console.workbench.use_selected"),
+                      on_click=lambda: dialog.submit(True)).props("flat no-caps")
+
+    if not await dialog:
+        return []
+    return [field for field, take in chosen.items() if take]
+
+
+def _detail_choice(item: dict[str, Any], chosen: dict[str, bool]) -> None:
+    """One field, with what it would become - and what it is now, where there is one."""
+    field = str(item.get("field") or "")
+    with ui.row().classes("items-baseline gap-2 w-full no-wrap"):
+        box = ui.checkbox(value=True).props("dense")
+        box.on_value_change(lambda _, key=field, b=box: chosen.__setitem__(key,
+                                                                          bool(b.value)))
+        ui.label(DETAIL_WORDS.get(field, field)).classes("console-diff-field")
+        if not item.get("new"):
+            ui.label(str(item.get("ours") or "-")).classes("console-diff-was")
+            ui.icon("arrow_forward").classes("console-diff-arrow")
+        ui.label(str(item.get("theirs") or "-")).classes("console-help truncate")
 
 
 def _rom_state(pinmame: dict[str, Any], rom: str,

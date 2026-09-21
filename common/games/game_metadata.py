@@ -698,12 +698,15 @@ DESCRIBED_BY_VPS = ("Title", "Manufacturer", "Year", "Type", "Themes", "IPDBId",
                     "PinballPrimerTut")
 
 
-def vps_details_differ(config: dict[str, Any], vps_entry: dict[str, Any]) -> dict[str, Any]:
-    """Which described fields disagree with the entry, as {field: (ours, theirs)}.
+def vps_details_differ(config: dict[str, Any],
+                       vps_entry: dict[str, Any]) -> dict[str, tuple[Any, Any, bool]]:
+    """Which described fields disagree with the entry, as {field: (ours, theirs, new)}.
+
+    `new` is true where the record says nothing and the entry does, which is a gap being
+    filled rather than a value being replaced.
 
     Empty for a game whose details came from the entry it is still matched to, which is
-    every game that has never been re-matched. Correcting a match is what fills this:
-    the details go on describing the entry they were taken from.
+    every game that has never been re-matched.
     """
     from common.games.info_file import info_from_vps
 
@@ -713,7 +716,7 @@ def vps_details_differ(config: dict[str, Any], vps_entry: dict[str, Any]) -> dic
     for field in DESCRIBED_BY_VPS:
         mine, yours = ours.get(field), theirs.get(field)
         if _as_said(mine) != _as_said(yours):
-            found[field] = (mine, yours)
+            found[field] = (mine, yours, not _as_said(mine))
     return found
 
 
@@ -725,24 +728,26 @@ def _as_said(value: Any) -> Any:
     return str(value if value is not None else "").strip().lower()
 
 
-def adopt_vps_details(game: Game, vps_entry: dict[str, Any]) -> dict[str, Any]:
-    """Make the game's details describe the entry it is matched to.
+def adopt_vps_details(game: Game, vps_entry: dict[str, Any],
+                      fields: Iterable[str] | None = None) -> dict[str, Any]:
+    """Make the named details describe the entry the game is matched to.
 
-    Everything the entry describes, in one act rather than field by field: they are one
-    machine's facts and a library holding this one's year beside that one's maker
-    describes no machine at all.
+    `fields` None takes everything that differs. A name that does not differ is
+    ignored rather than refused, so a caller may send what it was shown.
     """
     config = load_game_meta(game)
     fresh = vps_details_differ(config, vps_entry)
+    wanted = set(fresh) if fields is None else (set(fields) & set(fresh))
     info = config.setdefault("Info", {})
-    for field, (_, theirs) in fresh.items():
+    for field in wanted:
+        theirs = fresh[field][1]
         if theirs in ("", [], None) and field in ("IPDBId", "PinballPrimerTut"):
             info.pop(field, None)
         else:
             info[field] = theirs
     persist_game_meta(game, config)
     game.meta_config = config
-    return {field: theirs for field, (_, theirs) in fresh.items()}
+    return {field: fresh[field][1] for field in wanted}
 
 
 def get_or_create_table_user(config: dict[str, Any], native: str) -> dict[str, Any]:

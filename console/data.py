@@ -861,8 +861,9 @@ class Library:
         """Where this game's details disagree with the entry it is matched to."""
         return self._client.vps_details(game_id)
 
-    def adopt_vps_details(self, game_id: str) -> None:
-        self._client.adopt_vps_details(game_id)
+    def adopt_vps_details(self, game_id: str,
+                          fields: list[str] | None = None) -> None:
+        self._client.adopt_vps_details(game_id, fields)
         self._forget_games()
 
     def set_table_source(self, game_id: str, table_id: str, vps_file_id: str) -> None:

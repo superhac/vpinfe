@@ -172,33 +172,30 @@ def vps_details(game_id: str) -> dict:
     """Where the game's details and the entry it is matched to disagree.
 
     Empty for a game that has never been re-matched: the details were written from the
-    entry, so they agree with it by construction. Correcting a match is what fills this,
-    and it fills it completely - the details go on describing the entry they were taken
-    from.
+    entry, so they agree with it by construction.
     """
     game = game_lens.game_or_refuse(game_id)
     entry = game_service.matched_vps_entry(game)
     if not entry:
         return {"differs": []}
     found = vps_details_differ(load_game_meta(game), entry)
-    return {"differs": [{"field": field, "ours": _said(ours), "theirs": _said(theirs)}
-                        for field, (ours, theirs) in found.items()]}
+    return {"differs": [{"field": field, "ours": _said(ours), "theirs": _said(theirs),
+                         "new": new}
+                        for field, (ours, theirs, new) in found.items()]}
 
 
-def adopt_details(game_id: str) -> dict:
-    """Make the game's details describe the entry it is matched to.
+def adopt_details(game_id: str, fields: Iterable[str] | None = None) -> dict:
+    """Make the named details describe the entry the game is matched to.
 
-    All of them together: they are one machine's facts, and a library holding this one's
-    year beside that one's maker describes no machine at all. `Info.VPSId` is not among
-    them - it is what VPS supplied, and the value a surface offers to revert a corrected
-    match to.
+    None takes everything that differs. `Info.VPSId` is never among them - it is what
+    VPS supplied, and the value a surface offers to revert a corrected match to.
     """
     game = game_lens.game_or_refuse(game_id)
     entry = game_service.matched_vps_entry(game)
     if not entry:
         raise service_errors.NotFoundError(t("error.games.game_matched_no_vps"),
                                            details={"game_id": game_id})
-    adopt_vps_details(game, entry)
+    adopt_vps_details(game, entry, fields)
     return vps_details(game_id)
 
 
