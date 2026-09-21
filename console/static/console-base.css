@@ -1979,23 +1979,18 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 /* A control is as wide as the value it holds, capped at the measure - not as wide as
    the pane, which says nothing about what goes in it. What is naturally short stays
    short, and the help under it takes the same measure, so the value column reads as one
-   column.
-
-   Settings only. The workbench is a pane the reader sizes deliberately, and a control
-   that ignored the width they just dragged out would be answering a question they did
-   not ask. Prose keeps its measure in both: a long line is hard to read whatever pane
-   it is in. */
-.console-settings-body .console-fact-edit { max-width: var(--measure); }
+   column. */
+.console-fact-edit { max-width: var(--measure); }
 /* Text, a path, a list: the whole measure, because a value that truncates is unreadable
    and these are the ones that run long. */
-.console-settings-body .console-fact-edit .q-textarea,
-.console-settings-body .console-fact-edit .console-edit-combo { width: 100%; }
+.console-fact-edit .q-textarea,
+.console-fact-edit .console-edit-combo { width: 100%; }
 /* A number is a few characters. Wider is an invitation to type something that is not
    one. */
-.console-settings-body .console-fact-edit .q-field--dense input[type="number"] {
+.console-fact-edit .q-field--dense input[type="number"] {
   max-width: 6ch;
 }
-.console-settings-body .console-fact-edit .q-input:has(input[type="number"]) {
+.console-fact-edit .q-input:has(input[type="number"]) {
   width: auto;
 }
 /* One of a known set: as wide as the longest option needs and no wider. */

@@ -82,7 +82,7 @@ TUNE = "tune"
 WRAP = "wrap_text"
 ROTATE_LEFT = "rotate_left"
 ROTATE_RIGHT = "rotate_right"
-REVERT = "undo"
+REVERT = "replay"
 PIN = "push_pin"
 CONTAIN = "south_west"
 

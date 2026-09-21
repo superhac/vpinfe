@@ -1302,7 +1302,7 @@ def _override(effective: str, found: str | None, source: str,
                 .classes("console-edit-field")
             if hint:
                 field.tooltip(hint)
-            icon = ui.icon("undo").classes("console-revert")
+            icon = ui.icon(verbs.REVERT).classes("console-revert")
             if found is not None:
                 target = f'"{found}"' if found else "empty"
                 icon.tooltip(t("console.workbench.revert", target=(target),
@@ -1827,28 +1827,30 @@ async def _vps_block(context: dict[str, Any]) -> None:
     entries: list[tuple[Any, Any]] = [(HEADING, t("console.workbench.catalog_vps"))]
     differs: list[dict[str, Any]] = []
     if not vps_id:
-        entries.append((t("console.workbench.entry"),
+        entries.append((t("console.workbench.matched_to"),
                         _state(t("console.workbench.not_matched"), "warn")))
     else:
         found = await offload.io(library.vps_entry, vps_id)
         said = str(found.get("name") or "")
         made = " ".join(str(found.get(k) or "") for k in ("manufacturer", "year"))
-        entries.append((t("console.workbench.entry"),
+        entries.append((t("console.workbench.matched_to"),
                         f"{said} - {made.strip()}" if said else vps_id))
         differs = await offload.io(library.vps_details, context["game_id"])
 
-    entries.append((t("word.id"),
-                    _override(vps_id, str(discovered.get("vps_id") or ""), "VPS",
-                              save("alt_vps_id"))))
+    entries.append((t("word.id"), vps_id or "-"))
     if vps_id and found.get("url"):
         entries.append((t("word.link"),
                         panel.link_out(t("word.open"), to=str(found["url"]))))
-    tutorial = str(game.get("tutorial") or "")
-    entries.append((t("word.tutorial"),
-                    panel.link_out(t("word.watch"), to=tutorial) if tutorial else "-"))
     if differs:
         entries.append((FULL, _details_differ(context, differs)))
     entries.append((FULL, _change_match(context)))
+
+    tutorial = str(game.get("tutorial") or "")
+    entries += [
+        (HEADING, t("console.workbench.catalog_primer")),
+        (t("word.link"),
+         panel.link_out(t("word.watch"), to=tutorial) if tutorial else "-"),
+    ]
 
     ipdb = str(game.get("ipdb_id") or "")
     entries += [
