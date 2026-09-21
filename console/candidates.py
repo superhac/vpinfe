@@ -9,6 +9,7 @@ some rows carry art steps in and out as it scrolls.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 from nicegui import ui
 
@@ -70,8 +71,9 @@ def row(src: str, name: str, meta: str, tag: str, take: Callable, *,
             .classes("console-action shrink-0")
 
 
-def choice(src: str, name: str, meta: str, pick: Callable, *,
-           family: str = "image", glyph: str = "") -> None:
+def choice(src: str, name: str, meta: str, pick: Callable | None = None, *,
+           family: str = "image", glyph: str = "", chosen: bool = False,
+           trailing: Callable[[], None] | None = None, entry: bool = False) -> Any:
     """A row whose target is the whole row, with no button on it.
 
     For the lists you scan rather than compare: forty candidates with forty buttons is
@@ -79,9 +81,24 @@ def choice(src: str, name: str, meta: str, pick: Callable, *,
 
     The picture is small here, because these lists are the long ones and recognizing a
     thing is a smaller question than judging it.
+
+    `pick` absent draws the row without making it a target, for showing one on its own.
+    `chosen` lights it. `trailing` puts one control at the end, for an act about that
+    row rather than about the list. `entry` takes the grid's two-line type, for a row
+    naming the same kind of thing a grid row names.
     """
-    element = ui.row().classes("items-center gap-3 w-full no-wrap console-source-row "
-                               "console-source-row--pick")
+    classes = "items-center gap-3 w-full no-wrap console-source-row"
+    if pick is not None:
+        classes += " console-source-row--pick"
+    if chosen:
+        classes += " console-source-row--chosen"
+    if entry:
+        classes += " console-source-row--entry"
+    element = ui.row().classes(classes)
     with element:
         _body(src, name, meta, "", family, glyph, small=True)
-    element.on("click", lambda: pick())
+        if trailing is not None:
+            trailing()
+    if pick is not None:
+        element.on("click", lambda: pick())
+    return element

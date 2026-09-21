@@ -35,7 +35,7 @@ SHARE = "folder_shared"
 # Binding a record to a catalog, and letting it go. The chain is this and nothing else -
 # a link that navigates is an anchor and carries no icon at all.
 MATCH = "link"
-UNMATCH = "link_off"
+UNMATCH = "delete_outline"
 
 # Taking something away. Emptying a field is not deleting a thing, and the three stay apart.
 CLEAR = "backspace"

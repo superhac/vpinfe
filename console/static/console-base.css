@@ -2411,6 +2411,22 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-source-row--pick:hover {
   border-color: var(--accent); background: var(--accent-wash);
 }
+/* A row naming the same kind of thing a grid row names, so it takes the grid's type:
+   the name on one line and what tells two of that name apart under it, quieter. */
+.console-source-row--entry .console-source-name {
+  color: var(--ink); word-break: normal;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.console-source-row--entry .console-help {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* The one picked, which is a different fact from the one under the pointer: accent is
+   the chosen thing, and the fill is the stronger of the two washes so it still reads
+   as chosen while something else is hovered. */
+.console-source-row--chosen {
+  border-color: var(--accent); background: var(--accent-wash-on);
+}
 /* The one decision every way in feeds, so it sits above them rather than inside one.
    Set off by a rule, because it is a different kind of thing from a tab. */
 .console-destination {

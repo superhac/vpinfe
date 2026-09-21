@@ -11,12 +11,15 @@ choice is always a person's.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 from nicegui import run, ui
 
+from common import icons
 from common.i18n import t
-from console import candidates, offload, verbs
+from console import candidates, offload, panel, verbs
 
 logger = logging.getLogger("vpinfe.console.vps_match")
 
@@ -40,10 +43,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
     """
     bound = str(game.get("vps_id") or "")
     entry = await offload.io(library.vps_entry, bound) if bound else {}
-    now = " - ".join(part for part in (
-        str(entry.get("name") or ""),
-        " ".join(str(entry.get(k) or "") for k in ("manufacturer", "year")).strip(),
-    ) if part) or bound or t("console.workbench.not_matched")
+    picked = {"id": bound}
 
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-confirm console-picker-dialog"):
@@ -52,53 +52,70 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
             .classes("console-confirm-title")
         if place:
             ui.label(place).classes("console-help")
-        with ui.row().classes("items-baseline gap-2 w-full no-wrap console-picker-now"):
-            ui.label(t("console.vps_match.now")).classes("console-fact-label")
-            ui.label(now).classes("console-fact-value truncate min-w-0")
-        field = ui.input(value=_seed(game)) \
-            .props("dense autofocus clearable").classes("console-edit-field w-full")
+
+        if entry:
+            ui.label(t("console.vps_match.current_match")).classes("console-group")
+            def clear() -> None:
+                ui.button(t("console.vps_match.clear_match"), icon=verbs.UNMATCH,
+                          on_click=lambda: dialog.submit(CLEARED)) \
+                    .props("flat dense no-caps size=sm") \
+                    .classes("console-action console-action--danger shrink-0")
+
+            _entry_row(entry, trailing=clear)
+
+        ui.label(t("console.vps_match.search_for_match")).classes("console-group")
+        with ui.row().classes("items-center gap-2 w-full no-wrap"):
+            field = ui.input(value=_seed(game)) \
+                .props("dense autofocus clearable").classes("console-edit-field grow")
+            ui.button(t("console.vps_match.search"), icon=verbs.SEARCH,
+                      on_click=lambda: look()).props("flat dense no-caps size=sm") \
+                .classes("console-action shrink-0")
         heading = ui.label("").classes("console-group")
         found = ui.column().classes("w-full gap-0 console-source-list")
 
-        async def look() -> None:
-            said = str(field.value or "").strip()
-            rows = await offload.io(library.vps_search, said, 40) if said else []
-            heading.text = (t("console.vps_match.results", count=len(rows))
-                            if said else "")
+        with ui.row().classes("items-center justify-end gap-2 w-full"):
+            update = ui.button(t("console.vps_match.update_match"), icon=verbs.ACCEPT,
+                               on_click=lambda: dialog.submit(str(picked["id"]))) \
+                .props("no-caps")
+            ui.button(t("word.cancel"), icon=verbs.CANCEL,
+                      on_click=lambda: dialog.submit(CANCELLED)).props("flat no-caps")
+            if walking:
+                ui.button(t("console.vps_match.skip"), icon=verbs.SKIP,
+                          on_click=lambda: dialog.submit(CANCELLED)).props("flat no-caps")
+                ui.button(t("console.vps_match.stop"), icon=verbs.STOP,
+                          on_click=lambda: dialog.submit(STOPPED)).props("flat no-caps")
+        update.set_visibility(False)
+
+        rows: list[dict[str, Any]] = []
+
+        def take(vps_id: str) -> None:
+            picked["id"] = vps_id
+            update.set_visibility(vps_id != bound)
+            draw()
+
+        def draw() -> None:
             found.clear()
             with found:
-                if not said:
-                    ui.label(t("console.vps_match.type_name_maker_year")).classes("console-help")
-                    return
-                if not rows:
-                    ui.label(t("console.vps_match.nothing_vps_matches", said=(said))) \
-                        .classes("console-help")
-                    return
-                ui.label(t("console.vps_match.in_the_order_vps_lists")) \
-                    .classes("console-help")
                 for row in rows:
-                    _match_row(row, dialog)
+                    this = str(row.get("vps_id") or "")
+                    _entry_row(row, pick=partial(take, this),
+                               chosen=this == picked["id"])
+
+        async def look() -> None:
+            said = str(field.value or "").strip()
+            rows[:] = await offload.io(library.vps_search, said, 40) if said else []
+            heading.text = (t("console.vps_match.results", count=len(rows))
+                            if said else "")
+            if not said or not rows:
+                found.clear()
+                with found:
+                    ui.label(t("console.vps_match.type_name_maker_year") if not said
+                             else t("console.vps_match.nothing_vps_matches", said=(said))) \
+                        .classes("console-help")
+                return
+            draw()
 
         field.on("keydown.enter", look)
-        ui.button(t("console.vps_match.search"), icon=verbs.SEARCH,
-                on_click=look).props("flat dense no-caps size=sm") \
-            .classes("console-action")
-        with ui.row().classes("items-center justify-end gap-2 w-full"):
-            if bound:
-                ui.button(t("console.vps_match.clear_match"),
-                    icon=verbs.UNMATCH, on_click=lambda: dialog.submit(CLEARED)) \
-                    .props("flat no-caps")
-            if walking:
-                ui.button(t("console.vps_match.skip"),
-                    icon=verbs.SKIP, on_click=lambda: dialog.submit(CANCELLED)) \
-                    .props("flat no-caps")
-                ui.button(t("console.vps_match.stop"),
-                    icon=verbs.STOP, on_click=lambda: dialog.submit(STOPPED)) \
-                    .props("flat no-caps")
-            else:
-                ui.button(t("word.cancel"), icon=verbs.CANCEL,
-                        on_click=lambda: dialog.submit(CANCELLED)) \
-                    .props("flat no-caps")
         await look()
 
     return await dialog
@@ -147,6 +164,37 @@ def _seed(game: dict[str, Any]) -> str:
     return " ".join(part for part in parts if part)
 
 
+def _entry_row(row: dict[str, Any], *, pick: Callable[[], None] | None = None,
+               chosen: bool = False,
+               trailing: Callable[[], None] | None = None) -> None:
+    """One VPS entry, in the shape the games grid draws a game in.
+
+    `pick` absent draws it without making it a target. `trailing` puts one control at
+    the end, after the way out to the catalog.
+    """
+    said = [" ".join(str(row.get(k) or "") for k in ("manufacturer", "year")).strip()]
+    count = int(row.get("releases") or 0)
+    if count:
+        said.append(t("console.vps_match.release" if count == 1
+                      else "console.vps_match.releases", count=count))
+    url = str(row.get("url") or "")
+
+    def end() -> None:
+        with ui.row().classes("items-center gap-2 no-wrap shrink-0"):
+            if url:
+                # Or reading the entry would also pick it.
+                with ui.element("div").on("click.stop", lambda: None):
+                    panel.link_out(t("word.view"), to=url)()
+            if trailing is not None:
+                with ui.element("div").on("click.stop", lambda: None):
+                    trailing()
+
+    candidates.choice(str(row.get("img_url") or ""), str(row.get("name") or ""),
+                      " · ".join(part for part in said if part),
+                      pick, glyph=icons.GAMES, chosen=chosen,
+                      trailing=end, entry=True)
+
+
 def _match_row(row: dict[str, Any], dialog: Any) -> None:
     """One candidate, with the machine's photograph where VPS has one.
 
@@ -163,4 +211,4 @@ def _match_row(row: dict[str, Any], dialog: Any) -> None:
     candidates.choice(str(row.get("img_url") or ""), str(row.get("name") or ""),
                       " · ".join(part for part in said if part),
                       lambda: dialog.submit(str(row.get("vps_id") or "")),
-                      glyph="videogame_asset")
+                      glyph=icons.GAMES)
