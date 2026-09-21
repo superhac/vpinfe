@@ -1365,8 +1365,6 @@ def _identity_rows(context: dict[str, Any]) -> None:
         field(t("word.year"), "year", "alt_year"),
         field(t("console.workbench.type"), "type", "alt_type"),
         (t("console.workbench.themes"), ", ".join(game.get("themes") or []) or "-"),
-        field(t("console.workbench.ipdb_id"), "ipdb_id", "alt_ipdb_id"),
-        (t("word.tutorial"), _tutorial_row(str(game.get("tutorial") or ""))),
         (t("word.folder"), PurePosixPath(folder).name or folder or "-"),
     ]
 
@@ -1802,14 +1800,12 @@ def _reset_action(on_reset: Callable[[], Any]) -> Callable[[], None]:
 
 def _vps_label(context: dict[str, Any]) -> str:
     game = context["game"]
-    return "VPS" if game.get("vps_id") else t("console.workbench.vps_not_matched")
+    return (t("console.workbench.catalogs") if game.get("vps_id")
+            else t("console.workbench.vps_not_matched"))
 
 
 async def _vps_block(context: dict[str, Any]) -> None:
-    """What this game is matched to in the catalog, and the way to change it.
-
-    The match drives metadata, media lookup and update tracking. The alternative to
-    this block is typing an eight-character id into a text field.
+    """Every catalog this game is bound to, and the way to change the binding.
 
     It does not judge the match. A ranker was measured and retired for being confidently
     wrong more than half the time, so nothing here says a match looks wrong or offers a
@@ -1819,26 +1815,41 @@ async def _vps_block(context: dict[str, Any]) -> None:
     library = context["library"]
     vps_id = str(game.get("vps_id") or "")
     chosen = bool((game.get("overrides") or {}).get("alt_vps_id"))
+    discovered = game.get("discovered") or {}
+
+    def save(key: str) -> Callable[[str], Awaitable[None]]:
+        async def write(value: str) -> None:
+            await _save_overrides(context, {key: value}, table=False)
+        return write
 
     entries: list[tuple[Any, Any]] = []
+    differs: list[dict[str, Any]] = []
     if not vps_id:
-        entries += [(t("console.workbench.entry"), _state(t("console.workbench.not_matched"),
-                "warn"))]
+        entries += [(t("console.workbench.entry"),
+                     _state(t("console.workbench.not_matched"), "warn"))]
     else:
         found = await offload.io(library.vps_entry, vps_id)
         entries += [
             # The entry as a person reads it. The id is how the wire addresses it and
             # is the one thing a reader cannot check a match against.
             (t("console.workbench.entry"), _vps_entry_row(found, vps_id)),
-            (t("console.workbench.match"), _state(t("console.workbench.set") if chosen
+            (t("console.workbench.match"),
+             _state(t("console.workbench.set") if chosen
                     else t("console.workbench.discovered"),
-                             "on" if chosen else "off")),
+                    "on" if chosen else "off")),
         ]
         if found.get("releases"):
             entries.append((t("console.workbench.releases"), str(found["releases"])))
         differs = await offload.io(library.vps_details, context["game_id"])
-        if differs:
-            entries.append((FULL, _details_differ(context, differs)))
+
+    entries += [
+        (t("console.workbench.ipdb_id"),
+         _override(str(game.get("ipdb_id") or ""), str(discovered.get("ipdb_id") or ""),
+                   "VPS", save("alt_ipdb_id"))),
+        (t("word.tutorial"), _tutorial_row(str(game.get("tutorial") or ""))),
+    ]
+    if differs:
+        entries.append((FULL, _details_differ(context, differs)))
     entries.append((FULL, _change_match(context)))
 
     with ui.column().classes("gap-0 console-form"):

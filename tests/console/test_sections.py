@@ -161,5 +161,5 @@ class VpsSectionTests(unittest.TestCase):
     def test_an_unmatched_game_says_so_in_the_rail(self) -> None:
         """Not matched is a state, not an empty section - and the rail is where it is
         seen without opening anything."""
-        self.assertEqual(workbench._vps_label({"game": {}}), "VPS - not matched")
-        self.assertEqual(workbench._vps_label({"game": {"vps_id": "abc"}}), "VPS")
+        self.assertEqual(workbench._vps_label({"game": {}}), "Catalogs - not matched")
+        self.assertEqual(workbench._vps_label({"game": {"vps_id": "abc"}}), "Catalogs")
