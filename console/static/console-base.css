@@ -2101,6 +2101,11 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 /* The way back, and the only mark an overridden row carries. Amber because that is
    already this app's word for the exception worth spotting, so one mark says both what
    the state is and what to do about it. */
+/* A value somebody supplied, among values a catalog filled. The same amber as the
+   revert beside it, so the row reads as one thing. */
+.console-edit-field--differs .q-field__native,
+.console-edit-field--differs input { color: var(--tier-table); }
+
 .console-revert {
   color: var(--tier-table); font-size: 16px; cursor: pointer; flex: 0 0 auto;
   opacity: 0.8;

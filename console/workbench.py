@@ -1307,7 +1307,10 @@ def _override(effective: str, found: str | None, source: str,
                 target = f'"{found}"' if found else "empty"
                 icon.tooltip(t("console.workbench.revert", target=(target),
                         source=(source)))
-            icon.visible = found is not None and current != found
+            differs = found is not None and current != found
+            icon.visible = differs
+            if differs:
+                field.classes("console-edit-field--differs")
             held = {"value": current}
 
             async def commit() -> None:
