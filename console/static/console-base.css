@@ -1684,7 +1684,12 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   background: var(--card-bg);
   padding: 14px 16px;
 }
-.console-card-title {
+/* A heading, wherever one appears: a card's, a group's, a dialog region's. Declared once
+   so the three cannot drift apart on colour, which is how they did. What differs between
+   them is spacing, and only spacing. */
+.console-card-title,
+.console-group,
+.console-fact-heading {
   font-size: var(--fs-caption);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1760,13 +1765,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   white-space: nowrap;
 }
 
-.console-group {
-  font-size: var(--fs-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ink-3);
-  padding: 10px 8px 4px;
-}
+.console-group { padding: 10px 8px 4px; }
 /* A heading that can carry a corner mark. The gutter is reserved on every one of them
    for the same reason the rows reserve theirs. The mark sits on the caption's own line
    and in the rows' column: the heading has no row margin, so matching the rows below
@@ -2122,12 +2121,6 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    the labels it governs, and uppercase with tracking is what tells it from one. */
 .console-fact-heading {
   grid-column: 1 / -1;
-  /* .console-card-title's treatment: a heading inside a panel is cyan and uppercase
-     wherever one appears here, so a group's name is one too. */
-  font-size: var(--fs-caption);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent);
   border-top: 1px solid var(--line-soft);
   margin-top: 14px;
   padding: 12px 0 4px;
