@@ -143,16 +143,44 @@ def reorder_leading_article(title: Any) -> str:
     return text
 
 
+# field -> (the key our section stores the user's answer under, the Info key the
+# catalog's own answer sits under).
+GAME_OVERRIDES = {
+    "title": ("alt_title", "Title"),
+    "manufacturer": ("alt_manufacturer", "Manufacturer"),
+    "year": ("alt_year", "Year"),
+    "type": ("alt_type", "Type"),
+    "themes": ("alt_themes", "Themes"),
+    "ipdb_id": ("alt_ipdb_id", "IPDBId"),
+}
+
+
+def game_override(meta: Any, field: str) -> Any:
+    """What the user answered for one field, or "" where they have not.
+
+    Empty is not an answer. The control clears an override by writing the discovered
+    value back, so a blank says nobody has spoken rather than asking for the field to
+    read blank.
+    """
+    value = vpinfe_section(meta).get(GAME_OVERRIDES[field][0])
+    if isinstance(value, list):
+        return value
+    return str(value or "").strip()
+
+
+def game_discovered(meta: Any, field: str) -> Any:
+    """What the entry said for one field, which is what a revert returns to."""
+    return section(meta, "Info").get(GAME_OVERRIDES[field][1], "")
+
+
 def game_title(game: GameRecord) -> str:
     meta = normalize_meta(getattr(game, "meta_config", {}))
-    vpinfe = vpinfe_section(meta)
-    info = section(meta, "Info")
-    alt_title = str(vpinfe.get("alt_title", "") or "").strip()
-    if alt_title:
-        # A user-set alt_title wins on its own - it does not require an alt_vpsid -
-        # and is left exactly as entered, never reordered.
-        return alt_title
-    raw = str(info.get("Title", "")
+    answered = game_override(meta, "title")
+    if answered:
+        # A user-set title wins on its own - it does not require a match - and is left
+        # exactly as entered, never reordered.
+        return answered
+    raw = str(game_discovered(meta, "title")
               or get_meta_value(meta, "VPSdb", "name", "")
               or game.game_dir_name or "").strip()
     return reorder_leading_article(raw)
@@ -237,7 +265,11 @@ def game_themes(game: GameRecord) -> list[str]:
     reads the same way it does. `VPSdb.theme` is scraped 2.x data where the repr form
     genuinely occurred, so that one is parsed."""
     meta = normalize_meta(getattr(game, "meta_config", {}))
-    value = get_meta_value(meta, "Info", "Themes", None)
+    answered = game_override(meta, "themes")
+    if answered:
+        return as_string_list(answered)
+
+    value = game_discovered(meta, "themes")
     if value:
         return as_string_list(value)
 
@@ -257,19 +289,34 @@ def game_themes(game: GameRecord) -> list[str]:
 
 def game_type(game: GameRecord) -> str:
     meta = normalize_meta(getattr(game, "meta_config", {}))
-    return str(first_meta_value(meta, ("Info", "Type"), ("VPSdb", "type"), default="") or "")
+    return str(game_override(meta, "type")
+               or first_meta_value(meta, ("Info", "Type"), ("VPSdb", "type"),
+                                   default="") or "")
 
 
 def game_manufacturer(game: GameRecord) -> str:
     meta = normalize_meta(getattr(game, "meta_config", {}))
-    return str(first_meta_value(
-        meta, ("Info", "Manufacturer"), ("VPSdb", "manufacturer"), default="") or "")
+    return str(game_override(meta, "manufacturer")
+               or first_meta_value(meta, ("Info", "Manufacturer"),
+                                   ("VPSdb", "manufacturer"), default="") or "")
 
 
 def game_year(game: GameRecord) -> str:
     meta = normalize_meta(getattr(game, "meta_config", {}))
-    value = first_meta_value(meta, ("Info", "Year"), ("VPSdb", "year"), default="")
+    value = (game_override(meta, "year")
+             or first_meta_value(meta, ("Info", "Year"), ("VPSdb", "year"), default=""))
     return str(value) if value else ""
+
+
+def game_ipdb_id(game: GameRecord) -> str:
+    """The IPDB number, the user's own answer first.
+
+    Parsed out of the entry's `ipdbUrl` at match time, so it is the catalog's answer
+    wherever the user has not given one.
+    """
+    meta = normalize_meta(getattr(game, "meta_config", {}))
+    return str(game_override(meta, "ipdb_id")
+               or game_discovered(meta, "ipdb_id") or "")
 
 
 def game_rating(game: GameRecord) -> int:

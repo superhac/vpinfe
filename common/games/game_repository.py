@@ -21,9 +21,12 @@ from common.games.game import Game
 from common.games.game_identity import ensure_unique_ids
 from common.games.game_identity import game_id as vpinfe_id
 from common.games.game_metadata import (
+    GAME_OVERRIDES,
     as_string_list,
     default_table,
     first_meta_value,
+    game_discovered,
+    game_override,
     normalize_rating,
     play_record,
     reorder_leading_article,
@@ -254,15 +257,19 @@ def game_to_row(game: Game,
         value = gf.get(key, None)
         return default if value in ("", None) else value
 
-    # What the name would be with no override. Kept beside the effective one because a
-    # surface offering to undo an override has to be able to say what it undoes to, and
-    # "name" has already resolved that away.
-    found_title = reorder_leading_article(
-        first_meta_value(meta, ("Info", "Title"), default=game_name) or "")
+    # What each field would say with no override, kept beside the effective value
+    # because a surface offering to undo one has to say what it undoes to, and the
+    # effective value has already resolved that away.
+    answered = {name: game_override(meta, name) for name in GAME_OVERRIDES}
+    found = {name: game_discovered(meta, name) for name in GAME_OVERRIDES}
+    found["title"] = reorder_leading_article(found["title"] or game_name)
+    for name in ("manufacturer", "year", "type"):
+        found[name] = found[name] or gf_value(name)
+    found["themes"] = as_string_list(found["themes"] or [])
 
     row = {
-        "name": str(vpinfe.get("alt_title", "") or "").strip() or found_title,
-        "found_name": found_title,
+        "name": answered["title"] or found["title"],
+        "found_name": found["title"],
         "filename": gf_name or Path(str(game.full_path_vpx_file)).name,
         # vpsid and alt_vpsid correlate with VPSdb, VPinPlay and anything else keyed
         # by them. vpinfe_id is this install's own id (common/games/game_identity.py)
@@ -270,15 +277,19 @@ def game_to_row(game: Game,
         # membership. Empty until the game has been assigned one; reading never mints.
         "vpsid": vpsid,
         "vpinfe_id": vpinfe_id(game),
-        "ipdb_id": first_meta_value(meta, ("Info", "IPDBId")),
+        "ipdb_id": answered["ipdb_id"] or found["ipdb_id"],
+        "found_ipdb_id": found["ipdb_id"],
         "pinball_primer_tut": first_meta_value(meta, ("Info", "PinballPrimerTut")),
         # Info carries what VPS knows; the table's own claim is the fallback and can
         # legitimately differ from it.
-        "manufacturer": (first_meta_value(meta, ("Info", "Manufacturer"))
-                         or gf_value("manufacturer")),
-        "year": first_meta_value(meta, ("Info", "Year")) or gf_value("year"),
-        "type": first_meta_value(meta, ("Info", "Type")) or gf_value("type"),
-        "themes": as_string_list(first_meta_value(meta, ("Info", "Themes"), default=[])),
+        "manufacturer": answered["manufacturer"] or found["manufacturer"],
+        "found_manufacturer": found["manufacturer"],
+        "year": answered["year"] or found["year"],
+        "found_year": found["year"],
+        "type": answered["type"] or found["type"],
+        "found_type": found["type"],
+        "themes": as_string_list(answered["themes"] or found["themes"]),
+        "found_themes": found["themes"],
         # Authors are per table, never rolled up: multi-table folders often
         # name different authors in different ones.
         "authors": as_string_list(gf_value("authors", [])),
@@ -312,6 +323,8 @@ def game_to_row(game: Game,
         "plugin_profile": str(vpinfe.get("plugin_profile", "") or "").strip(),
         "alt_title": str(vpinfe.get("alt_title", "") or "").strip(),
         "alt_vpsid": str(vpinfe.get("alt_vpsid", "") or "").strip(),
+        **{GAME_OVERRIDES[name][0]: answered[name]
+           for name in ("manufacturer", "year", "type", "themes", "ipdb_id")},
         # Carried, not resolved. The one surface that shows it is the VPS section.
         "alt_vpsid_previous": vpinfe.get("alt_vpsid_previous"),
         "frontend_dof_event": str(vpinfe.get("frontend_dof_event", "") or "").strip(),

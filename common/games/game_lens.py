@@ -97,6 +97,11 @@ def game_resource(row: dict, game_id: str) -> dict[str, Any]:
             "alt_title": row.get("alt_title", ""),
             "alt_vps_id": row.get("alt_vpsid", ""),
             "frontend_dof_event": row.get("frontend_dof_event", ""),
+            "alt_manufacturer": row.get("alt_manufacturer", ""),
+            "alt_year": row.get("alt_year", ""),
+            "alt_type": row.get("alt_type", ""),
+            "alt_themes": row.get("alt_themes") or [],
+            "alt_ipdb_id": row.get("alt_ipdb_id", ""),
         },
         # Surfacing it, never resolving through it: `tests/invariants/test_parked_override`
         # asserts the difference, and this file is on its allowlist for that reason.
@@ -104,7 +109,14 @@ def game_resource(row: dict, game_id: str) -> dict[str, Any]:
         "discovered": {
             "name": row.get("found_name", ""),
             "vps_id": row.get("vpsid", ""),
+            "manufacturer": row.get("found_manufacturer", ""),
+            "year": str(row.get("found_year") or ""),
+            "type": row.get("found_type", ""),
+            "themes": row.get("found_themes") or [],
+            "ipdb_id": row.get("found_ipdb_id", ""),
         },
+        "ipdb_id": row.get("ipdb_id", ""),
+        "tutorial": row.get("pinball_primer_tut", ""),
         # Assets, not media: these are what the game needs to play as intended.
         # Media is the artwork VPinFE shows while browsing - see docs/conventions.md.
         # Summary from the scan; the detail endpoint recomputes and attributes files.

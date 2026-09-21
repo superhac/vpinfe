@@ -508,7 +508,7 @@ class GameOverrides(ApiModel):
     survive one. Empty means no override - the discovered value stands and is still
     there to go back to.
 
-    These three are the game's because they are about the machine: its name, which VPS
+    These are the game's because they are about the machine: what it is, which VPS
     record it is, and the effect it asks for when somebody browses to it. The ones that
     govern a single file are on the table - see `TableOverrides`.
     """
@@ -516,6 +516,11 @@ class GameOverrides(ApiModel):
     alt_title: str = ""
     alt_vps_id: str = ""
     frontend_dof_event: str = ""
+    alt_manufacturer: str = ""
+    alt_year: str = ""
+    alt_type: str = ""
+    alt_themes: list[str] = Field(default_factory=list)
+    alt_ipdb_id: str = ""
 
 
 class GameDiscovered(ApiModel):
@@ -529,6 +534,11 @@ class GameDiscovered(ApiModel):
 
     name: str = ""
     vps_id: str = ""
+    manufacturer: str = ""
+    year: str = ""
+    type: str = ""
+    themes: list[str] = Field(default_factory=list)
+    ipdb_id: str = ""
 
 
 class TableOverrides(ApiModel):

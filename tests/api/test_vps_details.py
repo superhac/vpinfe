@@ -122,6 +122,27 @@ class VpsDetailTests(TempTree):
 
         self.assertEqual(self._stored()["VPSId"], FOUND)
 
+    def _answer(self, key: str, value: str) -> None:
+        path = self.folder / f"{FOLDER}.info"
+        written = json.loads(path.read_text())
+        written["vpinfe"][key] = value
+        path.write_text(json.dumps(written))
+        self.game.meta_config = written
+
+    def test_a_users_own_answer_never_reads_as_a_disagreement(self) -> None:
+        self._answer("alt_manufacturer", "Williams")
+
+        self.assertEqual(self._differs(), {})
+
+    def test_adopting_leaves_a_users_own_answer_alone(self) -> None:
+        self._answer("alt_ipdb_id", "4032")
+        self._rematch(OTHER)
+
+        self.client.put(f"/games/{GAME_ID}/vps_details")
+
+        written = json.loads((self.folder / f"{FOLDER}.info").read_text())
+        self.assertEqual(written["vpinfe"]["alt_ipdb_id"], "4032")
+
     def test_a_game_matched_to_nothing_has_nothing_to_compare(self) -> None:
         self._rematch("")
         path = self.folder / f"{FOLDER}.info"

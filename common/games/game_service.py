@@ -18,7 +18,7 @@ from common.config_store import ConfigStore
 from common.games import game_index_service, game_repository, info_maintenance, metadata_service
 from common.games.collection_store import CollectionStore
 from common.games.game import Game, GameRecord
-from common.games.game_metadata import game_vps_id, vpinfe_section
+from common.games.game_metadata import GAME_OVERRIDES, game_vps_id, vpinfe_section
 from common.games.game_repository import refresh_game
 from common.games.info_file import VPINFE_SECTION
 from common.games.info_maintenance import RestoreResult, UpgradeResult
@@ -559,52 +559,45 @@ def apply_vpx_patches(progress_cb: ProgressCallback | None = None) -> None:
     metadata_service.apply_vpx_patches(progress_cb=progress_cb, iniconfig=_fresh_config())
 
 
-# What a game's `Info` block holds, keyed by the name the wire uses. The block is
-# VPS-shaped and keeps its casing; everything of ours is snake_case, so the two are
-# mapped here rather than each caller knowing both spellings.
-DETAIL_FIELDS = {
-    "title": "Title",
-    "manufacturer": "Manufacturer",
-    "year": "Year",
-    "type": "Type",
-    "themes": "Themes",
-    "ipdb_id": "IPDBId",
-}
+# The fields a caller may answer, by the name the wire uses. Where each is stored is
+# `GAME_OVERRIDES`, so the two cannot drift.
+DETAIL_FIELDS = tuple(GAME_OVERRIDES)
 
 
 def set_details(game_dir: Path, values: dict) -> dict:
-    """Describe the machine, for a game no catalog has matched.
-
-    Everything in `Info` normally arrives from VPSdb, and for most of the library that is
-    right. It leaves nothing for a game that came from somewhere else - an import from
-    another frontend carries a year and a manufacturer, and without this they would be
-    read and then dropped.
+    """Describe the machine in the user's own words, into the section we own.
 
     A patch: what is not sent is left alone, so a caller filling in a year does not have
-    to restate a title it never knew. Sending a key empty does clear it.
+    to restate a title it never knew. Sending a key empty clears the answer, which
+    returns the field to whatever the entry said.
 
-    Safe against a later rebuild: the metadata pass skips a folder that already has a
-    record unless it is told to redo everything, and skips again when the catalog cannot
-    match it.
+    Writes no `Info`, so a rebuild and an adopt both leave what is stored here alone.
     """
     record = game_dir / f"{game_dir.name}.info"
     if not record.is_file():
         raise FileNotFoundError(str(record))
 
     held = json.loads(record.read_text(encoding="utf-8"))
-    info = held.setdefault("Info", {})
-    if not isinstance(info, dict):
-        info = held["Info"] = {}
-    for name, key in DETAIL_FIELDS.items():
+    ours = held.setdefault(VPINFE_SECTION, {})
+    if not isinstance(ours, dict):
+        ours = held[VPINFE_SECTION] = {}
+    for name in DETAIL_FIELDS:
         if name not in values:
             continue
+        key = GAME_OVERRIDES[name][0]
         given = values[name]
-        info[key] = ([str(one).strip() for one in given if str(one).strip()]
-                     if key == "Themes" else str(given if given is not None else "").strip())
+        answered: Any = ([str(one).strip() for one in given if str(one).strip()]
+                         if name == "themes"
+                         else str(given if given is not None else "").strip())
+        if answered:
+            ours[key] = answered
+        else:
+            ours.pop(key, None)
 
     record.write_text(json.dumps(held, indent=4), encoding="utf-8")
     refresh_game(game_dir)
-    return dict(info)
+    return {name: ours.get(GAME_OVERRIDES[name][0], "")
+            for name in DETAIL_FIELDS}
 
 
 def companions_beside(source: Path) -> list[Path]:

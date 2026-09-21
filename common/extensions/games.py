@@ -149,7 +149,12 @@ class ExtensionGames:
         """
         self._needs(GAMES_READ)
         from common.games import game_identity
-        from common.games.game_metadata import game_title, normalize_meta, section
+        from common.games.game_metadata import (
+            game_ipdb_id,
+            game_title,
+            normalize_meta,
+            section,
+        )
         from common.games.game_repository import all_games
 
         found = []
@@ -161,7 +166,7 @@ class ExtensionGames:
                 "folder_name": Path(str(game.full_path_game)).name,
                 "name": game_title(game),
                 "vps_id": str(info.get("VPSId", "") or ""),
-                "ipdb_id": str(info.get("IPDBId", "") or ""),
+                "ipdb_id": game_ipdb_id(game),
             })
         return found
 

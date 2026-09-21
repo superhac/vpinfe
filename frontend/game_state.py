@@ -25,7 +25,14 @@ from common.games.collection_store import (
 from common.games.collections_service import save_filter_collection
 from common.games.game import Game, GameRecord, ScannedGame
 from common.games.game_metadata import (
+    GAME_OVERRIDES,
+    game_ipdb_id,
+    game_manufacturer,
+    game_override,
+    game_themes,
     game_title,
+    game_type,
+    game_year,
     normalize_meta,
     play_record,
     reorder_leading_article,
@@ -78,15 +85,19 @@ def _legacy_row(game: Game, logo_cache: dict[str, str | None]) -> dict:
     # into the shared meta_config would put a dropped section back on disk at the next
     # rebuild.
     meta = dict(normalize_meta(game.meta_config))
-    vpinfe = vpinfe_section(meta)
     info = section(meta, "Info")
 
+    # This shape has one slot per field, so a user's answer is resolved into it here.
+    # A theme on this contract would otherwise read the catalog's value while every
+    # other surface shows the user's.
     used_alttitle = False
-    alt_title = str(vpinfe.get("alt_title", "") or "").strip()
-    if alt_title:
-        info["Title"] = alt_title
+    for field, (_, said) in GAME_OVERRIDES.items():
+        answered = game_override(meta, field)
+        if not answered:
+            continue
+        info[said] = answered
         meta["Info"] = info
-        used_alttitle = True
+        used_alttitle = used_alttitle or field == "title"
 
     # Reorder a leading "The " on the canonical Info.Title so the theme displays and
     # sorts by the second word. A user-set alttitle is left exactly as entered.
@@ -104,7 +115,7 @@ def _legacy_row(game: Game, logo_cache: dict[str, str | None]) -> dict:
         "meta": meta,
     }
     row.update(game_media_payload(game))
-    maker = str(info.get("Manufacturer", "") or "")
+    maker = game_manufacturer(game)
     if maker not in logo_cache:
         logo_cache[maker] = manufacturer_logo_web_path(maker)
     row["ManufacturerLogoPath"] = logo_cache[maker]
@@ -125,7 +136,7 @@ def _entry_row(entry: Entry, logo_cache: dict[str, str | None],
     meta = normalize_meta(game.meta_config)
     info = section(meta, "Info")
     vpinfe = vpinfe_section(meta)
-    maker = str(info.get("Manufacturer", "") or "")
+    maker = game_manufacturer(game)
     if maker not in logo_cache:
         logo_cache[maker] = manufacturer_logo_web_path(maker)
     return {
@@ -134,9 +145,9 @@ def _entry_row(entry: Entry, logo_cache: dict[str, str | None],
             "vps_id": str(info.get("VPSId", "") or ""),
             "name": game_title(game),
             "manufacturer": maker,
-            "year": str(info.get("Year", "") or ""),
-            "type": str(info.get("Type", "") or ""),
-            "themes": info.get("Themes") or [],
+            "year": game_year(game),
+            "type": game_type(game),
+            "themes": game_themes(game),
             "dir_name": game.game_dir_name,
             "path": game.full_path_game,
             "manufacturer_logo": logo_cache[maker],
@@ -145,7 +156,7 @@ def _entry_row(entry: Entry, logo_cache: dict[str, str | None],
             # Everything the record declares about the machine. These were absent for
             # no reason anybody chose - a projection listed some fields and stopped -
             # and an extension, a remote frontend and the Console all read this.
-            "ipdb_id": str(info.get("IPDBId", "") or ""),
+            "ipdb_id": game_ipdb_id(game),
             "tutorial": str(info.get("PinballPrimerTut", "") or ""),
             "overrides": {
                 "alt_title": str(vpinfe.get("alt_title", "") or ""),

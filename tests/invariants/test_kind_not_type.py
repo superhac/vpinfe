@@ -37,6 +37,9 @@ BORROWED = {
     # is in every .info a user has.
     "game_type",
     "table_type",
+    # The user's own answer for that same field, and what it would say without one.
+    "alt_type",
+    "found_type",
     # A library's own parameter or callback signature.
     "service_type",      # Zeroconf's browser callback
     # A key in somebody else's document, mirrored while reading it.

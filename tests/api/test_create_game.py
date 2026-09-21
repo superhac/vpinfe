@@ -252,14 +252,25 @@ class DetailsTests(CreateGameCase):
         self.assertEqual(row["year"], "1988")
         self.assertEqual(row["themes"], ["Cars", "City"])
 
-    def test_it_lands_in_the_record_on_disk(self) -> None:
+    def test_it_lands_in_our_own_section_not_in_info(self) -> None:
         game_id = self._game()
         self._put(game_id, manufacturer="Williams")
 
         held = json.loads((self.library / "Taxi" / "Taxi.info")
                           .read_text(encoding="utf-8"))
 
-        self.assertEqual(held["Info"]["Manufacturer"], "Williams")
+        self.assertEqual(held["vpinfe"]["alt_manufacturer"], "Williams")
+        self.assertEqual(held["Info"].get("Manufacturer", ""), "")
+
+    def test_clearing_a_field_drops_the_answer(self) -> None:
+        game_id = self._game()
+        self._put(game_id, manufacturer="Williams")
+
+        self._put(game_id, manufacturer="")
+
+        held = json.loads((self.library / "Taxi" / "Taxi.info")
+                          .read_text(encoding="utf-8"))
+        self.assertNotIn("alt_manufacturer", held["vpinfe"])
 
     def test_a_field_left_out_is_left_alone(self) -> None:
         """An importer filling in a year should not have to restate a title it never

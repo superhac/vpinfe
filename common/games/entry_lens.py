@@ -10,9 +10,13 @@ from common.extensions import contributions
 from common.games import game_identity
 from common.games.collection_resolver import Entry, visible_entries
 from common.games.game_metadata import (
+    game_ipdb_id,
+    game_manufacturer,
     game_rating,
     game_themes,
     game_title,
+    game_type,
+    game_year,
     play_record,
     table_descriptor,
 )
@@ -34,22 +38,22 @@ def entry_resource(entry: Entry, group: str | None = None) -> dict:
     info = meta.get("Info") or {}
     vpinfe = meta.get("vpinfe") or {}
     prefix = f"/api/v1/games/{game_ident}"
-    maker = str(info.get("Manufacturer", "") or "")
+    maker = game_manufacturer(entry.game)
     return {
         "game": {
             "id": game_ident,
             "vps_id": str(info.get("VPSId", "") or ""),
             "name": game_title(entry.game),
             "manufacturer": maker,
-            "year": str(info.get("Year", "") or ""),
-            "type": str(info.get("Type", "") or ""),
+            "year": game_year(entry.game),
+            "type": game_type(entry.game),
             "themes": game_themes(entry.game),
             "dir_name": str(entry.game.game_dir_name or ""),
             "manufacturer_logo": manufacturer_logo_web_path(maker),
             "created_at": epoch_to_iso(getattr(entry.game, "creation_time", None)) or None,
             "rating": game_rating(entry.game),
             "user": play_record(meta),
-            "ipdb_id": str(info.get("IPDBId", "") or ""),
+            "ipdb_id": game_ipdb_id(entry.game),
             "tutorial": str(info.get("PinballPrimerTut", "") or ""),
             "overrides": {
                 "alt_title": str(vpinfe.get("alt_title", "") or ""),
