@@ -23,7 +23,7 @@ uses an old spelling both still load.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `screen_id` | int | `0` | Screen |
-| `orientation` | choice (landscape, portrait) | `landscape` | How the playfield screen is physically mounted. Portrait means it is turned on its side in the cabinet. This does not rotate anything by itself - it tells themes what shape to lay out for. |
+| `orientation` | choice (landscape, portrait) | `landscape` | How the playfield screen is physically mounted in the cabinet. This rotates nothing by itself - it tells themes what shape to lay out for. |
 | `rotation` | choice (0, 90, 180, 270) | `0` | How far VPinFE turns its own display so it faces the player. Leave at 0 if your operating system already rotates this screen. |
 
 ### `windows.backglass`
@@ -55,7 +55,7 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `timeout` | int | `15` | Seconds before a command is given up on. One that never finishes would mean no table launches again. |
-| `on_vpinfe_start` | text |  | One command per line, run before anything else. Written the way a shell splits arguments, but nothing else a shell does - for a pipe, point at a script. |
+| `on_vpinfe_start` | text |  | One command per line, run before anything else. Arguments split the way a shell splits them; for a pipe, point at a script. |
 | `on_vpinfe_exit` | text |  | Run last. These run even if VPinFE is stopping because something went wrong. |
 
 ### `table_commands`
@@ -64,14 +64,14 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | --- | --- | --- | --- |
 | `on_start` | text |  | Run before every table, whichever launcher plays it, and before that launcher's own commands. |
 | `on_exit` | text |  | Run after every table. They run whenever the ones above ran, even if the table never started. |
-| `start_required` | bool | `false` | On, a command that fails before a table starts stops it launching - for something the table cannot do without, like a share to mount. Off, the failure is noted and the table starts anyway. |
+| `start_required` | bool | `false` | On, a command that fails before a table starts stops it launching. Off, the failure is noted and the table starts anyway. |
 
 ### `chromium`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `options` | text |  | Additional Chrome Options |
-| `options_exclude` | text |  | Which of the built-in options to leave off, one per line. For the case where one of them is the problem and turning all of them off would take the rest with it. |
+| `options_exclude` | text |  | Which built-in options to leave off, one per line. For when one of them is the problem and turning them all off would take the rest with it. |
 | `disable_defaults` | bool | `false` | Disable Default Chrome Options |
 
 ### `console`
@@ -90,22 +90,22 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `dir` | string |  | Root folder for assets shared across games rather than owned by one, such as manufacturer logos. Served at /assets/ and defaults to assets/ under the VPinFE config dir. |
+| `dir` | string |  | Root folder for assets shared across games rather than owned by one, such as manufacturer logos. Served at /assets/. |
 
 ### `updates`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `refresh_minutes` | int | `0` | How often to re-read the library from disk, in minutes. It picks up everything, not just tables - media and assets added or removed beside them too. Zero never does, which is the default because a read walks every game folder: fine locally, real traffic on a network share. It can always be asked to read it now. |
+| `refresh_minutes` | int | `0` | How often to re-read the library from disk. It picks up media and assets, not just tables. A read walks every game folder, so it is slow over a network share. |
 | `auto_update_media` | bool | `false` | Update Media on Startup |
-| `ask_where_new_games_go` | bool | `true` | On, an import that could go to more than one place asks which. Off, it goes to the one marked for new games without asking. Never asked where there is only one place it could go. |
+| `ask_where_new_games_go` | bool | `true` | On, an import that could go to more than one place asks which. Off, it goes to the place marked for new games. Never asked when there is only one. |
 
 ### `presentation`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `cab_mode` | bool | `false` | Presents VPinFE for playing standing at a cabinet: larger text and targets, and no controls that need a mouse. It does not rotate anything. |
-| `playfield_media_rotation` | choice (auto, 0, 90, 180, 270) | `auto` | How far to turn playfield artwork so it fills the screen. auto measures each image and turns only when it disagrees with the surface. |
+| `playfield_media_rotation` | choice (auto, 0, 90, 180, 270) | `auto` | How far to turn playfield artwork so it fills the screen. |
 | `playfield_media_priority` | choice (video, image) | `video` | Playfield Media Priority |
 | `backglass_media_priority` | choice (video, image) | `video` | Backglass Media Priority |
 | `score_view_media_priority` | choice (video, image) | `video` | Score View Media Priority |
@@ -120,7 +120,7 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | `startup_collection` | string |  | Default Startup Collection |
 | `restore_last_table` | bool | `true` | Restore Last Table |
 | `splashscreen` | bool | `false` | Enable Splash Screen |
-| `confirm` | bool | `false` | Ask before quitting VPinFE or powering off the machine. Closing the frontend never asks - the windows reopen from the Manager UI, so there is nothing to lose. Off is how VPinFE has always behaved, and the question is put to whichever surface asked. |
+| `confirm` | bool | `false` | Ask before quitting VPinFE or powering off the machine. Closing the frontend never asks. |
 | `hide_quit_button` | bool | `false` | Hide Quit from the Main Menu |
 | `mute_audio` | bool | `false` | Mute Frontend Audio |
 
@@ -129,8 +129,8 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `active` | string | `Revolution` | Active Theme |
-| `registries` | list | `https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json` | Catalogs to offer themes from, most trusted first. The stock registry is an entry like any other, so a mirrored or offline install can replace or drop it. |
-| `repositories` | list |  | Individual theme repos, each one a theme in its own right. Resolved before the registries, and named for the repo with any vpinfe-theme- prefix removed. |
+| `registries` | list | `https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json` | Catalogs to offer themes from, most trusted first. A source is fetched and installed, so add one you trust. |
+| `repositories` | list |  | Individual theme repos, each one a theme. Resolved before the registries. |
 
 ### `logger`
 
@@ -146,8 +146,8 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | `playfield_variant` | choice (table, fss) | `table` | Which playfield artwork this library holds: table.png, or fss.png for art captured in Visual Pinball's Full Single Screen mode. |
 | `playfield_resolution` | choice (4k, 1k) | `4k` | Playfield Resolution |
 | `playfield_video_resolution` | choice (4k, 1k) | `1k` | Playfield Video Resolution |
-| `browse_dirs` | list |  | Extra folders you can pick artwork from when adding media by hand. The game library is always available; anywhere else has to be listed here before VPinFE will read it. |
-| `wheelset` | string |  | Name of the wheel art set to use library-wide, a folder under a game's medias/wheels/. The reserved name logo shows each game's logo instead. Blank means plain wheels, and the active theme can override this with its own wheelSet option. |
+| `browse_dirs` | list |  | Extra folders you can pick artwork from by hand. Your game library is always available; anywhere else has to be listed here first. |
+| `wheelset` | string |  | Which wheel art set to use, as a folder under a game's medias/wheels/. The name logo shows each game's own logo instead. A theme can override this. |
 | `default_missing_image` | string |  | Default Missing Media Image |
 | `thumb_cache_max_mb` | int | `500` | Thumbnail Cache Max (MB) |
 | `asset_sources` | list |  | Which online catalogs are searched for artwork. Empty means all of them. Names come from the sources list this install reports. |
@@ -156,10 +156,10 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `id` | string |  | Written by VPinFE on first start, and not meant to be edited. Installs are told apart by this, so changing it makes this a different install. |
+| `id` | string |  | Written by VPinFE on first start. Installs are told apart by this, so changing it makes this a different install. |
 | `display_name` | string |  | What to call this device where one is listed. Defaults to this machine's hostname. Nothing is addressed by it, so renaming is safe. |
-| `features` | list | `library,frontend,devices` | What this install is for: curating the game library (library), launching games on this machine (frontend), managing the other installs on your network (devices), and a rollup of all three (overview). Each one it has decides what the Console shows. Overview is the one that has to be asked for. Left empty the install is for nothing yet, and System is still there to configure it with. |
-| `language` | choice (auto, en) | `auto` | What language VPinFE speaks. Auto follows the operating system. Takes effect after a restart. Table names and everything else your library holds are never translated. |
+| `features` | list | `library,frontend,devices` | What this install is for. Each one you add appears in the Console. Leave it empty and System is still here to come back and set it. |
+| `language` | choice (auto, en) | `auto` | What language VPinFE speaks. Takes effect after a restart. Your library's own words - table names and the rest - are never translated. |
 
 ### `vpsdb`
 
@@ -167,7 +167,7 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | --- | --- | --- | --- |
 | `last` | string |  |  |
 | `checked` | string |  |  |
-| `refresh` | choice (never, daily, weekly, monthly) | `daily` | How often to ask whether the spreadsheet has changed. Matching, release lists and what a kind is offered from all read the copy kept on this machine, so this is how fresh those answers are. Checking is cheap; the copy is only downloaded when it has actually changed. |
+| `refresh` | choice (never, daily, weekly, monthly) | `daily` | How often to check whether the spreadsheet has changed. Matching and release lists read the copy on this machine, so this is how current they are. |
 
 ### `state`
 
@@ -190,12 +190,12 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `theme_assets_port` | int | `8000` | Theme Server Port |
-| `theme_assets_bind` | string | `127.0.0.1` | Which address to serve theme packages and table media on. The default answers this machine only. An address rather than a switch, so a single interface can be named; 0.0.0.0 is every one. This port serves the table library, so opening it shares read access to it. |
+| `theme_assets_bind` | string | `127.0.0.1` | Which address to serve theme packages and table media on. The default answers this machine only. Opening it wider shares read access to your table library. |
 | `ws_port` | int | `8002` | Port the frontend windows and the theme talk to VPinFE over. Loopback only. |
-| `http_port` | int | `8001` | Port this install answers on: the HTTP API, the Console, the Manager UI, and the remote and mobile pages. Named for the protocol rather than any one thing listening on it. |
-| `library_url` | string |  | Which install this one reads its library from, for example http://cabinet.local:8001. Empty - the default - means this install holds its own, which is every single-machine setup. Installs on your network are offered; type an address for one that is not. |
-| `verify_shared_library` | bool | `false` | On startup, check that the library this install reads really is the one on disk here, by comparing file hashes rather than paths. Reports what does not match and changes nothing else. Off by default, and ignored entirely without a Library set. |
-| `http_bind` | string | `0.0.0.0` | Which address to serve on. The default answers every interface, which is what it has always done - set 127.0.0.1 to reach it only from this machine. |
+| `http_port` | int | `8001` | Port this install answers on: the HTTP API, the Console, and the remote and mobile pages. |
+| `library_url` | string |  | Which install this one reads its library from. Empty means it holds its own. Installs on your network are offered; type an address for one that is not. |
+| `verify_shared_library` | bool | `false` | On startup, check that the library this install reads is the one on disk here, by comparing file hashes. Reports what does not match, and changes nothing. |
+| `http_bind` | string | `0.0.0.0` | Which address to serve on. The default answers every interface - set 127.0.0.1 to reach it only from this machine. |
 
 ### `dof`
 
