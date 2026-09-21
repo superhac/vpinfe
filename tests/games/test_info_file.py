@@ -56,7 +56,7 @@ class TestMetaConfig(unittest.TestCase):
         )
         return json.loads(info_path.read_text(encoding="utf-8"))
 
-    def test_write_config_meta_clears_altvpsid_when_filehash_changes(self) -> None:
+    def test_write_config_meta_keeps_altvpsid_when_filehash_changes(self) -> None:
         with TemporaryDirectory() as tmp:
             info_path = Path(tmp) / "Example Table.info"
             info_path.write_text(
@@ -78,7 +78,7 @@ class TestMetaConfig(unittest.TestCase):
 
             saved = self._write_meta(info_path)
 
-            self.assertEqual(saved["vpinfe"]["alt_vpsid"], "")
+            self.assertEqual(saved["vpinfe"]["alt_vpsid"], "12345")
             self.assertEqual(saved["vpinfe"]["alt_launcher"], "/custom/launcher")
             self.assertEqual(saved["vpinfe"]["alt_title"], "Example Alt Title")
             self.assertTrue(saved["vpinfe"]["delete_nvram_on_close"])
@@ -434,16 +434,14 @@ class ForgetTableTests(unittest.TestCase):
     def test_an_unknown_id_is_refused(self) -> None:
         self.assertFalse(self._meta().forget_table("nope"))
 
-    def test_forgetting_the_default_clears_it_and_parks_the_vps_override(self) -> None:
+    def test_forgetting_the_default_clears_it_and_keeps_the_vps_match(self) -> None:
         """The stored default is a table id, so leaving it would name a table nothing
-        describes - and the manual VPS match was claimed against that table."""
+        describes. The match names the machine and outlives any one of its files."""
         self._meta(default_id="gone").forget_table("gone")
 
         vpinfe = self._stored()["vpinfe"]
         self.assertEqual(vpinfe["default_table"], "")
-        self.assertEqual(vpinfe["alt_vpsid"], "")
-        self.assertEqual(vpinfe["alt_vpsid_previous"]["value"], "USER-TYPED")
-        self.assertEqual(vpinfe["alt_vpsid_previous"]["table"], "b.vpx")
+        self.assertEqual(vpinfe["alt_vpsid"], "USER-TYPED")
 
     def test_forgetting_another_table_leaves_the_default_alone(self) -> None:
         self._meta(default_id="keep").forget_table("gone")

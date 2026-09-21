@@ -599,15 +599,6 @@ class PlayRecord(ApiModel):
     play_time_seconds: int = 0
 
 
-class ParkedMatch(ApiModel):
-    """`table` names the file it was claimed against, which is what makes the offer to
-    restore it specific rather than mysterious."""
-
-    value: str
-    table: str = ""
-    set_aside: str = ""
-
-
 class GameResource(ApiModel):
     """A game: the pinball-machine concept, not a launchable file. vps_id correlates
     with VPSdb and anything keyed by it; `id` is what identifies the game here."""
@@ -633,10 +624,6 @@ class GameResource(ApiModel):
     overrides: GameOverrides = GameOverrides()
     discovered: GameDiscovered = GameDiscovered()
     assets: dict[str, AssetEntry]
-    # A manual VPS match set aside when the table it was claimed against was replaced.
-    # Nothing resolves through it - an invariant says so - and it reaches a client only
-    # so a person can be offered it back. Null where there is none.
-    parked_vps_id: ParkedMatch | None = None
     # The play record - rating, favorite, tags and the counters. It reached only the
     # play lens (`EntryGame`), so the surface that manages a library could not show
     # what somebody thought of a game or how much they had played it.

@@ -31,19 +31,15 @@ from common.games.tables import (
     TABLES_KEY,
     adopted_entry,
     contained_entry,
-    default_table,
-    entry_filename,
     entry_for_filename,
     entry_from_parsed,
     entry_key,
     entry_native_key,
     entry_reference,
     keyed_entry,
-    recorded_default,
     referenced_entry,
     stored_reference,
     table_entries,
-    table_filenames,
 )
 from common.timestamps import utc_now_iso
 
@@ -109,39 +105,6 @@ def migrate_vpinfe_section(vpinfe: object) -> dict[str, Any]:
 
 
 ALT_VPSID_KEY = "alt_vpsid"
-# Nothing resolves through this, and an invariant says so.
-ALT_VPSID_PREVIOUS_KEY = "alt_vpsid_previous"
-
-
-def _park_alt_vpsid(vpinfe: dict[str, Any], table_filename: str) -> None:
-    """Set a manual VPS match aside when the table it was claimed against is replaced.
-
-    It stops applying either way; what changes is that the user's typed value survives to
-    be offered back. Only the most recent is kept.
-    """
-    previous = str(vpinfe.get(ALT_VPSID_KEY, "") or "").strip()
-    vpinfe[ALT_VPSID_KEY] = ""
-    if not previous:
-        return
-    vpinfe[ALT_VPSID_PREVIOUS_KEY] = {
-        "value": previous,
-        "table": table_filename or "",
-        "set_aside": utc_now_iso(),
-    }
-
-
-def _default_table_changed(chosen: str, previous_files: dict, tables: dict) -> bool:
-    """Whether the game's default table is a different file than it was.
-
-    A manual VPS override is tied to the table it was chosen against, so replacing
-    that file drops it. Scoped to the default: ADDING a table is not a reason to
-    discard the user's match.
-    """
-    previous_hash = str(entry_for_filename(previous_files, chosen)[1]
-                        .get("file_hash", "") or "").strip()
-    new_hash = str(entry_for_filename(tables, chosen)[1]
-                   .get("file_hash", "") or "").strip()
-    return bool(previous_hash and new_hash and previous_hash != new_hash)
 
 
 class InvalidMetaConfigError(ValueError):
@@ -285,22 +248,8 @@ class MetaConfig:
             vpinfe[GAME_ID_KEY] = new_id()
 
         assets = self.data.get(ASSETS_KEY, {})
-        previous_files = table_entries(self.data)
         tables = self._build_tables(configdata)
-
-        # Which table a single-table consumer gets - today's themes all assume one game
-        # means one table. Resolved fresh here and deliberately NOT written back:
-        # seeding it on every rebuild would turn an arbitrary first pick into a
-        # permanent one with nothing to change it. The key is written only when
-        # somebody chooses (and by the migration, which seeds it from VPXFile.filename
-        # so existing games keep selecting exactly what they select today).
-        chosen = default_table(table_filenames(tables), "",
-                               recorded_default(vpinfe, tables))
-
-        if _default_table_changed(chosen, previous_files, tables):
-            _park_alt_vpsid(vpinfe, chosen)
-        else:
-            vpinfe.setdefault(ALT_VPSID_KEY, "")
+        vpinfe.setdefault(ALT_VPSID_KEY, "")
 
         # Preserve any top-level sections we don't manage (e.g. metadata written by
         # other tools sharing the .info file) instead of dropping them on rebuild.
@@ -455,15 +404,12 @@ class MetaConfig:
         if not isinstance(entry, dict) or not entry.get(ABSENT_SINCE_KEY):
             return False
 
-        gone_name = entry_filename(entry)
         entries.pop(table_id, None)
         vpinfe = self.data.get(VPINFE_SECTION)
         if isinstance(vpinfe, dict) and str(vpinfe.get(DEFAULT_TABLE_KEY, "")) == table_id:
             # The stored default is a table id, so leaving it would name a table nothing
-            # describes. The manual VPS match went with that table - park it the way a
-            # replacement does, so the user's typed value can be offered back.
+            # describes.
             vpinfe[DEFAULT_TABLE_KEY] = ""
-            _park_alt_vpsid(vpinfe, gone_name)
         self.write_config()
         return True
 
@@ -582,15 +528,9 @@ class MetaConfig:
         """One table replaced another on disk: describe the new one, forget the old.
 
         A gone table's entry is not kept - its history answers nothing once the file is
-        gone. If the default is what changed, the manual VPS override goes with it, the
-        same rule a rebuild applies.
+        gone.
         """
         entries = table_entries(self.data)
-        # Deep enough to survive the update below: a shallow copy shares the entry dicts,
-        # so the "before" would change with the "after" and never look different.
-        previous = {key: dict(entry) for key, entry in entries.items()
-                    if isinstance(entry, dict)}
-
         gone_id, _ = entry_for_filename(entries, removed) if removed else ("", {})
         dropped = bool(removed and removed != filename and entries.pop(gone_id, None))
         if parsed:
@@ -600,12 +540,6 @@ class MetaConfig:
             return      # nothing to say; do not add an empty section to the .info
 
         self.data[TABLES_KEY] = entries
-        vpinfe = self.data.get(VPINFE_SECTION)
-        if isinstance(vpinfe, dict):
-            chosen = default_table(table_filenames(entries), "",
-                                   recorded_default(vpinfe, entries))
-            if _default_table_changed(chosen, previous, entries):
-                _park_alt_vpsid(vpinfe, chosen)
         self.write_config()
 
     def record_patch_source(self, filename: str, base_file: str, base_hash: str,

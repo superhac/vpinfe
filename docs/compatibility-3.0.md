@@ -941,22 +941,16 @@ surface is told through `lifecycle.acting` without being able to block. A reques
 cannot be asked, like a `SIGTERM`, proceeds; a surface that should answer and has gone
 away denies. Covered by `tests/host/test_lifecycle.py`.
 
-**PAR-47 — A superseded VPS override is set aside instead of deleted.** A manual
-`alt_vpsid` match stops applying when the default table's hash changes, exactly as it did
-before - matching falls back to `Info.VPSId` and every consumer resolves identically. What
-changes is that the value moves to `vpinfe.alt_vpsid_previous` (`{value, table,
-set_aside}`) rather than being overwritten with `""`. Only the most recent is kept, and
-nothing resolves through it.
-*Why:* the override is a user-typed correction to VPSdb matching, and deleting it was right
-about the claim and wrong about the value. A file-hash change cannot tell a genuinely
-different table from the same table updated to a newer build - and the newer build is the
-common case, which is exactly when somebody is fixing the match. 2.x's own Manager UI
-re-orders rebuild-then-save specifically to defeat the deletion and keep what the user
-typed, which is the clearest evidence the storage was wrong rather than the workflow. The
-Manager UI control that offers it back lands after 3.0, so today the value is on disk where
-a hand-edit reaches it instead of gone. Covered by `tests/games/test_game_identity.py` and
-`tests/invariants/test_parked_override.py`, the latter asserting no code path resolves an
-id through the parked value.
+**PAR-47 — A VPS match survives a table update.** 2.x cleared `alt_vpsid` whenever the
+default table's file hash changed. 3.0 keeps it: the match names the machine, and a newer
+build of one of its tables is not a reason to stop applying it.
+*Why:* 2.x stored a VPS **release** id under this key - which build you hold, under the
+machine `Info.VPSId` names - so tying it to the file was right for what it held. 3.0 reads
+it as the machine match, where a file has no bearing on it. Clearing it cost the user their
+correction at the exact moment they were most likely to be making one, which is why 2.x's
+own Manager UI re-orders rebuild-then-save to defeat its own deletion. A 2.x value naming a
+build is routed to that table's `source` instead of being read as a machine - see PAR-48.
+Covered by `tests/games/test_game_identity.py` and `tests/games/test_info_file.py`.
 
 **PAR-46 — An upload can say what its files are, instead of being guessed at.** The import
 endpoint accepts a `declared` map, keyed by the name each file arrived under, carrying

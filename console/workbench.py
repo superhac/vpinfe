@@ -1784,10 +1784,6 @@ async def _vps_block(context: dict[str, Any]) -> None:
     chosen = bool((game.get("overrides") or {}).get("alt_vps_id"))
 
     entries: list[tuple[Any, Any]] = []
-    parked = game.get("parked_vps_id") or {}
-    if parked.get("value"):
-        entries.append((FULL, _parked_match(context, parked)))
-
     if not vps_id:
         entries += [(t("console.workbench.entry"), _state(t("console.workbench.not_matched"),
                 "warn"))]
@@ -1900,42 +1896,6 @@ async def _pick_a_match(context: dict[str, Any]) -> None:
         return
     await _write(context, context["library"].set_game_overrides, context["game_id"],
                  {"alt_vps_id": str(picked)})
-
-
-def _parked_match(context: dict[str, Any], parked: dict[str, Any]) -> Callable[[], None]:
-    """A match the user made, set aside when the table it was claimed against changed.
-
-    Not a suggestion and not a warning - it is their own statement handed back, which is
-    why it can sit here at all while nothing else on this section judges a match.
-    """
-    async def restore() -> None:
-        await _write(context, context["library"].set_game_overrides,
-                     context["game_id"], {"alt_vps_id": str(parked.get("value") or "")})
-
-    async def discard() -> None:
-        if not await confirm.ask(
-                t("console.workbench.discard_match_made_earlier"),
-                detail=t("console.workbench.not_use_either_way"),
-                confirm=t("word.discard")):
-            return
-        await _write(context, context["library"].set_game_overrides,
-                     context["game_id"], {"alt_vps_id_previous": ""})
-
-    def draw() -> None:
-        with ui.element("div").classes("console-attention w-full"):
-            said = str(parked.get("table") or "")
-            ui.label(t("console.workbench.matched_hand_before")
-                     + (t("console.workbench.replaced",
-                             said=(said)) if said else t("console.workbench.table_changed"))) \
-                .classes("console-attention-line")
-            with ui.row().classes("items-center gap-2"):
-                ui.button(t("word.restore"), on_click=restore) \
-                    .props("flat dense no-caps size=sm").classes("console-action")
-                ui.button(t("word.discard"), on_click=discard) \
-                    .props("flat dense no-caps size=sm") \
-                    .classes("console-action console-action--danger")
-
-    return draw
 
 
 def _rom_state(pinmame: dict[str, Any], rom: str,

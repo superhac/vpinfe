@@ -325,8 +325,6 @@ def game_to_row(game: Game,
         "alt_vpsid": str(vpinfe.get("alt_vpsid", "") or "").strip(),
         **{GAME_OVERRIDES[name][0]: answered[name]
            for name in ("manufacturer", "year", "type", "themes", "ipdb_id")},
-        # Carried, not resolved. The one surface that shows it is the VPS section.
-        "alt_vpsid_previous": vpinfe.get("alt_vpsid_previous"),
         "frontend_dof_event": str(vpinfe.get("frontend_dof_event", "") or "").strip(),
         "rating": normalize_rating(user.get("Rating", 0)),
         # The whole play record beside the flat rating. The rating shipped alone and

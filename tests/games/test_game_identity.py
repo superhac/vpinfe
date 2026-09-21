@@ -121,62 +121,22 @@ class IdentityOutlivesVpsIdTests(TempTree):
 
         self.assertTrue(rebuilt["vpinfe"]["game_id"])
 
-    def test_the_id_survives_a_table_update_that_clears_altvpsid(self) -> None:
-        """alt_vpsid is cleared when the .vpx changes; the game id must not be."""
+    def test_a_match_survives_a_table_update(self) -> None:
+        """A machine match names the machine, not the file, so a newer build of the
+        table is not a reason to stop applying it."""
         info = self.root / "Example.info"
         first = self._rebuild(info, "hash-a")
         game_id = first["vpinfe"]["game_id"]
 
-        # User re-points the game at different VPSdb metadata, then updates the .vpx.
-        data = json.loads(info.read_text(encoding="utf-8"))
-        data["vpinfe"]["alt_vpsid"] = "vps-override"
-        info.write_text(json.dumps(data), encoding="utf-8")
-        after = self._rebuild(info, "hash-b")
-
-        self.assertEqual(after["vpinfe"]["alt_vpsid"], "", "precondition: altvpsid is cleared")
-        self.assertEqual(after["vpinfe"]["game_id"], game_id)
-
-    def test_a_superseded_override_is_parked_rather_than_destroyed(self) -> None:
-        """The claim is stale - the file it was made about is gone - but the value the
-        user typed is not worthless. It stops resolving and is kept for the Manager UI
-        to offer back, which is why 2.x had to rebuild before saving to defeat this."""
-        info = self.root / "Example.info"
-        self._rebuild(info, "hash-a")
-
         data = json.loads(info.read_text(encoding="utf-8"))
         data["vpinfe"]["alt_vpsid"] = "vps-override"
         info.write_text(json.dumps(data), encoding="utf-8")
         after = self._rebuild(info, "hash-b")["vpinfe"]
 
-        self.assertEqual(after["alt_vpsid"], "", "it must stop resolving")
-        self.assertEqual(after["alt_vpsid_previous"]["value"], "vps-override")
-        self.assertTrue(after["alt_vpsid_previous"]["set_aside"])
+        self.assertEqual(after["alt_vpsid"], "vps-override")
+        self.assertEqual(after["game_id"], game_id)
 
-    def test_only_the_most_recent_is_kept(self) -> None:
-        """A claim made two tables ago is archaeology, and accumulating them would grow
-        the file forever for a value nobody restored."""
-        info = self.root / "Example.info"
-        self._rebuild(info, "hash-a")
-
-        for override, next_hash in (("first", "hash-b"), ("second", "hash-c")):
-            data = json.loads(info.read_text(encoding="utf-8"))
-            data["vpinfe"]["alt_vpsid"] = override
-            info.write_text(json.dumps(data), encoding="utf-8")
-            after = self._rebuild(info, next_hash)["vpinfe"]
-
-        self.assertEqual(after["alt_vpsid_previous"]["value"], "second")
-
-    def test_nothing_is_parked_when_there_was_no_override(self) -> None:
-        """The common case: no override, so no history and no empty key in the file."""
-        info = self.root / "Example.info"
-        self._rebuild(info, "hash-a")
-        after = self._rebuild(info, "hash-b")["vpinfe"]
-
-        self.assertEqual(after["alt_vpsid"], "")
-        self.assertNotIn("alt_vpsid_previous", after)
-
-    def test_an_override_survives_a_rebuild_that_changes_nothing(self) -> None:
-        """Unchanged precondition: only replacing the table sets it aside."""
+    def test_a_rebuild_that_changes_nothing_leaves_a_match_alone(self) -> None:
         info = self.root / "Example.info"
         self._rebuild(info, "hash-a")
 
@@ -186,7 +146,6 @@ class IdentityOutlivesVpsIdTests(TempTree):
         after = self._rebuild(info, "hash-a")["vpinfe"]
 
         self.assertEqual(after["alt_vpsid"], "vps-override")
-        self.assertNotIn("alt_vpsid_previous", after)
 
     def test_the_id_survives_repeated_rebuilds(self) -> None:
         info = self.root / "Example.info"

@@ -127,9 +127,9 @@ class MembershipTests(TempTree):
         self.assertTrue(collections.is_member(a, members))
         self.assertFalse(collections.is_member(b, members))
 
-    def test_membership_survives_a_vpx_update_clearing_altvpsid(self) -> None:
-        """Defects 3 and 4: a rebuild after a .vpx change clears altvpsid, and
-        membership recorded under it used to be orphaned."""
+    def test_membership_survives_a_vpx_update(self) -> None:
+        """Defect 3: membership keyed on anything a rebuild can rewrite is orphaned by
+        one. The game's own id is the only key a rebuild never touches."""
         info = self.root / "MM.info"
 
         def rebuild(filehash):
@@ -150,23 +150,16 @@ class MembershipTests(TempTree):
         first = rebuild("hash-a")
         game_id_value = first["vpinfe"]["game_id"]
 
-        # User re-points the game, then updates the .vpx - which clears alt_vpsid.
+        # User re-points the game, then updates the .vpx.
         data = json.loads(info.read_text(encoding="utf-8"))
         data["vpinfe"]["alt_vpsid"] = "vps-override"
         info.write_text(json.dumps(data), encoding="utf-8")
         after = rebuild("hash-b")
 
-        self.assertEqual(after["vpinfe"]["alt_vpsid"], "", "precondition: altvpsid cleared")
-
         game = fake_game(self.root, "MM", meta=after)
         collections = _collections(self.ini, {"Favorites": []})
 
-        # Keyed the old way - the alt VPS id the user had set - membership is gone,
-        # because that value now matches neither the base nor the (cleared) alt.
-        self.assertFalse(collections.is_member(game, {"vps-override"}),
-                         "this is the orphaning the re-key exists to fix")
-
-        # Keyed by the table's own id, it survives.
+        self.assertEqual(after["vpinfe"]["game_id"], game_id_value)
         self.assertTrue(collections.is_member(game, {game_id_value}))
 
 

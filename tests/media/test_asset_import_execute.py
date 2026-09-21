@@ -206,9 +206,9 @@ class ImportExecuteTests(unittest.TestCase):
             self.assertEqual(
                 entry_for_filename(saved["tables"], "New.vpx")[1]["rom"], "new_rom")
 
-    def test_replacing_the_default_table_still_drops_the_vps_override(self):
-        """Writing the new hash in at import time must not rob the rebuild of the change
-        it clears alt_vpsid on."""
+    def test_replacing_the_default_table_keeps_the_vps_match(self):
+        """The match names the machine. Replacing one of its files with a newer build
+        does not make it a different machine."""
         from pathlib import Path
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:
@@ -220,7 +220,8 @@ class ImportExecuteTests(unittest.TestCase):
                  "tables": {"Old.vpx": {"file_hash": "old-hash"}}},
                 "Old.vpx", {"file_hash": "new-hash"})
 
-            self.assertEqual(saved["vpinfe"]["alt_vpsid"], "")
+            self.assertEqual(saved["vpinfe"]["alt_vpsid"],
+                             "chosen-against-the-old-file")
 
     def test_adding_a_table_does_not_drop_the_vps_override(self):
         """A second table is not a reason to discard the user's match."""

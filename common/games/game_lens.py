@@ -17,17 +17,7 @@ from common.games.tables import table_names
 from common.i18n import t
 
 __all__ = ["asset_summary", "catalog", "detail", "game_or_refuse", "game_resource",
-           "inventory_assets", "listing", "parked_match", "resource_of"]
-
-
-def parked_match(row: dict) -> dict | None:
-    """A superseded manual match, for the surface that offers it back."""
-    parked = row.get("alt_vpsid_previous")
-    if not isinstance(parked, dict) or not str(parked.get("value") or "").strip():
-        return None
-    return {"value": str(parked["value"]).strip(),
-            "table": str(parked.get("table") or ""),
-            "set_aside": str(parked.get("set_aside") or "")}
+           "inventory_assets", "listing", "resource_of"]
 
 
 def asset_summary(row: dict) -> dict:
@@ -103,9 +93,6 @@ def game_resource(row: dict, game_id: str) -> dict[str, Any]:
             "alt_themes": row.get("alt_themes") or [],
             "alt_ipdb_id": row.get("alt_ipdb_id", ""),
         },
-        # Surfacing it, never resolving through it: `tests/invariants/test_parked_override`
-        # asserts the difference, and this file is on its allowlist for that reason.
-        "parked_vps_id": parked_match(row),
         "discovered": {
             "name": row.get("found_name", ""),
             "vps_id": row.get("vpsid", ""),
