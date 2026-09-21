@@ -800,6 +800,10 @@ class ApiClient:
         two surfaces editing different fields do not overwrite each other."""
         return self._put(f"/games/{game_id}/overrides", changes)
 
+    def declare_no_match(self, game_id: str) -> None:
+        """Say this game is in no catalog."""
+        self._delete(f"/games/{game_id}/vps_match")
+
     def set_table_overrides(self, game_id: str, table_id: str, changes: dict) -> dict:
         """What the user says about one file. Same patch shape as the game's."""
         return self._put(f"/games/{game_id}/tables/{table_id}/overrides", changes)

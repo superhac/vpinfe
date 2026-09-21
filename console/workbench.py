@@ -1823,6 +1823,7 @@ async def _vps_block(context: dict[str, Any]) -> None:
     library = context["library"]
     vps_id = str(game.get("vps_id") or "")
     discovered = game.get("discovered") or {}
+    declared = (game.get("overrides") or {}).get("alt_vps_id", "") is None
 
     def save(key: str) -> Callable[[str], Awaitable[None]]:
         async def write(value: str) -> None:
@@ -1840,6 +1841,9 @@ async def _vps_block(context: dict[str, Any]) -> None:
         entries.append((t("console.workbench.matched_to"),
                         f"{said} - {made.strip()}"))
         differs = await offload.io(library.vps_details, context["game_id"])
+    elif declared:
+        entries.append((t("console.workbench.matched_to"),
+                        _state(t("console.workbench.no_match"), "off")))
     else:
         entries.append((t("console.workbench.matched_to"),
                         _state(t("console.workbench.no_such_entry") if vps_id
@@ -1849,6 +1853,8 @@ async def _vps_block(context: dict[str, Any]) -> None:
     entries.append((t("word.id"),
                     panel.link_out(vps_id, to=url) if vps_id and url
                     else vps_id or _state(t("word.none"), "off")))
+    if declared:
+        entries.append(panel.note(t("console.workbench.said_no_catalog")))
     if differs:
         entries.append((FULL, _details_differ(context, differs)))
     entries.append((FULL, _change_match(context)))
@@ -1963,6 +1969,10 @@ async def _pick_a_match(context: dict[str, Any]) -> None:
         return
     library = context["library"]
     try:
+        if picked == vps_match.CLEARED:
+            await run.io_bound(library.declare_no_match, context["game_id"])
+            await context["rebuild"]()
+            return
         await run.io_bound(library.set_game_overrides, context["game_id"],
                            {"alt_vps_id": str(picked)})
         differs = await run.io_bound(library.vps_details, context["game_id"])

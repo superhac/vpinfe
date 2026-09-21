@@ -23,11 +23,9 @@ from console import candidates, offload, panel, verbs
 
 logger = logging.getLogger("vpinfe.console.vps_match")
 
-# What `ask` hands back, so a caller never has to read `None` and `""` as magic.
+# A NUL cannot occur in a VPS id, so neither of these can be mistaken for one.
 CANCELLED = None
-CLEARED = ""
-# Ending a walk, and it has to be a string because it travels the same return as an id.
-# A NUL cannot occur in one, so this can never be mistaken for a VPS id.
+CLEARED = "\x00none"
 STOPPED = "\x00stopped"
 
 
@@ -35,8 +33,9 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
               walking: bool = False) -> str | None:
     """Ask which VPS entry this game is. The caller writes; this only asks.
 
-    Answers with the chosen id, `CLEARED` to drop the binding, `CANCELLED` to do nothing,
-    or `STOPPED` when walking. `place` is "3 of 34", empty for a single game.
+    Answers with the chosen id, `""` where the choice is the one the scan already found
+    and no override is wanted, `CLEARED` to say the machine is in no catalog, `CANCELLED`
+    to do nothing, or `STOPPED` when walking. `place` is "3 of 34", empty for a game.
 
     `walking` splits Cancel into Skip and Stop, which are different intents in a run and
     cannot share one button.
@@ -44,6 +43,9 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
     bound = str(game.get("vps_id") or "")
     entry = await offload.io(library.vps_entry, bound) if bound else {}
     picked = {"id": bound}
+    scanned = str((game.get("discovered") or {}).get("vps_id") or "")
+    behind = (await offload.io(library.vps_entry, scanned)
+              if scanned and scanned != bound else {})
 
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-confirm console-picker-dialog"):
@@ -63,6 +65,17 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
 
             _entry_row(entry, trailing=clear)
 
+        if behind:
+            ui.label(t("console.vps_match.what_the_scan_found")).classes("console-group")
+
+            def take_scanned() -> None:
+                ui.button(t("console.vps_match.use_this"), icon=verbs.ACCEPT,
+                          on_click=lambda: dialog.submit(answer(scanned))) \
+                    .props("flat dense no-caps size=sm") \
+                    .classes("console-action shrink-0")
+
+            _entry_row(behind, trailing=take_scanned)
+
         ui.label(t("console.vps_match.search_for_match")).classes("console-group")
         with ui.row().classes("items-center gap-2 w-full no-wrap"):
             field = ui.input(value=_seed(game)) \
@@ -75,7 +88,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
 
         with ui.row().classes("items-center justify-end gap-2 w-full"):
             update = ui.button(t("console.vps_match.update_match"), icon=verbs.ACCEPT,
-                               on_click=lambda: dialog.submit(str(picked["id"]))) \
+                               on_click=lambda: dialog.submit(answer(str(picked["id"])))) \
                 .props("no-caps")
             ui.button(t("word.cancel"), icon=verbs.CANCEL,
                       on_click=lambda: dialog.submit(CANCELLED)).props("flat no-caps")
@@ -87,6 +100,10 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
         update.set_visibility(False)
 
         rows: list[dict[str, Any]] = []
+
+        def answer(vps_id: str) -> str:
+            """An override, or "" where the choice is the scan's own answer."""
+            return "" if vps_id and vps_id == scanned else vps_id
 
         def take(vps_id: str) -> None:
             picked["id"] = vps_id
@@ -138,9 +155,13 @@ async def walk(library: Any, games: list[dict[str, Any]]) -> None:
             break
         if picked is CANCELLED:
             continue
+        game_id = str(game.get("id") or "")
         try:
-            await run.io_bound(library.set_game_overrides, str(game.get("id") or ""),
-                               {"alt_vps_id": str(picked)})
+            if picked == CLEARED:
+                await run.io_bound(library.declare_no_match, game_id)
+            else:
+                await run.io_bound(library.set_game_overrides, game_id,
+                                   {"alt_vps_id": str(picked)})
         except Exception as exc:  # noqa: BLE001 - one bad write does not end the walk
             logger.exception("Could not set the match for %s", game.get("id"))
             ui.notify(t("console.vps_match.could_not_set_match", exc=(exc)), type="negative")

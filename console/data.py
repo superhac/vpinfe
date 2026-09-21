@@ -467,6 +467,11 @@ class Library:
         self.load()
         return result
 
+    def declare_no_match(self, game_id: str) -> None:
+        """The match drives the name a game sorts under, so the whole list is stale."""
+        self._client.declare_no_match(game_id)
+        self.load()
+
     def set_table_overrides(self, game_id: str, table_id: str, changes: dict) -> dict:
         result = self._client.set_table_overrides(game_id, table_id, changes)
         self._forget_tables(game_id)

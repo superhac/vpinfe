@@ -26,10 +26,14 @@ class FakeLibrary:
 
     def __init__(self) -> None:
         self.writes: list[tuple[str, dict]] = []
+        self.declared: list[str] = []
 
     def set_game_overrides(self, game_id: str, changes: dict) -> dict:
         self.writes.append((game_id, changes))
         return {}
+
+    def declare_no_match(self, game_id: str) -> None:
+        self.declared.append(game_id)
 
 
 def games(*names: str) -> list[dict[str, Any]]:
@@ -98,11 +102,12 @@ class TheWalk(unittest.TestCase):
         library = walk_answering(["vps-1", vps_match.STOPPED], games("A", "B", "C"))
         self.assertEqual(library.writes, [("id-A", {"alt_vps_id": "vps-1"})])
 
-    def test_clearing_is_a_write_and_not_a_skip(self) -> None:
-        """An empty answer means "drop the binding", which is a decision; `CANCELLED`
-        means "I did not decide". Two outcomes that look alike and are not."""
+    def test_clearing_declares_a_none_and_is_not_a_skip(self) -> None:
+        """Three outcomes that look alike: a declared none is a decision, `CANCELLED` is
+        no decision, and an empty override says nobody has looked."""
         library = walk_answering([vps_match.CLEARED], games("A"))
-        self.assertEqual(library.writes, [("id-A", {"alt_vps_id": ""})])
+        self.assertEqual(library.declared, ["id-A"])
+        self.assertEqual(library.writes, [])
 
     def test_a_failed_write_does_not_end_the_run(self) -> None:
         """Thirty games in, one bad write should cost that game and not the other
