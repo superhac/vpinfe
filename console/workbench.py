@@ -1826,31 +1826,27 @@ async def _vps_block(context: dict[str, Any]) -> None:
 
     entries: list[tuple[Any, Any]] = [(HEADING, t("console.workbench.catalog_vps"))]
     differs: list[dict[str, Any]] = []
-    if not vps_id:
-        entries.append((t("console.workbench.matched_to"),
-                        _state(t("console.workbench.not_matched"), "warn")))
-    else:
+    found: dict[str, Any] = {}
+    if vps_id:
         found = await offload.io(library.vps_entry, vps_id)
-        said = str(found.get("name") or "")
+    said = str(found.get("name") or "")
+    if said:
         made = " ".join(str(found.get(k) or "") for k in ("manufacturer", "year"))
         entries.append((t("console.workbench.matched_to"),
-                        f"{said} - {made.strip()}" if said else vps_id))
+                        f"{said} - {made.strip()}"))
         differs = await offload.io(library.vps_details, context["game_id"])
+    else:
+        entries.append((t("console.workbench.matched_to"),
+                        _state(t("console.workbench.no_such_entry") if vps_id
+                               else t("console.workbench.not_matched"), "warn")))
 
-    entries.append((t("word.id"), vps_id or "-"))
-    if vps_id and found.get("url"):
+    entries.append((t("word.id"), vps_id or _state(t("word.none"), "off")))
+    if found.get("url"):
         entries.append((t("word.link"),
                         panel.link_out(t("word.open"), to=str(found["url"]))))
     if differs:
         entries.append((FULL, _details_differ(context, differs)))
     entries.append((FULL, _change_match(context)))
-
-    tutorial = str(game.get("tutorial") or "")
-    entries += [
-        (HEADING, t("console.workbench.catalog_primer")),
-        (t("word.link"),
-         panel.link_out(t("word.watch"), to=tutorial) if tutorial else "-"),
-    ]
 
     ipdb = str(game.get("ipdb_id") or "")
     entries += [
@@ -1858,9 +1854,17 @@ async def _vps_block(context: dict[str, Any]) -> None:
         (t("word.id"), _override(ipdb, str(discovered.get("ipdb_id") or ""), "VPS",
                                  save("alt_ipdb_id"))),
     ]
-    if ipdb:
-        entries.append((t("word.link"),
-                        panel.link_out(t("word.open"), to=IPDB_URL.format(id=ipdb))))
+    entries.append((t("word.link"),
+                    panel.link_out(t("word.open"), to=IPDB_URL.format(id=ipdb))
+                    if ipdb else _state(t("word.none"), "off")))
+
+    tutorial = str(game.get("tutorial") or "")
+    entries += [
+        (HEADING, t("console.workbench.catalog_primer")),
+        (t("word.link"),
+         panel.link_out(t("word.watch"), to=tutorial) if tutorial
+         else _state(t("word.none"), "off")),
+    ]
 
     with ui.column().classes("gap-0 console-form"):
         _rows(ui, entries)
