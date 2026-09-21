@@ -1746,11 +1746,24 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 /* The list of names a command can use, folded away because eleven rows between two
    settings is a wall. No card and no border: it is help under a control, and a box
    around it would read as a region of the page. */
-.console-tokens .q-expansion-item__container > .q-item {
+/* A disclosure: a label that opens onto what is already here. The accent, because the
+   palette gives interactive text the accent, and the chevron against the words rather
+   than at the row's edge - a mark at the far side reads as belonging to the row, not to
+   the label. Distinct from `.console-help`, which is the same size and colour and cannot
+   be opened. */
+.console-disclosure .q-expansion-item__container > .q-item {
   min-height: 0; padding: 2px 0;
-  font-size: var(--fs-caption); color: var(--ink-3);
+  font-size: var(--fs-caption); color: var(--accent);
+  /* The target is the words and the mark, not the width of the pane. */
+  width: max-content; max-width: 100%;
 }
-.console-tokens .q-item__section--side { padding-right: 6px; min-width: 0; }
+.console-disclosure .q-item__section--main { flex: 0 0 auto; }
+.console-disclosure .q-item__section--side {
+  padding-left: 4px; padding-right: 0; min-width: 0; color: var(--accent);
+}
+.console-disclosure .q-expansion-item__container > .q-item:hover {
+  text-decoration: underline; text-underline-offset: 2px;
+}
 .console-token-list {
   display: grid;
   grid-template-columns: max-content 1fr;

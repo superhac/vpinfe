@@ -45,7 +45,7 @@ def offered(context: str) -> tuple[Any, Callable[[], None]]:
                 rows()
             return
         with ui.expansion(t("console.commands.names_can_use", len=(len(available)))) \
-                .props("dense dense-toggle").classes("console-tokens"):
+                .props("dense dense-toggle").classes("console-disclosure console-tokens"):
             with ui.column().classes("gap-1 pt-1"):
                 ui.label(t("console.commands.each_stands_something_command")).classes("console-help")
                 rows()

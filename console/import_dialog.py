@@ -184,7 +184,8 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
 
         if blocked:
             with ui.expansion(t("console.import_dialog.not_imported", len=(len(blocked)))) \
-                    .props("dense dense-toggle").classes("console-import-blocked"):
+                    .props("dense dense-toggle") \
+                    .classes("console-disclosure console-import-blocked"):
                 for one in blocked:
                     ui.label(f"{one.get('kind') or ''} - {one.get('reason') or ''}") \
                         .classes("console-help")
