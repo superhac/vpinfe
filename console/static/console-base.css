@@ -1523,12 +1523,16 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
    link that carries an icon is one that leaves it. */
 .console-link, .console-link:visited {
   color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+/* On the words only. A decoration on the row underlines the mark too, at the mark's own
+   baseline, which draws two rules at two heights. */
+.console-link:hover > :first-child, a.console-link:hover:not(:has(> *)) {
   text-decoration: underline;
   text-underline-offset: 2px;
   text-decoration-thickness: 1px;
-  cursor: pointer;
 }
-.console-link:hover { text-decoration-thickness: 2px; }
 /* The mark sits after the words and never wraps away from them: an arrow alone on the
    next line reads as a control rather than as part of the label it qualifies. */
 .console-link-out { display: inline-flex; align-items: center; gap: 3px; min-width: 0; }

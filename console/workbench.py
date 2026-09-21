@@ -1804,8 +1804,11 @@ def _vps_label(context: dict[str, Any]) -> str:
             else t("console.workbench.vps_not_matched"))
 
 
+IPDB_URL = "https://www.ipdb.org/machine.cgi?id={id}"
+
+
 async def _vps_block(context: dict[str, Any]) -> None:
-    """Every catalog this game is bound to, and the way to change the binding.
+    """Every catalog this game is bound to, one heading each.
 
     It does not judge the match. A ranker was measured and retired for being confidently
     wrong more than half the time, so nothing here says a match looks wrong or offers a
@@ -1814,7 +1817,6 @@ async def _vps_block(context: dict[str, Any]) -> None:
     game = context["game"]
     library = context["library"]
     vps_id = str(game.get("vps_id") or "")
-    chosen = bool((game.get("overrides") or {}).get("alt_vps_id"))
     discovered = game.get("discovered") or {}
 
     def save(key: str) -> Callable[[str], Awaitable[None]]:
@@ -1822,35 +1824,41 @@ async def _vps_block(context: dict[str, Any]) -> None:
             await _save_overrides(context, {key: value}, table=False)
         return write
 
-    entries: list[tuple[Any, Any]] = []
+    entries: list[tuple[Any, Any]] = [(HEADING, t("console.workbench.catalog_vps"))]
     differs: list[dict[str, Any]] = []
     if not vps_id:
-        entries += [(t("console.workbench.entry"),
-                     _state(t("console.workbench.not_matched"), "warn"))]
+        entries.append((t("console.workbench.entry"),
+                        _state(t("console.workbench.not_matched"), "warn")))
     else:
         found = await offload.io(library.vps_entry, vps_id)
-        entries += [
-            # The entry as a person reads it. The id is how the wire addresses it and
-            # is the one thing a reader cannot check a match against.
-            (t("console.workbench.entry"), _vps_entry_row(found, vps_id)),
-            (t("console.workbench.match"),
-             _state(t("console.workbench.set") if chosen
-                    else t("console.workbench.discovered"),
-                    "on" if chosen else "off")),
-        ]
-        if found.get("releases"):
-            entries.append((t("console.workbench.releases"), str(found["releases"])))
+        said = str(found.get("name") or "")
+        made = " ".join(str(found.get(k) or "") for k in ("manufacturer", "year"))
+        entries.append((t("console.workbench.entry"),
+                        f"{said} - {made.strip()}" if said else vps_id))
         differs = await offload.io(library.vps_details, context["game_id"])
 
-    entries += [
-        (t("console.workbench.ipdb_id"),
-         _override(str(game.get("ipdb_id") or ""), str(discovered.get("ipdb_id") or ""),
-                   "VPS", save("alt_ipdb_id"))),
-        (t("word.tutorial"), _tutorial_row(str(game.get("tutorial") or ""))),
-    ]
+    entries.append((t("word.id"),
+                    _override(vps_id, str(discovered.get("vps_id") or ""), "VPS",
+                              save("alt_vps_id"))))
+    if vps_id and found.get("url"):
+        entries.append((t("word.link"),
+                        panel.link_out(t("word.open"), to=str(found["url"]))))
+    tutorial = str(game.get("tutorial") or "")
+    entries.append((t("word.tutorial"),
+                    panel.link_out(t("word.watch"), to=tutorial) if tutorial else "-"))
     if differs:
         entries.append((FULL, _details_differ(context, differs)))
     entries.append((FULL, _change_match(context)))
+
+    ipdb = str(game.get("ipdb_id") or "")
+    entries += [
+        (HEADING, t("console.workbench.catalog_ipdb")),
+        (t("word.id"), _override(ipdb, str(discovered.get("ipdb_id") or ""), "VPS",
+                                 save("alt_ipdb_id"))),
+    ]
+    if ipdb:
+        entries.append((t("word.link"),
+                        panel.link_out(t("word.open"), to=IPDB_URL.format(id=ipdb))))
 
     with ui.column().classes("gap-0 console-form"):
         _rows(ui, entries)
