@@ -198,6 +198,27 @@ class VpsDetailTests(TempTree):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(self._stored()["Manufacturer"], "Data East")
 
+    def test_an_override_that_agrees_with_the_entry_dissolves(self) -> None:
+        self._answer("alt_manufacturer", "Data East")
+        self._rematch(OTHER)
+
+        self.client.put(f"/games/{GAME_ID}/vps_details",
+                        json={"fields": ["Manufacturer"]})
+
+        written = json.loads((self.folder / f"{FOLDER}.info").read_text())
+        self.assertNotIn("alt_manufacturer", written["vpinfe"])
+        self.assertEqual(written["Info"]["Manufacturer"], "Data East")
+
+    def test_an_override_that_still_differs_is_kept(self) -> None:
+        self._answer("alt_manufacturer", "Williams")
+        self._rematch(OTHER)
+
+        self.client.put(f"/games/{GAME_ID}/vps_details",
+                        json={"fields": ["Manufacturer"]})
+
+        written = json.loads((self.folder / f"{FOLDER}.info").read_text())
+        self.assertEqual(written["vpinfe"]["alt_manufacturer"], "Williams")
+
     def test_a_game_matched_to_nothing_has_nothing_to_compare(self) -> None:
         self._rematch("")
         path = self.folder / f"{FOLDER}.info"

@@ -271,6 +271,11 @@ class MetaConfig:
             ASSETS_KEY: assets,
             **preserved
         }
+        # Imported here for the reason game_identity is below: game_metadata reaches
+        # back through this module.
+        from common.games.game_metadata import dissolve_agreed_overrides
+
+        dissolve_agreed_overrides(self.data)
 
         self.write_config()
 

@@ -745,9 +745,27 @@ def adopt_vps_details(game: Game, vps_entry: dict[str, Any],
             info.pop(field, None)
         else:
             info[field] = theirs
+    dissolve_agreed_overrides(config)
     persist_game_meta(game, config)
     game.meta_config = config
     return {field: fresh[field][1] for field in wanted}
+
+
+def dissolve_agreed_overrides(config: dict[str, Any]) -> list[str]:
+    """Drop every override that now says what `Info` says, and name the ones dropped.
+
+    Mutates `config`.
+    """
+    vpinfe = vpinfe_section(config)
+    info = section(config, "Info")
+    gone = []
+    for field, (ours, theirs) in GAME_OVERRIDES.items():
+        if ours not in vpinfe:
+            continue
+        if _as_said(vpinfe.get(ours)) == _as_said(info.get(theirs)):
+            vpinfe.pop(ours)
+            gone.append(field)
+    return gone
 
 
 def get_or_create_table_user(config: dict[str, Any], native: str) -> dict[str, Any]:
