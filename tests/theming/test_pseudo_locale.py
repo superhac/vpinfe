@@ -64,8 +64,12 @@ def _icon_names() -> set[str]:
 
     Read from the tree rather than listed: a name nobody passes is not on any page, and
     a hand-kept list here would go stale into a false pass.
+
+    `console/verbs.py` is where a button's drawing is declared, and the literal scan
+    below cannot see through the constant, so both are read.
     """
-    names: set[str] = set()
+    from console import verbs
+    names: set[str] = set(verbs.declared())
     for path in (ROOT / "console").rglob("*.py"):
         if "__pycache__" in path.parts:
             continue
