@@ -13,8 +13,8 @@ import re
 # ordinary here and be wrong more often than right.
 ACRONYMS = frozenset({
     "api", "b2s", "cpu", "dmd", "dof", "fps", "fss", "gpu", "http", "https", "id",
-    "ini", "ip", "json", "led", "nvram", "pup", "rgb", "rom", "ui", "url", "usb",
-    "vni", "vps", "vpx", "vr",
+    "ini", "ip", "ipdb", "json", "led", "nvram", "pup", "rgb", "rom", "ui", "url",
+    "usb", "vni", "vps", "vpx", "vr",
 })
 
 _WORDS = re.compile(r"[^\W_]+(?:'[^\W_]+)*", re.UNICODE)

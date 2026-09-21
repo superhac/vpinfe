@@ -1123,6 +1123,7 @@
   "console.workbench.insert_another_table_game": "4394fd337a95",
   "console.workbench.install_no_launchers_yet": "6487d7fc06bc",
   "console.workbench.install_s_configuration_folder": "95ff2baf80ea",
+  "console.workbench.ipdb_id": "ae897368ad9e",
   "console.workbench.keep_table_frontend": "15498e960005",
   "console.workbench.keep_what_found": "7e198de33def",
   "console.workbench.kept": "3f52e138b191",
@@ -1140,7 +1141,6 @@
   "console.workbench.location_wins_two_them": "6995d5e3d96a",
   "console.workbench.logs": "85efe64cfc52",
   "console.workbench.lower_priority": "e114eea2461e",
-  "console.workbench.made": "8dfad0b64501",
   "console.workbench.make_default": "3269e7b84bf0",
   "console.workbench.make_own": "6753a4dba530",
   "console.workbench.make_own_game": "b5e5f68603a4",
@@ -1682,6 +1682,7 @@
   "word.used_by": "e942cf974379",
   "word.version": "6a0ad2bedc57",
   "word.view": "a5a22c78e84a",
+  "word.watch": "5c63b785abb6",
   "word.year": "643c767acca0",
   "word.yes": "184fda5c980b"
 }

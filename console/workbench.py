@@ -1335,6 +1335,12 @@ def _override(effective: str, found: str | None, source: str,
     return draw
 
 
+def _tutorial_row(url: str) -> Any:
+    if not url:
+        return "-"
+    return panel.link_out(t("word.watch"), to=url)
+
+
 def _identity_rows(context: dict[str, Any]) -> None:
     game = context["game"]
     # The folder is the tail, not the whole path: the library root is the same for
@@ -1347,14 +1353,20 @@ def _identity_rows(context: dict[str, Any]) -> None:
             await _save_overrides(context, {key: value}, table=False)
         return write
 
+    def field(label: str, key: str, alt: str) -> tuple[Any, Any]:
+        return (label, _override(str(game.get(key) or ""), str(found.get(key) or ""),
+                                 "VPS", save(alt)))
+
     entries: list[tuple[Any, Any]] = [
         (t("word.name"), _override(game.get("name") or "",
                 found.get("name") or "",
                            "VPS", save("alt_title"))),
-        (t("console.workbench.made"), f"{game.get('manufacturer') or '?'} "
-                    f"{game.get('year') or ''}".strip()),
-        (t("console.workbench.type"), game.get("type") or "-"),
+        field(t("word.manufacturer"), "manufacturer", "alt_manufacturer"),
+        field(t("word.year"), "year", "alt_year"),
+        field(t("console.workbench.type"), "type", "alt_type"),
         (t("console.workbench.themes"), ", ".join(game.get("themes") or []) or "-"),
+        field(t("console.workbench.ipdb_id"), "ipdb_id", "alt_ipdb_id"),
+        (t("word.tutorial"), _tutorial_row(str(game.get("tutorial") or ""))),
         (t("word.folder"), PurePosixPath(folder).name or folder or "-"),
     ]
 

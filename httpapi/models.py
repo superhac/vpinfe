@@ -565,6 +565,11 @@ class OverridesPatch(ApiModel):
 
     alt_title: str | None = None
     alt_vps_id: str | None = None
+    alt_manufacturer: str | None = None
+    alt_year: str | None = None
+    alt_type: str | None = None
+    alt_themes: list[str] | None = None
+    alt_ipdb_id: str | None = None
     frontend_dof_event: str | None = None
     alt_launcher: str | None = None
     plugin_profile: str | None = None

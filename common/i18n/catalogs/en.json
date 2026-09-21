@@ -1123,6 +1123,7 @@
   "console.workbench.insert_another_table_game": "Insert another table from this game",
   "console.workbench.install_no_launchers_yet": "This install has no launchers yet.",
   "console.workbench.install_s_configuration_folder": "this install's configuration folder",
+  "console.workbench.ipdb_id": "IPDB ID",
   "console.workbench.keep_table_frontend": "Keep this table out of the frontend",
   "console.workbench.keep_what_found": "Keep what it found",
   "console.workbench.kept": "Kept in {value}",
@@ -1140,7 +1141,6 @@
   "console.workbench.location_wins_two_them": "Which location wins when two of them hold the same game. Nothing is changed on disk to settle that - the higher one answers, and the other is listed below.",
   "console.workbench.logs": "Logs",
   "console.workbench.lower_priority": "Lower priority",
-  "console.workbench.made": "Made by",
   "console.workbench.make_default": "Make this the default",
   "console.workbench.make_own": "Make it its own",
   "console.workbench.make_own_game": "Make this its own game?",
@@ -1682,6 +1682,7 @@
   "word.used_by": "Used by",
   "word.version": "Version",
   "word.view": "View",
+  "word.watch": "Watch",
   "word.year": "Year",
   "word.yes": "Yes"
 }

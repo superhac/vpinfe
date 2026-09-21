@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from common import service_errors
-from common.games import game_identity, game_lens, game_service, locations
+from common.games import game_identity, game_lens, game_metadata, game_service, locations
 from common.games.game_metadata import (
     adopt_vps_details,
     load_game_meta,
@@ -28,8 +28,11 @@ from common.i18n import t
 # Which keys this level will accept, and what each is called on disk. Declared rather than
 # inferred, so sending a table's key here is refused instead of silently doing nothing - a
 # write that reports success and changes nothing is the worst of the options.
-GAME_OVERRIDES = {"alt_title": "alt_title", "alt_vps_id": "alt_vpsid",
-                  "frontend_dof_event": "frontend_dof_event"}
+GAME_OVERRIDES = {
+    **{alt: alt for alt, _ in game_metadata.GAME_OVERRIDES.values()},
+    "alt_vps_id": "alt_vpsid",
+    "frontend_dof_event": "frontend_dof_event",
+}
 
 
 def create(name: str, location_id: str = "") -> dict:
