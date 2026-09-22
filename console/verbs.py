@@ -41,6 +41,8 @@ UNMATCH = "delete_outline"
 CLEAR = "backspace"
 REMOVE = "remove"
 DELETE = "delete_outline"
+# Keeping out what a rule would bring back.
+EXCLUDE = "close"
 
 # Keeping something out of what is offered, and letting it back in. Nothing is removed.
 HIDE = "visibility_off"

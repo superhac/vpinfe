@@ -72,8 +72,28 @@ class AddressTests(unittest.TestCase):
                          workbench.DEFAULT_SECTION["game"])
 
 
+class CollectionAddressTests(unittest.TestCase):
+    def test_a_collection_survives_the_round_trip(self) -> None:
+        state: dict = {}
+        deeplink.apply(state, {"view": "collections", "collection": "Friday Night"},
+                       views=["games", "collections"], sections=[])
+
+        self.assertEqual(_address(state),
+                         {"view": "collections", "collection": "Friday Night"})
+
+    def test_a_collection_is_noise_anywhere_else(self) -> None:
+        self.assertNotIn("collection",
+                         _address({"view": "games", "collection": "Friday Night"}))
+
+
 class SectionTests(unittest.TestCase):
     """What the rows offer, and which of them brings its own work area."""
+
+    def test_both_rails_offer_collections(self) -> None:
+        for subject in ("game", "table"):
+            with self.subTest(subject=subject):
+                self.assertIn("collections",
+                              {item.key for item in workbench.sections_for(subject)})
 
     def test_a_table_section_is_absent_under_a_game(self) -> None:
         keys = [item.key for item in workbench.sections_for("game")]

@@ -630,6 +630,10 @@ class Library:
         here: that registry is the only place an axis is named."""
         return self._client.filter_axes()
 
+    def game_collections(self, game_id: str) -> list[dict[str, Any]]:
+        """Never cached: every write in the section changes it."""
+        return self._client.game_collections(game_id)
+
     def collections(self) -> list[dict[str, Any]]:
         """What `load_collections` last read. Empty before the first read rather than
         fetching here: this is called from render()."""

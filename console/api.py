@@ -368,6 +368,9 @@ class ApiClient:
     # and every caller here has to use the name the server last reported rather than
     # one it remembered.
 
+    def game_collections(self, game_id: str) -> list[dict]:
+        return list(self._get(f"/games/{game_id}/collections").get("collections") or [])
+
     def collections(self) -> list[dict]:
         return list(self._get("/collections").get("collections") or [])
 

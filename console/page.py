@@ -407,7 +407,8 @@ def _declared_by_the_drop(analysis: dict, game_id: str) -> dict:
 @ui.page("/", title=t("console.page.vpinfe_console"), reconnect_timeout=300)
 @ui.page("/console", title=t("console.page.vpinfe_console"), reconnect_timeout=300)
 async def console_page(view: str = "", game: str = "", table: str = "", section: str = "",
-                   slot: str = "", page: str = "", mode: str = "") -> None:
+                   slot: str = "", page: str = "", mode: str = "",
+                   collection: str = "") -> None:
     """The Console. Query parameters say where in it, so a place can be linked to."""
     # The palette and Quasar's dark mode are two separate switches. The toggle button
     # that used to own the second one is gone, so it is set here - without it the shell
@@ -467,7 +468,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # Before anything is built, so the first render is the place asked for rather than
     # the front door followed by a jump.
     deeplink.apply(state, {"view": view, "game": game, "table": table,
-                           "section": section, "slot": slot, "page": page},
+                           "section": section, "slot": slot, "page": page,
+                           "collection": collection},
                    views=[key for key, _label, _icon, _feature in nav_items],
                    sections=[item.key for item in workbench.SECTIONS])
 
@@ -927,6 +929,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         state["collection"] = (row or {}).get("id")
         await workbench.build_collection(panel, workbench_title, library,
                                          state["collection"], state)
+        deeplink.sync(state)
 
     async def show_launcher(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about, the same rule
@@ -1224,6 +1227,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         else:
             await show_game({"game_id": landing, "id": state.get("table") or landing}
                             if state["view"] == "tables" else {"id": landing})
+    elif state["view"] == "collections" and state.get("collection"):
+        await show_collection({"id": state["collection"]})
     elif state["view"] == "devices":
         # Arriving at Devices lands on this device with its rail open, so reaching a
         # setting is the two clicks it was when Settings was a place of its own. It is

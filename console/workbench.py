@@ -1599,6 +1599,88 @@ async def _play_block(context: dict[str, Any]) -> None:
         _rows(ui, entries)
 
 
+HELD_HOW = {"added": "console.workbench.held_added",
+            "matched": "console.workbench.held_matched"}
+
+
+async def _collections_block(context: dict[str, Any]) -> None:
+    """Every collection holding this game, and the way to add it to another."""
+    library, game_id = context["library"], context["game_id"]
+    try:
+        held = await offload.io(library.game_collections, game_id)
+        every = await offload.io(library.load_collections)
+    except Exception as exc:  # noqa: BLE001 - the panel says why, never raises
+        ui.label(t("console.workbench.could_not_read_collections", exc=(exc))) \
+            .classes("console-help px-3")
+        return
+    added = {one["name"] for one in held if one.get("how") == "added"}
+    manual = [one["name"] for one in every if one.get("type") == "manual"]
+    offered = sorted((name for name in manual if name not in added), key=str.lower)
+    with ui.column().classes("gap-0 console-form w-full min-w-0"):
+        if not held:
+            ui.label(t("console.workbench.in_no_collections")).classes("console-help px-3")
+        for one in held:
+            _collection_row(context, one)
+        with ui.element("div").classes("console-slot-actions px-3"):
+            _add_to_collection(context, offered, any_manual=bool(manual))
+
+
+def _collection_row(context: dict[str, Any], one: dict[str, Any]) -> None:
+    library, game_id = context["library"], context["game_id"]
+    name = str(one.get("name") or "")
+    added = one.get("how") == "added"
+
+    async def act() -> None:
+        try:
+            if added:
+                await run.io_bound(library.remove_from_collection, name, game_id, None)
+            else:
+                await run.io_bound(library.exclude_from_collection, name, game_id, "")
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+            return
+        await context["rebuild"]()
+
+    with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row"):
+        with ui.row().classes("items-center gap-2 grow min-w-0 no-wrap"):
+            panel.link(name, to="/console?" + deeplink.query(
+                {"view": "collections", "collection": name}))()
+            ui.label(t(HELD_HOW.get(str(one.get("how")), "console.workbench.held_added"))) \
+                .classes("console-member-chip console-tier console-tier--off")
+        with ui.element("div").classes("console-row-action"):
+            ui.button(icon=verbs.REMOVE if added else verbs.EXCLUDE, on_click=act) \
+                .props("flat dense round size=sm") \
+                .tooltip(t("console.workbench.remove_collection") if added
+                         else t("console.workbench.exclude_from_collection"))
+
+
+def _add_to_collection(context: dict[str, Any], offered: list[str], *,
+                       any_manual: bool) -> None:
+    """Manual collections only. A dynamic one takes a game by hand from its own panel,
+    with its rule in view."""
+    library, game_id = context["library"], context["game_id"]
+
+    async def add(name: str) -> None:
+        try:
+            await run.io_bound(library.add_to_collection, name, game_id)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
+            return
+        await context["rebuild"]()
+
+    button = ui.button(t("console.workbench.add_to_collection"), icon=verbs.ADD_TO_LIST) \
+        .props("flat dense no-caps size=sm").classes("console-action")
+    if not offered:
+        button.disable()
+        button.tooltip(t("console.workbench.in_every_manual_collection") if any_manual
+                       else t("console.workbench.no_manual_collections"))
+        return
+    with button, ui.menu():
+        for name in offered:
+            ui.menu_item(name, on_click=lambda _e=None, name=name: add(name)) \
+                .classes("console-menu-item")
+
+
 def _rule_sheet(context: dict[str, Any]) -> dict[str, Any]:
     slot = (context["library"].media.get(context["game_id"]) or {}).get("rule_sheet") or {}
     return slot if slot.get("present") else {}
@@ -5063,6 +5145,8 @@ SECTIONS: tuple[Section, ...] = (
     Section("table_details", lambda _: t("console.workbench.table_details"), _table_block,
             subjects=frozenset({"table"})),
     Section("play", lambda _: game_tables.PLAY, _play_block),
+    Section("collections", lambda _: t("console.workbench.collections"),
+            _collections_block),
     Section("guides", _guides_label, _guides_block),
     Section("media", _media_label, _media_block, dock=True),
     # Beside Media, not under Details: both answer "what does this game hold", one

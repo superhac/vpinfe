@@ -55,6 +55,12 @@ COLUMNS = [
     # and an entry is a table. The stored membership is a different number.
     grid.column("count", t("word.table_count"), **_NUMERIC,
                 help=t("console.collections.how_many_tables_collection.help")),
+    grid.column("added", t("console.collections.added"), **_NUMERIC,
+                help=t("console.collections.added.help")),
+    grid.column("matched", t("console.collections.matched"), **_NUMERIC,
+                help=t("console.collections.matched.help")),
+    grid.column("excluded", t("console.collections.excluded"), **_NUMERIC,
+                help=t("console.collections.excluded.help")),
     grid.column("order", t("console.collections.order"), 200,
                 help=t("console.collections.order_frontend_walks_collection.help")),
     # "Table Limit", paired with Table Count: a column header stands alone, so `Limit`
@@ -69,7 +75,8 @@ COLUMNS = [
 # nothing to start from is a grid nobody saves a view of.
 COLLECTION_VIEWS: dict[str, list[str] | views.Preset] = {
     t("console.view.overview"): views.Preset(
-        columns=("icon", "name", "kind", "count", "order", "limit"),
+        columns=("icon", "name", "kind", "count", "added", "matched", "excluded",
+                 "order", "limit"),
         help=t("console.view.collections.help")),
 }
 
@@ -90,6 +97,9 @@ def rows(collections: list[dict[str, Any]]) -> list[dict[str, Any]]:
             # Zero is an answer here, not an absence: this is what the collection
             # resolves to, and an empty collection resolves to none.
             "count": int(row.get("count") or 0),
+            "added": int(row.get("added") or 0),
+            "matched": int(row.get("matched") or 0),
+            "excluded": int(row.get("excluded") or 0),
             "order": _order_line(row),
             "limit": row.get("limit") or None,
             # Kept whole on the row so the workbench does not refetch what the grid
