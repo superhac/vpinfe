@@ -755,9 +755,21 @@ treatments differ because the jobs do.
 **The glyph carries the kind.** `open_in_new` says it leaves without being told to; the
 tooltip says the rest, and it is not optional on a control with no words.
 
-*Seven sizes are in the sheet today* - 34, 22, 19, 18, `1em`, `1.1em` - so read this as what
-new work follows. Unpicking the rest is a sweep, and it wants a check that reads the whole
-sheet, or it comes back.
+**Every icon size is named, and a check reads the whole sheet.** Not one size for all of
+them - a nav glyph, a state mark and the art standing in for a missing picture are
+different jobs, so each job has a token and the token is where its value is decided:
+
+| the job | the token |
+|---|---|
+| a control at the end of a row | `--icon-row` |
+| a state glyph in a menu | `--icon-menu` |
+| a state glyph beside a value | `--icon-mark` |
+| a glyph that is the whole control - a nav row, a tab | `--icon-nav` |
+| art filling a picture box that is empty | `--icon-slot`, `--icon-slot-small` |
+
+`tests/invariants/test_an_icon_size_has_a_name.py` fails on a pixel count in a rule that
+draws a glyph. A relative unit passes: the icon inside a text link is `1em` because it is
+sized to the words it sits in, which is a decision and not a number left lying about.
 
 ### One control per fact, and one way back
 

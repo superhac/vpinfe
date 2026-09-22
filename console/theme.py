@@ -476,6 +476,15 @@ _STRUCTURE = """
      whatever the control is: two of them side by side at different sizes read as a
      ranking. The box around it is what makes the target, there being no words to. */
   --icon-row: 15px;
+  /* A state drawn as a glyph in a menu row, beside the words it qualifies. */
+  --icon-menu: 16px;
+  /* A state drawn as a glyph beside a value, in a panel or a list. */
+  --icon-mark: 18px;
+  /* A glyph that is the whole of a control - a nav row, a tab. */
+  --icon-nav: 19px;
+  /* Art standing in for a picture that is not there, sized to the box it fills. */
+  --icon-slot: 32px;
+  --icon-slot-small: 22px;
 
   /* A rating is five adjacent targets on one line, so it is sized on its own rather
      than off `--target-min` - five 44px boxes is a row 220px wide, which is most of a

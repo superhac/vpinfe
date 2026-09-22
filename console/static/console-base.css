@@ -42,6 +42,8 @@
 
 [data-surface="remote"] {
   --target-min: 44px;
+  --icon-mark: 20px;
+  --icon-nav: 22px;
   --target-inline: 44px;
   --field-h: 44px;
   --fs-caption: 13px;
@@ -70,7 +72,7 @@
      shell reach the edges; this is what keeps the content off them. */
   padding-top: calc(10px + env(safe-area-inset-top));
 }
-.remote-mark { color: var(--accent); font-size: 22px; }
+.remote-mark { color: var(--accent); font-size: var(--icon-nav); }
 .remote-target-name, .remote-target {
   font-size: var(--fs-title);
   color: var(--ink);
@@ -97,7 +99,7 @@
   color: var(--accent);
   box-shadow: inset 0 2px 0 0 var(--accent);
 }
-.remote-tab-icon { font-size: 22px; }
+.remote-tab-icon { font-size: var(--icon-nav); }
 .remote-tab-label { font-size: var(--fs-caption); }
 /* An action on this surface owns its row. On a desk a button is one control among
    several on a line; in one hand it is the thing being reached for, and a thumb does
@@ -160,7 +162,7 @@
 }
 .remote-row:active { background: var(--surface-hover); }
 .remote-row-name { font-size: var(--fs-body); color: var(--ink); }
-.remote-row-mark { color: var(--accent); font-size: 20px; }
+.remote-row-mark { color: var(--accent); font-size: var(--icon-mark); }
 /* The sheet a row opens. Square at the foot because it is against the edge of the
    screen, rounded at the top because that is the edge it came up from. */
 .remote-sheet {
@@ -863,7 +865,7 @@ body::before {
   max-width: 30ch;
   white-space: normal;
 }
-.console-menu-check { font-size: 16px; color: var(--accent); }
+.console-menu-check { font-size: var(--icon-menu); color: var(--accent); }
 /* What Game Default resolves to today, under the words that name it. A step down in
    size and colour, the same way a member row's table line sits under its game. */
 .q-menu .console-menu-item .console-menu-sub {
@@ -892,13 +894,13 @@ body::before {
   cursor: default;
   background: transparent;
 }
-.console-menu-blocked-mark { color: var(--ink-3) !important; font-size: 15px; }
+.console-menu-blocked-mark { color: var(--ink-3) !important; font-size: var(--icon-menu); }
 /* Which of a game's tables it offers. A radio rather than a glyph: a game has exactly
    one default, that is what a radio means, and it reads as a control - which this one
    is. Kept clear of the text glyphs in `game_tables.py`, whose question is a different
    one, by being an icon and by living on a surface those never appear on. */
 .console-default-mark {
-  font-size: 18px;
+  font-size: var(--icon-mark);
   color: var(--ink-3);
   flex: none;
   transition: color 120ms ease;
@@ -1130,8 +1132,8 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
    mark still indent to it, so the labels line up down the menu. */
 .console-menu-mark, .console-menu-add {
   flex: none;
-  width: 16px;
-  font-size: 16px;
+  width: var(--icon-menu);
+  font-size: var(--icon-menu);
   line-height: 1;
   text-align: center;
   color: var(--ink-3);
@@ -1251,7 +1253,7 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
   margin-top: 0;
   margin-bottom: 0;
 }
-.console-nav-row--nested .q-icon { font-size: 19px !important; }
+.console-nav-row--nested .q-icon { font-size: var(--icon-nav) !important; }
 .console-nav-row--nested .console-nav-item {
   font-size: var(--fs-caption);
   line-height: 20px;
@@ -2206,7 +2208,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   background: var(--notice-wash);
   border-radius: 6px; padding: 6px 10px;
 }
-.console-attention-icon { color: var(--tier-table); font-size: 18px; flex: 0 0 auto; }
+.console-attention-icon { color: var(--tier-table); font-size: var(--icon-mark); flex: 0 0 auto; }
 .console-attention-line { font-size: var(--fs-body); color: var(--ink); }
 /* One detail against its replacement. The old value is struck rather than merely dim:
    it is not a lesser version of the new one, it is the wrong machine's. */
@@ -2279,7 +2281,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   border: 1px dashed var(--line); border-radius: 6px;
   justify-content: center; color: var(--ink-3);
 }
-.console-slot-blank-icon { font-size: 34px; opacity: 0.55; }
+.console-slot-blank-icon { font-size: var(--icon-slot); opacity: 0.55; }
 
 .console-slot-facts { min-width: 0; }
 /* The filename is the one identifier a user recognizes, so it reads first and whole -
@@ -2462,7 +2464,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    than the thing it belongs to. */
 .console-placement { padding: 4px 2px; cursor: pointer; border-radius: 4px; }
 .console-placement:hover { background: var(--wash-hover); }
-.console-placement-mark { font-size: 18px; color: var(--ink-3); margin-top: 1px; }
+.console-placement-mark { font-size: var(--icon-mark); color: var(--ink-3); margin-top: 1px; }
 /* Accent, because this is the one chosen - which is what accent is for. */
 .console-placement-mark--on { color: var(--accent); }
 /* These are filenames and they run long. Wrapped rather than trimmed: what tells two
@@ -2517,7 +2519,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 }
 /* A kind with no frame to show - audio, a rule sheet - keeps the same footprint, so a
    list of them does not step in and out as it scrolls. */
-.console-source-thumb-glyph { font-size: 32px; color: var(--ink-3); }
+.console-source-thumb-glyph { font-size: var(--icon-slot); color: var(--ink-3); }
 
 /* A bigger look at a thumbnail, on hover. These rows live inside a dialog, and opening
    a second dialog over the first to glance at a picture is a lot of ceremony - so this
@@ -2537,7 +2539,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    list is the long one - a dozen results at the full size is most of a screen. The
    enlarge is what covers the case where the small picture is not enough. */
 .console-source-thumb--small { width: 76px; height: 57px; }
-.console-source-thumb--small .console-source-thumb-glyph { font-size: 22px; }
+.console-source-thumb--small .console-source-thumb-glyph { font-size: var(--icon-slot-small); }
 
 /* What a file already does for this game, when it does something. Not a warning:
    using it again is legitimate, and the tag is there so nobody has to wonder. */
