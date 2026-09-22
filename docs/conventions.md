@@ -733,6 +733,32 @@ does.
 in the funnel carries no mark either — otherwise the filter promises a drawing that is never
 on screen. The choice itself stays: what it loses is a picture, not the ability to pick it.
 
+### An icon at the end of a row
+
+**One size, `--icon-row`.** A way out, a verb about that row, a mark - whatever the control
+is, it takes the same size. Two of them side by side at different sizes read as a ranking
+nobody intended, and the reader has no way to learn what the ranking means because there
+isn't one. The box around the glyph is what makes the target, there being no words to
+widen it.
+
+**`--ink-3` at rest, accent under the pointer.** This follows from the rule above rather
+than bending it: accent is the one *chosen*, and a picker drawing forty results puts forty
+of these down the right edge. A column of accent there is the same failure as a matrix of
+accent ticks - a color that appears on every row has stopped saying anything, and it pulls
+the eye off the names being scanned.
+
+**A link in prose keeps accent.** The two are not in conflict. A link inside a sentence or
+a field earns accent by standing out *from the words around it*; a control at the end of a
+row has no words around it, and the region it sits in is already distinct. So the
+treatments differ because the jobs do.
+
+**The glyph carries the kind.** `open_in_new` says it leaves without being told to; the
+tooltip says the rest, and it is not optional on a control with no words.
+
+*Seven sizes are in the sheet today* - 34, 22, 19, 18, `1em`, `1.1em` - so read this as what
+new work follows. Unpicking the rest is a sweep, and it wants a check that reads the whole
+sheet, or it comes back.
+
 ### One control per fact, and one way back
 
 **A control that sets a value does not also unset it.** Clicking the third star of a

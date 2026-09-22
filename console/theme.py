@@ -472,6 +472,11 @@ _STRUCTURE = """
   /* A field sits in the fact rhythm rather than standing above it. Raised on touch
      with the rest, below. */
   --field-h: 26px;
+  /* An icon control at the end of a row - a way out, a verb about that row. One size
+     whatever the control is: two of them side by side at different sizes read as a
+     ranking. The box around it is what makes the target, there being no words to. */
+  --icon-row: 15px;
+
   /* A rating is five adjacent targets on one line, so it is sized on its own rather
      than off `--target-min` - five 44px boxes is a row 220px wide, which is most of a
      phone. Its own token so a surface can answer it without restyling the control. */
