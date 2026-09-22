@@ -13,7 +13,7 @@ from common.i18n import t
 from common.labels import humanize
 from console import offload, verbs
 
-from . import confirm, grid, panel, views
+from . import confirm, grid, panel, views, when
 from . import settings as settings_page
 from .api import ApiClient
 
@@ -310,7 +310,8 @@ COLUMNS: list[dict[str, Any]] = [
     grid.column("address", t("console.devices.address"), 150,
                 help=t("console.devices.where_reached_read_off.help")),
     grid.column("last_seen", t("word.last_seen"), 170,
-                help=t("console.devices.last_known_announced_install.help")),
+                help=t("console.devices.last_known_announced_install.help"),
+                **{":valueFormatter": when.CELL}),
     grid.column("features", t("console.devices.features"), 150,
                 help=t("console.devices.what_install_curating_library.help")),
 ]
@@ -372,16 +373,15 @@ def rows(devices: list[dict[str, Any]],
             "state": state[0] if state else "",
             "what": str(probe.get("what") or ""),
             "address": str(device.get("address") or ""),
-            "last_seen": _when(str(device.get("last_reachable") or "")),
+            "last_seen": str(device.get("last_reachable") or ""),
             "features": settings_page.features_said(device.get("features")),
         })
     return out
 
 
 def _when(stamp: str) -> str:
-    """A timestamp as a person reads one. Sortable as text because it stays ISO order -
-    the grid sorts the string, and the string is still year-first."""
-    return stamp.replace("T", " ").replace("Z", "") if stamp else ""
+    """A timestamp as the reader's own clock shows it."""
+    return when.local(stamp)
 
 
 def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
