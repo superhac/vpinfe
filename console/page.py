@@ -91,18 +91,17 @@ RAIL_PX = 57
 # make one click mean two things, and the children are the destinations.
 NAV_PARENT = ("library", "console.section.library", "inventory_2")
 
-# The other container, and its three are the split between what a machine is configured
-# to do and what it has recorded doing. Records are places; configuration is a setting -
-# which is why the log *viewer* is here and the logger's own settings are a page inside
-# Settings.
 # What the `frontend` feature owns, gathered the way Library gathers what `library` owns.
 # The rule the two of them make: a feature with more than one subject gets a container.
 #
-# Launchers belongs here rather than under System - System's three are configuration and
-# records, and a launcher is neither. It is also the only one gated on a feature rather
-# than on `core`, which is the tell.
+# Launchers belongs here rather than under System - a launcher is neither configuration
+# nor a record. It is also gated on a feature rather than on `core`, which is the tell,
+# and the same tell keeps Devices out of System's company on the gate alone.
 NAV_FRONTEND = ("frontend", "console.section.frontend", "smart_display")
 
+# This install itself: how it is set up, what it has recorded doing, and what it is.
+# Records are places; configuration is a setting - which is why the log *viewer* is here
+# and the logger's own settings are a page inside Settings.
 NAV_SYSTEM = ("system", "console.section.system", "settings")
 
 # Which feature each destination answers for, `core` being the one every install has. An
@@ -133,11 +132,13 @@ NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] 
     (NAV_FRONTEND, (("launchers", "console.section.launchers", "rocket_launch",
                      install_identity.FRONTEND),
                     ("themes", "console.section.themes", "palette", install_identity.FRONTEND))),
-    (None, (("devices", "console.section.devices", "devices", install_identity.DEVICES),
-            ("extensions", "console.section.extensions", "extension", install_identity.CORE))),
     # Last, and always here: every other section exists because a feature is enabled,
-    # and this is where features are switched on.
+    # and this is where features are switched on. Ordered configuration, then what this
+    # install knows about, then its records, then what it is.
     (NAV_SYSTEM, (("settings", "console.section.settings", "tune", install_identity.CORE),
+                  ("devices", "console.section.devices", "devices", install_identity.DEVICES),
+                  ("extensions", "console.section.extensions", "extension",
+                   install_identity.CORE),
                   ("metrics", "console.section.metrics", "monitor_heart", install_identity.CORE),
                   ("logs", "console.section.logs", "description", install_identity.CORE),
                   ("about", "console.section.about", "info", install_identity.CORE))),
@@ -161,10 +162,9 @@ def nav_for(features: Any) -> list[tuple[tuple[str, str, str] | None, tuple[NavI
     return out
 
 def landing_for(views: list[str]) -> str:
-    """The first place in the rail, but never Extensions - it is not defined enough yet
-    to be a front door, and it leads the rail of an install with no library. Settings is
-    the floor, because every install has it."""
-    return next((key for key in views if key != "extensions"), "settings")
+    """The first place in the rail. Settings is the floor, because every install has it
+    and it precedes every other `core` destination."""
+    return next(iter(views), "settings")
 
 
 # What the header calls each destination. A section owns a subject too, but that is a

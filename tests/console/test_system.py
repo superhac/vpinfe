@@ -35,7 +35,7 @@ class NavTests(unittest.TestCase):
         holds is the only rail an install for nothing has."""
         for features in (["nonsense"], [install_identity.CORE]):
             with self.subTest(features=features):
-                self.assertEqual(_rail(features), ["extensions", "settings",
+                self.assertEqual(_rail(features), ["settings", "extensions",
                                                    "metrics", "logs", "about"])
 
     def test_a_frontend_only_install_opens_on_what_it_has(self) -> None:
@@ -46,11 +46,24 @@ class NavTests(unittest.TestCase):
                          "launchers")
 
     def test_extensions_is_not_a_front_door(self) -> None:
-        """It leads the rail of an install with no library, and it is not defined enough
-        yet to be the first thing anybody sees. Settings is the floor."""
+        """Guaranteed by the order rather than by an exception: Settings is `core`, so
+        it is always present and always precedes Extensions inside System."""
         self.assertEqual(page.landing_for(_rail([install_identity.CORE])), "settings")
         self.assertEqual(page.landing_for(_rail(install_identity.DEFAULT_FEATURES)),
                          "games")
+
+    def test_nothing_undefined_leads_the_rail_whatever_is_switched_on(self) -> None:
+        """`landing_for` used to name Extensions and skip it. Exhaustive, because the
+        exception it replaces held for every combination and an ordering has to as
+        well."""
+        import itertools
+
+        switchable = list(install_identity.FEATURES)
+        for size in range(len(switchable) + 1):
+            for chosen in itertools.combinations(switchable, size):
+                rail = _rail([install_identity.CORE, *chosen])
+                with self.subTest(features=chosen):
+                    self.assertNotEqual("extensions", page.landing_for(rail))
 
     def test_reporting_nothing_is_not_the_same_as_being_for_nothing(self) -> None:
         """An install that is for nothing still reports `core`, so an empty list is a
@@ -66,7 +79,8 @@ class NavTests(unittest.TestCase):
                         if parent == page.NAV_SYSTEM]
 
         self.assertEqual([key for key, *_rest in under_system[0]],
-                         ["settings", "metrics", "logs", "about"])
+                         ["settings", "devices", "extensions",
+                          "metrics", "logs", "about"])
 
     def test_what_the_frontend_owns_has_a_container_of_its_own(self) -> None:
         """The rule Library and this one make together: a feature with more than one
