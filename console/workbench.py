@@ -1387,12 +1387,6 @@ def _override(effective: str, found: str | None, source: str,
     return draw
 
 
-def _tutorial_row(url: str) -> Any:
-    if not url:
-        return "-"
-    return panel.link_out(t("word.watch"), to=url)
-
-
 def game_match_gap(vps_id: str, declared: bool, held: bool) -> tuple[str, str, str]:
     """What a game's Match group says when there is no entry to draw: the state's key,
     what its absence costs, and the key of the line under it."""
@@ -1564,6 +1558,53 @@ async def _play_block(context: dict[str, Any]) -> None:
         entries += _table_play_rows(context, chosen)
     with ui.column().classes("gap-0 console-form"):
         _rows(ui, entries)
+
+
+def _rule_sheet(context: dict[str, Any]) -> dict[str, Any]:
+    slot = (context["library"].media.get(context["game_id"]) or {}).get("rule_sheet") or {}
+    return slot if slot.get("present") else {}
+
+
+def _guides_label(context: dict[str, Any]) -> str:
+    held = len(context["game"].get("guides") or []) + bool(_rule_sheet(context))
+    return t("console.workbench.guides_counted", count=held) if held \
+        else t("console.workbench.guides")
+
+
+def _guide_kind(kind: str) -> str:
+    said = t(f"guide.kind.{kind}.label")
+    return humanize(kind) if said == f"guide.kind.{kind}.label" else said
+
+
+async def _guides_block(context: dict[str, Any]) -> None:
+    sheet = _rule_sheet(context)
+    guides = [one for one in context["game"].get("guides") or [] if one.get("url")]
+    with ui.column().classes("gap-0 console-form w-full"):
+        if not sheet and not guides:
+            ui.label(t("console.workbench.no_guides")).classes("console-help px-3")
+            return
+        if sheet:
+            _guide_row(media_label_map().get("rule_sheet", "rule_sheet"),
+                       f"{_prefix(context['game_id'], '')}/rule_sheet",
+                       t("console.workbench.in_game_folder"))
+        for one in guides:
+            _guide_row(*guide_words(one))
+
+
+def guide_words(guide: dict[str, Any]) -> tuple[str, str, str]:
+    """(name, address, the line under the name)."""
+    source = str(guide.get("source") or "")
+    makers = ", ".join(name for name in guide.get("authors") or [] if name != source)
+    return (str(guide.get("title") or "") or _guide_kind(str(guide.get("kind") or "")),
+            str(guide.get("url") or ""),
+            " \u00b7 ".join(part for part in (source, makers) if part))
+
+
+def _guide_row(name: str, address: str, said: str) -> None:
+    with ui.column().classes("gap-0 w-full console-member-row"):
+        panel.link_out(name, to=address)()
+        if said:
+            ui.label(said).classes("console-member-table")
 
 
 def _table_rows(table: dict[str, Any],
@@ -4859,6 +4900,7 @@ SECTIONS: tuple[Section, ...] = (
     Section("table_details", lambda _: t("console.workbench.table_details"), _table_block,
             subjects=frozenset({"table"})),
     Section("play", lambda _: game_tables.PLAY, _play_block),
+    Section("guides", _guides_label, _guides_block),
     Section("media", _media_label, _media_block, dock=True),
     # Beside Media, not under Details: both answer "what does this game hold", one
     # for what a screen shows and one for what a launch needs.
