@@ -17,8 +17,8 @@ from common.i18n import t
 logger = logging.getLogger("vpinfe.common.games.tag_registry")
 
 SCHEMA = 1
-COLORS = ("red", "orange", "amber", "green", "teal", "blue", "purple", "pink", "grey")
-DERIVED = ("green", "teal", "blue", "purple", "pink", "grey")
+COLORS = ("red", "orange", "amber", "green", "teal", "blue", "purple", "pink", "gray")
+DERIVED = ("green", "teal", "blue", "purple", "pink", "gray")
 
 _lock = threading.RLock()
 

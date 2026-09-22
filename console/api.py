@@ -310,6 +310,12 @@ class ApiClient:
         self._answered(response)
         return list((response.json() or {}).get("releases") or [])
 
+    def tags(self) -> list[dict]:
+        return list(self._get("/library/tags").get("tags") or [])
+
+    def put_tag(self, tag: str, changes: dict) -> dict:
+        return self._put(f"/library/tags/{quote(tag, safe='')}", changes)
+
     def merge_tags(self, sources: list[str], into: str) -> int:
         """Across the library: a tag is a word the library holds, not a game's."""
         _refuse_the_event_loop("/library/tags/merge")

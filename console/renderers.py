@@ -13,7 +13,7 @@ from typing import Any
 from nicegui import ui
 
 from common.i18n import t
-from console import media_ownership
+from console import media_ownership, tag_chips
 
 # Ours, not AG Grid's: the drawings a column allows, its default first. Stripped by
 # `grid.for_grid` before the definitions reach the grid.
@@ -91,7 +91,10 @@ STATE = Renderer("state", "console.renderers.state", (
     " : '<span class=\"console-cell-quiet\">' + esc(one.label) + '</span>'; }"
 ))
 
-REGISTRY: dict[str, Renderer] = {one.name: one for one in (MARK, PICTURE, PREVIEW, STATE)}
+TAGS = Renderer("tags", "console.renderers.tags", tag_chips.RENDERER)
+
+REGISTRY: dict[str, Renderer] = {one.name: one
+                                 for one in (MARK, PICTURE, PREVIEW, STATE, TAGS)}
 
 
 def install() -> None:

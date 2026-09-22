@@ -115,6 +115,7 @@ class Library:
         self._config_schema: list[dict[str, Any]] | None = None
         self._launch_apps: list[dict[str, Any]] | None = None
         self._kept: dict[str, set[str]] | None = None
+        self._tags: list[dict[str, Any]] = []
 
     def load(self) -> None:
         """Everything the first draw needs, read off the event loop.
@@ -128,6 +129,7 @@ class Library:
         self.media = self._shared_media()
         self.kept_kinds()
         self.read_metadata_state()
+        self.read_tags()
         # Info only when it took long enough to be worth knowing. This runs on every
         # draw, so at info always it is a line per page load saying the cache is warm -
         # and the reason this timing is logged at all is the cold read, which is the
@@ -949,12 +951,31 @@ class Library:
         """Rename is one source into a new name; merge is several into one."""
         changed = self._client.merge_tags(sources, into)
         self._forget_games()
+        self.read_tags()
         return changed
 
     def delete_tag(self, tag: str) -> int:
         changed = self._client.delete_tag(tag)
         self._forget_games()
+        self.read_tags()
         return changed
+
+    def read_tags(self) -> list[dict[str, Any]]:
+        """Every tag and what it wears. Off the loop; `tag_looks` is what a draw reads."""
+        try:
+            self._tags = self._client.tags()
+        except Exception:
+            logger.warning("console: could not read the tags", exc_info=True)
+            self._tags = []
+        return self._tags
+
+    def tag_looks(self) -> dict[str, dict[str, Any]]:
+        return {str(one.get("name") or ""): one for one in self._tags}
+
+    def put_tag(self, tag: str, changes: dict[str, Any]) -> dict[str, Any]:
+        said = self._client.put_tag(tag, changes)
+        self.read_tags()
+        return said
 
     # --- imports ------------------------------------------------------------
     # Pass-throughs: the browser uploads straight to the API, so what is left is the
@@ -1072,6 +1093,9 @@ class Library:
                 "vps_unmatched": not game.get("vps_id"),
                 "rating": game.get("rating") or 0,
                 "themes": ", ".join(game.get("themes") or []),
+                # The words for filtering and sorting, the list for drawing.
+                "tags": ", ".join((game.get("user") or {}).get("tags") or []),
+                "tag_list": list((game.get("user") or {}).get("tags") or []),
                 # One field per asset kind, the same shape as media below. What used
                 # to sit here was a single "Assets" count computed from `entries` -
                 # the *media* map - so the column read as assets and counted media,

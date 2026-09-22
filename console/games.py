@@ -29,6 +29,7 @@ from console import (
     send_to_device,
     stars,
     table_features,
+    tag_chips,
     verbs,
     views,
     vps_match,
@@ -155,6 +156,8 @@ COLUMNS = [
                 cellClass="console-stars-cell",
                 **{**grid.choice_filter(_RATING_CHOICES),
                    ":cellRenderer": stars.renderer("game")}),
+    grid.column("tags", t("console.workbench.tags"), 200, group=t(_GAME),
+                help=t("console.games.tags.help"), **renderers.drawable("tags")),
 ]
 
 # Presets, not a replacement for choosing columns: a view sets which columns are
@@ -178,7 +181,7 @@ GAME_VIEWS: dict[str, list[str] | views.Preset] = {
     # the panel is not a translation.
     game_tables.MACHINE: views.Preset(
         columns=("name", "table_count", "manufacturer", "year", "game_type",
-                 "themes", "vps_unmatched", "rating"),
+                 "themes", "vps_unmatched", "rating", "tags"),
         help=t("console.view.machine.help")),
     # Media and Assets are built from what the library reports it has, so both are
     # filled at render time. Two views, not one: they answer different questions - what
@@ -369,6 +372,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
           rerender: Callable[[], None] | None = None,
           rescan: Callable[[], Any] | None = None) -> None:
     state = state if state is not None else {}
+    tag_chips.install(library.tag_looks())
     columns = with_derived_facets(COLUMNS, rows) \
         + asset_columns(library.asset_keys()) + media_columns(kinds)
     all_fields = [definition["field"] for definition in columns]

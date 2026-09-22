@@ -2260,6 +2260,23 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   background: var(--scrim-media) !important; transition: opacity 120ms ease;
 }
 .console-slot-art:hover .console-slot-zoom { opacity: 1; }
+.console-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.console-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-caption); line-height: 18px; white-space: nowrap;
+  padding: 0 8px 0 6px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface-lift); color: var(--ink);
+}
+.console-tag-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.console-tag-dot--red { background: var(--tag-red); }
+.console-tag-dot--orange { background: var(--tag-orange); }
+.console-tag-dot--amber { background: var(--tag-amber); }
+.console-tag-dot--green { background: var(--tag-green); }
+.console-tag-dot--teal { background: var(--tag-teal); }
+.console-tag-dot--blue { background: var(--tag-blue); }
+.console-tag-dot--purple { background: var(--tag-purple); }
+.console-tag-dot--pink { background: var(--tag-pink); }
+.console-tag-dot--gray { background: var(--tag-gray); }
 /* A script or an ini is read from the top and the left, not centered like a picture. */
 .console-slot-art--text { align-items: stretch; justify-content: flex-start; }
 .console-file-text {

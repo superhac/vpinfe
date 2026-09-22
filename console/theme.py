@@ -176,6 +176,15 @@ _SYNTHWAVE = """
      twenty tiles; the folder-wide case is the norm and stays quiet. */
   --tier-table: var(--warm);
   --tier-quiet: var(--ink-3);
+  --tag-red: #ff5c7a;
+  --tag-orange: #ff9a4d;
+  --tag-amber: #ffc061;
+  --tag-green: #3ddc84;
+  --tag-teal: #2ed3c6;
+  --tag-blue: #4da3ff;
+  --tag-purple: #b98cff;
+  --tag-pink: #ff7ad9;
+  --tag-gray: #9b8bbd;
   --resize-line: rgba(255, 255, 255, 0.38);
 
   /* --- The effects layer -----------------------------------------------------------
@@ -302,6 +311,15 @@ _DARK = """
   /* Derived, so they follow whatever the mode said above. */
   --tier-table: var(--warm);
   --tier-quiet: var(--ink-3);
+  --tag-red: #f26d7d;
+  --tag-orange: #f0954d;
+  --tag-amber: #e8b04a;
+  --tag-green: #4cc38a;
+  --tag-teal: #3fbfb4;
+  --tag-blue: #5aa2f0;
+  --tag-purple: #a98bf0;
+  --tag-pink: #e57ac8;
+  --tag-gray: #8b93a1;
   --resize-line: rgba(255, 255, 255, 0.34);
   /* **This is what the mode is for.** Synthwave's grid, glows and gradients resolve
      to nothing here; a glow rendered grey is still a glow. Elevation is not glow and
@@ -416,6 +434,15 @@ _LIGHT = """
      brown here: amber on white is not readable. */
   --tier-table: var(--warm);
   --tier-quiet: var(--ink-3);
+  --tag-red: #c93448;
+  --tag-orange: #c4621f;
+  --tag-amber: #a87800;
+  --tag-green: #23874f;
+  --tag-teal: #16847b;
+  --tag-blue: #2766b8;
+  --tag-purple: #6f4fb8;
+  --tag-pink: #b23d8c;
+  --tag-gray: #626b78;
   /* Black rather than white, and 3.18:1 on the darkest surface a divider lies on. */
   --resize-line: rgba(0, 0, 0, 0.44);
   /* Three of Synthwave's four still resolve to nothing. **The panel glow does not** -
