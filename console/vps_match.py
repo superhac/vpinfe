@@ -42,6 +42,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
     """
     bound = str(game.get("vps_id") or "")
     entry = await offload.io(library.vps_entry, bound) if bound else {}
+    held = await offload.io(library.vps_catalog_held)
     picked = {"id": bound}
     scanned = str((game.get("discovered") or {}).get("vps_id") or "")
     behind = (await offload.io(library.vps_entry, scanned)
@@ -122,11 +123,12 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
             said = str(field.value or "").strip()
             rows[:] = await offload.io(library.vps_search, said, 40) if said else []
             heading.text = (t("console.vps_match.results", count=len(rows))
-                            if said else "")
+                            if said and held else "")
             if not said or not rows:
                 found.clear()
                 with found:
-                    ui.label(t("console.vps_match.type_name_maker_year") if not said
+                    ui.label(t("console.vps_match.vps_not_downloaded") if not held
+                             else t("console.vps_match.type_name_maker_year") if not said
                              else t("console.vps_match.nothing_vps_matches", said=(said))) \
                         .classes("console-help")
                 return

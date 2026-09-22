@@ -106,10 +106,13 @@ def search(term: str = "", limit: int = 20) -> dict[str, Any]:
 
 def sync_state() -> dict[str, Any]:
     """What a surface needs to say how fresh the answers it is giving are."""
+    from common.games.game_service import load_vpsdb
+
     config = get_ini_config()
     return {"schedule": vpsdb_sync.schedule(config),
             "checked": vpsdb_sync.checked_at(config),
-            "due": vpsdb_sync.due(config)}
+            "due": vpsdb_sync.due(config),
+            "entries": len(load_vpsdb())}
 
 
 def sync_now() -> dict[str, Any]:

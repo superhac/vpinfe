@@ -1245,20 +1245,52 @@ async def _game_block(context: dict[str, Any]) -> None:
     found: dict[str, Any] = await offload.io(library.vps_entry, vps_id) if vps_id else {}
     differs = (await offload.io(library.vps_details, context["game_id"])
                if found.get("name") else [])
+    held = bool(found) or not vps_id or await offload.io(library.vps_catalog_held)
     with ui.column().classes("gap-0 console-form"):
-        _identity_rows(context, found, differs)
-        _tables_block(context)
+        _identity_rows(context, found, differs, held)
+        _tables_block(context, held)
 
 
 async def _table_block(context: dict[str, Any]) -> None:
     """What this table is - the file somebody built, and what it needs to run."""
     chosen = next((t for t in context["tables"] if t.get("id") == context["lens"]),
                   None)
+    match = await _release_match(context, chosen) if chosen is not None else []
     with ui.column().classes("gap-0 console-form"):
         if chosen is None:
             ui.label(t("console.workbench.no_table_selected")).classes("console-help")
             return
-        _table_rows(chosen, context)
+        _table_rows(chosen, context, match)
+
+
+async def _release_match(context: dict[str, Any],
+                         table: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """Which build of the machine this file is, as the table's Match group."""
+    entry = str(context["game"].get("vps_id") or "")
+    source = table.get("source") or {}
+    bound = str(source.get("vps_file_id") or "")
+    rows: list[tuple[Any, Any]] = [(HEADING, t("console.workbench.matched_to"))]
+    if not entry:
+        return rows + _unmatched(release_match_gap(entry, bound, True))
+
+    async def pick() -> None:
+        await _pick_a_release(context, table)
+
+    if not bound:
+        return rows + _unmatched(release_match_gap(entry, bound, True)) \
+            + [(FULL, _change_match(pick, matched=False))]
+    releases = await offload.io(_releases_of, context, entry)
+    release = next((one for one in releases
+                    if str(one.get("vps_file_id") or "") == bound), None)
+    # Found across the whole catalog, though no longer under this entry.
+    if release is None and (source.get("version") or source.get("authors")):
+        release = {"version": source.get("version"), "authors": source.get("authors")}
+    if release is not None:
+        rows.append((FULL, partial(_release_shown, release)))
+    else:
+        held = await offload.io(context["library"].vps_catalog_held)
+        rows += _unmatched(release_match_gap(entry, bound, held))
+    return rows + [(FULL, _change_match(pick, matched=True))]
 
 
 async def _write(context: dict[str, Any], call: Callable[..., Any],
@@ -1361,20 +1393,48 @@ def _tutorial_row(url: str) -> Any:
     return panel.link_out(t("word.watch"), to=url)
 
 
-def _match(found: dict[str, Any], vps_id: str, declared: bool) -> tuple[Any, Any]:
+def game_match_gap(vps_id: str, declared: bool, held: bool) -> tuple[str, str, str]:
+    """What a game's Match group says when there is no entry to draw: the state's key,
+    what its absence costs, and the key of the line under it."""
+    if declared:
+        return ("console.workbench.no_match", "off", "console.workbench.said_no_catalog")
+    if not vps_id:
+        return ("console.workbench.not_matched", "warn", "")
+    if not held:
+        return ("word.unknown", "unknown", "console.workbench.vps_not_downloaded")
+    return ("console.workbench.not_in_vps", "warn",
+            "console.workbench.vps_lists_no_such_machine")
+
+
+def release_match_gap(entry: str, bound: str, held: bool) -> tuple[str, str, str]:
+    """The same for a table's release, which has none to draw."""
+    if not entry:
+        return ("console.workbench.not_matched", "off",
+                "console.workbench.match_game_vps_first")
+    if not bound:
+        return ("console.workbench.not_matched", "off", "")
+    if not held:
+        return ("word.unknown", "unknown", "console.workbench.vps_not_downloaded")
+    return ("console.workbench.not_in_vps", "warn",
+            "console.workbench.vps_lists_no_such_release")
+
+
+def _match(found: dict[str, Any], vps_id: str, declared: bool,
+           held: bool) -> list[tuple[Any, Any]]:
     """The machine this game is matched to, drawn the way the picker drew it."""
     if found.get("name"):
-        return (FULL, lambda: vps_match.entry_row(found))
-    if declared:
-        return (t("console.workbench.matched_to"),
-                _state(t("console.workbench.no_match"), "off"))
-    return (t("console.workbench.matched_to"),
-            _state(t("console.workbench.no_such_entry") if vps_id
-                   else t("console.workbench.not_matched"), "warn"))
+        return [(FULL, lambda: vps_match.entry_row(found))]
+    return _unmatched(game_match_gap(vps_id, declared, held))
+
+
+def _unmatched(gap: tuple[str, str, str]) -> list[tuple[Any, Any]]:
+    said, level, why = gap
+    rows: list[tuple[Any, Any]] = [(FULL, _state(t(said), level))]
+    return rows + [panel.intro(t(why))] if why else rows
 
 
 def _identity_rows(context: dict[str, Any], entry: dict[str, Any],
-                   differs: list[dict[str, Any]]) -> None:
+                   differs: list[dict[str, Any]], held: bool) -> None:
     game = context["game"]
     # The folder is the tail, not the whole path: the library root is the same for
     # every game and repeating it costs the only column that has to hold a name.
@@ -1392,15 +1452,16 @@ def _identity_rows(context: dict[str, Any], entry: dict[str, Any],
 
     vps_id = str(game.get("vps_id") or "")
     declared = (game.get("overrides") or {}).get("alt_vps_id", "") is None
-    entries: list[tuple[Any, Any]] = [_match(entry, vps_id, declared)]
-    if declared:
-        entries.append(panel.note(t("console.workbench.said_no_catalog")))
-    entries.append((FULL, _change_match(context)))
+    entries: list[tuple[Any, Any]] = [(HEADING, t("console.workbench.matched_to"))]
+    entries += _match(entry, vps_id, declared, held)
+    entries.append((FULL, _change_match(lambda: _pick_a_match(context),
+                                        matched=bool(vps_id) or declared)))
     if differs:
         entries.append((FULL, _details_differ(context, differs)))
 
     ipdb = str(game.get("ipdb_id") or "")
     entries += [
+        (HEADING, t("console.workbench.details")),
         (t("word.name"), _override(game.get("name") or "",
                 found.get("name") or "",
                            "VPS", save("alt_title"))),
@@ -1506,7 +1567,8 @@ async def _play_block(context: dict[str, Any]) -> None:
 
 
 def _table_rows(table: dict[str, Any],
-                context: dict[str, Any] | None = None) -> None:
+                context: dict[str, Any] | None = None,
+                match: Sequence[tuple[Any, Any]] = ()) -> None:
     """One table's own facts.
 
     The rom is the one it resolves to with any alias followed, which is the one that
@@ -1529,6 +1591,7 @@ def _table_rows(table: dict[str, Any],
     entries: list[tuple[Any, Any]] = []
     if context is not None:
         entries += _attention(table)
+    entries += match
 
     # What this file is. "Filename" rather than the group's own word, which named the
     # filename here and the on-disk state under Status - one word, two facts, both on
@@ -1890,13 +1953,14 @@ def _details_differ(context: dict[str, Any],
     return draw
 
 
-def _change_match(context: dict[str, Any]) -> Callable[[], None]:
-    """One verb on this section, which is the only act it offers."""
+def _change_match(pick: Callable[[], Any], *, matched: bool) -> Callable[[], None]:
+    """The one act a Match group offers, named for whether there is a match to change."""
+    said = t("console.workbench.change_match") if matched \
+        else t("console.workbench.match_vps")
+
     def draw() -> None:
         with ui.element("div").classes("console-slot-actions"):
-            ui.button(t("console.workbench.change_match"), icon="search",
-                      on_click=lambda: _pick_a_match(context)) \
-                .props("flat dense no-caps size=sm").classes("console-action")
+            panel.action(said, pick, icon=verbs.MATCH)()
 
     return draw
 
@@ -2517,7 +2581,7 @@ async def _contain_table(context: dict[str, Any], table: dict[str, Any]) -> None
     await _table_list_changed(context)
 
 
-def _tables_block(context: dict[str, Any]) -> None:
+def _tables_block(context: dict[str, Any], held: bool = True) -> None:
     """This game's tables, and which one it offers first.
 
     A block inside Game Details rather than a rail entry of its own: most games hold one
@@ -2628,10 +2692,10 @@ def _tables_block(context: dict[str, Any]) -> None:
                     if not since:
                         _release_button(context, table)
                         _launch_button(context, table)
-            _release_line(table)
+            _release_line(table, held)
 
 
-def _release_line(table: dict[str, Any]) -> None:
+def _release_line(table: dict[str, Any], held: bool = True) -> None:
     """Which build of the machine this file is, once somebody has said.
 
     Nothing at all until then, which is the honest reading of an absent record: no
@@ -2647,6 +2711,8 @@ def _release_line(table: dict[str, Any]) -> None:
     version = str(source.get("version") or "")
     made_by = ", ".join(str(name) for name in (source.get("authors") or [])[:3])
     told = " \u00b7 ".join(part for part in (version, made_by) if part)
+    if not told and not held:
+        return
     with ui.row().classes("items-center gap-2 w-full no-wrap console-member-table-line"):
         ui.label(told or t("console.workbench.build_spreadsheet_no_longer")) \
             .classes("console-help truncate")
@@ -2809,6 +2875,7 @@ async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> Non
     entry = str(context["game"].get("vps_id") or "")
     bound = str((table.get("source") or {}).get("vps_file_id") or "")
     releases = await offload.io(_releases_of, context, entry)
+    held = bool(releases) or await offload.io(library.vps_catalog_held)
 
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-confirm console-picker-dialog"):
@@ -2817,7 +2884,9 @@ async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> Non
         found = ui.column().classes("w-full gap-0 console-source-list")
         with found:
             if not releases:
-                ui.label(t("console.workbench.vps_lists_no_builds")).classes("console-help")
+                ui.label(t("console.workbench.vps_lists_no_builds") if held
+                         else t("console.workbench.vps_not_downloaded")) \
+                    .classes("console-help")
             for item in releases:
                 _release_row(item, dialog, bound)
         with ui.row().classes("justify-end gap-2 w-full"):
@@ -2848,10 +2917,8 @@ def _yours(table: dict[str, Any]) -> None:
         .classes("console-help")
 
 
-def _release_row(release: dict[str, Any], dialog: Any, bound: str) -> None:
-    """One build, with its picture - VPS has one for 95% of them, against 39% of the
-    machines they belong to, so here the art is the ordinary case and not the exception."""
-    said = str(release.get("vps_file_id") or "")
+def _release_words(release: dict[str, Any]) -> tuple[str, str]:
+    """A build's name and the line under it: its version, then format, makers and date."""
     meta = [str(release.get("format") or "")]
     made_by = ", ".join(str(name) for name in (release.get("authors") or [])[:3])
     if made_by:
@@ -2860,11 +2927,31 @@ def _release_row(release: dict[str, Any], dialog: Any, bound: str) -> None:
     if stamp:
         meta.append(stamp)
     name = str(release.get("version") or "") or t("console.workbench.no_version_given")
+    return name, " \u00b7 ".join(part for part in meta if part)
+
+
+def _release_row(release: dict[str, Any], dialog: Any, bound: str) -> None:
+    """One build, with its picture - VPS has one for 95% of them, against 39% of the
+    machines they belong to, so here the art is the ordinary case and not the exception."""
+    said = str(release.get("vps_file_id") or "")
+    name, meta = _release_words(release)
     if said == bound:
         name = f"{name}  \u2713"
-    candidates.choice(str(release.get("img_url") or ""), name,
-                      " \u00b7 ".join(part for part in meta if part),
+    candidates.choice(str(release.get("img_url") or ""), name, meta,
                       lambda: dialog.submit(said), glyph=icons.TABLES)
+
+
+def _release_shown(release: dict[str, Any]) -> None:
+    """The build a table is matched to, in the shape the picker offered it."""
+    url = str(release.get("url") or "")
+
+    def end() -> None:
+        if url:
+            panel.out(to=url, hint=t("console.workbench.open_release"))()
+
+    name, meta = _release_words(release)
+    candidates.choice(str(release.get("img_url") or ""), name, meta,
+                      glyph=icons.TABLES, trailing=end, entry=True)
 
 
 def _releases_of(context: dict[str, Any], vps_id: str) -> list[dict[str, Any]]:

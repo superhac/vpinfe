@@ -2238,11 +2238,13 @@ class VpsSearchResults(ApiModel):
 
 class VpsSyncState(ApiModel):
     """How fresh the local catalog is. `checked` is when it was last asked, which is not
-    when it last changed - asking is cheap and the answer is usually "no"."""
+    when it last changed - asking is cheap and the answer is usually "no". `entries` is
+    how many machines it holds, and 0 means there is no catalog to answer from."""
 
     schedule: str = "daily"
     checked: str = ""
     due: bool = False
+    entries: int = 0
 
 
 class VpsSyncResult(ApiModel):

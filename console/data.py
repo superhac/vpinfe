@@ -108,6 +108,7 @@ class Library:
         self._media_rows: list[dict[str, Any]] | None = None
         self._asset_rows: list[dict[str, Any]] | None = None
         self._vps_entries: dict[str, dict[str, Any]] = {}
+        self._vps_held: bool | None = None
         self._vps_releases: dict[tuple[str, str], list[dict[str, Any]]] = {}
         self._overrides: dict[str, dict[str, Any]] = {}
         self._prefs: dict[str, dict[str, Any]] = {}
@@ -808,6 +809,13 @@ class Library:
 
     def vps_sync_state(self) -> dict:
         return self._client.vps_sync_state()
+
+    def vps_catalog_held(self) -> bool:
+        """Whether there is a catalog to look a match up in. Held for the page's life,
+        as `vps_entry` is, and for the same reason."""
+        if self._vps_held is None:
+            self._vps_held = bool(self._client.vps_sync_state().get("entries"))
+        return self._vps_held
 
     def sync_vps(self) -> dict:
         """Not cached and nothing invalidated here: the catalog is read per request by
