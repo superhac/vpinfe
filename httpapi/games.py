@@ -383,6 +383,15 @@ def put_game_tags(game_id: str, payload: models.TagsRequest) -> models.Tags:
     return models.Tags.model_validate(game_ops.set_tags(game_id, payload.tags))
 
 
+@router.put("/{game_id}/guides", summary="The guides on a game",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_game_guides(game_id: str, payload: models.GuidesRequest) -> models.Guides:
+    """The whole list, in order: which of VPS's are hidden, and the person's own. A guide
+    VPS lists cannot be left out, only hidden."""
+    return models.Guides.model_validate(game_ops.set_guides(
+        game_id, [one.model_dump() for one in payload.guides]))
+
+
 @router.put("/{game_id}/play_record", summary="Set a game's play counters",
             dependencies=[requires(scopes.GAMES_WRITE)])
 def put_play_record(game_id: str, body: models.PlayRecordUpdate) -> models.PlayRecord:

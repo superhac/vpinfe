@@ -127,6 +127,7 @@ class TestMetaConfig(unittest.TestCase):
             self.assertNotIn("PinballPrimerTut", saved["Info"])
             self.assertEqual(saved["guides"], [{
                 "kind": "tutorial",
+                "origin": "vps",
                 "title": "Pinball Primer: Example Table",
                 "authors": [],
                 "url": "https://pinballprimer.github.io/example_table.html",

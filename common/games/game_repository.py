@@ -283,7 +283,7 @@ def game_to_row(game: Game,
         "ipdb_id": answered["ipdb_id"] or found["ipdb_id"],
         "found_ipdb_id": found["ipdb_id"],
         "tutorial_url": contract_1_tutorial(meta),
-        "guides": guides_on_wire(meta),
+        "guides": guides_on_wire(meta, hidden=True),
         # Info carries what VPS knows; the table's own claim is the fallback and can
         # legitimately differ from it.
         "manufacturer": answered["manufacturer"] or found["manufacturer"],

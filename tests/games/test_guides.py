@@ -94,6 +94,146 @@ class RefreshedLikeEveryOtherCatalogFact(unittest.TestCase):
         self.assertTrue(found["guides"][2])
 
 
+def _vps(url: str, title: str = "T", **more) -> dict:
+    return {"kind": "tutorial", "origin": "vps", "title": title, "authors": [],
+            "url": url, "youtube_id": "", **more}
+
+
+def _mine(url: str, **more) -> dict:
+    return {"kind": "rule_sheet", "origin": "user", "title": "Mine", "authors": [],
+            "url": url, "youtube_id": "", **more}
+
+
+class WhoPutItThere(unittest.TestCase):
+    def test_the_catalog_says_so(self) -> None:
+        found = guides_from_vps(_entry({"title": "T", "url": "https://a/"}))
+        self.assertEqual("vps", found[0]["origin"])
+
+    def test_a_2x_link_came_from_the_catalog(self) -> None:
+        out = migrate({"Info": {"PinballPrimerTut": "https://pinballprimer.github.io/x"},
+                       "VPinFE": {"altvpsid": "1"}})
+        self.assertEqual("vps", out[GUIDES_KEY][0]["origin"])
+
+
+class TakingTheCatalogsListAgain(unittest.TestCase):
+    def _merge(self, held: list, offered: list) -> list:
+        from common.games.game_metadata import merge_guides
+
+        return merge_guides(held, offered)
+
+    def test_a_persons_own_keep_their_place(self) -> None:
+        out = self._merge([_vps("https://a/"), _mine("https://m/"), _vps("https://b/")],
+                          [_vps("https://a/"), _vps("https://b/")])
+        self.assertEqual(["https://a/", "https://m/", "https://b/"],
+                         [one["url"] for one in out])
+
+    def test_a_hidden_one_stays_hidden_and_is_refreshed(self) -> None:
+        out = self._merge([_vps("https://a/", "Old", hidden=True)],
+                          [_vps("https://a/", "New")])
+        self.assertEqual([("New", True)], [(one["title"], one.get("hidden")) for one in out])
+
+    def test_one_the_catalog_dropped_goes(self) -> None:
+        out = self._merge([_vps("https://a/"), _vps("https://gone/")],
+                          [_vps("https://a/")])
+        self.assertEqual(["https://a/"], [one["url"] for one in out])
+
+    def test_a_new_one_joins_at_the_end(self) -> None:
+        out = self._merge([_mine("https://m/"), _vps("https://a/")],
+                          [_vps("https://new/"), _vps("https://a/")])
+        self.assertEqual(["https://m/", "https://a/", "https://new/"],
+                         [one["url"] for one in out])
+
+    def test_a_persons_guide_at_an_offered_address_stands(self) -> None:
+        out = self._merge([_mine("https://a/")], [_vps("https://a/")])
+        self.assertEqual([("user", "Mine")], [(one["origin"], one["title"]) for one in out])
+
+    def test_a_record_saying_nothing_is_the_persons(self) -> None:
+        silent = {"kind": "tutorial", "title": "Hand", "url": "https://h/"}
+        self.assertEqual([silent, _vps("https://a/")],
+                         self._merge([silent], [_vps("https://a/")]))
+
+
+class WhatCountsAsADifference(unittest.TestCase):
+    def test_a_persons_own_is_not_one(self) -> None:
+        entry = _entry({"title": "T", "url": "https://a/"})
+        config = {"Info": {"Title": "Example"},
+                  GUIDES_KEY: [*guides_from_vps(entry), _mine("https://m/")]}
+        self.assertNotIn("guides", vps_details_differ(config, entry))
+
+    def test_the_persons_order_is_not_one(self) -> None:
+        entry = _entry({"title": "A", "url": "https://a/"}, {"title": "B", "url": "https://b/"})
+        config = {"Info": {"Title": "Example"},
+                  GUIDES_KEY: list(reversed(guides_from_vps(entry)))}
+        self.assertNotIn("guides", vps_details_differ(config, entry))
+
+    def test_hiding_one_is_not_one(self) -> None:
+        entry = _entry({"title": "T", "url": "https://a/"})
+        config = {"Info": {"Title": "Example"},
+                  GUIDES_KEY: [{**guides_from_vps(entry)[0], "hidden": True}]}
+        self.assertNotIn("guides", vps_details_differ(config, entry))
+
+
+class WhatEachSurfaceIsSent(unittest.TestCase):
+    def test_an_entry_leaves_the_hidden_out(self) -> None:
+        from common.games.game_metadata import guides_on_wire
+
+        config = {GUIDES_KEY: [_vps("https://a/", hidden=True), _vps("https://b/")]}
+        self.assertEqual(["https://b/"], [one["url"] for one in guides_on_wire(config)])
+
+    def test_the_games_own_list_has_them_all_and_says_whose(self) -> None:
+        from common.games.game_metadata import guides_on_wire
+
+        config = {GUIDES_KEY: [_vps("https://a/", hidden=True),
+                               {"kind": "tutorial", "url": "https://h/"}]}
+        self.assertEqual([("vps", True), ("user", False)],
+                         [(one["origin"], one["hidden"])
+                          for one in guides_on_wire(config, hidden=True)])
+
+    def test_a_hidden_primer_guide_is_not_the_contract_1_value(self) -> None:
+        config = {GUIDES_KEY: [_vps(PINBALL_PRIMER_PREFIX + "x.html", hidden=True)]}
+        self.assertEqual("", contract_1_tutorial(config))
+
+
+class SettingTheList(unittest.TestCase):
+    def _curate(self, held: list, wanted: list) -> list:
+        from common.games.game_ops import curate_guides
+
+        return curate_guides(held, wanted)
+
+    def test_the_order_and_what_is_hidden_are_the_persons(self) -> None:
+        out = self._curate([_vps("https://a/"), _vps("https://b/")],
+                           [{"url": "https://b/"}, {"url": "https://a/", "hidden": True}])
+        self.assertEqual([("https://b/", None), ("https://a/", True)],
+                         [(one["url"], one.get("hidden")) for one in out])
+
+    def test_a_new_address_is_the_persons_own(self) -> None:
+        out = self._curate([], [{"url": "https://rules.example/", "kind": "rule_sheet",
+                                 "title": "Rules"}])
+        self.assertEqual([("user", "rule_sheet", "Rules")],
+                         [(one["origin"], one["kind"], one["title"]) for one in out])
+
+    def test_a_video_is_named_by_the_address_it_was_sent_with(self) -> None:
+        held = [_vps("", youtube_id="abc")]
+        out = self._curate(held, [{"url": "https://www.youtube.com/watch?v=abc",
+                                   "hidden": True}])
+        self.assertEqual([("", "abc", True)],
+                         [(one["url"], one["youtube_id"], one["hidden"]) for one in out])
+
+    def test_a_persons_guide_left_out_is_removed(self) -> None:
+        self.assertEqual([], self._curate([_mine("https://m/")], []))
+
+    def test_what_is_refused(self) -> None:
+        from common.service_errors import RefusedError
+
+        for held, wanted in (
+                ([_vps("https://a/")], []),
+                ([], [{"url": ""}]),
+                ([], [{"url": "https://x/"}, {"url": "https://x/"}]),
+                ([], [{"url": "ftp://x/"}]),
+                ([], [{"url": "https://x/", "kind": "flyer"}])):
+            with self.subTest(wanted=wanted), self.assertRaises(RefusedError):
+                self._curate(held, wanted)
+
 
 class WhatTheDifferSays(unittest.TestCase):
     def test_guides_read_as_a_count_not_a_record(self) -> None:

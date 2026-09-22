@@ -9,13 +9,18 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from common import service_errors
 from common.games import game_identity, game_lens, game_metadata, game_service, locations
 from common.games.game_metadata import (
     GUIDES_FIELD,
     adopt_vps_details,
+    guide_address,
+    guides_on_wire,
+    is_catalog_guide,
     load_game_meta,
+    persist_game_meta,
     reset_game_play_record,
     set_asset_source,
     set_game_favorite,
@@ -108,6 +113,54 @@ def set_tags(game_id: str, tags: Iterable[str]) -> dict:
     """The whole set, not a bag: a repeat is dropped, and case is left alone so two
     spellings stay two tags until somebody merges them."""
     return {"tags": set_game_tags(game_lens.game_or_refuse(game_id), list(tags))}
+
+
+def set_guides(game_id: str, wanted: list[dict[str, Any]]) -> dict:
+    """The game's guides, in `wanted`'s order. An entry naming a stored guide by its
+    address keeps it and sets whether it is hidden; any other entry is a new guide of
+    the person's own."""
+    from common.games.info_file import GUIDES_KEY
+
+    game = game_lens.game_or_refuse(game_id)
+    config = load_game_meta(game)
+    config[GUIDES_KEY] = curate_guides(config.get(GUIDES_KEY) or [], wanted)
+    persist_game_meta(game, config)
+    return {"guides": guides_on_wire(config, hidden=True)}
+
+
+def curate_guides(held: list[Any], wanted: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    from common.games.info_file import GUIDE_KINDS, GUIDE_TUTORIAL
+    from common.games.info_migration import GUIDE_ORIGIN
+
+    stored = {guide_address(one): one for one in held if isinstance(one, dict)}
+    out: list[dict[str, Any]] = []
+    for one in wanted:
+        address = str(one.get("url") or "").strip()
+        if not address:
+            raise service_errors.RefusedError(t("error.games.guide_without_address"))
+        if any(guide_address(kept) == address for kept in out):
+            raise service_errors.RefusedError(t("error.games.guide_twice", url=address))
+        kept = stored.get(address)
+        if kept is None:
+            kind = str(one.get("kind") or GUIDE_TUTORIAL)
+            if kind not in GUIDE_KINDS:
+                raise service_errors.RefusedError(t("error.games.guide_kind_unknown",
+                                                    kind=kind, join=", ".join(GUIDE_KINDS)))
+            if urlparse(address).scheme not in ("http", "https"):
+                raise service_errors.RefusedError(t("error.games.guide_not_an_address",
+                                                    url=address))
+            kept = {"kind": kind, GUIDE_ORIGIN: "user",
+                    "title": str(one.get("title") or "").strip(), "authors": [],
+                    "url": address, "youtube_id": ""}
+        record = {key: value for key, value in kept.items() if key != "hidden"}
+        if one.get("hidden"):
+            record["hidden"] = True
+        out.append(record)
+    kept_addresses = {guide_address(one) for one in out}
+    if any(is_catalog_guide(one) and address not in kept_addresses
+           for address, one in stored.items()):
+        raise service_errors.RefusedError(t("error.games.guide_from_vps_is_hidden"))
+    return out
 
 
 def set_favorite(game_id: str, favorite: bool) -> dict:

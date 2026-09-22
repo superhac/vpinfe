@@ -16,6 +16,8 @@ from urllib.parse import parse_qs, urlparse
 from common.games import identity_claims
 from common.games.ids import new_id
 from common.games.info_migration import (
+    FROM_CATALOG,
+    GUIDE_ORIGIN,
     GUIDES_KEY,
     migrate,
     needs_migration,
@@ -120,9 +122,10 @@ class InvalidMetaConfigError(ValueError):
 PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
 
 
-# What kind of thing a guide is. One value today; the field exists because a rule sheet
-# and a manual are the same shape and the catalog will carry them under their own names.
+# What kind of thing a guide is. The catalog carries tutorials only; a person may add
+# the other two.
 GUIDE_TUTORIAL = "tutorial"
+GUIDE_KINDS = (GUIDE_TUTORIAL, "rule_sheet", "manual")
 
 
 def _guide(record: dict, url: object) -> dict[str, Any] | None:
@@ -137,6 +140,7 @@ def _guide(record: dict, url: object) -> dict[str, Any] | None:
     authors = record.get("authors")
     return {
         "kind": GUIDE_TUTORIAL,
+        GUIDE_ORIGIN: FROM_CATALOG,
         "title": str(record.get("title") or "").strip(),
         "authors": [str(one).strip() for one in authors if str(one).strip()]
                    if isinstance(authors, list) else [],

@@ -392,7 +392,9 @@ class AssetEntry(ApiModel):
 class Guide(ApiModel):
     """Material that explains a machine. `url` always opens it; `youtube_id` is there
     for a surface that plays the video in place. `source` is where it lives, for
-    showing."""
+    showing. `origin` is `vps` for one the catalog supplied and `user` for a person's
+    own, and `hidden` is only ever true on a game's own list - an entry and the theme
+    payload leave hidden ones out."""
 
     kind: str
     title: str = ""
@@ -400,6 +402,26 @@ class Guide(ApiModel):
     url: str = ""
     youtube_id: str = ""
     source: str = ""
+    origin: str = ""
+    hidden: bool = False
+
+
+class GuideWrite(ApiModel):
+    """One guide in a list being set. A `url` the game already holds names that guide;
+    any other is a new one, and then `kind` and `title` describe it."""
+
+    url: str
+    hidden: bool = False
+    kind: str = ""
+    title: str = ""
+
+
+class GuidesRequest(ApiModel):
+    guides: list[GuideWrite]
+
+
+class Guides(ApiModel):
+    guides: list[Guide]
 
 
 class GameLinks(ApiModel):

@@ -34,6 +34,9 @@ INFO_SCHEMA = 2
 
 # Declared here rather than in `info_file` because that module imports this one.
 GUIDES_KEY = "guides"
+# Who put a guide on the game. Only the catalog's records say so; any other is a person's.
+GUIDE_ORIGIN = "origin"
+FROM_CATALOG = "vps"
 BACKUP_MARKER = ".vpinfe-"
 
 # What 2.x called each VPXFile field, against what it is called now. Matched
@@ -176,7 +179,7 @@ def migrate(data: dict) -> dict:
     guides = list(guides) if isinstance(guides, list) else []
     if primer and not any(isinstance(one, dict) and one.get("url") == primer
                           for one in guides):
-        guides.append({"kind": "tutorial", "title": "", "authors": [],
+        guides.append({"kind": "tutorial", GUIDE_ORIGIN: FROM_CATALOG, "title": "", "authors": [],
                        "url": primer, "youtube_id": ""})
 
     tables = dict(data.get(TABLES_KEY) or {})

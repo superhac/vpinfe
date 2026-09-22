@@ -727,7 +727,8 @@ def contract_1_tutorial(config: Any) -> str:
 
     held = normalize_meta(config).get(GUIDES_KEY)
     for one in held if isinstance(held, list) else []:
-        if not isinstance(one, dict) or one.get("kind") != GUIDE_TUTORIAL:
+        if not isinstance(one, dict) or one.get("kind") != GUIDE_TUTORIAL \
+                or one.get("hidden"):
             continue
         said = str(one.get("url") or "").strip()
         if said.startswith(PINBALL_PRIMER_PREFIX):
@@ -761,13 +762,50 @@ def guide_source(guide: dict[str, Any]) -> str:
     return GUIDE_SOURCES.get(host, host)
 
 
-def guides_on_wire(config: Any) -> list[dict[str, Any]]:
-    """The stored guides, each with an address to open and where it lives."""
+def is_catalog_guide(guide: dict[str, Any]) -> bool:
+    from common.games.info_migration import FROM_CATALOG, GUIDE_ORIGIN
+
+    return guide.get(GUIDE_ORIGIN) == FROM_CATALOG
+
+
+def guides_on_wire(config: Any, *, hidden: bool = False) -> list[dict[str, Any]]:
+    """The stored guides, each with an address to open and where it lives. The hidden
+    ones only where `hidden` asks for them."""
     from common.games.info_file import GUIDES_KEY
+    from common.games.info_migration import FROM_CATALOG, GUIDE_ORIGIN
 
     held = normalize_meta(config).get(GUIDES_KEY)
-    return [{**one, "url": guide_address(one), "source": guide_source(one)}
-            for one in (held if isinstance(held, list) else []) if isinstance(one, dict)]
+    return [{**one, "url": guide_address(one), "source": guide_source(one),
+             GUIDE_ORIGIN: FROM_CATALOG if is_catalog_guide(one) else "user",
+             "hidden": bool(one.get("hidden"))}
+            for one in (held if isinstance(held, list) else [])
+            if isinstance(one, dict) and (hidden or not one.get("hidden"))]
+
+
+def merge_guides(held: list[Any], offered: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The stored list with the catalog's part of it replaced by `offered`."""
+    fresh = {guide_address(one): one for one in offered}
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for one in held:
+        if not isinstance(one, dict):
+            continue
+        address = guide_address(one)
+        if address in seen:
+            continue
+        if not is_catalog_guide(one):
+            out.append(one)
+        elif address in fresh:
+            out.append({**fresh[address], **({"hidden": True} if one.get("hidden") else {})})
+        else:
+            continue
+        seen.add(address)
+    for one in offered:
+        address = guide_address(one)
+        if address not in seen:
+            out.append(one)
+            seen.add(address)
+    return out
 
 
 def vps_details_differ(config: dict[str, Any],
@@ -790,20 +828,19 @@ def vps_details_differ(config: dict[str, Any],
         if _as_said(mine) != _as_said(yours):
             found[field] = (mine, yours, not _as_said(mine))
     held = config.get(GUIDES_KEY)
-    held = held if isinstance(held, list) else []
+    held = [one for one in (held if isinstance(held, list) else [])
+            if isinstance(one, dict) and is_catalog_guide(one)]
     offered = guides_from_vps(vps_entry)
     if _guides_said(held) != _guides_said(offered):
         found[GUIDES_FIELD] = (held, offered, not held)
     return found
 
 
-def _guides_said(guides: list[Any]) -> list[tuple[str, ...]]:
-    """Compared by what each one points at, in order. A retitled record is a change; the
-    same records listed in another order is not the same list, because order is what a
-    surface showing one of them reads."""
-    return [(str(one.get("url") or ""), str(one.get("youtube_id") or ""),
-             str(one.get("title") or ""), str(one.get("kind") or ""))
-            for one in guides if isinstance(one, dict)]
+def _guides_said(guides: list[dict[str, Any]]) -> list[tuple[str, ...]]:
+    """Compared by what each one points at and says, in no order."""
+    return sorted((str(one.get("url") or ""), str(one.get("youtube_id") or ""),
+                   str(one.get("title") or ""), str(one.get("kind") or ""))
+                  for one in guides)
 
 
 def _as_said(value: Any) -> Any:
@@ -830,7 +867,7 @@ def adopt_vps_details(game: Game, vps_entry: dict[str, Any],
     for field in wanted:
         theirs = fresh[field][1]
         if field == GUIDES_FIELD:
-            config[GUIDES_KEY] = theirs
+            config[GUIDES_KEY] = merge_guides(config.get(GUIDES_KEY) or [], theirs)
         elif theirs in ("", [], None) and field == "IPDBId":
             info.pop(field, None)
         else:
