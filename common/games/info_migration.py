@@ -21,6 +21,7 @@ import tempfile
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from common.atomic_write import write_atomic
 from common.games.tables import TABLES_KEY, parse_authors
@@ -30,6 +31,9 @@ logger = logging.getLogger("vpinfe.common.games.info_migration")
 
 SCHEMA_KEY = "schema"
 INFO_SCHEMA = 2
+
+# Declared here rather than in `info_file` because that module imports this one.
+GUIDES_KEY = "guides"
 BACKUP_MARKER = ".vpinfe-"
 
 # What 2.x called each VPXFile field, against what it is called now. Matched
@@ -165,6 +169,16 @@ def migrate(data: dict) -> dict:
     if dof_event is not None:
         vpinfe["frontend_dof_event"] = dof_event
 
+    # 2.x kept one tutorial link in Info. It becomes a guide, and a file already holding
+    # guides keeps them - running this over its own output has to be a no-op.
+    primer = str(info.pop("PinballPrimerTut", "") or "").strip()
+    guides = data.get(GUIDES_KEY)
+    guides = list(guides) if isinstance(guides, list) else []
+    if primer and not any(isinstance(one, dict) and one.get("url") == primer
+                          for one in guides):
+        guides.append({"kind": "tutorial", "title": "", "authors": [],
+                       "url": primer, "youtube_id": ""})
+
     tables = dict(data.get(TABLES_KEY) or {})
     filename = str(vpx_file.get("filename", "") or "").strip()
     if filename:
@@ -179,8 +193,12 @@ def migrate(data: dict) -> dict:
         # which is exactly what `recorded_default` says a rebuild must never do. It
         # also made every migrated game report a user-chosen default it never had.
 
-    migrated = {"Info": info, "User": user, "vpinfe": vpinfe, TABLES_KEY: tables}
-    known = {*_DROPPED_SECTIONS, "Info", "User", "VPinFE", "vpinfe", TABLES_KEY}
+    migrated: dict[str, Any] = {"Info": info, "User": user, "vpinfe": vpinfe,
+                                TABLES_KEY: tables}
+    if guides:
+        migrated[GUIDES_KEY] = guides
+    known = {*_DROPPED_SECTIONS, "Info", "User", "VPinFE", "vpinfe", TABLES_KEY,
+             GUIDES_KEY}
     migrated.update({k: v for k, v in data.items() if k not in known})
     return migrated
 

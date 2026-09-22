@@ -1117,6 +1117,7 @@
   "console.workbench.gets_new_id_joins": "It gets a new id and joins the library beside the one that is answering now. Anything that named the shared id keeps pointing at that one. Nothing is moved or deleted.",
   "console.workbench.give_all_tables": "Give to all tables",
   "console.workbench.go_back": "Will go back to {shown}",
+  "console.workbench.guides": "Guides",
   "console.workbench.hash": "Hash",
   "console.workbench.higher_priority": "Higher priority",
   "console.workbench.holds_what_put": "Holds what you put in it",

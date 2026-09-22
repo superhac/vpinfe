@@ -1884,7 +1884,7 @@ async def _vps_block(context: dict[str, Any]) -> None:
 DETAIL_WORDS = {
     "Title": t("word.name"),
     "IPDBId": "IPDB",
-    "PinballPrimerTut": t("word.tutorial"),
+    "guides": t("console.workbench.guides"),
     "Themes": t("console.workbench.theme"),
 }
 

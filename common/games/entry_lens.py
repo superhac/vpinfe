@@ -10,6 +10,7 @@ from common.extensions import contributions
 from common.games import game_identity
 from common.games.collection_resolver import Entry, visible_entries
 from common.games.game_metadata import (
+    contract_1_tutorial,
     game_ipdb_id,
     game_manufacturer,
     game_rating,
@@ -54,7 +55,7 @@ def entry_resource(entry: Entry, group: str | None = None) -> dict:
             "rating": game_rating(entry.game),
             "user": play_record(meta),
             "ipdb_id": game_ipdb_id(entry.game),
-            "tutorial": str(info.get("PinballPrimerTut", "") or ""),
+            "tutorial": contract_1_tutorial(entry.game.meta_config),
             "overrides": {
                 "alt_title": str(vpinfe.get("alt_title", "") or ""),
                 "alt_vps_id": str(vpinfe.get("alt_vpsid", "") or ""),

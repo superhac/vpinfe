@@ -110,7 +110,7 @@ class TestMetaConfig(unittest.TestCase):
             self.assertEqual(saved["vpinfe"]["alt_title"], "Example Alt Title")
             self.assertTrue(saved["vpinfe"]["delete_nvram_on_close"])
 
-    def test_write_config_meta_adds_pinball_primer_tutorial(self) -> None:
+    def test_write_config_meta_keeps_one_tutorial_as_a_guide(self) -> None:
         with TemporaryDirectory() as tmp:
             info_path = Path(tmp) / "Example Table.info"
 
@@ -124,57 +124,54 @@ class TestMetaConfig(unittest.TestCase):
                 ],
             )
 
-            self.assertEqual(
-                saved["Info"]["PinballPrimerTut"],
-                "https://pinballprimer.github.io/example_table.html",
-            )
-
-    def test_write_config_meta_omits_pinball_primer_tutorial_when_no_match(self) -> None:
-        with TemporaryDirectory() as tmp:
-            info_path = Path(tmp) / "Example Table.info"
-
-            saved = self._write_meta(
-                info_path,
-                tutorial_files=[
-                    {
-                        "title": "Example Table Tutorial",
-                        "url": "https://example.com/tutorial",
-                    },
-                    {
-                        "title": "YouTube Tutorial",
-                        "urls": [{"url": "https://www.youtube.com/watch?v=abc123"}],
-                    },
-                ],
-            )
-
             self.assertNotIn("PinballPrimerTut", saved["Info"])
+            self.assertEqual(saved["guides"], [{
+                "kind": "tutorial",
+                "title": "Pinball Primer: Example Table",
+                "authors": [],
+                "url": "https://pinballprimer.github.io/example_table.html",
+                "youtube_id": "",
+            }])
 
-    def test_write_config_meta_uses_first_pinball_primer_tutorial_found(self) -> None:
+    def test_write_config_meta_keeps_every_tutorial_not_just_the_primer(self) -> None:
         with TemporaryDirectory() as tmp:
             info_path = Path(tmp) / "Example Table.info"
 
             saved = self._write_meta(
                 info_path,
                 tutorial_files=[
-                    {
-                        "title": "Other Tutorial",
-                        "url": "https://example.com/tutorial",
-                    },
-                    {
-                        "title": "Nested Primer Tutorial",
-                        "urls": [{"url": "https://pinballprimer.github.io/from_nested.html"}],
-                    },
-                    {
-                        "title": "Direct Primer Tutorial",
-                        "url": "https://pinballprimer.github.io/from_direct.html",
-                    },
+                    {"title": "Other Tutorial", "url": "https://example.com/tutorial"},
+                    {"title": "Nested Primer Tutorial",
+                     "urls": [{"url": "https://pinballprimer.github.io/from_nested.html"}]},
+                    {"title": "Direct Primer Tutorial",
+                     "url": "https://pinballprimer.github.io/from_direct.html"},
                 ],
             )
 
             self.assertEqual(
-                saved["Info"]["PinballPrimerTut"],
-                "https://pinballprimer.github.io/from_nested.html",
+                [one["url"] for one in saved["guides"]],
+                ["https://example.com/tutorial",
+                 "https://pinballprimer.github.io/from_nested.html",
+                 "https://pinballprimer.github.io/from_direct.html"])
+
+    def test_write_config_meta_keeps_a_record_that_has_only_a_video(self) -> None:
+        with TemporaryDirectory() as tmp:
+            info_path = Path(tmp) / "Example Table.info"
+
+            saved = self._write_meta(
+                info_path,
+                tutorial_files=[{"title": "Overview", "url": None,
+                                 "youtubeId": "QwHt2YKJJk4"}],
             )
+
+            self.assertEqual([one["youtube_id"] for one in saved["guides"]],
+                             ["QwHt2YKJJk4"])
+
+    def test_write_config_meta_keeps_no_guide_where_the_entry_lists_none(self) -> None:
+        with TemporaryDirectory() as tmp:
+            info_path = Path(tmp) / "Example Table.info"
+
+            self.assertEqual(self._write_meta(info_path)["guides"], [])
 
     def test_write_config_meta_preserves_unknown_top_level_sections(self) -> None:
         with TemporaryDirectory() as tmp:

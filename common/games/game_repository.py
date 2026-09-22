@@ -23,6 +23,7 @@ from common.games.game_identity import game_id as vpinfe_id
 from common.games.game_metadata import (
     GAME_OVERRIDES,
     as_string_list,
+    contract_1_tutorial,
     declared_no_match,
     default_table,
     first_meta_value,
@@ -280,7 +281,7 @@ def game_to_row(game: Game,
         "vpinfe_id": vpinfe_id(game),
         "ipdb_id": answered["ipdb_id"] or found["ipdb_id"],
         "found_ipdb_id": found["ipdb_id"],
-        "pinball_primer_tut": first_meta_value(meta, ("Info", "PinballPrimerTut")),
+        "tutorial_url": contract_1_tutorial(meta),
         # Info carries what VPS knows; the table's own claim is the fallback and can
         # legitimately differ from it.
         "manufacturer": answered["manufacturer"] or found["manufacturer"],

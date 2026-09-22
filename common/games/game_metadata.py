@@ -705,8 +705,33 @@ def set_asset_source(game: Game, path: str, vps_file_id: str) -> dict[str, Any]:
 # first and leaves the second alone: `Info.VPSId` is what VPS supplied, and the field a
 # surface offers to revert a corrected match to. Overwriting it would destroy the
 # baseline the undo needs.
-DESCRIBED_BY_VPS = ("Title", "Manufacturer", "Year", "Type", "Themes", "IPDBId",
-                    "PinballPrimerTut")
+DESCRIBED_BY_VPS = ("Title", "Manufacturer", "Year", "Type", "Themes", "IPDBId")
+
+# Described by the entry like the rest, but stored outside `Info` - so it is diffed and
+# adopted alongside them and written to its own block.
+GUIDES_FIELD = "guides"
+
+
+def contract_1_tutorial(config: Any) -> str:
+    """The Pinball Primer guide's address, which is what `entry.tutorial` has meant.
+
+    Primer only. Guarded by `tests/invariants/test_nothing_has_shipped.py`; contract 2
+    serves the whole `guides` list.
+    """
+    from common.games.info_file import (
+        GUIDE_TUTORIAL,
+        GUIDES_KEY,
+        PINBALL_PRIMER_PREFIX,
+    )
+
+    held = normalize_meta(config).get(GUIDES_KEY)
+    for one in held if isinstance(held, list) else []:
+        if not isinstance(one, dict) or one.get("kind") != GUIDE_TUTORIAL:
+            continue
+        said = str(one.get("url") or "").strip()
+        if said.startswith(PINBALL_PRIMER_PREFIX):
+            return said
+    return ""
 
 
 def vps_details_differ(config: dict[str, Any],
@@ -719,7 +744,7 @@ def vps_details_differ(config: dict[str, Any],
     Empty for a game whose details came from the entry it is still matched to, which is
     every game that has never been re-matched.
     """
-    from common.games.info_file import info_from_vps
+    from common.games.info_file import GUIDES_KEY, guides_from_vps, info_from_vps
 
     theirs = info_from_vps(vps_entry)
     ours = section(config, "Info")
@@ -728,7 +753,21 @@ def vps_details_differ(config: dict[str, Any],
         mine, yours = ours.get(field), theirs.get(field)
         if _as_said(mine) != _as_said(yours):
             found[field] = (mine, yours, not _as_said(mine))
+    held = config.get(GUIDES_KEY)
+    held = held if isinstance(held, list) else []
+    offered = guides_from_vps(vps_entry)
+    if _guides_said(held) != _guides_said(offered):
+        found[GUIDES_FIELD] = (held, offered, not held)
     return found
+
+
+def _guides_said(guides: list[Any]) -> list[tuple[str, ...]]:
+    """Compared by what each one points at, in order. A retitled record is a change; the
+    same records listed in another order is not the same list, because order is what a
+    surface showing one of them reads."""
+    return [(str(one.get("url") or ""), str(one.get("youtube_id") or ""),
+             str(one.get("title") or ""), str(one.get("kind") or ""))
+            for one in guides if isinstance(one, dict)]
 
 
 def _as_said(value: Any) -> Any:
@@ -749,10 +788,14 @@ def adopt_vps_details(game: Game, vps_entry: dict[str, Any],
     config = load_game_meta(game)
     fresh = vps_details_differ(config, vps_entry)
     wanted = set(fresh) if fields is None else (set(fields) & set(fresh))
+    from common.games.info_file import GUIDES_KEY
+
     info = config.setdefault("Info", {})
     for field in wanted:
         theirs = fresh[field][1]
-        if theirs in ("", [], None) and field in ("IPDBId", "PinballPrimerTut"):
+        if field == GUIDES_FIELD:
+            config[GUIDES_KEY] = theirs
+        elif theirs in ("", [], None) and field == "IPDBId":
             info.pop(field, None)
         else:
             info[field] = theirs

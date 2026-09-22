@@ -26,6 +26,7 @@ from common.games.collections_service import save_filter_collection
 from common.games.game import Game, GameRecord, ScannedGame
 from common.games.game_metadata import (
     GAME_OVERRIDES,
+    contract_1_tutorial,
     game_ipdb_id,
     game_manufacturer,
     game_override,
@@ -157,7 +158,7 @@ def _entry_row(entry: Entry, logo_cache: dict[str, str | None],
             # no reason anybody chose - a projection listed some fields and stopped -
             # and an extension, a remote frontend and the Console all read this.
             "ipdb_id": game_ipdb_id(game),
-            "tutorial": str(info.get("PinballPrimerTut", "") or ""),
+            "tutorial": contract_1_tutorial(meta),
             "overrides": {
                 "alt_title": str(vpinfe.get("alt_title", "") or ""),
                 "alt_vps_id": str(vpinfe.get("alt_vpsid", "") or ""),

@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urlparse
 from common.games import identity_claims
 from common.games.ids import new_id
 from common.games.info_migration import (
+    GUIDES_KEY,
     migrate,
     needs_migration,
     write_backup,
@@ -119,23 +120,48 @@ class InvalidMetaConfigError(ValueError):
 PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
 
 
-def _primer_tutorial(vpsdata: object) -> str:
-    """The primer link among an entry's tutorials, or "" where it lists none."""
+# What kind of thing a guide is. One value today; the field exists because a rule sheet
+# and a manual are the same shape and the catalog will carry them under their own names.
+GUIDE_TUTORIAL = "tutorial"
+
+
+def _guide(record: dict, url: object) -> dict[str, Any] | None:
+    """One catalog tutorial as a guide, or None where it names nothing to open.
+
+    A record with no url and only a `youtubeId` is ordinary, not malformed.
+    """
+    said = str(url or "").strip()
+    video = str(record.get("youtubeId") or "").strip()
+    if not said and not video:
+        return None
+    authors = record.get("authors")
+    return {
+        "kind": GUIDE_TUTORIAL,
+        "title": str(record.get("title") or "").strip(),
+        "authors": [str(one).strip() for one in authors if str(one).strip()]
+                   if isinstance(authors, list) else [],
+        "url": said,
+        "youtube_id": video,
+    }
+
+
+def guides_from_vps(vpsdata: object) -> list[dict[str, Any]]:
+    """Everything an entry offers that explains the machine, in the order it lists them.
+
+    A `tutorialFiles` record either carries one `url` or a `urls` list of them, and the
+    nested form is one guide per url rather than one per record.
+    """
     if not isinstance(vpsdata, dict):
-        return ""
-    for tutorial in vpsdata.get("tutorialFiles", []):
-        if not isinstance(tutorial, dict):
+        return []
+    out: list[dict[str, Any]] = []
+    for record in vpsdata.get("tutorialFiles", []):
+        if not isinstance(record, dict):
             continue
-        direct = tutorial.get("url")
-        if isinstance(direct, str) and direct.startswith(PINBALL_PRIMER_PREFIX):
-            return direct
-        for entry in tutorial.get("urls", []):
-            if not isinstance(entry, dict):
-                continue
-            nested = entry.get("url")
-            if isinstance(nested, str) and nested.startswith(PINBALL_PRIMER_PREFIX):
-                return nested
-    return ""
+        nested = [one for one in (record.get("urls") or []) if isinstance(one, dict)]
+        found = ([_guide(record, one.get("url")) for one in nested] if nested
+                 else [_guide(record, record.get("url"))])
+        out += [one for one in found if one is not None]
+    return out
 
 
 def info_from_vps(vps_entry: dict | None) -> dict[str, Any]:
@@ -159,9 +185,6 @@ def info_from_vps(vps_entry: dict | None) -> dict[str, Any]:
         "Themes": entry.get("theme", []),
         "VPSId": entry.get("id", ""),
     }
-    tutorial = _primer_tutorial(entry)
-    if tutorial:
-        info["PinballPrimerTut"] = tutorial
     return info
 
 
@@ -210,6 +233,7 @@ class MetaConfig:
         Build the .info JSON structure
         """
         info = info_from_vps(configdata.get("vpsdata", {}))
+        guides = guides_from_vps(configdata.get("vpsdata", {}))
 
         user = self.data.get("User", {
             "Rating": 0,
@@ -260,7 +284,7 @@ class MetaConfig:
             k: v
             for k, v in self.data.items()
             if k not in ("Info", "User", "VPXFile", VPINFE_SECTION, "Medias",
-                         TABLES_KEY, ASSETS_KEY)
+                         TABLES_KEY, ASSETS_KEY, GUIDES_KEY)
         }
 
         self.data = {
@@ -269,6 +293,7 @@ class MetaConfig:
             VPINFE_SECTION: vpinfe,
             TABLES_KEY: tables,
             ASSETS_KEY: assets,
+            GUIDES_KEY: guides,
             **preserved
         }
         # Imported here for the reason game_identity is below: game_metadata reaches
@@ -604,8 +629,6 @@ class MetaConfig:
             relative = os.path.basename(str(path))
         return relative.replace(os.sep, "/")
 
-    def _find_pinball_primer_tutorial(self, vpsdata: object) -> str:
-        return _primer_tutorial(vpsdata)
 
     def _migrate_vpinfe(self) -> None:
         """Apply the VPinFE section schema migration to the loaded data, in memory."""

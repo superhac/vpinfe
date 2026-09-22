@@ -104,7 +104,7 @@ def game_resource(row: dict, game_id: str) -> dict[str, Any]:
             "ipdb_id": row.get("found_ipdb_id", ""),
         },
         "ipdb_id": row.get("ipdb_id", ""),
-        "tutorial": row.get("pinball_primer_tut", ""),
+        "tutorial": row.get("tutorial_url", ""),
         # Assets, not media: these are what the game needs to play as intended.
         # Media is the artwork VPinFE shows while browsing - see docs/conventions.md.
         # Summary from the scan; the detail endpoint recomputes and attributes files.
