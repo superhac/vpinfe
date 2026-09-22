@@ -309,6 +309,7 @@
   "console.ext_action.not_come_across": "Đîđ ñöţ çöɱè àçřöšš ({len})",
   "console.ext_action.not_finish": "Îţ đîđ ñöţ ƒîñîšĥ",
   "console.ext_action.not_run": "Îţ đîđ ñöţ řûñ",
+  "console.ext_action.of_expected": "öƒ {want}",
   "console.ext_action.short": "{short} šĥöřţ",
   "console.ext_action.what_happened": "Ŵĥàţ ĥàþþèñèđ",
   "console.ext_action.working": "Ŵöřķîñĝ",
@@ -780,6 +781,7 @@
   "console.sections.games": "ĝàɱèš",
   "console.sections.games_saved_copy": "{restorable} ĝàɱèš ĥàṽè à šàṽèđ çöþý, ţàķèñ ƀèƒöřè àñ ûþĝřàđè",
   "console.sections.games_saved_copy_from": "{restorable} ĝàɱèš ĥàṽè à šàṽèđ çöþý ƒřöɱ {when}, ţàķèñ ƀèƒöřè àñ ûþĝřàđè",
+  "console.sections.held_of_games": "{held} öƒ {total}",
   "console.sections.index_could_not_reached": "Ţĥè îñđèẋ çöûŀđ ñöţ ƀè řèàçĥèđ, šö ñöţĥîñĝ ĥàš ƀèèñ çĥèçķèđ",
   "console.sections.known_install": "ķñöŵñ ţö ţĥîš îñšţàŀŀ",
   "console.sections.library": "Ŀîƀřàřý",
@@ -1067,6 +1069,10 @@
   "console.workbench.could_not_take_copy": "Çöûŀđ ñöţ ţàķè à çöþý: {exc}",
   "console.workbench.could_not_use_image": "Çöûŀđ ñöţ ûšè ţĥàţ îɱàĝè: {exc}",
   "console.workbench.could_not_work": "Çöûŀđ ñöţ ŵöřķ ţĥàţ öûţ: {exc}",
+  "console.workbench.count_tables": {
+    "one": "{count} ţàƀŀè",
+    "other": "{count} ţàƀŀèš"
+  },
   "console.workbench.create_new_games": "Çřèàţè ñèŵ ĝàɱèš ĥèřè",
   "console.workbench.default": "Đèƒàûŀţ - {default_name}",
   "console.workbench.default_changed": "Đèƒàûŀţ çĥàñĝèđ",
@@ -1204,9 +1210,14 @@
   "console.workbench.own_game_now": "Îţ îš îţš öŵñ ĝàɱè ñöŵ",
   "console.workbench.paging": "Þàĝîñĝ",
   "console.workbench.path_table_file": "/þàţĥ/ţö/ţĥè/ţàƀŀè ƒîŀè",
+  "console.workbench.place_of_total": "{place} öƒ {total}",
   "console.workbench.place_table_lives_not": "Ţĥè þŀàçè ţĥîš ţàƀŀè ŀîṽèš îš ñöţ řèàçĥàƀŀè",
   "console.workbench.play_table": "Þŀàý ţĥîš ţàƀŀè",
   "console.workbench.play_time": "Þŀàý ţîɱè",
+  "console.workbench.playable_of_tables": {
+    "one": "{playable} öƒ {count} ţàƀŀè",
+    "other": "{playable} öƒ {count} ţàƀŀèš"
+  },
   "console.workbench.played": "îţ ĥàš ƀèèñ þŀàýèđ",
   "console.workbench.played_2": "Þŀàýèđ ƀý",
   "console.workbench.point_file": "Þöîñţ àţ à ƒîŀè",

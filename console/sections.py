@@ -153,7 +153,8 @@ def overview(library: Library, registry: list[dict], discovery: dict,
                     .classes("console-setting w-40 shrink-0")
                 with ui.element("div").classes("grow min-w-0"):
                     _bar(held / len(library.games) if library.games else 0)
-                ui.label(f"{held} of {len(library.games)}") \
+                ui.label(t("console.sections.held_of_games", held=held,
+                           total=len(library.games))) \
                     .classes("text-xs opacity-60 shrink-0")
 
     ui.label(t("console.sections.what_needs_attention")).classes("console-group mt-4")

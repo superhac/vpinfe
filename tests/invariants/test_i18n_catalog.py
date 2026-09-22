@@ -415,8 +415,10 @@ class _Fstrings(ast.NodeVisitor):
 
     def visit_Call(self, node: ast.Call) -> None:
         name = getattr(node.func, "attr", None) or getattr(node.func, "id", None) or ""
+        self.visit(node.func)
         self.calls.append(name)
-        self.generic_visit(node)
+        for argument in (*node.args, *node.keywords):
+            self.visit(argument)
         self.calls.pop()
 
     def visit_JoinedStr(self, node: ast.JoinedStr) -> None:
@@ -430,6 +432,11 @@ class _Fstrings(ast.NodeVisitor):
 
 class TestNoWordGluedToAValue(unittest.TestCase):
     """An f-string whose typed half is a word rather than a token or a class."""
+
+    def test_a_label_styled_in_the_same_line_is_still_read(self) -> None:
+        seen = _Fstrings()
+        seen.visit(ast.parse('ui.label(f"{a} of {b}").classes("console-help")'))
+        self.assertEqual([" of "], [said for _, said in seen.found])
 
     def test_no_fstring_in_the_console_carries_a_word(self) -> None:
         offenders = []

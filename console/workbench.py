@@ -3710,7 +3710,8 @@ def _location_priority(context: dict[str, Any],
 
     def draw() -> None:
         with ui.row().classes("items-center gap-2 no-wrap"):
-            ui.label(f"{place + 1} of {len(order)}").classes("console-fact-value")
+            ui.label(t("console.workbench.place_of_total", place=place + 1,
+                       total=len(order))).classes("console-fact-value")
             up = ui.button(icon=verbs.UP, on_click=lambda: move(-1)) \
                 .props("flat dense round size=sm").tooltip(t("console.workbench.higher_priority"))
             down = ui.button(icon=verbs.DOWN, on_click=lambda: move(1)) \
@@ -4429,9 +4430,9 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
         # so a game that named two of its tables contributes two.
         # Calling them games is wrong in exactly the case the count is needed for.
         total = len(members)
-        word = "table" if total == 1 else "tables"
-        ui.label(f"{playable} of {total} {word}" if playable != total
-                 else f"{total} {word}").classes("console-card-title")
+        ui.label(t("console.workbench.playable_of_tables", playable=playable, count=total)
+                 if playable != total else t("console.workbench.count_tables", count=total)) \
+            .classes("console-card-title")
         ui.space()
         # The key, beside the count rather than above the rows: a legend the reader
         # scrolls away from stops being one, and this sits in the header that stays.

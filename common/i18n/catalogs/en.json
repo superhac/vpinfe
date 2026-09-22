@@ -309,6 +309,7 @@
   "console.ext_action.not_come_across": "Did not come across ({len})",
   "console.ext_action.not_finish": "It did not finish",
   "console.ext_action.not_run": "It did not run",
+  "console.ext_action.of_expected": "of {want}",
   "console.ext_action.short": "{short} short",
   "console.ext_action.what_happened": "What happened",
   "console.ext_action.working": "Working",
@@ -780,6 +781,7 @@
   "console.sections.games": "games",
   "console.sections.games_saved_copy": "{restorable} games have a saved copy, taken before an upgrade",
   "console.sections.games_saved_copy_from": "{restorable} games have a saved copy from {when}, taken before an upgrade",
+  "console.sections.held_of_games": "{held} of {total}",
   "console.sections.index_could_not_reached": "The index could not be reached, so nothing has been checked",
   "console.sections.known_install": "known to this install",
   "console.sections.library": "Library",
@@ -1067,6 +1069,10 @@
   "console.workbench.could_not_take_copy": "Could not take a copy: {exc}",
   "console.workbench.could_not_use_image": "Could not use that image: {exc}",
   "console.workbench.could_not_work": "Could not work that out: {exc}",
+  "console.workbench.count_tables": {
+    "one": "{count} table",
+    "other": "{count} tables"
+  },
   "console.workbench.create_new_games": "Create new games here",
   "console.workbench.default": "Default - {default_name}",
   "console.workbench.default_changed": "Default changed",
@@ -1204,9 +1210,14 @@
   "console.workbench.own_game_now": "It is its own game now",
   "console.workbench.paging": "Paging",
   "console.workbench.path_table_file": "/path/to/the/table file",
+  "console.workbench.place_of_total": "{place} of {total}",
   "console.workbench.place_table_lives_not": "The place this table lives is not reachable",
   "console.workbench.play_table": "Play this table",
   "console.workbench.play_time": "Play time",
+  "console.workbench.playable_of_tables": {
+    "one": "{playable} of {count} table",
+    "other": "{playable} of {count} tables"
+  },
   "console.workbench.played": "it has been played",
   "console.workbench.played_2": "Played by",
   "console.workbench.point_file": "Point at a file",

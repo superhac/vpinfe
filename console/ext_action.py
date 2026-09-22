@@ -263,7 +263,7 @@ def _counts(want: int, got: int, short: int) -> Any:
             if short:
                 # The number alone cannot say whether it is right. What was expected is
                 # what makes a shortfall visible without anybody counting.
-                ui.label(f"of {want}").classes("console-help")
+                ui.label(t("console.ext_action.of_expected", want=want)).classes("console-help")
                 ui.label(t("console.ext_action.short", short=(short))).classes(
                     "console-member-chip console-chip-warn")
     return draw
