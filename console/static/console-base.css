@@ -1908,12 +1908,16 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   width: 100%;
   padding: 0 12px;
 }
+/* A value's floor is the label column's ceiling: one that cannot shrink below its own
+   width sets the value column's minimum, and the labels get whatever is left. */
+.console-facts > :not(.console-fact-label) { min-width: 0; }
 /* Dimmed, not also shrunk - which this file has said for a while and only half did. The
    value moved to body size and the label stayed a caption, so a label was a size below
    the value it names and only one step of grey from the help under it. Contrast is the
    lever: --ink-2 is the documented secondary at 11.1:1, and the help is --ink-3 at the
    caption size, so the three read as three. */
-.console-fact-label { font-size: var(--fs-body); color: var(--ink-2); line-height: 1.3; }
+.console-fact-label { font-size: var(--fs-body); color: var(--ink-2); line-height: 1.3;
+                      padding-block: calc((var(--fact-row) - 1.3em) / 2); }
 /* Sized to its text: a tooltip anchors to its parent, and a full-width label puts the
    bubble beside the word rather than under it. `max-width` keeps the truncation. */
 /* Under the page name, in the supporting voice: it is read once on arrival and never

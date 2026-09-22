@@ -2275,7 +2275,7 @@ def _program_settings_row(context: dict[str, Any],
             ui.notify(t("console.workbench.could_not_open_settings", exc=(exc)), type="negative")
 
     def draw() -> None:
-        with ui.row().classes("items-center gap-2 no-wrap"):
+        with ui.row().classes("items-center gap-2"):
             panel.state(said, "on" if changed else "off")()
             ui.button(t("console.workbench.edit") if changed
                     else t("console.workbench.set_table"), icon=verbs.EDIT,
