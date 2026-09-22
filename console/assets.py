@@ -165,14 +165,7 @@ def build(found: list[dict[str, Any]], library: Any,
                       lambda event: on_select(by_id.get(grid.focused_row(event))))
 
     async def on_header_context(col_id: str | None) -> None:
-        # Asked of the grid rather than tracked here: a column can also be dragged in
-        # and out of the pinned area, and a local flag would then be wrong.
-        state_now: list[dict[str, Any]] = \
-            await table.run_grid_method("getColumnState") or []
-        entry = next((c for c in state_now if c.get("colId") == col_id), {})
-        menu.clear()
-        with menu:
-            grid.column_menu(menu, table, COLUMNS, col_id, bool(entry.get("pinned")))
+        await grid.header_menu(menu, table, COLUMNS, col_id)
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
         table = grid.build(COLUMNS, built, SCOPE,

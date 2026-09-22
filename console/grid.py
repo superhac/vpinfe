@@ -453,7 +453,64 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         grid.on("columnHeaderContextMenu",
                 lambda event: on_header_context((event.args or {}).get("colId")),
                 args=["colId"])
+    _suppress_empty_menu(grid, rows=on_context is not None,
+                         headers=on_header_context is not None)
     return grid
+
+
+def _suppress_empty_menu(grid: Any, *, rows: bool, headers: bool) -> None:
+    """Stop a right-click with nothing behind it from opening this grid's menu.
+
+    `rows` and `headers` say whether this grid has a menu for each. Guarded by
+    `tests/console/test_context_menus_are_guarded.py`.
+    """
+    ui.run_javascript(f"""
+    (() => {{
+      // Retried rather than assumed: this runs while the page is still being built, and
+      // an element that is not mounted yet would take the guard silently - which reads
+      // exactly like the bug it fixes.
+      const install = (tries) => {{
+      const found = getElement({grid.id});
+      const el = found && found.$el;
+      if (!el) {{ if (tries > 0) requestAnimationFrame(() => install(tries - 1)); return; }}
+      if (el.__hubMenuGuard) return;
+      el.__hubMenuGuard = true;
+      el.addEventListener('contextmenu', (event) => {{
+        const header = event.target.closest('.ag-header-cell');
+        const row = event.target.closest('.ag-row');
+        let offer = false;
+        if (header) {{
+          // AG Grid's own selection column: no name to head a menu, nothing to pin or
+          // hide. `column_menu` answers False for it.
+          const id = header.getAttribute('col-id') || '';
+          offer = {str(headers).lower()} && !id.startsWith('ag-Grid-');
+        }} else if (row) {{
+          offer = {str(rows).lower()};
+        }}
+        if (!offer) {{
+          event.stopPropagation();
+        }}
+      }}, true);
+      }};
+      install(60);
+    }})()
+    """)
+
+
+async def header_menu(menu: Any, table: Any, columns: list[dict[str, Any]],
+                      col_id: str | None) -> None:
+    """Fill the menu for a right-click on a column header.
+
+    Whether the column is pinned is asked of the grid rather than tracked beside it: a
+    column can also be dragged in and out of the pinned area, and a local flag is then
+    wrong.
+    """
+    state_now: list[dict[str, Any]] = \
+        await table.run_grid_method("getColumnState") or []
+    entry = next((one for one in state_now if one.get("colId") == col_id), {})
+    menu.clear()
+    with menu:
+        column_menu(menu, table, columns, col_id, bool(entry.get("pinned")))
 
 
 def column_menu(menu: Any, table: Any, columns: list[dict[str, Any]],
