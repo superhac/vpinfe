@@ -43,6 +43,15 @@ class ContextMenusAreGuarded(unittest.TestCase):
         self.assertIn("}, true);", ast.get_source_segment(source, guard) or "",
                       f"{GUARD}'s listener is no longer on the capture phase")
 
+    def test_devices_suppresses_the_row_that_offers_nothing(self) -> None:
+        """Two layers, and each hides the other's absence: without the guard the menu
+        opens empty, without the early return it opens holding Forget."""
+        source = (CONSOLE / "devices.py").read_text(encoding="utf-8")
+        self.assertIn("rows_without_a_menu=", source,
+                      "the guard is not told which rows offer nothing")
+        self.assertIn('row.get("self")', source,
+                      "the row menu is filled for this install too")
+
     def test_every_context_menu_belongs_to_a_built_grid(self) -> None:
         """Module-level: the menu is created beside the grid it serves, never by it."""
         stray: list[str] = []

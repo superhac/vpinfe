@@ -387,7 +387,8 @@ def _when(stamp: str) -> str:
 def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
           on_select: Callable[[dict | None], Any],
           probe: Callable[[], Any] | None = None,
-          local_device_id: str | None = None) -> None:
+          local_device_id: str | None = None,
+          rerender: Callable[[], None] | None = None) -> None:
     """Devices as a grid, so the selected row is what the workbench answers for.
 
     The same shape every other subject uses. Kind and reachability are columns rather
@@ -430,12 +431,32 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
     grid.on_row_focus(SCOPE,
                       lambda event: on_select(by_id.get(grid.focused_row(event))))
 
+    known = {str(one.get("device_id") or ""): one for one in found}
+
+    def _fill_row_menu(row: dict | None) -> None:
+        menu.clear()
+        if not row or row.get("self"):
+            return
+        device = known.get(str(row.get("id") or ""))
+        if device is None:
+            return
+        with menu:
+            ui.item_label(str(row.get("name") or "")).props("header") \
+                .classes("console-menu-header")
+            ui.separator()
+            ui.menu_item(t("console.devices.forget_device"),
+                         lambda one=device: _confirm_forget(library, one, rerender)) \
+                .classes("console-menu-item console-menu-danger")
+
     async def on_header_context(col_id: str | None) -> None:
         await grid.header_menu(menu, table, COLUMNS, col_id)
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
         table = grid.build(COLUMNS, built, SCOPE,
-                           on_header_context=on_header_context, view_of=showing)
+                           on_context=_fill_row_menu,
+                           on_header_context=on_header_context, view_of=showing,
+                           rows_without_a_menu=[local_device_id] if local_device_id
+                           else None)
         menu = ui.context_menu()
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText",

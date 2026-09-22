@@ -352,7 +352,8 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
           on_context: Callable[[dict | None], Any] | None = None,
           on_header_context: Callable[[str | None], Any] | None = None,
           html_fields: list[str] | None = None,
-          view_of: Callable[[], str] | None = None) -> ui.aggrid:
+          view_of: Callable[[], str] | None = None,
+          rows_without_a_menu: list[str] | None = None) -> ui.aggrid:
     """A grid whose column layout is restored from, and saved to, the API.
 
     `view_of` names the view showing now. Given one, geometry is stored per view - the
@@ -454,14 +455,17 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
                 lambda event: on_header_context((event.args or {}).get("colId")),
                 args=["colId"])
     _suppress_empty_menu(grid, rows=on_context is not None,
-                         headers=on_header_context is not None)
+                         headers=on_header_context is not None,
+                         without=rows_without_a_menu)
     return grid
 
 
-def _suppress_empty_menu(grid: Any, *, rows: bool, headers: bool) -> None:
+def _suppress_empty_menu(grid: Any, *, rows: bool, headers: bool,
+                         without: list[str] | None = None) -> None:
     """Stop a right-click with nothing behind it from opening this grid's menu.
 
-    `rows` and `headers` say whether this grid has a menu for each. Guarded by
+    `rows` and `headers` say whether this grid has a menu for each; `without` names the
+    row ids that have nothing even where the rest do. Guarded by
     `tests/console/test_context_menus_are_guarded.py`.
     """
     ui.run_javascript(f"""
@@ -485,7 +489,9 @@ def _suppress_empty_menu(grid: Any, *, rows: bool, headers: bool) -> None:
           const id = header.getAttribute('col-id') || '';
           offer = {str(headers).lower()} && !id.startsWith('ag-Grid-');
         }} else if (row) {{
-          offer = {str(rows).lower()};
+          const without = {json.dumps(list(without or []))};
+          offer = {str(rows).lower()}
+                  && !without.includes(row.getAttribute('row-id') || '');
         }}
         if (!offer) {{
           event.stopPropagation();

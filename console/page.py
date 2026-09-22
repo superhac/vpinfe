@@ -1024,7 +1024,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             elif view == "devices":
                 devices_page.build(devices, library, state, show_device,
                                    probe=_probe_devices,
-                                   local_device_id=discovery.get("install_id"))
+                                   local_device_id=discovery.get("install_id"),
+                                   rerender=redraw)
             elif view == "settings":
                 settings_page.build_system(library, state, redraw, discovery)
             elif view == "locations":
