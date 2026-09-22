@@ -275,8 +275,8 @@ async def remove(library: Library, row: dict[str, Any]) -> bool:
     """Asked about first. The games in it leave the library, and their records go with
     them - which is where they live, so they are there again if it comes back."""
     if not await confirm.ask(
-            t("console.locations.stop_looking",
-                    value=(row.get('name') or t("console.locations.location_2"))),
+            t("console.locations.stop_looking", value=row["name"]) if row.get("name")
+            else t("console.locations.stop_looking_here"),
             detail=t("console.locations.games_leave_library_nothing"),
             confirm=t("word.remove"), icon=verbs.REMOVE):
         return False

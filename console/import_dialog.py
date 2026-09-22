@@ -165,8 +165,8 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
     with ui.dialog().props("persistent") as dialog, \
             ui.card().classes("console-import-card"):
         if new_folder:
-            ui.label(t("console.import_dialog.import_2",
-                    value=(source or t("console.import_dialog.drop")))) \
+            ui.label(t("console.import_dialog.import_2", value=source) if source
+                     else t("console.import_dialog.import_drop")) \
                 .classes("console-confirm-title")
             ui.label(t("console.import_dialog.files_keep_names_folder")) \
                 .classes("console-help")

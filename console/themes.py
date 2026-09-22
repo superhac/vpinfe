@@ -240,7 +240,7 @@ async def _configure(library: Library, theme: dict[str, Any]) -> None:
     wanted = {option["key"]: values.get(option["key"], option.get("default"))
               for option in options}
     with ui.dialog() as dialog, ui.card().classes("console-confirm console-theme-config"):
-        ui.label(found.get("title") or f"{theme['name']} settings") \
+        ui.label(found.get("title") or t("console.themes.settings_for", name=theme["name"])) \
             .classes("console-confirm-title")
         ui.label(found.get("description")
                  or t("console.themes.belong_theme_saved_own")) \
