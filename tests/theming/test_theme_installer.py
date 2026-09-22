@@ -201,3 +201,32 @@ class MinimumVersionGateTests(unittest.TestCase):
                 registry.install_theme("Fancy")
 
         self.assertNotIsInstance(caught.exception, themes.ThemeVersionError)
+
+
+class ThemesPutThereByHand(unittest.TestCase):
+    def _registry(self, root: Path) -> themes.ThemeRegistry:
+        registry = themes.ThemeRegistry.__new__(themes.ThemeRegistry)
+        registry.themes = {"Reference": {"registry_info": {"theme_base_url": BASE_URL},
+                                         "manifest": {"version": "1.0.0"}}}
+        registry.themes_dir = str(root)
+        registry.store = ThemeInstallStore(str(root))
+        registry._base_url = lambda info: info.get("theme_base_url")
+        return registry
+
+    def test_only_a_folder_no_source_accounts_for_is_one(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _theme(root, "Reference")
+            _theme(root, f"Reference{ASIDE_SUFFIX}")
+            _theme(root, "Mine")
+            (root / "not-a-theme").mkdir()
+
+            self.assertEqual(["Mine"], list(self._registry(root).local_themes()))
+
+    def test_it_counts_as_installed(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _theme(root, "Mine")
+
+            self.assertTrue(self._registry(root).is_installed("Mine"))
+            self.assertFalse(self._registry(root).is_installed("Elsewhere"))

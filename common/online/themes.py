@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import concurrent.futures
+import json
 import logging
 import os
 from io import BytesIO
 from typing import Any
 
 from common.online import theme_releases, theme_sources
-from common.online.theme_installer import ThemeInstallStore
+from common.online.theme_installer import ASIDE_SUFFIX, ThemeInstallStore
 from common.online.theme_registry_client import ThemeRegistryClient, ThemeRegistryError
 from common.paths import CONFIG_DIR, get_ini_config
 from common.values import parse_version
@@ -336,7 +337,26 @@ class ThemeRegistry:
         return updates
 
     def is_installed(self, theme_key: str) -> bool:
-        return self._get_installed_version(theme_key) is not None
+        return (self._get_installed_version(theme_key) is not None
+                or theme_key in self.local_themes())
+
+    def local_themes(self) -> dict[str, dict]:
+        """{folder: manifest} for every theme in the themes folder that no source's
+        theme accounts for."""
+        claimed = {self.get_installed_folder(key) for key in self.themes}
+        found: dict[str, dict] = {}
+        for folder in sorted(os.listdir(self.themes_dir)):
+            if folder in claimed or folder.endswith(ASIDE_SUFFIX) or folder.startswith("."):
+                continue
+            try:
+                with open(os.path.join(self.themes_dir, folder, "manifest.json"),
+                          encoding="utf-8") as handle:
+                    manifest = json.load(handle)
+            except (OSError, ValueError):
+                continue
+            if isinstance(manifest, dict):
+                found[folder] = manifest
+        return found
 
     def get_installed_folder(self, theme_key: str) -> str | None:
         """

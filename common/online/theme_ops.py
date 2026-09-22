@@ -85,6 +85,28 @@ def _described(registry: ThemeRegistry, active: str) -> list[dict[str, Any]]:
             "default_install": bool(info.get("default_install")),
             "update_available": bool(update.get("update_available")) and installed,
             "configurable": bool(schema and schema.get("options")),
+            "origin": "registry",
+        })
+    for key, manifest in registry.local_themes().items():
+        schema = theme_service.load_theme_option_schema(key, registry)
+        out.append({
+            "key": key,
+            "name": str(manifest.get("name") or key),
+            "author": str(manifest.get("author") or ""),
+            "description": str(manifest.get("description") or ""),
+            "version": str(manifest.get("version") or ""),
+            "installed_version": str(manifest.get("version") or ""),
+            "screens": manifest.get("supported_screens"),
+            "type": str(manifest.get("type") or ""),
+            "url": "",
+            "preview": _preview(key, manifest, {}, True),
+            "change_log": str(manifest.get("change_log") or ""),
+            "installed": True,
+            "active": key == active,
+            "default_install": False,
+            "update_available": False,
+            "configurable": bool(schema and schema.get("options")),
+            "origin": "local",
         })
     # Active first, then installed, then the rest - the order somebody scans in.
     out.sort(key=lambda one: (not one["active"], not one["installed"],
