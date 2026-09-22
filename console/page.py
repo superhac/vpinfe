@@ -20,6 +20,7 @@ from console import (
     games,
     grid,
     offload,
+    remembered,
     remote,
     sections,
     tageditor,
@@ -161,9 +162,11 @@ def nav_for(features: Any) -> list[tuple[tuple[str, str, str] | None, tuple[NavI
             out.append((parent, kept))
     return out
 
-def landing_for(views: list[str]) -> str:
-    """The first place in the rail. Settings is the floor, because every install has it
-    and it precedes every other `core` destination."""
+def landing_for(views: list[str], last: str = "") -> str:
+    """Where a bare `/console` opens: where you left off, else the first place in the
+    rail. `last` is dropped unless the rail still holds it."""
+    if last and last in views:
+        return last
     return next(iter(views), "settings")
 
 
@@ -449,7 +452,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     nav_groups = nav_for(discovery.get("features"))
     nav_items = [item for _parent, items in nav_groups for item in items]
 
-    landing_view = landing_for([key for key, *_rest in nav_items])
+    landing_view = landing_for([key for key, *_rest in nav_items],
+                               str(remembered.get("section", "") or ""))
 
     def show_extension(name: str) -> None:
         """Open one extension's own page, or go back to the list."""
@@ -1228,10 +1232,11 @@ def _nav_parent(parent: tuple[str, str, str], state: dict[str, Any],
     the only row left that can say something under it wants attention.
     """
     key, label, icon = parent
-    state.setdefault(f"{key}_open", True)
+    state.setdefault(f"{key}_open", bool(remembered.get(f"open.{key}", True)))
 
     def toggle() -> None:
         state[f"{key}_open"] = not state[f"{key}_open"]
+        remembered.put(f"open.{key}", state[f"{key}_open"])
         _show_group(state[f"{key}_open"], caret, held)
 
     # A row rather than a link: this one opens and closes the entries under it and has
@@ -1271,6 +1276,7 @@ def leave_for(state: dict[str, Any], view: str) -> None:
         state["game"] = ""
         state["table"] = ""
     state["view"] = view
+    remembered.put("section", view)
 
 
 def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render: Callable[..., Any],

@@ -65,6 +65,20 @@ class NavTests(unittest.TestCase):
                 with self.subTest(features=chosen):
                     self.assertNotEqual("extensions", page.landing_for(rail))
 
+    def test_where_you_left_off_wins_when_the_rail_still_holds_it(self) -> None:
+        rail = _rail(install_identity.DEFAULT_FEATURES)
+        self.assertIn("media", rail)
+        self.assertEqual("media", page.landing_for(rail, "media"))
+
+    def test_a_section_the_install_no_longer_has_is_dropped(self) -> None:
+        rail = _rail([install_identity.FRONTEND])
+        self.assertNotIn("media", rail)
+        self.assertEqual(page.landing_for(rail), page.landing_for(rail, "media"))
+
+    def test_remembering_nothing_lands_where_it_always_did(self) -> None:
+        rail = _rail(install_identity.DEFAULT_FEATURES)
+        self.assertEqual(page.landing_for(rail), page.landing_for(rail, ""))
+
     def test_reporting_nothing_is_not_the_same_as_being_for_nothing(self) -> None:
         """An install that is for nothing still reports `core`, so an empty list is a
         machine that has not answered - and the rail assumes the ordinary install
