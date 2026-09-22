@@ -390,8 +390,9 @@ class AssetEntry(ApiModel):
 
 
 class Guide(ApiModel):
-    """Material that explains a machine. `url` is empty where the catalog lists only a
-    video, and `youtube_id` then names it. `source` is where it lives, for showing."""
+    """Material that explains a machine. `url` always opens it; `youtube_id` is there
+    for a surface that plays the video in place. `source` is where it lives, for
+    showing."""
 
     kind: str
     title: str = ""

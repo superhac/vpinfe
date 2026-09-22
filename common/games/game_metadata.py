@@ -745,20 +745,28 @@ GUIDE_SOURCES = {
 }
 
 
+YOUTUBE_WATCH = "https://www.youtube.com/watch?v={id}"
+
+
+def guide_address(guide: dict[str, Any]) -> str:
+    """Where `guide` opens: its url, or the video it names where it has none."""
+    said = str(guide.get("url") or "")
+    video = str(guide.get("youtube_id") or "")
+    return said or (YOUTUBE_WATCH.format(id=video) if video else "")
+
+
 def guide_source(guide: dict[str, Any]) -> str:
     """A display name for `guide`'s host, or the host itself."""
-    host = urlparse(str(guide.get("url") or "")).netloc.lower()
-    if not host:
-        return GUIDE_SOURCES["youtube.com"] if guide.get("youtube_id") else ""
+    host = urlparse(guide_address(guide)).netloc.lower()
     return GUIDE_SOURCES.get(host, host)
 
 
 def guides_on_wire(config: Any) -> list[dict[str, Any]]:
-    """The stored guides, each with `source` added."""
+    """The stored guides, each with an address to open and where it lives."""
     from common.games.info_file import GUIDES_KEY
 
     held = normalize_meta(config).get(GUIDES_KEY)
-    return [{**one, "source": guide_source(one)}
+    return [{**one, "url": guide_address(one), "source": guide_source(one)}
             for one in (held if isinstance(held, list) else []) if isinstance(one, dict)]
 
 

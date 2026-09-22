@@ -127,6 +127,21 @@ class OnTheWire(unittest.TestCase):
 
         self.assertEqual([], guides_on_wire({}))
 
+    def test_a_video_with_no_url_opens_on_youtube_and_keeps_its_id(self) -> None:
+        from common.games.game_metadata import guides_on_wire
+
+        sent = guides_on_wire({GUIDES_KEY: [{"kind": "tutorial", "url": "",
+                                             "youtube_id": "abc"}]})
+        self.assertEqual(("https://www.youtube.com/watch?v=abc", "abc"),
+                         (sent[0]["url"], sent[0]["youtube_id"]))
+
+    def test_a_url_is_sent_as_it_is_stored(self) -> None:
+        from common.games.game_metadata import guides_on_wire
+
+        sent = guides_on_wire({GUIDES_KEY: [{"kind": "tutorial", "url": "https://a/b",
+                                             "youtube_id": "abc"}]})
+        self.assertEqual("https://a/b", sent[0]["url"])
+
 
 if __name__ == "__main__":
     unittest.main()
