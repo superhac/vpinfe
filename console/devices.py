@@ -421,7 +421,7 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
                                   "console-panel console-grid-bar"):
         bar = panel.grid_bar()
-        _wire_views, _picker, showing, describe = view_control(library, SCOPE, VIEWS,
+        wire_views, _picker, showing, describe = view_control(library, SCOPE, VIEWS,
                                                     _ALL, COLUMNS, bar=bar)
         describe()
         with bar.top, panel.bar_end():
@@ -473,6 +473,7 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
 
         # Inside the wrapper, so it goes when the grid does.
         ui.timer(60, keep_current)
+    wire_views(table)
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                       search.value or ""))
