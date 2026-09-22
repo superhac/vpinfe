@@ -167,7 +167,9 @@ Runtime state written by VPinFE, not shown as a setting.
 | --- | --- | --- | --- |
 | `last` | string |  |  |
 | `checked` | string |  |  |
-| `refresh` | choice (never, daily, weekly, monthly) | `daily` | How often to check whether the spreadsheet has changed. Matching and release lists read the copy on this machine, so this is how current they are. |
+| `download` | choice (never, daily, weekly, monthly) | `daily` | How often to fetch the spreadsheet. Matching and release lists read this copy. |
+| `update_matched_games` | choice (never, daily, weekly, monthly) | `never` | How often to re-copy name, year, type, themes and guides onto matched games. |
+| `games_updated_to` | string |  |  |
 
 ### `state`
 

@@ -31,32 +31,32 @@ def _ago(seconds: float) -> str:
 class DueTests(unittest.TestCase):
     def test_never_checked_is_due(self) -> None:
         """A fresh install holding no catalog should not wait a day for one."""
-        self.assertTrue(vpsdb_sync.due(_config(refresh="daily")))
+        self.assertTrue(vpsdb_sync.due(_config(download="daily")))
 
     def test_never_is_not_an_interval(self) -> None:
         """It is a decision not to ask, not a very long wait - so even never having
         asked does not make it due."""
-        self.assertFalse(vpsdb_sync.due(_config(refresh="never")))
+        self.assertFalse(vpsdb_sync.due(_config(download="never")))
 
     def test_inside_the_interval_is_not_due(self) -> None:
-        self.assertFalse(vpsdb_sync.due(_config(refresh="daily", checked=_ago(3600))))
+        self.assertFalse(vpsdb_sync.due(_config(download="daily", checked=_ago(3600))))
 
     def test_past_the_interval_is_due(self) -> None:
-        self.assertTrue(vpsdb_sync.due(_config(refresh="daily", checked=_ago(90000))))
+        self.assertTrue(vpsdb_sync.due(_config(download="daily", checked=_ago(90000))))
 
     def test_a_longer_schedule_holds_longer(self) -> None:
         day_old = _ago(90000)
-        self.assertTrue(vpsdb_sync.due(_config(refresh="daily", checked=day_old)))
-        self.assertFalse(vpsdb_sync.due(_config(refresh="weekly", checked=day_old)))
+        self.assertTrue(vpsdb_sync.due(_config(download="daily", checked=day_old)))
+        self.assertFalse(vpsdb_sync.due(_config(download="weekly", checked=day_old)))
 
     def test_a_schedule_this_build_does_not_know_asks_nothing(self) -> None:
         """A config from a newer build must not be read as "every time"."""
-        self.assertFalse(vpsdb_sync.due(_config(refresh="hourly")))
+        self.assertFalse(vpsdb_sync.due(_config(download="hourly")))
 
 
 class SyncTests(unittest.TestCase):
     def test_not_due_does_not_download(self) -> None:
-        config = _config(refresh="daily", checked=_ago(60))
+        config = _config(download="daily", checked=_ago(60))
         with patch("common.games.game_service.ensure_vpsdb_downloaded") as fetch:
             result = vpsdb_sync.sync(config)
 
@@ -66,7 +66,7 @@ class SyncTests(unittest.TestCase):
     def test_forced_ignores_the_schedule(self) -> None:
         """Asked for by a person. Answering "not due" would report a rule back to
         whoever is overriding it."""
-        config = _config(refresh="never", checked=_ago(60))
+        config = _config(download="never", checked=_ago(60))
         with patch("common.games.game_service.ensure_vpsdb_downloaded",
                    return_value=True) as fetch:
             result = vpsdb_sync.sync(config, force=True)
@@ -75,7 +75,7 @@ class SyncTests(unittest.TestCase):
         self.assertTrue(result["checked"])
 
     def test_a_check_that_found_nothing_new_says_so(self) -> None:
-        config = _config(refresh="daily", last="1788355140571")
+        config = _config(download="daily", last="1788355140571")
         with patch("common.games.game_service.ensure_vpsdb_downloaded",
                    return_value=True):
             result = vpsdb_sync.sync(config, force=True)
@@ -85,7 +85,7 @@ class SyncTests(unittest.TestCase):
 
     def test_a_failed_check_still_stamps(self) -> None:
         """Or an unreachable catalog is re-asked on every draw."""
-        config = _config(refresh="daily")
+        config = _config(download="daily")
         with patch("common.games.game_service.ensure_vpsdb_downloaded",
                    return_value=False):
             vpsdb_sync.sync(config, force=True)

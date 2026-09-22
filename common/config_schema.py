@@ -687,11 +687,27 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             internal=True,
         ),
         ConfigOption(
-            "refresh",
+            "download",
             group="Virtual Pinball Spreadsheet",
             type="choice",
             default="daily",
             choices=("never", "daily", "weekly", "monthly"),
+        ),
+        # Separate from `download`: a machine can want current data for matching
+        # without wanting its games rewritten.
+        ConfigOption(
+            "update_matched_games",
+            group="Virtual Pinball Spreadsheet",
+            type="choice",
+            default="never",
+            choices=("never", "daily", "weekly", "monthly"),
+        ),
+        # The spreadsheet version the games were last brought up to.
+        ConfigOption(
+            "games_updated_to",
+            type="string",
+            default="",
+            internal=True,
         ),
     ),
     *in_section(

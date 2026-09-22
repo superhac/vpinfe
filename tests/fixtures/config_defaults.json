@@ -123,8 +123,10 @@
   },
   "vpsdb": {
     "checked": "",
+    "download": "daily",
+    "games_updated_to": "",
     "last": "",
-    "refresh": "daily"
+    "update_matched_games": "never"
   },
   "vpxmobile": {
     "chunk_size": "1048576",

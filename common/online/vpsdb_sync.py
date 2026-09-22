@@ -34,8 +34,8 @@ EVERY = {
 }
 
 
-def schedule(config: ConfigStore) -> str:
-    return (cfg_get(config, SECTION, "refresh", "daily") or "daily").strip().lower()
+def schedule(config: ConfigStore, key: str = "download", default: str = "daily") -> str:
+    return (cfg_get(config, SECTION, key, default) or default).strip().lower()
 
 
 def checked_at(config: ConfigStore) -> str:
@@ -57,6 +57,48 @@ def due(config: ConfigStore, now: float | None = None) -> bool:
         return True
     moment = timestamps.iso_to_epoch(timestamps.utc_now_iso()) if now is None else now
     return (moment or 0) - was >= EVERY[wanted].total_seconds()
+
+
+def adopt_due(config: ConfigStore) -> bool:
+    """Whether the library is owed a sweep against the catalog it now holds."""
+    wanted = schedule(config, "update_matched_games", NEVER)
+    if wanted == NEVER or wanted not in EVERY:
+        return False
+    held = (cfg_get(config, SECTION, "last", "") or "").strip()
+    taken = (cfg_get(config, SECTION, "games_updated_to", "") or "").strip()
+    return bool(held) and held != taken
+
+
+def adopt_across_library(config: ConfigStore) -> dict:
+    """Take what the catalog now says, for every game already matched to it.
+
+    Answers `{looked, changed}`. Skips a game with no match, and writes only fields
+    that differ.
+    """
+    from common.config_access import cfg_set
+    from common.games import game_service
+    from common.games.game_metadata import adopt_vps_details, vps_details_differ
+    from common.games.game_repository import all_games
+
+    changed = looked = 0
+    for game in all_games():
+        entry = game_service.matched_vps_entry(game)
+        if not entry:
+            continue
+        looked += 1
+        try:
+            if vps_details_differ(game.meta_config, entry):
+                adopt_vps_details(game, entry)
+                changed += 1
+        except Exception:
+            logger.warning("Could not take catalog details for %s",
+                           getattr(game, "game_dir_name", "?"), exc_info=True)
+    cfg_set(config, SECTION, "games_updated_to",
+            (cfg_get(config, SECTION, "last", "") or "").strip())
+    save = getattr(config, "save", None)
+    if callable(save):
+        save()
+    return {"looked": looked, "changed": changed}
 
 
 def stamp(config: ConfigStore) -> None:
@@ -120,6 +162,14 @@ def start_watch(config: ConfigStore, shutdown: threading.Event | None = None) ->
                         logger.info("VPSdb updated to %s", result.get("version") or "?")
             except Exception:
                 logger.warning("VPSdb check failed; will try again", exc_info=True)
+            try:
+                if adopt_due(config):
+                    took = adopt_across_library(config)
+                    logger.info("Took catalog details for %s of %s matched games",
+                                took["changed"], took["looked"])
+            except Exception:
+                logger.warning("Taking catalog details failed; will try again",
+                               exc_info=True)
             stop.wait(_WAKE_SECONDS)
 
     thread = threading.Thread(target=run, name="vpsdb-sync", daemon=True)
