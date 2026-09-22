@@ -17,7 +17,7 @@ from nicegui import run, ui
 
 from common import i18n
 from common.i18n import t
-from console import offload
+from console import offload, renderers
 
 logger = logging.getLogger("vpinfe.console.grid")
 
@@ -340,8 +340,16 @@ GROUP_KEY = "group"
 
 def for_grid(columns: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The definitions as AG Grid wants them, without our own keys."""
-    return [{k: v for k, v in column.items() if k not in (GROUP_KEY, PICKER_KEY)}
+    return [{k: v for k, v in column.items()
+             if k not in (GROUP_KEY, PICKER_KEY, renderers.CHOICES_KEY)}
             for column in columns]
+
+
+def base_row_px(columns: list[dict[str, Any]]) -> int:
+    """The row height the grid's own text needs, before any drawing asks for more."""
+    two_line = any(TWO_LINE_CLASS in str(definition.get("cellClass") or "")
+                   for definition in columns)
+    return TWO_LINE_ROW_PX if two_line else ONE_LINE_ROW_PX
 
 
 def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
@@ -368,12 +376,13 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
             f"{scope}: a grid declares exactly one grid.identifier() column, "
             f"the one its rows are scanned by; this one declares {len(marked)}"
             + (f" ({', '.join(str(m) for m in marked)})" if marked else ""))
-    two_line = any(TWO_LINE_CLASS in str(definition.get("cellClass") or "")
-                   for definition in columns)
+    two_line = base_row_px(columns) == TWO_LINE_ROW_PX
     grid = ui.aggrid({
         "columnDefs": for_grid(columns),
         "rowData": rows,
-        "rowHeight": TWO_LINE_ROW_PX if two_line else ONE_LINE_ROW_PX,
+        "rowHeight": base_row_px(columns),
+        # Which grid a cell belongs to, for a column drawn by name.
+        "context": {"scope": scope},
         "defaultColDef": DEFAULT_COL_DEF,
         # Clicking a cell takes focus and nothing else. Click-selection in multiRow
         # mode *replaces* the set, so a cell click would clear every checkbox a bulk
@@ -432,6 +441,7 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         .forEach(e => e.classList.add('console-row-focus'));
     };
     """)
+    renderers.install()
     _restore(grid, scope, columns, view_of)
     _save_on_change(grid, scope, view_of)
     if on_select_rows is not None:

@@ -25,6 +25,7 @@ from console import (
     mediaview,
     offload,
     panel,
+    renderers,
     send_to_device,
     stars,
     table_features,
@@ -190,10 +191,6 @@ GAME_VIEWS: dict[str, list[str] | views.Preset] = {
 _ALL = [definition["field"] for definition in COLUMNS]
 
 
-# A renderer is a way of drawing a field, chosen per column. Two here, hardcoded, to
-# see whether the idea earns a registry: the same media field as a mark or as a picture.
-RENDERERS = (t("console.games.ticks"), t("console.games.thumbnails"))
-
 # What one row is: three grains of the library the user owns - the folder, the
 # launchable file inside it, and the asset that resolved for it. Everything here has to
 # be something the workbench can answer for, which is what keeps a catalog out.
@@ -219,13 +216,6 @@ def asset_columns(keys: list[str]) -> list[dict[str, Any]]:
             for key, label in sorted(labels.items(), key=lambda kv: kv[1].lower())]
 
 
-# Word -> how to draw it, derived from the vocabulary rather than restated. The cell
-# holds the word and the mark is drawn from it here; `console/data.py` has why.
-_MARK_BY_WORD = {
-    tier.noun: {"mark": tier.mark, "why": t(tier.why), "word": t(tier.noun)}
-    for tier in (media_ownership.tier_for(key) for key in media_ownership.STATES)
-}
-
 # What the funnel offers on a media column, in the legend's own words and marks. The
 # value is what the cell holds - "" for missing, which is a blank cell and so a choice
 # like any other rather than the one state the filter cannot express.
@@ -240,30 +230,6 @@ _STATE_CHOICES = [
               else f"console-mark {media_ownership.tier_for(key).mark}")}
     for key in media_ownership.STATES
 ]
-
-
-# One renderer for both presentations, choosing on a flag rather than on the value.
-# The alternative - swapping the column's renderer - cannot work: the ":" prefix that
-# marks a string as JavaScript is resolved when the grid is built, so a definition
-# pushed through `setGridOption` later arrives as a literal string.
-#
-# With the pictures on, a kind that has no picture - audio, video, a rule sheet - keeps
-# its mark rather than emptying: the file is there either way, and a column that goes
-# blank when you ask to see the art reads as one that lost its files.
-_MARK_RENDERER = (
-    "params => {"
-    " const kind = params.colDef.field.slice(6);"
-    " if (window.__hubThumbs) {"
-    " const row = params.data || {}; const art = row['thumb_' + kind];"
-    " if (art) return '<span class=\"console-cell-art\">' + art"
-    " + '<i class=\"material-icons console-cell-zoom\" title=\"Enlarge\" data-game=\"'"
-    " + row.id + '\" data-kind=\"' + kind + '\">open_in_full</i></span>'; }"
-    " const m = " + json.dumps(_MARK_BY_WORD) + ";"
-    " const t = m[params.value]; if (!t) return '';"
-    " const tip = t.word + ' \u2014 ' + t.why;"
-    " return '<span class=\"console-mark ' + t.mark + '\" title=\"' + tip"
-    " + '\"></span>'; }"
-)
 
 
 # Delegated and installed once: NiceGUI strips inline handlers off raw HTML, and a
@@ -356,7 +322,7 @@ def media_columns(kinds: list[str]) -> list[dict[str, Any]]:
                         cellClass="console-media-cell", group=t(_MEDIA),
                         help=t("help.media_kind", label=(header)),
                         **grid.choice_filter(_STATE_CHOICES),
-                        **{":cellRenderer": _MARK_RENDERER})
+                        **renderers.drawable("mark", "picture"))
             for kind, header in headers.items()]
 
 
@@ -421,22 +387,6 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                        columns=("name",
                                 *[f"asset_{key}" for key in library.asset_keys()]),
                        help=t("console.view.game_assets.help"))}
-        drawn: dict[str, str] = {"as": t("console.games.ticks")}
-
-        def presentation() -> None:
-            """Marks or pictures, where every other thing about the view is set."""
-            if showing() != "builtin:Media":
-                return
-            ui.item_label(t("console.games.show_media_as")).props("header") \
-                .classes("console-menu-header")
-            ui.toggle(list(RENDERERS), value=drawn["as"],
-                      on_change=lambda event: _redraw(event.value)) \
-                .props("dense no-caps unelevated").classes("q-mx-sm q-mb-xs")
-
-        def _redraw(value: str) -> None:
-            drawn["as"] = value
-            apply_renderer()
-
         def annotate() -> None:
             """The key to the marks, on the line that says what the view is for.
 
@@ -456,8 +406,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                                         lambda value: value == "builtin:Media")
 
         wire_views, view_picker, showing, describe = view_control(
-            library, SCOPE, presets, all_fields, columns, bar=bar,
-            presentation=presentation, annotate=annotate)
+            library, SCOPE, presets, all_fields, columns, bar=bar, annotate=annotate)
         describe()
         with bar.top, panel.bar_end():
             search = panel.search(t("console.games.search_games"))
@@ -630,30 +579,6 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
 
     state["refresh_game"] = refresh_game
 
-    def apply_renderer() -> None:
-        """Redraw the media cells as marks or as pictures.
-
-        The *renderer* changes; the value never does. Swapping the picture into the
-        value leaves the filter matching whichever presentation is showing, so filtering
-        by "All tables" breaks the moment the thumbnails come on.
-        """
-        thumbs = drawn["as"] == t("console.games.thumbnails")
-        height = 74 if thumbs else grid.TWO_LINE_ROW_PX
-        ui.run_javascript(f"window.__hubThumbs = {str(thumbs).lower()}")
-        table.run_grid_method("setGridOption", "rowHeight", height)
-        # The same number twice, because AG Grid keeps two: the option lays the row out,
-        # `--ag-row-height` is what its stylesheet derives a cell's line height from and
-        # it does not follow the option. Left behind, every cell in a taller row - the
-        # name as much as the picture - draws against the default line box and sits high
-        # in it.
-        # Set on the node, never with `.style()`: mutating the element makes nicegui
-        # rebuild the grid from `columnDefs`, losing every imperative call - which is
-        # a view's columns, widths, sort and filters.
-        ui.run_javascript(
-            f"getElement({table.id}).$el.style.setProperty("
-            f"'--ag-row-height', '{height}px')")
-        table.run_grid_method("redrawRows")
-
     wire_views(table)
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText", search.value or ""))
@@ -798,7 +723,7 @@ def table_asset_columns(keys: list[str]) -> list[dict[str, Any]]:
                         cellClass="console-media-cell", group=t(_ASSETS),
                         help=t("help.table_asset_kind", label=(header)),
                         **grid.choice_filter(_STATE_CHOICES),
-                        **{":cellRenderer": _MARK_RENDERER})
+                        **renderers.drawable("mark"))
             for key, header in headers.items()]
 
 
@@ -1223,7 +1148,6 @@ def view_control(library: Any, scope: str,
                  presets: Mapping[str, list[str] | views.Preset],
                  all_fields: list[str],
                  columns: list[dict[str, Any]], *, bar: Any,
-                 presentation: Callable[[], None] | None = None,
                  annotate: Callable[[], None] | None = None) -> Any:
     """One control for how the rows are presented: which view, and what is in it.
 
@@ -1241,7 +1165,7 @@ def view_control(library: Any, scope: str,
     if active not in {view.id for view in known}:
         active = known[0].id
     held: dict[str, Any] = {"views": known, "active": active, "custom": custom,
-                            "modified": False}
+                            "modified": False, "drawing": {}}
 
     top = bar.top
     with top:
@@ -1292,6 +1216,19 @@ def view_control(library: Any, scope: str,
                 .classes("truncate console-view-purpose-text")
 
     def wire(table: ui.aggrid) -> None:
+        def draw(shown: list[str]) -> None:
+            """Put the drawing in `held` on screen, and the row height it needs."""
+            renderers.draw_as(scope, held["drawing"])
+            height = renderers.row_px(held["drawing"], shown, grid.base_row_px(columns))
+            table.run_grid_method("setGridOption", "rowHeight", height)
+            # The same number twice: the option lays the row out, and `--ag-row-height`
+            # is what a cell's line box is derived from. Set on the node - `.style()`
+            # would make nicegui rebuild the grid and lose the view.
+            ui.run_javascript(
+                f"getElement({table.id}).$el.style.setProperty("
+                f"'--ag-row-height', '{height}px')")
+            table.run_grid_method("redrawRows")
+
         async def apply(view: Any) -> None:
             """Put a view on the grid: which columns, sorted how, filtered to what -
             and then this view's own widths, which the grid does not carry across a
@@ -1318,6 +1255,8 @@ def view_control(library: Any, scope: str,
             # what the last one filtered, which is what makes picking one a way out
             # rather than a hope.
             table.run_grid_method("setFilterModel", view.filters or None)
+            held["drawing"] = dict(view.drawn)
+            draw(wanted)
             # After visibility, because `applyOrder` only orders what is showing.
             await grid.apply_layout(table, scope, columns, lambda: held["active"])
             await _refresh()
@@ -1348,7 +1287,7 @@ def view_control(library: Any, scope: str,
                              "leaving the view mark as it is")
                 return
             view = current()
-            changed = views.differs(view, shown, sort, model)
+            changed = views.differs(view, shown, sort, model, held["drawing"])
             # On the picker rather than beside it: the drift is a fact about the view
             # that is selected, so it belongs to the control that names it.
             picker.props(add="suffix=modified") if changed \
@@ -1380,7 +1319,8 @@ def view_control(library: Any, scope: str,
                               name=wanted,
                               builtin=False, columns=shown,
                               sort=tuple(e for e in sort if e.get("sort")),
-                              filters=model, help=said.strip())
+                              filters=model, help=said.strip(),
+                              drawn=dict(held["drawing"]))
             held["custom"] = [v for v in held["custom"] if v.id != view.id] + [view]
             held["views"] = views.builtins(presets) + held["custom"]
             held["active"] = view.id
@@ -1440,8 +1380,7 @@ def view_control(library: Any, scope: str,
                 if not view.builtin and not held["modified"]:
                     ui.menu_item(t("console.games.delete_view"), delete) \
                         .classes("console-menu-item console-menu-danger")
-                if presentation is not None:
-                    presentation()
+                drawings(hidden)
                 ui.separator()
                 # An explicit column: the menu lays its children out inline otherwise,
                 # so twenty checkboxes wrap into a paragraph rather than a list.
@@ -1466,6 +1405,35 @@ def view_control(library: Any, scope: str,
                             if explains:
                                 with box:
                                     ui.tooltip(explains).classes("console-menu-tip")
+
+        def drawings(hidden: set[str]) -> None:
+            """How each shown group of columns is drawn, where it can be drawn more
+            than one way."""
+            shown = [d for d in columns if d["field"] not in hidden]
+            for heading, group in _by_group(shown):
+                offered = [renderers.choices(d) for d in group if len(renderers.choices(d)) > 1]
+                if not offered:
+                    continue
+                names = offered[0]
+                fields = [d["field"] for d in group if renderers.choices(d) == names]
+                now = held["drawing"].get(fields[0], names[0])
+                ui.item_label(t("console.games.show_as", group=heading or t("word.columns"))) \
+                    .props("header").classes("console-menu-header")
+                ui.toggle({name: t(renderers.REGISTRY[name].label) for name in names},
+                          value=now,
+                          on_change=lambda event, f=fields, n=names:
+                          redraw(f, n, str(event.value))) \
+                    .props("dense no-caps unelevated").classes("q-mx-sm q-mb-xs")
+
+        async def redraw(fields: list[str], names: tuple[str, ...], chosen: str) -> None:
+            for one in fields:
+                if chosen == names[0]:
+                    held["drawing"].pop(one, None)
+                else:
+                    held["drawing"][one] = chosen
+            state = await table.run_grid_method("getColumnState") or []
+            draw([e["colId"] for e in state if not e.get("hide")])
+            await _refresh()
 
         menu_button.on_click(fill_menu)
         picker.on_value_change(lambda event: pick(event.value))

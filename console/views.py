@@ -42,6 +42,8 @@ class View:
     filters: dict[str, Any] = field(default_factory=dict)
     # What this view is for. Ours on a built-in, the user's on one they saved.
     help: str = ""
+    # field -> the drawing it uses, where that is not the column's own.
+    drawn: dict[str, str] = field(default_factory=dict)
 
 
 def mint_id() -> str:
@@ -66,6 +68,7 @@ class Preset:
     # filter - a reader can see which rows are here; what they cannot see is why this
     # was worth building a view for.
     help: str = ""
+    drawn: dict[str, str] = field(default_factory=dict)
 
 
 def builtins(presets: Mapping[str, list[str] | Preset]) -> list[View]:
@@ -74,14 +77,15 @@ def builtins(presets: Mapping[str, list[str] | Preset]) -> list[View]:
                  columns=tuple(preset.columns if isinstance(preset, Preset) else preset),
                  sort=tuple(preset.sort) if isinstance(preset, Preset) else (),
                  filters=dict(preset.filters) if isinstance(preset, Preset) else {},
-                 help=preset.help if isinstance(preset, Preset) else "")
+                 help=preset.help if isinstance(preset, Preset) else "",
+                 drawn=dict(preset.drawn) if isinstance(preset, Preset) else {})
             for name, preset in presets.items()]
 
 
 def to_record(view: View) -> dict[str, Any]:
     return {"id": view.id, "name": view.name, "builtin": view.builtin,
             "columns": list(view.columns), "sort": list(view.sort),
-            "filters": view.filters, "help": view.help}
+            "filters": view.filters, "help": view.help, "drawn": view.drawn}
 
 
 def from_record(record: dict[str, Any]) -> View:
@@ -93,7 +97,8 @@ def from_record(record: dict[str, Any]) -> View:
                 columns=tuple(str(c) for c in (record.get("columns") or [])),
                 sort=tuple(record.get("sort") or []),
                 filters=dict(record.get("filters") or {}),
-                help=str(record.get("help") or ""))
+                help=str(record.get("help") or ""),
+                drawn={str(k): str(v) for k, v in (record.get("drawn") or {}).items()})
 
 
 def stored(library: Any, scope: str) -> tuple[list[View], str]:
@@ -133,12 +138,13 @@ def visible_columns(view: View, all_fields: list[str]) -> list[str] | None:
 
 
 def differs(view: View, columns: tuple[str, ...], sort: tuple[dict, ...],
-            filters: dict[str, Any]) -> bool:
+            filters: dict[str, Any], drawn: dict[str, str] | None = None) -> bool:
     """Whether the screen has drifted from the selected view. Column *order* is not
     compared: dragging one is layout, which the grid keeps for itself."""
     return (set(view.columns) != set(columns)
             or _sort_key(view.sort) != _sort_key(sort)
-            or (view.filters or {}) != (filters or {}))
+            or (view.filters or {}) != (filters or {})
+            or (view.drawn or {}) != (drawn or {}))
 
 
 def _sort_key(sort: Any) -> list[tuple[str, str]]:
