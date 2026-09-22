@@ -111,6 +111,22 @@ class WhatTheDifferSays(unittest.TestCase):
 
         self.assertEqual("", _said([], "guides"))
 
+class OnTheWire(unittest.TestCase):
+    def test_each_guide_says_where_it_lives(self) -> None:
+        from common.games.game_metadata import guides_on_wire
+
+        config = {GUIDES_KEY: [
+            {"kind": "tutorial", "url": PINBALL_PRIMER_PREFIX + "x.html"},
+            {"kind": "tutorial", "url": "", "youtube_id": "abc"},
+            {"kind": "tutorial", "url": "https://example.org/rules"}]}
+        self.assertEqual(["Pinball Primer", "YouTube", "example.org"],
+                         [one["source"] for one in guides_on_wire(config)])
+
+    def test_no_guides_is_an_empty_list(self) -> None:
+        from common.games.game_metadata import guides_on_wire
+
+        self.assertEqual([], guides_on_wire({}))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -18,6 +18,7 @@ from common.games.game_metadata import (
     game_title,
     game_type,
     game_year,
+    guides_on_wire,
     play_record,
     table_descriptor,
 )
@@ -56,6 +57,7 @@ def entry_resource(entry: Entry, group: str | None = None) -> dict:
             "user": play_record(meta),
             "ipdb_id": game_ipdb_id(entry.game),
             "tutorial": contract_1_tutorial(entry.game.meta_config),
+            "guides": guides_on_wire(entry.game.meta_config),
             "overrides": {
                 "alt_title": str(vpinfe.get("alt_title", "") or ""),
                 "alt_vps_id": str(vpinfe.get("alt_vpsid", "") or ""),

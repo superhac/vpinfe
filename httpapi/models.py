@@ -389,6 +389,18 @@ class AssetEntry(ApiModel):
     files: list[AssetFileBinding] | None = None
 
 
+class Guide(ApiModel):
+    """Material that explains a machine. `url` is empty where the catalog lists only a
+    video, and `youtube_id` then names it. `source` is where it lives, for showing."""
+
+    kind: str
+    title: str = ""
+    authors: list[str] = Field(default_factory=list)
+    url: str = ""
+    youtube_id: str = ""
+    source: str = ""
+
+
 class GameLinks(ApiModel):
     self_: str = Field(alias="self")
     tables: str
@@ -639,6 +651,7 @@ class GameResource(ApiModel):
     # every game and published nowhere until now.
     ipdb_id: str = ""
     tutorial: str = ""
+    guides: list[Guide] = Field(default_factory=list)
     links: GameLinks
 
 
@@ -1175,6 +1188,7 @@ class EntryGame(ApiModel):
     user: PlayRecord = Field(default_factory=PlayRecord)
     ipdb_id: str = ""
     tutorial: str = ""
+    guides: list[Guide] = Field(default_factory=list)
     overrides: EntryOverrides = Field(default_factory=EntryOverrides)
 
 

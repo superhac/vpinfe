@@ -274,6 +274,7 @@
         "game": {
           "created_at": "2026-01-01T00:00:00Z",
           "dir_name": "Attack from Mars (Bally 1995)",
+          "guides": [],
           "id": "afm0000001",
           "ipdb_id": "",
           "manufacturer": "Bally",
@@ -358,6 +359,7 @@
         "game": {
           "created_at": "2026-01-01T00:00:00Z",
           "dir_name": "Bare Table (Gottlieb 1980)",
+          "guides": [],
           "id": "bar0000001",
           "ipdb_id": "",
           "manufacturer": "Gottlieb",
@@ -433,6 +435,7 @@
         "game": {
           "created_at": "2026-01-01T00:00:00Z",
           "dir_name": "Congo (Williams 1995)",
+          "guides": [],
           "id": "cng0000001",
           "ipdb_id": "",
           "manufacturer": "Williams",
@@ -510,6 +513,7 @@
         "game": {
           "created_at": "2026-01-01T00:00:00Z",
           "dir_name": "Medieval Madness (Williams 1997)",
+          "guides": [],
           "id": "mm00000001",
           "ipdb_id": "",
           "manufacturer": "Williams",

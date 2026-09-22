@@ -34,6 +34,7 @@ from common.games.game_metadata import (
     game_title,
     game_type,
     game_year,
+    guides_on_wire,
     normalize_meta,
     play_record,
     reorder_leading_article,
@@ -159,6 +160,7 @@ def _entry_row(entry: Entry, logo_cache: dict[str, str | None],
             # and an extension, a remote frontend and the Console all read this.
             "ipdb_id": game_ipdb_id(game),
             "tutorial": contract_1_tutorial(meta),
+            "guides": guides_on_wire(meta),
             "overrides": {
                 "alt_title": str(vpinfe.get("alt_title", "") or ""),
                 "alt_vps_id": str(vpinfe.get("alt_vpsid", "") or ""),

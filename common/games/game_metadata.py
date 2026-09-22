@@ -10,6 +10,7 @@ import ast
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from common.games.game import Game, GameRecord
 from common.games.ids import new_id
@@ -732,6 +733,33 @@ def contract_1_tutorial(config: Any) -> str:
         if said.startswith(PINBALL_PRIMER_PREFIX):
             return said
     return ""
+
+
+GUIDE_SOURCES = {
+    "pinballprimer.github.io": "Pinball Primer",
+    "www.youtube.com": "YouTube",
+    "youtube.com": "YouTube",
+    "youtu.be": "YouTube",
+    "vpuniverse.com": "VPUniverse",
+    "tiltforums.com": "Tilt Forums",
+}
+
+
+def guide_source(guide: dict[str, Any]) -> str:
+    """A display name for `guide`'s host, or the host itself."""
+    host = urlparse(str(guide.get("url") or "")).netloc.lower()
+    if not host:
+        return GUIDE_SOURCES["youtube.com"] if guide.get("youtube_id") else ""
+    return GUIDE_SOURCES.get(host, host)
+
+
+def guides_on_wire(config: Any) -> list[dict[str, Any]]:
+    """The stored guides, each with `source` added."""
+    from common.games.info_file import GUIDES_KEY
+
+    held = normalize_meta(config).get(GUIDES_KEY)
+    return [{**one, "source": guide_source(one)}
+            for one in (held if isinstance(held, list) else []) if isinstance(one, dict)]
 
 
 def vps_details_differ(config: dict[str, Any],
