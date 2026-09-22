@@ -1397,7 +1397,7 @@ def game_match_gap(vps_id: str, declared: bool, held: bool) -> tuple[str, str, s
     """What a game's Match group says when there is no entry to draw: the state's key,
     what its absence costs, and the key of the line under it."""
     if declared:
-        return ("console.workbench.no_match", "off", "console.workbench.said_no_catalog")
+        return ("console.workbench.no_match", "off", "console.workbench.cleared_match")
     if not vps_id:
         return ("console.workbench.not_matched", "warn", "")
     if not held:

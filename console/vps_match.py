@@ -67,7 +67,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
             entry_row(entry, trailing=clear)
 
         if behind:
-            ui.label(t("console.vps_match.what_the_scan_found")).classes("console-group")
+            ui.label(t("console.vps_match.original_match")).classes("console-group")
 
             def take_scanned() -> None:
                 ui.button(t("console.vps_match.use_this"), icon=verbs.ACCEPT,

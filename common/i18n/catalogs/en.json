@@ -997,6 +997,7 @@
   "console.vps_match.nothing_changed": "Nothing changed",
   "console.vps_match.nothing_vps_matches": "Nothing in VPS matches “{said}”",
   "console.vps_match.open_in_vps": "Open this entry in the Visual Pinball Spreadsheet",
+  "console.vps_match.original_match": "Original match",
   "console.vps_match.results": {
     "one": "{count} result",
     "other": "{count} results"
@@ -1009,7 +1010,6 @@
   "console.vps_match.update_match": "Update match",
   "console.vps_match.use_this": "Use this",
   "console.vps_match.vps_not_downloaded": "VPS has not been downloaded yet",
-  "console.vps_match.what_the_scan_found": "What the scan found",
   "console.workbench.add_game": "Add a game",
   "console.workbench.add_image": "Add an image",
   "console.workbench.add_name": "Add by name",
@@ -1033,6 +1033,7 @@
   "console.workbench.change_match_2": "Change match",
   "console.workbench.choose": "Choose",
   "console.workbench.clear_nvram_exit": "Clear NVRAM on exit",
+  "console.workbench.cleared_match": "You cleared the match, so VPinFE leaves this game unmatched",
   "console.workbench.collection_needs_name": "A collection needs a name",
   "console.workbench.contents": "Contents ({got})",
   "console.workbench.contents_2": "Contents",
@@ -1236,7 +1237,6 @@
   "console.workbench.rom_not_installed": "ROM {value} is not installed",
   "console.workbench.rules": "Rules",
   "console.workbench.run": "Will run",
-  "console.workbench.said_no_catalog": "You have said this machine is in no catalog. Change match to undo that.",
   "console.workbench.same_game_library_twice": "The same game is in your library twice. Nothing here has been changed and nothing is lost - one of the two answers for it, and these are the others. Removing this location is the answer when the whole of it is a second view of one library.",
   "console.workbench.save_rule": "Save the rule",
   "console.workbench.scope.everything_launcher_plays": "Everything this launcher plays",
