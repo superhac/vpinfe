@@ -1137,13 +1137,17 @@ _BLANK_ICON = {"image": "image", "video": "movie",
 
 
 def _spec(detail: dict[str, Any]) -> str:
-    """Size, shape and date on one line - what tells two files of a kind apart when
-    both look right in a thumbnail."""
+    """Size, shape, running time and date on one line - what tells two files of a kind
+    apart when both look right in a thumbnail."""
     parts = []
     if detail.get("width") and detail.get("height"):
         parts.append(f"{detail['width']} \u00d7 {detail['height']}")
+    if detail.get("duration_s"):
+        parts.append(running_time(float(detail["duration_s"])))
     name = str(detail.get("file") or "")
-    if "." in name:
+    if detail.get("format"):
+        parts.append(str(detail["format"]))
+    elif "." in name:
         parts.append(name.rsplit(".", 1)[1].upper())
     size = mediasource._size(detail.get("size_bytes"))
     if size:
@@ -1155,6 +1159,13 @@ def _spec(detail: dict[str, Any]) -> str:
         except ValueError:
             pass
     return " \u00b7 ".join(parts)
+
+
+def running_time(seconds: float) -> str:
+    """As a player shows it. Never 0:00 - a sound that is there runs for something."""
+    minutes, rest = divmod(max(1, round(seconds)), 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}:{minutes:02}:{rest:02}" if hours else f"{minutes}:{rest:02}"
 
 
 def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],

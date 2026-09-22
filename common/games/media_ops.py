@@ -14,7 +14,7 @@ import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
-from common import service_errors
+from common import media_probe, service_errors
 from common.games import asset_origin, game_lens, media_lookup, media_placement, media_service
 from common.games.game import Game
 from common.games.game_repository import game_to_row
@@ -139,27 +139,23 @@ def overrides(game_id: str) -> dict:
     return {"overrides": found}
 
 
-def _file_facts(path: Path, kind: str) -> dict:
-    """Size, date and pixel size - what tells two candidates for a slot apart.
+_NO_FACTS = {"size_bytes": None, "modified": None, "width": None, "height": None,
+             "format": None, "duration_s": None}
+
+
+def _file_facts(path: Path) -> dict:
+    """Size, date, format, pixel size and running time - what tells two candidates for a
+    slot apart.
 
     Every part is best-effort: a file that cannot be opened still has a name worth showing,
     and a slot that reports nothing at all is worse than one missing a number.
     """
-    facts: dict = {"size_bytes": None, "modified": None, "width": None, "height": None}
     try:
         stat = path.stat()
     except OSError:
-        return facts
-    facts["size_bytes"] = stat.st_size
-    facts["modified"] = datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat()
-    if media_family(kind) == "image":
-        try:
-            from PIL import Image
-            with Image.open(path) as img:
-                facts["width"], facts["height"] = img.size
-        except Exception:
-            logger.debug("Could not read image size for %s", path, exc_info=True)
-    return facts
+        return dict(_NO_FACTS)
+    return {**media_probe.probe(path), "size_bytes": stat.st_size,
+            "modified": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat()}
 
 
 def detail(game_id: str, kind: str, table_id: str = "") -> dict:
@@ -197,8 +193,7 @@ def detail(game_id: str, kind: str, table_id: str = "") -> dict:
                    "wins": item.path == path}
                   for item in candidates],
         "links": {"self": f"{prefix}/{kind}" if path is not None else None},
-        **(_file_facts(path, kind) if path is not None else
-           {"size_bytes": None, "modified": None, "width": None, "height": None}),
+        **(_file_facts(path) if path is not None else _NO_FACTS),
     }
 
 

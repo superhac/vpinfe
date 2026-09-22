@@ -1356,11 +1356,11 @@ class MediaTier(ApiModel):
 class MediaDetail(ApiModel):
     """One slot in the detail curation needs and playing a game never asks for.
 
-    Its own route rather than more fields on MediaEntry: this costs a stat and an
-    image header read per candidate file, and the media list is on the path a frontend
-    walks every time the player changes game - on a library over the network that is
-    the difference between free and not. `width`/`height` are images only; reading a
-    video's frame size would mean a dependency on ffprobe that nothing else here needs.
+    Its own route rather than more fields on MediaEntry: this costs a stat and a header
+    read per candidate file, and the media list is on the path a frontend walks every
+    time the player changes game - on a library over the network that is the difference
+    between free and not. `width`/`height` are an image's or a video's, `duration_s` a
+    video's or a sound's, and `format` is what the file's header says it is.
     """
 
     kind: str
@@ -1375,6 +1375,8 @@ class MediaDetail(ApiModel):
     modified: str | None = None
     width: int | None = None
     height: int | None = None
+    format: str | None = None
+    duration_s: float | None = None
     tiers: list[MediaTier] = []
     links: MediaEntryLinks
 
