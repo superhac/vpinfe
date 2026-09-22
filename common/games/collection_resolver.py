@@ -240,7 +240,23 @@ def order_games(games: list, order_by: str, descending: bool = False) -> list:
     return games
 
 
+@dataclass(frozen=True)
+class Holding:
+    """What a collection holds, and how: the games it resolves to, capped by its limit,
+    and each bucket they came from before the cap."""
+
+    games: list[Any]
+    added: list[Any]
+    matched: list[Any]
+    excluded: int
+
+
 def resolve_games(name: str, collections: CollectionStore, games: list[Any]) -> list[Any]:
+    """The games a collection contains, for the management lens. See `holding`."""
+    return holding(name, collections, games).games
+
+
+def holding(name: str, collections: CollectionStore, games: list[Any]) -> Holding:
     """The games a collection contains, for the management lens.
 
     Not the play lens: a game whose only .vpx is hidden, or which has none at all,
@@ -305,7 +321,8 @@ def resolve_games(name: str, collections: CollectionStore, games: list[Any]) -> 
     else:
         result = _sorted(picked + from_filters, order_by, order["direction"] == "desc")
     limit = collections.get_limit(name)
-    return result[:limit] if limit else result
+    return Holding(games=result[:limit] if limit else result, added=picked,
+                   matched=from_filters, excluded=len(dropped_games))
 
 
 def resolve(name: str, collections: CollectionStore, games: list[Any]) -> list[Entry]:

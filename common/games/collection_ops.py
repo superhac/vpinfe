@@ -26,7 +26,9 @@ from common.games import entry_lens, game_identity, game_lens, game_repository, 
 from common.games.collection_filters import UNCONSTRAINED, group_key, group_kind
 from common.games.collection_resolver import (
     Entry,
+    Holding,
     UnresolvableCollectionError,
+    holding,
     resolve,
     resolve_games,
 )
@@ -87,8 +89,19 @@ def _resolved_count(name: str) -> int:
         return 0
 
 
+def _held(name: str) -> Holding | None:
+    try:
+        return holding(name, get_collections_manager(),
+                       list(game_repository.catalog().values()))
+    except Exception:
+        # A collection this build cannot resolve still has to list; its own reads say why.
+        logger.warning("could not resolve collection %r", name, exc_info=True)
+        return None
+
+
 def _resource_for(row: dict) -> dict:
     name = row["name"]
+    held = _held(name)
     filters = None
     # From the `order` block, which is where the resolver reads it. The criteria carry a
     # default for keys the collection never set, so reading the sort there reports "Alpha"
@@ -118,6 +131,9 @@ def _resource_for(row: dict) -> dict:
         "image": row.get("image") or None,
         "count": _resolved_count(name),
         "game_count": row.get("game_count"),
+        "added": len(held.added) if held else 0,
+        "matched": len(held.matched) if held else 0,
+        "excluded": held.excluded if held else 0,
         "filters": filters,
         # Read for every collection, not only a filter one: a manual collection is capped
         # and ordered the same way, and reporting it only sometimes is how a caller learns
@@ -212,6 +228,25 @@ def games_in(name: str) -> dict:
                  for game in _resolved_games(name)]
     return {"total": len(resources), "offset": 0, "count": len(resources),
             "games": resources}
+
+
+def collections_of(game_id: str) -> dict:
+    """Every collection holding this game, and whether it was added or matched."""
+    _game_or_refuse(game_id)
+    found = []
+    for row in get_collections_metadata():
+        held = _held(row["name"])
+        if held is None:
+            continue
+        kept = {game_identity.game_id(game) for game in held.games}
+        if game_id not in kept:
+            continue
+        added = any(game_identity.game_id(game) == game_id for game in held.added)
+        found.append({"name": row["name"],
+                      "type": "filter" if row["is_filter"] else "manual",
+                      "how": "added" if added else "matched",
+                      "links": _links(row["name"])})
+    return {"game": game_id, "collections": found}
 
 
 def members_of(name: str) -> dict:

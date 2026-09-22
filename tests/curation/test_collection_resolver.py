@@ -9,6 +9,7 @@ import unittest
 
 from common.games.collection_resolver import (
     UnresolvableCollectionError,
+    holding,
     resolve,
     resolve_games,
     visible_entries,
@@ -394,6 +395,34 @@ class ResolverTests(TempTree):
 
         self.assertEqual([g.game_dir_name for g in games],
                          ["Medieval Madness", "Attack from Mars"])
+
+    def test_it_reports_how_it_holds_what_it_holds(self) -> None:
+        self.collections.add_filter_collection("Mixed", manufacturer="Bally",
+                                               sort_by="Alpha")
+        self.collections.add_member("Mixed", "mm")
+        self.collections.exclude("Mixed", "taf")
+
+        held = holding("Mixed", self.collections, self.games)
+
+        self.assertEqual((["Medieval Madness"], ["Attack from Mars"], 1),
+                         ([g.game_dir_name for g in held.added],
+                          [g.game_dir_name for g in held.matched], held.excluded))
+
+    def test_a_table_taken_out_is_not_a_game_excluded(self) -> None:
+        self.collections.add_filter_collection("Bally", manufacturer="Bally",
+                                               sort_by="Alpha")
+        self.collections.exclude("Bally", "afm", "a1")
+
+        self.assertEqual(0, holding("Bally", self.collections, self.games).excluded)
+
+    def test_its_buckets_are_counted_before_the_limit(self) -> None:
+        self.collections.add_filter_collection("Capped", manufacturer="Bally",
+                                               sort_by="Alpha")
+        self.collections.set_limit("Capped", 1)
+
+        held = holding("Capped", self.collections, self.games)
+
+        self.assertEqual((1, 2), (len(held.games), len(held.matched)))
 
     def test_two_resolutions_of_the_same_input_agree(self) -> None:
         """Peers that tie on the sort key must not shuffle between refreshes."""

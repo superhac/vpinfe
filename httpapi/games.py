@@ -23,6 +23,7 @@ from starlette.responses import FileResponse, Response
 from common import media_browse
 from common.games import (
     archive_service,
+    collection_ops,
     game_lens,
     game_ops,
     library_vps_state,
@@ -58,6 +59,12 @@ def create_game(body: models.NewGameRequest) -> models.GameResource:
 @router.get("/{game_id}", summary="One game", dependencies=[requires(scopes.GAMES_READ)])
 def get_game(game_id: str) -> models.GameResource:
     return models.GameResource(**game_lens.detail(game_id))
+
+
+@router.get("/{game_id}/collections", summary="The collections holding a game",
+            dependencies=[requires(scopes.COLLECTIONS_READ)])
+def get_game_collections(game_id: str) -> models.GameCollections:
+    return models.GameCollections.model_validate(collection_ops.collections_of(game_id))
 
 
 @router.get("/{game_id}/tables", summary="A game's tables",
