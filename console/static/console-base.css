@@ -1258,6 +1258,9 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
   font-size: var(--fs-caption);
   line-height: 20px;
 }
+/* One step further in, under the entry it belongs to: its icon starts where that
+   entry's label does. */
+.console-nav-row--under { padding-left: 56px !important; }
 /* Collapsed to icons there is no parent to line up under, so the indent goes - but the
    step down stays. A child keeps its smaller icon in the rail, which is the only thing
    left that can say it is one. Row height does not follow it: the rail's rhythm is one

@@ -650,6 +650,12 @@ class Library:
         cached: every write in the panel changes it."""
         return self._client.collection_members(name)
 
+    def contents(self) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+        """Every collection beside its stored membership. Not cached, for the reason
+        `collection_members` is not."""
+        return [(row, self._client.collection_members(str(row.get("name") or "")))
+                for row in self.load_collections()]
+
     def preview_filters(self, filters: dict | None, limit: int | None = None) -> dict:
         """What a rule would match, storing nothing."""
         return self._client.preview_filters(filters, limit)

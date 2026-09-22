@@ -55,6 +55,7 @@ from console import (
     vps_match,
 )
 from console import commands as commands_help
+from console import contents as contents_page
 from console import devices as devices_page
 from console import launchers as launchers_page
 from console import locations as locations_page
@@ -503,6 +504,51 @@ async def build_collection(container: ui.column, title: ui.column, library: Libr
         if state["build_seq"] != mine:
             return
         await _draw_collection(container, title, library, name, state)
+
+
+async def build_contents(container: ui.column, title: ui.column, library: Library,
+                         row: dict[str, Any] | None,
+                         state: dict[str, Any] | None = None) -> None:
+    """The panel, for one game in one collection."""
+    state = state if state is not None else {}
+    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
+    state["build_seq"] = mine = state.get("build_seq", 0) + 1
+    async with lock:
+        if state["build_seq"] != mine:
+            return
+        await _draw_contents(container, title, library, row, state)
+
+
+async def _draw_contents(container: ui.column, title: ui.column, library: Library,
+                         row: dict[str, Any] | None, state: dict[str, Any]) -> None:
+    if not row:
+        _blank(container, title, t("console.section.contents"),
+               t("console.page.select_contents"))
+        return
+    name = str(row.get("collection") or "")
+    # Fresh, and found again by game and ref: every act in here moves the row to
+    # another state, and the panel follows it there.
+    try:
+        membership = await offload.io(library.collection_members, name)
+    except ApiError:
+        membership = {}
+    member = contents_page.find(name, membership, str(row.get("id") or ""))
+    if member is None:
+        _blank(container, title, t("console.section.contents"),
+               t("console.page.no_longer_collection"))
+        return
+    container.clear()
+    title.clear()
+    with container:
+        _title(title, str(member.get("name") or member.get("game") or ""),
+               t("console.contents.in_collection", name=name))
+        context: dict[str, Any] = {"library": library, "collection": name,
+                                   "member": member, "state": state,
+                                   "redraws": [], "dock": None}
+        context["rebuild"] = _rebuilds(
+            context, f"contents:{row.get('id')}",
+            lambda: build_contents(container, title, library, row, state))
+        await _rail(context, "contents", state)
 
 
 async def build_location(container: ui.column, title: ui.column, library: Library,
@@ -1679,6 +1725,51 @@ def _add_to_collection(context: dict[str, Any], offered: list[str], *,
         for name in offered:
             ui.menu_item(name, on_click=lambda _e=None, name=name: add(name)) \
                 .classes("console-menu-item")
+
+
+_CONTENTS_ACT = {
+    contents_page.ADDED: ("console.workbench.remove_collection", verbs.REMOVE),
+    contents_page.MISSING: ("console.workbench.remove_collection", verbs.REMOVE),
+    contents_page.MATCHED: ("console.workbench.exclude_from_collection", verbs.EXCLUDE),
+    contents_page.EXCLUDED: ("console.workbench.put_back_2", verbs.REVERT),
+}
+
+
+async def _contents_details(context: dict[str, Any]) -> None:
+    library, name, member = context["library"], context["collection"], context["member"]
+    game_id = str(member.get("game") or "")
+    status = contents_page.status(member)
+    shown = contents_page.STATES[status]
+    game = str(member.get("name") or "")
+    entries: list[tuple[Any, Any]] = [
+        (t("console.contents.collection"),
+         panel.link(name, to="/console?" + deeplink.query(
+             {"view": "collections", "collection": name}))),
+        (t("word.game"),
+         panel.link(game, to="/console?" + deeplink.query({"view": "games", "game": game_id}))
+         if game else game_id),
+    ]
+    table = contents_page.named_table(member)
+    if table:
+        entries.append((t("console.contents.table"), table))
+    entries.append((t("word.status"), panel.state(shown["label"], shown.get("tier", "off"))))
+    panel.facts(ui, entries)
+    what, ref = member_act(library, member)
+
+    async def act() -> None:
+        try:
+            await run.io_bound(what, name, game_id, ref)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            return
+        refresh = context["state"].get("refresh_contents")
+        if callable(refresh):
+            await refresh()
+        await context["rebuild"]()
+
+    label, icon = _CONTENTS_ACT[status]
+    with ui.element("div").classes("console-slot-actions px-3"):
+        panel.action(t(label), act, icon=icon)()
 
 
 def _rule_sheet(context: dict[str, Any]) -> dict[str, Any]:
@@ -5168,6 +5259,8 @@ SECTIONS: tuple[Section, ...] = (
             subjects=frozenset({"collection"})),
     Section("collection_contents", _contents_label, _collection_contents,
             subjects=frozenset({"collection"}), dock=True),
+    Section("contents_details", lambda _: t("console.workbench.details"),
+            _contents_details, subjects=frozenset({"contents"})),
     # A device, in reading order: what it is, what it is running, what it can be asked
     # for, what it has written down, and what it can be told to do. Its settings are not
     # here at all - they are a door in Details into that install's own Console, because a
