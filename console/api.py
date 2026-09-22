@@ -135,6 +135,16 @@ class ApiClient:
         """Every asset file in the library, one row each, and one per file it lacks."""
         return self._get("/assets").get("assets", [])
 
+    def media_of(self, game_id: str) -> list[dict]:
+        return self._get("/media?" + urlencode({"game": game_id})).get("media", [])
+
+    def assets_of(self, game_id: str) -> list[dict]:
+        return self._get("/assets?" + urlencode({"game": game_id})).get("assets", [])
+
+    def asset_detail(self, game_id: str, path: str, lines: int = 40) -> dict:
+        return self._get(f"/games/{game_id}/assets/detail?"
+                         + urlencode({"path": path, "lines": lines}))
+
     def tables(self, game_id: str) -> list[dict]:
         return self._get(f"/games/{game_id}/tables").get("tables", [])
 

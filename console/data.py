@@ -736,9 +736,12 @@ class Library:
         file already on disk still resolves and a theme asking for a topper still gets
         one. What a library says it does not collect governs what it is shown.
         """
+        return self._kept_media(self._media_rows or [])
+
+    def _kept_media(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         kept = self.kept_kinds()["media"]
         return [{**row, "said": _said(row.get("manufacturer"), row.get("year"))}
-                for row in (self._media_rows or []) if row.get("kind") in kept]
+                for row in rows if row.get("kind") in kept]
 
     def has_media_rows(self) -> bool:
         return self._media_rows is not None
@@ -756,14 +759,27 @@ class Library:
         `alt_color` is the games resource's name for the two the registry declares
         separately, so it is kept while either of those is.
         """
+        return self._kept_assets(self._asset_rows or [])
+
+    def _kept_assets(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         kept = self.kept_kinds()["asset"]
         pairs = {"alt_color": ("altcolor_serum", "altcolor_vni"),
                  "alt_sound": ("altsound",)}
         return [{**row, "said": _said(row.get("manufacturer"), row.get("year"))}
-                for row in (self._asset_rows or [])
+                for row in rows
                 if (row.get("kind") in kept
                     or any(name in kept
                            for name in pairs.get(str(row.get("kind") or ""), ())))]
+
+    def files_of(self, family: str, game_id: str) -> list[dict[str, Any]]:
+        """One game's rows in the media or asset lens, read fresh and kept as the whole
+        lens is."""
+        if family == "media":
+            return self._kept_media(self._client.media_of(game_id))
+        return self._kept_assets(self._client.assets_of(game_id))
+
+    def asset_detail(self, game_id: str, path: str, lines: int = 40) -> dict[str, Any]:
+        return self._client.asset_detail(game_id, path, lines)
 
     def has_asset_rows(self) -> bool:
         return self._asset_rows is not None

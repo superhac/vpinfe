@@ -258,3 +258,14 @@ def open_viewer(src: str, kind: str, label: str) -> None:
     ui.run_javascript(_VIEW)
     if family == "video":
         ui.run_javascript(_WIRE)
+
+
+def open_text(label: str, text: str) -> None:
+    """Show a text file whole, in the viewer's frame."""
+    with ui.dialog() as dialog, ui.card().classes("console-viewer-card"):
+        with ui.row().classes("items-center gap-2 w-full no-wrap console-viewer-bar"):
+            ui.label(label).classes("console-card-title shrink-0")
+            ui.space()
+            ui.button(icon=verbs.CLOSE, on_click=dialog.close).props("flat dense round")
+        ui.label(text).classes("console-file-text console-file-text--whole")
+    dialog.open()

@@ -294,4 +294,10 @@ def build(found: list[dict[str, Any]], library: Any,
         count.text = said(len(selected))
 
     table.on("modelUpdated", counted)
+
+    async def refresh_files(game_id: str) -> None:
+        fresh = rows(await offload.io(library.files_of, "media", game_id))
+        grid.replace_rows(table, built, by_id, fresh, lambda row: row["game_id"] == game_id)
+
+    state["refresh_files"] = refresh_files
     wire_views(table)

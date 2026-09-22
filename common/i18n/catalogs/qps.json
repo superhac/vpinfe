@@ -1103,6 +1103,7 @@
   "console.workbench.could_not_put_back": "Çöûŀđ ñöţ þûţ îţ ƀàçķ: {exc}",
   "console.workbench.could_not_read_collections": "Çöûŀđ ñöţ řèàđ îţš çöŀŀèçţîöñš: {exc}",
   "console.workbench.could_not_read_copies": "Çöûŀđ ñöţ řèàđ ţĥè çöþîèš: {exc}",
+  "console.workbench.could_not_read_file": "Çöûŀđ ñöţ řèàđ ţĥè ƒîŀè: {exc}",
   "console.workbench.could_not_read_game": "Çöûŀđ ñöţ řèàđ ţĥîš ĝàɱè'š ţàƀŀèš: {exc}",
   "console.workbench.could_not_read_what": "Çöûŀđ ñöţ řèàđ ŵĥàţ çàñ þŀàý îţ: {exc}",
   "console.workbench.could_not_read_what_2": "Çöûŀđ ñöţ řèàđ ŵĥàţ îš šĥàđöŵèđ ĥèřè: {exc}",
@@ -1148,6 +1149,10 @@
   "console.workbench.file_records_no_version": "Ţĥîš ƒîŀè řèçöřđš ñö ṽèřšîöñ öř àûţĥöř ţö çöɱþàřè",
   "console.workbench.file_says": "Ţĥîš ƒîŀè šàýš {told}",
   "console.workbench.filename": "Ƒîŀèñàɱè",
+  "console.workbench.files_in_folder": {
+    "one": "{count} ƒîŀè",
+    "other": "{count} ƒîŀèš"
+  },
   "console.workbench.fills_itself_library": "Ƒîŀŀš îţšèŀƒ ƒřöɱ ţĥè ŀîƀřàřý",
   "console.workbench.find_collection": "Ƒîñđ îñ ţĥîš çöŀŀèçţîöñ",
   "console.workbench.fixed_number": "Ɓý à ƒîẋèđ ñûɱƀèř",
@@ -1186,6 +1191,7 @@
   "console.workbench.in_every_manual_collection": "Àŀřèàđý îñ èṽèřý ɱàñûàŀ çöŀŀèçţîöñ",
   "console.workbench.in_game_folder": "Îñ ţĥè ĝàɱè ƒöŀđèř",
   "console.workbench.in_no_collections": "Îñ ñö çöŀŀèçţîöñš",
+  "console.workbench.inert_asset": "ṼÞẊ řèàđš ţĥîš ķîñđ öñŀý ŵĥèñ îţ îš ñàɱèđ ƒöř à ţàƀŀè",
   "console.workbench.inherited": "Îñĥèřîţèđ",
   "console.workbench.insert_another_table_game": "Îñšèřţ àñöţĥèř ţàƀŀè ƒřöɱ ţĥîš ĝàɱè",
   "console.workbench.install_no_launchers_yet": "Ţĥîš îñšţàŀŀ ĥàš ñö ŀàûñçĥèřš ýèţ.",

@@ -247,6 +247,23 @@ def focused_column(event: Any) -> str:
     return str((args.get("col") if isinstance(args, dict) else "") or "")
 
 
+def replace_rows(table: Any, held: list[dict[str, Any]], by_id: dict[str, Any],
+                 fresh: list[dict[str, Any]], belongs: Callable[[dict], bool]) -> None:
+    """Swap the rows `belongs` picks for `fresh` in one transaction, so what stayed keeps
+    its place, focus and selection while what was added or went away does."""
+    old = [row for row in held if belongs(row)]
+    old_ids = {row["id"] for row in old}
+    fresh_ids = {row["id"] for row in fresh}
+    held[:] = [row for row in held if not belongs(row)] + fresh
+    for row in old:
+        by_id.pop(row["id"], None)
+    by_id.update({row["id"]: row for row in fresh})
+    table.run_grid_method("applyTransaction", {
+        "remove": [{"id": row["id"]} for row in old if row["id"] not in fresh_ids],
+        "update": [row for row in fresh if row["id"] in old_ids],
+        "add": [row for row in fresh if row["id"] not in old_ids]})
+
+
 def two_line(header: str) -> str:
     """Break the last word onto its own line, so a long header stays a narrow column."""
     words = header.split()

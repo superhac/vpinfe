@@ -20,7 +20,7 @@ from typing import Any
 from nicegui import ui
 
 from common.i18n import t
-from console import grid, media_ownership, panel, verbs, views
+from console import grid, media_ownership, offload, panel, verbs, views
 from console.games import view_control
 
 logger = logging.getLogger("vpinfe.console.assets")
@@ -182,4 +182,10 @@ def build(found: list[dict[str, Any]], library: Any,
         count.text = said()
 
     table.on("modelUpdated", counted)
+
+    async def refresh_files(game_id: str) -> None:
+        fresh = rows(await offload.io(library.files_of, "asset", game_id))
+        grid.replace_rows(table, built, by_id, fresh, lambda row: row["game_id"] == game_id)
+
+    state["refresh_files"] = refresh_files
     wire_views(table)

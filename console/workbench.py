@@ -20,7 +20,7 @@ from datetime import datetime
 from functools import partial
 from pathlib import Path, PurePosixPath
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from nicegui import run, ui
 
@@ -138,11 +138,12 @@ _KEEP_SCROLL = """
 
 
 def _rebuilds(context: dict[str, Any], subject: str,
-              again: Callable[[], Any]) -> Callable[[], Any]:
+              again: Callable[[], Any], refresh_with: str = "refresh_game",
+              ) -> Callable[[], Any]:
     """A rebuild that puts the grid behind the panel right too."""
     async def behind() -> None:
         """The grid, put right. Every write needs this; only some need a rebuild."""
-        refresh = context.get("state", {}).get("refresh_game")
+        refresh = context.get("state", {}).get(refresh_with)
         if callable(refresh) and context.get("game_id"):
             await refresh(context["game_id"])
 
@@ -549,6 +550,237 @@ async def _draw_contents(container: ui.column, title: ui.column, library: Librar
             context, f"contents:{row.get('id')}",
             lambda: build_contents(container, title, library, row, state))
         await _rail(context, "contents", state)
+
+
+async def build_file(container: ui.column, title: ui.column, library: Library,
+                     row: dict[str, Any] | None, state: dict[str, Any] | None = None,
+                     family: str = "media") -> None:
+    """The panel, for one media or asset file. `family` is `media` or `assets`."""
+    state = state if state is not None else {}
+    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
+    state["build_seq"] = mine = state.get("build_seq", 0) + 1
+    async with lock:
+        if state["build_seq"] != mine:
+            return
+        await _draw_file(container, title, library, row, state, family)
+
+
+def _same_file(rows: list[dict[str, Any]], wanted: dict[str, Any]) -> dict[str, Any] | None:
+    """The row `wanted` was, read again: by id; else by table and kind, which is all an
+    address names; else the kind's shared row, which is what a table's own file that
+    was just removed leaves behind."""
+    exact = next((one for one in rows if wanted.get("id") and one.get("id") == wanted["id"]),
+                 None)
+    if exact is not None:
+        return exact
+    for table in dict.fromkeys((str(wanted.get("table") or ""), "")):
+        alike = [one for one in rows if (one.get("table") or "") == table
+                 and one.get("kind") == wanted.get("kind")]
+        if alike:
+            return next((one for one in alike if one.get("present")), alike[0])
+    return None
+
+
+async def _draw_file(container: ui.column, title: ui.column, library: Library,
+                     row: dict[str, Any] | None, state: dict[str, Any],
+                     family: str) -> None:
+    media = family == "media"
+    heading = t("console.page.media" if media else "console.page.assets")
+    if not row:
+        _blank(container, title, heading, t("console.page.select_kind_media" if media
+                                             else "console.page.select_kind_file"))
+        return
+    game_id = str(row.get("game_id") or "")
+    game = next((one for one in library.games if one["id"] == game_id), None)
+    if game is None:
+        _blank(container, title, heading, t("console.page.not_library"))
+        return
+    found = _same_file(await offload.io(library.files_of, "media" if media else "asset",
+                                        game_id), row)
+    if found is None:
+        _blank(container, title, heading, t("console.page.no_longer_library"))
+        return
+    tables = await offload.io(library.tables_for, game_id)
+    table_id = str(found.get("table") or "")
+    container.clear()
+    title.clear()
+    with container:
+        _file_title(title, found, game, next((one for one in tables
+                                              if one.get("id") == table_id), None))
+        context: dict[str, Any] = {"library": library, "game": game, "game_id": game_id,
+                                   "tables": tables, "state": state, "lens": table_id,
+                                   "redraws": [], "dock": None, "row": found,
+                                   "kind": str(found.get("kind") or ""),
+                                   "slot": {"kind": found.get("kind")}}
+        context["rebuild"] = _rebuilds(
+            context, f"file:{found.get('id')}",
+            lambda: build_file(container, title, library, found, state, family),
+            refresh_with="refresh_files")
+        await _rail(context, "media_file" if media else "asset_file", state)
+
+
+def _file_title(target: ui.column, row: dict[str, Any], game: dict[str, Any],
+                table: dict[str, Any] | None) -> None:
+    with target:
+        ui.label(str(row.get("label") or row.get("kind") or "")) \
+            .classes("text-base console-workbench-title leading-tight truncate")
+        with ui.element("div").classes("text-xs console-workbench-label "
+                                       "console-workbench-links"):
+            panel.link(str(game.get("name") or ""), to="/console?" + deeplink.query(
+                {"view": "games", "game": game["id"]}))()
+        with ui.element("div").classes("console-workbench-table console-workbench-links"):
+            if table is not None:
+                panel.link(_table_line(table), to="/console?" + deeplink.query(
+                    {"view": "tables", "game": game["id"], "table": table["id"]}))()
+            elif _file_tier(row) == media_ownership.ORPHAN:
+                ui.label(str(row.get("table_file") or ""))
+            else:
+                ui.label(t(media_ownership.tier_for(media_ownership.GAME).noun))
+
+
+def _file_tier(row: dict[str, Any]) -> str:
+    """Who uses this file, in `media_ownership`'s words, for either lens."""
+    if "binding" not in row:
+        return media_ownership.key_of(row.get("via"))
+    binding = str(row.get("binding") or "")
+    if binding == "orphaned":
+        return media_ownership.ORPHAN
+    if not row.get("present"):
+        return media_ownership.MISSING
+    if binding == "game":
+        return media_ownership.UNUSED if row.get("serves") == 0 else media_ownership.GAME
+    return media_ownership.TABLE
+
+
+async def _media_file_block(context: dict[str, Any]) -> None:
+    library, game_id, table_id = context["library"], context["game_id"], context["lens"]
+    row, kind = context["row"], context["kind"]
+    if _file_tier(row) in (media_ownership.ORPHAN, media_ownership.UNUSED):
+        _loose_media(context)
+        return
+    entries = await offload.io(library.media_for, game_id, table_id or None)
+    context["media"] = entries
+    try:
+        detail = await offload.io(library.media_detail, game_id, table_id or None, kind)
+    except Exception:
+        logger.debug("No detail for %s", kind, exc_info=True)
+        detail = None
+    overrides = {} if table_id else await run.io_bound(library.media_overrides, game_id)
+    _slot(context, kind, entries.get(kind) or {}, detail, context["rebuild"],
+          (overrides or {}).get(kind) or [], titled=False, in_place=False)
+
+
+def _loose_media(context: dict[str, Any]) -> None:
+    """No acts here: the slot's would act on the file the slot resolves to, which is
+    another one."""
+    row, kind = context["row"], context["kind"]
+    tier = _file_tier(row)
+    folder = str(context["game"].get("folder") or "")
+    path = str(row.get("path") or "")
+    with ui.column().classes("w-full gap-1 console-slot p-2"):
+        with ui.element("div").classes("console-slot-art"):
+            if folder and path:
+                _preview("/api/v1/filesystem/file?" + urlencode(
+                    {"path": str(PurePosixPath(folder) / path)}), kind,
+                    str(row.get("label") or kind))
+        with ui.column().classes("w-full gap-0 console-slot-facts"):
+            with ui.row().classes("items-start gap-2 w-full no-wrap"):
+                ui.label(path or str(row.get("file") or "")) \
+                    .classes("console-slot-file grow min-w-0")
+                media_ownership.badge(tier)
+            ui.label(t(media_ownership.tier_for(tier).why)).classes("console-help")
+
+
+async def _asset_file_block(context: dict[str, Any]) -> None:
+    library, game_id, row, kind = (context["library"], context["game_id"], context["row"],
+                                   context["kind"])
+    present, path = bool(row.get("present")), str(row.get("path") or "")
+    detail: dict[str, Any] = {}
+    if present and path:
+        try:
+            detail = await offload.io(library.asset_detail, game_id, path)
+        except Exception:
+            logger.debug("No detail for %s", path, exc_info=True)
+    label = str(row.get("label") or _asset_name(kind))
+    tier = _file_tier(row)
+    with ui.column().classes("w-full gap-1 console-slot p-2"):
+        head = str(detail.get("head") or "")
+        if head:
+            with ui.element("div").classes("console-slot-art console-slot-art--text"):
+                ui.label(head).classes("console-file-text")
+                ui.button(icon=verbs.ENLARGE,
+                          on_click=lambda: _open_whole(context, path, label)) \
+                    .props("flat dense round size=sm") \
+                    .classes("console-slot-zoom").tooltip(t("word.enlarge"))
+        else:
+            with ui.element("div").classes("console-slot-art"), \
+                    ui.column().classes("console-slot-blank items-center gap-1"):
+                ui.icon(_asset_icon(kind)).classes("console-slot-blank-icon")
+        with ui.column().classes("w-full gap-0 console-slot-facts"):
+            if not present:
+                ui.label(t("console.workbench.no", lower=label.lower(),
+                           value=("table" if context["lens"] else "game"))) \
+                    .classes("console-help")
+            else:
+                with ui.row().classes("items-start gap-2 w-full no-wrap"):
+                    ui.label(path).classes("console-slot-file grow min-w-0")
+                    media_ownership.badge(tier)
+                spec = _asset_spec(detail)
+                if spec:
+                    ui.label(spec).classes("console-help")
+                said = (t("console.workbench.inert_asset")
+                        if tier == media_ownership.UNUSED
+                        else media_ownership.sentence(tier,
+                                                      viewing_a_table=bool(context["lens"])))
+                if said:
+                    ui.label(said).classes("console-help")
+                origin = str(row.get("origin") or "")
+                if origin and origin not in ("unknown", "user"):
+                    ui.label(t("console.workbench.source",
+                               source_name=media_ownership.source_name(origin))) \
+                        .classes("console-help")
+        table = next((one for one in context["tables"]
+                      if one.get("id") == context["lens"]), None)
+        if kind == "script" and present and table is not None and tier == media_ownership.TABLE:
+            with ui.row().classes("items-center gap-2 w-full console-slot-actions"):
+                ui.button(t("word.delete"), icon=verbs.DELETE,
+                          on_click=lambda: _drop_script(context, table)) \
+                    .props("flat dense no-caps size=sm") \
+                    .classes("console-action console-action--danger")
+
+
+def _asset_icon(kind: str) -> str:
+    try:
+        return asset_registry.spec_for(kind).icon
+    except KeyError:
+        return "description"
+
+
+def _asset_spec(detail: dict[str, Any]) -> str:
+    parts = []
+    if detail.get("folder"):
+        parts.append(t("console.workbench.files_in_folder", count=int(detail.get("files") or 0)))
+    elif detail.get("format"):
+        parts.append(str(detail["format"]))
+    size = mediasource._size(detail.get("size_bytes"))
+    if size:
+        parts.append(size)
+    stamp = str(detail.get("modified") or "")
+    if stamp:
+        try:
+            parts.append(i18n.date(datetime.fromisoformat(stamp).astimezone()))
+        except ValueError:
+            pass
+    return " \u00b7 ".join(parts)
+
+
+async def _open_whole(context: dict[str, Any], path: str, label: str) -> None:
+    try:
+        found = await offload.io(context["library"].asset_detail, context["game_id"], path, 0)
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(t("console.workbench.could_not_read_file", exc=(exc)), type="negative")
+        return
+    mediaview.open_text(label, str(found.get("head") or ""))
 
 
 async def build_location(container: ui.column, title: ui.column, library: Library,
@@ -1170,7 +1402,8 @@ def running_time(seconds: float) -> str:
 
 def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
           detail: dict[str, Any] | None, draw: Any,
-          differing: list[dict[str, Any]] | None = None) -> None:
+          differing: list[dict[str, Any]] | None = None, *,
+          titled: bool = True, in_place: bool = True) -> None:
     """One slot: the art at the size of the room, and what there is to know about it.
 
     The picture is the subject. Everything else is one line each underneath, because
@@ -1217,7 +1450,8 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
             await redraw()
 
     with ui.column().classes("w-full gap-1 console-slot p-2"):
-        ui.label(label).classes("console-card-title")
+        if titled:
+            ui.label(label).classes("console-card-title")
 
         with ui.element("div").classes("console-slot-art"):
             if present:
@@ -1295,7 +1529,8 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                 # argument that `panel.link` does not pass.
                 other_id = str(other.get("table") or "")
                 panel.link(said, to=_table_address(context, other_id),
-                           on_click=partial(_go_to_table, context, other_id),
+                           on_click=partial(_go_to_table, context, other_id)
+                           if in_place else None,
                            hint=other.get("file") or "")()
 
         with ui.row().classes("items-center gap-2 w-full console-slot-actions") \
@@ -5272,6 +5507,10 @@ SECTIONS: tuple[Section, ...] = (
             subjects=frozenset({"collection"}), dock=True),
     Section("contents_details", lambda _: t("console.workbench.details"),
             _contents_details, subjects=frozenset({"contents"})),
+    Section("media_file", lambda _: t("word.file"), _media_file_block,
+            subjects=frozenset({"media_file"})),
+    Section("asset_file", lambda _: t("word.file"), _asset_file_block,
+            subjects=frozenset({"asset_file"})),
     # A device, in reading order: what it is, what it is running, what it can be asked
     # for, what it has written down, and what it can be told to do. Its settings are not
     # here at all - they are a door in Details into that install's own Console, because a

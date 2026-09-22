@@ -2260,6 +2260,27 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   background: var(--scrim-media) !important; transition: opacity 120ms ease;
 }
 .console-slot-art:hover .console-slot-zoom { opacity: 1; }
+/* A script or an ini is read from the top and the left, not centered like a picture. */
+.console-slot-art--text { align-items: stretch; justify-content: flex-start; }
+.console-file-text {
+  white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+  overflow: auto;
+  width: 100%;
+  max-height: 320px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+.console-file-text--whole { max-height: 75vh; width: min(960px, 85vw); }
+.console-workbench-links { max-width: 100%; overflow: hidden; }
+.console-workbench-links .console-link {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: inherit;
+}
 /* The preview wraps its element in a div of its own, and that wrapper is what broke
    fitting the art. Flex shrinks this box when the panel is short, but shrinking a box
    does not shrink what is inside it - and the picture's `max-height: 100%` resolved

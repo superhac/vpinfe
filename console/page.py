@@ -866,23 +866,16 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         deeplink.sync(state)
 
     async def show_slot(row: dict | None) -> None:
-        """A row in the file lenses is one kind of file for one game, so the panel
-        opens on the section that answers for it.
-
-        The row says which table it belongs to - a shared file has none, a file named
-        for one carries it - so this needs no control and cannot disagree with the
-        grid. The section comes from the place you are in, the way it does everywhere
-        else: the same landing the Games grid produces for a media cell.
-        """
+        """The address keeps the game, the table and the kind, which is all a link to a
+        file carries; the panel finds the row again from those."""
         if row and not state["workbench"]:
             show_workbench(True)
-        state["game"] = (row or {}).get("game_id")
+        state["game"] = (row or {}).get("game_id") or ""
         state["table"] = (row or {}).get("table") or ""
         if row:
-            state["section"] = state["view"]
             state.setdefault("slot", {"kind": None})["kind"] = row.get("kind")
-        await workbench.build(panel, workbench_title, library, state["game"], state,
-                              state["table"])
+        await workbench.build_file(panel, workbench_title, library, row, state,
+                                   state["view"])
         deeplink.sync(state)
 
     async def show_device(row: dict | None) -> None:

@@ -1103,6 +1103,7 @@
   "console.workbench.could_not_put_back": "Could not put it back: {exc}",
   "console.workbench.could_not_read_collections": "Could not read its collections: {exc}",
   "console.workbench.could_not_read_copies": "Could not read the copies: {exc}",
+  "console.workbench.could_not_read_file": "Could not read the file: {exc}",
   "console.workbench.could_not_read_game": "Could not read this game's tables: {exc}",
   "console.workbench.could_not_read_what": "Could not read what can play it: {exc}",
   "console.workbench.could_not_read_what_2": "Could not read what is shadowed here: {exc}",
@@ -1148,6 +1149,10 @@
   "console.workbench.file_records_no_version": "This file records no version or author to compare",
   "console.workbench.file_says": "This file says {told}",
   "console.workbench.filename": "Filename",
+  "console.workbench.files_in_folder": {
+    "one": "{count} file",
+    "other": "{count} files"
+  },
   "console.workbench.fills_itself_library": "Fills itself from the library",
   "console.workbench.find_collection": "Find in this collection",
   "console.workbench.fixed_number": "By a fixed number",
@@ -1186,6 +1191,7 @@
   "console.workbench.in_every_manual_collection": "Already in every manual collection",
   "console.workbench.in_game_folder": "In the game folder",
   "console.workbench.in_no_collections": "In no collections",
+  "console.workbench.inert_asset": "VPX reads this kind only when it is named for a table",
   "console.workbench.inherited": "Inherited",
   "console.workbench.insert_another_table_game": "Insert another table from this game",
   "console.workbench.install_no_launchers_yet": "This install has no launchers yet.",
