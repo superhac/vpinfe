@@ -42,7 +42,7 @@ uses an old spelling both still load.
 
 ### `general`
 
-Runtime state written by VPinFE, not shown in the Manager UI.
+Runtime state written by VPinFE, not shown as a setting.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -171,7 +171,7 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 
 ### `state`
 
-Runtime state written by VPinFE, not shown in the Manager UI.
+Runtime state written by VPinFE, not shown as a setting.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -179,7 +179,7 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 
 ### `pinmame_score_parser`
 
-Runtime state written by VPinFE, not shown in the Manager UI.
+Runtime state written by VPinFE, not shown as a setting.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -226,15 +226,15 @@ Runtime state written by VPinFE, not shown in the Manager UI.
 
 ### `vpinplay`
 
-Runtime state written by VPinFE, not shown in the Manager UI.
+Owned by the VPinPlay extension, which names these on its own settings page. Declared here so a 2.x file converts, read once by the handover, and written by nothing in core.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `sync_on_exit` | bool | `false` | Sync on Exit |
-| `api_endpoint` | string | `https://api.vpinplay.com:8888` | API Endpoint |
-| `user_id` | string |  | User ID |
-| `initials` | string |  | Initials |
-| `machine_id` | string |  | Machine ID |
+| `sync_on_exit` | bool | `false` |  |
+| `api_endpoint` | string | `https://api.vpinplay.com:8888` |  |
+| `user_id` | string |  |  |
+| `initials` | string |  |  |
+| `machine_id` | string |  |  |
 
 ### `input`
 

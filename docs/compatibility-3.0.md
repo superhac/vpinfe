@@ -277,8 +277,10 @@ not launched, which is the rule that already applied. Covered by
 **PAR-92 — Core fetches what an extension contributes, and one method asks it again.**
 `refresh_entry_data(game_id)` forgets what extensions have answered about one game and
 asks them again, returning what they say. Additive - a theme that never calls it is
-unaffected, and `get_vpinplay_endpoint` stays in the allowlist answering exactly what it
-answered before.
+unaffected. `get_vpinplay_endpoint` stays in the allowlist and now answers with the
+address VPinPlay itself holds, falling back to the config where it holds none: the same
+value on every install that has not changed it, and the one in force rather than a stale
+copy on one that has.
 *Why:* the browser used to call VPinPlay itself. Every window on a cabinet asked the same
 question about the same game, the answers were lost on each reload, and one vendor's name
 was compiled into `vpinfe-core.js` - a second connector would have needed a second

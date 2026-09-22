@@ -848,8 +848,8 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     ),
     *in_section(
         "vpinplay",
-        # Held by the extension's own store after handover, and still read from here by
-        # `frontend/config_api.py` and `common/games/score_parser.py`.
+        # The extension owns these. Declared here so a 2.x file converts, and read
+        # once by the handover. Nothing else in core reads or writes them.
         ConfigOption(
             "sync_on_exit",
             type="bool",

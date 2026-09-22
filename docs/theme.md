@@ -1665,7 +1665,7 @@ read as `vpin.expanded`. A theme does not have to do anything differently either
 
 ### VPinPlay Rating
 
-`vpinfe-core.js` can fetch the selected game's VPinPlay cumulative rating from the configured `vpinplay.apiendpoint`.
+`vpinfe-core.js` can fetch the selected game's VPinPlay cumulative rating from the address VPinPlay is set up with.
 
 | Method | Returns | Description |
 |--------|---------|-------------|

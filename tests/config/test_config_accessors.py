@@ -10,7 +10,6 @@ from common.config_access import (
     MediaConfig,
     NetworkConfig,
     SettingsConfig,
-    VPinPlayConfig,
 )
 
 
@@ -72,8 +71,6 @@ class TypedConfigTests(unittest.TestCase):
         self.assertEqual(
             DisplayConfig.from_config(parser).window_screen_id("playfieldscreenid"), "2")
         self.assertTrue(DisplayConfig.from_config(parser).cab_mode)
-        self.assertEqual(VPinPlayConfig.from_config(parser).api_endpoint, "http://example.test")
-        self.assertTrue(VPinPlayConfig.from_config(parser).sync_on_exit)
 
     def test_display_config_preserves_empty_game_screen_for_window_discovery(self) -> None:
         parser = configparser.ConfigParser()

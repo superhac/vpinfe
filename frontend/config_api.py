@@ -12,9 +12,10 @@ from common.config_access import (
     MediaConfig,
     NetworkConfig,
     SettingsConfig,
-    VPinPlayConfig,
+    cfg_get,
     cfg_set,
 )
+from common.extensions.store import get_extension_store
 from common.host.addresses import usable_ipv4
 from common.values import is_truthy
 
@@ -173,12 +174,14 @@ def set_audio_muted(api: API, muted: Any) -> bool:
 def get_vpinplay_endpoint(config: ConfigSource) -> str:
     """Where VPinPlay is, for a theme that asks.
 
-    A shim. Core does not fetch a rating any more - an extension does, and a theme reads
-    the answer off the entry - but a published theme may still call this to build a URL
-    of its own, and the section it reads is still in the config because the handover to
-    that extension copies rather than moves.
+    The extension's answer, or the config's where the extension holds none - the shape
+    `score_parser.get_default_initials` uses. A published theme may still call this to
+    build a URL of its own, so it answers whether or not the extension is loaded.
     """
-    return VPinPlayConfig.from_config(config).api_endpoint
+    held = str(get_extension_store().settings("vpinplay").get("endpoint") or "").strip()
+    if held:
+        return held
+    return cfg_get(config, "vpinplay", "api_endpoint", "")
 
 
 def get_media_priorities(config: ConfigSource) -> dict[str, str]:

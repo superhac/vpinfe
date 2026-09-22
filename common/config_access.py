@@ -419,21 +419,3 @@ class DisplayConfig:
             return known[config_key]
         return str(self.extra_screen_ids.get(config_key, "") or "").strip()
 
-
-@dataclass(frozen=True)
-class VPinPlayConfig:
-    api_endpoint: str = ""
-    user_id: str = ""
-    initials: str = ""
-    machine_id: str = ""
-    sync_on_exit: bool = False
-
-    @classmethod
-    def from_config(cls, source: Any) -> VPinPlayConfig:
-        return cls(
-            api_endpoint=cfg_get(source, "vpinplay", "apiendpoint", "").strip(),
-            user_id=cfg_get(source, "vpinplay", "userid", "").strip(),
-            initials=cfg_get(source, "vpinplay", "initials", "").strip(),
-            machine_id=cfg_get(source, "vpinplay", "machineid", "").strip(),
-            sync_on_exit=cfg_bool(source, "vpinplay", "synconexit", False),
-        )

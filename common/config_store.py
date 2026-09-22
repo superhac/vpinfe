@@ -15,8 +15,6 @@ import configparser
 import json
 import logging
 import os
-import secrets
-import string
 from pathlib import Path
 from typing import Any
 
@@ -59,11 +57,6 @@ _MOVED_OPTIONS = (
     ('input', 'behavior', 'paging_size'),
     ('lifecycle', 'behavior', 'confirm'),
 )
-
-
-def _generate_machine_id(length: int = 64) -> str:
-    alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 
 # The values that changed vocabulary, not just the key that holds them. Renaming a key
@@ -328,12 +321,6 @@ class ConfigStore:
             if legacy_initials and not current_initials:
                 self.config.set('vpinplay', 'initials', legacy_initials)
             self.config.remove_option('vpinplay', 'initals')
-            changed = True
-
-        # Auto-generate vpinplay.machineid when not set.
-        current_machine_id = self.config.get('vpinplay', 'machine_id', fallback='').strip()
-        if not current_machine_id:
-            self.config.set('vpinplay', 'machine_id', _generate_machine_id())
             changed = True
 
         # A section the migration emptied - [Input] once its keys merge into [input], or

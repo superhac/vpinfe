@@ -13,6 +13,8 @@ says what it said before there was an extension.
 
 from __future__ import annotations
 
+import secrets
+import string
 from typing import Any
 
 from . import client, guest, settings, sync
@@ -35,7 +37,16 @@ def _truthy(value: Any) -> bool:
     return str(value or "").strip().lower() in ("1", "true", "yes", "on")
 
 
+def _new_machine_id(length: int = 64) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
 def register(ctx: Any) -> None:
+    # Identifies this cabinet to VPinPlay; a sync cannot say who it is without one.
+    if not str(ctx.config.get(MACHINE_KEY, "") or "").strip():
+        ctx.config.set(MACHINE_KEY, _new_machine_id())
+
     def rating_for(game: Any) -> Any:
         """What VPinPlay says about one game, or None.
 

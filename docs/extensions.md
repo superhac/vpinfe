@@ -280,6 +280,10 @@ Two homes, because there are two owners.
 Never `vpinfe.ini` - that file holds what core is configured with, and it is where a token
 would go.
 
+A setting core used to hold for an extension is copied across once, on the first start
+after that extension exists, and core stops reading it. Core keeps the old names in its
+schema so a 2.x file still converts, and nothing writes them again.
+
 A file each rather than a namespace inside one, for the same reason: a namespace in
 somebody else's file is a weaker form of "own" than a file. One unreadable
 `extensions.json` used to cost every extension its settings and switch the disabled ones

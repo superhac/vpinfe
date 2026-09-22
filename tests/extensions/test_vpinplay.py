@@ -113,6 +113,11 @@ class ContributionTests(unittest.TestCase):
     def test_it_contributes_under_the_key_a_theme_reads(self) -> None:
         self.assertIn("vpinplay", contributions.keys())
 
+    def test_it_mints_a_machine_id_when_this_install_has_none(self) -> None:
+        held = self.store.settings("vpinplay").get("machine_id") or ""
+
+        self.assertEqual(len(held), 64)
+
     def test_it_offers_the_player_under_its_own_name(self) -> None:
         offered = {one.name for one in tokens.offered(tokens.TABLE)}
 
@@ -185,12 +190,41 @@ class HandoverTests(unittest.TestCase):
         self.assertNotIn("endpoint", held)
         self.assertNotIn("sync_on_exit", held)
 
-    def test_an_identity_this_install_generated_is_handed_over(self) -> None:
-        """Not a default even though nobody typed it: the machine id is minted per
-        install, and an extracted VPinPlay has to keep being the same machine."""
+    def test_a_machine_id_this_install_already_had_is_handed_over(self) -> None:
+        """Not a default even though nobody typed it, so an install that has been
+        submitting scores goes on being the same cabinet to VPinPlay."""
+        from common.config_access import cfg_set
+
+        cfg_set(self.config, "vpinplay", "machine_id", "THEIR-EXISTING-CAB-ID")
+        self.config.save()
+
         handover.seed(self.store, self.config)
 
-        self.assertTrue(self.store.settings("vpinplay")["machine_id"])
+        self.assertEqual(self.store.settings("vpinplay")["machine_id"],
+                         "THEIR-EXISTING-CAB-ID")
+
+    def test_a_2x_file_still_reaches_the_extension(self) -> None:
+        """2.x wrote `apiendpoint`, `userid` and `machineid`. The ini-to-json pass spells
+        keys from `config_schema`, so the section has to stay declared there for an
+        upgrading install to keep its account and its cabinet id."""
+        root = Path(self._tmp.name) / "upgraded"
+        root.mkdir()
+        (root / "vpinfe.ini").write_text(
+            "[vpinplay]\napiendpoint = https://theirs.example\n"
+            "userid = player-one\nmachineid = THEIR-CAB\n", encoding="utf-8")
+        old_store = store.ExtensionStore(root / "extensions.json")
+
+        handover.seed(old_store, ConfigStore(str(root / "vpinfe.ini")))
+
+        held = old_store.settings("vpinplay")
+        self.assertEqual(held["endpoint"], "https://theirs.example")
+        self.assertEqual(held["user_id"], "player-one")
+        self.assertEqual(held["machine_id"], "THEIR-CAB")
+
+    def test_an_install_that_never_had_one_is_handed_nothing(self) -> None:
+        handover.seed(self.store, self.config)
+
+        self.assertNotIn("machine_id", self.store.settings("vpinplay"))
 
     def test_the_old_section_is_left_where_it_is(self) -> None:
         """A reverted install has to still find what its user typed."""

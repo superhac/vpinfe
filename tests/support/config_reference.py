@@ -55,6 +55,15 @@ def _default_of(entry) -> str:
     return f"`{entry.default}`" if entry.default != "" else ""
 
 
+INTERNAL_NOTE = "Runtime state written by VPinFE, not shown as a setting."
+
+SECTION_NOTES = {
+    "vpinplay": "Owned by the VPinPlay extension, which names these on its own settings "
+                "page. Declared here so a 2.x file converts, read once by the handover, "
+                "and written by nothing in core.",
+}
+
+
 def render() -> str:
     """The whole generated block, ending just before END_MARKER."""
     sections: dict[str, list] = {}
@@ -65,7 +74,7 @@ def render() -> str:
     for section, entries in sections.items():
         out.append(f"### `{section}`\n")
         if all(entry.internal for entry in entries):
-            out.append("Runtime state written by VPinFE, not shown in the Manager UI.\n")
+            out.append(SECTION_NOTES.get(section, INTERNAL_NOTE) + "\n")
         out.append("| Key | Type | Default | Description |")
         out.append("| --- | --- | --- | --- |")
         for entry in entries:
