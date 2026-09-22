@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 from common import tokens
 from common.config_store import ConfigStore
-from common.extensions import contributions, handover, host, store
+from common.extensions import catalogs, contributions, handover, host, store
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -104,6 +104,8 @@ class ContributionTests(unittest.TestCase):
         self.store = store.ExtensionStore(self.root / "extensions.json")
         contributions.clear()
         self.addCleanup(contributions.clear)
+        catalogs.clear()
+        self.addCleanup(catalogs.clear)
         self.addCleanup(tokens.forget, "vpinplay")
         self.registry = host.Registry(self.store)
         self.addCleanup(self.registry.clear)
@@ -134,6 +136,14 @@ class ContributionTests(unittest.TestCase):
 
         asked.assert_not_called()
         self.assertEqual(found, {})
+
+    def test_a_matched_game_links_to_its_page(self) -> None:
+        self.assertEqual([("VPinPlay", "https://www.vpinplay.com/tables?vpsid=vps-1")],
+                         [(one["name"], one["url"]) for one in
+                          catalogs.links("game", {"game_id": "abc", "vps_id": "vps-1"})])
+
+    def test_an_unmatched_game_has_no_page(self) -> None:
+        self.assertEqual([], catalogs.links("game", {"game_id": "abc", "vps_id": ""}))
 
     def test_the_catalog_id_is_what_it_asks_about(self) -> None:
         with patch("vpinfe_ext_vpinplay.client.fetch",

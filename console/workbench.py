@@ -20,7 +20,7 @@ from datetime import datetime
 from functools import partial
 from pathlib import Path, PurePosixPath
 from typing import Any
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlparse
 
 from nicegui import run, ui
 
@@ -666,8 +666,10 @@ async def _media_file_block(context: dict[str, Any]) -> None:
         logger.debug("No detail for %s", kind, exc_info=True)
         detail = None
     overrides = {} if table_id else await run.io_bound(library.media_overrides, game_id)
+    links = (await offload.io(library.outside_links, game_id, "", str(row["path"]))
+             if row.get("present") and row.get("path") else [])
     _slot(context, kind, entries.get(kind) or {}, detail, context["rebuild"],
-          (overrides or {}).get(kind) or [], titled=False, in_place=False)
+          (overrides or {}).get(kind) or [], titled=False, in_place=False, links=links)
 
 
 def _loose_media(context: dict[str, Any]) -> None:
@@ -703,6 +705,8 @@ async def _asset_file_block(context: dict[str, Any]) -> None:
             logger.debug("No detail for %s", path, exc_info=True)
     label = str(row.get("label") or _asset_name(kind))
     tier = _file_tier(row)
+    links = (await offload.io(library.outside_links, game_id, "", path)
+             if present and path else [])
     with ui.column().classes("w-full gap-1 console-slot p-2"):
         head = str(detail.get("head") or "")
         if head:
@@ -739,6 +743,7 @@ async def _asset_file_block(context: dict[str, Any]) -> None:
                     ui.label(t("console.workbench.source",
                                source_name=media_ownership.source_name(origin))) \
                         .classes("console-help")
+                _outside_lines(links)
         table = next((one for one in context["tables"]
                       if one.get("id") == context["lens"]), None)
         if kind == "script" and present and table is not None and tier == media_ownership.TABLE:
@@ -1403,7 +1408,8 @@ def running_time(seconds: float) -> str:
 def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
           detail: dict[str, Any] | None, draw: Any,
           differing: list[dict[str, Any]] | None = None, *,
-          titled: bool = True, in_place: bool = True) -> None:
+          titled: bool = True, in_place: bool = True,
+          links: Sequence[dict[str, Any]] = ()) -> None:
     """One slot: the art at the size of the room, and what there is to know about it.
 
     The picture is the subject. Everything else is one line each underneath, because
@@ -1494,6 +1500,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                                     detail.get("matched_to") or entry.get("matched_to"))
                 if named:
                     ui.label(named).classes("console-help")
+                _outside_lines(links)
             else:
                 ui.label(t("console.workbench.no", lower=(label.lower()),
                         value=('table' if table_id else 'game'))).classes("console-help")
@@ -1577,8 +1584,9 @@ async def _game_block(context: dict[str, Any]) -> None:
     differs = (await offload.io(library.vps_details, context["game_id"])
                if found.get("name") else [])
     held = bool(found) or not vps_id or await offload.io(library.vps_catalog_held)
+    links = await offload.io(library.outside_links, context["game_id"])
     with ui.column().classes("gap-0 console-form"):
-        _identity_rows(context, found, differs, held)
+        _identity_rows(context, found, differs, held, links)
         _tables_block(context, held)
 
 
@@ -1587,11 +1595,14 @@ async def _table_block(context: dict[str, Any]) -> None:
     chosen = next((t for t in context["tables"] if t.get("id") == context["lens"]),
                   None)
     match = await _release_match(context, chosen) if chosen is not None else []
+    links = (await offload.io(context["library"].outside_links, context["game_id"],
+                              str(chosen.get("id") or ""))
+             if chosen is not None and chosen.get("id") else [])
     with ui.column().classes("gap-0 console-form"):
         if chosen is None:
             ui.label(t("console.workbench.no_table_selected")).classes("console-help")
             return
-        _table_rows(chosen, context, match)
+        _table_rows(chosen, context, match, links)
 
 
 async def _release_match(context: dict[str, Any],
@@ -1758,8 +1769,23 @@ def _unmatched(gap: tuple[str, str, str]) -> list[tuple[Any, Any]]:
     return rows + [panel.intro(t(why))] if why else rows
 
 
+def _outside(links: Sequence[dict[str, Any]]) -> list[tuple[Any, Any]]:
+    return [(str(one.get("name") or ""),
+             panel.link_out(urlparse(str(one["url"])).netloc.removeprefix("www."),
+                            to=str(one["url"])))
+            for one in links if one.get("url")]
+
+
+def _outside_lines(links: Sequence[dict[str, Any]]) -> None:
+    for one in links:
+        if one.get("url"):
+            with ui.element("div").classes("console-help"):
+                panel.link_out(str(one.get("name") or ""), to=str(one["url"]))()
+
+
 def _identity_rows(context: dict[str, Any], entry: dict[str, Any],
-                   differs: list[dict[str, Any]], held: bool) -> None:
+                   differs: list[dict[str, Any]], held: bool,
+                   links: Sequence[dict[str, Any]] = ()) -> None:
     game = context["game"]
     # The folder is the tail, not the whole path: the library root is the same for
     # every game and repeating it costs the only column that has to hold a name.
@@ -1797,6 +1823,7 @@ def _identity_rows(context: dict[str, Any], entry: dict[str, Any],
         (t("console.workbench.ipdb"),
          _override(ipdb, str(found.get("ipdb_id") or ""), "VPS", save("alt_ipdb_id"),
                    beside=IPDB_URL.format(id=ipdb) if ipdb else "")),
+        *_outside(links),
         (t("word.folder"), PurePosixPath(folder).name or folder or "-"),
     ]
 
@@ -2190,7 +2217,8 @@ def _guide_row(name: str, address: str, said: str, *, arrange: bool = False,
 
 def _table_rows(table: dict[str, Any],
                 context: dict[str, Any] | None = None,
-                match: Sequence[tuple[Any, Any]] = ()) -> None:
+                match: Sequence[tuple[Any, Any]] = (),
+                links: Sequence[dict[str, Any]] = ()) -> None:
     """One table's own facts.
 
     The rom is the one it resolves to with any alias followed, which is the one that
@@ -2257,6 +2285,7 @@ def _table_rows(table: dict[str, Any],
             (t("word.author"), ", ".join(table.get("authors") or []) or "-"),
             (t("console.workbench.hash"), table.get("file_hash") or "-"),
         ]
+    entries += _outside(links)
 
     # Its own group. These say what the table implements, which is not the same
     # question as what plays it - the group they shared could not be named honestly.

@@ -197,7 +197,8 @@ def _stamp(seconds: float) -> str:
     return datetime.fromtimestamp(seconds, tz=UTC).isoformat()
 
 
-def _inside(game_dir: Path, path: str) -> Path:
+def inside(game_dir: Path, path: str) -> Path:
+    """`path` under the game's folder, or a refusal where it leads out of it."""
     root = game_dir.resolve()
     target = (root / path).resolve()
     if not path.strip() or target != root and root not in target.parents:
@@ -223,7 +224,7 @@ def file_detail(game_id: str, path: str, lines: int = HEAD_LINES) -> dict[str, A
     """One asset file or folder, by the path the listing gives it."""
     game = game_lens.game_or_refuse(game_id)
     game_dir = Path(game.full_path_game or "")
-    target = _inside(game_dir, path)
+    target = inside(game_dir, path)
     shown = {"path": target.relative_to(game_dir.resolve()).as_posix(), "file": target.name,
              "folder": False, "files": None, "size_bytes": None, "modified": None,
              "format": None, "head": None}

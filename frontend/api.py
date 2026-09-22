@@ -711,8 +711,7 @@ class API:
         table changes what a ratings connector would now say, and the held answer is the
         one from before.
         """
-        from common.extensions import contributions
-        from frontend import ext_data
+        from common.extensions import contributions, descriptors
 
         wanted = str(game_id or "").strip()
         entry = next((one for one in self.entries
@@ -720,7 +719,7 @@ class API:
         if entry is None:
             return {}
         contributions.forget_game(wanted)
-        return contributions.refresh(ext_data.descriptor_for(entry.game))
+        return contributions.refresh(descriptors.game(entry.game))
 
     def get_vpinplay_endpoint(self) -> str:
         return config_api.get_vpinplay_endpoint(self._ini_config.config)

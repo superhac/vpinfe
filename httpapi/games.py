@@ -29,6 +29,7 @@ from common.games import (
     game_ops,
     library_vps_state,
     media_ops,
+    outside_links,
     table_ops,
 )
 from common.host import play_service
@@ -75,6 +76,15 @@ def get_asset_detail(game_id: str, path: str = Query(...),
                      ) -> models.AssetDetail:
     """`lines` is how much of a text file to return; 0 is all of it."""
     return models.AssetDetail.model_validate(asset_lens.file_detail(game_id, path, lines))
+
+
+@router.get("/{game_id}/links", summary="Where a game, a table or a file is elsewhere",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_outside_links(game_id: str, table: str = Query(""),
+                      path: str = Query("")) -> models.OutsideLinks:
+    """The game's, a table's with `table`, or a file's with `path`, as extensions have
+    contributed them."""
+    return models.OutsideLinks.model_validate(outside_links.links(game_id, table, path))
 
 
 @router.get("/{game_id}/tables", summary="A game's tables",

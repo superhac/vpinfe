@@ -778,6 +778,16 @@ class Library:
             return self._kept_media(self._client.media_of(game_id))
         return self._kept_assets(self._client.assets_of(game_id))
 
+    def outside_links(self, game_id: str, table: str = "",
+                      path: str = "") -> list[dict[str, Any]]:
+        """What extensions link this game, table or file to. A failed read is no links:
+        they are somebody else's, and never the reason a panel does not draw."""
+        try:
+            return self._client.outside_links(game_id, table, path)
+        except Exception:
+            logger.debug("No outside links for %s", game_id, exc_info=True)
+            return []
+
     def asset_detail(self, game_id: str, path: str, lines: int = 40) -> dict[str, Any]:
         return self._client.asset_detail(game_id, path, lines)
 

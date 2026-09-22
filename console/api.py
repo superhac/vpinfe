@@ -141,6 +141,12 @@ class ApiClient:
     def assets_of(self, game_id: str) -> list[dict]:
         return self._get("/assets?" + urlencode({"game": game_id})).get("assets", [])
 
+    def outside_links(self, game_id: str, table: str = "", path: str = "") -> list[dict]:
+        query = urlencode({key: value for key, value in (("table", table), ("path", path))
+                           if value})
+        return self._get(f"/games/{game_id}/links" + (f"?{query}" if query else "")) \
+            .get("links") or []
+
     def asset_detail(self, game_id: str, path: str, lines: int = 40) -> dict:
         return self._get(f"/games/{game_id}/assets/detail?"
                          + urlencode({"path": path, "lines": lines}))

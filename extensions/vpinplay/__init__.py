@@ -16,6 +16,7 @@ from __future__ import annotations
 import secrets
 import string
 from typing import Any
+from urllib.parse import urlencode
 
 from . import client, guest, settings, sync
 
@@ -31,6 +32,8 @@ SYNC_ON_EXIT_KEY = "sync_on_exit"
 # Where VPinPlay lives unless somebody has said otherwise. The same default core carried,
 # so an install that never changed it needs nothing handed over at all.
 DEFAULT_ENDPOINT = "https://api.vpinplay.com:8888"
+# Where a person reads about a table, which is not where this install talks to.
+SITE = "https://www.vpinplay.com"
 
 
 def _truthy(value: Any) -> bool:
@@ -60,6 +63,12 @@ def register(ctx: Any) -> None:
         return client.fetch(endpoint, vps_id)
 
     ctx.entries.contribute("vpinplay", rating_for)
+
+    def page_for(game: Any) -> str:
+        vps_id = str(game.get("vps_id") or "").strip()
+        return f"{SITE}/tables?{urlencode({'vpsid': vps_id})}" if vps_id else ""
+
+    ctx.catalogs.contribute("vpinplay", "VPinPlay", "game", page_for)
 
     def _record_play(game_key: str, elapsed_seconds: float, score_data: Any = None) -> bool:
         """One finished session, where a guest is playing. Answers whether it was taken.

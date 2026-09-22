@@ -20,7 +20,7 @@ from common import events as core_events
 from common import install_identity, tokens
 from common.paths import CONFIG_DIR, bundled, get_ini_config
 
-from . import contributions
+from . import catalogs, contributions
 from .context import ExtensionContext
 from .contract import MANIFEST_NAME, Manifest, ManifestError, read_manifest
 from .store import ExtensionStore, get_extension_store
@@ -235,6 +235,7 @@ class Registry:
                 core_events.unsubscribe(event, handler)
             record.subscriptions = []
             contributions.forget(record.name)
+            catalogs.forget(record.name)
             tokens.forget(record.name)
             record.state, record.reason = state, reason
         logger.error("Extension %s %s: %s", name, state, reason)

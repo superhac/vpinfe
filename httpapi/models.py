@@ -1130,6 +1130,16 @@ class AssetSlot(ApiModel):
     matched_to: str | None = None
 
 
+class OutsideLink(ApiModel):
+    key: str
+    name: str
+    url: str
+
+
+class OutsideLinks(ApiModel):
+    links: list[OutsideLink]
+
+
 class AssetDetail(ApiModel):
     """One asset file, or one folder of them. `files` counts a folder's contents and is
     null for a file; `head` is a text file's first lines and null for anything else."""

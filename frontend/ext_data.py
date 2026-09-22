@@ -16,31 +16,13 @@ from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
 from common import events
-from common.extensions import contributions
-from common.games import game_identity
+from common.extensions import contributions, descriptors
 from common.games.game import GameRecord
-from common.games.game_metadata import game_title, normalize_meta, section
 
 logger = logging.getLogger("vpinfe.frontend.ext_data")
 
 _registered = False
 _broadcast = None
-
-
-def descriptor_for(game: GameRecord) -> dict:
-    """What a contributor is told about a game.
-
-    A plain description and never our object: an extension holding one could reach the
-    whole library through it, which is the thing the context exists to prevent.
-    """
-    info = section(normalize_meta(game.meta_config), "Info")
-    return {
-        "game_id": game_identity.game_id(game),
-        "vps_id": str(info.get("VPSId", "") or ""),
-        "name": game_title(game),
-        "manufacturer": str(info.get("Manufacturer", "") or ""),
-        "year": str(info.get("Year", "") or ""),
-    }
 
 
 def _fetch_and_tell(games: Sequence[GameRecord]) -> None:
@@ -51,7 +33,7 @@ def _fetch_and_tell(games: Sequence[GameRecord]) -> None:
     is on screen.
     """
     for index, game in enumerate(games):
-        descriptor = descriptor_for(game)
+        descriptor = descriptors.game(game)
         found = contributions.refresh(descriptor)
         # A neighbour is fetched to be ready, not to be shown. Telling the windows about
         # a game nobody is looking at is a message per wheel step for nothing.

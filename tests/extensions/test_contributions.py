@@ -159,7 +159,7 @@ class SelectionTests(unittest.TestCase):
 
         self.assertEqual(seen[0].__class__, dict)
         self.assertEqual(sorted(seen[0]),
-                         ["game_id", "manufacturer", "name", "vps_id", "year"])
+                         ["game_id", "ipdb_id", "manufacturer", "name", "vps_id", "year"])
 
 
 if __name__ == "__main__":

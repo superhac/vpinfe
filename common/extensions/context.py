@@ -317,6 +317,28 @@ class ExtensionEntries:
             raise ContractError(f"{self._name} contributes under no key")
         contributions.register(self._name, wanted, fetch)
 
+class ExtensionCatalogs:
+    """Outside places a game, a table or a file can be reached, which core draws."""
+
+    def __init__(self, name: str) -> None:
+        self._name = name
+
+    def contribute(self, key: str, name: str, subject: str,
+                   link: Callable[[dict], str]) -> None:
+        """`subject` is `game`, `table` or `file`. `link` is given a plain description
+        of one and answers its address there, or "" where it has none."""
+        from . import catalogs
+
+        wanted = str(key or "").strip()
+        if not wanted or not str(name or "").strip():
+            raise ContractError(f"{self._name} contributes a link with no key or name")
+        try:
+            catalogs.register(self._name, wanted, str(name).strip(), str(subject or ""),
+                              link)
+        except ValueError as exc:
+            raise ContractError(str(exc)) from exc
+
+
 class ExtensionTokens:
     """Names a user may write into a command, brought by this extension.
 
@@ -380,6 +402,7 @@ class ExtensionContext:
         self.jobs = ExtensionJobs(manifest.name)
         self.ui = ExtensionUI(manifest.name, "ui:mount" in manifest.capabilities)
         self.entries = ExtensionEntries(manifest.name)
+        self.catalogs = ExtensionCatalogs(manifest.name)
         self.tokens = ExtensionTokens(manifest.name)
         self.games = ExtensionGames(manifest.name, manifest.scopes, self.files)
         self.apps = ExtensionApps(manifest.name, manifest.scopes)
