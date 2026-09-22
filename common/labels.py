@@ -78,6 +78,9 @@ def _titled(word: str, *, lead_or_close: bool) -> str:
     """One word of a title. A small word stays down unless it leads or closes."""
     if word.lower() in ACRONYMS:
         return word.upper()
+    rest = word[1:]
+    if any(one.isupper() for one in rest) and any(one.islower() for one in rest):
+        return word
     if word.lower() in SMALL_WORDS and not lead_or_close:
         return word.lower()
     return word[:1].upper() + word[1:].lower()

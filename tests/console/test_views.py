@@ -250,6 +250,11 @@ class LabelCasingTests(unittest.TestCase):
         self.assertEqual(field_label("last_played"), "Last Played")
         self.assertEqual(field_label("Last played"), "Last Played")
 
+    def test_a_name_with_capitals_of_its_own_keeps_them(self) -> None:
+        self.assertEqual(["VPinPlay", "PinMAME Settings", "Table Script"],
+                         [field_label(text) for text in
+                          ("VPinPlay", "PinMAME settings", "TABLE SCRIPT")])
+
     def test_an_apostrophe_does_not_start_a_word(self) -> None:
         """`str.title` would give "Author'S"."""
         self.assertEqual(field_label("author's notes"), "Author's Notes")
