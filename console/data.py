@@ -834,20 +834,22 @@ class Library:
         purpose, so this is where two spellings of one word become findable - which is
         the whole reason the editor exists rather than being a rename box.
         """
-        counts: dict[str, int] = {}
-        for game in self.games:
-            for tag in (game.get("user") or {}).get("tags") or []:
-                counts[tag] = counts.get(tag, 0) + 1
         keys: dict[str, int] = {}
-        for tag in counts:
-            keys[" ".join(tag.split()).casefold()] = \
-                keys.get(" ".join(tag.split()).casefold(), 0) + 1
-        return [{"id": tag, "tag": tag, "games": count,
-                 "same": " ".join(tag.split()).casefold(),
-                 # Only where there is another spelling of it - a mark on every row
-                 # would say nothing, and this is the row people are looking for.
-                 "duplicate": keys[" ".join(tag.split()).casefold()] > 1}
-                for tag, count in sorted(counts.items(), key=lambda kv: kv[0].lower())]
+        for one in self._tags:
+            key = " ".join(str(one.get("name") or "").split()).casefold()
+            keys[key] = keys.get(key, 0) + 1
+        rows = []
+        for one in self._tags:
+            name = str(one.get("name") or "")
+            key = " ".join(name.split()).casefold()
+            rows.append({"id": name, "tag": name, "tag_list": [name],
+                         "games": int(one.get("games") or 0),
+                         "description": str(one.get("description") or ""),
+                         "same": key,
+                         # Only where there is another spelling of it - a mark on every
+                         # row would say nothing, and this is the row people are after.
+                         "duplicate": keys[key] > 1})
+        return rows
 
     def vps_search(self, term: str, limit: int = 40) -> list[dict]:
         return self._client.vps_search(term, limit)

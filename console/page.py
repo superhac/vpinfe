@@ -237,6 +237,7 @@ EMPTY_PANE = {
     "tables": ("console.page.table_details", "console.page.select_table"),
     "collections": ("console.page.collection", "console.page.select_collection"),
     "contents": ("console.section.contents", "console.page.select_contents"),
+    "tags": ("console.page.tag", "console.page.select_tag"),
     "media": ("console.page.media", "console.page.select_kind_media"),
     "assets": ("console.page.assets", "console.page.select_kind_file"),
     "devices": ("console.page.device", "console.page.select_device"),
@@ -934,6 +935,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                                          state["collection"], state)
         deeplink.sync(state)
 
+    async def show_tag(row: dict | None) -> None:
+        if row and not state["workbench"]:
+            show_workbench(True)
+        state["tag"] = (row or {}).get("id") or None
+        await workbench.build_tag(panel, workbench_title, library, state["tag"], state)
+
     async def show_contents(row: dict | None) -> None:
         if row and not state["workbench"]:
             show_workbench(True)
@@ -1028,7 +1035,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 games.build_tables(library.table_rows(), library, show_game, state,
                                    redraw, rescan=_rescan)
             elif view == "tags":
-                tageditor.build(library.tag_rows(), library, redraw)
+                tageditor.build(library.tag_rows(), library, show_tag, state, redraw)
             elif view == "collections":
                 collections_page.build(library.collections(), library, show_collection,
                                        state, redraw)

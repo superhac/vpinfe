@@ -378,6 +378,27 @@ class TagEditorTests(unittest.TestCase):
         self.assertEqual(len(groups), 1)
 
 
+class TagRowTests(unittest.TestCase):
+    def _library(self, tags: list[dict]) -> data.Library:
+        library = data.Library.__new__(data.Library)
+        library._tags = tags
+        return library
+
+    def test_a_tag_only_written_down_is_a_row(self) -> None:
+        rows = self._library([{"name": "Someday", "games": 0, "color": "amber"},
+                              {"name": "Wide Body", "games": 2,
+                               "description": "Wide ones"}]).tag_rows()
+
+        self.assertEqual([("Someday", 0, ["Someday"], ""), ("Wide Body", 2, ["Wide Body"],
+                                                            "Wide ones")],
+                         [(r["tag"], r["games"], r["tag_list"], r["description"])
+                          for r in rows])
+
+    def test_a_tag_panel_is_details_games_and_actions(self) -> None:
+        self.assertEqual(["tag_details", "tag_games", "tag_actions"],
+                         [item.key for item in workbench.sections_for("tag")])
+
+
 class StaleViewTests(unittest.TestCase):
     """A saved view outliving the fields it named."""
 

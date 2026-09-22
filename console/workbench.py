@@ -25,7 +25,7 @@ from urllib.parse import quote, urlencode, urlparse
 from nicegui import run, ui
 
 from common import i18n, icons, path_checks, tokens
-from common.games import asset_registry
+from common.games import asset_registry, tag_registry
 from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
 from common.games.collection_filters import UNCONSTRAINED
 from common.games.collection_store import (
@@ -51,6 +51,7 @@ from console import (
     panel,
     stars,
     table_features,
+    tag_chips,
     verbs,
     vps_match,
 )
@@ -550,6 +551,176 @@ async def _draw_contents(container: ui.column, title: ui.column, library: Librar
             context, f"contents:{row.get('id')}",
             lambda: build_contents(container, title, library, row, state))
         await _rail(context, "contents", state)
+
+
+async def build_tag(container: ui.column, title: ui.column, library: Library,
+                    name: str | None, state: dict[str, Any] | None = None) -> None:
+    """The panel, for one tag."""
+    state = state if state is not None else {}
+    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
+    state["build_seq"] = mine = state.get("build_seq", 0) + 1
+    async with lock:
+        if state["build_seq"] != mine:
+            return
+        await _draw_tag(container, title, library, name, state)
+
+
+async def _draw_tag(container: ui.column, title: ui.column, library: Library,
+                    name: str | None, state: dict[str, Any]) -> None:
+    if not name:
+        _blank(container, title, t("console.page.tag"), t("console.page.select_tag"))
+        return
+    look = library.tag_looks().get(name)
+    if look is None:
+        _blank(container, title, t("console.page.tag"), t("console.page.no_longer_library"))
+        return
+    container.clear()
+    title.clear()
+    with container:
+        count = int(look.get("games") or 0)
+        _title(title, name, t("console.tags.on_games", count=count) if count
+               else t("console.tags.on_no_games"))
+        context: dict[str, Any] = {"library": library, "name": name, "tag": look,
+                                   "state": state, "redraws": [], "dock": None}
+        context["rebuild"] = _rebuilds(
+            context, f"tag:{name}",
+            lambda: build_tag(container, title, library, state.get("tag"), state))
+        await _rail(context, "tag", state)
+
+
+async def _tag_changed(context: dict[str, Any], name: str | None) -> None:
+    """The grid and the panel, after a write - the panel following the tag to `name`."""
+    context["state"]["tag"] = name
+    refresh = context["state"].get("refresh_tags")
+    if callable(refresh):
+        await refresh()
+    await context["rebuild"]()
+
+
+async def _tag_details(context: dict[str, Any]) -> None:
+    library, name, look = context["library"], context["name"], context["tag"]
+
+    async def rename(value: str) -> None:
+        said = " ".join(str(value or "").split())
+        if not said or said == name:
+            return
+        if said in library.tag_looks() and not await confirm.ask(
+                t("console.tageditor.merge", into=said),
+                detail=t("console.tageditor.every_game_carrying_one"),
+                confirm=t("word.merge"), icon=verbs.MERGE):
+            await context["rebuild"]()
+            return
+        try:
+            await run.io_bound(library.merge_tags, [name], said)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            return
+        await _tag_changed(context, said)
+
+    async def describe(value: str) -> None:
+        try:
+            await run.io_bound(library.put_tag, name, {"description": value})
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            return
+        refresh = context["state"].get("refresh_tags")
+        if callable(refresh):
+            await refresh()
+
+    _rows(ui, [
+        (t("console.tageditor.tag"), panel.field(name, rename)),
+        (t("console.workbench.description"), panel.field(str(look.get("description") or ""),
+                                            describe, lines=2)),
+        (t("console.tags.color"), partial(_swatches, context)),
+    ])
+
+
+def _swatches(context: dict[str, Any]) -> None:
+    library, name, look = context["library"], context["name"], context["tag"]
+    chosen = str(look.get("color") or "") if look.get("chosen") else ""
+
+    async def pick(color: str) -> None:
+        try:
+            await run.io_bound(library.put_tag, name, {"color": color})
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            return
+        await _tag_changed(context, name)
+
+    with ui.element("div").classes("console-fact-edit console-swatches"):
+        derived = tag_registry.derived_color(name)
+        for color, said in (("", t("console.tags.automatic")),
+                            *((one, t(f"console.tags.color.{one}"))
+                              for one in tag_registry.COLORS)):
+            with ui.button(on_click=lambda _e=None, c=color: pick(c)) \
+                    .props("flat round dense") \
+                    .classes("console-swatch"
+                             + (" console-swatch--auto" if not color else "")
+                             + (" console-swatch--on" if color == chosen else "")) \
+                    .tooltip(said):
+                ui.element("span").classes(tag_chips.dot_class(color or derived))
+
+
+async def _tag_games(context: dict[str, Any]) -> None:
+    name = context["name"]
+    carrying = [one for one in context["library"].games
+                if name in ((one.get("user") or {}).get("tags") or [])]
+    with ui.column().classes("gap-0 console-form w-full min-w-0"):
+        if not carrying:
+            ui.label(t("console.tags.on_no_games")).classes("console-help px-3")
+        for game in sorted(carrying, key=lambda one: str(one.get("name") or "").lower()):
+            with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row"):
+                panel.link(str(game.get("name") or ""), to="/console?" + deeplink.query(
+                    {"view": "games", "game": game["id"]}))()
+                ui.label(" ".join(str(part) for part in (game.get("manufacturer"),
+                                                         game.get("year")) if part)) \
+                    .classes("console-help")
+
+
+async def _tag_actions(context: dict[str, Any]) -> None:
+    library, name = context["library"], context["name"]
+    others = sorted((one for one in library.tag_looks() if one != name), key=str.casefold)
+    count = int(context["tag"].get("games") or 0)
+
+    async def merge(into: str) -> None:
+        if not await confirm.ask(t("console.tageditor.merge", into=into),
+                                 detail=t("console.tageditor.every_game_carrying_one"),
+                                 lines=[t("console.tageditor.tag_game" if count == 1
+                                          else "console.tageditor.tag_games",
+                                          tag=name, count=count)],
+                                 confirm=t("word.merge"), icon=verbs.MERGE):
+            return
+        try:
+            await run.io_bound(library.merge_tags, [name], into)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            return
+        await _tag_changed(context, into)
+
+    async def drop() -> None:
+        if not await confirm.ask(
+                t("console.tageditor.remove_every_game", tag=name),
+                detail=t("console.tageditor.delete_detail", count=count),
+                confirm=t("word.delete"), icon=verbs.DELETE):
+            return
+        try:
+            await run.io_bound(library.delete_tag, name)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            return
+        await _tag_changed(context, None)
+
+    with ui.element("div").classes("console-slot-actions px-3"):
+        button = ui.button(t("console.tags.merge_into"), icon=verbs.MERGE) \
+            .props("flat dense no-caps size=sm").classes("console-action")
+        if others:
+            with button, ui.menu():
+                for other in others:
+                    ui.menu_item(other, on_click=lambda _e=None, o=other: merge(o)) \
+                        .classes("console-menu-item")
+        else:
+            button.disable()
+        panel.action(t("word.delete"), drop, icon=verbs.DELETE, danger=True)()
 
 
 async def build_file(container: ui.column, title: ui.column, library: Library,
@@ -5538,6 +5709,13 @@ SECTIONS: tuple[Section, ...] = (
             _contents_details, subjects=frozenset({"contents"})),
     Section("media_file", lambda _: t("word.file"), _media_file_block,
             subjects=frozenset({"media_file"})),
+    Section("tag_details", lambda _: t("console.workbench.details"), _tag_details,
+            subjects=frozenset({"tag"})),
+    Section("tag_games", lambda context: t("console.tags.games_counted",
+                                           count=int(context["tag"].get("games") or 0)),
+            _tag_games, subjects=frozenset({"tag"})),
+    Section("tag_actions", lambda _: t("word.actions"), _tag_actions,
+            subjects=frozenset({"tag"})),
     Section("asset_file", lambda _: t("word.file"), _asset_file_block,
             subjects=frozenset({"asset_file"})),
     # A device, in reading order: what it is, what it is running, what it can be asked

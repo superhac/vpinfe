@@ -15,14 +15,17 @@ from typing import Any
 from nicegui import ui
 
 from common.i18n import t
-from console import confirm, grid, offload, verbs
+from console import confirm, grid, offload, panel, renderers, tag_chips, verbs
 
 SUBJECT = "tag"
 LABEL = t("console.tageditor.tags")
 
+SCOPE = "console.tags"
+
 COLUMNS = [
-    grid.identifier("tag", t("console.tageditor.tag"), 260, pinned="left",
-                    help=t("console.tageditor.tag.help")),
+    grid.identifier("tag", t("console.tageditor.tag"), 220, pinned="left",
+                    help=t("console.tageditor.tag.help"), **renderers.drawable("tags")),
+    grid.column("description", t("console.workbench.description"), 280),
     grid.column("games", t("console.tageditor.games"), type="numericColumn",
                 help=t("console.tageditor.games.help")),
 ]
@@ -42,8 +45,11 @@ def rows_by_key(rows: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
 
 
 def build(rows: list[dict[str, Any]], library: Any,
+          on_select: Callable[[dict | None], Any],
+          state: dict[str, Any],
           rerender: Callable[[], None] | None = None) -> None:
     """The editor. The duplicates lead, because they are what somebody came here for."""
+    tag_chips.install(library.tag_looks())
     async def sweep(call: Callable[..., Any], *args: Any, said: str = "") -> None:
         try:
             changed = await offload.io(call, *args)
@@ -82,8 +88,7 @@ def build(rows: list[dict[str, Any]], library: Any,
         count = int(row.get("games") or 0)
         if not await confirm.ask(
                 t("console.tageditor.remove_every_game", tag=(tag)),
-                detail=t("console.tageditor.game_carry_tag_no", the_count=(count),
-                        value=('' if count == 1 else 's')),
+                detail=t("console.tageditor.delete_detail", count=count),
                 confirm=t("word.remove"), icon=verbs.REMOVE):
             return
         await sweep(library.delete_tag, tag, said=t("console.tageditor.removed", tag=(tag)))
@@ -104,10 +109,36 @@ def build(rows: list[dict[str, Any]], library: Any,
                         .props("flat dense no-caps size=sm") \
                         .classes("console-action console-action--inline")
 
+    async def write_down() -> None:
+        said = await _ask_for_a_name("", title=t("console.tageditor.new_tag"),
+                                     help_=t("console.tageditor.new_tag.help"),
+                                     verb=t("word.add"))
+        if not said:
+            return
+        try:
+            await offload.io(library.put_tag, said, {})
+        except Exception as exc:
+            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            return
+        if rerender is not None:
+            rerender()
+
+    with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
+                          "console-panel console-grid-bar"):
+        bar = panel.grid_bar()
+        with bar.top, panel.bar_end():
+            search = panel.search(t("console.tageditor.search_tags"))
+        with bar.bottom, panel.bar_end():
+            ui.label(t("console.tageditor.tags_counted", count=len(rows))) \
+                .classes("text-xs console-label")
+            panel.add_action([(t("console.tageditor.new_tag"), write_down)],
+                             empty=not rows)
+
     if not rows:
         ui.label(t("console.tageditor.no_tags_yet_tag")) \
             .classes("console-help p-4")
         return
+    by_id = {row["id"]: row for row in rows}
 
     menu_row: dict[str, Any] = {}
 
@@ -129,22 +160,38 @@ def build(rows: list[dict[str, Any]], library: Any,
         fill(row)
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        grid.build(COLUMNS, rows, "console.tags", on_context=on_context)
+        table = grid.build(COLUMNS, rows, SCOPE, on_context=on_context)
         menu = ui.context_menu()
+    grid.on_row_focus(SCOPE, lambda event: on_select(by_id.get(grid.focused_row(event))))
+    search.on_value_change(
+        lambda: table.run_grid_method("setGridOption", "quickFilterText",
+                                      search.value or ""))
+
+    async def refresh_rows() -> None:
+        fresh = library.tag_rows()
+        by_id.clear()
+        by_id.update({row["id"]: row for row in fresh})
+        tag_chips.install(library.tag_looks())
+        table.run_grid_method("setGridOption", "rowData", fresh)
+
+    state["refresh_tags"] = refresh_rows
 
 
-async def _ask_for_a_name(current: str) -> str:
+async def _ask_for_a_name(current: str, *, title: str = "", help_: str = "",
+                          verb: str = "") -> str:
     """A dialog that collects a value keeps its own shape - `docs/conventions.md` says
     the confirm treatment is for a question, not for a field."""
     with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label(t("console.tageditor.rename_tag")).classes("console-confirm-title")
-        ui.label(t("console.tageditor.every_game_carrying_retagged")).classes("console-help")
+        ui.label(title or t("console.tageditor.rename_tag")).classes("console-confirm-title")
+        ui.label(help_ or t("console.tageditor.every_game_carrying_retagged")) \
+            .classes("console-help")
         field = ui.input(value=current).props("dense autofocus") \
             .classes("console-edit-field w-full")
         with ui.row().classes("justify-end gap-2 w-full"):
             ui.button(t("word.cancel"), icon=verbs.CANCEL,
                     on_click=lambda: dialog.submit("")).props("flat no-caps")
-            ui.button(t("console.tageditor.rename_2"), icon=verbs.RENAME,
-                    on_click=lambda: dialog.submit(field.value or "")) \
+            ui.button(verb or t("console.tageditor.rename_2"),
+                      icon=verbs.CREATE if verb else verbs.RENAME,
+                      on_click=lambda: dialog.submit(field.value or "")) \
                 .props("no-caps")
     return str(await dialog or "")
