@@ -59,6 +59,7 @@ from console import devices as devices_page
 from console import launchers as launchers_page
 from console import locations as locations_page
 from console import settings as settings_page
+from console import themes as themes_page
 from console.api import ApiError
 from console.data import Library
 
@@ -315,7 +316,8 @@ _ARRANGE = """
 DEFAULT_SECTION = {"game": "game_details", "table": "table_details",
                    # Contents, not Details: a collection is opened to see
                    # what is in it far more often than to rename it.
-                   "collection": "collection_contents"}
+                   "collection": "collection_contents",
+                   "theme": "theme_details"}
 # Every section closed. Named, because it travels in the state and the address, and
 # "" appearing in either wants to be findable as a decision rather than as a blank.
 COLLAPSED = ""
@@ -655,6 +657,41 @@ async def _draw_device(container: ui.column, title: ui.column, library: Library,
                                  local_device_id, device_capabilities,
                                  local_capabilities))
         await _rail(context, "device", state)
+
+
+async def build_theme(container: ui.column, title: ui.column, library: Library,
+                      key: str | None, state: dict[str, Any]) -> None:
+    """The panel, for a frontend theme."""
+    lock: asyncio.Lock = state.setdefault("build_lock", asyncio.Lock())
+    state["build_seq"] = mine = state.get("build_seq", 0) + 1
+    async with lock:
+        if state["build_seq"] != mine:
+            return
+        await _draw_theme(container, title, library, key, state)
+
+
+async def _draw_theme(container: ui.column, title: ui.column, library: Library,
+                      key: str | None, state: dict[str, Any]) -> None:
+    if not key:
+        _blank(container, title, t("console.page.theme"), t("console.page.select_theme"))
+        return
+    found = await offload.io(library.themes, False)
+    theme = next((one for one in found.get("themes") or [] if one.get("key") == key), None)
+    if theme is None:
+        _blank(container, title, t("console.page.theme"),
+               t("console.page.no_longer_library"))
+        return
+    container.clear()
+    title.clear()
+    with container:
+        _title(title, str(theme.get("name") or key),
+               themes_page.STATES[themes_page.status(theme)]["label"])
+        context: dict[str, Any] = {"library": library, "theme": theme, "state": state,
+                                   "redraws": [], "dock": None}
+        context["rebuild"] = _rebuilds(
+            context, f"theme:{key}",
+            lambda: build_theme(container, title, library, key, state))
+        await _rail(context, "theme", state)
 
 
 def _blank(container: ui.column, title: ui.column, heading: str, said: str) -> None:
@@ -5065,4 +5102,9 @@ SECTIONS: tuple[Section, ...] = (
     # reading from what a device is to what can be done to it.
     Section("device_actions", lambda _: t("word.actions"), _device_actions,
             subjects=frozenset({"device"})),
+    Section("theme_details", lambda _: t("console.themes.theme"), themes_page.details,
+            subjects=frozenset({"theme"})),
+    Section("theme_settings", lambda _: t("console.themes.settings"),
+            themes_page.settings_section, subjects=frozenset({"theme"}),
+            shown=lambda context: bool(context["theme"].get("configurable"))),
 )

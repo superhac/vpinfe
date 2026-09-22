@@ -70,9 +70,22 @@ async def _write(library: Library, section: str, key: str, value: Any) -> bool:
 # `type` is, so declaring one is a line in the schema rather than a branch here. A name
 # nothing serves falls back to the control for its type: a surface that has not been
 # taught the tool should still be able to edit the value badly rather than not at all.
+def _frontend_theme(option: dict, value: Any, save: Callable[[Any], Any],
+                    **_: Any) -> Callable[[], None]:
+    """The active theme, and the way to where it is chosen."""
+    def draw() -> None:
+        with ui.element("div").classes("console-fact-edit"):
+            ui.label(str(value or "")).classes("console-fact-value truncate min-w-0")
+            panel.link(t("console.settings.change_on_themes"),
+                       to="/console?view=themes")()
+
+    return draw
+
+
 EDITORS: dict[str, Callable[..., Callable[[], None]]] = {
     config_schema.EDITOR_BINDING: binding_editor.rows,
     config_schema.EDITOR_CONSOLE_THEME: theme_picker.tiles,
+    config_schema.EDITOR_FRONTEND_THEME: _frontend_theme,
 }
 
 

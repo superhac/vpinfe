@@ -166,7 +166,9 @@ EDITOR_BINDING = "binding"
 # A palette is picked by looking at it. The names carry almost nothing on their own -
 # "Synthwave" means something only once you have seen it - so the control shows each one.
 EDITOR_CONSOLE_THEME = "console_theme"
-EDITORS = (EDITOR_BINDING, EDITOR_CONSOLE_THEME)
+# Shown in Settings, chosen on the Themes page.
+EDITOR_FRONTEND_THEME = "frontend_theme"
+EDITORS = (EDITOR_BINDING, EDITOR_CONSOLE_THEME, EDITOR_FRONTEND_THEME)
 
 # What a `suggest` may name. Closed, so a typo is a setting with no suggestions rather
 # than a surface quietly asking for a list nobody serves.
@@ -545,13 +547,13 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     *in_section(
         "themes",
         # Which one is running, as against the two lists below, which say where themes
-        # are found. Installed themes, and still typeable: a theme can be dropped into
-        # place before this page has been reopened to notice it.
+        # are found.
         ConfigOption(
             "active",
             type="string",
             default="Revolution",
             suggest=SUGGEST_THEMES,
+            editor=EDITOR_FRONTEND_THEME,
             legacy=(("general", "theme"),),
         ),
         ConfigOption(

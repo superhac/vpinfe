@@ -1,8 +1,4 @@
-
 """The frontend themes this install knows, and which one plays.
-
-Cards rather than a grid. A theme is chosen by looking at it - the preview is the point,
-and a row of text columns is the one shape that cannot show one.
 
 Active first, then installed, then the rest, which is the order somebody scans in: what
 am I running, what could I switch to without downloading, what else is there.
@@ -23,25 +19,95 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
-from console import confirm, offload, panel, settings, verbs
+from console import confirm, grid, offload, panel, renderers, settings, verbs, views
 from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.themes")
 
-# What a theme says it needs. Named here because a number is not an answer: "3" is a
-# cabinet, and somebody choosing a theme is choosing against the screens they have.
-SCREENS = {1: t("console.themes.desktop"), 2: t("console.themes.two_screens"),
-        3: t("console.themes.cabinet")}
+SCOPE = "console.themes.columns"
+
+ACTIVE, UPDATE, INSTALLED, AVAILABLE = "active", "update", "installed", "available"
+
+# What each state is called, and the tier of the ones worth noticing.
+STATES = {
+    ACTIVE: {"label": t("console.themes.active"), "tier": "on"},
+    UPDATE: {"label": t("console.themes.update_available"), "tier": "warn"},
+    INSTALLED: {"label": t("word.installed")},
+    AVAILABLE: {"label": t("console.themes.not_installed")},
+}
+
+# What a theme says it is made for.
+MADE_FOR = {"cab": t("console.themes.cabinet"), "desktop": t("console.themes.desktop"),
+            "both": t("console.themes.both")}
+
+COLUMNS: list[dict[str, Any]] = [
+    grid.column("preview", t("console.themes.preview"), 150,
+                **renderers.drawable("preview")),
+    grid.identifier("name", t("console.themes.theme"), 170, subtitle="said"),
+    grid.column("status", t("word.status"), 150,
+                **grid.choice_filter([{"value": key, "label": one["label"]}
+                                      for key, one in STATES.items()], formatted=True),
+                **renderers.drawable("state", states=STATES)),
+    grid.column("made_for", t("console.themes.made_for"), 150,
+                **grid.choice_filter([{"value": key, "label": label}
+                                      for key, label in MADE_FOR.items()])),
+]
+_ALL = [one["field"] for one in COLUMNS]
+
+VIEWS: dict[str, list[str] | views.Preset] = {
+    t("console.view.themes_all"): views.Preset(
+        columns=tuple(_ALL), help=t("console.view.themes_all.help")),
+    t("console.view.themes_active"): views.Preset(
+        columns=tuple(_ALL), filters={"status": {"values": [ACTIVE]}},
+        help=t("console.view.themes_active.help")),
+    t("console.view.themes_installed"): views.Preset(
+        columns=tuple(_ALL), filters={"status": {"values": [ACTIVE, UPDATE, INSTALLED]}},
+        help=t("console.view.themes_installed.help")),
+    t("console.view.themes_available"): views.Preset(
+        columns=tuple(_ALL), filters={"status": {"values": [AVAILABLE]}},
+        help=t("console.view.themes_available.help")),
+}
 
 
-def build(library: Library, state: dict[str, Any], redraw: Callable[[], None]) -> None:
-    body = ui.column().classes("w-full gap-3")
-    ui.timer(0.01, lambda: _fill(library, state, redraw, body, refresh=False),
+def status(theme: dict[str, Any]) -> str:
+    if theme.get("active"):
+        return ACTIVE
+    if theme.get("update_available"):
+        return UPDATE
+    return INSTALLED if theme.get("installed") else AVAILABLE
+
+
+def version_said(theme: dict[str, Any]) -> str:
+    """The version, and the one on offer where it is newer."""
+    if theme.get("update_available"):
+        return t("console.themes.version_to", now=theme.get("installed_version") or "",
+                 then=theme.get("version") or "")
+    return str(theme.get("installed_version") or theme.get("version") or "")
+
+
+def rows(themes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [{"id": theme["key"], "name": theme.get("name") or theme["key"],
+             "preview": theme.get("preview") or "", "status": status(theme),
+             "made_for": theme.get("type") if theme.get("type") in MADE_FOR else "",
+             "said": " \u00b7 ".join(part for part in (str(theme.get("author") or ""),
+                                                        version_said(theme)) if part)}
+            for theme in themes]
+
+
+def build(library: Library, state: dict[str, Any],
+          on_select: Callable[[dict | None], Any], redraw: Callable[[], None]) -> None:
+    body = ui.column().classes("w-full grow min-h-0 gap-0")
+    ui.timer(0.01, lambda: _fill(library, state, on_select, redraw, body, refresh=False),
              once=True)
 
 
-async def _fill(library: Library, state: dict[str, Any], redraw: Callable[[], None], body: Any,
-                refresh: bool) -> None:
+async def _fill(library: Library, state: dict[str, Any],
+                on_select: Callable[[dict | None], Any], redraw: Callable[[], None],
+                body: Any, refresh: bool) -> None:
+    # Deferred: `games` imports `workbench`, and `workbench` imports this module for its
+    # sections.
+    from .games import view_control
+
     try:
         found = await offload.io(library.themes, refresh)
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
@@ -50,122 +116,161 @@ async def _fill(library: Library, state: dict[str, Any], redraw: Callable[[], No
             panel.facts(ui, [panel.intro(t("console.themes.could_not_read_themes", exc=(exc)))])
         return
 
-    themes = list(found.get("themes") or [])
+    built = rows(list(found.get("themes") or []))
+    by_id = {row["id"]: row for row in built}
     body.clear()
+    if not built:
+        with body:
+            panel.facts(ui, [panel.intro(t("console.themes.no_theme_sources_configured"))])
+        return
     with body:
-        with ui.row().classes("items-center gap-2 w-full no-wrap px-1 pt-1"):
-            ui.label(t("console.themes.what_frontend_looks_like")) \
-                .classes("console-help grow min-w-0")
-            ui.button(t("console.themes.check_updates"), icon=verbs.REFRESH,
-                      on_click=lambda: _fill(library, state, redraw, body,
-                                             refresh=True)) \
-                .props("flat dense no-caps size=sm")
-        if not themes:
-            panel.facts(ui, [panel.intro(
-                t("console.themes.no_theme_sources_configured"))])
-            return
-        for theme in themes:
-            _card(library, state, redraw, body, theme)
+        with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
+                              "console-panel console-grid-bar"):
+            bar = panel.grid_bar()
+            wire_views, _picker, showing, describe = view_control(
+                library, SCOPE, VIEWS, _ALL, COLUMNS, bar=bar)
+            describe()
+            with bar.top, panel.bar_end():
+                search = panel.search(t("console.themes.search_themes"))
+            with bar.bottom, panel.bar_end():
+                ui.label(t("console.themes.themes", count=len(built))) \
+                    .classes("text-xs console-label")
+                ui.button(icon=verbs.REFRESH,
+                          on_click=lambda: _fill(library, state, on_select, redraw, body,
+                                                 refresh=True)) \
+                    .props("flat dense round size=sm").classes("shrink-0") \
+                    .tooltip(t("console.themes.check_updates"))
+
+        async def on_header_context(col_id: str | None) -> None:
+            await grid.header_menu(menu, table, COLUMNS, col_id)
+
+        with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
+            table = grid.build(COLUMNS, built, SCOPE, on_header_context=on_header_context,
+                               view_of=showing)
+            menu = ui.context_menu()
+        grid.on_row_focus(SCOPE, lambda event: on_select(by_id.get(grid.focused_row(event))))
+
+        async def refresh_rows() -> None:
+            fresh = rows(list((await offload.io(library.themes, False)).get("themes") or []))
+            by_id.clear()
+            by_id.update({row["id"]: row for row in fresh})
+            table.run_grid_method("setGridOption", "rowData", fresh)
+
+        state["refresh_themes"] = refresh_rows
+        wire_views(table)
+        search.on_value_change(
+            lambda: table.run_grid_method("setGridOption", "quickFilterText",
+                                          search.value or ""))
 
 
-def _card(library: Library, state: dict[str, Any], redraw: Callable[[], None], body: Any,
-          theme: dict[str, Any]) -> None:
-    classes = "console-card w-full console-theme-card"
-    if theme["active"]:
-        classes += " console-theme-card--active"
-    with ui.element("div").classes(classes):
-        with ui.row().classes("w-full gap-4 no-wrap items-start"):
-            _preview(theme)
-            with ui.column().classes("gap-1 grow min-w-0"):
-                _heading(theme)
-                if theme.get("description"):
-                    ui.label(theme["description"]).classes("console-help")
-                ui.label(_said(theme)).classes("console-help")
-                _actions(library, state, redraw, body, theme)
-        # Only where it says something new: what changed matters before you take it,
-        # and reading it about the copy you already run is reading old news.
-        if theme.get("change_log") and (not theme["installed"]
-                                        or theme["update_available"]):
-            with ui.element("div").classes("console-theme-changes"):
-                ui.label(theme["change_log"]).classes("console-help")
+def _found(context: dict[str, Any]) -> dict[str, Any]:
+    return context["theme"]
 
 
-def _preview(theme: dict[str, Any]) -> None:
-    """The picture, at one size so a column of cards has one left edge."""
-    with ui.element("div").classes("console-theme-preview shrink-0"):
-        if theme.get("preview"):
-            ui.image(theme["preview"]).classes("w-full")
-        else:
-            ui.icon("image_not_supported", size="40px").classes("opacity-40")
+async def _changed(context: dict[str, Any]) -> None:
+    """The grid's row and this panel, after an act changed the theme."""
+    refresh = context["state"].get("refresh_themes")
+    if callable(refresh):
+        await refresh()
+    await context["rebuild"]()
 
 
-def _heading(theme: dict[str, Any]) -> None:
-    with ui.row().classes("items-center gap-2 w-full no-wrap flex-wrap"):
-        ui.label(theme["name"]).classes("console-setting")
-        # One state chip, not four. A theme is exactly one of these, and drawing the
-        # others as absent would put a badge on every card saying nothing.
-        if theme["active"]:
-            _chip(t("console.themes.active"), "console-tier--on")
-        elif theme["update_available"]:
-            _chip(t("console.themes.update_2", value=(theme['version'])), "console-tier--warn")
-        elif theme["installed"]:
-            _chip(t("word.installed"), "console-tier--off")
-        if theme.get("configurable"):
-            _chip(t("console.themes.configurable"), "console-tier--off")
-        if theme.get("url"):
-            panel.link_out(t("word.source"), to=theme["url"])()
+async def details(context: dict[str, Any]) -> None:
+    theme = _found(context)
+    library = context["library"]
+    with ui.column().classes("gap-0 console-form w-full min-w-0"):
+        with ui.element("div").classes("console-theme-hero"):
+            if theme.get("preview"):
+                ui.image(theme["preview"]).classes("w-full")
+            else:
+                ui.icon("image_not_supported").classes("console-theme-hero-empty")
+        entries: list[tuple[Any, Any]] = []
+        if theme.get("description"):
+            entries.append(panel.intro(str(theme["description"])))
+        state_of = STATES[status(theme)]
+        entries.append((t("word.status"), panel.state(state_of["label"],
+                                                      state_of.get("tier", "off"))))
+        if version_said(theme):
+            entries.append((t("word.version"), version_said(theme)))
+        if theme.get("author"):
+            entries.append((t("word.author"), str(theme["author"])))
+        if theme.get("type") in MADE_FOR:
+            entries.append((t("console.themes.made_for"), MADE_FOR[str(theme["type"])]))
+        entries.append((t("word.source"),
+                        panel.link_out(_repo(str(theme["url"])), to=str(theme["url"]))
+                        if theme.get("url") else t("console.themes.added_by_hand")))
+        changes = changes_worth_showing(theme)
+        if changes:
+            entries += [(panel.HEADING, t("console.themes.what_changed")),
+                        panel.intro(changes)]
+        panel.facts(ui, entries)
+        with ui.element("div").classes("console-slot-actions px-3"):
+            _actions(context, library, theme)
 
 
-def _chip(text: str, tone: str) -> None:
-    ui.label(text).classes(f"console-member-chip console-tier {tone}")
+# Text a theme template ships as its changelog, which is not news about any theme.
+_PLACEHOLDERS = frozenset({"what changed in this version?"})
 
 
-def _said(theme: dict[str, Any]) -> str:
-    """The facts that fit on one line: who made it, which version, what it needs."""
-    parts = []
-    if theme.get("author"):
-        parts.append(t("console.themes.by", author=theme["author"]))
-    version = theme.get("installed_version") or theme.get("version")
-    if version and theme["update_available"]:
-        parts.append(f"v{theme['installed_version']} → v{theme['version']}")
-    elif version:
-        parts.append(f"v{version}")
-    screens = theme.get("screens")
-    if isinstance(screens, int):
-        parts.append(SCREENS.get(screens, t("console.themes.screens", count=screens)))
-    return " · ".join(parts)
+def changes_worth_showing(theme: dict[str, Any]) -> str:
+    said = str(theme.get("change_log") or "").strip()
+    if not said or said.lower() in _PLACEHOLDERS:
+        return ""
+    return said if not theme.get("installed") or theme.get("update_available") else ""
 
 
-def _actions(library: Library, state: dict[str, Any], redraw: Callable[[], None], body: Any,
-             theme: dict[str, Any]) -> None:
+def _repo(url: str) -> str:
+    return url.rstrip("/").rsplit("/", 1)[-1] or url
+
+
+def _actions(context: dict[str, Any], library: Library, theme: dict[str, Any]) -> None:
     key = theme["key"]
 
     async def again() -> None:
-        await _fill(library, state, redraw, body, refresh=False)
+        await _changed(context)
 
-    with ui.row().classes("items-center gap-2 no-wrap flex-wrap pt-1"):
-        if not theme["installed"]:
-            ui.button(t("console.themes.install"), icon="download",
-                      on_click=lambda: _install(library, key, again)) \
-                .props("flat dense no-caps size=sm")
-        elif theme["update_available"]:
-            ui.button(t("console.themes.update"), icon=verbs.UPDATE,
-                      on_click=lambda: _install(library, key, again)) \
-                .props("flat dense no-caps size=sm color=primary")
-        if theme["installed"] and not theme["active"]:
-            ui.button(t("word.make_active"), icon="check_circle",
-                      on_click=lambda: _activate(library, theme, again)) \
-                .props("flat dense no-caps size=sm")
-        if theme.get("configurable"):
-            ui.button(t("console.themes.configure"), icon=verbs.TUNE,
-                      on_click=lambda: _configure(library, theme)) \
-                .props("flat dense no-caps size=sm")
-        if theme["installed"] and not theme["active"]:
-            # Not on the active one: removing it would leave the frontend with no theme
-            # at all, and the way out of that is a config file.
-            ui.button(t("word.remove"), icon=verbs.REMOVE,
-                      on_click=lambda: _remove(library, theme, again)) \
-                .props("flat dense no-caps size=sm color=negative")
+    if not theme["installed"]:
+        panel.action(t("console.themes.install"), lambda: _install(library, key, again),
+                     icon=verbs.FETCH)()
+    elif theme["update_available"]:
+        panel.action(t("console.themes.update"), lambda: _install(library, key, again),
+                     icon=verbs.UPDATE)()
+    if theme["installed"] and not theme["active"]:
+        panel.action(t("word.make_active"), lambda: _activate(library, theme, again),
+                     icon=verbs.ACTIVATE)()
+    if theme["installed"] and not theme["active"]:
+        # Not on the active one: removing it would leave the frontend with no theme at
+        # all, and the way out of that is a config file.
+        panel.action(t("word.remove"), lambda: _remove(library, theme, again),
+                     icon=verbs.REMOVE, danger=True)()
+
+
+async def settings_section(context: dict[str, Any]) -> None:
+    theme = _found(context)
+    library = context["library"]
+    try:
+        found = await offload.io(library.theme_options, theme["key"])
+    except Exception as exc:  # noqa: BLE001
+        panel.facts(ui, [panel.intro(t("console.themes.could_not_read_settings", exc=(exc)))])
+        return
+    options = list(found.get("options") or [])
+    values = dict(found.get("values") or {})
+    wanted = {option["key"]: values.get(option["key"], option.get("default"))
+              for option in options}
+
+    async def keep() -> bool:
+        try:
+            await run.io_bound(library.save_theme_options, theme["key"], dict(wanted))
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("console.themes.could_not_save_settings", exc=(exc)), type="negative")
+            return False
+        return True
+
+    with ui.column().classes("gap-0 console-form w-full"):
+        entries: list[tuple[Any, Any]] = []
+        if found.get("description"):
+            entries.append(panel.intro(str(found["description"])))
+        panel.facts(ui, entries + _rows(options, wanted, keep))
 
 
 async def _install(library: Library, key: str, again: Callable[[], Any]) -> None:
@@ -216,54 +321,8 @@ async def _remove(library: Library, theme: dict[str, Any], again: Callable[[], A
     await again()
 
 
-async def _configure(library: Library, theme: dict[str, Any]) -> None:
-    """The theme's own options, drawn from what it declares.
-
-    Its schema rather than ours: a theme can offer a control this install has never
-    heard of, and the fallback for one is a text field rather than a refusal.
-    """
-    try:
-        found = await offload.io(library.theme_options, theme["key"])
-    except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.themes.could_not_read_settings", exc=(exc)), type="negative")
-        return
-
-    options = list(found.get("options") or [])
-    values = dict(found.get("values") or {})
-    if not options:
-        ui.notify(t("console.themes.declares_no_settings", value=(theme['name'])), type="warning")
-        return
-
-    # Held rather than read back off the controls when Save is pressed: a json option
-    # is parsed as it is edited, so a mistake is reported while the dialog is still open
-    # and beside the field that has it.
-    wanted = {option["key"]: values.get(option["key"], option.get("default"))
-              for option in options}
-    with ui.dialog() as dialog, ui.card().classes("console-confirm console-theme-config"):
-        ui.label(found.get("title") or t("console.themes.settings_for", name=theme["name"])) \
-            .classes("console-confirm-title")
-        ui.label(found.get("description")
-                 or t("console.themes.belong_theme_saved_own")) \
-            .classes("console-help")
-        with ui.column().classes("w-full gap-3 console-theme-options"):
-            panel.facts(ui, _rows(options, wanted))
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(False)) \
-                .props("flat no-caps")
-            ui.button(t("word.save"), icon=verbs.SAVE,
-                    on_click=lambda: dialog.submit(True)).props("no-caps")
-
-    if not await dialog:
-        return
-    try:
-        await run.io_bound(library.save_theme_options, theme["key"], wanted)
-    except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.themes.could_not_save_settings", exc=(exc)), type="negative")
-        return
-    ui.notify(t("console.themes.saved"), type="positive")
-
-
-def _rows(options: list[dict[str, Any]], wanted: dict[str, Any]) -> list[tuple]:
+def _rows(options: list[dict[str, Any]], wanted: dict[str, Any],
+          keep: Callable[[], Any]) -> list[tuple]:
     """The theme's options as settings rows, through the same grammar Settings uses.
 
     A theme's settings are settings. A control vocabulary of their own is a second
@@ -276,7 +335,7 @@ def _rows(options: list[dict[str, Any]], wanted: dict[str, Any]) -> list[tuple]:
         key = option["key"]
         rows.append((str(option.get("name") or key),
                      settings.control_for(_as_option(option), _shown(option, wanted),
-                                          _saver(option, wanted))))
+                                          _saver(option, wanted, keep))))
         said = " ".join(part for part in (str(option.get("description") or ""),
                                           _expected(option, _kind(option))) if part)
         rows.append(panel.note(said))
@@ -318,30 +377,24 @@ def _as_option(option: dict[str, Any]) -> dict[str, Any]:
     return {"type": "text"}
 
 
-def _saver(option: dict[str, Any], wanted: dict[str, Any]) -> Callable[[Any], Any]:
-    """Into the dialog's own pending values, not to the install.
-
-    Nothing is written until Save, so this is where a json option is parsed - the
-    dialog is still open, and a mistake can be corrected where it was made.
-    """
+def _saver(option: dict[str, Any], wanted: dict[str, Any],
+           keep: Callable[[], Any]) -> Callable[[Any], Any]:
+    """Into the theme's values, and written. A json option is parsed first, and one that
+    does not parse is said and not written."""
     key = option["key"]
 
-    def save(value: Any) -> bool:
+    async def save(value: Any) -> bool:
         if _kind(option) == "json":
             text = str(value or "").strip()
-            if not text:
-                wanted[key] = None
-                return True
             try:
-                wanted[key] = json.loads(text)
+                wanted[key] = json.loads(text) if text else None
             except json.JSONDecodeError as exc:
                 ui.notify(t("console.themes.not_json", value=(option.get('name') or key),
-                        msg=(exc.msg)),
-                          type="warning")
+                            msg=(exc.msg)), type="warning")
                 return False
-            return True
-        wanted[key] = value
-        return True
+        else:
+            wanted[key] = value
+        return bool(await keep())
 
     return save
 
@@ -367,7 +420,7 @@ def _expected(option: dict[str, Any], kind: str) -> str:
     No full stop: each of these is a fragment naming a shape, not a sentence about it.
     """
     if kind == "boolean":
-        return t("console.themes.expected_off")
+        return ""
     if kind == "number":
         low, high = option.get("min"), option.get("max")
         if low is not None and high is not None:

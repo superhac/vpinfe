@@ -233,6 +233,7 @@ EMPTY_PANE = {
     "devices": ("console.page.device", "console.page.select_device"),
     "locations": ("console.page.location", "console.page.select_location"),
     "launchers": ("console.page.launcher", "console.page.select_launcher"),
+    "themes": ("console.page.theme", "console.page.select_theme"),
 }
 
 # The pages the pane has a role on. Media is one of them: a row is one game's slot, so
@@ -892,6 +893,15 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                                      local_capabilities)
         deeplink.sync(state)
 
+    async def show_theme(row: dict | None) -> None:
+        """The panel follows the focused row, as it does for every subject. A row of
+        nothing is the grid settling, and the last theme stands."""
+        if row and not state["workbench"]:
+            show_workbench(True)
+        state["theme_key"] = (row or {}).get("id") or state.get("theme_key")
+        await workbench.build_theme(panel, workbench_title, library, state["theme_key"],
+                                    state)
+
     async def _probe_devices() -> None:
         """Ask every device again, on demand. The page's own pass runs once on load;
         this is for when you have just gone and switched one on."""
@@ -1044,7 +1054,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                 state["rerender"] = redraw
                 launchers_page.build(library, state, show_launcher, redraw)
             elif view == "themes":
-                themes_page.build(library, state, redraw)
+                themes_page.build(library, state, show_theme, redraw)
             elif view == "metrics":
                 metrics_page.build(library, state, redraw)
             elif view == "logs":

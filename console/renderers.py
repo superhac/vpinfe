@@ -70,7 +70,28 @@ PICTURE = Renderer("picture", "console.renderers.picture", (
     " + row.id + '\" data-kind=\"' + kind + '\">open_in_full</i></span>'; }"
 ), row_px=74)
 
-REGISTRY: dict[str, Renderer] = {one.name: one for one in (MARK, PICTURE)}
+_ESCAPE = ("const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')"
+           ".replace(/\"/g, '&quot;');")
+
+# A picture that is the row's subject rather than one of its facts.
+PREVIEW = Renderer("preview", "console.renderers.preview", (
+    "params => {" + _ESCAPE +
+    " return params.value ? '<img class=\"console-cell-preview\" loading=\"lazy\" src=\"'"
+    " + esc(params.value) + '\">'"
+    " : '<i class=\"material-icons console-cell-noart\">image_not_supported</i>'; }"
+), row_px=96)
+
+# A state as a chip where it is worth noticing and as a quiet word where it is not.
+# `params.states` maps each value to its label and, for the ones worth noticing, a tier.
+STATE = Renderer("state", "console.renderers.state", (
+    "params => {" + _ESCAPE +
+    " const one = (params.states || {})[params.value]; if (!one) return '';"
+    " return one.tier ? '<span class=\"console-member-chip console-tier console-tier--'"
+    " + one.tier + '\">' + esc(one.label) + '</span>'"
+    " : '<span class=\"console-cell-quiet\">' + esc(one.label) + '</span>'; }"
+))
+
+REGISTRY: dict[str, Renderer] = {one.name: one for one in (MARK, PICTURE, PREVIEW, STATE)}
 
 
 def install() -> None:
@@ -80,10 +101,10 @@ def install() -> None:
         f"window.__vpinfeDraw = Object.assign(window.__vpinfeDraw || {{}}, {{{body}}});")
 
 
-def drawable(default: str, *others: str) -> dict[str, Any]:
+def drawable(default: str, *others: str, **params: Any) -> dict[str, Any]:
     """What makes a column drawn by name: `default` until a view says otherwise, and
-    `others` as the choices it offers."""
-    return {":cellRenderer": DISPATCH, "cellRendererParams": {"drawn": default},
+    `others` as the choices it offers. `params` reach the drawing as it runs."""
+    return {":cellRenderer": DISPATCH, "cellRendererParams": {**params, "drawn": default},
             CHOICES_KEY: (default, *others)}
 
 

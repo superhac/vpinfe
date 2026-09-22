@@ -12,10 +12,12 @@ that, so each module says how many it has and why.
 
 from __future__ import annotations
 
+import asyncio
 import re
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from console import binding_editor, panel, settings, themes
 
@@ -131,27 +133,48 @@ class WhatTheDialogHolds(unittest.TestCase):
     def tearDown(self) -> None:
         settings.panel.switch = self.real
 
-    def test_changing_a_control_changes_the_pending_value(self) -> None:
-        wanted = {"k": False}
+    @staticmethod
+    def _run(coroutine):
+        # A loop of its own: `asyncio.run` unsets the thread's loop on the way out, and
+        # the modules tested after this one build NiceGUI elements that need it.
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coroutine)
+        finally:
+            loop.close()
 
-        rows = themes._rows([{"key": "k", "name": "Start", "type": "boolean"}], wanted)
+    def _keep(self, wanted: dict) -> tuple[list, object]:
+        written: list = []
+
+        async def keep() -> bool:
+            written.append(dict(wanted))
+            return True
+
+        return written, keep
+
+    def test_changing_a_control_writes_the_value(self) -> None:
+        wanted = {"k": False}
+        written, keep = self._keep(wanted)
+
+        rows = themes._rows([{"key": "k", "name": "Start", "type": "boolean"}], wanted, keep)
 
         self.assertEqual(rows[0][0], "Start")
         self.assertIs(self.captured["value"], False)
-        self.captured["on_change"](SimpleNamespace(value=True))
-        self.assertEqual(wanted, {"k": True})
+        self._run(self.captured["on_change"](SimpleNamespace(value=True)))
+        self.assertEqual([{"k": True}], written)
 
-    def test_json_is_parsed_where_it_is_typed(self) -> None:
-        """While the dialog is open and beside the field that has it, rather than as a
-        string the theme's own code cannot read."""
+    def test_json_is_parsed_before_it_is_written(self) -> None:
         wanted: dict = {"k": None}
-        save = themes._saver({"key": "k", "type": "json"}, wanted)
+        written, keep = self._keep(wanted)
+        save = themes._saver({"key": "k", "type": "json"}, wanted, keep)
 
-        self.assertTrue(save('{"a": 1}'))
+        self.assertTrue(self._run(save('{"a": 1}')))
         self.assertEqual(wanted["k"], {"a": 1})
-        self.assertFalse(save("{not json"))
+        with patch.object(themes.ui, "notify", lambda *a, **k: None):
+            self.assertFalse(self._run(save("{not json")))
         self.assertEqual(wanted["k"], {"a": 1}, "a refused value must not be stored")
-        self.assertTrue(save("  "))
+        self.assertEqual(1, len(written), "nor written")
+        self.assertTrue(self._run(save("  ")))
         self.assertIsNone(wanted["k"])
 
     def test_a_json_value_reaches_the_field_as_json(self) -> None:
