@@ -14,15 +14,19 @@ a matrix that mixes them is neither.
 
 from __future__ import annotations
 
+import codecs
 import logging
+import os
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from common import collation
-from common.games import asset_origin, asset_resolver, game_repository, table_lens
+from common import collation, media_probe, service_errors
+from common.games import asset_origin, asset_resolver, game_lens, game_repository, table_lens
 from common.games.asset_registry import spec_for
 from common.games.game_repository import game_to_row
 from common.games.tables import table_names
+from common.i18n import t
 
 logger = logging.getLogger("vpinfe.common.games.asset_lens")
 
@@ -179,3 +183,67 @@ def listing(limit: int = 0, offset: int = 0, game: str = "",
     total = len(found)
     window = found[offset:offset + limit] if limit else found[offset:]
     return {"total": total, "offset": offset, "count": len(window), "assets": window}
+
+
+# Files read as text for their first lines. A backglass is XML too, and is left out: its
+# lines are embedded pictures.
+_TEXT = frozenset({".vbs", ".ini", ".pov", ".txt", ".md", ".nfo", ".cfg"})
+HEAD_LINES = 40
+# Enough for a whole script, and a bound on what one request can make this read.
+_ALL_LINES_BYTES = 4 * 1024 * 1024
+
+
+def _stamp(seconds: float) -> str:
+    return datetime.fromtimestamp(seconds, tz=UTC).isoformat()
+
+
+def _inside(game_dir: Path, path: str) -> Path:
+    root = game_dir.resolve()
+    target = (root / path).resolve()
+    if not path.strip() or target != root and root not in target.parents:
+        raise service_errors.RefusedError(t("error.assets.outside_folder"),
+                                          details={"path": path})
+    return target
+
+
+def _head(path: Path, lines: int) -> str:
+    """The first `lines` lines, or all of them for 0. UTF-8 where it is, and otherwise
+    the Windows code page most scripts were written in."""
+    with path.open("rb") as handle:
+        data = handle.read(_ALL_LINES_BYTES if lines == 0 else 256 * max(lines, 1))
+    try:
+        text = codecs.getincrementaldecoder("utf-8")().decode(data, final=False)
+    except UnicodeDecodeError:
+        text = data.decode("cp1252", errors="replace")
+    kept = text.lstrip("\ufeff").splitlines()
+    return "\n".join(kept if lines == 0 else kept[:lines])
+
+
+def file_detail(game_id: str, path: str, lines: int = HEAD_LINES) -> dict[str, Any]:
+    """One asset file or folder, by the path the listing gives it."""
+    game = game_lens.game_or_refuse(game_id)
+    game_dir = Path(game.full_path_game or "")
+    target = _inside(game_dir, path)
+    shown = {"path": target.relative_to(game_dir.resolve()).as_posix(), "file": target.name,
+             "folder": False, "files": None, "size_bytes": None, "modified": None,
+             "format": None, "head": None}
+    if target.is_dir():
+        count, total, newest = 0, 0, 0.0
+        for root, _dirs, names in os.walk(target):
+            for name in names:
+                try:
+                    stat = (Path(root) / name).stat()
+                except OSError:
+                    continue
+                count, total = count + 1, total + stat.st_size
+                newest = max(newest, stat.st_mtime)
+        return {**shown, "folder": True, "files": count, "size_bytes": total,
+                "modified": _stamp(newest) if count else None}
+    try:
+        stat = target.stat()
+    except OSError:
+        raise service_errors.NotFoundError(t("error.assets.no_such_file", path=path),
+                                           details={"path": path}) from None
+    return {**shown, "size_bytes": stat.st_size, "modified": _stamp(stat.st_mtime),
+            "format": media_probe.probe(target)["format"],
+            "head": _head(target, lines) if target.suffix.lower() in _TEXT else None}

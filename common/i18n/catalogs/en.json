@@ -1407,6 +1407,8 @@
   "date.month.9": "Sep",
   "date.short": "{day} {month} {year}",
   "error.actions.not_something_install_get": "Not something an install does: {action} the {scope}. GET /actions lists them.",
+  "error.assets.no_such_file": "Nothing at {path} in the game's folder",
+  "error.assets.outside_folder": "That path is not in the game's folder",
   "error.collections.cap_fewer_one_game": "A cap of fewer than one game shows nothing",
   "error.collections.collection_named_already_exists": "A collection named {name} already exists",
   "error.collections.collection_needs_name": "A collection needs a name",

@@ -1407,6 +1407,8 @@
   "date.month.9": "Šèþ",
   "date.short": "{day} {month} {year}",
   "error.actions.not_something_install_get": "Ñöţ šöɱèţĥîñĝ àñ îñšţàŀŀ đöèš: {action} ţĥè {scope}. ĜÈŢ /àçţîöñš ŀîšţš ţĥèɱ.",
+  "error.assets.no_such_file": "Ñöţĥîñĝ àţ {path} îñ ţĥè ĝàɱè'š ƒöŀđèř",
+  "error.assets.outside_folder": "Ţĥàţ þàţĥ îš ñöţ îñ ţĥè ĝàɱè'š ƒöŀđèř",
   "error.collections.cap_fewer_one_game": "À çàþ öƒ ƒèŵèř ţĥàñ öñè ĝàɱè šĥöŵš ñöţĥîñĝ",
   "error.collections.collection_named_already_exists": "À çöŀŀèçţîöñ ñàɱèđ {name} àŀřèàđý èẋîšţš",
   "error.collections.collection_needs_name": "À çöŀŀèçţîöñ ñèèđš à ñàɱè",

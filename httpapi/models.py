@@ -1130,6 +1130,20 @@ class AssetSlot(ApiModel):
     matched_to: str | None = None
 
 
+class AssetDetail(ApiModel):
+    """One asset file, or one folder of them. `files` counts a folder's contents and is
+    null for a file; `head` is a text file's first lines and null for anything else."""
+
+    path: str
+    file: str
+    folder: bool = False
+    files: int | None = None
+    size_bytes: int | None = None
+    modified: str | None = None
+    format: str | None = None
+    head: str | None = None
+
+
 class AssetSlotList(ApiModel):
     total: int
     offset: int

@@ -23,6 +23,7 @@ from starlette.responses import FileResponse, Response
 from common import media_browse
 from common.games import (
     archive_service,
+    asset_lens,
     collection_ops,
     game_lens,
     game_ops,
@@ -65,6 +66,15 @@ def get_game(game_id: str) -> models.GameResource:
             dependencies=[requires(scopes.COLLECTIONS_READ)])
 def get_game_collections(game_id: str) -> models.GameCollections:
     return models.GameCollections.model_validate(collection_ops.collections_of(game_id))
+
+
+@router.get("/{game_id}/assets/detail", summary="One asset file or folder, in detail",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_asset_detail(game_id: str, path: str = Query(...),
+                     lines: int = Query(asset_lens.HEAD_LINES, ge=0, le=100_000),
+                     ) -> models.AssetDetail:
+    """`lines` is how much of a text file to return; 0 is all of it."""
+    return models.AssetDetail.model_validate(asset_lens.file_detail(game_id, path, lines))
 
 
 @router.get("/{game_id}/tables", summary="A game's tables",
