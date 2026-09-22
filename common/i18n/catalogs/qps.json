@@ -1308,6 +1308,19 @@
   "console.workbench.what_program": "ŵĥàţ ţĥè þřöĝřàɱ đöèš",
   "console.workbench.where_rom_managed": "Ŵĥèřè à řöɱ îš ɱàñàĝèđ",
   "console.workbench.yours_frontend_can_filter": "Ýöûřš, àñđ ţĥè ƒřöñţèñđ çàñ ƒîŀţèř öñ îţ",
+  "date.days_ago": {
+    "one": "{count} đàý àĝö",
+    "other": "{count} đàýš àĝö"
+  },
+  "date.hours_ago": {
+    "one": "{count} ĥöûř àĝö",
+    "other": "{count} ĥöûřš àĝö"
+  },
+  "date.just_now": "Ĵûšţ ñöŵ",
+  "date.minutes_ago": {
+    "one": "{count} ɱîñûţè àĝö",
+    "other": "{count} ɱîñûţèš àĝö"
+  },
   "date.month.1": "Ĵàñ",
   "date.month.10": "Öçţ",
   "date.month.11": "Ñöṽ",

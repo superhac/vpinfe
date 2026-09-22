@@ -161,7 +161,7 @@ def _connection_rows(device: dict[str, Any],
             rows.append(panel.note(reason))
 
     rows.append((t("word.last_seen"),
-                 _when(str(device.get("last_reachable") or "")) or t("word.never")))
+                 _when(str(device.get("last_reachable") or ""), t("word.never"))))
     return rows
 
 
@@ -311,7 +311,7 @@ COLUMNS: list[dict[str, Any]] = [
                 help=t("console.devices.where_reached_read_off.help")),
     grid.column("last_seen", t("word.last_seen"), 170,
                 help=t("console.devices.last_known_announced_install.help"),
-                **{":valueFormatter": when.CELL}),
+                **when.cell("last_seen")),
     grid.column("features", t("console.devices.features"), 150,
                 help=t("console.devices.what_install_curating_library.help")),
 ]
@@ -376,12 +376,18 @@ def rows(devices: list[dict[str, Any]],
             "last_seen": str(device.get("last_reachable") or ""),
             "features": settings_page.features_said(device.get("features")),
         })
-    return out
+    return [when.said(row, "last_seen") for row in out]
 
 
-def _when(stamp: str) -> str:
-    """A timestamp as the reader's own clock shows it."""
-    return when.local(stamp)
+def _when(stamp: str, missing: str) -> Any:
+    """How long ago, in the words the grid uses, with the exact time on hover."""
+    if not str(stamp or "").strip():
+        return missing
+
+    def draw() -> None:
+        ui.label(when.ago(stamp)).classes("console-fact-value").tooltip(when.local(stamp))
+
+    return draw
 
 
 def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
@@ -458,6 +464,15 @@ def build(found: list[dict[str, Any]], library: Any, state: dict[str, Any],
                            rows_without_a_menu=[local_device_id] if local_device_id
                            else None)
         menu = ui.context_menu()
+
+        def keep_current() -> None:
+            fresh = [when.said(row, "last_seen") for row in built]
+            built[:] = fresh
+            by_id.update({row["id"]: row for row in fresh})
+            table.run_grid_method("applyTransaction", {"update": fresh})
+
+        # Inside the wrapper, so it goes when the grid does.
+        ui.timer(60, keep_current)
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                       search.value or ""))
@@ -858,9 +873,9 @@ def entry_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     library = context.get("library")
     out: list[tuple[Any, Any]] = [
         (t("console.devices.first_seen"),
-                _when(str(device.get("first_seen") or "")) or t("console.devices.not_known")),
+                _when(str(device.get("first_seen") or ""), t("console.devices.not_known"))),
         (t("console.devices.announced"),
-                _when(str(device.get("last_seen") or "")) or t("word.never")),
+                _when(str(device.get("last_seen") or ""), t("word.never"))),
     ]
     if _is_local(context) or library is None:
         out.append(panel.note(

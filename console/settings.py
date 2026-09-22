@@ -353,8 +353,10 @@ async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tupl
 
     def checked() -> None:
         with ui.element("div").classes("console-fact-edit"):
-            ui.label(when.local(checked_at) or t("word.never")) \
+            shown = ui.label(when.ago(checked_at) or t("word.never")) \
                 .classes("console-fact-value truncate min-w-0")
+            if checked_at:
+                shown.tooltip(when.local(checked_at))
             panel.action(t("console.settings.check_now"), now, icon=verbs.REFRESH, inline=True)()
 
     # No heading of its own: the group above already names the catalog, and a second

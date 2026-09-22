@@ -1308,6 +1308,19 @@
   "console.workbench.what_program": "what the program does",
   "console.workbench.where_rom_managed": "Where a rom is managed",
   "console.workbench.yours_frontend_can_filter": "Yours, and the frontend can filter on it",
+  "date.days_ago": {
+    "one": "{count} day ago",
+    "other": "{count} days ago"
+  },
+  "date.hours_ago": {
+    "one": "{count} hour ago",
+    "other": "{count} hours ago"
+  },
+  "date.just_now": "Just now",
+  "date.minutes_ago": {
+    "one": "{count} minute ago",
+    "other": "{count} minutes ago"
+  },
   "date.month.1": "Jan",
   "date.month.10": "Oct",
   "date.month.11": "Nov",
