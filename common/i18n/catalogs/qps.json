@@ -1529,6 +1529,8 @@
   "error.path.folder_wants_program": "Ţĥàţ îš à ƒöŀđèř, àñđ ţĥîš ŵàñţš à þřöĝřàɱ",
   "error.path.not_executable": "Ţĥàţ ƒîŀè îš ñöţ èẋèçûţàƀŀè",
   "error.path.nothing_there": "Ñöţĥîñĝ îš àţ ţĥàţ þàţĥ",
+  "error.tags.no_name": "À ţàĝ ñèèđš à ñàɱè",
+  "error.tags.no_such_color": "Ñö çöŀöř çàŀŀèđ {color}",
   "error.themes.active_theme_make_another": "{key} îš ţĥè àçţîṽè ţĥèɱè. Ḿàķè àñöţĥèř öñè àçţîṽè ƒîřšţ.",
   "error.themes.could_not_install": "Çöûŀđ ñöţ îñšţàŀŀ {key}: {exc}",
   "error.themes.could_not_read_theme": "Çöûŀđ ñöţ řèàđ ţĥè ţĥèɱè šöûřçèš: {exc}",

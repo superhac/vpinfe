@@ -1529,6 +1529,8 @@
   "error.path.folder_wants_program": "That is a folder, and this wants a program",
   "error.path.not_executable": "That file is not executable",
   "error.path.nothing_there": "Nothing is at that path",
+  "error.tags.no_name": "A tag needs a name",
+  "error.tags.no_such_color": "No color called {color}",
   "error.themes.active_theme_make_another": "{key} is the active theme. Make another one active first.",
   "error.themes.could_not_install": "Could not install {key}: {exc}",
   "error.themes.could_not_read_theme": "Could not read the theme sources: {exc}",

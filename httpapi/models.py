@@ -1973,6 +1973,29 @@ class TagMerge(ApiModel):
     into: str
 
 
+class TagResource(ApiModel):
+    """`color` is one of the names the palettes resolve; `chosen` is false where it was
+    derived from the name because nobody picked one. `games` is 0 for a tag only written
+    down."""
+
+    name: str
+    games: int = 0
+    description: str = ""
+    color: str
+    chosen: bool = False
+
+
+class TagList(ApiModel):
+    tags: list[TagResource]
+
+
+class TagUpdate(ApiModel):
+    """Left out is left alone. An empty `color` goes back to the derived one."""
+
+    description: str | None = None
+    color: str | None = None
+
+
 class TagSweep(ApiModel):
     """How many games changed - not how many carried a source, since one that already
     held the survivor is not a change."""

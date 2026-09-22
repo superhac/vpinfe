@@ -37,6 +37,19 @@ def filters() -> models.FilterAxisList:
     return models.FilterAxisList.model_validate(library_ops.filter_axes())
 
 
+@router.get("/tags", summary="Every tag, and what each one says",
+            dependencies=[requires(scopes.GAMES_READ)])
+def list_tags() -> models.TagList:
+    return models.TagList.model_validate(library_ops.tags())
+
+
+@router.put("/tags/{tag}", summary="Say what a tag means and what color it wears",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_tag(tag: str, body: models.TagUpdate) -> models.TagResource:
+    return models.TagResource.model_validate(
+        library_ops.put_tag(tag, body.description, body.color))
+
+
 @router.post("/tags/merge", summary="Fold tags into one",
              dependencies=[requires(scopes.GAMES_WRITE)])
 def merge_tags(payload: models.TagMerge) -> models.TagSweep:

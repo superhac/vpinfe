@@ -22,13 +22,14 @@ from common.games import (
     game_service,
     library_vps_state,
     standalone_scripts,
+    tag_registry,
     watching,
 )
 from common.games.collection_filters import AXES, GameListFilters
 from common.games.collection_resolver import resolve
 from common.games.collection_store import BUILTIN_ALL
 from common.games.collections_service import get_collections_manager
-from common.games.game_metadata import retag_library
+from common.games.game_metadata import game_tags, normalize_tag, retag_library
 from common.games.library_policy import get_library_policy
 
 
@@ -62,15 +63,41 @@ def filter_axes() -> dict[str, Any]:
                      for axis in AXES]}
 
 
+def _carried() -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for game in game_repository.all_games():
+        for tag in game_tags(game):
+            counts[tag] = counts.get(tag, 0) + 1
+    return counts
+
+
+def tags() -> dict[str, Any]:
+    entries = tag_registry.load()
+    counts = _carried()
+    return {"tags": [{"name": name, "games": counts.get(name, 0),
+                      **tag_registry.describe(name, entries)}
+                     for name in sorted(set(counts) | set(entries), key=str.casefold)]}
+
+
+def put_tag(tag: str, description: str | None, color: str | None) -> dict[str, Any]:
+    said = tag_registry.put(tag, description=description, color=color)
+    name = normalize_tag(tag)
+    return {"name": name, "games": _carried().get(name, 0), **said}
+
+
 def merge_tags(sources: Iterable[str], into: str) -> dict[str, Any]:
     """Across the library, because a tag is not owned by a game - half of them renamed
     is a worse state than either end of the merge."""
-    return {"changed": retag_library(game_repository.all_games(), list(sources), into)}
+    sources = list(sources)
+    changed = retag_library(game_repository.all_games(), sources, into)
+    tag_registry.moved(sources, into)
+    return {"changed": changed}
 
 
 def drop_tag(tag: str) -> dict[str, Any]:
-    """The vocabulary is derived, so a tag no game carries has ceased to exist."""
-    return {"changed": retag_library(game_repository.all_games(), [tag], "")}
+    changed = retag_library(game_repository.all_games(), [tag], "")
+    tag_registry.dropped(tag)
+    return {"changed": changed}
 
 
 def entries() -> dict[str, Any]:
