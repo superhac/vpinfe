@@ -5067,39 +5067,39 @@ def _member_action(context: dict[str, Any], member: dict[str, Any],
     library = context["library"]
     name = _collection(context)["name"]
     game = member.get("game") or ""
-    tables = member.get("tables") or []
-    table = str(tables[0].get("id", "")) if tables else ""
+    what, ref_table = member_act(library, member)
 
-    async def act(what: Any, *args: Any, said: str) -> None:
+    async def act(said: str) -> None:
         try:
-            await run.io_bound(what, *args)
+            await run.io_bound(what, name, game, ref_table)
         except Exception as exc:
             ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
             return
         ui.notify(said, type="positive")
         await context["rebuild"]()
 
-    # The ref this row *is*, not the table it resolves to. An exclusion naming no
-    # table resolves to one all the same, and sending that back matched nothing.
-    ref_table = str(member.get("ref_table") or "")
     if origin == "excluded":
         ui.button(icon=verbs.REVERT,
-                  on_click=lambda: act(library.unexclude_from_collection, name, game,
-                                       ref_table, said=t("console.workbench.back_list"))) \
+                  on_click=lambda: act(t("console.workbench.back_list"))) \
             .props("flat dense round size=sm").tooltip(t("console.workbench.put_back_2"))
-    elif origin == "filter":
-        ui.button(icon="close",
-                  on_click=lambda: act(library.exclude_from_collection, name, game,
-                                       table, said=t("console.workbench.taken_2"))) \
-            .props("flat dense round size=sm").tooltip(t("console.workbench.remove_collection"))
     else:
-        # The ref this row *is*, not the table it resolves to: a row that follows the
-        # game names no table, so its identity is "". Passing "" used to mean every
-        # ref for the game, which is how deleting one row deleted three.
         ui.button(icon="close",
-                  on_click=lambda: act(library.remove_from_collection, name, game,
-                                       ref_table, said=t("console.workbench.removed"))) \
+                  on_click=lambda: act(t("console.workbench.taken_2") if origin == "filter"
+                                       else t("console.workbench.removed"))) \
             .props("flat dense round size=sm").tooltip(t("console.workbench.remove_collection"))
+
+
+def member_act(library: Any, member: dict[str, Any]) -> tuple[Callable[..., Any], str]:
+    """What takes this row out of its collection, or puts a taken-out one back, and the
+    ref to name."""
+    origin = member.get("origin") or ""
+    if origin == "excluded":
+        what = library.unexclude_from_collection
+    elif origin == "filter":
+        what = library.exclude_from_collection
+    else:
+        what = library.remove_from_collection
+    return what, str(member.get("ref_table") or "")
 
 
 def _add_control(context: dict[str, Any], members: list[dict]) -> None:
