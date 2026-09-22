@@ -1545,6 +1545,7 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
 }
 .console-link-out .q-icon { font-size: 1em; flex: 0 0 auto; }
+.console-member-row .console-link-out { max-width: 100%; }
 
 /* The mark on its own, where the row already names what opening it would show. There
    are no words to widen the target, so the padding is the target. */

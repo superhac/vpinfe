@@ -253,6 +253,13 @@ class Library:
         self._client.rate_table(game_id, table_id, rating)
         self._forget_tables(game_id)
 
+    def set_game_guides(self, game_id: str, guides: list[dict]) -> list[dict]:
+        stored = self._client.set_game_guides(game_id, guides)
+        for game in self.games:
+            if game.get("id") == game_id:
+                game["guides"] = stored
+        return stored
+
     def set_game_favorite(self, game_id: str, favorite: bool) -> None:
         self._client.set_favorite(game_id, favorite)
         self._forget_game(game_id)

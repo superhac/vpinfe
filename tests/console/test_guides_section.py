@@ -32,8 +32,12 @@ class AGuide(unittest.TestCase):
 
 class TheRailRow(unittest.TestCase):
     def test_it_counts_the_guides_and_the_rule_sheet(self) -> None:
-        self.assertEqual("Guides (3)",
-                         _guides_label(_context([{}, {}], rule_sheet=True)))
+        self.assertEqual("Guides (3)", _guides_label(_context(
+            [{"url": "https://a/"}, {"url": "https://b/"}], rule_sheet=True)))
+
+    def test_a_hidden_guide_is_not_counted(self) -> None:
+        self.assertEqual("Guides (1)", _guides_label(_context(
+            [{"url": "https://a/"}, {"url": "https://b/", "hidden": True}])))
 
     def test_with_nothing_there_is_no_count(self) -> None:
         self.assertEqual("Guides", _guides_label(_context([])))

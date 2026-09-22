@@ -155,9 +155,10 @@ def _rebuilds(context: dict[str, Any], subject: str,
 
 _ARRANGE = """
 (() => {
-  const list = document.querySelector('.console-member-list');
-  if (!list || list.dataset.wired) return;
+ for (const list of document.querySelectorAll('[data-arrange]')) {
+  if (list.dataset.wired) continue;
   list.dataset.wired = '1';
+  const moved = list.dataset.arrange;
 
   // The dock scrolls, not the window, so the edges that mean "keep going" are its.
   const scroller = (() => {
@@ -238,7 +239,7 @@ _ARRANGE = """
     drag = null;
     // Only when it moved: a click on the handle would otherwise write the list back
     // unchanged and rebuild the panel under the cursor.
-    if (keep && to >= 0 && to !== from) emitEvent('hub_member_moved', {from: from, to: to});
+    if (keep && to >= 0 && to !== from) emitEvent(moved, {from: from, to: to});
   }
 
   list.addEventListener('pointerdown', (e) => {
@@ -281,7 +282,7 @@ _ARRANGE = """
         row.classList.remove('console-grabbed');
         const to = positionOf(row), from = grab.from;
         grab = null;
-        if (to >= 0 && to !== from) emitEvent('hub_member_moved', {from: from, to: to});
+        if (to >= 0 && to !== from) emitEvent(moved, {from: from, to: to});
       } else {
         grab = {row: row, from: positionOf(row), anchor: row.nextSibling};
         row.classList.add('console-grabbed');
@@ -301,6 +302,7 @@ _ARRANGE = """
       grab = null;
     }
   });
+ }
 })()
 """
 
@@ -1566,7 +1568,7 @@ def _rule_sheet(context: dict[str, Any]) -> dict[str, Any]:
 
 
 def _guides_label(context: dict[str, Any]) -> str:
-    held = len(context["game"].get("guides") or []) + bool(_rule_sheet(context))
+    held = len(_guides(context)[0]) + bool(_rule_sheet(context))
     return t("console.workbench.guides_counted", count=held) if held \
         else t("console.workbench.guides")
 
@@ -1576,19 +1578,134 @@ def _guide_kind(kind: str) -> str:
     return humanize(kind) if said == f"guide.kind.{kind}.label" else said
 
 
+def _guides(context: dict[str, Any]) -> tuple[list[dict], list[dict]]:
+    """(shown, hidden), each in the game's order."""
+    held = [one for one in context["game"].get("guides") or [] if one.get("url")]
+    return ([one for one in held if not one.get("hidden")],
+            [one for one in held if one.get("hidden")])
+
+
 async def _guides_block(context: dict[str, Any]) -> None:
     sheet = _rule_sheet(context)
-    guides = [one for one in context["game"].get("guides") or [] if one.get("url")]
+    shown, hidden = _guides(context)
     with ui.column().classes("gap-0 console-form w-full"):
-        if not sheet and not guides:
+        if not sheet and not shown:
             ui.label(t("console.workbench.no_guides")).classes("console-help px-3")
-            return
         if sheet:
             _guide_row(media_label_map().get("rule_sheet", "rule_sheet"),
                        f"{_prefix(context['game_id'], '')}/rule_sheet",
                        t("console.workbench.in_game_folder"))
-        for one in guides:
-            _guide_row(*guide_words(one))
+        with ui.column().classes("gap-0 w-full").props('data-arrange="hub_guide_moved"'):
+            for one in shown:
+                _guide_row(*guide_words(one), arrange=len(shown) > 1,
+                           act=_guide_act(context, one))
+        with ui.element("div").classes("console-slot-actions px-3"):
+            panel.action(t("console.workbench.add_guide"),
+                         lambda: _add_guide(context), icon=verbs.ADD)()
+        if hidden:
+            with ui.expansion(t("console.workbench.hidden_guides", count=len(hidden))) \
+                    .props("dense dense-toggle").classes("console-disclosure px-3 w-full"):
+                for one in hidden:
+                    _guide_row(*guide_words(one), act=_guide_act(context, one))
+    held = context["state"]
+    held["guide_move"] = context
+    if not held.get("guide_move_bound"):
+        held["guide_move_bound"] = True
+        ui.on("hub_guide_moved", lambda event: _guide_moved(held, event.args))
+    if len(shown) > 1:
+        ui.run_javascript(_ARRANGE)
+
+
+def _as_sent(guides: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [{"url": one["url"], "hidden": bool(one.get("hidden"))} for one in guides]
+
+
+async def _save_guides(context: dict[str, Any], guides: list[dict[str, Any]]) -> None:
+    try:
+        await run.io_bound(context["library"].set_game_guides, context["game_id"], guides)
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+        return
+    await context["rebuild"]()
+
+
+def _guide_act(context: dict[str, Any], guide: dict[str, Any]) -> Callable[[], None]:
+    """Hide or unhide one VPS lists, or remove one of the person's own."""
+    held = [one for one in context["game"].get("guides") or [] if one.get("url")]
+
+    async def act() -> None:
+        if guide.get("hidden") or guide.get("origin") == "vps":
+            wanted = [{**one, "hidden": not one.get("hidden")} if one is guide else one
+                      for one in held]
+        else:
+            wanted = [one for one in held if one is not guide]
+        await _save_guides(context, _as_sent(wanted))
+
+    def draw() -> None:
+        if guide.get("hidden"):
+            panel.action(t("console.workbench.unhide"), act, icon=verbs.UNHIDE, inline=True)()
+            return
+        mine = guide.get("origin") != "vps"
+        with ui.element("div").classes("console-row-action"):
+            ui.button(icon=verbs.REMOVE if mine else verbs.HIDE, on_click=act) \
+                .props("flat dense round size=sm") \
+                .tooltip(t("word.remove") if mine else t("console.workbench.hide"))
+
+    return draw
+
+
+async def _guide_moved(state: dict[str, Any], moved: Any) -> None:
+    """Put one shown guide where it was dropped. The hidden ones keep their order after
+    the shown."""
+    context = state.get("guide_move")
+    if not context:
+        return
+    shown, hidden = _guides(context)
+    try:
+        source, target = int(moved["from"]), int(moved["to"])
+    except (KeyError, TypeError, ValueError):
+        return
+    if not (0 <= source < len(shown) and 0 <= target < len(shown)) or source == target:
+        return
+    shown.insert(target, shown.pop(source))
+    await _save_guides(context, _as_sent(shown + hidden))
+
+
+async def _add_guide(context: dict[str, Any]) -> None:
+    from common.games.info_file import GUIDE_KINDS, GUIDE_TUTORIAL
+
+    with ui.dialog() as dialog, ui.card().classes("console-confirm"):
+        ui.label(t("console.workbench.add_guide_to",
+                   name=str(context["game"].get("name") or ""))) \
+            .classes("console-confirm-title")
+        address = ui.input(label=t("console.workbench.guide_address"),
+                           placeholder="https://") \
+            .props("outlined dense debounce=0 bottom-slots").classes("w-full")
+        title = ui.input(label=t("console.workbench.guide_title")) \
+            .props("outlined dense debounce=0").classes("w-full")
+        kind = ui.select({one: _guide_kind(one) for one in GUIDE_KINDS},
+                         value=GUIDE_TUTORIAL, label=t("word.kind")) \
+            .props("outlined dense").classes("w-full")
+
+        async def add() -> None:
+            said = str(address.value or "").strip()
+            if not said.lower().startswith(("http://", "https://")):
+                address.props(f'error error-message="{t("console.workbench.guide_needs_address")}"')
+                return
+            dialog.close()
+            held = [one for one in context["game"].get("guides") or [] if one.get("url")]
+            await _save_guides(context, [*_as_sent(held),
+                                         {"url": said, "kind": kind.value,
+                                          "title": str(title.value or "").strip()}])
+
+        with ui.row().classes("justify-end gap-2 w-full"):
+            ui.button(t("word.cancel"), icon=verbs.CANCEL,
+                      on_click=dialog.close).props("flat no-caps")
+            ui.button(t("word.add"), icon=verbs.ADD, on_click=add).props("no-caps")
+
+    dialog.on("show", lambda: ui.run_javascript(
+        f"document.getElementById('c{address.id}').focus()"))
+    dialog.open()
 
 
 def guide_words(guide: dict[str, Any]) -> tuple[str, str, str]:
@@ -1600,11 +1717,19 @@ def guide_words(guide: dict[str, Any]) -> tuple[str, str, str]:
             " \u00b7 ".join(part for part in (source, makers) if part))
 
 
-def _guide_row(name: str, address: str, said: str) -> None:
-    with ui.column().classes("gap-0 w-full console-member-row"):
-        panel.link_out(name, to=address)()
-        if said:
-            ui.label(said).classes("console-member-table")
+def _guide_row(name: str, address: str, said: str, *, arrange: bool = False,
+               act: Callable[[], None] | None = None) -> None:
+    with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row"):
+        if arrange:
+            ui.icon("drag_indicator").classes("console-drag-handle") \
+                .props("tabindex=0 role=button") \
+                .tooltip(t("console.workbench.drag_move_press_space"))
+        with ui.column().classes("gap-0 grow min-w-0"):
+            panel.link_out(name, to=address)()
+            if said:
+                ui.label(said).classes("console-member-table")
+        if act is not None:
+            act()
 
 
 def _table_rows(table: dict[str, Any],
@@ -4505,7 +4630,8 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
                and (row.get("order_by") or "") == MANUAL_ORDER
                and len([m for m in members if m.get("origin") == "named"]) > 1)
     excluded = [m for m in members if (m.get("origin") or "") == "excluded"]
-    with ui.column().classes("gap-0 w-full console-member-list"):
+    with ui.column().classes("gap-0 w-full console-member-list") \
+            .props('data-arrange="hub_member_moved"'):
         for member in kept:
             _member_line(context, member, arrange=arrange)
     # Grouped, not inline: a handful of rows somebody took out do not belong scattered

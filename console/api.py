@@ -222,6 +222,14 @@ class ApiClient:
                                      timeout=_TIMEOUT)
         self._answered(response)
 
+    def set_game_guides(self, game_id: str, guides: list[dict]) -> list[dict]:
+        """The game's whole list of guides, in order. Answers with what was stored."""
+        _refuse_the_event_loop(f"/games/{game_id}/guides")
+        response = self._session.put(f"{self._base}/games/{game_id}/guides",
+                                     json={"guides": guides}, timeout=_TIMEOUT)
+        self._answered(response)
+        return list((response.json() or {}).get("guides") or [])
+
     def set_table_source(self, game_id: str, table_id: str, vps_file_id: str) -> None:
         """Bind one table to the release somebody says it is. Empty unbinds."""
         _refuse_the_event_loop(f"/games/{game_id}/tables/{table_id}/source")

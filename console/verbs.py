@@ -42,6 +42,10 @@ CLEAR = "backspace"
 REMOVE = "remove"
 DELETE = "delete_outline"
 
+# Keeping something out of what is offered, and letting it back in. Nothing is removed.
+HIDE = "visibility_off"
+UNHIDE = "visibility"
+
 # Answering a question a dialog asked.
 KEEP = "check"
 FORGET = "remove"
