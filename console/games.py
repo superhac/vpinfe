@@ -169,7 +169,7 @@ VIEW_SECTIONS = {"builtin:Media": "media"}
 # A column that reports a problem, and the panel section that fixes it. Clicking the
 # word is the only thing to do with it, so the click lands where the match is made
 # rather than on Details and one more click.
-COLUMN_SECTIONS = {"vps_unmatched": "vps"}
+COLUMN_SECTIONS = {"vps_unmatched": "game_details"}
 
 GAME_VIEWS: dict[str, list[str] | views.Preset] = {
     # Named for the workbench group it matches: a view and a panel

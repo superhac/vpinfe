@@ -1,6 +1,7 @@
 import unittest
 from urllib.parse import parse_qs
 
+from common.i18n import t
 from console import deeplink, workbench
 
 
@@ -147,8 +148,8 @@ class TablesBlockTests(unittest.TestCase):
         self.assertEqual(workbench.chosen_section({}, "game"), "game_details")
 
 
-class VpsSectionTests(unittest.TestCase):
-    """The match is a place on both subjects, and the id is not the label."""
+class MatchTests(unittest.TestCase):
+    """The match heads Game details, on both subjects."""
 
     def test_both_rails_offer_it(self) -> None:
         """A game's match identifies the machine, which a table belongs to - so it is
@@ -156,10 +157,16 @@ class VpsSectionTests(unittest.TestCase):
         for subject in ("game", "table"):
             with self.subTest(subject=subject):
                 keys = {item.key for item in workbench.sections_for(subject)}
-                self.assertIn("vps", keys)
+                self.assertIn("game_details", keys)
+                self.assertNotIn("vps", keys)
 
     def test_an_unmatched_game_says_so_in_the_rail(self) -> None:
-        """Not matched is a state, not an empty section - and the rail is where it is
-        seen without opening anything."""
-        self.assertEqual(workbench._vps_label({"game": {}}), "Catalogs - not matched")
-        self.assertEqual(workbench._vps_label({"game": {"vps_id": "abc"}}), "Catalogs")
+        self.assertEqual(workbench._game_label({"game": {}}),
+                         t("console.workbench.game_details_not_matched"))
+        self.assertEqual(workbench._game_label({"game": {"vps_id": "abc"}}),
+                         t("console.workbench.game_details"))
+
+    def test_a_game_declared_in_no_catalog_is_not_flagged(self) -> None:
+        declared = {"game": {"overrides": {"alt_vps_id": None}}}
+        self.assertEqual(workbench._game_label(declared),
+                         t("console.workbench.game_details"))

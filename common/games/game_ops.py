@@ -13,6 +13,7 @@ from typing import Any
 from common import service_errors
 from common.games import game_identity, game_lens, game_metadata, game_service, locations
 from common.games.game_metadata import (
+    GUIDES_FIELD,
     adopt_vps_details,
     load_game_meta,
     reset_game_play_record,
@@ -182,18 +183,14 @@ def set_file_source(game_id: str, path: str, vps_file_id: str) -> dict:
 
 
 def vps_details(game_id: str) -> dict:
-    """Where the game's details and the entry it is matched to disagree.
-
-    Empty for a game that has never been re-matched: the details were written from the
-    entry, so they agree with it by construction.
-    """
+    """Where the game's details and the entry it is matched to disagree."""
     game = game_lens.game_or_refuse(game_id)
     entry = game_service.matched_vps_entry(game)
     if not entry:
         return {"differs": []}
     found = vps_details_differ(load_game_meta(game), entry)
-    return {"differs": [{"field": field, "ours": _said(ours), "theirs": _said(theirs),
-                         "new": new}
+    return {"differs": [{"field": field, "ours": _said(ours, field),
+                         "theirs": _said(theirs, field), "new": new}
                         for field, (ours, theirs, new) in found.items()]}
 
 
@@ -212,9 +209,12 @@ def adopt_details(game_id: str, fields: Iterable[str] | None = None) -> dict:
     return vps_details(game_id)
 
 
-def _said(value: Any) -> str:
+def _said(value: Any, field: str = "") -> str:
     """One line a person reads, whatever the field holds - a year is a number and themes
-    are a list, and a caller rendering a comparison wants neither shape."""
+    are a list, and a caller rendering a comparison wants neither shape. Guides are
+    records with no one-line reading, so they are counted."""
+    if field == GUIDES_FIELD:
+        return t("said.guides", count=len(value)) if value else ""
     if isinstance(value, list):
         return ", ".join(str(item) for item in value)
     return str(value if value is not None else "")

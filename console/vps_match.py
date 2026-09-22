@@ -63,7 +63,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
                     .props("flat dense no-caps size=sm") \
                     .classes("console-action console-action--danger shrink-0")
 
-            _entry_row(entry, trailing=clear)
+            entry_row(entry, trailing=clear)
 
         if behind:
             ui.label(t("console.vps_match.what_the_scan_found")).classes("console-group")
@@ -74,7 +74,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
                     .props("flat dense no-caps size=sm") \
                     .classes("console-action shrink-0")
 
-            _entry_row(behind, trailing=take_scanned)
+            entry_row(behind, trailing=take_scanned)
 
         ui.label(t("console.vps_match.search_for_match")).classes("console-group")
         with ui.row().classes("items-center gap-2 w-full no-wrap"):
@@ -115,7 +115,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
             with found:
                 for row in rows:
                     this = str(row.get("vps_id") or "")
-                    _entry_row(row, pick=partial(take, this),
+                    entry_row(row, pick=partial(take, this),
                                chosen=this == picked["id"], bound=this == bound)
 
         async def look() -> None:
@@ -185,7 +185,7 @@ def _seed(game: dict[str, Any]) -> str:
     return " ".join(part for part in parts if part)
 
 
-def _entry_row(row: dict[str, Any], *, pick: Callable[[], None] | None = None,
+def entry_row(row: dict[str, Any], *, pick: Callable[[], None] | None = None,
                chosen: bool = False, bound: bool = False,
                trailing: Callable[[], None] | None = None) -> None:
     """One VPS entry, in the shape the games grid draws a game in.

@@ -94,5 +94,23 @@ class RefreshedLikeEveryOtherCatalogFact(unittest.TestCase):
         self.assertTrue(found["guides"][2])
 
 
+
+class WhatTheDifferSays(unittest.TestCase):
+    def test_guides_read_as_a_count_not_a_record(self) -> None:
+        from common.games.game_ops import _said
+        from common.i18n import t
+
+        guides = [{"kind": "tutorial", "title": "A", "url": "https://a/"},
+                  {"kind": "tutorial", "title": "B", "url": "https://b/"}]
+        said = _said(guides, "guides")
+        self.assertEqual(t("said.guides", count=2), said)
+        self.assertNotIn("{", said)
+
+    def test_no_guides_reads_as_nothing(self) -> None:
+        from common.games.game_ops import _said
+
+        self.assertEqual("", _said([], "guides"))
+
+
 if __name__ == "__main__":
     unittest.main()

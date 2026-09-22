@@ -1222,6 +1222,15 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
                     .props("flat dense no-caps size=sm").classes("console-action")
 
 
+def _game_label(context: dict[str, Any]) -> str:
+    """Game, or Game - not matched where there is no match and none was declared."""
+    game = context["game"]
+    declared = (game.get("overrides") or {}).get("alt_vps_id", "") is None
+    if game.get("vps_id") or declared:
+        return t("console.workbench.game_details")
+    return t("console.workbench.game_details_not_matched")
+
+
 async def _game_block(context: dict[str, Any]) -> None:
     """What the game is - the machine, not the file.
 
@@ -1230,8 +1239,14 @@ async def _game_block(context: dict[str, Any]) -> None:
     as they are otherwise. Substituting one for the other throws away half of what
     somebody is looking at.
     """
+    game = context["game"]
+    library = context["library"]
+    vps_id = str(game.get("vps_id") or "")
+    found: dict[str, Any] = await offload.io(library.vps_entry, vps_id) if vps_id else {}
+    differs = (await offload.io(library.vps_details, context["game_id"])
+               if found.get("name") else [])
     with ui.column().classes("gap-0 console-form"):
-        _identity_rows(context)
+        _identity_rows(context, found, differs)
         _tables_block(context)
 
 
@@ -1346,7 +1361,20 @@ def _tutorial_row(url: str) -> Any:
     return panel.link_out(t("word.watch"), to=url)
 
 
-def _identity_rows(context: dict[str, Any]) -> None:
+def _match(found: dict[str, Any], vps_id: str, declared: bool) -> tuple[Any, Any]:
+    """The machine this game is matched to, drawn the way the picker drew it."""
+    if found.get("name"):
+        return (FULL, lambda: vps_match.entry_row(found))
+    if declared:
+        return (t("console.workbench.matched_to"),
+                _state(t("console.workbench.no_match"), "off"))
+    return (t("console.workbench.matched_to"),
+            _state(t("console.workbench.no_such_entry") if vps_id
+                   else t("console.workbench.not_matched"), "warn"))
+
+
+def _identity_rows(context: dict[str, Any], entry: dict[str, Any],
+                   differs: list[dict[str, Any]]) -> None:
     game = context["game"]
     # The folder is the tail, not the whole path: the library root is the same for
     # every game and repeating it costs the only column that has to hold a name.
@@ -1362,7 +1390,17 @@ def _identity_rows(context: dict[str, Any]) -> None:
         return (label, _override(str(game.get(key) or ""), str(found.get(key) or ""),
                                  "VPS", save(alt)))
 
-    entries: list[tuple[Any, Any]] = [
+    vps_id = str(game.get("vps_id") or "")
+    declared = (game.get("overrides") or {}).get("alt_vps_id", "") is None
+    entries: list[tuple[Any, Any]] = [_match(entry, vps_id, declared)]
+    if declared:
+        entries.append(panel.note(t("console.workbench.said_no_catalog")))
+    entries.append((FULL, _change_match(context)))
+    if differs:
+        entries.append((FULL, _details_differ(context, differs)))
+
+    ipdb = str(game.get("ipdb_id") or "")
+    entries += [
         (t("word.name"), _override(game.get("name") or "",
                 found.get("name") or "",
                            "VPS", save("alt_title"))),
@@ -1370,6 +1408,9 @@ def _identity_rows(context: dict[str, Any]) -> None:
         field(t("word.year"), "year", "alt_year"),
         field(t("console.workbench.type"), "type", "alt_type"),
         (t("console.workbench.themes"), ", ".join(game.get("themes") or []) or "-"),
+        (t("console.workbench.ipdb"),
+         _override(ipdb, str(found.get("ipdb_id") or ""), "VPS", save("alt_ipdb_id"),
+                   beside=IPDB_URL.format(id=ipdb) if ipdb else "")),
         (t("word.folder"), PurePosixPath(folder).name or folder or "-"),
     ]
 
@@ -1803,80 +1844,7 @@ def _reset_action(on_reset: Callable[[], Any]) -> Callable[[], None]:
     return draw
 
 
-def _vps_label(context: dict[str, Any]) -> str:
-    game = context["game"]
-    return (t("console.workbench.catalogs") if game.get("vps_id")
-            else t("console.workbench.vps_not_matched"))
-
-
 IPDB_URL = "https://www.ipdb.org/machine.cgi?id={id}"
-
-
-async def _vps_block(context: dict[str, Any]) -> None:
-    """Every catalog this game is bound to, one heading each.
-
-    It does not judge the match. A ranker was measured and retired for being confidently
-    wrong more than half the time, so nothing here says a match looks wrong or offers a
-    better one - it shows what is bound and lets somebody go looking when they choose.
-    """
-    game = context["game"]
-    library = context["library"]
-    vps_id = str(game.get("vps_id") or "")
-    discovered = game.get("discovered") or {}
-    declared = (game.get("overrides") or {}).get("alt_vps_id", "") is None
-
-    def save(key: str) -> Callable[[str], Awaitable[None]]:
-        async def write(value: str) -> None:
-            await _save_overrides(context, {key: value}, table=False)
-        return write
-
-    entries: list[tuple[Any, Any]] = [(HEADING, t("console.workbench.catalog_vps"))]
-    differs: list[dict[str, Any]] = []
-    found: dict[str, Any] = {}
-    if vps_id:
-        found = await offload.io(library.vps_entry, vps_id)
-    said = str(found.get("name") or "")
-    if said:
-        made = " ".join(str(found.get(k) or "") for k in ("manufacturer", "year"))
-        entries.append((t("console.workbench.matched_to"),
-                        f"{said} - {made.strip()}"))
-        differs = await offload.io(library.vps_details, context["game_id"])
-    elif declared:
-        entries.append((t("console.workbench.matched_to"),
-                        _state(t("console.workbench.no_match"), "off")))
-    else:
-        entries.append((t("console.workbench.matched_to"),
-                        _state(t("console.workbench.no_such_entry") if vps_id
-                               else t("console.workbench.not_matched"), "warn")))
-
-    url = str(found.get("url") or "")
-    entries.append((t("word.id"),
-                    panel.link_out(vps_id, to=url) if vps_id and url
-                    else vps_id or _state(t("word.none"), "off")))
-    if declared:
-        entries.append(panel.note(t("console.workbench.said_no_catalog")))
-    if differs:
-        entries.append((FULL, _details_differ(context, differs)))
-    entries.append((FULL, _change_match(context)))
-
-    ipdb = str(game.get("ipdb_id") or "")
-    entries += [
-        (HEADING, t("console.workbench.catalog_ipdb")),
-        (t("word.id"), _override(ipdb, str(discovered.get("ipdb_id") or ""), "VPS",
-                                 save("alt_ipdb_id"),
-                                 beside=IPDB_URL.format(id=ipdb) if ipdb else "")),
-    ]
-
-    tutorial = str(game.get("tutorial") or "")
-    entries += [
-        (HEADING, t("console.workbench.catalog_primer")),
-        (t("word.tutorial"),
-         panel.link_out(t("word.watch"), to=tutorial) if tutorial
-         else _state(t("word.none"), "off")),
-    ]
-
-    with ui.column().classes("gap-0 console-form"):
-        _rows(ui, entries)
 
 
 # What the catalog calls these against what a person does. Only where the two differ:
@@ -1893,10 +1861,6 @@ def _details_differ(context: dict[str, Any],
                     differs: list[dict[str, Any]]) -> Callable[[], None]:
     """The game's details against the entry's, where they have come apart.
 
-    Absent the whole time until somebody corrects a match, which is the only thing that
-    parts them: the details were written from the entry, so they agree with it until
-    the entry changes underneath them.
-
     Adopting is one act over all of them rather than a choice per field. They are one
     machine's facts, and taking this one's year beside that one's maker would describe
     no machine at all.
@@ -1910,7 +1874,7 @@ def _details_differ(context: dict[str, Any],
         # its own - the same shape the fault list beside an icon uses.
         with ui.element("div").classes("console-attention w-full"), \
                 ui.column().classes("gap-1 min-w-0 grow"):
-            ui.label(t("console.workbench.game_still_describes_machine")) \
+            ui.label(t("console.workbench.spreadsheet_differs")) \
                 .classes("console-attention-line")
             for item in differs:
                 said = str(item.get("field") or "")
@@ -1919,29 +1883,9 @@ def _details_differ(context: dict[str, Any],
                     ui.label(str(item.get("ours") or "-")).classes("console-diff-was")
                     ui.icon("arrow_forward").classes("console-diff-arrow")
                     ui.label(str(item.get("theirs") or "-")).classes("console-help truncate")
-            ui.button(t("console.workbench.use_entry_s_details"),
+            ui.button(t("console.workbench.use_what_spreadsheet_says"),
                 icon=verbs.ACCEPT, on_click=adopt) \
                 .props("flat dense no-caps size=sm").classes("console-action")
-
-    return draw
-
-
-def _vps_entry_row(found: dict[str, Any], vps_id: str) -> Callable[[], None]:
-    """The matched machine, named the way somebody can check it - and a way out to the
-    catalog, so a reader is not asked to search for what is already identified."""
-    def draw() -> None:
-        with ui.element("div").classes("console-fact-edit"):
-            said = str(found.get("name") or "")
-            made = " ".join(str(found.get(k) or "") for k in ("manufacturer", "year"))
-            told = f"{said} - {made.strip()}" if said else vps_id
-            url = str(found.get("url") or "")
-            # The id is the tooltip: it is the one thing on this row a reader cannot
-            # check against the catalog by eye.
-            if url:
-                panel.link_out(told, to=url, hint=vps_id)()
-            else:
-                ui.label(told).classes("console-fact-value truncate min-w-0") \
-                    .tooltip(vps_id)
 
     return draw
 
@@ -4823,14 +4767,10 @@ def _add_control(context: dict[str, Any], members: list[dict]) -> None:
 SECTIONS: tuple[Section, ...] = (
     # The game first, then the file: a table belongs to a game, and reading down is
     # reading from the thing that contains to the thing contained.
-    Section("game_details", lambda _: t("console.workbench.game_details"), _game_block),
+    Section("game_details", _game_label, _game_block),
     Section("table_details", lambda _: t("console.workbench.table_details"), _table_block,
             subjects=frozenset({"table"})),
     Section("play", lambda _: game_tables.PLAY, _play_block),
-    # Beside the game's own facts: the match is how this game is identified, and the
-    # section exists so that is something a person can see and change rather than an
-    # opaque id in a text field.
-    Section("vps", _vps_label, _vps_block, subjects=frozenset({"game", "table"})),
     Section("media", _media_label, _media_block, dock=True),
     # Beside Media, not under Details: both answer "what does this game hold", one
     # for what a screen shows and one for what a launch needs.
