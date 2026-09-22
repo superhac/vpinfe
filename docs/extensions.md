@@ -83,6 +83,7 @@ application, and that is the guarantee the model rests on.
 | `ctx.games.launch_game(...)` | Start a game on this play host. Needs `launch:invoke`, which `games:write` does not grant |
 | `ctx.scope(action)` | The scope name for one of its declared actions |
 | `ctx.entries` | `contribute(key, fetch)` — add something to every entry a theme is handed |
+| `ctx.tokens` | `offer(name, says, contexts, value)` — a name a user may write into a command. Offered as `<extension>.<name>` |
 | `ctx.ui` | `action(...)` — offer a verb for the Console to draw; `settings(base, label)` and `state(base, label)` — say where its settings and what it is holding can be read. All need `ui:mount` |
 | `ctx.add_router(router, scope=...)` | Serve routes under `/api/v1/ext/<name>/` |
 
@@ -187,6 +188,41 @@ it is about, so one arriving after the wheel has moved lands on the entry it bel
 The slot is always present and empty at library load — a list of four hundred games cannot
 wait on four hundred calls to somebody else's server. A theme written as
 `if (entry.ext.rating)` is correct throughout without knowing there is a waiting state.
+
+## Adding a name a command can use
+
+A user writes commands that run when VPinFE starts and around every table. Core declares
+what one of them may say — `{table}`, `{rom}`, `{launcher_bin}` — and an extension adds to
+that list.
+
+```python
+def player(values):
+    # values is what this context has resolved so far. Answer a string; empty is an
+    # answer, and this must not raise on an install with nobody signed in.
+    profile = guest.get_active_profile()
+    return profile.initials if profile else ""
+
+ctx.tokens.offer("player", "The initials of whoever is signed in to play",
+                 (ctx.tokens.TABLE,), player)
+```
+
+**The name carries the extension's id.** You declare `player`; a user writes
+`{vpinplay.player}`. The dotted half is built from the manifest rather than spelled here,
+so two extensions may offer the same idea without reaching each other — and core's own
+names, which never carry a dot, can grow without reaching either.
+
+`contexts` says where the command runs: `ctx.tokens.VPINFE` for the pair around VPinFE
+itself, `ctx.tokens.TABLE` for the pair around every table. Declare only the ones the name
+means anything in. A name that is always blank costs a reader more than one that was never
+offered.
+
+`value` runs while a command is being prepared, so it has to answer quickly. One that
+raises stands for nothing and is logged, and the table still launches. Pass
+`after_only=True` for something only the half that runs afterwards can know.
+
+**A name goes when its extension does.** A command still holding one is refused by that
+name, the same as any name nothing declares. The alternative is a `--flag` left with
+nothing after it, reading whatever came next as its value.
 
 ## Offering something to do
 

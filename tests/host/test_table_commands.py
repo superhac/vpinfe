@@ -98,7 +98,7 @@ class ValueTests(unittest.TestCase):
         of them fails on a table that happens not to have it."""
         values = table_commands._values(_game(), _playing(entry_id=""), None)
 
-        for name in ("id", "key", "rom", "launcher_bin", "launcher_ini", "player"):
+        for name in ("id", "key", "rom", "launcher_bin", "launcher_ini"):
             self.assertEqual(values[name], "", name)
 
 

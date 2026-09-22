@@ -747,9 +747,9 @@ def section_rows(source: Any, section: str, options: list[dict], values: dict,
         # Under the last field of a pair, where somebody has just read what it does and
         # is about to type into it.
         if section == "commands" and option["key"] == "on_vpinfe_exit":
-            entries.append(commands_help.offered(tokens.VPINFE))
+            commands_help.add_to(entries, tokens.VPINFE)
         elif section == "table_commands" and option["key"] == "on_exit":
-            entries.append(commands_help.offered(tokens.TABLE))
+            commands_help.add_to(entries, tokens.TABLE)
     return entries
 
 

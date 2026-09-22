@@ -12,6 +12,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from common import tokens
 from common.config_store import ConfigStore
 from common.extensions import contributions, handover, host, store
 
@@ -103,6 +104,7 @@ class ContributionTests(unittest.TestCase):
         self.store = store.ExtensionStore(self.root / "extensions.json")
         contributions.clear()
         self.addCleanup(contributions.clear)
+        self.addCleanup(tokens.forget, "vpinplay")
         self.registry = host.Registry(self.store)
         self.addCleanup(self.registry.clear)
         self.record = self.registry.load(host.BUNDLED_DIR / "vpinplay")
@@ -110,6 +112,15 @@ class ContributionTests(unittest.TestCase):
 
     def test_it_contributes_under_the_key_a_theme_reads(self) -> None:
         self.assertIn("vpinplay", contributions.keys())
+
+    def test_it_offers_the_player_under_its_own_name(self) -> None:
+        offered = {one.name for one in tokens.offered(tokens.TABLE)}
+
+        self.assertIn("vpinplay.player", offered)
+        self.assertNotIn("player", offered)
+
+    def test_the_player_is_offered_where_somebody_can_be_signed_in(self) -> None:
+        self.assertEqual(tokens.offered(tokens.VPINFE, after=True), ())
 
     def test_a_game_no_catalog_matched_is_never_asked_about(self) -> None:
         """It has no id VPinPlay knows it by, which is not a failure."""

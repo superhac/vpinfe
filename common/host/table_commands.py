@@ -23,7 +23,6 @@ from common import apps, tokens
 from common.atomic_write import write_atomic
 from common.config_access import cfg_bool, cfg_get, cfg_int
 from common.config_store import ConfigStore
-from common.extensions import services as ext_services
 from common.games import tables
 from common.games.game import Game
 from common.games.launchers import Launcher
@@ -47,17 +46,6 @@ class Around:
     ran: bool = False
 
 
-def player_name() -> str:
-    """Who this is being recorded against, in the form a person would recognize.
-
-    Initials, because that is what a cabinet asks for and what shows on a score.
-    """
-    profile = ext_services.ask("guest.active")
-    if profile is None:
-        return ""
-    return str(getattr(profile, "initials", "") or getattr(profile, "user_id", "") or "")
-
-
 def _values(game: Game, playing: apps.Entry, launcher: Launcher | None) -> dict[str, str]:
     """What a command about this table may say. Strings, all of them, because they are
     going into an argument list.
@@ -70,7 +58,7 @@ def _values(game: Game, playing: apps.Entry, launcher: Launcher | None) -> dict[
     entry = entries.get(playing.entry_id) or {}
     settings = ({one.key: launcher.value(one.key) for one in launcher.fields()}
                 if launcher is not None else {})
-    return {
+    built = {
         "game_dir": str(playing.game_dir or ""),
         "table": str(playing.table or ""),
         "table_stem": Path(playing.table).stem if playing.table else "",
@@ -82,8 +70,8 @@ def _values(game: Game, playing: apps.Entry, launcher: Launcher | None) -> dict[
         "launcher_bin": str(settings.get("bin_path") or ""),
         "launcher_ini": str(settings.get("ini_path") or ""),
         "location": str(getattr(game, "location_id", "") or ""),
-        "player": player_name(),
     }
+    return tokens.filled(tokens.TABLE, built)
 
 
 def before(game: Game, playing: apps.Entry, launcher: Launcher | None,
@@ -122,6 +110,7 @@ def after(around: Around, *, started_at: float | None = None) -> None:
     values = dict(around.values)
     values["duration"] = str(int(time.time() - started_at)) if started_at else "0"
     values.setdefault("exit_code", "")
+    values = tokens.filled(tokens.TABLE, values, after=True)
     for text in (around.launcher_after, around.install_after):
         if not str(text or "").strip():
             continue

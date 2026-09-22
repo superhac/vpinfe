@@ -3424,7 +3424,7 @@ async def _launcher_setup(context: dict[str, Any]) -> None:
             entries.append(panel.note(field["description"]))
         # Once, under the pair, rather than beside each of them.
         if field["key"] == "on_table_exit":
-            entries.append(commands_help.offered(tokens.TABLE))
+            commands_help.add_to(entries, tokens.TABLE)
     with ui.column().classes("gap-0 console-form"):
         _rows(ui, entries)
 

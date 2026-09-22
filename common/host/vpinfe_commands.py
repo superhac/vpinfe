@@ -46,7 +46,7 @@ def _run(ini_config: ConfigStore, key: str, when: str) -> None:
     if not str(text or "").strip():
         return
     outcome = commands.run(
-        text, {"player": table_commands.player_name()}, context=tokens.VPINFE,
+        text, tokens.filled(tokens.VPINFE, {}), context=tokens.VPINFE,
         timeout=cfg_int(ini_config, "commands", "timeout",
                         commands.DEFAULT_TIMEOUT),
         on_failure=commands.BEST_EFFORT, env=os.environ.copy())

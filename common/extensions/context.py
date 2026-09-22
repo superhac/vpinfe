@@ -317,6 +317,31 @@ class ExtensionEntries:
             raise ContractError(f"{self._name} contributes under no key")
         contributions.register(self._name, wanted, fetch)
 
+class ExtensionTokens:
+    """Names a user may write into a command, brought by this extension.
+
+    Stored as `<extension>.<name>`.
+    """
+
+    # The two moments a command runs, so an extension names one without importing core.
+    VPINFE = "vpinfe"
+    TABLE = "table"
+
+    def __init__(self, name: str) -> None:
+        self._name = name
+
+    def offer(self, name: str, says: str, contexts: Iterable[str],
+              value: Callable[[dict], str], *, after_only: bool = False) -> str:
+        """Answer with the full name, which is what a user types."""
+        from common import tokens
+
+        try:
+            return tokens.register(self._name, name, says, frozenset(contexts), value,
+                                   after_only=after_only)
+        except ValueError as exc:
+            raise ContractError(str(exc)) from exc
+
+
 class ExtensionJobs:
     """Slow work, run the way core runs it.
 
@@ -355,6 +380,7 @@ class ExtensionContext:
         self.jobs = ExtensionJobs(manifest.name)
         self.ui = ExtensionUI(manifest.name, "ui:mount" in manifest.capabilities)
         self.entries = ExtensionEntries(manifest.name)
+        self.tokens = ExtensionTokens(manifest.name)
         self.games = ExtensionGames(manifest.name, manifest.scopes, self.files)
         self.apps = ExtensionApps(manifest.name, manifest.scopes)
         self.serves = ExtensionServices(manifest.name)

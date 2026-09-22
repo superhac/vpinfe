@@ -82,6 +82,15 @@ def register(ctx: Any) -> None:
     ctx.serves.answer("guest.active", guest.get_active_profile)
     ctx.serves.answer("guest.record_play", _record_play)
     ctx.serves.answer("guest.record_start", _record_start)
+
+    def _player(_values: dict) -> str:
+        profile = guest.get_active_profile()
+        if profile is None:
+            return ""
+        return str(profile.initials or profile.user_id or "")
+
+    ctx.tokens.offer("player", "The initials of whoever is signed in to play",
+                     (ctx.tokens.TABLE,), _player)
     def _who() -> tuple[str, str, str, str]:
         """The four settings a sync needs, as this install has them."""
         return (str(ctx.config.get(ENDPOINT_KEY, "") or DEFAULT_ENDPOINT),

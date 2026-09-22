@@ -4,14 +4,12 @@ The names are declared, so this is generated from that declaration rather than w
 out twice. Beside the field and not in a manual: a name you have to already know to go
 looking for is a name nobody uses.
 
-Eleven of them is a wall between two settings, so the long list opens rather than sits
-there. The label is always in the same place, which is what makes it findable - the
-short one has nothing to gain by hiding, so it does not.
+Behind a disclosure whatever the count, with the count in the label. A context
+offering no names draws nothing at all.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Any
 
 from nicegui import ui
@@ -20,19 +18,19 @@ from common import tokens
 from common.i18n import t
 from console import panel
 
-# Below this many, a list is shorter than the control that would fold it away.
 
-def offered(context: str) -> tuple[Any, Callable[[], None]]:
-    """The names a command in this context may use, under the fields it applies to."""
+def add_to(entries: list[Any], context: str) -> None:
+    """Put the names a command in this context may use under the fields they apply to."""
     available = tokens.offered(context, after=True)
-    later = {one.name for one in available if one.name in tokens.AFTER_ONLY}
+    if not available:
+        return
 
     def rows() -> None:
         with ui.element("div").classes("console-token-list"):
             for one in available:
                 ui.label("{" + one.name + "}").classes("console-token")
                 says = one.says
-                if one.name in later:
+                if one.after_only:
                     says += t("console.commands.after_finished")
                 ui.label(says).classes("console-help")
 
@@ -43,6 +41,4 @@ def offered(context: str) -> tuple[Any, Callable[[], None]]:
                 ui.label(t("console.commands.each_stands_something_command")).classes("console-help")
                 rows()
 
-    return (panel.ASIDE, draw)
-
-
+    entries.append((panel.ASIDE, draw))
