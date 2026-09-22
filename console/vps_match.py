@@ -203,7 +203,7 @@ def _entry_row(row: dict[str, Any], *, pick: Callable[[], None] | None = None,
             if url:
                 # Or reading the entry would also pick it.
                 with ui.element("div").on("click.stop", lambda: None):
-                    panel.link_out(t("word.view"), to=url)()
+                    panel.out(to=url, hint=t("console.vps_match.open_in_vps"))()
             if trailing is not None:
                 with ui.element("div").on("click.stop", lambda: None):
                     trailing()

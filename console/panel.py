@@ -16,7 +16,7 @@ from typing import Any
 from nicegui import ui
 
 from common.i18n import t
-from console import offload
+from console import offload, verbs
 
 # Rows that are not a fact. A group's title and an action strip span both columns, so
 # every group keeps the one shared label width.
@@ -639,6 +639,18 @@ def link_out(label: str, *, to: str, hint: str = "") -> Callable[[], None]:
             ui.icon("open_in_new")
         if hint:
             row.tooltip(hint)
+
+    return draw
+
+
+def out(*, to: str, hint: str) -> Callable[[], None]:
+    """The way out to somewhere else, as its marker alone. `hint` is required."""
+    def draw() -> None:
+        row = ui.link(target=to, new_tab=True) \
+            .classes("console-link console-link-out console-link-out--mark")
+        with row:
+            ui.icon(verbs.OPEN_OUT)
+        row.tooltip(hint)
 
     return draw
 

@@ -994,6 +994,7 @@
   "console.vps_match.match_set": "{changed} ɱàţçĥ{value} šèţ",
   "console.vps_match.nothing_changed": "Ñöţĥîñĝ çĥàñĝèđ",
   "console.vps_match.nothing_vps_matches": "Ñöţĥîñĝ îñ ṼÞŠ ɱàţçĥèš “{said}”",
+  "console.vps_match.open_in_vps": "Öþèñ ţĥîš èñţřý îñ ţĥè Ṽîšûàŀ Þîñƀàŀŀ Šþřèàđšĥèèţ",
   "console.vps_match.results": {
     "one": "{count} řèšûŀţ",
     "other": "{count} řèšûŀţš"

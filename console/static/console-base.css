@@ -1544,6 +1544,12 @@ button.q-btn--flat.text-primary:hover .q-btn__content {
 }
 .console-link-out .q-icon { font-size: 1em; flex: 0 0 auto; }
 
+/* The mark on its own, where the row already names what opening it would show. There
+   are no words to widen the target, so the padding is the target. */
+.console-link-out--mark { padding: 5px; }
+.console-link-out--mark > :first-child { overflow: visible; min-width: auto; }
+.console-link-out--mark .q-icon { font-size: 1.1em; }
+
 /* A destructive action is still an action - it takes the same shape and says what it
    is with color on top, not instead. */
 .console-action.console-action--danger.q-btn { border-color: var(--danger-edge); }

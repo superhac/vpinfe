@@ -994,6 +994,7 @@
   "console.vps_match.match_set": "{changed} match{value} set",
   "console.vps_match.nothing_changed": "Nothing changed",
   "console.vps_match.nothing_vps_matches": "Nothing in VPS matches “{said}”",
+  "console.vps_match.open_in_vps": "Open this entry in the Visual Pinball Spreadsheet",
   "console.vps_match.results": {
     "one": "{count} result",
     "other": "{count} results"
