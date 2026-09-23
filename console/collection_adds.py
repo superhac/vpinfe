@@ -342,8 +342,13 @@ class Read:
 
 
 async def read(library: Any, narrowed: str = "") -> Read:
-    """The collections, which were added to last, and what those hold. Off the loop."""
-    collections = await offload.io(library.load_collections)
+    """The collections, which were added to last, and what those hold. Off the loop.
+    Never raises."""
+    try:
+        collections = await offload.io(library.load_collections)
+    except Exception:  # noqa: BLE001 - the menu draws what it has
+        logger.warning("console: could not read the collections for a menu", exc_info=True)
+        return Read(kinds={}, recent=[], held={})
     kinds = {str(one.get("name") or ""): (one.get("type") or "") == "filter"
              for one in collections}
     last = recent(kinds)

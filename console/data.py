@@ -659,12 +659,21 @@ class Library:
 
     def held_members(self, names: list[str]) -> dict[str, list[dict[str, Any]]]:
         """Each named collection's stored membership, read once and kept until a write
-        through this library. Off the event loop."""
+        through this library; empty, and not kept, for one that cannot be read. Off the
+        event loop."""
+        found: dict[str, list[dict[str, Any]]] = {}
         for name in names:
             if name not in self._held_members:
-                self._held_members[name] = list(
-                    self._client.collection_members(name).get("members") or [])
-        return {name: self._held_members[name] for name in names}
+                try:
+                    self._held_members[name] = list(
+                        self._client.collection_members(name).get("members") or [])
+                except Exception:
+                    logger.debug("console: could not read what %r holds", name,
+                                 exc_info=True)
+                    found[name] = []
+                    continue
+            found[name] = self._held_members[name]
+        return found
 
     def load_game_collections(self, again: bool = False) -> None:
         """Which collections hold each game. Off the event loop; `again` after a write

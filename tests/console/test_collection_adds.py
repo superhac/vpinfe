@@ -215,6 +215,27 @@ class TheCollectionsAddedToLast(unittest.TestCase):
         self.assertEqual(["Other", "New"], collection_adds.recent(["New", "Other"]))
 
 
+class WhatAMenuReads(unittest.TestCase):
+    def test_a_collection_it_cannot_read_answers_empty_and_is_asked_again(self) -> None:
+        from console.data import Library
+
+        asked: list[str] = []
+
+        class _Client:
+            def collection_members(self, name: str) -> dict[str, Any]:
+                asked.append(name)
+                if name == "Gone":
+                    raise RuntimeError("No collection named Gone")
+                return {"members": [{"game": "a", "origin": "named"}]}
+
+        library = Library(_Client())  # type: ignore[arg-type]
+
+        self.assertEqual({"Here": [{"game": "a", "origin": "named"}], "Gone": []},
+                         library.held_members(["Here", "Gone"]))
+        library.held_members(["Here", "Gone"])
+        self.assertEqual(["Here", "Gone", "Gone"], asked)
+
+
 class TheWords(TempTree):
     def test_one_game(self) -> None:
         self.assertEqual("Added to “Friday Night”", collection_adds.said(
