@@ -387,6 +387,19 @@ class GameListFilters:
                 seen.update(str(value) for value in axis.values_of(game) if value)
         return {key: sorted(values) for key, values in found.items()}
 
+    def value_counts(self) -> dict[str, dict[str, int]]:
+        """How many games hold each of those values, keyed the way `available_options`
+        keys them."""
+        counted: dict[str, dict[str, int]] = {}
+        for axis in AXES:
+            if not (axis.values_of and axis.values_key):
+                continue
+            held = counted.setdefault(axis.values_key, {})
+            for game in self.games:
+                for value in {str(value) for value in axis.values_of(game) if value}:
+                    held[value] = held.get(value, 0) + 1
+        return counted
+
     def _get_game_name(self, game: GameRecord) -> str:
         """Get game name from either JSON or legacy format."""
         return game_title(game)

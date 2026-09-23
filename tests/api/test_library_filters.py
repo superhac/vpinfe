@@ -70,6 +70,19 @@ class LibraryFilterTests(TempTree):
         self.assertEqual(axes["game_type"]["values"], ["EM", "SS"])
         self.assertEqual(axes["letter"]["values"], ["A", "C", "M"])
 
+    def test_each_value_says_how_many_games_hold_it(self) -> None:
+        axes = self._axes()
+
+        self.assertEqual({"Bally": 1, "Williams": 2}, axes["manufacturer"]["counts"])
+        self.assertEqual({"1995": 2, "1997": 1}, axes["year"]["counts"])
+
+    def test_a_game_counts_once_for_each_value_it_holds(self) -> None:
+        self.assertEqual({"Adventure": 1, "Fantasy": 1, "Medieval": 1, "Space": 1},
+                         self._axes()["theme"]["counts"])
+
+    def test_a_scale_carries_no_counts(self) -> None:
+        self.assertIsNone(self._axes()["rating"]["counts"])
+
     def test_a_game_with_several_themes_contributes_all_of_them(self) -> None:
         self.assertEqual(self._axes()["theme"]["values"],
                          ["Adventure", "Fantasy", "Medieval", "Space"])

@@ -48,7 +48,8 @@ def filter_axes() -> dict[str, Any]:
     Projected from the registry the resolver matches on, so the two cannot disagree. An
     axis declaring choices carries those, whatever is installed.
     """
-    available = GameListFilters(game_repository.all_games()).available_options()
+    library = GameListFilters(game_repository.all_games())
+    available, counts = library.available_options(), library.value_counts()
     return {"axes": [{"name": axis.name, "scope": axis.scope, "kind": axis.kind,
                       # The name a reader sees, which the registry owns. Without it a
                       # caller derives one from the key and gets "Game type" where the
@@ -61,6 +62,7 @@ def filter_axes() -> dict[str, Any]:
                       # knowing which axes exist.
                       "many": axis.many,
                       "values": list(axis.choices) or available.get(axis.values_key),
+                      "counts": counts.get(axis.values_key),
                       "field": axis.field}
                      for axis in AXES]}
 

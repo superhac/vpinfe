@@ -1979,6 +1979,8 @@ class FilterAxis(ApiModel):
     # names it holds itself, which is what keeps adding an axis free.
     many: bool = False
     values: list[str] | None = None
+    # How many games hold each of `values`. Absent where the values are a scale.
+    counts: dict[str, int] | None = None
     # The axis whose field this one is asked under, or "" where it is its own.
     field: str = ""
 
