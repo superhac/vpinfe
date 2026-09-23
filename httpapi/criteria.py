@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from common.games.collection_filters import UNCONSTRAINED
+from common.games.collection_filters import UNCONSTRAINED, is_unconstrained
 
 
 def many_in(value: Any) -> str:
@@ -23,9 +23,10 @@ def criteria_for(f: Any) -> dict:
     """A criteria block in the shape the store and the matcher read."""
     if f is None:
         return {}
-    return {"letter": many_in(f.letter), "theme": many_in(f.theme),
+    said = {"letter": many_in(f.letter), "theme": many_in(f.theme),
             "game_type": many_in(f.game_type),
             "manufacturer": many_in(f.manufacturer), "year": many_in(f.year),
             "rating": f.rating,
-            "rating_or_higher": "true" if f.rating_or_higher else "false",
+            "rating_or_higher": "true" if f.rating_or_higher else None,
             "played": f.played, "favorite": f.favorite, "tags": many_in(f.tags)}
+    return {name: value for name, value in said.items() if not is_unconstrained(value)}

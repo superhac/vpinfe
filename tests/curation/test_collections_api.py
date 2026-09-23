@@ -7,6 +7,7 @@ creating one is refused rather than guessed at when the request says both things
 
 from __future__ import annotations
 
+import json
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -96,6 +97,30 @@ class CollectionsApiTests(TempTree):
                         and str(value).lower() not in ("", "all", "none", "false")]
                 self.assertTrue(kept, stored)
                 self.assertEqual(body["filters"][axis.name], sent)
+
+    def _written(self, name: str) -> dict:
+        written = json.loads((self.root / "collections.json").read_text(encoding="utf-8"))
+        return next(one for one in written["collections"] if one["name"] == name)
+
+    def test_a_saved_rule_stores_only_the_conditions_it_sets(self) -> None:
+        self.client.post("/collections", json={"name": "Bally",
+                                               "filters": {"played": True}})
+        as_read_back = {"letter": ["All"], "theme": [], "game_type": ["All"],
+                        "manufacturer": ["Bally"], "year": ["All"], "rating": "All",
+                        "rating_or_higher": False, "played": False, "favorite": None,
+                        "tags": ["All"]}
+
+        self.client.patch("/collections/Bally", json={"filters": as_read_back})
+
+        self.assertEqual({"manufacturer": "Bally", "played": False},
+                         self._written("Bally")["filters"])
+
+    def test_a_rating_floor_is_stored_beside_its_rating(self) -> None:
+        self.client.post("/collections", json={
+            "name": "Top Rated", "filters": {"rating": "4", "rating_or_higher": True}})
+
+        self.assertEqual({"rating": "4", "rating_or_higher": "true"},
+                         self._written("Top Rated")["filters"])
 
     def test_a_type_rule_reads_back_as_written_to_the_frontend_menu(self) -> None:
         self.client.post("/collections", json={"name": "EM Only",
