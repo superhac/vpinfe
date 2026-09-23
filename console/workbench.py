@@ -139,6 +139,23 @@ _KEEP_SCROLL = """
 })()
 """
 
+_ADD_BOX = """
+(() => {
+  let tries = 0;
+  const wire = () => {
+    const vm = getElement(%d);
+    const box = vm && vm.$refs.qRef;
+    if (!box) { if (++tries < 40) setTimeout(wire, 25); return; }
+    vm.$watch('filteredOptions', () => setTimeout(() => {
+      const typed = vm.$el.querySelector('input')?.value;
+      if (typed && box.getOptionIndex() === -1) box.moveOptionSelection(1, true);
+    }));
+    if (%s) box.focus();
+  };
+  wire();
+})()
+"""
+
 
 
 def _rebuilds(context: dict[str, Any], subject: str,
@@ -5756,6 +5773,8 @@ def _add_control(context: dict[str, Any], members: list[dict]) -> None:
     game's default, which is what somebody adding a game to a list almost always
     means. Holding it to one table is the unusual intent and is a second act.
     """
+    state = context["state"]
+    again = state.pop("add_again", None) == _collection(context)["name"]
     here = {m.get("game") for m in members}
     choices = {game["id"]: game.get("name") or game["id"]
                for game in context["library"].games if game["id"] not in here}
@@ -5780,9 +5799,11 @@ def _add_control(context: dict[str, Any], members: list[dict]) -> None:
         except Exception as exc:
             ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
             return
+        state["add_again"] = _collection(context)["name"]
         await context["rebuild"]()
 
     picker.on_value_change(add)
+    ui.run_javascript(_ADD_BOX % (picker.id, "true" if again else "false"))
 
 
 SECTIONS: tuple[Section, ...] = (
