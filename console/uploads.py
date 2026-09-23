@@ -1,5 +1,5 @@
 
-"""Dropping files onto the Console, and what happens between the drop and the import.
+"""Files arriving in the Console, and what happens between their arrival and the import.
 
 The engine underneath is not this surface's: analysing what arrived, working out where
 each file would go and copying it there all live in the install and are reachable over
@@ -22,10 +22,10 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
-from nicegui import context, ui
+from nicegui import context, run, ui
 
 from common.i18n import t
-from console import offload
+from console import import_dialog, offload
 
 logger = logging.getLogger("vpinfe.console.uploads")
 
@@ -33,8 +33,6 @@ logger = logging.getLogger("vpinfe.console.uploads")
 TARGET_LIBRARY = "library"
 TARGET_GAME = "game"
 TARGET_SLOT = "slot"
-# A game named by its id rather than by a row under the pointer: a picker has no row.
-TARGET_GAME_ID = "game_id"
 
 
 @dataclass(frozen=True)
@@ -104,7 +102,7 @@ if (!window.__consoleDnd) {
     return collected;
   }
 
-  async function upload(files) {
+  async function upload(files, say) {
     const begin = await fetch('/api/v1/uploads', {method: 'POST'});
     const uploadId = (await begin.json()).id;
     let done = 0;
@@ -121,9 +119,26 @@ if (!window.__consoleDnd) {
         throw new Error(message);
       }
       done += 1;
-      emit({status: 'progress', done: done, total: files.length, name: item.relpath});
+      say({status: 'progress', done: done, total: files.length, name: item.relpath});
     }
     return uploadId;
+  }
+
+  // Every way in ends here. `gathering` is already under way when it arrives, because a
+  // drop's files can only be read while the drop is still being handled.
+  async function send(gathering, say, where) {
+    try {
+      const files = await gathering;
+      if (!files.length) {
+        say({status: 'error', empty: true});
+        return;
+      }
+      say({status: 'progress', done: 0, total: files.length, name: ''});
+      const uploadId = await upload(files, say);
+      say({status: 'done', upload_id: uploadId, name: named(files), ...where});
+    } catch (err) {
+      say({status: 'error', message: String((err && err.message) || err)});
+    }
   }
 
   function named(files) {
@@ -134,8 +149,10 @@ if (!window.__consoleDnd) {
   }
 
   // Where the pointer is decides the target, and it beats any checked selection: a
-  // person who let go on a row meant that row.
+  // person who let go on a row meant that row. Null inside a dialog, which covers the
+  // page: a dialog that takes a drop takes it itself.
   function landed(target) {
+    if (target.closest && target.closest('.q-dialog')) return null;
     const cell = target.closest ? target.closest('.ag-cell') : null;
     const row = target.closest ? target.closest('.ag-row') : null;
     if (!row) return {target: 'library'};
@@ -163,55 +180,48 @@ if (!window.__consoleDnd) {
 
   function clear() { lit(hot, false); hot = null; }
 
-  window.__consolePick = (gameId, assetKind) => {
+  // A dialog's own ways in. `say` is the emit of the control that asked, so what
+  // happens next is heard by that dialog and not by the page behind it.
+  window.__consoleDrop = (transfer, say) => send(collect(transfer), say, {});
+
+  window.__consoleChoose = (folder, say) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.zip,.rar,.7z';
-    input.onchange = async () => {
-      const files = Array.from(input.files || []).map(file => ({relpath: file.name, file}));
-      if (!files.length) return;
-      try {
-        emit({status: 'progress', done: 0, total: files.length, name: ''});
-        const uploadId = await upload(files);
-        emit({status: 'done', upload_id: uploadId, name: named(files),
-              target: 'game_id', row_id: gameId, asset_kind: assetKind || ''});
-      } catch (err) {
-        emit({status: 'error', message: String((err && err.message) || err)});
-      }
-    };
+    if (folder) input.webkitdirectory = true;
+    else input.multiple = true;
+    input.onchange = () => send(Promise.resolve(Array.from(input.files || []).map(
+      file => ({relpath: file.webkitRelativePath || file.name, file}))), say, {});
     input.click();
   };
 
   document.addEventListener('dragover', (event) => {
     if (!event.dataTransfer || !Array.from(event.dataTransfer.types || [])
         .includes('Files')) return;
+    // Refused rather than ignored: a drop nothing takes opens the file in place of the
+    // Console.
     event.preventDefault();
+    const where = landed(event.target);
+    if (!where) {
+      event.dataTransfer.dropEffect = 'none';
+      document.body.classList.remove('console-dropping');
+      clear();
+      return;
+    }
     document.body.classList.add('console-dropping');
-    highlight(landed(event.target), event);
+    highlight(where, event);
   });
   document.addEventListener('dragleave', (event) => {
     if (event.relatedTarget) return;
     document.body.classList.remove('console-dropping');
     clear();
   });
-  document.addEventListener('drop', async (event) => {
+  document.addEventListener('drop', (event) => {
     if (!event.dataTransfer) return;
     event.preventDefault();
     document.body.classList.remove('console-dropping');
     const where = landed(event.target);
     clear();
-    try {
-      const files = await collect(event.dataTransfer);
-      if (!files.length) {
-        emit({status: 'error', empty: true});
-        return;
-      }
-      emit({status: 'progress', done: 0, total: files.length, name: ''});
-      const uploadId = await upload(files);
-      emit({status: 'done', upload_id: uploadId, name: named(files), ...where});
-    } catch (err) {
-      emit({status: 'error', message: String((err && err.message) || err)});
-    }
+    if (where) send(collect(event.dataTransfer), emit, where);
   });
 }
 """
@@ -226,6 +236,16 @@ def install(on_drop: Callable[[Drop], Any]) -> Callable[[Any], None]:
     Where the pointer was still decides what the drop meant.
     """
     ui.run_javascript(_DND_SCRIPT)
+    return listener(on_drop)
+
+
+def listener(on_arrival: Callable[[Drop], Any]) -> Callable[[Any], None]:
+    """What hears one place's uploads, from the first file read to the finished session.
+
+    One per place that starts them: the page for its drop, and a dialog for its own drop
+    and pickers, whose controls hand the script their `emit` so the answer comes back to
+    them.
+    """
     state: dict[str, Any] = {"busy": False, "client": context.client, "note": None}
 
     def said(event: Any) -> None:
@@ -240,9 +260,11 @@ def install(on_drop: Callable[[Drop], Any]) -> Callable[[Any], None]:
                 _progress(state, t("console.uploads.reading"))
         elif status == "error":
             _clear(state)
-            ui.notify(t("console.uploads.nothing_in_that_drop") if payload.get("empty")
-                      else str(payload.get("message") or t("console.uploads.not_work")),
-                      type="negative")
+            if payload.get("empty"):
+                ui.notify(t("console.uploads.nothing_to_upload"), type="warning")
+            else:
+                ui.notify(str(payload.get("message") or t("console.uploads.not_work")),
+                          type="negative")
         elif status == "done":
             _clear(state)
             if state["busy"]:
@@ -250,7 +272,7 @@ def install(on_drop: Callable[[Drop], Any]) -> Callable[[Any], None]:
                 # decided would have two dialogs answering for two different sessions.
                 ui.notify(t("console.uploads.finish_one_already_open"), type="warning")
                 return
-            asyncio.create_task(_handle(state, payload, on_drop))
+            asyncio.create_task(_handle(state, payload, on_arrival))
 
     return said
 
@@ -290,14 +312,74 @@ async def _handle(state: dict[str, Any], payload: dict[str, Any],
     except Exception:
         logger.exception("console: a drop could not be handled")
         with client:
-            ui.notify(t("console.uploads.drop_could_not_read"), type="negative")
+            ui.notify(t("console.uploads.not_work"), type="negative")
     finally:
         state["busy"] = False
 
 
-async def analysis_of(library: Any, upload_id: str) -> dict[str, Any]:
-    """What the install makes of what arrived."""
-    return await offload.io(library.upload_analysis, upload_id)
+async def analyzed(library: Any, upload_id: str) -> dict[str, Any] | None:
+    """What the install makes of what arrived, or None once it has said why not and let
+    the files go."""
+    try:
+        analysis = await offload.io(library.upload_analysis, upload_id)
+    except Exception as exc:  # noqa: BLE001
+        analysis = {"error": exc}
+    if analysis.get("error"):
+        ui.notify(t("console.uploads.could_not_read", exc=analysis["error"]), type="negative")
+        await run.io_bound(library.abort_upload, upload_id)
+        return None
+    return analysis
+
+
+async def confirmed_import(library: Any, upload_id: str, analysis: dict[str, Any], *,
+                           source: str, on_done: Callable[[], Any], game_id: str = "",
+                           game_dir: str = "", allow_new_game: bool = False,
+                           media_kind: str = "", location_id: str = "",
+                           asset_kind: str = "") -> None:
+    """From staged files to the import confirmation, and what follows a yes.
+
+    `on_done` runs only after an import, once the library has been read again. Declined,
+    blocked or empty, the staged files are let go and nothing else happens.
+    """
+    try:
+        plan = await offload.io(library.upload_plan, upload_id, game_dir=game_dir,
+                                allow_new_game=allow_new_game, media_kind=media_kind,
+                                location_id=location_id, asset_kind=asset_kind)
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(t("console.uploads.could_not_work_where", exc=exc), type="negative")
+        await run.io_bound(library.abort_upload, upload_id)
+        return
+    if not plan.get("items"):
+        reasons = sorted({str(one.get("reason") or "")
+                          for one in plan.get("blocked") or ()})
+        ui.notify("; ".join(one for one in reasons if one)
+                  or t("console.uploads.nothing_import"), type="warning")
+        await run.io_bound(library.abort_upload, upload_id)
+        return
+
+    async def done(_report: Any) -> None:
+        if game_id:
+            library.forget_media(game_id)
+        await run.io_bound(library.refresh_after_import)
+        answer = on_done()
+        if asyncio.iscoroutine(answer):
+            await answer
+
+    await import_dialog.open_for(
+        library, upload_id, plan, source=source, game_dir=game_dir,
+        allow_new_game=allow_new_game, media_kind=media_kind, location_id=location_id,
+        asset_kind=asset_kind, declared=_declared(analysis, game_id), on_done=done)
+
+
+def _declared(analysis: dict[str, Any], game_id: str) -> dict[str, Any]:
+    """What choosing a game said the files are: that game's, on the user's word."""
+    if not game_id:
+        return {}
+    names = {str(entry.get("path") or "").rsplit("/", 1)[-1]
+             for asset in analysis.get("assets") or ()
+             for entry in asset.get("entries") or ()}
+    return {name: {"game_id": game_id, "host": "user", "confirmed_by": "user"}
+            for name in names if name}
 
 
 def token() -> str:

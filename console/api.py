@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urlencode
 
@@ -499,13 +498,12 @@ class ApiClient:
         return self._post(
             f"/collections/{quote(name, safe='')}/members/from_filters", {})
 
-    def set_collection_image(self, name: str, path: str) -> dict:
+    def set_collection_image(self, name: str, filename: str, content: bytes) -> dict:
         route = f"/collections/{quote(name, safe='')}/image"
         _refuse_the_event_loop(route)
-        with open(path, "rb") as handle:
-            response = self._session.put(f"{self._base}{route}",
-                                         files={"file": (Path(path).name, handle)},
-                                         timeout=_TIMEOUT)
+        response = self._session.put(f"{self._base}{route}",
+                                     files={"file": (filename, content)},
+                                     timeout=_TIMEOUT)
         self._answered(response)
         return response.json()
 
@@ -541,15 +539,24 @@ class ApiClient:
         query = "?" + urlencode({"game": game_id}) if game_id else ""
         return list(self._get(f"/filesystem/roots{query}").get("roots") or [])
 
-    def browse(self, path: str, asset_kind: str = "") -> dict:
+    def browse(self, path: str, asset_kind: str = "", archives: bool = False) -> dict:
         """One folder on this machine, as folders and media files, and the files of
-        `asset_kind` where one is named."""
-        asked = {"path": path, **({"kind": asset_kind} if asset_kind else {})}
+        `asset_kind` where one is named. `archives` adds the archives."""
+        asked = {"path": path, **({"kind": asset_kind} if asset_kind else {}),
+                 **({"archives": "true"} if archives else {})}
         return self._get("/filesystem/entries?" + urlencode(asked))
 
     def browsed_file_url(self, path: str) -> str:
         """Where the browser can fetch a file it is showing, so it can be looked at."""
-        return f"{self._base}/filesystem/file?" + urlencode({"path": path})
+        return "/api/v1/filesystem/file?" + urlencode({"path": path})
+
+    def browsed_file(self, path: str) -> bytes:
+        """A browsed file's bytes, for a write that takes the file rather than its path."""
+        route = "/filesystem/file?" + urlencode({"path": path})
+        _refuse_the_event_loop(route)
+        response = self._session.get(f"{self._base}{route}", timeout=_TIMEOUT)
+        self._answered(response)
+        return response.content
 
     def import_media(self, game_id: str, table_id: str, kind: str, path: str) -> dict:
         """Copy a file from elsewhere on this machine into the slot."""
@@ -743,6 +750,11 @@ class ApiClient:
     def upload_analysis(self, upload_id: str) -> dict:
         """What was dropped, as the install reads it."""
         return dict(self._get(f"/uploads/{upload_id}/analysis") or {})
+
+    def upload_from_path(self, path: str) -> str:
+        """A session reading a file, folder or archive already on this machine, where
+        it is. Nothing is copied until the import, and the original is never moved."""
+        return str(self._post("/uploads/from_path", {"path": path})["id"])
 
     def new_game_destination(self) -> dict:
         """Where a new game would be created, or why it could not, and what else it

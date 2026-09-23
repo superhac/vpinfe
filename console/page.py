@@ -314,19 +314,12 @@ async def _took_a_drop(
     # said which game and which slot, so any image belongs on an image slot and is
     # written under that slot's own name. Asking the analyzer first rejected exactly
     # the file this is for - one whose name says nothing.
-    analysis: dict = {}
+    analysis: dict[str, Any] = {}
     if not media_kind:
-        try:
-            analysis = await uploads.analysis_of(library, drop.upload_id)
-        except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.page.could_not_read_drop", exc=(exc)), type="negative")
-            await run.io_bound(library.abort_upload, drop.upload_id)
+        read = await uploads.analyzed(library, drop.upload_id)
+        if read is None:
             return
-        if analysis.get("error"):
-            ui.notify(t("console.page.could_not_read_drop", exc=(analysis['error'])),
-                      type="negative")
-            await run.io_bound(library.abort_upload, drop.upload_id)
-            return
+        analysis = read
 
     if drop.target != uploads.TARGET_LIBRARY and not game_dir:
         ui.notify(t("console.page.could_not_work_game"), type="negative")
@@ -351,34 +344,10 @@ async def _took_a_drop(
             return
         where = chosen
 
-    try:
-        plan = await offload.io(library.upload_plan, drop.upload_id,
-                                  game_dir=game_dir, allow_new_game=new_game,
-                                  media_kind=media_kind, location_id=where,
-                                  asset_kind=drop.asset_kind)
-    except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.page.could_not_work_where", exc=(exc)), type="negative")
-        await run.io_bound(library.abort_upload, drop.upload_id)
-        return
-    if not plan.get("items"):
-        reasons = sorted({str(one.get("reason") or "")
-                          for one in plan.get("blocked") or ()})
-        ui.notify("; ".join(one for one in reasons if one) or t("console.page.nothing_import"),
-                  type="warning")
-        await run.io_bound(library.abort_upload, drop.upload_id)
-        return
-
-    async def done(_report: Any) -> None:
-        library.forget_media(game_id) if game_id else None
-        await run.io_bound(library.refresh_after_import)
-        redraw()
-
-    await import_dialog.open_for(
-        library, drop.upload_id, plan, source=drop.name, game_dir=game_dir,
-        allow_new_game=new_game, media_kind=media_kind, location_id=where,
-        asset_kind=drop.asset_kind,
-        declared=_declared_by_the_drop(analysis, game_id),
-        on_done=done)
+    await uploads.confirmed_import(
+        library, drop.upload_id, analysis, source=drop.name, on_done=redraw,
+        game_id=game_id, game_dir=game_dir, allow_new_game=new_game,
+        media_kind=media_kind, location_id=where, asset_kind=drop.asset_kind)
 
 
 def _drop_target(library: Library, state: dict, drop: Any) -> tuple[str, str, str]:
@@ -393,8 +362,7 @@ def _drop_target(library: Library, state: dict, drop: Any) -> tuple[str, str, st
     if drop.target == uploads.TARGET_LIBRARY or not drop.row_id:
         return "", "", ""
     game_id = drop.row_id
-    if drop.target != uploads.TARGET_GAME_ID and state.get("view") in ("tables", "media",
-                                                                        "assets"):
+    if state.get("view") in ("tables", "media", "assets"):
         # These rows are about a file, and carry the game they belong to.
         row = next((one for one in library.table_rows()
                     if str(one.get("id")) == drop.row_id), None)
@@ -404,23 +372,6 @@ def _drop_target(library: Library, state: dict, drop: Any) -> tuple[str, str, st
         game_id = str((row or {}).get("game_id") or "")
     found = next((one for one in library.games if str(one.get("id")) == game_id), None)
     return game_id, str((found or {}).get("folder") or ""), drop.media_kind
-
-
-def _declared_by_the_drop(analysis: dict, game_id: str) -> dict:
-    """What the gesture said the files are.
-
-    Letting go on a game names that game, and a person choosing a target has said it
-    more plainly than a filename ever does - so the basis is the user. No upstream
-    record is named, because nothing here fetched one: that binding only arrives from
-    something that actually went and got the file.
-    """
-    if not game_id:
-        return {}
-    names = {str(entry.get("path") or "").rsplit("/", 1)[-1]
-             for asset in analysis.get("assets") or ()
-             for entry in asset.get("entries") or ()}
-    return {name: {"game_id": game_id, "host": "user", "confirmed_by": "user"}
-            for name in names if name}
 
 
 @ui.page("/", title=t("console.page.vpinfe_console"), reconnect_timeout=300)

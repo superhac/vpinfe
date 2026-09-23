@@ -135,8 +135,6 @@ _SYNTHWAVE = """
   --borrowed-edge: rgba(255, 176, 32, 0.65);
   /* The media plate, warmed, for the file a table owns itself. */
   --scrim-media-warm: rgba(40, 24, 8, 0.85);
-  /* A header band across the top of a card. */
-  --surface-band: rgba(43, 26, 77, 0.6);
   --line: #2b1a4d;
   /* The visible edge, against --line's hairline: a menu, a dropped-file target and a
      panel header all need to be seen as an edge rather than felt as one.
@@ -297,7 +295,6 @@ _DARK = """
   --notice-edge: rgba(240, 180, 41, 0.35);
   --borrowed-edge: rgba(240, 140, 20, 0.65);
   --scrim-media-warm: rgba(46, 32, 8, 0.85);
-  --surface-band: rgba(255, 255, 255, 0.05);
   /* Boundaries. `--line-strong` is 3.2:1 on the lightest surface a control sits on. */
   --line: #2a2e36;
   --line-strong: #696f7b;
@@ -414,7 +411,6 @@ _LIGHT = """
   --notice-edge: #dcc79a;
   --borrowed-edge: #b8791f;
   --scrim-media-warm: rgba(253, 243, 224, 0.92);
-  --surface-band: rgba(16, 24, 40, 0.04);
   /* `--line-strong` is 3.05:1 on the darkest surface a control sits on. */
   --line: #d7dce3;
   --line-strong: #808995;

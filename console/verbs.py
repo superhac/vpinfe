@@ -79,6 +79,8 @@ UPDATE = "system_update_alt"
 
 # Bringing art or a file in, by where it comes from.
 FROM_FILE = "upload_file"
+FROM_FOLDER = "drive_folder_upload"
+FROM_HOST = "devices"
 FROM_ONLINE = "cloud_download"
 ADD_ART = "add_photo_alternate"
 ADD_TO_LIST = "playlist_add"

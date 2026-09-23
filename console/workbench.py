@@ -902,7 +902,8 @@ _WHOLE_FOLDER = frozenset({"pup_pack", "alt_color", "alt_sound", "music"})
 def _asset_actions(context: dict[str, Any], kind: str, label: str, present: bool,
                    path: str, tier: str, detail: dict[str, Any]) -> None:
     if kind in _WHOLE_FOLDER:
-        _folder_actions(context, kind, present, path, int(detail.get("files") or 0))
+        _folder_actions(context, kind, label, present, path,
+                        int(detail.get("files") or 0))
         return
     if kind not in _PLACEABLE:
         return
@@ -930,13 +931,13 @@ def _asset_actions(context: dict[str, Any], kind: str, label: str, present: bool
                 .classes("console-action console-action--danger")
 
 
-def _folder_actions(context: dict[str, Any], kind: str, present: bool, path: str,
-                    files: int) -> None:
-    picker = (f"() => window.__consolePick({json.dumps(context['game_id'])}, "
-              f"{json.dumps(kind)})")
+def _folder_actions(context: dict[str, Any], kind: str, label: str, present: bool,
+                    path: str, files: int) -> None:
     with ui.row().classes("items-center gap-2 w-full console-slot-actions"):
-        panel.action(t("word.replace") if present else t("word.add"), lambda: None,
-                     icon=verbs.REPLACE if present else verbs.ADD, js=picker)()
+        panel.action(t("word.replace") if present else t("word.add"),
+                     lambda: mediasource.open_folder_sources(context, kind, label,
+                                                             context["rebuild"]),
+                     icon=verbs.REPLACE if present else verbs.ADD)()
         if present and path:
             ui.button(t("word.remove"), icon=verbs.REMOVE,
                       on_click=lambda: _remove_asset(context, kind, path, "", files=files)) \
@@ -4788,21 +4789,6 @@ def _image_slot(context: dict[str, Any], row: dict[str, Any]) -> None:
     library = context["library"]
     present = bool(row.get("image"))
 
-    async def upload(event: Any) -> None:
-        import tempfile
-        content = event.content.read()
-        if not content:
-            return
-        with tempfile.NamedTemporaryFile(suffix=Path(event.name).suffix,
-                                         delete=False) as staged:
-            staged.write(content)
-        try:
-            await run.io_bound(library.set_collection_image, name, staged.name)
-        except Exception as exc:
-            ui.notify(t("console.workbench.could_not_use_image", exc=(exc)), type="negative")
-            return
-        await _written(context)
-
     async def clear() -> None:
         await run.io_bound(library.clear_collection_image, name)
         await _written(context)
@@ -4817,17 +4803,16 @@ def _image_slot(context: dict[str, Any], row: dict[str, Any]) -> None:
                 with ui.column().classes("console-slot-blank items-center gap-1"):
                     ui.icon("image").classes("console-slot-blank-icon")
         with ui.row().classes("items-center gap-2 w-full console-slot-actions"):
-            # The picker sits behind the button, as the media slot's own actions do.
-            # A drop target the size of the panel was reading as the content.
-            upload_control = ui.upload(on_upload=upload, auto_upload=True, max_files=1) \
-                .props('accept="image/*"').classes("hidden")
-            ui.button(t("word.replace") if present
-                    else t("console.workbench.add_image"), icon="upload",
-                      on_click=lambda: upload_control.run_method("pickFiles")) \
+            ui.button(t("word.replace") if present else t("word.add"),
+                      icon=verbs.REPLACE if present else verbs.ADD,
+                      on_click=lambda: mediasource.open_image_sources(
+                          library, name, t("console.workbench.image"),
+                          lambda: _written(context))) \
                 .props("flat dense no-caps size=sm").classes("console-action")
             if present:
                 ui.button(t("word.remove"), icon=verbs.REMOVE, on_click=clear) \
-                    .props("flat dense no-caps size=sm")
+                    .props("flat dense no-caps size=sm") \
+                    .classes("console-action console-action--danger")
 
 
 def _collection_actions(context: dict[str, Any]) -> None:

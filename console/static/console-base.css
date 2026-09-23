@@ -1841,7 +1841,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   background: var(--accent); color: var(--surface-0);
   font-size: var(--fs-caption); line-height: 20px; text-align: center;
 }
-/* The collection a drag is over. */
+/* What a drag is over. */
 .console-drop-hot { outline: 2px solid var(--accent); outline-offset: -2px; }
 .console-drop-target.console-drop-hot { background: var(--drop-lit); color: var(--ink); }
 /* Where a drop lands in the list, laid over its rows. */
@@ -2639,7 +2639,7 @@ body.console-dragging-rows .q-drawer--mini .console-rail-drops {
   background: var(--tier-table); font-size: 0; overflow: hidden;
 }
 
-/* --- where a slot's file can come from ---------------------------------- */
+/* --- where a file can come from --------------------------------------- */
 
 .console-dialog.console-sources-card.q-card { width: min(840px, 94vw); max-height: 84vh; gap: 6px; }
 /* A row that navigates rather than acting: the whole thing is the target, so it says
@@ -2775,25 +2775,10 @@ body.console-dragging-rows .q-drawer--mini .console-rail-drops {
   font-size: var(--fs-caption); color: var(--accent); opacity: 0.85;
 }
 
-/* Quasar keeps the queued-file list at full height while it is empty. Uploads are
-   automatic here, so the list only ever flashes. */
-.console-sources-card .q-uploader__list:empty { display: none; }
-.console-sources-card .q-uploader { width: 100%; max-height: 220px; }
-.console-sources-card .q-uploader__title {
-  font-size: var(--fs-body); font-weight: 500; color: var(--ink-2);
-}
-.console-sources-card .q-uploader__subtitle { display: none; }
-/* Quasar fills the header with the primary color. Magenta reads as "selected"
-   everywhere else in this UI, and this is a drop target, not a selection. */
-/* Element-qualified and forced, because Quasar sets the header's fill from the
-   primary color with the same specificity a class selector has. */
-.console-sources-card div.q-uploader__header {
-  background: var(--surface-band) !important; border-bottom: 1px solid var(--line);
-}
-.console-sources-card .q-uploader { background: var(--surface-2); border: 1px solid var(--line); }
-/* The dashed target is the affordance; without a border the strip reads as a heading. */
-.console-sources-card .q-uploader__list {
-  background: transparent; border: 1px dashed var(--line); border-top: none;
+.console-source-zone { min-height: 200px; padding: 20px 16px; }
+/* Past `_HOST_NAME_MAX` in mediasource.py the tab also carries a tooltip. */
+.console-source-host .q-tab__label {
+  max-width: 20ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 /* One markup, two readings. Wide, the rows are a rail down the left and the open

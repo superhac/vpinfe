@@ -195,11 +195,14 @@ class Library:
     def browse_roots(self, game_id: str = "") -> list[dict]:
         return self._client.browse_roots(game_id)
 
-    def browse(self, path: str, asset_kind: str = "") -> dict:
-        return self._client.browse(path, asset_kind)
+    def browse(self, path: str, asset_kind: str = "", archives: bool = False) -> dict:
+        return self._client.browse(path, asset_kind, archives)
 
     def browsed_file_url(self, path: str) -> str:
         return self._client.browsed_file_url(path)
+
+    def browsed_file(self, path: str) -> bytes:
+        return self._client.browsed_file(path)
 
     def import_media(self, game_id: str, table_id: str | None, kind: str,
                      path: str) -> dict:
@@ -761,9 +764,9 @@ class Library:
         self._collections_changed()
         return self._client.keep_collection_result(name)
 
-    def set_collection_image(self, name: str, path: str) -> dict:
+    def set_collection_image(self, name: str, filename: str, content: bytes) -> dict:
         self._collections_changed()
-        return self._client.set_collection_image(name, path)
+        return self._client.set_collection_image(name, filename, content)
 
     def clear_collection_image(self, name: str) -> None:
         self._collections_changed()
@@ -1082,6 +1085,9 @@ class Library:
 
     def upload_analysis(self, upload_id: str) -> dict:
         return self._client.upload_analysis(upload_id)
+
+    def upload_from_path(self, path: str) -> str:
+        return self._client.upload_from_path(path)
 
     def new_game_destination(self) -> dict:
         return self._client.new_game_destination()
