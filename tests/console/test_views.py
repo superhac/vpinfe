@@ -394,6 +394,22 @@ class TagRowTests(unittest.TestCase):
                          [(r["tag"], r["games"], r["tag_list"], r["description"])
                           for r in rows])
 
+    def test_a_tag_on_nothing_is_unused(self) -> None:
+        rows = self._library([{"name": "Someday", "games": 0, "tables": 0},
+                              {"name": "VR", "games": 0, "tables": 2},
+                              {"name": "Wide Body", "games": 2, "tables": 0}]).tag_rows()
+
+        self.assertEqual({"Someday": True, "VR": False, "Wide Body": False},
+                         {r["tag"]: r["unused"] for r in rows})
+
+    def test_every_tag_view_filters_on_a_column_the_grid_has(self) -> None:
+        from console import tageditor
+
+        fields = {one["field"] for one in tageditor.COLUMNS}
+        for name, preset in tageditor.VIEWS.items():
+            with self.subTest(view=name):
+                self.assertLessEqual(set(preset.filters) | set(preset.columns), fields)
+
     def test_a_tag_panel_is_details_games_and_actions(self) -> None:
         self.assertEqual(["tag_details", "tag_games", "tag_actions"],
                          [item.key for item in workbench.sections_for("tag")])

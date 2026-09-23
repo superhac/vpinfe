@@ -848,7 +848,9 @@ class Library:
                          "same": key,
                          # Only where there is another spelling of it - a mark on every
                          # row would say nothing, and this is the row people are after.
-                         "duplicate": keys[key] > 1})
+                         "duplicate": keys[key] > 1,
+                         "unused": not (int(one.get("games") or 0)
+                                        or int(one.get("tables") or 0))})
         return rows
 
     def vps_search(self, term: str, limit: int = 40) -> list[dict]:

@@ -16,7 +16,7 @@ from nicegui import ui
 
 from common.games.tag_registry import derived_color
 from common.i18n import t
-from console import confirm, grid, offload, panel, renderers, tag_chips, verbs
+from console import confirm, grid, offload, panel, renderers, tag_chips, verbs, views
 from console.data import Library
 
 SUBJECT = "tag"
@@ -32,7 +32,33 @@ COLUMNS = [
                 help=t("console.tageditor.games.help")),
     grid.column("tables", t("console.tageditor.tables"), type="numericColumn",
                 help=t("console.tageditor.tables.help")),
+    grid.column("unused", t("console.tageditor.unused"), 120,
+                **grid.choice_filter([{"value": True, "label": t("console.tageditor.unused")},
+                                      {"value": False, "label": t("console.tageditor.in_use")}],
+                                     formatted=True)),
+    grid.column("duplicate", t("console.tageditor.two_spellings"), 140,
+                **grid.choice_filter(
+                    [{"value": True, "label": t("console.tageditor.two_spellings")},
+                     {"value": False, "label": t("console.tageditor.one_spelling")}],
+                    formatted=True)),
+    grid.column("same", t("console.tageditor.spelled_as"), 160,
+                help=t("console.tageditor.spelled_as.help")),
 ]
+_ALL = [one["field"] for one in COLUMNS]
+_SHOWN = ("tag", "description", "games", "tables")
+
+VIEWS: dict[str, list[str] | views.Preset] = {
+    t("console.view.everything"): views.Preset(
+        columns=_SHOWN, help=t("console.view.tags_everything.help")),
+    t("console.tageditor.unused"): views.Preset(
+        columns=_SHOWN, filters={"unused": {"values": [True]}},
+        help=t("console.view.tags_unused.help")),
+    t("console.tageditor.two_spellings"): views.Preset(
+        columns=_SHOWN, filters={"duplicate": {"values": [True]}},
+        sort=({"colId": "same", "sort": "asc", "sortIndex": 0},
+              {"colId": "games", "sort": "desc", "sortIndex": 1}),
+        help=t("console.view.tags_two_spellings.help")),
+}
 
 
 def rows_by_key(rows: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
@@ -126,13 +152,18 @@ def build(rows: list[dict[str, Any]], library: Any,
         if rerender is not None:
             rerender()
 
+    from .games import view_control
+
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
                           "console-panel console-grid-bar"):
         bar = panel.grid_bar()
+        wire_views, _picker, showing, describe = view_control(
+            library, SCOPE, VIEWS, _ALL, COLUMNS, bar=bar)
+        describe()
         with bar.top, panel.bar_end():
             search = panel.search(t("console.tageditor.search_tags"))
         with bar.bottom, panel.bar_end():
-            ui.label(t("console.tageditor.tags_counted", count=len(rows))) \
+            count = ui.label(t("console.tageditor.tags_counted", count=len(rows))) \
                 .classes("text-xs console-label")
             panel.add_action([(t("console.tageditor.new_tag"), write_down)],
                              empty=not rows)
@@ -163,8 +194,17 @@ def build(rows: list[dict[str, Any]], library: Any,
         fill(row)
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        table = grid.build(COLUMNS, rows, SCOPE, on_context=on_context)
+        table = grid.build(COLUMNS, rows, SCOPE, on_context=on_context, view_of=showing)
         menu = ui.context_menu()
+    wire_views(table)
+
+    async def counted() -> None:
+        seen = await table.run_grid_method("getDisplayedRowCount")
+        seen = int(seen if isinstance(seen, int) else len(rows))
+        count.text = (t("console.tageditor.tags_counted", count=len(rows)) if seen == len(rows)
+                      else t("console.tageditor.tags_of", shown=seen, count=len(rows)))
+
+    table.on("modelUpdated", counted)
     grid.on_row_focus(SCOPE, lambda event: on_select(by_id.get(grid.focused_row(event))))
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText",
