@@ -2941,9 +2941,8 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 }
 
 .console-index-item {
-  border-radius: 6px; padding: 4px 10px; cursor: pointer;
+  border-radius: 6px; padding: 4px 10px;
   font-size: var(--fs-body);
                   color: var(--ink-2); }
-.console-index-item:hover { background: var(--flair-wash); }
 .console-bar { height: 6px; border-radius: 3px; background: var(--bar-track); }
 .console-bar > div { height: 100%; border-radius: 3px; background: var(--accent); }
