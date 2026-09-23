@@ -161,6 +161,9 @@ class FilterAxis:
     # control could not tell which. Rating is the case in point - two ratings at once
     # says nothing the floor does not say better.
     many: bool = False
+    # Offered on every install whatever the library holds, for an axis whose values are
+    # a scale rather than data.
+    choices: tuple[str, ...] = ()
 
     @property
     def label(self) -> str:
@@ -198,7 +201,8 @@ AXES: tuple[FilterAxis, ...] = (
                values_of=lambda game: [str(game_year(game) or "")],
                values_key="years"),
     FilterAxis("rating", GAME_SCOPE, "rating",
-               _match_rating, groups=lambda game: str(game_rating(game))),
+               _match_rating, groups=lambda game: str(game_rating(game)),
+               choices=("1", "2", "3", "4", "5")),
     FilterAxis("rating_or_higher", GAME_SCOPE, "rating",
                _match_rating_or_higher),
     FilterAxis("played", GAME_SCOPE, "flag",

@@ -1942,7 +1942,7 @@ class FilterAxis(ApiModel):
     """One thing a collection can filter on.
 
     `values` are the ones this library actually has, so a client offers a choice that
-    matches something. A `rating` axis has no values: it is 0-5 whatever is installed.
+    matches something. `rating` carries its scale instead, the same on every install.
     """
 
     name: str

@@ -4953,14 +4953,17 @@ def _axis_control(context: dict[str, Any], axis: dict[str, Any],
     values = list(axis.get("values") or [])
     summary = str(axis.get("summary") or "")
 
-    def changed(value: Any) -> None:
+    def changed(value: Any, **paired: Any) -> None:
         filters = _draft_filters(context, _collection(context))
         filters[name] = value
+        filters.update(paired)
         context["draft"]["filters"] = filters
         asyncio.create_task(context["rebuild"]())
 
     def draw() -> None:
-        if kind == "flag":
+        if kind == "rating":
+            control = _rating_control(values, current, changed)
+        elif kind == "flag":
             # Three states, not two: absent says nothing about play, while true and
             # false are both criteria. A switch could only ever say two of the three.
             stored = current.get(name)
@@ -4994,6 +4997,30 @@ def _axis_control(context: dict[str, Any], axis: dict[str, Any],
     return draw
 
 
+def _rating_control(values: list[str], current: dict[str, Any],
+                    changed: Callable[..., None]) -> ui.select:
+    """At least or exactly, beside how many stars. Returns the stars."""
+    chosen = _selected(current.get("rating"))
+    rating = chosen[0] if chosen else ""
+    floor = bool(current.get("rating_or_higher")) or not rating
+    with ui.row().classes("items-center gap-2 w-full no-wrap"):
+        how = ui.select({"at_least": t("console.workbench.at_least"),
+                         "exactly": t("console.workbench.is_exactly")},
+                        value="at_least" if floor else "exactly") \
+            .props("dense outlined").classes("w-32 shrink-0")
+        how.set_enabled(bool(rating))
+        stars = ui.select({"": t("console.workbench.any"),
+                           **{value: t("console.stars.5", n=value) for value in values}},
+                          value=rating) \
+            .props("dense outlined").classes("grow min-w-0")
+    how.on_value_change(
+        lambda: changed(rating, rating_or_higher=how.value == "at_least"))
+    stars.on_value_change(
+        lambda: changed(stars.value or UNCONSTRAINED,
+                        rating_or_higher=bool(stars.value) and how.value == "at_least"))
+    return stars
+
+
 def _selected(value: Any) -> list[str]:
     """A criterion as the list a multi-select shows. "All" is how a criterion says it
     constrains nothing, so it is an empty selection rather than a chip reading "All"."""
@@ -5021,6 +5048,15 @@ def _rule_sentence(context: dict[str, Any], row: dict[str, Any]) -> str:
             if current.get(name) is not None:
                 said.append(t("console.workbench.played") if current[name]
                             else t("console.workbench.never_played"))
+            continue
+        if name == "rating":
+            rated = _selected(current.get(name))
+            if rated:
+                stars = t("console.stars.5", n=rated[0])
+                said.append(
+                    t("console.workbench.axis_at_least", axis=_axis_label(axis), value=stars)
+                    if current.get("rating_or_higher")
+                    else t("console.workbench.axis_is", axis=_axis_label(axis), values=stars))
             continue
         chosen = _selected(current.get(name))
         if chosen:

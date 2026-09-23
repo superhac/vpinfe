@@ -45,8 +45,8 @@ def start(kind: str, work: Callable[[job_registry.Job], object]) -> job_registry
 def filter_axes() -> dict[str, Any]:
     """Every filter axis, with the values this library holds.
 
-    Projected from the registry the resolver matches on, so the two cannot disagree. A
-    rating axis carries no values: it is 0-5 whatever is installed.
+    Projected from the registry the resolver matches on, so the two cannot disagree. An
+    axis declaring choices carries those, whatever is installed.
     """
     available = GameListFilters(game_repository.all_games()).available_options()
     return {"axes": [{"name": axis.name, "scope": axis.scope, "kind": axis.kind,
@@ -60,7 +60,7 @@ def filter_axes() -> dict[str, Any]:
                       # them. Declared so a caller renders the right control without
                       # knowing which axes exist.
                       "many": axis.many,
-                      "values": available.get(axis.values_key)}
+                      "values": list(axis.choices) or available.get(axis.values_key)}
                      for axis in AXES]}
 
 
