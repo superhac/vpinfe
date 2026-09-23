@@ -25,6 +25,7 @@ from common.games.collection_store import (
     CollectionStore,
 )
 from common.games.game_metadata import play_record
+from common.i18n import t
 from frontend import game_state
 from tests.support.library import TempTree
 
@@ -74,7 +75,7 @@ class SortVocabularyTests(TempTree):
                 self.assertEqual(sort, order_by)
 
     def test_a_curated_order_answers_as_manual(self) -> None:
-        """And apply_sort leaves it alone deliberately, rather than by not recognising
+        """And apply_sort leaves it alone deliberately, rather than by not recognizing
         a name it was handed."""
         sort, _direction = game_state.sort_state({"by": "manual", "direction": "asc"})
 
@@ -115,7 +116,8 @@ class StoredSpellingTests(TempTree):
         self.assertEqual(set(ORDER_ALIASES.values()) - set(SORT_LABELS), set())
 
     def test_every_offered_sort_has_a_label_and_a_direction_has_both(self) -> None:
-        self.assertTrue(all(label.strip() for label in SORT_LABELS.values()))
+        keys = [*SORT_LABELS.values(), *DIRECTION_LABELS.values(), "order.by.manual"]
+        self.assertEqual([key for key in keys if t(key) == key], [])
         self.assertEqual(set(DIRECTION_LABELS), {"asc", "desc"})
 
     def test_manual_is_not_offered(self) -> None:

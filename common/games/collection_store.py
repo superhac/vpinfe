@@ -152,20 +152,21 @@ ORDER_ALIASES = {
     "play_time": "play_time_seconds",
 }
 
-# What a collection can be ordered by: the token stored, and what a person picks from,
-# in dropdown order. `manual` is absent on purpose - it means the member array, which is
-# not something to choose for a collection that filters.
+# What a collection can be ordered by: the token stored, and the catalog key a person
+# reads it by, in dropdown order. Keys, resolved where they are shown. `manual` is absent
+# on purpose - it means the member array, which is not something to choose for a
+# collection that filters.
 SORT_LABELS = {
-    "title": "Title",
-    "year": "Year",
-    "added": "Date Added",
-    "last_played": "Last Played",
-    "play_count": "Play Count",
-    "play_time_seconds": "Play Time",
-    "rating": "Rating",
+    "title": "order.by.title",
+    "year": "order.by.year",
+    "added": "order.by.added",
+    "last_played": "order.by.last_played",
+    "play_count": "order.by.play_count",
+    "play_time_seconds": "order.by.play_time_seconds",
+    "rating": "order.by.rating",
 }
 
-DIRECTION_LABELS = {"asc": "Ascending", "desc": "Descending"}
+DIRECTION_LABELS = {"asc": "order.direction.asc", "desc": "order.direction.desc"}
 
 
 def normalize_paging_group(value: object) -> str | None:

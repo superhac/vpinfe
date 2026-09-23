@@ -33,6 +33,9 @@ ROOT = Path(__file__).resolve().parents[2]
 # about itself. Their chrome is covered by the static checks in
 # tests/invariants/test_i18n_catalog.py; this one would drown in their content.
 CONTENT_HEAVY = frozenset({"logs", "themes", "extensions", "about"})
+# The collection every new install is seeded with, in each section of its panel.
+PANELS =tuple(f"view=collections&collection=Last%20Played&section={section}"
+               for section in ("collection_details", "collection_contents"))
 CATALOG = json.loads((ROOT / "common/i18n/catalogs/en.json").read_text(encoding="utf-8"))
 GAME = "Attack from Mars"
 
@@ -156,18 +159,22 @@ class PseudoLocaleTests(unittest.TestCase):
             # `httpapi/assets.py:_label` builds a label from the identifier. That is the
             # documented fallback for a kind from outside; the fix is to register the
             # kind, which is a data change rather than a localization one.
-            | {"color", "sound"})
+            | {"color", "sound"}
+            # Quasar draws the clear button of a `clearable` field with its own `cancel`
+            # icon, which renders its name as text. A collection's Limit is one.
+            | {"cancel"})
         allowed = _icon_names() | content
 
         from console import page as console_page
         sections = sorted(set(console_page.SECTIONS) - CONTENT_HEAVY)
+        addresses = [f"view={view}" for view in sections] + list(PANELS)
 
         async def look(instance) -> dict[str, list[str]]:
             found: dict[str, list[str]] = {}
             async with BrowserSession(chromium_path()) as browser:
-                for view in sections:
+                for view in addresses:
                     await browser.navigate(
-                        instance.console_url(f"/console?view={view}"))
+                        instance.console_url(f"/console?{view}"))
                     await browser.wait_for(
                         "document.querySelectorAll('.q-page, .nicegui-content').length > 0",
                         timeout=90.0)

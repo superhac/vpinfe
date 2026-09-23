@@ -5220,8 +5220,8 @@ async def _keep_result(context: dict[str, Any]) -> None:
 
 def _order_control(context: dict[str, Any], row: dict[str, Any],
                    *, arrangeable: bool) -> dict[str, Callable[[], None]]:
-    choices = {MANUAL_ORDER: t("console.workbench.manual"), **SORT_LABELS} if arrangeable \
-        else dict(SORT_LABELS)
+    sorts = {token: t(key) for token, key in SORT_LABELS.items()}
+    choices = {MANUAL_ORDER: t("order.by.manual"), **sorts} if arrangeable else sorts
     current = row.get("order_by") or DEFAULT_ORDER_BY
     held: dict[str, Any] = {"by": current if current in choices else DEFAULT_ORDER_BY,
                             "direction": row.get("direction") or "asc"}
@@ -5243,7 +5243,8 @@ def _order_control(context: dict[str, Any], row: dict[str, Any],
         field.on_value_change(changed)
 
     def draw_direction() -> None:
-        field = ui.select(DIRECTION_LABELS, value=held["direction"]) \
+        field = ui.select({token: t(key) for token, key in DIRECTION_LABELS.items()},
+                          value=held["direction"]) \
             .props("dense outlined").classes("w-full min-w-0")
 
         async def changed() -> None:
