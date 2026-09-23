@@ -655,12 +655,21 @@ FEATURE_COLUMNS = [
 _TABLE = "console.games.table"
 _IN_PLAY = "console.games.library"
 
+_NEWER = "newer"
+
 TABLE_COLUMNS = [
     grid.identifier("game", t(_TABLE), 300, pinned="left", group=t(_GAME),
                 subtitle=("said", "", "said_built"),
                 help=t("console.games.machine_build_several_rows.help")),
     grid.column("version", t("word.version"), group=t(_TABLE),
                 help=t("console.games.build_s_own_version.help")),
+    grid.column("on_vps", t("console.games.on_vps"), group=t(_TABLE),
+                help=t("console.games.on_vps.help")),
+    grid.column("update", t("console.games.update"), 140, group=t(_TABLE),
+                help=t("console.games.update.help"),
+                **grid.choice_filter([
+                    {"value": _NEWER, "label": t("console.games.newer_on_vps")},
+                    {"value": "", "label": t("console.games.no_newer_version")}])),
     grid.column("author", t("word.author"), 160, group=t(_TABLE),
                 help=t("console.games.built_table_several_names.help")),
     grid.column("rom", t("console.games.rom"), 110, group=t(_TABLE),
@@ -753,6 +762,10 @@ TABLE_VIEWS: dict[str, list[str] | views.Preset] = {
     game_tables.FEATURES: views.Preset(
         columns=("game", *[f"feature_{key}" for key in table_features.LABELS]),
         help=t("console.view.features.help")),
+    t("console.view.updates"): views.Preset(
+        columns=("game", "version", "on_vps", "default_state", "hidden", "filename"),
+        filters={"update": {"values": [_NEWER]}},
+        help=t("console.view.updates.help")),
 }
 
 
@@ -837,6 +850,8 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
              **{f"asset_{key}": _resolved_word((row.get("assets") or {}).get(key))
                 for key in TABLE_ASSET_KEYS},
              "author": ", ".join(row.get("authors") or []),
+             "on_vps": str((row.get("source") or {}).get("version") or ""),
+             "update": _NEWER if row.get("update_available") else "",
              "tags": ", ".join((row.get("user") or {}).get("tags") or []),
              "tag_list": list((row.get("user") or {}).get("tags") or []),
              "said": " ".join(str(row.get(k) or "").strip()

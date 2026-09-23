@@ -850,6 +850,10 @@ class Table(ApiModel):
     # nothing has looked, which is a different state from having looked and found
     # nothing. Only a matcher can produce the second, and there is no matcher.
     source: TableSource | None = None
+    # Whether VPS lists a later version of that release than `version`. Null where
+    # nothing can be weighed - no release, or a version either side that does not read
+    # as one - which is not the same as up to date.
+    update_available: bool | None = None
     hidden: bool
     # The table's own, 0 where it has none - which is most of them. The game's rating is
     # the headline and this refines it, so 0 means "the game's stands", not "poor".
@@ -1003,6 +1007,8 @@ class TableRow(ApiModel):
     reference: str = ""
     version: str = ""
     authors: list[str] = []
+    source: TableSource | None = None
+    update_available: bool | None = None
     # This table's own rating, not its game's. 0 is unrated, which is most of them.
     rating: int = 0
     # What the script was seen to use, three-valued per feature: true, false, and null

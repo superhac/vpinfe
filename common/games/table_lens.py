@@ -42,6 +42,7 @@ from common.games.tables import (
     table_names,
 )
 from common.host import pinmame_catalog
+from common.values import newer_version, parse_version
 
 logger = logging.getLogger("vpinfe.common.games.table_lens")
 
@@ -136,6 +137,18 @@ def _named_source(described_entry: dict) -> dict | None:
     return source
 
 
+def update_available(version: str, source: dict | None) -> bool | None:
+    """Whether VPS lists a later version of the matched release than `version`.
+
+    None where there is nothing to weigh: no release, or a version on either side that
+    does not read as one.
+    """
+    listed = (parse_version((source or {}).get("version"))
+              if (source or {}).get("vps_file_id") else ())
+    held = parse_version(version)
+    return newer_version(listed, held) if listed and held else None
+
+
 def table_rows(game: Game, row: dict) -> list[dict]:
     """The game's launchable artifacts.
 
@@ -221,6 +234,8 @@ def table_rows(game: Game, row: dict) -> list[dict]:
         reachable = bool(points_at) and os.path.isfile(points_at)
         plays_it = launcher_of(app_id,
                                 str(described_entry.get(TABLE_ID_KEY, "") or ""))
+        version = str(described_entry.get("version", "") or "")
+        source = _named_source(described_entry)
         entry = {
             # The table's own id, the same one the play lens uses. Without it the two
             # lenses describe the same table and a client cannot tell that they do -
@@ -251,7 +266,7 @@ def table_rows(game: Game, row: dict) -> list[dict]:
             # reader is shown has to be what will happen.
             **plays_it,
             "filename": name,
-            "version": str(described_entry.get("version", "") or ""),
+            "version": version,
             "authors": [str(a) for a in (described_entry.get("authors") or [])],
             "file_hash": str(described_entry.get("file_hash", "") or ""),
             "vbs_hash": str(described_entry.get("vbs_hash", "") or ""),
@@ -271,7 +286,8 @@ def table_rows(game: Game, row: dict) -> list[dict]:
             # looked, which is a different state from having looked and found nothing.
             # Named, not just identified - a client showing the bare id would be putting
             # an id on screen, and would need a second round trip to avoid it.
-            "source": _named_source(described_entry),
+            "source": source,
+            "update_available": update_available(version, source),
             "default": native == default,
             # Empty on every table that is not the default: the kind is a fact about
             # the one that is, not a field every row carries a blank for.
@@ -398,6 +414,8 @@ def library_rows(limit: int = 0, offset: int = 0, game: str = "") -> dict[str, A
                 "reference": ((table.get("reference") or {}).get("path") or ""),
                 "version": table.get("version") or "",
                 "authors": table.get("authors") or [],
+                "source": table.get("source"),
+                "update_available": table.get("update_available"),
                 "rating": int(table.get("rating") or 0),
                 "features": table.get("features") or {},
                 "assets": table.get("assets") or {},

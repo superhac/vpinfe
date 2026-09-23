@@ -15,6 +15,7 @@ from unittest.mock import patch
 from starlette.testclient import TestClient
 
 import httpapi
+from common.games import table_lens
 from tests.support.library import TempTree, fake_game, write_game
 
 GAME_ID = "Lens00000001"
@@ -35,11 +36,13 @@ INFO = {
 
 
 class _Lens(TempTree):
+    info: dict = INFO
+
     def setUp(self) -> None:
         super().setUp()
-        self.folder = write_game(self.root, FOLDER, info=INFO, vpx=False,
+        self.folder = write_game(self.root, FOLDER, info=self.info, vpx=False,
                                  files={DESKTOP: b"vpx", VR: b"vpx"})
-        game = fake_game(self.folder, FOLDER, meta=INFO)
+        game = fake_game(self.folder, FOLDER, meta=self.info)
         patcher = patch("common.games.game_repository.catalog", return_value={GAME_ID: game})
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -248,6 +251,56 @@ class TableRatingTests(_Lens):
         self.assertEqual(user["rating"], 2)
         self.assertEqual(user["start_count"], 0)
         self.assertIsNone(user["last_run"])
+
+
+class UpdateTests(_Lens):
+    """A matched table says whether VPS lists a later version of its release."""
+
+    info = {**INFO, "tables": {
+        "tbl0000001": {**INFO["tables"]["tbl0000001"],
+                       "source": {"vps_file_id": "release01", "confirmed_by": "user"}},
+        "tbl0000002": INFO["tables"]["tbl0000002"]}}
+
+    def setUp(self) -> None:
+        release = patch("common.games.table_lens.find_vps_release",
+                        return_value={"version": "1.2", "authors": ["someone"]})
+        release.start()
+        self.addCleanup(release.stop)
+        super().setUp()
+
+    def _by_id(self) -> dict:
+        return {row["id"]: row for row in self._rows()}
+
+    def test_a_table_behind_its_release_says_so(self) -> None:
+        row = self._by_id()["tbl0000001"]
+
+        self.assertIs(row["update_available"], True)
+        self.assertEqual("1.2", row["source"]["version"])
+
+    def test_a_table_matched_to_nothing_cannot_say(self) -> None:
+        """Null, not false: nothing was weighed, which is not the same as up to date."""
+        self.assertIsNone(self._by_id()["tbl0000002"]["update_available"])
+
+    def test_a_game_s_own_tables_say_the_same(self) -> None:
+        body = self.client.get(f"/games/{GAME_ID}/tables").json()
+        tables = body["tables"] if isinstance(body, dict) else body
+
+        said = {table["id"]: table["update_available"] for table in tables}
+        self.assertEqual({"tbl0000001": True, "tbl0000002": None}, said)
+
+
+class UpdateAvailableTests(unittest.TestCase):
+    def test_the_file_s_version_is_weighed_against_the_release_s(self) -> None:
+        for held, listed, expected in (("1.0", "1.2", True), ("1.2", "1.2.0", False),
+                                       ("1.3", "1.2", False), ("VP10", "1.2", None),
+                                       ("1.0", "", None)):
+            with self.subTest(held=held, listed=listed):
+                source = {"vps_file_id": "release01", "version": listed}
+                self.assertIs(expected, table_lens.update_available(held, source))
+
+    def test_a_version_with_no_release_behind_it_weighs_nothing(self) -> None:
+        self.assertIsNone(table_lens.update_available("1.0", {"version": "1.2"}))
+        self.assertIsNone(table_lens.update_available("1.0", None))
 
 
 if __name__ == "__main__":

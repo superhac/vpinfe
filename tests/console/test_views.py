@@ -30,12 +30,14 @@ class BuiltinViewTests(unittest.TestCase):
             for name, preset in presets.items():
                 fields = (preset.columns if isinstance(preset, views.Preset)
                           else preset)
+                filtered = preset.filters if isinstance(preset, views.Preset) else {}
                 # Media and Assets are filled at render time from what the library
                 # reports it holds, so an empty preset here is the declaration.
                 if not fields:
                     continue
                 with self.subTest(grid=label, view=name):
                     self.assertEqual(sorted(set(fields) - known), [])
+                    self.assertEqual(sorted(set(filtered) - known), [])
 
     def test_a_view_is_named_for_the_group_it_matches(self) -> None:
         """The views read the constants rather than repeating them; this says which are
