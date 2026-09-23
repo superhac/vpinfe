@@ -104,6 +104,82 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(vini.parse("[A]\nB = 1\n").settings["A.B"].label, "B")
 
 
+SHAPES = """\
+[Player]
+; Synchronization:  [Default: 'Frame Pacing', 0='No Sync', 1='Vertical Sync', \
+2='Adaptive Sync', 3='Frame Pacing']:
+;   No Sync: nothing waits.
+;   Vertical Sync: waits for the display.
+SyncMode =
+
+; Limit Framerate:  [Default: -1.0 in -1.0 .. 1000.0]:
+;   -1 follows the display
+;   0 sets no limit
+MaxFramerate =
+
+; Disable Motion Blur:  [Default: 0]:
+;   Turns the blur off.
+ForceMotionBlurOff =
+
+[TableOverride]
+; Viewport Rotation:  [Default: 0.0 in 0.0 .. 360.0 by 90.0 steps]
+ViewCabRotation =
+
+[Standalone]
+; Folder: Where it looks [Default: 'C:\\[Tables]\\']
+Folder =
+"""
+
+
+class CommentShapeTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.ini = vini.parse(SHAPES)
+
+    def one(self, qualified: str) -> vini.Setting:
+        return self.ini.settings[qualified]
+
+    def test_choices_come_through_when_the_description_follows_the_block(self) -> None:
+        one = self.one("Player.SyncMode")
+
+        self.assertEqual(one.kind, vini.KIND_CHOICE)
+        self.assertEqual(one.choices, (("0", "No Sync"), ("1", "Vertical Sync"),
+                                       ("2", "Adaptive Sync"), ("3", "Frame Pacing")))
+        self.assertEqual(one.default, "3")
+
+    def test_the_description_is_the_lines_after_the_block(self) -> None:
+        one = self.one("Player.SyncMode")
+
+        self.assertEqual(one.label, "Synchronization")
+        self.assertEqual(one.description,
+                         "No Sync: nothing waits.\nVertical Sync: waits for the display.")
+
+    def test_a_number_described_after_its_block_keeps_its_range(self) -> None:
+        one = self.one("Player.MaxFramerate")
+
+        self.assertEqual((one.kind, one.default), (vini.KIND_NUMBER, "-1.0"))
+        self.assertEqual((one.minimum, one.maximum), (-1.0, 1000.0))
+        self.assertEqual(one.description, "-1 follows the display\n0 sets no limit")
+
+    def test_a_switch_described_after_its_block_keeps_its_default(self) -> None:
+        self.assertEqual(self.one("Player.ForceMotionBlurOff").default, "0")
+
+    def test_a_stepped_number_keeps_its_default(self) -> None:
+        one = self.one("TableOverride.ViewCabRotation")
+
+        self.assertEqual((one.kind, one.default), (vini.KIND_NUMBER, "0.0"))
+        self.assertEqual((one.minimum, one.maximum), (0.0, 360.0))
+        self.assertEqual(one.description, "")
+
+    def test_a_bracket_inside_a_quoted_default_is_part_of_it(self) -> None:
+        self.assertEqual(self.one("Standalone.Folder").default, "C:\\[Tables]\\")
+
+    def test_no_description_carries_the_block(self) -> None:
+        for qualified, one in {**self.ini.settings,
+                               **vini.parse(SAMPLE).settings}.items():
+            with self.subTest(qualified=qualified):
+                self.assertNotIn("[Default:", one.description)
+
+
 class WriteTests(unittest.TestCase):
     def setUp(self) -> None:
         self.ini = vini.parse(SAMPLE)

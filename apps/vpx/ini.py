@@ -23,9 +23,12 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-# `; Label: description [Default: ...]`, where the default block is optional and the
-# label runs to the first colon.
-_DEFAULT_BLOCK = re.compile(r"\[Default:(?P<body>.*)\]\s*$")
+# `; Label: description [Default: ...]`, or `; Label:  [Default: ...]:` with the
+# description on the lines below it. The block is optional, and the label runs to the
+# first colon.
+_DEFAULT_BLOCK = re.compile(r"\[Default:(?P<body>.*?)\]:?[ \t]*(?:\n|$)", re.DOTALL)
+# `in 0.0 .. 360.0 by 90.0 steps`, for a number that moves in steps.
+_STEPS = re.compile(r"\s+by\s+\S+\s+steps\b")
 # `0='None', 1='Dubois'` inside that block.
 _CHOICE = re.compile(r"(-?\d+)\s*=\s*'([^']*)'")
 # `5 in 0 .. 10`, the range VPX states for a number.
@@ -123,7 +126,7 @@ def parse(text: str) -> Ini:
 
 def _describe(section: str, key: str, value: str, comments: list[str],
               line: int) -> Setting:
-    label, description, default_block = _split(" ".join(c for c in comments if c))
+    label, description, default_block = _split("\n".join(c for c in comments if c))
     choices = tuple((num, said) for num, said in _CHOICE.findall(default_block))
     low, high = _bounds(default_block)
     return Setting(
@@ -138,15 +141,21 @@ def _describe(section: str, key: str, value: str, comments: list[str],
 def _split(text: str) -> tuple[str, str, str]:
     """`(label, description, the default block)`. The label runs to the first colon,
     which is why the block is taken out first: several descriptions contain one."""
-    block = ""
     found = _DEFAULT_BLOCK.search(text)
-    if found:
-        block = found.group("body").strip()
-        text = text[: found.start()].strip()
+    if found is None:
+        return (*_labelled(text), "")
+    block = _STEPS.sub("", found.group("body").replace("\n", " ")).strip()
+    label, before = _labelled(text[: found.start()])
+    after = text[found.end():].strip()
+    return label, "\n".join(part for part in (before, after) if part), block
+
+
+def _labelled(text: str) -> tuple[str, str]:
+    text = text.replace("\n", " ")
     if ":" in text:
         label, description = text.split(":", 1)
-        return label.strip(), description.strip(), block
-    return text.strip(), "", block
+        return label.strip(), description.strip()
+    return text.strip(), ""
 
 
 def _default_of(block: str, choices: tuple[tuple[str, str], ...]) -> str:
