@@ -2195,7 +2195,7 @@ async def _collections_block(context: dict[str, Any]) -> None:
     offered = sorted((name for name in manual if name not in added), key=str.lower)
     with ui.column().classes("gap-0 console-form w-full min-w-0"):
         if not held:
-            ui.label(t("console.workbench.in_no_collections")).classes("console-help px-3")
+            ui.label(t("console.workbench.in_no_collections_yet")).classes("console-help px-3")
         for one in held:
             _collection_row(context, one)
         with ui.element("div").classes("console-slot-actions px-3"):
@@ -2227,8 +2227,7 @@ def _collection_row(context: dict[str, Any], one: dict[str, Any]) -> None:
         with ui.element("div").classes("console-row-action"):
             ui.button(icon=verbs.REMOVE if added else verbs.EXCLUDE, on_click=act) \
                 .props("flat dense round size=sm") \
-                .tooltip(t("console.workbench.remove_collection") if added
-                         else t("console.workbench.exclude_from_collection"))
+                .tooltip(t("console.workbench.remove_collection"))
 
 
 def _add_to_collection(context: dict[str, Any], offered: list[str], *,
@@ -2249,8 +2248,8 @@ def _add_to_collection(context: dict[str, Any], offered: list[str], *,
         .props("flat dense no-caps size=sm").classes("console-action")
     if not offered:
         button.disable()
-        button.tooltip(t("console.workbench.in_every_manual_collection") if any_manual
-                       else t("console.workbench.no_manual_collections"))
+        button.tooltip(t("console.workbench.in_every_hand_picked") if any_manual
+                       else t("console.workbench.no_hand_picked_yet"))
         return
     with button, ui.menu():
         for name in offered:
@@ -2261,7 +2260,7 @@ def _add_to_collection(context: dict[str, Any], offered: list[str], *,
 _CONTENTS_ACT = {
     contents_page.ADDED: ("console.workbench.remove_collection", verbs.REMOVE),
     contents_page.MISSING: ("console.workbench.remove_collection", verbs.REMOVE),
-    contents_page.MATCHED: ("console.workbench.exclude_from_collection", verbs.EXCLUDE),
+    contents_page.MATCHED: ("console.workbench.remove_collection", verbs.EXCLUDE),
     contents_page.EXCLUDED: ("console.workbench.put_back_2", verbs.REVERT),
 }
 

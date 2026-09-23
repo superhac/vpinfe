@@ -498,7 +498,7 @@ def _play(state: dict[str, Any],
         named = [one.get("name") for one in state.get("collections") or []
                  if one.get("name")]
         if named:
-            ui.select({"": t("console.remote.whole_library")} | {name: name for name in named},
+            ui.select({"": t("console.remote.all_games")} | {name: name for name in named},
                       value=state.get("collection") or "", on_change=narrow) \
                 .props("dense outlined options-dense").classes("w-full")
 
@@ -616,7 +616,7 @@ def _add_to_collection(game: dict[str, Any], state: dict[str, Any], sheet: Any,
     if not named:
         ui.button(t("console.remote.add_collection"), icon=verbs.ADD_TO_LIST) \
             .props("no-caps flat disable").classes("remote-action") \
-            .tooltip(t("console.remote.no_lists_own_yet"))
+            .tooltip(t("console.remote.no_hand_picked_yet"))
         return
 
     async def add(name: str) -> None:
