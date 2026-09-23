@@ -531,6 +531,15 @@ class CollectionEntriesTests(CollectionsApiTests):
                          (body["order_by"], body["direction"], body["paging_group"]))
         self.assertEqual(([alpha, zeta], [alpha, zeta]), self._listed("Arranged"))
 
+    def test_a_rule_saved_on_a_custom_order_list_keeps_the_direction_it_names(self) -> None:
+        self._arranged()
+
+        self.client.patch("/collections/Arranged",
+                          json={"filters": {"letter": ["A"], "direction": "desc"}})
+
+        body = self.client.get("/collections/Arranged").json()
+        self.assertEqual(("title", "desc"), (body["order_by"], body["direction"]))
+
     def test_the_arrangement_is_back_once_the_rules_go_and_custom_order_is_chosen(
             self) -> None:
         zeta, alpha = self._arranged()
