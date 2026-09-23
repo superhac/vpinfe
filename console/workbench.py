@@ -5024,7 +5024,7 @@ def _rules_block(context: dict[str, Any], row: dict[str, Any]) -> None:
         _add_rule_button(context)
         if smart and not _drafting(context):
             panel.action(t("console.workbench.convert_hand_picked"),
-                         lambda: _convert(context), icon=verbs.EDIT)()
+                         lambda: _convert(context), icon=verbs.KEEP)()
     added, taken = _by_hand(context)
     ui.label(collection_rules.sentence(rows, context["fields"], added, taken)) \
         .classes("console-help console-rule-sentence mt-1 mb-2")
@@ -5206,7 +5206,7 @@ async def _convert(context: dict[str, Any]) -> None:
     if not await confirm.ask(t("console.workbench.convert_question", name=name),
                              detail=t("console.workbench.convert_detail",
                                       count=int(row.get("count") or 0)),
-                             confirm=t("console.workbench.convert"), icon=verbs.EDIT,
+                             confirm=t("console.workbench.convert"), icon=verbs.KEEP,
                              danger=False):
         return
     await _keep_what_it_found(context)

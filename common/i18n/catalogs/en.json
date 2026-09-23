@@ -1340,8 +1340,8 @@
   "console.workbench.collections": "Collections",
   "console.workbench.convert": "Convert",
   "console.workbench.convert_detail": {
-    "one": "It stops updating and keeps the {count} game it shows now. Games its rules would add later are not added.",
-    "other": "It stops updating and keeps the {count} games it shows now. Games its rules would add later are not added."
+    "one": "It keeps the {count} game it shows now and stops updating.",
+    "other": "It keeps the {count} games it shows now and stops updating."
   },
   "console.workbench.convert_hand_picked": "Convert to Hand-picked...",
   "console.workbench.convert_question": "Convert “{name}” to hand-picked?",

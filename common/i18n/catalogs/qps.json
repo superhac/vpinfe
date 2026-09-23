@@ -1340,8 +1340,8 @@
   "console.workbench.collections": "Çöŀŀèçţîöñš",
   "console.workbench.convert": "Çöñṽèřţ",
   "console.workbench.convert_detail": {
-    "one": "Îţ šţöþš ûþđàţîñĝ àñđ ķèèþš ţĥè {count} ĝàɱè îţ šĥöŵš ñöŵ. Ĝàɱèš îţš řûŀèš ŵöûŀđ àđđ ŀàţèř àřè ñöţ àđđèđ.",
-    "other": "Îţ šţöþš ûþđàţîñĝ àñđ ķèèþš ţĥè {count} ĝàɱèš îţ šĥöŵš ñöŵ. Ĝàɱèš îţš řûŀèš ŵöûŀđ àđđ ŀàţèř àřè ñöţ àđđèđ."
+    "one": "Îţ ķèèþš ţĥè {count} ĝàɱè îţ šĥöŵš ñöŵ àñđ šţöþš ûþđàţîñĝ.",
+    "other": "Îţ ķèèþš ţĥè {count} ĝàɱèš îţ šĥöŵš ñöŵ àñđ šţöþš ûþđàţîñĝ."
   },
   "console.workbench.convert_hand_picked": "Çöñṽèřţ ţö Ĥàñđ-þîçķèđ...",
   "console.workbench.convert_question": "Çöñṽèřţ “{name}” ţö ĥàñđ-þîçķèđ?",
