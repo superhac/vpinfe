@@ -1622,6 +1622,13 @@ class MediaRemoved(ApiModel):
 MultiValue = str | list[str]
 
 
+class YearRange(ApiModel):
+    """Years from one to another, both included. Either end may be left open."""
+
+    from_: int | None = Field(default=None, alias="from")
+    to: int | None = None
+
+
 class CollectionFilters(ApiModel):
     """A filter collection's criteria. "All" means unconstrained on that axis -
     the vocabulary the filter engine already uses, kept rather than translated so
@@ -1652,6 +1659,7 @@ class CollectionFilters(ApiModel):
     played: bool | None = None
     favorite: bool | None = None
     tags: MultiValue = "All"
+    year_range: YearRange | None = None
     order_by: str = DEFAULT_ORDER_BY
     direction: str = DEFAULT_DIRECTION
 
@@ -1971,6 +1979,8 @@ class FilterAxis(ApiModel):
     # names it holds itself, which is what keeps adding an axis free.
     many: bool = False
     values: list[str] | None = None
+    # The axis whose field this one is asked under, or "" where it is its own.
+    field: str = ""
 
 
 class FilterAxisList(ApiModel):

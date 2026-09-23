@@ -51,6 +51,9 @@ FILTERS = (
     {"tags": "Nothing Is Tagged This"},
     {"manufacturer": "Bally", "theme": "Space"},
     {"theme": "Nothing Is Tagged This"},
+    {"year_range": {"from": 1990, "to": 1995}},
+    {"year_range": {"to": 1985}},
+    {"year_range": {"from": 1996}},
     {},
 )
 

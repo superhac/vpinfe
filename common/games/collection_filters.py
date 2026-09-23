@@ -16,6 +16,7 @@ that fails if an existing definition moves.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -104,6 +105,29 @@ def _match_year(criterion: object, game: GameRecord, table: dict) -> bool:
     return game_year(game) in _values(criterion)
 
 
+_FOUR_DIGITS = re.compile(r"\s*(\d{4})")
+
+
+def _year_number(value: object) -> int | None:
+    found = _FOUR_DIGITS.match(str(value if value is not None else ""))
+    return int(found.group(1)) if found else None
+
+
+def year_bounds(criterion: object) -> tuple[int | None, int | None]:
+    """A `year_range` criterion as (from, to), inclusive, None where a side is open."""
+    if not isinstance(criterion, dict):
+        return None, None
+    return _year_number(criterion.get("from")), _year_number(criterion.get("to"))
+
+
+def _match_year_range(criterion: object, game: GameRecord, table: dict) -> bool:
+    start, end = year_bounds(criterion)
+    year = _year_number(game_year(game))
+    if year is None:
+        return False
+    return (start is None or year >= start) and (end is None or year <= end)
+
+
 def _match_rating(criterion: object, game: GameRecord, table: dict) -> bool:
     wanted = {normalize_rating(v) for v in _values(criterion)}
     return game_rating(game) in wanted
@@ -164,6 +188,8 @@ class FilterAxis:
     # Offered on every install whatever the library holds, for an axis whose values are
     # a scale rather than data.
     choices: tuple[str, ...] = ()
+    # The axis whose field this one is asked under, or empty where it is its own.
+    field: str = ""
 
     @property
     def label(self) -> str:
@@ -204,7 +230,7 @@ AXES: tuple[FilterAxis, ...] = (
                _match_rating, groups=lambda game: str(game_rating(game)),
                choices=("1", "2", "3", "4", "5")),
     FilterAxis("rating_or_higher", GAME_SCOPE, "rating",
-               _match_rating_or_higher),
+               _match_rating_or_higher, field="rating"),
     FilterAxis("played", GAME_SCOPE, "flag",
                _match_played),
     FilterAxis("favorite", GAME_SCOPE, "flag",
@@ -214,6 +240,8 @@ AXES: tuple[FilterAxis, ...] = (
     FilterAxis("tags", TABLE_SCOPE, "choice",
                _match_tag, many=True,
                values_of=_carried_tags, values_key="tags"),
+    FilterAxis("year_range", GAME_SCOPE, "range",
+               _match_year_range, field="year"),
 )
 
 AXES_BY_NAME = {axis.name: axis for axis in AXES}
@@ -234,7 +262,10 @@ def criterion(stored: dict | None, name: str, default: object = None) -> object:
 
 
 def is_unconstrained(criterion: object) -> bool:
-    """Whether a criterion asks for nothing. Absent, empty and "All" all mean this."""
+    """Whether a criterion asks for nothing. Absent, empty and "All" all mean this, and
+    so does a range with neither end set."""
+    if isinstance(criterion, dict):
+        return year_bounds(criterion) == (None, None)
     return criterion in (None, "", UNCONSTRAINED) or not _values(criterion)
 
 

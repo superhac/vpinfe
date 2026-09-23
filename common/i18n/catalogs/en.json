@@ -1724,6 +1724,8 @@
   "filter.theme.summary": "Any theme the game is tagged with",
   "filter.year.label": "Year",
   "filter.year.summary": "Year the machine was released",
+  "filter.year_range.label": "Year",
+  "filter.year_range.summary": "Released from one year to another",
   "frontend.buildmeta.build_metadata_started": "Build metadata started",
   "frontend.collectionmenu.ascending": "Ascending",
   "frontend.collectionmenu.collections": "Collections:",

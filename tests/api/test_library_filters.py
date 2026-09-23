@@ -82,6 +82,13 @@ class LibraryFilterTests(TempTree):
         self.assertEqual(["1", "2", "3", "4", "5"], axes["rating"]["values"])
         self.assertIsNone(axes["rating_or_higher"]["values"])
 
+    def test_an_axis_read_under_another_field_says_which(self) -> None:
+        axes = self._axes()
+
+        self.assertEqual("year", axes["year_range"]["field"])
+        self.assertEqual("rating", axes["rating_or_higher"]["field"])
+        self.assertEqual("", axes["year"]["field"])
+
     def test_an_empty_library_reports_axes_with_no_values(self) -> None:
         """The axes exist whether or not anything is installed; only the choices are empty."""
         with patch("common.games.game_repository.all_games", return_value=[]):

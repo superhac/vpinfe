@@ -115,7 +115,8 @@ class CollectionsApiTests(TempTree):
                          "the stored member list, which criteria do not replace")
 
     def test_every_axis_the_registry_declares_survives_the_wire(self) -> None:
-        samples = {"letter": ["C"], "choice": ["Bally"], "rating": "3", "flag": True}
+        samples = {"letter": ["C"], "choice": ["Bally"], "rating": "3", "flag": True,
+                   "range": {"from": 1990, "to": 1999}}
         for axis in cf.AXES:
             with self.subTest(axis=axis.name):
                 sent = True if axis.name == "rating_or_higher" else samples[axis.kind]
@@ -153,6 +154,24 @@ class CollectionsApiTests(TempTree):
 
         self.assertEqual({"rating": "4", "rating_or_higher": "true"},
                          self._written("Top Rated")["filters"])
+
+    def test_a_year_range_is_stored_with_the_ends_it_sets(self) -> None:
+        body = self.client.post("/collections", json={
+            "name": "Before 1980", "filters": {"year_range": {"to": 1979}}}).json()
+
+        self.assertEqual({"year_range": {"to": 1979}},
+                         self._written("Before 1980")["filters"])
+        self.assertEqual({"from": None, "to": 1979}, body["filters"]["year_range"])
+
+    def test_a_year_range_selects_by_the_year_released(self) -> None:
+        self.catalog[GAME_ID].meta_config["Info"]["Year"] = "1998"
+        self.catalog[OTHER_ID].meta_config["Info"]["Year"] = "1977"
+        self.client.post("/collections", json={
+            "name": "90s", "filters": {"year_range": {"from": 1990, "to": 1999}}})
+
+        games = self.client.get("/collections/90s/games").json()["games"]
+
+        self.assertEqual([GAME_ID], [one["id"] for one in games])
 
     def test_a_type_rule_reads_back_as_written_to_the_frontend_menu(self) -> None:
         self.client.post("/collections", json={"name": "EM Only",

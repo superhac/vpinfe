@@ -1724,6 +1724,8 @@
   "filter.theme.summary": "Àñý ţĥèɱè ţĥè ĝàɱè îš ţàĝĝèđ ŵîţĥ",
   "filter.year.label": "Ýèàř",
   "filter.year.summary": "Ýèàř ţĥè ɱàçĥîñè ŵàš řèŀèàšèđ",
+  "filter.year_range.label": "Ýèàř",
+  "filter.year_range.summary": "Řèŀèàšèđ ƒřöɱ öñè ýèàř ţö àñöţĥèř",
   "frontend.buildmeta.build_metadata_started": "Ɓûîŀđ ɱèţàđàţà šţàřţèđ",
   "frontend.collectionmenu.ascending": "Àšçèñđîñĝ",
   "frontend.collectionmenu.collections": "Çöŀŀèçţîöñš:",

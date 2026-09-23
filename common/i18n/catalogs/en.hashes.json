@@ -1649,6 +1649,8 @@
   "filter.theme.summary": "6e16782631d0",
   "filter.year.label": "643c767acca0",
   "filter.year.summary": "1922d3420169",
+  "filter.year_range.label": "643c767acca0",
+  "filter.year_range.summary": "c469921aa434",
   "frontend.buildmeta.build_metadata_started": "5ba5a8aa8bc5",
   "frontend.collectionmenu.ascending": "bb8a9d04e82c",
   "frontend.collectionmenu.collections": "aeb64e70a531",

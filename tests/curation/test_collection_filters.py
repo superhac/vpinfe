@@ -38,6 +38,7 @@ AXIS_SNAPSHOT = {
     "played": ("game", "flag"),
     "favorite": ("game", "flag"),
     "tags": ("table", "choice"),
+    "year_range": ("game", "range"),
 }
 
 
@@ -65,6 +66,13 @@ class RegistryShapeTests(unittest.TestCase):
     def test_names_are_unique(self) -> None:
         names = [a.name for a in cf.AXES]
         self.assertEqual(len(names), len(set(names)))
+
+    def test_an_axis_read_under_another_names_one_that_is_its_own(self) -> None:
+        fields = {a.name: a.field for a in cf.AXES if a.field}
+
+        self.assertEqual({"rating_or_higher": "rating", "year_range": "year"}, fields)
+        for name in fields.values():
+            self.assertEqual("", cf.AXES_BY_NAME[name].field)
 
 
 class UnknownAxisTests(unittest.TestCase):
@@ -146,6 +154,35 @@ class MatchingTests(unittest.TestCase):
                 game.meta_config["User"]["LastRun"] = value
 
                 self.assertFalse(cf.matches({"played": True}, game))
+
+    def test_a_year_range_includes_both_ends(self) -> None:
+        for bounds, holds in (({"from": 1990, "to": 1999}, True),
+                              ({"from": 1995, "to": 1995}, True),
+                              ({"from": 1996, "to": 1999}, False),
+                              ({"from": 1990, "to": 1994}, False)):
+            with self.subTest(bounds=bounds):
+                self.assertEqual(holds, cf.matches({"year_range": bounds}, self.afm))
+
+    def test_a_year_range_may_be_open_at_either_end(self) -> None:
+        self.assertTrue(cf.matches({"year_range": {"to": 1995}}, self.afm))
+        self.assertFalse(cf.matches({"year_range": {"to": 1994}}, self.afm))
+        self.assertTrue(cf.matches({"year_range": {"from": 1995}}, self.afm))
+        self.assertFalse(cf.matches({"year_range": {"from": 1996}}, self.afm))
+
+    def test_a_game_with_no_year_is_outside_every_range(self) -> None:
+        for year in ("", "unknown"):
+            with self.subTest(year=year):
+                self.assertFalse(cf.matches({"year_range": {"to": 2100}},
+                                            make_game(year=year)))
+
+    def test_a_range_with_neither_end_asks_nothing(self) -> None:
+        self.assertTrue(cf.is_unconstrained({}))
+        self.assertTrue(cf.is_unconstrained({"from": None, "to": ""}))
+        self.assertTrue(cf.matches({"year_range": {}}, make_game(year="")))
+
+    def test_a_range_leaves_year_meaning_a_set_of_years(self) -> None:
+        self.assertFalse(cf.matches({"year": "1990,1999"}, self.afm))
+        self.assertTrue(cf.matches({"year_range": {"from": 1990, "to": 1999}}, self.afm))
 
     def test_an_unknown_axis_is_ignored_here_and_caught_by_the_caller(self) -> None:
         """matches() is not where refusal happens - unknown_axes() is, before this runs."""

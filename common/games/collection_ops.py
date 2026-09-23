@@ -23,7 +23,12 @@ from urllib.parse import quote
 
 from common import service_errors
 from common.games import entry_lens, game_identity, game_lens, game_repository, table_lens
-from common.games.collection_filters import UNCONSTRAINED, group_key, group_kind
+from common.games.collection_filters import (
+    UNCONSTRAINED,
+    group_key,
+    group_kind,
+    year_bounds,
+)
 from common.games.collection_resolver import (
     Entry,
     Holding,
@@ -67,6 +72,14 @@ def _many_out(value: object) -> list[str]:
         return [str(part).strip() for part in value if str(part).strip()]
     parts = [part.strip() for part in str(value or "").split(",") if part.strip()]
     return parts or [UNCONSTRAINED]
+
+
+def _range_out(value: object) -> dict | None:
+    """A stored range as the wire reports it, or None where the rule sets none."""
+    start, end = year_bounds(value)
+    if start is None and end is None:
+        return None
+    return {"from": start, "to": end}
 
 
 def _links(name: str) -> dict:
@@ -143,6 +156,7 @@ def _resource_for(row: dict) -> dict:
             "favorite": None if raw.get("favorite") is None
             else is_truthy(raw["favorite"]),
             "tags": _many_out(raw.get("tags", "All")),
+            "year_range": _range_out(raw.get("year_range")),
             "order_by": order["by"],
             "direction": order["direction"],
         }

@@ -60,7 +60,8 @@ def filter_axes() -> dict[str, Any]:
                       # them. Declared so a caller renders the right control without
                       # knowing which axes exist.
                       "many": axis.many,
-                      "values": list(axis.choices) or available.get(axis.values_key)}
+                      "values": list(axis.choices) or available.get(axis.values_key),
+                      "field": axis.field}
                      for axis in AXES]}
 
 

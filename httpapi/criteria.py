@@ -19,6 +19,14 @@ def many_in(value: Any) -> str:
     return str(value or UNCONSTRAINED)
 
 
+def range_in(value: Any) -> dict[str, int]:
+    """A range as it is stored: the ends that are set, and nothing for an open one."""
+    if value is None:
+        return {}
+    ends = {"from": value.from_, "to": value.to}
+    return {end: year for end, year in ends.items() if year is not None}
+
+
 def criteria_for(f: Any) -> dict:
     """A criteria block in the shape the store and the matcher read."""
     if f is None:
@@ -28,5 +36,6 @@ def criteria_for(f: Any) -> dict:
             "manufacturer": many_in(f.manufacturer), "year": many_in(f.year),
             "rating": f.rating,
             "rating_or_higher": "true" if f.rating_or_higher else None,
-            "played": f.played, "favorite": f.favorite, "tags": many_in(f.tags)}
+            "played": f.played, "favorite": f.favorite, "tags": many_in(f.tags),
+            "year_range": range_in(f.year_range)}
     return {name: value for name, value in said.items() if not is_unconstrained(value)}
