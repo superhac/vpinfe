@@ -176,7 +176,8 @@ def app_config(launcher_id: str, table: str = "",
                     "settings": [_described_field(f) for f in g.settings]}
                    for g in config.groups(settings)],
         "values": {key: {"value": one.value, "scope": one.scope,
-                         "set_here": one.set_here, "in_effect": one.in_effect}
+                         "set_here": one.set_here, "in_effect": one.in_effect,
+                         "fallback": one.fallback, "fallback_scope": one.fallback_scope}
                    for key, one in values.items()},
     }
 

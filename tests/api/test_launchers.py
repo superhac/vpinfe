@@ -155,14 +155,8 @@ class LauncherApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
-class TableFileSeedingTests(unittest.TestCase):
-    """The two settings layers do not stack, so the write that gives a table its own
-    file takes the folder's other keys off it. Carrying them across on that first write
-    is what keeps the table doing what it did a moment ago."""
+class _TableCase(unittest.TestCase):
+    """A launcher, and one table whose folder has a settings file of its own."""
 
     def setUp(self) -> None:
         self.tmp = TemporaryDirectory()
@@ -191,6 +185,12 @@ class TableFileSeedingTests(unittest.TestCase):
     def _write(self, **body):
         return self.client.put("/launchers/l1/config",
                                json={"scope": "entry", "table": "t1", **body})
+
+
+class TableFileSeedingTests(_TableCase):
+    """The two settings layers do not stack, so the write that gives a table its own
+    file takes the folder's other keys off it. Carrying them across on that first write
+    is what keeps the table doing what it did a moment ago."""
 
     def test_a_folder_says_what_it_is_giving_a_table_with_no_file_of_its_own(self) -> None:
         got = self.client.get("/launchers/l1/config/reaching?table=t1")
@@ -241,3 +241,24 @@ class TableFileSeedingTests(unittest.TestCase):
         got = self.client.get("/launchers/l1/config/reaching?table=t1")
 
         self.assertEqual(got.json()["reaching"], {})
+
+
+class ClearingTests(_TableCase):
+    def test_a_table_s_own_value_says_what_clearing_it_leaves(self) -> None:
+        """The launcher's value, not the folder's: the table's own file is the one
+        read now."""
+        app_ini = pathlib.Path(self.tmp.name, "VPinballX.ini")
+        app_ini.write_text("[Player]\nFXAA = 1\n")
+        self.client.put("/launchers/l1", json={"app": "vpx", "settings": {
+            "bin_path": "/opt/vpx", "ini_path": str(app_ini)}})
+        self._write(values={"Player.FXAA": "2"})
+
+        got = self.client.get("/launchers/l1/config?table=t1&scope=entry")
+
+        held = got.json()["values"]["Player.FXAA"]
+        self.assertEqual((held["value"], held["fallback"], held["fallback_scope"]),
+                         ("2", "1", "launcher"))
+
+
+if __name__ == "__main__":
+    unittest.main()
