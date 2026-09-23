@@ -376,6 +376,51 @@ class CollectionEntriesTests(CollectionsApiTests):
                          [(one["game"], one["origin"], one["ref_table"],
                            one["tables"][0]["origin"]) for one in members])
 
+    def _on_disk(self, title: str) -> str:
+        game_id = title.lower()
+        meta = {"Info": {"Title": title}, "vpinfe": {"game_id": game_id},
+                "tables": {f"{game_id}-t": {"id": f"{game_id}-t",
+                                            "filename": f"{title}.vpx"}}}
+        self.catalog[game_id] = fake_game(write_game(self.root, title, info=meta), title,
+                                          meta=meta)
+        return game_id
+
+    def _listed(self, name: str) -> tuple[list[str], list[str]]:
+        plays = [one["game"]["id"] for one in
+                 self.client.get(f"/collections/{name}/entries").json()["entries"]]
+        rows = [one["game"] for one in
+                self.client.get(f"/collections/{name}/members").json()["members"]]
+        return plays, rows
+
+    def test_the_list_is_in_the_order_it_plays_in(self) -> None:
+        zeta, alpha = self._on_disk("Zeta"), self._on_disk("Alpha")
+        self.client.post("/collections", json={"name": "Picked", "games": [zeta, alpha]})
+
+        plays, rows = self._listed("Picked")
+
+        self.assertEqual([alpha, zeta], plays)
+        self.assertEqual(plays, rows)
+
+    def test_a_game_added_to_a_rule_sits_where_it_plays(self) -> None:
+        zeta, alpha = self._on_disk("Zeta"), self._on_disk("Alpha")
+        self.client.post("/collections", json={
+            "name": "Letters", "filters": {"letter": ["A"]}, "games": [zeta]})
+
+        plays, rows = self._listed("Letters")
+
+        self.assertEqual([alpha, zeta], plays)
+        self.assertEqual(plays, rows)
+
+    def test_an_arranged_list_keeps_its_stored_order(self) -> None:
+        zeta, alpha = self._on_disk("Zeta"), self._on_disk("Alpha")
+        self.client.post("/collections", json={"name": "Arranged", "games": [zeta, alpha]})
+        self.client.put("/collections/Arranged/order", json={"games": [zeta, alpha]})
+
+        plays, rows = self._listed("Arranged")
+
+        self.assertEqual([zeta, alpha], rows)
+        self.assertEqual(plays, rows)
+
     def test_a_row_that_follows_a_game_names_the_table_that_plays(self) -> None:
         meta = {"Info": {"Title": "Twin"},
                 "vpinfe": {"game_id": "twin", "default_table": "later"},

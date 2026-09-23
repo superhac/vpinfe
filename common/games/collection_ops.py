@@ -281,14 +281,15 @@ def members_of(name: str) -> dict:
         named_games.add(ref["game"])
         members.append(_member_row(ref["game"], "named", ref.get("table", ""),
                                    catalog, out))
-    # Whatever the criteria matched and nobody named. Members come first because that is
-    # the order the resolver walks and the order the collection is handed out in.
+    # Whatever the criteria matched and nobody named.
     held = _holding_or_refuse(name, manager)
     for game in held.games:
         found = game_identity.game_id(game)
         if found and found not in named_games:
             for table in held.tables.get(found) or ("",):
                 members.append(_member_row(found, "filter", table, catalog, out))
+    if manager.get_order(name)["by"] != MANUAL_ORDER:
+        members = _as_handed_out(members, _resolved(name))
     # Exclusions last, and listed rather than silent: a row somebody took out is the one
     # row they may want back, and nothing else reports it.
     for ref in excluded:
@@ -336,6 +337,14 @@ def _member_row(game_id: str, origin: str, named_table: str,
             # back, which matched no ref and left a whole-game exclusion impossible to lift.
             "ref_table": named_table,
             "tables": tables}
+
+
+def _as_handed_out(rows: list[dict], entries: list[Entry]) -> list[dict]:
+    """`rows` in the order of `entries`; a row with no entry keeps its place after them."""
+    at = {(game_identity.game_id(entry.game), entry.table_id): index
+          for index, entry in enumerate(entries)}
+    return sorted(rows, key=lambda row: at.get(
+        (row["game"], str((row.get("tables") or [{}])[0].get("id") or "")), len(at)))
 
 
 def _followed(game: Any, known: list[dict], by_id: dict[str, dict]) -> str:
