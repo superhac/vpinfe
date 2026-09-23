@@ -575,8 +575,8 @@ def open_asset_sources(context: dict[str, Any], kind: str, label: str,
 def _open(context: dict[str, Any], kind: str, label: str, done: Callable,
           target: _Target) -> None:
     sources = _Sources(context, kind, label, done, target)
-    with frame.opened(t("console.mediasource.for_this", label=label,
-                        value=("table" if context["lens"] else "game")),
+    with frame.opened(t("console.mediasource.for_this_table" if context["lens"]
+                        else "console.mediasource.for_this_game", kind=label),
                       classes="console-sources-card") as box:
         sources.dialog = box
         destination = ui.column().classes("w-full gap-0 px-3")

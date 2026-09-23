@@ -17,6 +17,7 @@ from nicegui import ui
 from common.games.tag_registry import derived_color
 from common.i18n import t
 from console import confirm, grid, offload, panel, renderers, tag_chips, verbs, views
+from console import dialog as frame
 from console.data import Library
 
 SUBJECT = "tag"
@@ -228,9 +229,7 @@ async def _new_tag(library: Library) -> tuple[str, dict[str, str]] | None:
     fields: dict[str, Any] = {}
 
     def draw_name() -> None:
-        with ui.element("div").classes("console-fact-edit"):
-            fields["name"] = ui.input().props("dense borderless debounce=0") \
-                .classes("console-edit-field")
+        fields["name"] = frame.field()
         fields["name"].on_value_change(renamed)
 
     def renamed() -> None:
@@ -238,9 +237,7 @@ async def _new_tag(library: Library) -> tuple[str, dict[str, str]] | None:
         draw_colors()
 
     def draw_said() -> None:
-        with ui.element("div").classes("console-fact-edit"):
-            fields["said"] = ui.textarea().props("dense borderless rows=2 debounce=0") \
-                .classes("console-edit-field")
+        fields["said"] = frame.field(lines=2)
 
     def draw_colors() -> None:
         box = fields.get("colors") or ui.element("div")
@@ -264,35 +261,19 @@ async def _new_tag(library: Library) -> tuple[str, dict[str, str]] | None:
         elif name in known:
             refused(t("console.tageditor.already_a_tag"))
         else:
-            dialog.submit((name, {"description": str(fields["said"].value or "").strip(),
-                                  "color": held["color"]}))
+            box.submit((name, {"description": str(fields["said"].value or "").strip(),
+                               "color": held["color"]}))
 
-    with ui.dialog() as dialog, ui.card().classes("console-new-tag"):
-        ui.label(t("console.tageditor.add_new_tag")).classes("console-card-title")
+    with frame.opened(t("console.tageditor.add_new_tag")) as box:
         panel.facts(ui, [(t("console.tageditor.tag"), draw_name),
                          (t("console.workbench.description"), draw_said),
                          (t("console.tags.color"), draw_colors)])
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), icon=verbs.CANCEL,
-                      on_click=lambda: dialog.submit(None)).props("flat no-caps")
-            add = ui.button(t("word.add"), icon=verbs.CREATE, on_click=keep) \
-                .props("no-caps")
-    dialog.on("show", lambda: ui.run_javascript(
-        f"document.getElementById('c{fields['name'].id}').focus()"))
-    ui.run_javascript(f"""
-        (() => {{
-          let tries = 0;
-          const wire = () => {{
-            const button = document.getElementById('c{add.id}');
-            if (!button) {{ if (++tries < 40) setTimeout(wire, 25); return; }}
-            button.closest('.q-dialog').addEventListener('keyup', (event) => {{
-              if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') button.click();
-            }});
-          }};
-          wire();
-        }})()
-    """)
-    return await dialog
+        with frame.footer():
+            frame.cancel(lambda: box.submit(None))
+            add = frame.answer(t("word.add"), keep, icon=verbs.CREATE)
+    frame.focus(box, fields["name"])
+    frame.enter_presses(add)
+    return await box
 
 
 def _named(fields: dict[str, Any]) -> str:
@@ -301,19 +282,17 @@ def _named(fields: dict[str, Any]) -> str:
 
 async def _ask_for_a_name(current: str, *, title: str = "", help_: str = "",
                           verb: str = "") -> str:
-    """A dialog that collects a value keeps its own shape - `docs/conventions.md` says
-    the confirm treatment is for a question, not for a field."""
-    with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label(title or t("console.tageditor.rename_tag")).classes("console-confirm-title")
+    held: dict[str, Any] = {}
+    with frame.opened(title or t("console.tageditor.rename_tag")) as box:
         ui.label(help_ or t("console.tageditor.every_game_carrying_retagged")) \
-            .classes("console-help")
-        field = ui.input(value=current).props("dense autofocus") \
-            .classes("console-edit-field w-full")
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), icon=verbs.CANCEL,
-                    on_click=lambda: dialog.submit("")).props("flat no-caps")
-            ui.button(verb or t("console.tageditor.rename_2"),
-                      icon=verbs.CREATE if verb else verbs.RENAME,
-                      on_click=lambda: dialog.submit(field.value or "")) \
-                .props("no-caps")
-    return str(await dialog or "")
+            .classes("console-help px-3")
+        panel.facts(ui, [(t("console.tageditor.tag"),
+                          lambda: held.update(field=frame.field(current)))])
+        with frame.footer():
+            frame.cancel(lambda: box.submit(""))
+            go = frame.answer(verb or t("console.tageditor.rename_2"),
+                              lambda: box.submit(held["field"].value or ""),
+                              icon=verbs.CREATE if verb else verbs.RENAME)
+    frame.focus(box, held["field"])
+    frame.enter_presses(go)
+    return str(await box or "")

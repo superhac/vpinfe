@@ -13,6 +13,7 @@ from collections.abc import Iterable
 from nicegui import ui
 
 from common.i18n import t
+from console import dialog as frame
 from console import verbs
 
 
@@ -26,16 +27,13 @@ async def ask(question: str, *, detail: str = "", lines: Iterable[str] = (),
     `confirm` button is the verb that does the thing, so it reads without the question,
     and `icon` is that verb's drawing - pass both or neither.
     """
-    with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label(question).classes("console-confirm-title")
+    with frame.opened(question, classes="console-confirm") as box:
         if detail:
-            ui.label(detail).classes("console-help")
+            ui.label(detail).classes("console-help px-3")
         for line in lines:
             ui.label(line).classes("console-confirm-line")
-        with ui.row().classes("justify-end gap-2 w-full"):
+        with frame.footer():
             # Cancel first and quiet: the destructive verb is the one to be aimed at.
-            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(False)) \
-                .props("flat no-caps")
-            ui.button(confirm, icon=icon, on_click=lambda: dialog.submit(True)) \
-                .props("no-caps" + (" color=negative" if danger else ""))
-    return bool(await dialog)
+            frame.cancel(lambda: box.submit(False))
+            frame.answer(confirm, lambda: box.submit(True), icon=icon, danger=danger)
+    return bool(await box)

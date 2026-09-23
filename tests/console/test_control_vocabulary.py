@@ -58,9 +58,9 @@ BUDGET = {
     "app_settings.py": (1, "the scope picker in the dialog's toolbar, which is not a "
                            "fact row - it says where edits go rather than holding a "
                            "value of its own"),
-    "tageditor.py": (3, "the name a tag is renamed to, and the name and description a "
-                        "new tag is added with - questions asked in a dialog, before "
-                        "there is a fact row to hold them"),
+    "dialog.py": (2, "the one-line and the several-line field every dialog asks with - "
+                     "the panel's own, in the frame dialogs share, answering nothing until "
+                     "the dialog does"),
     "remote.py": (3, "the target picker in the header, which says which machine every "
                      "action on the screen is about, and the find field and collection "
                      "picker above the game list. None is a fact row: two are questions "

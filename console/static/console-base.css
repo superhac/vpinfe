@@ -693,6 +693,11 @@ body::before {
   padding: 0 12px 6px;
 }
 .console-dialog-footer { justify-content: flex-end; gap: 8px; width: 100%; padding: 14px 12px 0; }
+.console-dialog.console-confirm.q-card { width: min(460px, 92vw); }
+.console-dialog .console-facts { row-gap: 8px; grid-auto-rows: auto; }
+.console-dialog .console-facts > :not(.console-fact-aside) { min-height: var(--fact-row); }
+.console-dialog .console-fact-aside { margin-top: -8px; padding-bottom: 0; }
+.console-dialog .console-confirm-line { padding: 0 12px; }
 .console-vps-results > .console-source-row:nth-child(even) { background: var(--grid-stripe); }
 
 /* While the page is listening for a key. Centred and over everything, because it has
@@ -2314,8 +2319,6 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-tag--pink { border-color: var(--tag-pink); }
 .console-tag--gray { border-color: var(--tag-gray); }
 .console-swatches { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.console-new-tag { width: min(500px, 92vw); }
-.console-new-tag .console-facts { row-gap: 8px; padding: 0; }
 .console-swatch.q-btn { min-width: 26px; min-height: 26px; width: 26px; height: 26px;
                         padding: 0; border: 2px solid transparent; }
 .console-swatch .console-tag-dot { width: 14px; height: 14px; }
