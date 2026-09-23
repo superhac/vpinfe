@@ -8,8 +8,10 @@ list does not fit in a cell.
 
 from __future__ import annotations
 
+import inspect
+import json
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 from urllib.parse import quote
 
@@ -17,7 +19,7 @@ from nicegui import run, ui
 
 from common.games.collection_store import DIRECTION_LABELS, SORT_LABELS
 from common.i18n import t
-from console import confirm, grid, panel, verbs, views
+from console import confirm, grid, offload, panel, verbs, views
 from console import dialog as frame
 from console.games import view_control
 
@@ -71,6 +73,24 @@ COLUMNS = [
     grid.column("limit", t("console.collections.table_limit"), **_NUMERIC,
                 help=t("console.collections.most_tables_collection_hand.help")),
 ]
+
+# Focusing the row is what opens its panel. Waits for the row, because the grid takes
+# new rowData after this runs; false where the row is not displayed.
+_FOCUS_ROW = """new Promise((done) => {
+  const api = getElement(%d).api;
+  let tries = 0;
+  const look = () => {
+    const node = api && api.getRowNode(%s);
+    if (node && node.rowIndex !== null) {
+      api.ensureNodeVisible(node);
+      api.setFocusedCell(node.rowIndex, 'name');
+      return done(true);
+    }
+    if (node || ++tries >= 40) return done(false);
+    setTimeout(look, 25);
+  };
+  look();
+})"""
 
 # One built-in, and the control stays: a view is how you save your own, and a grid with
 # nothing to start from is a grid nobody saves a view of.
@@ -173,7 +193,7 @@ def build(collections: list[dict[str, Any]], library: Any,
                     .classes("console-menu-item console-menu-danger")
             bulk.set_visibility(False)
             panel.add_action([(t("console.collections.new_collection"),
-                               lambda: _ask_new(library, act))], empty=not built)
+                               lambda: _ask_new(library, reread))], empty=not built)
 
     by_id = {row["id"]: row for row in built}
     grid.on_row_focus(SCOPE,
@@ -239,8 +259,30 @@ def build(collections: list[dict[str, Any]], library: Any,
         lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                       search.value or ""))
 
+    async def reread(focus: str = "") -> None:
+        fresh = rows(await offload.io(library.load_collections))
+        built[:] = fresh
+        by_id.clear()
+        by_id.update({row["id"]: row for row in fresh})
+        table.run_grid_method("setGridOption", "rowData", fresh)
+        if not picked:
+            count.text = t("console.collections.collections", count=len(fresh))
+        if not focus:
+            return
+        try:
+            shown = await ui.run_javascript(_FOCUS_ROW % (table.id, json.dumps(focus)),
+                                            timeout=2.0)
+        except Exception:  # noqa: BLE001 - the panel still opens below
+            shown = False
+        if not shown:
+            opened = on_select(by_id.get(focus))
+            if inspect.isawaitable(opened):
+                await opened
 
-def _ask_new(library: Any, act: Callable) -> None:
+    state["refresh_collections"] = reread
+
+
+def _ask_new(library: Any, opened: Callable[[str], Awaitable[None]]) -> None:
     """A name. Nothing else.
 
     The kind is not a question at creation: it is decided by what the collection ends up
@@ -251,13 +293,19 @@ def _ask_new(library: Any, act: Callable) -> None:
 
     async def keep() -> None:
         name = held["name"]
-        if not (name.value or "").strip():
+        wanted = (name.value or "").strip()
+        if not wanted:
             name.props["error"] = True
             name.props["error-message"] = t("said.give_it_a_name")
             return
         dialog.close()
-        await act(library.create_collection, name.value.strip(), None,
-                  said=t("console.collections.created", strip=(name.value.strip())))
+        try:
+            made = await offload.io(library.create_collection, wanted, None)
+        except Exception as exc:
+            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            return
+        ui.notify(t("console.collections.created", strip=wanted), type="positive")
+        await opened(str(made.get("name") or wanted))
 
     with frame.opened(t("console.collections.new_collection")) as dialog:
         panel.facts(ui, [(t("word.name"), lambda: held.update(name=frame.field()))])
