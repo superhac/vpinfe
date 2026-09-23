@@ -53,6 +53,25 @@ class CollectionsApiTests(TempTree):
 
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
 
+    # --- how big a collection is -----------------------------------------
+
+    def test_a_limit_that_cuts_leaves_the_size_before_it(self) -> None:
+        self.client.post("/collections",
+                         json={"name": "Bally", "filters": {"manufacturer": ["Bally"]}})
+        self.client.patch("/collections/Bally", json={"limit": 1})
+
+        held = self.client.get("/collections/Bally").json()
+
+        self.assertEqual((1, 2), (held["count"], held["before_limit"]))
+
+    def test_without_a_limit_the_size_before_it_is_the_size(self) -> None:
+        self.client.post("/collections",
+                         json={"name": "Bally", "filters": {"manufacturer": ["Bally"]}})
+
+        held = self.client.get("/collections/Bally").json()
+
+        self.assertEqual((2, 2), (held["count"], held["before_limit"]))
+
     # --- which collections hold a game -----------------------------------
 
     def test_every_game_s_collections_come_in_one_read(self) -> None:
@@ -541,6 +560,19 @@ class MemberTableTests(TempTree):
 
     def _refs(self) -> list[dict]:
         return self.manager.get_member_refs("Favorites")
+
+    def test_a_member_naming_what_is_gone_is_counted_missing(self) -> None:
+        self.client.put(f"/collections/Favorites/games/{TABLED_ID}")
+        self.manager.add_member("Favorites", "Gone00000001")
+        self.manager.add_member("Favorites", TABLED_ID, "tbl0000009")
+
+        held = self.client.get("/collections/Favorites").json()
+        members = self.client.get("/collections/Favorites/members").json()["members"]
+
+        reported = [one for one in members if one["origin"] == "missing"
+                    or any(table["origin"] == "missing" for table in one["tables"])]
+        self.assertEqual(2, held["missing"])
+        self.assertEqual(held["missing"], len(reported))
 
     def test_a_member_keeps_its_place_when_its_table_changes(self) -> None:
         """The reason this is a route and not remove-then-add: curated order is what a

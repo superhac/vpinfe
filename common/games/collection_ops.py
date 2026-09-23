@@ -75,18 +75,38 @@ def _links(name: str) -> dict:
             "games": f"/api/v1/collections/{encoded}/games"}
 
 
-def _resolved_count(name: str) -> int:
-    """How many entries this collection hands out. Resolved, because that is what its size
-    means - a rule's matches are stored nowhere and a stored member that names a game this
-    library lost resolves to nothing."""
+def _resolved_sizes(name: str) -> tuple[int, int]:
+    """How many entries this collection hands out, and how many it would without its
+    limit. Resolved, because that is what its size means - a rule's matches are stored
+    nowhere and a stored member that names a game this library lost resolves to nothing."""
+    manager = get_collections_manager()
     try:
-        return len(resolve(name, get_collections_manager(),
-                           list(game_repository.catalog().values())))
+        uncapped = len(resolve(name, manager, list(game_repository.catalog().values()),
+                               capped=False))
     except Exception:
         # A collection this build cannot resolve still has to list. Its own reads say why;
         # a number in a table is not the place to raise it.
         logger.warning("could not size collection %r", name, exc_info=True)
-        return 0
+        return 0, 0
+    limit = manager.get_limit(name)
+    return (min(uncapped, limit) if limit else uncapped), uncapped
+
+
+def _names_what_is_gone(ref: dict, catalog: dict) -> bool:
+    """Whether a stored member names a game this library does not have, or a table its
+    game does not - what `members_of` reports with `origin: "missing"`."""
+    game = catalog.get(ref["game"])
+    if game is None:
+        return True
+    table = ref.get("table", "")
+    return bool(table) and table not in {
+        str(row.get("id")) for row in table_lens.table_rows(game, game_to_row(game))}
+
+
+def _missing(name: str) -> int:
+    catalog = game_repository.catalog()
+    return sum(1 for ref in get_collections_manager().get_member_refs(name)
+               if _names_what_is_gone(ref, catalog))
 
 
 def _held(name: str) -> Holding | None:
@@ -107,6 +127,7 @@ def _resource_for(row: dict) -> dict:
     # default for keys the collection never set, so reading the sort there reports "Alpha"
     # for a collection that is ordered by anything else.
     order = get_collections_manager().get_order(name)
+    count, before_limit = _resolved_sizes(name)
     if row["is_filter"]:
         raw = get_collections_manager().get_filters(name) or {}
         filters = {
@@ -132,7 +153,9 @@ def _resource_for(row: dict) -> dict:
         "type": "filter" if row["is_filter"] else "manual",
         "description": get_collections_manager().get_description(name),
         "image": row.get("image") or None,
-        "count": _resolved_count(name),
+        "count": count,
+        "before_limit": before_limit,
+        "missing": _missing(name),
         "game_count": row.get("game_count"),
         "added": len(held.added) if held else 0,
         "matched": len(held.matched) if held else 0,

@@ -1702,12 +1702,17 @@ class CollectionResource(ApiModel):
     # "how big is this collection". `game_count` is the stored membership and the two
     # differ by design: criteria contribute rows that are stored nowhere.
     count: int = 0
+    # What it would resolve to with its limit set aside: `count` where there is none.
+    before_limit: int = 0
     game_count: int | None
     # Games, counted before the limit: written into it, brought in by its rule, and taken
     # out whole by name.
     added: int = 0
     matched: int = 0
     excluded: int = 0
+    # Stored members naming a game this library does not have, or a table its game
+    # does not.
+    missing: int = 0
     filters: CollectionFilters | None
     # The cap, and how the list is ordered. Both were settable and neither was reported,
     # so a client could apply a cap and have no way to see that one was in force.

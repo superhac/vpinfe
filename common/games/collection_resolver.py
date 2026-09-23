@@ -350,11 +350,13 @@ def holding(name: str, collections: CollectionStore, games: list[Any]) -> Holdin
                    matched=from_filters, excluded=len(dropped_games), tables=ruled_tables)
 
 
-def resolve(name: str, collections: CollectionStore, games: list[Any]) -> list[Entry]:
+def resolve(name: str, collections: CollectionStore, games: list[Any], *,
+            capped: bool = True) -> list[Entry]:
     """The ordered entries a collection contains, one per game.
 
     `games` is the library. A game offering several tables contributes the one step 3
     selected; `Entry.siblings` says how many it has, and `/games/{id}/tables` lists them.
+    `capped=False` sets the collection's limit aside.
     """
     unknown = collections.unknown_filter_axes(name)
     if unknown:
@@ -440,5 +442,5 @@ def resolve(name: str, collections: CollectionStore, games: list[Any]) -> list[E
     # 5. Limit. Last, so it caps an ordered list rather than deciding what is in it.
     # `_tiebreak` is what stops "top 20 rated" returning a different twenty each time
     # two tables are level.
-    limit = collections.get_limit(name)
+    limit = collections.get_limit(name) if capped else None
     return result[:limit] if limit else result
