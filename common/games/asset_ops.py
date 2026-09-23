@@ -23,8 +23,6 @@ logger = logging.getLogger("vpinfe.common.games.asset_ops")
 
 _KINDS = {kind.key: kind for kind in VPX_ASSET_KINDS}
 _EXTENSIONS = frozenset(kind.extension for kind in VPX_ASSET_KINDS)
-# The folders a kind lives in whole, as the asset lens reports them.
-_FOLDERS = frozenset({"pupvideos", "serum", "vni", "pinmame/altsound", "music"})
 
 
 def kind_or_refuse(kind: str) -> AssetKind:
@@ -135,7 +133,8 @@ def remove(game_id: str, path: str) -> dict:
     game = game_lens.game_or_refuse(game_id)
     root = _folder(game).resolve()
     found = asset_lens.inside(root, path)
-    if found.is_dir() and found.relative_to(root).as_posix().lower() in _FOLDERS:
+    folders = {name.lower() for name in asset_lens.whole_folders(root)}
+    if found.is_dir() and found.relative_to(root).as_posix().lower() in folders:
         shutil.rmtree(found)
     elif found.suffix.lower() in _EXTENSIONS and found.is_file():
         found.unlink()

@@ -82,6 +82,12 @@ def _folder_state(kind: str, game_dir: Path, subdirs: list[str]) -> str:
     return ""
 
 
+def whole_folders(game_dir: Path) -> set[str]:
+    """The folders here that hold a kind whole, named as their rows name them."""
+    _, subdirs = asset_resolver.folder_listing(game_dir)
+    return {here for kind in _FOLDER_KINDS if (here := _folder_state(kind, game_dir, subdirs))}
+
+
 def _held(item: dict, kind: str, base: dict, game_dir: Path, tables: list[dict],
           by_filename: dict, recorded: dict, hosts: dict, fallback: bool) -> dict:
     """One file that is here: whose it is, and what is recorded about it."""
