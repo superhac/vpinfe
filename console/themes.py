@@ -110,6 +110,15 @@ def repo_name(url: str) -> str:
     return "/".join(parts[:2]) if len(parts) == 2 or in_one else url
 
 
+def repo_page(url: str) -> str:
+    parsed = urlparse(url)
+    named = repo_name(url)
+    if named == url:
+        return url
+    host = "github.com" if parsed.netloc == "raw.githubusercontent.com" else parsed.netloc
+    return f"{parsed.scheme or 'https'}://{host}/{named}"
+
+
 def rows(themes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{"id": theme["key"], "name": theme.get("name") or theme["key"],
              "preview": theme.get("preview") or "", "status": status(theme),
@@ -230,7 +239,9 @@ async def details(context: dict[str, Any]) -> None:
         if theme.get("type") in MADE_FOR:
             entries.append((t("console.themes.made_for"), MADE_FOR[str(theme["type"])]))
         if theme.get("registry"):
-            entries.append((t("console.themes.registry"), repo_name(str(theme["registry"]))))
+            registry = str(theme["registry"])
+            entries.append((t("console.themes.registry"),
+                            panel.link_out(repo_name(registry), to=repo_page(registry))))
         entries.append((t("console.themes.repository"),
                         panel.link_out(repo_name(str(theme["url"])), to=str(theme["url"]))
                         if theme.get("url") else t("console.themes.added_by_hand")))

@@ -42,6 +42,17 @@ class WhereItComesFrom(unittest.TestCase):
             with self.subTest(url=url):
                 self.assertEqual("owner/repo", themes.repo_name(url))
 
+    def test_a_file_in_a_repository_links_to_the_repository_s_page(self) -> None:
+        for url, page in (
+                ("https://raw.githubusercontent.com/owner/repo/master/themes.json",
+                 "https://github.com/owner/repo"),
+                ("https://git.example.net/owner/repo/raw/branch/main/themes.json",
+                 "https://git.example.net/owner/repo"),
+                ("https://example.net/vpinfe/catalogs/themes.json",
+                 "https://example.net/vpinfe/catalogs/themes.json")):
+            with self.subTest(url=url):
+                self.assertEqual(page, themes.repo_page(url))
+
     def test_any_other_address_is_shown_whole(self) -> None:
         url = "https://example.net/vpinfe/catalogs/themes.json"
         self.assertEqual(url, themes.repo_name(url))
