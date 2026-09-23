@@ -430,7 +430,6 @@
   "console.games.machine_library_names_one.help": "Ţĥè ɱàçĥîñè, àš ýöûř ŀîƀřàřý ñàɱèš îţ",
   "console.games.match_vps": "Ḿàţçĥ ţö ṼÞŠ...",
   "console.games.missing": "Ḿîššîñĝ",
-  "console.games.name_view": "Ñàɱè ţĥîš ṽîèŵ",
   "console.games.newer_on_vps": "Ñèŵèř öñ ṼÞŠ",
   "console.games.no": "Ñö",
   "console.games.no_newer_version": "Ñöñè ķñöŵñ",
@@ -441,9 +440,15 @@
   "console.games.on_vps": "Öñ ṼÞŠ",
   "console.games.on_vps.help": "Ţĥè ṽèřšîöñ ṼÞŠ ŀîšţš ƒöř ţĥè řèŀèàšè ţĥîš ţàƀŀè îš ɱàţçĥèđ ţö",
   "console.games.pinmame_rom_build_actually.help": "Ţĥè ÞîñḾÀḾÈ ŘÖḾ ţĥîš ţàƀŀè řèšöŀṽèš ţö",
-  "console.games.rate_game_s": "Řàţè {len} ĝàɱè(š)",
+  "console.games.rate_game_s": {
+    "one": "Řàţè {count} ĝàɱè",
+    "other": "Řàţè {count} ĝàɱèš"
+  },
   "console.games.rate_selected": "Řàţè šèŀèçţèđ",
-  "console.games.rated_game_s": "Řàţèđ {len} ĝàɱè(š) {value}",
+  "console.games.rated_game_s": {
+    "one": "{count} ĝàɱè řàţèđ {value} öƒ 5",
+    "other": "{count} ĝàɱèš řàţèđ {value} öƒ 5"
+  },
   "console.games.rating_build_0_5.help": "Ýöûř řàţîñĝ ƒöř ţĥîš ţàƀŀè, 0 ţö 5",
   "console.games.rating_machine_0_5.help": "Ýöûř řàţîñĝ ƒöř ţĥè ɱàçĥîñè, 0 ţö 5",
   "console.games.read_library_disk_pick": "Řèŀöàđ ƒřöɱ đîšķ",
@@ -545,6 +550,7 @@
   "console.locations.games_leave_library_nothing": "Ţĥè ĝàɱèš îñ îţ ŀèàṽè ţĥè ŀîƀřàřý. Ñöţĥîñĝ öñ đîšķ îš ţöûçĥèđ, àñđ àđđîñĝ ţĥè ƒöŀđèř àĝàîñ ƀřîñĝš ţĥèɱ ƀàçķ ŵîţĥ ţĥèîř ɱèđîà àñđ ţĥèîř ĥîšţöřý.",
   "console.locations.location": "{len} ŀöçàţîöñ{value}",
   "console.locations.location_wins_two_them.help": "Ŵĥîçĥ ŀöçàţîöñ ŵîñš ŵĥèñ ţŵö ĥöŀđ ţĥè šàɱè ĝàɱè, 1 ĥîĝĥèšţ",
+  "console.locations.name_a_folder": "Ñàɱè à ƒöŀđèř",
   "console.locations.new_games": "Ñèŵ Ĝàɱèš",
   "console.locations.no_locations_yet_add": "Ñö ŀöçàţîöñš ýèţ. Àđđ ţĥè ƒöŀđèř ýöûř ĝàɱèš àřè îñ.",
   "console.locations.one_game": "Öñè ĝàɱè",
@@ -977,7 +983,6 @@
   "console.tageditor.game_changed": "{said} - {changed} ĝàɱè{value} çĥàñĝèđ",
   "console.tageditor.games": "Ĝàɱèš",
   "console.tageditor.games.help": "Ĝàɱèš çàřřýîñĝ ţĥîš ţàĝ",
-  "console.tageditor.give_it_a_name": "Ĝîṽè îţ à ñàɱè",
   "console.tageditor.in_use": "Îñ ûšè",
   "console.tageditor.look_like_same_tag": "Ţĥèšè ŀööķ ŀîķè ţĥè šàɱè ţàĝ",
   "console.tageditor.merge": "Ḿèřĝè îñţö “{into}”?",
@@ -1830,6 +1835,7 @@
   "said.could_not_read_the_settings": "Çöûŀđ ñöţ řèàđ ţĥè šèţţîñĝš: {exc}",
   "said.could_not_remove_it": "Çöûŀđ ñöţ řèɱöṽè îţ: {exc}",
   "said.could_not_save_it": "Çöûŀđ ñöţ šàṽè îţ: {exc}",
+  "said.give_it_a_name": "Ĝîṽè îţ à ñàɱè",
   "said.guides": {
     "one": "{count} ĝûîđè",
     "other": "{count} ĝûîđèš"

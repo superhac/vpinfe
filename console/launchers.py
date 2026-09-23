@@ -23,6 +23,7 @@ from nicegui import run, ui
 from common import path_checks
 from common.i18n import t
 from console import confirm, grid, offload, panel, verbs, views
+from console import dialog as frame
 from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.launchers")
@@ -229,26 +230,23 @@ async def copy_dialog(library: Library, state: dict[str, Any], launcher: dict) -
         return
 
     picked: set[str] = set()
-    with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label(t("console.launchers.copy_machines", value=(launcher['display_name']))) \
-            .classes("console-confirm-title")
-        ui.label(t("console.launchers.arrives_same_name_same")) \
-            .classes("console-help")
-        for one in reachable:
-            name = str(one.get("display_name") or one.get("device_id"))
-            ui.checkbox(name, on_change=lambda e, d=one: (
-                picked.add(str(d.get("device_id"))) if e.value
-                else picked.discard(str(d.get("device_id"))))) \
-                .props("dense")
-        also = ui.checkbox(t("console.launchers.also_copy_tables_use")).props("dense")
-        ui.label(t("console.launchers.one_way_copy_change")).classes("console-help")
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), icon=verbs.CANCEL,
-                    on_click=lambda: dialog.submit(None)).props("flat no-caps")
-            ui.button(t("word.copy"), icon=verbs.COPY,
-                    on_click=lambda: dialog.submit(True)).props("no-caps")
+    with frame.opened(t("console.launchers.copy_machines",
+                        value=launcher["display_name"])) as box:
+        ui.label(t("console.launchers.arrives_same_name_same")).classes("console-help px-3")
+        with ui.column().classes("gap-1 px-3"):
+            for one in reachable:
+                name = str(one.get("display_name") or one.get("device_id"))
+                ui.checkbox(name, on_change=lambda e, d=one: (
+                    picked.add(str(d.get("device_id"))) if e.value
+                    else picked.discard(str(d.get("device_id"))))) \
+                    .props("dense")
+            also = ui.checkbox(t("console.launchers.also_copy_tables_use")).props("dense")
+        ui.label(t("console.launchers.one_way_copy_change")).classes("console-help px-3")
+        with frame.footer():
+            frame.cancel(lambda: box.submit(None))
+            frame.answer(t("word.copy"), lambda: box.submit(True), icon=verbs.COPY)
 
-    if not await dialog:
+    if not await box:
         return
     if not picked:
         ui.notify(t("console.launchers.no_machines_picked"), type="warning")

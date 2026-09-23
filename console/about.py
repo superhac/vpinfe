@@ -25,6 +25,7 @@ from typing import Any
 from nicegui import ui
 
 from common.i18n import t
+from console import dialog as frame
 from console import offload, panel, verbs
 from console.data import Library
 
@@ -115,15 +116,14 @@ def _copied(done: bool, text: str) -> None:
 
 
 def _show_to_copy(text: str) -> None:
-    with ui.dialog() as dialog, ui.card().classes("console-card w-full max-w-2xl"):
-        ui.label(t("console.about.browser_not_let_page")) \
-            .classes("console-panel-heading")
-        ui.label(t("console.about.press_usual_copy_shortcut")) \
-            .classes("console-help")
-        ui.textarea(value=text).props("outlined readonly rows=18") \
-            .classes("w-full console-log")
-        panel.action(t("word.close"), dialog.close, icon=verbs.CLOSE)()
-    dialog.open()
+    with frame.opened(t("console.about.browser_not_let_page"), wide=True) as box:
+        ui.label(t("console.about.press_usual_copy_shortcut")).classes("console-help px-3")
+        with ui.element("div").classes("w-full px-3"):
+            ui.textarea(value=text).props("outlined readonly rows=18") \
+                .classes("w-full console-log")
+        with frame.footer():
+            frame.cancel(box.close, t("word.close"))
+    box.open()
     # Found in the document rather than through the element's own id: `getElement`
     # answers with the Vue component, whose root here is a fragment, so there is no
     # node on it to search. One dialog is open, and it holds one text box.

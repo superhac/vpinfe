@@ -21,6 +21,7 @@ from nicegui import run, ui
 from common.games import locations as model
 from common.games import tables
 from common.i18n import t
+from console import dialog as frame
 from console import offload, verbs, views
 from console.data import Library
 
@@ -234,28 +235,31 @@ def _ask_new(library: Library, state: dict[str, Any],
     `found` carries what `_sort_it` decided; the workbench's select is where a miss is
     corrected.
     """
-    with ui.dialog() as dialog, ui.card():
-        ui.label(t("console.locations.add_location")).classes("console-card-title")
-        found: dict[str, Any] = {"kind": model.KIND_ROOT}
-        folder = panel.path_field(placeholder="/path/to/your/games", wants="dir",
-                                  on_checked=lambda state_now, said:
-                                      _sort_it(found, state_now, said))
+    found: dict[str, Any] = {"kind": model.KIND_ROOT}
+    held: dict[str, Any] = {}
 
-        async def keep() -> None:
-            wanted = (folder.value or "").strip()
-            if not wanted:
-                folder.props('error error-message="Name a folder"')
-                return
-            dialog.close()
-            await _create(library, state, rerender, found["kind"], wanted)
+    def draw_folder() -> None:
+        held["folder"] = panel.path_field(
+            placeholder="/path/to/your/games", wants="dir", width="w-full",
+            on_checked=lambda state_now, said: _sort_it(found, state_now, said))
 
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"),
-                icon=verbs.CANCEL, on_click=dialog.close).props("flat no-caps")
-            ui.button(t("word.add"), icon=verbs.ADD, on_click=keep).props("no-caps")
-    dialog.on("show", lambda: ui.run_javascript(
-        f"document.getElementById('c{folder.id}').focus()"))
-    dialog.open()
+    async def keep() -> None:
+        wanted = (held["folder"].value or "").strip()
+        if not wanted:
+            held["folder"].props["error"] = True
+            held["folder"].props["error-message"] = t("console.locations.name_a_folder")
+            return
+        box.close()
+        await _create(library, state, rerender, found["kind"], wanted)
+
+    with frame.opened(t("console.locations.add_location")) as box:
+        panel.facts(ui, [(t("word.folder"), draw_folder)])
+        with frame.footer():
+            frame.cancel(box.close)
+            go = frame.answer(t("word.add"), keep, icon=verbs.ADD)
+    frame.focus(box, held["folder"])
+    frame.enter_presses(go)
+    box.open()
 
 
 async def _create(library: Library, state: dict[str, Any], rerender: Callable[[], None] | None,

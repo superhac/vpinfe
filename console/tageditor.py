@@ -257,7 +257,7 @@ async def _new_tag(library: Library) -> tuple[str, dict[str, str]] | None:
     def keep() -> None:
         name = _named(fields)
         if not name:
-            refused(t("console.tageditor.give_it_a_name"))
+            refused(t("said.give_it_a_name"))
         elif name in known:
             refused(t("console.tageditor.already_a_tag"))
         else:

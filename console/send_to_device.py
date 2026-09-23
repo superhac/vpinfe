@@ -16,7 +16,8 @@ from nicegui import run, ui
 
 from common import device_registry
 from common.i18n import t
-from console import confirm, offload, verbs
+from console import confirm, offload, panel, verbs
+from console import dialog as frame
 from console.api import ApiClient
 
 logger = logging.getLogger("vpinfe.console.send_to_device")
@@ -85,12 +86,11 @@ async def send(games: list[dict[str, Any]], device: dict[str, Any]) -> None:
 
 async def _which(found: list[dict[str, Any]]) -> dict[str, Any]:
     """Which device, when there is more than one."""
-    with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label(t("console.send_to_device.send_device")).classes("console-confirm-title")
-        for device in found:
-            ui.button(name_of(device),
-                      on_click=lambda _e=None, d=device: dialog.submit(d)) \
-                .props("flat no-caps align=left").classes("console-action w-full")
-        ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(None)) \
-            .props("flat no-caps").classes("console-action")
-    return await dialog or {}
+    with frame.opened(t("console.send_to_device.send_device")) as box:
+        with ui.column().classes("gap-2 px-3"):
+            for device in found:
+                panel.action(name_of(device), lambda _e=None, d=device: box.submit(d),
+                             icon=verbs.SEND)()
+        with frame.footer():
+            frame.cancel(lambda: box.submit(None))
+    return await box or {}

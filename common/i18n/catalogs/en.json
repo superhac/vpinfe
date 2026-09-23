@@ -430,7 +430,6 @@
   "console.games.machine_library_names_one.help": "The machine, as your library names it",
   "console.games.match_vps": "Match to VPS...",
   "console.games.missing": "Missing",
-  "console.games.name_view": "Name this view",
   "console.games.newer_on_vps": "Newer on VPS",
   "console.games.no": "No",
   "console.games.no_newer_version": "None known",
@@ -441,9 +440,15 @@
   "console.games.on_vps": "On VPS",
   "console.games.on_vps.help": "The version VPS lists for the release this table is matched to",
   "console.games.pinmame_rom_build_actually.help": "The PinMAME ROM this table resolves to",
-  "console.games.rate_game_s": "Rate {len} game(s)",
+  "console.games.rate_game_s": {
+    "one": "Rate {count} game",
+    "other": "Rate {count} games"
+  },
   "console.games.rate_selected": "Rate selected",
-  "console.games.rated_game_s": "Rated {len} game(s) {value}",
+  "console.games.rated_game_s": {
+    "one": "{count} game rated {value} of 5",
+    "other": "{count} games rated {value} of 5"
+  },
   "console.games.rating_build_0_5.help": "Your rating for this table, 0 to 5",
   "console.games.rating_machine_0_5.help": "Your rating for the machine, 0 to 5",
   "console.games.read_library_disk_pick": "Reload from disk",
@@ -545,6 +550,7 @@
   "console.locations.games_leave_library_nothing": "The games in it leave the library. Nothing on disk is touched, and adding the folder again brings them back with their media and their history.",
   "console.locations.location": "{len} location{value}",
   "console.locations.location_wins_two_them.help": "Which location wins when two hold the same game, 1 highest",
+  "console.locations.name_a_folder": "Name a folder",
   "console.locations.new_games": "New Games",
   "console.locations.no_locations_yet_add": "No locations yet. Add the folder your games are in.",
   "console.locations.one_game": "One game",
@@ -977,7 +983,6 @@
   "console.tageditor.game_changed": "{said} - {changed} game{value} changed",
   "console.tageditor.games": "Games",
   "console.tageditor.games.help": "Games carrying this tag",
-  "console.tageditor.give_it_a_name": "Give it a name",
   "console.tageditor.in_use": "In use",
   "console.tageditor.look_like_same_tag": "These look like the same tag",
   "console.tageditor.merge": "Merge into “{into}”?",
@@ -1830,6 +1835,7 @@
   "said.could_not_read_the_settings": "Could not read the settings: {exc}",
   "said.could_not_remove_it": "Could not remove it: {exc}",
   "said.could_not_save_it": "Could not save it: {exc}",
+  "said.give_it_a_name": "Give it a name",
   "said.guides": {
     "one": "{count} guide",
     "other": "{count} guides"

@@ -40,9 +40,9 @@ BUDGET = {
                          "address, title and kind a guide of your own is added with, "
                          "the same kind of question as the add dialog's"),
     "logs.py": (4, "the control bar above the viewport: two pickers, a level and a find"),
-    "games.py": (3, "three dialog fields - a view's name and what it is for, and the "
-                    "rating prompt. The view picker is `panel.DescribedSelect`, which "
-                    "is where a picker whose options explain themselves lives"),
+    "games.py": (1, "a tick per column in the column picker, a menu rather than a fact "
+                    "row. The view picker is `panel.DescribedSelect`, which is where a "
+                    "picker whose options explain themselves lives"),
     "mediasource.py": (2, "a start picker and a search, both toolbar"),
     "launchers.py": (2, "checkboxes in the copy-to-device dialog"),
     "about.py": (1, "the textarea a browser that will not copy falls back to"),

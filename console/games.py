@@ -35,6 +35,7 @@ from console import (
     vps_match,
     workbench,
 )
+from console import dialog as frame
 from console.api import ApiClient
 
 logger = logging.getLogger("vpinfe.console.games")
@@ -343,14 +344,16 @@ async def _rate(games: list[dict[str, Any]]) -> None:
         client = ApiClient()
         for game in games:
             await run.io_bound(client.rate, game["id"], value)
-        dialog.close()
-        ui.notify(t("console.games.rated_game_s", len=(len(games)), value=(value)), type="positive")
+        box.close()
+        ui.notify(t("console.games.rated_game_s", count=len(games), value=value),
+                  type="positive")
 
-    with ui.dialog() as dialog, ui.card():
-        ui.label(t("console.games.rate_game_s", len=(len(games)))).classes("text-sm")
-        with ui.row():
+    with frame.opened(t("console.games.rate_game_s", count=len(games))) as box:
+        with ui.row().classes("px-3"):
             stars.draw(0, lambda n: asyncio.create_task(apply(n)))()
-    dialog.open()
+        with frame.footer():
+            frame.cancel(box.close)
+    box.open()
 
 
 async def _launch(games: list[dict[str, Any]]) -> None:
@@ -1495,60 +1498,33 @@ def _view_name(view: Any) -> str:
 def _ask_name(save: Callable[..., Any], *, named: str = "",
               said: str = "", title: str = "") -> None:
     """Name a view and say what it is for, in one place."""
-    with ui.dialog() as dialog, ui.card():
-        ui.label(title or t("console.games.save_view")).classes("console-card-title")
-        # debounce=0 so the model is current the moment Save is pressed. Focus is put
-        # here by the script below - Quasar's autofocus does not land in this dialog.
-        name = ui.input(placeholder=t("console.games.name_view")) \
-            .props("outlined dense debounce=0 bottom-slots").classes("w-72")
-        name.value = named
-        purpose = ui.input(placeholder=t("console.games.what_view_for")) \
-            .props("outlined dense debounce=0").classes("w-72")
-        purpose.value = said
+    held: dict[str, Any] = {}
 
-        async def keep() -> None:
-            if not (name.value or "").strip():
-                # Said rather than ignored. A dialog that does nothing when you press
-                # the button reads as broken, and this one did.
-                name.props('error error-message="Give it a name"')
-                return
-            dialog.close()
-            await save(name.value, purpose.value or "")
+    def draw_name() -> None:
+        held["name"] = frame.field(named)
+        held["name"].on_value_change(cleared)
 
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"),
-                icon=verbs.CANCEL, on_click=dialog.close).props("flat no-caps")
-            save_button = ui.button(t("word.save"), icon=verbs.SAVE, on_click=keep).props("no-caps")
-    # Focused when Quasar says the dialog has finished opening. Anything earlier is
-    # overridden by its own focus handling, whatever the delay.
-    dialog.on("show", lambda: ui.run_javascript(
-        f"document.getElementById('c{name.id}').focus()"))
-    dialog.open()
-    # Enter is bound in the browser rather than through an event handler: nicegui does
-    # not forward a keyup from a Quasar input inside a dialog, so nothing arrives to
-    # handle. Clicking the button is the same path the mouse takes, which is the point.
-    ui.run_javascript(f"""
-        (() => {{
-          // The dialog mounts after this runs, so the elements are waited for rather
-          // than assumed. Bounded, because a dialog that never appears must not leave
-          // a timer running behind it.
-          let tries = 0;
-          const wire = () => {{
-            const field = document.getElementById('c{name.id}');
-            const button = document.getElementById('c{save_button.id}');
-            if (!field || !button) {{
-              if (++tries < 40) setTimeout(wire, 25);
-              return;
-            }}
-            // On the dialog, not the field: Quasar's autofocus does not land, so
-            // focus can be on the dialog itself when the first key arrives and a
-            // listener on the input would never hear it.
-            const dialog = button.closest('.q-dialog') || field;
-            dialog.addEventListener('keyup', (event) => {{
-              if (event.key === 'Enter') button.click();
-            }});
+    def cleared() -> None:
+        held["name"].props["error"] = False
 
-          }};
-          wire();
-        }})()
-    """)
+    async def keep() -> None:
+        name = held["name"]
+        if not (name.value or "").strip():
+            name.props["error"] = True
+            name.props["error-message"] = t("said.give_it_a_name")
+            return
+        box.close()
+        await save(name.value, held["purpose"].value or "")
+
+    with frame.opened(title or t("console.games.save_view")) as box:
+        panel.facts(ui, [
+            (t("word.name"), draw_name),
+            (t("console.workbench.description"),
+             lambda: held.update(purpose=frame.field(
+                 said, placeholder=t("console.games.what_view_for"))))])
+        with frame.footer():
+            frame.cancel(box.close)
+            go = frame.answer(t("word.save"), keep, icon=verbs.SAVE)
+    frame.focus(box, held["name"])
+    frame.enter_presses(go)
+    box.open()
