@@ -17,7 +17,6 @@ import json
 import logging
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
 from functools import partial
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -1010,12 +1009,8 @@ def _asset_spec(detail: dict[str, Any]) -> str:
     size = mediasource._size(detail.get("size_bytes"))
     if size:
         parts.append(size)
-    stamp = str(detail.get("modified") or "")
-    if stamp:
-        try:
-            parts.append(when.day(datetime.fromisoformat(stamp).astimezone()))
-        except ValueError:
-            pass
+    if detail.get("modified"):
+        parts.append(when.ago(detail["modified"]))
     return " \u00b7 ".join(parts)
 
 
@@ -1629,12 +1624,8 @@ def _spec(detail: dict[str, Any]) -> str:
     size = mediasource._size(detail.get("size_bytes"))
     if size:
         parts.append(size)
-    stamp = str(detail.get("modified") or "")
-    if stamp:
-        try:
-            parts.append(when.day(datetime.fromisoformat(stamp).astimezone()))
-        except ValueError:
-            pass
+    if detail.get("modified"):
+        parts.append(when.ago(detail["modified"]))
     return " \u00b7 ".join(parts)
 
 
@@ -2718,12 +2709,7 @@ def _launch_state(launchable: bool | None) -> Any:
 
 def _played_when(stamp: str | None) -> str:
     """A date, not a timestamp. Nobody reads a play record to the second."""
-    if not stamp:
-        return t("word.never")
-    try:
-        return when.day(datetime.fromisoformat(stamp).astimezone())
-    except ValueError:
-        return t("word.never")
+    return when.ago(stamp) if when.parsed(stamp) else t("word.never")
 
 
 def _played_for(seconds: int) -> str:
@@ -3524,7 +3510,7 @@ def _tables_block(context: dict[str, Any], held: bool = True) -> None:
                 # the user's.
                 chips.append((game_tables.word_for(game_tables.FILE_WORDS, True),
                               "console-tier console-tier--warn",
-                              t("console.workbench.not_disk_since", value=(since[:10]))))
+                              t("console.workbench.not_disk_since", value=when.local(since))))
             elif table.get("default"):
                 # Qualifies *the default*, so it belongs only where there is one -
                 # the mark has already said which row that is, and "how was it
@@ -3729,9 +3715,8 @@ def _record_row(record: dict[str, Any], dialog: Any, bound: str) -> None:
     made_by = ", ".join(str(name) for name in (record.get("authors") or [])[:3])
     if made_by:
         meta.append(made_by)
-    stamp = str(record.get("updated_at") or "")[:10]
-    if stamp:
-        meta.append(stamp)
+    if record.get("updated_at"):
+        meta.append(when.ago(record["updated_at"]))
     name = str(record.get("version") or "") or t("console.workbench.no_version_given")
     if said == bound:
         name = f"{name}  ✓"
@@ -3810,9 +3795,8 @@ def _release_words(release: dict[str, Any]) -> tuple[str, str]:
     made_by = ", ".join(str(name) for name in (release.get("authors") or [])[:3])
     if made_by:
         meta.append(made_by)
-    stamp = str(release.get("updated_at") or "")[:10]
-    if stamp:
-        meta.append(stamp)
+    if release.get("updated_at"):
+        meta.append(when.ago(release["updated_at"]))
     name = str(release.get("version") or "") or t("console.workbench.no_version_given")
     return name, " \u00b7 ".join(part for part in meta if part)
 
@@ -4391,10 +4375,7 @@ def _app_keeps_settings(context: dict[str, Any]) -> bool:
 
 def _backup_when(one: dict) -> str:
     """When it was taken, as a person reads a date, with any label beside it."""
-    stamp = str(one.get("taken_at") or
-            "")
-    said = f"{stamp[:10]} {stamp[11:16]}" if len(stamp) >= 16 \
-        else (stamp or t("word.unknown"))
+    said = when.ago(one.get("taken_at"), timed=True) or t("word.unknown")
     label = str(one.get("label") or "")
     return f"{said} - {label}" if label else said
 

@@ -16,10 +16,8 @@ CONSOLE = pathlib.Path(__file__).resolve().parent.parent.parent / "console"
 
 class LocalTime(unittest.TestCase):
     def test_a_utc_stamp_becomes_local(self) -> None:
-        stamp = "2026-09-22T12:46:11Z"
-        expected = (datetime.fromisoformat("2026-09-22T12:46:11+00:00")
-                    .astimezone().strftime(when.SHOWN))
-        self.assertEqual(expected, when.local(stamp))
+        at = datetime.fromisoformat("2026-09-22T12:46:11+00:00").astimezone()
+        self.assertEqual(f"{when.day(at)} {when.clock(at)}", when.local("2026-09-22T12:46:11Z"))
 
     def test_an_offset_is_read_as_well_as_a_z(self) -> None:
         self.assertEqual(when.local("2026-09-22T12:46:11Z"),
@@ -37,7 +35,7 @@ class LocalTime(unittest.TestCase):
         if datetime(2026, 1, 15, tzinfo=UTC).astimezone().utcoffset() == \
                 datetime(2026, 7, 15, tzinfo=UTC).astimezone().utcoffset():
             self.skipTest("this machine's zone has no summer time")
-        self.assertNotEqual(winter[11:], summer[11:])
+        self.assertNotEqual(winter.split()[-1], summer.split()[-1])
 
 
 class HowLongAgo(unittest.TestCase):

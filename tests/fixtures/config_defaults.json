@@ -25,7 +25,8 @@
   "console": {
     "theme": "synthwave",
     "dates": "language",
-    "relative_dates": "true"
+    "relative_dates": "true",
+    "times": "24h"
   },
   "dof": {
     "config_tool_api_key": "",

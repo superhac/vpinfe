@@ -12,15 +12,16 @@ from typing import Any
 from common import i18n
 from common.i18n import t
 
-# Digits and separators only. A format with a month name in it would need the catalog,
-# which `i18n.date` exists for.
-SHOWN = "%Y-%m-%d %H:%M:%S"
+# Digits and separators only, so the same in every language. The one with a month name
+# in it is the language's own, which `i18n.date` writes from the catalog.
+DATE_SHAPES = {"iso": "%Y-%m-%d", "mm/dd/yyyy": "%m/%d/%Y", "dd/mm/yyyy": "%d/%m/%Y",
+               "dd.mm.yyyy": "%d.%m.%Y", "yyyy/mm/dd": "%Y/%m/%d"}
 
 # Past this, "how long ago" stops answering anything and the date does.
 RECENT = timedelta(days=30)
 
 
-def _parsed(stamp: Any) -> datetime | None:
+def parsed(stamp: Any) -> datetime | None:
     said = str(stamp or "").strip()
     if not said:
         return None
@@ -37,10 +38,11 @@ def local(stamp: Any) -> str:
     Returns the stamp unchanged when it will not parse: a value we cannot read is still
     the only answer there is, and blanking it would report a device as never seen.
     """
-    at = _parsed(stamp)
+    at = parsed(stamp)
     if at is None:
         return str(stamp or "").strip()
-    return at.astimezone().strftime(SHOWN)
+    at = at.astimezone()
+    return f"{day(at)} {clock(at)}"
 
 
 def _setting(key: str, default: str) -> str:
@@ -51,24 +53,32 @@ def _setting(key: str, default: str) -> str:
 
 
 def day(at: datetime) -> str:
-    return at.strftime("%Y-%m-%d") if _setting("dates", "language") == "iso" \
-        else i18n.date(at)
+    shape = DATE_SHAPES.get(_setting("dates", "language"))
+    return at.strftime(shape) if shape else i18n.date(at)
 
 
-def ago(stamp: Any, now: datetime | None = None) -> str:
+def clock(at: datetime) -> str:
+    if _setting("times", "24h") == "12h":
+        return t("date.clock_12", hour=at.hour % 12 or 12, minute=f"{at.minute:02d}",
+                 period=t("date.pm" if at.hour >= 12 else "date.am"))
+    return at.strftime("%H:%M")
+
+
+def ago(stamp: Any, now: datetime | None = None, *, timed: bool = False) -> str:
     """How long ago, in the catalog's words. "" where there is no stamp.
 
     A stamp ahead of the clock answers with the time itself - nothing is seen in the
     future, so that is a clock worth showing rather than hiding behind "just now".
+    `timed` answers with the time of day as well wherever it falls back to the date.
     """
-    at = _parsed(stamp)
+    at = parsed(stamp)
     if at is None:
         return str(stamp or "").strip()
     seconds = ((now or datetime.now(UTC)) - at).total_seconds()
     if seconds < 0:
         return local(stamp)
     if _setting("relative_dates", "true") in ("false", "0", "no", "off"):
-        return day(at.astimezone())
+        return local(stamp) if timed else day(at.astimezone())
     if seconds < 60:
         return t("date.just_now")
     if seconds < 3600:
@@ -77,7 +87,7 @@ def ago(stamp: Any, now: datetime | None = None) -> str:
         return t("date.hours_ago", count=int(seconds // 3600))
     if seconds < RECENT.total_seconds():
         return t("date.days_ago", count=int(seconds // 86400))
-    return day(at.astimezone())
+    return local(stamp) if timed else day(at.astimezone())
 
 
 def cell(field: str) -> dict[str, Any]:

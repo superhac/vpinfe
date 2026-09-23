@@ -385,7 +385,14 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             "dates",
             type="choice",
             default="language",
-            choices=("language", "iso"),
+            choices=("language", "iso", "mm/dd/yyyy", "dd/mm/yyyy", "dd.mm.yyyy",
+                     "yyyy/mm/dd"),
+        ),
+        ConfigOption(
+            "times",
+            type="choice",
+            default="24h",
+            choices=("24h", "12h"),
         ),
         ConfigOption(
             "relative_dates",
