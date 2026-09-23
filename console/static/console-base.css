@@ -2021,6 +2021,10 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   width: auto;
 }
 /* One of a known set: as wide as the longest option needs and no wider. */
+.console-settings-body .console-facts { row-gap: 8px; grid-auto-rows: auto; }
+.console-settings-body .console-facts > :not(.console-fact-aside) { min-height: var(--fact-row); }
+/* The gap is between settings, not between a control and its own note. */
+.console-settings-body .console-fact-aside { margin-top: -8px; padding-bottom: 0; }
 .console-settings-body .console-fact-edit .q-select:not(.console-edit-combo) {
   width: auto;
   min-width: 12ch;
