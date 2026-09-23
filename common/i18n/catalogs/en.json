@@ -744,7 +744,6 @@
   "console.page.theme": "Theme",
   "console.page.update_waiting": "Update waiting: {join}",
   "console.page.vpinfe_console": "VPinFE Console",
-  "console.panel.console_action_console_action": "console-action {classes} console-action--danger",
   "console.purpose.about": "Which VPinFE this is, and how to update it",
   "console.purpose.assets": "The files a table needs to play as its author intended",
   "console.purpose.collections": "Lists the frontend offers, built by hand or by a rule",

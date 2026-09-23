@@ -585,11 +585,11 @@ def action(label: str,
     """
     def draw() -> None:
         classes = "console-action--inline" if inline else "console-action"
-        if danger:
-            classes = t("console.panel.console_action_console_action", classes=(classes))
         control = ui.button(label, icon=icon or None,
                             on_click=None if js else on_click) \
             .props("flat dense no-caps size=sm").classes(classes)
+        if danger:
+            control.classes("console-action console-action--danger")
         if js:
             control.on("click", on_click, js_handler=js)
         if not enabled:

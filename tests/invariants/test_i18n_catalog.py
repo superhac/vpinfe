@@ -368,6 +368,15 @@ class TestApiErrorMessages(unittest.TestCase):
         self.assertEqual(offenders, [], "call t() and put the words in the catalog")
 
 
+class TestTheCatalogHoldsWords(unittest.TestCase):
+    def test_no_entry_is_a_class_list(self) -> None:
+        """A translation of one restyles the page instead of rewording it."""
+        found = [key for key, value in SOURCE.items()
+                 for said in (value.values() if isinstance(value, dict) else [value])
+                 if re.search(r"\bconsole-[a-z]", str(said))]
+        self.assertEqual([], found)
+
+
 # An f-string reaching one of these is not a word anybody reads.
 NOT_ON_SCREEN = {
     "run_javascript", "add_body_html", "add_head_html", "html", "classes", "props",
