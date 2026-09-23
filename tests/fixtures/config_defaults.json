@@ -23,7 +23,9 @@
     "timeout": "15"
   },
   "console": {
-    "theme": "synthwave"
+    "theme": "synthwave",
+    "dates": "language",
+    "relative_dates": "true"
   },
   "dof": {
     "config_tool_api_key": "",

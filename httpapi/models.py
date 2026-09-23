@@ -448,6 +448,7 @@ class ConfigOptionInfo(ApiModel):
     label_key: str = ""
     description: str = ""
     choices: list[str] = []
+    choice_labels: dict[str, str] = {}
     writable: bool = True
     # What this string names on disk, when it names something: file, dir or exe. Empty
     # for everything that is only text, so a client need not match on the key's name.

@@ -186,6 +186,9 @@ def control_for(option: dict, value: Any, save: Callable[[Any], Any], *,
         # `{value: label}`, and flattening that to a list would put the stored value on
         # screen where the label belongs.
         choices = option["choices"]
+        named = option.get("choice_labels") or {}
+        if named and not isinstance(choices, dict):
+            choices = {value: named.get(value, value) for value in choices}
         return panel.select(choices if isinstance(choices, dict) else list(choices),
                             str(value or ""), lambda e: save(e.value), disabled=off)
     if kind == "int":

@@ -55,6 +55,7 @@ def _describe(option: config_schema.ConfigOption) -> dict[str, Any]:
         "label_key": f"{option.keys}.label",
         "description": option.description,
         "choices": list(option.choices),
+        "choice_labels": option.choice_labels,
         "writable": option.section not in READ_ONLY_SECTIONS,
         # So a caller knows which strings name something on disk without matching on the
         # key. Empty for everything that is only text.

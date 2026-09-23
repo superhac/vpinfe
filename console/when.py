@@ -43,6 +43,18 @@ def local(stamp: Any) -> str:
     return at.astimezone().strftime(SHOWN)
 
 
+def _setting(key: str, default: str) -> str:
+    from common.config_access import cfg_get
+    from common.paths import get_ini_config
+
+    return str(cfg_get(get_ini_config(), "console", key, default) or default).strip().lower()
+
+
+def day(at: datetime) -> str:
+    return at.strftime("%Y-%m-%d") if _setting("dates", "language") == "iso" \
+        else i18n.date(at)
+
+
 def ago(stamp: Any, now: datetime | None = None) -> str:
     """How long ago, in the catalog's words. "" where there is no stamp.
 
@@ -55,6 +67,8 @@ def ago(stamp: Any, now: datetime | None = None) -> str:
     seconds = ((now or datetime.now(UTC)) - at).total_seconds()
     if seconds < 0:
         return local(stamp)
+    if _setting("relative_dates", "true") in ("false", "0", "no", "off"):
+        return day(at.astimezone())
     if seconds < 60:
         return t("date.just_now")
     if seconds < 3600:
@@ -63,7 +77,7 @@ def ago(stamp: Any, now: datetime | None = None) -> str:
         return t("date.hours_ago", count=int(seconds // 3600))
     if seconds < RECENT.total_seconds():
         return t("date.days_ago", count=int(seconds // 86400))
-    return i18n.date(at.astimezone())
+    return day(at.astimezone())
 
 
 def cell(field: str) -> dict[str, Any]:

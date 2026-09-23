@@ -148,6 +148,16 @@ class ConfigOption:
         return "" if said.endswith(".label") else said
 
     @property
+    def choice_labels(self) -> dict[str, str]:
+        """What to call each choice on screen, for the choices the catalog names."""
+        found = {}
+        for value in self.choices:
+            said = t(f"{self.keys}.choice.{value}")
+            if not said.endswith(f".choice.{value}"):
+                found[value] = said
+        return found
+
+    @property
     def description(self) -> str:
         """One line explaining it, or "" where nobody has written one.
 
@@ -370,6 +380,17 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             choices=("synthwave", "dark", "light", "system"),
             editor=EDITOR_CONSOLE_THEME,
             legacy=(),
+        ),
+        ConfigOption(
+            "dates",
+            type="choice",
+            default="language",
+            choices=("language", "iso"),
+        ),
+        ConfigOption(
+            "relative_dates",
+            type="bool",
+            default="true",
         ),
     ),
     # Programs on this machine VPinFE shells out to. Each is discovered first, and set

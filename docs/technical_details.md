@@ -79,6 +79,8 @@ Runtime state written by VPinFE, not shown as a setting.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `theme` | choice (synthwave, dark, light, system) | `synthwave` | How the Console and the remote look. System follows whether this computer is set to light or dark. |
+| `dates` | choice (language, iso) | `language` | How a day is written: as your language does, 29 Apr 2026, or ISO, 2026-04-29. |
+| `relative_dates` | bool | `true` | Anything from the last month says how long ago it was, 3 days ago. |
 
 ### `tools`
 

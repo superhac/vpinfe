@@ -24,7 +24,7 @@ from urllib.parse import quote, urlencode, urlparse
 
 from nicegui import run, ui
 
-from common import i18n, icons, path_checks, tokens
+from common import icons, path_checks, tokens
 from common.games import asset_registry, tag_registry
 from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
 from common.games.collection_filters import UNCONSTRAINED
@@ -54,6 +54,7 @@ from console import (
     tag_chips,
     verbs,
     vps_match,
+    when,
 )
 from console import commands as commands_help
 from console import contents as contents_page
@@ -947,7 +948,7 @@ def _asset_spec(detail: dict[str, Any]) -> str:
     stamp = str(detail.get("modified") or "")
     if stamp:
         try:
-            parts.append(i18n.date(datetime.fromisoformat(stamp).astimezone()))
+            parts.append(when.day(datetime.fromisoformat(stamp).astimezone()))
         except ValueError:
             pass
     return " \u00b7 ".join(parts)
@@ -1566,7 +1567,7 @@ def _spec(detail: dict[str, Any]) -> str:
     stamp = str(detail.get("modified") or "")
     if stamp:
         try:
-            parts.append(i18n.date(datetime.fromisoformat(stamp).astimezone()))
+            parts.append(when.day(datetime.fromisoformat(stamp).astimezone()))
         except ValueError:
             pass
     return " \u00b7 ".join(parts)
@@ -2653,7 +2654,7 @@ def _played_when(stamp: str | None) -> str:
     if not stamp:
         return t("word.never")
     try:
-        return i18n.date(datetime.fromisoformat(stamp).astimezone())
+        return when.day(datetime.fromisoformat(stamp).astimezone())
     except ValueError:
         return t("word.never")
 
