@@ -29,6 +29,16 @@ class OneChipTwoDrawings(unittest.TestCase):
                 self.assertIn(f".{tag_chips.DOT}--{color} {{ background: var(--tag-{color}); }}",
                               css)
 
+    def test_every_color_has_an_outline_to_wear(self) -> None:
+        css = theme.base_css()
+        for color in COLORS:
+            with self.subTest(color=color):
+                self.assertIn(f".{tag_chips.CHIP}--{color} {{ border-color: var(--tag-{color}); }}",
+                              css)
+
+    def test_the_grid_outlines_a_chip_in_its_color(self) -> None:
+        self.assertIn(f"{tag_chips.CHIP}--' + color", tag_chips.RENDERER)
+
     def test_a_column_can_be_drawn_as_tags(self) -> None:
         self.assertIs(renderers.REGISTRY["tags"].js, tag_chips.RENDERER)
 

@@ -27,6 +27,10 @@ def dot_class(color: str) -> str:
     return f"{DOT} {DOT}--{color if color in COLORS else 'gray'}"
 
 
+def chip_class(color: str) -> str:
+    return f"{CHIP} {CHIP}--{color if color in COLORS else 'gray'}"
+
+
 def color_of(tag: str, looks: Mapping[str, Mapping[str, Any]]) -> str:
     return str((looks.get(tag) or {}).get("color") or "") or derived_color(tag)
 
@@ -35,8 +39,9 @@ def draw(tags: Sequence[str], looks: Mapping[str, Mapping[str, Any]]) -> None:
     with ui.element("span").classes(BOX):
         for tag in tags:
             look = looks.get(tag) or {}
-            with ui.element("span").classes(CHIP) as chip:
-                ui.element("span").classes(dot_class(color_of(tag, looks)))
+            color = color_of(tag, looks)
+            with ui.element("span").classes(chip_class(color)) as chip:
+                ui.element("span").classes(dot_class(color))
                 ui.label(tag)
             if look.get("description"):
                 chip.tooltip(str(look["description"]))
@@ -70,6 +75,7 @@ class Picker(ui.select):
 
     SELECTED = f"""
         <q-chip dense removable :tabindex="props.tabindex" class="{CHIP}"
+                :class="props.opt.tone || '{CHIP}--gray'"
                 @mousedown.prevent @remove="props.removeAtIndex(props.index)">
           <span :class="props.opt.dot || '{DOT} {DOT}--gray'"></span>
           {{{{ typeof props.opt === 'string' ? props.opt : props.opt.label }}}}
@@ -100,7 +106,8 @@ class Picker(ui.select):
 
     def _dressed(self, option: dict[str, Any]) -> dict[str, Any]:
         tag = str(option.get("label") or "")
-        return {**option, "dot": dot_class(color_of(tag, self.looks)),
+        color = color_of(tag, self.looks)
+        return {**option, "dot": dot_class(color), "tone": f"{CHIP}--{color}",
                 "help": str((self.looks.get(tag) or {}).get("description") or "")}
 
     def _update_options(self) -> None:
@@ -129,6 +136,7 @@ RENDERER = (
     "  const look = looks[tag] || {};"
     "  const color = colors.includes(look.color) ? look.color : 'gray';"
     "  const tip = look.description ? ' title=\"' + esc(look.description) + '\"' : '';"
-    f"  return '<span class=\"{CHIP}\"' + tip + '><span class=\"{DOT} {DOT}--' + color"
+    f"  return '<span class=\"{CHIP} {CHIP}--' + color + '\"' + tip"
+    f" + '><span class=\"{DOT} {DOT}--' + color"
     "   + '\"></span>' + esc(tag) + '</span>'; }).join('') + '</span>'; }"
 )

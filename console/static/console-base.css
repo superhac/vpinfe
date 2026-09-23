@@ -2283,6 +2283,15 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-tag-dot--purple { background: var(--tag-purple); }
 .console-tag-dot--pink { background: var(--tag-pink); }
 .console-tag-dot--gray { background: var(--tag-gray); }
+.console-tag--red { border-color: var(--tag-red); }
+.console-tag--orange { border-color: var(--tag-orange); }
+.console-tag--amber { border-color: var(--tag-amber); }
+.console-tag--green { border-color: var(--tag-green); }
+.console-tag--teal { border-color: var(--tag-teal); }
+.console-tag--blue { border-color: var(--tag-blue); }
+.console-tag--purple { border-color: var(--tag-purple); }
+.console-tag--pink { border-color: var(--tag-pink); }
+.console-tag--gray { border-color: var(--tag-gray); }
 .console-swatches { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .console-new-tag { width: min(500px, 92vw); }
 .console-new-tag .console-facts { row-gap: 8px; padding: 0; }
