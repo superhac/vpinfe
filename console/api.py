@@ -417,12 +417,14 @@ class ApiClient:
                     .get("games") or [])
 
     def create_collection(self, name: str, filters: dict | None = None,
-                          games: list[str] | None = None) -> dict:
+                          games: list[str] | None = None, copy_of: str | None = None) -> dict:
         """Criteria, hand-picked games, or both - they are combinable, and the kind is
-        derived from what ends up stored."""
+        derived from what ends up stored. `copy_of` starts it as a copy of that one."""
         body: dict[str, Any] = {"name": name, "games": games or []}
         if filters is not None:
             body["filters"] = filters
+        if copy_of is not None:
+            body["copy_of"] = copy_of
         return self._post("/collections", body)
 
     def patch_collection(self, name: str, changes: dict) -> dict:
@@ -464,6 +466,10 @@ class ApiClient:
         """Stored membership with the state of each: what is written down, not what
         resolved. The only lens that reports a member naming something gone."""
         return self._get(f"/collections/{quote(name, safe='')}/members")
+
+    def preview_collection(self, name: str, filters: dict) -> dict:
+        return self._post(f"/collections/{quote(name, safe='')}/members/preview",
+                          {"filters": filters or None})
 
     def preview_filters(self, filters: dict | None, limit: int | None = None) -> dict:
         """What a rule would match, storing nothing - so a rule can be built while its

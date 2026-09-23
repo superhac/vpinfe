@@ -39,40 +39,10 @@ LAUNCH = t("console.game_tables.launch")
 PLAY = t("console.game_tables.play")
 FRONTEND = t("console.game_tables.frontend")
 
-# What a reference points at: whichever table the game offers, or exactly one. `GONE` is
-# not a third kind - it is either of the two, naming something absent.
-FOLLOWS = "default"
-FIXED = "fixed"
-GONE = "missing"
-
-# The state's name, then the line behind it. Both answer "which table plays?", in the
-# same shape so they read as a pair. Short because this is read down a long list, where
-# a sentence per row is noise.
-REFERENCE_WORDS = {
-    FOLLOWS: (t("console.game_tables.game_default"),
-            t("console.game_tables.whichever_table_game_offers")),
-    FIXED: (t("console.game_tables.user_defined"), t("console.game_tables.table")),
-    GONE: (t("console.game_tables.missing"),
-           t("console.game_tables.not_library")),
-}
-
-# Drawn, not typed: as characters these are not a matched pair - in the Console's own
-# font the filled circle is far narrower than the half one, so it reads as a speck. CSS
-# circles are the same diameter by construction.
-#
-# Full and outline are the two ends of the ramp - the clearest pair there is, and this
-# vocabulary has only two states to spend.
-MARKS = {
-    FIXED: "console-mark--full",
-    FOLLOWS: "console-mark--outline",
-    GONE: "console-mark--dashed",
-}
-
-# The legend, because a tooltip cannot be the only one - it does not exist on a touch
-# device. It names the two states; the difference between them is its own tooltip.
-KEY_WORDS = ((FIXED, t("console.game_tables.user_defined")), (FOLLOWS,
-        t("console.game_tables.game_default")))
-KEY_DETAIL = (t("console.game_tables.user_defined_stays_table"))
+# A collection's row held to one table, and what that costs, said on the word.
+LOCKED_WORDS = (t("console.game_tables.locked"), t("console.game_tables.locked.help"))
+# A collection's row naming a game or a table the library no longer has.
+GONE_WORDS = (t("console.game_tables.missing"), t("console.game_tables.not_library"))
 
 
 def native_key(table: dict[str, Any] | None) -> str:
@@ -94,11 +64,6 @@ def is_keyed(table: dict[str, Any] | None) -> bool:
 def is_referenced(table: dict[str, Any] | None) -> bool:
     """Whether this entry's file is somewhere other than the game folder."""
     return str((table or {}).get("form") or "") == "referenced"
-
-
-def mark(state: str) -> str:
-    """The classes for one state's mark, base first."""
-    return f"console-mark {MARKS.get(state, MARKS[FOLLOWS])}"
 
 
 # How a game's default was decided, said as a state rather than as an actor: "User"
@@ -168,11 +133,6 @@ def table_name(table: dict[str, Any]) -> str:
     reference = table.get("reference") or {}
     return (str(table.get("filename") or "") or str(table.get("key") or "")
             or str(reference.get("path") or ""))
-
-
-def reference_state(origin: str) -> tuple[str, str]:
-    """The word for what a reference points at, and the sentence behind it."""
-    return REFERENCE_WORDS.get(origin, REFERENCE_WORDS[FOLLOWS])
 
 
 def default_state(kind: str) -> tuple[str, str] | None:

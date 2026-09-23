@@ -44,10 +44,15 @@ _ESCAPE = ("const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt
 _NAME = (
     "params => {" + _ESCAPE +
     f" const tip = esc({json.dumps(t('console.collections.opens_on.help'))});"
-    " const name = esc(params.value == null ? '' : params.value);"
-    " return (params.data || {}).opens_on ? name + ' <i class=\"material-icons"
-    " console-cell-mark console-cell-mark--chosen\" title=\"' + tip + '\">"
-    + verbs.OPENS_ON + "</i>' : name; }"
+    f" const unsaved = esc({json.dumps(t('word.not_saved'))});"
+    f" const why = esc({json.dumps(t('console.collections.not_saved.help'))});"
+    " const d = params.data || {};"
+    " let said = esc(params.value == null ? '' : params.value);"
+    " if (d.opens_on) said += ' <i class=\"material-icons console-cell-mark"
+    " console-cell-mark--chosen\" title=\"' + tip + '\">" + verbs.OPENS_ON + "</i>';"
+    " if (d.unsaved) said += ' <span class=\"console-member-chip console-tier"
+    " console-tier--warn\" title=\"' + why + '\">' + unsaved + '</span>';"
+    " return said; }"
 )
 
 _KIND = (
@@ -135,12 +140,13 @@ COLLECTION_VIEWS: dict[str, list[str] | views.Preset] = {
 }
 
 
-def rows(collections: list[dict[str, Any]], opens_on: str = "") -> list[dict[str, Any]]:
+def rows(collections: list[dict[str, Any]], opens_on: str = "",
+         unsaved: set[str] | frozenset[str] = frozenset()) -> list[dict[str, Any]]:
     """One row per collection, in the words the grid shows.
 
     `count` is what the collection resolves to, which is its size. The stored
     membership is a different number and lives in the panel. `opens_on` names the
-    collection the cabinet opens on.
+    collection the cabinet opens on, and `unsaved` the ones with rules not yet saved.
     """
     built = []
     for row in collections:
@@ -166,6 +172,7 @@ def rows(collections: list[dict[str, Any]], opens_on: str = "") -> list[dict[str
             "missing": missing,
             "attention": bool(missing or excluded),
             "opens_on": bool(opens_on) and row.get("name") == opens_on,
+            "unsaved": row.get("name") in unsaved,
             "order": _order_line(row),
             "limit": row.get("limit") or None,
             # Kept whole on the row so the workbench does not refetch what the grid
@@ -206,7 +213,7 @@ def build(collections: list[dict[str, Any]], library: Any,
           state: dict[str, Any] | None = None,
           rerender: Callable[[], None] | None = None) -> None:
     state = state if state is not None else {}
-    built = rows(collections, library.opens_on())
+    built = rows(collections, library.opens_on(), state.get("unsaved_rules") or set())
     fields = [definition["field"] for definition in COLUMNS]
 
     async def act(what: Callable, *args: Any, said: str = "") -> None:
@@ -318,7 +325,8 @@ def build(collections: list[dict[str, Any]], library: Any,
                                       search.value or ""))
 
     async def reread(focus: str = "") -> None:
-        fresh = rows(await offload.io(library.load_collections), library.opens_on())
+        fresh = rows(await offload.io(library.load_collections), library.opens_on(),
+                     state.get("unsaved_rules") or set())
         built[:] = fresh
         by_id.clear()
         by_id.update({row["id"]: row for row in fresh})
@@ -337,6 +345,17 @@ def build(collections: list[dict[str, Any]], library: Any,
                 await opened
 
     state["refresh_collections"] = reread
+
+    def mark_unsaved(names: set[str]) -> None:
+        changed = [row for row in built if row["unsaved"] != (row["id"] in names)]
+        for row in changed:
+            row["unsaved"] = row["id"] in names
+        if changed:
+            table.run_grid_method("applyTransaction", {"update": changed})
+            # The name is unchanged, so the grid would not redraw the cell carrying it.
+            table.run_grid_method("refreshCells", {"force": True, "columns": ["name"]})
+
+    state["mark_unsaved"] = mark_unsaved
 
 
 def _ask_new(library: Any, opened: Callable[[str], Awaitable[None]]) -> None:
@@ -384,7 +403,7 @@ async def _ask_delete_many(picked: list[dict], library: Any, act: Callable) -> N
     shown = names[:8] + ([t("said.and_more", value=(len(names) - 8))]
             if len(names) > 8 else [])
     if await confirm.ask(t("console.collections.delete_collections", count=len(names)),
-                         detail=await _what_deleting_leaves(library, names),
+                         detail=await what_deleting_leaves(library, names),
                          lines=shown):
         for name in names:
             await act(library.delete_collection, name,
@@ -395,12 +414,12 @@ async def _ask_delete(name: str, library: Any, act: Callable) -> None:
     """Asked, because a manual collection is somebody's hand-picked list and there is
     no undo behind this."""
     if await confirm.ask(t("console.collections.delete", name=(name)),
-                         detail=await _what_deleting_leaves(library, [name])):
+                         detail=await what_deleting_leaves(library, [name])):
         await act(library.delete_collection, name,
                 said=t("console.collections.deleted", name=(name)))
 
 
-async def _what_deleting_leaves(library: Any, names: list[str]) -> str:
+async def what_deleting_leaves(library: Any, names: list[str]) -> str:
     try:
         settings = await offload.io(library.config_values)
     except Exception:  # noqa: BLE001 - asked all the same, without the second sentence

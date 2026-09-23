@@ -35,7 +35,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CONTENT_HEAVY = frozenset({"logs", "themes", "extensions", "about"})
 # The collection every new install is seeded with, in each section of its panel.
 PANELS =tuple(f"view=collections&collection=Last%20Played&section={section}"
-               for section in ("collection_details", "collection_contents"))
+               for section in ("collection_details", "collection_games"))
 CATALOG = json.loads((ROOT / "common/i18n/catalogs/en.json").read_text(encoding="utf-8"))
 GAME = "Attack from Mars"
 

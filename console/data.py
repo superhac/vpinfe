@@ -722,6 +722,11 @@ class Library:
         """What a rule would match, storing nothing."""
         return self._client.preview_filters(filters, limit)
 
+    def preview_collection(self, name: str, filters: dict) -> dict:
+        """The collection's stored membership as it would read with these rules, or none
+        where `filters` is empty. Nothing is stored."""
+        return self._client.preview_collection(name, filters)
+
     def exclude_from_collection(self, name: str, game_id: str, table: str = "") -> None:
         self._collections_changed()
         self._client.exclude_from_collection(name, game_id, table)
@@ -746,6 +751,10 @@ class Library:
     def create_collection(self, name: str, filters: dict | None = None) -> dict:
         self._collections_changed()
         return self._client.create_collection(name, filters=filters)
+
+    def copy_collection(self, name: str, source: str) -> dict:
+        self._collections_changed()
+        return self._client.create_collection(name, copy_of=source)
 
     def patch_collection(self, name: str, changes: dict) -> dict:
         self._collections_changed()

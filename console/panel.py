@@ -413,6 +413,39 @@ class DescribedSelect(ui.select):
         self.update()
 
 
+class CountedSelect(ui.select):
+    """Several from a list, each option saying how many games hold it.
+
+    `counts` maps a value to its count. The chips of what is chosen carry the value
+    alone.
+    """
+
+    SLOT = """
+        <q-item v-bind="props.itemProps">
+          <q-item-section>
+            <q-item-label>{{ props.opt.label }}</q-item-label>
+          </q-item-section>
+          <q-item-section side v-if="props.opt.count != null">
+            <q-item-label caption>{{ props.opt.count }}</q-item-label>
+          </q-item-section>
+        </q-item>
+    """
+
+    def __init__(self, options: Sequence[str], counts: dict[str, int], *,
+                 value: Sequence[str], typed: bool = False) -> None:
+        # Before `super().__init__`, which builds the payload for the first time.
+        self.counts = dict(counts)
+        super().__init__(list(options), value=list(value), multiple=True,
+                         with_input=typed)
+        self.props("use-chips")
+        self.add_slot("option", self.SLOT)
+
+    def _update_options(self) -> None:
+        super()._update_options()
+        for option in self._props["options"]:
+            option["count"] = self.counts.get(str(option.get("label") or ""))
+
+
 def hint(control: Any, said: str) -> None:
     """A line under a field. The field must carry `bottom-slots`."""
     if said:

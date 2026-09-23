@@ -16,6 +16,7 @@ from console import assets as assets_page
 from console import collections as collections_page
 from console import community as community_page
 from console import (
+    confirm,
     deeplink,
     ext_page,
     games,
@@ -66,10 +67,6 @@ WORKBENCH_MIN_PX = 320
 # end of one continuum rather than the only way in. Short of squeezing the list out -
 # that is Full's job, and Full has a control that brings it back.
 WORKBENCH_MAX_PX = 1000
-# A collection is authored rather than swept: its rule and its result sit side by
-# side, and the dock only splits two-column past 900px. Per subject, because the width
-# that suits a game grid does not suit this.
-WORKBENCH_COLLECTION_PX = 900
 # Below a desk-sized window the nav gives up its labels rather than its fifth of the
 # screen. The rail already existed as a manual toggle and simply never fired on size;
 # width drives that same state rather than adding a second way to collapse, so a toggle
@@ -224,6 +221,17 @@ _NAV_CLICK = """
     event.preventDefault();
   }, true);
 })()
+"""
+
+
+# The browser's own question, for a reload or a link out while a rule is unsaved. The
+# panel keeps the flag current.
+_ASK_BEFORE_UNLOAD = """
+window.addEventListener('beforeunload', (event) => {
+  if (!window.__hubUnsavedRules) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
 """
 
 
@@ -927,10 +935,6 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         Games follows, so the panel never needs a control of its own."""
         if row and not state["workbench"]:
             show_workbench(True)
-        if row and not state.get("collection_width_set"):
-            # Once, on the first selection. Widening on every one would fight a drag.
-            state["collection_width_set"] = True
-            splitter.set_value(max(splitter.value or 0, WORKBENCH_COLLECTION_PX))
         state["collection"] = (row or {}).get("id")
         await workbench.build_collection(panel, workbench_title, library,
                                          state["collection"], state)
@@ -1178,6 +1182,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     uploads.install(lambda drop: _took_a_drop(library, state, redraw, drop))
 
     ui.run_javascript(_NAV_CLICK)
+    ui.run_javascript(_ASK_BEFORE_UNLOAD)
 
     # Reported once on load and on every settle after a resize. Debounced, because a
     # drag fires this continuously and each one is a round trip.
@@ -1323,10 +1328,28 @@ def leave_for(state: dict[str, Any], view: str) -> None:
     remembered.put("section", view)
 
 
+async def may_leave(state: dict[str, Any], view: str) -> bool:
+    """Whether to go to `view`: asked first where that would drop rules nobody saved,
+    and the rules dropped on a yes."""
+    waiting = sorted(state.get("unsaved_rules") or ())
+    if not waiting or view == state.get("view"):
+        return True
+    if not await confirm.ask(t("console.page.leave_unsaved_rules"),
+                             detail=t("console.page.unsaved_rules_lost"), lines=waiting,
+                             confirm=t("console.page.leave"), icon=verbs.GO):
+        return False
+    state["collection_drafts"] = {}
+    state["unsaved_rules"] = set()
+    ui.run_javascript("window.__hubUnsavedRules = false;")
+    return True
+
+
 def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render: Callable[..., Any],
               labels: list, destinations: dict, badges: dict, nested: bool = False,
               held: list | None = None) -> None:
-    def choose() -> None:
+    async def choose() -> None:
+        if not await may_leave(state, key):
+            return
         leave_for(state, key)
         render()
         deeplink.sync(state)

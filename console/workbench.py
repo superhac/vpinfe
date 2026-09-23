@@ -24,15 +24,16 @@ from urllib.parse import quote, urlencode, urlparse
 
 from nicegui import run, ui
 
-from common import icons, path_checks, tokens
+from common import config_schema, icons, path_checks, tokens
 from common.games import asset_registry, tag_registry
 from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
 from common.games.asset_resolver import VPX_ASSET_KINDS
-from common.games.collection_filters import UNCONSTRAINED
+from common.games.collection_filters import group_kind
 from common.games.collection_store import (
     DEFAULT_ORDER_BY,
-    DIRECTION_LABELS,
+    DIRECTION_WORDS,
     MANUAL_ORDER,
+    NATURAL_DIRECTION,
     SORT_LABELS,
 )
 from common.i18n import t
@@ -41,6 +42,7 @@ from common.media_specs import media_family, media_label_map
 from common.online import vps_kinds
 from console import (
     candidates,
+    collection_rules,
     confirm,
     deeplink,
     game_tables,
@@ -121,19 +123,19 @@ if (!window.__hubDockGrip) {
 # Dragging one member to a new place. Pointer events, not HTML5 drag-and-drop, for the
 # reason the dock grip uses them: HTML5 drag fires no move events over its own source
 # and is inert on touch.
-# The dock is rebuilt on every write, so its scroll position has to be carried across
+# The panel is rebuilt on every write, so its scroll position has to be carried across
 # by hand. Remembered on the window rather than in the panel's state: the value changes
 # on every scroll frame and none of those are worth a round trip to Python.
 _KEEP_SCROLL = """
 (() => {
-  const dock = document.querySelector('.console-dock');
-  if (!dock) return;
-  const held = window.__hubDockTop || (window.__hubDockTop = {});
+  const body = document.querySelector('.console-workbench-body');
+  if (!body) return;
+  const held = window.__hubListTop || (window.__hubListTop = {});
   const key = '%s';
-  if (held[key]) dock.scrollTop = held[key];
-  if (dock.dataset.scrollWired) return;
-  dock.dataset.scrollWired = '1';
-  dock.addEventListener('scroll', () => { held[key] = dock.scrollTop; },
+  if (held[key]) body.scrollTop = held[key];
+  if (body.dataset.scrollWired) return;
+  body.dataset.scrollWired = '1';
+  body.addEventListener('scroll', () => { held[key] = body.scrollTop; },
                         {passive: true});
 })()
 """
@@ -183,7 +185,7 @@ _ARRANGE = """
   list.dataset.wired = '1';
   const moved = list.dataset.arrange;
 
-  // The dock scrolls, not the window, so the edges that mean "keep going" are its.
+  // The panel scrolls, not the window, so the edges that mean "keep going" are its.
   const scroller = (() => {
     let el = list.parentElement;
     while (el && el !== document.body) {
@@ -336,9 +338,9 @@ _ARRANGE = """
 # Per rail rather than one value, because a rail declares its own landing place - and a
 # table selected on purpose should not open on the machine that contains it.
 DEFAULT_SECTION = {"game": "game_details", "table": "table_details",
-                   # Contents, not Details: a collection is opened to see
+                   # Games, not Details: a collection is opened to see
                    # what is in it far more often than to rename it.
-                   "collection": "collection_contents",
+                   "collection": "collection_games",
                    "theme": "theme_details"}
 # Every section closed. Named, because it travels in the state and the address, and
 # "" appearing in either wants to be findable as a decision rather than as a blank.
@@ -1198,6 +1200,9 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
     if not name:
         _blank(container, title, t("console.page.collection"),
                t("console.page.select_collection"))
+        with container:
+            _note_unsaved(state, set(state.get("unsaved_rules") or ())
+                          & set(state.get("collection_drafts") or {}))
         return
     # Read fresh rather than from the grid's copy: every control in here writes,
     # and a rebuild that redrew the values it just changed from a stale row would
@@ -1212,33 +1217,67 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
         _blank(container, title, t("console.page.collection"),
                t("console.page.no_longer_library"))
         return
-    # Independent of each other, so one wait rather than two.
-    membership, axes = await asyncio.gather(
+    # Independent of each other, so one wait rather than three.
+    membership, axes, settings = await asyncio.gather(
         run.io_bound(library.collection_members, name),
-        run.io_bound(library.filter_axes))
+        run.io_bound(library.filter_axes),
+        run.io_bound(library.config_values))
+    known = collection_rules.fields(axes or [])
+    # The rules being edited, which are not always the rules that are stored. Held on
+    # the client rather than in this build of the panel, so a section change or a
+    # redraw does not discard an edit in progress.
+    drafts = state.setdefault("collection_drafts", {})
+    draft = drafts.setdefault(name, {})
+    if draft.get("rules") == collection_rules.rows_from(row.get("filters"), known):
+        draft.pop("rules")
+    waiting = unsaved(drafts, rows, known)
+    preview: dict[str, Any] | None = None
+    if name in waiting:
+        try:
+            preview = await offload.io(
+                library.preview_collection, name,
+                collection_rules.filters_from(draft["rules"], known))
+        except Exception as exc:  # noqa: BLE001 - the list says why in its place
+            preview = {"error": str(exc)}
 
     container.clear()
     title.clear()
     with container:
         size = int(row.get("count") or 0)
-        kind = (t("console.workbench.smart_games", count=size)
-                if (row.get("type") or "") == "filter"
-                else t("console.workbench.hand_picked_games", count=size))
-        _title(title, row.get("name") or "", kind)
-        # The rule being edited, which is not always the rule that is stored. Held on
-        # the client rather than in this build of the panel, so a section change or a
-        # redraw does not discard an edit in progress.
-        drafts = state.setdefault("collection_drafts", {})
+        smart = (row.get("type") or "") == "filter"
+        with title:
+            ui.label(row.get("name") or "") \
+                .classes("text-base console-workbench-title leading-tight truncate")
+            with ui.row().classes("items-center gap-1 no-wrap"):
+                if smart:
+                    ui.icon(verbs.SMART).classes("console-heading-mark") \
+                        .tooltip(t("console.collections.smart.help"))
+                ui.label(t("console.workbench.smart_games", count=size) if smart
+                         else t("console.workbench.hand_picked_games", count=size)) \
+                    .classes("text-xs console-workbench-label leading-none truncate")
+        _note_unsaved(state, waiting)
         context: dict[str, Any] = {"library": library, "collection": row,
-                                   "membership": membership, "axes": axes,
-                                   "state": state, "draft": drafts.setdefault(name, {}),
-                                   "redraws": [], "dock": None}
+                                   "membership": membership, "fields": known,
+                                   "settings": settings or {}, "preview": preview,
+                                   "unsaved": name in waiting, "state": state,
+                                   "draft": draft, "redraws": [], "dock": None,
+                                   "games_by_id": {str(one.get("id") or ""): one
+                                                   for one in library.games}}
 
         context["rebuild"] = _rebuilds(
             context, f"collection:{name}",
             lambda: build_collection(container, title, library, state.get("collection"),
                                      state))
         await _rail(context, "collection", state)
+
+
+def _note_unsaved(state: dict[str, Any], names: set[str]) -> None:
+    """`names` as the page's `unsaved_rules`, the grid's marks and the browser's flag."""
+    state["unsaved_rules"] = set(names)
+    mark = state.get("mark_unsaved")
+    if callable(mark):
+        mark(set(names))
+    ui.run_javascript(f"window.__hubUnsavedRules = {json.dumps(bool(names))};")
 
 
 async def _rail(context: dict[str, Any], subject: str,
@@ -1496,7 +1535,7 @@ async def _media_block(context: dict[str, Any]) -> None:
                     # they fill, which is our word and not theirs. No "above" or
                     # "beside" either: this region moves depending on the width.
                     with ui.column().classes("console-dock-empty items-center gap-1"):
-                        ui.label(t("console.workbench.no_media_chosen")).classes("console-dock-empty-title")
+                        ui.label(t("console.workbench.no_media_chosen")).classes("console-empty-title")
                         ui.label(t("console.workbench.select_media_item_manage")) \
                             .classes("console-help")
 
@@ -3837,11 +3876,6 @@ def _rows(target: Any, entries: Sequence[tuple[Any, Any]]) -> None:
 # section in common, because the rail is a function of (nav node, subject) rather than
 # one list everything appears in.
 #
-# Two sections, not three. A rule and what it matches are one thing to look at - the
-# whole point of building a rule beside its result - so they share a section, with the
-# rule in the browse region and the result in the dock.
-
-
 def _collection(context: dict[str, Any]) -> dict[str, Any]:
     return context["collection"]
 
@@ -4629,19 +4663,22 @@ def _location_actions(context: dict[str, Any], row: dict[str, Any]) -> None:
 
 
 async def _collection_details(context: dict[str, Any]) -> None:
-    """What the collection is, rather than what is in it."""
     row = _collection(context)
+    said = ((context.get("settings") or {}).get("behavior") or {}).get("paging_size")
+    held = config_schema.option("behavior", "paging_size")
+    size = int(said or (held.default if held else 0) or 0)
     entries: list[tuple[Any, Any]] = [
         (t("word.name"), _text_control(context, row, "name")),
         (t("console.workbench.description"), _text_control(context, row, "description",
                 lines=3)),
-        # Kind is not repeated here. It is a control in Contents, beside the rule and
-        # the games it decides between, and a read-only copy of it here would be a
-        # second home for one fact.
+        (HEADING, t("console.workbench.on_the_cabinet")),
+        (t("console.workbench.page_buttons"), _page_buttons(context, row, size)),
+        (FULL, partial(_image_slot, context, row)),
+        (HEADING, t("word.actions")),
+        (FULL, partial(_collection_actions, context)),
     ]
     with ui.column().classes("gap-0 console-form"):
         _rows(ui, entries)
-        _image_slot(context, row)
 
 
 def _text_control(context: dict[str, Any], row: dict[str, Any], field: str,
@@ -4703,6 +4740,30 @@ async def _rename(context: dict[str, Any], wanted: str) -> None:
     await context["rebuild"]()
 
 
+_PAGE_BY_GROUP = {"letter": "console.workbench.by_letter",
+                  "year": "console.workbench.by_year",
+                  "rating": "console.workbench.by_rating"}
+
+
+def _page_buttons(context: dict[str, Any], row: dict[str, Any],
+                  size: int) -> Callable[[], None]:
+    """Where the order has no groups the frontend moves by the count, so a stored group
+    is shown as that."""
+    stored = row.get("paging_group") or ""
+    group = group_kind(row.get("order_by") or DEFAULT_ORDER_BY)
+    options = {"": t("console.workbench.as_in_settings")}
+    if group in _PAGE_BY_GROUP:
+        options["sort"] = t(_PAGE_BY_GROUP[group])
+    options["count"] = t("console.workbench.at_a_time", count=size)
+    shown = stored if stored in options else "count"
+
+    async def changed(event: Any) -> None:
+        if event.value != shown:
+            await _patch(context, {"paging_group": event.value})
+
+    return panel.select(options, shown, changed)
+
+
 def _image_slot(context: dict[str, Any], row: dict[str, Any]) -> None:
     """The collection's icon, in the shape a media slot takes.
 
@@ -4726,11 +4787,11 @@ def _image_slot(context: dict[str, Any], row: dict[str, Any]) -> None:
         except Exception as exc:
             ui.notify(t("console.workbench.could_not_use_image", exc=(exc)), type="negative")
             return
-        await context["rebuild"]()
+        await _written(context)
 
     async def clear() -> None:
         await run.io_bound(library.clear_collection_image, name)
-        await context["rebuild"]()
+        await _written(context)
 
     with ui.column().classes("w-full gap-1 console-slot p-2 mt-3"):
         ui.label(t("console.workbench.image")).classes("console-card-title")
@@ -4755,482 +4816,501 @@ def _image_slot(context: dict[str, Any], row: dict[str, Any]) -> None:
                     .props("flat dense no-caps size=sm")
 
 
+def _collection_actions(context: dict[str, Any]) -> None:
+    with ui.row().classes("items-center gap-2 no-wrap console-slot-actions"):
+        panel.action(t("console.workbench.duplicate"), lambda: _duplicate(context),
+                     icon=verbs.DUPLICATE)()
+        panel.action(t("word.delete"), lambda: _delete_collection(context),
+                     icon=verbs.DELETE, danger=True)()
+
+
+def _copy_name(name: str, taken: set[str]) -> str:
+    wanted = t("console.collections.copy_of", name=name)
+    number = 2
+    while wanted in taken:
+        wanted = t("console.collections.copy_of_n", name=name, n=number)
+        number += 1
+    return wanted
+
+
+async def _duplicate(context: dict[str, Any]) -> None:
+    library, name = context["library"], _collection(context)["name"]
+    try:
+        taken = {str(one.get("name") or "")
+                 for one in await offload.io(library.load_collections)}
+        made = await offload.io(library.copy_collection, _copy_name(name, taken), name)
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+        return
+    copy = str(made.get("name") or "")
+    ui.notify(t("console.collections.created", strip=copy), type="positive")
+    context["state"]["collection"] = copy
+    await _written(context, copy)
+
+
+async def _delete_collection(context: dict[str, Any]) -> None:
+    # Imported here: console.collections imports console.games, which imports this module.
+    from console.collections import what_deleting_leaves
+
+    library, name = context["library"], _collection(context)["name"]
+    if not await confirm.ask(t("console.collections.delete", name=(name)),
+                             detail=await what_deleting_leaves(library, [name])):
+        return
+    try:
+        await run.io_bound(library.delete_collection, name)
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+        return
+    ui.notify(t("console.collections.deleted", name=(name)), type="positive")
+    state = context["state"]
+    state.setdefault("collection_drafts", {}).pop(name, None)
+    state["collection"] = None
+    reread = state.get("refresh_collections")
+    if callable(reread):
+        await reread()
+    deeplink.sync(state)
+    await context["rebuild"]()
+
+
+async def _written(context: dict[str, Any], name: str = "") -> None:
+    """The grid read again and the panel redrawn. Refocusing the row is what redraws the
+    panel, so nothing here rebuilds it as well."""
+    reread = context["state"].get("refresh_collections")
+    if callable(reread):
+        await reread(name or _collection(context)["name"])
+        return
+    await context["rebuild"]()
+
+
 def _games_label(context: dict[str, Any]) -> str:
     got = (context.get("membership") or {}).get("playable")
     return t("console.workbench.games") if got is None \
         else t("console.workbench.games_counted", count=got)
 
 
-async def _collection_contents(context: dict[str, Any]) -> None:
-    """The rule on the left, what it holds on the right.
-
-    A rule shows its result, applied to the one place a rule is written. The dock is
-    where a picked thing goes for a game's media; here the thing being looked at is the
-    whole result, which is what the rule is *for*.
-    """
+async def _collection_games(context: dict[str, Any]) -> None:
     row = _collection(context)
-    with ui.column().classes("gap-0 console-form w-full"):
-        _rule_region(context, row)
-    dock = context.get("dock")
-    if dock is not None:
-        dock.clear()
-        with dock:
-            await _result_region(context, row)
+    held = (context.get("membership") or {}).get("members") or []
+    if not held and not _is_dynamic(row) and not _drafting(context):
+        _empty_fork(context)
+        return
+    with ui.column().classes("gap-0 w-full min-w-0"):
+        _rules_block(context, row)
+        _order_bar(context, row)
+        _add_control(context, held)
+        _games_list(context, row)
+    if context.get("unsaved"):
+        _draft_bar(context)
 
 
-def _rule_region(context: dict[str, Any], row: dict[str, Any]) -> None:
-    """What kind of collection this is, what fills it, and how it is presented.
-
-    Three regions, always in this order and always present. Putting rules behind an "Add
-    a rule" button charges a click to reveal something permanent, and hides from a reader
-    that a rule is possible at all.
-    """
-    dynamic = _is_dynamic(row) or _drafting(context)
-    _kind_control(context, row, dynamic)
-    ui.label(t("console.workbench.rules")).classes("console-group mt-3")
-    if dynamic:
-        ui.label(_rule_sentence(context, row)).classes("console-help console-rule-sentence mb-2")
-        _axis_rows(context, row)
-        _rule_actions(context, row)
-    else:
-        # One word. The toggle above already says what a manual collection is, and
-        # repeating it here is the filler this section was rebuilt to remove.
-        ui.label(t("word.none")).classes("console-help")
-    _ordering_rows(context, row, arrangeable=not dynamic)
+def _empty_fork(context: dict[str, Any]) -> None:
+    with ui.column().classes("gap-2 w-full min-w-0 py-2"):
+        ui.label(t("console.workbench.nothing_in_it_yet")).classes("console-empty-title")
+        _add_control(context, [])
+        with ui.row().classes("items-center gap-2 no-wrap"):
+            ui.label(t("word.or")).classes("console-help")
+            _add_rule_button(context)
+            ui.label(t("console.workbench.to_fill_itself")).classes("console-help")
 
 
-def _kind_control(context: dict[str, Any], row: dict[str, Any],
-                  dynamic: bool) -> None:
-    """Dynamic or Manual, and switching converts.
-
-    Here rather than at creation: which one a collection is follows from what it holds,
-    so it is changed while looking at the contents rather than picked as a mode before
-    there are any. Going Manual keeps what the rule found; going Dynamic opens a rule
-    over the games already named.
-    """
-    with ui.row().classes("items-center gap-3 w-full no-wrap"):
-        choice = ui.toggle({"manual": t("console.workbench.manual"),
-                "dynamic": t("console.workbench.dynamic")},
-                           value="dynamic" if dynamic else "manual") \
-            .props("dense no-caps unelevated").classes("console-kind-toggle")
-
-        async def changed() -> None:
-            wanted = choice.value
-            if wanted == ("dynamic" if dynamic else "manual"):
-                return
-            if wanted == "dynamic":
-                _start_rule(context)
-                return
-            await _keep_result(context)
-
-        choice.on_value_change(changed)
-        ui.label(t("console.workbench.fills_itself_library") if dynamic
-                 else t("console.workbench.holds_what_put")) \
-                     .classes("console-help min-w-0")
-
-
-def _start_rule(context: dict[str, Any]) -> None:
-    """Begin a rule without writing one. An empty criteria block matches everything,
-    which is the honest starting point and is only stored once it is saved."""
-    context["draft"]["filters"] = dict(_stored_filters(_collection(context)))
-    asyncio.create_task(context["rebuild"]())
-
-
-def _stored_filters(row: dict[str, Any]) -> dict[str, Any]:
-    return dict(row.get("filters") or {})
-
-
-def _draft_filters(context: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
-    """The rule being edited, which is the stored one until somebody touches it.
-
-    Keyed on the draft *having* a filters block, never on that block being truthy: a
-    rule somebody has just started is empty, and empty is falsy, so a truth test cannot
-    tell "no rule" from "a rule with nothing set yet". The store draws the same
-    distinction the same way.
-    """
-    if "filters" in context["draft"]:
-        return dict(context["draft"]["filters"])
-    return _stored_filters(row)
+# --- the rules ------------------------------------------------------------------
 
 
 def _drafting(context: dict[str, Any]) -> bool:
-    return "filters" in context["draft"]
+    return "rules" in context["draft"]
 
 
-def _is_dirty(context: dict[str, Any], row: dict[str, Any]) -> bool:
-    """Whether what is on screen differs from what is stored.
-
-    Starting a rule on a list that had none counts, even before anything is set: saving
-    it would turn a list into something that fills itself, which is the change.
-    """
-    if _drafting(context) and not _is_dynamic(row):
-        return True
-    return _draft_filters(context, row) != _stored_filters(row)
+def _stored_rules(context: dict[str, Any]) -> list[dict[str, Any]]:
+    return collection_rules.rows_from(_collection(context).get("filters"),
+                                      context["fields"])
 
 
-def _axis_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
-    """One control per axis, from the registry rather than a list written here.
+def _rules_now(context: dict[str, Any]) -> list[dict[str, Any]]:
+    """The rows on screen: the draft's while there is one, the stored rule's otherwise."""
+    if _drafting(context):
+        return list(context["draft"]["rules"])
+    return _stored_rules(context)
 
-    The registry is the only place an axis is named, so a new one appears the moment
-    core declares it - including how many values it takes.
-    """
-    current = _draft_filters(context, row)
-    entries: list[tuple[Any, Any]] = []
-    for axis in context.get("axes") or []:
-        name = str(axis.get("name") or "")
-        # The pair to `rating`, not an axis anybody sets on its own.
-        if name == "rating_or_higher":
+
+def unsaved(drafts: dict[str, Any], collections: list[dict[str, Any]],
+            known: list[collection_rules.Field]) -> set[str]:
+    """The collections whose draft asks for something other than their stored rule."""
+    stored = {str(one.get("name") or ""): one for one in collections}
+    found = set()
+    for name, draft in drafts.items():
+        if "rules" not in draft or name not in stored:
             continue
-        entries.append((_axis_label(axis), _axis_control(context, axis, current)))
-    _rows(ui, entries)
+        have = collection_rules.rows_from(stored[name].get("filters"), known)
+        if (collection_rules.filters_from(draft["rules"], known)
+                != collection_rules.filters_from(have, known)):
+            found.add(name)
+    return found
 
 
-def _axis_label(axis: dict[str, Any]) -> str:
-    """What to call an axis in a label column.
-
-    The registry's label, not its `summary`: the summaries are sentences written to
-    explain an axis ("First letter of the title, as sorted"), and a column of sentences
-    is not a column of labels. The sentence becomes the tooltip.
-    """
-    return str(axis.get("label") or "") or humanize(axis.get("name") or "")
-
-
-def _axis_control(context: dict[str, Any], axis: dict[str, Any],
-                  current: dict[str, Any]) -> Callable[[], None]:
-    """One control per axis kind, sized by how many values the axis takes."""
-    name = str(axis.get("name") or "")
-    kind = str(axis.get("kind") or "")
-    many = bool(axis.get("many"))
-    values = list(axis.get("values") or [])
-    summary = str(axis.get("summary") or "")
-
-    def changed(value: Any, **paired: Any) -> None:
-        filters = _draft_filters(context, _collection(context))
-        filters[name] = value
-        filters.update(paired)
-        context["draft"]["filters"] = filters
+def _edit_rules(context: dict[str, Any], change: Callable[[list[dict[str, Any]]], None],
+                *, redraw: bool = True) -> None:
+    rows = [dict(one) for one in _rules_now(context)]
+    change(rows)
+    context["draft"]["rules"] = rows
+    if redraw:
         asyncio.create_task(context["rebuild"]())
 
-    def draw() -> None:
-        if kind == "rating":
-            control = _rating_control(values, current, changed)
-        elif kind == "flag":
-            # Three states, not two: absent says nothing about play, while true and
-            # false are both criteria. A switch could only ever say two of the three.
-            stored = current.get(name)
-            control = ui.select({"": t("console.workbench.any"), "yes": t("word.yes"),
-                                 "no": t("word.no")},
-                                value="yes" if stored is True
-                                else "no" if stored is False else "") \
-                .props("dense outlined").classes("w-full min-w-0")
-            control.on_value_change(
-                lambda: changed({"": None, "yes": True, "no": False}[control.value]))
-        elif many:
-            if name == "tags":
-                control = tag_chips.Picker(values, value=_selected(current.get(name)),
-                                           looks=context["library"].tag_looks())
-            else:
-                control = ui.select(values, multiple=True,
-                                    value=_selected(current.get(name)),
-                                    with_input=len(values) > 12).props("use-chips")
-            control.props('dense outlined popup-content-class="console-picker-popup"') \
-                .classes("w-full min-w-0")
-            control.on_value_change(lambda: changed(list(control.value or [])))
-        else:
-            chosen = _selected(current.get(name))
-            control = ui.select({UNCONSTRAINED: t("console.workbench.any"),
-                                 **{value: value for value in values}},
-                                value=chosen[0] if chosen else UNCONSTRAINED) \
-                .props("dense outlined").classes("w-full min-w-0")
-            control.on_value_change(lambda: changed(control.value))
-        if summary:
-            control.tooltip(summary)
 
-    return draw
+def _add_rule_button(context: dict[str, Any]) -> None:
+    used = {str(one.get("field") or "") for one in _rules_now(context)}
+    offered = [one for one in context["fields"] if one.name not in used and one.askable]
+    button = ui.button(t("console.workbench.add_rule"), icon=verbs.ADD) \
+        .props("flat dense no-caps size=sm").classes("console-action")
+    if not offered:
+        button.disable()
+        return
+    with button, ui.menu():
+        for one in offered:
+            ui.menu_item(one.label,
+                         on_click=lambda _e=None, one=one: _edit_rules(
+                             context, lambda rows: rows.append(
+                                 collection_rules.row_on(one)))) \
+                .classes("console-menu-item")
 
 
-def _rating_control(values: list[str], current: dict[str, Any],
-                    changed: Callable[..., None]) -> ui.select:
-    """At least or exactly, beside how many stars. Returns the stars."""
-    chosen = _selected(current.get("rating"))
-    rating = chosen[0] if chosen else ""
-    floor = bool(current.get("rating_or_higher")) or not rating
-    with ui.row().classes("items-center gap-2 w-full no-wrap"):
-        how = ui.select({"at_least": t("console.workbench.at_least"),
-                         "exactly": t("console.workbench.is_exactly")},
-                        value="at_least" if floor else "exactly") \
-            .props("dense outlined").classes("w-32 shrink-0")
-        how.set_enabled(bool(rating))
-        stars = ui.select({"": t("console.workbench.any"),
-                           **{value: t("console.stars.5", n=value) for value in values}},
-                          value=rating) \
-            .props("dense outlined").classes("grow min-w-0")
-    how.on_value_change(
-        lambda: changed(rating, rating_or_higher=how.value == "at_least"))
-    stars.on_value_change(
-        lambda: changed(stars.value or UNCONSTRAINED,
-                        rating_or_higher=bool(stars.value) and how.value == "at_least"))
-    return stars
-
-
-def _selected(value: Any) -> list[str]:
-    """A criterion as the list a multi-select shows. "All" is how a criterion says it
-    constrains nothing, so it is an empty selection rather than a chip reading "All"."""
-    if isinstance(value, list):
-        chosen = [str(v) for v in value]
-    else:
-        chosen = [part.strip() for part in str(value or "").split(",") if part.strip()]
-    return [v for v in chosen if v != UNCONSTRAINED]
-
-
-def _rule_sentence(context: dict[str, Any], row: dict[str, Any]) -> str:
-    """The rule, in words, with its connectives showing.
-
-    People ask for AND/OR controls when they cannot tell what they are getting: two
-    manufacturers selected is an OR, and a reader who assumes AND sees rows they cannot
-    explain. Saying "or" costs a line and removes the question.
-    """
-    current = _draft_filters(context, row)
-    said = []
-    for axis in context.get("axes") or []:
-        name = str(axis.get("name") or "")
-        if name == "rating_or_higher":
-            continue
-        if str(axis.get("kind") or "") == "flag":
-            if current.get(name) is not None:
-                said.append(_flag_said(axis, bool(current[name])))
-            continue
-        if name == "rating":
-            rated = _selected(current.get(name))
-            if rated:
-                stars = t("console.stars.5", n=rated[0])
-                said.append(
-                    t("console.workbench.axis_at_least", axis=_axis_label(axis), value=stars)
-                    if current.get("rating_or_higher")
-                    else t("console.workbench.axis_is", axis=_axis_label(axis), values=stars))
-            continue
-        chosen = _selected(current.get(name))
-        if chosen:
-            said.append(t("console.workbench.axis_is", axis=_axis_label(axis),
-                          values=_either(chosen)))
-    if not said:
-        return t("console.workbench.add_rule_choose_games")
-    clauses = _all_of(said)
+def _rules_block(context: dict[str, Any], row: dict[str, Any]) -> None:
+    rows = _rules_now(context)
+    smart = _is_dynamic(row)
+    if not rows and not smart:
+        with ui.row().classes("items-center gap-2 w-full no-wrap py-1"):
+            ui.label(t("console.workbench.no_rules_hand_picked")) \
+                .classes("console-help min-w-0")
+            _add_rule_button(context)
+        return
+    with ui.row().classes("items-center gap-1 no-wrap console-group"):
+        ui.label(t("console.workbench.rules"))
+        if smart:
+            ui.icon(verbs.SMART).classes("console-heading-mark") \
+                .tooltip(t("console.collections.smart.help"))
+    with ui.column().classes("gap-1 w-full min-w-0"):
+        for index, one in enumerate(rows):
+            _condition(context, index, one)
+    with ui.row().classes("items-center gap-2 console-slot-actions"):
+        _add_rule_button(context)
+        if smart and not _drafting(context):
+            panel.action(t("console.workbench.convert_hand_picked"),
+                         lambda: _convert(context), icon=verbs.EDIT)()
     added, taken = _by_hand(context)
-    if added and taken:
-        return t("console.workbench.every_game_where_plus_minus", clauses=clauses,
-                 added=added, taken=taken)
-    if added:
-        return t("console.workbench.every_game_where_plus", clauses=clauses, added=added)
-    if taken:
-        return t("console.workbench.every_game_where_minus", clauses=clauses, taken=taken)
-    return t("console.workbench.every_game_where", clauses=clauses)
-
-
-_FLAG_SAID ={"played": ("console.workbench.played", "console.workbench.never_played"),
-              "favorite": ("console.workbench.marked_favorite",
-                           "console.workbench.not_marked_favorite")}
-
-
-def _flag_said(axis: dict[str, Any], on: bool) -> str:
-    keys = _FLAG_SAID.get(str(axis.get("name") or ""))
-    if keys:
-        return t(keys[0] if on else keys[1])
-    return t("console.workbench.axis_is", axis=_axis_label(axis),
-             values=t("word.yes") if on else t("word.no"))
-
-
-def _either(values: list[str]) -> str:
-    quoted =[f"\u201c{value}\u201d" for value in values]
-    if len(quoted) == 1:
-        return quoted[0]
-    return t("console.workbench.or_last",
-             rest=t("console.workbench.list_join").join(quoted[:-1]), last=quoted[-1])
-
-
-def _all_of(clauses: list[str]) -> str:
-    if len(clauses) == 1:
-        return clauses[0]
-    return t("console.workbench.and_last",
-             rest=t("console.workbench.list_join").join(clauses[:-1]), last=clauses[-1])
+    ui.label(collection_rules.sentence(rows, context["fields"], added, taken)) \
+        .classes("console-help console-rule-sentence mt-1 mb-2")
 
 
 def _by_hand(context: dict[str, Any]) -> tuple[int, int]:
-    members =(context.get("membership") or {}).get("members") or []
+    members = (context.get("membership") or {}).get("members") or []
     added = {one.get("game") for one in members if one.get("origin") == "named"}
     taken = {one.get("game") for one in members if one.get("origin") == "excluded"}
     return len(added), len(taken)
 
 
-def _ordering_rows(context: dict[str, Any], row: dict[str, Any],
-                   *, arrangeable: bool) -> None:
-    """How the collection is presented: its order, its paging, and how much of it.
+def _condition(context: dict[str, Any], index: int, row: dict[str, Any]) -> None:
+    known = context["fields"]
+    field = collection_rules.by_name(known).get(str(row.get("field") or ""))
+    if field is None:
+        return
+    used = {str(one.get("field") or "") for at, one in enumerate(_rules_now(context))
+            if at != index}
 
-    `manual` order only where the membership is stable enough to arrange. A rule
-    contributes rows that are not in the array, so an arrangement could not say where
-    they go, so that arrangement is undefined and the API refuses it.
-    """
-    ordered = _order_control(context, row, arrangeable=arrangeable)
-    entries: list[tuple[Any, Any]] = [(HEADING, t("console.workbench.presentation"))]
-    entries.append((t("console.workbench.ordered"), ordered["by"]))
-    if (row.get("order_by") or DEFAULT_ORDER_BY) != MANUAL_ORDER:
-        # Not a setting that happens to be off: a direction on a hand-arranged list is
-        # not a question, so the row is absent rather than disabled.
-        entries.append((t("console.workbench.direction"), ordered["direction"]))
-    entries.append((t("console.workbench.paging"), _paging_control(context, row)))
-    entries.append((t("console.workbench.limit"), _limit_control(context, row)))
-    _rows(ui, entries)
+    def put(**changes: Any) -> Callable[[list[dict[str, Any]]], None]:
+        def change(rows: list[dict[str, Any]]) -> None:
+            rows[index] = {**rows[index], **changes}
+        return change
 
+    def moved_to(rows: list[dict[str, Any]]) -> None:
+        rows[index] = collection_rules.row_on(collection_rules.by_name(known)[which.value])
 
-def _paging_control(context: dict[str, Any],
-                    row: dict[str, Any]) -> Callable[[], None]:
-    """Which boundary the frontend pages between.
+    def gone(rows: list[dict[str, Any]]) -> None:
+        del rows[index]
 
-    Empty is a value - it says follow whatever the frontend is set to - so it is an
-    option rather than the absence of one.
-    """
-    current = row.get("paging_group") or ""
-
-    def draw() -> None:
-        field = ui.select({"": t("console.workbench.follow_frontend"),
-                "sort": t("console.workbench.sort_group"),
-                           "count": t("console.workbench.fixed_number")}, value=current) \
-            .props("dense outlined").classes("w-full min-w-0")
-
-        async def changed() -> None:
-            await _patch(context, {"paging_group": field.value})
-
-        field.on_value_change(changed)
-
-    return draw
-
-
-def _rule_actions(context: dict[str, Any], row: dict[str, Any]) -> None:
-    """Save the rule, put it back, or keep what it found instead.
-
-    Three, because a rule being edited has three honest ends: store it, abandon it, or
-    take its result and stop being a rule at all - which is what makes criteria a way
-    of building a list as well as a rule to keep.
-    """
-    dirty = _is_dirty(context, row)
-    with ui.row().classes("items-center gap-2 w-full no-wrap mt-3"):
-        if dirty:
-            ui.button(t("console.workbench.save_rules"), icon="check",
-                      on_click=lambda: _save_rule(context)) \
-                .props("dense no-caps unelevated size=sm")
-            ui.button(t("word.cancel"), icon=verbs.DISCARD,
-                      on_click=lambda: _discard_rule(context)) \
-                .props("flat dense no-caps size=sm")
-        elif _is_dynamic(row):
-            ui.button(t("console.workbench.keep_what_found"), icon=verbs.PIN,
-                      on_click=lambda: _keep_result(context)) \
-                .props("flat dense no-caps size=sm").classes("console-action") \
-                .tooltip(t("console.workbench.store_games_drop_rule"))
-    if dirty:
-        ui.label(t("console.workbench.not_saved_rules")) \
-            .classes("console-help mt-1 text-warning")
+    with ui.element("div").classes("console-condition"):
+        which = ui.select({one.name: one.label for one in known
+                           if (one.name not in used and one.askable)
+                           or one.name == field.name},
+                          value=field.name) \
+            .props("dense borderless options-dense") \
+            .classes("console-edit-field console-edit-select")
+        which.on_value_change(lambda: _edit_rules(context, moved_to))
+        if field.summary:
+            which.tooltip(field.summary)
+        asks = field.operators
+        if len(asks) > 1:
+            how = ui.select({op: collection_rules.operator_word(field.name, op)
+                             for op in asks}, value=row.get("op")) \
+                .props("dense borderless options-dense") \
+                .classes("console-edit-field console-edit-select")
+            how.on_value_change(lambda: _edit_rules(context, put(
+                op=how.value, value=_kept_value(row, how.value))))
+        else:
+            ui.label(collection_rules.operator_word(field.name, asks[0])) \
+                .classes("console-condition-op")
+        with ui.element("div").classes("console-condition-value"):
+            _condition_value(context, field, row, put)
+        ui.button(icon=verbs.CANCEL, on_click=lambda: _edit_rules(context, gone)) \
+            .props("flat dense round size=sm").classes("console-condition-remove") \
+            .tooltip(t("console.workbench.remove_rule"))
 
 
-async def _save_rule(context: dict[str, Any]) -> None:
-    """Write the rule, then stop drafting - in that order, and not through `_patch`.
+def _kept_value(row: dict[str, Any], op: str) -> Any:
+    """What a row keeps asking for when only how it asks changes."""
+    before = row.get("op")
+    kinds = ({collection_rules.AT_LEAST, collection_rules.EXACTLY},
+             {collection_rules.BEFORE, collection_rules.AFTER})
+    if any(before in pair and op in pair for pair in kinds):
+        return row.get("value")
+    return None
 
-    `_patch` rebuilds the panel as its last act, so dropping the draft after calling it
-    drops it after the rebuild has already read it: the rule saves and the panel still
-    says "not saved yet". The draft is only discarded once the write has come back, so
-    a failed save leaves the edit where it was.
-    """
-    row = _collection(context)
-    filters = {key: value for key, value in _draft_filters(context, row).items()
-               if key not in ("order_by", "direction")}
+
+def _condition_value(context: dict[str, Any], field: collection_rules.Field,
+                     row: dict[str, Any],
+                     put: Callable[..., Callable[[list[dict[str, Any]]], None]]) -> None:
+    op, value = row.get("op"), row.get("value")
+    if op in (collection_rules.YES, collection_rules.NO):
+        return
+    if op in (collection_rules.ANY_OF, collection_rules.STARTS_WITH):
+        _many_values(context, field, value, put)
+        return
+    if op in (collection_rules.AT_LEAST, collection_rules.EXACTLY):
+        stars = ui.select({one: t("console.stars.5", n=one) for one in field.values},
+                          value=(value if value in field.values else None)) \
+            .props("dense borderless options-dense") \
+            .classes("console-edit-field console-edit-select")
+        stars.on_value_change(lambda: _edit_rules(context, put(value=stars.value)))
+        return
+    if op == collection_rules.BETWEEN:
+        ends = value if isinstance(value, dict) else {}
+        with ui.row().classes("items-center gap-2 no-wrap"):
+            _year_box(context, ends.get("from"),
+                      lambda year: put(value={**ends, "from": year}))
+            ui.label(t("console.workbench.and")).classes("console-condition-op")
+            _year_box(context, ends.get("to"),
+                      lambda year: put(value={**ends, "to": year}))
+        return
+    _year_box(context, value, lambda year: put(value=year))
+
+
+def _year_box(context: dict[str, Any], value: Any,
+              change: Callable[[int | None], Callable[[list[dict[str, Any]]], None]],
+              ) -> None:
+    """A year, written when the box is left or Enter is pressed."""
+    box = ui.number(value=value, format="%d", placeholder=t("word.year")) \
+        .props("dense borderless debounce=0") \
+        .classes("console-edit-field console-edit-narrow")
+
+    def done() -> None:
+        typed = box.value
+        year = int(typed) if isinstance(typed, (int, float)) else None
+        if year != value:
+            _edit_rules(context, change(year))
+
+    box.on("blur", done)
+    box.on("keydown.enter", lambda: box.run_method("blur"))
+
+
+def _many_values(context: dict[str, Any], field: collection_rules.Field, value: Any,
+                 put: Callable[..., Callable[[list[dict[str, Any]]], None]]) -> None:
+    """Written to the draft on every pick and redrawn once the list closes: a redraw
+    closes a list that is open."""
+    chosen = [str(one) for one in value or []]
+    offered = [*field.values, *(one for one in chosen if one not in field.values)]
+    control: ui.select
+    if field.name == "tags":
+        control = tag_chips.Picker(offered, value=chosen,
+                                   looks=context["library"].tag_looks(),
+                                   counts=field.counts)
+    else:
+        control = panel.CountedSelect(offered, field.counts, value=chosen,
+                                      typed=len(offered) > 8)
+    control.props('dense borderless options-dense '
+                  'popup-content-class="console-picker-popup"') \
+        .classes("console-edit-field console-edit-many w-full min-w-0")
+    held = {"open": False}
+
+    def picked() -> None:
+        _edit_rules(context, put(value=list(control.value or [])),
+                    redraw=not held["open"])
+
+    def shown() -> None:
+        held["open"] = True
+
+    def hidden() -> None:
+        held["open"] = False
+        asyncio.create_task(context["rebuild"]())
+
+    control.on_value_change(picked)
+    control.on("popup-show", shown)
+    control.on("popup-hide", hidden)
+
+
+async def _save_rules(context: dict[str, Any]) -> None:
+    """Write the rule and nothing else, then stop drafting."""
+    row, library = _collection(context), context["library"]
+    wanted = collection_rules.filters_from(context["draft"].get("rules") or [],
+                                           context["fields"])
+    if not wanted:
+        if _is_dynamic(row):
+            await _take_rules_away(context)
+        else:
+            await _cancel_rules(context)
+        return
     try:
-        await run.io_bound(context["library"].patch_collection, row["name"],
-                           {"filters": filters})
-    except Exception as exc:
+        await run.io_bound(library.patch_collection, row["name"], {"filters": wanted})
+    except Exception as exc:  # noqa: BLE001
         ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
         return
-    context["draft"].pop("filters", None)
+    context["draft"].pop("rules", None)
+    await _written(context)
+
+
+async def _cancel_rules(context: dict[str, Any]) -> None:
+    context["draft"].pop("rules", None)
     await context["rebuild"]()
 
 
-async def _discard_rule(context: dict[str, Any]) -> None:
-    context["draft"].pop("filters", None)
-    await context["rebuild"]()
+async def _convert(context: dict[str, Any]) -> None:
+    row = _collection(context)
+    name = row["name"]
+    if not await confirm.ask(t("console.workbench.convert_question", name=name),
+                             detail=t("console.workbench.convert_detail",
+                                      count=int(row.get("count") or 0)),
+                             confirm=t("console.workbench.convert"), icon=verbs.EDIT,
+                             danger=False):
+        return
+    await _keep_what_it_found(context)
 
 
-async def _keep_result(context: dict[str, Any]) -> None:
-    """Materialise: what the rule matches becomes the membership and the rule goes."""
-    library = context["library"]
+async def _keep_what_it_found(context: dict[str, Any]) -> None:
+    name = _collection(context)["name"]
     try:
-        await run.io_bound(library.keep_collection_result, _collection(context)["name"])
-    except Exception as exc:
+        await run.io_bound(context["library"].keep_collection_result, name)
+    except Exception as exc:  # noqa: BLE001
         ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
         return
-    ui.notify(t("console.workbench.kept_games_rule_gone"), type="positive")
-    await context["rebuild"]()
+    context["draft"].pop("rules", None)
+    ui.notify(t("console.workbench.converted", name=name), type="positive")
+    await _written(context)
 
 
-def _order_control(context: dict[str, Any], row: dict[str, Any],
-                   *, arrangeable: bool) -> dict[str, Callable[[], None]]:
-    sorts = {token: t(key) for token, key in SORT_LABELS.items()}
-    choices = {MANUAL_ORDER: t("order.by.manual"), **sorts} if arrangeable else sorts
-    current = row.get("order_by") or DEFAULT_ORDER_BY
-    held: dict[str, Any] = {"by": current if current in choices else DEFAULT_ORDER_BY,
-                            "direction": row.get("direction") or "asc"}
-
-    async def save() -> None:
-        await _patch(context, {"order_by": held["by"], "direction": held["direction"]})
-
-    # Each handler is a coroutine handed over whole. A lambda returning a *tuple* that
-    # happens to contain one is not awaitable, so nicegui drops it and the control
-    # changes on screen while nothing is written.
-    def draw_by() -> None:
-        field = ui.select(choices, value=held["by"]).props("dense outlined") \
-            .classes("w-full min-w-0")
-
-        async def changed() -> None:
-            held["by"] = field.value
-            await save()
-
-        field.on_value_change(changed)
-
-    def draw_direction() -> None:
-        field = ui.select({token: t(key) for token, key in DIRECTION_LABELS.items()},
-                          value=held["direction"]) \
-            .props("dense outlined").classes("w-full min-w-0")
-
-        async def changed() -> None:
-            held["direction"] = field.value
-            await save()
-
-        field.on_value_change(changed)
-
-    return {"by": draw_by, "direction": draw_direction}
+async def _take_rules_away(context: dict[str, Any]) -> None:
+    row = _collection(context)
+    name = row["name"]
+    added = _by_hand(context)[0]
+    choices = {"found": t("console.workbench.keep_found", count=int(row.get("count") or 0)),
+               "added": t("console.workbench.keep_added", count=added) if added
+               else t("console.workbench.keep_none")}
+    with frame.opened(t("console.workbench.take_rules_away", name=name)) as box:
+        choice = ui.radio(choices, value="found").props("dense")
+        with frame.footer():
+            frame.cancel(lambda: box.submit(None))
+            frame.answer(t("console.workbench.remove_rules"),
+                         lambda: box.submit(choice.value), icon=verbs.REMOVE)
+    answer = await box
+    if answer == "found":
+        await _keep_what_it_found(context)
+        return
+    if answer != "added":
+        return
+    try:
+        await run.io_bound(context["library"].patch_collection, name,
+                           {"clear_filters": True})
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+        return
+    context["draft"].pop("rules", None)
+    ui.notify(t("console.workbench.converted", name=name), type="positive")
+    await _written(context)
 
 
-def _limit_control(context: dict[str, Any],
-                   row: dict[str, Any]) -> Callable[[], None]:
-    """How many games the frontend is handed. Empty means all of them.
+def _shown_games(lens: dict[str, Any] | None) -> set[str]:
+    return {str(one.get("game") or "") for one in (lens or {}).get("members") or []
+            if one.get("included") and not one.get("past_limit")}
 
-    Cleared with its own flag rather than by sending null: absent and null are the same
-    thing over JSON, so there would be no way to say "lift it".
-    """
-    limit = row.get("limit")
 
-    async def save(value: Any) -> None:
-        if value in (None, ""):
-            await _patch(context, {"clear_limit": True})
+def _draft_bar(context: dict[str, Any]) -> None:
+    preview = context.get("preview") or {}
+    now, then = _shown_games(context.get("membership")), _shown_games(preview)
+    asks = collection_rules.filters_from(context["draft"].get("rules") or [],
+                                         context["fields"])
+    matched = int(preview.get("matched") or 0)
+    said = [(t("console.workbench.games_match", count=matched) if matched
+             else t("console.workbench.no_games_match")) if asks
+            else t("console.workbench.no_rules")]
+    if then - now:
+        said.append(t("console.workbench.join", count=len(then - now)))
+    if now - then:
+        said.append(t("console.workbench.leave", count=len(now - then)))
+    with ui.row().classes("items-center gap-x-3 gap-y-1 w-full console-draft-bar"):
+        with ui.row().classes("items-center gap-2 no-wrap min-w-0"):
+            ui.label(game_tables.JOIN.join(said)).classes("console-draft-said")
+            ui.label(game_tables.JOIN.strip()).classes("console-draft-said")
+            ui.label(t("word.not_saved")).classes("console-draft-state") \
+                .tooltip(t("console.workbench.not_saved_rules"))
+        with ui.row().classes("items-center gap-2 no-wrap ml-auto"):
+            panel.action(t("word.cancel"), lambda: _cancel_rules(context),
+                         icon=verbs.CANCEL)()
+            ui.button(t("console.workbench.save_rules"), icon=verbs.SAVE,
+                      on_click=lambda: _save_rules(context)) \
+                .props("dense no-caps no-wrap unelevated size=sm")
+
+
+# --- the order ------------------------------------------------------------------
+
+
+def _order_bar(context: dict[str, Any], row: dict[str, Any]) -> None:
+    by = row.get("order_by") or DEFAULT_ORDER_BY
+    orders = {token: t(key) for token, key in SORT_LABELS.items()}
+    if not _is_dynamic(row) or by == MANUAL_ORDER:
+        orders = {MANUAL_ORDER: t("order.by.manual"), **orders}
+    by = by if by in orders else DEFAULT_ORDER_BY
+
+    async def ordered(event: Any) -> None:
+        if event.value == by:
             return
-        try:
-            await _patch(context, {"limit": max(1, int(value))})
-        except (TypeError, ValueError):
-            ui.notify(t("console.workbench.limit_whole_number_games"), type="warning")
+        changes: dict[str, Any] = {"order_by": event.value}
+        if event.value in NATURAL_DIRECTION:
+            changes["direction"] = NATURAL_DIRECTION[event.value]
+        await _patch(context, changes)
 
-    def draw() -> None:
-        field = ui.number(value=limit, min=1, format="%d", placeholder=t("word.all")) \
-            .props("dense outlined clearable").classes("w-full min-w-0")
-        field.on_value_change(lambda: save(field.value))
+    async def turned(event: Any) -> None:
+        if event.value != row.get("direction"):
+            await _patch(context, {"direction": event.value})
 
-    return draw
+    with ui.row().classes("items-center gap-x-4 gap-y-1 w-full console-order-bar"):
+        with ui.row().classes("items-center gap-2 no-wrap"):
+            ui.label(t("console.workbench.order")).classes("console-order-label")
+            ui.select(orders, value=by, on_change=ordered) \
+                .props("dense borderless options-dense") \
+                .classes("console-edit-field console-edit-select")
+            if by in DIRECTION_WORDS:
+                words = DIRECTION_WORDS[by]
+                ui.select({way: t(words[way]) for way in ("asc", "desc")},
+                          value=row.get("direction") or NATURAL_DIRECTION[by],
+                          on_change=turned) \
+                    .props("dense borderless options-dense") \
+                    .classes("console-edit-field console-edit-select")
+        with ui.row().classes("items-center gap-2 no-wrap ml-auto"):
+            ui.label(t("console.workbench.show_at_most")).classes("console-order-label")
+            _limit_box(context, row)
+
+
+def _limit_box(context: dict[str, Any], row: dict[str, Any]) -> None:
+    limit = row.get("limit")
+    box = ui.number(value=limit, min=1, format="%d", placeholder=t("word.all")) \
+        .props("dense borderless debounce=0") \
+        .classes("console-edit-field console-edit-narrow")
+
+    async def done() -> None:
+        typed = box.value
+        wanted = max(1, int(typed)) if isinstance(typed, (int, float)) else None
+        if wanted == limit:
+            return
+        await _patch(context, {"limit": wanted} if wanted else {"clear_limit": True})
+
+    box.on("blur", done)
+    box.on("keydown.enter", lambda: box.run_method("blur"))
 
 
 async def _patch(context: dict[str, Any], changes: dict[str, Any]) -> None:
@@ -5241,107 +5321,39 @@ async def _patch(context: dict[str, Any], changes: dict[str, Any]) -> None:
     except Exception as exc:
         ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
         return
-    await context["rebuild"]()
+    await _written(context)
 
 
 # --- what the collection holds ----------------------------------------------------
 
 
-async def _result_region(context: dict[str, Any], row: dict[str, Any]) -> None:
-    """What is in it, beside the rule that decides.
-
-    Two things can be on screen here and they are not the same, so they are not mixed:
-    the *stored* membership, which knows why each row is there and can be acted on, and
-    a *preview* of a rule that has not been saved, which is a question rather than a
-    fact. Offering "exclude this" on a row of an unsaved rule would be acting on
-    something that does not exist yet.
-    """
-    dirty = _is_dirty(context, row)
-    if dirty:
-        await _preview_rows(context, row)
+def _games_list(context: dict[str, Any], row: dict[str, Any]) -> None:
+    live = not context.get("unsaved")
+    lens = context.get("membership") if live else context.get("preview")
+    lens = lens or {}
+    if lens.get("error"):
+        ui.label(t("console.workbench.could_not_work", exc=lens["error"])) \
+            .classes("console-help text-warning")
         return
-    _stored_rows(context, row)
-
-
-async def _preview_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
-    """What the rule being edited would match. Nothing is stored to ask this."""
-    library = context["library"]
-    filters = {key: value for key, value in _draft_filters(context, row).items()
-               if key not in ("order_by", "direction")}
-    try:
-        answer = await offload.io(library.preview_filters, filters)
-    except Exception as exc:
-        ui.label(t("console.workbench.could_not_work",
-                exc=(exc))).classes("console-help text-warning")
-        return
-    entries = answer.get("entries") or []
-    matched = int(answer.get("count", len(entries)))
-    ui.label(t("console.workbench.games_match", count=matched) if matched
-             else t("console.workbench.no_games_match")) \
-        .classes("console-card-title mb-2")
-    for entry in entries[:200]:
-        game = entry.get("game") or {}
-        with ui.row().classes("items-center gap-2 w-full no-wrap py-1 console-index-item"):
-            ui.label(str(game.get("name") or "")) \
-                .classes("text-xs grow min-w-0 truncate")
-    if len(entries) > 200:
-        ui.label(t("said.and_more",
-                value=(len(entries) - 200))).classes("text-xs opacity-50")
-
-
-# What a member points at, read off the *table* entry rather than the member.
-# `member.origin` is provenance - who put this here, a person or the rule - and
-# `tables[0].origin` is the axis this vocabulary is about: `named` means the member
-# holds to that table, `default` means it resolves through whatever the game offers.
-# Reading the wrong one reports every stored member as specific.
-_TABLE_STATE = {
-    "named": game_tables.FIXED,
-    "matched": game_tables.FIXED,
-    "default": game_tables.FOLLOWS,
-    "missing": game_tables.GONE,
-}
-
-
-def _member_state(member: dict[str, Any]) -> str:
-    tables = member.get("tables") or []
-    if not tables:
-        return game_tables.GONE
-    return _TABLE_STATE.get(str(tables[0].get("origin") or ""), game_tables.FOLLOWS)
-
-
-def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
-    """The stored membership, each row saying why it is there and what undoes it."""
-    membership = context.get("membership") or {}
-    members = membership.get("members") or []
-    find = (context["state"].setdefault("member_find", {})
-            .get(_collection(context)["name"], "")).strip().lower()
+    members = lens.get("members") or []
+    name = _collection(context)["name"]
+    find = (context["state"].setdefault("member_find", {}).get(name, "")
+            .strip().lower()) if live else ""
     if find:
-        members = [m for m in members
-                   if find in str(m.get("name") or "").lower()]
-    # Counted after the filter, not before: the count describes what is on screen.
-    playable = sum(1 for m in members if m.get("included"))
-    taken = sum(1 for m in members if (m.get("origin") or "") == "excluded")
-    # Wraps, so the key drops below the count and the link rather than splitting them.
-    with ui.row().classes("items-center gap-2 w-full"):
-        ui.label(t("console.workbench.count_games_taken_out", count=playable, taken=taken)
-                 if taken else t("console.workbench.count_games", count=playable)) \
+        members = [one for one in members if find in str(one.get("name") or "").lower()]
+    kept = [one for one in members if (one.get("origin") or "") != "excluded"]
+    excluded = [one for one in members if (one.get("origin") or "") == "excluded"]
+    playable = sum(1 for one in kept if one.get("included") and not one.get("past_limit"))
+    with ui.row().classes("items-center gap-2 w-full mt-2"):
+        ui.label(t("console.workbench.count_games_taken_out", count=playable,
+                   taken=len(excluded))
+                 if excluded else t("console.workbench.count_games", count=playable)) \
             .classes("console-card-title whitespace-nowrap")
-        if int(row.get("count") or 0):
+        if live and int(row.get("count") or 0):
             with ui.element("span").classes("whitespace-nowrap"):
                 panel.link(t("console.workbench.show_in_games"), to="/console?"
-                           + deeplink.query({"view": "games",
-                                             "collection": _collection(context)["name"]}))()
-        ui.space()
-        # The key, beside the count rather than above the rows: a legend the reader
-        # scrolls away from stops being one, and this sits in the header that stays.
-        if members or find:
-            with ui.row().classes("items-center gap-2 no-wrap console-member-key") \
-                    .tooltip(game_tables.KEY_DETAIL):
-                for shown, word in game_tables.KEY_WORDS:
-                    ui.element("span").classes(game_tables.mark(shown))
-                    ui.label(word)
-    if len(context.get("membership", {}).get("members") or []) > 8:
-        name = _collection(context)["name"]
+                           + deeplink.query({"view": "games", "collection": name}))()
+    if live and len((context.get("membership") or {}).get("members") or []) > 8:
         box = ui.input(placeholder=t("console.workbench.find_collection")) \
             .props("dense outlined clearable debounce=250") \
             .classes("w-full mb-2 mt-1")
@@ -5352,20 +5364,20 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
             await context["rebuild"]()
 
         box.on_value_change(look)
-    # Arranging is only offered where the order *is* the arrangement, and only a static
-    # list has one: a rule contributes rows that are not in the array, so there would
-    # be nowhere for them to sit.
-    kept = [m for m in members if (m.get("origin") or "") != "excluded"]
-    # Not while a find is on: what is drawn is a subset, and an order has to be the
-    # whole membership - dragging inside a filtered list can only send a partial one.
-    arrange = (not _is_dynamic(row) and not find
-               and (row.get("order_by") or "") == MANUAL_ORDER
-               and len([m for m in members if m.get("origin") == "named"]) > 1)
-    excluded = [m for m in members if (m.get("origin") or "") == "excluded"]
+    # Only a list with no rules is arranged by hand, and only whole: a find draws a part
+    # of it, and an order has to be the whole membership.
+    arrange = live and not _is_dynamic(row) and not find and len(kept) > 1
+    smart = _is_dynamic(row) if live else bool(collection_rules.filters_from(
+        context["draft"].get("rules") or [], context["fields"]))
     with ui.column().classes("gap-0 w-full console-member-list") \
             .props('data-arrange="hub_member_moved"'):
+        cut = False
         for member in kept:
-            _member_line(context, member, arrange=arrange)
+            if member.get("past_limit") and not cut:
+                cut = True
+                ui.label(t("console.workbench.past_limit", limit=row.get("limit") or 0)) \
+                    .classes("console-limit-line")
+            _member_line(context, member, arrange=arrange, live=live, smart=smart)
     # Grouped, not inline: a handful of rows somebody took out do not belong scattered
     # through forty they left in, and they are the ones most likely to be wanted back.
     if excluded:
@@ -5373,7 +5385,9 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
             .classes("console-group mt-3")
         with ui.column().classes("gap-0 w-full"):
             for member in excluded:
-                _member_line(context, member)
+                _member_line(context, member, live=live, smart=smart)
+    if not live:
+        return
     # `kept`, not `members`: the excluded rows are drawn in their own group below, so
     # the indices the browser reports are into this list. Sending `members` sends the
     # excluded ones too - a game both named and excluded appears twice, and the route
@@ -5391,12 +5405,11 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
             held["member_move_bound"] = True
             ui.on("hub_member_moved", lambda event: _moved(held, event.args))
         ui.run_javascript(_ARRANGE)
-    _add_control(context, members)
-    # A write rebuilds the panel, so the dock is a new element starting at the top -
-    # and changing a member's table sent a forty-row list back to the beginning. The
+    # A write rebuilds the panel, so it is a new element starting at the top - and
+    # changing a member's table sent a forty-row list back to the beginning. The
     # position is remembered per collection, because arriving at a different one
     # should start at the top rather than wherever the last one was left.
-    ui.run_javascript(_KEEP_SCROLL % _collection(context)["name"].replace("'", "\\'"))
+    ui.run_javascript(_KEEP_SCROLL % name.replace("'", "\\'"))
 
 
 async def _moved(state: dict[str, Any], moved: Any) -> None:
@@ -5428,23 +5441,25 @@ async def _reorder(context: dict[str, Any], members: list[dict], moved: Any) -> 
     except Exception as exc:
         ui.notify(t("console.workbench.could_not_move", exc=(exc)), type="negative")
         return
-    await context["rebuild"]()
+    await _written(context)
 
 
-def _member_line(context: dict[str, Any], member: dict[str, Any],
-                 *, arrange: bool = False) -> None:
+def _member_line(context: dict[str, Any], member: dict[str, Any], *,
+                 arrange: bool = False, live: bool = True, smart: bool = False) -> None:
     origin = member.get("origin") or ""
     tables = member.get("tables") or []
     table = tables[0] if tables else {}
-    # The chip slot is for what has happened to this row in this collection. Which
-    # table it uses is a qualifier on the table line and is said there.
-    state = _member_state(member)
-    chip = game_tables.reference_state(state) \
-        if state == game_tables.GONE and origin != "excluded" else None
+    gone = not tables or table.get("origin") == "missing"
+    game = context.get("games_by_id", {}).get(str(member.get("game") or "")) or {}
+    made = " ".join(str(part) for part in (game.get("manufacturer"), game.get("year"))
+                    if part)
+    line = ui.row().classes("items-center gap-2 w-full no-wrap console-member-row") \
+        .props(f'data-origin="{origin}"')
+    if member.get("past_limit"):
+        line.classes(add="console-past-limit")
     # The handle and the action sit outside the two text lines so they center against
     # the row rather than against its first line, which read as pinned to the name.
-    with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row") \
-            .props(f'data-origin="{origin}"'):
+    with line:
         if arrange:
             # Focusable, because the keyboard path grabs from here: without a tab stop
             # the arrangement is mouse-only, which is the same trap the hover-revealed
@@ -5456,43 +5471,41 @@ def _member_line(context: dict[str, Any], member: dict[str, Any],
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
                 ui.label(member.get("name") or member.get("game") or "") \
                     .classes("console-member-name grow min-w-0 truncate")
-                if chip:
-                    ui.label(chip[0]).tooltip(chip[1]) \
+                if smart and origin == "named":
+                    ui.label(t("console.workbench.held_added")) \
+                        .classes("console-member-chip console-tier console-tier--off") \
+                        .tooltip(t("console.workbench.added_by_hand"))
+                if gone and origin != "excluded":
+                    word, why = game_tables.GONE_WORDS
+                    ui.label(word).tooltip(why) \
                         .classes("console-member-chip console-chip-warn")
-            # The table sits under its game and close to it, because the two are one
-            # answer - which of this game's tables this collection holds.
-            said = game_tables.table_name(table) if table else ""
+                if made:
+                    ui.label(made).classes("console-member-made")
+            said = game_tables.table_name(table) if table.get("id") and not gone else ""
             if said:
                 # The line already answers "which table does this use?", so it is also
-                # where that is changed - no new place to learn, and the glyph doubles
-                # as the affordance. Excluded rows are not in the collection and have
-                # nothing to point anywhere.
-                _table_choice(context, member, state, table, said,
-                              editable=origin != "excluded")
+                # where that is changed. Taken-out rows are not in the collection and
+                # have nothing to point anywhere, and a preview is not stored yet.
+                _table_choice(context, member, table, said,
+                              editable=live and origin != "excluded")
             elif table.get("origin") == "missing":
                 ui.label(t("console.workbench.table_gone")) \
                     .classes("console-member-table text-warning")
-        with ui.element("div").classes("console-row-action"):
-            _member_action(context, member, origin)
+        if live:
+            with ui.element("div").classes("console-row-action"):
+                _member_action(context, member, origin)
 
 
-def _table_choice(context: dict[str, Any], member: dict[str, Any], state: str,
+def _table_choice(context: dict[str, Any], member: dict[str, Any],
                   table: dict[str, Any], said: str, *, editable: bool) -> None:
-    """The table line, and the menu that changes which table this member names.
-
-    Naming a table is a tool of its own - *exactly these, frozen* - and the API has
-    carried it since the member routes took a `table`. Without a way in from here every
-    row reads `Game Default` whatever the collection stored.
-    """
-    with ui.row().classes("items-center gap-2 no-wrap w-full min-w-0 "
+    """The table line, and the menu that changes which table this row plays."""
+    with ui.row().classes("items-center gap-1 no-wrap w-full min-w-0 "
                           "console-member-table-line") as line:
-        # Leading the *table* line, because that is what it qualifies - which table
-        # this entry uses. On the name line it would read as a mark about the game.
-        # The word the key uses, not a second phrasing of it: hovering a mark and
-        # reading the legend should not teach two different names for one state. What
-        # the difference *costs* stays on the key's own tooltip.
-        ui.element("span").classes(game_tables.mark(state)) \
-            .tooltip(game_tables.reference_state(state)[0])
+        if table.get("origin") == "named":
+            word, why = game_tables.LOCKED_WORDS
+            ui.icon(verbs.LOCKED).classes("console-member-lock")
+            ui.label(word).classes("console-member-table").tooltip(why)
+            ui.label(game_tables.JOIN.strip()).classes("console-member-table")
         # The same line, and the same tooltip, as a game's Tables section: version and
         # author on screen, the filename a hover away. One formatter, so the two
         # surfaces cannot drift apart.
@@ -5521,96 +5534,92 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
     forty requests on the loop - which `api.py` refuses outright.
     """
     game = str(member.get("game") or "")
-    named = str(table.get("id") or "") if table.get("origin") == "named" else ""
+    locked = str(table.get("id") or "") if table.get("origin") == "named" else ""
+    following = table.get("origin") == "default"
     try:
         choices = await offload.io(context["library"].tables_for, game)
     except Exception as exc:
         ui.notify(t("console.workbench.could_not_read_game", exc=(exc)), type="negative")
         return
+    others = [other for other in (context.get("membership") or {}).get("members") or []
+              if other is not member and str(other.get("game") or "") == game]
     # Every table this collection already holds for this game - what its refs *resolve
     # to*, not just what they name. Asking only about named tables offers the file a
     # following ref already resolves to, so a one-table game is told it could add the
-    # table it has, and "Add another" and "Uses" read as the same entry.
+    # table it has, and "Also Add" and "Lock to" read as the same entry.
     # An excluded ref counts too: offering a table that is being kept out would add a
     # member the collection immediately drops again.
-    spoken = {str(t.get("id") or "")
-              for other in (context.get("membership") or {}).get("members") or []
-              if str(other.get("game") or "") == game
-              for t in other.get("tables") or []}
-    # Tables another of this game's rows already names. A pairing appears once (2.10),
+    spoken = {str(held.get("id") or "") for one in [member, *others]
+              for held in one.get("tables") or []}
+    # Tables another of this game's rows already plays. A pairing appears once (2.10),
     # so pointing this row at one of them cannot be stored - it is shown and refused
     # rather than hidden, because an entry that vanishes without a reason is the same
     # puzzle as a row that vanishes without one.
     taken: set[str] = set()
     default_taken = False
-    for other in (context.get("membership") or {}).get("members") or []:
-        if other is member or str(other.get("game") or "") != game:
-            continue
-        if _member_state(other) == game_tables.FOLLOWS:
-            # Another row already follows this game, and a second bare ref is the same
-            # pairing twice. Offering it was an error the user could only find by
-            # picking it.
+    for other in others:
+        tables = other.get("tables") or []
+        if tables and tables[0].get("origin") == "default":
             default_taken = True
         else:
-            taken.update(str(t.get("id") or "") for t in other.get("tables") or [])
-    # What following this game gets you today. Shown on every game, including one with
-    # a single table where it can only be that table: the rule stays the rule, and an
-    # exception is one more thing for a reader to know.
+            taken.update(str(held.get("id") or "") for held in tables)
     offers = next((one for one in choices if one.get("default")), None)
+    blocked = t("console.workbench.already_collection")
     holder.clear()
     with holder:
         ui.item_label(t("console.workbench.which_table_plays")).props("header") \
             .classes("console-menu-header")
-        _table_menu_item(context, member, "", named,
-                         game_tables.FOLLOWS,
-                         game_tables.REFERENCE_WORDS[game_tables.FOLLOWS][0],
-                         chosen=not
-                                 named,
-                         blocked=t("console.workbench.already_collection")
-                         if default_taken else "",
+        _table_menu_item(context, member, "", t("console.workbench.the_game_s_default"),
+                         chosen=following, blocked=blocked if default_taken else "",
                          under=game_tables.table_name(offers) if offers else "")
         for one in choices:
             table_id = str(one.get("id") or "")
-            _table_menu_item(context, member, table_id, named,
-                             game_tables.FIXED,
-                             game_tables.table_name(one), chosen=table_id == named,
-                             blocked=t("console.workbench.already_collection")
-                             if table_id in taken else "")
-        # The tournament case: a collection holding two versions of one game, each
-        # named. Switching this row cannot express it -
-        # that is one ref pointing somewhere else - so adding is its own verb.
+            _table_menu_item(context, member, table_id,
+                             t("console.workbench.lock_to",
+                               table=game_tables.table_name(one)),
+                             chosen=table_id == locked,
+                             blocked=blocked if table_id in taken else "")
+        # The tournament case: a collection holding two versions of one game. Pointing
+        # this row somewhere else cannot express it - that is one row, not two - so
+        # adding is its own verb.
         spare = [one for one in choices if str(one.get("id") or "") not in spoken]
         if spare:
             ui.separator()
             ui.item_label(t("console.workbench.also_add")).props("header") \
                 .classes("console-menu-header")
             for one in spare:
-                _add_table_item(context, game, one, after=named)
+                _add_table_item(context, member, one)
+
+
+async def _hold(context: dict[str, Any], member: dict[str, Any], table_id: str) -> None:
+    """This row playing `table_id`, or its game's default where that is ""."""
+    library, name = context["library"], _collection(context)["name"]
+    game = str(member.get("game") or "")
+    if member.get("origin") == "filter":
+        await run.io_bound(library.add_to_collection, name, game, table_id)
+        return
+    await run.io_bound(library.set_member_table, name, game, table_id,
+                       str(member.get("ref_table") or ""))
 
 
 def _table_menu_item(context: dict[str, Any], member: dict[str, Any], table_id: str,
-                     was: str, state: str, label: str, *, chosen: bool,
-                     blocked: str = "", under: str = "") -> None:
-    """One choice. The current one is marked and inert - a menu that lets you pick what
+                     label: str, *, chosen: bool, blocked: str = "",
+                     under: str = "") -> None:
+    """One choice. The current one is ticked and inert - a menu that lets you pick what
     is already true reports a change that did not happen - and so is one the collection
     cannot hold, which says why instead of disappearing.
 
-    `under` names what this entry resolves to today, which only Game Default needs: from
-    a row pinned to some other table, choosing it was a blind pick, and the two entries
-    read as different destinations when what actually differs is what happens when a new
-    table arrives.
+    `under` names what the game's default is today, so choosing it is not a blind pick.
     """
     async def pick() -> None:
         if chosen or blocked:
             return
         try:
-            await run.io_bound(context["library"].set_member_table,
-                               _collection(context)["name"],
-                               str(member.get("game") or ""), table_id, was)
+            await _hold(context, member, table_id)
         except Exception as exc:
             ui.notify(t("console.workbench.could_not_change", exc=(exc)), type="negative")
             return
-        await context["rebuild"]()
+        await _written(context)
 
     marked = "console-menu-item"
     if chosen:
@@ -5623,7 +5632,10 @@ def _table_menu_item(context: dict[str, Any], member: dict[str, Any], table_id: 
         # choice was taken.
         item.props("auto-close=false").tooltip(blocked)
     with item, ui.row().classes("items-center gap-2 no-wrap w-full"):
-        ui.element("span").classes(f"console-menu-mark {game_tables.mark(state)}")
+        if table_id:
+            ui.icon(verbs.LOCKED).classes("console-menu-mark")
+        else:
+            ui.element("span").classes("console-menu-mark")
         with ui.column().classes("gap-0 grow min-w-0"):
             ui.label(label).classes("console-menu-table-name")
             if under:
@@ -5634,30 +5646,40 @@ def _table_menu_item(context: dict[str, Any], member: dict[str, Any], table_id: 
             ui.icon("block").classes("console-menu-check console-menu-blocked-mark")
 
 
-def _add_table_item(context: dict[str, Any], game: str, table: dict[str, Any],
-                    *, after: str) -> None:
-    """A second ref for this game, naming another of its tables.
+def _add_table_item(context: dict[str, Any], member: dict[str, Any],
+                    table: dict[str, Any]) -> None:
+    """A second row for this game, playing another of its tables.
 
     Landed next to the row it was asked from, not at the end: in a forty-row collection
     the end is off screen, and a new row you cannot see is indistinguishable from a
     click that did nothing.
     """
+    library, name = context["library"], _collection(context)["name"]
+    game = str(member.get("game") or "")
+    playing = member.get("tables") or [{}]
+
     async def add() -> None:
         try:
-            await run.io_bound(context["library"].add_to_collection,
-                               _collection(context)["name"], game,
+            if member.get("origin") == "filter":
+                # Found by the rule and not stored: stored as it plays now first, or
+                # the game held by hand on the new table alone would replace this row.
+                here = ("" if playing[0].get("origin") == "default"
+                        else str(playing[0].get("id") or ""))
+                await run.io_bound(library.add_to_collection, name, game, here)
+                after = here
+            else:
+                after = str(member.get("ref_table") or "")
+            await run.io_bound(library.add_to_collection, name, game,
                                str(table.get("id") or ""), after)
         except Exception as exc:
             ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
             return
-        await context["rebuild"]()
+        await _written(context)
 
     with ui.menu_item(on_click=add).classes("console-menu-item"), \
             ui.row().classes("items-center gap-2 no-wrap w-full"):
-        # A plus, not the ● the entries above wear. Both groups would name the same
-        # table with the same mark, so the pair reads as one thing listed twice with
-        # the heading the only thing telling them apart - which a heading loses at a
-        # glance. The mark carries the verb instead.
+        # A plus, not the lock the entries above wear: both groups name the same tables,
+        # and the mark is what says this one adds rather than chooses.
         ui.icon("add").classes("console-menu-add")
         ui.label(game_tables.table_name(table)).classes("console-menu-table-name grow min-w-0")
 
@@ -5683,7 +5705,7 @@ def _member_action(context: dict[str, Any], member: dict[str, Any],
             ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
             return
         ui.notify(said, type="positive")
-        await context["rebuild"]()
+        await _written(context)
 
     if origin == "excluded":
         ui.button(icon=verbs.REVERT,
@@ -5731,7 +5753,7 @@ def _add_control(context: dict[str, Any], members: list[dict]) -> None:
         .props('dense outlined options-dense use-input input-debounce=0 '
                'hide-selected fill-input clearable '
                'popup-content-class="console-picker-popup"') \
-        .classes("w-full mt-3")
+        .classes("w-full mt-2")
 
     async def add() -> None:
         if not picker.value:
@@ -5744,7 +5766,7 @@ def _add_control(context: dict[str, Any], members: list[dict]) -> None:
             ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
             return
         state["add_again"] = _collection(context)["name"]
-        await context["rebuild"]()
+        await _written(context)
 
     picker.on_value_change(add)
     ui.run_javascript(_ADD_BOX % (picker.id, "true" if again else "false"))
@@ -5764,8 +5786,6 @@ SECTIONS: tuple[Section, ...] = (
     # Beside Media, not under Details: both answer "what does this game hold", one
     # for what a screen shows and one for what a launch needs.
     Section("assets", _assets_label, _assets_block),
-    # Two, not three. A rule and what it matches are one thing to look at, so the rule
-    # sits in the browse region and the result in the dock beside it.
     Section("location_details", lambda _: t("console.workbench.details"), _location_details,
             subjects=frozenset({"location"})),
     # A launcher, in reading order: what it is and what it runs, then the program's own
@@ -5778,8 +5798,8 @@ SECTIONS: tuple[Section, ...] = (
     Section("collection_details", lambda _: t("console.workbench.details"),
             _collection_details,
             subjects=frozenset({"collection"})),
-    Section("collection_contents", _games_label, _collection_contents,
-            subjects=frozenset({"collection"}), dock=True),
+    Section("collection_games", _games_label, _collection_games,
+            subjects=frozenset({"collection"})),
     Section("media_file", lambda _: t("word.file"), _media_file_block,
             subjects=frozenset({"media_file"})),
     Section("tag_details", lambda _: t("console.workbench.details"), _tag_details,

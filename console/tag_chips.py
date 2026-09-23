@@ -88,6 +88,9 @@ class Picker(ui.select):
           <q-item-section>
             <q-item-label>{{ props.opt.label }}</q-item-label>
           </q-item-section>
+          <q-item-section side v-if="props.opt.count != null">
+            <q-item-label caption>{{ props.opt.count }}</q-item-label>
+          </q-item-section>
           <q-tooltip v-if="props.opt.help" class="console-menu-tip"
                      anchor="center right" self="center left">
             {{ props.opt.help }}
@@ -96,9 +99,11 @@ class Picker(ui.select):
     """
 
     def __init__(self, options: Sequence[str], *, value: Sequence[str],
-                 looks: Mapping[str, Mapping[str, Any]], adds: bool = False) -> None:
+                 looks: Mapping[str, Mapping[str, Any]], adds: bool = False,
+                 counts: Mapping[str, int] | None = None) -> None:
         # Before `super().__init__`, which builds the payload for the first time.
         self.looks = dict(looks)
+        self.counts = dict(counts or {})
         super().__init__(list(options), multiple=True, value=list(value),
                          with_input=True, new_value_mode="add-unique" if adds else None)
         self.add_slot("selected-item", self.SELECTED)
@@ -108,7 +113,8 @@ class Picker(ui.select):
         tag = str(option.get("label") or "")
         color = color_of(tag, self.looks)
         return {**option, "dot": dot_class(color), "tone": f"{CHIP}--{color}",
-                "help": str((self.looks.get(tag) or {}).get("description") or "")}
+                "help": str((self.looks.get(tag) or {}).get("description") or ""),
+                "count": self.counts.get(tag)}
 
     def _update_options(self) -> None:
         super()._update_options()

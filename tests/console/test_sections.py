@@ -121,14 +121,10 @@ class SectionTests(unittest.TestCase):
 
     def test_only_a_section_with_two_regions_reserves_a_dock(self) -> None:
         """The room is half the panel; a section with nothing to put in it left a void.
-
-        Two sections have something for it. Media puts the picked slot beside the map;
-        a collection's Contents puts what the rule matched beside the rule, which is
-        the whole reason a rule is edited here rather than in a dialog.
-        """
+        Media puts the picked slot beside the map."""
         docked = {item.key for item in workbench.SECTIONS if item.dock}
 
-        self.assertEqual(docked, {"media", "collection_contents"})
+        self.assertEqual(docked, {"media"})
 
     def test_a_key_means_one_section_across_every_rail(self) -> None:
         """The rail is per subject; the key namespace is not.

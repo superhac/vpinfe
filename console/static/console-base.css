@@ -416,13 +416,69 @@ body::before {
 /* A collection's icon, and the drop target that replaces it. Small: it identifies the
    collection in a wheel, it is not the content of this panel. */
 
-/* The rule, said in words above the controls that set it. Roomier than help text
+/* The rule, said in words under the rows that set it. Roomier than help text
    because it is the sentence somebody reads to check the rule says what they meant. */
 .console-rule-sentence {
   color: var(--ink-2);
   font-size: var(--fs-body);
   max-width: none;
 }
+/* One row of a rule: the field, how it is asked, what for, and the way out. The first
+   two columns are one width on every row, so the values start at one edge down the rule. */
+.console-condition {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 9rem 8.5rem minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+.console-condition-op { font-size: var(--fs-body); color: var(--ink-2); padding: 0 8px;
+                        white-space: nowrap; }
+.console-condition-value { min-width: 0; }
+.console-condition .console-edit-select { min-width: 0; width: 100%; }
+/* A narrow panel puts the value under the field, full width, where chips have room. */
+@container (max-width: 760px) {
+  .console-condition { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .console-condition-value { grid-column: 1 / 3; grid-row: 2; }
+}
+/* Several values as chips: the box grows a line for each line of chips. */
+.console-edit-field.console-edit-many .q-field__control {
+  height: auto; min-height: var(--field-h);
+}
+.console-edit-field.console-edit-many .q-field__native { min-height: 0; padding: 2px 0; }
+/* Opaque, because the list scrolls under it. */
+.console-order-bar {
+  position: sticky; top: 0; z-index: 3;
+  background: var(--surface-work);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.console-order-label { font-size: var(--fs-caption); color: var(--ink-3); white-space: nowrap; }
+/* Opaque, because the list scrolls under it. */
+.console-draft-bar {
+  position: sticky; bottom: 0; z-index: 3;
+  background: var(--surface-work);
+  padding: 6px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.console-draft-said { font-size: var(--fs-body); color: var(--ink-2); white-space: nowrap; }
+.console-draft-state { font-size: var(--fs-body); color: var(--warm); white-space: nowrap; }
+/* Where the limit cuts. What follows is held and not shown on the frontend. */
+.console-limit-line {
+  width: 100%;
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  border-top: 1px dashed var(--line);
+  margin-top: 6px;
+  padding: 4px 10px 2px;
+}
+.console-member-row.console-past-limit { opacity: 0.6; }
+/* The maker and year beside a game's name. */
+.console-member-made { font-size: var(--fs-caption); color: var(--ink-3); white-space: nowrap;
+                       flex: none; }
+.console-member-lock { font-size: var(--icon-mark); color: var(--ink-3); flex: none; }
+/* A mark beside a heading's words: what kind the thing is. */
+.console-heading-mark { font-size: var(--icon-mark); color: var(--ink-2); }
 
 /* Why a row is in the collection. Quiet where the answer is ordinary, amber where it
    is something to go and fix - the same reading the rest of the app gives the colour. */
@@ -495,9 +551,6 @@ body::before {
   display: block;
   margin: 3px auto;
 }
-
-/* Dynamic or Manual, the one control that converts between them. */
-.console-kind-toggle { flex: none; }
 
 /* The grip on an arrangeable row. `grab` rather than `move`, because the row is being
    picked up rather than pushed around, and `touch-action: none` or the browser scrolls
@@ -1055,14 +1108,6 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
   font-size: var(--fs-caption);
   line-height: 1.45;
   box-shadow: var(--shadow-tooltip);
-}
-
-/* The key for those marks, in the header that does not scroll. */
-.console-member-key {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  white-space: nowrap;
-  flex: none;
 }
 
 /* Alternating ground. Rows are two lines tall here, so where one ends is not obvious
@@ -1890,7 +1935,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-dock-empty {
   margin: auto; text-align: center; padding: 16px; max-width: 34ch;
 }
-.console-dock-empty-title { font-size: var(--fs-body); color: var(--ink-2); }
+.console-empty-title { font-size: var(--fs-body); color: var(--ink-2); }
 .console-dock {
   /* Room on every side, or the panel's own border sits flush to the edge and loses
      its right side under the scrollbar. No border-top: the grip is the divider. */
@@ -2964,9 +3009,5 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   .console-section-on { border-bottom-color: transparent; }
 }
 
-.console-index-item {
-  border-radius: 6px; padding: 4px 10px;
-  font-size: var(--fs-body);
-                  color: var(--ink-2); }
 .console-bar { height: 6px; border-radius: 3px; background: var(--bar-track); }
 .console-bar > div { height: 100%; border-radius: 3px; background: var(--accent); }
