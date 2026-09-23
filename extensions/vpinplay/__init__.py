@@ -18,7 +18,7 @@ import string
 from typing import Any
 from urllib.parse import urlencode
 
-from . import client, guest, settings, sync
+from . import client, community, guest, settings, sync
 
 # What the setting is called here. Core handed it over from its own configuration when
 # this extension first loaded, so an install that was already using VPinPlay finds it
@@ -169,6 +169,13 @@ def register(ctx: Any) -> None:
     ctx.add_router(reading, scope=ctx.scope("read"))
     ctx.add_router(writing, scope=ctx.scope("write"))
     ctx.ui.settings("/settings")
+
+    ctx.add_router(community.router(lambda: str(ctx.config.get(ENDPOINT_KEY, "")
+                                                or DEFAULT_ENDPOINT)),
+                   scope=ctx.scope("read"))
+    ctx.ui.community("tables", "VPinPlay", "/community/tables",
+                     columns=community.COLUMNS, views=community.VIEWS,
+                     relation=community.RELATION)
 
     ctx.logger.info("Contributing ratings from %s",
                     ctx.config.get(ENDPOINT_KEY, "") or DEFAULT_ENDPOINT)
