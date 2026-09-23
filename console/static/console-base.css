@@ -2267,6 +2267,10 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   padding: 0 8px 0 6px; border-radius: 999px;
   border: 1px solid var(--line); background: var(--surface-lift); color: var(--ink);
 }
+.q-chip.console-tag { height: auto; margin: 2px 4px 2px 0; padding: 0 2px 0 6px; }
+.q-chip.console-tag .q-chip__content { gap: 6px; }
+.q-chip.console-tag .q-chip__icon--remove { font-size: 1.15em; margin: 0; }
+.console-picker-popup .q-item__section--side:has(> .console-tag-dot) { min-width: 0; padding-right: 10px; }
 .console-tag-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .console-tag-dot--red { background: var(--tag-red); }
 .console-tag-dot--orange { background: var(--tag-orange); }

@@ -2050,7 +2050,7 @@ def _game_play_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
                       favorite=lambda: _switch(bool(record.get("favorite")), favorite,
                                                hint=t("console.workbench.yours_frontend_can_filter")),
                       tags=_tag_picker(list(record.get("tags") or []),
-                                       context["library"].tags(), retag))
+                                       context["library"], retag))
     # Empty is the revert: nothing but the user supplies this, and clearing it asks for
     # the frontend's own effect.
     rows.append((t("console.workbench.dof_event"),
@@ -2086,7 +2086,7 @@ def _table_play_rows(context: dict[str, Any],
     rows = _play_rows(context, record, rating=int(table.get("rating") or 0),
                       on_rate=rate, on_reset=reset,
                       tags=_tag_picker(list(record.get("tags") or []),
-                                       context["library"].tags(), retag))
+                                       context["library"], retag))
     return rows + _library_rows(context, table)
 
 
@@ -2713,7 +2713,7 @@ def _play_rows(context: dict[str, Any], record: dict[str, Any], *,
     return rows
 
 
-def _tag_picker(held: list[str], known: list[str],
+def _tag_picker(held: list[str], library: Library,
                 on_change: Callable[[list[str]], Any]) -> Callable[[], None]:
     """The tags on this game, and the ones the library already knows.
 
@@ -2727,9 +2727,9 @@ def _tag_picker(held: list[str], known: list[str],
     folding here would hide the duplicate instead of letting it be found.
     """
     def draw() -> None:
-        control = ui.select(known, multiple=True, value=list(held),
-                            with_input=True, new_value_mode="add-unique") \
-            .props('dense outlined use-chips hide-dropdown-icon '
+        control = tag_chips.Picker(library.tags(), value=held,
+                                   looks=library.tag_looks(), adds=True) \
+            .props('dense outlined hide-dropdown-icon '
                    'popup-content-class="console-picker-popup"') \
             .classes("w-full min-w-0")
         control.on_value_change(lambda: on_change(list(control.value or [])))
@@ -4947,11 +4947,14 @@ def _axis_control(context: dict[str, Any], axis: dict[str, Any],
             control.on_value_change(
                 lambda: changed({"": None, "yes": True, "no": False}[control.value]))
         elif many:
-            control = ui.select(values, multiple=True,
-                                value=_selected(current.get(name)),
-                                with_input=len(values) > 12) \
-                .props('dense outlined use-chips '
-                       'popup-content-class="console-picker-popup"') \
+            if name == "tags":
+                control = tag_chips.Picker(values, value=_selected(current.get(name)),
+                                           looks=context["library"].tag_looks())
+            else:
+                control = ui.select(values, multiple=True,
+                                    value=_selected(current.get(name)),
+                                    with_input=len(values) > 12).props("use-chips")
+            control.props('dense outlined popup-content-class="console-picker-popup"') \
                 .classes("w-full min-w-0")
             control.on_value_change(lambda: changed(list(control.value or [])))
         else:
