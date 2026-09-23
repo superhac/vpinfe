@@ -227,8 +227,9 @@ async def _new_tag(library: Library) -> tuple[str, dict[str, str]] | None:
     fields: dict[str, Any] = {}
 
     def draw_name() -> None:
-        fields["name"] = ui.input().props("outlined dense debounce=0") \
-            .classes("w-full")
+        with ui.element("div").classes("console-fact-edit"):
+            fields["name"] = ui.input().props("dense borderless debounce=0") \
+                .classes("console-edit-field")
         fields["name"].on_value_change(renamed)
 
     def renamed() -> None:
@@ -236,8 +237,9 @@ async def _new_tag(library: Library) -> tuple[str, dict[str, str]] | None:
         draw_colors()
 
     def draw_said() -> None:
-        fields["said"] = ui.textarea().props("outlined dense autogrow rows=2") \
-            .classes("w-full")
+        with ui.element("div").classes("console-fact-edit"):
+            fields["said"] = ui.textarea().props("dense borderless rows=2 debounce=0") \
+                .classes("console-edit-field")
 
     def draw_colors() -> None:
         box = fields.get("colors") or ui.element("div")
