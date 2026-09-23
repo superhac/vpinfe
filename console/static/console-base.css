@@ -700,9 +700,6 @@ body::before {
 .console-dialog-footer { justify-content: flex-end; gap: 8px; width: 100%; padding: 14px 12px 0; }
 .console-dialog-footer > .console-dialog-aside { margin-right: auto; }
 .console-dialog.console-confirm.q-card { width: min(460px, 92vw); }
-.console-dialog .console-facts { row-gap: 8px; grid-auto-rows: auto; }
-.console-dialog .console-facts > :not(.console-fact-aside) { min-height: var(--fact-row); }
-.console-dialog .console-fact-aside { margin-top: -8px; padding-bottom: 0; }
 .console-dialog .console-confirm-line { padding: 0 12px; }
 .console-pick-list > .console-source-row:nth-child(even) { background: var(--grid-stripe); }
 
@@ -1922,12 +1919,12 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
      control is the thing that made a settings page hard to read. The pane's labels sit
      under this and never wrap. */
   grid-template-columns: fit-content(var(--label-max)) 1fr;
-  /* One box per row, whatever the value is, so nothing grows when a field or a chip
-     lands in a row that had text. `auto` above the floor is for content that wraps -
-     a line of chips takes two rows' worth and keeps its label centred on them. */
-  grid-auto-rows: minmax(var(--fact-row), auto);
+  /* Rows grow with what they hold - a textarea, a wrapped line of chips - and the gap
+     is what keeps two fields apart, on every surface that draws facts. */
+  grid-auto-rows: auto;
   align-items: center;
   column-gap: 8px;
+  row-gap: 8px;
   width: 100%;
   padding: 0 12px;
 }
@@ -2040,10 +2037,6 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   width: auto;
 }
 /* One of a known set: as wide as the longest option needs and no wider. */
-.console-settings-body .console-facts { row-gap: 8px; grid-auto-rows: auto; }
-.console-settings-body .console-facts > :not(.console-fact-aside) { min-height: var(--fact-row); }
-/* The gap is between settings, not between a control and its own note. */
-.console-settings-body .console-fact-aside { margin-top: -8px; padding-bottom: 0; }
 .console-settings-body .console-fact-edit .q-select:not(.console-edit-combo) {
   width: auto;
   min-width: 12ch;
@@ -2228,13 +2221,13 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 /* A heading's own line. Tight above so the two read as one thing, loose below so the
    first row is not crowded against it. The heading gives up its own gap when a lede
    follows, which is the half that makes the pair hold together. */
-.console-fact-heading:has(+ .console-fact-lede) { padding-bottom: 2px; }
-.console-fact-lede { padding: 0 0 14px; }
+.console-fact-heading:has(+ .console-fact-lede) { padding-bottom: 2px; margin-bottom: -8px; }
+.console-fact-lede { padding: 0 0 6px; }
 /* A line about the control above it, so it sits under the control and not under the
    label - across both columns it starts at the label's edge and reads as a caption for
    the label instead. Tight to what it explains and loose to the next row, which is what
    groups the two without a rule between them. */
-.console-fact-aside { grid-column: 2; padding: 0 0 8px; min-width: 0; }
+.console-fact-aside { grid-column: 2; padding: 0; margin-top: -8px; min-width: 0; }
 
 /* What is wrong with this thing, before anything merely true about it. Amber, which is
    already the exception color here - not red: none of these is an error, they are
