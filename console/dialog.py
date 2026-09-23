@@ -41,6 +41,12 @@ def cancel(on_click: Callable[[], Any], label: str = "") -> ui.button:
         .props("flat no-caps")
 
 
+def aside(label: str, on_click: Callable[[], Any], *, icon: str) -> ui.button:
+    """A second act, quiet and on the far left, away from the answer."""
+    return ui.button(label, icon=icon, on_click=on_click) \
+        .props("flat no-caps").classes("console-dialog-aside")
+
+
 def answer(label: str, on_click: Callable[[], Any], *, icon: str,
            danger: bool = False) -> ui.button:
     return ui.button(label, icon=icon, on_click=on_click) \

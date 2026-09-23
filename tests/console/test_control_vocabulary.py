@@ -29,16 +29,12 @@ CONTROLS = re.compile(r"ui\.(switch|checkbox|input|select|number|textarea)\(")
 # the grammar and is not counted. Raising a number is a decision: say what the control is
 # for, or use `panel`.
 BUDGET = {
-    "workbench.py": (19, "panel rows with bespoke wiring - chips, debounce, a disabled "
-                         "select carrying its own reason - plus one find box, and the "
-                         "name and program the add dialog asks for. Questions, not "
-                         "facts about a thing that exists yet. The path a table is "
-                         "pointed at is a `panel.path_field` and is not among them. The "
-                         "seventeenth is a tick per detail a re-match would change: a "
+    "workbench.py": (14, "panel rows with bespoke wiring - chips, debounce, a disabled "
+                         "select carrying its own reason - plus one find box. The path a "
+                         "table is pointed at is a `panel.path_field` and is not among "
+                         "them. One is a tick per detail a re-match would change: a "
                          "multi-select would hide the old and new values, which are the "
-                         "whole of what is being decided. The last three are the "
-                         "address, title and kind a guide of your own is added with, "
-                         "the same kind of question as the add dialog's"),
+                         "whole of what is being decided"),
     "logs.py": (4, "the control bar above the viewport: two pickers, a level and a find"),
     "games.py": (1, "a tick per column in the column picker, a menu rather than a fact "
                     "row. The view picker is `panel.DescribedSelect`, which is where a "

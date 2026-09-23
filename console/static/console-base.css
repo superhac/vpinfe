@@ -693,12 +693,13 @@ body::before {
   padding: 0 12px 6px;
 }
 .console-dialog-footer { justify-content: flex-end; gap: 8px; width: 100%; padding: 14px 12px 0; }
+.console-dialog-footer > .console-dialog-aside { margin-right: auto; }
 .console-dialog.console-confirm.q-card { width: min(460px, 92vw); }
 .console-dialog .console-facts { row-gap: 8px; grid-auto-rows: auto; }
 .console-dialog .console-facts > :not(.console-fact-aside) { min-height: var(--fact-row); }
 .console-dialog .console-fact-aside { margin-top: -8px; padding-bottom: 0; }
 .console-dialog .console-confirm-line { padding: 0 12px; }
-.console-vps-results > .console-source-row:nth-child(even) { background: var(--grid-stripe); }
+.console-pick-list > .console-source-row:nth-child(even) { background: var(--grid-stripe); }
 
 /* While the page is listening for a key. Centred and over everything, because it has
    taken the keyboard: a prompt in the row would leave the rest of the page looking
@@ -719,10 +720,6 @@ body::before {
   background: var(--scrim-page);
   backdrop-filter: blur(2px);
 }
-/* A picker is a list to read down, not a question to answer, so it takes the room a
-   list needs and caps its height rather than growing past the window. */
-.console-picker-dialog { min-width: 520px; max-width: 640px; }
-.console-picker-dialog .console-source-list { max-height: 42vh; overflow-y: auto; }
 /* The question is a sentence and takes sentence case. It used to wear `.console-card-title`,
    which is the section-heading treatment - uppercase, tracked, accent - so every dialog
    opened by shouting its question. Weight and size carry it instead. */

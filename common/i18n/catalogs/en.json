@@ -1337,6 +1337,7 @@
   "console.workbench.media_borrowed": "Media ({present}/{total}, {borrowed} borrowed)",
   "console.workbench.min": "{count} min",
   "console.workbench.missing": "Missing",
+  "console.workbench.name_a_file": "Name a file",
   "console.workbench.name_program_uses": "The name its program uses",
   "console.workbench.name_settings": "{name} settings",
   "console.workbench.names_table_library_not": "Names a table this library does not have",

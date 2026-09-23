@@ -61,6 +61,7 @@ from console import (
 from console import commands as commands_help
 from console import contents as contents_page
 from console import devices as devices_page
+from console import dialog as frame
 from console import launchers as launchers_page
 from console import locations as locations_page
 from console import settings as settings_page
@@ -2402,38 +2403,40 @@ async def _guide_moved(state: dict[str, Any], moved: Any) -> None:
 async def _add_guide(context: dict[str, Any]) -> None:
     from common.games.info_file import GUIDE_KINDS, GUIDE_TUTORIAL
 
-    with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label(t("console.workbench.add_guide_to",
-                   name=str(context["game"].get("name") or ""))) \
-            .classes("console-confirm-title")
-        address = ui.input(label=t("console.workbench.guide_address"),
-                           placeholder="https://") \
-            .props("outlined dense debounce=0 bottom-slots").classes("w-full")
-        title = ui.input(label=t("console.workbench.guide_title")) \
-            .props("outlined dense debounce=0").classes("w-full")
-        kind = ui.select({one: _guide_kind(one) for one in GUIDE_KINDS},
-                         value=GUIDE_TUTORIAL, label=t("word.kind")) \
-            .props("outlined dense").classes("w-full")
+    held: dict[str, Any] = {"kind": GUIDE_TUTORIAL}
 
-        async def add() -> None:
-            said = str(address.value or "").strip()
-            if not said.lower().startswith(("http://", "https://")):
-                address.props(f'error error-message="{t("console.workbench.guide_needs_address")}"')
-                return
-            dialog.close()
-            held = [one for one in context["game"].get("guides") or [] if one.get("url")]
-            await _save_guides(context, [*_as_sent(held),
-                                         {"url": said, "kind": kind.value,
-                                          "title": str(title.value or "").strip()}])
+    def draw_address() -> None:
+        held["address"] = frame.field(placeholder="https://")
 
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), icon=verbs.CANCEL,
-                      on_click=dialog.close).props("flat no-caps")
-            ui.button(t("word.add"), icon=verbs.ADD, on_click=add).props("no-caps")
+    def draw_title() -> None:
+        held["title"] = frame.field()
 
-    dialog.on("show", lambda: ui.run_javascript(
-        f"document.getElementById('c{address.id}').focus()"))
-    dialog.open()
+    async def add() -> None:
+        said = str(held["address"].value or "").strip()
+        if not said.lower().startswith(("http://", "https://")):
+            held["address"].props["error"] = True
+            held["address"].props["error-message"] = t("console.workbench.guide_needs_address")
+            return
+        box.close()
+        kept = [one for one in context["game"].get("guides") or [] if one.get("url")]
+        await _save_guides(context, [*_as_sent(kept),
+                                     {"url": said, "kind": held["kind"],
+                                      "title": str(held["title"].value or "").strip()}])
+
+    with frame.opened(t("console.workbench.add_guide_to",
+                        name=str(context["game"].get("name") or ""))) as box:
+        panel.facts(ui, [
+            (t("console.workbench.guide_address"), draw_address),
+            (t("console.workbench.guide_title"), draw_title),
+            (t("word.kind"), panel.select({one: _guide_kind(one) for one in GUIDE_KINDS},
+                                          GUIDE_TUTORIAL,
+                                          lambda event: held.update(kind=event.value)))])
+        with frame.footer():
+            frame.cancel(box.close)
+            go = frame.answer(t("word.add"), add, icon=verbs.ADD)
+    frame.focus(box, held["address"])
+    frame.enter_presses(go)
+    box.open()
 
 
 def guide_words(guide: dict[str, Any]) -> tuple[str, str, str]:
@@ -2897,27 +2900,23 @@ async def _confirm_details(differs: list[dict[str, Any]]) -> list[str]:
     """
     chosen = {str(item.get("field") or ""): True for item in differs}
 
-    with ui.dialog().props("persistent") as dialog, \
-            ui.card().classes("console-confirm console-picker-dialog"):
-        ui.label(t("console.workbench.use_new_entry_details")) \
-            .classes("console-confirm-title")
-        with ui.column().classes("w-full gap-0 console-source-list"):
-            for new in (False, True):
-                rows = [one for one in differs if bool(one.get("new")) is new]
-                if not rows:
-                    continue
-                ui.label(t("console.workbench.details_new") if new
-                         else t("console.workbench.details_changed")) \
-                    .classes("console-card-title")
+    with frame.opened(t("console.workbench.use_new_entry_details"), wide=True,
+                      persistent=True) as box:
+        for new in (False, True):
+            rows = [one for one in differs if bool(one.get("new")) is new]
+            if not rows:
+                continue
+            panel.facts(ui, [(panel.HEADING, t("console.workbench.details_new") if new
+                              else t("console.workbench.details_changed"))])
+            with ui.column().classes("w-full gap-0 px-3"):
                 for item in rows:
                     _detail_choice(item, chosen)
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(False)) \
-                .props("flat no-caps")
-            ui.button(t("console.workbench.use_selected"), icon=verbs.ACCEPT,
-                      on_click=lambda: dialog.submit(True)).props("flat no-caps")
+        with frame.footer():
+            frame.cancel(lambda: box.submit(False))
+            frame.answer(t("console.workbench.use_selected"), lambda: box.submit(True),
+                         icon=verbs.ACCEPT)
 
-    if not await dialog:
+    if not await box:
         return []
     return [field for field, take in chosen.items() if take]
 
@@ -3359,47 +3358,44 @@ async def _add_keyed_table(context: dict[str, Any]) -> None:
         return
 
     chosen = {"app": str(offered[0].get("id") or "")}
-    with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label(t("console.workbench.add_something_no_file")).classes("console-confirm-title")
-        ui.label(t("console.workbench.anything_own_program_finds")).classes("console-help")
-        # Only where there is a choice. A question with one answer is a click charged
-        # for nothing, and today one app plays something by name.
-        if len(offered) > 1:
-            ui.select({str(one["id"]): str(one.get("name") or one["id"])
-                       for one in offered},
-                      value=chosen["app"], label=t("console.workbench.played_2"),
-                      on_change=lambda e: chosen.update(app=str(e.value or ""))) \
-                .props("outlined dense").classes("w-72")
-        # debounce=0 so the model is current the moment Add is pressed, and focus put
-        # on show - Quasar's autofocus does not land in a dialog.
-        typed = ui.input(placeholder=t("console.workbench.name_program_uses")) \
-            .props("outlined dense debounce=0 bottom-slots").classes("w-72")
+    held: dict[str, Any] = {}
 
-        async def add() -> None:
-            said = str(typed.value or "").strip()
-            if not said:
-                # Said rather than ignored: a dialog that does nothing when you press
-                # its button reads as broken.
-                typed.props('error error-message="Give it a name"')
-                return
-            dialog.close()
-            try:
-                await run.io_bound(library.add_keyed_table, context["game_id"],
-                                   chosen["app"], said)
-            except Exception as exc:  # noqa: BLE001
-                ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
-                return
-            ui.notify(t("console.workbench.added_2", said=(said)), type="positive")
-            await _table_list_changed(context)
+    def draw_name() -> None:
+        held["typed"] = frame.field(placeholder=t("console.workbench.name_program_uses"))
 
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"),
-                icon=verbs.CANCEL, on_click=dialog.close).props("flat no-caps")
-            ui.button(t("word.add"), icon=verbs.ADD, on_click=add).props("no-caps")
+    async def add() -> None:
+        said = str(held["typed"].value or "").strip()
+        if not said:
+            held["typed"].props["error"] = True
+            held["typed"].props["error-message"] = t("said.give_it_a_name")
+            return
+        box.close()
+        try:
+            await run.io_bound(library.add_keyed_table, context["game_id"],
+                               chosen["app"], said)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
+            return
+        ui.notify(t("console.workbench.added_2", said=(said)), type="positive")
+        await _table_list_changed(context)
 
-    dialog.on("show", lambda: ui.run_javascript(
-        f"document.getElementById('c{typed.id}').focus()"))
-    dialog.open()
+    rows: list[tuple[Any, Any]] = []
+    # Only where there is a choice. A question with one answer is a click charged
+    # for nothing, and today one app plays something by name.
+    if len(offered) > 1:
+        rows.append((t("console.workbench.played_2"), panel.select(
+            {str(one["id"]): str(one.get("name") or one["id"]) for one in offered},
+            chosen["app"], lambda event: chosen.update(app=str(event.value or "")))))
+    rows.append((t("word.name"), draw_name))
+    with frame.opened(t("console.workbench.add_something_no_file")) as box:
+        ui.label(t("console.workbench.anything_own_program_finds")).classes("console-help px-3")
+        panel.facts(ui, rows)
+        with frame.footer():
+            frame.cancel(box.close)
+            go = frame.answer(t("word.add"), add, icon=verbs.ADD)
+    frame.focus(box, held["typed"])
+    frame.enter_presses(go)
+    box.open()
 
 
 async def _table_list_changed(context: dict[str, Any]) -> None:
@@ -3418,37 +3414,39 @@ async def _add_referenced_table(context: dict[str, Any]) -> None:
     the same as a share that is simply away.
     """
     library = context["library"]
-    with ui.dialog() as dialog, ui.card().classes("console-confirm"):
-        ui.label(t("console.workbench.point_table_elsewhere")).classes("console-confirm-title")
-        ui.label(t("console.workbench.table_share_one_file")).classes("console-help")
+    held: dict[str, Any] = {}
+
+    def draw_path() -> None:
         # No suffix in the example: which ones are tables is the app registry's answer,
         # and hard-coding one here would be this surface deciding it.
-        typed = panel.path_field(placeholder=t("console.workbench.path_table_file"),
-                                 wants="file")
+        held["typed"] = panel.path_field(placeholder=t("console.workbench.path_table_file"),
+                                         wants="file", width="w-full")
 
-        async def keep() -> None:
-            said = str(typed.value or "").strip()
-            if not said:
-                typed.props('error error-message="Name a file"')
-                return
-            dialog.close()
-            try:
-                await run.io_bound(library.add_referenced_table,
-                                   context["game_id"], said)
-            except Exception as exc:  # noqa: BLE001
-                ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
-                return
-            ui.notify(t("console.workbench.added"), type="positive")
-            await _table_list_changed(context)
+    async def keep() -> None:
+        said = str(held["typed"].value or "").strip()
+        if not said:
+            held["typed"].props["error"] = True
+            held["typed"].props["error-message"] = t("console.workbench.name_a_file")
+            return
+        box.close()
+        try:
+            await run.io_bound(library.add_referenced_table,
+                               context["game_id"], said)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
+            return
+        ui.notify(t("console.workbench.added"), type="positive")
+        await _table_list_changed(context)
 
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"),
-                icon=verbs.CANCEL, on_click=dialog.close).props("flat no-caps")
-            ui.button(t("word.add"), icon=verbs.ADD, on_click=keep).props("no-caps")
-
-    dialog.on("show", lambda: ui.run_javascript(
-        f"document.getElementById('c{typed.id}').focus()"))
-    dialog.open()
+    with frame.opened(t("console.workbench.point_table_elsewhere")) as box:
+        ui.label(t("console.workbench.table_share_one_file")).classes("console-help px-3")
+        panel.facts(ui, [(t("word.file"), draw_path)])
+        with frame.footer():
+            frame.cancel(box.close)
+            go = frame.answer(t("word.add"), keep, icon=verbs.ADD)
+    frame.focus(box, held["typed"])
+    frame.enter_presses(go)
+    box.open()
 
 
 async def _contain_table(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -3702,25 +3700,21 @@ async def _pick_a_record(context: dict[str, Any], listed_as: str, label: str,
     vps_id = str(context["game"].get("vps_id") or "")
     records = await offload.io(_records_of, context, vps_id, listed_as)
 
-    with ui.dialog().props("persistent") as dialog, \
-            ui.card().classes("console-confirm console-picker-dialog"):
-        ui.label(t("console.workbench.published", lower=(label.lower()))) \
-            .classes("console-confirm-title")
-        ui.label(path).classes("console-help")
-        with ui.column().classes("w-full gap-0 console-source-list"):
+    with frame.opened(t("console.workbench.published", lower=(label.lower())), wide=True,
+                      persistent=True) as box:
+        ui.label(path).classes("console-help px-3")
+        with ui.column().classes("w-full gap-0 console-source-list console-pick-list px-3"):
             if not records:
                 ui.label(t("console.workbench.vps_lists_no_machine", lower=(label.lower()))) \
                     .classes("console-help")
             for item in records:
-                _record_row(item, dialog, bound)
-        with ui.row().classes("justify-end gap-2 w-full"):
+                _record_row(item, box, bound)
+        with frame.footer():
             if bound:
-                ui.button(t("word.clear"), icon=verbs.CLEAR, on_click=lambda: dialog.submit("")) \
-                    .props("flat no-caps")
-            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(None)) \
-                .props("flat no-caps")
+                frame.aside(t("word.clear"), lambda: box.submit(""), icon=verbs.CLEAR)
+            frame.cancel(lambda: box.submit(None))
 
-    picked = await dialog
+    picked = await box
     if picked is None:
         return
     await _write(context, library.set_asset_source, context["game_id"], path,
@@ -3773,26 +3767,23 @@ async def _pick_a_release(context: dict[str, Any], table: dict[str, Any]) -> Non
     releases = await offload.io(_releases_of, context, entry)
     held = bool(releases) or await offload.io(library.vps_catalog_held)
 
-    with ui.dialog().props("persistent") as dialog, \
-            ui.card().classes("console-confirm console-picker-dialog"):
-        ui.label(t("console.workbench.release_table")).classes("console-confirm-title")
-        _yours(table)
-        found = ui.column().classes("w-full gap-0 console-source-list")
-        with found:
+    with frame.opened(t("console.workbench.release_table"), wide=True,
+                      persistent=True) as box:
+        with ui.element("div").classes("px-3"):
+            _yours(table)
+        with ui.column().classes("w-full gap-0 console-source-list console-pick-list px-3"):
             if not releases:
                 ui.label(t("console.workbench.vps_lists_no_builds") if held
                          else t("console.workbench.vps_not_downloaded")) \
                     .classes("console-help")
             for item in releases:
-                _release_row(item, dialog, bound)
-        with ui.row().classes("justify-end gap-2 w-full"):
+                _release_row(item, box, bound)
+        with frame.footer():
             if bound:
-                ui.button(t("word.clear"), icon=verbs.CLEAR, on_click=lambda: dialog.submit("")) \
-                    .props("flat no-caps")
-            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=lambda: dialog.submit(None)) \
-                .props("flat no-caps")
+                frame.aside(t("word.clear"), lambda: box.submit(""), icon=verbs.CLEAR)
+            frame.cancel(lambda: box.submit(None))
 
-    picked = await dialog
+    picked = await box
     if picked is None:
         return
     await _write(context, library.set_table_source, context["game_id"],
@@ -4508,16 +4499,14 @@ async def _restore_dialog(held: list[dict], context: dict[str, Any],
         ui.notify(t("console.workbench.restored"), type="positive")
         await context["rebuild"]()
 
-    with ui.dialog() as dialog, ui.card().classes("console-panel"):
-        ui.label(t("console.workbench.put_copy_back_2")).classes("console-card-title")
-        ui.label(t("console.workbench.newest_first_copy_settings")).classes("console-help")
-        with ui.column().classes("gap-0 w-full console-form"):
+    with frame.opened(t("console.workbench.put_copy_back_2"), wide=True) as box:
+        ui.label(t("console.workbench.newest_first_copy_settings")).classes("console-help px-3")
+        with ui.column().classes("gap-0 w-full console-form px-3"):
             _rows(ui, [(_backup_when(one),
-                        _one_copy(one, put_back, dialog, playing)) for one in held])
-        with ui.row().classes("justify-end w-full"):
-            ui.button(t("word.cancel"),
-                icon=verbs.CANCEL, on_click=dialog.close).props("flat no-caps")
-    dialog.open()
+                        _one_copy(one, put_back, box, playing)) for one in held])
+        with frame.footer():
+            frame.cancel(box.close)
+    box.open()
 
 
 def _one_copy(one: dict, put_back: Callable, dialog: Any,

@@ -88,7 +88,7 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
                                          else "console.vps_match.find_a_match")))
         entries.append((panel.FULL, search_row))
         panel.facts(ui, entries)
-        found = ui.column().classes("w-full gap-0 console-source-list console-vps-results px-3")
+        found = ui.column().classes("w-full gap-0 console-source-list console-pick-list px-3")
 
         with dialog.footer():
             if walking:
