@@ -582,15 +582,24 @@ class CollectionStore:
         made "add a rule" destructive.
         """
         record = self._require_mutable(section)
+        current = self.get_order(section)
+        # A sort written the 2.x way lives inside the criteria being replaced.
+        held_in_criteria = (not isinstance(record.get(ORDER_KEY), dict)
+                            and any(key in (record.get(FILTERS_KEY) or {})
+                                    for key in collection_filters.ORDERING_KEYS))
         # Still written, and no longer read: `has_filters` derives the kind from the
         # block's presence. Kept in the file so a build that predates that still reads
         # the collection correctly.
         record["type"] = "filter"
         record[FILTERS_KEY] = dict(filters)
-        if order:
-            self.set_order(section, order.get(ORDER_BY_KEY, DEFAULT_ORDER_BY),
-                           order.get(ORDER_DIRECTION_KEY, DEFAULT_DIRECTION))
-        self.set_limit(section, limit)
+        if order or held_in_criteria:
+            given = order or {}
+            self.set_order(section,
+                           given.get(ORDER_BY_KEY) or current[ORDER_BY_KEY],
+                           given.get(ORDER_DIRECTION_KEY) or current[ORDER_DIRECTION_KEY],
+                           current[ORDER_PAGING_GROUP_KEY])
+        if limit is not None:
+            self.set_limit(section, limit)
 
     def delete_collection(self, section: str) -> None:
         self.records.remove(self._require_mutable(section))

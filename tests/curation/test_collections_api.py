@@ -126,6 +126,44 @@ class CollectionsApiTests(TempTree):
         self.assertEqual(body["filters"]["order_by"], "last_played")
         self.assertEqual(body["filters"]["direction"], "desc")
 
+    def test_a_rule_save_leaves_the_order_the_paging_and_the_limit(self) -> None:
+        self.client.post("/collections", json={"name": "Recent",
+                                               "filters": {"played": True}})
+        self.client.patch("/collections/Recent", json={
+            "order_by": "last_played", "direction": "desc", "paging_group": "count",
+            "limit": 20})
+
+        self.client.patch("/collections/Recent",
+                          json={"filters": {"played": True, "favorite": True}})
+
+        body = self.client.get("/collections/Recent").json()
+        self.assertEqual(("last_played", "desc", "count", 20),
+                         (body["order_by"], body["direction"], body["paging_group"],
+                          body["limit"]))
+
+    def test_a_field_sent_alone_in_the_filters_keeps_the_direction(self) -> None:
+        self.client.post("/collections", json={"name": "Recent",
+                                               "filters": {"played": True}})
+        self.client.patch("/collections/Recent",
+                          json={"order_by": "last_played", "direction": "desc"})
+
+        self.client.patch("/collections/Recent", json={
+            "filters": {"played": True, "order_by": "play_count"}})
+
+        body = self.client.get("/collections/Recent").json()
+        self.assertEqual(("play_count", "desc"), (body["order_by"], body["direction"]))
+
+    def test_a_rule_save_keeps_an_order_only_the_old_criteria_held(self) -> None:
+        self.manager.add_filter_collection("Saved Elsewhere", manufacturer="Bally",
+                                           sort_by="LastRun", order_by="Descending")
+        self.manager.save()
+
+        self.client.patch("/collections/Saved%20Elsewhere",
+                          json={"filters": {"manufacturer": ["Williams"]}})
+
+        body = self.client.get("/collections/Saved%20Elsewhere").json()
+        self.assertEqual(("last_played", "desc"), (body["order_by"], body["direction"]))
+
     def test_a_2x_sort_name_is_accepted_and_reported_in_the_stored_vocabulary(self) -> None:
         """The 2.x sort *values* are what carries over. There was never a 2.x client for
         this API - the names it accepts are 3.0's - but a collection on disk holds those

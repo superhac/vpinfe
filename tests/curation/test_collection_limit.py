@@ -39,6 +39,20 @@ class CollectionLimitTests(TempTree):
         record = json.loads(self.path.read_text())["collections"][0]
         self.assertNotIn("limit", record)
 
+    def test_new_criteria_leave_the_limit_alone(self) -> None:
+        self.store.set_limit("Recent", 20)
+
+        self.store.make_filter_collection("Recent", {"played": True})
+
+        self.assertEqual(self.store.get_limit("Recent"), 20)
+
+    def test_new_criteria_given_a_limit_replace_it(self) -> None:
+        self.store.set_limit("Recent", 20)
+
+        self.store.make_filter_collection("Recent", {"played": True}, limit=30)
+
+        self.assertEqual(self.store.get_limit("Recent"), 30)
+
     def test_a_limit_has_to_be_a_positive_count(self) -> None:
         for bad in (0, -1):
             with self.subTest(limit=bad), self.assertRaises(ValueError):

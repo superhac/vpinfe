@@ -11,8 +11,6 @@ the model, and turning a request's filter block into the criteria the store read
 
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter, Body, File, Request, Response, UploadFile
 from starlette.concurrency import run_in_threadpool
 
@@ -26,8 +24,11 @@ from .responses import revalidating_file
 router = APIRouter(prefix="/collections", tags=["collections"])
 
 
-def _criteria_order(filters: Any) -> dict:
-    return {"by": filters.order_by, "direction": filters.direction}
+def _criteria_order(filters: models.CollectionFilters) -> dict:
+    sent = filters.model_fields_set
+    return {key: getattr(filters, field)
+            for key, field in (("by", "order_by"), ("direction", "direction"))
+            if field in sent}
 
 
 @router.get("", summary="List collections",
