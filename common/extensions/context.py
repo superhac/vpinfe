@@ -219,6 +219,10 @@ class ExtensionApps:
         self._mine.clear()
 
 
+COLUMN_KINDS = frozenset({"text", "number", "date"})
+RELATION_KEYS = frozenset({"vps_entry", "vps_release"})
+
+
 class ExtensionUI:
     """What an extension offers a person: its actions, and the page they sit on.
 
@@ -242,6 +246,7 @@ class ExtensionUI:
         self._name = name
         self._allowed = allowed
         self.actions: list[dict] = []
+        self.community_lists: list[dict] = []
         self.settings_label = "Settings"
         self.state_label = ""
         self.settings_base = ""
@@ -260,6 +265,50 @@ class ExtensionUI:
             "label": str(label or "").strip() or wanted,
             "description": str(description or "").strip(),
             "base": str(base or "").strip(),
+        })
+
+    def community(self, key: str, title: str, base: str, *, columns: list[dict],
+                  views: list[dict] | None = None, relation: dict | None = None) -> None:
+        """A list this extension holds, shown under Community.
+
+        `base` is a route of this extension's answering `{"rows": [...]}`. A column is
+        `{"field", "header", "kind"}` with `kind` one of `text`, `number`, `date`; a view
+        is `{"name", "columns", "sort": [{"field", "desc"}], "help"}`. `relation` is
+        `{"field", "keys"}`, `keys` being `vps_entry` or `vps_release`.
+        """
+        self._needs_ui("a community list")
+        wanted = str(key or "").strip()
+        fields = [str((one or {}).get("field") or "").strip() for one in columns]
+        if not wanted or not columns or not all(fields):
+            raise ContractError(f"{self._name} declares a community list with no key or "
+                                "a column with no field")
+        kinds = {str((one or {}).get("kind") or "text") for one in columns}
+        if not kinds <= COLUMN_KINDS:
+            raise ContractError(f"{self._name} declares a column kind core does not draw: "
+                                f"{', '.join(sorted(kinds - COLUMN_KINDS))}")
+        for view in views or []:
+            named = set(view.get("columns") or []) | {str(one.get("field") or "")
+                                                      for one in view.get("sort") or []}
+            if not str(view.get("name") or "").strip() or not named <= set(fields):
+                raise ContractError(f"{self._name} declares a view with no name or on a "
+                                    "column it does not have")
+        if relation and (relation.get("field") not in fields
+                         or relation.get("keys") not in RELATION_KEYS):
+            raise ContractError(f"{self._name} relates its list on a field it does not "
+                                "have, or by something other than a VPS entry or release")
+        self.community_lists.append({
+            "key": wanted, "title": str(title or "").strip() or wanted,
+            "base": str(base or "").strip(),
+            "columns": [{"field": field, "header": str(one.get("header") or field),
+                         "kind": str(one.get("kind") or "text"),
+                         "help": str(one.get("help") or "")}
+                        for field, one in zip(fields, columns, strict=True)],
+            "views": [{"name": str(view["name"]).strip(),
+                       "columns": list(view.get("columns") or fields),
+                       "sort": [{"field": str(one["field"]), "desc": bool(one.get("desc"))}
+                                for one in view.get("sort") or []],
+                       "help": str(view.get("help") or "")} for view in views or []],
+            "relation": dict(relation) if relation else None,
         })
 
     def settings(self, base: str, label: str = "Settings") -> None:

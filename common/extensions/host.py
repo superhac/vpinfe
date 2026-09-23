@@ -66,6 +66,7 @@ class Record:
     files: Any = None
     actions: list[dict] = field(default_factory=list)
     surfaces: dict = field(default_factory=dict)
+    community: list[dict] = field(default_factory=list)
 
     @property
     def running(self) -> bool:
@@ -82,7 +83,8 @@ class Record:
                 # Only while it is running: an action on an extension that is not
                 # there would draw a button that refuses.
                 "actions": list(self.actions) if self.running else [],
-                "surfaces": dict(self.surfaces) if self.running else {}}
+                "surfaces": dict(self.surfaces) if self.running else {},
+                "community": list(self.community) if self.running else []}
 
 
 class Registry:
@@ -190,6 +192,7 @@ class Registry:
         record.subscriptions = list(context.events.registered)
         record.files = context.files
         record.actions = list(context.ui.actions)
+        record.community = list(context.ui.community_lists)
         record.surfaces = {
             "settings": context.ui.settings_base,
             "settings_label": context.ui.settings_label,
