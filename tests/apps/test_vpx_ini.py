@@ -34,6 +34,11 @@ Name = something
 """
 
 
+def placed(text: str) -> set[tuple[str, str]]:
+    """Each key with the heading it sits under."""
+    return {(one.section, one.key) for one in vini.parse(text).settings.values()}
+
+
 class ParseTests(unittest.TestCase):
     def setUp(self) -> None:
         self.ini = vini.parse(SAMPLE)
@@ -125,7 +130,31 @@ class WriteTests(unittest.TestCase):
     def test_a_section_the_file_lacks_is_added(self) -> None:
         out = vini.written(self.ini, {"Plugin.New.Thing": "on"})
 
-        self.assertEqual(vini.parse(out).value("Plugin.New.Thing"), "on")
+        self.assertIn(("Plugin.New", "Thing"), placed(out))
+
+    def test_a_plugin_setting_goes_under_its_plugin(self) -> None:
+        out = vini.written(self.ini, {"Plugin.B2SLegacy.B2SHideGrill": "1"})
+
+        self.assertIn(("Plugin.B2SLegacy", "B2SHideGrill"), placed(out))
+        self.assertNotIn("[Plugin]", out.splitlines())
+
+    def test_a_plugin_setting_joins_its_plugin_where_the_file_has_it(self) -> None:
+        held = vini.parse(f"{SAMPLE}\n[Plugin.B2SLegacy]\nB2SHideGrill = 0\n")
+
+        out = vini.written(held, {"Plugin.B2SLegacy.B2SHideB2SDMD": "1"})
+
+        self.assertIn(("Plugin.B2SLegacy", "B2SHideB2SDMD"), placed(out))
+        self.assertEqual(out.count("[Plugin.B2SLegacy]"), 1)
+
+    def test_a_key_with_dots_of_its_own_stays_in_its_section(self) -> None:
+        out = vini.written(vini.parse(""), {"Backglass.Priority.PUP": "2"})
+
+        self.assertEqual(placed(out), {("Backglass", "Priority.PUP")})
+
+    def test_a_default_properties_section_keeps_its_name(self) -> None:
+        out = vini.written(vini.parse(""), {"DefaultProps\\Ball.Mass": "1.5"})
+
+        self.assertEqual(placed(out), {("DefaultProps\\Ball", "Mass")})
 
     def test_nothing_else_moves(self) -> None:
         before = SAMPLE.splitlines()

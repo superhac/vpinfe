@@ -214,7 +214,7 @@ def written(ini: Ini, changes: dict[str, str],
         if found is not None and 0 <= found.line < len(lines):
             lines[found.line] = f"{found.key} = {value}"
             continue
-        section, _, key = qualified.partition(".")
+        section, key = section_and_key(qualified)
         appended.setdefault(section, []).append(f"{key} = {value}")
 
     for section, rows in appended.items():
@@ -228,6 +228,16 @@ def written(ini: Ini, changes: dict[str, str],
     for at in sorted(dropped, reverse=True):
         del lines[at]
     return "\n".join(lines) + "\n"
+
+
+def section_and_key(qualified: str) -> tuple[str, str]:
+    """The heading the program looks a qualified name up under, and the key beneath
+    it: `[Plugin.<id>]` for a plugin's settings, the first part for the rest."""
+    head, _, rest = qualified.partition(".")
+    if head == "Plugin" and "." in rest:
+        plugin, _, key = rest.partition(".")
+        return f"{head}.{plugin}", key
+    return head, rest
 
 
 def _section_end(lines: list[str], section: str) -> int | None:

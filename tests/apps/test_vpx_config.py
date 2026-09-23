@@ -160,6 +160,21 @@ class WriteTests(_Case):
         with self.assertRaises(ValueError):
             self.config.write(SCOPE_ENTRY, "", {KEY: "0"}, self.settings)
 
+    def test_a_plugin_setting_goes_under_its_plugin_at_every_scope(self) -> None:
+        from apps.vpx import ini as vini
+
+        files = {SCOPE_LAUNCHER: (self.app_ini, "0"),
+                 SCOPE_FOLDER: (self.game / "Medieval Madness.ini", "1"),
+                 SCOPE_ENTRY: (self.game / "MM (VPW 1.2).ini", "1")}
+        for scope, (path, value) in files.items():
+            with self.subTest(scope=scope):
+                self.config.write(scope, str(self.table),
+                                  {"Plugin.B2SLegacy.B2SHideGrill": value}, self.settings)
+
+                placed = {(one.section, one.key)
+                          for one in vini.parse(path.read_text()).settings.values()}
+                self.assertIn(("Plugin.B2SLegacy", "B2SHideGrill"), placed)
+
 
 class SchemaTests(_Case):
     def test_vpx_section_names_are_translated_into_this_project_s_words(self) -> None:
