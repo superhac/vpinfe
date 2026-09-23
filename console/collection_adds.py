@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import partial
+from itertools import pairwise
 from typing import Any
 
 from nicegui import run, ui
@@ -208,7 +210,7 @@ async def add(library: Any, name: str, rows: Iterable[Row], *, what: str = GAMES
     return wrote
 
 
-# --- taking games back out of the one the grid is narrowed to ------------------------
+# --- taking games back out -------------------------------------------------------------
 
 
 @dataclass
@@ -216,59 +218,129 @@ class Took:
     """What one removal changed, which is what its Undo puts back."""
 
     removed: list[Row] = field(default_factory=list)
-    kept_out: list[str] = field(default_factory=list)
+    kept_out: list[Row] = field(default_factory=list)
     # None where an order sorts the collection: only a hand arrangement is put back.
-    order: list[str] | None = None
+    order: list[Row] | None = None
+    # A row naming a game or a table the library no longer has.
+    for_good: bool = False
 
     @property
     def taken(self) -> int:
-        return len({row.game for row in self.removed} | set(self.kept_out))
+        return len({row.game for row in self.removed + self.kept_out})
+
+
+def row_of(member: dict[str, Any]) -> Row:
+    """The stored ref a listed row is, by the table it names."""
+    return Row(str(member.get("game") or ""), str(member.get("ref_table") or ""))
+
+
+def _stored(members: Sequence[dict[str, Any]]) -> list[Row]:
+    return [row_of(one) for one in members if one.get("origin") in _STORED]
+
+
+def _refused(member: dict[str, Any]) -> bool:
+    table = (member.get("tables") or [{}])[0]
+    return member.get("origin") == "missing" \
+        or bool(member.get("ref_table")) and table.get("origin") == "missing"
+
+
+def _read(library: Any, name: str) -> tuple[dict[str, Any], list[dict[str, Any]], Took]:
+    collection = next((one for one in library.load_collections()
+                       if one.get("name") == name), None)
+    if collection is None:
+        raise LookupError(t("console.page.no_longer_library"))
+    members = library.collection_members(name).get("members") or []
+    return collection, members, Took(order=_stored(members)
+                                     if collection.get("order_by") == MANUAL_ORDER else None)
 
 
 def take(library: Any, name: str, games: Sequence[str]) -> Took:
     """Take `games` out of `name`: every row naming one, and the rules' match kept out
     where its rules would bring it back. Blocking: run it off the loop."""
-    collection = next((one for one in library.load_collections()
-                       if one.get("name") == name), None)
-    if collection is None:
-        raise LookupError(t("console.page.no_longer_library"))
+    collection, members, took = _read(library, name)
     wanted = set(games)
-    members = library.collection_members(name).get("members") or []
-    took = Took(order=listed_order(members)
-                if collection.get("order_by") == MANUAL_ORDER else None)
-    took.removed = [Row(str(one.get("game") or ""), str(one.get("ref_table") or ""))
-                    for one in members
-                    if one.get("origin") in _STORED and one.get("game") in wanted]
+    stored = [one for one in members
+              if one.get("origin") in _STORED and one.get("game") in wanted]
+    took.removed = [row_of(one) for one in stored]
+    took.for_good = any(_refused(one) for one in stored)
     for row in took.removed:
         library.remove_from_collection(name, row.game, row.table)
     if (collection.get("type") or "") == "filter":
         if took.removed:
             members = library.collection_members(name).get("members") or []
         games_now = holds(members)[0]
-        took.kept_out = [game for game in games if game in games_now]
-        for game in took.kept_out:
-            library.exclude_from_collection(name, game, "")
+        took.kept_out = [Row(game) for game in games if game in games_now]
+        for row in took.kept_out:
+            library.exclude_from_collection(name, row.game, row.table)
+    return took
+
+
+def take_row(library: Any, name: str, member: dict[str, Any]) -> Took:
+    """Take one row of the list out of `name`: the ref it is and nothing else naming its
+    game, with the game kept out where the rules would list it again. Blocking: run it
+    off the loop."""
+    collection, _members, took = _read(library, name)
+    row = row_of(member)
+    took.for_good = _refused(member)
+    if member.get("origin") == "filter":
+        library.exclude_from_collection(name, row.game, row.table)
+        took.kept_out = [row]
+        return took
+    library.remove_from_collection(name, row.game, row.table)
+    took.removed = [row]
+    if (collection.get("type") or "") == "filter" and any(
+            one.get("game") == row.game and one.get("origin") == "filter"
+            for one in library.collection_members(name).get("members") or []):
+        library.exclude_from_collection(name, row.game, "")
+        took.kept_out = [Row(row.game)]
     return took
 
 
 def untake(library: Any, name: str, took: Took) -> None:
-    """Put back what `take` took. Blocking: run it off the loop."""
-    for game in took.kept_out:
-        library.unexclude_from_collection(name, game, "")
+    """Put back what `take` or `take_row` took. Blocking: run it off the loop."""
+    for row in took.kept_out:
+        library.unexclude_from_collection(name, row.game, row.table)
     for row in took.removed:
         library.add_to_collection(name, row.game, row.table)
     if took.order:
-        now = listed_order(library.collection_members(name).get("members") or [])
-        if sorted(now) == sorted(took.order):
-            library.set_collection_order(name, took.order)
+        _put_in_place(library, name, took.order)
+
+
+def _put_in_place(library: Any, name: str, order: list[Row]) -> None:
+    """`order` written back over the rows stored now, where they are the same rows."""
+    members = library.collection_members(name).get("members") or []
+    now = _stored(members)
+    if Counter(now) != Counter(order):
+        return
+    refused = {row_of(one) for one in members if _refused(one)}
+    for game in dict.fromkeys(row.game for row in order):
+        wanted = [row for row in order if row.game == game]
+        if [row for row in now if row.game == game] == wanted or refused & set(wanted):
+            continue
+        for row in wanted[1:]:
+            library.remove_from_collection(name, game, row.table)
+        for ahead, row in pairwise(wanted):
+            library.add_to_collection(name, game, row.table, ahead.table)
+    library.set_collection_order(name, [row.game for row in order])
 
 
 async def remove(library: Any, name: str, games: Sequence[str], *,
                  then: Callable[[], Awaitable[Any]] | None = None) -> None:
     """Take `games` out of `name`, say so, and offer the way back."""
+    await _taken(partial(take, library, name, list(games)), library, name, then)
+
+
+async def remove_row(library: Any, name: str, member: dict[str, Any], *,
+                     then: Callable[[], Awaitable[Any]] | None = None) -> None:
+    """Take one row of the list out of `name`, say so, and offer the way back."""
+    await _taken(partial(take_row, library, name, member), library, name, then)
+
+
+async def _taken(taking: Callable[[], Took], library: Any, name: str,
+                 then: Callable[[], Awaitable[Any]] | None) -> None:
     client = ui.context.client
     try:
-        took = await offload.io(take, library, name, list(games))
+        took = await offload.io(taking)
     except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
         ui.notify(t("said.could_not_do_that", exc=exc), type="negative")
         return
@@ -282,8 +354,12 @@ async def remove(library: Any, name: str, games: Sequence[str], *,
 
     key = "console.adds.taken_out_games" if took.kept_out and not took.removed \
         else "console.adds.removed_games"
+    said = t(key, count=took.taken, name=name)
     with client:
-        undo.offer(t(key, count=took.taken, name=name), reverse)
+        if took.for_good:
+            ui.notify(said, type="positive")
+        else:
+            undo.offer(said, reverse)
 
 
 # --- the collections added to last ---------------------------------------------

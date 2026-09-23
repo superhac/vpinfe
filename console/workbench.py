@@ -2202,18 +2202,16 @@ def _collection_row(context: dict[str, Any], one: dict[str, Any]) -> None:
     how = str(one.get("how") or "")
 
     async def act() -> None:
+        if how != "taken_out":
+            await collection_adds.remove(library, name, [game_id],
+                                         then=partial(_game_redrawn, context))
+            return
         try:
-            if how == "added":
-                await run.io_bound(library.remove_from_collection, name, game_id, None)
-            elif how == "taken_out":
-                await run.io_bound(library.unexclude_from_collection, name, game_id, None)
-            else:
-                await run.io_bound(library.exclude_from_collection, name, game_id, "")
+            await run.io_bound(library.unexclude_from_collection, name, game_id, None)
         except Exception as exc:  # noqa: BLE001
             ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
             return
-        if how == "taken_out":
-            ui.notify(t("console.workbench.put_back_in", name=name), type="positive")
+        ui.notify(t("console.workbench.put_back_in", name=name), type="positive")
         await context["rebuild"]()
 
     with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row"):
@@ -5713,41 +5711,24 @@ def _member_action(context: dict[str, Any], member: dict[str, Any],
     """
     library = context["library"]
     name = _collection(context)["name"]
-    game = member.get("game") or ""
-    what, ref_table = member_act(library, member)
 
-    async def act(said: str) -> None:
+    async def put_back() -> None:
+        row = collection_adds.row_of(member)
         try:
-            await run.io_bound(what, name, game, ref_table)
+            await run.io_bound(library.unexclude_from_collection, name, row.game, row.table)
         except Exception as exc:
             ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
             return
-        ui.notify(said, type="positive")
+        ui.notify(t("console.workbench.put_back_in", name=name), type="positive")
         await _written(context)
 
     if origin == "excluded":
-        ui.button(icon=verbs.REVERT,
-                  on_click=lambda: act(t("console.workbench.put_back_in", name=name))) \
+        ui.button(icon=verbs.REVERT, on_click=put_back) \
             .props("flat dense round size=sm").tooltip(t("console.workbench.put_back_2"))
     else:
-        ui.button(icon="close",
-                  on_click=lambda: act(t("console.workbench.taken_out_of", name=name)
-                                       if origin == "filter"
-                                       else t("console.workbench.removed_from", name=name))) \
+        ui.button(icon="close", on_click=lambda: collection_adds.remove_row(
+            library, name, member, then=partial(_collection_redrawn, context, name))) \
             .props("flat dense round size=sm").tooltip(t("console.workbench.remove_collection"))
-
-
-def member_act(library: Any, member: dict[str, Any]) -> tuple[Callable[..., Any], str]:
-    """What takes this row out of its collection, or puts a taken-out one back, and the
-    ref to name."""
-    origin = member.get("origin") or ""
-    if origin == "excluded":
-        what = library.unexclude_from_collection
-    elif origin == "filter":
-        what = library.exclude_from_collection
-    else:
-        what = library.remove_from_collection
-    return what, str(member.get("ref_table") or "")
 
 
 def _add_control(context: dict[str, Any], members: list[dict]) -> None:

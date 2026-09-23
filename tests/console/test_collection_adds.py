@@ -23,8 +23,9 @@ class _Library:
     def collection_members(self, name: str) -> dict[str, Any]:
         return collection_ops.members_of(name)
 
-    def add_to_collection(self, name: str, game: str, table: str = "") -> None:
-        collection_ops.add_member(name, game, table)
+    def add_to_collection(self, name: str, game: str, table: str = "",
+                          after_table: str | None = None) -> None:
+        collection_ops.add_member(name, game, table, after_table)
 
     def remove_from_collection(self, name: str, game: str,
                                table: str | None = None) -> None:
@@ -179,10 +180,73 @@ class AddingToACollection(TempTree):
     def test_taking_a_rule_s_match_out_keeps_it_out(self) -> None:
         took = collection_adds.take(self.library, "Bally", ["taf"])
 
-        self.assertEqual(["taf"], took.kept_out)
+        self.assertEqual([Row("taf")], took.kept_out)
         self.assertEqual([{"game": "taf"}], self.store.get_excluded_refs("Bally"))
         collection_adds.untake(self.library, "Bally", took)
         self.assertEqual([], self.store.get_excluded_refs("Bally"))
+
+    def _listed(self, name: str, game: str, table: str = "") -> dict[str, Any]:
+        return next(one for one in self.library.collection_members(name)["members"]
+                    if one["game"] == game and one["ref_table"] == table)
+
+    def test_one_row_out_is_the_ref_it_is_and_undo_puts_it_back_in_its_place(self) -> None:
+        with self.store.mutate():
+            self.store.set_order("Friday Night", "manual")
+            self.store.add_member("Friday Night", "afm", "a1")
+            self.store.add_member("Friday Night", "xen")
+            self.store.add_member("Friday Night", "afm")
+        before = self._refs("Friday Night")
+
+        took = collection_adds.take_row(self.library, "Friday Night",
+                                        self._listed("Friday Night", "afm", "a1"))
+
+        self.assertEqual([{"game": "mm"}, {"game": "bk"}, {"game": "xen"}, {"game": "afm"}],
+                         self._refs("Friday Night"))
+        collection_adds.untake(self.library, "Friday Night", took)
+        self.assertEqual(before, self._refs("Friday Night"))
+
+    def test_the_row_following_the_default_is_the_ref_naming_no_table(self) -> None:
+        with self.store.mutate():
+            self.store.add_member("Friday Night", "afm", "a1")
+            self.store.add_member("Friday Night", "afm")
+        listed = self._listed("Friday Night", "afm")
+        self.assertEqual("a2", listed["tables"][0]["id"])
+
+        collection_adds.take_row(self.library, "Friday Night", listed)
+
+        self.assertIn({"game": "afm", "table": "a1"}, self._refs("Friday Night"))
+        self.assertNotIn({"game": "afm"}, self._refs("Friday Night"))
+
+    def test_a_row_its_rules_found_is_kept_out_and_undo_lets_it_back(self) -> None:
+        took = collection_adds.take_row(self.library, "Bally", self._listed("Bally", "taf"))
+
+        self.assertEqual(([], [Row("taf")]), (took.removed, took.kept_out))
+        self.assertEqual([{"game": "taf"}], self.store.get_excluded_refs("Bally"))
+        collection_adds.untake(self.library, "Bally", took)
+        self.assertEqual([], self.store.get_excluded_refs("Bally"))
+
+    def test_a_game_added_by_hand_that_its_rules_also_find_goes_out(self) -> None:
+        with self.store.mutate():
+            self.store.add_member("Bally", "taf")
+
+        took = collection_adds.take_row(self.library, "Bally", self._listed("Bally", "taf"))
+
+        self.assertEqual(([], [{"game": "taf"}]),
+                         (self._refs("Bally"), self.store.get_excluded_refs("Bally")))
+        collection_adds.untake(self.library, "Bally", took)
+        self.assertEqual(([{"game": "taf"}], []),
+                         (self._refs("Bally"), self.store.get_excluded_refs("Bally")))
+
+    def test_a_row_naming_what_the_library_no_longer_has_cannot_come_back(self) -> None:
+        with self.store.mutate():
+            self.store.add_member("Friday Night", "afm", "gone")
+            self.store.add_member("Friday Night", "gone")
+
+        for game, table in (("afm", "gone"), ("gone", ""), ("mm", "")):
+            with self.subTest(game=game, table=table):
+                took = collection_adds.take_row(self.library, "Friday Night",
+                                                self._listed("Friday Night", game, table))
+                self.assertEqual(game != "mm", took.for_good)
 
 
 class TheCollectionsAddedToLast(unittest.TestCase):

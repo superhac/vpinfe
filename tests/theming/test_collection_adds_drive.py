@@ -1,5 +1,5 @@
 """Adding from the Games and Tables grids in a real browser: the menus, the dialog behind
-More Collections..., the message each add leaves and its Undo.
+More Collections..., the message each add or removal leaves and its Undo.
 
 Slow: boots a real instance and a real browser.
 """
@@ -46,6 +46,9 @@ PANEL_ROWS = ("[...document.querySelectorAll('.console-section-work .console-mem
               " !!r.querySelector('button')])")
 INDEX_OF = ("(() => [...document.querySelectorAll(%s)]"
             ".findIndex(el => el.innerText.includes(%s)))()")
+ROW_X = ("[...document.querySelectorAll('.console-section-work .console-member-row button')]"
+         ".findIndex(b => b.closest('.console-member-row').innerText.includes(%s)"
+         " && b.innerText.trim() === 'close')")
 UNDO_AT = ("(() => { const n = [...document.querySelectorAll('.q-notification')]"
            ".find(n => n.innerText.includes(%s)); const b = n && [...n.querySelectorAll("
            "'button')].find(b => b.innerText.includes('Undo')); if (!b) return null;"
@@ -231,6 +234,16 @@ class CollectionAddsDrive(unittest.TestCase):
             await settled()
             seen["box_after"] = await browser.evaluate(BOX_AFTER)
 
+            await outside()
+            seen["before_x"] = refs(HAND)
+            await browser.click(".console-section-work .console-member-row button",
+                                nth=await browser.evaluate(ROW_X % json.dumps("Alpha")))
+            seen["x_said"] = await said("Removed from")
+            await settled()
+            seen["x_refs"] = refs(HAND)
+            await undo("Removed from")
+            seen["x_undone"] = refs(HAND)
+
             send("PUT", f"/api/v1/collections/{quote(SMART)}/excluded/bravo", {"table": ""})
             await browser.navigate(instance.console_url(
                 "/console?view=games&game=bravo&section=collections"))
@@ -246,6 +259,16 @@ class CollectionAddsDrive(unittest.TestCase):
                                     f"{SMART} / Taken out"))
             await settled()
             seen["put_back"] = refs(SMART)
+
+            seen["before_panel_x"] = refs(HAND)
+            rows = [row for row, _b in await browser.evaluate(PANEL_ROWS)]
+            await browser.click(".console-section-work .console-member-row button",
+                                nth=rows.index(f"{HAND} / Added"))
+            seen["panel_x_said"] = await said("Removed from")
+            await settled()
+            seen["panel_x_refs"] = refs(HAND)
+            await undo("Removed from")
+            seen["panel_x_undone"] = refs(HAND)
         return seen
 
     def test_a_first_menu_offers_the_rest_through_a_dialog(self) -> None:
@@ -307,6 +330,21 @@ class CollectionAddsDrive(unittest.TestCase):
         order = [game for game, _t, origin in self.seen["put_back_refs"] if origin == "named"]
         self.assertEqual("bravo", order[0])
         self.assertIn("bravo", self.seen["put_back_shown"])
+
+    def test_the_x_on_a_row_of_a_list_offers_undo_which_puts_that_row_back(self) -> None:
+        text, classes = self.seen["x_said"]
+        self.assertIn(f"Removed from “{HAND}”", text)
+        self.assertIn("Undo", text)
+        self.assertIn("bg-positive", classes)
+        self.assertNotIn(("alpha", "t-a1", "named"), self.seen["x_refs"])
+        self.assertEqual(self.seen["before_x"], self.seen["x_undone"])
+
+    def test_the_x_in_a_game_s_panel_offers_undo_too(self) -> None:
+        text, _classes = self.seen["panel_x_said"]
+        self.assertIn(f"Removed from “{HAND}”", text)
+        self.assertIn("Undo", text)
+        self.assertNotIn("bravo", [game for game, _t, _o in self.seen["panel_x_refs"]])
+        self.assertEqual(self.seen["before_panel_x"], self.seen["panel_x_undone"])
 
 
 if __name__ == "__main__":
