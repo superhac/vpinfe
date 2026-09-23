@@ -114,7 +114,7 @@ if (!window.__consoleDnd) {
       const said = await fetch(`/api/v1/uploads/${uploadId}/files`,
                                {method: 'POST', body: form});
       if (!said.ok) {
-        let message = 'Upload failed';
+        let message = '';
         try { message = (await said.json()).error.message || message; } catch (e) {}
         await fetch(`/api/v1/uploads/${uploadId}`, {method: 'DELETE'});
         throw new Error(message);
@@ -198,7 +198,7 @@ if (!window.__consoleDnd) {
     try {
       const files = await collect(event.dataTransfer);
       if (!files.length) {
-        emit({status: 'error', message: 'Nothing in that drop'});
+        emit({status: 'error', empty: true});
         return;
       }
       emit({status: 'progress', done: 0, total: files.length, name: ''});
@@ -234,7 +234,8 @@ def install(on_drop: Callable[[Drop], Any]) -> None:
                 _progress(state, t("console.uploads.reading"))
         elif status == "error":
             _clear(state)
-            ui.notify(str(payload.get("message") or t("console.uploads.not_work")),
+            ui.notify(t("console.uploads.nothing_in_that_drop") if payload.get("empty")
+                      else str(payload.get("message") or t("console.uploads.not_work")),
                       type="negative")
         elif status == "done":
             _clear(state)

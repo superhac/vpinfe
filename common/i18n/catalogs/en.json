@@ -1099,6 +1099,7 @@
   "console.uploads.drop_could_not_read": "That drop could not be read",
   "console.uploads.finish_one_already_open": "Finish the one already open first",
   "console.uploads.not_work": "That did not work",
+  "console.uploads.nothing_in_that_drop": "Nothing in that drop",
   "console.uploads.reading": "Reading…",
   "console.uploads.reading_2": "Reading {done} of {total}…",
   "console.view.answering": "Answering",
