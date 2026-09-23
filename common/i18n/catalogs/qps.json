@@ -1575,6 +1575,7 @@
   "error.collections.cap_fewer_one_game": "À çàþ öƒ ƒèŵèř ţĥàñ öñè ĝàɱè šĥöŵš ñöţĥîñĝ",
   "error.collections.collection_named_already_exists": "À çöŀŀèçţîöñ ñàɱèđ {name} àŀřèàđý èẋîšţš",
   "error.collections.collection_needs_name": "À çöŀŀèçţîöñ ñèèđš à ñàɱè",
+  "error.collections.copy_or_contents": "À çöþý ţàķèš îţš ĝàɱèš àñđ řûŀèš ƒřöɱ ţĥè çöŀŀèçţîöñ îţ çöþîèš",
   "error.collections.file_empty": "Ţĥàţ ƒîŀè îš èɱþţý",
   "error.collections.filter_collection_no_arrangement": "{name} îš à ƒîŀţèř çöŀŀèçţîöñ - îţ ĥàš ñö àřřàñĝèɱèñţ ţö ƒöŀŀöŵ",
   "error.collections.filter_collection_order_comes": "{name} îš à ƒîŀţèř çöŀŀèçţîöñ - îţš öřđèř çöɱèš ƒřöɱ îţš çřîţèřîà",

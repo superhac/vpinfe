@@ -453,24 +453,31 @@ def _write_criteria(manager: CollectionStore, name: str, criteria: dict,
 
 def create(name: str, games: Iterable[str] = (), description: str = "",
            criteria: dict | None = None,
-           order: dict | None = None) -> dict:
+           order: dict | None = None, copy_of: str | None = None) -> dict:
     """Criteria and hand-picked games together, if that is what was asked for: the two are
     combinable and the kind is derived from what is stored."""
     name = (name or "").strip()
     if not name:
         raise service_errors.RefusedError(
             t("error.collections.collection_needs_name"))
+    games = list(games)
+    if copy_of is not None and (games or description or criteria is not None):
+        raise service_errors.RefusedError(t("error.collections.copy_or_contents"))
 
     with get_collections_manager().mutate() as manager:
         if name in manager.get_collections_name():
             raise service_errors.BlockedError(
                 t("error.collections.collection_named_already_exists", name=(name)))
-        _known_games_or_refuse(games)
-        manager.add_collection(name, list(games))
-        if description:
-            manager.set_description(name, description)
-        if criteria is not None:
-            _write_criteria(manager, name, criteria, order or {})
+        if copy_of is not None:
+            _named_or_refuse(manager, copy_of)
+            manager.copy_collection(copy_of, name)
+        else:
+            _known_games_or_refuse(games)
+            manager.add_collection(name, games)
+            if description:
+                manager.set_description(name, description)
+            if criteria is not None:
+                _write_criteria(manager, name, criteria, order or {})
     return resource(name)
 
 

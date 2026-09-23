@@ -1748,6 +1748,8 @@ class CreateCollectionRequest(ApiModel):
     description: str = ""
     filters: CollectionFilters | None = None
     games: list[str] = Field(default_factory=list)
+    # A collection to copy. Refused beside `description`, `filters` or `games`.
+    copy_of: str | None = None
 
 
 class PatchCollectionRequest(ApiModel):

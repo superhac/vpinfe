@@ -1500,6 +1500,7 @@
   "error.collections.cap_fewer_one_game": "a5dd0c2eb6a8",
   "error.collections.collection_named_already_exists": "087ea3a9bfa0",
   "error.collections.collection_needs_name": "c512f77fd6f8",
+  "error.collections.copy_or_contents": "7781be742159",
   "error.collections.file_empty": "b147ddec156c",
   "error.collections.filter_collection_no_arrangement": "84c9932ba4ee",
   "error.collections.filter_collection_order_comes": "955a85cecf47",

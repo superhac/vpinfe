@@ -5,6 +5,7 @@ from __future__ import annotations
 # collection_store.py
 import configparser
 import contextlib
+import copy
 import json
 import logging
 import os
@@ -573,6 +574,13 @@ class CollectionStore:
             criteria["played"] = bool(played)
         self.records.append({"name": section, "type": "filter", "image": "",
                              "filters": criteria})
+
+    def copy_collection(self, source: str, section: str) -> None:
+        if self._record(section) is not None:
+            raise ValueError(f"Section '{section}' already exists")
+        record = copy.deepcopy(self._require_mutable(source))
+        record["name"] = section
+        self.records.append(record)
 
     def make_filter_collection(self, section: str, filters: dict,
                                order: dict | None = None,

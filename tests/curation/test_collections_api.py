@@ -272,6 +272,35 @@ class CollectionsApiTests(TempTree):
         self.assertEqual(("manual", None), (body["type"], body["filters"]))
         self.assertEqual(self.manager.get_members("Both"), [GAME_ID])
 
+    def test_a_copy_holds_everything_the_original_does(self) -> None:
+        self.client.post("/collections", json={
+            "name": "Bally", "games": [GAME_ID], "description": "Tonight",
+            "filters": {"manufacturer": ["Bally"]}})
+        self.client.patch("/collections/Bally", json={
+            "limit": 1, "order_by": "year", "direction": "desc"})
+        self.client.put(f"/collections/Bally/excluded/{OTHER_ID}", json={})
+
+        made = self.client.post("/collections",
+                                json={"name": "Bally copy", "copy_of": "Bally"})
+
+        self.assertEqual(201, made.status_code)
+        original = self._written("Bally")
+        self.assertEqual({**original, "name": "Bally copy"}, self._written("Bally copy"))
+
+    def test_a_copy_of_nothing_is_not_found(self) -> None:
+        made = self.client.post("/collections", json={"name": "Copy", "copy_of": "Gone"})
+
+        self.assertEqual(404, made.status_code)
+
+    def test_a_copy_with_contents_of_its_own_is_refused(self) -> None:
+        self.client.post("/collections", json={"name": "Bally", "games": [GAME_ID]})
+
+        made = self.client.post("/collections", json={
+            "name": "Copy", "copy_of": "Bally", "games": [OTHER_ID]})
+
+        self.assertEqual(400, made.status_code)
+        self.assertNotIn("Copy", self.manager.get_collections_name())
+
     def test_an_unknown_game_id_is_named_rather_than_stored(self) -> None:
         response = self.client.post("/collections",
                                     json={"name": "Bad", "games": [GAME_ID, "nope"]})

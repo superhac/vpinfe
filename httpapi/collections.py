@@ -76,7 +76,8 @@ def create_collection(response: Response,
     made = collection_ops.create(
         request.name, request.games, request.description,
         criteria_for(request.filters) if request.filters is not None else None,
-        _criteria_order(request.filters) if request.filters is not None else None)
+        _criteria_order(request.filters) if request.filters is not None else None,
+        request.copy_of)
     response.headers["Location"] = made["links"]["self"]
     return models.CollectionResource(**made)
 

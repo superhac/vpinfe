@@ -1575,6 +1575,7 @@
   "error.collections.cap_fewer_one_game": "A cap of fewer than one game shows nothing",
   "error.collections.collection_named_already_exists": "A collection named {name} already exists",
   "error.collections.collection_needs_name": "A collection needs a name",
+  "error.collections.copy_or_contents": "A copy takes its games and rules from the collection it copies",
   "error.collections.file_empty": "That file is empty",
   "error.collections.filter_collection_no_arrangement": "{name} is a filter collection - it has no arrangement to follow",
   "error.collections.filter_collection_order_comes": "{name} is a filter collection - its order comes from its criteria",
