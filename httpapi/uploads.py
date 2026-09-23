@@ -26,6 +26,14 @@ def begin_upload() -> models.UploadBegun:
     return models.UploadBegun(**upload_ops.begin())
 
 
+@router.post("/from_path", summary="Begin a session over a folder on this machine",
+             dependencies=[requires(scopes.UPLOADS_WRITE), requires(scopes.FILESYSTEM_READ)])
+def begin_upload_from(body: models.UploadFromPath) -> models.UploadBegun:
+    """A file, a folder or an archive already here, read where it is and never removed
+    with the session."""
+    return models.UploadBegun(**upload_ops.begin_from(body.path))
+
+
 @router.get("/{upload_id}", summary="Upload session summary",
             dependencies=[requires(scopes.UPLOADS_WRITE)])
 def get_upload(upload_id: str) -> models.UploadSummary:

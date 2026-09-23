@@ -70,15 +70,25 @@ def _sweep() -> None:
         shutil.rmtree(rec["dir"], ignore_errors=True)
 
 
-def begin_session() -> UploadSession:
-    """Create a fresh upload session backed by a temp directory (sweeping expired ones first)."""
+def begin_session(source: Path | None = None) -> UploadSession:
+    """Create a fresh upload session backed by a temp directory (sweeping expired ones first).
+
+    With `source`, the session reads that file or folder where it is instead, and
+    cleaning the session up leaves it alone.
+    """
     _sweep()
     upload_id = uuid.uuid4().hex
     directory = tempfile.mkdtemp(prefix="vpinfe_upload_")
     created = time.time()
     with _lock:
-        _sessions[upload_id] = {"dir": directory, "created": created, "bytes": 0}
+        _sessions[upload_id] = {"dir": directory, "created": created, "bytes": 0,
+                                "source": str(source) if source else ""}
     return UploadSession(upload_id, directory, created)
+
+
+def get_session_source(upload_id: str) -> Path | None:
+    found = _record(upload_id).get("source") or ""
+    return Path(found) if found else None
 
 
 def _record(upload_id: str) -> dict:
@@ -92,6 +102,8 @@ def _record(upload_id: str) -> dict:
 def store_file(upload_id: str, relpath: str, stream: IO[bytes]) -> int:
     """Stream a single uploaded file into the session directory at its relative path."""
     rec = _record(upload_id)
+    if rec.get("source"):
+        raise UnsafePathError("This session reads a folder on this machine")
     dest = _safe_join(Path(rec["dir"]), relpath)
     dest.parent.mkdir(parents=True, exist_ok=True)
     written = 0
@@ -115,8 +127,9 @@ def get_session_dir(upload_id: str) -> Path:
 
 
 def finish_session(upload_id: str) -> dict:
-    directory = get_session_dir(upload_id)
-    files = [p for p in directory.rglob("*") if p.is_file()]
+    directory = get_session_source(upload_id) or get_session_dir(upload_id)
+    files = ([directory] if directory.is_file()
+             else [p for p in directory.rglob("*") if p.is_file()])
     return {"file_count": len(files), "total_bytes": sum(p.stat().st_size for p in files)}
 
 

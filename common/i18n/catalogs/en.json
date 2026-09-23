@@ -1585,6 +1585,7 @@
   "error.filesystem.folder_not_one_install": "That folder is not one this install may read",
   "error.filesystem.not_folder": "That is not a folder",
   "error.filesystem.not_media_file": "That is not a media file",
+  "error.filesystem.nothing_there": "Nothing is there",
   "error.filesystem.path_cannot_read": "That path cannot be read",
   "error.games.already_folder_name": "There is already a folder by that name",
   "error.games.could_not_bring": "Could not bring it in: {exc}",

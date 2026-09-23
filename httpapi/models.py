@@ -2107,6 +2107,10 @@ class UploadBegun(ApiModel):
     id: str
 
 
+class UploadFromPath(ApiModel):
+    path: str
+
+
 class UploadSummary(ApiModel):
     file_count: int
     total_bytes: int

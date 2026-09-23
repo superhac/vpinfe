@@ -1585,6 +1585,7 @@
   "error.filesystem.folder_not_one_install": "Ţĥàţ ƒöŀđèř îš ñöţ öñè ţĥîš îñšţàŀŀ ɱàý řèàđ",
   "error.filesystem.not_folder": "Ţĥàţ îš ñöţ à ƒöŀđèř",
   "error.filesystem.not_media_file": "Ţĥàţ îš ñöţ à ɱèđîà ƒîŀè",
+  "error.filesystem.nothing_there": "Ñöţĥîñĝ îš ţĥèřè",
   "error.filesystem.path_cannot_read": "Ţĥàţ þàţĥ çàññöţ ƀè řèàđ",
   "error.games.already_folder_name": "Ţĥèřè îš àŀřèàđý à ƒöŀđèř ƀý ţĥàţ ñàɱè",
   "error.games.could_not_bring": "Çöûŀđ ñöţ ƀřîñĝ îţ îñ: {exc}",

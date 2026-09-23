@@ -12,7 +12,7 @@ from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 from typing import IO, Any
 
-from common import service_errors
+from common import media_browse, service_errors
 from common.games import identity_claims
 from common.games.asset_registry import spec_for
 from common.i18n import t
@@ -20,6 +20,7 @@ from common.uploads import upload_session_service
 from common.uploads.asset_analyzer_service import (
     AnalysisResult,
     DetectedAsset,
+    analyze_path,
     analyze_upload_session,
 )
 from common.uploads.asset_import_service import (
@@ -40,7 +41,8 @@ from common.uploads.upload_session_service import (
 )
 
 __all__ = ["NothingImportableError", "UnprocessableUploadError", "UploadTooLargeError",
-           "abort", "add_file", "analysis_of", "begin", "execute", "plan_for", "summary"]
+           "abort", "add_file", "analysis_of", "begin", "begin_from", "execute", "plan_for",
+           "summary"]
 
 
 class UnprocessableUploadError(service_errors.ServiceError):
@@ -160,7 +162,7 @@ def _session_dir(upload_id: str) -> Path:
 
 
 def _analysis_for(upload_id: str) -> tuple[AnalysisResult, Path]:
-    analysis, source_path = analyze_upload_session(_session_dir(upload_id))
+    analysis, source_path = _analyzed(upload_id)
     if analysis.error:
         raise UnprocessableUploadError(analysis.error)
     return analysis, source_path
@@ -179,6 +181,16 @@ def _vps_entry(vps_id: str) -> dict | None:
 
 def begin() -> dict[str, Any]:
     return {"id": upload_session_service.begin_session().upload_id}
+
+
+def begin_from(path: str) -> dict[str, Any]:
+    """A session over a file, a folder or an archive already on this machine, bounded the
+    way browsing is."""
+    source = media_browse.within_roots(path)
+    if not source.exists():
+        raise service_errors.RefusedError(t("error.filesystem.nothing_there"),
+                                          details={"path": path})
+    return {"id": upload_session_service.begin_session(source=source).upload_id}
 
 
 def summary(upload_id: str) -> dict[str, Any]:
@@ -201,8 +213,38 @@ def add_file(upload_id: str, relpath: str, stream: IO[bytes]) -> dict[str, Any]:
         raise service_errors.RefusedError(str(exc)) from exc
 
 
+def _source_of(upload_id: str) -> Path | None:
+    try:
+        return upload_session_service.get_session_source(upload_id)
+    except UnknownSessionError as exc:
+        raise service_errors.NotFoundError(str(exc)) from exc
+
+
+def _analyzed(upload_id: str) -> tuple[AnalysisResult, Path]:
+    source = _source_of(upload_id)
+    if source is not None:
+        return analyze_path(source), source
+    return analyze_upload_session(_session_dir(upload_id))
+
+
+def _single_file(upload_id: str) -> Path:
+    """The one file a slot import takes, or a refusal."""
+    source = _source_of(upload_id)
+    if source is not None:
+        files = [source] if source.is_file() else []
+    else:
+        session = _session_dir(upload_id)
+        if any(one.is_dir() for one in session.iterdir()):
+            files = []
+        else:
+            files = [one for one in session.iterdir() if one.is_file()]
+    if len(files) != 1:
+        raise service_errors.RefusedError(t("error.uploads.drop_single_file_slot"))
+    return files[0]
+
+
 def analysis_of(upload_id: str) -> dict[str, Any]:
-    analysis, _source = analyze_upload_session(_session_dir(upload_id))
+    analysis, _source = _analyzed(upload_id)
     return _analysis_to_dict(analysis)
 
 
@@ -216,12 +258,8 @@ def _slot_plan(upload_id: str, game_dir: str, media_kind: str) -> ImportPlan:
     if not game_dir:
         raise service_errors.RefusedError(
             t("error.uploads.slot_import_needs_game"))
-    session = _session_dir(upload_id)
-    files = [one for one in session.iterdir() if one.is_file()]
-    if [one for one in session.iterdir() if one.is_dir()] or len(files) != 1:
-        raise service_errors.RefusedError(t("error.uploads.drop_single_file_slot"))
     try:
-        return build_media_slot_plan(files[0], game_dir=Path(game_dir),
+        return build_media_slot_plan(_single_file(upload_id), game_dir=Path(game_dir),
                                      media_kind=media_kind)
     except ValueError as exc:
         raise service_errors.RefusedError(str(exc)) from exc
@@ -305,8 +343,7 @@ def execute(upload_id: str, request: dict[str, Any],
         # destination, so there is nothing to select from and nothing to name.
         plan = _slot_plan(upload_id, request.get("game_dir") or "",
                           request["media_kind"])
-        source = next(one for one in _session_dir(upload_id).iterdir() if one.is_file())
-        return _run(plan, source, identities, upload_id)
+        return _run(plan, _single_file(upload_id), identities, upload_id)
 
     analysis, source_path = _analysis_for(upload_id)
     vps_entry = _vps_entry(request.get("vps_id") or "")
