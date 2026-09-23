@@ -19,6 +19,7 @@ from common.labels import humanize
 from common.media_specs import media_label_map
 from console import (
     confirm,
+    deeplink,
     game_tables,
     grid,
     media_ownership,
@@ -416,8 +417,10 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
             legend.bind_visibility_from(view_picker, "value",
                                         lambda value: value == "builtin:Media")
 
+        narrowed = str(state.get("collection") or "")
         wire_views, view_picker, showing, describe = view_control(
-            library, SCOPE, presets, all_fields, columns, bar=bar, annotate=annotate)
+            library, SCOPE, presets, all_fields, columns, bar=bar, annotate=annotate,
+            arriving={"collections": {"values": [narrowed]}} if narrowed else None)
         describe()
         with bar.top, panel.bar_end():
             search = panel.search(t("console.games.search_games"))
@@ -456,12 +459,19 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                     .props("flat dense round size=sm").classes("shrink-0") \
                     .tooltip(t("console.games.read_library_disk_pick"))
 
+    shown: dict[str, int] = {"rows": len(rows)}
+
+    def said() -> str:
+        if selected:
+            return t("console.games.selected", len=len(selected), len2=len(rows))
+        if shown["rows"] != len(rows):
+            return t("console.games.games_of", value=shown["rows"], len=len(rows))
+        return t("console.games.games", len=len(rows))
+
     def on_select_rows(rows_selected: list[dict[str, Any]]) -> None:
         selected[:] = rows_selected
         actions.set_visibility(bool(rows_selected))
-        count.text = (t("console.games.selected", len=(len(rows_selected)), len2=(len(rows)))
-                      if rows_selected
-                      else t("console.games.games", len=len(rows)))
+        count.text = said()
 
     by_id = {row["id"]: row for row in rows}
 
@@ -592,6 +602,25 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
 
     state["refresh_game"] = refresh_game
 
+    async def counted() -> None:
+        seen = await table.run_grid_method("getDisplayedRowCount")
+        shown["rows"] = seen if isinstance(seen, int) else len(rows)
+        count.text = said()
+
+    async def follow_the_filter() -> None:
+        """The address names the collection the grid is narrowed to, while it is one."""
+        try:
+            model = await table.run_grid_method("getFilterModel") or {}
+        except TimeoutError:
+            return
+        values = list((model.get("collections") or {}).get("values") or [])
+        one = values[0] if len(values) == 1 and values[0] else None
+        if one != (state.get("collection") or None):
+            state["collection"] = one
+            deeplink.sync(state)
+
+    table.on("modelUpdated", counted)
+    table.on("filterChanged", follow_the_filter, args=[])
     wire_views(table)
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText", search.value or ""))
@@ -1192,7 +1221,8 @@ def view_control(library: Any, scope: str,
                  presets: Mapping[str, list[str] | views.Preset],
                  all_fields: list[str],
                  columns: list[dict[str, Any]], *, bar: Any,
-                 annotate: Callable[[], None] | None = None) -> Any:
+                 annotate: Callable[[], None] | None = None,
+                 arriving: dict[str, Any] | None = None) -> Any:
     """One control for how the rows are presented: which view, and what is in it.
 
     Built here in the toolbar and wired once the grid exists, because the widgets have
@@ -1203,6 +1233,9 @@ def view_control(library: Any, scope: str,
     showing, `showing()` answers the same question for the grid's own geometry, and
     `describe()` draws the view's own line - called last, so it takes the row's full
     width and falls to the foot of the bar.
+
+    `arriving` is a filter model the address asked for. It stands in for the filters of
+    the first view put on the grid, and each column it filters is shown.
     """
     custom, active = views.stored(library, scope)
     known = views.builtins(presets) + custom
@@ -1273,7 +1306,7 @@ def view_control(library: Any, scope: str,
                 f"'--ag-row-height', '{height}px')")
             table.run_grid_method("redrawRows")
 
-        async def apply(view: Any) -> None:
+        async def apply(view: Any, over: dict[str, Any] | None = None) -> None:
             """Put a view on the grid: which columns, sorted how, filtered to what -
             and then this view's own widths, which the grid does not carry across a
             switch."""
@@ -1287,6 +1320,9 @@ def view_control(library: Any, scope: str,
                         type="warning")
                 await _refresh()
                 return
+            over = {field: model for field, model in (over or {}).items()
+                    if field in all_fields}
+            wanted = wanted + [field for field in over if field not in wanted]
             table.run_grid_method("setColumnsVisible", wanted, True)
             table.run_grid_method("setColumnsVisible",
                                   [f for f in all_fields if f not in wanted], False)
@@ -1298,7 +1334,7 @@ def view_control(library: Any, scope: str,
             # Always set, even to nothing: a view that filters nothing has to clear
             # what the last one filtered, which is what makes picking one a way out
             # rather than a hope.
-            table.run_grid_method("setFilterModel", view.filters or None)
+            table.run_grid_method("setFilterModel", over or view.filters or None)
             held["drawing"] = dict(view.drawn)
             draw(wanted)
             # After visibility, because `applyOrder` only orders what is showing.
@@ -1485,7 +1521,7 @@ def view_control(library: Any, scope: str,
         # recomputed on a timer that would outlive the grid.
         for event in ("columnVisible", "sortChanged", "filterChanged"):
             table.on(event, lambda: _refresh(), args=[])
-        ui.timer(0, lambda: apply(current()), once=True)
+        ui.timer(0, lambda: apply(current(), arriving), once=True)
 
     return wire, picker, lambda: held["active"], describe
 

@@ -81,9 +81,21 @@ class CollectionAddressTests(unittest.TestCase):
         self.assertEqual(_address(state),
                          {"view": "collections", "collection": "Friday Night"})
 
+    def test_the_games_grid_carries_the_collection_it_is_narrowed_to(self) -> None:
+        self.assertEqual({"view": "games", "collection": "Friday Night"},
+                         _address({"view": "games", "collection": "Friday Night"}))
+
     def test_a_collection_is_noise_anywhere_else(self) -> None:
         self.assertNotIn("collection",
-                         _address({"view": "games", "collection": "Friday Night"}))
+                         _address({"view": "tables", "collection": "Friday Night"}))
+
+    def test_leaving_a_page_drops_the_collection_it_had_open(self) -> None:
+        from console import page
+
+        state = {"view": "collections", "collection": "Friday Night"}
+        page.leave_for(state, "games")
+
+        self.assertEqual({"view": "games"}, _address(state))
 
 
 class SectionTests(unittest.TestCase):

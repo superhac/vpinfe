@@ -1,4 +1,4 @@
-"""The Tags column of the Games grid, filtered and sorted in a real grid.
+"""The Games grid's list columns in a real grid, and Show in Games from a collection.
 
 Slow: boots a real instance and a real browser.
 """
@@ -50,6 +50,14 @@ FILTER_TEXT = ("(() => { const f = document.querySelector('.console-filter');"
 ROW_INDEX = ("(() => [...document.querySelectorAll('.console-filter-row')]"
              ".findIndex(r => r.innerText.startsWith(%s)))()")
 
+SHOW_IN_GAMES = "a.console-link[href*='view=games']"
+
+COUNT = ("(() => [...document.querySelectorAll('.console-label')]"
+         ".map(l => l.innerText).find(s => s.includes('games')))()")
+
+HELD = ("(() => { const out = {}; " + API + ".forEachNode(n => {"
+        " out[n.data.name] = [...n.data.collections]; }); return out; })()")
+
 
 class ListColumnDrive(unittest.TestCase):
     seen: dict = {}
@@ -68,6 +76,10 @@ class ListColumnDrive(unittest.TestCase):
     @classmethod
     async def _drive(cls, instance: LiveInstance) -> dict:
         seen: dict = {}
+        instance.wait_for_api()
+        ids = {one["name"]: one["id"] for one in instance.api("/api/v1/games")["games"]}
+        instance.post("/api/v1/collections",
+                      {"name": "Friday Night", "games": [ids["Alpha"], ids["Delta"]]})
         async with BrowserSession(chromium_path()) as browser:
             await browser.navigate(instance.console_url("/console?view=games"))
             await browser.wait_for(API + ".getDisplayedRowCount() === 4", timeout=90.0)
@@ -92,6 +104,18 @@ class ListColumnDrive(unittest.TestCase):
             await asyncio.sleep(0.5)
             seen["ticked"] = await browser.evaluate(SHOWN)
             seen["model"] = await browser.evaluate(API + ".getFilterModel()")
+            seen["held"] = await browser.evaluate(HELD)
+
+            await browser.navigate(
+                instance.console_url("/console?view=collections&collection=Friday%20Night"))
+            await browser.wait_for(f"!!document.querySelector({json.dumps(SHOW_IN_GAMES)})",
+                                   timeout=60.0)
+            await browser.click(SHOW_IN_GAMES)
+            await browser.wait_for("location.search.includes('view=games')")
+            await browser.wait_for(API + ".getDisplayedRowCount() === 2", timeout=60.0)
+            seen["address"] = await browser.evaluate("location.search")
+            seen["narrowed"] = await browser.evaluate(SHOWN)
+            seen["count"] = await browser.evaluate(COUNT)
         return seen
 
     def test_any_of_the_picked_values(self) -> None:
@@ -119,6 +143,16 @@ class ListColumnDrive(unittest.TestCase):
     def test_ticking_a_value_filters_and_the_model_is_the_values(self) -> None:
         self.assertEqual({"Alpha", "Delta"}, set(self.seen["ticked"]))
         self.assertEqual({"tags": {"values": ["Shortlist"]}}, self.seen["model"])
+
+
+    def test_a_game_s_collections_are_its_cell(self) -> None:
+        self.assertEqual({"Alpha": ["Friday Night"], "Bravo": [], "Charlie": [],
+                          "Delta": ["Friday Night"]}, self.seen["held"])
+
+    def test_show_in_games_narrows_the_grid_to_the_collection(self) -> None:
+        self.assertEqual("?view=games&collection=Friday+Night", self.seen["address"])
+        self.assertEqual({"Alpha", "Delta"}, set(self.seen["narrowed"]))
+        self.assertEqual("2 of 4 games", self.seen["count"])
 
 
 if __name__ == "__main__":

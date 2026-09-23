@@ -1335,6 +1335,7 @@ def leave_for(state: dict[str, Any], view: str) -> None:
     if view != state["view"]:
         state["game"] = ""
         state["table"] = ""
+        state["collection"] = None
     state["view"] = view
     remembered.put("section", view)
 

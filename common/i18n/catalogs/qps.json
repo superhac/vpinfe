@@ -439,6 +439,7 @@
   "console.games.game_rating": "Ĝàɱè Řàţîñĝ",
   "console.games.game_themes": "Ĝàɱè Ţĥèɱèš",
   "console.games.games": "{len} ĝàɱèš",
+  "console.games.games_of": "{value} öƒ {len} ĝàɱèš",
   "console.games.hide": "Ĥîđè",
   "console.games.how_many_vpx_files.help": "Ĥöŵ ɱàñý ţàƀŀè ƒîŀèš ţĥîš ĝàɱè ƒöŀđèř ĥöŀđš",
   "console.games.launch": "Ŀàûñçĥ",
@@ -1487,6 +1488,7 @@
   "console.workbench.settings_file": "Šèţţîñĝš ƒîŀè",
   "console.workbench.setup": "Šèţûþ",
   "console.workbench.shadowed": "Šĥàđöŵèđ ({the_count})",
+  "console.workbench.show_in_games": "Šĥöŵ îñ Ĝàɱèš",
   "console.workbench.single_game_folder_no": "À šîñĝŀè ĝàɱè ƒöŀđèř ĥàš ñö řööɱ ƒöř àñöţĥèř ĝàɱè.",
   "console.workbench.smart_games": {
     "one": "Šɱàřţ · {count} ĝàɱè",

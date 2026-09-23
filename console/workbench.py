@@ -5412,10 +5412,16 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
     # Counted after the filter, not before: the count describes what is on screen.
     playable = sum(1 for m in members if m.get("included"))
     taken = sum(1 for m in members if (m.get("origin") or "") == "excluded")
-    with ui.row().classes("items-center gap-2 w-full no-wrap"):
+    # Wraps, so the key drops below the count and the link rather than splitting them.
+    with ui.row().classes("items-center gap-2 w-full"):
         ui.label(t("console.workbench.count_games_taken_out", count=playable, taken=taken)
                  if taken else t("console.workbench.count_games", count=playable)) \
-            .classes("console-card-title")
+            .classes("console-card-title whitespace-nowrap")
+        if int(row.get("count") or 0):
+            with ui.element("span").classes("whitespace-nowrap"):
+                panel.link(t("console.workbench.show_in_games"), to="/console?"
+                           + deeplink.query({"view": "games",
+                                             "collection": _collection(context)["name"]}))()
         ui.space()
         # The key, beside the count rather than above the rows: a legend the reader
         # scrolls away from stops being one, and this sits in the header that stays.

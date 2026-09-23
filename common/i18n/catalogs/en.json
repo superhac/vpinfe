@@ -439,6 +439,7 @@
   "console.games.game_rating": "Game Rating",
   "console.games.game_themes": "Game Themes",
   "console.games.games": "{len} games",
+  "console.games.games_of": "{value} of {len} games",
   "console.games.hide": "Hide",
   "console.games.how_many_vpx_files.help": "How many table files this game folder holds",
   "console.games.launch": "Launch",
@@ -1487,6 +1488,7 @@
   "console.workbench.settings_file": "Settings file",
   "console.workbench.setup": "Setup",
   "console.workbench.shadowed": "Shadowed ({the_count})",
+  "console.workbench.show_in_games": "Show in Games",
   "console.workbench.single_game_folder_no": "A single game folder has no room for another game.",
   "console.workbench.smart_games": {
     "one": "Smart · {count} game",
