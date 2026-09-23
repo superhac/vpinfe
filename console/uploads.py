@@ -217,8 +217,9 @@ if (!window.__consoleDnd) {
 """
 
 
-def install(on_drop: Callable[[Drop], Any]) -> None:
-    """Make the whole page a drop target, and say what to do when something lands.
+def install(on_drop: Callable[[Drop], Any]) -> Callable[[Any], None]:
+    """Make the whole page a drop target, and return what the page listens to
+    `console_dnd` with.
 
     The document rather than a zone element: every grid in the Console is a place a file
     could sensibly be dropped, and a zone would be one more region to find and aim at.
@@ -251,7 +252,7 @@ def install(on_drop: Callable[[Drop], Any]) -> None:
                 return
             asyncio.create_task(_handle(state, payload, on_drop))
 
-    ui.on("console_dnd", said)
+    return said
 
 
 def _progress(state: dict[str, Any], text: str) -> None:

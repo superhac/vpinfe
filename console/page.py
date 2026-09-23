@@ -529,6 +529,12 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     ui.on(row_drag.DRAGGED, lambda: row_drag.dragging(library, state))
     ui.on(row_drag.DROPPED,
           lambda event: row_drag.dropped(library, state, event.args))
+    ui.on("hub_guide_moved", lambda event: workbench.guide_moved(state, event.args))
+    ui.on("hub_dock_px", lambda event: state.__setitem__("dock_px", int(event.args))
+          if event.args else None)
+    ui.on("hub_row_focus", grid.row_focused)
+    ui.on("hub_media_zoom", lambda event: games.media_zoomed(state, event))
+    ui.on("hub_rate", lambda event: games.rated(state, event))
 
     def toggle_mini() -> None:
         """The nav's own control. Setting it by hand takes it out of Full's care: an
@@ -1186,7 +1192,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
 
     # Installed once the library and the redraw both exist. What a drop means comes from
     # where it landed, so this is one handler for every grid rather than a zone per page.
-    uploads.install(lambda drop: _took_a_drop(library, state, redraw, drop))
+    ui.on("console_dnd", uploads.install(lambda drop: _took_a_drop(library, state, redraw,
+                                                                    drop)))
     row_drag.install()
 
     ui.run_javascript(_NAV_CLICK)

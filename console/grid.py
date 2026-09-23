@@ -332,17 +332,14 @@ def list_column(field: str, header: str, width: int = 0, help: str = "", *,
 
 def on_row_focus(scope: str, handler: Callable[[Any], Any]) -> None:
     """Call `handler` for focus events from this grid, and no other."""
-    held = _row_focus_handlers()
-    held[scope] = handler
-    if held.get("__listening__") is None:
-        held["__listening__"] = True
+    _row_focus_handlers()[scope] = handler
 
-        def dispatch(event: Any) -> Any:
-            args = event.args if isinstance(event.args, dict) else {}
-            mine = _row_focus_handlers().get(str(args.get("scope") or ""))
-            return mine(event) if mine is not None else None
 
-        ui.on("hub_row_focus", dispatch)
+def row_focused(event: Any) -> Any:
+    """A focus event, handed to the grid it came from."""
+    args = event.args if isinstance(event.args, dict) else {}
+    mine = _row_focus_handlers().get(str(args.get("scope") or ""))
+    return mine(event) if mine is not None else None
 
 
 # Weak, so a client that has gone takes its handlers with it.

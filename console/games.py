@@ -377,6 +377,18 @@ async def _launch(games: list[dict[str, Any]]) -> None:
     ui.notify(t("console.games.launching", get=(games[0].get('name'))), type="positive")
 
 
+def media_zoomed(state: dict[str, Any], event: Any) -> Any:
+    """A media cell's zoom, answered by the grid drawn last."""
+    zoom = state.get("media_zoom")
+    return zoom(event) if zoom else None
+
+
+def rated(state: dict[str, Any], event: Any) -> Any:
+    """A star clicked in a grid, written by the grid drawn last - Games or Tables."""
+    rate = state.get("rate")
+    return rate(event) if rate else None
+
+
 def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
           on_select: Callable[[dict | None], Any],
           state: dict[str, Any] | None = None,
@@ -489,8 +501,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     rate_row = stars.rating_handler(by_id, lambda: table, ApiClient)
 
     grid.on_row_focus(SCOPE, focused)
-    ui.on("hub_media_zoom", zoom_media)
-    ui.on("hub_rate", rate_row)
+    state["media_zoom"] = zoom_media
+    state["rate"] = rate_row
     ui.run_javascript(_CELL_MEDIA)
     ui.run_javascript(stars.CLICK_JS)
 
@@ -1050,7 +1062,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
 
     grid.on_row_focus(f"{SCOPE}.tables",
                       lambda event: on_select(by_id.get(grid.focused_row(event))))
-    ui.on("hub_rate", rate_row)
+    state["rate"] = rate_row
     ui.run_javascript(stars.CLICK_JS)
 
     row_menu: dict[str, Any] = {}

@@ -437,12 +437,6 @@ async def build(container: ui.column, title: ui.column, library: Library,
     game itself, which is what the Games lens selects.
     """
     state = state if state is not None else {}
-    # Registered once: the height a drag settled on has to survive the rebuild that a
-    # section change causes, and the panel is what remembers it.
-    if not state.get("dock_grip_bound"):
-        state["dock_grip_bound"] = True
-        ui.on("hub_dock_px", lambda e: state.__setitem__("dock_px", int(e.args or 0))
-              if e.args else None)
     # Builds are serialized, and a superseded one gives up rather than drawing.
     # Without this the panel doubles: clearing happens before the tables fetch and the
     # drawing after it, so two builds that overlap both clear an empty container and
@@ -2310,11 +2304,8 @@ async def _guides_block(context: dict[str, Any]) -> None:
                     .props("dense dense-toggle").classes("console-disclosure px-3 w-full"):
                 for one in hidden:
                     _guide_row(*guide_words(one), act=_guide_act(context, one))
-    held = context["state"]
-    held["guide_move"] = context
-    if not held.get("guide_move_bound"):
-        held["guide_move_bound"] = True
-        ui.on("hub_guide_moved", lambda event: _guide_moved(held, event.args))
+    # Read at the drop by the page's listener, `guide_moved`.
+    context["state"]["guide_move"] = context
     if len(shown) > 1:
         ui.run_javascript(_ARRANGE)
 
@@ -2357,9 +2348,9 @@ def _guide_act(context: dict[str, Any], guide: dict[str, Any]) -> Callable[[], N
     return draw
 
 
-async def _guide_moved(state: dict[str, Any], moved: Any) -> None:
-    """Put one shown guide where it was dropped. The hidden ones keep their order after
-    the shown."""
+async def guide_moved(state: dict[str, Any], moved: Any) -> None:
+    """Put one shown guide where it was dropped, in the Guides drawn last. The hidden ones
+    keep their order after the shown."""
     context = state.get("guide_move")
     if not context:
         return
