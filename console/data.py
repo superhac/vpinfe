@@ -962,6 +962,10 @@ class Library:
         self.read_tags()
         return changed
 
+    def owned(self, ids: list[str]) -> dict[str, dict[str, Any]]:
+        """Which of these VPS ids this library holds, by id."""
+        return self._client.owned(ids)
+
     def read_tags(self) -> list[dict[str, Any]]:
         """Every tag and what it wears. Off the loop; `tag_looks` is what a draw reads."""
         try:

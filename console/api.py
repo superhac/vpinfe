@@ -317,6 +317,9 @@ class ApiClient:
         self._answered(response)
         return list((response.json() or {}).get("releases") or [])
 
+    def owned(self, ids: list[str]) -> dict:
+        return self._post("/library/owned", {"ids": list(ids)}).get("owned") or {}
+
     def tags(self) -> list[dict]:
         return list(self._get("/library/tags").get("tags") or [])
 

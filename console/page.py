@@ -14,6 +14,7 @@ from common.i18n import t
 from console import about as about_page
 from console import assets as assets_page
 from console import collections as collections_page
+from console import community as community_page
 from console import contents as contents_page
 from console import (
     deeplink,
@@ -106,6 +107,8 @@ NAV_FRONTEND = ("frontend", "console.section.frontend", "smart_display")
 # and the logger's own settings are a page inside Settings.
 NAV_SYSTEM = ("system", "console.section.system", "settings")
 
+NAV_COMMUNITY = ("community", "console.section.community", "groups")
+
 # Which feature each destination answers for, `core` being the one every install has. An
 # install without a feature does not show its section at all - not greyed and not empty,
 # absent - because a section for something this machine is not for is a place with
@@ -136,6 +139,7 @@ NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] 
     (NAV_FRONTEND, (("launchers", "console.section.launchers", "rocket_launch",
                      install_identity.FRONTEND),
                     ("themes", "console.section.themes", "palette", install_identity.FRONTEND))),
+    (NAV_COMMUNITY, ()),
     # Last, and always here: every other section exists because a feature is enabled,
     # and this is where features are switched on. Ordered configuration, then what this
     # install knows about, then its records, then what it is.
@@ -153,7 +157,8 @@ NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] 
 NAV_UNDER = frozenset({"contents"})
 
 
-def nav_for(features: Any) -> list[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]]]:
+def nav_for(features: Any, community: tuple[NavItem, ...] = ()
+            ) -> list[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]]]:
     """The rail this install has. A group whose entries have all gone goes with them -
     a disclosure with nothing under it is a control that does nothing.
 
@@ -164,7 +169,8 @@ def nav_for(features: Any) -> list[tuple[tuple[str, str, str] | None, tuple[NavI
             or set(install_identity.FEATURES)) | {install_identity.CORE}
     out = []
     for parent, items in NAV_GROUPS:
-        kept = tuple(item for item in items if item[3] in held)
+        kept = tuple(item for item in items if item[3] in held) \
+            + (community if parent is NAV_COMMUNITY else ())
         if kept:
             out.append((parent, kept))
     return out
@@ -461,7 +467,9 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
 
     # The rail this install has, read once: it decides what is drawn and which addresses
     # resolve, and those two disagreeing is a link that lands on a blank page.
-    nav_groups = nav_for(discovery.get("features"))
+    nav_groups = nav_for(discovery.get("features"),
+                         community_page.nav_items(installed_extensions,
+                                                  install_identity.CORE))
     nav_items = [item for _parent, items in nav_groups for item in items]
 
     landing_view = landing_for([key for key, *_rest in nav_items],
@@ -991,6 +999,11 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         """
         title = t(SECTIONS.get(state["view"], state["view"].title()))
         purpose = t(f"console.purpose.{state['view']}")
+        listed = community_page.find(state["view"], installed_extensions)
+        if listed is not None:
+            title = str(listed[1].get("title") or "")
+            purpose = t("console.purpose.community",
+                        name=str(listed[0].get("display_name") or listed[0].get("name")))
         # The band the other two panes' headers use, so the page name sits in a fixed
         # rhythm rather than at whatever height its text makes. Not aligned *across*
         # panes - the nav's band is taller than its minimum and starts inside its own
@@ -1041,6 +1054,10 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                                        state, redraw)
             elif view == "contents":
                 contents_page.build(library, state, show_contents)
+            elif view.startswith(community_page.PREFIX):
+                listed = community_page.find(view, installed_extensions)
+                if listed is not None:
+                    community_page.build(*listed, library)
             elif view == "media":
                 media_page.build(library.media_rows(), library, show_slot, state,
                                  redraw, rescan=_rescan)

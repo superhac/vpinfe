@@ -41,6 +41,9 @@ class Rows(unittest.TestCase):
                           "players": 7, "last_played": "2026-09-22T23:49:46Z",
                           "vps_id": "id-AFM"}, row)
 
+    def test_a_rating_is_to_one_place(self) -> None:
+        self.assertEqual(3.3, self.community._row(_item("BK2K", avgRating=10 / 3))["rating"])
+
     def test_every_page_is_read_until_there_are_no_more(self) -> None:
         pages = [{"items": [_item("A")], "pagination": {"hasNext": True}},
                  {"items": [_item("B")], "pagination": {"hasNext": False}}]

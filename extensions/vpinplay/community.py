@@ -71,7 +71,7 @@ def _row(item: dict[str, Any]) -> dict[str, Any]:
     return {"name": str(item.get("name") or ""),
             "manufacturer": str(item.get("manufacturer") or ""),
             "year": item.get("year") if isinstance(item.get("year"), int) else None,
-            "rating": float(item.get("avgRating") or 0) or None,
+            "rating": round(float(item.get("avgRating") or 0), 1) or None,
             "ratings": int(item.get("ratingCount") or 0),
             "plays": int(item.get("startCountTotal") or 0),
             "hours": round(float(minutes) / 60, 1) if minutes else 0,

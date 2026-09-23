@@ -143,6 +143,8 @@ class PseudoLocaleTests(unittest.TestCase):
             # a launcher is named by the config that declares it: "Visual Pinball",
             # "Generic". A name somebody typed is theirs.
             | {"visual", "pinball", "generic"}
+            # the name the bundled VPinPlay gives its Community list, in the rail
+            | {"vpinplay"}
             # `Last Played` is a collection *name*, written into collections.json - it
             # is stored data, and translating it would rename what is on disk
             | {"last", "played"}
