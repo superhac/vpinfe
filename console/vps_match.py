@@ -19,7 +19,7 @@ from nicegui import run, ui
 
 from common import icons
 from common.i18n import t
-from console import candidates, offload, panel, verbs
+from console import candidates, dialog, offload, panel, verbs
 
 logger = logging.getLogger("vpinfe.console.vps_match")
 
@@ -48,63 +48,63 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
     behind = (await offload.io(library.vps_entry, scanned)
               if scanned and scanned != bound else {})
 
-    with ui.dialog().props("persistent") as dialog, \
-            ui.card().classes("console-confirm console-picker-dialog"):
-        ui.label(t("console.vps_match.match_named",
-                   name=(str(game.get("name") or "")))) \
-            .classes("console-confirm-title")
+    with dialog.opened(t("console.vps_match.match_named", name=str(game.get("name") or "")),
+                       wide=True, persistent=True) as box:
         if place:
-            ui.label(place).classes("console-help")
-
-        if entry:
-            ui.label(t("console.vps_match.current_match")).classes("console-group")
-            def clear() -> None:
-                ui.button(t("console.vps_match.clear_match"), icon=verbs.UNMATCH,
-                          on_click=lambda: dialog.submit(CLEARED)) \
-                    .props("flat dense no-caps size=sm") \
-                    .classes("console-action console-action--danger shrink-0")
-
-            entry_row(entry, trailing=clear)
-
-        if behind:
-            ui.label(t("console.vps_match.original_match")).classes("console-group")
-
-            def take_scanned() -> None:
-                ui.button(t("console.vps_match.use_this"), icon=verbs.ACCEPT,
-                          on_click=lambda: dialog.submit(answer(scanned))) \
-                    .props("flat dense no-caps size=sm") \
-                    .classes("console-action shrink-0")
-
-            entry_row(behind, trailing=take_scanned)
-
-        ui.label(t("console.vps_match.search_for_match")).classes("console-group")
-        with ui.row().classes("items-center gap-2 w-full no-wrap"):
-            field = ui.input(value=_seed(game)) \
-                .props("dense autofocus clearable").classes("console-edit-field grow")
-            ui.button(t("console.vps_match.search"), icon=verbs.SEARCH,
-                      on_click=lambda: look()).props("flat dense no-caps size=sm") \
-                .classes("console-action shrink-0")
-        heading = ui.label("").classes("console-group")
-        found = ui.column().classes("w-full gap-0 console-source-list")
-
-        with ui.row().classes("items-center justify-end gap-2 w-full"):
-            update = ui.button(t("console.vps_match.update_match"), icon=verbs.ACCEPT,
-                               on_click=lambda: dialog.submit(answer(str(picked["id"])))) \
-                .props("no-caps")
-            ui.button(t("word.cancel"), icon=verbs.CANCEL,
-                      on_click=lambda: dialog.submit(CANCELLED)).props("flat no-caps")
-            if walking:
-                ui.button(t("console.vps_match.skip"), icon=verbs.SKIP,
-                          on_click=lambda: dialog.submit(CANCELLED)).props("flat no-caps")
-                ui.button(t("console.vps_match.stop"), icon=verbs.STOP,
-                          on_click=lambda: dialog.submit(STOPPED)).props("flat no-caps")
-        update.set_visibility(False)
-
-        rows: list[dict[str, Any]] = []
+            ui.label(place).classes("console-help px-3")
 
         def answer(vps_id: str) -> str:
             """An override, or "" where the choice is the scan's own answer."""
             return "" if vps_id and vps_id == scanned else vps_id
+
+        def clear() -> None:
+            ui.button(t("console.vps_match.clear_match"), icon=verbs.UNMATCH,
+                      on_click=lambda: box.submit(CLEARED)) \
+                .props("flat dense no-caps size=sm") \
+                .classes("console-action console-action--danger shrink-0")
+
+        field: dict[str, Any] = {}
+
+        def search_row() -> None:
+            with ui.row().classes("items-center gap-2 w-full no-wrap"):
+                with ui.element("div").classes("console-fact-edit grow"):
+                    field["box"] = ui.input(value=_seed(game)) \
+                        .props("dense borderless clearable debounce=0 autofocus") \
+                        .classes("console-edit-field")
+                ui.button(t("console.vps_match.search"), icon=verbs.SEARCH,
+                          on_click=lambda: look()).props("flat dense no-caps size=sm") \
+                    .classes("console-action shrink-0")
+            field["count"] = ui.label("").classes("console-help console-vps-count")
+
+        entries: list[tuple[Any, Any]] = []
+        if entry or behind:
+            entries.append((panel.HEADING, t("console.vps_match.matched_to")))
+        if entry:
+            entries.append((panel.FULL, lambda: entry_row(entry, trailing=clear)))
+        if behind:
+            entries.append((panel.FULL, lambda: _own_pick(
+                behind, cleared=not entry, back=lambda: box.submit(answer(scanned)))))
+        entries.append((panel.HEADING, t("console.vps_match.find_another" if entry or behind
+                                         else "console.vps_match.find_a_match")))
+        entries.append((panel.FULL, search_row))
+        panel.facts(ui, entries)
+        found = ui.column().classes("w-full gap-0 console-source-list console-vps-results px-3")
+
+        with dialog.footer():
+            if walking:
+                ui.button(t("console.vps_match.stop"), icon=verbs.STOP,
+                          on_click=lambda: box.submit(STOPPED)).props("flat no-caps")
+                ui.button(t("console.vps_match.skip"), icon=verbs.SKIP,
+                          on_click=lambda: box.submit(CANCELLED)).props("flat no-caps")
+            else:
+                ui.button(t("word.cancel"), icon=verbs.CANCEL,
+                          on_click=lambda: box.submit(CANCELLED)).props("flat no-caps")
+            update = ui.button(t("console.vps_match.match_to_this"), icon=verbs.MATCH,
+                               on_click=lambda: box.submit(answer(str(picked["id"])))) \
+                .props("no-caps")
+        update.set_visibility(False)
+
+        rows: list[dict[str, Any]] = []
 
         def take(vps_id: str) -> None:
             picked["id"] = vps_id
@@ -117,13 +117,13 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
                 for row in rows:
                     this = str(row.get("vps_id") or "")
                     entry_row(row, pick=partial(take, this),
-                               chosen=this == picked["id"], bound=this == bound)
+                              chosen=this == picked["id"], bound=this == bound)
 
         async def look() -> None:
-            said = str(field.value or "").strip()
+            said = str(field["box"].value or "").strip()
             rows[:] = await offload.io(library.vps_search, said, 40) if said else []
-            heading.text = (t("console.vps_match.results", count=len(rows))
-                            if said and held else "")
+            field["count"].text = (t("console.vps_match.found", count=len(rows))
+                                   if said and held and rows else "")
             if not said or not rows:
                 found.clear()
                 with found:
@@ -134,10 +134,10 @@ async def ask(library: Any, game: dict[str, Any], place: str = "",
                 return
             draw()
 
-        field.on("keydown.enter", look)
+        field["box"].on("keydown.enter", look)
         await look()
 
-    return await dialog
+    return await box
 
 
 async def walk(library: Any, games: list[dict[str, Any]]) -> None:
@@ -185,6 +185,16 @@ def _seed(game: dict[str, Any]) -> str:
     parts = [said] + [str(answered.get(key) or "").strip()
                       for key in ("alt_manufacturer", "alt_year")]
     return " ".join(part for part in parts if part)
+
+
+def _own_pick(found: dict[str, Any], *, cleared: bool, back: Callable[[], None]) -> None:
+    said = " ".join(str(found.get(k) or "") for k in ("manufacturer", "year")).strip()
+    name = str(found.get("name") or "") + (f" ({said})" if said else "")
+    with ui.row().classes("items-center gap-3 w-full no-wrap console-vps-own"):
+        ui.label(t("console.vps_match.you_cleared" if cleared else "console.vps_match.you_picked",
+                   name=name)).classes("console-help grow min-w-0")
+        ui.button(t("console.vps_match.go_back"), icon=verbs.REVERT, on_click=back) \
+            .props("flat dense no-caps size=sm").classes("console-action shrink-0")
 
 
 def entry_row(row: dict[str, Any], *, pick: Callable[[], None] | None = None,

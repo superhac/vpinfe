@@ -682,6 +682,18 @@ body::before {
    line of sight, and the named files are quiet and breakable - a path is looked at, not
    read. */
 .console-confirm { min-width: 320px; max-width: 460px; }
+/* The panels' ground, so a field, an action or a heading on it looks as it does there. */
+.console-dialog.q-card {
+  background: var(--surface-work); border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px 4px 14px; width: min(520px, 92vw); max-width: none;
+}
+.console-dialog--wide.q-card { width: min(680px, 94vw); }
+.console-dialog-title {
+  font-size: var(--fs-body); font-weight: 600; color: var(--ink); line-height: 1.35;
+  padding: 0 12px 6px;
+}
+.console-dialog-footer { justify-content: flex-end; gap: 8px; width: 100%; padding: 14px 12px 0; }
+.console-vps-results > .console-source-row:nth-child(even) { background: var(--grid-stripe); }
 
 /* While the page is listening for a key. Centred and over everything, because it has
    taken the keyboard: a prompt in the row would leave the rest of the page looking

@@ -31,7 +31,8 @@ def _titles() -> list[tuple[str, str]]:
             if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
                 continue
             where = f"{path.name}:{node.lineno}"
-            if node.func.attr == "ask" and getattr(node.func.value, "id", "") == "confirm" \
+            if node.func.attr in ("ask", "opened") \
+                    and getattr(node.func.value, "id", "") in ("confirm", "dialog") \
                     and node.args:
                 found += [(where, key) for key in _keys(node.args[0])]
             if node.func.attr == "classes" and node.args \
