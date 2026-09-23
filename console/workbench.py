@@ -5029,7 +5029,8 @@ def _axis_control(context: dict[str, Any], axis: dict[str, Any],
             control.on_value_change(lambda: changed(list(control.value or [])))
         else:
             chosen = _selected(current.get(name))
-            control = ui.select([UNCONSTRAINED, *values],
+            control = ui.select({UNCONSTRAINED: t("console.workbench.any"),
+                                 **{value: value for value in values}},
                                 value=chosen[0] if chosen else UNCONSTRAINED) \
                 .props("dense outlined").classes("w-full min-w-0")
             control.on_value_change(lambda: changed(control.value))

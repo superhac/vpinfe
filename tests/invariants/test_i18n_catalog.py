@@ -311,6 +311,176 @@ class TestNoBareDisplayLiterals(unittest.TestCase):
         self.assertEqual(offenders, [], "call t() and put the words in the catalog")
 
 
+# Quasar props drawn as text.
+TEXT_PROPS =("error-message", "hint", "label", "placeholder", "prefix", "suffix",
+              "no-option-label", "no-data-label", "no-results-label", "loading-label",
+              "title", "aria-label")
+_TEXT_PROP = re.compile(r"(?<![\w-])(" + "|".join(TEXT_PROPS) + r")=([\"'])(.*?)\2")
+OPTION_CALLS =frozenset({"select", "toggle", "radio"})
+_CATALOG_KEY = re.compile(r"[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)+")
+
+
+def _words(value: object) -> bool:
+    return _is_text(value) and not _CATALOG_KEY.fullmatch(str(value).strip())
+
+
+def _constants(tree: ast.Module) -> dict[str, ast.expr]:
+    held: dict[str, ast.expr] = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 \
+           and isinstance(node.targets[0], ast.Name):
+            held[node.targets[0].id] = node.value
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) \
+                and node.value is not None:
+            held[node.target.id] = node.value
+    return held
+
+
+def _reachable_constants(tree: ast.Module) -> dict[str, ast.expr]:
+    """This module's constants, and the ones it imports by name from the tree."""
+    held = _constants(tree)
+    for node in tree.body:
+        if not (isinstance(node, ast.ImportFrom) and node.module and not node.level):
+            continue
+        source = ROOT / (node.module.replace(".", "/") + ".py")
+        if source.is_file():
+            theirs = _constants(ast.parse(source.read_text(encoding="utf-8")))
+            for alias in node.names:
+                if alias.name in theirs:
+                    held.setdefault(alias.asname or alias.name, theirs[alias.name])
+    return held
+
+
+def _prop_words(tree: ast.AST) -> list[str]:
+    found = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and getattr(node.func, "attr", None) == "props":
+            for arg in node.args:
+                typed = arg.value if isinstance(arg, ast.Constant) \
+                    else _glued_words(arg) if isinstance(arg, ast.JoinedStr) else None
+                if isinstance(typed, str):
+                    found += [f"{node.lineno} {prop}={said!r}"
+                              for prop, _quote, said in _TEXT_PROP.findall(typed)
+                              if _words(said)]
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Subscript) \
+                   and getattr(target.value, "attr", None) == "props" \
+                   and isinstance(target.slice, ast.Constant) \
+                   and target.slice.value in TEXT_PROPS \
+                   and isinstance(node.value, ast.Constant) and _words(node.value.value):
+                    found.append(f"{node.lineno} props[{target.slice.value!r}]"
+                                 f" = {node.value.value!r}")
+    return found
+
+
+class _Options(ast.NodeVisitor):
+    def __init__(self, held: dict[str, ast.expr]) -> None:
+        self.held = held
+        self.scopes: list[dict[str, list[ast.expr]]] = [{}]
+        self.found: list[str] = []
+
+    def visit_FunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        assigned: dict[str, list[ast.expr]] = {}
+        for inner in ast.walk(node):
+            if isinstance(inner, ast.Assign):
+                for target in inner.targets:
+                    if isinstance(target, ast.Name):
+                        assigned.setdefault(target.id, []).append(inner.value)
+        self.scopes.append(assigned)
+        self.generic_visit(node)
+        self.scopes.pop()
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self.visit_FunctionDef(node)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        func = node.func
+        name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+        if name in OPTION_CALLS:
+            for arg in [*node.args[:1], *(kw.value for kw in node.keywords
+                                          if kw.arg == "options")]:
+                said = self._words_in(arg, ())
+                if said:
+                    self.found.append(f"{node.lineno} {name}({said[:3]})")
+        self.generic_visit(node)
+
+    def _words_in(self, node: ast.expr, seen: tuple[str, ...]) -> list[str]:
+        if isinstance(node, ast.Constant):
+            return [node.value] if _words(node.value) else []
+        if isinstance(node, ast.Dict):
+            return [said for key, value in zip(node.keys, node.values, strict=True)
+                    for said in (self._words_in(value, seen) if key is None
+                                 else self._element(value, seen))]
+        if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+            return [said for element in node.elts for said in self._element(element, seen)]
+        if isinstance(node, ast.Starred):
+            return self._words_in(node.value, seen)
+        if isinstance(node, ast.IfExp):
+            return self._words_in(node.body, seen) + self._words_in(node.orelse, seen)
+        if isinstance(node, ast.BinOp):
+            return self._words_in(node.left, seen) + self._words_in(node.right, seen)
+        if isinstance(node, ast.Call) and getattr(node.func, "id", None) in (
+                "dict", "list", "tuple") and node.args:
+            return self._words_in(node.args[0], seen)
+        if isinstance(node, ast.Name) and node.id not in seen:
+            bound = next((scope[node.id] for scope in reversed(self.scopes)
+                          if node.id in scope),
+                         [self.held[node.id]] if node.id in self.held else [])
+            return [said for value in bound
+                    for said in self._words_in(value, (*seen, node.id))]
+        return []
+
+    def _element(self, node: ast.expr, seen: tuple[str, ...]) -> list[str]:
+        """An option itself: words, or a name bound to them - never a nested collection,
+        which is data a person does not read as one option."""
+        if isinstance(node, (ast.Constant, ast.Name, ast.Starred)):
+            return self._words_in(node, seen)
+        return []
+
+
+class TestWordsHandedToQuasar(unittest.TestCase):
+    def test_no_prop_carries_words(self) -> None:
+        offenders = []
+        for path in sorted((ROOT / "console").rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            offenders += [f"{path.relative_to(ROOT)}:{said}" for said in _prop_words(tree)]
+        self.assertEqual(offenders, [], "call t() and put the words in the catalog")
+
+    def test_no_picker_is_handed_words(self) -> None:
+        offenders = []
+        for path in sorted((ROOT / "console").rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            seen = _Options(_reachable_constants(tree))
+            seen.visit(tree)
+            offenders += [f"{path.relative_to(ROOT)}:{said}" for said in seen.found]
+        self.assertEqual(offenders, [], "call t() and put the words in the catalog")
+
+    def test_each_road_is_read(self) -> None:
+        tree = ast.parse(
+            'name.props["error-message"] = "Give it a name"\n'
+            "box.props('dense outlined error-message=\"Give it a name\"')\n"
+            'ui.select({"": t("a"), "no": "No"})\n'
+            'LABELS = {"asc": "Ascending", "desc": "order.direction.desc"}\n'
+            "def control():\n"
+            '    choices = {"m": t("b"), **LABELS} if arranged else dict(LABELS)\n'
+            "    def draw():\n"
+            "        ui.select(choices)\n"
+            'ui.toggle(options=["Keys", "order.by.title", key])\n'
+            'ui.select({"a": {"label": "Nested"}})\n')
+        seen = _Options(_reachable_constants(tree))
+        seen.visit(tree)
+
+        self.assertEqual(len(_prop_words(tree)), 2)
+        self.assertEqual(seen.found, ["3 select(['No'])",
+                                      "8 select(['Ascending', 'Ascending'])",
+                                      "9 toggle(['Keys'])"])
+
+
 # Markup the frontend serves itself. A text node here is a cabinet's words, and nothing
 # checked them until this existed - the Console could not drift back to English and these
 # five pages could.
