@@ -30,6 +30,7 @@ from common.games.collection_resolver import (
     UnresolvableCollectionError,
     holding,
     resolve,
+    visible_entries,
 )
 from common.games.collection_store import (
     DEFAULT_DIRECTION,
@@ -309,7 +310,7 @@ def _member_row(game_id: str, origin: str, named_table: str,
                 "included": False, "ref_table": named_table, "tables": []}
     known = table_lens.table_rows(game, game_to_row(game))
     by_id = {str(row.get("id")): row for row in known}
-    chosen = named_table or (str(known[0].get("id")) if known else "")
+    chosen = named_table or _followed(game, known, by_id)
     tables = []
     if named_table and named_table not in by_id:
         # The game is here; the table it names is not. Reported rather than resolved to
@@ -335,6 +336,15 @@ def _member_row(game_id: str, origin: str, named_table: str,
             # back, which matched no ref and left a whole-game exclusion impossible to lift.
             "ref_table": named_table,
             "tables": tables}
+
+
+def _followed(game: Any, known: list[dict], by_id: dict[str, dict]) -> str:
+    """The table a ref naming only this game resolves to."""
+    offered = [str(entry.get("id") or "") for entry in visible_entries(game)]
+    if offered and offered[0] in by_id:
+        return offered[0]
+    fallback = next((row for row in known if row.get("default")), known[0] if known else {})
+    return str(fallback.get("id") or "")
 
 
 def entries_of(name: str) -> dict:

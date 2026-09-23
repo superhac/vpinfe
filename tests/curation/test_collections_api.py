@@ -376,6 +376,22 @@ class CollectionEntriesTests(CollectionsApiTests):
                          [(one["game"], one["origin"], one["ref_table"],
                            one["tables"][0]["origin"]) for one in members])
 
+    def test_a_row_that_follows_a_game_names_the_table_that_plays(self) -> None:
+        meta = {"Info": {"Title": "Twin"},
+                "vpinfe": {"game_id": "twin", "default_table": "later"},
+                "tables": {"earlier": {"id": "earlier", "filename": "Twin 2.1.vpx"},
+                           "later": {"id": "later", "filename": "Twin 2.3.1.vpx"}}}
+        folder = write_game(self.root, "Twin", info=meta, vpx=False,
+                            files={"Twin 2.1.vpx": b"x", "Twin 2.3.1.vpx": b"x"})
+        self.catalog["twin"] = fake_game(folder, "Twin", meta=meta)
+        self.client.post("/collections", json={"name": "Pair", "games": ["twin"]})
+
+        plays = self.client.get("/collections/Pair/entries").json()["entries"]
+        rows = self.client.get("/collections/Pair/members").json()["members"]
+
+        self.assertEqual(["later"], [one["table"]["id"] for one in plays])
+        self.assertEqual(["later"], [one["tables"][0]["id"] for one in rows])
+
     def test_a_filter_this_build_cannot_read_is_refused_by_name(self) -> None:
         """Answering with what is left would be a different question, silently."""
         self.client.post("/collections",
