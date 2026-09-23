@@ -1266,8 +1266,10 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
     container.clear()
     title.clear()
     with container:
-        kind = (t("console.workbench.dynamic_collection") if (row.get("type") or "") == "filter"
-                else t("console.workbench.manual_collection"))
+        size = int(row.get("count") or 0)
+        kind = (t("console.workbench.smart_games", count=size)
+                if (row.get("type") or "") == "filter"
+                else t("console.workbench.hand_picked_games", count=size))
         _title(title, row.get("name") or "", kind)
         # The rule being edited, which is not always the rule that is stored. Held on
         # the client rather than in this build of the panel, so a section change or a
@@ -4722,7 +4724,6 @@ async def _collection_details(context: dict[str, Any]) -> None:
     """What the collection is, rather than what is in it."""
     row = _collection(context)
     entries: list[tuple[Any, Any]] = [
-        (HEADING, t("console.workbench.list")),
         (t("word.name"), _text_control(context, row, "name")),
         (t("console.workbench.description"), _text_control(context, row, "description",
                 lines=3)),
@@ -4846,10 +4847,10 @@ def _image_slot(context: dict[str, Any], row: dict[str, Any]) -> None:
                     .props("flat dense no-caps size=sm")
 
 
-def _contents_label(context: dict[str, Any]) -> str:
+def _games_label(context: dict[str, Any]) -> str:
     got = (context.get("membership") or {}).get("playable")
-    return t("console.workbench.contents_2") if got is None else t("console.workbench.contents",
-            got=(got))
+    return t("console.workbench.games") if got is None \
+        else t("console.workbench.games_counted", count=got)
 
 
 async def _collection_contents(context: dict[str, Any]) -> None:
@@ -5205,10 +5206,10 @@ def _rule_actions(context: dict[str, Any], row: dict[str, Any]) -> None:
     dirty = _is_dirty(context, row)
     with ui.row().classes("items-center gap-2 w-full no-wrap mt-3"):
         if dirty:
-            ui.button(t("console.workbench.save_rule"), icon="check",
+            ui.button(t("console.workbench.save_rules"), icon="check",
                       on_click=lambda: _save_rule(context)) \
                 .props("dense no-caps unelevated size=sm")
-            ui.button(t("word.discard"), icon=verbs.DISCARD,
+            ui.button(t("word.cancel"), icon=verbs.DISCARD,
                       on_click=lambda: _discard_rule(context)) \
                 .props("flat dense no-caps size=sm")
         elif _is_dynamic(row):
@@ -5217,7 +5218,7 @@ def _rule_actions(context: dict[str, Any], row: dict[str, Any]) -> None:
                 .props("flat dense no-caps size=sm").classes("console-action") \
                 .tooltip(t("console.workbench.store_games_drop_rule"))
     if dirty:
-        ui.label(t("console.workbench.not_saved_yet_frontend")) \
+        ui.label(t("console.workbench.not_saved_rules")) \
             .classes("console-help mt-1 text-warning")
 
 
@@ -5359,18 +5360,16 @@ async def _preview_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
     filters = {key: value for key, value in _draft_filters(context, row).items()
                if key not in ("order_by", "direction")}
     try:
-        answer = await offload.io(library.preview_filters, filters, row.get("limit"))
+        answer = await offload.io(library.preview_filters, filters)
     except Exception as exc:
         ui.label(t("console.workbench.could_not_work",
                 exc=(exc))).classes("console-help text-warning")
         return
     entries = answer.get("entries") or []
-    ui.label(t("console.workbench.games_save",
-            get=(answer.get('count', len(entries))))) \
-        .classes("console-card-title")
-    ui.label(t("console.workbench.preview_nothing_stored_yet")).classes("console-help mb-2")
-    if not entries:
-        ui.label(t("console.workbench.nothing_matches_rule")).classes("console-help")
+    matched = int(answer.get("count", len(entries)))
+    ui.label(t("console.workbench.games_match", count=matched) if matched
+             else t("console.workbench.no_games_match")) \
+        .classes("console-card-title mb-2")
     for entry in entries[:200]:
         game = entry.get("game") or {}
         with ui.row().classes("items-center gap-2 w-full no-wrap py-1 console-index-item"):
@@ -5399,9 +5398,6 @@ def _member_state(member: dict[str, Any]) -> str:
     if not tables:
         return game_tables.GONE
     return _TABLE_STATE.get(str(tables[0].get("origin") or ""), game_tables.FOLLOWS)
-# Not a thing a reference points at, so it keeps its own word.
-_EXCLUDED = (t("console.workbench.excluded"),
-             t("console.workbench.kept_collection"))
 
 
 def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
@@ -5413,16 +5409,12 @@ def _stored_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
     if find:
         members = [m for m in members
                    if find in str(m.get("name") or "").lower()]
-    # Counted after the filter, not before: the count describes what is on screen, and
-    # reporting the whole collection's tally over a filtered list read "42 of 16".
+    # Counted after the filter, not before: the count describes what is on screen.
     playable = sum(1 for m in members if m.get("included"))
+    taken = sum(1 for m in members if (m.get("origin") or "") == "excluded")
     with ui.row().classes("items-center gap-2 w-full no-wrap"):
-        # Tables, not games: a collection resolves to entries and an entry is a table
-        # so a game that named two of its tables contributes two.
-        # Calling them games is wrong in exactly the case the count is needed for.
-        total = len(members)
-        ui.label(t("console.workbench.playable_of_tables", playable=playable, count=total)
-                 if playable != total else t("console.workbench.count_tables", count=total)) \
+        ui.label(t("console.workbench.count_games_taken_out", count=playable, taken=taken)
+                 if taken else t("console.workbench.count_games", count=playable)) \
             .classes("console-card-title")
         ui.space()
         # The key, beside the count rather than above the rows: a legend the reader
@@ -5532,8 +5524,8 @@ def _member_line(context: dict[str, Any], member: dict[str, Any],
     # The chip slot is for what has happened to this row in this collection. Which
     # table it uses is a qualifier on the table line and is said there.
     state = _member_state(member)
-    chip = _EXCLUDED if origin == "excluded" else (
-        game_tables.reference_state(state) if state == game_tables.GONE else None)
+    chip = game_tables.reference_state(state) \
+        if state == game_tables.GONE and origin != "excluded" else None
     # The handle and the action sit outside the two text lines so they center against
     # the row rather than against its first line, which read as pinned to the name.
     with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row") \
@@ -5563,7 +5555,7 @@ def _member_line(context: dict[str, Any], member: dict[str, Any],
                 _table_choice(context, member, state, table, said,
                               editable=origin != "excluded")
             elif table.get("origin") == "missing":
-                ui.label(t("console.workbench.names_table_library_not")) \
+                ui.label(t("console.workbench.table_gone")) \
                     .classes("console-member-table text-warning")
         with ui.element("div").classes("console-row-action"):
             _member_action(context, member, origin)
@@ -5652,9 +5644,8 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
     offers = next((one for one in choices if one.get("default")), None)
     holder.clear()
     with holder:
-        # The question this group answers, not the verb on its own: "Uses" was the
-        # verb without its object, and a reader had to infer the subject.
-        ui.item_label(t("console.workbench.table_5")).props("header").classes("console-menu-header")
+        ui.item_label(t("console.workbench.which_table_plays")).props("header") \
+            .classes("console-menu-header")
         _table_menu_item(context, member, "", named,
                          game_tables.FOLLOWS,
                          game_tables.REFERENCE_WORDS[game_tables.FOLLOWS][0],
@@ -5676,12 +5667,7 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
         spare = [one for one in choices if str(one.get("id") or "") not in spoken]
         if spare:
             ui.separator()
-            # "Insert", because it lands beside the row it was asked from rather than
-            # at the end - and naming the game because this is the confusing half of
-            # the menu, where being explicit beats being short.
-            # Not "another user defined": every item here wears the mark for that and
-            # the key says what it means, so the state would restate what is on screen.
-            ui.item_label(t("console.workbench.insert_another_table_game")).props("header") \
+            ui.item_label(t("console.workbench.also_add")).props("header") \
                 .classes("console-menu-header")
             for one in spare:
                 _add_table_item(context, game, one, after=named)
@@ -5786,12 +5772,13 @@ def _member_action(context: dict[str, Any], member: dict[str, Any],
 
     if origin == "excluded":
         ui.button(icon=verbs.REVERT,
-                  on_click=lambda: act(t("console.workbench.back_list"))) \
+                  on_click=lambda: act(t("console.workbench.put_back_in", name=name))) \
             .props("flat dense round size=sm").tooltip(t("console.workbench.put_back_2"))
     else:
         ui.button(icon="close",
-                  on_click=lambda: act(t("console.workbench.taken_2") if origin == "filter"
-                                       else t("console.workbench.removed"))) \
+                  on_click=lambda: act(t("console.workbench.taken_out_of", name=name)
+                                       if origin == "filter"
+                                       else t("console.workbench.removed_from", name=name))) \
             .props("flat dense round size=sm").tooltip(t("console.workbench.remove_collection"))
 
 
@@ -5825,7 +5812,7 @@ def _add_control(context: dict[str, Any], members: list[dict]) -> None:
     # Typed into, not scrolled: this is a picker over the whole library, and a list
     # that long is searched. `use-input` with no debounce filters from the first
     # character; `new-value-mode` is left off so only a real game can be chosen.
-    picker = ui.select(choices, with_input=True, label=t("console.workbench.add_game")) \
+    picker = ui.select(choices, with_input=True, label=t("console.workbench.add_games")) \
         .props('dense outlined options-dense use-input input-debounce=0 '
                'hide-selected fill-input clearable '
                'popup-content-class="console-picker-popup"') \
@@ -5876,7 +5863,7 @@ SECTIONS: tuple[Section, ...] = (
     Section("collection_details", lambda _: t("console.workbench.details"),
             _collection_details,
             subjects=frozenset({"collection"})),
-    Section("collection_contents", _contents_label, _collection_contents,
+    Section("collection_contents", _games_label, _collection_contents,
             subjects=frozenset({"collection"}), dock=True),
     Section("contents_details", lambda _: t("console.workbench.details"),
             _contents_details, subjects=frozenset({"contents"})),
