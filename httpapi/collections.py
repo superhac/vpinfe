@@ -60,6 +60,15 @@ def collection_members(name: str) -> models.CollectionMemberList:
     return models.CollectionMemberList.model_validate(collection_ops.members_of(name))
 
 
+@router.post("/{name}/members/preview",
+             summary="A collection's membership with other rules, storing nothing",
+             dependencies=[requires(scopes.COLLECTIONS_READ)])
+def preview_members(name: str, request: models.MembersPreviewRequest = Body(...),
+                    ) -> models.CollectionMemberPreview:
+    return models.CollectionMemberPreview.model_validate(
+        collection_ops.preview_members(name, criteria_for(request.filters)))
+
+
 @router.get("/{name}/entries", summary="The entries a collection resolves to",
             dependencies=[requires(scopes.COLLECTIONS_READ)])
 def collection_entries(name: str) -> models.EntryList:

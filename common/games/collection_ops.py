@@ -38,6 +38,7 @@ from common.games.collection_resolver import (
     visible_entries,
 )
 from common.games.collection_store import (
+    BUILTIN_ALL,
     DEFAULT_DIRECTION,
     MANUAL_ORDER,
     PAGING_GROUPS,
@@ -318,35 +319,74 @@ def members_of(name: str) -> dict:
     every collection. Absence is not deletion.
     """
     _row_or_refuse(name)
-    manager = get_collections_manager()
+    return _members(name, get_collections_manager())
+
+
+def preview_members(name: str, criteria: dict) -> dict:
+    """`members_of` with `criteria` as the rules, none where it is empty, and `matched`.
+    Writes nothing."""
+    _row_or_refuse(name)
+    trial = CollectionStore(str(get_collections_manager().path))
+    if criteria:
+        trial.make_filter_collection(name, criteria)
+    elif trial.has_filters(name):
+        trial.clear_filters(name)
+    return {**_members(name, trial), "matched": _matched(trial, criteria)}
+
+
+def _matched(store: CollectionStore, criteria: dict) -> int:
+    if not criteria:
+        return 0
+    store.set_view_filters(criteria)
+    try:
+        found = resolve(BUILTIN_ALL, store, list(game_repository.catalog().values()))
+    finally:
+        store.set_view_filters(None)
+    return len({game_identity.game_id(entry.game) for entry in found})
+
+
+def _members(name: str, store: CollectionStore) -> dict:
     catalog = game_repository.catalog()
-    excluded = manager.get_excluded_refs(name)
+    excluded = store.get_excluded_refs(name)
     out = ({r["game"] for r in excluded if not r.get("table")},
            {r["table"] for r in excluded if r.get("table")})
 
-    members: list[dict] = []
+    named: list[dict] = []
     named_games = set()
-    for ref in manager.get_member_refs(name):
+    for ref in store.get_member_refs(name):
         named_games.add(ref["game"])
-        members.append(_member_row(ref["game"], "named", ref.get("table", ""),
-                                   catalog, out))
+        named.append(_member_row(ref["game"], "named", ref.get("table", ""), catalog, out))
     # Whatever the criteria matched and nobody named.
-    held = _holding_or_refuse(name, manager)
-    for game in held.games:
+    held = _holding_or_refuse(name, store)
+    ruled: list[dict] = []
+    for game in held.matched:
         found = game_identity.game_id(game)
         if found and found not in named_games:
             for table in held.tables.get(found) or ("",):
-                members.append(_member_row(found, "filter", table, catalog, out))
-    if manager.get_order(name)["by"] != MANUAL_ORDER:
-        members = _as_handed_out(members, _resolved(name))
+                ruled.append(_member_row(found, "filter", table, catalog, out))
+    try:
+        handed_out = resolve(name, store, list(catalog.values()), capped=False)
+    except UnresolvableCollectionError as exc:
+        raise service_errors.BlockedError(
+            str(exc), details={"unknown_filters": exc.axes}) from exc
+    if store.get_order(name)["by"] == MANUAL_ORDER:
+        members = named + _as_handed_out(ruled, handed_out)
+    else:
+        members = _as_handed_out(named + ruled, handed_out)
+    limit = store.get_limit(name)
+    shown = {_entry_key(entry) for entry in handed_out[:limit]} if limit else None
+    for row in members:
+        row["past_limit"] = (shown is not None and row["included"]
+                             and _row_key(row) not in shown)
     # Exclusions last, and listed rather than silent: a row somebody took out is the one
     # row they may want back, and nothing else reports it.
     for ref in excluded:
         members.append({**_member_row(ref["game"], "excluded", ref.get("table", ""),
                                       catalog, out),
-                        "origin": "excluded", "included": False})
+                        "origin": "excluded", "included": False, "past_limit": False})
     return {"collection": name, "count": len(members),
-            "playable": sum(1 for one in members if one["included"]),
+            "playable": sum(1 for one in members
+                            if one["included"] and not one["past_limit"]),
             "members": members}
 
 
@@ -388,12 +428,18 @@ def _member_row(game_id: str, origin: str, named_table: str,
             "tables": tables}
 
 
+def _entry_key(entry: Entry) -> tuple[str, str]:
+    return game_identity.game_id(entry.game), entry.table_id
+
+
+def _row_key(row: dict) -> tuple[str, str]:
+    return row["game"], str((row.get("tables") or [{}])[0].get("id") or "")
+
+
 def _as_handed_out(rows: list[dict], entries: list[Entry]) -> list[dict]:
     """`rows` in the order of `entries`; a row with no entry keeps its place after them."""
-    at = {(game_identity.game_id(entry.game), entry.table_id): index
-          for index, entry in enumerate(entries)}
-    return sorted(rows, key=lambda row: at.get(
-        (row["game"], str((row.get("tables") or [{}])[0].get("id") or "")), len(at)))
+    at = {_entry_key(entry): index for index, entry in enumerate(entries)}
+    return sorted(rows, key=lambda row: at.get(_row_key(row), len(at)))
 
 
 def _followed(game: Any, known: list[dict], by_id: dict[str, dict]) -> str:

@@ -511,6 +511,59 @@ class CollectionEntriesTests(CollectionsApiTests):
         self.assertEqual([zeta, alpha], rows)
         self.assertEqual(plays, rows)
 
+    def _rows(self, name: str) -> list[tuple[str, bool]]:
+        return [(one["game"], one["past_limit"]) for one in
+                self.client.get(f"/collections/{name}/members").json()["members"]]
+
+    def test_what_a_rule_finds_past_the_limit_is_listed_and_marked(self) -> None:
+        apple, alpha, avocado = (self._on_disk(title)
+                                 for title in ("Apple", "Alpha", "Avocado"))
+        self.client.post("/collections", json={"name": "A", "filters": {"letter": ["A"]}})
+        self.client.patch("/collections/A", json={"limit": 1})
+
+        body = self.client.get("/collections/A/members").json()
+
+        self.assertEqual([(alpha, False), (apple, True), (avocado, True)], self._rows("A"))
+        self.assertEqual(1, body["playable"])
+
+    def test_a_hand_picked_row_past_the_limit_sits_where_it_would_play(self) -> None:
+        zeta, alpha = self._on_disk("Zeta"), self._on_disk("Alpha")
+        self.client.post("/collections", json={"name": "Picked", "games": [zeta, alpha]})
+        self.client.patch("/collections/Picked", json={"limit": 1})
+
+        self.assertEqual([(alpha, False), (zeta, True)], self._rows("Picked"))
+
+    def test_no_limit_marks_nothing(self) -> None:
+        zeta = self._on_disk("Zeta")
+        self.client.post("/collections", json={"name": "Picked", "games": [zeta]})
+
+        self.assertEqual([(zeta, False)], self._rows("Picked"))
+
+    def test_a_preview_tries_other_rules_and_writes_nothing(self) -> None:
+        zeta, alpha, apple = (self._on_disk(title) for title in ("Zeta", "Alpha", "Apple"))
+        self.client.post("/collections", json={"name": "Picked", "games": [zeta]})
+
+        body = self.client.post("/collections/Picked/members/preview",
+                                json={"filters": {"letter": ["A"]}}).json()
+
+        self.assertEqual([(alpha, "filter"), (apple, "filter"), (zeta, "named")],
+                         [(one["game"], one["origin"]) for one in body["members"]])
+        self.assertEqual(2, body["matched"])
+        self.assertIsNone(self.client.get("/collections/Picked").json()["filters"])
+
+    def test_a_preview_with_no_rules_keeps_what_was_added(self) -> None:
+        zeta = self._on_disk("Zeta")
+        self._on_disk("Alpha")
+        self.client.post("/collections", json={
+            "name": "Smart", "games": [zeta], "filters": {"letter": ["A"]}})
+
+        body = self.client.post("/collections/Smart/members/preview", json={}).json()
+
+        self.assertEqual([zeta], [one["game"] for one in body["members"]])
+        self.assertEqual(0, body["matched"])
+        self.assertEqual(["A"],
+                         self.client.get("/collections/Smart").json()["filters"]["letter"])
+
     def test_a_row_that_follows_a_game_names_the_table_that_plays(self) -> None:
         meta = {"Info": {"Title": "Twin"},
                 "vpinfe": {"game_id": "twin", "default_table": "later"},

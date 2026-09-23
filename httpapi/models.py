@@ -1839,6 +1839,8 @@ class CollectionMember(ApiModel):
     # several, and sending the resolved table back matches no ref at all.
     ref_table: str = ""
     tables: list[MemberTable] = Field(default_factory=list)
+    # Held, and past the collection's limit: the frontend does not show it.
+    past_limit: bool = False
 
 
 class CollectionMemberList(ApiModel):
@@ -1849,6 +1851,17 @@ class CollectionMemberList(ApiModel):
     count: int
     playable: int
     members: list[CollectionMember]
+
+
+class MembersPreviewRequest(ApiModel):
+    """Rules to try in place of a collection's own. Absent tries it with none."""
+
+    filters: CollectionFilters | None = None
+
+
+class CollectionMemberPreview(CollectionMemberList):
+    # Games the tried rules match in the library, whatever the collection does with them.
+    matched: int = 0
 
 
 class MemberRequest(ApiModel):
