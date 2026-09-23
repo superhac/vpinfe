@@ -5279,7 +5279,7 @@ def _order_bar(context: dict[str, Any], row: dict[str, Any]) -> None:
             await _patch(context, {"direction": event.value})
 
     with ui.row().classes("items-center gap-x-4 gap-y-1 w-full console-order-bar"):
-        with ui.row().classes("items-center gap-2 no-wrap"):
+        with ui.row().classes("items-center gap-2 no-wrap grow"):
             ui.label(t("console.workbench.order")).classes("console-order-label")
             ui.select(orders, value=by, on_change=ordered) \
                 .props("dense borderless options-dense") \

@@ -140,6 +140,14 @@ class CollectionPanelDrive(unittest.TestCase):
             after = instance.api(stored)
             seen["kept"] = (after["type"], [one["game"] for one in instance.api(
                 f"{stored}/members")["members"]])
+
+            await browser.send("Emulation.setDeviceMetricsOverride",
+                               {"width": 1024, "height": 720, "deviceScaleFactor": 1,
+                                "mobile": False})
+            await settled()
+            seen["order_bar"] = await browser.evaluate(
+                "(() => { const bar = document.querySelector('.console-order-bar');"
+                " return bar ? [bar.scrollWidth, bar.clientWidth] : null; })()")
         return seen
 
     def test_an_empty_collection_offers_both_ways_in(self) -> None:
@@ -170,6 +178,10 @@ class CollectionPanelDrive(unittest.TestCase):
     def test_a_limit_draws_the_rows_it_cuts_under_a_line(self) -> None:
         self.assertEqual(["Bravo"], self.seen["cut"])
         self.assertIn("limit 1", self.seen["cut_line"])
+
+    def test_the_order_bar_fits_a_panel_at_a_1024px_window(self) -> None:
+        needs, has = self.seen["order_bar"]
+        self.assertLessEqual(needs, has)
 
     def test_taking_the_last_rule_away_asks_what_to_keep(self) -> None:
         self.assertIn("Keep the 1 game it found", self.seen["question"])

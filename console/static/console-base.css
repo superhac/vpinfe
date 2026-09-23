@@ -454,6 +454,7 @@ body::before {
   border-bottom: 1px solid var(--line-soft);
 }
 .console-order-label { font-size: var(--fs-caption); color: var(--ink-3); white-space: nowrap; }
+.console-order-bar .console-edit-select { flex: 0 1 var(--select-min); min-width: 0; }
 /* Opaque, because the list scrolls under it. */
 .console-draft-bar {
   position: sticky; bottom: 0; z-index: 3;
