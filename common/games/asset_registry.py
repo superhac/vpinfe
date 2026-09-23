@@ -107,6 +107,13 @@ def specs_named(name: str) -> tuple[AssetSpec, ...]:
         raise KeyError(name)
     return found
 
+
+def extensions_listed(name: str, archives: bool = False) -> list[str]:
+    """KeyError for a name that is not a kind."""
+    wanted = [extension for spec in specs_named(name) for extension in spec.extensions] \
+        if name else []
+    return wanted + (sorted(ARCHIVE_EXTENSIONS) if archives else [])
+
 # The kinds whose absence stops a table running, as opposed to making it worse.
 # The table file is the library rather than an accessory to it, so it is the one kind
 # there is no sense in a library saying it does not collect. Everything else is optional

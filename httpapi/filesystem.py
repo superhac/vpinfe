@@ -13,7 +13,7 @@ from starlette.responses import FileResponse
 
 from common import media_browse, service_errors
 from common.games import game_repository
-from common.games.asset_registry import ARCHIVE_EXTENSIONS, specs_named
+from common.games.asset_registry import extensions_listed
 from common.i18n import t
 
 from . import models, scopes
@@ -50,12 +50,9 @@ def get_entries(path: str = Query(...), kind: str = Query(""),
     `kind` is the registry's name or the asset lens's. With `archives`, archives too, for
     a caller that can take a kind out of one."""
     try:
-        wanted = [extension for spec in specs_named(kind)
-                  for extension in spec.extensions] if kind else []
+        wanted = extensions_listed(kind, archives)
     except KeyError as exc:
         raise service_errors.RefusedError(t("error.assets.unknown_kind"),
                                           details={"unknown": kind}) from exc
-    if archives:
-        wanted += sorted(ARCHIVE_EXTENSIONS)
     return models.FilesystemListing.model_validate(
         media_browse.entries(path, extensions=wanted))
