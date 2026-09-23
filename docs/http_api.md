@@ -125,7 +125,13 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/launchers` | Every launcher this install has, the tables that deviate from the default, and the fields each launcher's app takes |
 | PUT | `/api/v1/launchers/{id}` | Add or replace one. The whole launcher, so a partial write cannot leave one half-configured |
 | DELETE | `/api/v1/launchers/{id}` | Forget one. Tables pointed at it fall back to the default |
-| PUT | `/api/v1/launchers/mappings/{table_id}` | Point one table at a launcher. `{"launcher": ""}` puts it back on the default |
+| GET | `/api/v1/launchers/{id}/config` | The settings of the program it runs, and every value as it stands at one `scope` - `launcher` (the default), `folder` or `entry`. `table=` names the table for the last two |
+| PUT | `/api/v1/launchers/{id}/config` | Set values at one scope, `{"scope", "table", "values", "seed"}` → `{"written", "cleared"}` |
+| GET | `/api/v1/launchers/{id}/config/reaching?table=` | What the folder's settings file gives a table that has no file of its own |
+| GET | `/api/v1/launchers/{id}/config/backups` | Copies of the program's own settings file, newest first. `files` names what a copy takes and `kept_in` says where the copies are |
+| POST | `/api/v1/launchers/{id}/config/backups` | Take a copy now. `{"label": "..."}` is optional |
+| POST | `/api/v1/launchers/{id}/config/backups/{name}/restore` | Put a copy back. What is there now is copied first, and comes back as `safety_copy` |
+| PUT | `/api/v1/launchers/mappings/{table_id}` | Point one table at a launcher, `{"launcher_id": "..."}`. An empty `launcher_id` puts it back on the default |
 | GET | `/api/v1/metrics` | What this machine is doing now. `history_seconds` adds as much of this session as you ask for; 0 means none |
 | GET | `/api/v1/metrics/gpu` | What the graphics cards are doing. Separate because it shells out to nvtop, and says so where nvtop is missing rather than reporting no cards |
 | GET | `/api/v1/about` | What this install and this machine *are* - version, build, OS, browser, and where files live. `text` is the same answer as something to paste into a report |
@@ -462,6 +468,48 @@ This is the same launch the wheel and the Remote Control page use. That matters 
 sounds — it means a launch from the API counts as a play, records the date and the start
 count, reads the score back out of NVRAM, and hands the peripherals over before VPX starts,
 because all of that lives in the one path rather than in whichever caller remembered it.
+
+## Launcher settings
+
+`/launchers/{id}/config` reads and writes the settings of the program a launcher runs, in
+that program's own files. For VPX there is one file per `scope`:
+
+| Scope | File |
+|---|---|
+| `launcher` | VPX's own settings file, `VPinballX.ini` |
+| `folder` | the one named after a game's folder, which every table in it without a file of its own reads |
+| `entry` | the table's own, named after its `.vpx` |
+
+`table=` names the table for the last two. A launcher for a program whose settings VPinFE
+does not read answers with no scopes, and refuses a write.
+
+The settings in `groups` are read from VPX's own file rather than declared here, so a
+setting a later VPX adds appears without VPinFE changing. They are named `Section.Key`
+(`Player.FXAA`), because a key is only unique inside its section.
+
+**Every value says which layer answered.** Somebody changing one layer of several has to
+see which one is in force:
+
+- `value` is what VPX will use, and `scope` is the layer it came from - empty where nothing
+  sets it and VPX's own default wins.
+- `set_here` is true where this scope's file names it. `in_effect` is false where it does
+  and another layer answers anyway.
+- `fallback` and `fallback_scope` are what would answer if this scope stopped naming it,
+  both empty where that is VPX's own default.
+
+**The two table files do not stack.** VPX reads a table's own file where there is one and
+the folder's where there is not, never both. So the write that gives a table its own file
+takes the folder's other values off it. `GET .../config/reaching?table=` says what they
+are, and `"seed": true` on that write carries them across, with the values being written
+winning over them. Once a table has a file of its own, nothing is reaching it.
+
+At a table's scope an empty value removes the setting from that file. So does a value
+equal to what the launcher already gives, which VPX would drop itself the next time it
+saved, and those come back under `cleared` rather than `written`. The ones VPX keeps at a
+table whatever their value, the windows among them, are written as sent.
+
+The copies under `/config/backups` are of the `launcher` scope's file only. A table's files
+sit beside its `.vpx` and travel with it.
 
 ## Input
 
