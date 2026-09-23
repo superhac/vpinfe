@@ -120,7 +120,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/uploads/{id}/analysis` | Analyze what was uploaded |
 | POST | `/api/v1/uploads/{id}/plan` | Build an import plan. `asset_kind`, the asset lens's name for a kind (`pup_pack`, `alt_color`, `backglass`...), plans only that kind, and everything else the upload holds comes back under `blocked` |
 | POST | `/api/v1/uploads/{id}/import` | Execute the plan. Takes `asset_kind` the same way |
-| GET | `/api/v1/filesystem/entries` | What is in one folder. With `kind`, the files that asset kind takes are listed beside the media (`backglass` lists `.directb2s`). `/filesystem/file` still serves media only |
+| GET | `/api/v1/filesystem/entries` | What is in one folder. With `kind`, the files that asset kind takes are listed beside the media (`backglass` lists `.directb2s`); `kind` is the registry's name or the asset lens's, so `alt_color` lists both Serum and VNI files. `archives=true` lists archives too. `/filesystem/file` still serves media only |
 | GET | `/api/v1/vps/search?q=&limit=` | VPSdb lookup |
 | GET | `/api/v1/launchers` | Every launcher this install has, the tables that deviate from the default, and the fields each launcher's app takes |
 | PUT | `/api/v1/launchers/{id}` | Add or replace one. The whole launcher, so a partial write cannot leave one half-configured |
@@ -661,14 +661,17 @@ Every collection has an order, whichever kind it is: `order_by` names the field 
 `direction` says which way. `PATCH` sets both, and only what you send is written, so a
 direction on its own leaves the field alone. `order_by: "manual"` means the stored member
 array is the order — which only a manual collection has, so asking for it on a filter
-collection is a `409`. `PUT .../order` sends the whole arrangement at once and records
-`manual` as a side effect, because storing an arrangement nothing follows would be a
-write you cannot see.
+collection, or in the same request as criteria, is a `409`. `PUT .../order` sends the whole
+arrangement at once and records `manual` as a side effect, because storing an arrangement
+nothing follows would be a write you cannot see.
 
 A `filters` block may carry `order_by` and `direction` as well, and it writes only what it
 names: a block with neither leaves the order, its paging and the cap as they were, so
-saving a rule changes the rule and nothing else. The cap changes only through `limit` and
-`clear_limit`.
+saving a rule changes the rule and nothing else. The one exception is a collection ordered
+`manual`, which no collection with criteria can follow: the block moves it to `title`, in
+the direction the block names or else `asc`. Its members keep their stored order, so
+clearing the criteria and asking for `manual` again brings the arrangement back. The cap
+changes only through `limit` and `clear_limit`.
 
 A cap is `limit`, and lifting one needs `clear_limit: true` rather than a null: absent and
 null are the same thing over JSON, so there would otherwise be no way to say it.
