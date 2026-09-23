@@ -45,12 +45,9 @@ BUDGET = {
     "binding_editor.py": (2, "the hold switch and its duration, in the menu a chip "
                              "opens - not a fact row, and the row it belongs to is "
                              "already a strip of chips"),
-    "collections.py": (1, "the name field in the new-collection dialog"),
-    "import_dialog.py": (5, "the per-item checkbox, the folder name and the record "
-                            "picker in the import confirmation, plus the destination "
-                            "picker and its do-not-ask-again - all questions about "
-                            "something that does not exist yet, which is what a fact "
-                            "row is not for"),
+    "import_dialog.py": (2, "the per-item tick in the import confirmation and the "
+                            "destination picker's do-not-ask-again - a choice over a list "
+                            "and a one-off promise, neither of them a fact row"),
     "app_settings.py": (1, "the scope picker in the dialog's toolbar, which is not a "
                            "fact row - it says where edits go rather than holding a "
                            "value of its own"),

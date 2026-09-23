@@ -11,13 +11,21 @@ from console import verbs
 
 
 @contextmanager
-def opened(title: str, *, wide: bool = False, persistent: bool = False,
-           classes: str = "") -> Iterator[ui.dialog]:
-    """Draw the dialog's contents inside; the caller awaits the dialog it yields."""
-    with ui.dialog().props("persistent" if persistent else "") as dialog, \
-            ui.card().classes(" ".join(("console-dialog", "console-dialog--wide" if wide else "",
+def opened(title: str, *, wide: bool = False, full: bool = False,
+           persistent: bool = False, classes: str = "") -> Iterator[ui.dialog]:
+    """Draw the dialog's contents inside; the caller awaits the dialog it yields.
+
+    A title of "" draws none, for a dialog whose title changes as it goes.
+    """
+    props = " ".join(p for p in ("persistent" if persistent else "",
+                                 "maximized" if full else "") if p)
+    with ui.dialog().props(props) as dialog, \
+            ui.card().classes(" ".join(("console-dialog",
+                                        "console-dialog--wide" if wide else "",
+                                        "console-dialog--full" if full else "",
                                         classes)).strip()):
-        ui.label(title).classes("console-dialog-title")
+        if title:
+            ui.label(title).classes("console-dialog-title")
         yield dialog
 
 
@@ -36,15 +44,17 @@ def field(value: str = "", *, placeholder: str = "", lines: int = 0) -> Any:
             .props("dense borderless debounce=0").classes("console-edit-field")
 
 
+def quiet(label: str, on_click: Callable[[], Any], *, icon: str) -> ui.button:
+    return ui.button(label, icon=icon, on_click=on_click).props("flat no-caps")
+
+
 def cancel(on_click: Callable[[], Any], label: str = "") -> ui.button:
-    return ui.button(label or t("word.cancel"), icon=verbs.CANCEL, on_click=on_click) \
-        .props("flat no-caps")
+    return quiet(label or t("word.cancel"), on_click, icon=verbs.CANCEL)
 
 
 def aside(label: str, on_click: Callable[[], Any], *, icon: str) -> ui.button:
     """A second act, quiet and on the far left, away from the answer."""
-    return ui.button(label, icon=icon, on_click=on_click) \
-        .props("flat no-caps").classes("console-dialog-aside")
+    return quiet(label, on_click, icon=icon).classes("console-dialog-aside")
 
 
 def answer(label: str, on_click: Callable[[], Any], *, icon: str,

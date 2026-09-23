@@ -21,6 +21,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common.i18n import t
+from console import dialog as frame
 from console import offload, panel, verbs
 from console.api import ApiClient
 
@@ -98,11 +99,11 @@ async def open_action(extension: str, action: dict) -> None:
 
     step = await offload.io(client.ext_get, base)
 
-    with ui.dialog().props("persistent") as dialog, \
-            ui.card().classes("console-import-card"):
-        heading = ui.label("").classes("console-confirm-title")
+    with frame.opened("", wide=True, persistent=True,
+                      classes="console-import-card") as dialog:
+        heading = ui.label("").classes("console-dialog-title")
         body = ui.column().classes("w-full gap-0 console-import-body")
-        buttons = ui.row().classes("justify-end gap-2 w-full pt-2")
+        buttons = frame.footer()
 
         def draw(found: dict) -> None:
             heading.text = str(found.get("title") or action.get("label") or "")
@@ -111,30 +112,26 @@ async def open_action(extension: str, action: dict) -> None:
             summary = found.get("summary")
             with body:
                 if found.get("help"):
-                    ui.label(str(found["help"])).classes("console-help mb-2")
+                    ui.label(str(found["help"])).classes("console-help px-3 mb-2")
                 if summary:
                     _summary(summary)
                 _controls(list(found.get("fields") or []), values)
                 _lines(list(found.get("notes") or []),
                        t("console.ext_action.worth_knowing") if summary else "")
                 if summary and not found.get("ready"):
-                    ui.label(str(found.get("reason") or "")).classes("console-help")
+                    ui.label(str(found.get("reason") or "")).classes("console-help px-3")
             with buttons:
                 if history:
-                    ui.button(t("word.back"), icon=verbs.BACK, on_click=_back).props("flat no-caps")
+                    frame.quiet(t("word.back"), _back, icon=verbs.BACK)
                 else:
-                    ui.button(t("word.cancel"), icon=verbs.CANCEL,
-                            on_click=lambda: dialog.submit(False)) \
-                        .props("flat no-caps")
+                    frame.cancel(lambda: dialog.submit(False))
                 if summary:
-                    go = ui.button(str(found.get("confirm")
-                                       or action.get("label") or "Go"),
-                                   icon=verbs.RUN,
-                                   on_click=_start).props("no-caps")
+                    go = frame.answer(str(found.get("confirm") or action.get("label")
+                                          or t("word.run")), _start, icon=verbs.RUN)
                     if not found.get("ready"):
                         go.disable()
                 else:
-                    ui.button(t("word.next"), icon=verbs.NEXT, on_click=_next).props("no-caps")
+                    frame.answer(t("word.next"), _next, icon=verbs.NEXT)
 
         async def _next() -> None:
             try:
@@ -177,13 +174,11 @@ async def open_action(extension: str, action: dict) -> None:
         async def _watch(job_id: str) -> None:
             body.clear()
             buttons.clear()
-            with body:
+            with body, ui.column().classes("w-full gap-1 px-3"):
                 bar = ui.linear_progress(value=0, show_value=False).classes("w-full")
                 said = ui.label(t("console.ext_action.working")).classes("console-help")
             with buttons:
-                close = ui.button(t("word.close"), icon=verbs.CLOSE,
-                        on_click=lambda: dialog.submit(True)) \
-                    .props("flat no-caps")
+                close = frame.cancel(lambda: dialog.submit(True), t("word.close"))
                 close.disable()
 
             while True:
@@ -221,9 +216,9 @@ def _lines(lines: list[str], title: str) -> None:
     if not lines:
         return
     if title:
-        ui.label(title).classes("console-group mt-3")
+        panel.facts(ui, [(panel.HEADING, title)])
     for line in lines:
-        ui.label(str(line)).classes("console-help")
+        ui.label(str(line)).classes("console-help px-3")
 
 
 def _finished(body: Any, buttons: Any, dialog: Any, answer: dict) -> None:
@@ -232,13 +227,12 @@ def _finished(body: Any, buttons: Any, dialog: Any, answer: dict) -> None:
     buttons.clear()
     with body:
         said = str(answer.get("message") or t("word.done"))
-        ui.label(said).classes("console-help")
+        ui.label(said).classes("console-help px-3")
         facts = [(one[0], one[1]) for one in (answer.get("summary") or [])]
         if facts:
             panel.facts(ui, facts)
     with buttons:
-        ui.button(t("word.close"), icon=verbs.CLOSE,
-                on_click=lambda: dialog.submit(True)).props("flat no-caps")
+        frame.cancel(lambda: dialog.submit(True), t("word.close"))
 
 
 def _compare(rows: list[dict]) -> None:
@@ -282,7 +276,7 @@ def _report(body: Any, job: dict) -> None:
     with body:
         if job.get("state") == "failed":
             ui.label(str(job.get("error") or t("console.ext_action.not_finish"))) \
-                .classes("console-help")
+                .classes("console-help px-3")
             return
         result = job.get("result") or {}
         compared = list(result.get("against") or [])
@@ -294,22 +288,21 @@ def _report(body: Any, job: dict) -> None:
                              if isinstance(value, (int, str))])
         held = list(result.get("already_here") or [])
         if held:
-            ui.label(t("console.ext_action.already",
-                    len=(len(held)))).classes("console-group mt-3")
+            panel.facts(ui, [(panel.HEADING, t("console.ext_action.already", len=len(held)))])
             for row in held[:20]:
                 ui.label(t("console.ext_action.matched",
                            value=(row.get('name') or row.get('key')),
-                           value2=(row.get('how') or 'name'))).classes("console-help")
+                           value2=(row.get('how') or 'name'))).classes("console-help px-3")
             if len(held) > 20:
                 ui.label(t("console.ext_action.more",
-                        value=(len(held) - 20))).classes("console-help")
+                        value=(len(held) - 20))).classes("console-help px-3")
         missed = [row for row in (result.get("rows") or []) if row.get("error")]
         if missed:
-            ui.label(t("console.ext_action.not_come_across",
-                    len=(len(missed)))).classes("console-group mt-3")
+            panel.facts(ui, [(panel.HEADING,
+                              t("console.ext_action.not_come_across", len=len(missed)))])
             for row in missed[:20]:
                 ui.label(f"{row.get('name') or row.get('key')} - {row['error']}") \
-                    .classes("console-help")
+                    .classes("console-help px-3")
             if len(missed) > 20:
                 ui.label(t("console.ext_action.more",
-                        value=(len(missed) - 20))).classes("console-help")
+                        value=(len(missed) - 20))).classes("console-help px-3")

@@ -21,6 +21,7 @@ from nicegui import run, ui
 
 from common.i18n import t
 from console import confirm, offload, panel, verbs
+from console import dialog as frame
 from console.data import Library
 
 # One definition of both: the launcher's rail and this dialog are the same surface at
@@ -56,15 +57,8 @@ async def open_for_table(library: Library, *, launcher_id: str, launcher_name: s
     state: dict[str, Any] = {"scope": SCOPE_ENTRY, "search": ""}
     words = scope_words(folder_tables, launcher_name or t("console.app_settings.launcher"))
 
-    with ui.dialog().props("maximized") as dialog, ui.card().classes(
-            "w-full h-full console-panel"):
-        with ui.row().classes("items-center gap-3 w-full no-wrap px-3 pt-2"):
-            ui.label(t("console.app_settings.settings",
-                    launcher_name=(launcher_name))).classes("console-card-title")
-            ui.space()
-            ui.button(t("word.done"), icon=verbs.DONE,
-                    on_click=dialog.close).props("flat dense no-caps")
-
+    with frame.opened(t("console.app_settings.settings", launcher_name=launcher_name),
+                      full=True) as dialog:
         # The picker before the settings, because it says where an edit will go and
         # that has to be readable before anything is edited rather than after.
         with ui.row().classes("items-center gap-3 w-full no-wrap px-3 pb-2"):
@@ -83,6 +77,8 @@ async def open_for_table(library: Library, *, launcher_id: str, launcher_name: s
         scope.on_value_change(lambda: _pick(state, scope.value, draw))
         search.on_value_change(lambda: _find(state, search.value or "", draw))
         await draw()
+        with frame.footer():
+            frame.answer(t("word.done"), dialog.close, icon=verbs.DONE)
 
     dialog.on("hide", lambda: on_done() if callable(on_done) else None)
     dialog.open()

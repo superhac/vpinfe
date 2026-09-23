@@ -688,6 +688,11 @@ body::before {
   padding: 16px 4px 14px; width: min(520px, 92vw); max-width: none;
 }
 .console-dialog--wide.q-card { width: min(680px, 94vw); }
+.console-dialog.console-dialog--full.q-card {
+  width: 100%; height: 100%; max-height: none; border-radius: 0;
+  display: flex; flex-direction: column;
+}
+.console-field-row > .console-fact-edit { flex: 1 1 auto; min-width: 0; }
 .console-dialog-title {
   font-size: var(--fs-body); font-weight: 600; color: var(--ink); line-height: 1.35;
   padding: 0 12px 6px;

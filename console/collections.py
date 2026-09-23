@@ -18,6 +18,7 @@ from nicegui import run, ui
 from common.games.collection_store import DIRECTION_LABELS, SORT_LABELS
 from common.i18n import t
 from console import confirm, grid, panel, verbs, views
+from console import dialog as frame
 from console.games import view_control
 
 logger = logging.getLogger("vpinfe.console.collections")
@@ -246,26 +247,25 @@ def _ask_new(library: Any, act: Callable) -> None:
     holding, and changed in the panel where the games and the rule both are. Asking up
     front would make it a mode.
     """
-    with ui.dialog() as dialog, ui.card():
-        ui.label(t("console.collections.new_collection")).classes("console-card-title")
-        name = ui.input(placeholder=t("console.collections.name")) \
-            .props("outlined dense debounce=0 bottom-slots").classes("w-72")
+    held: dict[str, Any] = {}
 
-        async def keep() -> None:
-            if not (name.value or "").strip():
-                name.props('error error-message="Give it a name"')
-                return
-            dialog.close()
-            await act(library.create_collection, name.value.strip(), None,
-                      said=t("console.collections.created", strip=(name.value.strip())))
+    async def keep() -> None:
+        name = held["name"]
+        if not (name.value or "").strip():
+            name.props["error"] = True
+            name.props["error-message"] = t("said.give_it_a_name")
+            return
+        dialog.close()
+        await act(library.create_collection, name.value.strip(), None,
+                  said=t("console.collections.created", strip=(name.value.strip())))
 
-        with ui.row().classes("justify-end gap-2 w-full"):
-            ui.button(t("word.cancel"),
-                icon=verbs.CANCEL, on_click=dialog.close).props("flat no-caps")
-            ui.button(t("console.collections.create"),
-                icon=verbs.CREATE, on_click=keep).props("no-caps")
-    dialog.on("show", lambda: ui.run_javascript(
-        f"document.getElementById('c{name.id}').focus()"))
+    with frame.opened(t("console.collections.new_collection")) as dialog:
+        panel.facts(ui, [(t("word.name"), lambda: held.update(name=frame.field()))])
+        with frame.footer():
+            frame.cancel(dialog.close)
+            go = frame.answer(t("console.collections.create"), keep, icon=verbs.CREATE)
+    frame.focus(dialog, held["name"])
+    frame.enter_presses(go)
     dialog.open()
 
 
