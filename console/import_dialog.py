@@ -229,7 +229,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
         await run.io_bound(library.abort_upload, upload_id)
         return
     note.dismiss()
-    brought = int(report.get("imported") or 0)
+    brought = len(report.get("imported") or ())
     ui.notify(t("console.import_dialog.imported_item", brought=(brought),
             value=('' if brought == 1 else 's')), type="positive")
     if report.get("vps_error"):
