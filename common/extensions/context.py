@@ -272,8 +272,9 @@ class ExtensionUI:
         """A list this extension holds, shown under Community.
 
         `base` is a route of this extension's answering `{"rows": [...]}`. A column is
-        `{"field", "header", "kind"}` with `kind` one of `text`, `number`, `date`; a view
-        is `{"name", "columns", "sort": [{"field", "desc"}], "help"}`. `relation` is
+        `{"field", "header", "kind"}` with `kind` one of `text`, `number`, `date`, and the
+        first may name `under`: row fields drawn on the line beneath its value. A view is
+        `{"name", "columns", "sort": [{"field", "desc"}], "help"}`. `relation` is
         `{"field", "keys"}`, `keys` being `vps_entry` or `vps_release`.
         """
         self._needs_ui("a community list")
@@ -282,6 +283,9 @@ class ExtensionUI:
         if not wanted or not columns or not all(fields):
             raise ContractError(f"{self._name} declares a community list with no key or "
                                 "a column with no field")
+        if any((one or {}).get("under") for one in columns[1:]):
+            raise ContractError(f"{self._name} puts a line under a column other than the "
+                                "first, which is the only one drawn with one")
         kinds = {str((one or {}).get("kind") or "text") for one in columns}
         if not kinds <= COLUMN_KINDS:
             raise ContractError(f"{self._name} declares a column kind core does not draw: "
@@ -301,7 +305,8 @@ class ExtensionUI:
             "base": str(base or "").strip(),
             "columns": [{"field": field, "header": str(one.get("header") or field),
                          "kind": str(one.get("kind") or "text"),
-                         "help": str(one.get("help") or "")}
+                         "help": str(one.get("help") or ""),
+                         "under": [str(name) for name in one.get("under") or []]}
                         for field, one in zip(fields, columns, strict=True)],
             "views": [{"name": str(view["name"]).strip(),
                        "columns": list(view.get("columns") or fields),

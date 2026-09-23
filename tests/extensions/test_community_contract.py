@@ -37,6 +37,18 @@ class TheDeclaration(unittest.TestCase):
             self.ui.community("tables", "Site", "/t", columns=COLUMNS,
                               views=[{"name": "Top", "sort": [{"field": "rating"}]}])
 
+    def test_a_line_under_the_first_column_is_kept(self) -> None:
+        self.ui.community("tables", "Site", "/t",
+                          columns=[{**COLUMNS[0], "under": ["maker", "year"]}, *COLUMNS[1:]])
+
+        self.assertEqual(["maker", "year"],
+                         self.ui.community_lists[0]["columns"][0]["under"])
+
+    def test_a_line_under_any_other_column_is_refused(self) -> None:
+        with self.assertRaises(ContractError):
+            self.ui.community("tables", "Site", "/t",
+                              columns=[COLUMNS[0], {**COLUMNS[1], "under": ["year"]}])
+
     def test_a_relation_by_anything_but_a_vps_id_is_refused(self) -> None:
         with self.assertRaises(ContractError):
             self.ui.community("tables", "Site", "/t", columns=COLUMNS,

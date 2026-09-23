@@ -8,7 +8,8 @@ from common import install_identity
 from console import community, page
 
 DECLARED = {"key": "tables", "title": "Site", "base": "/community/tables",
-            "columns": [{"field": "name", "header": "Table", "kind": "text"},
+            "columns": [{"field": "name", "header": "Table", "kind": "text",
+                         "under": ["maker", "year"]},
                         {"field": "plays", "header": "Plays", "kind": "number"},
                         {"field": "last", "header": "Last", "kind": "date"},
                         {"field": "vps_id", "header": "VPS", "kind": "text"}],
@@ -58,14 +59,33 @@ class TheGrid(unittest.TestCase):
         self.assertEqual({community.HELD: {"values": [True]}},
                          presets["In Your Library"].filters)
 
-    def test_a_row_says_whether_it_is_held_and_by_which_game(self) -> None:
+    def test_a_held_row_links_its_name_to_the_game(self) -> None:
         rows = community.rows([{"name": "AFM", "vps_id": "vps-afm", "last": ""},
                                {"name": "TAF", "vps_id": "vps-taf", "last": ""}], DECLARED,
-                              {"vps-afm": {"game_id": "afm", "name": "Attack from Mars"}})
+                              {"vps-afm": {"game_id": "afm", "table_id": "",
+                                           "name": "Attack from Mars"}})
 
-        self.assertEqual([(True, "afm"), (False, "")],
-                         [(one[community.HELD], one["held_game"]) for one in rows])
+        self.assertEqual([(True, "/console?view=games&game=afm"), (False, "")],
+                         [(one[community.HELD], one["held_href"]) for one in rows])
         self.assertIn("last_ago", rows[0])
+
+    def test_a_held_release_links_to_its_table(self) -> None:
+        released = {**DECLARED, "relation": {"field": "vps_id", "keys": "vps_release"}}
+        (row,) = community.rows([{"name": "AFM", "vps_id": "rel-1", "last": ""}], released,
+                                {"rel-1": {"game_id": "afm", "table_id": "t1", "name": "AFM"}})
+
+        self.assertEqual("/console?view=tables&game=afm&table=t1", row["held_href"])
+
+    def test_the_fields_under_the_name_make_its_second_line(self) -> None:
+        (row,) = community.rows([{"name": "AFM", "maker": "Bally", "year": 1995,
+                                  "vps_id": "", "last": ""}], DECLARED, {})
+
+        self.assertEqual("Bally 1995", row[community.UNDER])
+
+    def test_in_library_is_not_a_column_of_any_view(self) -> None:
+        for name, preset in community.presets(DECLARED).items():
+            with self.subTest(view=name):
+                self.assertNotIn(community.HELD, preset.columns)
 
 
 if __name__ == "__main__":

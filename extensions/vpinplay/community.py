@@ -23,7 +23,7 @@ TIMEOUT_SECONDS = 15
 MOST_PAGES = 50
 
 COLUMNS = [
-    {"field": "name", "header": "Table"},
+    {"field": "name", "header": "Table", "under": ["manufacturer", "year"]},
     {"field": "manufacturer", "header": "Manufacturer"},
     {"field": "year", "header": "Year", "kind": "number"},
     {"field": "rating", "header": "Rating", "kind": "number",
@@ -37,8 +37,7 @@ COLUMNS = [
     {"field": "last_played", "header": "Last Played", "kind": "date"},
     {"field": "vps_id", "header": "VPS ID"},
 ]
-_SHOWN = ["name", "manufacturer", "year", "rating", "ratings", "plays", "hours",
-          "players", "last_played"]
+_SHOWN = ["name", "rating", "ratings", "plays", "hours", "players", "last_played"]
 
 
 def _view(name: str, field: str, help_: str, *then: str) -> dict[str, Any]:

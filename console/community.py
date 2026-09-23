@@ -7,7 +7,7 @@ from typing import Any
 from nicegui import ui
 
 from common.i18n import t
-from console import grid, offload, panel, views, when
+from console import deeplink, grid, offload, panel, views, when
 from console.api import ApiClient, ApiError
 from console.data import Library
 
@@ -16,19 +16,12 @@ logger = logging.getLogger("vpinfe.console.community")
 PREFIX = "community:"
 ICON = "extension"
 HELD = "held"
+UNDER = "under_said"
 
 _KIND = {"number": {"type": "numericColumn", "filter": "agNumberColumnFilter"},
          "text": {}, "date": {}}
-_WIDTH = {"number": 110, "text": 150, "date": 140}
+_WIDTH = {"number": 130, "text": 150, "date": 140}
 FIRST_WIDTH = 240
-
-HELD_RENDERER = (
-    "params => { const d = params.data || {};"
-    " if (!d.held_game) return '';"
-    " const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');"
-    " return '<a class=\"console-link\" href=\"/console?view=games&game='"
-    " + encodeURIComponent(d.held_game) + '\">' + esc(d.held_name || '') + '</a>'; }")
-
 
 def view_key(extension: str, key: str) -> str:
     return f"{PREFIX}{extension}:{key}"
@@ -57,15 +50,17 @@ def columns(declared: dict[str, Any]) -> list[dict[str, Any]]:
     out = []
     for index, one in enumerate(declared.get("columns") or []):
         kind = str(one.get("kind") or "text")
-        build = grid.identifier if index == 0 else grid.column
         extra = {**_KIND.get(kind, {}), **(when.cell(one["field"]) if kind == "date" else {})}
-        out.append(build(one["field"], str(one.get("header") or one["field"]),
-                         FIRST_WIDTH if index == 0 else _WIDTH.get(kind, 0),
-                         help=str(one.get("help") or ""), **extra))
+        header, said = str(one.get("header") or one["field"]), str(one.get("help") or "")
+        if index == 0:
+            out.append(grid.identifier(one["field"], header, FIRST_WIDTH, help=said,
+                                       subtitle=UNDER, link=HELD, **extra))
+        else:
+            out.append(grid.column(one["field"], header, _WIDTH.get(kind, 0), help=said,
+                                   **extra))
     if declared.get("relation"):
-        out.append(grid.column(HELD, t("console.community.in_library"), 200,
+        out.append(grid.column(HELD, t("console.community.in_library"),
                                help=t("console.community.in_library.help"),
-                               **{":cellRenderer": HELD_RENDERER},
                                **grid.choice_filter(
                                    [{"value": True, "label": t("console.community.held")},
                                     {"value": False,
@@ -76,18 +71,18 @@ def columns(declared: dict[str, Any]) -> list[dict[str, Any]]:
 
 def presets(declared: dict[str, Any]) -> dict[str, views.Preset]:
     related = bool(declared.get("relation"))
-    extra = (HELD,) if related else ()
     out = {view["name"]: views.Preset(
-        columns=(*view["columns"], *extra),
+        columns=tuple(view["columns"]),
         sort=tuple({"colId": one["field"], "sort": "desc" if one.get("desc") else "asc",
                     "sortIndex": index} for index, one in enumerate(view.get("sort") or [])),
         help=str(view.get("help") or "")) for view in declared.get("views") or []}
     shown = tuple(one["field"] for one in declared.get("columns") or [])
+    first = next(iter(out.values()), None)
     if not out:
-        out[t("console.view.everything")] = views.Preset(columns=(*shown, *extra))
+        out[t("console.view.everything")] = views.Preset(columns=shown)
     if related:
         out[t("console.community.yours")] = views.Preset(
-            columns=(*shown, *extra), filters={HELD: {"values": [True]}},
+            columns=first.columns if first else shown, filters={HELD: {"values": [True]}},
             help=t("console.community.yours.help"))
     return out
 
@@ -95,18 +90,28 @@ def presets(declared: dict[str, Any]) -> dict[str, views.Preset]:
 def rows(found: list[dict[str, Any]], declared: dict[str, Any],
          held: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     relation = declared.get("relation") or {}
-    dates = [one["field"] for one in declared.get("columns") or []
-             if one.get("kind") == "date"]
+    declared_columns = declared.get("columns") or []
+    dates = [one["field"] for one in declared_columns if one.get("kind") == "date"]
+    under = list(declared_columns[0].get("under") or []) if declared_columns else []
     out = []
     for index, row in enumerate(found):
         mine = held.get(str(row.get(relation.get("field", "")) or "")) if relation else None
         built = {**row, "id": str(index), HELD: bool(mine),
-                 "held_game": (mine or {}).get("game_id") or "",
-                 "held_name": (mine or {}).get("name") or ""}
+                 UNDER: " ".join(str(row[one]) for one in under
+                                 if row.get(one) not in (None, "")),
+                 f"{HELD}_href": _address(mine, relation) if mine else "",
+                 f"{HELD}_tip": t("console.community.held") if mine else ""}
         for field in dates:
             built = when.said(built, field)
         out.append(built)
     return out
+
+
+def _address(mine: dict[str, Any], relation: dict[str, Any]) -> str:
+    game, table = str(mine.get("game_id") or ""), str(mine.get("table_id") or "")
+    if relation.get("keys") == "vps_release" and table:
+        return "/console?" + deeplink.query({"view": "tables", "game": game, "table": table})
+    return "/console?" + deeplink.query({"view": "games", "game": game})
 
 
 def build(extension: dict[str, Any], declared: dict[str, Any], library: Library) -> None:

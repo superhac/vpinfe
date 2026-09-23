@@ -305,7 +305,8 @@ TWO_LINE_ROW_PX = 56
 _SUBTITLE_RENDERER = (
     "params => {"
     " const d = params.data || {};"
-    " const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');"
+    " const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')"
+    ".replace(/\"/g, '&quot;');"
     " const made = d['{made}'] || '';"
     " const built = {built};"
     " const name = params.valueFormatted != null ? params.valueFormatted"
@@ -314,13 +315,16 @@ _SUBTITLE_RENDERER = (
     " if (made) said += '<span class=\"console-cell-made\">' + esc(made) + '</span>';"
     " if (made && built) said += '<span class=\"console-cell-join\"> \u00b7 </span>';"
     " if (built) said += '<span class=\"console-cell-built\">' + esc(built) + '</span>';"
-    " return '<span class=\"console-cell-named\">' + esc(name)"
+    " const href = d['{link}_href'] || '';"
+    " const named = href ? '<a class=\"console-link\" href=\"' + esc(href) + '\" title=\"'"
+    " + esc(d['{link}_tip'] || '') + '\">' + esc(name) + '</a>' : esc(name);"
+    " return '<span class=\"console-cell-named\">' + named"
     " + '</span><span class=\"{cls}\">' + said + '</span>'; }"
 )
 
 
 def identifier(field: str, header: str, width: int = 0, help: str = "",
-               subtitle: str | tuple[str, str, str] = "",
+               subtitle: str | tuple[str, str, str] = "", link: str = "",
                **extra: Any) -> dict[str, Any]:
     """The column this grid's rows are scanned *by*, which is not their unique key.
 
@@ -329,6 +333,9 @@ def identifier(field: str, header: str, width: int = 0, help: str = "",
     `subtitle` names the field holding the line drawn under the value, or a
     `(made, "", built)` triple where the line has two parts to tell apart. Sorting and
     filtering stay on `field`, so the line is shown and never scanned.
+
+    `link` makes the value an anchor on rows carrying `<link>_href`, titled `<link>_tip`.
+    It needs a subtitle to be drawn.
     """
     extra_classes = extra.pop("cellClass", "")
     classes = f"{extra_classes} {IDENTIFIER_CLASS}".strip() if extra_classes \
@@ -338,6 +345,7 @@ def identifier(field: str, header: str, width: int = 0, help: str = "",
                           else (subtitle, "", ""))
         classes = f"{classes} {TWO_LINE_CLASS}"
         extra.setdefault(":cellRenderer", _SUBTITLE_RENDERER
+                         .replace("{link}", link or "_")
                          .replace("{made}", made)
                          .replace("{built}", f"d['{built}'] || ''" if built else "''")
                          .replace("{cls}", SUBTITLE_CLASS))
