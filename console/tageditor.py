@@ -227,7 +227,7 @@ async def _new_tag(library: Library) -> tuple[str, dict[str, str]] | None:
     fields: dict[str, Any] = {}
 
     def draw_name() -> None:
-        fields["name"] = ui.input().props("outlined dense debounce=0 bottom-slots") \
+        fields["name"] = ui.input().props("outlined dense debounce=0") \
             .classes("w-full")
         fields["name"].on_value_change(renamed)
 

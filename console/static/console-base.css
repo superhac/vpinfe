@@ -2285,6 +2285,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-tag-dot--gray { background: var(--tag-gray); }
 .console-swatches { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .console-new-tag { width: min(500px, 92vw); }
+.console-new-tag .console-facts { row-gap: 12px; padding: 0; }
 .console-swatch.q-btn { min-width: 26px; min-height: 26px; width: 26px; height: 26px;
                         padding: 0; border: 2px solid transparent; }
 .console-swatch .console-tag-dot { width: 14px; height: 14px; }
