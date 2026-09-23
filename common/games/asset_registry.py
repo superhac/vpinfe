@@ -97,6 +97,16 @@ def lens_kind(kind: str) -> str:
     """What the asset lens calls one of the registry's kinds."""
     return _LENS_NAMES.get(kind, kind)
 
+
+def specs_named(name: str) -> tuple[AssetSpec, ...]:
+    """The registry's kind by that name, or every kind the lens calls by it. KeyError
+    for a name that is neither."""
+    found = tuple(spec for spec in ASSET_SPECS
+                  if name in (spec.kind, lens_kind(spec.kind)))
+    if not found:
+        raise KeyError(name)
+    return found
+
 # The kinds whose absence stops a table running, as opposed to making it worse.
 # The table file is the library rather than an accessory to it, so it is the one kind
 # there is no sense in a library saying it does not collect. Everything else is optional

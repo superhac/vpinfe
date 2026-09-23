@@ -77,6 +77,29 @@ class BrowseTests(_Tree):
         self.assertNotIn("Cactus Canyon.ini", names)
         self.assertNotIn(f"{FOLDER}.vpx", names)
 
+    def test_a_kind_named_as_the_asset_lens_names_it_offers_every_kind_under_it(self) -> None:
+        (self.folder / "afm.cRZ").write_bytes(b"serum")
+        (self.folder / "afm.pal").write_bytes(b"vni")
+
+        body = self.client.get("/filesystem/entries",
+                               params={"path": str(self.folder), "kind": "alt_color"})
+        names = [item["name"] for item in body.json()["entries"]]
+
+        self.assertEqual(body.status_code, 200, body.text)
+        self.assertIn("afm.cRZ", names)
+        self.assertIn("afm.pal", names)
+
+    def test_archives_are_listed_only_when_asked_for(self) -> None:
+        (self.folder / "afm pup.zip").write_bytes(b"PK")
+
+        def listed(**params: str) -> list[str]:
+            body = self.client.get("/filesystem/entries",
+                                   params={"path": str(self.folder), **params}).json()
+            return [item["name"] for item in body["entries"]]
+
+        self.assertNotIn("afm pup.zip", listed(kind="pup_pack"))
+        self.assertIn("afm pup.zip", listed(kind="pup_pack", archives="true"))
+
     def test_without_a_kind_a_backglass_is_not_offered(self) -> None:
         (self.folder / "Cactus Canyon.directb2s").write_bytes(b"b2s")
 

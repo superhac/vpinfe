@@ -13,7 +13,7 @@ from starlette.responses import FileResponse
 
 from common import media_browse, service_errors
 from common.games import game_repository
-from common.games.asset_registry import spec_for
+from common.games.asset_registry import ARCHIVE_EXTENSIONS, specs_named
 from common.i18n import t
 
 from . import models, scopes
@@ -43,13 +43,19 @@ def get_file(path: str = Query(...)) -> FileResponse:
 
 @router.get("/entries", summary="What is in one folder",
             dependencies=[requires(scopes.FILESYSTEM_READ)])
-def get_entries(path: str = Query(...), kind: str = Query("")) -> models.FilesystemListing:
+def get_entries(path: str = Query(...), kind: str = Query(""),
+                archives: bool = Query(False)) -> models.FilesystemListing:
     """Folders and media files, folders first, both by name - and with `kind`, the files
-    that asset kind takes, so a slot for a backglass can be filled from here too."""
+    that asset kind takes, so a slot for a backglass can be filled from here too.
+    `kind` is the registry's name or the asset lens's. With `archives`, archives too, for
+    a caller that can take a kind out of one."""
     try:
-        wanted = spec_for(kind).extensions if kind else ()
+        wanted = [extension for spec in specs_named(kind)
+                  for extension in spec.extensions] if kind else []
     except KeyError as exc:
         raise service_errors.RefusedError(t("error.assets.unknown_kind"),
                                           details={"unknown": kind}) from exc
+    if archives:
+        wanted += sorted(ARCHIVE_EXTENSIONS)
     return models.FilesystemListing.model_validate(
         media_browse.entries(path, extensions=wanted))
