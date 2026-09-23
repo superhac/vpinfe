@@ -20,7 +20,17 @@ from urllib.parse import urlparse
 from nicegui import run, ui
 
 from common.i18n import t
-from console import confirm, grid, offload, panel, renderers, settings, verbs, views
+from console import (
+    confirm,
+    grid,
+    mediaview,
+    offload,
+    panel,
+    renderers,
+    settings,
+    verbs,
+    views,
+)
 from console.data import Library
 
 logger = logging.getLogger("vpinfe.console.themes")
@@ -200,6 +210,11 @@ async def details(context: dict[str, Any]) -> None:
         with ui.element("div").classes("console-theme-hero"):
             if theme.get("preview"):
                 ui.image(theme["preview"]).classes("w-full")
+                ui.button(icon=verbs.ENLARGE,
+                          on_click=lambda: mediaview.open_image(
+                              str(theme["preview"]), str(theme.get("name") or ""))) \
+                    .props("flat dense round size=sm") \
+                    .classes("console-slot-zoom").tooltip(t("word.enlarge"))
             else:
                 ui.icon("image_not_supported").classes("console-theme-hero-empty")
         entries: list[tuple[Any, Any]] = []

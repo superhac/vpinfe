@@ -215,9 +215,16 @@ _VIEW = f"""
 """
 
 
+def open_image(src: str, label: str) -> None:
+    _open(src, "image", label)
+
+
 def open_viewer(src: str, kind: str, label: str) -> None:
     """Show this file large. Returns as soon as the dialog is on screen."""
-    family = media_family(kind)
+    _open(src, media_family(kind), label)
+
+
+def _open(src: str, family: str, label: str) -> None:
     if family not in ("image", "video"):
         # Audio has no frame to enlarge and a document is not ours to render.
         ui.notify(t("console.mediaview.nothing_enlarge", label=(label)), type="info")

@@ -2260,7 +2260,8 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   position: absolute; top: 6px; right: 2px; opacity: 0;
   background: var(--scrim-media) !important; transition: opacity 120ms ease;
 }
-.console-slot-art:hover .console-slot-zoom { opacity: 1; }
+.console-slot-art:hover .console-slot-zoom,
+.console-theme-hero:hover .console-slot-zoom { opacity: 1; }
 .console-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .console-tag {
   display: inline-flex; align-items: center; gap: 6px;
@@ -2675,6 +2676,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-cell-noart { font-size: var(--icon-slot-small); color: var(--ink-3); }
 .console-cell-quiet { color: var(--ink-3); }
 .console-theme-hero {
+  position: relative;
   align-self: stretch; min-width: 0; margin: 4px 12px 8px; overflow: hidden;
   border-radius: 8px;
   background: var(--surface-2); border: 1px solid var(--line);
