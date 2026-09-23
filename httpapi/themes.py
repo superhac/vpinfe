@@ -27,8 +27,8 @@ router = APIRouter(prefix="/themes", tags=["themes"])
 def list_themes(refresh: bool = False) -> dict[str, Any]:
     """Active first, then installed, then the rest.
 
-    `refresh` re-reads the sources. Without it the answer is whatever was read when this
-    process first asked, which is right for a page that draws several times a minute.
+    `refresh` re-reads the sources now. Without it the answer is the last read, which is
+    kept between restarts and repeated on the schedule set in `themes.refresh`.
     """
     try:
         return theme_ops.listing(refresh)

@@ -104,7 +104,9 @@
   "themes": {
     "active": "Revolution",
     "registries": "https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json",
-    "repositories": ""
+    "repositories": "",
+    "refresh": "daily",
+    "last_read": ""
   },
   "tools": {
     "rar_path": ""

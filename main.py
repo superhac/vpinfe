@@ -335,9 +335,11 @@ _start_startup_media_sync()
 # offered from. It was only ever downloaded by a Manager UI page, so an install that never
 # opened one answered from whatever snapshot it started with.
 if not config_store.is_new:
+    from common.online.theme_sync import start_watch as _watch_themes
     from common.online.vpsdb_sync import start_watch as _watch_vpsdb
 
     _watch_vpsdb(config_store, _shutdown_event)
+    _watch_themes(config_store, _shutdown_event)
 # Whatever a person asked to run when VPinFE starts, and anything a previous run left
 # half done. Ahead of the services below because that is what these are usually for -
 # a share mounted, a service stopped, an audio route moved - and everything after this

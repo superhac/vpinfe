@@ -131,6 +131,8 @@ Runtime state written by VPinFE, not shown as a setting.
 | `active` | string | `Revolution` | Active Theme |
 | `registries` | list | `https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json` | Catalogs to offer themes from, most trusted first. A source is fetched and installed, so add one you trust. |
 | `repositories` | list |  | Individual theme repos, each one a theme. Resolved before the registries. |
+| `refresh` | choice (never, daily, weekly, monthly) | `daily` | How often to read the theme registries and repositories again: what is offered, what has an update, and when each last changed. The last read is kept between. |
+| `last_read` | string |  |  |
 
 ### `logger`
 

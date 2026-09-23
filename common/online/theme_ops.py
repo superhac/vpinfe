@@ -10,14 +10,17 @@ list that changes when somebody publishes a release.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import threading
 from typing import Any
 
 from common import service_errors
 from common.i18n import t
-from common.online import theme_service, theme_sources
+from common.online import theme_service, theme_sources, theme_sync
 from common.online.themes import ThemeRegistry
+from common.paths import THEME_CACHE_PATH, get_ini_config
 
 logger = logging.getLogger("vpinfe.common.online.theme_ops")
 
@@ -39,12 +42,67 @@ _registry: Any = None
 
 
 def _loaded(refresh: bool = False) -> ThemeRegistry:
-    """The registry, read once and kept. Network work, so not per request."""
+    """The registry: from memory, else from the last read kept on disk, else - or when
+    asked - from the sources, which is network work and not per request."""
     global _registry
     with _lock:
+        if _registry is None and not refresh:
+            _registry = _cached()
         if _registry is None or refresh:
-                    _registry = theme_service.load_registry()
+            fresh = theme_service.load_registry()
+            _carry_dates(fresh, _registry or _cached())
+            _keep(fresh)
+            theme_sync.stamp(get_ini_config())
+            _registry = fresh
         return _registry
+
+
+def _sources_now() -> dict[str, list[str]]:
+    said = theme_sources.from_config(get_ini_config())
+    return {"registries": list(said.registries), "repositories": list(said.repositories)}
+
+
+def _cached() -> ThemeRegistry | None:
+    """The last read, unless the configured sources have changed since."""
+    try:
+        held = json.loads(THEME_CACHE_PATH.read_text(encoding="utf-8"))
+        if held.get("sources") != _sources_now():
+            return None
+        registry = ThemeRegistry()
+        registry.restore(held)
+        return registry
+    except FileNotFoundError:
+        return None
+    except Exception:  # noqa: BLE001 - a copy this build cannot read is read again
+        logger.warning("Could not use the kept theme list; reading the sources",
+                       exc_info=True)
+        return None
+
+
+def _keep(registry: ThemeRegistry) -> None:
+    try:
+        THEME_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        part = THEME_CACHE_PATH.with_name(THEME_CACHE_PATH.name + ".part")
+        part.write_text(json.dumps({**registry.snapshot(), "sources": _sources_now()}),
+                        encoding="utf-8")
+        os.replace(part, THEME_CACHE_PATH)
+    except Exception:  # noqa: BLE001 - an unwritten copy costs the next start a read
+        logger.warning("Could not keep the theme list", exc_info=True)
+
+
+def _ref(entry: dict[str, Any]) -> str:
+    return str(getattr(entry.get("release"), "ref", "") or "")
+
+
+def _carry_dates(fresh: ThemeRegistry, before: ThemeRegistry | None) -> None:
+    """A date the host would not give this time is the one it gave last, while the
+    release it dates is still the one on offer."""
+    if before is None:
+        return
+    for key, entry in fresh.themes.items():
+        known = before.themes.get(key) or {}
+        if not entry.get("updated") and known.get("updated") and _ref(known) == _ref(entry):
+            entry["updated"] = known["updated"]
 
 
 def _described(registry: ThemeRegistry, active: str) -> list[dict[str, Any]]:
@@ -82,6 +140,7 @@ def _described(registry: ThemeRegistry, active: str) -> list[dict[str, Any]]:
             # be fetched from where its manifest lives.
             "preview": _preview(key, manifest, info, installed),
             "change_log": str(manifest.get("change_log") or ""),
+            "updated": str(entry.get("updated") or ""),
             "installed": installed,
             "active": key == active,
             "default_install": bool(info.get("default_install")),
@@ -104,6 +163,7 @@ def _described(registry: ThemeRegistry, active: str) -> list[dict[str, Any]]:
             "registry": "",
             "preview": _preview(key, manifest, {}, True),
             "change_log": str(manifest.get("change_log") or ""),
+            "updated": "",
             "installed": True,
             "active": key == active,
             "default_install": False,
@@ -141,7 +201,8 @@ def listing(refresh: bool = False) -> dict[str, Any]:
         raise SourceUnavailableError(
             t("error.themes.could_not_read_theme", exc=(exc))) from exc
     active = theme_service.get_active_theme()
-    return {"active": active, "themes": _described(registry, active)}
+    return {"active": active, "themes": _described(registry, active),
+            "checked": theme_sync.checked_at(get_ini_config())}
 
 
 def install(key: str) -> dict[str, Any]:

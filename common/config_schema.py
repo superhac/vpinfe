@@ -566,6 +566,18 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
             type="list",
             default="",
         ),
+        ConfigOption(
+            "refresh",
+            type="choice",
+            default="daily",
+            choices=("never", "daily", "weekly", "monthly"),
+        ),
+        ConfigOption(
+            "last_read",
+            type="string",
+            default="",
+            internal=True,
+        ),
     ),
     *in_section(
         "logger",

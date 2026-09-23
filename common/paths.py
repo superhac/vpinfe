@@ -50,6 +50,7 @@ TAGS_PATH = CONFIG_DIR / "tags.json"
 # Read once and converted; kept as a name so a restore can still find its backups.
 COLLECTIONS_INI_PATH = CONFIG_DIR / "collections.ini"
 THEMES_DIR = CONFIG_DIR / "themes"
+THEME_CACHE_PATH = CONFIG_DIR / "cache" / "themes.json"
 PLUGIN_PROFILES_DIR = CONFIG_DIR / "plugin_profiles"
 UPDATES_DIR = CONFIG_DIR / "updates"
 USER_CONFIG_PATH = VPINFE_INI_PATH

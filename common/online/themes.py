@@ -6,10 +6,12 @@ import concurrent.futures
 import json
 import logging
 import os
+from dataclasses import asdict
 from io import BytesIO
 from typing import Any
 
-from common.online import theme_releases, theme_sources
+from common.http_client import get_json
+from common.online import theme_dates, theme_releases, theme_sources
 from common.online.theme_installer import ASIDE_SUFFIX, ThemeInstallStore
 from common.online.theme_registry_client import ThemeRegistryClient, ThemeRegistryError
 from common.paths import CONFIG_DIR, get_ini_config
@@ -57,6 +59,10 @@ class ThemeRegistry:
 
     def _fetch_json(self, url: str) -> dict:
         return self.client.fetch_json(url)
+
+    def _fetch_any(self, url: str) -> Any:
+        """JSON that need not be an object - a host's list of commits."""
+        return get_json(url, timeout=self.timeout)
 
     def _download_zip(self, url: str, max_retries: int = 3) -> BytesIO:
         return self.client.download_zip(url, max_retries=max_retries)
@@ -173,12 +179,13 @@ class ThemeRegistry:
             if release is None or manifest_url is None:
                 # Every release this theme offers needs a newer VPinFE than this one.
                 logger.debug("%s offers nothing this build can run", theme_key)
-                return theme_key, theme_info, None, None, None
+                return theme_key, theme_info, None, None, None, ""
             manifest = self._fetch_json(manifest_url)
             self._validate_manifest(theme_key, manifest)
+            updated = theme_dates.committed_at(base_url, release.ref, self._fetch_any)
             # Only now can a repository say what it is called, so the key settles here.
             return (theme_sources.name_of(theme_key, theme_info, manifest),
-                    theme_info, manifest, release, index)
+                    theme_info, manifest, release, index, updated)
 
         # Network-bound workload: parallelize manifest fetches. Submitted all at once, then
         # collected in source order rather than completion order - a repository's name is
@@ -189,7 +196,8 @@ class ThemeRegistry:
             futures = {job[0]: pool.submit(_load_one, job) for job in theme_jobs}
             for provisional, future in futures.items():
                 try:
-                    theme_key, theme_info, manifest, release, index = future.result()
+                    theme_key, theme_info, manifest, release, index, updated = \
+                        future.result()
                     if manifest is None:
                         continue
                     if theme_key in self.themes:
@@ -206,6 +214,7 @@ class ThemeRegistry:
                         "manifest": manifest,
                         "release": release,
                         "index": index,
+                        "updated": updated,
                     }
                 except Exception as e:
                     logger.error("%s: %s", provisional, e)
@@ -393,6 +402,20 @@ class ThemeRegistry:
 
     def get_themes(self) -> dict[str, Any]:
         return self.themes
+
+    def snapshot(self) -> dict[str, Any]:
+        """What the sources said, in a form that survives a restart."""
+        return {"themes_index": self.themes_index, "origins": self.origins,
+                "themes": {key: {**entry, "release": asdict(entry["release"])
+                                 if entry.get("release") else None}
+                           for key, entry in self.themes.items()}}
+
+    def restore(self, held: dict[str, Any]) -> None:
+        self.themes_index = dict(held.get("themes_index") or {})
+        self.origins = dict(held.get("origins") or {})
+        self.themes = {key: {**entry, "release": theme_releases.Release(**entry["release"])
+                             if entry.get("release") else None}
+                       for key, entry in (held.get("themes") or {}).items()}
 
 
 # =============================================================

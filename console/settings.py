@@ -362,8 +362,13 @@ async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tupl
                   type="positive" if done.get("changed") else "info")
         rerender()
 
-    checked_at = str(state.get("checked") or "")
+    # No heading of its own: the group above already names the catalog, and a second
+    # one here read as a separate subject.
+    return [_last_checked(str(state.get("checked") or ""), now)]
 
+
+def _last_checked(checked_at: str, now: Callable[[], Any]) -> tuple[Any, Any]:
+    """When something kept was last read, and the act that reads it now."""
     def checked() -> None:
         with ui.element("div").classes("console-fact-edit"):
             shown = ui.label(when.ago(checked_at) or t("word.never")) \
@@ -372,9 +377,28 @@ async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tupl
                 shown.tooltip(when.local(checked_at))
             panel.action(t("console.settings.check_now"), now, icon=verbs.REFRESH, inline=True)()
 
-    # No heading of its own: the group above already names the catalog, and a second
-    # one here read as a separate subject.
-    return [(t("console.settings.last_checked"), checked)]
+    return (t("console.settings.last_checked"), checked)
+
+
+async def _themes_foot(library: Library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
+    try:
+        held = await offload.io(library.themes)
+    except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
+        return [panel.intro(t("console.settings.could_not_read_themes", exc=exc))]
+
+    async def now() -> None:
+        checking = ui.notification(t("console.settings.checking_themes"), spinner=True,
+                                   timeout=None)
+        try:
+            await offload.io(library.themes, True)
+        except Exception as exc:  # noqa: BLE001
+            ui.notify(t("console.settings.could_not_check", exc=exc), type="negative")
+            return
+        finally:
+            checking.dismiss()
+        rerender()
+
+    return [_last_checked(str(held.get("checked") or ""), now)]
 
 
 async def _input_foot(library: Library, rerender: Callable[[], None]) -> list[tuple[Any, Any]]:
@@ -390,7 +414,8 @@ async def _input_foot(library: Library, rerender: Callable[[], None]) -> list[tu
 
 # section -> what to draw under its settings. Only where a page has an act in it, or a
 # reading that answers a question its settings raise.
-FOOTERS: dict[str, Callable] = {"vpsdb": _vps_foot, "input": _input_foot}
+FOOTERS: dict[str, Callable] = {"vpsdb": _vps_foot, "themes": _themes_foot,
+                                 "input": _input_foot}
 
 # page -> the line under its heading. Optional: a page whose name says the whole thing
 # takes none.

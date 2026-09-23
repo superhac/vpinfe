@@ -30,6 +30,7 @@ from console import (
     settings,
     verbs,
     views,
+    when,
 )
 from console.data import Library
 
@@ -65,6 +66,8 @@ COLUMNS: list[dict[str, Any]] = [
     grid.column("registry", t("console.themes.registry"), 200,
                 help=t("console.themes.registry.help")),
     grid.column("repository", t("console.themes.repository"), 280),
+    grid.column("updated", t("console.themes.updated"), 150,
+                help=t("console.themes.updated.help"), **when.cell("updated")),
 ]
 _ALL = [one["field"] for one in COLUMNS]
 _SHOWN = ("name", "status", "made_for")
@@ -120,15 +123,19 @@ def repo_page(url: str) -> str:
 
 
 def rows(themes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [{"id": theme["key"], "name": theme.get("name") or theme["key"],
-             "preview": theme.get("preview") or "", "status": status(theme),
-             "made_for": theme.get("type") if theme.get("type") in MADE_FOR else "",
-             "author": str(theme.get("author") or ""),
-             "registry": repo_name(str(theme["registry"])) if theme.get("registry") else "",
-             "repository": repo_name(str(theme["url"])) if theme.get("url") else "",
-             "said": " \u00b7 ".join(part for part in (str(theme.get("author") or ""),
-                                                        version_said(theme)) if part)}
-            for theme in themes]
+    return [when.said(_row(theme), "updated") for theme in themes]
+
+
+def _row(theme: dict[str, Any]) -> dict[str, Any]:
+    return {"id": theme["key"], "name": theme.get("name") or theme["key"],
+            "preview": theme.get("preview") or "", "status": status(theme),
+            "made_for": theme.get("type") if theme.get("type") in MADE_FOR else "",
+            "author": str(theme.get("author") or ""),
+            "registry": repo_name(str(theme["registry"])) if theme.get("registry") else "",
+            "repository": repo_name(str(theme["url"])) if theme.get("url") else "",
+            "updated": str(theme.get("updated") or ""),
+            "said": " \u00b7 ".join(part for part in (str(theme.get("author") or ""),
+                                                       version_said(theme)) if part)}
 
 
 def build(library: Library, state: dict[str, Any],
@@ -236,6 +243,8 @@ async def details(context: dict[str, Any]) -> None:
             entries.append((t("word.version"), version_said(theme)))
         if theme.get("author"):
             entries.append((t("word.author"), str(theme["author"])))
+        if theme.get("updated"):
+            entries.append((t("console.themes.updated"), when.ago(theme["updated"])))
         if theme.get("type") in MADE_FOR:
             entries.append((t("console.themes.made_for"), MADE_FOR[str(theme["type"])]))
         if theme.get("registry"):

@@ -123,6 +123,7 @@ class LoadTests(unittest.TestCase):
             return responses[url]
 
         registry._fetch_json = fetch
+        registry._fetch_any = fetch
         return registry
 
     def test_a_repository_needs_no_catalog_to_be_offered(self) -> None:

@@ -106,6 +106,7 @@ class ResolveTests(unittest.TestCase):
             return responses[url]
 
         registry._fetch_json = fetch
+        registry._fetch_any = fetch
         return registry
 
     def test_an_index_decides_the_ref_the_manifest_is_read_from(self) -> None:
