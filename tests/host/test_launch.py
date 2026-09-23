@@ -63,7 +63,8 @@ class LaunchTests(unittest.TestCase):
         """
         popen = popen or (lambda cmd, **kwargs: _FakePopen())
         patches = {
-            "_binary_of": lambda launcher, asked_for: "/opt/vpx",
+            "_launcher_for": lambda game, vpx_path: (_launcher(), ""),
+            "_binary_of": lambda launcher: "/opt/vpx",
             "_plan": lambda table, binary, launcher: (
                 ["/opt/vpx", "-play", "x.vpx"], "Startup done"),
             "parse_launch_env_overrides": lambda raw: {},
@@ -72,8 +73,6 @@ class LaunchTests(unittest.TestCase):
         patches.update(overrides)
 
         with mock.patch.object(launch, "game_play_service") as play, \
-                mock.patch.object(launch, "_launcher_for",
-                                  lambda game, vpx_path: (_launcher(), "")), \
                 mock.patch.multiple(launch, **patches):
             launch.launch_game(game or _game(), types.SimpleNamespace(config={}),
                                 source=launch_state.SOURCE_API, popen=popen)
@@ -274,8 +273,32 @@ class RefusalTests(LaunchTests):
                          ("games", "Example", "Example.vpx"))
 
 
-if __name__ == "__main__":
-    unittest.main()
+class FallbackTests(LaunchTests):
+    def test_a_table_on_a_switched_off_launcher_says_so_once_at_launch(self) -> None:
+        """Checked, then launched, the way the API and the Remote page both do it."""
+        from common.games.launchers import LauncherStore
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        program = pathlib.Path(tmp.name, "vpx")
+        program.touch()
+        store = LauncherStore(os.path.join(tmp.name, "launchers.json"))
+        off = _launcher().__class__(launcher_id="l2", app="vpx", display_name="VPX 10.7",
+                                    enabled=False, settings={"bin_path": "/opt/old"})
+        store.save([_launcher(str(program)), off], {"t1": "l2"})
+        game = _game()
+        game.meta_config = {"tables": {"t1": {"id": "t1", "filename": "Example.vpx"}}}
+
+        with mock.patch.object(launch.launchers, "get_launcher_store",
+                               return_value=store), \
+                self.assertLogs("vpinfe.common.host.launch", "WARNING") as logged:
+            launch.check_launchable(game, types.SimpleNamespace(config={}))
+            self._run(game=game, _launcher_for=launch._launcher_for,
+                      _binary_of=launch._binary_of)
+
+        self.assertEqual(len(logged.output), 1)
+        self.assertIn("Example.vpx names launcher VPX 10.7, which is switched off; "
+                      "launching with Visual Pinball X instead", logged.output[0])
 
 
 def _keyed_game(app="generic", key="mm"):
@@ -418,3 +441,7 @@ class ReferencedEntryTests(LaunchTests):
         cmd, _marker = launch._plan(entry, "/opt/x", found)
 
         self.assertEqual(cmd, ["/opt/x", self.elsewhere])
+
+
+if __name__ == "__main__":
+    unittest.main()

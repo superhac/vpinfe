@@ -109,16 +109,13 @@ def binary_for(table_id: str, filename: str) -> str:
     found = apps.app_for(filename)
     launcher = launchers.launcher_for_entry(found.id if found else "", table_id,
                                             store.launchers(), store.mappings())
-    return _binary_of(launcher, store.mapped(table_id))
+    return _binary_of(launcher)
 
 
-def _binary_of(launcher: launchers.Launcher | None, asked_for: str) -> str:
+def _binary_of(launcher: launchers.Launcher | None) -> str:
     """The program a launcher runs, checked before anything is announced."""
     if launcher is None:
         raise LaunchUnavailableError(t("error.launchers.no_launcher_configured"))
-    if asked_for and asked_for != launcher.launcher_id:
-        logger.warning("Table asked for launcher %s, which is not available; "
-                       "launching with %s instead", asked_for, launcher.display_name)
     configured = str(launcher.value("bin_path") or "").strip()
     if not configured:
         raise LaunchUnavailableError(
@@ -268,7 +265,7 @@ def check_launchable(game: Game, ini_config: ConfigStore,
     _reference_is_reachable(game, entry)
     if launch_state.current().launching:
         raise LaunchBusyError("A table is already launching on this machine")
-    _binary_of(*_launcher_for(table_id, entry))
+    _binary_of(_launcher_for(table_id, entry)[0])
     return _path_of(game, entry) or tables.entry_native_key(entry)
 
 
@@ -311,9 +308,16 @@ def launch_game(game: Game, ini_config: ConfigStore, *, source: str,
     table_id, entry = _resolve_entry(game, table)
     vpx_path = _path_of(game, entry)
     launcher, asked_for = _launcher_for(table_id, entry)
-    binary = _binary_of(launcher, asked_for)
+    binary = _binary_of(launcher)
     # _binary_of refuses a launcher that is missing or cannot run, so there is one here.
     assert launcher is not None
+    if asked_for and asked_for != launcher.launcher_id:
+        named = launchers.get_launcher_store().get(asked_for)
+        logger.warning("%s names launcher %s, which is switched off; "
+                       "launching with %s instead",
+                       os.path.basename(vpx_path) or tables.entry_native_key(entry),
+                       named.display_name if named else asked_for,
+                       launcher.display_name)
     playing = apps.Entry(entry_id=table_id, table=vpx_path,
                          game_dir=str(game.full_path_game or ""),
                          key=tables.entry_key(entry))
