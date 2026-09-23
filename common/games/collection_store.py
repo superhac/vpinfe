@@ -216,6 +216,7 @@ _FILTER_DEFAULTS = {
     "year": "All", "rating": "All", "rating_or_higher": "false",
     "sort_by": "Alpha", "order_by": "desc",
 }
+_NAMED_IN_A_2X_INI = {axis: old for old, axis in collection_filters.LEGACY_AXIS_NAMES.items()}
 
 
 def _ini_schema(parser: configparser.ConfigParser) -> int:
@@ -309,7 +310,8 @@ class CollectionStore:
             record = {"name": name, "image": sec.get("image", "")}
             if sec.get("type", "vpsid") == "filter":
                 record["type"] = "filter"
-                record["filters"] = {k: sec.get(k, d) for k, d in _FILTER_DEFAULTS.items()}
+                record["filters"] = {k: sec.get(_NAMED_IN_A_2X_INI.get(k, k), d)
+                                     for k, d in _FILTER_DEFAULTS.items()}
             else:
                 record["type"] = "manual"
                 record["members"] = _member_refs(

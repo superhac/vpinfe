@@ -219,31 +219,14 @@ AXES_BY_NAME = {axis.name: axis for axis in AXES}
 # refuse a collection it can resolve perfectly well.
 ORDERING_KEYS = frozenset({"sort_by", "order_by"})
 
-# `table_type` was the game's type under the old vocabulary. Reading it keeps a filter
-# 2.x wrote working. Nothing writes it - which was not true until 2026-08-16: every
-# filter collection 3.0 created was minted with the retired key while this comment said
-# otherwise.
+# 2.x's name for an axis, which a 2.x collections.ini still carries. Read only where
+# that file is imported: 3.0 writes and reads each axis under its own name.
 LEGACY_AXIS_NAMES = {"table_type": "game_type"}
 
 
 def criterion(stored: dict | None, name: str, default: object = None) -> object:
-    """One criterion out of a stored filter, under whichever spelling it was written.
-
-    A file 2.x wrote holds `table_type`; one written now holds `game_type`. Readers that
-    subscript the old name directly break on a new file, and readers that subscript the
-    new one break on an old file - so nobody subscripts either.
-    """
-    stored = stored or {}
-    if name in stored:
-        return stored[name]
-    for old, current in LEGACY_AXIS_NAMES.items():
-        if current == name and old in stored:
-            return stored[old]
-    return default
-
-
-def canonical_axis(name: str) -> str:
-    return LEGACY_AXIS_NAMES.get(name, name)
+    """One criterion out of a stored filter, or `default` where it sets none."""
+    return (stored or {}).get(name, default)
 
 
 def is_unconstrained(criterion: object) -> bool:
@@ -258,8 +241,7 @@ def unknown_axes(stored: dict | None) -> list[str]:
     ignoring a constraint answers a different question, and does it silently.
     """
     return sorted(name for name in (stored or {})
-                  if name not in ORDERING_KEYS
-                  and canonical_axis(name) not in AXES_BY_NAME)
+                  if name not in ORDERING_KEYS and name not in AXES_BY_NAME)
 
 
 def matches(stored: dict | None, game: GameRecord, table: dict | None = None) -> bool:
@@ -271,7 +253,7 @@ def matches(stored: dict | None, game: GameRecord, table: dict | None = None) ->
     stored = stored or {}
     rating = stored.get("rating")
     for name, criterion in stored.items():
-        axis = AXES_BY_NAME.get(canonical_axis(name))
+        axis = AXES_BY_NAME.get(name)
         if axis is None or is_unconstrained(criterion):
             continue
         if axis.name == "rating_or_higher":
@@ -290,8 +272,7 @@ def matches(stored: dict | None, game: GameRecord, table: dict | None = None) ->
 def table_sensitive(stored: dict | None) -> bool:
     """Whether a table of a game can match where the game itself does not."""
     return any(not is_unconstrained(criterion)
-               and AXES_BY_NAME.get(canonical_axis(name)) is not None
-               and AXES_BY_NAME[canonical_axis(name)].is_table_scoped
+               and name in AXES_BY_NAME and AXES_BY_NAME[name].is_table_scoped
                for name, criterion in (stored or {}).items())
 
 

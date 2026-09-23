@@ -347,6 +347,7 @@ class JsonConversionTests(TempTree):
             type = filter
             manufacturer = Williams
             year = 1985
+            table_type = SS
             sort_by = Newest
             order_by = Ascending
         """)
@@ -355,6 +356,8 @@ class JsonConversionTests(TempTree):
         filters = CollectionStore(str(self.json)).get_filters("80s Williams")
         self.assertEqual(filters["manufacturer"], "Williams")
         self.assertEqual(filters["year"], "1985")
+        self.assertEqual(filters["game_type"], "SS", "2.x wrote the type as table_type")
+        self.assertNotIn("table_type", filters)
         self.assertEqual(filters["sort_by"], "Newest")
         self.assertEqual(filters["order_by"], "Ascending")
         self.assertEqual(filters["theme"], "All", "an unset axis is unconstrained")

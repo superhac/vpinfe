@@ -16,6 +16,7 @@ from starlette.testclient import TestClient
 import httpapi
 from common.games import collection_filters as cf
 from common.games.collection_store import CollectionStore
+from frontend import game_state
 from tests.support.library import TempTree, fake_game, write_game
 
 GAME_ID = "aaaa1111"
@@ -91,10 +92,25 @@ class CollectionsApiTests(TempTree):
 
                 stored = self.manager.get_filters(name) or {}
                 kept = [value for key, value in stored.items()
-                        if cf.canonical_axis(key) == axis.name
+                        if key == axis.name
                         and str(value).lower() not in ("", "all", "none", "false")]
                 self.assertTrue(kept, stored)
                 self.assertEqual(body["filters"][axis.name], sent)
+
+    def test_a_type_rule_reads_back_as_written_to_the_frontend_menu(self) -> None:
+        self.client.post("/collections", json={"name": "EM Only",
+                                               "filters": {"game_type": ["EM"]}})
+
+        stored = self.manager.get_filters("EM Only")
+        self.assertEqual("EM", cf.criterion(stored, "game_type"))
+        self.assertEqual("EM", game_state._filter_state(stored)["type"])
+
+    def test_a_type_rule_the_frontend_saved_reads_back_through_the_api(self) -> None:
+        self.manager.add_filter_collection("Saved Elsewhere", game_type="EM")
+
+        body = self.client.get("/collections/Saved%20Elsewhere").json()
+
+        self.assertEqual(["EM"], body["filters"]["game_type"])
 
     def test_the_reported_sort_is_the_one_the_collection_resolves_by(self) -> None:
         """Read off the `order` block, not the criteria: those carry a default for every

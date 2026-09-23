@@ -77,9 +77,9 @@ class UnknownAxisTests(unittest.TestCase):
     def test_a_filter_this_build_understands_reports_nothing(self) -> None:
         self.assertEqual(cf.unknown_axes({"manufacturer": "Williams", "year": "1995"}), [])
 
-    def test_the_old_spelling_of_game_type_still_resolves(self) -> None:
-        """`table_type` was the game's type under the old vocabulary."""
-        self.assertEqual(cf.unknown_axes({"table_type": "SS"}), [])
+    def test_the_2x_spelling_of_game_type_is_not_an_axis(self) -> None:
+        """2.x's `table_type` is read where a 2.x ini is imported, and nowhere else."""
+        self.assertEqual(cf.unknown_axes({"table_type": "SS"}), ["table_type"])
 
 
 class MatchingTests(unittest.TestCase):
@@ -156,12 +156,10 @@ class DelegationTests(unittest.TestCase):
     """GameListFilters and a filter collection have to agree on what a criterion means,
     which they only do because there is one definition."""
 
-    def test_a_criterion_reads_under_either_spelling(self) -> None:
-        """A file 2.x wrote holds `table_type`; one written now holds `game_type`. Both
-        have to answer, or a reader breaks on whichever it was not written against."""
-        self.assertEqual(cf.criterion({"table_type": "SS"}, "game_type"), "SS")
+    def test_a_criterion_reads_under_the_axis_name(self) -> None:
         self.assertEqual(cf.criterion({"game_type": "EM"}, "game_type"), "EM")
         self.assertEqual(cf.criterion({}, "game_type", "All"), "All")
+        self.assertEqual(cf.criterion(None, "game_type", "All"), "All")
 
     def test_nothing_writes_the_retired_spelling_any_more(self) -> None:
         """It was still being minted into every new filter collection while the comment

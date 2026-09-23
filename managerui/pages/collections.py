@@ -5,7 +5,7 @@ import logging
 from nicegui import app, events, run, ui
 
 from common.games import game_index_service
-from common.games.collection_filters import AXES, canonical_axis, group_kind, is_unconstrained
+from common.games.collection_filters import AXES, group_kind, is_unconstrained
 from common.values import is_truthy
 from managerui.services import collection_admin
 from managerui.ui_helpers import debounced_input, load_page_style
@@ -195,9 +195,6 @@ def render_panel(tab=None):
                         # Show details based on type
                         if is_filter:
                             filters = manager.get_filters(name) or {}
-                            # Keyed by the axis the criterion means, so a stored
-                            # `table_type` lands under `game_type`.
-                            stored = {canonical_axis(key): value for key, value in filters.items()}
                             order = manager.get_order(name)
                             with ui.row().classes('mt-3 gap-2 flex-wrap'):
                                 rating_value = filters.get('rating', 'All')
@@ -206,7 +203,7 @@ def render_panel(tab=None):
                                     # The two rating axes are one control, chipped below.
                                     if axis.kind == 'rating':
                                         continue
-                                    value = stored.get(axis.name, '')
+                                    value = filters.get(axis.name, '')
                                     if is_unconstrained(value):
                                         continue
                                     if axis.kind == 'flag':
@@ -532,7 +529,7 @@ def render_panel(tab=None):
             # Parse saved values and build option lists (without 'All')
             saved_letters = _parse_csv_to_list(filters.get('letter', 'All'))
             saved_themes = _parse_csv_to_list(filters.get('theme', 'All'))
-            saved_types = _parse_csv_to_list(filters.get('table_type', 'All'))
+            saved_types = _parse_csv_to_list(filters.get('game_type', 'All'))
             saved_manufacturers = _parse_csv_to_list(filters.get('manufacturer', 'All'))
             saved_years = _parse_csv_to_list(filters.get('year', 'All'))
             saved_rating = str(filters.get('rating', 'All') or 'All')

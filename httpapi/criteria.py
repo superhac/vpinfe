@@ -1,8 +1,7 @@
 """Filter criteria, translated from the wire into what the store and matcher read.
 
 One translation, shared by what writes a collection and what previews one, so a rule
-cannot resolve differently before and after it is saved. `game_type` is stored as
-`table_type`, the spelling on disk from before the vocabulary alignment.
+cannot resolve differently before and after it is saved.
 """
 
 from __future__ import annotations
@@ -25,7 +24,7 @@ def criteria_for(f: Any) -> dict:
     if f is None:
         return {}
     return {"letter": many_in(f.letter), "theme": many_in(f.theme),
-            "table_type": many_in(f.game_type),
+            "game_type": many_in(f.game_type),
             "manufacturer": many_in(f.manufacturer), "year": many_in(f.year),
             "rating": f.rating,
             "rating_or_higher": "true" if f.rating_or_higher else "false",

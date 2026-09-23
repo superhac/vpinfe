@@ -111,7 +111,7 @@ def _resource_for(row: dict) -> dict:
         filters = {
             "letter": _many_out(raw.get("letter", "All")),
             "theme": _many_out(raw.get("theme", "All")),
-            "game_type": _many_out(raw.get("table_type", "All")),
+            "game_type": _many_out(raw.get("game_type", "All")),
             "manufacturer": _many_out(raw.get("manufacturer", "All")),
             "year": _many_out(raw.get("year", "All")),
             "rating": raw.get("rating", "All"),
