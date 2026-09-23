@@ -409,6 +409,27 @@ def draw(offer: Offer, known: Read, close: Callable[[], Any]) -> None:
               if bulk else t("console.adds.remove_from", name=offer.narrowed), take_out)
 
 
+def draw_every(offer: Offer, collections: list[dict[str, Any]],
+               held: dict[str, list[dict[str, Any]]], close: Callable[[], Any]) -> None:
+    for one in sorted(collections, key=lambda one: str(one.get("name") or "").casefold()):
+        name = str(one.get("name") or "")
+
+        async def go(name: str = name) -> None:
+            close()
+            await add(offer.library, name, offer.rows, what=offer.what, then=offer.then)
+
+        _item(name, go, smart=(one.get("type") or "") == "filter",
+              held=holds_all(held, name, offer.rows))
+    if collections:
+        ui.separator()
+
+    async def new() -> None:
+        close()
+        await new_with(offer)
+
+    _item(t("console.adds.new_collection"), new)
+
+
 def _item(label: str, act: Callable[[], Any] | None, *, smart: bool = False,
           held: bool = False, opens: bool = False) -> Any:
     """One entry: the Smart mark in the leading slot, In It in the trailing one. An entry

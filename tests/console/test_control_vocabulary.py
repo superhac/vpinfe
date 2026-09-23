@@ -29,7 +29,7 @@ CONTROLS = re.compile(r"ui\.(switch|checkbox|input|select|number|textarea)\(")
 # the grammar and is not counted. Raising a number is a decision: say what the control is
 # for, or use `panel`.
 BUDGET = {
-    "workbench.py": (14, "panel rows with bespoke wiring - chips, debounce, a disabled "
+    "workbench.py": (13, "panel rows with bespoke wiring - chips, debounce, a disabled "
                          "select carrying its own reason - plus one find box. The path a "
                          "table is pointed at is a `panel.path_field` and is not among "
                          "them. One is a tick per detail a re-match would change: a "

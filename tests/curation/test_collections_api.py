@@ -81,9 +81,12 @@ class CollectionsApiTests(TempTree):
         one = self.client.get(f"/games/{GAME_ID}/collections")
 
         self.assertEqual(every.status_code, 200)
-        self.assertEqual({"games": [one.json()]}, every.json())
+        # A game's own read also says what keeps it out, which the library read does not.
+        held = {key: value for key, value in one.json().items() if key != "taken_out"}
+        self.assertEqual({"games": [held]}, every.json())
         self.assertEqual([("Favorites", "added")],
                          [(c["name"], c["how"]) for c in one.json()["collections"]])
+        self.assertEqual([], one.json()["taken_out"])
 
     # --- creating -------------------------------------------------------
 

@@ -295,9 +295,19 @@ def _held_by_game() -> dict[str, list[dict]]:
 
 
 def collections_of(game_id: str) -> dict:
-    """Every collection holding this game, and whether it was added or matched."""
+    """Every collection holding this game, and whether it was added or matched; and under
+    `taken_out` every other one an exclusion keeps it out of."""
     _game_or_refuse(game_id)
-    return {"game": game_id, "collections": _held_by_game().get(game_id, [])}
+    held = _held_by_game().get(game_id, [])
+    holding = {one["name"] for one in held}
+    manager = get_collections_manager()
+    taken_out = [{"name": row["name"], "type": "filter" if row["is_filter"] else "manual",
+                  "links": _links(row["name"])}
+                 for row in get_collections_metadata()
+                 if row["name"] not in holding
+                 and any(ref.get("game") == game_id
+                         for ref in manager.get_excluded_refs(row["name"]))]
+    return {"game": game_id, "collections": held, "taken_out": taken_out}
 
 
 def game_collections() -> dict:

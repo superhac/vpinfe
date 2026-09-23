@@ -1151,6 +1151,10 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A game the list already holds, ticked in a column of its own so the ticked and the
+   unticked line up. */
+.console-picker-popup .console-pick-held { min-width: var(--icon-menu); padding-left: 8px; }
+.console-picker-popup .console-pick-held .q-icon { font-size: var(--icon-menu); }
 /* --- menus ---------------------------------------------------------------------
 
    One language for every menu: the table-choice dropdown, the grid's header and cell

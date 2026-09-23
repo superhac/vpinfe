@@ -152,7 +152,7 @@ _ADD_BOX = """
       const typed = vm.$el.querySelector('input')?.value;
       if (typed && box.getOptionIndex() === -1) box.moveOptionSelection(1, true);
     }));
-    if (%s) box.focus();
+    if (%s) { box.focus(); box.showPopup(); }
   };
   wire();
 })()
@@ -2171,45 +2171,52 @@ async def _play_block(context: dict[str, Any]) -> None:
 
 
 HELD_HOW = {"added": "console.workbench.held_added",
-            "matched": "console.workbench.held_matched"}
+            "matched": "console.workbench.held_matched",
+            "taken_out": "console.workbench.held_taken_out"}
 
 
 async def _collections_block(context: dict[str, Any]) -> None:
-    """Every collection holding this game, and the way to add it to another."""
+    """Every collection holding this game, the ones keeping it out, and the way to add
+    it to another."""
     library, game_id = context["library"], context["game_id"]
     try:
         held = await offload.io(library.game_collections, game_id)
         every = await offload.io(library.load_collections)
+        members = await offload.io(library.held_members,
+                                   [str(one.get("name") or "") for one in every])
     except Exception as exc:  # noqa: BLE001 - the panel says why, never raises
         ui.label(t("console.workbench.could_not_read_collections", exc=(exc))) \
             .classes("console-help px-3")
         return
-    added = {one["name"] for one in held if one.get("how") == "added"}
-    manual = [one["name"] for one in every if one.get("type") == "manual"]
-    offered = sorted((name for name in manual if name not in added), key=str.lower)
     with ui.column().classes("gap-0 console-form w-full min-w-0"):
-        if not held:
+        if not held["collections"] and not held["taken_out"]:
             ui.label(t("console.workbench.in_no_collections_yet")).classes("console-help px-3")
-        for one in held:
+        for one in held["collections"]:
             _collection_row(context, one)
+        for one in held["taken_out"]:
+            _collection_row(context, {**one, "how": "taken_out"})
         with ui.element("div").classes("console-slot-actions px-3"):
-            _add_to_collection(context, offered, any_manual=bool(manual))
+            _add_to_collection(context, every, members)
 
 
 def _collection_row(context: dict[str, Any], one: dict[str, Any]) -> None:
     library, game_id = context["library"], context["game_id"]
     name = str(one.get("name") or "")
-    added = one.get("how") == "added"
+    how = str(one.get("how") or "")
 
     async def act() -> None:
         try:
-            if added:
+            if how == "added":
                 await run.io_bound(library.remove_from_collection, name, game_id, None)
+            elif how == "taken_out":
+                await run.io_bound(library.unexclude_from_collection, name, game_id, None)
             else:
                 await run.io_bound(library.exclude_from_collection, name, game_id, "")
         except Exception as exc:  # noqa: BLE001
             ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
             return
+        if how == "taken_out":
+            ui.notify(t("console.workbench.put_back_in", name=name), type="positive")
         await context["rebuild"]()
 
     with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row"):
@@ -2219,32 +2226,28 @@ def _collection_row(context: dict[str, Any], one: dict[str, Any]) -> None:
             ui.label(t(HELD_HOW.get(str(one.get("how")), "console.workbench.held_added"))) \
                 .classes("console-member-chip console-tier console-tier--off")
         with ui.element("div").classes("console-row-action"):
-            ui.button(icon=verbs.REMOVE if added else verbs.EXCLUDE, on_click=act) \
-                .props("flat dense round size=sm") \
-                .tooltip(t("console.workbench.remove_collection"))
+            if how == "taken_out":
+                ui.button(icon=verbs.REVERT, on_click=act) \
+                    .props("flat dense round size=sm") \
+                    .tooltip(t("console.workbench.put_back_2"))
+            else:
+                ui.button(icon=verbs.REMOVE if how == "added" else verbs.EXCLUDE,
+                          on_click=act) \
+                    .props("flat dense round size=sm") \
+                    .tooltip(t("console.workbench.remove_collection"))
 
 
-def _add_to_collection(context: dict[str, Any], offered: list[str], *,
-                       any_manual: bool) -> None:
-    """Manual collections only. A dynamic one takes a game by hand from its own panel,
-    with its rule in view."""
-    library, game_id = context["library"], context["game_id"]
-
-    async def add(name: str) -> None:
-        await collection_adds.add(library, name, [collection_adds.Row(game_id)],
-                                  then=partial(_game_redrawn, context))
-
+def _add_to_collection(context: dict[str, Any], every: list[dict[str, Any]],
+                       members: dict[str, list[dict[str, Any]]]) -> None:
+    library, game_id, table_id = context["library"], context["game_id"], context["lens"]
+    offer = collection_adds.Offer(
+        library, [collection_adds.Row(game_id, table_id)],
+        collection_adds.TABLES if table_id else collection_adds.GAMES,
+        "", then=partial(_game_redrawn, context))
     button = ui.button(t("console.workbench.add_to_collection"), icon=verbs.ADD_TO_LIST) \
         .props("flat dense no-caps size=sm").classes("console-action")
-    if not offered:
-        button.disable()
-        button.tooltip(t("console.workbench.in_every_hand_picked") if any_manual
-                       else t("console.workbench.no_hand_picked_yet"))
-        return
-    with button, ui.menu():
-        for name in offered:
-            ui.menu_item(name, on_click=lambda _e=None, name=name: add(name)) \
-                .classes("console-menu-item")
+    with button, ui.menu() as menu:
+        collection_adds.draw_every(offer, every, members, menu.close)
 
 
 async def _game_redrawn(context: dict[str, Any]) -> None:
@@ -5756,16 +5759,15 @@ def _add_control(context: dict[str, Any], members: list[dict]) -> None:
     """
     state = context["state"]
     again = state.pop("add_again", None) == _collection(context)["name"]
-    here = {m.get("game") for m in members}
-    choices = {game["id"]: game.get("name") or game["id"]
-               for game in context["library"].games if game["id"] not in here}
-    if not choices:
+    games = context["library"].games
+    if not games:
         return
     # Typed into, not scrolled: this is a picker over the whole library, and a list
     # that long is searched. `use-input` with no debounce filters from the first
     # character; `new-value-mode` is left off so only a real game can be chosen.
-    picker = ui.select(choices, with_input=True, label=t("console.workbench.add_games")) \
-        .props('dense outlined options-dense use-input input-debounce=0 '
+    picker = panel.GamePicker(games, collection_adds.holds(members)[0],
+                              label=t("console.workbench.add_games")) \
+        .props('dense outlined options-dense input-debounce=0 '
                'hide-selected fill-input clearable '
                'popup-content-class="console-picker-popup"') \
         .classes("w-full mt-2")

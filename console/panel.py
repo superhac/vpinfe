@@ -446,6 +446,42 @@ class CountedSelect(ui.select):
             option["count"] = self.counts.get(str(option.get("label") or ""))
 
 
+class GamePicker(ui.select):
+    """One game from the library, typed into, each option with its maker and year. A
+    game in `held` is ticked and cannot be picked."""
+
+    SLOT = """
+        <q-item v-bind="props.itemProps">
+          <q-item-section>
+            <q-item-label>{{ props.opt.label }}</q-item-label>
+          </q-item-section>
+          <q-item-section side v-if="props.opt.made">
+            <q-item-label caption>{{ props.opt.made }}</q-item-label>
+          </q-item-section>
+          <q-item-section side class="console-pick-held">
+            <q-icon v-if="props.opt.held" name="check" class="console-tick" />
+          </q-item-section>
+        </q-item>
+    """
+
+    def __init__(self, games: Sequence[dict[str, Any]], held: set[str], *,
+                 label: str) -> None:
+        # Before `super().__init__`, which builds the payload for the first time.
+        self.made = {str(game["id"]): " ".join(str(part) for part in (
+            game.get("manufacturer"), game.get("year")) if part) for game in games}
+        self.held = set(held)
+        super().__init__({str(game["id"]): str(game.get("name") or game["id"])
+                          for game in games}, with_input=True, label=label)
+        self.add_slot("option", self.SLOT)
+
+    def _update_options(self) -> None:
+        super()._update_options()
+        for option in self._props["options"]:
+            game = str(self._values[option["value"]])
+            option["made"] = self.made.get(game, "")
+            option["held"] = option["disable"] = game in self.held
+
+
 def hint(control: Any, said: str) -> None:
     """A line under a field. The field must carry `bottom-slots`."""
     if said:

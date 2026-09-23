@@ -66,8 +66,8 @@ def get_game(game_id: str) -> models.GameResource:
 
 @router.get("/{game_id}/collections", summary="The collections holding a game",
             dependencies=[requires(scopes.COLLECTIONS_READ)])
-def get_game_collections(game_id: str) -> models.GameCollections:
-    return models.GameCollections.model_validate(collection_ops.collections_of(game_id))
+def get_game_collections(game_id: str) -> models.GameInCollections:
+    return models.GameInCollections.model_validate(collection_ops.collections_of(game_id))
 
 
 @router.get("/{game_id}/assets/detail", summary="One asset file or folder, in detail",

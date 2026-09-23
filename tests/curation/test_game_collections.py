@@ -14,6 +14,7 @@ class WhichCollectionsHoldAGame(TempTree):
     def setUp(self) -> None:
         super().setUp()
         store = CollectionStore(str(self.root / "collections.json"))
+        self.store = store
         store.add_filter_collection("Bally", manufacturer="Bally", sort_by="Alpha")
         store.add_member("Bally", "mm")
         store.add_filter_collection("First Bally", manufacturer="Bally", sort_by="Alpha")
@@ -58,6 +59,18 @@ class WhichCollectionsHoldAGame(TempTree):
             with self.subTest(game=game_id):
                 self.assertEqual(collection_ops.collections_of(game_id)["collections"],
                                  every.get(game_id, []))
+
+    def test_a_collection_keeping_it_out_is_listed_apart(self) -> None:
+        self.store.exclude("Bally", "afm")
+
+        found = collection_ops.collections_of("afm")
+
+        self.assertEqual([("First Bally", "matched")],
+                         [(one["name"], one["how"]) for one in found["collections"]])
+        self.assertEqual(["Bally"], [one["name"] for one in found["taken_out"]])
+
+    def test_a_game_nothing_keeps_out_is_taken_out_of_nothing(self) -> None:
+        self.assertEqual([], collection_ops.collections_of("mm")["taken_out"])
 
     def test_a_game_nothing_holds_is_not_listed(self) -> None:
         listed = [one["game"] for one in collection_ops.game_collections()["games"]]

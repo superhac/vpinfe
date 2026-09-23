@@ -710,7 +710,7 @@ class Library:
         here: that registry is the only place an axis is named."""
         return self._client.filter_axes()
 
-    def game_collections(self, game_id: str) -> list[dict[str, Any]]:
+    def game_collections(self, game_id: str) -> dict[str, list[dict[str, Any]]]:
         """Never cached: every write in the section changes it."""
         return self._client.game_collections(game_id)
 

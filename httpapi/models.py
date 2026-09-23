@@ -1684,6 +1684,21 @@ class GameCollections(ApiModel):
     collections: list[GameCollection]
 
 
+class TakenOutOf(ApiModel):
+    """A collection keeping a game out: an exclusion in it names the game or one of its
+    tables."""
+
+    name: str
+    type: str
+    links: CollectionLinks
+
+
+class GameInCollections(GameCollections):
+    """The collections holding one game, and `taken_out`, the ones keeping it out."""
+
+    taken_out: list[TakenOutOf]
+
+
 class LibraryGameCollections(ApiModel):
     games: list[GameCollections]
 
