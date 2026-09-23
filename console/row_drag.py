@@ -1,0 +1,235 @@
+"""Rows of the Games and Tables grids dragged onto a collection: the drag, the places it
+can be let go, and what a drop adds."""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from nicegui import ui
+
+from common.i18n import t
+from console import collection_adds, offload, verbs
+
+logger = logging.getLogger("vpinfe.console.row_drag")
+
+GAMES = collection_adds.GAMES
+TABLES = collection_adds.TABLES
+
+# The event a drop sends, and the one a drag starting in this window sends.
+DROPPED = "hub_rows_dropped"
+DRAGGED = "hub_rows_dragged"
+
+# On an element a drop can land on: the collection it adds to. Inside it, LIST marks the
+# list whose rows a drop lands between, and PLACED on that list says the place is kept.
+TARGET = "data-drop-collection"
+LIST = "data-drop-list"
+PLACED = "data-drop-at"
+
+
+def source(what: str) -> dict[str, Any]:
+    """What makes a grid's identifier column the place a drag starts."""
+    return {"dndSource": True,
+            ":dndSourceOnRowDrag": f"params => window.__hubRowDrag(params, '{what}')"}
+
+
+_SCRIPT = r"""
+if (!window.__hubRowDrop) {
+  window.__hubRowDrop = true;
+  const TYPE = 'text/uri-list';
+
+  window.__hubRowDrag = (params, what) => {
+    const picked = params.api.getSelectedNodes();
+    const nodes = picked.includes(params.rowNode) ? picked : [params.rowNode];
+    const rows = nodes.map(node => what === 'tables'
+      ? {game: String(node.data.game_id), table: String(node.data.id)}
+      : {game: String(node.data.id), table: ''});
+    const address = (row) => location.origin + '/console?' + new URLSearchParams(
+      what === 'tables' ? {view: 'tables', game: row.game, table: row.table}
+                        : {view: 'games', game: row.game}).toString();
+    const moving = params.dragEvent.dataTransfer;
+    moving.effectAllowed = 'copy';
+    moving.setData(TYPE, rows.map(address).join('\r\n'));
+    moving.setData('application/json', JSON.stringify({from: location.origin, rows: rows}));
+    moving.setData('text/plain', nodes.map(node => node.data.name || node.data.game || '')
+                                      .join('\n'));
+    if (nodes.length > 1) {
+      const cell = params.dragEvent.target.closest('.ag-cell');
+      const image = document.createElement('div');
+      image.className = 'console-drag-image';
+      if (cell) {
+        const copy = cell.cloneNode(true);
+        copy.style.width = cell.offsetWidth + 'px';
+        image.appendChild(copy);
+      }
+      const count = document.createElement('span');
+      count.className = 'console-drag-count';
+      count.textContent = String(nodes.length);
+      image.appendChild(count);
+      document.body.appendChild(image);
+      moving.setDragImage(image, 12, 12);
+      setTimeout(() => image.remove());
+    }
+    const entry = document.querySelector('a.console-nav-row[href="/console?view=collections"]');
+    const drawer = document.querySelector('.q-drawer');
+    if (entry && drawer) {
+      document.body.style.setProperty('--drops-top', entry.getBoundingClientRect().top + 'px');
+      document.body.style.setProperty('--drops-left', drawer.getBoundingClientRect().right + 'px');
+    }
+    document.body.classList.add('console-dragging-rows');
+    emitEvent('__DRAGGED__');
+  };
+
+  // What a drop carries, read back: rows from this install, and how many from another.
+  const readRows = (moving) => {
+    const rows = [];
+    let foreign = 0;
+    for (const line of (moving.getData(TYPE) || '').split(/\r?\n/)) {
+      const said = line.trim();
+      if (!said || said.startsWith('#')) continue;
+      let url;
+      try { url = new URL(said); } catch (err) { continue; }
+      const view = url.searchParams.get('view');
+      const game = url.searchParams.get('game');
+      if (!game || (view !== 'games' && view !== 'tables')) continue;
+      if (url.host !== location.host) { foreign += 1; continue; }
+      rows.push({game: game, table: view === 'tables' ? (url.searchParams.get('table') || '')
+                                                        : ''});
+    }
+    return {rows: rows, foreign: foreign};
+  };
+
+  const carries = (event) => event.dataTransfer
+    && Array.from(event.dataTransfer.types || []).includes(TYPE);
+
+  let lit = null, line = null;
+  const clear = () => {
+    if (lit) lit.classList.remove('console-drop-lit');
+    lit = null;
+    if (line) line.remove();
+    line = null;
+  };
+
+  // Where in a list a drop lands: before the first row whose middle is below the
+  // pointer, or after the last.
+  const placeIn = (list, y) => {
+    const rows = [...list.querySelectorAll('.console-member-row')];
+    const at = rows.findIndex(row => {
+      const box = row.getBoundingClientRect();
+      return y < box.top + box.height / 2;
+    });
+    return {rows: rows, at: at < 0 ? rows.length : at};
+  };
+
+  document.addEventListener('dragover', (event) => {
+    const zone = event.target.closest && event.target.closest('[data-drop-collection]');
+    if (!zone || !carries(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    if (lit !== zone) { clear(); lit = zone; zone.classList.add('console-drop-lit'); }
+    const list = zone.querySelector('[data-drop-list][data-drop-at]');
+    if (!list) return;
+    const {rows, at} = placeIn(list, event.clientY);
+    if (!line) { line = document.createElement('div'); line.className = 'console-drop-line'; }
+    if (at < rows.length) rows[at].before(line);
+    else if (rows.length) rows[rows.length - 1].after(line);
+  }, true);
+
+  document.addEventListener('dragleave', (event) => {
+    if (!lit) return;
+    const into = event.relatedTarget;
+    if (into && lit.contains(into)) return;
+    clear();
+  }, true);
+
+  // Captured and stopped here, so a drop on a collection never reaches the handler
+  // for dropped files, which would call it an empty drop.
+  document.addEventListener('drop', (event) => {
+    const zone = event.target.closest && event.target.closest('[data-drop-collection]');
+    if (!zone || !carries(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const list = zone.querySelector('[data-drop-list][data-drop-at]');
+    const at = list ? placeIn(list, event.clientY).at : null;
+    clear();
+    document.body.classList.remove('console-dragging-rows');
+    const {rows, foreign} = readRows(event.dataTransfer);
+    if (!rows.length && !foreign) return;
+    emitEvent('__DROPPED__', {collection: zone.getAttribute('data-drop-collection'),
+                              at: at, rows: rows, foreign: foreign});
+  }, true);
+
+  document.addEventListener('dragend', () => {
+    clear();
+    document.body.classList.remove('console-dragging-rows');
+  }, true);
+}
+"""
+
+
+def install() -> None:
+    """Put the drag and the drop on the page. Once per page, before any grid."""
+    ui.run_javascript(_SCRIPT.replace("__DRAGGED__", DRAGGED).replace("__DROPPED__", DROPPED))
+
+
+def rail(state: dict[str, Any]) -> None:
+    """The collections a drag can land on in the rail, drawn under its Collections
+    entry and shown only while rows are being dragged. Filled when a drag starts."""
+    state["rail_drops"] = ui.element("div").classes("console-rail-drops")
+
+
+async def dragging(library: Any, state: dict[str, Any]) -> None:
+    """A drag has started here: fill the rail with the collections as they are now."""
+    box = state.get("rail_drops")
+    if box is None or box.is_deleted:
+        return
+    try:
+        collections = await offload.io(library.load_collections)
+    except Exception:  # noqa: BLE001 - the rail stays as it was, and a menu still adds
+        logger.warning("console: could not read the collections for the rail",
+                       exc_info=True)
+        return
+    box.clear()
+    with box:
+        for one in sorted(collections, key=lambda one: str(one.get("name") or "").casefold()):
+            name = str(one.get("name") or "")
+            row = ui.element("div").classes("console-drop-target")
+            row._props[TARGET] = name
+            with row:
+                if (one.get("type") or "") == "filter":
+                    ui.icon(verbs.SMART).classes("console-menu-mark")
+                else:
+                    ui.element("span").classes("console-menu-mark")
+                ui.label(name).classes("console-drop-name")
+    box.client.run_javascript(
+        f"setTimeout(() => document.getElementById('c{box.id}')"
+        "?.scrollIntoView({block: 'nearest'}))")
+
+
+async def dropped(library: Any, state: dict[str, Any], args: Any) -> None:
+    """Rows let go on a collection: added through the one add, or refused where they
+    came from another install."""
+    said = args if isinstance(args, dict) else {}
+    name = str(said.get("collection") or "")
+    if int(said.get("foreign") or 0):
+        ui.notify(t("console.adds.from_elsewhere"), type="warning")
+        return
+    rows = [collection_adds.Row(str(one.get("game") or ""), str(one.get("table") or ""))
+            for one in said.get("rows") or [] if isinstance(one, dict) and one.get("game")]
+    if not name or not rows:
+        return
+    at = said.get("at")
+
+    async def redrawn() -> None:
+        if state.get("view") == "collections":
+            reread = state.get("refresh_collections")
+            if callable(reread):
+                await reread(name if state.get("collection") == name else "")
+        elif state.get("view") == "games":
+            refresh = state.get("refresh_games")
+            if callable(refresh):
+                await refresh([row.game for row in rows])
+
+    await collection_adds.add(library, name, rows,
+                              what=TABLES if any(row.table for row in rows) else GAMES,
+                              at=at if isinstance(at, int) else None, then=redrawn)

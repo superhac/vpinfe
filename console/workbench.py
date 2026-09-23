@@ -53,6 +53,7 @@ from console import (
     mediaview,
     offload,
     panel,
+    row_drag,
     stars,
     table_features,
     tag_chips,
@@ -4921,7 +4922,8 @@ async def _collection_games(context: dict[str, Any]) -> None:
     if not held and not _is_dynamic(row) and not _drafting(context):
         _empty_fork(context)
         return
-    with ui.column().classes("gap-0 w-full min-w-0"):
+    with ui.column().classes("gap-0 w-full min-w-0") as zone:
+        zone._props[row_drag.TARGET] = row["name"]
         _rules_block(context, row)
         _order_bar(context, row)
         _add_control(context, held)
@@ -4931,7 +4933,8 @@ async def _collection_games(context: dict[str, Any]) -> None:
 
 
 def _empty_fork(context: dict[str, Any]) -> None:
-    with ui.column().classes("gap-2 w-full min-w-0 py-2"):
+    with ui.column().classes("gap-2 w-full min-w-0 py-2") as zone:
+        zone._props[row_drag.TARGET] = _collection(context)["name"]
         ui.label(t("console.workbench.nothing_in_it_yet")).classes("console-empty-title")
         _add_control(context, [])
         with ui.row().classes("items-center gap-2 no-wrap"):
@@ -5397,7 +5400,10 @@ def _games_list(context: dict[str, Any], row: dict[str, Any]) -> None:
     smart = _is_dynamic(row) if live else bool(collection_rules.filters_from(
         context["draft"].get("rules") or [], context["fields"]))
     with ui.column().classes("gap-0 w-full console-member-list") \
-            .props('data-arrange="hub_member_moved"'):
+            .props('data-arrange="hub_member_moved"') as listed:
+        listed._props[row_drag.LIST] = True
+        if arrange:
+            listed._props[row_drag.PLACED] = True
         cut = False
         for member in kept:
             if member.get("past_limit") and not cut:

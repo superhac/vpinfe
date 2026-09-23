@@ -221,6 +221,7 @@
     "other": "Added {count} tables to “{name}” as exceptions to its rules, {held} already in it"
   },
   "console.adds.find_collection": "Find a collection",
+  "console.adds.from_elsewhere": "Those came from another VPinFE, so nothing was added",
   "console.adds.in_it": "In It",
   "console.adds.more_collections": "More Collections...",
   "console.adds.new_collection": "New Collection...",

@@ -1819,6 +1819,54 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
+/* --- rows dragged onto a collection -------------------------------------------- */
+
+/* The grip in a grid's identifier cell, shown on the row the pointer or the keyboard is
+   on where there is a pointer to hover with. It keeps its room either way, so the names
+   do not move. */
+@media (hover: hover) and (pointer: fine) {
+  .ag-row:not(:hover):not(:focus-within) .ag-drag-handle { opacity: 0; }
+}
+/* Several rows on the move: the one held, with the count on its corner. Drawn off
+   screen, where the browser takes the picture it drags. */
+.console-drag-image {
+  position: fixed; top: -1000px; left: 0;
+  padding: 6px; border-radius: 6px; background: var(--surface-2);
+}
+.console-drag-count {
+  position: absolute; top: -2px; right: -2px;
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+  background: var(--accent); color: var(--surface-0);
+  font-size: var(--fs-caption); line-height: 20px; text-align: center;
+}
+/* Where a drop lands in a list kept in its own order. */
+.console-drop-line {
+  position: relative; z-index: 1;
+  height: 2px; margin: -1px 0; border-radius: 1px;
+  background: var(--accent); pointer-events: none;
+}
+/* The collections the rail opens into while rows are being dragged, under its
+   Collections entry. Names keep their own casing: these are not destinations. */
+.console-rail-drops { display: none; }
+body.console-dragging-rows .console-rail-drops { display: block; padding: 2px 8px 6px 40px; }
+.console-drop-target {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 30px; padding: 4px 10px; border-radius: 8px;
+  color: var(--ink-2);
+}
+.console-drop-name {
+  font-size: var(--fs-caption);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* With the rail collapsed to icons there is no room under the entry, so they open
+   beside it. */
+body.console-dragging-rows .q-drawer--mini .console-rail-drops {
+  position: fixed; top: var(--drops-top, 0); left: var(--drops-left, 0);
+  width: 240px; z-index: 3000; padding: 6px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: var(--shadow-drag);
+}
+
 /* The import confirmation. Wider than a confirm because every row carries four facts,
    and capped so a bundle of forty does not become a page. */
 .console-import-card {

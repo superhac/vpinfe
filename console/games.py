@@ -29,6 +29,7 @@ from console import (
     offload,
     panel,
     renderers,
+    row_drag,
     send_to_device,
     stars,
     table_features,
@@ -120,7 +121,8 @@ _TICK = {
 COLUMNS = [
     grid.identifier("name", t(_GAME), 280, pinned="left", group=t(_GAME),
                 subtitle="said",
-                help=t("console.games.machine_library_names_one.help")),
+                help=t("console.games.machine_library_names_one.help"),
+                **row_drag.source(row_drag.GAMES)),
     # Always, including 1: it is the only thing saying the row collapses its tables,
     # and it qualifies everything to its right. "Table Count" rather
     # than "Tables", which read as the tables themselves - this is a number about the
@@ -644,6 +646,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
             if inspect.isawaitable(answer):
                 await answer
 
+    state["refresh_games"] = refresh_games
+
     async def counted() -> None:
         seen = await table.run_grid_method("getDisplayedRowCount")
         shown["rows"] = seen if isinstance(seen, int) else len(rows)
@@ -740,7 +744,8 @@ _NEWER = "newer"
 TABLE_COLUMNS = [
     grid.identifier("game", t(_TABLE), 300, pinned="left", group=t(_GAME),
                 subtitle=("said", "", "said_built"),
-                help=t("console.games.machine_build_several_rows.help")),
+                help=t("console.games.machine_build_several_rows.help"),
+                **row_drag.source(row_drag.TABLES)),
     grid.column("version", t("word.version"), group=t(_TABLE),
                 help=t("console.games.build_s_own_version.help")),
     grid.column("on_vps", t("console.games.on_vps"), group=t(_TABLE),

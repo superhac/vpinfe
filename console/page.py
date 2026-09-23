@@ -24,6 +24,7 @@ from console import (
     offload,
     remembered,
     remote,
+    row_drag,
     sections,
     tageditor,
     theme,
@@ -525,6 +526,9 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
 
     ui.on("hub_window_px", lambda event: on_window_width(int(event.args or 0)))
     ui.on("hub_member_moved", lambda event: workbench.member_moved(state, event.args))
+    ui.on(row_drag.DRAGGED, lambda: row_drag.dragging(library, state))
+    ui.on(row_drag.DROPPED,
+          lambda event: row_drag.dropped(library, state, event.args))
 
     def toggle_mini() -> None:
         """The nav's own control. Setting it by hand takes it out of Full's care: an
@@ -571,6 +575,8 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                     _nav_item(key, label, icon, state, lambda: redraw(), labels,
                               destinations, badges,
                               nested=parent is not None, held=held)
+                    if key == "collections":
+                        row_drag.rail(state)
                 if parent is not None:
                     # After the children exist: the caret leads `held`, and a group left
                     # closed last time has to draw closed rather than open and blink.
@@ -1181,6 +1187,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
     # Installed once the library and the redraw both exist. What a drop means comes from
     # where it landed, so this is one handler for every grid rather than a zone per page.
     uploads.install(lambda drop: _took_a_drop(library, state, redraw, drop))
+    row_drag.install()
 
     ui.run_javascript(_NAV_CLICK)
     ui.run_javascript(_ASK_BEFORE_UNLOAD)
