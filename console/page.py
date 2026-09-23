@@ -354,7 +354,8 @@ async def _took_a_drop(
     try:
         plan = await offload.io(library.upload_plan, drop.upload_id,
                                   game_dir=game_dir, allow_new_game=new_game,
-                                  media_kind=media_kind, location_id=where)
+                                  media_kind=media_kind, location_id=where,
+                                  asset_kind=drop.asset_kind)
     except Exception as exc:  # noqa: BLE001
         ui.notify(t("console.page.could_not_work_where", exc=(exc)), type="negative")
         await run.io_bound(library.abort_upload, drop.upload_id)
@@ -375,6 +376,7 @@ async def _took_a_drop(
     await import_dialog.open_for(
         library, drop.upload_id, plan, source=drop.name, game_dir=game_dir,
         allow_new_game=new_game, media_kind=media_kind, location_id=where,
+        asset_kind=drop.asset_kind,
         declared=_declared_by_the_drop(analysis, game_id),
         on_done=done)
 

@@ -735,7 +735,8 @@ class ApiClient:
 
     def upload_plan(self, upload_id: str, *, game_dir: str = "", rom_name: str = "",
                     allow_new_game: bool = False, vps_id: str = "",
-                    media_kind: str = "", location_id: str = "") -> dict:
+                    media_kind: str = "", location_id: str = "",
+                    asset_kind: str = "") -> dict:
         """Where each of those files would go. Nothing is written by asking."""
         path = f"/uploads/{upload_id}/plan"
         _refuse_the_event_loop(path)
@@ -743,7 +744,8 @@ class ApiClient:
             f"{self._base}{path}",
             json={"game_dir": game_dir, "rom_name": rom_name,
                   "allow_new_game": allow_new_game, "vps_id": vps_id,
-                  "media_kind": media_kind, "location_id": location_id},
+                  "media_kind": media_kind, "location_id": location_id,
+                  "asset_kind": asset_kind},
             timeout=_TIMEOUT)
         self._answered(response)
         return response.json()
@@ -751,6 +753,7 @@ class ApiClient:
     def upload_import(self, upload_id: str, *, game_dir: str = "", rom_name: str = "",
                       allow_new_game: bool = False, vps_id: str = "",
                       media_kind: str = "", location_id: str = "",
+                      asset_kind: str = "",
                       new_game_dir_name: str | None = None,
                       selected: list[int] | None = None,
                       declared: dict | None = None) -> dict:
@@ -761,6 +764,7 @@ class ApiClient:
             "game_dir": game_dir, "rom_name": rom_name,
             "allow_new_game": allow_new_game, "vps_id": vps_id,
             "media_kind": media_kind, "location_id": location_id,
+            "asset_kind": asset_kind,
         }
         if new_game_dir_name is not None:
             body["new_game_dir_name"] = new_game_dir_name

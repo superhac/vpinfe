@@ -89,6 +89,14 @@ ASSET_SPECS = (
 
 _SPECS_BY_KIND = {spec.kind: spec for spec in ASSET_SPECS}
 
+_LENS_NAMES = {"altcolor_serum": "alt_color", "altcolor_vni": "alt_color",
+               "altsound": "alt_sound"}
+
+
+def lens_kind(kind: str) -> str:
+    """What the asset lens calls one of the registry's kinds."""
+    return _LENS_NAMES.get(kind, kind)
+
 # The kinds whose absence stops a table running, as opposed to making it worse.
 # The table file is the library rather than an accessory to it, so it is the one kind
 # there is no sense in a library saying it does not collect. Everything else is optional

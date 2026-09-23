@@ -46,6 +46,7 @@ class Drop:
     row_id: str = ""
     # The media kind, where it landed on a cell that names one.
     media_kind: str = ""
+    asset_kind: str = ""
     upload_id: str = ""
     name: str = ""
 
@@ -144,6 +145,9 @@ if (!window.__consoleDnd) {
       return {target: 'slot', row_id: rowId,
               media_kind: colId.replace(/^(media_|thumb_)/, '')};
     }
+    if (colId.indexOf('asset_') === 0) {
+      return {target: 'game', row_id: rowId, asset_kind: colId.slice(6)};
+    }
     return {target: 'game', row_id: rowId};
   }
 
@@ -152,13 +156,14 @@ if (!window.__consoleDnd) {
 
   function highlight(where, event) {
     const el = where.target === 'library' ? null
-      : (event.target.closest(where.target === 'slot' ? '.ag-cell' : '.ag-row'));
+      : (event.target.closest(where.target === 'slot' || where.asset_kind
+                              ? '.ag-cell' : '.ag-row'));
     if (el !== hot) { lit(hot, false); hot = el; lit(hot, true); }
   }
 
   function clear() { lit(hot, false); hot = null; }
 
-  window.__consolePick = (gameId) => {
+  window.__consolePick = (gameId, assetKind) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.zip,.rar,.7z';
@@ -169,7 +174,7 @@ if (!window.__consoleDnd) {
         emit({status: 'progress', done: 0, total: files.length, name: ''});
         const uploadId = await upload(files);
         emit({status: 'done', upload_id: uploadId, name: named(files),
-              target: 'game_id', row_id: gameId});
+              target: 'game_id', row_id: gameId, asset_kind: assetKind || ''});
       } catch (err) {
         emit({status: 'error', message: String((err && err.message) || err)});
       }
@@ -274,6 +279,7 @@ async def _handle(state: dict[str, Any], payload: dict[str, Any],
         found = Drop(target=str(payload.get("target") or TARGET_LIBRARY),
                      row_id=str(payload.get("row_id") or ""),
                      media_kind=str(payload.get("media_kind") or ""),
+                     asset_kind=str(payload.get("asset_kind") or ""),
                      upload_id=str(payload.get("upload_id") or ""),
                      name=str(payload.get("name") or ""))
         with client:

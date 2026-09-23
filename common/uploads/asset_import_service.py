@@ -15,7 +15,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 
-from common.games.asset_registry import ARCHIVE_EXTENSIONS, spec_for
+from common.games.asset_registry import ARCHIVE_EXTENSIONS, lens_kind, spec_for
 from common.games.game_repository import refresh_game
 from common.games.game_service import (
     _find_directb2s_file,
@@ -29,6 +29,7 @@ from common.games.identity_claims import DeclaredIdentity
 from common.games.info_file import VPINFE_SECTION, MetaConfig
 from common.games.media_service import IMAGE_EXTENSIONS, replace_media_file
 from common.games.vpx_parser import VPXParser
+from common.i18n import t
 from common.media_specs import media_filename_map
 from common.paths import get_games_path
 from common.uploads.asset_analyzer_service import (
@@ -387,6 +388,19 @@ def find_vps_entry(vps_id: str) -> dict | None:
         if entry.get("id") == wanted:
             return entry
     return None
+
+
+def only_kind(plan: ImportPlan, asset_kind: str) -> ImportPlan:
+    """The plan narrowed to the one kind a slot takes, named as the asset lens names it.
+
+    Everything else it would have brought is listed as not imported. "" keeps the plan.
+    """
+    if not asset_kind:
+        return plan
+    taken = tuple(item for item in plan.items if lens_kind(item.asset.kind) == asset_kind)
+    why = t("error.uploads.only_the_kind", kind=t(f"asset.kind.{asset_kind}.label"))
+    left = tuple(BlockedItem(item.asset, why) for item in plan.items if item not in taken)
+    return replace(plan, items=taken, blocked=(*plan.blocked, *left))
 
 
 def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,

@@ -24,6 +24,7 @@ from typing import Any
 from common import timestamps
 from common.games import (
     asset_origin,
+    asset_registry,
     game_lens,
     game_repository,
     game_service,
@@ -62,13 +63,6 @@ def _crowded_links() -> frozenset[str]:
     return _crowded_links_for(len(load_vpsdb()))
 
 
-# The inventory still answers for color and sound under the flat names it used before
-# the asset registry existed. Translated here rather than in the kind table, which
-# names the registry's kinds because those are the real ones.
-_INVENTORY_NAME = {"altcolor_serum": "alt_color", "altcolor_vni": "alt_color",
-                   "altsound": "alt_sound"}
-
-
 def _we_hold(kind: vps_kinds.VpsKind, inventory: dict, media: dict) -> bool:
     """Whether this game has any of what the entry is offering.
 
@@ -79,7 +73,7 @@ def _we_hold(kind: vps_kinds.VpsKind, inventory: dict, media: dict) -> bool:
         if kind.held_in == vps_kinds.MEDIA:
             if (media.get(name) or {}).get("present"):
                 return True
-        elif (inventory.get(_INVENTORY_NAME.get(name, name)) or {}).get("present"):
+        elif (inventory.get(asset_registry.lens_kind(name)) or {}).get("present"):
             return True
     return False
 

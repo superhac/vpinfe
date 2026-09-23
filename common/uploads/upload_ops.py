@@ -29,6 +29,7 @@ from common.uploads.asset_import_service import (
     build_media_slot_plan,
     execute_import_plan,
     find_vps_entry,
+    only_kind,
     select_plan_items,
     vps_folder_name,
 )
@@ -228,7 +229,7 @@ def _slot_plan(upload_id: str, game_dir: str, media_kind: str) -> ImportPlan:
 
 def _built_plan(analysis: AnalysisResult, request: dict[str, Any]) -> ImportPlan:
     try:
-        return build_import_plan(
+        plan = build_import_plan(
             analysis,
             game_dir=Path(request["game_dir"]) if request.get("game_dir") else None,
             rom_name=request.get("rom_name") or "",
@@ -239,6 +240,7 @@ def _built_plan(analysis: AnalysisResult, request: dict[str, Any]) -> ImportPlan
         # Nowhere to put it. Something a person fixes - a share to mount, a location to
         # pick - so it is blocked rather than a fault.
         raise service_errors.BlockedError(str(exc)) from exc
+    return only_kind(plan, request.get("asset_kind") or "")
 
 
 def plan_for(upload_id: str, request: dict[str, Any]) -> dict[str, Any]:

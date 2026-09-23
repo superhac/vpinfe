@@ -140,7 +140,7 @@ async def _pick(library: Any, reason: str, offered: list[dict[str, Any]],
 async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
                    source: str = "", game_dir: str = "", rom_name: str = "",
                    allow_new_game: bool = False, media_kind: str = "",
-                   location_id: str = "",
+                   location_id: str = "", asset_kind: str = "",
                    declared: dict | None = None,
                    on_done: Callable[[dict], Any] | None = None) -> None:
     """Show the plan and, if it is confirmed, run it.
@@ -180,8 +180,8 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
                     .props("dense dense-toggle") \
                     .classes("console-disclosure console-import-blocked px-3"):
                 for one in blocked:
-                    ui.label(f"{one.get('kind') or ''} - {one.get('reason') or ''}") \
-                        .classes("console-help")
+                    kind = t(f"asset.kind.{one.get('kind') or ''}.label")
+                    ui.label(f"{kind} - {one.get('reason') or ''}").classes("console-help")
 
         count = ui.label("").classes("console-help px-3")
 
@@ -219,7 +219,8 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
         report = await offload.io(
             library.upload_import, upload_id, game_dir=game_dir, rom_name=rom_name,
             allow_new_game=allow_new_game, media_kind=media_kind,
-            location_id=location_id, vps_id=str(named["vps_id"] or ""),
+            location_id=location_id, asset_kind=asset_kind,
+            vps_id=str(named["vps_id"] or ""),
             new_game_dir_name=(str(named["folder"]) if new_folder else None),
             selected=wanted, declared=declared)
     except Exception as exc:  # noqa: BLE001

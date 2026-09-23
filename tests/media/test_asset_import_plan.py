@@ -12,6 +12,7 @@ from common.uploads.asset_import_service import (
     build_media_slot_plan,
     execute_import_plan,
     find_vps_entry,
+    only_kind,
     select_plan_items,
     vps_folder_name,
 )
@@ -60,6 +61,45 @@ class ImportPlanTests(unittest.TestCase):
             plan = build_import_plan(analysis)
             self.assertEqual(plan.items, ())
             self.assertIn("media", blocked_reasons(plan))
+
+
+class OnlyKindTests(unittest.TestCase):
+    """A slot's Add or a drop on its cell brings that kind and nothing else."""
+
+    def _plan(self, tmp, names):
+        from pathlib import Path
+        game_dir = Path(tmp) / "Foo (Bar 1999)"
+        game_dir.mkdir()
+        (game_dir / "Foo.vpx").write_bytes(b"x")
+        zip_path = Path(tmp) / "assets.zip"
+        make_zip(zip_path, names)
+        return build_import_plan(analyze_path(zip_path), game_dir=game_dir, rom_name="mm")
+
+    def test_a_slot_takes_its_own_kind_and_lists_the_rest(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            plan = only_kind(self._plan(tmp, ["MyPup/screens.pup", "MyPup/s1/a.mp4",
+                                              "wheel.png", "Foo.directb2s"]), "pup_pack")
+
+            self.assertEqual(["pup_pack"], [item.asset.kind for item in plan.items])
+            left = blocked_reasons(plan)
+            self.assertIn("media", left)
+            self.assertIn("backglass", left)
+            self.assertIn("PUP Pack", left["media"])
+
+    def test_the_lens_name_takes_the_registry_kinds_it_folds(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            plan = only_kind(self._plan(tmp, ["mm.crz", "wheel.png"]), "alt_color")
+
+            self.assertEqual(["altcolor_serum"], [item.asset.kind for item in plan.items])
+
+    def test_no_kind_keeps_the_plan(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            plan = self._plan(tmp, ["MyPup/screens.pup", "MyPup/s1/a.mp4", "wheel.png"])
+
+            self.assertIs(plan, only_kind(plan, ""))
 
 
 class SelectPlanItemsTests(unittest.TestCase):

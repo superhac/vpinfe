@@ -962,7 +962,8 @@ def _asset_actions(context: dict[str, Any], kind: str, label: str, present: bool
 
 def _folder_actions(context: dict[str, Any], kind: str, present: bool, path: str,
                     files: int) -> None:
-    picker = f"() => window.__consolePick({json.dumps(context['game_id'])})"
+    picker = (f"() => window.__consolePick({json.dumps(context['game_id'])}, "
+              f"{json.dumps(kind)})")
     with ui.row().classes("items-center gap-2 w-full console-slot-actions"):
         panel.action(t("word.replace") if present else t("word.add"), lambda: None,
                      icon=verbs.REPLACE if present else verbs.ADD, js=picker)()
