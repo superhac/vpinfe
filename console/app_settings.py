@@ -166,20 +166,15 @@ def _control(library: Library, launcher_id: str, table_id: str, scope: str, fiel
                 return False
             seed = answer
         try:
-            await run.io_bound(library.write_launcher_config, launcher_id,
-                               {field["key"]: _as_text(value)},
-                               table=table_id, scope=scope, seed=seed)
+            wrote = await run.io_bound(library.write_launcher_config, launcher_id,
+                                       {field["key"]: _as_text(value)},
+                                       table=table_id, scope=scope, seed=seed)
         except Exception as exc:  # noqa: BLE001
-            # A refusal is not a failure and must not read as one: the write was
-            # understood and declined, and the sentence says which setting and what to
-            # do instead. Swallowing it would leave a control that appears to do
-            # nothing, which is the thing a refusal exists to avoid.
-            said = _refusal(exc)
-            ui.notify(said or t("said.could_not_save_it", exc=(exc)),
-                      type="warning" if said else "negative",
-                      multi_line=bool(said), close_button=bool(said))
+            ui.notify(t("said.could_not_save_it", exc=(exc)), type="negative")
             await draw()
             return False
+        if field["key"] in (wrote or {}).get("cleared", ()):
+            ui.notify(t("console.app_settings.now_same_all_tables"), type="positive")
         await draw()
         return True
 
@@ -227,19 +222,6 @@ def _aside(library: Library, launcher_id: str, table_id: str, scope: str, field:
                              hint=(t(workbench.PLAYING_NOTE) if playing
                                    else workbench._clear_hint(held, _Field)))()
     return drawn
-
-
-def _refusal(exc: Exception) -> str:
-    """The sentence behind a declined write, or "" where this was a real failure.
-
-    It arrives as the API's conflict detail, which is a mapping of setting to reason -
-    one setting is the ordinary case here, since each control saves on its own.
-    """
-    details = getattr(exc, "details", None) or {}
-    refused = details.get("refused") if isinstance(details, dict) else None
-    if isinstance(refused, dict) and refused:
-        return " ".join(str(one) for one in refused.values())
-    return ""
 
 
 def _as_text(value: Any) -> str:

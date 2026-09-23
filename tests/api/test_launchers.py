@@ -221,6 +221,19 @@ class TableFileSeedingTests(unittest.TestCase):
         self.assertNotIn("BallTrail", written)
         self.assertIn("BackglassWndX = 137", written)
 
+    def test_a_carried_value_the_launcher_already_has_is_left_to_it(self) -> None:
+        app_ini = pathlib.Path(self.tmp.name, "VPinballX.ini")
+        app_ini.write_text("[Player]\nBallTrail = 1\n")
+        self.client.put("/launchers/l1", json={"app": "vpx", "settings": {
+            "bin_path": "/opt/vpx", "ini_path": str(app_ini)}})
+
+        got = self._write(values={"Backglass.BackglassWndX": "137"}, seed=True)
+
+        self.assertEqual(got.status_code, 200, got.text)
+        self.assertEqual(got.json(), {"written": ["Backglass.BackglassWndX", "Player.FXAA"],
+                                      "cleared": ["Player.BallTrail"]})
+        self.assertNotIn("BallTrail", pathlib.Path(self.beside).read_text())
+
     def test_a_table_that_already_has_a_file_has_nothing_left_reaching_it(self) -> None:
         """So the second write cannot re-seed from a folder it no longer reads."""
         self._write(values={"Backglass.BackglassWndX": "137"}, seed=True)

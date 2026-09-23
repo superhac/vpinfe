@@ -203,6 +203,9 @@ class Config(Protocol):
     `files` names them; copying one somewhere safe is core's, which owns moving files
     for every kind already. Only the app knows which file its settings are in, and only
     core should be deciding where a copy of one goes.
+
+    `write` returns the keys it cleared instead of writing, for holding the launcher's
+    own value.
     """
 
     def groups(self, settings: Mapping[str, Any]) -> tuple[ConfigGroup, ...]: ...
@@ -213,7 +216,7 @@ class Config(Protocol):
              settings: Mapping[str, Any]) -> dict[str, ConfigValue]: ...
 
     def write(self, scope: str, target: str, values: Mapping[str, str],
-              settings: Mapping[str, Any]) -> None: ...
+              settings: Mapping[str, Any]) -> frozenset[str]: ...
 
     def files(self, settings: Mapping[str, Any]) -> dict[str, str]: ...
 

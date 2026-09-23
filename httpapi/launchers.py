@@ -61,7 +61,8 @@ def folder_settings_reaching(launcher_id: str, table: str = "") -> dict[str, Any
             dependencies=[requires(scopes.CONFIG_WRITE)])
 def write_launcher_config(launcher_id: str,
                           body: dict[str, Any] = Body(...)) -> dict[str, Any]:
-    """Values at one scope. The app writes them into its own file in place."""
+    """Values at one scope. The app writes them into its own file in place, and names
+    under `cleared` the ones it cleared instead, for holding the launcher's own value."""
     return launcher_ops.write_config(launcher_id, body)
 
 

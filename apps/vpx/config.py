@@ -227,7 +227,7 @@ class VPXConfig:
         return found
 
     def write(self, scope: str, target: str, values: Mapping[str, str],
-              settings: Mapping[str, Any]) -> None:
+              settings: Mapping[str, Any]) -> frozenset[str]:
         """Set values at one scope, in place. Written the way the program writes it.
 
         The file keeps its own shape - a value is replaced on the line it is on. The
@@ -240,47 +240,23 @@ class VPXConfig:
         writes every key, blank where it has no value. Doing it our own way would leave a
         file the program rewrites differently the first time it saves - and the parts it
         rewrote would be the parts somebody had set here.
+
+        Returns the keys it cleared instead of writing, for holding the application's
+        own value.
         """
         path = path_for(scope, target, settings)
         if path is None:
             raise ValueError(f"There is no {scope} file to write.")
-        refused = self._refusals(scope, target, values, settings)
-        if refused:
-            raise SettingRefusedError(refused)
-        held = _read(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        drop = ([key for key, value in values.items() if str(value) == ""]
+        cleared = _inherited(scope, values, settings)
+        drop = ([key for key, value in values.items()
+                 if str(value) == "" or key in cleared]
                 if scope != SCOPE_LAUNCHER else [])
         keep = {key: value for key, value in values.items() if key not in drop}
-        path.write_text(vini.written(held, keep, remove=drop), encoding="utf-8")
-
-    def _refusals(self, scope: str, target: str, values: Mapping[str, str],
-                  settings: Mapping[str, Any]) -> dict[str, str]:
-        """Table values the program would throw away, and why, keyed by setting.
-
-        Holding a table at what it already inherits does not survive: the next time the
-        program saves that table's settings it removes any value equal to the
-        application's. Refusing it is behaving the same way; refusing it *silently*
-        would be worse than writing it, because the setting would read as set until
-        something else quietly unset it.
-
-        The exception is the program's own: a contextual setting is kept even when it
-        matches, so those are written.
-        """
-        if scope == SCOPE_LAUNCHER:
-            return {}
-        app = _read(_app_ini(settings))
-        out: dict[str, str] = {}
-        for qualified, value in values.items():
-            if str(value) == "" or qualified in CONTEXTUAL:
-                continue
-            if app.value(qualified) == str(value):
-                out[qualified] = (
-                    f"{qualified} is already {value} for every table, and Visual "
-                    "Pinball drops a table setting that matches. Change the one for "
-                    "every table instead, or set this to something different.")
-        return out
-
+        if keep or path.is_file() or _folder_answers(scope, target, cleared, values):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(vini.written(_read(path), keep, remove=drop),
+                            encoding="utf-8")
+        return cleared
 
     def files(self, settings: Mapping[str, Any]) -> dict[str, str]:
         """The files this launcher's settings live in, named for a person.
@@ -307,13 +283,27 @@ class VPXConfig:
         return {q: one.value for q, one in _read(folder).settings.items()}
 
 
-class SettingRefusedError(ValueError):
-    """A write the program itself would not keep. Its own type because a surface has to
-    say which settings and why, rather than report that a save failed."""
+def _inherited(scope: str, values: Mapping[str, str],
+               settings: Mapping[str, Any]) -> frozenset[str]:
+    """The keys given the application's own value at a table's scope, contextual ones
+    excepted."""
+    if scope == SCOPE_LAUNCHER:
+        return frozenset()
+    app = _read(_app_ini(settings))
+    return frozenset(key for key, value in values.items()
+                     if str(value) != "" and key not in CONTEXTUAL
+                     and app.value(key) == str(value))
 
-    def __init__(self, refusals: dict[str, str]) -> None:
-        super().__init__("; ".join(refusals.values()))
-        self.refusals = dict(refusals)
+
+def _folder_answers(scope: str, target: str, cleared: frozenset[str],
+                    values: Mapping[str, str]) -> bool:
+    """Whether a table with no file of its own gets a cleared key from its folder's
+    file, set to something else."""
+    if scope != SCOPE_ENTRY or not cleared:
+        return False
+    answering = _read(table_layer(target))
+    return any(answering.value(key) not in (None, values[key]) for key in cleared)
+
 
 def _without(scope: str, qualified: str, app: vini.Ini, table: vini.Ini,
              table_scope: str) -> tuple[str, str]:

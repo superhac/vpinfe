@@ -270,9 +270,16 @@ class SeedingTests(_Case):
         self.assertEqual(self.config.inherited_from_folder(
             str(self.table), self.settings), {})
 
+    def test_a_carried_value_the_application_already_has_is_left_to_it(self) -> None:
+        self.folder_file("[DMD]\nProfile1Legacy = 1\n")
+        carried = self.config.inherited_from_folder(str(self.table), self.settings)
 
-if __name__ == "__main__":
-    unittest.main()
+        self.config.write(SCOPE_ENTRY, str(self.table),
+                          {**carried, "Backglass.GrillHeight": "200"}, self.settings)
+
+        written = (self.game / "MM (VPW 1.2).ini").read_text()
+        self.assertIn("GrillHeight = 200", written)
+        self.assertNotIn("Profile1Legacy", written)
 
 
 class WritingLikeTheProgramTests(_Case):
@@ -307,33 +314,41 @@ class WritingLikeTheProgramTests(_Case):
 
         self.assertIn("BackglassOutput =", self.app_ini.read_text())
 
-    def test_holding_a_table_at_the_inherited_value_is_refused(self) -> None:
-        """The program drops exactly this on its next save, so writing it would leave a
-        setting that reads as set until something else quietly unset it.
+    def test_the_application_s_own_value_clears_the_table_s(self) -> None:
+        self.config.write(SCOPE_ENTRY, str(self.table), {PLAIN: "0"}, self.settings)
 
-        `Profile1Legacy` rather than the key the rest of this file uses: that one is
-        contextual, which is the exception rather than the rule being tested.
-        """
-        from apps.vpx.config import SettingRefusedError
+        cleared = self.config.write(SCOPE_ENTRY, str(self.table), {PLAIN: "1"},
+                                    self.settings)
 
-        with self.assertRaises(SettingRefusedError) as caught:
-            self.config.write("entry", str(self.table),
-                              {PLAIN: "1"}, self.settings)
+        self.assertEqual(cleared, {PLAIN})
+        self.assertNotIn("Profile1Legacy", (self.game / "MM (VPW 1.2).ini").read_text())
+        found = self.at(SCOPE_ENTRY, key=PLAIN)
+        self.assertEqual((found.value, found.scope, found.set_here),
+                         ("1", SCOPE_LAUNCHER, False))
 
-        self.assertIn(PLAIN, caught.exception.refusals)
+    def test_and_the_folder_s_at_the_folder(self) -> None:
+        self.folder_file("[DMD]\nProfile1Legacy = 0\n")
 
-    def test_and_the_refusal_names_the_setting_and_what_to_do(self) -> None:
-        """A refusal a surface can only report as "could not save" sends somebody
-        looking for a fault that is not there."""
-        from apps.vpx.config import SettingRefusedError
+        cleared = self.config.write(SCOPE_FOLDER, str(self.table), {PLAIN: "1"},
+                                    self.settings)
 
-        with self.assertRaises(SettingRefusedError) as caught:
-            self.config.write("entry", str(self.table),
-                              {PLAIN: "1"}, self.settings)
+        self.assertEqual(cleared, {PLAIN})
+        self.assertNotIn("Profile1Legacy",
+                         (self.game / "Medieval Madness.ini").read_text())
 
-        said = caught.exception.refusals[PLAIN]
-        self.assertIn("already", said)
-        self.assertIn("every table", said)
+    def test_with_nothing_to_clear_no_file_is_made(self) -> None:
+        """A table file stops a folder file reaching the table, one made later included."""
+        self.config.write(SCOPE_ENTRY, str(self.table), {PLAIN: "1"}, self.settings)
+
+        self.assertFalse((self.game / "MM (VPW 1.2).ini").exists())
+
+    def test_a_folder_value_in_the_way_gives_the_table_a_file_of_its_own(self) -> None:
+        self.folder_file("[DMD]\nProfile1Legacy = 0\n")
+
+        self.config.write(SCOPE_ENTRY, str(self.table), {PLAIN: "1"}, self.settings)
+
+        found = self.at(SCOPE_ENTRY, key=PLAIN)
+        self.assertEqual((found.value, found.scope), ("1", SCOPE_LAUNCHER))
 
     def test_a_different_value_is_written_at_a_table(self) -> None:
         self.config.write("entry", str(self.table), {PLAIN: "0"}, self.settings)
@@ -358,3 +373,7 @@ class WritingLikeTheProgramTests(_Case):
         self.config.write("launcher", str(self.table), {KEY: "1"}, self.settings)
 
         self.assertIn("BackglassOutput = 1", self.app_ini.read_text())
+
+
+if __name__ == "__main__":
+    unittest.main()

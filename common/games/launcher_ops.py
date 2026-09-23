@@ -204,7 +204,8 @@ def reaching_from_folder(launcher_id: str, table: str = "") -> dict[str, Any]:
 
 
 def write_config(launcher_id: str, body: dict[str, Any]) -> dict[str, Any]:
-    """Values at one scope. The app writes them into its own file in place."""
+    """Values at one scope. The app writes them into its own file in place, and names
+    under `cleared` the ones it cleared instead, for holding the launcher's own value."""
     found = launcher_or_refuse(launcher_id)
     config = _app_settings_surface(found)
     if config is None:
@@ -232,17 +233,8 @@ def write_config(launcher_id: str, body: dict[str, Any]) -> dict[str, Any]:
             # Under, not over: the value being set is the reason for the write.
             writing = {**reaching(table, settings), **writing}
 
-    try:
-        config.write(scope, table, writing, settings)
-    except Exception as exc:
-        refusals = getattr(exc, "refusals", None)
-        if refusals is None:
-            raise
-        # Named one by one rather than as a failed save: which setting and why is the
-        # whole of what somebody can act on, and a surface that only says "could not
-        # save" sends them to look for a fault that is not there.
-        raise service_errors.BlockedError(str(exc), details={"refused": refusals}) from exc
-    return {"written": sorted(writing)}
+    cleared = config.write(scope, table, writing, settings)
+    return {"written": sorted(set(writing) - cleared), "cleared": sorted(cleared)}
 
 
 def _config_files(launcher: launchers.Launcher) -> dict[str, str]:

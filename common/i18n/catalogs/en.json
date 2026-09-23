@@ -270,6 +270,7 @@
   "console.app_settings.launcher": "this launcher",
   "console.app_settings.no_settings_show": "{value} has no settings to show",
   "console.app_settings.nothing_matches": "Nothing matches “{value}”",
+  "console.app_settings.now_same_all_tables": "Now the same as all tables",
   "console.app_settings.search_settings": "Search settings",
   "console.app_settings.setting_currently_reach_table": "{the_count} setting{value} currently reach this table from its folder.",
   "console.app_settings.settings": "Settings for “{launcher_name}”",
