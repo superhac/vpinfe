@@ -17,7 +17,7 @@ from urllib.parse import quote
 
 from nicegui import run, ui
 
-from common.games.collection_store import MANUAL_ORDER, SORT_LABELS
+from common.games.collection_store import DIRECTION_WORDS, MANUAL_ORDER, SORT_LABELS
 from common.i18n import t
 from console import confirm, grid, offload, panel, verbs, views
 from console import dialog as frame
@@ -31,8 +31,6 @@ SCOPE = "console.collections"
 KIND_LABELS = {"manual": "console.collections.hand_picked",
                "filter": "console.collections.smart"}
 _KIND_WORDS = {kind: t(key) for kind, key in KIND_LABELS.items()}
-_ORDER_LINES = {"asc": "console.collections.ordered_ascending",
-                "desc": "console.collections.ordered_descending"}
 
 # A number filters as a number: greater-than, less-than, between. AG Grid's default
 # filter is the text one, which offers "contains" over a count - and `agNumberColumnFilter`
@@ -199,8 +197,8 @@ def _order_line(row: dict[str, Any]) -> str:
     if not by:
         return ""
     field = t(SORT_LABELS[by]) if by in SORT_LABELS else by
-    line = _ORDER_LINES.get(row.get("direction") or "")
-    return t(line, by=field) if line else field
+    way = DIRECTION_WORDS.get(by, {}).get(row.get("direction") or "")
+    return t("console.collections.ordered", by=field, direction=t(way)) if way else field
 
 
 def build(collections: list[dict[str, Any]], library: Any,

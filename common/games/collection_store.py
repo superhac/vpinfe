@@ -169,6 +169,23 @@ SORT_LABELS = {
 
 DIRECTION_LABELS = {"asc": "order.direction.asc", "desc": "order.direction.desc"}
 
+DIRECTION_WORDS = {
+    "title": {"asc": "order.direction.a_to_z", "desc": "order.direction.z_to_a"},
+    "year": {"asc": "order.direction.oldest_first", "desc": "order.direction.newest_first"},
+    "added": {"asc": "order.direction.oldest_first",
+              "desc": "order.direction.newest_first"},
+    "last_played": {"asc": "order.direction.oldest_first",
+                    "desc": "order.direction.newest_first"},
+    "play_count": {"asc": "order.direction.fewest_first",
+                   "desc": "order.direction.most_first"},
+    "play_time_seconds": {"asc": "order.direction.least_first",
+                          "desc": "order.direction.most_first"},
+    "rating": {"asc": "order.direction.lowest_first",
+               "desc": "order.direction.highest_first"},
+}
+NATURAL_DIRECTION = {"title": "asc", "year": "asc", "added": "desc", "last_played": "desc",
+                     "play_count": "desc", "play_time_seconds": "desc", "rating": "desc"}
+
 
 def normalize_paging_group(value: object) -> str | None:
     """A paging choice as `sort`, `count`, or None for "follow the player".

@@ -20,6 +20,8 @@ from common.games.collection_resolver import resolve
 from common.games.collection_store import (
     COLLECTIONS_SCHEMA,
     DIRECTION_LABELS,
+    DIRECTION_WORDS,
+    NATURAL_DIRECTION,
     ORDER_ALIASES,
     SORT_LABELS,
     CollectionStore,
@@ -119,6 +121,15 @@ class StoredSpellingTests(TempTree):
         keys = [*SORT_LABELS.values(), *DIRECTION_LABELS.values(), "order.by.manual"]
         self.assertEqual([key for key in keys if t(key) == key], [])
         self.assertEqual(set(DIRECTION_LABELS), {"asc", "desc"})
+
+    def test_every_sort_says_its_directions_in_its_own_words(self) -> None:
+        self.assertEqual(set(SORT_LABELS), set(DIRECTION_WORDS))
+        self.assertEqual(set(SORT_LABELS), set(NATURAL_DIRECTION))
+        for order_by, words in DIRECTION_WORDS.items():
+            with self.subTest(order_by=order_by):
+                self.assertEqual({"asc", "desc"}, set(words))
+                self.assertEqual([], [key for key in words.values() if t(key) == key])
+                self.assertIn(NATURAL_DIRECTION[order_by], ("asc", "desc"))
 
     def test_manual_is_not_offered(self) -> None:
         """It means the member array, which is not a choice for a collection that

@@ -51,6 +51,16 @@ class TheRows(unittest.TestCase):
     def test_opening_on_all_games_marks_none(self) -> None:
         self.assertFalse(any(one["opens_on"] for one in collections.rows([_SMART, _GONE])))
 
+    def test_an_order_reads_in_its_field_s_own_words(self) -> None:
+        orders = [{**_SMART, "order_by": "last_played", "direction": "desc"},
+                  {**_CUT, "order_by": "title", "direction": "asc"},
+                  {**_GONE, "order_by": "manual", "direction": "asc"}]
+
+        self.assertEqual({"90s Bally": "Last Played · Newest first",
+                          "Five Bally": "Title · A to Z",
+                          "Friday Night": "Custom Order"},
+                         {one["name"]: one["order"] for one in collections.rows(orders)})
+
 
 class TheColumns(unittest.TestCase):
     def test_kind_filters_on_the_token_and_shows_the_word(self) -> None:
