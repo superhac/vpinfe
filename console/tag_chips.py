@@ -8,12 +8,13 @@ they still agree.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from nicegui import ui
 
 from common.games.tag_registry import COLORS, derived_color
+from common.i18n import t
 
 BOX = "console-tags"
 CHIP = "console-tag"
@@ -39,6 +40,21 @@ def draw(tags: Sequence[str], looks: Mapping[str, Mapping[str, Any]]) -> None:
                 ui.label(tag)
             if look.get("description"):
                 chip.tooltip(str(look["description"]))
+
+
+def swatches(chosen: str, derived: str, on_pick: Callable[[str], Any]) -> None:
+    """Automatic, wearing `derived`, then every color; `chosen` is ringed, "" for
+    Automatic."""
+    with ui.element("div").classes("console-fact-edit console-swatches"):
+        for color, said in (("", t("console.tags.automatic")),
+                            *((one, t(f"console.tags.color.{one}")) for one in COLORS)):
+            with ui.button(on_click=lambda _e=None, c=color: on_pick(c)) \
+                    .props("flat round dense") \
+                    .classes("console-swatch"
+                             + (" console-swatch--auto" if not color else "")
+                             + (" console-swatch--on" if color == chosen else "")) \
+                    .tooltip(said):
+                ui.element("span").classes(dot_class(color or derived))
 
 
 class Picker(ui.select):

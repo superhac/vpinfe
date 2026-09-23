@@ -648,18 +648,7 @@ def _swatches(context: dict[str, Any]) -> None:
             return
         await _tag_changed(context, name)
 
-    with ui.element("div").classes("console-fact-edit console-swatches"):
-        derived = tag_registry.derived_color(name)
-        for color, said in (("", t("console.tags.automatic")),
-                            *((one, t(f"console.tags.color.{one}"))
-                              for one in tag_registry.COLORS)):
-            with ui.button(on_click=lambda _e=None, c=color: pick(c)) \
-                    .props("flat round dense") \
-                    .classes("console-swatch"
-                             + (" console-swatch--auto" if not color else "")
-                             + (" console-swatch--on" if color == chosen else "")) \
-                    .tooltip(said):
-                ui.element("span").classes(tag_chips.dot_class(color or derived))
+    tag_chips.swatches(chosen, tag_registry.derived_color(name), pick)
 
 
 async def _tag_games(context: dict[str, Any]) -> None:

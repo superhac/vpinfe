@@ -14,8 +14,10 @@ from typing import Any
 
 from nicegui import ui
 
+from common.games.tag_registry import derived_color
 from common.i18n import t
 from console import confirm, grid, offload, panel, renderers, tag_chips, verbs
+from console.data import Library
 
 SUBJECT = "tag"
 LABEL = t("console.tageditor.tags")
@@ -112,13 +114,12 @@ def build(rows: list[dict[str, Any]], library: Any,
                         .classes("console-action console-action--inline")
 
     async def write_down() -> None:
-        said = await _ask_for_a_name("", title=t("console.tageditor.new_tag"),
-                                     help_=t("console.tageditor.new_tag.help"),
-                                     verb=t("word.add"))
-        if not said:
+        wanted = await _new_tag(library)
+        if not wanted:
             return
+        name, changes = wanted
         try:
-            await offload.io(library.put_tag, said, {})
+            await offload.io(library.put_tag, name, changes)
         except Exception as exc:
             ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
             return
@@ -177,6 +178,82 @@ def build(rows: list[dict[str, Any]], library: Any,
         table.run_grid_method("setGridOption", "rowData", fresh)
 
     state["refresh_tags"] = refresh_rows
+
+
+async def _new_tag(library: Library) -> tuple[str, dict[str, str]] | None:
+    """The panel's three fields, asked before anything carries the tag."""
+    known = set(library.tag_looks())
+    held: dict[str, Any] = {"color": ""}
+    fields: dict[str, Any] = {}
+
+    def draw_name() -> None:
+        fields["name"] = ui.input().props("outlined dense debounce=0 bottom-slots") \
+            .classes("w-full")
+        fields["name"].on_value_change(renamed)
+
+    def renamed() -> None:
+        refused("")
+        draw_colors()
+
+    def draw_said() -> None:
+        fields["said"] = ui.textarea().props("outlined dense autogrow rows=2") \
+            .classes("w-full")
+
+    def draw_colors() -> None:
+        box = fields.get("colors") or ui.element("div")
+        fields["colors"] = box
+        box.clear()
+        with box:
+            tag_chips.swatches(held["color"], derived_color(_named(fields)), pick)
+
+    def pick(color: str) -> None:
+        held["color"] = color
+        draw_colors()
+
+    def refused(why: str) -> None:
+        fields["name"].props["error"] = bool(why)
+        fields["name"].props["error-message"] = why
+
+    def keep() -> None:
+        name = _named(fields)
+        if not name:
+            refused(t("console.tageditor.give_it_a_name"))
+        elif name in known:
+            refused(t("console.tageditor.already_a_tag"))
+        else:
+            dialog.submit((name, {"description": str(fields["said"].value or "").strip(),
+                                  "color": held["color"]}))
+
+    with ui.dialog() as dialog, ui.card().classes("console-new-tag"):
+        ui.label(t("console.tageditor.add_new_tag")).classes("console-card-title")
+        panel.facts(ui, [(t("console.tageditor.tag"), draw_name),
+                         (t("console.workbench.description"), draw_said),
+                         (t("console.tags.color"), draw_colors)])
+        with ui.row().classes("justify-end gap-2 w-full"):
+            ui.button(t("word.cancel"), icon=verbs.CANCEL,
+                      on_click=lambda: dialog.submit(None)).props("flat no-caps")
+            add = ui.button(t("word.add"), icon=verbs.CREATE, on_click=keep) \
+                .props("no-caps")
+    dialog.on("show", lambda: ui.run_javascript(
+        f"document.getElementById('c{fields['name'].id}').focus()"))
+    ui.run_javascript(f"""
+        (() => {{
+          let tries = 0;
+          const wire = () => {{
+            const button = document.getElementById('c{add.id}');
+            if (!button) {{ if (++tries < 40) setTimeout(wire, 25); return; }}
+            button.closest('.q-dialog').addEventListener('keyup', (event) => {{
+              if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') button.click();
+            }});
+          }};
+          wire();
+        }})()
+    """)
+    return await dialog
+
+
+def _named(fields: dict[str, Any]) -> str:
+    return " ".join(str(fields["name"].value or "").split())
 
 
 async def _ask_for_a_name(current: str, *, title: str = "", help_: str = "",

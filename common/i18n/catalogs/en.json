@@ -948,6 +948,8 @@
   "console.table_features.script": "In the script",
   "console.table_features.script_not_use": "The script does not use it",
   "console.table_features.script_uses": "The script uses it",
+  "console.tageditor.add_new_tag": "Add a New Tag",
+  "console.tageditor.already_a_tag": "Already a tag",
   "console.tageditor.delete_detail": {
     "one": "It is on {count} game. Its description and color go too.",
     "other": "It is on {count} games. Its description and color go too."
@@ -958,11 +960,11 @@
   "console.tageditor.game_changed": "{said} - {changed} game{value} changed",
   "console.tageditor.games": "Games",
   "console.tageditor.games.help": "Games carrying this tag",
+  "console.tageditor.give_it_a_name": "Give it a name",
   "console.tageditor.look_like_same_tag": "These look like the same tag",
   "console.tageditor.merge": "Merge into “{into}”?",
   "console.tageditor.merged": "Merged into {into}",
   "console.tageditor.new_tag": "New tag...",
-  "console.tageditor.new_tag.help": "Ready to pick before any game carries it",
   "console.tageditor.no_tags_yet_tag": "No tags yet. Tag a game from its Play section, or write one down with New tag.",
   "console.tageditor.remove_every_game": "Remove “{tag}” from every game?",
   "console.tageditor.remove_every_game_2": "Remove from every game",

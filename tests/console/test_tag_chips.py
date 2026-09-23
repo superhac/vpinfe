@@ -46,6 +46,31 @@ def _dots(items: list[dict]) -> dict[str, str]:
     return {str(one["label"]): str(one["dot"]) for one in items}
 
 
+def _swatches(chosen: str, derived: str = "teal") -> list[tuple[str, str]]:
+    with ui.card() as card:
+        tag_chips.swatches(chosen, derived, lambda _color: None)
+    box = card.default_slot.children[0]
+    return [(" ".join(button.classes),
+             next(" ".join(one.classes) for one in button.default_slot.children
+                  if tag_chips.DOT in one.classes))
+            for button in box.default_slot.children if isinstance(button, ui.button)]
+
+
+class TheSwatchesMarkTheChoice(unittest.TestCase):
+    def test_automatic_leads_wearing_the_derived_color(self) -> None:
+        classes, dot = _swatches("")[0]
+        self.assertIn("console-swatch--auto", classes)
+        self.assertEqual(tag_chips.dot_class("teal"), dot)
+
+    def test_nothing_chosen_rings_automatic(self) -> None:
+        ringed = [dot for classes, dot in _swatches("") if "console-swatch--on" in classes]
+        self.assertEqual([tag_chips.dot_class("teal")], ringed)
+
+    def test_a_chosen_color_is_the_one_ringed(self) -> None:
+        ringed = [dot for classes, dot in _swatches("red") if "console-swatch--on" in classes]
+        self.assertEqual([tag_chips.dot_class("red")], ringed)
+
+
 class ThePickerWearsTheColors(unittest.TestCase):
     def test_a_chosen_tag_carries_its_dot_and_its_description(self) -> None:
         chosen = _picker(["night"])._props["model-value"]

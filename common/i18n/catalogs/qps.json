@@ -948,6 +948,8 @@
   "console.table_features.script": "Îñ ţĥè šçřîþţ",
   "console.table_features.script_not_use": "Ţĥè šçřîþţ đöèš ñöţ ûšè îţ",
   "console.table_features.script_uses": "Ţĥè šçřîþţ ûšèš îţ",
+  "console.tageditor.add_new_tag": "Àđđ à Ñèŵ Ţàĝ",
+  "console.tageditor.already_a_tag": "Àŀřèàđý à ţàĝ",
   "console.tageditor.delete_detail": {
     "one": "Îţ îš öñ {count} ĝàɱè. Îţš đèšçřîþţîöñ àñđ çöŀöř ĝö ţöö.",
     "other": "Îţ îš öñ {count} ĝàɱèš. Îţš đèšçřîþţîöñ àñđ çöŀöř ĝö ţöö."
@@ -958,11 +960,11 @@
   "console.tageditor.game_changed": "{said} - {changed} ĝàɱè{value} çĥàñĝèđ",
   "console.tageditor.games": "Ĝàɱèš",
   "console.tageditor.games.help": "Ĝàɱèš çàřřýîñĝ ţĥîš ţàĝ",
+  "console.tageditor.give_it_a_name": "Ĝîṽè îţ à ñàɱè",
   "console.tageditor.look_like_same_tag": "Ţĥèšè ŀööķ ŀîķè ţĥè šàɱè ţàĝ",
   "console.tageditor.merge": "Ḿèřĝè îñţö “{into}”?",
   "console.tageditor.merged": "Ḿèřĝèđ îñţö {into}",
   "console.tageditor.new_tag": "Ñèŵ ţàĝ...",
-  "console.tageditor.new_tag.help": "Řèàđý ţö þîçķ ƀèƒöřè àñý ĝàɱè çàřřîèš îţ",
   "console.tageditor.no_tags_yet_tag": "Ñö ţàĝš ýèţ. Ţàĝ à ĝàɱè ƒřöɱ îţš Þŀàý šèçţîöñ, öř ŵřîţè öñè đöŵñ ŵîţĥ Ñèŵ ţàĝ.",
   "console.tageditor.remove_every_game": "Řèɱöṽè “{tag}” ƒřöɱ èṽèřý ĝàɱè?",
   "console.tageditor.remove_every_game_2": "Řèɱöṽè ƒřöɱ èṽèřý ĝàɱè",
