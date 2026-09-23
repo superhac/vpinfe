@@ -70,6 +70,7 @@ class _Target:
     fits: Callable[[dict[str, Any]], bool]
     family: str
     online: bool
+    lists: str = ""
 
 
 def _media(library: Any, kind: str) -> _Target:
@@ -84,7 +85,7 @@ def _asset(library: Any, kind: str) -> _Target:
     return _Target(library.asset_placements, library.asset_displaced_by,
                    library.place_asset, library.import_asset,
                    lambda item: PurePosixPath(str(item.get("name") or "")).suffix.lower()
-                   in wanted, "", online=False)
+                   in wanted, "", online=False, lists=kind)
 
 
 class _Sources:
@@ -304,7 +305,7 @@ class _Sources:
     async def _show_folder(self, listing: ui.column, path: str) -> None:
         listing.clear()
         try:
-            here = await offload.io(self.library.browse, path)
+            here = await offload.io(self.library.browse, path, self.target.lists)
         except Exception as exc:
             with listing:
                 ui.label(t("console.mediasource.could_not_read_folder",

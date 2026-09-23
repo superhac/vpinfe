@@ -527,9 +527,11 @@ class ApiClient:
         query = "?" + urlencode({"game": game_id}) if game_id else ""
         return list(self._get(f"/filesystem/roots{query}").get("roots") or [])
 
-    def browse(self, path: str) -> dict:
-        """One folder on this machine, as folders and media files."""
-        return self._get("/filesystem/entries?" + urlencode({"path": path}))
+    def browse(self, path: str, asset_kind: str = "") -> dict:
+        """One folder on this machine, as folders and media files, and the files of
+        `asset_kind` where one is named."""
+        asked = {"path": path, **({"kind": asset_kind} if asset_kind else {})}
+        return self._get("/filesystem/entries?" + urlencode(asked))
 
     def browsed_file_url(self, path: str) -> str:
         """Where the browser can fetch a file it is showing, so it can be looked at."""

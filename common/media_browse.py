@@ -12,6 +12,7 @@ resolved path, so a symlink out of a root is out of a root.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from pathlib import Path
 
 from common import service_errors
@@ -124,13 +125,15 @@ def media_file(path: str) -> Path:
     return here
 
 
-def entries(path: str) -> dict:
-    """Folders and media files, folders first, both by name.
+def entries(path: str, *, extensions: Iterable[str] = ()) -> dict:
+    """Folders and media files, folders first, both by name, and files ending in one of
+    `extensions` where a caller asks for them.
 
-    Only media is listed. A directory walker that returns every file is a file browser,
-    and this exists to find artwork - a .vpx or a .ini in the list is noise at best and
-    a way to get a table file into an <img> at worst.
+    Nothing else is listed. A directory walker that returns every file is a file browser,
+    and this exists to fill a slot - a .vpx in the list is noise at best and a way to get
+    a table file into an <img> at worst.
     """
+    also = frozenset(extension.lower() for extension in extensions)
     here = within_roots(path)
     if not here.is_dir():
         raise service_errors.RefusedError(t("error.filesystem.not_folder"),
@@ -152,7 +155,7 @@ def entries(path: str) -> dict:
                                 "kind": "folder", "family": "", "size_bytes": None})
                 continue
             family = family_of(entry)
-            if family:
+            if family or entry.suffix.lower() in also:
                 files.append({"name": entry.name, "path": str(entry), "kind": "file",
                               "family": family, "size_bytes": entry.stat().st_size})
     except OSError as exc:

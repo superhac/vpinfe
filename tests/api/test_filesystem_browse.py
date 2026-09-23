@@ -65,6 +65,31 @@ class BrowseTests(_Tree):
         self.assertNotIn("notes.vpx", names,
                          "a table file is not artwork and must not be offered as it")
 
+    def test_a_listing_for_an_asset_kind_offers_that_kinds_files(self) -> None:
+        (self.folder / "Cactus Canyon.directb2s").write_bytes(b"b2s")
+        (self.folder / "Cactus Canyon.ini").write_bytes(b"ini")
+
+        body = self.client.get("/filesystem/entries",
+                               params={"path": str(self.folder), "kind": "backglass"}).json()
+        names = [item["name"] for item in body["entries"]]
+
+        self.assertIn("Cactus Canyon.directb2s", names)
+        self.assertNotIn("Cactus Canyon.ini", names)
+        self.assertNotIn(f"{FOLDER}.vpx", names)
+
+    def test_without_a_kind_a_backglass_is_not_offered(self) -> None:
+        (self.folder / "Cactus Canyon.directb2s").write_bytes(b"b2s")
+
+        names = [item["name"] for item in self._entries(self.folder).json()["entries"]]
+
+        self.assertNotIn("Cactus Canyon.directb2s", names)
+
+    def test_a_kind_nothing_declares_is_refused(self) -> None:
+        response = self.client.get("/filesystem/entries",
+                                   params={"path": str(self.folder), "kind": "nonsense"})
+
+        self.assertEqual(response.status_code, 400)
+
     def test_a_root_has_no_parent_so_up_stops_there(self) -> None:
         self.assertIsNone(self._entries(self.root).json()["parent"])
         self.assertIsNotNone(self._entries(self.folder).json()["parent"],

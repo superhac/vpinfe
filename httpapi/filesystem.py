@@ -11,8 +11,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Query
 from starlette.responses import FileResponse
 
-from common import media_browse
+from common import media_browse, service_errors
 from common.games import game_repository
+from common.games.asset_registry import spec_for
+from common.i18n import t
 
 from . import models, scopes
 from .auth import requires
@@ -41,11 +43,13 @@ def get_file(path: str = Query(...)) -> FileResponse:
 
 @router.get("/entries", summary="What is in one folder",
             dependencies=[requires(scopes.FILESYSTEM_READ)])
-def get_entries(path: str = Query(...)) -> models.FilesystemListing:
-    """Folders and media files, folders first, both by name.
-
-    Only media is listed. A directory walker that returns every file is a file browser,
-    and this exists to find artwork - a .vpx or a .ini in the list is noise at best and a
-    way to get a table file into an <img> at worst.
-    """
-    return models.FilesystemListing.model_validate(media_browse.entries(path))
+def get_entries(path: str = Query(...), kind: str = Query("")) -> models.FilesystemListing:
+    """Folders and media files, folders first, both by name - and with `kind`, the files
+    that asset kind takes, so a slot for a backglass can be filled from here too."""
+    try:
+        wanted = spec_for(kind).extensions if kind else ()
+    except KeyError as exc:
+        raise service_errors.RefusedError(t("error.assets.unknown_kind"),
+                                          details={"unknown": kind}) from exc
+    return models.FilesystemListing.model_validate(
+        media_browse.entries(path, extensions=wanted))

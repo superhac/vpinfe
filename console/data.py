@@ -189,8 +189,8 @@ class Library:
     def browse_roots(self, game_id: str = "") -> list[dict]:
         return self._client.browse_roots(game_id)
 
-    def browse(self, path: str) -> dict:
-        return self._client.browse(path)
+    def browse(self, path: str, asset_kind: str = "") -> dict:
+        return self._client.browse(path, asset_kind)
 
     def browsed_file_url(self, path: str) -> str:
         return self._client.browsed_file_url(path)
