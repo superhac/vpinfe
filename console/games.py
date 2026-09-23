@@ -159,6 +159,9 @@ COLUMNS = [
                    ":cellRenderer": stars.renderer("game")}),
     grid.list_column("tags", t("console.workbench.tags"), 200, group=t(_GAME),
                      help=t("console.games.tags.help"), looks=renderers.TAG_LOOKS),
+    grid.list_column("collections", t("console.workbench.collections"), 200,
+                     group=t(_GAME), help=t("console.games.collections.help"),
+                     looks=renderers.COLLECTION_LOOKS),
 ]
 
 # Presets, not a replacement for choosing columns: a view sets which columns are
@@ -182,7 +185,7 @@ GAME_VIEWS: dict[str, list[str] | views.Preset] = {
     # the panel is not a translation.
     game_tables.MACHINE: views.Preset(
         columns=("name", "table_count", "manufacturer", "year", "game_type",
-                 "themes", "vps_unmatched", "rating", "tags"),
+                 "themes", "vps_unmatched", "rating", "tags", "collections"),
         help=t("console.view.machine.help")),
     # Media and Assets are built from what the library reports it has, so both are
     # filled at render time. Two views, not one: they answer different questions - what
@@ -376,6 +379,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
           rescan: Callable[[], Any] | None = None) -> None:
     state = state if state is not None else {}
     tag_chips.install(library.tag_looks())
+    renderers.install_collection_looks(library.smart_collections())
     columns = with_derived_facets(COLUMNS, rows) \
         + asset_columns(library.asset_keys()) + media_columns(kinds)
     all_fields = [definition["field"] for definition in columns]
@@ -571,6 +575,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         scroll position, focus and the open panel all go, for a write that touched one
         row. `getRowId` is the row's id, so a transaction leaves all three alone.
         """
+        await run.io_bound(library.load_game_collections, True)
+        renderers.install_collection_looks(library.smart_collections(), on=table)
         fresh = next((row for row in await offload.io(library.game_rows)
                       if row.get("id") == game_id), None)
         if fresh is None:

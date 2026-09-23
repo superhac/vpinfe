@@ -72,6 +72,22 @@ class TestEveryButtonCarriesAnIcon(unittest.TestCase):
         self.assertEqual(offenders, [],
                          "name it in console/verbs.py rather than here")
 
+    def test_no_button_wears_the_smart_mark(self) -> None:
+        from console import verbs
+        buttons, worn = 0, []
+        for path, tree in _sources():
+            for node in _button_calls(tree):
+                buttons += 1
+                for keyword in node.keywords:
+                    value = keyword.value
+                    if keyword.arg == "icon" and (
+                            (isinstance(value, ast.Attribute) and value.attr == "SMART")
+                            or (isinstance(value, ast.Constant)
+                                and value.value == verbs.SMART)):
+                        worn.append(f"{path.relative_to(REPO)}:{node.lineno}")
+        self.assertGreater(buttons, 50)
+        self.assertEqual(worn, [], "the Smart mark says what a collection is; it is not a verb")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -406,6 +406,11 @@ class ApiClient:
     def collections(self) -> list[dict]:
         return list(self._get("/collections").get("collections") or [])
 
+    def library_game_collections(self) -> dict[str, list[dict]]:
+        """Game id to the collections holding it, for every game some collection holds."""
+        return {str(one.get("game") or ""): list(one.get("collections") or [])
+                for one in self._get("/library/game_collections").get("games") or []}
+
     def collection_games(self, name: str) -> list[dict]:
         """The management lens: what is in it now, and why each one is there."""
         return list(self._get(f"/collections/{quote(name, safe='')}/games")

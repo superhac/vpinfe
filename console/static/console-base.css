@@ -2333,6 +2333,8 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-tag--purple { border-color: var(--tag-purple); }
 .console-tag--pink { border-color: var(--tag-pink); }
 .console-tag--gray { border-color: var(--tag-gray); }
+/* What kind a chip's thing is - the Smart gear on a collection - sized to the chip's words. */
+.console-tag-mark { font-size: 1.35em; line-height: 1; color: var(--ink-2); margin: 0 -2px; }
 .console-swatches { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .console-swatch.q-btn { min-width: 26px; min-height: 26px; width: 26px; height: 26px;
                         padding: 0; border: 2px solid transparent; }

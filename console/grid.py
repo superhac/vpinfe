@@ -204,7 +204,8 @@ if (!window.HubListFilter) {
       });
       return [...[...seen].sort(__ORDER__).map(value => {
         const look = looks(value) || {};
-        return {value: value, label: value, mark: look.dot || '', tip: look.tip || ''};
+        return {value: value, label: value, mark: look.dot || '', glyph: look.mark || '',
+                glyphClass: __MARK_CLASS__, tip: look.tip || ''};
       }), {value: '', label: (this.params.words || {}).none || ''}];
     }
     draw(choices) {
@@ -251,7 +252,8 @@ if (!window.HubListFilter) {
     }
   };
 }
-""".replace("__ORDER__", renderers.ORDER)
+""".replace("__ORDER__", renderers.ORDER).replace("__MARK_CLASS__",
+                                                   json.dumps(renderers.MARK_CLASS))
 
 
 def install_filters() -> None:

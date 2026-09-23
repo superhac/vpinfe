@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from common.i18n import t
-from console import data, games, grid, renderers, tageditor
+from console import data, games, grid, renderers, tageditor, verbs
 
 
 def _column(columns: list[dict], field: str) -> dict:
@@ -59,6 +59,20 @@ class TheGridsListColumns(unittest.TestCase):
                          _column(games.COLUMNS, "tags")["filterParams"]["looks"])
         self.assertEqual("", _column(games.COLUMNS, "themes")["filterParams"]["looks"])
 
+    def test_a_game_s_collections_are_a_list_column_in_the_game_view(self) -> None:
+        column = _column(games.COLUMNS, "collections")
+        self.assertEqual(grid.LIST_FILTER, column[":filter"])
+        self.assertEqual(renderers.COLLECTION_LOOKS, column["filterParams"]["looks"])
+        preset = games.GAME_VIEWS[games.game_tables.MACHINE]
+        self.assertIn("collections", preset.columns)
+
+    def test_a_smart_collection_s_chip_carries_the_smart_mark(self) -> None:
+        look = renderers.LOOKS[renderers.COLLECTION_LOOKS]
+        self.assertIn(f'"{verbs.SMART}"', look)
+        for js in (renderers.CHIPS.js, grid._CHOICE_FILTER_JS):
+            with self.subTest(js=js[:40]):
+                self.assertIn(renderers.MARK_CLASS, js)
+
     def test_the_tag_editor_draws_its_one_tag_through_the_same_chips(self) -> None:
         params = _column(tageditor.COLUMNS, "tag")["cellRendererParams"]
         self.assertEqual({"drawn": "chips", "list": "tag_list",
@@ -84,6 +98,53 @@ class TheRowsHoldTheListsThemselves(unittest.TestCase):
                                  {"id": "t2", "game_id": "g1"}])
 
         self.assertEqual([["VR", "Night Owl"], []], [row["tags"] for row in rows])
+
+
+    def test_a_game_row_holds_the_collections_holding_it(self) -> None:
+        library = data.Library.__new__(data.Library)
+        library.games = [{"id": "g1", "name": "A"}, {"id": "g2", "name": "B"}]
+        library.media = {}
+        library._game_collections = {"g1": [{"name": "Friday Night", "type": "manual"},
+                                            {"name": "90s Bally", "type": "filter"}]}
+
+        self.assertEqual([["Friday Night", "90s Bally"], []],
+                         [row["collections"] for row in library.game_rows()])
+        self.assertEqual({"90s Bally"}, library.smart_collections())
+
+
+class _Client:
+    def __init__(self) -> None:
+        self.reads = 0
+
+    def library_game_collections(self) -> dict:
+        self.reads += 1
+        return {"g1": [{"name": "Friday Night", "type": "manual"}]}
+
+    def add_to_collection(self, *_args: object) -> None: ...
+
+
+class TheOneReadIsKeptUntilACollectionChanges(unittest.TestCase):
+    def setUp(self) -> None:
+        self.client = _Client()
+        self.library = data.Library(self.client)
+
+    def test_it_is_read_once(self) -> None:
+        self.library.load_game_collections()
+        self.library.load_game_collections()
+
+        self.assertEqual(1, self.client.reads)
+
+    def test_a_collection_write_drops_it(self) -> None:
+        self.library.load_game_collections()
+        self.library.add_to_collection("Friday Night", "g2")
+
+        self.assertFalse(self.library.has_game_collections())
+
+    def test_again_reads_it_whatever_is_held(self) -> None:
+        self.library.load_game_collections()
+        self.library.load_game_collections(again=True)
+
+        self.assertEqual(2, self.client.reads)
 
 
 if __name__ == "__main__":

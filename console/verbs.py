@@ -1,7 +1,8 @@
 """One icon per verb, named for the verb rather than for the drawing.
 
 Every button takes its drawing from here. A new verb that means what one of these means
-takes that one's drawing.
+takes that one's drawing. The marks at the end say what kind a thing is, and no button
+wears one.
 """
 
 from __future__ import annotations
@@ -102,6 +103,9 @@ EXPAND = "keyboard_arrow_down"
 
 # For a verb with no drawing of its own, by what kind of act it is.
 FALLBACK = {"open": OPEN_OUT, "change": EDIT, "add": ADD, "remove": CANCEL}
+
+# A collection whose rules add games. The plain gear is Settings'.
+SMART = "settings_suggest"
 
 
 def declared() -> frozenset[str]:

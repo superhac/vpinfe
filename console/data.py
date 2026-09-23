@@ -91,6 +91,9 @@ class Library:
     library that changed underneath us would otherwise serve a stale grid.
     """
 
+    # Game id to the collections holding it, read with the Games grid.
+    _game_collections: dict[str, list[dict[str, Any]]] | None = None
+
     def __init__(self, client: ApiClient) -> None:
         self._client = client
         self.games: list[dict[str, Any]] = []
@@ -645,6 +648,31 @@ class Library:
             self._metadata_state = {}
         return self._metadata_state
 
+    def _collections_changed(self) -> None:
+        self._collections = None
+        self._game_collections = None
+
+    def load_game_collections(self, again: bool = False) -> None:
+        """Which collections hold each game. Off the event loop; `again` after a write
+        that may have moved a game in or out of one."""
+        if again or self._game_collections is None:
+            try:
+                self._game_collections = self._client.library_game_collections()
+            except Exception:
+                logger.warning("console: could not read which collections hold each game",
+                               exc_info=True)
+                self._game_collections = {}
+
+    def has_game_collections(self) -> bool:
+        return self._game_collections is not None
+
+    def smart_collections(self) -> set[str]:
+        """The smart ones among the collections holding a game. Read with the Games grid,
+        so this asks nothing."""
+        return {str(one.get("name") or "")
+                for held in (self._game_collections or {}).values()
+                for one in held if one.get("type") == "filter"}
+
     def load_collections(self) -> list[dict[str, Any]]:
         """Read the list. Off the event loop, and again after any write."""
         if self._collections is None:
@@ -687,55 +715,55 @@ class Library:
         return self._client.preview_filters(filters, limit)
 
     def exclude_from_collection(self, name: str, game_id: str, table: str = "") -> None:
-        self._collections = None
+        self._collections_changed()
         self._client.exclude_from_collection(name, game_id, table)
 
     def unexclude_from_collection(self, name: str, game_id: str,
                                   table: str | None = None) -> None:
-        self._collections = None
+        self._collections_changed()
         self._client.unexclude_from_collection(name, game_id, table)
 
     def keep_collection_result(self, name: str) -> dict:
-        self._collections = None
+        self._collections_changed()
         return self._client.keep_collection_result(name)
 
     def set_collection_image(self, name: str, path: str) -> dict:
-        self._collections = None
+        self._collections_changed()
         return self._client.set_collection_image(name, path)
 
     def clear_collection_image(self, name: str) -> None:
-        self._collections = None
+        self._collections_changed()
         self._client.clear_collection_image(name)
 
     def create_collection(self, name: str, filters: dict | None = None) -> dict:
-        self._collections = None
+        self._collections_changed()
         return self._client.create_collection(name, filters=filters)
 
     def patch_collection(self, name: str, changes: dict) -> dict:
-        self._collections = None
+        self._collections_changed()
         return self._client.patch_collection(name, changes)
 
     def delete_collection(self, name: str) -> None:
-        self._collections = None
+        self._collections_changed()
         self._client.delete_collection(name)
 
     def add_to_collection(self, name: str, game_id: str, table: str = "",
                           after_table: str | None = None) -> None:
-        self._collections = None
+        self._collections_changed()
         self._client.add_to_collection(name, game_id, table, after_table)
 
     def set_member_table(self, name: str, game_id: str, table: str = "",
                          was: str = "") -> None:
-        self._collections = None
+        self._collections_changed()
         self._client.set_member_table(name, game_id, table, was)
 
     def remove_from_collection(self, name: str, game_id: str,
                                table: str | None = None) -> None:
-        self._collections = None
+        self._collections_changed()
         self._client.remove_from_collection(name, game_id, table)
 
     def set_collection_order(self, name: str, games: list[str]) -> None:
-        self._collections = None
+        self._collections_changed()
         self._client.set_collection_order(name, games)
 
     def load_tables(self) -> list[dict[str, Any]]:
@@ -1132,6 +1160,8 @@ class Library:
                 "rating": game.get("rating") or 0,
                 "themes": list(game.get("themes") or []),
                 "tags": list((game.get("user") or {}).get("tags") or []),
+                "collections": [str(one.get("name") or "") for one in
+                                (self._game_collections or {}).get(game_id, [])],
                 # One field per asset kind, the same shape as media below. What used
                 # to sit here was a single "Assets" count computed from `entries` -
                 # the *media* map - so the column read as assets and counted media,
