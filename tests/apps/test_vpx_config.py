@@ -326,6 +326,38 @@ class WritingLikeTheProgramTests(_Case):
         self.assertEqual((found.value, found.scope, found.set_here),
                          ("1", SCOPE_LAUNCHER, False))
 
+    def test_a_key_the_application_leaves_blank_has_the_default_it_states(self) -> None:
+        """How the program writes nearly every key of its own file."""
+        self.app_ini.write_text(APP_INI.replace("Profile1Legacy = 1", "Profile1Legacy = "))
+        self.config.write(SCOPE_ENTRY, str(self.table), {PLAIN: "0"}, self.settings)
+
+        cleared = self.config.write(SCOPE_ENTRY, str(self.table), {PLAIN: "1"},
+                                    self.settings)
+
+        self.assertEqual(cleared, {PLAIN})
+        self.assertNotIn("Profile1Legacy", (self.game / "MM (VPW 1.2).ini").read_text())
+
+    def test_a_number_matches_however_it_is_spelled(self) -> None:
+        self.app_ini.write_text(
+            "[Player]\n; Exposure: How bright [Default: 1.0 in 0.0 .. 5.0]\n"
+            "HDRGlobalExposure = 1.0\n")
+        self.config.write(SCOPE_ENTRY, str(self.table),
+                          {"Player.HDRGlobalExposure": "2.0"}, self.settings)
+
+        cleared = self.config.write(SCOPE_ENTRY, str(self.table),
+                                    {"Player.HDRGlobalExposure": "1"}, self.settings)
+
+        self.assertEqual(cleared, {"Player.HDRGlobalExposure"})
+
+    def test_a_text_setting_matches_only_as_written(self) -> None:
+        self.app_ini.write_text("[Player]\n; Physics Set Name: What it is called "
+                                "[Default: 'Set 1']\nPhysicsSetName0 = 1\n")
+
+        cleared = self.config.write(SCOPE_ENTRY, str(self.table),
+                                    {"Player.PhysicsSetName0": "1.0"}, self.settings)
+
+        self.assertEqual(cleared, frozenset())
+
     def test_and_the_folder_s_at_the_folder(self) -> None:
         self.folder_file("[DMD]\nProfile1Legacy = 0\n")
 

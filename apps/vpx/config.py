@@ -292,7 +292,29 @@ def _inherited(scope: str, values: Mapping[str, str],
     app = _read(_app_ini(settings))
     return frozenset(key for key, value in values.items()
                      if str(value) != "" and key not in CONTEXTUAL
-                     and app.value(key) == str(value))
+                     and _alike(key, _given(app, key), str(value)))
+
+
+def _given(app: vini.Ini, key: str) -> str | None:
+    """What the application gives a key: its own value, or the default its file states
+    where it leaves the key blank. None where neither is known."""
+    held = app.value(key)
+    if held is not None:
+        return held
+    one = app.settings.get(key)
+    return one.default if one is not None and one.default != "" else None
+
+
+def _alike(key: str, one: str | None, two: str | None) -> bool:
+    """Equal the way the program compares them: as numbers, except a text setting."""
+    if one is None or two is None:
+        return False
+    if one == two or TYPES.get(key) == "string":
+        return one == two
+    try:
+        return float(one) == float(two)
+    except ValueError:
+        return False
 
 
 def _folder_answers(scope: str, target: str, cleared: frozenset[str],
@@ -302,7 +324,8 @@ def _folder_answers(scope: str, target: str, cleared: frozenset[str],
     if scope != SCOPE_ENTRY or not cleared:
         return False
     answering = _read(table_layer(target))
-    return any(answering.value(key) not in (None, values[key]) for key in cleared)
+    return any(answering.value(key) is not None
+               and not _alike(key, answering.value(key), values[key]) for key in cleared)
 
 
 def _without(scope: str, qualified: str, app: vini.Ini, table: vini.Ini,
