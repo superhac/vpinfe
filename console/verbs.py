@@ -106,6 +106,7 @@ FALLBACK = {"open": OPEN_OUT, "change": EDIT, "add": ADD, "remove": CANCEL}
 
 # A collection whose rules add games. The plain gear is Settings'.
 SMART = "settings_suggest"
+OPENS_ON = "home"
 
 
 def declared() -> frozenset[str]:

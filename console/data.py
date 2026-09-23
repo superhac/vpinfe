@@ -93,6 +93,7 @@ class Library:
 
     # Game id to the collections holding it, read with the Games grid.
     _game_collections: dict[str, list[dict[str, Any]]] | None = None
+    _opens_on = ""
 
     def __init__(self, client: ApiClient) -> None:
         self._client = client
@@ -453,6 +454,7 @@ class Library:
 
     def put_config(self, changes: dict) -> dict:
         self._kept = None
+        self._collections = None
         return self._client.put_config(changes)
 
     def config_path_checks(self) -> list[dict]:
@@ -674,10 +676,22 @@ class Library:
                 for one in held if one.get("type") == "filter"}
 
     def load_collections(self) -> list[dict[str, Any]]:
-        """Read the list. Off the event loop, and again after any write."""
+        """Read the list, and which of them the cabinet opens on. Off the event loop, and
+        again after any write."""
         if self._collections is None:
             self._collections = self._client.collections()
+            try:
+                behavior = self._client.config_values().get("behavior") or {}
+                self._opens_on = str(behavior.get("startup_collection") or "").strip()
+            except Exception:
+                logger.warning("console: could not read which collection the cabinet "
+                               "opens on", exc_info=True)
+                self._opens_on = ""
         return self._collections
+
+    def opens_on(self) -> str:
+        """The collection the cabinet opens on, read with the list. "" for all games."""
+        return self._opens_on
 
     def filter_axes(self) -> list[dict[str, Any]]:
         """The axes a rule can be written on. Read from core's registry, never listed

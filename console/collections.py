@@ -27,9 +27,10 @@ logger = logging.getLogger("vpinfe.console.collections")
 
 SCOPE = "console.collections"
 
-# Keys, resolved where they are shown.
+# The wire's kind, and what a person reads for it.
 KIND_LABELS = {"manual": "console.collections.hand_picked",
                "filter": "console.collections.smart"}
+_KIND_WORDS = {kind: t(key) for kind, key in KIND_LABELS.items()}
 _ORDER_LINES = {"asc": "console.collections.ordered_ascending",
                 "desc": "console.collections.ordered_descending"}
 
@@ -39,18 +40,54 @@ _ORDER_LINES = {"asc": "console.collections.ordered_ascending",
 _NUMERIC: dict[str, Any] = {"type": "numericColumn",
                             "filter": "agNumberColumnFilter"}
 
+_ESCAPE = ("const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')"
+           ".replace(/\"/g, '&quot;');")
+
+_NAME = (
+    "params => {" + _ESCAPE +
+    f" const tip = esc({json.dumps(t('console.collections.opens_on.help'))});"
+    " const name = esc(params.value == null ? '' : params.value);"
+    " return (params.data || {}).opens_on ? name + ' <i class=\"material-icons"
+    " console-cell-mark console-cell-mark--chosen\" title=\"' + tip + '\">"
+    + verbs.OPENS_ON + "</i>' : name; }"
+)
+
+_KIND = (
+    "params => {" + _ESCAPE +
+    " const said = esc(params.valueFormatted ?? params.value ?? '');"
+    " return params.value === 'filter' ? '<i class=\"material-icons console-cell-mark\">"
+    + verbs.SMART + "</i> ' + said : said; }"
+)
+
+# The cell's value stays the count, which is what the column sorts and filters on.
+_GAMES = (
+    "params => {" + _ESCAPE +
+    " const d = params.data || {};"
+    " const said = esc(d.games_said || (params.value ?? ''));"
+    " return d.missing_said ? said + ' <span class=\"console-member-chip console-tier"
+    " console-tier--warn\">' + esc(d.missing_said) + '</span>' : said; }"
+)
+
 COLUMNS = [
-    # The icon leads. A collection is recognized by its picture in the wheel long
+    # The wheel leads. A collection is recognized by its picture in the wheel long
     # before its name is read, and a list of collections that showed none of them was
     # asking the reader to work from the least distinctive thing about each.
     grid.column("icon", "", 56, pinned="left", sortable=False, filter=False,
-                picker=t("word.icon"), help=t("console.collections.icon.help")),
-    grid.identifier("name", t("word.name"), 240, pinned="left"),
-    grid.column("kind", t("word.kind"), 120, help=t("console.collections.kind.help")),
+                picker=t("console.collections.wheel"),
+                help=t("console.collections.icon.help")),
+    grid.identifier("name", t("word.name"), 240, pinned="left", **{":cellRenderer": _NAME}),
+    grid.column("kind", t("word.kind"), 120, help=t("console.collections.kind.help"),
+                **{**grid.choice_filter([{"value": kind, "label": word}
+                                         for kind, word in _KIND_WORDS.items()]),
+                   ":cellRenderer": _KIND,
+                   ":comparator": f"(a, b) => {{ const said = {json.dumps(_KIND_WORDS)};"
+                                  " return String(said[a] ?? a)"
+                                  ".localeCompare(String(said[b] ?? b)); }"}),
     # Right-aligned with the other number rather than left with the words: a count is
     # read against the counts above and below it.
-    grid.column("count", t("console.collections.games"), **_NUMERIC,
-                help=t("console.collections.games.help")),
+    grid.column("count", t("console.collections.games"), 170,
+                help=t("console.collections.games.help"),
+                **{**_NUMERIC, ":cellRenderer": _GAMES}),
     grid.column("added", t("console.collections.added"), **_NUMERIC,
                 help=t("console.collections.added.help")),
     grid.column("matched", t("console.collections.by_rule"), **_NUMERIC,
@@ -61,6 +98,14 @@ COLUMNS = [
                 help=t("console.collections.order.help")),
     grid.column("limit", t("console.collections.limit"), **_NUMERIC,
                 help=t("console.collections.limit.help")),
+    grid.column("missing", t("console.collections.missing"), **_NUMERIC,
+                help=t("console.collections.missing.help")),
+    grid.column("attention", t("console.collections.needs_attention"),
+                **{":valueFormatter": "params => params.value ? '\u2713' : ''",
+                   "cellClass": "console-tick", ":cellRenderer": None,
+                   **grid.choice_filter([{"value": True, "label": t("word.yes")},
+                                         {"value": False, "label": t("word.no")}],
+                                        formatted=True)}),
 ]
 
 # Focusing the row is what opens its panel. Waits for the row, because the grid takes
@@ -81,35 +126,48 @@ _FOCUS_ROW = """new Promise((done) => {
   look();
 })"""
 
-# One built-in, and the control stays: a view is how you save your own, and a grid with
-# nothing to start from is a grid nobody saves a view of.
 COLLECTION_VIEWS: dict[str, list[str] | views.Preset] = {
-    t("console.view.overview"): views.Preset(
-        columns=("icon", "name", "kind", "count", "added", "matched", "excluded",
-                 "order", "limit"),
-        help=t("console.view.collections.help")),
+    t("console.view.everything"): views.Preset(
+        columns=("icon", "name", "kind", "count", "order"),
+        help=t("console.view.collections_everything.help")),
+    t("console.collections.needs_attention"): views.Preset(
+        columns=("icon", "name", "kind", "added", "matched", "excluded", "missing"),
+        filters={"attention": {"values": [True]}},
+        help=t("console.view.collections_needs_attention.help")),
 }
 
 
-def rows(collections: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def rows(collections: list[dict[str, Any]], opens_on: str = "") -> list[dict[str, Any]]:
     """One row per collection, in the words the grid shows.
 
     `count` is what the collection resolves to, which is its size. The stored
-    membership is a different number and lives in the panel.
+    membership is a different number and lives in the panel. `opens_on` names the
+    collection the cabinet opens on.
     """
     built = []
     for row in collections:
+        count = int(row.get("count") or 0)
+        whole = int(row.get("before_limit") or 0)
+        missing = int(row.get("missing") or 0)
+        excluded = int(row.get("excluded") or 0)
         built.append({
             "id": row.get("name") or "",
             "name": row.get("name") or "",
-            "kind": t(KIND_LABELS.get(row.get("type") or "", row.get("type") or "")),
+            "kind": str(row.get("type") or ""),
             "icon": _icon_cell(row),
             # Zero is an answer here, not an absence: this is what the collection
             # resolves to, and an empty collection resolves to none.
-            "count": int(row.get("count") or 0),
+            "count": count,
+            "games_said": (t("console.collections.count_of", count=count, whole=whole)
+                           if whole > count else str(count)),
+            "missing_said": (t("console.collections.count_missing", count=missing)
+                             if missing else ""),
             "added": int(row.get("added") or 0),
             "matched": int(row.get("matched") or 0),
-            "excluded": int(row.get("excluded") or 0),
+            "excluded": excluded,
+            "missing": missing,
+            "attention": bool(missing or excluded),
+            "opens_on": bool(opens_on) and row.get("name") == opens_on,
             "order": _order_line(row),
             "limit": row.get("limit") or None,
             # Kept whole on the row so the workbench does not refetch what the grid
@@ -150,7 +208,7 @@ def build(collections: list[dict[str, Any]], library: Any,
           state: dict[str, Any] | None = None,
           rerender: Callable[[], None] | None = None) -> None:
     state = state if state is not None else {}
-    built = rows(collections)
+    built = rows(collections, library.opens_on())
     fields = [definition["field"] for definition in COLUMNS]
 
     async def act(what: Callable, *args: Any, said: str = "") -> None:
@@ -189,13 +247,20 @@ def build(collections: list[dict[str, Any]], library: Any,
                       lambda event: on_select(by_id.get(grid.focused_row(event))))
     picked: list[dict[str, Any]] = []
 
+    shown: dict[str, int] = {"rows": len(built)}
+
+    def said() -> str:
+        if picked:
+            return t("console.collections.selected", len=len(picked), len2=len(built))
+        if shown["rows"] != len(built):
+            return t("console.collections.collections_of", value=shown["rows"],
+                     len=len(built))
+        return t("console.collections.collections", count=len(built))
+
     def on_selected(rows_selected: list[dict[str, Any]]) -> None:
         picked[:] = rows_selected
         bulk.set_visibility(bool(rows_selected))
-        count.text = (t("console.collections.selected", len=(len(rows_selected)),
-                len2=(len(built)))
-                      if rows_selected
-                      else t("console.collections.collections", count=len(built)))
+        count.text = said()
 
     def on_context(row: dict | None) -> None:
         # The menu acts on the row under the cursor, not on the selection.
@@ -243,19 +308,24 @@ def build(collections: list[dict[str, Any]], library: Any,
                         lambda n=name: _ask_delete(n, library, act)) \
                     .classes("console-menu-item console-menu-danger")
 
+    async def counted() -> None:
+        seen = await table.run_grid_method("getDisplayedRowCount")
+        shown["rows"] = seen if isinstance(seen, int) else len(built)
+        count.text = said()
+
+    table.on("modelUpdated", counted)
     wire_views(table)
     search.on_value_change(
         lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                       search.value or ""))
 
     async def reread(focus: str = "") -> None:
-        fresh = rows(await offload.io(library.load_collections))
+        fresh = rows(await offload.io(library.load_collections), library.opens_on())
         built[:] = fresh
         by_id.clear()
         by_id.update({row["id"]: row for row in fresh})
         table.run_grid_method("setGridOption", "rowData", fresh)
-        if not picked:
-            count.text = t("console.collections.collections", count=len(fresh))
+        count.text = said()
         if not focus:
             return
         try:
