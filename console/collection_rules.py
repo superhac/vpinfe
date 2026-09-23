@@ -34,16 +34,12 @@ OPERATOR_WORDS = {
     EXACTLY: "console.collection_rules.is_exactly",
 }
 
-# A flag's two answers, where it has words of its own. Row first, then the sentence.
+# A flag's two answers in the sentence, where it has words of its own.
 FLAG_WORDS = {
-    "played": {YES: ("console.collection_rules.played",
-                     "console.collection_rules.you_played"),
-               NO: ("console.collection_rules.never_played",
-                    "console.collection_rules.you_never_played")},
-    "favorite": {YES: ("console.collection_rules.is_a_favorite",
-                       "console.collection_rules.you_marked_favorite"),
-                 NO: ("console.collection_rules.not_a_favorite",
-                      "console.collection_rules.you_not_marked_favorite")},
+    "played": {YES: "console.collection_rules.you_played",
+               NO: "console.collection_rules.you_never_played"},
+    "favorite": {YES: "console.collection_rules.you_marked_favorite",
+                 NO: "console.collection_rules.you_not_marked_favorite"},
 }
 
 
@@ -203,11 +199,8 @@ def filters_from(rows: list[dict[str, Any]], known: list[Field]) -> dict[str, An
     return said
 
 
-def operator_word(field_name: str, op: str) -> str:
-    """What an operator is called on a row of this field."""
-    flag = FLAG_WORDS.get(field_name, {}).get(op)
-    if flag:
-        return t(flag[0])
+def operator_word(op: str) -> str:
+    """What an operator is called on a row."""
     if op in (YES, NO):
         return t("word.yes") if op == YES else t("word.no")
     return t(OPERATOR_WORDS.get(op, ""))
@@ -242,7 +235,7 @@ def _clause(row: dict[str, Any], named: dict[str, Field]) -> str:
     if op in (YES, NO):
         flag = FLAG_WORDS.get(one.name, {}).get(op)
         if flag:
-            return t(flag[1])
+            return t(flag)
         return t("console.collection_rules.axis_is", axis=one.label,
                  values=t("word.yes") if op == YES else t("word.no"))
     if op == STARTS_WITH:

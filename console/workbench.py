@@ -5064,14 +5064,14 @@ def _condition(context: dict[str, Any], index: int, row: dict[str, Any]) -> None
             which.tooltip(field.summary)
         asks = field.operators
         if len(asks) > 1:
-            how = ui.select({op: collection_rules.operator_word(field.name, op)
+            how = ui.select({op: collection_rules.operator_word(op)
                              for op in asks}, value=row.get("op")) \
                 .props("dense borderless options-dense") \
                 .classes("console-edit-field console-edit-select")
             how.on_value_change(lambda: _edit_rules(context, put(
                 op=how.value, value=_kept_value(row, how.value))))
         else:
-            ui.label(collection_rules.operator_word(field.name, asks[0])) \
+            ui.label(collection_rules.operator_word(asks[0])) \
                 .classes("console-condition-op")
         with ui.element("div").classes("console-condition-value"):
             _condition_value(context, field, row, put)

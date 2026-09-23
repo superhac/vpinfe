@@ -43,6 +43,13 @@ class Fields(unittest.TestCase):
         self.assertEqual([rules.AT_LEAST, rules.EXACTLY], asked["rating"])
         self.assertEqual([rules.YES, rules.NO], asked["played"])
 
+    def test_a_flag_row_answers_yes_or_no_rather_than_naming_its_field_again(self) -> None:
+        named = rules.by_name(FIELDS)
+        for name in ("played", "favorite", "multiplayer"):
+            with self.subTest(name):
+                self.assertEqual(["Yes", "No"], [rules.operator_word(op)
+                                                 for op in named[name].operators])
+
     def test_a_field_with_nothing_to_pick_cannot_be_asked(self) -> None:
         named = rules.by_name(FIELDS)
 
