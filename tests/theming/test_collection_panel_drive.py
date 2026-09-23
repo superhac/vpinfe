@@ -17,6 +17,7 @@ from tests.support.library import game_info, write_game
 from tests.support.live_instance import LiveInstance
 
 NAME = "Smart Bally"
+OTHER = "Hand Picked"
 GAMES = {"Alpha": ("Bally", "1992"), "Bravo": ("Bally", "1995"),
          "Charlie": ("Williams", "1993")}
 
@@ -24,6 +25,10 @@ INDEX_OF = ("(() => [...document.querySelectorAll(%s)]"
             ".findIndex(el => el.innerText.includes(%s)))()")
 TEXT_OF = "(() => { const el = document.querySelector(%s); return el ? el.innerText : null; })()"
 GRID_NAME = (".ag-row[row-id=" + json.dumps(NAME) + "] .ag-cell[col-id=\"name\"]")
+OTHER_NAME = (".ag-row[row-id=" + json.dumps(OTHER) + "] .ag-cell[col-id=\"name\"]")
+UNSAVED_IN_GRID = ("(() => { const el = document.querySelector('.nicegui-aggrid');"
+                   " const row = getElement(el.id.slice(1)).api.getRowNode(%s);"
+                   " return row ? row.data.unsaved : null; })()")
 
 
 class CollectionPanelDrive(unittest.TestCase):
@@ -53,6 +58,7 @@ class CollectionPanelDrive(unittest.TestCase):
         seen: dict = {}
         instance.wait_for_api()
         instance.post("/api/v1/collections", {"name": NAME})
+        instance.post("/api/v1/collections", {"name": OTHER, "games": ["bravo", "charlie"]})
         stored = f"/api/v1/collections/{quote(NAME)}"
 
         async with BrowserSession(chromium_path()) as browser:
@@ -89,6 +95,15 @@ class CollectionPanelDrive(unittest.TestCase):
             seen["bar"] = await browser.evaluate(TEXT_OF % json.dumps(".console-draft-bar"))
             seen["marked"] = await browser.evaluate(TEXT_OF % json.dumps(GRID_NAME))
             seen["before_save"] = instance.api(stored)["filters"]
+
+            await browser.click(OTHER_NAME)
+            await browser.wait_for(TEXT_OF % json.dumps(".console-workbench-title")
+                                   + " === " + json.dumps(OTHER))
+            await settled()
+            seen["marked_elsewhere"] = await browser.evaluate(UNSAVED_IN_GRID
+                                                              % json.dumps(NAME))
+            await browser.click(GRID_NAME)
+            await browser.wait_for("!!document.querySelector('.console-draft-bar')")
 
             await click_text(".console-draft-bar button", "Save Rules")
             await settled()
@@ -139,6 +154,9 @@ class CollectionPanelDrive(unittest.TestCase):
         self.assertTrue(self.seen["bar"].startswith("2 games match · 2 join"), self.seen["bar"])
         self.assertIn("Not saved", self.seen["marked"])
         self.assertIsNone(self.seen["before_save"])
+
+    def test_the_mark_stays_while_another_collection_is_open(self) -> None:
+        self.assertIs(True, self.seen["marked_elsewhere"])
 
     def test_saving_writes_the_rule_and_clears_the_mark(self) -> None:
         self.assertEqual(["Bally"], self.seen["saved"])

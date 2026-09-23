@@ -5393,17 +5393,9 @@ def _games_list(context: dict[str, Any], row: dict[str, Any]) -> None:
     # excluded ones too - a game both named and excluded appears twice, and the route
     # refuses the whole move.
     #
-    # Handed to the listener through state rather than closed over, because the
-    # listener is registered **once**. Registering inside the draw adds one on every
-    # rebuild, and NiceGUI answers a changed listener set by re-rendering the page -
-    # which flashes the grid and the logo in the nav, neither of which this panel
-    # touches.
-    held = context["state"]
-    held["member_move"] = (context, kept) if arrange else None
+    # Read at the drop by the page's listener, `member_moved`.
+    context["state"]["member_move"] = (context, kept) if arrange else None
     if arrange:
-        if not held.get("member_move_bound"):
-            held["member_move_bound"] = True
-            ui.on("hub_member_moved", lambda event: _moved(held, event.args))
         ui.run_javascript(_ARRANGE)
     # A write rebuilds the panel, so it is a new element starting at the top - and
     # changing a member's table sent a forty-row list back to the beginning. The
@@ -5412,9 +5404,8 @@ def _games_list(context: dict[str, Any], row: dict[str, Any]) -> None:
     ui.run_javascript(_KEEP_SCROLL % name.replace("'", "\\'"))
 
 
-async def _moved(state: dict[str, Any], moved: Any) -> None:
-    """The list as it stands, read at the moment of the drop rather than captured when
-    the listener was made - one listener now serves every redraw of the panel."""
+async def member_moved(state: dict[str, Any], moved: Any) -> None:
+    """A drop in a collection's list, applied to the list drawn last."""
     held = state.get("member_move")
     if held:
         await _reorder(held[0], held[1], moved)

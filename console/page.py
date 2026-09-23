@@ -524,6 +524,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             set_mini(wants_rail)
 
     ui.on("hub_window_px", lambda event: on_window_width(int(event.args or 0)))
+    ui.on("hub_member_moved", lambda event: workbench.member_moved(state, event.args))
 
     def toggle_mini() -> None:
         """The nav's own control. Setting it by hand takes it out of Full's care: an
