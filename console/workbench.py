@@ -4968,7 +4968,7 @@ def _axis_control(context: dict[str, Any], axis: dict[str, Any],
             # false are both criteria. A switch could only ever say two of the three.
             stored = current.get(name)
             control = ui.select({"": t("console.workbench.any"), "yes": t("word.yes"),
-                    "no": "No"},
+                                 "no": t("word.no")},
                                 value="yes" if stored is True
                                 else "no" if stored is False else "") \
                 .props("dense outlined").classes("w-full min-w-0")
