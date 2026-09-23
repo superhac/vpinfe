@@ -26,6 +26,7 @@ from common.games.game_metadata import (
     table_play_record,
     table_rating,
     table_source,
+    table_tags,
     vpinfe_section,
 )
 from common.games.game_repository import game_to_row
@@ -279,7 +280,8 @@ def table_rows(game: Game, row: dict) -> list[dict]:
             # The table's own rating, which this lens has to carry as well as the play
             # lens - tables are read here and would otherwise all look unrated.
             "rating": table_rating(described_entry),
-            "user": table_play_record(described_entry),
+            "user": {**table_play_record(described_entry),
+                     "tags": table_tags(described_entry)},
             # A file is there or it is not, wherever it is. A key has nothing here to
             # check it against - only the app can say - so what stands in for it is
             # whether this machine has a launcher that would play it at all.

@@ -436,6 +436,12 @@ def reset_play_record(game_id: str) -> models.PlayRecord:
     return models.PlayRecord(**game_ops.reset_play_record(game_id))
 
 
+@router.put("/{game_id}/tables/{table_id}/tags", summary="The tags on one table",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_table_tags(game_id: str, table_id: str, payload: models.TagsRequest) -> models.Tags:
+    return models.Tags.model_validate(table_ops.set_tags(game_id, table_id, payload.tags))
+
+
 @router.delete("/{game_id}/tables/{table_id}/play_record",
                summary="Reset one table's play counters",
                dependencies=[requires(scopes.GAMES_WRITE)])

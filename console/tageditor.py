@@ -28,6 +28,8 @@ COLUMNS = [
     grid.column("description", t("console.workbench.description"), 280),
     grid.column("games", t("console.tageditor.games"), type="numericColumn",
                 help=t("console.tageditor.games.help")),
+    grid.column("tables", t("console.tageditor.tables"), type="numericColumn",
+                help=t("console.tageditor.tables.help")),
 ]
 
 

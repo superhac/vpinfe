@@ -684,6 +684,8 @@ TABLE_COLUMNS = [
                 cellClass="console-stars-cell",
                 **{**grid.choice_filter(_RATING_CHOICES),
                    ":cellRenderer": stars.renderer("table")}),
+    grid.column("tags", t("console.workbench.tags"), 200, group=t(_TABLE),
+                help=t("console.games.table_tags.help"), **renderers.drawable("tags")),
     # Each column's own words, not a generic pair: "Hidden: Yes" is a question about a
     # question, where "Hidden / Offered" is the fact and its opposite.
     grid.column("hidden", t("word.hidden"), group=t(_IN_PLAY),
@@ -835,6 +837,8 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
              **{f"asset_{key}": _resolved_word((row.get("assets") or {}).get(key))
                 for key in TABLE_ASSET_KEYS},
              "author": ", ".join(row.get("authors") or []),
+             "tags": ", ".join((row.get("user") or {}).get("tags") or []),
+             "tag_list": list((row.get("user") or {}).get("tags") or []),
              "said": " ".join(str(row.get(k) or "").strip()
                               for k in ("manufacturer", "year")).strip(),
              "said_built": game_tables.table_name(row),
@@ -871,6 +875,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     long argument about which subject each line is for.
     """
     state = state if state is not None else {}
+    tag_chips.install(library.tag_looks())
     built = table_rows(rows)
     table_columns = TABLE_COLUMNS + table_asset_columns(list(TABLE_ASSET_KEYS))
     fields = [definition["field"] for definition in table_columns]

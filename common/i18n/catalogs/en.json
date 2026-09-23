@@ -436,6 +436,7 @@
   "console.games.table": "Table",
   "console.games.table_goes_back_script": "The table goes back to the script inside its .vpx. Anything the sidecar held - a patch, an edit - goes with it.",
   "console.games.table_rating": "Table Rating",
+  "console.games.table_tags.help": "Your own words for this table, apart from its game's",
   "console.games.tables_games": "{len} tables in {len2} games",
   "console.games.tags.help": "Your own words for the game",
   "console.games.ticked_where_frontend_not.help": "Ticked where the frontend does not offer this table",
@@ -954,6 +955,8 @@
   "console.tageditor.rename_tag": "Rename this tag",
   "console.tageditor.renamed": "Renamed to {said}",
   "console.tageditor.search_tags": "Search tags",
+  "console.tageditor.tables": "Tables",
+  "console.tageditor.tables.help": "Tables carrying this tag of their own",
   "console.tageditor.tag": "Tag",
   "console.tageditor.tag.help": "Renaming this renames it everywhere",
   "console.tageditor.tag_game": "{tag} - {count} game",
@@ -984,6 +987,10 @@
     "other": "On {count} games"
   },
   "console.tags.on_no_games": "Not on any game yet",
+  "console.tags.on_tables": {
+    "one": "On {count} table",
+    "other": "On {count} tables"
+  },
   "console.themes.active": "Active",
   "console.themes.added_by_hand": "Added by hand",
   "console.themes.both": "Cabinet or desktop",

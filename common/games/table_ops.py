@@ -21,6 +21,7 @@ from common.games.game_metadata import (
     reset_table_play_record,
     set_table_rating,
     set_table_source,
+    set_table_tags,
     vpinfe_section,
 )
 from common.games.game_repository import game_to_row
@@ -150,6 +151,11 @@ def set_source(game_id: str, table_id: str, vps_file_id: str) -> dict:
     set_table_source(game, filename_or_refuse(game, table_id), vps_file_id)
     game.meta_config = load_game_meta(game)
     return row_or_refuse(game, table_id)
+
+
+def set_tags(game_id: str, table_id: str, tags: Any) -> dict:
+    game = game_lens.game_or_refuse(game_id)
+    return {"tags": set_table_tags(game, filename_or_refuse(game, table_id), list(tags))}
 
 
 def reset_play_record(game_id: str, table_id: str) -> dict:

@@ -819,12 +819,11 @@ class Library:
         return [kind for kind in self.kinds() if kind in seen]
 
     def tags(self) -> list[str]:
-        """Every tag this library holds, which is the whole vocabulary - there is no
-        registry of tags, so a tag no game carries does not exist."""
-        seen: set[str] = set()
+        """Every tag a picker offers: those carried, and those only written down."""
+        seen = {str(one.get("name") or "") for one in self._tags}
         for game in self.games:
             seen.update((game.get("user") or {}).get("tags") or [])
-        return sorted(seen, key=str.lower)
+        return sorted(seen - {""}, key=str.lower)
 
     def tag_rows(self) -> list[dict[str, Any]]:
         """One row per tag: what it is, how many games carry it, and which tags it may
@@ -844,6 +843,7 @@ class Library:
             key = " ".join(name.split()).casefold()
             rows.append({"id": name, "tag": name, "tag_list": [name],
                          "games": int(one.get("games") or 0),
+                         "tables": int(one.get("tables") or 0),
                          "description": str(one.get("description") or ""),
                          "same": key,
                          # Only where there is another spelling of it - a mark on every
@@ -1029,6 +1029,12 @@ class Library:
     def set_game_tags(self, game_id: str, tags: list[str]) -> None:
         self._client.set_tags(game_id, tags)
         self._forget_game(game_id)
+        self.read_tags()
+
+    def set_table_tags(self, game_id: str, table_id: str, tags: list[str]) -> None:
+        self._client.set_table_tags(game_id, table_id, tags)
+        self._forget_tables(game_id)
+        self.read_tags()
 
     def asset_keys(self) -> list[str]:
         """The asset kinds this library reports, in registry order where it knows them.

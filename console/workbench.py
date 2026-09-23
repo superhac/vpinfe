@@ -577,8 +577,9 @@ async def _draw_tag(container: ui.column, title: ui.column, library: Library,
     container.clear()
     title.clear()
     with container:
-        count = int(look.get("games") or 0)
+        count, tables = int(look.get("games") or 0), int(look.get("tables") or 0)
         _title(title, name, t("console.tags.on_games", count=count) if count
+               else t("console.tags.on_tables", count=tables) if tables
                else t("console.tags.on_no_games"))
         context: dict[str, Any] = {"library": library, "name": name, "tag": look,
                                    "state": state, "redraws": [], "dock": None}
@@ -663,10 +664,14 @@ def _swatches(context: dict[str, Any]) -> None:
 
 async def _tag_games(context: dict[str, Any]) -> None:
     name = context["name"]
-    carrying = [one for one in context["library"].games
+    library = context["library"]
+    carrying = [one for one in library.games
                 if name in ((one.get("user") or {}).get("tags") or [])]
+    tables = ([one for one in await offload.io(library.load_tables)
+               if name in ((one.get("user") or {}).get("tags") or [])]
+              if context["tag"].get("tables") else [])
     with ui.column().classes("gap-0 console-form w-full min-w-0"):
-        if not carrying:
+        if not carrying and not tables:
             ui.label(t("console.tags.on_no_games")).classes("console-help px-3")
         for game in sorted(carrying, key=lambda one: str(one.get("name") or "").lower()):
             with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row"):
@@ -675,6 +680,15 @@ async def _tag_games(context: dict[str, Any]) -> None:
                 ui.label(" ".join(str(part) for part in (game.get("manufacturer"),
                                                          game.get("year")) if part)) \
                     .classes("console-help")
+        if tables:
+            ui.label(t("console.tageditor.tables")).classes("console-group px-3 mt-2")
+        for table in tables:
+            with ui.row().classes("items-center gap-2 w-full no-wrap console-member-row"):
+                panel.link(str(table.get("game") or table.get("name") or ""),
+                           to="/console?" + deeplink.query(
+                               {"view": "tables", "game": str(table.get("game_id") or ""),
+                                "table": str(table.get("id") or "")}))()
+                ui.label(_table_line(table)).classes("console-help")
 
 
 async def _tag_actions(context: dict[str, Any]) -> None:
@@ -2065,8 +2079,14 @@ def _table_play_rows(context: dict[str, Any],
         await _write(context, context["library"].reset_play_record,
                      context["game_id"], table_id)
 
+    async def retag(chosen: list[str]) -> None:
+        await _write(context, context["library"].set_table_tags,
+                     context["game_id"], table_id, chosen)
+
     rows = _play_rows(context, record, rating=int(table.get("rating") or 0),
-                      on_rate=rate, on_reset=reset)
+                      on_rate=rate, on_reset=reset,
+                      tags=_tag_picker(list(record.get("tags") or []),
+                                       context["library"].tags(), retag))
     return rows + _library_rows(context, table)
 
 

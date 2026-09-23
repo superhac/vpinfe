@@ -737,11 +737,13 @@ class Dependencies(ApiModel):
 
 
 class TablePlayRecord(ApiModel):
-    """One table's own play record. Counters only - nothing sets a per-table rating."""
+    """One table's own play record: its counters, and the tags somebody gave this table
+    rather than its game. Nothing sets a per-table rating here."""
 
     last_played: str | None = None
     play_count: int = 0
     play_time_seconds: int = 0
+    tags: list[str] = Field(default_factory=list)
 
 
 class TableSource(ApiModel):
@@ -1980,6 +1982,7 @@ class TagResource(ApiModel):
 
     name: str
     games: int = 0
+    tables: int = 0
     description: str = ""
     color: str
     chosen: bool = False

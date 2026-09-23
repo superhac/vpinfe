@@ -29,8 +29,9 @@ from common.games.collection_filters import AXES, GameListFilters
 from common.games.collection_resolver import resolve
 from common.games.collection_store import BUILTIN_ALL
 from common.games.collections_service import get_collections_manager
-from common.games.game_metadata import game_tags, normalize_tag, retag_library
+from common.games.game_metadata import game_tags, normalize_tag, retag_library, table_tags
 from common.games.library_policy import get_library_policy
+from common.games.tables import table_entries
 
 
 def start(kind: str, work: Callable[[job_registry.Job], object]) -> job_registry.Job:
@@ -63,26 +64,34 @@ def filter_axes() -> dict[str, Any]:
                      for axis in AXES]}
 
 
-def _carried() -> dict[str, int]:
-    counts: dict[str, int] = {}
+def _carried() -> tuple[dict[str, int], dict[str, int]]:
+    """How many games carry each tag, and how many tables."""
+    games: dict[str, int] = {}
+    tables: dict[str, int] = {}
     for game in game_repository.all_games():
         for tag in game_tags(game):
-            counts[tag] = counts.get(tag, 0) + 1
-    return counts
+            games[tag] = games.get(tag, 0) + 1
+        for entry in table_entries(getattr(game, "meta_config", {})).values():
+            for tag in table_tags(entry) if isinstance(entry, dict) else []:
+                tables[tag] = tables.get(tag, 0) + 1
+    return games, tables
 
 
 def tags() -> dict[str, Any]:
     entries = tag_registry.load()
-    counts = _carried()
-    return {"tags": [{"name": name, "games": counts.get(name, 0),
-                      **tag_registry.describe(name, entries)}
-                     for name in sorted(set(counts) | set(entries), key=str.casefold)]}
+    games, tables = _carried()
+    return {"tags": [{"name": name, "games": games.get(name, 0),
+                      "tables": tables.get(name, 0), **tag_registry.describe(name, entries)}
+                     for name in sorted(set(games) | set(tables) | set(entries),
+                                        key=str.casefold)]}
 
 
 def put_tag(tag: str, description: str | None, color: str | None) -> dict[str, Any]:
     said = tag_registry.put(tag, description=description, color=color)
     name = normalize_tag(tag)
-    return {"name": name, "games": _carried().get(name, 0), **said}
+    games, tables = _carried()
+    return {"name": name, "games": games.get(name, 0), "tables": tables.get(name, 0),
+            **said}
 
 
 def merge_tags(sources: Iterable[str], into: str) -> dict[str, Any]:

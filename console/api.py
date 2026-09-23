@@ -190,6 +190,13 @@ class ApiClient:
                                      json={"rating": rating}, timeout=_TIMEOUT)
         self._answered(response)
 
+    def set_table_tags(self, game_id: str, table_id: str, tags: list[str]) -> None:
+        _refuse_the_event_loop(f"/games/{game_id}/tables/{table_id}/tags")
+        response = self._session.put(
+            f"{self._base}/games/{game_id}/tables/{table_id}/tags",
+            json={"tags": list(tags)}, timeout=_TIMEOUT)
+        self._answered(response)
+
     def rate_table(self, game_id: str, table_id: str, rating: int) -> None:
         """One table's own rating, which refines its game's rather than replacing it."""
         _refuse_the_event_loop(f"/games/{game_id}/tables/{table_id}/rating")

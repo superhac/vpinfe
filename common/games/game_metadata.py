@@ -209,21 +209,39 @@ def normalize_tag(text: str) -> str:
     return " ".join(str(text or "").split())
 
 
+def _tag_set(tags: Iterable[Any] | None) -> list[str]:
+    stored: list[str] = []
+    for tag in tags or []:
+        said = normalize_tag(tag)
+        if said and said not in stored:
+            stored.append(said)
+    return stored
+
+
 def set_game_tags(game: Game, tags: Iterable[str] | None) -> list[str]:
     """Write the whole set, returning what was stored.
 
     A whole-value write, like the rating: the set is the resource. Normalized and
     de-duplicated here rather than at a call site, so every writer agrees.
     """
-    stored: list[str] = []
-    seen: set[str] = set()
-    for tag in tags or []:
-        said = normalize_tag(tag)
-        if said and said not in seen:
-            seen.add(said)
-            stored.append(said)
+    stored = _tag_set(tags)
     config = load_game_meta(game)
     get_or_create_user_meta(config)["Tags"] = stored
+    persist_game_meta(game, config)
+    game.meta_config = config
+    return stored
+
+
+def table_tags(entry: dict[str, Any]) -> list[str]:
+    said = (entry.get("user") or {}).get("tags") or []
+    return _tag_set(said if isinstance(said, list) else [said])
+
+
+def set_table_tags(game: Game, native: str, tags: Iterable[str] | None) -> list[str]:
+    """One table's own set, written the way a game's is."""
+    stored = _tag_set(tags)
+    config = load_game_meta(game)
+    get_or_create_table_user(config, native)["tags"] = stored
     persist_game_meta(game, config)
     game.meta_config = config
     return stored
@@ -244,20 +262,40 @@ def retag_library(games: Iterable[Game], sources: Iterable[str], into: str = "")
     survivor = normalize_tag(into)
     if not wanted or survivor in wanted and len(wanted) == 1:
         return 0
-    touched = 0
-    for game in games:
-        held = game_tags(game)
-        if not any(tag in wanted for tag in held):
-            continue
+
+    def swept(held: list[str]) -> list[str]:
         out: list[str] = []
         for tag in held:
             said = survivor if tag in wanted else tag
             if said and said not in out:
                 out.append(said)
+        return out
+
+    touched = 0
+    for game in games:
+        held = game_tags(game)
+        out = swept(held)
+        tables = {key: swept(table_tags(entry)) for key, entry in
+                  table_entries(normalize_meta(getattr(game, "meta_config", {}))).items()
+                  if isinstance(entry, dict) and wanted & set(table_tags(entry))}
         if out != held:
             set_game_tags(game, out)
+        if tables:
+            _set_tables_tags(game, tables)
+        if out != held or tables:
             touched += 1
     return touched
+
+
+def _set_tables_tags(game: Game, changes: dict[str, list[str]]) -> None:
+    config = load_game_meta(game)
+    entries = rekey_by_id(config.setdefault(TABLES_KEY, {}))
+    config[TABLES_KEY] = entries
+    for key, tags in changes.items():
+        if isinstance(entries.get(key), dict):
+            entries[key].setdefault("user", {})["tags"] = tags
+    persist_game_meta(game, config)
+    game.meta_config = config
 
 
 def game_themes(game: GameRecord) -> list[str]:
@@ -477,7 +515,8 @@ def reset_table_play_record(game: Game, filename: str) -> dict[str, Any]:
     entry["run_time_seconds"] = 0
     persist_game_meta(game, config)
     game.meta_config = config
-    return {"last_played": None, "play_count": 0, "play_time_seconds": 0}
+    return {"last_played": None, "play_count": 0, "play_time_seconds": 0,
+            "tags": _tag_set(entry.get("tags") or [])}
 
 
 def table_play_record(table: dict) -> dict[str, Any]:
