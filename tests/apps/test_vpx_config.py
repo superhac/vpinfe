@@ -390,15 +390,10 @@ class WritingLikeTheProgramTests(_Case):
 
     def test_a_contextual_setting_may_be_held_at_it(self) -> None:
         """The program keeps those even when they match, so we do too."""
-        from apps.vpx.config import CONTEXTUAL
+        cleared = self.config.write(SCOPE_ENTRY, str(self.table), {KEY: "1"}, self.settings)
 
-        held = next(iter(CONTEXTUAL))
-        section, _, key = held.partition(".")
-        self.app_ini.write_text(f"{self.app_ini.read_text()}\n[{section}]\n{key} = 7\n")
-
-        self.config.write("entry", str(self.table), {held: "7"}, self.settings)
-
-        self.assertIn(key, (self.game / "MM (VPW 1.2).ini").read_text())
+        self.assertEqual(cleared, frozenset())
+        self.assertIn("BackglassOutput = 1", (self.game / "MM (VPW 1.2).ini").read_text())
 
     def test_the_application_layer_may_hold_any_value(self) -> None:
         """There is nothing above it to match, so nothing to be redundant against."""
