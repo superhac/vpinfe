@@ -135,6 +135,7 @@ class LiveInstance:
         cfg_set(store, "network", "theme_assets_port", self.ports["assets"])
         cfg_set(store, "network", "http_port", self.ports["manager"])
         cfg_set(store, "network", "ws_port", self.ports["ws"])
+        cfg_set(store, "themes", "refresh", "never")
         for (section, key), value in self.extra_settings.items():
             cfg_set(store, section, key, value)
         store.save()
@@ -217,13 +218,14 @@ class LiveInstance:
                 time.sleep(0.25)
         raise TimeoutError("VPinFE never served its api:\n" + self.output())
 
-    def output(self, tail: int = 4000) -> str:
-        """Whatever the instance has logged so far. Readable while it is still running,
-        which is the moment a test needs it."""
+    def output(self, tail: int | None = 4000) -> str:
+        """Whatever the instance has logged so far, or all of it with `tail=None`.
+        Readable while it is still running, which is the moment a test needs it."""
         path = getattr(self, "_log_path", None)
         if path is None or not path.exists():
             return ""
         with suppress(Exception):
             if self._log is not None:
                 self._log.flush()
-        return path.read_text(encoding="utf-8", errors="replace")[-tail:]
+        logged = path.read_text(encoding="utf-8", errors="replace")
+        return logged if tail is None else logged[-tail:]

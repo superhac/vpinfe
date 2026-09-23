@@ -459,7 +459,7 @@ class RenderSmokeTests(TempTree):
 
         with LiveInstance(self.root) as instance:
             asyncio.run(run(instance))
-            log = instance.output()
+            log = instance.output(tail=None)
         self.assertIn("[playfield/menu] threw", log,
                       "the fault has to name the overlay, or it reads as the theme's")
         self.assertIn("menu exploded", log)
@@ -474,7 +474,7 @@ class RenderSmokeTests(TempTree):
 
         with LiveInstance(self.root) as instance:
             asyncio.run(run(instance))
-            log = instance.output()
+            log = instance.output(tail=None)
         self.assertIn("theme exploded", log)
 
 
