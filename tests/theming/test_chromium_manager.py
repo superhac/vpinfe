@@ -204,6 +204,13 @@ class ChromiumManagerTests(unittest.TestCase):
         self.assertNotIn("--kiosk", args)
         self.assertNotIn("--disable-background-networking", args)
 
+    def test_every_window_carries_a_class_named_for_it(self) -> None:
+        for window_name in ("table", "bg", "dmd"):
+            options = chromium_manager.get_builtin_chromium_options(
+                window_name, include_default_options=False)
+            self.assertIn(f"--class=vpinfe-{window_name}", options)
+            self.assertIn(f"--window-name=vpinfe-{window_name}", options)
+
     def test_wait_ignores_exited_launcher_while_window_connected(self) -> None:
         manager = ChromiumManager()
         proc = types.SimpleNamespace(poll=mock.Mock(return_value=0), returncode=0)

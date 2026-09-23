@@ -108,6 +108,7 @@ def get_builtin_chromium_options(
     options = [
         f"--app={url}",
         f"--window-name=vpinfe-{window_name}",
+        f"--class=vpinfe-{window_name}",
         f"--window-position={x},{y}",
         f"--window-size={width},{height}",
         f"--user-data-dir={user_data_dir}",
