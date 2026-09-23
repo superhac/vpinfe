@@ -166,6 +166,42 @@
   "console.about.press_usual_copy_shortcut": "Þřèšš ţĥè ûšûàŀ çöþý šĥöřţçûţ - îţ îš àŀřèàđý šèŀèçţèđ.",
   "console.about.put_all_clipboard": "Þûţ àŀŀ öƒ îţ öñ ţĥè çŀîþƀöàřđ",
   "console.about.refresh": "Řèƒřèšĥ",
+  "console.adds.added_games": {
+    "one": "Àđđèđ ţö “{name}”",
+    "other": "Àđđèđ {count} ĝàɱèš ţö “{name}”"
+  },
+  "console.adds.added_games_held": {
+    "one": "Àđđèđ 1 ĝàɱè ţö “{name}”, {held} àŀřèàđý îñ îţ",
+    "other": "Àđđèđ {count} ĝàɱèš ţö “{name}”, {held} àŀřèàđý îñ îţ"
+  },
+  "console.adds.added_tables": {
+    "one": "Àđđèđ ţö “{name}”",
+    "other": "Àđđèđ {count} ţàƀŀèš ţö “{name}”"
+  },
+  "console.adds.added_tables_held": {
+    "one": "Àđđèđ 1 ţàƀŀè ţö “{name}”, {held} àŀřèàđý îñ îţ",
+    "other": "Àđđèđ {count} ţàƀŀèš ţö “{name}”, {held} àŀřèàđý îñ îţ"
+  },
+  "console.adds.all_held": {
+    "one": "Àŀřèàđý îñ “{name}”",
+    "other": "Àŀŀ {count} àŀřèàđý îñ “{name}”"
+  },
+  "console.adds.exception_games": {
+    "one": "Àđđèđ ţö “{name}” àš àñ èẋçèþţîöñ ţö îţš řûŀèš",
+    "other": "Àđđèđ {count} ĝàɱèš ţö “{name}” àš èẋçèþţîöñš ţö îţš řûŀèš"
+  },
+  "console.adds.exception_games_held": {
+    "one": "Àđđèđ 1 ĝàɱè ţö “{name}” àš àñ èẋçèþţîöñ ţö îţš řûŀèš, {held} àŀřèàđý îñ îţ",
+    "other": "Àđđèđ {count} ĝàɱèš ţö “{name}” àš èẋçèþţîöñš ţö îţš řûŀèš, {held} àŀřèàđý îñ îţ"
+  },
+  "console.adds.exception_tables": {
+    "one": "Àđđèđ ţö “{name}” àš àñ èẋçèþţîöñ ţö îţš řûŀèš",
+    "other": "Àđđèđ {count} ţàƀŀèš ţö “{name}” àš èẋçèþţîöñš ţö îţš řûŀèš"
+  },
+  "console.adds.exception_tables_held": {
+    "one": "Àđđèđ 1 ţàƀŀè ţö “{name}” àš àñ èẋçèþţîöñ ţö îţš řûŀèš, {held} àŀřèàđý îñ îţ",
+    "other": "Àđđèđ {count} ţàƀŀèš ţö “{name}” àš èẋçèþţîöñš ţö îţš řûŀèš, {held} àŀřèàđý îñ îţ"
+  },
   "console.api.api_answered": "Ţĥè ÀÞÎ àñšŵèřèđ {status_code}",
   "console.app_settings.edits_go": "Èđîţš ĝö ţö",
   "console.app_settings.everything_plays": "Èṽèřýţĥîñĝ {launcher_name} þŀàýš",
@@ -1141,6 +1177,8 @@
   "console.themes.updated": "Ŀàšţ Ûþđàţèđ",
   "console.themes.updated.help": "Ŵĥèñ ţĥè àûţĥöř ŀàšţ çĥàñĝèđ ţĥè řèŀèàšè ţĥîš îñšţàŀŀ ŵöûŀđ ĝèţ",
   "console.themes.version_to": "{now} → {then}",
+  "console.undo.could_not": "Çöûŀđ ñöţ ûñđö ţĥàţ: {exc}",
+  "console.undo.undone": "Ûñđöñè",
   "console.uploads.drop_could_not_read": "Ţĥàţ đřöþ çöûŀđ ñöţ ƀè řèàđ",
   "console.uploads.finish_one_already_open": "Ƒîñîšĥ ţĥè öñè àŀřèàđý öþèñ ƒîřšţ",
   "console.uploads.not_work": "Ţĥàţ đîđ ñöţ ŵöřķ",
@@ -2026,6 +2064,7 @@
   "word.status": "Šţàţûš",
   "word.table_count": "Ţàƀŀè Çöûñţ",
   "word.tutorial": "Ţûţöřîàŀ",
+  "word.undo": "Ûñđö",
   "word.unknown": "Ûñķñöŵñ",
   "word.unpin": "Ûñþîñ",
   "word.unreachable": "Ûñřèàçĥàƀŀè",

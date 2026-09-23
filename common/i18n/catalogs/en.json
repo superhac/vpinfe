@@ -166,6 +166,42 @@
   "console.about.press_usual_copy_shortcut": "Press the usual copy shortcut - it is already selected.",
   "console.about.put_all_clipboard": "Put all of it on the clipboard",
   "console.about.refresh": "Refresh",
+  "console.adds.added_games": {
+    "one": "Added to “{name}”",
+    "other": "Added {count} games to “{name}”"
+  },
+  "console.adds.added_games_held": {
+    "one": "Added 1 game to “{name}”, {held} already in it",
+    "other": "Added {count} games to “{name}”, {held} already in it"
+  },
+  "console.adds.added_tables": {
+    "one": "Added to “{name}”",
+    "other": "Added {count} tables to “{name}”"
+  },
+  "console.adds.added_tables_held": {
+    "one": "Added 1 table to “{name}”, {held} already in it",
+    "other": "Added {count} tables to “{name}”, {held} already in it"
+  },
+  "console.adds.all_held": {
+    "one": "Already in “{name}”",
+    "other": "All {count} already in “{name}”"
+  },
+  "console.adds.exception_games": {
+    "one": "Added to “{name}” as an exception to its rules",
+    "other": "Added {count} games to “{name}” as exceptions to its rules"
+  },
+  "console.adds.exception_games_held": {
+    "one": "Added 1 game to “{name}” as an exception to its rules, {held} already in it",
+    "other": "Added {count} games to “{name}” as exceptions to its rules, {held} already in it"
+  },
+  "console.adds.exception_tables": {
+    "one": "Added to “{name}” as an exception to its rules",
+    "other": "Added {count} tables to “{name}” as exceptions to its rules"
+  },
+  "console.adds.exception_tables_held": {
+    "one": "Added 1 table to “{name}” as an exception to its rules, {held} already in it",
+    "other": "Added {count} tables to “{name}” as exceptions to its rules, {held} already in it"
+  },
   "console.api.api_answered": "The API answered {status_code}",
   "console.app_settings.edits_go": "Edits go to",
   "console.app_settings.everything_plays": "Everything {launcher_name} plays",
@@ -1141,6 +1177,8 @@
   "console.themes.updated": "Last Updated",
   "console.themes.updated.help": "When the author last changed the release this install would get",
   "console.themes.version_to": "{now} → {then}",
+  "console.undo.could_not": "Could not undo that: {exc}",
+  "console.undo.undone": "Undone",
   "console.uploads.drop_could_not_read": "That drop could not be read",
   "console.uploads.finish_one_already_open": "Finish the one already open first",
   "console.uploads.not_work": "That did not work",
@@ -2026,6 +2064,7 @@
   "word.status": "Status",
   "word.table_count": "Table Count",
   "word.tutorial": "Tutorial",
+  "word.undo": "Undo",
   "word.unknown": "Unknown",
   "word.unpin": "Unpin",
   "word.unreachable": "Unreachable",

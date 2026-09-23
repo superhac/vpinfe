@@ -42,6 +42,7 @@ from common.media_specs import media_family, media_label_map
 from common.online import vps_kinds
 from console import (
     candidates,
+    collection_adds,
     collection_rules,
     confirm,
     deeplink,
@@ -2230,12 +2231,8 @@ def _add_to_collection(context: dict[str, Any], offered: list[str], *,
     library, game_id = context["library"], context["game_id"]
 
     async def add(name: str) -> None:
-        try:
-            await run.io_bound(library.add_to_collection, name, game_id)
-        except Exception as exc:  # noqa: BLE001
-            ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
-            return
-        await context["rebuild"]()
+        await collection_adds.add(library, name, [collection_adds.Row(game_id)],
+                                  then=partial(_game_redrawn, context))
 
     button = ui.button(t("console.workbench.add_to_collection"), icon=verbs.ADD_TO_LIST) \
         .props("flat dense no-caps size=sm").classes("console-action")
@@ -2248,6 +2245,20 @@ def _add_to_collection(context: dict[str, Any], offered: list[str], *,
         for name in offered:
             ui.menu_item(name, on_click=lambda _e=None, name=name: add(name)) \
                 .classes("console-menu-item")
+
+
+async def _game_redrawn(context: dict[str, Any]) -> None:
+    """The panel redrawn if it still shows this game, and the grid's row either way. Run
+    again by an Undo, when the panel may have moved on."""
+    state, game_id = context["state"], context["game_id"]
+    if state.get("view") not in ("games", "tables"):
+        return
+    if state.get("game") == game_id:
+        await context["rebuild"]()
+        return
+    refresh = state.get("refresh_game")
+    if callable(refresh):
+        await refresh(game_id)
 
 
 def _rule_sheet(context: dict[str, Any]) -> dict[str, Any]:
@@ -4882,6 +4893,18 @@ async def _written(context: dict[str, Any], name: str = "") -> None:
     await context["rebuild"]()
 
 
+async def _collection_redrawn(context: dict[str, Any], name: str) -> None:
+    """The panel redrawn if it still shows `name`, and the grid's counts either way. Run
+    again by an Undo, when the panel may have moved on."""
+    state = context["state"]
+    if state.get("collection") == name and state.get("view") == "collections":
+        await _written(context)
+        return
+    reread = state.get("refresh_collections")
+    if callable(reread) and state.get("view") == "collections":
+        await reread()
+
+
 def _games_label(context: dict[str, Any]) -> str:
     got = (context.get("membership") or {}).get("playable")
     return t("console.workbench.games") if got is None \
@@ -5749,15 +5772,13 @@ def _add_control(context: dict[str, Any], members: list[dict]) -> None:
     async def add() -> None:
         if not picker.value:
             return
-        library = context["library"]
-        try:
-            await run.io_bound(library.add_to_collection,
-                               _collection(context)["name"], picker.value)
-        except Exception as exc:
-            ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
-            return
-        state["add_again"] = _collection(context)["name"]
-        await _written(context)
+        name = _collection(context)["name"]
+        state["add_again"] = name
+        done = await collection_adds.add(context["library"], name,
+                                         [collection_adds.Row(str(picker.value))],
+                                         then=partial(_collection_redrawn, context, name))
+        if done is None:
+            state.pop("add_again", None)
 
     picker.on_value_change(add)
     ui.run_javascript(_ADD_BOX % (picker.id, "true" if again else "false"))
