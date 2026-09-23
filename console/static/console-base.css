@@ -1825,25 +1825,37 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
    on where there is a pointer to hover with. It keeps its room either way, so the names
    do not move. */
 @media (hover: hover) and (pointer: fine) {
-  .ag-row:not(:hover):not(:focus-within) .ag-drag-handle { opacity: 0; }
+  .ag-row:not(.ag-row-hover):not(.ag-row-focus) .ag-drag-handle { opacity: 0; }
 }
-/* Several rows on the move: the one held, with the count on its corner. Drawn off
-   screen, where the browser takes the picture it drags. */
+/* What a drag carries, by name, with the count when several go. Drawn off screen, where
+   the browser takes the picture it drags. */
 .console-drag-image {
   position: fixed; top: -1000px; left: 0;
-  padding: 6px; border-radius: 6px; background: var(--surface-2);
+  display: inline-flex; align-items: center; gap: 8px; max-width: 280px;
+  padding: 6px 10px 6px 12px; border-radius: 8px;
+  background: var(--surface-2); border: 1px solid var(--accent); color: var(--ink);
+  font-size: var(--fs-body); box-shadow: var(--shadow-drag);
 }
+.console-drag-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .console-drag-count {
-  position: absolute; top: -2px; right: -2px;
-  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+  flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
   background: var(--accent); color: var(--surface-0);
   font-size: var(--fs-caption); line-height: 20px; text-align: center;
 }
-/* Where a drop lands in a list kept in its own order. */
+/* The collection a drag is over. */
+.console-drop-hot { outline: 2px solid var(--accent); outline-offset: -2px; }
+.console-drop-target.console-drop-hot { background: var(--drop-lit); color: var(--ink); }
+/* Where a drop lands in the list, laid over its rows. */
+.console-member-list { position: relative; }
 .console-drop-line {
-  position: relative; z-index: 1; align-self: stretch;
-  height: 2px; margin: -1px 0; border-radius: 1px;
+  position: absolute; left: 6px; right: 0; z-index: 2;
+  height: 3px; margin-top: -1px; border-radius: 2px;
   background: var(--accent); pointer-events: none;
+}
+.console-drop-line::before {
+  content: ""; position: absolute; left: -6px; top: -3px;
+  width: 9px; height: 9px; box-sizing: border-box; border-radius: 50%;
+  border: 2px solid var(--accent); background: var(--surface-1);
 }
 /* The collections the rail opens into while rows are being dragged, under its
    Collections entry. Names keep their own casing: these are not destinations. */

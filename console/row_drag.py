@@ -21,10 +21,12 @@ DROPPED = "hub_rows_dropped"
 DRAGGED = "hub_rows_dragged"
 
 # On an element a drop can land on: the collection it adds to. Inside it, LIST marks the
-# list whose rows a drop lands between, and PLACED on that list says the place is kept.
+# list whose rows a drop lands between, PLACED on that list says the place is kept, and
+# END says a drop elsewhere lands at its end.
 TARGET = "data-drop-collection"
 LIST = "data-drop-list"
 PLACED = "data-drop-at"
+END = "data-drop-end"
 
 
 def source(what: str) -> dict[str, Any]:
@@ -47,29 +49,27 @@ if (!window.__hubRowDrop) {
     const address = (row) => location.origin + '/console?' + new URLSearchParams(
       what === 'tables' ? {view: 'tables', game: row.game, table: row.table}
                         : {view: 'games', game: row.game}).toString();
+    const names = nodes.map(node => node.data.name || node.data.game || '');
     const moving = params.dragEvent.dataTransfer;
     moving.effectAllowed = 'copy';
     moving.setData(TYPE, rows.map(address).join('\r\n'));
     moving.setData('application/json', JSON.stringify({from: location.origin, rows: rows}));
-    moving.setData('text/plain', nodes.map(node => node.data.name || node.data.game || '')
-                                      .join('\n'));
+    moving.setData('text/plain', names.join('\n'));
+    const image = document.createElement('div');
+    image.className = 'console-drag-image';
+    const name = document.createElement('span');
+    name.className = 'console-drag-name';
+    name.textContent = names[Math.max(0, nodes.indexOf(params.rowNode))];
+    image.appendChild(name);
     if (nodes.length > 1) {
-      const cell = params.dragEvent.target.closest('.ag-cell');
-      const image = document.createElement('div');
-      image.className = 'console-drag-image';
-      if (cell) {
-        const copy = cell.cloneNode(true);
-        copy.style.width = cell.offsetWidth + 'px';
-        image.appendChild(copy);
-      }
       const count = document.createElement('span');
       count.className = 'console-drag-count';
       count.textContent = String(nodes.length);
       image.appendChild(count);
-      document.body.appendChild(image);
-      moving.setDragImage(image, 12, 12);
-      setTimeout(() => image.remove());
     }
+    document.body.appendChild(image);
+    moving.setDragImage(image, 16, 16);
+    setTimeout(() => image.remove());
     const entry = document.querySelector('a.console-nav-row[href="/console?view=collections"]');
     const drawer = document.querySelector('.q-drawer');
     if (entry && drawer) {
@@ -99,64 +99,103 @@ if (!window.__hubRowDrop) {
     return {rows: rows, foreign: foreign};
   };
 
-  const carries = (event) => event.dataTransfer
-    && Array.from(event.dataTransfer.types || []).includes(TYPE);
+  const carries = (event) => {
+    const types = Array.from((event.dataTransfer && event.dataTransfer.types) || []);
+    return types.includes(TYPE) && !types.includes('Files');
+  };
 
-  let lit = null, line = null;
+  // The collection a drop here adds to. Anywhere in a collection's panel is that
+  // collection, its header included; in the rail each collection is its own.
+  const zoneAt = (el) => {
+    if (!el || !el.closest) return null;
+    const own = el.closest('[data-drop-collection]');
+    if (own) return own;
+    const panel = el.closest('.console-workbench');
+    return panel ? panel.querySelector('[data-drop-collection]') : null;
+  };
+  const ringOf = (zone) => zone.closest('.console-workbench') || zone;
+
+  // Where a drop at this height lands: between two rows over a list that keeps a place,
+  // at the end of a list in Custom Order from anywhere else, and null where the order
+  // decides and there is nothing to show.
+  const placing = (zone, y) => {
+    const list = zone.querySelector('[data-drop-list]');
+    if (!list) return null;
+    const rows = [...list.querySelectorAll('.console-member-row')];
+    if (!rows.length) return null;
+    const box = list.getBoundingClientRect();
+    if (list.hasAttribute('data-drop-at') && y >= box.top && y <= box.bottom) {
+      const at = rows.findIndex(row => {
+        const edge = row.getBoundingClientRect();
+        return y < edge.top + edge.height / 2;
+      });
+      return {list: list, rows: rows, at: at < 0 ? rows.length : at};
+    }
+    return list.hasAttribute('data-drop-end') ? {list: list, rows: rows, at: null} : null;
+  };
+
+  let ring = null, line = null, quiet = 0;
   const clear = () => {
-    if (lit) lit.classList.remove('console-drop-lit');
-    lit = null;
+    clearTimeout(quiet);
+    if (ring) ring.classList.remove('console-drop-hot');
+    ring = null;
     if (line) line.remove();
     line = null;
   };
 
-  // Where in a list a drop lands: before the first row whose middle is below the
-  // pointer, or after the last.
-  const placeIn = (list, y) => {
-    const rows = [...list.querySelectorAll('.console-member-row')];
-    const at = rows.findIndex(row => {
-      const box = row.getBoundingClientRect();
-      return y < box.top + box.height / 2;
-    });
-    return {rows: rows, at: at < 0 ? rows.length : at};
+  const show = (zone, y) => {
+    const lit = ringOf(zone);
+    if (ring !== lit) { clear(); ring = lit; ring.classList.add('console-drop-hot'); }
+    clearTimeout(quiet);
+    quiet = setTimeout(clear, 1000);
+    const where = placing(zone, y);
+    if (!where) { if (line) line.remove(); line = null; return; }
+    const last = where.rows[where.rows.length - 1];
+    const top = where.at === null || where.at >= where.rows.length
+      ? last.offsetTop + last.offsetHeight : where.rows[where.at].offsetTop;
+    if (!line) { line = document.createElement('div'); line.className = 'console-drop-line'; }
+    if (line.parentElement !== where.list) where.list.appendChild(line);
+    line.style.top = top + 'px';
   };
 
+  // Refused anywhere that is not a collection.
   document.addEventListener('dragover', (event) => {
-    const zone = event.target.closest && event.target.closest('[data-drop-collection]');
-    if (!zone || !carries(event)) return;
+    if (!carries(event)) return;
     event.preventDefault();
-    event.dataTransfer.dropEffect = 'copy';
-    if (lit !== zone) { clear(); lit = zone; zone.classList.add('console-drop-lit'); }
-    const list = zone.querySelector('[data-drop-list][data-drop-at]');
-    if (!list) return;
-    const {rows, at} = placeIn(list, event.clientY);
-    if (!line) { line = document.createElement('div'); line.className = 'console-drop-line'; }
-    if (at < rows.length) rows[at].before(line);
-    else if (rows.length) rows[rows.length - 1].after(line);
+    const zone = zoneAt(event.target);
+    event.dataTransfer.dropEffect = zone ? 'copy' : 'none';
+    if (zone) show(zone, event.clientY);
+    else clear();
   }, true);
+
+  const inside = (el, event) => {
+    const box = el.getBoundingClientRect();
+    return event.clientX > box.left && event.clientX < box.right
+      && event.clientY > box.top && event.clientY < box.bottom;
+  };
 
   document.addEventListener('dragleave', (event) => {
-    if (!lit) return;
+    if (!ring) return;
     const into = event.relatedTarget;
-    if (into && lit.contains(into)) return;
+    if (into ? ring.contains(into) : inside(ring, event)) return;
     clear();
   }, true);
 
-  // Captured and stopped here, so a drop on a collection never reaches the handler
-  // for dropped files, which would call it an empty drop.
+  // Captured and stopped here, so a row drop never reaches the handler for dropped
+  // files, which would call it an empty drop.
   document.addEventListener('drop', (event) => {
-    const zone = event.target.closest && event.target.closest('[data-drop-collection]');
-    if (!zone || !carries(event)) return;
+    if (!carries(event)) return;
     event.preventDefault();
     event.stopPropagation();
-    const list = zone.querySelector('[data-drop-list][data-drop-at]');
-    const at = list ? placeIn(list, event.clientY).at : null;
+    const zone = zoneAt(event.target);
+    const where = zone ? placing(zone, event.clientY) : null;
     clear();
     document.body.classList.remove('console-dragging-rows');
+    if (!zone) return;
     const {rows, foreign} = readRows(event.dataTransfer);
     if (!rows.length && !foreign) return;
     emitEvent('__DROPPED__', {collection: zone.getAttribute('data-drop-collection'),
-                              at: at, rows: rows, foreign: foreign});
+                              at: where ? where.at : null, rows: rows, foreign: foreign});
   }, true);
 
   document.addEventListener('dragend', () => {

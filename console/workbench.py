@@ -1303,7 +1303,9 @@ async def _rail(context: dict[str, Any], subject: str,
         section = rows[0].key if rows else COLLAPSED
     body = None
     open_item = next((item for item in rows if item.key == section), None)
-    with ui.element("div").classes("w-full grow min-h-0 console-sections"):
+    with ui.element("div").classes("w-full grow min-h-0 console-sections") as sections:
+        if subject == "collection":
+            sections._props[row_drag.TARGET] = context["collection"]["name"]
         # The rows are their own region so they can scroll without taking the work with
         # them. A rail longer than the panel is the ordinary case for a device, and one
         # that moves what you are reading is the wrong half to move.
@@ -4913,8 +4915,7 @@ async def _collection_games(context: dict[str, Any]) -> None:
     if not held and not _is_dynamic(row) and not _drafting(context):
         _empty_fork(context)
         return
-    with ui.column().classes("gap-0 w-full min-w-0") as zone:
-        zone._props[row_drag.TARGET] = row["name"]
+    with ui.column().classes("gap-0 w-full min-w-0"):
         _rules_block(context, row)
         _order_bar(context, row)
         _add_control(context, held)
@@ -4924,8 +4925,7 @@ async def _collection_games(context: dict[str, Any]) -> None:
 
 
 def _empty_fork(context: dict[str, Any]) -> None:
-    with ui.column().classes("gap-2 w-full min-w-0 py-2") as zone:
-        zone._props[row_drag.TARGET] = _collection(context)["name"]
+    with ui.column().classes("gap-2 w-full min-w-0 py-2"):
         ui.label(t("console.workbench.nothing_in_it_yet")).classes("console-empty-title")
         _add_control(context, [])
         with ui.row().classes("items-center gap-2 no-wrap"):
@@ -5395,6 +5395,9 @@ def _games_list(context: dict[str, Any], row: dict[str, Any]) -> None:
         listed._props[row_drag.LIST] = True
         if arrange:
             listed._props[row_drag.PLACED] = True
+        if live and not _is_dynamic(row) and not find \
+                and (row.get("order_by") or "") == MANUAL_ORDER:
+            listed._props[row_drag.END] = True
         cut = False
         for member in kept:
             if member.get("past_limit") and not cut:

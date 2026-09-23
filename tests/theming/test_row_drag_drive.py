@@ -1,6 +1,7 @@
 """Rows dragged from the Games and Tables grids onto a collection, in a real browser: what
-a drag carries, a drop at a place in a collection's list, the rail's collections while
-rows are dragged, and a drop from another install refused.
+a drag carries and shows, the grip that starts it, a drop at a place in a collection's list
+or anywhere else in its panel, the rail's collections while rows are dragged, and drops
+refused - outside a collection, or from another install.
 
 The drag is started for real and intercepted, and its data dropped where the test says,
 which is how a drop from another window arrives. Slow: boots a real instance and a real
@@ -24,7 +25,8 @@ from tests.support.live_instance import LiveInstance
 HAND = "Hand Picked"
 SMART = "Smart Bally"
 GAMES = {"Alpha": ("Bally", "1992"), "Bravo": ("Bally", "1995"),
-         "Charlie": ("Williams", "1993"), "Delta": ("Williams", "1980")}
+         "Charlie": ("Williams", "1993"), "Delta": ("Williams", "1980"),
+         "Echo": ("Williams", "2005"), "Foxtrot": ("Stern", "1999")}
 
 API = ("(() => { const el = document.querySelector('.ag-root-wrapper')"
        ".closest('.nicegui-aggrid'); return getElement(Number(el.id.slice(1))).api; })()")
@@ -39,6 +41,22 @@ RAIL = ("[...document.querySelectorAll('.console-rail-drops .console-drop-target
 LINE = ("(() => { const line = document.querySelector('.console-drop-line');"
         " return line ? [line.getBoundingClientRect().width,"
         " line.parentElement.getBoundingClientRect().width] : null; })()")
+ELSEWHERE_IN_ROW = ("(() => { const id = %s;"
+                    " const home = document.querySelector(`.ag-row[row-id=\"${id}\"]"
+                    " .ag-drag-handle`).closest('.ag-row');"
+                    " const other = [...document.querySelectorAll(`.ag-row[row-id=\"${id}\"]`)]"
+                    ".find(row => row !== home);"
+                    " const box = other.querySelector('.ag-cell').getBoundingClientRect();"
+                    " return [box.left + box.width / 2, box.top + box.height / 2]; })()")
+RING = ("(() => { const panel = document.querySelector('.console-workbench');"
+        " return [panel.classList.contains('console-drop-hot'),"
+        " getComputedStyle(panel).outlineStyle]; })()")
+TOPS = ("[...document.querySelectorAll('[data-drop-list] .console-member-row')]"
+        ".map(row => Math.round(row.getBoundingClientRect().top))")
+LINE_AT = ("(() => { const line = document.querySelector('.console-drop-line');"
+           " const rows = [...document.querySelectorAll('[data-drop-list] .console-member-row')];"
+           " return line ? [Math.round(line.getBoundingClientRect().top),"
+           " Math.round(rows[rows.length - 1].getBoundingClientRect().bottom)] : null; })()")
 
 
 class RowDragDrive(unittest.TestCase):
@@ -149,6 +167,29 @@ class RowDragDrive(unittest.TestCase):
             await browser.wait_for(API + ".getDisplayedRowCount() > 0", timeout=90.0)
             await settled()
 
+            await browser.evaluate(
+                "(() => { const real = DataTransfer.prototype.setDragImage;"
+                " DataTransfer.prototype.setDragImage = function (el, x, y) {"
+                " window.__dragImage = el.innerText; return real.call(this, el, x, y); };"
+                " })()")
+            pinned = ".applyColumnState({state: [{colId: 'ag-Grid-SelectionColumn', pinned: %s}]})"
+            await browser.evaluate(API + pinned % "'left'")
+            await asyncio.sleep(0.3)
+            x, y = await browser.evaluate(ELSEWHERE_IN_ROW % json.dumps("echo"))
+            await browser.send("Input.dispatchMouseEvent",
+                               {"type": "mouseMoved", "x": x, "y": y, "button": "none"})
+            await asyncio.sleep(0.3)
+            seen["grip_from_elsewhere_in_row"] = await browser.evaluate(
+                "getComputedStyle(document.querySelector("
+                "'.ag-row[row-id=\"echo\"] .ag-drag-handle')).opacity")
+            await browser.evaluate(API + pinned % "null")
+            await asyncio.sleep(0.3)
+            lone = await grab("echo", "name")
+            seen["image"] = await browser.evaluate("window.__dragImage")
+            await let_go(lone)
+            spare = await grab("foxtrot", "name")
+            await let_go(spare)
+
             for game in ("alpha", "delta"):
                 await browser.evaluate(API + f".getRowNode('{game}').setSelected(true)")
             both = await grab("delta", "name")
@@ -196,6 +237,45 @@ class RowDragDrive(unittest.TestCase):
             await settled()
             seen["table_refs"] = refs(HAND)
 
+            async def hover(data: dict, x: float, y: float) -> None:
+                for kind in ("dragEnter", "dragOver", "dragOver"):
+                    await browser.send("Input.dispatchDragEvent",
+                                       {"type": kind, "x": x, "y": y, "data": data})
+                    await asyncio.sleep(0.15)
+
+            await browser.evaluate(
+                "document.addEventListener('dragover', event => { window.__over ="
+                " [event.defaultPrevented, event.dataTransfer.dropEffect]; }); true")
+            x, y, _top, _height = await browser.evaluate(
+                BOX % json.dumps(".console-section-hit"))
+            await hover(lone, x, y)
+            seen["ringed_from_rail"] = await browser.evaluate(RING)
+            x, _y, top, height = await browser.evaluate(BOX % json.dumps("[data-drop-list]"))
+            still = await browser.evaluate(TOPS)
+            await hover(lone, x, top + height + 40)
+            seen["line_at_end"] = await browser.evaluate(LINE_AT)
+            seen["rows_moved"] = still != await browser.evaluate(TOPS)
+            await browser.send("Input.dispatchDragEvent",
+                               {"type": "drop", "x": x, "y": top + height + 40, "data": lone})
+            for _ in range(40):
+                seen["appended"] = refs(HAND)
+                if any(game == "echo" for game, _t, _o in seen["appended"]):
+                    break
+                await asyncio.sleep(0.25)
+            await settled()
+
+            x, y, _top, _height = await browser.evaluate(
+                BOX % json.dumps("a.console-nav-row"))
+            await hover(spare, x, y)
+            seen["outside"] = await browser.evaluate("window.__over")
+            seen["ring_outside"] = await browser.evaluate(RING)
+            await browser.send("Input.dispatchDragEvent",
+                               {"type": "drop", "x": x, "y": y, "data": spare})
+            await asyncio.sleep(1.5)
+            seen["after_outside_drop"] = refs(HAND)
+            zone = "[data-drop-collection]"
+            x, y, _top, _height = await browser.evaluate(BOX % json.dumps(zone))
+
             elsewhere = {"items": [{"mimeType": "text/uri-list",
                                     "data": "http://elsewhere.example:8001/console?view=games"
                                             "&game=bravo"}], "dragOperationsMask": 1}
@@ -224,7 +304,29 @@ class RowDragDrive(unittest.TestCase):
     def test_the_line_showing_where_a_drop_goes_spans_the_list(self) -> None:
         drawn, across = self.seen["lines"][1]
         self.assertGreater(drawn, 0)
-        self.assertEqual(across, drawn)
+        self.assertGreaterEqual(drawn, across - 8)
+
+    def test_the_grip_shows_whichever_part_of_the_row_is_hovered(self) -> None:
+        self.assertEqual("1", self.seen["grip_from_elsewhere_in_row"])
+
+    def test_a_single_row_drags_as_its_name(self) -> None:
+        self.assertEqual("Echo", self.seen["image"])
+
+    def test_the_whole_panel_is_ringed_while_a_drag_is_over_it(self) -> None:
+        self.assertEqual([True, "solid"], self.seen["ringed_from_rail"])
+
+    def test_a_drop_beside_the_list_lands_at_its_end_and_nothing_moves_meanwhile(self) -> None:
+        line_top, last_bottom = self.seen["line_at_end"]
+        self.assertLessEqual(abs(line_top - last_bottom), 3)
+        self.assertFalse(self.seen["rows_moved"])
+        order = [game for game, _t, origin in self.seen["appended"] if origin == "named"]
+        self.assertEqual("echo", order[-1])
+
+    def test_a_drag_outside_any_collection_is_refused_rather_than_left_to_the_browser(
+            self) -> None:
+        self.assertEqual([True, "none"], self.seen["outside"])
+        self.assertEqual([False, "none"], self.seen["ring_outside"])
+        self.assertNotIn("foxtrot", [game for game, _t, _o in self.seen["after_outside_drop"]])
 
     def test_a_drop_in_a_list_kept_in_its_order_lands_where_it_was_let_go(self) -> None:
         order = [game for game, _t, origin in self.seen["placed"] if origin == "named"]
