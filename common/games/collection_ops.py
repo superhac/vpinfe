@@ -119,6 +119,9 @@ def _resource_for(row: dict) -> dict:
             "rating_or_higher": str(raw.get("rating_or_higher", "false")).lower()
             in ("1", "true", "yes", "on"),
             "played": None if raw.get("played") is None else is_truthy(raw["played"]),
+            "favorite": None if raw.get("favorite") is None
+            else is_truthy(raw["favorite"]),
+            "tags": _many_out(raw.get("tags", "All")),
             "order_by": order["by"],
             "direction": order["direction"],
         }

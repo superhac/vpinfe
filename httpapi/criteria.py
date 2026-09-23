@@ -29,4 +29,4 @@ def criteria_for(f: Any) -> dict:
             "manufacturer": many_in(f.manufacturer), "year": many_in(f.year),
             "rating": f.rating,
             "rating_or_higher": "true" if f.rating_or_higher else "false",
-            "played": f.played}
+            "played": f.played, "favorite": f.favorite, "tags": many_in(f.tags)}

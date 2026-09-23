@@ -14,6 +14,7 @@ from unittest.mock import patch
 from starlette.testclient import TestClient
 
 import httpapi
+from common.games import collection_filters as cf
 from common.games.collection_store import CollectionStore
 from tests.support.library import TempTree, fake_game, write_game
 
@@ -54,15 +55,15 @@ class CollectionsApiTests(TempTree):
 
     def test_a_manual_collection_is_created_with_its_members(self) -> None:
         response = self.client.post("/collections",
-                                    json={"name": "Favourites", "games": [GAME_ID]})
+                                    json={"name": "Favorites", "games": [GAME_ID]})
 
         self.assertEqual(response.status_code, 201)
         body = response.json()
         self.assertEqual(body["type"], "manual")
         self.assertEqual(body["game_count"], 1)
         self.assertIsNone(body["filters"])
-        self.assertEqual(response.headers["Location"], "/api/v1/collections/Favourites")
-        self.assertEqual(self.manager.get_members("Favourites"), [GAME_ID])
+        self.assertEqual(response.headers["Location"], "/api/v1/collections/Favorites")
+        self.assertEqual(self.manager.get_members("Favorites"), [GAME_ID])
 
     def test_a_filter_collection_keeps_its_criteria(self) -> None:
         response = self.client.post("/collections", json={
@@ -78,6 +79,22 @@ class CollectionsApiTests(TempTree):
         self.assertEqual(body["filters"]["year"], ["1977"])
         self.assertEqual(body["game_count"], 0,
                          "the stored member list, which criteria do not replace")
+
+    def test_every_axis_the_registry_declares_survives_the_wire(self) -> None:
+        samples = {"letter": ["C"], "choice": ["Bally"], "rating": "3", "flag": True}
+        for axis in cf.AXES:
+            with self.subTest(axis=axis.name):
+                sent = True if axis.name == "rating_or_higher" else samples[axis.kind]
+                name = f"Rule {axis.name}"
+                body = self.client.post("/collections", json={
+                    "name": name, "filters": {axis.name: sent}}).json()
+
+                stored = self.manager.get_filters(name) or {}
+                kept = [value for key, value in stored.items()
+                        if cf.canonical_axis(key) == axis.name
+                        and str(value).lower() not in ("", "all", "none", "false")]
+                self.assertTrue(kept, stored)
+                self.assertEqual(body["filters"][axis.name], sent)
 
     def test_the_reported_sort_is_the_one_the_collection_resolves_by(self) -> None:
         """Read off the `order` block, not the criteria: those carry a default for every
@@ -124,9 +141,9 @@ class CollectionsApiTests(TempTree):
         self.assertNotIn("Bad", self.manager.get_collections_name())
 
     def test_a_duplicate_name_conflicts(self) -> None:
-        self.client.post("/collections", json={"name": "Favourites"})
+        self.client.post("/collections", json={"name": "Favorites"})
 
-        response = self.client.post("/collections", json={"name": "Favourites"})
+        response = self.client.post("/collections", json={"name": "Favorites"})
 
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["error"]["code"], "conflict")
@@ -138,25 +155,25 @@ class CollectionsApiTests(TempTree):
     # --- membership -----------------------------------------------------
 
     def test_adding_and_removing_a_member(self) -> None:
-        self.client.post("/collections", json={"name": "Favourites"})
+        self.client.post("/collections", json={"name": "Favorites"})
 
-        added = self.client.put(f"/collections/Favourites/games/{GAME_ID}")
+        added = self.client.put(f"/collections/Favorites/games/{GAME_ID}")
         self.assertEqual(added.status_code, 204)
-        self.assertEqual(self.manager.get_members("Favourites"), [GAME_ID])
+        self.assertEqual(self.manager.get_members("Favorites"), [GAME_ID])
 
-        removed = self.client.delete(f"/collections/Favourites/games/{GAME_ID}")
+        removed = self.client.delete(f"/collections/Favorites/games/{GAME_ID}")
         self.assertEqual(removed.status_code, 204)
-        self.assertEqual(self.manager.get_members("Favourites"), [])
+        self.assertEqual(self.manager.get_members("Favorites"), [])
 
     def test_adding_a_member_twice_is_a_success(self) -> None:
         """The caller's intent is that it be in there; it is."""
-        self.client.post("/collections", json={"name": "Favourites"})
-        self.client.put(f"/collections/Favourites/games/{GAME_ID}")
+        self.client.post("/collections", json={"name": "Favorites"})
+        self.client.put(f"/collections/Favorites/games/{GAME_ID}")
 
-        again = self.client.put(f"/collections/Favourites/games/{GAME_ID}")
+        again = self.client.put(f"/collections/Favorites/games/{GAME_ID}")
 
         self.assertEqual(again.status_code, 204)
-        self.assertEqual(self.manager.get_members("Favourites"), [GAME_ID])
+        self.assertEqual(self.manager.get_members("Favorites"), [GAME_ID])
 
     def test_a_collection_that_filters_can_still_be_added_to(self) -> None:
         """A named member states what the collection holds for that game whether or not
@@ -170,30 +187,30 @@ class CollectionsApiTests(TempTree):
         self.assertEqual(self.manager.get_members("Smart"), [GAME_ID])
 
     def test_membership_of_an_unknown_game_or_collection_is_not_found(self) -> None:
-        self.client.post("/collections", json={"name": "Favourites"})
+        self.client.post("/collections", json={"name": "Favorites"})
 
         self.assertEqual(
-            self.client.put("/collections/Favourites/games/nope").status_code, 404)
+            self.client.put("/collections/Favorites/games/nope").status_code, 404)
         self.assertEqual(
             self.client.put(f"/collections/Nope/games/{GAME_ID}").status_code, 404)
 
     def test_removing_a_game_that_is_not_a_member_is_not_found(self) -> None:
-        self.client.post("/collections", json={"name": "Favourites"})
+        self.client.post("/collections", json={"name": "Favorites"})
 
-        response = self.client.delete(f"/collections/Favourites/games/{GAME_ID}")
+        response = self.client.delete(f"/collections/Favorites/games/{GAME_ID}")
 
         self.assertEqual(response.status_code, 404)
 
     # --- reading and deleting -------------------------------------------
 
     def test_listing_and_fetching(self) -> None:
-        self.client.post("/collections", json={"name": "Favourites"})
+        self.client.post("/collections", json={"name": "Favorites"})
 
         listed = self.client.get("/collections").json()["collections"]
-        one = self.client.get("/collections/Favourites").json()
+        one = self.client.get("/collections/Favorites").json()
 
-        self.assertEqual([row["name"] for row in listed], ["Favourites"])
-        self.assertEqual(one["links"]["games"], "/api/v1/collections/Favourites/games")
+        self.assertEqual([row["name"] for row in listed], ["Favorites"])
+        self.assertEqual(one["links"]["games"], "/api/v1/collections/Favorites/games")
 
     def test_resolved_membership_answers_for_both_kinds(self) -> None:
         self.client.post("/collections", json={"name": "Manual", "games": [GAME_ID]})
@@ -209,12 +226,12 @@ class CollectionsApiTests(TempTree):
                          "the filter resolves against the library, not a stored list")
 
     def test_deleting_a_collection(self) -> None:
-        self.client.post("/collections", json={"name": "Favourites"})
+        self.client.post("/collections", json={"name": "Favorites"})
 
-        response = self.client.delete("/collections/Favourites")
+        response = self.client.delete("/collections/Favorites")
 
         self.assertEqual(response.status_code, 204)
-        self.assertNotIn("Favourites", self.manager.get_collections_name())
+        self.assertNotIn("Favorites", self.manager.get_collections_name())
 
     def test_an_unknown_collection_is_a_not_found_envelope(self) -> None:
         response = self.client.get("/collections/Nope")
@@ -352,17 +369,17 @@ class MemberTableTests(TempTree):
 
         self.client = TestClient(httpapi.create_api_app(),
                                  raise_server_exceptions=False)
-        self.client.post("/collections", json={"name": "Favourites"})
+        self.client.post("/collections", json={"name": "Favorites"})
 
     def _refs(self) -> list[dict]:
-        return self.manager.get_member_refs("Favourites")
+        return self.manager.get_member_refs("Favorites")
 
     def test_a_member_keeps_its_place_when_its_table_changes(self) -> None:
         """The reason this is a route and not remove-then-add: curated order is what a
         manual collection is for, and rebuilding the ref sends that row to the end."""
-        self.client.put(f"/collections/Favourites/games/{TABLED_ID}")
+        self.client.put(f"/collections/Favorites/games/{TABLED_ID}")
 
-        response = self.client.put(f"/collections/Favourites/games/{TABLED_ID}/table",
+        response = self.client.put(f"/collections/Favorites/games/{TABLED_ID}/table",
                                    json={"table": "tbl0000002"})
 
         self.assertEqual(response.status_code, 204)
@@ -371,10 +388,10 @@ class MemberTableTests(TempTree):
 
     def test_a_member_can_be_handed_back_its_game_default(self) -> None:
         """The return trip, which is what makes the control reversible."""
-        self.client.put(f"/collections/Favourites/games/{TABLED_ID}",
+        self.client.put(f"/collections/Favorites/games/{TABLED_ID}",
                         json={"table": "tbl0000001"})
 
-        response = self.client.put(f"/collections/Favourites/games/{TABLED_ID}/table",
+        response = self.client.put(f"/collections/Favorites/games/{TABLED_ID}/table",
                                    json={"table": "", "was": "tbl0000001"})
 
         self.assertEqual(response.status_code, 204)
@@ -384,9 +401,9 @@ class MemberTableTests(TempTree):
     def test_naming_a_table_of_some_other_game_is_refused(self) -> None:
         """A ref pointing at a table this game has not got resolves to nothing and
         reads as missing for good, so it is refused rather than stored."""
-        self.client.put(f"/collections/Favourites/games/{TABLED_ID}")
+        self.client.put(f"/collections/Favorites/games/{TABLED_ID}")
 
-        response = self.client.put(f"/collections/Favourites/games/{TABLED_ID}/table",
+        response = self.client.put(f"/collections/Favorites/games/{TABLED_ID}/table",
                                    json={"table": "somebody-elses"})
 
         self.assertEqual(response.status_code, 404)
@@ -400,10 +417,10 @@ class MemberTableTests(TempTree):
         holding two tables of a game.
         """
         for table in ("tbl0000001", "tbl0000002"):
-            self.client.put(f"/collections/Favourites/games/{TABLED_ID}",
+            self.client.put(f"/collections/Favorites/games/{TABLED_ID}",
                             json={"table": table})
 
-        response = self.client.put("/collections/Favourites/order",
+        response = self.client.put("/collections/Favorites/order",
                                    json={"games": [TABLED_ID, TABLED_ID]})
 
         self.assertEqual(response.status_code, 204)
@@ -416,10 +433,10 @@ class MemberTableTests(TempTree):
         """Naming it once would drop the other ref, which is the silent removal the
         route exists to refuse."""
         for table in ("tbl0000001", "tbl0000002"):
-            self.client.put(f"/collections/Favourites/games/{TABLED_ID}",
+            self.client.put(f"/collections/Favorites/games/{TABLED_ID}",
                             json={"table": table})
 
-        response = self.client.put("/collections/Favourites/order",
+        response = self.client.put("/collections/Favorites/order",
                                    json={"games": [TABLED_ID]})
 
         self.assertEqual(response.status_code, 400)
@@ -429,18 +446,18 @@ class MemberTableTests(TempTree):
         """A conflict, not a merge. The collection holds the pairing once (2.10), and
         merging would drop a row without anything on the wire saying which."""
         for table in ("tbl0000001", "tbl0000002"):
-            self.client.put(f"/collections/Favourites/games/{TABLED_ID}",
+            self.client.put(f"/collections/Favorites/games/{TABLED_ID}",
                             json={"table": table})
 
         response = self.client.put(
-            f"/collections/Favourites/games/{TABLED_ID}/table",
+            f"/collections/Favorites/games/{TABLED_ID}/table",
             json={"table": "tbl0000002", "was": "tbl0000001"})
 
         self.assertEqual(response.status_code, 409)
         self.assertEqual(len(self._refs()), 2, "and both rows are still there")
 
     def test_changing_a_member_that_is_not_there_is_not_found(self) -> None:
-        response = self.client.put(f"/collections/Favourites/games/{TABLED_ID}/table",
+        response = self.client.put(f"/collections/Favorites/games/{TABLED_ID}/table",
                                    json={"table": "tbl0000001"})
 
         self.assertEqual(response.status_code, 404)

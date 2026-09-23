@@ -1604,6 +1604,8 @@ class CollectionFilters(ApiModel):
     # Absent rather than false when the collection says nothing about play, because
     # false is a criterion of its own here - it selects what has never been played.
     played: bool | None = None
+    favorite: bool | None = None
+    tags: MultiValue = "All"
     order_by: str = DEFAULT_ORDER_BY
     direction: str = DEFAULT_DIRECTION
 
