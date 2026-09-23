@@ -46,7 +46,7 @@ Runtime state written by VPinFE, not shown as a setting.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `game_root_dir` | string |  | The folder holding your table folders, one folder per game. |
+| `game_root_dir` | string |  | The folder holding your table folders, one folder per game |
 | `hidden_media_kinds` | list |  | Kinds of artwork this library does not collect. VPinFE stops showing and counting them; the files stay where they are. |
 | `hidden_asset_kinds` | list |  | Kinds of supporting file this library does not collect - an all-EM library has no ROMs. A table that will not launch still says so. |
 
@@ -62,7 +62,7 @@ Runtime state written by VPinFE, not shown as a setting.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `on_start` | text |  | Run before every table, whichever launcher plays it, and before that launcher's own commands. |
+| `on_start` | text |  | Run before every table, whichever launcher plays it, and before that launcher's own commands |
 | `on_exit` | text |  | Run after every table. They run whenever the ones above ran, even if the table never started. |
 | `start_required` | bool | `false` | On, a command that fails before a table starts stops it launching. Off, the failure is noted and the table starts anyway. |
 
@@ -79,9 +79,9 @@ Runtime state written by VPinFE, not shown as a setting.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `theme` | choice (synthwave, dark, light, system) | `synthwave` | How the Console and the remote look. System follows whether this computer is set to light or dark. |
-| `dates` | choice (language, iso, mm/dd/yyyy, dd/mm/yyyy, dd.mm.yyyy, yyyy/mm/dd) | `language` | How a day is written, wherever the Console shows one. |
-| `times` | choice (24h, 12h) | `24h` | How a time of day is written, where the Console shows one. |
-| `relative_dates` | bool | `true` | Anything from the last month says how long ago it was, whatever the format. |
+| `dates` | choice (language, iso, mm/dd/yyyy, dd/mm/yyyy, dd.mm.yyyy, yyyy/mm/dd) | `language` | How a day is written, wherever the Console shows one |
+| `times` | choice (24h, 12h) | `24h` | How a time of day is written, where the Console shows one |
+| `relative_dates` | bool | `true` | Anything from the last month says how long ago it was, whatever the format |
 
 ### `tools`
 
@@ -108,7 +108,7 @@ Runtime state written by VPinFE, not shown as a setting.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `cab_mode` | bool | `false` | Presents VPinFE for playing standing at a cabinet: larger text and targets, and no controls that need a mouse. It does not rotate anything. |
-| `playfield_media_rotation` | choice (auto, 0, 90, 180, 270) | `auto` | How far to turn playfield artwork so it fills the screen. |
+| `playfield_media_rotation` | choice (auto, 0, 90, 180, 270) | `auto` | How far to turn playfield artwork so it fills the screen |
 | `playfield_media_priority` | choice (video, image) | `video` | Playfield Media Priority |
 | `backglass_media_priority` | choice (video, image) | `video` | Backglass Media Priority |
 | `score_view_media_priority` | choice (video, image) | `video` | Score View Media Priority |
@@ -148,7 +148,7 @@ Runtime state written by VPinFE, not shown as a setting.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `playfield_variant` | choice (table, fss) | `table` | Which playfield artwork this library holds: table.png, or fss.png for art captured in Visual Pinball's Full Single Screen mode. |
+| `playfield_variant` | choice (table, fss) | `table` | Which playfield artwork this library holds: table.png, or fss.png for art captured in Visual Pinball's Full Single Screen mode |
 | `playfield_resolution` | choice (4k, 1k) | `4k` | Playfield Resolution |
 | `playfield_video_resolution` | choice (4k, 1k) | `1k` | Playfield Video Resolution |
 | `browse_dirs` | list |  | Extra folders you can pick artwork from by hand. Your game library is always available; anywhere else has to be listed here first. |
@@ -173,7 +173,7 @@ Runtime state written by VPinFE, not shown as a setting.
 | `last` | string |  |  |
 | `checked` | string |  |  |
 | `download` | choice (never, daily, weekly, monthly) | `daily` | How often to fetch the spreadsheet. Matching and release lists read this copy. |
-| `update_matched_games` | choice (never, daily, weekly, monthly) | `never` | How often to re-copy name, year, type, themes and guides onto matched games. |
+| `update_matched_games` | choice (never, daily, weekly, monthly) | `never` | How often to re-copy name, year, type, themes and guides onto matched games |
 | `games_updated_to` | string |  |  |
 
 ### `state`
@@ -199,7 +199,7 @@ Runtime state written by VPinFE, not shown as a setting.
 | `theme_assets_port` | int | `8000` | Theme Server Port |
 | `theme_assets_bind` | string | `127.0.0.1` | Which address to serve theme packages and table media on. The default answers this machine only. Opening it wider shares read access to your table library. |
 | `ws_port` | int | `8002` | Port the frontend windows and the theme talk to VPinFE over. Loopback only. |
-| `http_port` | int | `8001` | Port this install answers on: the HTTP API, the Console, and the remote and mobile pages. |
+| `http_port` | int | `8001` | Port this install answers on: the HTTP API, the Console, and the remote and mobile pages |
 | `library_url` | string |  | Which install this one reads its library from. Empty means it holds its own. Installs on your network are offered; type an address for one that is not. |
 | `verify_shared_library` | bool | `false` | On startup, check that the library this install reads is the one on disk here, by comparing file hashes. Reports what does not match, and changes nothing. |
 | `http_bind` | string | `0.0.0.0` | Which address to serve on. The default answers every interface - set 127.0.0.1 to reach it only from this machine. |
@@ -228,8 +228,8 @@ Runtime state written by VPinFE, not shown as a setting.
 | `device_ip` | string |  | Device IP |
 | `device_port` | int | `2112` | Device Port |
 | `chunk_size` | int | `1048576` | Chunk Size |
-| `send_masked_config` | bool | `false` | Where a table has no configuration file of its own, send the masked one in its place under the name the table expects. |
-| `config_mask` | string |  | The word between the table name and .ini - cab sends tablename.cab.ini as tablename.ini. |
+| `send_masked_config` | bool | `false` | Where a table has no configuration file of its own, send the masked one in its place under the name the table expects |
+| `config_mask` | string |  | The word between the table name and .ini - cab sends tablename.cab.ini as tablename.ini |
 
 ### `vpinplay`
 

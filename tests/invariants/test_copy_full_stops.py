@@ -1,4 +1,5 @@
-"""A help line, a tooltip or a state that is one sentence takes no full stop."""
+"""A help line, a tooltip, a state or a setting's description that is one sentence takes
+no full stop."""
 
 from __future__ import annotations
 
@@ -14,32 +15,6 @@ CATALOG = json.loads((ROOT / "common/i18n/catalogs/en.json").read_text(encoding=
 
 # One sentence ending and the next beginning.
 _BOUNDARY = re.compile(r"[.!?][”\"')]?\s+(?=[A-Z0-9“\"(])")
-
-LONE_STOP_TODAY = frozenset({
-    "console.about.press_usual_copy_shortcut",
-    "console.app_settings.no_settings_show",
-    "console.app_settings.nothing_matches",
-    "console.devices.device_declares_nothing",
-    "console.devices.device_offers_nothing",
-    "console.devices.happen_device_not_install",
-    "console.devices.install_reading_console_entry",
-    "console.devices.name_belongs_install_can",
-    "console.devices.nothing_written_log_device",
-    "console.import_dialog.folder_named_record_other",
-    "console.logs.install_written_nothing_yet",
-    "console.logs.nothing_matches",
-    "console.sections.extension_adds_feature_install",
-    "console.settings.device_declares_nothing_page",
-    "console.settings.not_built_yet",
-    "console.settings.read_install",
-    "console.themes.no_theme_sources_configured",
-    "console.workbench.each_resolves_file_above",
-    "console.workbench.following_default",
-    "console.workbench.install_no_launchers_yet",
-    "console.workbench.launcher_install",
-    "console.workbench.program_finds_name_rather",
-    "console.workbench.switched_off_stays_configured",
-})
 
 # The Console's helpers that draw their first argument as a help line or a state.
 _PANEL_HELP = frozenset({"note", "intro", "lede", "state"})
@@ -94,9 +69,9 @@ def _help_and_state(tree: ast.AST) -> list[tuple[int, str]]:
 
 
 class TheCatalog(unittest.TestCase):
-    def test_no_help_label_or_summary_line_is_a_lone_sentence_with_a_stop(self) -> None:
+    def test_no_help_label_summary_or_description_is_a_lone_sentence_with_a_stop(self) -> None:
         found = {key: lines for key, value in CATALOG.items()
-                 if key.rsplit(".", 1)[-1] in ("help", "label", "summary")
+                 if key.rsplit(".", 1)[-1] in ("help", "label", "summary", "description")
                  and (lines := _lone_stops(value))}
 
         self.assertEqual(found, {})
@@ -114,14 +89,9 @@ class WhereTheConsoleDrawsThem(unittest.TestCase):
 
     def test_none_ends_a_lone_line_with_a_stop(self) -> None:
         found = sorted(f"{at} {key}" for at, key in self.drawn
-                       if key not in LONE_STOP_TODAY and _lone_stops(CATALOG.get(key, "")))
+                       if _lone_stops(CATALOG.get(key, "")))
 
         self.assertEqual(found, [], "drop the full stop")
-
-    def test_the_named_ones_still_have_theirs(self) -> None:
-        fixed = sorted(key for key in LONE_STOP_TODAY if not _lone_stops(CATALOG.get(key, "")))
-
-        self.assertEqual(fixed, [], "take these off LONE_STOP_TODAY")
 
     def test_every_position_is_read(self) -> None:
         tree = ast.parse('x.tooltip(t("a"))\n'
