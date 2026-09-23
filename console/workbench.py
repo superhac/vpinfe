@@ -13,6 +13,7 @@ above it; the rest are the game's whatever build you are looking at.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
@@ -920,15 +921,19 @@ async def _asset_file_block(context: dict[str, Any]) -> None:
                                source_name=media_ownership.source_name(origin))) \
                         .classes("console-help")
                 _outside_lines(links)
-        _asset_actions(context, kind, label, present, path, tier)
+        _asset_actions(context, kind, label, present, path, tier, detail)
 
 
 # The kinds VPX finds by name, which a file can be placed as and removed from.
 _PLACEABLE = frozenset(one.key for one in VPX_ASSET_KINDS)
+_WHOLE_FOLDER = frozenset({"pup_pack", "alt_color", "alt_sound", "music"})
 
 
 def _asset_actions(context: dict[str, Any], kind: str, label: str, present: bool,
-                   path: str, tier: str) -> None:
+                   path: str, tier: str, detail: dict[str, Any]) -> None:
+    if kind in _WHOLE_FOLDER:
+        _folder_actions(context, kind, present, path, int(detail.get("files") or 0))
+        return
     if kind not in _PLACEABLE:
         return
     loose = tier in (media_ownership.ORPHAN, media_ownership.UNUSED)
@@ -955,12 +960,28 @@ def _asset_actions(context: dict[str, Any], kind: str, label: str, present: bool
                 .classes("console-action console-action--danger")
 
 
-async def _remove_asset(context: dict[str, Any], kind: str, path: str, tier: str) -> None:
+def _folder_actions(context: dict[str, Any], kind: str, present: bool, path: str,
+                    files: int) -> None:
+    picker = f"() => window.__consolePick({json.dumps(context['game_id'])})"
+    with ui.row().classes("items-center gap-2 w-full console-slot-actions"):
+        panel.action(t("word.replace") if present else t("word.add"), lambda: None,
+                     icon=verbs.REPLACE if present else verbs.ADD, js=picker)()
+        if present and path:
+            ui.button(t("word.remove"), icon=verbs.REMOVE,
+                      on_click=lambda: _remove_asset(context, kind, path, "", files=files)) \
+                .props("flat dense no-caps size=sm") \
+                .classes("console-action console-action--danger")
+
+
+async def _remove_asset(context: dict[str, Any], kind: str, path: str, tier: str,
+                        files: int | None = None) -> None:
     falls_back = any(one.key == kind and one.folder_fallback for one in VPX_ASSET_KINDS)
     detail = {media_ownership.TABLE: t("console.workbench.remove_asset.table" if falls_back
                                        else "console.workbench.remove_asset.table_only"),
               media_ownership.GAME: t("console.workbench.remove_asset.game")}.get(
                   tier, t("console.workbench.remove_asset.loose"))
+    if files is not None:
+        detail = t("console.workbench.remove_asset.folder", count=files)
     if not await confirm.ask(t("console.workbench.remove_asset", name=PurePosixPath(path).name),
                              detail=detail, confirm=t("word.remove"), icon=verbs.REMOVE):
         return

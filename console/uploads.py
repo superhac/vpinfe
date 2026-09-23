@@ -33,6 +33,8 @@ logger = logging.getLogger("vpinfe.console.uploads")
 TARGET_LIBRARY = "library"
 TARGET_GAME = "game"
 TARGET_SLOT = "slot"
+# A game named by its id rather than by a row under the pointer: a picker has no row.
+TARGET_GAME_ID = "game_id"
 
 
 @dataclass(frozen=True)
@@ -155,6 +157,25 @@ if (!window.__consoleDnd) {
   }
 
   function clear() { lit(hot, false); hot = null; }
+
+  window.__consolePick = (gameId) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.zip,.rar,.7z';
+    input.onchange = async () => {
+      const files = Array.from(input.files || []).map(file => ({relpath: file.name, file}));
+      if (!files.length) return;
+      try {
+        emit({status: 'progress', done: 0, total: files.length, name: ''});
+        const uploadId = await upload(files);
+        emit({status: 'done', upload_id: uploadId, name: named(files),
+              target: 'game_id', row_id: gameId});
+      } catch (err) {
+        emit({status: 'error', message: String((err && err.message) || err)});
+      }
+    };
+    input.click();
+  };
 
   document.addEventListener('dragover', (event) => {
     if (!event.dataTransfer || !Array.from(event.dataTransfer.types || [])

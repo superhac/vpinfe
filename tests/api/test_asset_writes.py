@@ -23,7 +23,9 @@ class AssetWrites(TempTree):
                            "vr": {"id": "vr", "filename": "AFM VR.vpx"}}}
         self.folder = write_game(self.root, FOLDER, info=info,
                                  files={"AFM VR.vpx": b"vpx",
-                                        "AFM VR.directb2s": b"old backglass"})
+                                        "AFM VR.directb2s": b"old backglass",
+                                        "pupvideos/Backglass/1.mp4": b"mp4",
+                                        "extras/notes.txt": b"notes"})
         game = fake_game(self.folder, FOLDER, meta=info)
         patcher = patch("common.games.game_repository.catalog",
                         return_value={GAME_ID: game})
@@ -105,3 +107,16 @@ class AssetWrites(TempTree):
                 self.assertEqual(400, self.client.delete(
                     f"/games/{GAME_ID}/assets", params={"path": path}).status_code)
         self.assertTrue(Path(self.folder / "AFM VR.vpx").exists())
+
+    def test_a_kind_s_folder_goes_whole(self) -> None:
+        response = self.client.delete(f"/games/{GAME_ID}/assets", params={"path": "pupvideos"})
+
+        self.assertEqual(["pupvideos"], response.json()["removed"])
+        self.assertFalse((self.folder / "pupvideos").exists())
+
+    def test_any_other_folder_is_refused(self) -> None:
+        for path in ("extras", "."):
+            with self.subTest(path=path):
+                self.assertEqual(400, self.client.delete(
+                    f"/games/{GAME_ID}/assets", params={"path": path}).status_code)
+        self.assertTrue((self.folder / "extras" / "notes.txt").exists())

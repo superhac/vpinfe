@@ -1389,6 +1389,10 @@
   "console.workbench.release": "Ŵĥîçĥ řèŀèàšè ţĥîš îš",
   "console.workbench.release_table": "Ŵĥîçĥ řèŀèàšè îš ţĥîš ţàƀŀè?",
   "console.workbench.remove_asset": "Řèɱöṽè “{name}”?",
+  "console.workbench.remove_asset.folder": {
+    "one": "Ţĥè ƒöŀđèř àñđ ţĥè {count} ƒîŀè îñ îţ ĝö.",
+    "other": "Ţĥè ƒöŀđèř àñđ ţĥè {count} ƒîŀèš îñ îţ ĝö."
+  },
   "console.workbench.remove_asset.game": "Èṽèřý ţàƀŀè ŵîţĥöûţ à ƒîŀè öƒ îţš öŵñ ŀöšèš îţ.",
   "console.workbench.remove_asset.loose": "Ñöţĥîñĝ řèàđš îţ ñöŵ.",
   "console.workbench.remove_asset.table": "Ţĥîš ţàƀŀè ĝöèš ƀàçķ ţö ţĥè ƒîŀè ñàɱèđ ƒöř ţĥè ƒöŀđèř, ŵĥèřè ţĥèřè îš öñè.",

@@ -1389,6 +1389,10 @@
   "console.workbench.release": "Which release this is",
   "console.workbench.release_table": "Which release is this table?",
   "console.workbench.remove_asset": "Remove “{name}”?",
+  "console.workbench.remove_asset.folder": {
+    "one": "The folder and the {count} file in it go.",
+    "other": "The folder and the {count} files in it go."
+  },
   "console.workbench.remove_asset.game": "Every table without a file of its own loses it.",
   "console.workbench.remove_asset.loose": "Nothing reads it now.",
   "console.workbench.remove_asset.table": "This table goes back to the file named for the folder, where there is one.",

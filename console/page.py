@@ -391,7 +391,8 @@ def _drop_target(library: Library, state: dict, drop: Any) -> tuple[str, str, st
     if drop.target == uploads.TARGET_LIBRARY or not drop.row_id:
         return "", "", ""
     game_id = drop.row_id
-    if state.get("view") in ("tables", "media", "assets"):
+    if drop.target != uploads.TARGET_GAME_ID and state.get("view") in ("tables", "media",
+                                                                        "assets"):
         # These rows are about a file, and carry the game they belong to.
         row = next((one for one in library.table_rows()
                     if str(one.get("id")) == drop.row_id), None)

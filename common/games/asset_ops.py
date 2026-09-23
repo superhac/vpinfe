@@ -23,6 +23,8 @@ logger = logging.getLogger("vpinfe.common.games.asset_ops")
 
 _KINDS = {kind.key: kind for kind in VPX_ASSET_KINDS}
 _EXTENSIONS = frozenset(kind.extension for kind in VPX_ASSET_KINDS)
+# The folders a kind lives in whole, as the asset lens reports them.
+_FOLDERS = frozenset({"pupvideos", "serum", "vni", "pinmame/altsound", "music"})
 
 
 def kind_or_refuse(kind: str) -> AssetKind:
@@ -128,13 +130,18 @@ def place_file(game_id: str, kind: str, table_id: str, source: Path,
 
 
 def remove(game_id: str, path: str) -> dict:
-    """Delete one asset file, named by its path in the game's folder."""
+    """Delete one asset file, or one kind's folder, named by its path in the game's
+    folder."""
     game = game_lens.game_or_refuse(game_id)
-    found = asset_lens.inside(_folder(game), path)
-    if found.suffix.lower() not in _EXTENSIONS or not found.is_file():
+    root = _folder(game).resolve()
+    found = asset_lens.inside(root, path)
+    if found.is_dir() and found.relative_to(root).as_posix().lower() in _FOLDERS:
+        shutil.rmtree(found)
+    elif found.suffix.lower() in _EXTENSIONS and found.is_file():
+        found.unlink()
+    else:
         raise service_errors.RefusedError(t("error.assets.not_an_asset_file"),
                                           details={"path": path})
-    found.unlink()
     return {"removed": [path]}
 
 
