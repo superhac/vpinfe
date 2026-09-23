@@ -143,6 +143,13 @@ class ConfigRouteTests(unittest.TestCase):
         body = self.client.get("/config/schema").json()
         self.assertEqual(body["count"], len(config_schema.settable()))
 
+    def test_every_field_the_service_describes_reaches_the_wire(self):
+        described = {field for section in config_service.schema()["sections"]
+                     for option in section["options"] for field in option}
+        served = {field for section in self.client.get("/config/schema").json()["sections"]
+                  for option in section["options"] for field in option}
+        self.assertEqual(described - served, set())
+
     def test_an_unknown_key_is_a_bad_request_naming_it(self):
         response = self.client.put("/config",
                                    json={"general": {"not_a_setting": "x"}})

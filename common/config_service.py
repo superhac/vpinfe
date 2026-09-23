@@ -68,6 +68,7 @@ def _describe(option: config_schema.ConfigOption) -> dict[str, Any]:
         # What to gather it under on a page. Answered here rather than decided by each
         # surface, so the grouping is the schema's answer and not one each one invents.
         "group": option.group,
+        "group_label": option.group_label,
         "editor": option.editor,
         # How many rows a text field gets. A setting declared over three lines that
         # arrives without this renders as a one-line box - which is what a command list

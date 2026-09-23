@@ -769,7 +769,7 @@ def section_rows(source: Any, section: str, options: list[dict], values: dict,
     names_groups = any(option.get("group") for option in options)
     heading = ""
     for option in _by_group(options):
-        group = str(option.get("group") or "")
+        group = str(option.get("group_label") or "")
         if not group and names_groups:
             group = t("console.settings.group_other")
         if group and group != heading:

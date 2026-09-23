@@ -461,6 +461,8 @@ class ConfigOptionInfo(ApiModel):
     # the first heading. Served so the grouping is the schema's answer rather than one
     # each surface invents.
     group: str = ""
+    # The heading `group` is drawn as, in this install's language.
+    group_label: str = ""
     # A named tool this setting is edited with, where a control cannot do the job -
     # `binding` is a key or button captured by pressing it. `type` still says what the
     # value is, so a client with no such editor renders the ordinary control and edits

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from common import i18n, input_registry
+from common import i18n, input_registry, setting_groups
 from common.i18n import t
 from common.labels import humanize
 
@@ -165,6 +165,11 @@ class ConfigOption:
         """
         said = t(f"{self.keys}.description")
         return "" if said.endswith(".description") else said
+
+    @property
+    def group_label(self) -> str:
+        """The heading this setting gathers under, or "" where it has none."""
+        return t(f"config.group.{self.group}") if self.group else ""
 
 
 PATH_KINDS = ("file", "dir", "exe")
@@ -417,7 +422,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         "assets",
         ConfigOption(
             "dir",
-            group="Local Sources",
+            group=setting_groups.LOCAL_SOURCES,
             type="string",
             path="dir",
             default="",
@@ -503,7 +508,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         # does what: these say what the frontend does when one is pressed.
         ConfigOption(
             "paging_group",
-            group="Navigation",
+            group=setting_groups.NAVIGATION,
             type="choice",
             default=PAGING_GROUP_DEFAULT,
             choices=PAGING_GROUPS,
@@ -511,14 +516,14 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ),
         ConfigOption(
             "paging_size",
-            group="Navigation",
+            group=setting_groups.NAVIGATION,
             type="int",
             default="10",
             legacy=(("Input", "pagingsize"),),
         ),
         ConfigOption(
             "startup_collection",
-            group="Startup",
+            group=setting_groups.STARTUP,
             type="string",
             default="",
             # Only a collection that exists can be opened on, but the list is not closed:
@@ -528,7 +533,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ),
         ConfigOption(
             "restore_last_table",
-            group="Startup",
+            group=setting_groups.STARTUP,
             type="bool",
             default="true",
             # `restorelastgame` was 3.0's and never shipped; 2.x wrote `restorelasttable`,
@@ -541,20 +546,20 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ),
         ConfigOption(
             "splashscreen",
-            group="Startup",
+            group=setting_groups.STARTUP,
             type="bool",
             default="false",
             legacy=(("general", "splashscreen"),),
         ),
         ConfigOption(
             "confirm",
-            group="Exit",
+            group=setting_groups.EXIT,
             type="bool",
             default="false",
         ),
         ConfigOption(
             "hide_quit_button",
-            group="Exit",
+            group=setting_groups.EXIT,
             type="bool",
             default="false",
             aliases=("MMhideQuitButton",),
@@ -566,7 +571,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ),
         ConfigOption(
             "mute_audio",
-            group="Audio",
+            group=setting_groups.AUDIO,
             type="bool",
             default="false",
             legacy=(("general", "muteaudio"),),
@@ -626,7 +631,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         "media",
         ConfigOption(
             "playfield_variant",
-            group="Playfield Artwork",
+            group=setting_groups.PLAYFIELD_ARTWORK,
             type="choice",
             default="table",
             choices=("table", "fss"),
@@ -634,7 +639,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ),
         ConfigOption(
             "playfield_resolution",
-            group="Playfield Artwork",
+            group=setting_groups.PLAYFIELD_ARTWORK,
             type="choice",
             default="4k",
             choices=("4k", "1k"),
@@ -642,7 +647,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ),
         ConfigOption(
             "playfield_video_resolution",
-            group="Playfield Artwork",
+            group=setting_groups.PLAYFIELD_ARTWORK,
             type="choice",
             default="1k",
             choices=("4k", "1k"),
@@ -650,14 +655,14 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ),
         ConfigOption(
             "browse_dirs",
-            group="Local Sources",
+            group=setting_groups.LOCAL_SOURCES,
             type="list",
             default="",
             legacy=(),
         ),
         ConfigOption(
             "wheelset",
-            group="Wheels",
+            group=setting_groups.WHEELS,
             type="string",
             default="",
         ),
@@ -730,7 +735,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ),
         ConfigOption(
             "download",
-            group="Virtual Pinball Spreadsheet",
+            group=setting_groups.VPS,
             type="choice",
             default="daily",
             choices=("never", "daily", "weekly", "monthly"),
@@ -739,7 +744,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         # without wanting its games rewritten.
         ConfigOption(
             "update_matched_games",
-            group="Virtual Pinball Spreadsheet",
+            group=setting_groups.VPS,
             type="choice",
             default="never",
             choices=("never", "daily", "weekly", "monthly"),
@@ -776,47 +781,47 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         "network",
         ConfigOption(
             "theme_assets_port",
-            group="Local Services",
+            group=setting_groups.LOCAL_SERVICES,
             type="int",
             default="8000",
             aliases=("themeassetsport",),
         ),
         ConfigOption(
             "theme_assets_bind",
-            group="Local Services",
+            group=setting_groups.LOCAL_SERVICES,
             type="string",
             default="127.0.0.1",
         ),
         ConfigOption(
             "ws_port",
-            group="Local Services",
+            group=setting_groups.LOCAL_SERVICES,
             type="int",
             default="8002",
             aliases=("wsport",),
         ),
         ConfigOption(
             "http_port",
-            group="Local Services",
+            group=setting_groups.LOCAL_SERVICES,
             type="int",
             default="8001",
             aliases=("hub_port", "manager_ui_port", "manageruiport"),
         ),
         ConfigOption(
             "library_url",
-            group="Remote Services",
+            group=setting_groups.REMOTE_SERVICES,
             type="string",
             default="",
             suggest=SUGGEST_LIBRARIES,
         ),
         ConfigOption(
             "verify_shared_library",
-            group="Remote Services",
+            group=setting_groups.REMOTE_SERVICES,
             type="bool",
             default="false",
         ),
         ConfigOption(
             "http_bind",
-            group="Local Services",
+            group=setting_groups.LOCAL_SERVICES,
             type="string",
             default="0.0.0.0",
             aliases=("hub_bind", "manager_ui_bind"),
@@ -826,14 +831,14 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         "dof",
         ConfigOption(
             "enabled",
-            group="DOF",
+            group=setting_groups.DOF,
             type="bool",
             default="false",
             aliases=("enabledof",),
         ),
         ConfigOption(
             "config_tool_api_key",
-            group="DOF",
+            group=setting_groups.DOF,
             type="string",
             default="",
             aliases=("dofconfigtoolapikey",),

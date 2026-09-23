@@ -10,8 +10,8 @@ from console import settings as settings_page
 
 
 def _option(key: str, group: str = "") -> dict:
-    return {"key": key, "type": "bool", "default": "false", "group": group,
-            "label": key.title()}
+    return {"key": key, "type": "bool", "default": "false", "group": group.lower(),
+            "group_label": group, "label": key.title()}
 
 
 def _headings(entries: list) -> list[str]:

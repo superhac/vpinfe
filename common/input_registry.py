@@ -16,6 +16,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
+from common import setting_groups
 from common.i18n import t
 
 SECTION = "input"
@@ -61,13 +62,13 @@ class InputAction:
 INPUT_ACTIONS: tuple[InputAction, ...] = (
     InputAction(
         "previous",
-        group="Navigation",
+        group=setting_groups.NAVIGATION,
         bindings=("key:ArrowLeft", "key:ShiftLeft"),
         legacy=("joyleft", "keyleft"),
     ),
     InputAction(
         "next",
-        group="Navigation",
+        group=setting_groups.NAVIGATION,
         bindings=("key:ArrowRight", "key:ShiftRight"),
         legacy=("joyright", "keyright"),
     ),
@@ -77,25 +78,25 @@ INPUT_ACTIONS: tuple[InputAction, ...] = (
     # core answered it two ways.
     InputAction(
         "page_previous",
-        group="Navigation",
+        group=setting_groups.NAVIGATION,
         bindings=("key:PageUp", "key:ArrowUp"),
         legacy=("joypageup", "keypageup", "joyup", "keyup"),
     ),
     InputAction(
         "page_next",
-        group="Navigation",
+        group=setting_groups.NAVIGATION,
         bindings=("key:PageDown", "key:ArrowDown"),
         legacy=("joypagedown", "keypagedown", "joydown", "keydown"),
     ),
     InputAction(
         "select",
-        group="Navigation",
+        group=setting_groups.NAVIGATION,
         bindings=("key:Enter",),
         legacy=("joyselect", "keyselect"),
     ),
     InputAction(
         "back",
-        group="Navigation",
+        group=setting_groups.NAVIGATION,
         bindings=("key:KeyB",),
         legacy=("joyback", "keyback"),
     ),
@@ -116,7 +117,7 @@ INPUT_ACTIONS: tuple[InputAction, ...] = (
     ),
     InputAction(
         "exit",
-        group="Navigation",
+        group=setting_groups.NAVIGATION,
         bindings=("key:Escape", "key:KeyQ"),
         legacy=("joyexit", "keyexit"),
     ),

@@ -25,10 +25,10 @@ SOURCE = json.loads((CATALOGS / "en.json").read_text(encoding="utf-8"))
 # The registries whose words now live in the catalog. A declaration here holding a
 # string literal is one the translator never sees.
 CONVERTED = {
-    "ConfigOption": {"label", "description"},
+    "ConfigOption": {"label", "description", "group"},
     "MediaSpec": {"label"},
     "AssetSpec": {"label"},
-    "InputAction": {"label"},
+    "InputAction": {"label", "group"},
     "FilterAxis": {"label", "summary"},
 }
 
@@ -52,6 +52,11 @@ class TestEveryRegistryResolves(unittest.TestCase):
 
     def test_input_actions(self) -> None:
         self._check([(f"input.{a.name}.label", a.label) for a in actions()])
+
+    def test_setting_groups(self) -> None:
+        from common import config_schema
+        self._check(sorted({(f"config.group.{o.group}", o.group_label)
+                            for o in config_schema.options() if o.group}))
 
     def test_settings_that_are_shown(self) -> None:
         from common import config_schema
