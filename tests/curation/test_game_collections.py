@@ -23,7 +23,9 @@ class WhichCollectionsHoldAGame(TempTree):
                  "afm": _game("afm", "Attack from Mars", {"a": _table("a", "AFM.vpx")},
                               manufacturer="Bally"),
                  "taf": _game("taf", "The Addams Family", {"t": _table("t", "TAF.vpx")},
-                              manufacturer="Bally")}
+                              manufacturer="Bally"),
+                 "bk": _game("bk", "Black Knight", {"b": _table("b", "BK.vpx")},
+                             manufacturer="Williams")}
         rows = [{"name": name, "is_filter": True} for name in store.get_collections_name()]
         for target, value in (("get_collections_manager", lambda: store),
                               ("get_collections_metadata", lambda: rows),
@@ -48,3 +50,15 @@ class WhichCollectionsHoldAGame(TempTree):
 
     def test_a_game_the_limit_cuts_is_not_held(self) -> None:
         self.assertEqual([("Bally", "matched")], self._held("taf"))
+
+    def test_one_read_for_every_game_agrees_with_each_game_s_own(self) -> None:
+        every = {one["game"]: one["collections"]
+                 for one in collection_ops.game_collections()["games"]}
+        for game_id in ("mm", "afm", "taf", "bk"):
+            with self.subTest(game=game_id):
+                self.assertEqual(collection_ops.collections_of(game_id)["collections"],
+                                 every.get(game_id, []))
+
+    def test_a_game_nothing_holds_is_not_listed(self) -> None:
+        listed = [one["game"] for one in collection_ops.game_collections()["games"]]
+        self.assertEqual(["afm", "mm", "taf"], sorted(listed))

@@ -53,6 +53,19 @@ class CollectionsApiTests(TempTree):
 
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
 
+    # --- which collections hold a game -----------------------------------
+
+    def test_every_game_s_collections_come_in_one_read(self) -> None:
+        self.client.post("/collections", json={"name": "Favorites", "games": [GAME_ID]})
+
+        every = self.client.get("/library/game_collections")
+        one = self.client.get(f"/games/{GAME_ID}/collections")
+
+        self.assertEqual(every.status_code, 200)
+        self.assertEqual({"games": [one.json()]}, every.json())
+        self.assertEqual([("Favorites", "added")],
+                         [(c["name"], c["how"]) for c in one.json()["collections"]])
+
     # --- creating -------------------------------------------------------
 
     def test_a_manual_collection_is_created_with_its_members(self) -> None:

@@ -13,7 +13,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Response
 
 from common import jobs as job_registry
-from common.games import game_service, library_ops, owned
+from common.games import collection_ops, game_service, library_ops, owned
 
 from . import jobs as jobs_api
 from . import models, scopes
@@ -42,6 +42,14 @@ def filters() -> models.FilterAxisList:
 def post_owned(payload: models.OwnedRequest) -> models.OwnedMap:
     """A POST so a long list fits: it reads and changes nothing."""
     return models.OwnedMap.model_validate(owned.owned(payload.ids))
+
+
+@router.get("/game_collections", summary="Which collections hold each game",
+            dependencies=[requires(scopes.COLLECTIONS_READ)])
+def game_collections() -> models.LibraryGameCollections:
+    """`GET /games/{id}/collections` for every game at once. A game no collection holds
+    is not listed."""
+    return models.LibraryGameCollections.model_validate(collection_ops.game_collections())
 
 
 @router.get("/tags", summary="Every tag, and what each one says",

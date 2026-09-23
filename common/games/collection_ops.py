@@ -237,23 +237,35 @@ def games_in(name: str) -> dict:
             "games": resources}
 
 
-def collections_of(game_id: str) -> dict:
-    """Every collection holding this game, and whether it was added or matched."""
-    _game_or_refuse(game_id)
-    found = []
+def _held_by_game() -> dict[str, list[dict]]:
+    """Game id to every collection holding it, each collection resolved once."""
+    found: dict[str, list[dict]] = {}
     for row in get_collections_metadata():
         held = _held(row["name"])
         if held is None:
             continue
-        kept = {game_identity.game_id(game) for game in held.games}
-        if game_id not in kept:
-            continue
-        added = any(game_identity.game_id(game) == game_id for game in held.added)
-        found.append({"name": row["name"],
-                      "type": "filter" if row["is_filter"] else "manual",
-                      "how": "added" if added else "matched",
-                      "links": _links(row["name"])})
-    return {"game": game_id, "collections": found}
+        added = {game_identity.game_id(game) for game in held.added}
+        for game in held.games:
+            game_id = game_identity.game_id(game)
+            if not game_id:
+                continue
+            found.setdefault(game_id, []).append({
+                "name": row["name"], "type": "filter" if row["is_filter"] else "manual",
+                "how": "added" if game_id in added else "matched",
+                "links": _links(row["name"])})
+    return found
+
+
+def collections_of(game_id: str) -> dict:
+    """Every collection holding this game, and whether it was added or matched."""
+    _game_or_refuse(game_id)
+    return {"game": game_id, "collections": _held_by_game().get(game_id, [])}
+
+
+def game_collections() -> dict:
+    """`collections_of` for every game a collection holds, in one read."""
+    return {"games": [{"game": game_id, "collections": held}
+                      for game_id, held in _held_by_game().items()]}
 
 
 def members_of(name: str) -> dict:

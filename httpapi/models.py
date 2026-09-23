@@ -1676,6 +1676,10 @@ class GameCollections(ApiModel):
     collections: list[GameCollection]
 
 
+class LibraryGameCollections(ApiModel):
+    games: list[GameCollections]
+
+
 class CollectionResource(ApiModel):
     """`type` is derived, not stored: `filter` where the collection carries criteria,
     `manual` where it does not. The two are not kinds - a collection may hold criteria,
