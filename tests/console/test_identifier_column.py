@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import unittest
 
-from console import grid
+from console import grid, theme
 
 
 def _columns(marked: int) -> list[dict]:
@@ -34,6 +34,25 @@ class IdentifierColumnIsMarked(unittest.TestCase):
     def test_a_plain_column_is_not_marked(self):
         self.assertNotIn(grid.IDENTIFIER_CLASS,
                          str(grid.column("year", "Year").get("cellClass") or ""))
+
+
+class APictureLeadsTheCell(unittest.TestCase):
+
+    def test_the_drawing_reads_the_field_it_was_given(self):
+        definition = grid.identifier("name", "Theme", subtitle="said", picture="preview")
+        self.assertIn(grid.PICTURED_CLASS, definition["cellClass"])
+        self.assertIn("d['preview']", definition[":cellRenderer"])
+
+    def test_without_one_nothing_is_drawn_ahead(self):
+        definition = grid.identifier("name", "Game", subtitle="said")
+        self.assertNotIn(grid.PICTURED_CLASS, definition["cellClass"])
+        self.assertIn("const art = null;", definition[":cellRenderer"])
+
+    def test_the_row_is_as_tall_as_the_stylesheet_says(self):
+        pictured = [grid.identifier("name", "Theme", subtitle="said", picture="preview")]
+        self.assertEqual(grid.base_row_px(pictured), grid.PICTURED_ROW_PX)
+        self.assertIn(f".console-grid-pictured {{ --ag-row-height: {grid.PICTURED_ROW_PX}px; }}",
+                      theme.base_css())
 
 
 class EveryGridDeclaresExactlyOne(unittest.TestCase):

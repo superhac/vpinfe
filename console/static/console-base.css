@@ -2372,7 +2372,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   min-width: 0;
 }
 
-.console-slot-actions { padding-top: 8px; }
+.console-slot-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 8px; }
 
 /* Room to judge the art when there is width to spare: at 240px a backglass in a
    half-window panel is a thumbnail beside a lot of nothing, and judging art is what
@@ -2659,12 +2659,18 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
   overflow-y: auto;
 }
 .console-section-row { grid-column: 1; }
-/* A theme is chosen by looking at it. In the grid the picture is the row's first
-   column at the height its drawing asks for; in the panel it takes the panel's width. */
-.console-cell-preview {
-  display: block; height: 80px; width: auto; max-width: 100%;
-  object-fit: contain; border-radius: 4px;
+/* A row chosen by looking at it: the picture leads its identifier cell, whole, in one
+   box every row shares so the names line up. `grid.PICTURED_ROW_PX` is the row it
+   needs. */
+.console-grid-pictured { --ag-row-height: 88px; }
+.console-cell-pictured { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.console-cell-art-box {
+  flex: none; width: 128px; height: 72px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; background: var(--surface-2); overflow: hidden;
 }
+.console-cell-art-box img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.console-cell-lines { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
 .console-cell-noart { font-size: var(--icon-slot-small); color: var(--ink-3); }
 .console-cell-quiet { color: var(--ink-3); }
 .console-theme-hero {

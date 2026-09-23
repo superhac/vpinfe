@@ -299,8 +299,11 @@ IDENTIFIER_CLASS = "console-cell-identifier"
 
 SUBTITLE_CLASS = "console-cell-said"
 TWO_LINE_CLASS = "console-cell-two-line"
+PICTURED_CLASS = "console-cell-art-lead"
 ONE_LINE_ROW_PX = 42
 TWO_LINE_ROW_PX = 56
+PICTURED_ROW_PX = 88
+_ROW_CLASS = {TWO_LINE_ROW_PX: "console-grid-two-line", PICTURED_ROW_PX: "console-grid-pictured"}
 
 _SUBTITLE_RENDERER = (
     "params => {"
@@ -318,14 +321,20 @@ _SUBTITLE_RENDERER = (
     " const href = d['{link}_href'] || '';"
     " const named = href ? '<a class=\"console-link\" href=\"' + esc(href) + '\" title=\"'"
     " + esc(d['{link}_tip'] || '') + '\">' + esc(name) + '</a>' : esc(name);"
-    " return '<span class=\"console-cell-named\">' + named"
-    " + '</span><span class=\"{cls}\">' + said + '</span>'; }"
+    " const lines = '<span class=\"console-cell-named\">' + named"
+    " + '</span><span class=\"{cls}\">' + said + '</span>';"
+    " const art = {picture};"
+    " if (art === null) return lines;"
+    " const shown = art ? '<img loading=\"lazy\" alt=\"\" src=\"' + esc(art) + '\">'"
+    " : '<i class=\"material-icons console-cell-noart\">image_not_supported</i>';"
+    " return '<span class=\"console-cell-pictured\"><span class=\"console-cell-art-box\">'"
+    " + shown + '</span><span class=\"console-cell-lines\">' + lines + '</span></span>'; }"
 )
 
 
 def identifier(field: str, header: str, width: int = 0, help: str = "",
                subtitle: str | tuple[str, str, str] = "", link: str = "",
-               **extra: Any) -> dict[str, Any]:
+               picture: str = "", **extra: Any) -> dict[str, Any]:
     """The column this grid's rows are scanned *by*, which is not their unique key.
 
     Exactly one per grid; `build` refuses anything else.
@@ -335,7 +344,8 @@ def identifier(field: str, header: str, width: int = 0, help: str = "",
     filtering stay on `field`, so the line is shown and never scanned.
 
     `link` makes the value an anchor on rows carrying `<link>_href`, titled `<link>_tip`.
-    It needs a subtitle to be drawn.
+    `picture` names the field holding an image address drawn ahead of both lines. Both
+    need a subtitle to be drawn.
     """
     extra_classes = extra.pop("cellClass", "")
     classes = f"{extra_classes} {IDENTIFIER_CLASS}".strip() if extra_classes \
@@ -343,8 +353,9 @@ def identifier(field: str, header: str, width: int = 0, help: str = "",
     if subtitle:
         made, _, built = (subtitle if isinstance(subtitle, tuple)
                           else (subtitle, "", ""))
-        classes = f"{classes} {TWO_LINE_CLASS}"
+        classes = f"{classes} {TWO_LINE_CLASS}" + (f" {PICTURED_CLASS}" if picture else "")
         extra.setdefault(":cellRenderer", _SUBTITLE_RENDERER
+                         .replace("{picture}", f"(d['{picture}'] || '')" if picture else "null")
                          .replace("{link}", link or "_")
                          .replace("{made}", made)
                          .replace("{built}", f"d['{built}'] || ''" if built else "''")
@@ -371,10 +382,11 @@ def for_grid(columns: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def base_row_px(columns: list[dict[str, Any]]) -> int:
-    """The row height the grid's own text needs, before any drawing asks for more."""
-    two_line = any(TWO_LINE_CLASS in str(definition.get("cellClass") or "")
-                   for definition in columns)
-    return TWO_LINE_ROW_PX if two_line else ONE_LINE_ROW_PX
+    """The row height the grid's own cells need, before any drawing asks for more."""
+    classes = " ".join(str(definition.get("cellClass") or "") for definition in columns)
+    if PICTURED_CLASS in classes:
+        return PICTURED_ROW_PX
+    return TWO_LINE_ROW_PX if TWO_LINE_CLASS in classes else ONE_LINE_ROW_PX
 
 
 def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
@@ -401,7 +413,6 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
             f"{scope}: a grid declares exactly one grid.identifier() column, "
             f"the one its rows are scanned by; this one declares {len(marked)}"
             + (f" ({', '.join(str(m) for m in marked)})" if marked else ""))
-    two_line = base_row_px(columns) == TWO_LINE_ROW_PX
     grid = ui.aggrid({
         "columnDefs": for_grid(columns),
         "rowData": rows,
@@ -448,8 +459,7 @@ def build(columns: list[dict[str, Any]], rows: list[dict[str, Any]], scope: str,
         # nicegui defaults this True, which fits columns to the grid width and so
         # overrides both the declared widths and any the user saved.
         auto_size_columns=False,
-    ).classes("w-full grow min-h-0"
-              + (" console-grid-two-line" if two_line else ""))
+    ).classes(f"w-full grow min-h-0 {_ROW_CLASS.get(base_row_px(columns), '')}".strip())
 
     ui.run_javascript(
         f"if (window.__hubFocusScope !== {json.dumps(scope)}) {{"

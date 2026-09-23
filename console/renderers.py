@@ -73,14 +73,6 @@ PICTURE = Renderer("picture", "console.renderers.picture", (
 _ESCAPE = ("const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')"
            ".replace(/\"/g, '&quot;');")
 
-# A picture that is the row's subject rather than one of its facts.
-PREVIEW = Renderer("preview", "console.renderers.preview", (
-    "params => {" + _ESCAPE +
-    " return params.value ? '<img class=\"console-cell-preview\" loading=\"lazy\" src=\"'"
-    " + esc(params.value) + '\">'"
-    " : '<i class=\"material-icons console-cell-noart\">image_not_supported</i>'; }"
-), row_px=96)
-
 # A state as a chip where it is worth noticing and as a quiet word where it is not.
 # `params.states` maps each value to its label and, for the ones worth noticing, a tier.
 STATE = Renderer("state", "console.renderers.state", (
@@ -94,7 +86,7 @@ STATE = Renderer("state", "console.renderers.state", (
 TAGS = Renderer("tags", "console.renderers.tags", tag_chips.RENDERER)
 
 REGISTRY: dict[str, Renderer] = {one.name: one
-                                 for one in (MARK, PICTURE, PREVIEW, STATE, TAGS)}
+                                 for one in (MARK, PICTURE, STATE, TAGS)}
 
 
 def install() -> None:

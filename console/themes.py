@@ -41,9 +41,8 @@ MADE_FOR = {"cab": t("console.themes.cabinet"), "desktop": t("console.themes.des
             "both": t("console.themes.both")}
 
 COLUMNS: list[dict[str, Any]] = [
-    grid.column("preview", t("console.themes.preview"), 150,
-                **renderers.drawable("preview")),
-    grid.identifier("name", t("console.themes.theme"), 170, subtitle="said"),
+    grid.identifier("name", t("console.themes.theme"), 320, subtitle="said",
+                    picture="preview"),
     grid.column("status", t("word.status"), 150,
                 **grid.choice_filter([{"value": key, "label": one["label"]}
                                       for key, one in STATES.items()], formatted=True),
@@ -201,7 +200,7 @@ async def details(context: dict[str, Any]) -> None:
                         if theme.get("url") else t("console.themes.added_by_hand")))
         changes = changes_worth_showing(theme)
         if changes:
-            entries += [(panel.HEADING, t("console.themes.what_changed")),
+            entries += [(panel.HEADING, t("console.themes.new_in_version")),
                         panel.intro(changes)]
         panel.facts(ui, entries)
         with ui.element("div").classes("console-slot-actions px-3"):
