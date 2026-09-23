@@ -1975,6 +1975,22 @@ class TagMerge(ApiModel):
     into: str
 
 
+class OwnedRequest(ApiModel):
+    ids: list[str]
+
+
+class Owned(ApiModel):
+    """`table_id` is empty where the id named a machine rather than one build of it."""
+
+    game_id: str
+    table_id: str = ""
+    name: str = ""
+
+
+class OwnedMap(ApiModel):
+    owned: dict[str, Owned]
+
+
 class TagResource(ApiModel):
     """`color` is one of the names the palettes resolve; `chosen` is false where it was
     derived from the name because nobody picked one. `games` is 0 for a tag only written

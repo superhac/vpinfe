@@ -13,7 +13,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Response
 
 from common import jobs as job_registry
-from common.games import game_service, library_ops
+from common.games import game_service, library_ops, owned
 
 from . import jobs as jobs_api
 from . import models, scopes
@@ -35,6 +35,13 @@ def filters() -> models.FilterAxisList:
     """Every filter axis, with the values this library holds. Projected from the registry
     the resolver matches on, so the two cannot disagree."""
     return models.FilterAxisList.model_validate(library_ops.filter_axes())
+
+
+@router.post("/owned", summary="Which of these catalog ids this library holds",
+             dependencies=[requires(scopes.GAMES_READ)])
+def post_owned(payload: models.OwnedRequest) -> models.OwnedMap:
+    """A POST so a long list fits: it reads and changes nothing."""
+    return models.OwnedMap.model_validate(owned.owned(payload.ids))
 
 
 @router.get("/tags", summary="Every tag, and what each one says",
