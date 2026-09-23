@@ -5,11 +5,12 @@ has to be able to switch something on, and every other section in the rail is go
 then.
 """
 
+import re
 import unittest
 from urllib.parse import parse_qs
 
 from common import feature_checks, install_identity, path_checks
-from console import deeplink, page, panel
+from console import deeplink, page, panel, theme
 from console import settings as settings_page
 
 
@@ -29,6 +30,11 @@ class NavTests(unittest.TestCase):
 
         self.assertEqual(rail, [key for _parent, items in page.NAV_GROUPS
                                 for key, *_rest in items])
+
+    def test_no_row_is_drawn_deeper_than_a_page_under_its_group(self) -> None:
+        drawn = set(re.findall(r"\.console-nav-row--([a-z-]+)", theme.base_css()))
+
+        self.assertEqual({"nested"}, drawn)
 
     def test_system_survives_an_install_that_is_for_nothing(self) -> None:
         """The bootstrap case: features are switched on from in here, so what System

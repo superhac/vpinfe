@@ -15,7 +15,6 @@ from console import about as about_page
 from console import assets as assets_page
 from console import collections as collections_page
 from console import community as community_page
-from console import contents as contents_page
 from console import (
     deeplink,
     ext_page,
@@ -128,8 +127,6 @@ NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] 
                   ("assets", "console.section.assets", "widgets", install_identity.LIBRARY),
                   ("collections", "console.section.collections", "collections_bookmark",
                    install_identity.LIBRARY),
-                  ("contents", "console.section.contents", "format_list_bulleted",
-                   install_identity.LIBRARY),
                   ("tags", "console.section.tags", "sell", install_identity.LIBRARY),
                   ("locations", "console.section.locations", "folder_open",
                    install_identity.LIBRARY))),
@@ -151,10 +148,6 @@ NAV_GROUPS: tuple[tuple[tuple[str, str, str] | None, tuple[NavItem, ...]], ...] 
                   ("logs", "console.section.logs", "description", install_identity.CORE),
                   ("about", "console.section.about", "info", install_identity.CORE))),
 )
-
-
-# Drawn one step under the entry before it, as part of that one rather than beside it.
-NAV_UNDER = frozenset({"contents"})
 
 
 def nav_for(features: Any, community: tuple[NavItem, ...] = ()
@@ -193,7 +186,6 @@ SECTIONS = {
     "tags": "console.section.tags",
     "locations": "console.section.locations",
     "collections": "console.section.collections",
-    "contents": "console.section.contents",
     "media": "console.section.media",
     "assets": "console.section.assets",
     "devices": "console.section.devices",
@@ -242,7 +234,6 @@ EMPTY_PANE = {
     "games": ("console.page.game_details", "console.page.select_game"),
     "tables": ("console.page.table_details", "console.page.select_table"),
     "collections": ("console.page.collection", "console.page.select_collection"),
-    "contents": ("console.section.contents", "console.page.select_contents"),
     "tags": ("console.page.tag", "console.page.select_tag"),
     "media": ("console.page.media", "console.page.select_kind_media"),
     "assets": ("console.page.assets", "console.page.select_kind_file"),
@@ -570,8 +561,7 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
                     # first true.
                     _nav_item(key, label, icon, state, lambda: redraw(), labels,
                               destinations, badges,
-                              nested=parent is not None, under=key in NAV_UNDER,
-                              held=held)
+                              nested=parent is not None, held=held)
                 if parent is not None:
                     # After the children exist: the caret leads `held`, and a group left
                     # closed last time has to draw closed rather than open and blink.
@@ -952,11 +942,6 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
         state["tag"] = (row or {}).get("id") or None
         await workbench.build_tag(panel, workbench_title, library, state["tag"], state)
 
-    async def show_contents(row: dict | None) -> None:
-        if row and not state["workbench"]:
-            show_workbench(True)
-        await workbench.build_contents(panel, workbench_title, library, row, state)
-
     async def show_launcher(row: dict | None) -> None:
         """What the grid has selected is what the workbench is about, the same rule
         every other subject follows."""
@@ -1055,8 +1040,6 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             elif view == "collections":
                 collections_page.build(library.collections(), library, show_collection,
                                        state, redraw)
-            elif view == "contents":
-                contents_page.build(library, state, show_contents)
             elif view.startswith(community_page.PREFIX):
                 listed = community_page.find(view, installed_extensions)
                 if listed is not None:
@@ -1342,7 +1325,7 @@ def leave_for(state: dict[str, Any], view: str) -> None:
 
 def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render: Callable[..., Any],
               labels: list, destinations: dict, badges: dict, nested: bool = False,
-              under: bool = False, held: list | None = None) -> None:
+              held: list | None = None) -> None:
     def choose() -> None:
         leave_for(state, key)
         render()
@@ -1356,8 +1339,7 @@ def _nav_item(key: str, label: str, icon: str, state: dict[str, Any], render: Ca
     # one alone.
     row = ui.link(target=f"/console?view={key}") \
         .classes("items-center gap-3 cursor-pointer w-full no-wrap flex "
-                 "console-nav-row" + (" console-nav-row--nested" if nested else "")
-                 + (" console-nav-row--under" if under else "")) \
+                 "console-nav-row" + (" console-nav-row--nested" if nested else "")) \
         .on("click", choose)
     with row:
         # The badge is positioned against the icon rather than the row, so it sits on the
