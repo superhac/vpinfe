@@ -274,7 +274,7 @@ class GridBar:
     def __init__(self) -> None:
         self.top = ui.row().classes("w-full items-center gap-2 no-wrap console-bar-row")
         self.bottom = ui.row().classes(
-            "w-full items-center gap-2 no-wrap console-bar-row")
+            "w-full items-center gap-2 no-wrap console-bar-row console-bar-foot")
 
 
 def grid_bar() -> GridBar:

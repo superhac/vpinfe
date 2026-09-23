@@ -1938,6 +1938,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-grid-bar { flex-direction: column; align-items: stretch; gap: 4px; }
 .console-bar-row { min-width: 0; }
 .console-bar-end { margin-left: auto; flex: 0 1 auto; min-width: 0; }
+.console-bar-foot > .console-bar-end { flex-shrink: 0; }
 /* Everything but the search box holds its size. */
 .console-bar-end > *:not(.q-field) { flex: 0 0 auto; }
 /* The search box gives way first and furthest; the picker only once that has run out,
