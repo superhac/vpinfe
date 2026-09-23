@@ -624,6 +624,9 @@ class CollectionStore:
                            given.get(ORDER_BY_KEY) or current[ORDER_BY_KEY],
                            given.get(ORDER_DIRECTION_KEY) or current[ORDER_DIRECTION_KEY],
                            current[ORDER_PAGING_GROUP_KEY])
+        if self.get_order(section)[ORDER_BY_KEY] == MANUAL_ORDER:
+            self.set_order(section, DEFAULT_ORDER_BY, DEFAULT_DIRECTION,
+                           current[ORDER_PAGING_GROUP_KEY])
         if limit is not None:
             self.set_limit(section, limit)
 

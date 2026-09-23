@@ -504,6 +504,9 @@ def _write_criteria(manager: CollectionStore, name: str, criteria: dict,
                     order: dict) -> None:
     """Store a criteria block and the order it carries. One writer for create and patch,
     so the two cannot disagree about which keys a block holds."""
+    if order.get("by") == MANUAL_ORDER:
+        raise service_errors.BlockedError(
+            t("error.collections.filter_collection_no_arrangement", name=(name)))
     manager.make_filter_collection(name, criteria, order=order)
 
 

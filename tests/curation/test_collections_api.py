@@ -514,6 +514,53 @@ class CollectionEntriesTests(CollectionsApiTests):
         self.assertEqual([zeta, alpha], rows)
         self.assertEqual(plays, rows)
 
+    def _arranged(self) -> tuple[str, str]:
+        zeta, alpha = self._on_disk("Zeta"), self._on_disk("Alpha")
+        self.client.post("/collections", json={"name": "Arranged", "games": [zeta, alpha]})
+        self.client.put("/collections/Arranged/order", json={"games": [zeta, alpha]})
+        return zeta, alpha
+
+    def test_a_rule_saved_on_a_custom_order_list_sorts_it_by_title(self) -> None:
+        zeta, alpha = self._arranged()
+        self.client.patch("/collections/Arranged", json={"paging_group": "count"})
+
+        self.client.patch("/collections/Arranged", json={"filters": {"letter": ["A"]}})
+
+        body = self.client.get("/collections/Arranged").json()
+        self.assertEqual(("title", "asc", "count"),
+                         (body["order_by"], body["direction"], body["paging_group"]))
+        self.assertEqual(([alpha, zeta], [alpha, zeta]), self._listed("Arranged"))
+
+    def test_the_arrangement_is_back_once_the_rules_go_and_custom_order_is_chosen(
+            self) -> None:
+        zeta, alpha = self._arranged()
+        self.client.patch("/collections/Arranged", json={"filters": {"letter": ["A"]}})
+
+        self.client.patch("/collections/Arranged", json={"clear_filters": True})
+        self.client.patch("/collections/Arranged", json={"order_by": "manual"})
+
+        self.assertEqual(([zeta, alpha], [zeta, alpha]), self._listed("Arranged"))
+
+    def test_a_rule_previewed_on_a_custom_order_list_lists_it_by_title(self) -> None:
+        zeta, alpha = self._arranged()
+
+        body = self.client.post("/collections/Arranged/members/preview",
+                                json={"filters": {"letter": ["A"]}}).json()
+
+        self.assertEqual([alpha, zeta], [one["game"] for one in body["members"]])
+
+    def test_rules_sent_with_custom_order_are_refused_and_nothing_is_written(self) -> None:
+        self._arranged()
+        both = {"letter": ["A"], "order_by": "manual"}
+
+        made = self.client.post("/collections", json={"name": "Both", "filters": both})
+        given = self.client.patch("/collections/Arranged", json={"filters": both})
+
+        self.assertEqual((409, 409), (made.status_code, given.status_code))
+        self.assertEqual(404, self.client.get("/collections/Both").status_code)
+        body = self.client.get("/collections/Arranged").json()
+        self.assertEqual(("manual", "manual"), (body["type"], body["order_by"]))
+
     def _rows(self, name: str) -> list[tuple[str, bool]]:
         return [(one["game"], one["past_limit"]) for one in
                 self.client.get(f"/collections/{name}/members").json()["members"]]

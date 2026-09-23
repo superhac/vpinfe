@@ -30,6 +30,7 @@ from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
 from common.games.asset_resolver import VPX_ASSET_KINDS
 from common.games.collection_filters import group_kind
 from common.games.collection_store import (
+    DEFAULT_DIRECTION,
     DEFAULT_ORDER_BY,
     DIRECTION_WORDS,
     MANUAL_ORDER,
@@ -3896,6 +3897,12 @@ def _is_dynamic(row: dict[str, Any]) -> bool:
     return (row.get("type") or "") == "filter"
 
 
+def _rules_drafted(context: dict[str, Any]) -> bool:
+    """Whether an unsaved draft asks for anything."""
+    return bool(context.get("unsaved") and collection_rules.filters_from(
+        context["draft"].get("rules") or [], context["fields"]))
+
+
 # --- Device sections --------------------------------------------------------
 #
 # Each is a thin adapter: the rows themselves are `console/devices.py`'s, because what a
@@ -5279,11 +5286,12 @@ def _draft_bar(context: dict[str, Any]) -> None:
 
 
 def _order_bar(context: dict[str, Any], row: dict[str, Any]) -> None:
-    by = row.get("order_by") or DEFAULT_ORDER_BY
+    by, direction = row.get("order_by") or DEFAULT_ORDER_BY, row.get("direction")
     orders = {token: t(key) for token, key in SORT_LABELS.items()}
-    if not _is_dynamic(row) or by == MANUAL_ORDER:
+    if not _is_dynamic(row) and not _rules_drafted(context):
         orders = {MANUAL_ORDER: t("order.by.manual"), **orders}
-    by = by if by in orders else DEFAULT_ORDER_BY
+    if by not in orders:
+        by, direction = DEFAULT_ORDER_BY, DEFAULT_DIRECTION
 
     async def ordered(event: Any) -> None:
         if event.value == by:
@@ -5294,8 +5302,8 @@ def _order_bar(context: dict[str, Any], row: dict[str, Any]) -> None:
         await _patch(context, changes)
 
     async def turned(event: Any) -> None:
-        if event.value != row.get("direction"):
-            await _patch(context, {"direction": event.value})
+        if event.value != direction:
+            await _patch(context, {"order_by": by, "direction": event.value})
 
     with ui.row().classes("items-center gap-x-4 gap-y-1 w-full console-order-bar"):
         with ui.row().classes("items-center gap-2 no-wrap grow"):
@@ -5306,7 +5314,7 @@ def _order_bar(context: dict[str, Any], row: dict[str, Any]) -> None:
             if by in DIRECTION_WORDS:
                 words = DIRECTION_WORDS[by]
                 ui.select({way: t(words[way]) for way in ("asc", "desc")},
-                          value=row.get("direction") or NATURAL_DIRECTION[by],
+                          value=direction or NATURAL_DIRECTION[by],
                           on_change=turned) \
                     .props("dense borderless options-dense") \
                     .classes("console-edit-field console-edit-select")
@@ -5386,8 +5394,7 @@ def _games_list(context: dict[str, Any], row: dict[str, Any]) -> None:
     # Only a list with no rules is arranged by hand, and only whole: a find draws a part
     # of it, and an order has to be the whole membership.
     arrange = live and not _is_dynamic(row) and not find and len(kept) > 1
-    smart = _is_dynamic(row) if live else bool(collection_rules.filters_from(
-        context["draft"].get("rules") or [], context["fields"]))
+    smart = _is_dynamic(row) if live else _rules_drafted(context)
     with ui.column().classes("gap-0 w-full console-member-list") \
             .props('data-arrange="hub_member_moved"') as listed:
         listed._props[row_drag.LIST] = True
