@@ -950,8 +950,7 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
              "on_vps": str((row.get("source") or {}).get("version") or ""),
              "update": _NEWER if row.get("update_available") else "",
              "tags": list((row.get("user") or {}).get("tags") or []),
-             "said": " ".join(str(row.get(k) or "").strip()
-                              for k in ("manufacturer", "year")).strip(),
+             "said": game_tables.made(row),
              "said_built": game_tables.table_name(row),
              # The name, not the id: `app_name` says why, and the column has to sort
              # and filter on what a reader can see rather than on what is stored.

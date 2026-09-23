@@ -292,8 +292,10 @@ body::before {
 }
 
 /* The identifier a row is scanned by stays at the top of the ink scale; everything
-   beside it supports it. grid.identifier() puts this class on that column. */
-.ag-cell.console-cell-identifier { color: var(--ink); }
+   beside it supports it. grid.identifier() puts this class on that column, and a
+   collection's list on each row's name. */
+.ag-cell.console-cell-identifier,
+.console-member-name.console-cell-identifier { color: var(--ink); }
 
 /* AG Grid derives a cell's line height from this and it does not follow the row-height
    option, so a taller row needs both set or its single-line cells sit high. */
@@ -474,9 +476,6 @@ body::before {
   padding: 4px 10px 2px;
 }
 .console-member-row.console-past-limit { opacity: 0.6; }
-/* The maker and year beside a game's name. */
-.console-member-made { font-size: var(--fs-caption); color: var(--ink-3); white-space: nowrap;
-                       flex: none; }
 .console-member-lock { font-size: var(--icon-mark); color: var(--ink-3); flex: none; }
 /* A mark beside a heading's words: what kind the thing is. */
 .console-heading-mark { font-size: var(--icon-mark); color: var(--ink-2); }

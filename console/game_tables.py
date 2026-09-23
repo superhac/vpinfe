@@ -112,6 +112,13 @@ def word_for(pair: tuple[str, str], notable: bool) -> str:
     return pair[0] if notable else pair[1]
 
 
+def made(row: dict[str, Any]) -> str:
+    """Who made the game and when: manufacturer then year, blank parts left out. The
+    first half of the line under a table's name; `table_name` is the second."""
+    return " ".join(part for part in (str(row.get(key) or "").strip()
+                                      for key in ("manufacturer", "year")) if part)
+
+
 def table_name(table: dict[str, Any]) -> str:
     """Which table this is: version then author, one order everywhere.
 

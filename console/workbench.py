@@ -5474,8 +5474,7 @@ def _member_line(context: dict[str, Any], member: dict[str, Any], *,
     table = tables[0] if tables else {}
     gone = not tables or table.get("origin") == "missing"
     game = context.get("games_by_id", {}).get(str(member.get("game") or "")) or {}
-    made = " ".join(str(part) for part in (game.get("manufacturer"), game.get("year"))
-                    if part)
+    made = game_tables.made(game)
     line = ui.row().classes("items-center gap-2 w-full no-wrap console-member-row") \
         .props(f'data-origin="{origin}"')
     if member.get("past_limit"):
@@ -5493,7 +5492,8 @@ def _member_line(context: dict[str, Any], member: dict[str, Any], *,
         with ui.column().classes("gap-0 grow min-w-0"):
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
                 ui.label(member.get("name") or member.get("game") or "") \
-                    .classes("console-member-name grow min-w-0 truncate")
+                    .classes("console-member-name console-cell-identifier grow min-w-0 "
+                             "truncate")
                 if smart and origin == "named":
                     ui.label(t("console.workbench.held_added")) \
                         .classes("console-member-chip console-tier console-tier--off") \
@@ -5502,18 +5502,25 @@ def _member_line(context: dict[str, Any], member: dict[str, Any], *,
                     word, why = game_tables.GONE_WORDS
                     ui.label(word).tooltip(why) \
                         .classes("console-member-chip console-chip-warn")
-                if made:
-                    ui.label(made).classes("console-member-made")
             said = game_tables.table_name(table) if table.get("id") and not gone else ""
-            if said:
-                # The line already answers "which table does this use?", so it is also
-                # where that is changed. Taken-out rows are not in the collection and
-                # have nothing to point anywhere, and a preview is not stored yet.
-                _table_choice(context, member, table, said,
-                              editable=live and origin != "excluded")
-            elif table.get("origin") == "missing":
-                ui.label(t("console.workbench.table_gone")) \
-                    .classes("console-member-table text-warning")
+            missing = table.get("origin") == "missing"
+            if made or said or missing:
+                with ui.row().classes("items-center gap-1 w-full no-wrap min-w-0 "
+                                      "console-member-table"):
+                    if made:
+                        ui.label(made).classes("console-cell-made whitespace-nowrap")
+                    if made and (said or missing):
+                        ui.label(game_tables.JOIN.strip()).classes("console-cell-join")
+                    if said:
+                        # The line already answers "which table does this use?", so it
+                        # is also where that is changed. Taken-out rows are not in the
+                        # collection and have nothing to point anywhere, and a preview
+                        # is not stored yet.
+                        _table_choice(context, member, table, said,
+                                      editable=live and origin != "excluded")
+                    elif missing:
+                        ui.label(t("console.workbench.table_gone")) \
+                            .classes("text-warning truncate min-w-0")
         if live:
             with ui.element("div").classes("console-row-action"):
                 _member_action(context, member, origin)
@@ -5521,18 +5528,19 @@ def _member_line(context: dict[str, Any], member: dict[str, Any], *,
 
 def _table_choice(context: dict[str, Any], member: dict[str, Any],
                   table: dict[str, Any], said: str, *, editable: bool) -> None:
-    """The table line, and the menu that changes which table this row plays."""
-    with ui.row().classes("items-center gap-1 no-wrap w-full min-w-0 "
+    """The table half of the row's second line, and the menu that changes which table
+    this row plays."""
+    with ui.row().classes("items-center gap-1 no-wrap grow min-w-0 "
                           "console-member-table-line") as line:
         if table.get("origin") == "named":
             word, why = game_tables.LOCKED_WORDS
             ui.icon(verbs.LOCKED).classes("console-member-lock")
-            ui.label(word).classes("console-member-table").tooltip(why)
-            ui.label(game_tables.JOIN.strip()).classes("console-member-table")
+            ui.label(word).tooltip(why)
+            ui.label(game_tables.JOIN.strip()).classes("console-cell-join")
         # The same line, and the same tooltip, as a game's Tables section: version and
         # author on screen, the filename a hover away. One formatter, so the two
         # surfaces cannot drift apart.
-        ui.label(said).classes("console-member-table truncate grow min-w-0") \
+        ui.label(said).classes("console-cell-built truncate grow min-w-0") \
             .tooltip(str(table.get("filename") or ""))
         if not editable:
             return

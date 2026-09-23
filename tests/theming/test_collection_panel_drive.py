@@ -1,4 +1,5 @@
-"""A collection's panel in a real browser: rules as a draft, Locked, the limit's line.
+"""A collection's panel in a real browser: rules as a draft, Locked, the limit's line,
+and a row drawn as the Tables grid draws its table.
 
 Slow: boots a real instance and a real browser.
 """
@@ -29,6 +30,16 @@ OTHER_NAME = (".ag-row[row-id=" + json.dumps(OTHER) + "] .ag-cell[col-id=\"name\
 UNSAVED_IN_GRID = ("(() => { const el = document.querySelector('.nicegui-aggrid');"
                    " const row = getElement(el.id.slice(1)).api.getRowNode(%s);"
                    " return row ? row.data.unsaved : null; })()")
+# Words, color and size of each part of a row: the name's selector, then the row.
+PARTS = ("(root => { if (!root) return null;"
+         " const look = sel => { const el = root.querySelector(sel); if (!el) return null;"
+         " const style = getComputedStyle(el);"
+         " return [el.innerText.trim(), style.color, style.fontSize]; };"
+         " return [%s, '.console-cell-made', '.console-cell-join', '.console-cell-built']"
+         ".map(look); })(%s)")
+ALPHA_ROW = ("[...document.querySelectorAll('.console-member-row')]"
+             ".find(r => r.querySelector('.console-member-name').innerText === 'Alpha')")
+ALPHA_CELL = ".ag-row[row-id=\"t-a1\"] .console-cell-identifier"
 
 
 class CollectionPanelDrive(unittest.TestCase):
@@ -118,6 +129,8 @@ class CollectionPanelDrive(unittest.TestCase):
                               for one in members if one["game"] == "alpha"]
             seen["lock_line"] = await browser.evaluate(
                 TEXT_OF % json.dumps(".console-member-row .console-member-table-line"))
+            seen["row_parts"] = await browser.evaluate(
+                PARTS % (json.dumps(".console-member-name"), ALPHA_ROW))
 
             await browser.click(".console-order-bar input[type=number]")
             await browser.send("Input.insertText", {"text": "1"})
@@ -148,6 +161,14 @@ class CollectionPanelDrive(unittest.TestCase):
             seen["order_bar"] = await browser.evaluate(
                 "(() => { const bar = document.querySelector('.console-order-bar');"
                 " return bar ? [bar.scrollWidth, bar.clientWidth] : null; })()")
+
+            await browser.navigate(instance.console_url("/console?view=tables"))
+            await browser.wait_for("!!document.querySelector("
+                                   + json.dumps(ALPHA_CELL + " .console-cell-built") + ")",
+                                   timeout=90.0)
+            seen["cell_parts"] = await browser.evaluate(
+                PARTS % (json.dumps(".console-cell-named"),
+                         "document.querySelector(" + json.dumps(ALPHA_CELL) + ")"))
         return seen
 
     def test_an_empty_collection_offers_both_ways_in(self) -> None:
@@ -174,6 +195,11 @@ class CollectionPanelDrive(unittest.TestCase):
         self.assertEqual([("alpha", "named", "t-a1")], self.seen["locked"])
         self.assertTrue(self.seen["lock_line"].startswith("lock\nLocked"),
                         self.seen["lock_line"])
+
+    def test_a_row_is_drawn_as_the_tables_grid_draws_its_table(self) -> None:
+        words = [part and part[0] for part in self.seen["row_parts"] or []]
+        self.assertEqual(["Alpha", "Bally 1992", "·", "1"], words)
+        self.assertEqual(self.seen["cell_parts"], self.seen["row_parts"])
 
     def test_a_limit_draws_the_rows_it_cuts_under_a_line(self) -> None:
         self.assertEqual(["Bravo"], self.seen["cut"])
