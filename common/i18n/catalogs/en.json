@@ -466,6 +466,7 @@
   "console.games.table_rating": "Table Rating",
   "console.games.table_tags.help": "Your own words for this table, apart from its game's",
   "console.games.tables_games": "{len} tables in {len2} games",
+  "console.games.tables_of": "{value} of {len} tables",
   "console.games.tags.help": "Your own words for the game",
   "console.games.ticked_where_frontend_not.help": "Ticked where the frontend does not offer this table",
   "console.games.ticked_where_library_describes.help": "Ticked where the file is not on disk",
@@ -1078,6 +1079,7 @@
     "one": "{count} theme",
     "other": "{count} themes"
   },
+  "console.themes.themes_of": "{value} of {len} themes",
   "console.themes.update": "Update",
   "console.themes.update_available": "Update available",
   "console.themes.updated": "Last Updated",

@@ -466,6 +466,7 @@
   "console.games.table_rating": "Ţàƀŀè Řàţîñĝ",
   "console.games.table_tags.help": "Ýöûř öŵñ ŵöřđš ƒöř ţĥîš ţàƀŀè, àþàřţ ƒřöɱ îţš ĝàɱè'š",
   "console.games.tables_games": "{len} ţàƀŀèš îñ {len2} ĝàɱèš",
+  "console.games.tables_of": "{value} öƒ {len} ţàƀŀèš",
   "console.games.tags.help": "Ýöûř öŵñ ŵöřđš ƒöř ţĥè ĝàɱè",
   "console.games.ticked_where_frontend_not.help": "Ţîçķèđ ŵĥèřè ţĥè ƒřöñţèñđ đöèš ñöţ öƒƒèř ţĥîš ţàƀŀè",
   "console.games.ticked_where_library_describes.help": "Ţîçķèđ ŵĥèřè ţĥè ƒîŀè îš ñöţ öñ đîšķ",
@@ -1078,6 +1079,7 @@
     "one": "{count} ţĥèɱè",
     "other": "{count} ţĥèɱèš"
   },
+  "console.themes.themes_of": "{value} öƒ {len} ţĥèɱèš",
   "console.themes.update": "Ûþđàţè",
   "console.themes.update_available": "Ûþđàţè àṽàîŀàƀŀè",
   "console.themes.updated": "Ŀàšţ Ûþđàţèđ",

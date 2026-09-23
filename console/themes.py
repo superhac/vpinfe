@@ -177,7 +177,7 @@ async def _fill(library: Library, state: dict[str, Any],
             with bar.top, panel.bar_end():
                 search = panel.search(t("console.themes.search_themes"))
             with bar.bottom, panel.bar_end():
-                ui.label(t("console.themes.themes", count=len(built))) \
+                count = ui.label(_themes_said(len(built), len(built))) \
                     .classes("text-xs console-label")
                 ui.button(icon=verbs.REFRESH,
                           on_click=lambda: _fill(library, state, on_select, redraw, body,
@@ -194,6 +194,13 @@ async def _fill(library: Library, state: dict[str, Any],
             menu = ui.context_menu()
         grid.on_row_focus(SCOPE, lambda event: on_select(by_id.get(grid.focused_row(event))))
 
+        async def counted() -> None:
+            seen = await table.run_grid_method("getDisplayedRowCount")
+            count.text = _themes_said(seen if isinstance(seen, int) else len(by_id),
+                                      len(by_id))
+
+        table.on("modelUpdated", counted)
+
         async def refresh_rows() -> None:
             fresh = rows(list((await offload.io(library.themes, False)).get("themes") or []))
             by_id.clear()
@@ -205,6 +212,12 @@ async def _fill(library: Library, state: dict[str, Any],
         search.on_value_change(
             lambda: table.run_grid_method("setGridOption", "quickFilterText",
                                           search.value or ""))
+
+
+def _themes_said(shown: int, total: int) -> str:
+    if shown == total:
+        return t("console.themes.themes", count=total)
+    return t("console.themes.themes_of", value=shown, len=total)
 
 
 def _found(context: dict[str, Any]) -> dict[str, Any]:

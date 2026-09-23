@@ -878,6 +878,13 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             for row in rows]
 
 
+def _tables_said(built: list[dict[str, Any]], shown: int) -> str:
+    if shown == len(built):
+        return t("console.games.tables_games", len=len(built),
+                 len2=len({row["game_id"] for row in built}))
+    return t("console.games.tables_of", value=shown, len=len(built))
+
+
 def build_tables(rows: list[dict[str, Any]], library: Any,
                  on_select: Callable[[dict | None], Any],
                  state: dict[str, Any] | None = None,
@@ -939,8 +946,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         with bar.top, panel.bar_end():
             search = panel.search(t("console.games.search_tables"))
         with bar.bottom, panel.bar_end():
-            ui.label(t("console.games.tables_games", len=(len(built)),
-                    len2=(len({r['game_id'] for r in built})))) \
+            count = ui.label(_tables_said(built, len(built))) \
                 .classes("text-xs console-label")
             if rescan is not None:
                 ui.button(icon=verbs.REFRESH, on_click=rescan) \
@@ -982,6 +988,12 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                            on_context=on_context,
                            on_header_context=on_header_context, view_of=showing)
         menu: ui.context_menu = ui.context_menu()
+
+    async def counted() -> None:
+        seen = await table.run_grid_method("getDisplayedRowCount")
+        count.text = _tables_said(built, seen if isinstance(seen, int) else len(built))
+
+    table.on("modelUpdated", counted)
 
     async def refresh_game(game_id: str) -> None:
         """Put one game's rows back after something changed them.
