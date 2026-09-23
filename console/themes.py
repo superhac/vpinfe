@@ -59,6 +59,8 @@ COLUMNS: list[dict[str, Any]] = [
                 **grid.choice_filter([{"value": key, "label": one["label"]}
                                       for key, one in STATES.items()], formatted=True),
                 **renderers.drawable("state", states=STATES)),
+    grid.column("updated", t("console.themes.updated"), 150,
+                help=t("console.themes.updated.help"), **when.cell("updated")),
     grid.column("made_for", t("console.themes.made_for"), 150,
                 **grid.choice_filter([{"value": key, "label": label}
                                       for key, label in MADE_FOR.items()])),
@@ -66,11 +68,9 @@ COLUMNS: list[dict[str, Any]] = [
     grid.column("registry", t("console.themes.registry"), 200,
                 help=t("console.themes.registry.help")),
     grid.column("repository", t("console.themes.repository"), 280),
-    grid.column("updated", t("console.themes.updated"), 150,
-                help=t("console.themes.updated.help"), **when.cell("updated")),
 ]
 _ALL = [one["field"] for one in COLUMNS]
-_SHOWN = ("name", "status", "made_for")
+_SHOWN = ("name", "status", "updated", "made_for")
 
 VIEWS: dict[str, list[str] | views.Preset] = {
     t("console.view.themes_all"): views.Preset(
