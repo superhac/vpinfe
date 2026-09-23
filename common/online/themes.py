@@ -44,6 +44,7 @@ class ThemeRegistry:
         self.timeout = timeout
         self.client = ThemeRegistryClient(timeout=timeout)
         self.themes_index: dict[str, Any] = {}
+        self.origins: dict[str, str] = {}
         self.themes: dict[str, Any] = {}
 
         self.base_dir = str(CONFIG_DIR)
@@ -93,7 +94,8 @@ class ThemeRegistry:
                  for url in sources.repositories if url.strip()]
         parts += [(url, self._catalog(url)) for url in sources.registries if url.strip()]
 
-        index = theme_sources.merge(parts)
+        self.origins = {}
+        index = theme_sources.merge(parts, self.origins)
         if not index and parts:
             raise ThemeRegistryError("No theme source could be read.")
 
@@ -200,6 +202,7 @@ class ThemeRegistry:
                                        theme_key, twin)
                     self.themes[theme_key] = {
                         "registry_info": theme_info,
+                        "source": self.origins.get(provisional, ""),
                         "manifest": manifest,
                         "release": release,
                         "index": index,

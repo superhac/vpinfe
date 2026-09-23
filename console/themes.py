@@ -15,6 +15,7 @@ import json
 import logging
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlparse
 
 from nicegui import run, ui
 
@@ -50,20 +51,25 @@ COLUMNS: list[dict[str, Any]] = [
     grid.column("made_for", t("console.themes.made_for"), 150,
                 **grid.choice_filter([{"value": key, "label": label}
                                       for key, label in MADE_FOR.items()])),
+    grid.column("author", t("word.author"), 140),
+    grid.column("registry", t("console.themes.registry"), 200,
+                help=t("console.themes.registry.help")),
+    grid.column("repository", t("console.themes.repository"), 280),
 ]
 _ALL = [one["field"] for one in COLUMNS]
+_SHOWN = ("name", "status", "made_for")
 
 VIEWS: dict[str, list[str] | views.Preset] = {
     t("console.view.themes_all"): views.Preset(
-        columns=tuple(_ALL), help=t("console.view.themes_all.help")),
+        columns=_SHOWN, help=t("console.view.themes_all.help")),
     t("console.view.themes_active"): views.Preset(
-        columns=tuple(_ALL), filters={"status": {"values": [ACTIVE]}},
+        columns=_SHOWN, filters={"status": {"values": [ACTIVE]}},
         help=t("console.view.themes_active.help")),
     t("console.view.themes_installed"): views.Preset(
-        columns=tuple(_ALL), filters={"status": {"values": [ACTIVE, UPDATE, INSTALLED]}},
+        columns=_SHOWN, filters={"status": {"values": [ACTIVE, UPDATE, INSTALLED]}},
         help=t("console.view.themes_installed.help")),
     t("console.view.themes_available"): views.Preset(
-        columns=tuple(_ALL), filters={"status": {"values": [AVAILABLE]}},
+        columns=_SHOWN, filters={"status": {"values": [AVAILABLE]}},
         help=t("console.view.themes_available.help")),
 }
 
@@ -84,10 +90,23 @@ def version_said(theme: dict[str, Any]) -> str:
     return str(theme.get("installed_version") or theme.get("version") or "")
 
 
+def repo_name(url: str) -> str:
+    """`owner/repo` for a repository on GitHub or Forgejo, or a file in one; the address
+    itself for anything else."""
+    parsed = urlparse(url)
+    parts = [part for part in parsed.path.split("/") if part]
+    in_one = len(parts) > 2 and (parsed.netloc == "raw.githubusercontent.com"
+                                 or parts[2] == "raw")
+    return "/".join(parts[:2]) if len(parts) == 2 or in_one else url
+
+
 def rows(themes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{"id": theme["key"], "name": theme.get("name") or theme["key"],
              "preview": theme.get("preview") or "", "status": status(theme),
              "made_for": theme.get("type") if theme.get("type") in MADE_FOR else "",
+             "author": str(theme.get("author") or ""),
+             "registry": repo_name(str(theme["registry"])) if theme.get("registry") else "",
+             "repository": repo_name(str(theme["url"])) if theme.get("url") else "",
              "said": " \u00b7 ".join(part for part in (str(theme.get("author") or ""),
                                                         version_said(theme)) if part)}
             for theme in themes]
@@ -195,8 +214,10 @@ async def details(context: dict[str, Any]) -> None:
             entries.append((t("word.author"), str(theme["author"])))
         if theme.get("type") in MADE_FOR:
             entries.append((t("console.themes.made_for"), MADE_FOR[str(theme["type"])]))
-        entries.append((t("word.source"),
-                        panel.link_out(_repo(str(theme["url"])), to=str(theme["url"]))
+        if theme.get("registry"):
+            entries.append((t("console.themes.registry"), repo_name(str(theme["registry"]))))
+        entries.append((t("console.themes.repository"),
+                        panel.link_out(repo_name(str(theme["url"])), to=str(theme["url"]))
                         if theme.get("url") else t("console.themes.added_by_hand")))
         changes = changes_worth_showing(theme)
         if changes:
@@ -216,10 +237,6 @@ def changes_worth_showing(theme: dict[str, Any]) -> str:
     if not said or said.lower() in _PLACEHOLDERS:
         return ""
     return said if not theme.get("installed") or theme.get("update_available") else ""
-
-
-def _repo(url: str) -> str:
-    return url.rstrip("/").rsplit("/", 1)[-1] or url
 
 
 def _actions(context: dict[str, Any], library: Library, theme: dict[str, Any]) -> None:

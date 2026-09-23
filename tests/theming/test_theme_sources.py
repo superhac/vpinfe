@@ -96,6 +96,14 @@ class MergeTests(unittest.TestCase):
         self.assertEqual(index["Revolution"]["url"], "mine")
         self.assertIn("Revolution", logged.output[0])
 
+    def test_where_each_kept_name_came_from_is_recorded_beside_it(self) -> None:
+        origins: dict = {}
+        with self.assertLogs("vpinfe.common.online.theme_sources", "WARNING"):
+            theme_sources.merge([("a", {"one": {"url": "u1"}}),
+                                 ("b", {"one": {"url": "u2"}, "two": {"url": "u3"}})],
+                                origins)
+        self.assertEqual(origins, {"one": "a", "two": "b"})
+
     def test_merging_does_not_write_into_the_entries(self) -> None:
         """`registry_info` is handed to the installer, so bookkeeping stays out of it."""
         entry = {"url": "u1"}
@@ -199,6 +207,18 @@ class LoadTests(unittest.TestCase):
         self.assertEqual(list(registry.themes), ["Revolution"])
         self.assertEqual(registry.themes["Revolution"]["manifest"]["version"], "9.9")
         self.assertIn("keeping the first", logged.output[0])
+
+    def test_a_theme_knows_which_source_it_came_from(self) -> None:
+        repo = "https://git.example.net/me/my-cab"
+        registry = self._registry(
+            theme_sources.ThemeSources(registries=(STOCK,), repositories=(repo,)),
+            {STOCK: {"themes": {"Revolution": {"url": "https://x.net/o/r"}}},
+             f"{repo}/raw/HEAD/manifest.json": self._manifest("Cab"),
+             "https://x.net/o/r/raw/HEAD/manifest.json": self._manifest("Revolution")})
+        registry.load_registry()
+        registry.load_theme_manifests()
+        self.assertEqual(registry.themes["Revolution"]["source"], STOCK)
+        self.assertEqual(registry.themes["Cab"]["source"], repo)
 
     def test_which_source_wins_does_not_depend_on_who_answered_first(self) -> None:
         """Results are collected in source order, not completion order - otherwise a

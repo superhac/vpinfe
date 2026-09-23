@@ -33,6 +33,31 @@ class ARow(unittest.TestCase):
         self.assertIn("1.9", said)
 
 
+class WhereItComesFrom(unittest.TestCase):
+    def test_a_repository_or_a_file_in_one_reads_as_owner_and_repo(self) -> None:
+        for url in ("https://github.com/owner/repo",
+                    "https://raw.githubusercontent.com/owner/repo/master/themes.json",
+                    "https://github.com/owner/repo/raw/refs/heads/master/manifest.json",
+                    "https://git.example.net/owner/repo/raw/branch/main/themes.json"):
+            with self.subTest(url=url):
+                self.assertEqual("owner/repo", themes.repo_name(url))
+
+    def test_any_other_address_is_shown_whole(self) -> None:
+        url = "https://example.net/vpinfe/catalogs/themes.json"
+        self.assertEqual(url, themes.repo_name(url))
+
+    def test_a_row_carries_its_registry_repository_and_author(self) -> None:
+        row = themes.rows([_theme(
+            registry="https://raw.githubusercontent.com/owner/catalog/master/themes.json",
+            url="https://github.com/owner/theme")])[0]
+        self.assertEqual(("owner/catalog", "owner/theme", "someone"),
+                         (row["registry"], row["repository"], row["author"]))
+
+    def test_a_theme_added_by_hand_has_neither(self) -> None:
+        row = themes.rows([_theme(registry="", url="")])[0]
+        self.assertEqual(("", ""), (row["registry"], row["repository"]))
+
+
 class TheChangelog(unittest.TestCase):
     def test_a_template_placeholder_is_not_news(self) -> None:
         self.assertEqual("", themes.changes_worth_showing(

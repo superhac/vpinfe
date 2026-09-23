@@ -65,14 +65,16 @@ def name_of(index_key: str, entry: dict, manifest: dict) -> str:
     return index_key
 
 
-def merge(parts: Iterable[tuple[str, dict | None]]) -> dict:
+def merge(parts: Iterable[tuple[str, dict | None]], origins: dict | None = None) -> dict:
     """One index from many sources, first mention winning and the loser logged.
 
     Settles registry keys only. A repository is keyed by its url until its manifest
     arrives, so `ThemeRegistry.load_theme_manifests` runs the same contest again.
+
+    `origins`, when given, is filled with the source each kept key came from.
     """
     index: dict = {}
-    origins: dict = {}
+    origins = {} if origins is None else origins
     for origin, themes in parts:
         for key, entry in (themes or {}).items():
             if key in index:

@@ -16,7 +16,7 @@ from typing import Any
 
 from common import service_errors
 from common.i18n import t
-from common.online import theme_service
+from common.online import theme_service, theme_sources
 from common.online.themes import ThemeRegistry
 
 logger = logging.getLogger("vpinfe.common.online.theme_ops")
@@ -75,6 +75,8 @@ def _described(registry: ThemeRegistry, active: str) -> list[dict[str, Any]]:
             "screens": manifest.get("supported_screens"),
             "type": str(manifest.get("type") or ""),
             "url": str(info.get("theme_base_url") or info.get("url") or ""),
+            "registry": ("" if info.get(theme_sources.NAMED_BY_MANIFEST)
+                         else str(entry.get("source") or "")),
             # Where the picture is, resolved here rather than by each client: an
             # installed theme serves its own from /themes/, and one that is not has to
             # be fetched from where its manifest lives.
@@ -99,6 +101,7 @@ def _described(registry: ThemeRegistry, active: str) -> list[dict[str, Any]]:
             "screens": manifest.get("supported_screens"),
             "type": str(manifest.get("type") or ""),
             "url": "",
+            "registry": "",
             "preview": _preview(key, manifest, {}, True),
             "change_log": str(manifest.get("change_log") or ""),
             "installed": True,
