@@ -237,7 +237,7 @@ class RefusalTests(LaunchTests):
         with self.assertRaises(launch.LaunchUnavailableError) as caught:
             self._check(launcher=False)
 
-        self.assertIn("System", str(caught.exception))
+        self.assertIn("Frontend - Launchers", str(caught.exception))
 
     def test_a_launcher_that_is_not_there_is_refused(self) -> None:
         with self.assertRaises(launch.LaunchUnavailableError) as caught:

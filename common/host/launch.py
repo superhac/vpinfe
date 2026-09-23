@@ -36,6 +36,7 @@ from common.games.tables import (
 )
 from common.host import commands, launch_state, table_commands
 from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
+from common.i18n import t
 from common.launcher_path import resolve_launcher_path
 from common.paths import PLUGIN_PROFILES_DIR
 
@@ -114,9 +115,7 @@ def binary_for(table_id: str, filename: str) -> str:
 def _binary_of(launcher: launchers.Launcher | None, asked_for: str) -> str:
     """The program a launcher runs, checked before anything is announced."""
     if launcher is None:
-        raise LaunchUnavailableError(
-            "No launcher configured. Add one under System, or point the one you have "
-            "at Visual Pinball.")
+        raise LaunchUnavailableError(t("error.launchers.no_launcher_configured"))
     if asked_for and asked_for != launcher.launcher_id:
         logger.warning("Table asked for launcher %s, which is not available; "
                        "launching with %s instead", asked_for, launcher.display_name)

@@ -1808,6 +1808,7 @@
   "error.launchers.no_app_called_build": "Ñö àþþ çàŀŀèđ {app_id!r}. Ţĥîš ƀûîŀđ ķñöŵš {join}.",
   "error.launchers.no_launcher": "Ñö ŀàûñçĥèř {launcher_id}",
   "error.launchers.no_launcher_called": "Ñö ŀàûñçĥèř çàŀŀèđ {launcher_id!r}.",
+  "error.launchers.no_launcher_configured": "Ñö ŀàûñçĥèř çöñƒîĝûřèđ. Àđđ öñè îñ ţĥè Çöñšöŀè ûñđèř Ƒřöñţèñđ - Ŀàûñçĥèřš, öř þöîñţ ţĥè öñè ýöû ĥàṽè àţ Ṽîšûàŀ Þîñƀàŀŀ.",
   "error.launchers.no_scope_called": "Ñö šçöþè çàŀŀèđ {scope!r}.",
   "error.launchers.no_scope_called_app": "Ñö šçöþè çàŀŀèđ {scope!r}. Ţĥîš àþþ ĥàš {join}.",
   "error.launchers.no_settings_own_write": "{app_name} ĥàš ñö šèţţîñĝš öƒ îţš öŵñ ţö ŵřîţè.",

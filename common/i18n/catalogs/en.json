@@ -1808,6 +1808,7 @@
   "error.launchers.no_app_called_build": "No app called {app_id!r}. This build knows {join}.",
   "error.launchers.no_launcher": "No launcher {launcher_id}",
   "error.launchers.no_launcher_called": "No launcher called {launcher_id!r}.",
+  "error.launchers.no_launcher_configured": "No launcher configured. Add one in the Console under Frontend - Launchers, or point the one you have at Visual Pinball.",
   "error.launchers.no_scope_called": "No scope called {scope!r}.",
   "error.launchers.no_scope_called_app": "No scope called {scope!r}. This app has {join}.",
   "error.launchers.no_settings_own_write": "{app_name} has no settings of its own to write.",

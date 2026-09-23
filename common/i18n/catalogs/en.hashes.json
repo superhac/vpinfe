@@ -1664,6 +1664,7 @@
   "error.launchers.no_app_called_build": "8aeccdf9c352",
   "error.launchers.no_launcher": "706af662ce21",
   "error.launchers.no_launcher_called": "ea4a7561f1cd",
+  "error.launchers.no_launcher_configured": "c14739b0030d",
   "error.launchers.no_scope_called": "09beeaa5f5ca",
   "error.launchers.no_scope_called_app": "11bb076cf6ac",
   "error.launchers.no_settings_own_write": "7fb0396d3cee",
