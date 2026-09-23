@@ -27,7 +27,9 @@ SCOPE = "console.tags"
 
 COLUMNS = [
     grid.identifier("tag", t("console.tageditor.tag"), 220, pinned="left",
-                    help=t("console.tageditor.tag.help"), **renderers.drawable("tags")),
+                    help=t("console.tageditor.tag.help"),
+                    **renderers.drawable("chips", list="tag_list",
+                                         looks=renderers.TAG_LOOKS)),
     grid.column("description", t("console.workbench.description"), 280),
     grid.column("games", t("console.tageditor.games"), type="numericColumn",
                 help=t("console.tageditor.games.help")),

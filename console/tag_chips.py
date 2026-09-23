@@ -125,18 +125,11 @@ def install(looks: Mapping[str, Mapping[str, Any]]) -> None:
     ui.run_javascript(f"window.{LOOKS} = {json.dumps(held)};")
 
 
-RENDERER = (
-    "params => {"
-    " const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')"
-    ".replace(/\"/g, '&quot;');"
-    f" const looks = window.{LOOKS} || {{}};"
-    f" const colors = {json.dumps(list(COLORS))};"
-    " const held = (params.data || {}).tag_list || [];"
-    f" return '<span class=\"{BOX}\">' + held.map(tag => {{"
-    "  const look = looks[tag] || {};"
-    "  const color = colors.includes(look.color) ? look.color : 'gray';"
-    "  const tip = look.description ? ' title=\"' + esc(look.description) + '\"' : '';"
-    f"  return '<span class=\"{CHIP} {CHIP}--' + color + '\"' + tip"
-    f" + '><span class=\"{DOT} {DOT}--' + color"
-    "   + '\"></span>' + esc(tag) + '</span>'; }).join('') + '</span>'; }"
+# A tag's looks in a grid cell, for the chips drawing in `renderers`.
+LOOK = (
+    "tag => {"
+    f" const look = (window.{LOOKS} || {{}})[tag] || {{}};"
+    f" const color = {json.dumps(list(COLORS))}.includes(look.color) ? look.color : 'gray';"
+    f" return {{chip: '{CHIP} {CHIP}--' + color, dot: '{DOT} {DOT}--' + color,"
+    " tip: look.description || ''}; }"
 )

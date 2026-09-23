@@ -68,6 +68,7 @@ def header_width(header: str) -> int:
 # a blank cell is a choice like any other rather than the one state a filter cannot
 # express.
 CHOICE_FILTER = "window.HubChoiceFilter"
+_FILTER_THIS_LIST = t("console.grid.filter_this_list")
 
 _CHOICE_FILTER_JS = """
 if (!window.HubChoiceFilter) {
@@ -75,18 +76,23 @@ if (!window.HubChoiceFilter) {
     init(params) {
       this.params = params;
       this.picked = new Set();
+      this.gui = document.createElement('div');
+      this.gui.className = 'console-filter';
+      this.draw(params.choices || []);
+    }
+    draw(choices) {
+      this.gui.replaceChildren();
       this.boxes = new Map();
       this.rows = new Map();
       this.counts = new Map();
-      this.gui = document.createElement('div');
-      this.gui.className = 'console-filter';
+      this.labels = new Map();
       // A list past this is read by typing, not by scrolling. Below it a box to type in
       // is one more thing to look at for no gain.
-      if ((params.choices || []).length > 8) {
+      if (choices.length > 8) {
         const search = document.createElement('input');
         search.type = 'text';
         search.className = 'console-filter-search';
-        search.placeholder = 'Filter this list';
+        search.placeholder = (this.params.words || {}).search || '';
         search.addEventListener('input', () => {
           const said = search.value.trim().toLowerCase();
           for (const [value, row] of this.rows) {
@@ -98,12 +104,13 @@ if (!window.HubChoiceFilter) {
         });
         this.gui.appendChild(search);
       }
-      this.labels = new Map();
-      for (const choice of params.choices || []) {
+      for (const choice of choices) {
         const row = document.createElement('label');
         row.className = 'console-filter-row';
+        if (choice.tip) row.title = choice.tip;
         const box = document.createElement('input');
         box.type = 'checkbox';
+        box.checked = this.picked.has(choice.value);
         box.addEventListener('change', () => {
           box.checked ? this.picked.add(choice.value) : this.picked.delete(choice.value);
           this.params.filterChangedCallback();
@@ -141,6 +148,12 @@ if (!window.HubChoiceFilter) {
         this.gui.appendChild(row);
       }
     }
+    // What a row is counted under and matched on. A cell with nothing in it is the
+    // "missing" choice, whose value is "".
+    buckets(node) {
+      const held = this.params.getValue(node);
+      return [held === null || held === undefined ? '' : held];
+    }
     // How big the bucket is, over the whole library rather than over what the other
     // filters have left: a number that moved every time something else was picked would
     // be a different fact under the same label.
@@ -148,9 +161,7 @@ if (!window.HubChoiceFilter) {
       if (!this.params.api || !this.counts.size) return;
       const seen = new Map();
       this.params.api.forEachNode(node => {
-        const held = this.params.getValue(node);
-        const key = (held === null || held === undefined) ? '' : held;
-        seen.set(key, (seen.get(key) || 0) + 1);
+        for (const key of new Set(this.buckets(node))) seen.set(key, (seen.get(key) || 0) + 1);
       });
       for (const [value, el] of this.counts) {
         const n = seen.get(value) || 0;
@@ -161,9 +172,7 @@ if (!window.HubChoiceFilter) {
     getGui() { return this.gui; }
     isFilterActive() { return this.picked.size > 0; }
     doesFilterPass(params) {
-      const held = this.params.getValue(params.node);
-      // A cell with nothing in it is the "missing" choice, whose value is "".
-      return this.picked.has(held === null || held === undefined ? '' : held);
+      return this.buckets(params.node).some(key => this.picked.has(key));
     }
     getModel() { return this.picked.size ? {values: [...this.picked]} : null; }
     setModel(model) {
@@ -172,11 +181,81 @@ if (!window.HubChoiceFilter) {
     }
   };
 }
-"""
+if (!window.HubListFilter) {
+  // For a cell holding a list; "" is the row that holds nothing.
+  window.HubListFilter = class extends window.HubChoiceFilter {
+    init(params) {
+      this.all = false;
+      window.HubListFilter.made = (window.HubListFilter.made || 0) + 1;
+      this.group = 'console-filter-mode-' + window.HubListFilter.made;
+      super.init(params);
+    }
+    buckets(node) {
+      const held = this.params.getValue(node);
+      return Array.isArray(held) && held.length ? held : [''];
+    }
+    // Read again at every opening, so a value given a minute ago is a choice. A picked
+    // value nothing holds any more stays one, or the filter would be in force unseen.
+    present() {
+      const looks = (window.__vpinfeChipLooks || {})[this.params.looks] || (() => ({}));
+      const seen = new Set([...this.picked].filter(value => value !== ''));
+      this.params.api.forEachNode(node => {
+        for (const value of this.buckets(node)) if (value !== '') seen.add(value);
+      });
+      return [...[...seen].sort(__ORDER__).map(value => {
+        const look = looks(value) || {};
+        return {value: value, label: value, mark: look.dot || '', tip: look.tip || ''};
+      }), {value: '', label: (this.params.words || {}).none || ''}];
+    }
+    draw(choices) {
+      super.draw(choices);
+      const words = this.params.words || {};
+      const mode = document.createElement('div');
+      mode.className = 'console-filter-mode';
+      this.modes = [[false, words.any], [true, words.all]].map(([all, said]) => {
+        const label = document.createElement('label');
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = this.group;
+        radio.checked = this.all === all;
+        radio.addEventListener('change', () => {
+          this.all = all;
+          if (this.picked.size) this.params.filterChangedCallback();
+        });
+        label.append(radio, document.createTextNode(said || ''));
+        mode.appendChild(label);
+        return [all, radio];
+      });
+      this.gui.prepend(mode);
+    }
+    afterGuiAttached() {
+      this.draw(this.present());
+      this.tally();
+    }
+    doesFilterPass(params) {
+      const held = this.buckets(params.node);
+      const wanted = [...this.picked];
+      return this.all ? wanted.every(value => held.includes(value))
+                      : wanted.some(value => held.includes(value));
+    }
+    getModel() {
+      if (!this.picked.size) return null;
+      const model = {values: [...this.picked].sort(__ORDER__)};
+      if (this.all) model.all = true;
+      return model;
+    }
+    setModel(model) {
+      super.setModel(model);
+      this.all = Boolean(model && model.all);
+      for (const [all, radio] of this.modes || []) radio.checked = this.all === all;
+    }
+  };
+}
+""".replace("__ORDER__", renderers.ORDER)
 
 
 def install_filters() -> None:
-    """Put the filter component on the page. Once per page, before any grid is built."""
+    """Put the filter components on the page. Once per page, before any grid is built."""
     ui.add_body_html(f"<script>{_CHOICE_FILTER_JS}</script>")
 
 
@@ -201,11 +280,52 @@ def choice_filter(choices: list[dict[str, Any]], *,
         if isinstance(one.get("value"), str) and one["value"]
         and str(one.get("label") or "") != one["value"]}
     out: dict[str, Any] = {":filter": CHOICE_FILTER,
-                           "filterParams": {"choices": choices}}
+                           "filterParams": {"choices": choices,
+                                            "words": {"search": _FILTER_THIS_LIST}}}
     if shown:
         out[":valueFormatter"] = (
             f"params => ({json.dumps(shown)})[params.value] ?? params.value")
     return out
+
+
+LIST_FILTER = "window.HubListFilter"
+
+# The grid turns a descending result round itself, so an empty row answers the other way
+# round there to stay last.
+LIST_COMPARATOR = (
+    "(a, b, nodeA, nodeB, descending) => {"
+    f" const order = {renderers.ORDER};"
+    " const drawn = v => (Array.isArray(v) ? [...v] : []).sort(order);"
+    " const x = drawn(a), y = drawn(b);"
+    " if (!x.length || !y.length) {"
+    "  if (x.length === y.length) return 0;"
+    "  const last = x.length ? -1 : 1;"
+    "  return descending ? -last : last; }"
+    " for (let i = 0; i < Math.min(x.length, y.length); i++) {"
+    "  const said = order(x[i], y[i]); if (said) return said; }"
+    " return x.length - y.length; }"
+)
+
+_LIST_WORDS = {"none": t("word.none"), "any": t("console.grid.any_of"),
+               "all": t("console.grid.all_of"), "search": _FILTER_THIS_LIST}
+
+
+def list_column(field: str, header: str, width: int = 0, help: str = "", *,
+                looks: str = "", **extra: Any) -> dict[str, Any]:
+    """A column whose row holds a list under `field`: drawn as chips, filtered by the
+    values the rows hold, sorted by the first chip as drawn.
+
+    `looks` names where a chip takes its looks from, one of `renderers.LOOKS`; empty
+    draws the word alone.
+    """
+    return column(field, header, width, help,
+                  **renderers.drawable("chips", looks=looks),
+                  **{":filter": LIST_FILTER,
+                     "filterParams": {"looks": looks, "words": _LIST_WORDS},
+                     ":comparator": LIST_COMPARATOR,
+                     ":getQuickFilterText": "params => (params.value || []).join(' ')",
+                     ":valueFormatter": "params => (params.value || []).join(', ')"},
+                  **extra)
 
 
 def on_row_focus(scope: str, handler: Callable[[Any], Any]) -> None:

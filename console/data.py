@@ -1130,10 +1130,8 @@ class Library:
                 # in the panel, which is where it can be checked against the catalog.
                 "vps_unmatched": not game.get("vps_id"),
                 "rating": game.get("rating") or 0,
-                "themes": ", ".join(game.get("themes") or []),
-                # The words for filtering and sorting, the list for drawing.
-                "tags": ", ".join((game.get("user") or {}).get("tags") or []),
-                "tag_list": list((game.get("user") or {}).get("tags") or []),
+                "themes": list(game.get("themes") or []),
+                "tags": list((game.get("user") or {}).get("tags") or []),
                 # One field per asset kind, the same shape as media below. What used
                 # to sit here was a single "Assets" count computed from `entries` -
                 # the *media* map - so the column read as assets and counted media,

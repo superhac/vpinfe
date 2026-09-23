@@ -13,10 +13,11 @@ from console import renderers, tag_chips, theme
 
 class OneChipTwoDrawings(unittest.TestCase):
     def test_the_grid_draws_the_classes_the_panel_draws(self) -> None:
-        for token in (tag_chips.BOX, tag_chips.CHIP, tag_chips.DOT, tag_chips.LOOKS):
+        for token in (tag_chips.CHIP, tag_chips.DOT, tag_chips.LOOKS):
             with self.subTest(token=token):
-                self.assertIn(token, tag_chips.RENDERER)
-        self.assertIn(json.dumps(list(COLORS)), tag_chips.RENDERER)
+                self.assertIn(token, tag_chips.LOOK)
+        self.assertIn(tag_chips.BOX, renderers.CHIPS.js)
+        self.assertIn(json.dumps(list(COLORS)), tag_chips.LOOK)
 
     def test_a_color_nobody_knows_is_grey(self) -> None:
         self.assertEqual(f"{tag_chips.DOT} {tag_chips.DOT}--gray",
@@ -37,10 +38,10 @@ class OneChipTwoDrawings(unittest.TestCase):
                               css)
 
     def test_the_grid_outlines_a_chip_in_its_color(self) -> None:
-        self.assertIn(f"{tag_chips.CHIP}--' + color", tag_chips.RENDERER)
+        self.assertIn(f"{tag_chips.CHIP}--' + color", tag_chips.LOOK)
 
-    def test_a_column_can_be_drawn_as_tags(self) -> None:
-        self.assertIs(renderers.REGISTRY["tags"].js, tag_chips.RENDERER)
+    def test_a_chip_can_take_a_tag_s_looks(self) -> None:
+        self.assertIs(renderers.LOOKS[renderers.TAG_LOOKS], tag_chips.LOOK)
 
 
 LOOKS = {"night": {"color": "purple", "description": "Plays well in the dark"},

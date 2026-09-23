@@ -83,17 +83,44 @@ STATE = Renderer("state", "console.renderers.state", (
     " : '<span class=\"console-cell-quiet\">' + esc(one.label) + '</span>'; }"
 ))
 
-TAGS = Renderer("tags", "console.renderers.tags", tag_chips.RENDERER)
+# The order chips are drawn in, which is also the order a list column sorts by.
+ORDER = ("(a, b) => String(a).localeCompare(String(b), undefined,"
+         " {numeric: true, sensitivity: 'base'})"
+         " || (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0)")
+
+# Where a chip takes its looks from, by name: `value => {chip, dot, tip}`. A column naming
+# none draws the word alone.
+TAG_LOOKS = "tags"
+LOOKS = {TAG_LOOKS: tag_chips.LOOK}
+
+# A list as chips. The list is the cell's value, or the row field `params.list` names.
+CHIPS = Renderer("chips", "console.renderers.chips", (
+    "params => {" + _ESCAPE +
+    f" const order = {ORDER};"
+    " const held = params.list ? (params.data || {})[params.list] : params.value;"
+    " const looks = (window.__vpinfeChipLooks || {})[params.looks] || (() => ({}));"
+    f" return '<span class=\"{tag_chips.BOX}\">' + (Array.isArray(held) ? [...held] : [])"
+    ".sort(order).map(value => {"
+    "  const look = looks(value) || {};"
+    "  const tip = look.tip ? ' title=\"' + esc(look.tip) + '\"' : '';"
+    "  const dot = look.dot ? '<span class=\"' + look.dot + '\"></span>' : '';"
+    f"  return '<span class=\"' + (look.chip || '{tag_chips.CHIP}') + '\"' + tip + '>'"
+    " + dot + esc(value) + '</span>'; }).join('') + '</span>'; }"
+))
 
 REGISTRY: dict[str, Renderer] = {one.name: one
-                                 for one in (MARK, PICTURE, STATE, TAGS)}
+                                 for one in (MARK, PICTURE, STATE, CHIPS)}
 
 
 def install() -> None:
-    """Every drawing, where the dispatcher can find it. Harmless to repeat."""
+    """Every drawing, and every source of a chip's looks, where the dispatcher can find
+    them. Harmless to repeat."""
     body = ", ".join(f"{json.dumps(name)}: {one.js}" for name, one in REGISTRY.items())
+    looks = ", ".join(f"{json.dumps(name)}: {js}" for name, js in LOOKS.items())
     ui.run_javascript(
-        f"window.__vpinfeDraw = Object.assign(window.__vpinfeDraw || {{}}, {{{body}}});")
+        f"window.__vpinfeDraw = Object.assign(window.__vpinfeDraw || {{}}, {{{body}}});"
+        f" window.__vpinfeChipLooks = Object.assign(window.__vpinfeChipLooks || {{}},"
+        f" {{{looks}}});")
 
 
 def drawable(default: str, *others: str, **params: Any) -> dict[str, Any]:

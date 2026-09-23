@@ -1,0 +1,90 @@
+"""List columns: what each declares, and what the rows hand it."""
+
+from __future__ import annotations
+
+import unittest
+
+from common.i18n import t
+from console import data, games, grid, renderers, tageditor
+
+
+def _column(columns: list[dict], field: str) -> dict:
+    return next(one for one in columns if one["field"] == field)
+
+
+class AListColumn(unittest.TestCase):
+    def setUp(self) -> None:
+        self.column = grid.list_column("tags", "Tags", looks=renderers.TAG_LOOKS)
+
+    def test_it_is_drawn_as_chips_filtered_by_value_and_sorted_by_the_first_chip(self) -> None:
+        self.assertEqual(renderers.DISPATCH, self.column[":cellRenderer"])
+        self.assertEqual({"drawn": "chips", "looks": renderers.TAG_LOOKS},
+                         self.column["cellRendererParams"])
+        self.assertEqual(grid.LIST_FILTER, self.column[":filter"])
+        self.assertEqual(grid.LIST_COMPARATOR, self.column[":comparator"])
+
+    def test_the_drawing_the_sort_and_the_filter_share_one_order(self) -> None:
+        for js in (renderers.CHIPS.js, grid.LIST_COMPARATOR, grid._CHOICE_FILTER_JS):
+            with self.subTest(js=js[:40]):
+                self.assertIn(renderers.ORDER, js)
+
+    def test_the_filter_takes_its_words_and_looks_from_the_column(self) -> None:
+        params = self.column["filterParams"]
+        self.assertEqual(renderers.TAG_LOOKS, params["looks"])
+        self.assertEqual({"none": t("word.none"), "any": t("console.grid.any_of"),
+                          "all": t("console.grid.all_of"),
+                          "search": t("console.grid.filter_this_list")}, params["words"])
+
+    def test_a_looks_source_it_names_is_one_the_page_installs(self) -> None:
+        self.assertIn(self.column["filterParams"]["looks"], renderers.LOOKS)
+
+    def test_the_one_value_filter_keeps_its_own_shape(self) -> None:
+        column = grid.choice_filter([{"value": "a", "label": "A"}])
+        self.assertEqual(grid.CHOICE_FILTER, column[":filter"])
+        self.assertEqual([{"value": "a", "label": "A"}], column["filterParams"]["choices"])
+        self.assertEqual({"search": t("console.grid.filter_this_list")},
+                         column["filterParams"]["words"])
+
+
+class TheGridsListColumns(unittest.TestCase):
+    def test_tags_and_game_themes_are_list_columns(self) -> None:
+        for label, columns, field in (("games", games.COLUMNS, "tags"),
+                                      ("games", games.COLUMNS, "themes"),
+                                      ("tables", games.TABLE_COLUMNS, "tags")):
+            with self.subTest(grid=label, field=field):
+                self.assertEqual(grid.LIST_FILTER, _column(columns, field)[":filter"])
+
+    def test_a_tag_takes_its_color_and_a_theme_is_a_plain_word(self) -> None:
+        self.assertEqual(renderers.TAG_LOOKS,
+                         _column(games.COLUMNS, "tags")["filterParams"]["looks"])
+        self.assertEqual("", _column(games.COLUMNS, "themes")["filterParams"]["looks"])
+
+    def test_the_tag_editor_draws_its_one_tag_through_the_same_chips(self) -> None:
+        params = _column(tageditor.COLUMNS, "tag")["cellRendererParams"]
+        self.assertEqual({"drawn": "chips", "list": "tag_list",
+                          "looks": renderers.TAG_LOOKS}, params)
+
+
+class TheRowsHoldTheListsThemselves(unittest.TestCase):
+    def test_a_game_row(self) -> None:
+        library = data.Library.__new__(data.Library)
+        library.games = [{"id": "g1", "name": "A", "themes": ["Space", "Aliens"],
+                          "user": {"tags": ["Night Owl"]}},
+                         {"id": "g2", "name": "B"}]
+        library.media = {}
+
+        rows = library.game_rows()
+
+        self.assertEqual([(["Space", "Aliens"], ["Night Owl"]), ([], [])],
+                         [(row["themes"], row["tags"]) for row in rows])
+
+    def test_a_table_row(self) -> None:
+        rows = games.table_rows([{"id": "t1", "game_id": "g1",
+                                  "user": {"tags": ["VR", "Night Owl"]}},
+                                 {"id": "t2", "game_id": "g1"}])
+
+        self.assertEqual([["VR", "Night Owl"], []], [row["tags"] for row in rows])
+
+
+if __name__ == "__main__":
+    unittest.main()

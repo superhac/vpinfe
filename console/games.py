@@ -133,8 +133,8 @@ COLUMNS = [
     # Qualified for the reason Game Rating is: an install has a *frontend* theme and will
     # have a Console one, so "Themes" in a column header is three things one screen apart.
     # The panel says "Themes" plainly, because a group headed Machine has said which.
-    grid.column("themes", t("console.games.game_themes"), 200, group=t(_GAME),
-                help=t("console.games.what_machine_about_subject.help")),
+    grid.list_column("themes", t("console.games.game_themes"), 200, group=t(_GAME),
+                     help=t("console.games.what_machine_about_subject.help")),
     # The word only where it is missing, and a blank cell everywhere else: most of a
     # library is matched, so a mark on every row says nothing and the few that are not
     # are the whole point of the column. It sits beside the catalog facts because it
@@ -157,8 +157,8 @@ COLUMNS = [
                 cellClass="console-stars-cell",
                 **{**grid.choice_filter(_RATING_CHOICES),
                    ":cellRenderer": stars.renderer("game")}),
-    grid.column("tags", t("console.workbench.tags"), 200, group=t(_GAME),
-                help=t("console.games.tags.help"), **renderers.drawable("tags")),
+    grid.list_column("tags", t("console.workbench.tags"), 200, group=t(_GAME),
+                     help=t("console.games.tags.help"), looks=renderers.TAG_LOOKS),
 ]
 
 # Presets, not a replacement for choosing columns: a view sets which columns are
@@ -696,8 +696,8 @@ TABLE_COLUMNS = [
                 cellClass="console-stars-cell",
                 **{**grid.choice_filter(_RATING_CHOICES),
                    ":cellRenderer": stars.renderer("table")}),
-    grid.column("tags", t("console.workbench.tags"), 200, group=t(_TABLE),
-                help=t("console.games.table_tags.help"), **renderers.drawable("tags")),
+    grid.list_column("tags", t("console.workbench.tags"), 200, group=t(_TABLE),
+                     help=t("console.games.table_tags.help"), looks=renderers.TAG_LOOKS),
     # Each column's own words, not a generic pair: "Hidden: Yes" is a question about a
     # question, where "Hidden / Offered" is the fact and its opposite.
     grid.column("hidden", t("word.hidden"), group=t(_IN_PLAY),
@@ -855,8 +855,7 @@ def table_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
              "author": ", ".join(row.get("authors") or []),
              "on_vps": str((row.get("source") or {}).get("version") or ""),
              "update": _NEWER if row.get("update_available") else "",
-             "tags": ", ".join((row.get("user") or {}).get("tags") or []),
-             "tag_list": list((row.get("user") or {}).get("tags") or []),
+             "tags": list((row.get("user") or {}).get("tags") or []),
              "said": " ".join(str(row.get(k) or "").strip()
                               for k in ("manufacturer", "year")).strip(),
              "said_built": game_tables.table_name(row),

@@ -790,6 +790,20 @@ body::before {
   flex: none;
 }
 .console-filter-row input { accent-color: var(--accent); cursor: pointer; margin: 0; }
+/* Any of the picked values, or all of them. Above the values, so ticking one never moves
+   the next. */
+.console-filter-mode {
+  display: flex;
+  gap: 14px;
+  padding: 4px 8px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.console-filter-mode label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.console-filter-mode input { accent-color: var(--accent); cursor: pointer; margin: 0; }
 
 /* A media cell holds one thing - a mark or a picture - so it centres that thing rather
    than leaving it on the text baseline. A picture on the baseline sat 1px below the top
@@ -2284,6 +2298,12 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-slot-art:hover .console-slot-zoom,
 .console-theme-hero:hover .console-slot-zoom { opacity: 1; }
 .console-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+/* A grid row is one line tall, so a second line of chips would be cut through the middle.
+   The ones that do not fit are cut at the column's edge instead, inside the box: past it
+   the cell's own ellipsis draws a stray dot. */
+.ag-cell .console-tags {
+  flex-wrap: nowrap; overflow: hidden; max-width: 100%; vertical-align: middle;
+}
 .console-tag {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: var(--fs-caption); line-height: 18px; white-space: nowrap;
