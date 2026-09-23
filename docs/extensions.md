@@ -84,7 +84,8 @@ application, and that is the guarantee the model rests on.
 | `ctx.scope(action)` | The scope name for one of its declared actions |
 | `ctx.entries` | `contribute(key, fetch)` — add something to every entry a theme is handed |
 | `ctx.tokens` | `offer(name, says, contexts, value)` — a name a user may write into a command. Offered as `<extension>.<name>` |
-| `ctx.ui` | `action(...)` — offer a verb for the Console to draw; `settings(base, label)` and `state(base, label)` — say where its settings and what it is holding can be read. All need `ui:mount` |
+| `ctx.catalogs` | `contribute(key, name, subject, link)` — say where a game, a table or a file is somewhere else |
+| `ctx.ui` | `action(...)` — offer a verb for the Console to draw; `community(...)` — a list shown under Community; `settings(base, label)` and `state(base, label)` — say where its settings and what it is holding can be read. All need `ui:mount` |
 | `ctx.add_router(router, scope=...)` | Serve routes under `/api/v1/ext/<name>/` |
 
 `ctx.games` is not a second implementation of the HTTP API — it calls the API's own route
@@ -168,12 +169,16 @@ for every connector that follows.
 
 ```python
 def rating_for(game):
-    # game is {game_id, vps_id, name, manufacturer, year} - a description, never our
-    # object. Return whatever a theme should read, or None where there is nothing.
+    # game is {game_id, vps_id, name, manufacturer, year, ipdb_id} - a description,
+    # never our object. Return whatever a theme should read, or None where there is
+    # nothing.
     return {"stars": look_it_up(game["vps_id"])}
 
 ctx.entries.contribute("rating", rating_for)
 ```
+
+Each value in the description is the effective one: an extension sees the match a user
+corrected, not the one the scan found.
 
 **Core makes the call; the browser makes none.** `fetch` runs on core's thread when the
 player moves to a game, so it may block — but it must not raise for a game it simply has
@@ -188,6 +193,20 @@ it is about, so one arriving after the wheel has moved lands on the entry it bel
 The slot is always present and empty at library load — a list of four hundred games cannot
 wait on four hundred calls to somebody else's server. A theme written as
 `if (entry.ext.rating)` is correct throughout without knowing there is a waiting state.
+
+## Adding an outside link
+
+A game, a table or a file can have a page somewhere else, and an extension can say where.
+
+```python
+ctx.catalogs.contribute(key="vpinplay", name="VPinPlay", subject="game",
+                        link=lambda game: f"https://www.vpinplay.com/tables?vpsid={game['vps_id']}")
+```
+
+`subject` is `game`, `table` or `file`; anything else is refused at registration. `link` is
+handed a plain description of the subject and answers its address there, or "". Core draws
+it as a row named for the place, with `open_in_new`. A link that raises, or answers anything
+but an http or https address, is left out.
 
 ## Adding a name a command can use
 
@@ -259,6 +278,28 @@ one call and a sentence should not have to wear a progress bar.
 "Confirm" makes every action look like every other one. `notes` travel with the summary,
 because a count that stays quiet about what the job cannot do describes something that
 will not happen.
+
+## Adding a Community list
+
+A list an extension holds, shown under Community. Needs `ui:mount`.
+
+```python
+ctx.ui.community("tables", "VPinPlay", "/community/tables",
+                 columns=[{"field": "name", "header": "Table",
+                           "under": ["manufacturer", "year"]},
+                          {"field": "plays", "header": "Plays", "kind": "number"}],
+                 views=[{"name": "Most Played", "columns": ["name", "plays"],
+                         "sort": [{"field": "plays", "desc": True}]}],
+                 relation={"field": "vps_id", "keys": "vps_entry"})
+```
+
+`base` is one of this extension's routes answering `{"rows": [...]}`. A column's `kind` is
+`text`, `number` or `date`, and the first column may name `under` - row fields drawn on the
+line beneath its value, as a game's maker and year are. A view names its columns and its
+sort. With a `relation`, core asks which rows this library holds and makes their name a
+link: `keys` is `vps_entry` for a link to the game, or `vps_release` for one to the table.
+It is all data: core draws the list with the grid every other page uses, and nothing of
+the extension's runs in the page.
 
 ## Scopes and the gate
 

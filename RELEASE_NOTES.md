@@ -173,6 +173,10 @@ These are deliberate. `docs/compatibility-3.0.md` has the full list with the rea
   interrupted write cannot leave a truncated one behind.
 - **Core** — One unreadable `.info` no longer stops the whole library from loading. That
   table is left out and named in the log, and its file is not touched.
+- **Core** — A 2.x collection that filters on type keeps its type. It came across from
+  `collections.ini` selecting every game. If you ran a 3.0 development build, a collection
+  whose rule you saved there is refused as filtering on `table_type`; save its rule once
+  and it reads again.
 - **Manager UI** — Remote launch failures are logged instead of failing silently, and a
   remote launch no longer raises on Linux.
 - **Manager UI** — Editing an input binding and nothing else now offers a Save button. The

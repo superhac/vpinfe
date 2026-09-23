@@ -189,15 +189,16 @@ ui.notify(t("said.could_not_do_that", exc=exc), type="negative")
 ```
 
 `tests/invariants/test_i18n_catalog.py` fails the suite on a literal in a display position,
-so this is enforced rather than remembered. It knows the shapes strings have arrived in
-before: a bare argument, an f-string, a conditional, a `+` join, a dict value, a module
-constant, a function's return, and the first half of a `(label, control)` pair.
+so this is enforced rather than remembered.
 
 ### What is not a word
 
 Left in the code, and the checks know to leave them alone:
 
-- CSS classes, Quasar props, anything handed to `run_javascript`
+- CSS classes, anything handed to `run_javascript`, and Quasar props - except the ones
+  Quasar draws as text: `error-message`, `hint`, `label`, `placeholder`, `prefix`,
+  `suffix`, the `no-option`, `no-data`, `no-results` and `loading` labels, `title` and
+  `aria-label`
 - log lines — a log says the same thing on every install, which is the point of it
 - API paths, event names, config keys, `.info` keys, theme folder names
 - **identifiers from somewhere else** — VPX's `vpinball.ini` section names, the fields the
@@ -528,6 +529,10 @@ whatever it holds, so the air around one does not depend on its kind. At 26px a 
 value sat 21px in the row while a chip carried its own padding and read roomier — the
 same rhythm, felt as two. Content that wraps is the only thing that grows a row.
 
+**Fact rows keep one rhythm everywhere they are drawn** - 8px between rows, each row as
+tall as what it holds. `tests/invariants/test_fact_rows_keep_one_rhythm.py` fails on a
+rule that spaces fact rows for one surface only.
+
 **A picker's options say what they are for.** Where a view, a preset or a mode has a
 description, it goes on the option as a tooltip rather than only on the one already
 chosen - the reader is picking, which is the moment the difference between two of them
@@ -644,6 +649,64 @@ stretch to the same width.
 - **Section actions sit in their own strip** under the content, as a media slot's do.
   Position is then what tells a row action from a section one.
 
+### A link says whether it leaves
+
+- **Inside the Console, a link is an anchor in `--accent`, with no icon.** `panel.link`
+  builds it and its address comes from `deeplink.query()`, so opening it in a new tab,
+  middle-clicking it and copying its address all work. A click handler on a label can do
+  none of those.
+- **A link that leaves the Console is marked with `open_in_new`** after its words, and
+  opens a new tab. `panel.link_out` builds it. Unmarked stays in the app; marked leaves it.
+- **The chain is not a link.** `link` is the icon for binding two records - a game to its
+  VPS entry, a table to its release - so Match and Change match wear it. A link that goes
+  somewhere never does.
+
+`tests/invariants/test_links_go_through_the_constructors.py` fails on an anchor built
+anywhere but `panel.py`, and the nav rail in `page.py`.
+
+### Every button carries an icon
+
+- **An icon and its words.** The words may go only where the control repeats on every row
+  and the icon is one everybody knows - `more_vert`, `close`, `play_arrow` - and then it
+  carries a tooltip. Dialogs are no exception: the confirm verb takes its icon and Cancel
+  takes `close`. Menu items take none.
+- **One icon per verb, from `console/verbs.py`.** A verb that means what another means
+  takes that one's drawing: Accept, Done, Choose and Keep all draw `check`, and Cancel,
+  Close, Skip and Discard all draw `close`, because they are the same act in different
+  words. The label is what tells them apart.
+- **A verb nothing draws falls back by what it does** - open `open_in_new`, change `edit`,
+  add `add`, remove `close` - rather than getting an icon invented for it. The words carry
+  the meaning; the icon only says this is a button.
+
+`tests/invariants/test_every_button_carries_an_icon.py` fails on a button with words and
+no icon, and on an icon name `verbs.py` does not declare.
+
+### A dialog is drawn by the shared frame
+
+- **Every dialog opens through `dialog.opened(title, ...)`**, which gives it the panel's
+  ground and a title and nothing else. What goes inside is what a panel holds: rows from
+  `panel.facts`, fields from `dialog.field` (the panel's own, answering nothing until the
+  dialog does), lists from `panel.select`, section names as `panel.HEADING`.
+- **The title names the act and its subject**, as a fragment with no full stop, and a
+  name in it is quoted: Import into “Attack from Mars”.
+- **Every action is in the footer**, `dialog.footer()`: Cancel first and quiet, then the
+  one answering verb, filled. A second act the dialog offers, like Clear on a picker, is
+  `dialog.aside` and sits on the far left. An act on one row of the body belongs to the
+  row and is a `panel.action`.
+- **Enter presses the answer and focus lands on the first field** - `dialog.enter_presses`
+  and `dialog.focus`, because Quasar's own autofocus does not reach into a dialog.
+- **Typed input or a run in progress makes a dialog `persistent`**, so a stray click on
+  the backdrop cannot throw it away. Escape still cancels.
+- **`wide=True`** for a list or rows of several facts, **`full=True`** for an editor with
+  a toolbar of its own.
+- **A wizard keeps its frame and redraws its body and footer at each step**: Back where
+  there is history, Cancel where there is not, Next, and the act's own verb on the last
+  step. It draws its own title, since the title changes.
+
+`tests/invariants/test_dialogs_are_drawn_by_the_frame.py` fails on any `ui.dialog()`
+outside `console/dialog.py`. The enlarged picture in `mediaview.py` and the phone
+remote's sheets are the exceptions, because neither asks anything.
+
 ### One confirmation, and one field
 
 - **Anything that cannot be undone asks first, through `console/confirm.py`.** Four dialogs
@@ -660,17 +723,46 @@ stretch to the same width.
   exactly what a divider is. It sits at `--field-h`, in the fact rhythm rather than above
   it, and `@media (pointer: coarse)` raises it with the inline action.
 
+### An act that can be taken back says so, with Undo
+
+A reversible act does not ask first. It does the thing and says what it did, with Undo on
+the message. `console/undo.py` draws that message and nothing else does: the ordinary green,
+or amber with a mark where the act wants a second look - a game added to a smart collection
+becomes an exception to its rules - and each act hands it the reversal that puts back
+exactly what it changed. What cannot be undone still asks first, through
+`console/confirm.py`.
+
+### A drag carries addresses, and a menu does the same
+
+A row dragged out of a grid carries each row's Console address as `text/uri-list`, with
+`application/json` beside it, so it means something wherever it is let go. The drop side
+reads the ids back out of the addresses and refuses rows from another install. Every drag
+has a menu entry doing the same thing, so dragging is never the only way.
+
+A drag always shows what it holds: the row's name beside the pointer, with a count when it
+holds more than one. The target is the whole panel that shows the thing, not the section
+listing its members, and it is ringed while the drag is over it. Between rows a line shows
+where the rows will go; let go anywhere else on the panel and they are added, at the end
+when the list is in Custom Order. Anywhere that is not a target refuses the drag, so the
+browser never opens the address it carries.
+
 ### A value is written when it is set
 
-No save bar. A control that changes a value writes it, and anything that cannot be undone
-asks first. Two answers had shipped — the pane wrote on change or on blur, Settings
-collected edits into a dirty set behind Save and Discard — so whether an edit had taken
-effect depended on which surface you were on.
+No save bar, but for one draft, below. A control that changes a value writes it, and
+anything that cannot be undone asks first. Two answers had shipped — the pane wrote on
+change or on blur, Settings collected edits into a dirty set behind Save and Discard — so
+whether an edit had taken effect depended on which surface you were on.
 
 Free text settles on blur, with `debounce=0`: nicegui's model is only current if every
 keystroke reaches it, and reading it on blur without that gets whatever the last sync
 happened to hold. Several lines settle as you stop typing instead, because a paragraph has
 no natural moment of leaving. Everything else writes on change.
+
+The one draft is a collection's rules. A rule is several rows that mean nothing until they
+are all there, so the rows wait behind a bar held at the foot of the panel - how many games
+match, join and leave, with Cancel and Save Rules - while the grid marks the collection
+*Not saved* and leaving the page asks. The rest of that panel, its order and limit
+included, writes on change.
 
 ### Chips say what the absence costs
 
@@ -810,10 +902,12 @@ element.
   (`Visual Pinball X`, `TAF_L7`); states are capitalized noun phrases. Show a display name
   rather than an id — an id on screen is a leak.
 - **A fragment takes no full stop, and neither does a lone sentence.** Labels, states,
-  counts and fragments never take one; a tooltip or a help line that is a single sentence
-  does not either, because the stop is doing no work when nothing follows it. Punctuate
-  where a second sentence makes the boundary worth marking. "Nothing in it yet." is a
-  fragment wearing a period.
+  counts and fragments never take one; a tooltip, a help line or a setting's description
+  that is a single sentence does not either, because the stop is doing no work when nothing
+  follows it. Punctuate where a second sentence makes the boundary worth marking. "Nothing
+  in it yet." is a fragment wearing a period. `tests/invariants/test_copy_full_stops.py`
+  holds it for every `.help`, `.label`, `.summary` and `.description` entry, and wherever
+  the Console draws a tooltip, a note, a state or a help line.
 - **The shortest true word wins.** A chip reads `Missing`, not "Not in this library"; the
   sentence goes in the tooltip where it costs nothing.
 - **A grid marks the one column its rows are scanned by, and marks it on the column.**
@@ -834,6 +928,10 @@ element.
   its common value removes a column rather than removing noise. Show varying state on every
   row and dim the ordinary value, so the scan still lands on the exception without meaning
   being read from absence.
+  One exception: a lock. A row held to one thing carries a lock and *Locked*, and a row
+  that is not carries nothing - the one mark whose absence nobody misreads, as a file
+  manager shows a lock only on what is locked. A collection's list marks a game held to one
+  of its tables this way.
 - **Cut anything that only restates what is on screen.** Explanatory prose above a control
   that already explains itself is filler, and filler is what makes a panel feel unfinished.
 - **Gate an affordance on the input, not on the width.** Hover-to-reveal is
@@ -841,7 +939,7 @@ element.
   is as wide as a desk one, and hiding a control behind hover on a device that cannot
   hover makes it unreachable. Visible is the default; revealing on hover is the
   enhancement. Pair it with `:focus-within` or a keyboard never reaches it either.
-- **On screen, use the word a person would use.** The wire's `filter` is **Dynamic** to a
+- **On screen, use the word a person would use.** The wire's `filter` is **Smart** to a
   reader. A label names the thing, not the model.
 - **In a menu, the group label is chrome and the item is content.** One language for every
   menu - dropdowns, grid header and cell menus, bulk actions, pickers:
@@ -855,8 +953,9 @@ element.
   - **Accent is the current value and nothing else** - the chosen item, the checkmark. When
     every item is accent-colored the color stops meaning anything.
   - **One leading slot**, fixed width, for whatever marks the item; items with no mark
-    indent to it so the labels line up.
-  - **The trailing slot is state** - a checkmark, a count, a shortcut. Never a second action.
+    indent to it so the labels line up. `panel.menu_entry` draws an item that way.
+  - **The trailing slot is state** - a checkmark, a count, a shortcut, or *In It* on an
+    entry that is already true, which is then inert. Never a second action.
   - A **destructive** item colors its *text*; the band stays the ordinary one. A red row
     reads as an error that has already happened.
   - **A separator divides groups**, never decorates.
@@ -885,6 +984,11 @@ element.
   derived, not chosen: pass one only for a title, an author or a path, and treat it as a
   floor. A hand-picked number on a column of short values is a guess that outlives whoever
   made it.
+- **A cell that holds several values holds the list, never a joined string.**
+  `grid.list_column` draws it as chips in alphabetical order, filters it by the values
+  the rows hold - any of the picked ones, all of them with the switch, and None for a row
+  holding nothing - and sorts it by the first chip as drawn, empty rows last either way.
+  Filtered as text, "Night" finds "Late Night" and "Night Owl" alike.
 - **A path on the wire or in a file is forward-slashed, whatever host built it.**
   `str()` on a `Path` and `os.path.relpath` both answer in the host's separator, so the
   same library described itself as `medias/bg.png` on Linux and `medias\bg.png` on

@@ -50,18 +50,21 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/collections` | List collections |
 | GET | `/api/v1/collections/{name}` | One collection |
 | GET | `/api/v1/collections/{name}/games` | Its games, resolved — works for both kinds |
-| POST | `/api/v1/collections` | Create one. `filters` makes it filter-based, `games` makes it manual |
+| POST | `/api/v1/collections` | Create one. `filters` makes it filter-based, `games` makes it manual. `copy_of` starts it as a copy of that collection - its games, criteria, exclusions, order, limit, description and image, under the new name - and is refused beside `filters`, `games` or `description` |
 | DELETE | `/api/v1/collections/{name}` | Delete it |
 | PATCH | `/api/v1/collections/{name}` | Change one. Only what you send is written — a rename need not restate the rest |
 | GET | `/api/v1/collections/{name}/members` | Its **stored** membership, and why each entry is there. `ref_table` is the table a row *names* (empty when it names none) — its identity, and not the table it resolves to |
+| POST | `/api/v1/collections/{name}/members/preview` | The stored membership as it would be with other criteria in place of the collection's own, storing nothing. `{"filters": {…}}`; leaving `filters` out tries it with none. `matched` is how many games those criteria match in the library |
 | PUT | `/api/v1/collections/{name}/games/{id}` | Add a game (idempotent). `{"table": "…"}` names one of its tables; `{"after_table": "…"}` puts the new row beside that sibling instead of at the end |
 | DELETE | `/api/v1/collections/{name}/games/{id}` | Remove one row: `?table=abc` the one naming it, `?table=` the one naming none. Omit it entirely to remove every row for the game |
 | PUT | `/api/v1/collections/{name}/games/{id}/table` | Change which table it names, in place. `{"table": ""}` hands back the game's default; `was` picks the ref when a game appears twice |
 | PUT | `/api/v1/collections/{name}/excluded/{id}` | Keep a game out. `{"table": "…"}` keeps out one table |
 | DELETE | `/api/v1/collections/{name}/excluded/{id}` | Lift one exclusion: `?table=abc` the one naming it, `?table=` the one naming none. Omit it entirely to lift every exclusion for the game |
-| POST | `/api/v1/collections/{name}/members/from_filters` | Keep what the criteria match, and drop the criteria |
+| POST | `/api/v1/collections/{name}/members/from_filters` | Keep what the criteria match, and drop the criteria and the exclusions. Each game is written once, naming no table, so it follows its default; a member that already named a table keeps it |
 | PUT | `/api/v1/collections/{name}/order` | Arrange a collection. The whole ordered list, atomically - one entry per row, so a game holding two named tables is named twice |
 | PUT/GET/DELETE | `/api/v1/collections/{name}/image` | Its icon |
+| GET | `/api/v1/games/{id}/collections` | The collections holding a game, each `added` (written into it) or `matched` (its rule brought the game in), and under `taken_out` every other collection an exclusion keeps it out of. A game the limit cuts is held by none |
+| GET | `/api/v1/library/game_collections` | The same answer for every game a collection holds, in one read. A game no collection holds is not listed |
 | POST | `/api/v1/library/preview` | What a rule would match, storing nothing |
 | GET | `/api/v1/jobs` | Slow work, running first. `?kind=` filters |
 | GET | `/api/v1/jobs/{id}` | One job — state, last progress, outcome, and `result` where the work produced one. Not on the listing: a result can be a row per game |
@@ -69,6 +72,9 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/library/filters` | Every filter axis, with the values this library holds |
 | GET | `/api/v1/library/policy` | What this library collects — hidden media kinds, hidden asset kinds, and which catalogs are searched. The library's answer, so every install reading one library gets the same one. Empty means everything |
 | PUT | `/api/v1/library/policy` | Change it. A patch: an absent key is left alone, a key sent empty is stored empty |
+| GET | `/api/v1/library/tags` | Every tag - carried by games or tables, or only written down - with how many carry it, its description and its color |
+| PUT | `/api/v1/library/tags/{tag}` | Describe a tag and pick its color, writing it down if nothing has. `color` is one of `red orange amber green teal blue purple pink gray`; empty goes back to the one derived from its name |
+| POST | `/api/v1/library/owned` | Which of `{"ids": [...]}` - VPS entry or release ids - this library holds: an entry with its game, a release with its table |
 | POST | `/api/v1/library/scan` | Rebuild game metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
 | GET | `/api/v1/devices` | The devices this install knows about |
 | PUT | `/api/v1/devices` | Record a device (idempotent). For a phone, or a machine mDNS cannot reach. `port` is declared by the caller — the address is read off the socket, which never says what that machine listens on |
@@ -84,23 +90,37 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/games` | Create one. A folder with a record in it, in the location new games go to; `location` overrides that for this one. The only way to bring an entry into being without a file arriving |
 | POST | `/api/v1/games/{id}/tables/import` | Copy a game file on this machine into the game. A copy, not a move, and refused unless the file is under a browsable root |
 | PUT | `/api/v1/games/{id}/details` | Say what the machine is, for a game no catalog matched. A patch - a field left out is left alone, a field sent empty is cleared. Not where a VPS id goes; that is the `alt_vps_id` override |
+| PUT | `/api/v1/games/{id}/guides` | The game's guides, in order. An entry naming a stored guide by its address keeps it and sets `hidden`; any other is a new guide of the person's own. Leaving out a guide VPS lists is refused - hide it instead |
 | GET | `/api/v1/games/{id}` | One game |
-| GET | `/api/v1/games/{id}/tables` | The game's tables, with resolved assets and dependencies |
+| GET | `/api/v1/games/{id}/tables` | The game's tables, with resolved assets and dependencies. `update_available` is true where VPS lists a later version of the release a table is matched to than the file's own `version`, false where it does not, and null where nothing can be weighed - no release, or a version on either side that does not read as one |
+| GET | `/api/v1/tables` | Every table in the library (`game`, `limit`, `offset`), each row carrying `source`, the named release, and `update_available` as a game's tables do |
+| GET | `/api/v1/games/{id}/links` | Where the game is elsewhere, as extensions have contributed. `?table=` for one table, `?path=` for one of its files |
 | GET | `/api/v1/games/{id}/media` | Every media kind, present or not |
 | GET | `/api/v1/games/{id}/media/{kind}` | Stream one media file |
+| GET | `/api/v1/games/{id}/media/{kind}/detail` | What that file is. `format` is what the file's header says it is, `width`/`height` are an image's or a video's, and `duration_s` is a video's or a sound's running time |
+| GET | `/api/v1/games/{id}/assets/detail?path=` | One asset file or folder: size, date and format, a folder's file count, and a text file's first lines (`lines=`, 0 for all). A path out of the game's folder is refused |
+| GET | `/api/v1/games/{id}/assets/{kind}/placements` | Where a backglass, ini, script, point of view or score view could go - the folder's own name, or one table's - and what each would replace. A point of view has no folder name |
+| GET | `/api/v1/games/{id}/assets/{kind}/displaced?filename=&table=` | What placing that file would replace, asked before the bytes are sent |
+| PUT | `/api/v1/games/{id}/assets/{kind}` | Place a file under the folder's own name, which every table without its own reads |
+| PUT | `/api/v1/games/{id}/tables/{table_id}/assets/{kind}` | Place a file under one table's name |
+| POST | `/api/v1/games/{id}/assets/{kind}/import` | The same, from `{"path", "table"}` on this machine, under a browsable root |
+| DELETE | `/api/v1/games/{id}/assets?path=` | Remove one of those five kinds of file by its path in the game's folder |
 | GET | `/api/v1/games/{id}/archive` | Download a game as `.vpxz` — one table by default; `?file=` picks which table. `?full=true` (whole folder) carries its own scope, `games:export_full` |
 | POST | `/api/v1/games/{id}/launch` | Launch a game here. Optional `{"file": "..."}` picks which table |
 | PUT | `/api/v1/games/{id}/rating` | Rate a game, `{"rating": 0-5}`. `0` is unrated |
 | PUT | `/api/v1/games/{id}/tables/{table_id}/rating` | Rate one table, same body. Refines the game's rather than replacing it; returns the table |
+| PUT | `/api/v1/games/{id}/tables/{table_id}/tags` | One table's own tags, the whole set |
 | POST | `/api/v1/games/{id}/tables/{table_id}/script` | Extract the table's script to a `<table>.vbs` beside it. **VPX then runs that instead of the one inside the .vpx.** Needs Visual Pinball on the machine called, like `/launch`; `501` where there is none |
 | DELETE | `/api/v1/games/{id}/tables/{table_id}/script` | Remove the sidecar, putting the table back on its own script. `404` if there is none |
 | POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
+| POST | `/api/v1/uploads/from_path` | Begin a session over a file, a folder or an archive already on this machine, `{"path": ...}`. Bounded like `/filesystem`, and needs both `uploads:write` and `filesystem:read`. Analysis, plan and import read it in place; the session's end never removes it, and nothing can be uploaded into it |
 | POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |
 | GET | `/api/v1/uploads/{id}` | Session summary → `{"file_count", "total_bytes"}` |
 | DELETE | `/api/v1/uploads/{id}` | Abort a session |
 | GET | `/api/v1/uploads/{id}/analysis` | Analyze what was uploaded |
-| POST | `/api/v1/uploads/{id}/plan` | Build an import plan |
-| POST | `/api/v1/uploads/{id}/import` | Execute the plan |
+| POST | `/api/v1/uploads/{id}/plan` | Build an import plan. `asset_kind`, the asset lens's name for a kind (`pup_pack`, `alt_color`, `backglass`...), plans only that kind, and everything else the upload holds comes back under `blocked` |
+| POST | `/api/v1/uploads/{id}/import` | Execute the plan. Takes `asset_kind` the same way |
+| GET | `/api/v1/filesystem/entries` | What is in one folder. With `kind`, the files that asset kind takes are listed beside the media (`backglass` lists `.directb2s`). `/filesystem/file` still serves media only |
 | GET | `/api/v1/vps/search?q=&limit=` | VPSdb lookup |
 | GET | `/api/v1/launchers` | Every launcher this install has, the tables that deviate from the default, and the fields each launcher's app takes |
 | PUT | `/api/v1/launchers/{id}` | Add or replace one. The whole launcher, so a partial write cannot leave one half-configured |
@@ -109,7 +129,8 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/metrics` | What this machine is doing now. `history_seconds` adds as much of this session as you ask for; 0 means none |
 | GET | `/api/v1/metrics/gpu` | What the graphics cards are doing. Separate because it shells out to nvtop, and says so where nvtop is missing rather than reporting no cards |
 | GET | `/api/v1/about` | What this install and this machine *are* - version, build, OS, browser, and where files live. `text` is the same answer as something to paste into a report |
-| GET | `/api/v1/themes` | Every frontend theme this install knows, active first. `refresh=true` re-reads the sources, which reaches the network |
+| GET | `/api/v1/config/schema` | Every setting this install has. An option's `group` is a token (`navigation`, `local_services`...) and `group_label` beside it is the heading in this install's language |
+| GET | `/api/v1/themes` | Every frontend theme this install knows, active first. `refresh=true` re-reads the sources, which reaches the network. Each has `registry`, the address of the registry that offers it - empty for one listed by its own repository or placed by hand - and `updated`, the date of the newest commit on the release this build would install. `checked` is when the sources were last read |
 | POST | `/api/v1/themes/{key}/install` | Install or update. Installing over an existing copy is what an update is |
 | DELETE | `/api/v1/themes/{key}` | Remove an installed theme. Refused for the active one - the frontend would come up with no theme at all |
 | PUT | `/api/v1/themes/active` | Choose which theme the frontend plays. Takes effect when the frontend next starts |
@@ -595,12 +616,30 @@ Three lenses, and they answer different questions:
 | `/collections/{name}/games` | what it **resolves to**, by game; a game with nothing launchable still appears |
 | `/collections/{name}/entries` | what it resolves to, by table — the play lens, what a frontend shows |
 
+`/members` lists its rows in the order the collection would hand them out with its limit
+lifted, so the rows that are shown read in the same order as `/entries`, and a row past the
+limit keeps its place among them. A row that produces no entry at all - a game this library
+no longer has, a hidden table - follows them in the order it is stored, and what was taken
+out comes last. A collection arranged by hand is listed exactly as stored, which is the
+order it is handed out in.
+
 A member naming something that is gone is reported by the first and absent from the other
 two. Nothing prunes it: a library on a share that was not mounted at scan time reports
 every game missing, and cleaning up on that signal would empty every collection.
 
-`game_count` counts the stored members, which is not the size of the collection — criteria
-contribute rows that are stored nowhere.
+A limit cuts the play lens, not `/members`: a row the criteria find past the limit is still
+listed there, with `past_limit: true`, so an editor can show what the limit keeps off the
+frontend. `playable` counts only the rows a frontend shows. A row a rule brought in by one
+table's own values names that table in `ref_table`, with the table's `origin` `matched`.
+
+`game_count` counts the stored members, which is not the size of the collection - criteria
+contribute rows that are stored nowhere. The size is `count`, what it resolves to now, and
+`before_limit` is what it would resolve to with its `limit` set aside: the same as `count`
+unless the limit cuts. `missing` counts the stored members naming a game this library no
+longer has, or a table its game no longer has - the rows `/members` reports as missing.
+
+`added`, `matched` and `excluded` count games before the limit: written into it, brought in
+by its rule, and taken out whole by name. `count` is what it hands out, which is tables.
 
 Membership is the game's own id, not its VPS id — a game with no VPSdb match still
 belongs to collections, which is why membership moved off the VPS id. The key on disk is
@@ -626,8 +665,18 @@ collection is a `409`. `PUT .../order` sends the whole arrangement at once and r
 `manual` as a side effect, because storing an arrangement nothing follows would be a
 write you cannot see.
 
+A `filters` block may carry `order_by` and `direction` as well, and it writes only what it
+names: a block with neither leaves the order, its paging and the cap as they were, so
+saving a rule changes the rule and nothing else. The cap changes only through `limit` and
+`clear_limit`.
+
 A cap is `limit`, and lifting one needs `clear_limit: true` rather than a null: absent and
 null are the same thing over JSON, so there would otherwise be no way to say it.
+
+Taking the criteria away is `clear_filters: true`, for the same reason a cap needs
+`clear_limit`. It keeps the games named by hand and drops the exclusions with the criteria,
+since they only said what to leave out of what the criteria found. Sending it beside
+`filters` is refused.
 
 Collection names are the identity, so they are URL-encoded in paths (`Last%20Played`).
 `Last Played` itself is a filter collection over the games with a play on record, ordered
@@ -645,11 +694,26 @@ an entry looks like.
 `scope`, `kind`, a one-line `summary`, and the `values` this library actually holds — so a
 client offers a manufacturer somebody owns rather than every manufacturer that ever
 existed. The axes are projected from the registry the resolver matches on, so the two
-cannot disagree, and an axis added there appears here without a second edit.
+cannot disagree, and an axis added there appears here without a second edit. Beside
+`values`, `counts` says how many games hold each one, a game counted once for each value it
+holds, so a picker can say what a choice brings in before it is made.
 
-A `rating` axis carries `values: null` rather than a list. It is 0–5 on every install, and
-enumerating the ratings currently in use would offer a different scale to two libraries
-and a shrinking one as ratings change.
+A range of years is its own axis, `year_range`: `{"from": 1990, "to": 1999}` asks for 1990
+to 1999, both ends included, and either end may be left out - `{"to": 1979}` is anything
+up to 1979. `year` keeps its meaning, the years it names. An axis may name another as its
+`field`, which says a client should ask the two as one field: `year_range` names `year`,
+and `rating_or_higher` names `rating`.
+
+`tags` takes a list, like the other many-valued axes, and `favorite` is true, false or
+absent, like `played`. The `tags` axis is table-scoped: a rule on it matches a game carrying
+the tag, which brings in its default table, and a table carrying it, which brings in that
+table.
+
+The `rating` axis carries its scale, `["1", "2", "3", "4", "5"]`, on every install rather
+than the ratings a library happens to hold: enumerating the ratings in use would offer a
+different scale to two libraries, and a shrinking one as ratings change. A rule asks for
+one exactly, or with `rating_or_higher: true` for that many stars or more.
+`rating_or_higher` carries no values of its own.
 
 ## Devices
 
