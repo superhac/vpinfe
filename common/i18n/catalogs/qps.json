@@ -1588,6 +1588,7 @@
   "error.collections.nothing_ordered": "Ñöţĥîñĝ îš öřđèřèđ ƀý {by}",
   "error.collections.nothing_pages": "Ñöţĥîñĝ þàĝèš ƀý {wanted_paging}",
   "error.collections.order_must_list_exactly": "Àñ öřđèř ɱûšţ ŀîšţ èẋàçţŀý ţĥè çöŀŀèçţîöñ'š ɱèɱƀèřš",
+  "error.collections.rules_or_no_rules": "Šèñđ ţĥè řûŀèš öř àšķ ƒöř ñöñè, ñöţ ƀöţĥ",
   "error.collections.unknown_game_ids": "Ûñķñöŵñ ĝàɱè îđš",
   "error.config.could_not_write_settings": "Çöûŀđ ñöţ ŵřîţè ţĥè šèţţîñĝš ƒîŀè: {exc}",
   "error.config.not_settings_install_get": "Ñöţ šèţţîñĝš ţĥîš îñšţàŀŀ ĥàš: {keys}. ĜÈŢ /çöñƒîĝ/šçĥèɱà ŀîšţš ţĥèɱ.",

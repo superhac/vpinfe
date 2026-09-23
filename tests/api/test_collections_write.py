@@ -281,6 +281,23 @@ class PatchTests(Harness):
         ops.patch("Coll", games=["g2", "g1"])
         self.assertEqual(self.manager.members, [{"game": "g2"}, {"game": "g1"}])
 
+    def test_taking_the_rules_away_keeps_what_was_added(self):
+        manager = Manager(["g1"], is_filter=True)
+        manager.excluded = [{"game": "g2"}]
+        manager.limit = 5
+        self.use(manager)
+        ops.patch("Coll", clear_criteria=True)
+        self.assertFalse(self.manager.filter)
+        self.assertEqual(self.manager.members, ["g1"])
+        self.assertEqual(self.manager.excluded, [])
+        self.assertEqual(self.manager.limit, 5)
+
+    def test_rules_and_no_rules_at_once_are_refused(self):
+        self.use(Manager(["g1"], is_filter=True))
+        with self.assertRaises(service_errors.RefusedError):
+            ops.patch("Coll", criteria={"letter": "A"}, clear_criteria=True)
+        self.assertTrue(self.manager.filter)
+
     def test_renaming_onto_an_existing_name_is_refused(self):
         manager = Manager(["g1"])
         manager.get_collections_name = lambda: ["Coll", "Taken"]
@@ -444,22 +461,33 @@ class ExclusionTests(Harness):
 
 class KeepTheResultTests(Harness):
     """Criteria as a way of building a list rather than a rule to keep: what they match
-    becomes the membership, naming the table each row resolved to, and the criteria go.
-    """
+    becomes the membership, and the criteria go."""
 
     def _resolves_to(self, *pairs):
         class _Entry:
             def __init__(self, game, table):
-                self.game, self.table = game, {"id": table}
+                self.game, self.table, self.table_id = game, {"id": table}, table
         ops._resolved = lambda name: [_Entry(g, t) for g, t in pairs]
         ops.game_identity.game_id = lambda game: game
 
-    def test_the_matches_become_members_naming_their_tables(self):
+    def test_the_matches_become_members_following_their_default(self):
         self.use(Manager([], is_filter=True))
         self._resolves_to(("g1", "t1"), ("g2", "t2"))
         ops.keep_result("Coll")
+        self.assertEqual(self.manager.members, [{"game": "g1"}, {"game": "g2"}])
+
+    def test_a_table_somebody_held_stays_held(self):
+        self.use(Manager([{"game": "g1", "table": "t1"}], is_filter=True))
+        self._resolves_to(("g1", "t1"), ("g2", "t2"))
+        ops.keep_result("Coll")
         self.assertEqual(self.manager.members,
-                         [{"game": "g1", "table": "t1"}, {"game": "g2", "table": "t2"}])
+                         [{"game": "g1", "table": "t1"}, {"game": "g2"}])
+
+    def test_a_game_found_on_two_tables_is_one_member(self):
+        self.use(Manager([], is_filter=True))
+        self._resolves_to(("g1", "t1"), ("g1", "t2"))
+        ops.keep_result("Coll")
+        self.assertEqual(self.manager.members, [{"game": "g1"}])
 
     def test_the_criteria_are_dropped(self):
         """Which is what makes the collection static - it stops changing under its

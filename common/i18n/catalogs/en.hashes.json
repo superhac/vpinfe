@@ -1513,6 +1513,7 @@
   "error.collections.nothing_ordered": "79c72a719f74",
   "error.collections.nothing_pages": "df49dbd5fbd5",
   "error.collections.order_must_list_exactly": "40ae497c28ef",
+  "error.collections.rules_or_no_rules": "dd1f79e9943a",
   "error.collections.unknown_game_ids": "bce3a9db3d08",
   "error.config.could_not_write_settings": "3db12692c706",
   "error.config.not_settings_install_get": "410515a6f248",

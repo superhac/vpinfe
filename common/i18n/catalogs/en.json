@@ -1588,6 +1588,7 @@
   "error.collections.nothing_ordered": "Nothing is ordered by {by}",
   "error.collections.nothing_pages": "Nothing pages by {wanted_paging}",
   "error.collections.order_must_list_exactly": "An order must list exactly the collection's members",
+  "error.collections.rules_or_no_rules": "Send the rules or ask for none, not both",
   "error.collections.unknown_game_ids": "Unknown game ids",
   "error.config.could_not_write_settings": "Could not write the settings file: {exc}",
   "error.config.not_settings_install_get": "Not settings this install has: {keys}. GET /config/schema lists them.",

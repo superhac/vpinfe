@@ -1767,6 +1767,8 @@ class PatchCollectionRequest(ApiModel):
     description: str | None = None
     image: str | None = None
     filters: CollectionFilters | None = None
+    # Refused beside `filters`.
+    clear_filters: bool = False
     games: list[str] | None = None
     limit: int | None = None
     # Absent leaves the cap alone; `limit: null` cannot say "lift it" because absent and

@@ -585,9 +585,9 @@ def clear_image(name: str) -> None:
 def keep_result(name: str) -> dict:
     """Criteria as a way of building a list rather than a rule to keep.
 
-    What they match right now becomes the membership, naming each table it resolved to, and
-    the criteria are removed. The collection stops changing under its owner - which is the
-    whole difference between a list and a rule.
+    What they match right now becomes the membership and the criteria are removed. A game
+    is written following its default table, one ref per game; a ref that already named a
+    table keeps naming it.
 
     Exclusions go too. They said "everything except this" about a rule; with no rule left
     there is nothing for them to except, and keeping them would silently subtract from a
@@ -598,22 +598,37 @@ def keep_result(name: str) -> dict:
     decides how the membership is handed out, not what is in it.
     """
     _row_or_refuse(name)
-    if not get_collections_manager().has_filters(name):
+    manager = get_collections_manager()
+    if not manager.has_filters(name):
         raise service_errors.BlockedError(
             t("error.collections.no_criteria_keep_result", name=(name)))
-    refs = [{"game": game_identity.game_id(entry.game),
-             "table": str(entry.table.get("id", ""))} for entry in _resolved(name)]
+    held = {(ref["game"], ref.get("table", "")) for ref in manager.get_member_refs(name)}
+    refs: list[dict] = []
+    following: set[str] = set()
+    for entry in _resolved(name):
+        game = game_identity.game_id(entry.game)
+        if (game, entry.table_id) in held:
+            refs.append({"game": game, "table": entry.table_id})
+        elif game not in following:
+            following.add(game)
+            refs.append({"game": game})
     with get_collections_manager().mutate() as writer:
         writer.set_members(name, refs)
-        writer.clear_filters(name)
-        for ref in writer.get_excluded_refs(name):
-            writer.unexclude(name, ref["game"], ref.get("table", ""))
+        _drop_rules(writer, name)
         writer.set_limit(name, None)
     return resource(name)
 
 
+def _drop_rules(writer: CollectionStore, name: str) -> None:
+    """The criteria, and the exclusions that only meant something against them."""
+    writer.clear_filters(name)
+    for ref in writer.get_excluded_refs(name):
+        writer.unexclude(name, ref["game"], ref.get("table", ""))
+
+
 def patch(name: str, *, new_name: str | None = None, games: Iterable[str] | None = None,
           criteria: dict | None = None, criteria_order: dict | None = None,
+          clear_criteria: bool = False,
           limit: int | None = None, clear_limit: bool = False,
           description: str | None = None, image: str | None = None,
           order_by: str | None = None, direction: str | None = None,
@@ -624,6 +639,8 @@ def patch(name: str, *, new_name: str | None = None, games: Iterable[str] | None
     collection's criteria, and a caller that has to send the whole thing back is a caller
     racing whatever else edited it meanwhile.
     """
+    if clear_criteria and criteria is not None:
+        raise service_errors.RefusedError(t("error.collections.rules_or_no_rules"))
     final = name
     renamed_from: str | None = None
     with get_collections_manager().mutate() as manager:
@@ -635,6 +652,8 @@ def patch(name: str, *, new_name: str | None = None, games: Iterable[str] | None
 
         if criteria is not None:
             _write_criteria(manager, name, criteria, criteria_order or {})
+        elif clear_criteria and manager.has_filters(name):
+            _drop_rules(manager, name)
 
         if clear_limit:
             manager.set_limit(name, None)

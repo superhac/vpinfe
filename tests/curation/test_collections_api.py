@@ -262,6 +262,16 @@ class CollectionsApiTests(TempTree):
         self.assertEqual(self.manager.get_members("Both"), [GAME_ID])
         self.assertEqual(self.manager.get_filters("Both")["year"], "1977")
 
+    def test_a_collection_can_let_go_of_its_rules_over_the_wire(self) -> None:
+        self.client.post("/collections", json={
+            "name": "Both", "games": [GAME_ID], "filters": {"manufacturer": ["Bally"]}})
+
+        body = self.client.patch("/collections/Both",
+                                 json={"clear_filters": True}).json()
+
+        self.assertEqual(("manual", None), (body["type"], body["filters"]))
+        self.assertEqual(self.manager.get_members("Both"), [GAME_ID])
+
     def test_an_unknown_game_id_is_named_rather_than_stored(self) -> None:
         response = self.client.post("/collections",
                                     json={"name": "Bad", "games": [GAME_ID, "nope"]})
