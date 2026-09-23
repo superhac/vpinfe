@@ -2497,10 +2497,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 
 /* --- where a slot's file can come from ---------------------------------- */
 
-.console-sources-card {
-  width: min(840px, 94vw); max-height: 84vh; gap: 6px;
-  background: var(--surface-1); border: 1px solid var(--line);
-}
+.console-dialog.console-sources-card.q-card { width: min(840px, 94vw); max-height: 84vh; gap: 6px; }
 /* A row that navigates rather than acting: the whole thing is the target, so it says
    so on hover instead of hiding a click behind a label. Separate from --folder, which
    is one of these and also a row with no picture in it. */

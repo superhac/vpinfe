@@ -7,10 +7,12 @@ from nicegui import ui
 
 
 @contextmanager
-def opened(title: str, *, wide: bool = False, persistent: bool = False) -> Iterator[ui.dialog]:
+def opened(title: str, *, wide: bool = False, persistent: bool = False,
+           classes: str = "") -> Iterator[ui.dialog]:
     """Draw the dialog's contents inside; the caller awaits the dialog it yields."""
     with ui.dialog().props("persistent" if persistent else "") as dialog, \
-            ui.card().classes("console-dialog" + (" console-dialog--wide" if wide else "")):
+            ui.card().classes(" ".join(("console-dialog", "console-dialog--wide" if wide else "",
+                                        classes)).strip()):
         ui.label(title).classes("console-dialog-title")
         yield dialog
 

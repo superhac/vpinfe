@@ -242,6 +242,30 @@ class Library:
         self.forget_media(game_id)
         return result
 
+    def asset_placements(self, game_id: str, kind: str) -> dict:
+        return self._client.asset_placements(game_id, kind)
+
+    def asset_displaced_by(self, game_id: str, table_id: str, kind: str,
+                           filename: str) -> list[str]:
+        return self._client.asset_displaced_by(game_id, table_id, kind, filename)
+
+    def place_asset(self, game_id: str, table_id: str, kind: str,
+                    filename: str, data: bytes) -> dict:
+        result = self._client.place_asset(game_id, table_id, kind, filename, data)
+        self._forget_tables(game_id)
+        return result
+
+    def import_asset(self, game_id: str, table_id: str | None, kind: str,
+                     path: str) -> dict:
+        result = self._client.import_asset(game_id, table_id or "", kind, path)
+        self._forget_tables(game_id)
+        return result
+
+    def remove_asset(self, game_id: str, path: str) -> dict:
+        result = self._client.remove_asset(game_id, path)
+        self._forget_tables(game_id)
+        return result
+
     def set_table_hidden(self, game_id: str, table_id: str, hidden: bool) -> dict:
         result = self._client.set_table_hidden(game_id, table_id, hidden)
         self._forget_tables(game_id)

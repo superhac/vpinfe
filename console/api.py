@@ -591,6 +591,44 @@ class ApiClient:
         self._answered(response)
         return response.json()
 
+    def _asset_path(self, game_id: str, table_id: str, kind: str) -> str:
+        return (f"/games/{game_id}/tables/{table_id}/assets/{kind}" if table_id
+                else f"/games/{game_id}/assets/{kind}")
+
+    def asset_placements(self, game_id: str, kind: str) -> dict:
+        return self._get(f"/games/{game_id}/assets/{kind}/placements")
+
+    def asset_displaced_by(self, game_id: str, table_id: str, kind: str,
+                           filename: str) -> list[str]:
+        path = f"/games/{game_id}/assets/{kind}/displaced"
+        _refuse_the_event_loop(path)
+        response = self._session.get(f"{self._base}{path}",
+                                     params={"filename": filename, "table": table_id or ""},
+                                     timeout=_TIMEOUT)
+        self._answered(response)
+        return list(response.json().get("displaced") or [])
+
+    def place_asset(self, game_id: str, table_id: str, kind: str,
+                    filename: str, data: bytes) -> dict:
+        path = self._asset_path(game_id, table_id, kind)
+        _refuse_the_event_loop(path)
+        response = self._session.put(f"{self._base}{path}",
+                                     files={"file": (filename, data)}, timeout=_TIMEOUT)
+        self._answered(response)
+        return response.json()
+
+    def import_asset(self, game_id: str, table_id: str, kind: str, path: str) -> dict:
+        return self._post(f"/games/{game_id}/assets/{kind}/import",
+                          {"path": path, "table": table_id or ""})
+
+    def remove_asset(self, game_id: str, path: str) -> dict:
+        route = f"/games/{game_id}/assets"
+        _refuse_the_event_loop(route)
+        response = self._session.delete(f"{self._base}{route}", params={"path": path},
+                                        timeout=_TIMEOUT)
+        self._answered(response)
+        return response.json()
+
     def remove_media(self, game_id: str, table_id: str, kind: str) -> dict:
         path = self._media_path(game_id, table_id, kind)
         _refuse_the_event_loop(path)

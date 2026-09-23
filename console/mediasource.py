@@ -14,14 +14,18 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Any
 
 from nicegui import run, ui
 
 from common import labels
+from common.games.asset_registry import spec_for
 from common.i18n import t
 from common.media_specs import media_family, media_label_map
 from console import candidates, confirm, media_ownership, offload, verbs
+from console import dialog as frame
 
 logger = logging.getLogger("vpinfe.console.mediasource")
 
@@ -55,11 +59,40 @@ async def confirm_replace(label: str, going: list[str]) -> bool:
                              lines=going, confirm=t("word.replace"), icon=verbs.REPLACE)
 
 
+@dataclass(frozen=True)
+class _Target:
+    """What the dialog fills: the calls that fill it, and which files on disk can."""
+
+    placements: Callable[..., dict]
+    displaced: Callable[..., list[str]]
+    place: Callable[..., dict]
+    bring: Callable[..., dict]
+    fits: Callable[[dict[str, Any]], bool]
+    family: str
+    online: bool
+
+
+def _media(library: Any, kind: str) -> _Target:
+    family = media_family(kind)
+    return _Target(library.placements, library.displaced_by, library.place_media,
+                   library.import_media, lambda item: item.get("family") == family,
+                   family, online=True)
+
+
+def _asset(library: Any, kind: str) -> _Target:
+    wanted = set(spec_for(kind).extensions)
+    return _Target(library.asset_placements, library.asset_displaced_by,
+                   library.place_asset, library.import_asset,
+                   lambda item: PurePosixPath(str(item.get("name") or "")).suffix.lower()
+                   in wanted, "", online=False)
+
+
 class _Sources:
     """The dialog's state: which slot is being filled, and how to finish."""
 
     def __init__(self, context: dict[str, Any], kind: str, label: str,
-                 done: Callable) -> None:
+                 done: Callable, target: _Target) -> None:
+        self.target = target
         self.context = context
         self.kind = kind
         self.label = label
@@ -90,7 +123,7 @@ class _Sources:
     async def load_placements(self) -> None:
         """Where a file could land here, so it can be chosen rather than inferred."""
         try:
-            body = await offload.io(self.library.placements, self.game_id, self.kind)
+            body = await offload.io(self.target.placements, self.game_id, self.kind)
         except Exception:
             logger.debug("No placements for %s", self.kind, exc_info=True)
             return
@@ -199,7 +232,7 @@ class _Sources:
         """
         self.note_extension(filename)
         try:
-            going = await offload.io(self.library.displaced_by, self.game_id,
+            going = await offload.io(self.target.displaced, self.game_id,
                                        self.destination, self.kind, filename)
         except Exception as exc:
             ui.notify(t("console.mediasource.could_not_check_slot", exc=(exc)),
@@ -211,8 +244,7 @@ class _Sources:
                   take: Callable) -> None:
         """A candidate row carrying what this dialog knows: how to draw a file of the
         kind being replaced."""
-        candidates.row(src, name, meta, tag, take,
-                       family=media_family(self.kind))
+        candidates.row(src, name, meta, tag, take, family=self.target.family)
 
     # --- from the computer you are looking at this from ----------------------
 
@@ -227,7 +259,7 @@ class _Sources:
                 return
             data = await event.file.read()
             try:
-                await run.io_bound(self.library.place_media, self.game_id,
+                await run.io_bound(self.target.place, self.game_id,
                                    self.destination, self.kind, name, data)
             except Exception as exc:
                 ui.notify(t("console.mediasource.could_not_place", exc=(exc)), type="negative")
@@ -278,7 +310,6 @@ class _Sources:
                 ui.label(t("console.mediasource.could_not_read_folder",
                         exc=(exc))).classes("console-help")
             return
-        family = media_family(self.kind)
         with listing:
             # Named from the start it was reached through rather than as an absolute
             # path: the path on a cabinet is long, and the tail is the part that says
@@ -291,7 +322,7 @@ class _Sources:
                 for item in here["entries"][:_LIST_MAX]:
                     if item["kind"] == "folder":
                         self._folder_link(item["name"], item["path"], listing)
-                    elif item["family"] == family:
+                    elif self.target.fits(item):
                         self._file_row(item)
                     else:
                         continue
@@ -332,7 +363,7 @@ class _Sources:
             if not await self.confirmed(item["name"]):
                 return
             try:
-                await run.io_bound(self.library.import_media, self.game_id,
+                await run.io_bound(self.target.bring, self.game_id,
                                    self.destination, self.kind, item["path"])
             except Exception as exc:
                 ui.notify(t("console.mediasource.could_not_bring", exc=(exc)),
@@ -533,31 +564,45 @@ def _start_name(root: dict[str, Any]) -> str:
 def open_sources(context: dict[str, Any], kind: str, label: str,
                  done: Callable) -> None:
     """Open the ways to fill this slot. Returns as soon as the dialog is up."""
-    sources = _Sources(context, kind, label, done)
-    with ui.dialog() as dialog, ui.card().classes("console-sources-card"):
-        sources.dialog = dialog
-        with ui.row().classes("items-center gap-2 w-full no-wrap console-viewer-bar"):
-            ui.label(t("console.mediasource.for_this", label=(label),
-                    value=('table' if context['lens'] else 'game'))) \
-                .classes("console-card-title grow min-w-0")
-            ui.button(icon="close", on_click=dialog.close).props("flat dense round")
-        destination = ui.column().classes("w-full gap-0")
+    _open(context, kind, label, done, _media(context["library"], kind))
+
+
+def open_asset_sources(context: dict[str, Any], kind: str, label: str,
+                       done: Callable) -> None:
+    _open(context, kind, label, done, _asset(context["library"], kind))
+
+
+def _open(context: dict[str, Any], kind: str, label: str, done: Callable,
+          target: _Target) -> None:
+    sources = _Sources(context, kind, label, done, target)
+    with frame.opened(t("console.mediasource.for_this", label=label,
+                        value=("table" if context["lens"] else "game")),
+                      classes="console-sources-card") as box:
+        sources.dialog = box
+        destination = ui.column().classes("w-full gap-0 px-3")
 
         # Ordered by how far the file has to travel: your own computer, this machine,
         # then the internet.
-        with ui.tabs().props("dense no-caps align=left").classes("w-full") as tabs:
+        with ui.tabs().props("dense no-caps align=left").classes("w-full px-3") as tabs:
             ui.tab("upload", label=t("console.mediasource.upload_file"), icon=verbs.FROM_FILE)
             ui.tab("browse", label=t("console.mediasource.machine"), icon="folder_open")
-            ui.tab("online", label=t("console.mediasource.online"), icon=verbs.FROM_ONLINE)
+            if target.online:
+                ui.tab("online", label=t("console.mediasource.online"),
+                       icon=verbs.FROM_ONLINE)
         with ui.tab_panels(tabs, value="upload").classes("w-full console-sources-panels"):
             with ui.tab_panel("upload"):
                 sources.upload_tab()
             with ui.tab_panel("browse"):
                 browse_body = ui.column().classes("w-full gap-2")
-            with ui.tab_panel("online"):
-                online_body = ui.column().classes("w-full gap-2")
+            online_body = ui.column().classes("w-full gap-2")
+            if target.online:
+                with ui.tab_panel("online"):
+                    online_body = ui.column().classes("w-full gap-2")
+        with frame.footer():
+            ui.button(t("word.cancel"), icon=verbs.CANCEL, on_click=box.close) \
+                .props("flat no-caps")
 
-    dialog.open()
+    box.open()
 
     async def start() -> None:
         # Read before anything else: the destination is the decision every tab feeds,

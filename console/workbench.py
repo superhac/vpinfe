@@ -27,6 +27,7 @@ from nicegui import run, ui
 from common import icons, path_checks, tokens
 from common.games import asset_registry, tag_registry
 from common.games.asset_registry import ALWAYS_KEPT as _ALWAYS_KEPT
+from common.games.asset_resolver import VPX_ASSET_KINDS
 from common.games.collection_filters import UNCONSTRAINED
 from common.games.collection_store import (
     DEFAULT_ORDER_BY,
@@ -919,14 +920,56 @@ async def _asset_file_block(context: dict[str, Any]) -> None:
                                source_name=media_ownership.source_name(origin))) \
                         .classes("console-help")
                 _outside_lines(links)
-        table = next((one for one in context["tables"]
-                      if one.get("id") == context["lens"]), None)
-        if kind == "script" and present and table is not None and tier == media_ownership.TABLE:
-            with ui.row().classes("items-center gap-2 w-full console-slot-actions"):
-                ui.button(t("word.delete"), icon=verbs.DELETE,
-                          on_click=lambda: _drop_script(context, table)) \
-                    .props("flat dense no-caps size=sm") \
-                    .classes("console-action console-action--danger")
+        _asset_actions(context, kind, label, present, path, tier)
+
+
+# The kinds VPX finds by name, which a file can be placed as and removed from.
+_PLACEABLE = frozenset(one.key for one in VPX_ASSET_KINDS)
+
+
+def _asset_actions(context: dict[str, Any], kind: str, label: str, present: bool,
+                   path: str, tier: str) -> None:
+    if kind not in _PLACEABLE:
+        return
+    loose = tier in (media_ownership.ORPHAN, media_ownership.UNUSED)
+    table = next((one for one in context["tables"]
+                  if one.get("id") == context["lens"]), None)
+    with ui.row().classes("items-center gap-2 w-full console-slot-actions"):
+        if not loose:
+            ui.button(t("word.replace") if present else t("word.add"),
+                      icon=verbs.REPLACE if present else verbs.ADD,
+                      on_click=lambda: mediasource.open_asset_sources(
+                          context, kind, label, context["rebuild"])) \
+                .props("flat dense no-caps size=sm").classes("console-action")
+        if not (present and path):
+            return
+        if kind == "script" and table is not None and tier == media_ownership.TABLE:
+            ui.button(t("word.delete"), icon=verbs.DELETE,
+                      on_click=lambda: _drop_script(context, table)) \
+                .props("flat dense no-caps size=sm") \
+                .classes("console-action console-action--danger")
+        else:
+            ui.button(t("word.remove"), icon=verbs.REMOVE,
+                      on_click=lambda: _remove_asset(context, kind, path, tier)) \
+                .props("flat dense no-caps size=sm") \
+                .classes("console-action console-action--danger")
+
+
+async def _remove_asset(context: dict[str, Any], kind: str, path: str, tier: str) -> None:
+    falls_back = any(one.key == kind and one.folder_fallback for one in VPX_ASSET_KINDS)
+    detail = {media_ownership.TABLE: t("console.workbench.remove_asset.table" if falls_back
+                                       else "console.workbench.remove_asset.table_only"),
+              media_ownership.GAME: t("console.workbench.remove_asset.game")}.get(
+                  tier, t("console.workbench.remove_asset.loose"))
+    if not await confirm.ask(t("console.workbench.remove_asset", name=PurePosixPath(path).name),
+                             detail=detail, confirm=t("word.remove"), icon=verbs.REMOVE):
+        return
+    try:
+        await run.io_bound(context["library"].remove_asset, context["game_id"], path)
+    except Exception as exc:  # noqa: BLE001
+        ui.notify(t("said.could_not_remove_it", exc=exc), type="negative")
+        return
+    await context["rebuild"]()
 
 
 def _asset_icon(kind: str) -> str:
