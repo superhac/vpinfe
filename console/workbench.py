@@ -1263,7 +1263,8 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
 
         context["rebuild"] = _rebuilds(
             context, f"collection:{name}",
-            lambda: build_collection(container, title, library, name, state))
+            lambda: build_collection(container, title, library, state.get("collection"),
+                                     state))
         await _rail(context, "collection", state)
 
 
@@ -4733,6 +4734,9 @@ def _text_control(context: dict[str, Any], row: dict[str, Any], field: str,
         if field == "name" and not value.strip():
             ui.notify(t("console.workbench.collection_needs_name"), type="warning")
             return
+        if field == "name":
+            await _rename(context, value)
+            return
         await _patch(context, {field: value})
 
     def draw() -> None:
@@ -4750,6 +4754,27 @@ def _text_control(context: dict[str, Any], row: dict[str, Any], field: str,
         control.on("blur", lambda: save(control.value or ""))
 
     return draw
+
+
+async def _rename(context: dict[str, Any], wanted: str) -> None:
+    old = _collection(context)["name"]
+    try:
+        made = await offload.io(context["library"].patch_collection, old, {"name": wanted})
+    except Exception as exc:
+        ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+        return
+    new = str(made.get("name") or wanted.strip())
+    state = context["state"]
+    state["collection"] = new
+    drafts = state.setdefault("collection_drafts", {})
+    if old in drafts:
+        drafts[new] = drafts.pop(old)
+    reread = state.get("refresh_collections")
+    if callable(reread):
+        await reread(new)
+        return
+    deeplink.sync(state)
+    await context["rebuild"]()
 
 
 def _image_slot(context: dict[str, Any], row: dict[str, Any]) -> None:
