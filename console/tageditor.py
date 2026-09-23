@@ -216,6 +216,7 @@ def build(rows: list[dict[str, Any]], library: Any,
         by_id.update({row["id"]: row for row in fresh})
         tag_chips.install(library.tag_looks())
         table.run_grid_method("setGridOption", "rowData", fresh)
+        table.run_grid_method("refreshCells", {"force": True})
 
     state["refresh_tags"] = refresh_rows
 
