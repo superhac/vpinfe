@@ -24,6 +24,7 @@ from common import media_browse
 from common.games import (
     archive_service,
     asset_lens,
+    asset_ops,
     collection_ops,
     game_lens,
     game_ops,
@@ -76,6 +77,66 @@ def get_asset_detail(game_id: str, path: str = Query(...),
                      ) -> models.AssetDetail:
     """`lines` is how much of a text file to return; 0 is all of it."""
     return models.AssetDetail.model_validate(asset_lens.file_detail(game_id, path, lines))
+
+
+@router.get("/{game_id}/assets/{kind}/placements",
+            summary="Where a file of this kind could go, and what it would replace",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_asset_placements(game_id: str, kind: str) -> models.AssetPlacementList:
+    return models.AssetPlacementList.model_validate(asset_ops.placements(game_id, kind))
+
+
+@router.get("/{game_id}/assets/{kind}/displaced",
+            summary="What placing this file would replace",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_asset_displaced(game_id: str, kind: str, filename: str = Query(...),
+                        table: str = Query("")) -> models.AssetDisplaced:
+    return models.AssetDisplaced.model_validate(
+        asset_ops.displaced(game_id, kind, filename, table))
+
+
+async def _staged_asset(game_id: str, kind: str, table_id: str,
+                        upload: UploadFile) -> dict:
+    """The upload held in a real file for the service, and cleared whatever it does."""
+    asset_ops.kind_or_refuse(kind)
+    with tempfile.NamedTemporaryFile(suffix=Path(upload.filename or "").suffix,
+                                     delete=False) as staged:
+        staged.write(await upload.read())
+        staged_path = staged.name
+    try:
+        return await run_in_threadpool(asset_ops.place_file, game_id, kind, table_id,
+                                       Path(staged_path), upload.filename or "")
+    finally:
+        Path(staged_path).unlink(missing_ok=True)
+
+
+@router.put("/{game_id}/assets/{kind}", summary="Place a file under the folder's own name",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+async def put_game_asset(game_id: str, kind: str,
+                         file: UploadFile = File(...)) -> models.AssetWritten:
+    return models.AssetWritten(**await _staged_asset(game_id, kind, "", file))
+
+
+@router.put("/{game_id}/tables/{table_id}/assets/{kind}",
+            summary="Place a file under one table's name",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+async def put_table_asset(game_id: str, table_id: str, kind: str,
+                          file: UploadFile = File(...)) -> models.AssetWritten:
+    return models.AssetWritten(**await _staged_asset(game_id, kind, table_id, file))
+
+
+@router.post("/{game_id}/assets/{kind}/import",
+             summary="Copy a file from this machine in under a table's or the folder's name",
+             dependencies=[requires(scopes.GAMES_WRITE), requires(scopes.FILESYSTEM_READ)])
+def import_asset(game_id: str, kind: str, body: models.AssetImport) -> models.AssetWritten:
+    source = media_browse.within_roots(body.path)
+    return models.AssetWritten(**asset_ops.place_file(game_id, kind, body.table, source))
+
+
+@router.delete("/{game_id}/assets", summary="Remove one asset file",
+               dependencies=[requires(scopes.GAMES_WRITE)])
+def delete_asset(game_id: str, path: str = Query(...)) -> models.AssetRemoved:
+    return models.AssetRemoved.model_validate(asset_ops.remove(game_id, path))
 
 
 @router.get("/{game_id}/links", summary="Where a game, a table or a file is elsewhere",

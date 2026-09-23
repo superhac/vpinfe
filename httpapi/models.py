@@ -1156,6 +1156,45 @@ class AssetDetail(ApiModel):
     head: str | None = None
 
 
+class AssetPlacement(ApiModel):
+    """One name a file of this kind could take, and what is already there under it.
+    `table` is empty for the folder's own name, which every table without its own
+    reads; `label` is then empty too."""
+
+    table: str
+    label: str
+    base: str
+    displaces: list[str]
+
+
+class AssetPlacementList(ApiModel):
+    placements: list[AssetPlacement]
+    extensions: list[str]
+
+
+class AssetImport(ApiModel):
+    """A file elsewhere on this machine, as an absolute path, and the table it is for -
+    empty for the folder's own name. Refused unless it is under a browsable root."""
+
+    path: str
+    table: str = ""
+
+
+class AssetWritten(ApiModel):
+    """The name the file was given, and the file that name replaced, if any."""
+
+    written: str
+    displaced: list[str]
+
+
+class AssetDisplaced(ApiModel):
+    displaced: list[str]
+
+
+class AssetRemoved(ApiModel):
+    removed: list[str]
+
+
 class AssetSlotList(ApiModel):
     total: int
     offset: int
