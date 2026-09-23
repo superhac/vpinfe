@@ -1841,7 +1841,7 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 }
 /* Where a drop lands in a list kept in its own order. */
 .console-drop-line {
-  position: relative; z-index: 1;
+  position: relative; z-index: 1; align-self: stretch;
   height: 2px; margin: -1px 0; border-radius: 1px;
   background: var(--accent); pointer-events: none;
 }

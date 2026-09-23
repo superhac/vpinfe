@@ -36,6 +36,9 @@ NOTE = ("(() => { const n = [...document.querySelectorAll('.q-notification')]"
         " })()")
 RAIL = ("[...document.querySelectorAll('.console-rail-drops .console-drop-target')]"
         ".map(e => [e.innerText.replace(/\\n+/g, ' / '), e.getBoundingClientRect().height > 0])")
+LINE = ("(() => { const line = document.querySelector('.console-drop-line');"
+        " return line ? [line.getBoundingClientRect().width,"
+        " line.parentElement.getBoundingClientRect().width] : null; })()")
 
 
 class RowDragDrive(unittest.TestCase):
@@ -135,8 +138,7 @@ class RowDragDrive(unittest.TestCase):
                     await browser.send("Input.dispatchDragEvent",
                                        {"type": kind, "x": x, "y": y, "data": data})
                     await asyncio.sleep(0.15)
-                seen.setdefault("lines", []).append(await browser.evaluate(
-                    "!!document.querySelector('.console-drop-line')"))
+                seen.setdefault("lines", []).append(await browser.evaluate(LINE))
                 await browser.send("Input.dispatchDragEvent",
                                    {"type": "drop", "x": x, "y": y, "data": data})
 
@@ -219,8 +221,12 @@ class RowDragDrive(unittest.TestCase):
         self.assertIn("bg-warning", classes)
         self.assertIn(("delta", "", "named"), self.seen["rail_refs"])
 
+    def test_the_line_showing_where_a_drop_goes_spans_the_list(self) -> None:
+        drawn, across = self.seen["lines"][1]
+        self.assertGreater(drawn, 0)
+        self.assertEqual(across, drawn)
+
     def test_a_drop_in_a_list_kept_in_its_order_lands_where_it_was_let_go(self) -> None:
-        self.assertTrue(self.seen["lines"][1])
         order = [game for game, _t, origin in self.seen["placed"] if origin == "named"]
         self.assertEqual("bravo", order[0])
         self.assertEqual({"alpha", "delta"}, set(order[1:3]))
