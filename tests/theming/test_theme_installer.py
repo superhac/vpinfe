@@ -136,6 +136,8 @@ class ThemeStoreDetectionTests(unittest.TestCase):
             self.assertEqual(store.installed_folder("ExampleTheme"), "ExampleTheme")
             self.assertEqual(store.installed_version("ExampleTheme"), "1.2.3")
             self.assertTrue(store.is_version_newer("1.2.4", "1.2.3"))
+            self.assertTrue(store.is_version_newer("1.3.0-beta", "1.2"))
+            self.assertFalse(store.is_version_newer("1.2.0", "1.2"))
 
 if __name__ == "__main__":
     unittest.main()
@@ -191,6 +193,16 @@ class MinimumVersionGateTests(unittest.TestCase):
                 registry.install_theme("Fancy")
 
         self.assertNotIsInstance(caught.exception, themes.ThemeVersionError)
+
+    def test_a_beta_build_passes_the_gate_for_its_own_version(self) -> None:
+        for running, needs in (("v3.0-beta.1", "3.0"), ("v3.0.0-beta.1", "3.0.0"),
+                               ("3.0", "3.0.0")):
+            with self.subTest(running=running, needs=needs):
+                registry = self._registry(needs)
+                with mock.patch.object(themes, "get_version", return_value=running):
+                    with self.assertRaises(Exception) as caught:
+                        registry.install_theme("Fancy")
+                self.assertNotIsInstance(caught.exception, themes.ThemeVersionError)
 
     def test_a_theme_that_states_nothing_is_not_gated(self) -> None:
         """Saying nothing means contract 1, which every build serves."""

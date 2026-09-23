@@ -63,7 +63,7 @@ class DeclarationTests(TempTree):
 
     def test_a_point_release_of_3_0_still_reaches_contract_2(self):
         """A theme needing 3.1 needs 3.0 too, so it must not fall back to contract 1."""
-        for minimum in ("3.0.1", "3.1", "4.0", "v3.0", "3.0.0-beta.1"):
+        for minimum in ("3", "3.0.1", "3.1", "4.0", "v3.0", "3.0.0-beta.1"):
             with self.subTest(minimum=minimum):
                 self._manifest({"name": "MyTheme", "min_vpinfe": minimum})
                 self.assertEqual(declared_contract(self.theme), 2)

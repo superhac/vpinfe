@@ -8,6 +8,7 @@ boolean out of an ini file.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
@@ -37,7 +38,16 @@ def parse_version(value: Any) -> tuple[int, ...]:
     """
     parts: list[int] = []
     for part in str(value or "").strip().lstrip("vV").split("."):
-        if not part.isdigit():
+        digits = re.match(r"\d+", part)
+        if not digits:
             break
-        parts.append(int(part))
+        parts.append(int(digits.group()))
+        if digits.end() < len(part):
+            break
     return tuple(parts)
+
+
+def newer_version(this: tuple[int, ...], than: tuple[int, ...]) -> bool:
+    """Whether `this` is a later version than `than`, with 3.0 and 3.0.0 the same one."""
+    width = max(len(this), len(than))
+    return this + (0,) * (width - len(this)) > than + (0,) * (width - len(than))

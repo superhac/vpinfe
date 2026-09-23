@@ -18,7 +18,7 @@ from pathlib import Path
 
 from common.deprecations import announce
 from common.games.game_metadata import DETECTION_KEYS, default_table
-from common.values import parse_version
+from common.values import newer_version, parse_version
 
 logger = logging.getLogger("vpinfe.frontend.theme_contract")
 
@@ -113,7 +113,7 @@ def declared_contract(theme_dir: str | Path) -> int:
 
     level = OLDEST_CONTRACT
     for contract, since in _CONTRACT_SINCE:
-        if minimum >= since:
+        if minimum and not newer_version(since, minimum):
             level = max(level, contract)
     return min(level, CURRENT_CONTRACT)
 

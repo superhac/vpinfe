@@ -13,6 +13,7 @@ import zipfile
 from io import BytesIO
 
 from common.online import theme_releases
+from common.values import newer_version, parse_version
 
 # The folder a replaced theme is moved to, rather than deleted. Kept beside the install
 # so a bad update is one rename away from being undone.
@@ -35,9 +36,7 @@ class ThemeInstallStore:
 
     @staticmethod
     def is_version_newer(remote: str, local: str) -> bool:
-        def parse(version: str) -> list[int]:
-            return [int(part) for part in version.split(".")]
-        return parse(remote) > parse(local)
+        return newer_version(parse_version(remote), parse_version(local))
 
     @staticmethod
     def build_zip_url(base_url: str, ref: str = "HEAD") -> str:

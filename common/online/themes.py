@@ -15,7 +15,7 @@ from common.online import theme_dates, theme_releases, theme_sources
 from common.online.theme_installer import ASIDE_SUFFIX, ThemeInstallStore
 from common.online.theme_registry_client import ThemeRegistryClient, ThemeRegistryError
 from common.paths import CONFIG_DIR, get_ini_config
-from common.values import parse_version
+from common.values import newer_version, parse_version
 from common.vpinfe_version import get_version
 
 # What a theme states as the oldest build it runs on. Named here rather than imported
@@ -302,7 +302,7 @@ class ThemeRegistry:
         # deciding whether it should arrive at all.
         needs = parse_version(manifest.get(MIN_VERSION_KEY))
         running = parse_version(get_version())
-        if needs and running and needs > running:
+        if needs and running and newer_version(needs, running):
             raise ThemeVersionError(
                 f"{theme_key} needs VPinFE {manifest[MIN_VERSION_KEY]} and this is "
                 f"{get_version()}")

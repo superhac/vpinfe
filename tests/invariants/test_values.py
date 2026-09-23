@@ -1,6 +1,6 @@
 import unittest
 
-from common.values import is_truthy
+from common.values import is_truthy, newer_version, parse_version
 
 
 class IsTruthyTests(unittest.TestCase):
@@ -23,6 +23,25 @@ class IsTruthyTests(unittest.TestCase):
 
     def test_a_real_bool_ignores_the_default(self) -> None:
         self.assertFalse(is_truthy(False, default=True))
+
+
+class VersionTests(unittest.TestCase):
+    def test_a_suffix_keeps_the_number_it_is_attached_to(self) -> None:
+        for value, expected in (("3.0.1-beta.2", (3, 0, 1)), ("v3.0-beta.1", (3, 0)),
+                                ("1.2 (fixed)", (1, 2)), ("2.0.1b", (2, 0, 1))):
+            with self.subTest(value=value):
+                self.assertEqual(expected, parse_version(value))
+
+    def test_what_does_not_start_with_a_number_is_not_a_version(self) -> None:
+        for value in ("VP10.1", "beta", "", None):
+            with self.subTest(value=value):
+                self.assertEqual((), parse_version(value))
+
+    def test_trailing_zeros_do_not_make_a_version_newer(self) -> None:
+        self.assertFalse(newer_version((3, 0, 0), (3, 0)))
+        self.assertFalse(newer_version((3, 0), (3, 0, 0)))
+        self.assertTrue(newer_version((3, 0, 1), (3, 0)))
+        self.assertTrue(newer_version((1, 10), (1, 9, 9)))
 
 
 if __name__ == "__main__":
