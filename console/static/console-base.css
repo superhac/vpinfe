@@ -1220,6 +1220,14 @@ body.console-menu-open .q-tooltip.console-menu-tip { display: block !important; 
 .q-menu .console-menu-item:hover .console-menu-mark,
 .q-menu .console-menu-item:hover .console-menu-add { color: var(--ink); }
 .q-menu .console-menu-item.console-menu-on .console-menu-mark { color: var(--accent); }
+/* The trailing slot: a state such as In It, or the arrow of an item that opens more. */
+.q-menu .console-menu-item .console-menu-trail {
+  flex: none;
+  margin-left: 12px;
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+}
+.q-menu .console-menu-item .q-icon.console-menu-trail { font-size: var(--icon-menu); }
 
 /* The act, not the row, is what is destructive: the text carries it and the hover band
    stays the ordinary one. A red row reads as an error that has already happened. */
@@ -2601,6 +2609,8 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-source-row--chosen {
   border-color: var(--accent); background: var(--accent-wash-on);
 }
+/* Offered and already true, so not a choice: shown, the way a menu shows In It. */
+.console-source-row--held { opacity: 0.55; }
 /* The one decision every way in feeds, so it sits above them rather than inside one.
    Set off by a rule, because it is a different kind of thing from a tab. */
 .console-destination {

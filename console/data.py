@@ -102,6 +102,8 @@ class Library:
         self.table_media: dict[tuple[str, str], dict[str, Any]] = {}
         self.tables: dict[str, list[dict[str, Any]]] = {}
         self._collections: list[dict[str, Any]] | None = None
+        # Each collection's stored membership, for the menus that say where a game is.
+        self._held_members: dict[str, list[dict[str, Any]]] = {}
         self._metadata_state: dict[str, Any] | None = None
         self._script_patches: dict[str, Any] | None = None
         # The by-file lens, read on first use rather than at load: most sessions never
@@ -653,6 +655,16 @@ class Library:
     def _collections_changed(self) -> None:
         self._collections = None
         self._game_collections = None
+        self._held_members = {}
+
+    def held_members(self, names: list[str]) -> dict[str, list[dict[str, Any]]]:
+        """Each named collection's stored membership, read once and kept until a write
+        through this library. Off the event loop."""
+        for name in names:
+            if name not in self._held_members:
+                self._held_members[name] = list(
+                    self._client.collection_members(name).get("members") or [])
+        return {name: self._held_members[name] for name in names}
 
     def load_game_collections(self, again: bool = False) -> None:
         """Which collections hold each game. Off the event loop; `again` after a write

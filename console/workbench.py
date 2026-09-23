@@ -4738,6 +4738,7 @@ async def _rename(context: dict[str, Any], wanted: str) -> None:
         ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
         return
     new = str(made.get("name") or wanted.strip())
+    collection_adds.renamed(old, new)
     state = context["state"]
     state["collection"] = new
     drafts = state.setdefault("collection_drafts", {})

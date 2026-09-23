@@ -8,6 +8,7 @@ import json
 import logging
 from collections.abc import Callable, Mapping
 from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,7 @@ from common.i18n import t
 from common.labels import humanize
 from common.media_specs import media_label_map
 from console import (
+    collection_adds,
     confirm,
     deeplink,
     game_tables,
@@ -432,27 +434,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
             actions = ui.button(icon=verbs.MORE).props("flat round dense") \
                 .tooltip(t("console.games.actions_selected_games"))
             with actions:
-                with ui.menu():
-                    ui.menu_item(t("console.games.rate_selected"),
-                                 lambda: _rate(selected)) \
-                        .classes("console-menu-item")
-                    # Walks the selection one picker at a time rather than matching them in
-                    # a run. Nothing here can tell a right match from a wrong one - the
-                    # ranker that would have was measured and retired - so a person decides
-                    # every one, and Skip leaves a game exactly as it was.
-                    ui.menu_item(t("console.games.match_vps"),
-                                 lambda: vps_match.walk(library, list(selected))) \
-                        .classes("console-menu-item")
-                    # Where the games you have already picked go. From here rather than
-                    # only from the device, because starting with the tables and choosing
-                    # where they land is a different job from managing what a phone holds.
-                    ui.menu_item(t("console.games.send_device"),
-                                 lambda: send_to_device.ask_where(selected)) \
-                        .classes("console-menu-item")
-                    ui.separator()
-                    ui.menu_item(t("word.clear_selection"),
-                                 lambda: table.run_grid_method("deselectAll")) \
-                        .classes("console-menu-item")
+                bulk_menu = ui.menu().props("no-parent-event")
             actions.set_visibility(False)
             if rescan is not None:
                 ui.button(icon=verbs.REFRESH, on_click=rescan) \
@@ -510,11 +492,49 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     ui.run_javascript(_CELL_MEDIA)
     ui.run_javascript(stars.CLICK_JS)
 
-    def on_context(row: dict | None) -> None:
+    async def on_context(row: dict | None) -> None:
         # The row menu acts on the row under the cursor, which is not necessarily the
         # selection. Conflating the two is how people act on the wrong thing.
         context_row[:] = [row] if row else []
-        _fill_menu(row=row)
+        known = await collection_adds.read(library, narrowed_to()) if row else None
+        _fill_menu(row=row, known=known)
+
+    def narrowed_to() -> str:
+        """The collection the grid is filtered to, while it is one."""
+        return str(state.get("collection") or "")
+
+    def offer(games: list[dict[str, Any]], subject: str) -> collection_adds.Offer:
+        return collection_adds.Offer(
+            library, [collection_adds.Row(str(one["id"])) for one in games],
+            collection_adds.GAMES, subject,
+            then=partial(refresh_games, [str(one["id"]) for one in games]),
+            narrowed=narrowed_to())
+
+    async def fill_bulk() -> None:
+        chosen = list(selected)
+        known = await collection_adds.read(library, narrowed_to())
+        bulk_menu.clear()
+        with bulk_menu:
+            panel.menu_entry(t("console.games.rate_selected"), lambda: _rate(chosen))
+            # Walks the selection one picker at a time rather than matching them in a
+            # run. Nothing here can tell a right match from a wrong one - the ranker
+            # that would have was measured and retired - so a person decides every one,
+            # and Skip leaves a game exactly as it was.
+            panel.menu_entry(t("console.games.match_vps"),
+                             lambda: vps_match.walk(library, chosen))
+            # Where the games you have already picked go. From here rather than only
+            # from the device, because starting with the tables and choosing where they
+            # land is a different job from managing what a phone holds.
+            panel.menu_entry(t("console.games.send_device"),
+                             lambda: send_to_device.ask_where(chosen))
+            ui.separator()
+            collection_adds.draw(offer(chosen, ""), known, bulk_menu.close)
+            ui.separator()
+            panel.menu_entry(t("word.clear_selection"),
+                             lambda: table.run_grid_method("deselectAll"))
+        bulk_menu.open()
+
+    actions.on_click(fill_bulk)
 
     async def on_header_context(col_id: str | None) -> None:
         # Asked of the grid rather than tracked here: the column can also be dragged in
@@ -532,7 +552,8 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         table.run_grid_method("setColumnsVisible", [col_id], False)
 
     def _fill_menu(row: dict | None = None, col_id: str | None = None,
-                   pinned: bool = False) -> None:
+                   pinned: bool = False,
+                   known: collection_adds.Read | None = None) -> None:
         """One menu, filled for whatever was right-clicked.
 
         Two menus cannot both hang off the grid wrapper, and the wrapper sees every
@@ -561,8 +582,11 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
                 ui.item_label(row.get("name") or "").props("header") \
                     .classes("console-menu-header")
                 ui.separator()
-                ui.menu_item(t("console.games.launch"),
-                        lambda: _launch(context_row)).classes("console-menu-item")
+                panel.menu_entry(t("console.games.launch"), lambda: _launch(context_row))
+                if known is not None:
+                    ui.separator()
+                    collection_adds.draw(offer([row], str(row.get("name") or "")), known,
+                                         context_menu.close)
 
     # The menu hangs off a wrapper, not off the grid: ui.aggrid's Vue template is a bare
     # <div> with no slot, so a child of it is never rendered and the menu silently does
@@ -601,6 +625,24 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         table.run_grid_method("applyTransaction", {"update": [fresh]})
 
     state["refresh_game"] = refresh_game
+
+    async def refresh_games(ids: list[str]) -> None:
+        """The Collections column of the rows an add or its Undo touched, and the panel
+        where it is showing one of them. Nothing where the grid has gone."""
+        if table.is_deleted or state.get("view") != "games":
+            return
+        await run.io_bound(library.load_game_collections, True)
+        renderers.install_collection_looks(library.smart_collections(), on=table)
+        wanted = set(ids)
+        fresh = [row for row in await offload.io(library.game_rows)
+                 if row.get("id") in wanted]
+        by_id.update({row["id"]: row for row in fresh})
+        rows[:] = [by_id.get(row["id"], row) for row in rows]
+        table.run_grid_method("applyTransaction", {"update": fresh})
+        if state.get("game") in wanted and state.get("section") == "collections":
+            answer = on_select(by_id.get(str(state["game"])))
+            if inspect.isawaitable(answer):
+                await answer
 
     async def counted() -> None:
         seen = await table.run_grid_method("getDisplayedRowCount")
@@ -985,6 +1027,11 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         with bar.bottom, panel.bar_end():
             count = ui.label(_tables_said(built, len(built))) \
                 .classes("text-xs console-label")
+            actions = ui.button(icon=verbs.MORE).props("flat round dense") \
+                .tooltip(t("console.games.actions_selected_tables"))
+            with actions:
+                bulk_menu = ui.menu().props("no-parent-event")
+            actions.set_visibility(False)
             if rescan is not None:
                 ui.button(icon=verbs.REFRESH, on_click=rescan) \
                     .props("flat dense round size=sm").classes("shrink-0") \
@@ -1002,12 +1049,54 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
     ui.run_javascript(stars.CLICK_JS)
 
     row_menu: dict[str, Any] = {}
+    selected: list[dict[str, Any]] = []
+    displayed: dict[str, int] = {"rows": len(built)}
 
-    def on_context(row: dict | None) -> None:
+    def said() -> str:
+        if selected:
+            return t("console.games.selected", len=len(selected), len2=len(built))
+        return _tables_said(built, displayed["rows"])
+
+    def on_select_rows(rows_selected: list[dict[str, Any]]) -> None:
+        selected[:] = rows_selected
+        actions.set_visibility(bool(rows_selected))
+        count.text = said()
+
+    async def on_context(row: dict | None) -> None:
         # The menu acts on the row under the cursor, not on the selection. Conflating
         # the two is how people act on the wrong thing.
         row_menu["row"] = row
-        _fill(row)
+        known = await collection_adds.read(library) if row else None
+        _fill(row, known=known)
+
+    def offer(tables: list[dict[str, Any]], subject: str) -> collection_adds.Offer:
+        return collection_adds.Offer(
+            library, [collection_adds.Row(str(one["game_id"]), str(one["id"]))
+                      for one in tables],
+            collection_adds.TABLES, subject,
+            then=partial(tables_added, [str(one["game_id"]) for one in tables]))
+
+    async def tables_added(games: list[str]) -> None:
+        """The panel, where it is showing the Collections of one of these."""
+        if table.is_deleted or state.get("view") != "tables":
+            return
+        if state.get("game") in games and state.get("section") == "collections":
+            answer = on_select(by_id.get(str(state.get("table") or "")))
+            if inspect.isawaitable(answer):
+                await answer
+
+    async def fill_bulk() -> None:
+        chosen = list(selected)
+        known = await collection_adds.read(library)
+        bulk_menu.clear()
+        with bulk_menu:
+            collection_adds.draw(offer(chosen, ""), known, bulk_menu.close)
+            ui.separator()
+            panel.menu_entry(t("word.clear_selection"),
+                             lambda: table.run_grid_method("deselectAll"))
+        bulk_menu.open()
+
+    actions.on_click(fill_bulk)
 
     async def on_header_context(col_id: str | None) -> None:
         # Asked of the grid rather than tracked here: the column can also be dragged in
@@ -1018,17 +1107,17 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         _fill(None, col_id=col_id, pinned=bool(entry.get("pinned")))
 
     with ui.element("div").classes("w-full grow min-h-0 flex flex-col"):
-        # No selection handler: `on_select` is about the focused row, and the grid
-        # hands its selection handler the whole selected list. Passing it here raised
-        # on every checkbox click, and there is no bulk bar on this lens to feed.
-        table = grid.build(table_columns, built, f"{SCOPE}.tables",
+        # The selection feeds the bulk menu, never `on_select`: that one is about the
+        # focused row, and the grid hands this handler the whole selected list.
+        table = grid.build(table_columns, built, f"{SCOPE}.tables", on_select_rows,
                            on_context=on_context,
                            on_header_context=on_header_context, view_of=showing)
         menu: ui.context_menu = ui.context_menu()
 
     async def counted() -> None:
         seen = await table.run_grid_method("getDisplayedRowCount")
-        count.text = _tables_said(built, seen if isinstance(seen, int) else len(built))
+        displayed["rows"] = seen if isinstance(seen, int) else len(built)
+        count.text = said()
 
     table.on("modelUpdated", counted)
 
@@ -1106,7 +1195,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
             await answer
 
     def _fill(row: dict | None, col_id: str | None = None,
-              pinned: bool = False) -> None:
+              pinned: bool = False, known: collection_adds.Read | None = None) -> None:
         """One menu, filled for whatever was right-clicked.
 
         Two menus cannot both hang off the grid wrapper, and the wrapper sees every
@@ -1139,57 +1228,54 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
                 ui.separator()
                 # Managed here, where every candidate for the game is visible at once.
                 if not row.get("default"):
-                    ui.menu_item(
+                    panel.menu_entry(
                         t("word.make_default"),
                         lambda r=row: act(library.set_default_table, r["game_id"],
                                           r["id"], said=t("console.games.now_game_s_default"),
-                                          row=r)) \
-                        .classes("console-menu-item")
+                                          row=r))
                 elif (row.get("default_kind") or "") == game_tables.CHOSEN:
                     # The way back. Clearing the choice does not clear the default - it
                     # becomes automatic, which is what the panel's chip then reads.
-                    ui.menu_item(
+                    panel.menu_entry(
                         t("word.clear_choice"),
                         lambda r=row: act(library.set_default_table, r["game_id"], "",
                                           said=t("console.games.back_automatic_default"),
-                                          row=r)) \
-                        .classes("console-menu-item")
+                                          row=r))
                 hidden = bool(row.get("hidden"))
-                ui.menu_item(
+                panel.menu_entry(
                     t("console.games.unhide") if hidden else t("console.games.hide"),
                     lambda r=row, h=hidden: act(library.set_table_hidden, r["game_id"],
                                                 r["id"], not h,
                                                 said=t("console.games.now_offered") if h
                                                 else t("word.hidden"),
-                                                row=r)) \
-                    .classes("console-menu-item")
+                                                row=r))
                 # The script sidecar. VPX loads a `<table>.vbs` beside the .vpx in
                 # preference to the one inside it, so this is per table and belongs on
                 # the row rather than only on the panel that was carrying it.
                 script = (row.get("assets") or {}).get("script") or {}
                 if (script.get("resolution") or "") == "dedicated":
-                    ui.menu_item(
-                        t("console.games.delete_script"),
-                        lambda r=row: drop_script(r)) \
-                        .classes("console-menu-item console-menu-danger")
+                    panel.menu_entry(t("console.games.delete_script"),
+                                     lambda r=row: drop_script(r),
+                                     classes="console-menu-danger")
                 else:
-                    ui.menu_item(
+                    panel.menu_entry(
                         t("console.games.extract_script"),
                         lambda r=row: act(library.extract_script, r["game_id"],
                                           r["id"],
                                           said=t("console.games.extracted_table_now_runs"),
-                                          row=r)) \
-                        .classes("console-menu-item")
+                                          row=r))
                 # Only for a table whose file is gone. While it is on disk the record
                 # describes something the user owns, and hiding is what takes it out of
                 # play without losing its stats.
                 if not row.get("available"):
-                    ui.menu_item(
+                    panel.menu_entry(
                         t("console.games.forget_table"),
                         lambda r=row: act(library.forget_table, r["game_id"], r["id"],
                                           said=t("console.games.record_dropped"),
-                                          row=r, gone=True)) \
-                        .classes("console-menu-item")
+                                          row=r, gone=True))
+                if known is not None:
+                    ui.separator()
+                    collection_adds.draw(offer([row], _table_label(row)), known, menu.close)
 
     wire_views(table)
     search.on_value_change(

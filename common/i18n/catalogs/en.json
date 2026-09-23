@@ -166,6 +166,24 @@
   "console.about.press_usual_copy_shortcut": "Press the usual copy shortcut - it is already selected.",
   "console.about.put_all_clipboard": "Put all of it on the clipboard",
   "console.about.refresh": "Refresh",
+  "console.adds.add_games_to": {
+    "one": "Add 1 Game to “{name}”",
+    "other": "Add {count} Games to “{name}”"
+  },
+  "console.adds.add_games_to_collection": {
+    "one": "Add 1 Game to Collection",
+    "other": "Add {count} Games to Collection"
+  },
+  "console.adds.add_tables_to": {
+    "one": "Add 1 Table to “{name}”",
+    "other": "Add {count} Tables to “{name}”"
+  },
+  "console.adds.add_tables_to_collection": {
+    "one": "Add 1 Table to Collection",
+    "other": "Add {count} Tables to Collection"
+  },
+  "console.adds.add_to": "Add to “{name}”",
+  "console.adds.add_to_collection": "Add to Collection",
   "console.adds.added_games": {
     "one": "Added to “{name}”",
     "other": "Added {count} games to “{name}”"
@@ -201,6 +219,34 @@
   "console.adds.exception_tables_held": {
     "one": "Added 1 table to “{name}” as an exception to its rules, {held} already in it",
     "other": "Added {count} tables to “{name}” as exceptions to its rules, {held} already in it"
+  },
+  "console.adds.find_collection": "Find a collection",
+  "console.adds.in_it": "In It",
+  "console.adds.more_collections": "More Collections...",
+  "console.adds.new_collection": "New Collection...",
+  "console.adds.none_match": "No collection by that name",
+  "console.adds.pick_games": {
+    "one": "Add 1 game to a collection",
+    "other": "Add {count} games to a collection"
+  },
+  "console.adds.pick_one": "Add “{name}” to a collection",
+  "console.adds.pick_tables": {
+    "one": "Add 1 table to a collection",
+    "other": "Add {count} tables to a collection"
+  },
+  "console.adds.recent": "Recent",
+  "console.adds.remove_from": "Remove from “{name}”",
+  "console.adds.remove_games_from": {
+    "one": "Remove 1 Game from “{name}”",
+    "other": "Remove {count} Games from “{name}”"
+  },
+  "console.adds.removed_games": {
+    "one": "Removed from “{name}”",
+    "other": "Removed {count} games from “{name}”"
+  },
+  "console.adds.taken_out_games": {
+    "one": "Taken out of “{name}”",
+    "other": "{count} games taken out of “{name}”"
   },
   "console.api.api_answered": "The API answered {status_code}",
   "console.app_settings.edits_go": "Edits go to",
@@ -483,6 +529,7 @@
   "console.game_tables.unmatched": "Unmatched",
   "console.game_tables.where": "Where It Is",
   "console.games.actions_selected_games": "Actions for the selected games",
+  "console.games.actions_selected_tables": "Actions for the selected tables",
   "console.games.alt_color": "Alt Color",
   "console.games.altsound": "AltSound",
   "console.games.b2s": "B2S",

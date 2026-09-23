@@ -166,6 +166,24 @@
   "console.about.press_usual_copy_shortcut": "Þřèšš ţĥè ûšûàŀ çöþý šĥöřţçûţ - îţ îš àŀřèàđý šèŀèçţèđ.",
   "console.about.put_all_clipboard": "Þûţ àŀŀ öƒ îţ öñ ţĥè çŀîþƀöàřđ",
   "console.about.refresh": "Řèƒřèšĥ",
+  "console.adds.add_games_to": {
+    "one": "Àđđ 1 Ĝàɱè ţö “{name}”",
+    "other": "Àđđ {count} Ĝàɱèš ţö “{name}”"
+  },
+  "console.adds.add_games_to_collection": {
+    "one": "Àđđ 1 Ĝàɱè ţö Çöŀŀèçţîöñ",
+    "other": "Àđđ {count} Ĝàɱèš ţö Çöŀŀèçţîöñ"
+  },
+  "console.adds.add_tables_to": {
+    "one": "Àđđ 1 Ţàƀŀè ţö “{name}”",
+    "other": "Àđđ {count} Ţàƀŀèš ţö “{name}”"
+  },
+  "console.adds.add_tables_to_collection": {
+    "one": "Àđđ 1 Ţàƀŀè ţö Çöŀŀèçţîöñ",
+    "other": "Àđđ {count} Ţàƀŀèš ţö Çöŀŀèçţîöñ"
+  },
+  "console.adds.add_to": "Àđđ ţö “{name}”",
+  "console.adds.add_to_collection": "Àđđ ţö Çöŀŀèçţîöñ",
   "console.adds.added_games": {
     "one": "Àđđèđ ţö “{name}”",
     "other": "Àđđèđ {count} ĝàɱèš ţö “{name}”"
@@ -201,6 +219,34 @@
   "console.adds.exception_tables_held": {
     "one": "Àđđèđ 1 ţàƀŀè ţö “{name}” àš àñ èẋçèþţîöñ ţö îţš řûŀèš, {held} àŀřèàđý îñ îţ",
     "other": "Àđđèđ {count} ţàƀŀèš ţö “{name}” àš èẋçèþţîöñš ţö îţš řûŀèš, {held} àŀřèàđý îñ îţ"
+  },
+  "console.adds.find_collection": "Ƒîñđ à çöŀŀèçţîöñ",
+  "console.adds.in_it": "Îñ Îţ",
+  "console.adds.more_collections": "Ḿöřè Çöŀŀèçţîöñš...",
+  "console.adds.new_collection": "Ñèŵ Çöŀŀèçţîöñ...",
+  "console.adds.none_match": "Ñö çöŀŀèçţîöñ ƀý ţĥàţ ñàɱè",
+  "console.adds.pick_games": {
+    "one": "Àđđ 1 ĝàɱè ţö à çöŀŀèçţîöñ",
+    "other": "Àđđ {count} ĝàɱèš ţö à çöŀŀèçţîöñ"
+  },
+  "console.adds.pick_one": "Àđđ “{name}” ţö à çöŀŀèçţîöñ",
+  "console.adds.pick_tables": {
+    "one": "Àđđ 1 ţàƀŀè ţö à çöŀŀèçţîöñ",
+    "other": "Àđđ {count} ţàƀŀèš ţö à çöŀŀèçţîöñ"
+  },
+  "console.adds.recent": "Řèçèñţ",
+  "console.adds.remove_from": "Řèɱöṽè ƒřöɱ “{name}”",
+  "console.adds.remove_games_from": {
+    "one": "Řèɱöṽè 1 Ĝàɱè ƒřöɱ “{name}”",
+    "other": "Řèɱöṽè {count} Ĝàɱèš ƒřöɱ “{name}”"
+  },
+  "console.adds.removed_games": {
+    "one": "Řèɱöṽèđ ƒřöɱ “{name}”",
+    "other": "Řèɱöṽèđ {count} ĝàɱèš ƒřöɱ “{name}”"
+  },
+  "console.adds.taken_out_games": {
+    "one": "Ţàķèñ öûţ öƒ “{name}”",
+    "other": "{count} ĝàɱèš ţàķèñ öûţ öƒ “{name}”"
   },
   "console.api.api_answered": "Ţĥè ÀÞÎ àñšŵèřèđ {status_code}",
   "console.app_settings.edits_go": "Èđîţš ĝö ţö",
@@ -483,6 +529,7 @@
   "console.game_tables.unmatched": "Ûñɱàţçĥèđ",
   "console.game_tables.where": "Ŵĥèřè Îţ Îš",
   "console.games.actions_selected_games": "Àçţîöñš ƒöř ţĥè šèŀèçţèđ ĝàɱèš",
+  "console.games.actions_selected_tables": "Àçţîöñš ƒöř ţĥè šèŀèçţèđ ţàƀŀèš",
   "console.games.alt_color": "Àŀţ Çöŀöř",
   "console.games.altsound": "ÀŀţŠöûñđ",
   "console.games.b2s": "Ɓ2Š",

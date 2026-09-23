@@ -633,6 +633,26 @@ def action(label: str,
     return draw
 
 
+def menu_entry(label: str, on_click: Callable[..., Any] | None = None, *,
+               mark: Callable[[], Any] | None = None,
+               trail: Callable[[], Any] | None = None,
+               classes: str = "", auto_close: bool = True) -> Any:
+    """An entry in a menu whose items share the leading slot: `mark` draws into it, and an
+    entry without one indents to it so the labels line up. `trail` draws the state at the
+    end."""
+    item = ui.menu_item(on_click=on_click, auto_close=auto_close) \
+        .classes(f"console-menu-item {classes}".strip())
+    with item, ui.row().classes("items-center gap-2 no-wrap w-full"):
+        if mark is None:
+            ui.element("span").classes("console-menu-mark")
+        else:
+            mark()
+        ui.label(label).classes("grow min-w-0")
+        if trail is not None:
+            trail()
+    return item
+
+
 def link(label: str, *, to: str, on_click: Callable[[], Any] | None = None,
          hint: str = "") -> Callable[[], None]:
     """A link to somewhere else in the Console.

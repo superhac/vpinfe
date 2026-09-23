@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import unittest
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -161,6 +162,57 @@ class AddingToACollection(TempTree):
 
         self.assertIsNone(wrote.order)
         self.assertNotEqual("manual", self.store.get_order("Bally")["by"])
+
+
+    def test_taking_out_removes_its_rows_and_undo_puts_them_back_in_place(self) -> None:
+        with self.store.mutate():
+            self.store.set_order("Friday Night", "manual")
+            self.store.add_member("Friday Night", "xen")
+
+        took = collection_adds.take(self.library, "Friday Night", ["bk"])
+
+        self.assertEqual(["mm", "xen"], [ref["game"] for ref in self._refs("Friday Night")])
+        collection_adds.untake(self.library, "Friday Night", took)
+        self.assertEqual(["mm", "bk", "xen"],
+                         [ref["game"] for ref in self._refs("Friday Night")])
+
+    def test_taking_a_rule_s_match_out_keeps_it_out(self) -> None:
+        took = collection_adds.take(self.library, "Bally", ["taf"])
+
+        self.assertEqual(["taf"], took.kept_out)
+        self.assertEqual([{"game": "taf"}], self.store.get_excluded_refs("Bally"))
+        collection_adds.untake(self.library, "Bally", took)
+        self.assertEqual([], self.store.get_excluded_refs("Bally"))
+
+
+class TheCollectionsAddedToLast(unittest.TestCase):
+    def setUp(self) -> None:
+        held: dict[str, Any] = {}
+        for name, value in (("get", lambda key, default=None: held.get(key, default)),
+                            ("put", held.__setitem__)):
+            patcher = patch.object(collection_adds.remembered, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_the_newest_leads_and_five_are_kept(self) -> None:
+        for name in ("A", "B", "C", "D", "E", "F", "B"):
+            collection_adds.used(name)
+
+        self.assertEqual(["B", "F", "E", "D", "C"],
+                         collection_adds.recent(["A", "B", "C", "D", "E", "F"]))
+
+    def test_one_that_has_gone_is_not_offered(self) -> None:
+        collection_adds.used("Gone")
+        collection_adds.used("Here")
+
+        self.assertEqual(["Here"], collection_adds.recent(["Here"]))
+
+    def test_a_rename_keeps_its_place(self) -> None:
+        collection_adds.used("Old")
+        collection_adds.used("Other")
+        collection_adds.renamed("Old", "New")
+
+        self.assertEqual(["Other", "New"], collection_adds.recent(["New", "Other"]))
 
 
 class TheWords(TempTree):

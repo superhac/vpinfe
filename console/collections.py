@@ -11,7 +11,7 @@ from __future__ import annotations
 import inspect
 import json
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import quote
 
@@ -19,8 +19,7 @@ from nicegui import run, ui
 
 from common.games.collection_store import DIRECTION_WORDS, MANUAL_ORDER, SORT_LABELS
 from common.i18n import t
-from console import confirm, grid, offload, panel, verbs, views
-from console import dialog as frame
+from console import collection_adds, confirm, grid, offload, panel, verbs, views
 from console.games import view_control
 
 logger = logging.getLogger("vpinfe.console.collections")
@@ -245,7 +244,8 @@ def build(collections: list[dict[str, Any]], library: Any,
                     .classes("console-menu-item console-menu-danger")
             bulk.set_visibility(False)
             panel.add_action([(t("console.collections.new_collection"),
-                               lambda: _ask_new(library, reread))], empty=not built)
+                               lambda: collection_adds.ask_new(library, reread))],
+                              empty=not built)
 
     by_id = {row["id"]: row for row in built}
     grid.on_row_focus(SCOPE,
@@ -356,41 +356,6 @@ def build(collections: list[dict[str, Any]], library: Any,
             table.run_grid_method("refreshCells", {"force": True, "columns": ["name"]})
 
     state["mark_unsaved"] = mark_unsaved
-
-
-def _ask_new(library: Any, opened: Callable[[str], Awaitable[None]]) -> None:
-    """A name. Nothing else.
-
-    The kind is not a question at creation: it is decided by what the collection ends up
-    holding, and changed in the panel where the games and the rule both are. Asking up
-    front would make it a mode.
-    """
-    held: dict[str, Any] = {}
-
-    async def keep() -> None:
-        name = held["name"]
-        wanted = (name.value or "").strip()
-        if not wanted:
-            name.props["error"] = True
-            name.props["error-message"] = t("said.give_it_a_name")
-            return
-        dialog.close()
-        try:
-            made = await offload.io(library.create_collection, wanted, None)
-        except Exception as exc:
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
-            return
-        ui.notify(t("console.collections.created", strip=wanted), type="positive")
-        await opened(str(made.get("name") or wanted))
-
-    with frame.opened(t("console.collections.new_collection")) as dialog:
-        panel.facts(ui, [(t("word.name"), lambda: held.update(name=frame.field()))])
-        with frame.footer():
-            frame.cancel(dialog.close)
-            go = frame.answer(t("console.collections.create"), keep, icon=verbs.CREATE)
-    frame.focus(dialog, held["name"])
-    frame.enter_presses(go)
-    dialog.open()
 
 
 async def _ask_delete_many(picked: list[dict], library: Any, act: Callable) -> None:
