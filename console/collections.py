@@ -27,13 +27,9 @@ logger = logging.getLogger("vpinfe.console.collections")
 
 SCOPE = "console.collections"
 
-# What a collection is called on screen. The wire says `filter`; a reader says
-# **Dynamic** - it is the word for a list that changes under you, and "filter" names the
-# mechanism rather than the thing.
-# Keys, resolved where they are shown. "Dynamic" is the word a person reads for what
-# the wire calls a filter collection.
-KIND_LABELS = {"manual": "console.collections.manual",
-               "filter": "console.collections.dynamic"}
+# Keys, resolved where they are shown.
+KIND_LABELS = {"manual": "console.collections.hand_picked",
+               "filter": "console.collections.smart"}
 _ORDER_LINES = {"asc": "console.collections.ordered_ascending",
                 "desc": "console.collections.ordered_descending"}
 
@@ -49,31 +45,22 @@ COLUMNS = [
     # asking the reader to work from the least distinctive thing about each.
     grid.column("icon", "", 56, pinned="left", sortable=False, filter=False,
                 picker=t("word.icon"), help=t("console.collections.icon.help")),
-    grid.identifier("name", t("word.name"), 240, pinned="left",
-                help=t("console.collections.what_called_collection_what.help")),
-    grid.column("kind", t("word.kind"),
-                help=t("console.collections.how_collection_decides_what.help")),
+    grid.identifier("name", t("word.name"), 240, pinned="left"),
+    grid.column("kind", t("word.kind"), 120, help=t("console.collections.kind.help")),
     # Right-aligned with the other number rather than left with the words: a count is
     # read against the counts above and below it.
-    # "Table Count", the same as the games grid: a count of tables, not the tables
-    # themselves. What it counts is what the collection hands out - one row per entry,
-    # and an entry is a table. The stored membership is a different number.
-    grid.column("count", t("word.table_count"), **_NUMERIC,
-                help=t("console.collections.how_many_tables_collection.help")),
+    grid.column("count", t("console.collections.games"), **_NUMERIC,
+                help=t("console.collections.games.help")),
     grid.column("added", t("console.collections.added"), **_NUMERIC,
                 help=t("console.collections.added.help")),
-    grid.column("matched", t("console.collections.matched"), **_NUMERIC,
-                help=t("console.collections.matched.help")),
-    grid.column("excluded", t("console.collections.excluded"), **_NUMERIC,
-                help=t("console.collections.excluded.help")),
+    grid.column("matched", t("console.collections.by_rule"), **_NUMERIC,
+                help=t("console.collections.by_rule.help")),
+    grid.column("excluded", t("console.collections.taken_out"), **_NUMERIC,
+                help=t("console.collections.taken_out.help")),
     grid.column("order", t("console.collections.order"), 200,
-                help=t("console.collections.order_frontend_walks_collection.help")),
-    # "Table Limit", paired with Table Count: a column header stands alone, so `Limit`
-    # invites "limit of what?". The panel keeps plain `Limit` - it sits under
-    # Presentation beside Ordered by and Paging, which supply the context a header has
-    # to carry for itself.
-    grid.column("limit", t("console.collections.table_limit"), **_NUMERIC,
-                help=t("console.collections.most_tables_collection_hand.help")),
+                help=t("console.collections.order.help")),
+    grid.column("limit", t("console.collections.limit"), **_NUMERIC,
+                help=t("console.collections.limit.help")),
 ]
 
 # Focusing the row is what opens its panel. Waits for the row, because the grid takes
@@ -329,7 +316,7 @@ async def _ask_delete_many(picked: list[dict], library: Any, act: Callable) -> N
     shown = names[:8] + ([t("said.and_more", value=(len(names) - 8))]
             if len(names) > 8 else [])
     if await confirm.ask(t("console.collections.delete_collections", count=len(names)),
-                         detail=t("console.collections.games_stay_library_lists"),
+                         detail=await _what_deleting_leaves(library, names),
                          lines=shown):
         for name in names:
             await act(library.delete_collection, name,
@@ -340,9 +327,20 @@ async def _ask_delete(name: str, library: Any, act: Callable) -> None:
     """Asked, because a manual collection is somebody's hand-picked list and there is
     no undo behind this."""
     if await confirm.ask(t("console.collections.delete", name=(name)),
-                         detail=t("console.collections.games_stay_library_list")):
+                         detail=await _what_deleting_leaves(library, [name])):
         await act(library.delete_collection, name,
                 said=t("console.collections.deleted", name=(name)))
+
+
+async def _what_deleting_leaves(library: Any, names: list[str]) -> str:
+    try:
+        settings = await offload.io(library.config_values)
+    except Exception:  # noqa: BLE001 - asked all the same, without the second sentence
+        settings = {}
+    opens_on = str((settings.get("behavior") or {}).get("startup_collection") or "")
+    if opens_on.strip() in names:
+        return t("console.collections.games_stay_opens_all")
+    return t("console.collections.games_stay")
 
 
 def stored_views(library: Any) -> tuple[list[views.View], str]:

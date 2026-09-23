@@ -4749,7 +4749,7 @@ def _text_control(context: dict[str, Any], row: dict[str, Any], field: str,
         if value == (row.get(field) or ""):
             return
         if field == "name" and not value.strip():
-            ui.notify(t("console.workbench.collection_needs_name"), type="warning")
+            ui.notify(t("said.give_it_a_name"), type="warning")
             return
         if field == "name":
             await _rename(context, value)
