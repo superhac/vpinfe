@@ -5086,10 +5086,9 @@ def _rule_sentence(context: dict[str, Any], row: dict[str, Any]) -> str:
         name = str(axis.get("name") or "")
         if name == "rating_or_higher":
             continue
-        if name == "played":
+        if str(axis.get("kind") or "") == "flag":
             if current.get(name) is not None:
-                said.append(t("console.workbench.played") if current[name]
-                            else t("console.workbench.never_played"))
+                said.append(_flag_said(axis, bool(current[name])))
             continue
         if name == "rating":
             rated = _selected(current.get(name))
@@ -5103,12 +5102,54 @@ def _rule_sentence(context: dict[str, Any], row: dict[str, Any]) -> str:
         chosen = _selected(current.get(name))
         if chosen:
             said.append(t("console.workbench.axis_is", axis=_axis_label(axis),
-                          values=t("console.workbench.or_join").join(
-                              f"\u201c{v}\u201d" for v in chosen)))
+                          values=_either(chosen)))
     if not said:
-        return t("console.workbench.everything_library_far")
-    return t("console.workbench.every_game_where",
-             clauses=t("console.workbench.and_join").join(said))
+        return t("console.workbench.add_rule_choose_games")
+    clauses = _all_of(said)
+    added, taken = _by_hand(context)
+    if added and taken:
+        return t("console.workbench.every_game_where_plus_minus", clauses=clauses,
+                 added=added, taken=taken)
+    if added:
+        return t("console.workbench.every_game_where_plus", clauses=clauses, added=added)
+    if taken:
+        return t("console.workbench.every_game_where_minus", clauses=clauses, taken=taken)
+    return t("console.workbench.every_game_where", clauses=clauses)
+
+
+_FLAG_SAID ={"played": ("console.workbench.played", "console.workbench.never_played"),
+              "favorite": ("console.workbench.marked_favorite",
+                           "console.workbench.not_marked_favorite")}
+
+
+def _flag_said(axis: dict[str, Any], on: bool) -> str:
+    keys = _FLAG_SAID.get(str(axis.get("name") or ""))
+    if keys:
+        return t(keys[0] if on else keys[1])
+    return t("console.workbench.axis_is", axis=_axis_label(axis),
+             values=t("word.yes") if on else t("word.no"))
+
+
+def _either(values: list[str]) -> str:
+    quoted =[f"\u201c{value}\u201d" for value in values]
+    if len(quoted) == 1:
+        return quoted[0]
+    return t("console.workbench.or_last",
+             rest=t("console.workbench.list_join").join(quoted[:-1]), last=quoted[-1])
+
+
+def _all_of(clauses: list[str]) -> str:
+    if len(clauses) == 1:
+        return clauses[0]
+    return t("console.workbench.and_last",
+             rest=t("console.workbench.list_join").join(clauses[:-1]), last=clauses[-1])
+
+
+def _by_hand(context: dict[str, Any]) -> tuple[int, int]:
+    members =(context.get("membership") or {}).get("members") or []
+    added = {one.get("game") for one in members if one.get("origin") == "named"}
+    taken = {one.get("game") for one in members if one.get("origin") == "excluded"}
+    return len(added), len(taken)
 
 
 def _ordering_rows(context: dict[str, Any], row: dict[str, Any],
