@@ -164,7 +164,7 @@ def build(collections: list[dict[str, Any]], library: Any,
             search = panel.search(t("console.collections.search_collections"))
         with bar.bottom, panel.bar_end():
             count = ui.label(t("console.collections.collections",
-                    len=(len(built)))).classes("text-xs console-label")
+                               count=len(built))).classes("text-xs console-label")
             bulk = ui.button(icon=verbs.MORE).props("flat round dense") \
                 .tooltip(t("console.collections.actions_selected_collections"))
             with bulk, ui.menu():
@@ -186,7 +186,7 @@ def build(collections: list[dict[str, Any]], library: Any,
         count.text = (t("console.collections.selected", len=(len(rows_selected)),
                 len2=(len(built)))
                       if rows_selected
-                      else t("console.collections.collections", len=len(built)))
+                      else t("console.collections.collections", count=len(built)))
 
     def on_context(row: dict | None) -> None:
         # The menu acts on the row under the cursor, not on the selection.
@@ -278,7 +278,7 @@ async def _ask_delete_many(picked: list[dict], library: Any, act: Callable) -> N
     # a dialog nobody reads to the end of.
     shown = names[:8] + ([t("said.and_more", value=(len(names) - 8))]
             if len(names) > 8 else [])
-    if await confirm.ask(t("console.collections.delete_collections", len=(len(names))),
+    if await confirm.ask(t("console.collections.delete_collections", count=len(names)),
                          detail=t("console.collections.games_stay_library_lists"),
                          lines=shown):
         for name in names:

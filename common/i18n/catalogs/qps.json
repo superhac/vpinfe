@@ -215,11 +215,17 @@
   "console.collections.actions_selected_collections": "Àçţîöñš ƒöř ţĥè šèŀèçţèđ çöŀŀèçţîöñš",
   "console.collections.added": "Àđđèđ",
   "console.collections.added.help": "Ĝàɱèš ŵřîţţèñ îñţö ţĥîš çöŀŀèçţîöñ",
-  "console.collections.collections": "{len} çöŀŀèçţîöñš",
+  "console.collections.collections": {
+    "one": "{count} çöŀŀèçţîöñ",
+    "other": "{count} çöŀŀèçţîöñš"
+  },
   "console.collections.create": "Çřèàţè",
   "console.collections.created": "Çřèàţèđ “{strip}”",
   "console.collections.delete": "Đèŀèţè “{name}”?",
-  "console.collections.delete_collections": "Đèŀèţè {len} çöŀŀèçţîöñš?",
+  "console.collections.delete_collections": {
+    "one": "Đèŀèţè {count} çöŀŀèçţîöñ?",
+    "other": "Đèŀèţè {count} çöŀŀèçţîöñš?"
+  },
   "console.collections.delete_selected": "Đèŀèţè šèŀèçţèđ",
   "console.collections.deleted": "Đèŀèţèđ {name}",
   "console.collections.dynamic": "Đýñàɱîç",

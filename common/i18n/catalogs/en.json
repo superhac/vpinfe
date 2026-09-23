@@ -215,11 +215,17 @@
   "console.collections.actions_selected_collections": "Actions for the selected collections",
   "console.collections.added": "Added",
   "console.collections.added.help": "Games written into this collection",
-  "console.collections.collections": "{len} collections",
+  "console.collections.collections": {
+    "one": "{count} collection",
+    "other": "{count} collections"
+  },
   "console.collections.create": "Create",
   "console.collections.created": "Created “{strip}”",
   "console.collections.delete": "Delete “{name}”?",
-  "console.collections.delete_collections": "Delete {len} collections?",
+  "console.collections.delete_collections": {
+    "one": "Delete {count} collection?",
+    "other": "Delete {count} collections?"
+  },
   "console.collections.delete_selected": "Delete selected",
   "console.collections.deleted": "Deleted {name}",
   "console.collections.dynamic": "Dynamic",
