@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from common import collation
@@ -249,6 +249,21 @@ class Holding:
     added: list[Any]
     matched: list[Any]
     excluded: int
+    # Game id to the tables the rule matched by their own values. A game that matched
+    # itself is not in it.
+    tables: dict[str, tuple[str, ...]] = field(default_factory=dict)
+
+
+def _ruled(stored_filters: dict, game: Any, entries: list[dict],
+           per_table: bool) -> list[dict] | None:
+    """What a rule takes of one game: None for nothing, [] for the game itself, or the
+    tables among `entries` whose own values it matched."""
+    if collection_filters.matches(stored_filters, game):
+        return []
+    if not per_table:
+        return None
+    return [entry for entry in entries
+            if collection_filters.matches(stored_filters, game, entry)] or None
 
 
 def resolve_games(name: str, collections: CollectionStore, games: list[Any]) -> list[Any]:
@@ -281,7 +296,7 @@ def holding(name: str, collections: CollectionStore, games: list[Any]) -> Holdin
     member_refs = collections.get_member_refs(name)
     named = {ref[MEMBER_GAME_KEY] for ref in member_refs}
     stored_filters = collections.get_filters(name) or {}
-    dropped_games, _ = _excluded(collections.get_excluded_refs(name))
+    dropped_games, dropped_tables = _excluded(collections.get_excluded_refs(name))
 
     picked, seen = [], set()
 
@@ -298,15 +313,25 @@ def holding(name: str, collections: CollectionStore, games: list[Any]) -> Holdin
             _add(game)
 
     from_filters = []
+    ruled_tables: dict[str, tuple[str, ...]] = {}
     if stored_filters:
+        per_table = collection_filters.table_sensitive(stored_filters)
         for game in games:
             if game_id(game) in named or game_id(game) in dropped_games:
                 continue
-            if collection_filters.matches(stored_filters, game):
-                before = len(picked)
-                _add(game)
-                from_filters.extend(picked[before:])
-                del picked[before:]
+            entries = [entry for key, entry in
+                       table_entries(getattr(game, "meta_config", {})).items()
+                       if key not in dropped_tables and isinstance(entry, dict)]
+            taken = _ruled(stored_filters, game, entries, per_table)
+            if taken is None:
+                continue
+            before = len(picked)
+            _add(game)
+            from_filters.extend(picked[before:])
+            del picked[before:]
+            if taken:
+                ruled_tables[game_id(game)] = tuple(
+                    str(entry.get(TABLE_ID_KEY, "")) for entry in taken)
 
     order = collections.get_order(name)
     order_by = order["by"] or DEFAULT_ORDER
@@ -322,7 +347,7 @@ def holding(name: str, collections: CollectionStore, games: list[Any]) -> Holdin
         result = _sorted(picked + from_filters, order_by, order["direction"] == "desc")
     limit = collections.get_limit(name)
     return Holding(games=result[:limit] if limit else result, added=picked,
-                   matched=from_filters, excluded=len(dropped_games))
+                   matched=from_filters, excluded=len(dropped_games), tables=ruled_tables)
 
 
 def resolve(name: str, collections: CollectionStore, games: list[Any]) -> list[Entry]:
@@ -383,16 +408,19 @@ def resolve(name: str, collections: CollectionStore, games: list[Any]) -> list[E
 
     from_filters: list[Entry] = []
     if stored_filters and not collection_filters.unknown_axes(stored_filters):
+        per_table = collection_filters.table_sensitive(stored_filters)
         for game in games:
             if game_id(game) in named:
-                continue
-            if not collection_filters.matches(stored_filters, game):
                 continue
             offered = visible_entries(game)
             if not offered:
                 continue
+            taken = _ruled(stored_filters, game, offered, per_table)
+            if taken is None:
+                continue
             before = len(ordered)
-            _take(game, offered[0])
+            for entry in taken or offered[:1]:
+                _take(game, entry)
             from_filters.extend(ordered[before:])
             del ordered[before:]
 

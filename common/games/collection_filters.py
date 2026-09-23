@@ -34,7 +34,9 @@ from common.games.game_metadata import (
     get_meta_value,
     normalize_rating,
     play_record,
+    table_tags,
 )
+from common.games.tables import table_entries
 from common.i18n import t
 from common.values import is_truthy
 
@@ -71,10 +73,18 @@ def _match_theme(criterion: object, game: GameRecord, table: dict) -> bool:
 
 
 def _match_tag(criterion: object, game: GameRecord, table: dict) -> bool:
-    """Any of the tags asked for. Case-sensitive, because the tags are: two spellings
-    are two tags until somebody merges them, and matching across them would hide the
-    duplicate the tag editor exists to find."""
-    return bool(_values(criterion) & set(game_tags(game)))
+    """Any of the tags asked for, on the game or on the table in hand. Case-sensitive,
+    because the tags are: two spellings are two tags until somebody merges them, and
+    matching across them would hide the duplicate the tag editor exists to find."""
+    return bool(_values(criterion) & (set(game_tags(game)) | set(table_tags(table))))
+
+
+def _carried_tags(game: GameRecord) -> list[str]:
+    found = list(game_tags(game))
+    for entry in table_entries(getattr(game, "meta_config", {})).values():
+        if isinstance(entry, dict):
+            found += table_tags(entry)
+    return found
 
 
 def _match_favorite(criterion: object, game: GameRecord, table: dict) -> bool:
@@ -197,9 +207,9 @@ AXES: tuple[FilterAxis, ...] = (
                _match_favorite),
     # The user's own words, so the values are whatever this library holds - the same
     # shape as `theme`, which is where they come from for everybody else.
-    FilterAxis("tags", GAME_SCOPE, "choice",
+    FilterAxis("tags", TABLE_SCOPE, "choice",
                _match_tag, many=True,
-               values_of=game_tags, values_key="tags"),
+               values_of=_carried_tags, values_key="tags"),
 )
 
 AXES_BY_NAME = {axis.name: axis for axis in AXES}
@@ -275,6 +285,14 @@ def matches(stored: dict | None, game: GameRecord, table: dict | None = None) ->
         if not axis.matches(criterion, game, table or {}):
             return False
     return True
+
+
+def table_sensitive(stored: dict | None) -> bool:
+    """Whether a table of a game can match where the game itself does not."""
+    return any(not is_unconstrained(criterion)
+               and AXES_BY_NAME.get(canonical_axis(name)) is not None
+               and AXES_BY_NAME[canonical_axis(name)].is_table_scoped
+               for name, criterion in (stored or {}).items())
 
 
 def _reads_rating_as_a_floor(stored: dict) -> bool:

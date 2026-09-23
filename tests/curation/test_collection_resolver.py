@@ -283,6 +283,71 @@ class ResolverTests(TempTree):
         self.assertIn(("afm", "a1"), self._ids(entries))
         self.assertNotIn(("afm", "vr"), self._ids(entries))
 
+    # --- tags on a table ----------------------------------------------------------
+
+    def _tag(self, game, table_id, *tags):
+        game.meta_config["tables"][table_id]["user"] = {"tags": list(tags)}
+
+    def _rule(self, name, **criteria):
+        self.collections.add_collection(name)
+        self.collections.make_filter_collection(name, criteria)
+
+    def test_a_table_s_own_tag_brings_in_that_table(self) -> None:
+        self._tag(self.afm, "vr", "VR")
+        self._rule("VR", tags="VR")
+
+        self.assertEqual([("afm", "vr")],
+                         self._ids(resolve("VR", self.collections, self.games)))
+
+    def test_a_game_s_tag_still_brings_in_its_default(self) -> None:
+        self.afm.meta_config["User"]["Tags"] = ["VR"]
+        self._rule("VR", tags="VR")
+
+        self.assertEqual([("afm", "a1")],
+                         self._ids(resolve("VR", self.collections, self.games)))
+
+    def test_two_tagged_tables_of_one_game_are_both_in(self) -> None:
+        self._tag(self.mm, "vpw", "Night")
+        self._tag(self.mm, "jp", "Night")
+        self._rule("Night", tags="Night")
+
+        self.assertEqual({("mm", "vpw"), ("mm", "jp")},
+                         set(self._ids(resolve("Night", self.collections, self.games))))
+
+    def test_the_rest_of_the_rule_still_applies_to_the_game(self) -> None:
+        self._tag(self.afm, "vr", "VR")
+        self._tag(self.mm, "jp", "VR")
+        self._rule("Bally VR", tags="VR", manufacturer="Bally")
+
+        self.assertEqual([("afm", "vr")],
+                         self._ids(resolve("Bally VR", self.collections, self.games)))
+
+    def test_the_management_lens_holds_the_game_and_names_the_table(self) -> None:
+        self._tag(self.afm, "vr", "VR")
+        self._rule("VR", tags="VR")
+
+        held = holding("VR", self.collections, self.games)
+
+        self.assertEqual((["Attack from Mars"], {"afm": ("vr",)}),
+                         ([g.game_dir_name for g in held.matched], held.tables))
+
+    def test_taking_out_the_tagged_table_takes_out_the_game(self) -> None:
+        self._tag(self.afm, "vr", "VR")
+        self._rule("VR", tags="VR")
+        self.collections.exclude("VR", "afm", table_id="vr")
+
+        self.assertEqual([], resolve("VR", self.collections, self.games))
+        self.assertEqual([], holding("VR", self.collections, self.games).games)
+
+    def test_a_hidden_tagged_table_is_held_and_not_handed_out(self) -> None:
+        self._tag(self.afm, "vr", "VR")
+        self.afm.meta_config["tables"]["vr"]["hidden"] = True
+        self._rule("VR", tags="VR")
+
+        self.assertEqual([], resolve("VR", self.collections, self.games))
+        self.assertEqual({"afm": ("vr",)},
+                         holding("VR", self.collections, self.games).tables)
+
     def test_hidden_beats_a_named_table(self) -> None:
         """`hidden` is library-wide and exists so a patch base can stay on disk."""
         self.mm.meta_config["tables"]["jp"]["hidden"] = True

@@ -5243,6 +5243,7 @@ async def _preview_rows(context: dict[str, Any], row: dict[str, Any]) -> None:
 # Reading the wrong one reports every stored member as specific.
 _TABLE_STATE = {
     "named": game_tables.FIXED,
+    "matched": game_tables.FIXED,
     "default": game_tables.FOLLOWS,
     "missing": game_tables.GONE,
 }

@@ -30,7 +30,6 @@ from common.games.collection_resolver import (
     UnresolvableCollectionError,
     holding,
     resolve,
-    resolve_games,
 )
 from common.games.collection_store import (
     DEFAULT_DIRECTION,
@@ -197,9 +196,13 @@ def _resolved(name: str) -> list[Entry]:
 
 
 def _resolved_games(name: str, manager: CollectionStore | None = None) -> list[Any]:
+    return _holding_or_refuse(name, manager).games
+
+
+def _holding_or_refuse(name: str, manager: CollectionStore | None = None) -> Holding:
     try:
-        return resolve_games(name, manager or get_collections_manager(),
-                             list(game_repository.catalog().values()))
+        return holding(name, manager or get_collections_manager(),
+                       list(game_repository.catalog().values()))
     except UnresolvableCollectionError as exc:
         raise service_errors.BlockedError(
             str(exc), details={"unknown_filters": exc.axes}) from exc
@@ -279,10 +282,12 @@ def members_of(name: str) -> dict:
                                    catalog, out))
     # Whatever the criteria matched and nobody named. Members come first because that is
     # the order the resolver walks and the order the collection is handed out in.
-    for game in _resolved_games(name, manager):
+    held = _holding_or_refuse(name, manager)
+    for game in held.games:
         found = game_identity.game_id(game)
         if found and found not in named_games:
-            members.append(_member_row(found, "filter", "", catalog, out))
+            for table in held.tables.get(found) or ("",):
+                members.append(_member_row(found, "filter", table, catalog, out))
     # Exclusions last, and listed rather than silent: a row somebody took out is the one
     # row they may want back, and nothing else reports it.
     for ref in excluded:
@@ -319,7 +324,9 @@ def _member_row(game_id: str, origin: str, named_table: str,
                        "authors": [str(one) for one in (table.get("authors") or [])],
                        "filename": str(table.get("filename") or ""),
                        "included": not kept_out,
-                       "origin": kept_out or ("named" if named_table else "default")})
+                       "origin": kept_out or ("default" if not named_table
+                                              else "matched" if origin == "filter"
+                                              else "named")})
     return {"game": game_id, "name": str(game_to_row(game).get("name") or ""),
             "origin": origin, "included": any(one["included"] for one in tables),
             # The table *this ref names*, empty when it names none - which is not the same

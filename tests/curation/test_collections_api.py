@@ -282,6 +282,21 @@ class CollectionEntriesTests(CollectionsApiTests):
     def test_a_collection_that_does_not_exist_is_a_404(self) -> None:
         self.assertEqual(self.client.get("/collections/Nope/entries").status_code, 404)
 
+    def test_a_table_the_rule_matched_is_listed_as_that_table(self) -> None:
+        meta = {"Info": {"Title": "Tagged"}, "vpinfe": {"game_id": "tagged"},
+                "tables": {"t1": {"id": "t1", "filename": "Tagged.vpx"},
+                           "vr": {"id": "vr", "filename": "Tagged VR.vpx",
+                                  "user": {"tags": ["VR"]}}}}
+        folder = write_game(self.root, "Tagged", info=meta, files={"Tagged VR.vpx": b"x"})
+        self.catalog["tagged"] = fake_game(folder, "Tagged", meta=meta)
+        self.client.post("/collections", json={"name": "VR", "filters": {"tags": ["VR"]}})
+
+        members = self.client.get("/collections/VR/members").json()["members"]
+
+        self.assertEqual([("tagged", "filter", "vr", "matched")],
+                         [(one["game"], one["origin"], one["ref_table"],
+                           one["tables"][0]["origin"]) for one in members])
+
     def test_a_filter_this_build_cannot_read_is_refused_by_name(self) -> None:
         """Answering with what is left would be a different question, silently."""
         self.client.post("/collections",
