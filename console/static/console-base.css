@@ -2131,6 +2131,11 @@ body.console-dropping .ag-root-wrapper { outline: 1px dashed var(--accent); }
 .console-edit-field .q-field__native {
   font-size: var(--fs-body); color: var(--ink); padding: 0;
 }
+/* Inside the control's border, not over it: at Quasar's own height and line the text sat
+   two pixels low, which a number's arrows made plain. */
+.console-edit-field input.q-field__native {
+  height: calc(var(--field-h) - 2px); line-height: calc(var(--field-h) - 2px);
+}
 /* A select's value is a span, not an input, and Quasar gives that span a min-height and
    a top padding sized for its own 40px control. At our 26px row the value sits below
    the box and reads as cropped - which is why the lists looked wrong and the text
