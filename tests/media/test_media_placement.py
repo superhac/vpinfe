@@ -161,5 +161,48 @@ class RetierTests(PlacementTests):
         self.assertEqual(self._medias(), [])
 
 
+class RemoveTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._dir = TemporaryDirectory()
+        self.addCleanup(self._dir.cleanup)
+        self.root = Path(self._dir.name)
+        (self.root / "medias").mkdir()
+
+    def _medias(self) -> list[str]:
+        return sorted(p.name for p in (self.root / "medias").iterdir())
+
+    def test_a_file_under_another_token_goes(self) -> None:
+        for kind, alias in (("flyer", "(GameInfo)"), ("instruction_card", "(RuleCard)"),
+                            ("instruction_card", "(GameHelp)")):
+            with self.subTest(alias=alias):
+                (self.root / "medias" / f"{alias} {BUILD}.png").write_bytes(b"art")
+
+                removed = media_placement.remove(self.root, kind, BUILD)
+
+                self.assertEqual(removed, [f"medias/{alias} {BUILD}.png"])
+                self.assertEqual(self._medias(), [])
+
+    def test_a_file_spelled_in_another_case_goes_under_its_own_name(self) -> None:
+        (self.root / "medias" / "(backglass) mygame.png").write_bytes(b"art")
+
+        removed = media_placement.remove(self.root, KIND, GAME)
+
+        self.assertEqual(removed, ["medias/(backglass) mygame.png"])
+        self.assertEqual(self._medias(), [])
+
+    def test_the_whole_family_goes_from_both_folders_and_no_other_tier(self) -> None:
+        for name in (f"(Backglass) {BUILD}.png", f"(Backglass) {BUILD}.jpg",
+                     "(Backglass) MyGame.png"):
+            (self.root / "medias" / name).write_bytes(b"art")
+        (self.root / f"(Backglass) {BUILD}.png").write_bytes(b"art")
+
+        removed = media_placement.remove(self.root, KIND, BUILD)
+
+        self.assertEqual(sorted(removed), [f"(Backglass) {BUILD}.png",
+                                           f"medias/(Backglass) {BUILD}.jpg",
+                                           f"medias/(Backglass) {BUILD}.png"])
+        self.assertEqual(self._medias(), ["(Backglass) MyGame.png"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -166,17 +166,13 @@ def remove(game_dir: str | Path, kind: str, stem: str) -> list[str]:
     if not spec.token:
         raise RuntimeError(f"Cannot address {kind} by name")
     removed = []
-    for extension in spec.family:
-        for folder in (game_dir / "medias", game_dir):
-            path = folder / f"{spec.token} {stem}{extension}"
-            if path.exists():
-                try:
-                    path.unlink()
-                    # Forward-slashed: this list is an API payload, and
-                    # `os.path.relpath` answers in the host's separator - so the same
-                    # library reported "medias/bg.png" on Linux and "medias\\bg.png"
-                    # on Windows. `path` is always built under `game_dir` just above.
-                    removed.append(path.relative_to(game_dir).as_posix())
-                except OSError:
-                    logger.warning("Could not remove %s", path)
+    for path in list(_family_at_tier(game_dir, kind, stem)):
+        try:
+            path.unlink()
+            # Forward-slashed: this list is an API payload, and `os.path.relpath`
+            # answers in the host's separator - so the same library reported
+            # "medias/bg.png" on Linux and "medias\\bg.png" on Windows.
+            removed.append(path.relative_to(game_dir).as_posix())
+        except OSError:
+            logger.warning("Could not remove %s", path)
     return removed
