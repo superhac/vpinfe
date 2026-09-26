@@ -21,6 +21,7 @@ from starlette.testclient import TestClient
 import httpapi
 from common.online import asset_sources
 from tests.support.library import TempTree, fake_game, write_game
+from tests.support.skips import needs_posix_permissions
 
 GAME_ID = "Placed00001"
 FOLDER = "Cactus Canyon (Bally 1998)"
@@ -128,6 +129,20 @@ class MediaWriteTests(TempTree):
         self.assertEqual(response.json()["removed"],
                          [f"medias/(Playfield) {FOLDER}.png"])
         self.assertIn("table.png", self._medias(), "the default is not ours to delete")
+
+    @needs_posix_permissions
+    def test_a_file_it_may_not_delete_is_refused_with_why(self) -> None:
+        self.client.put(f"/games/{GAME_ID}/media/playfield", files=_png())
+        medias = self.folder / "medias"
+        medias.chmod(0o500)
+        self.addCleanup(medias.chmod, 0o700)
+
+        response = self.client.delete(f"/games/{GAME_ID}/media/playfield")
+
+        self.assertEqual((response.status_code, response.json()["error"]["message"]),
+                         (409, "VPinFE does not have permission for "
+                               f"{medias / f'(Playfield) {FOLDER}.png'}"))
+        self.assertIn(f"(Playfield) {FOLDER}.png", self._medias())
 
     def test_deleting_nothing_is_not_an_error(self) -> None:
         response = self.client.delete(f"/games/{GAME_ID}/media/flyer")

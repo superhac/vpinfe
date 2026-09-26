@@ -415,6 +415,8 @@ def remove(game_id: str, kind: str, table_id: str = "") -> dict:
         return {"removed": media_placement.remove(game_dir, kind, stem)}
     except media_placement.UnplaceableError as exc:
         raise service_errors.RefusedError(str(exc)) from exc
+    except OSError as exc:
+        raise service_errors.BlockedError(why(exc)) from exc
 
 
 __all__ = ["detail", "displaced", "fetch_file", "game_media", "kind_or_refuse",

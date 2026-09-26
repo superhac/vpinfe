@@ -176,16 +176,16 @@ def removable(game_dir: str | Path, kind: str, stem: str) -> list[Path]:
 
 
 def remove(game_dir: str | Path, kind: str, stem: str) -> list[str]:
-    """Delete this kind's files at this stem's tier. Never touches another tier."""
+    """Delete this kind's files at this stem's tier. Never touches another tier.
+
+    Raises the OSError of the first file that will not go, and leaves the rest.
+    """
     game_dir = Path(game_dir)
     removed = []
     for path in removable(game_dir, kind, stem):
-        try:
-            path.unlink()
-            # Forward-slashed: this list is an API payload, and `os.path.relpath`
-            # answers in the host's separator - so the same library reported
-            # "medias/bg.png" on Linux and "medias\\bg.png" on Windows.
-            removed.append(path.relative_to(game_dir).as_posix())
-        except OSError:
-            logger.warning("Could not remove %s", path)
+        path.unlink()
+        # Forward-slashed: this list is an API payload, and `os.path.relpath`
+        # answers in the host's separator - so the same library reported
+        # "medias/bg.png" on Linux and "medias\\bg.png" on Windows.
+        removed.append(path.relative_to(game_dir).as_posix())
     return removed
