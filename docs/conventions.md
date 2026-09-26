@@ -1195,6 +1195,21 @@ element.
 a region *dim* the grid rather than sit behind it: what shows through is then the region's own
 alpha.
 
+### A handler that waits finishes on the page
+
+NiceGUI runs a handler in the slot of the control that called it. A redraw, or leaving the
+page, can free that control while the handler awaits, and a notify, a confirm or a dialog
+after the `await` then raises instead of showing. So an async handler that touches `ui`
+after a wait is decorated `@on_page` (`console/on_page.py`): it takes the page when called
+and runs the handler under it.
+
+A builder - an async function that draws into whatever container it is awaited in - is not
+decorated. Under the page, what it draws goes to the page's end.
+
+`tests/invariants/test_a_notice_after_a_wait_is_said_on_the_page.py` fails on either
+mistake. A test calls a decorated handler from a slot, as a click does, with `press` from
+`tests/support/clicks.py`.
+
 ## Typing
 
 Annotate what you write. A signature that says what it takes and what it gives back is the

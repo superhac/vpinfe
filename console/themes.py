@@ -35,6 +35,7 @@ from console import (
     when,
 )
 from console.data import Library
+from console.on_page import on_page
 
 logger = logging.getLogger("vpinfe.console.themes")
 
@@ -354,6 +355,7 @@ async def settings_section(context: dict[str, Any]) -> None:
     wanted = {option["key"]: values.get(option["key"], option.get("default"))
               for option in options}
 
+    @on_page
     async def keep() -> bool:
         try:
             await run.io_bound(library.save_theme_options, theme["key"], dict(wanted))
@@ -370,6 +372,7 @@ async def settings_section(context: dict[str, Any]) -> None:
         panel.facts(ui, entries + _rows(options, wanted, keep))
 
 
+@on_page
 async def _install(library: Library, key: str, again: Callable[[], Any]) -> None:
     ui.notify(t("console.themes.downloading", key=(key)), type="ongoing")
     try:
@@ -381,6 +384,7 @@ async def _install(library: Library, key: str, again: Callable[[], Any]) -> None
     await again()
 
 
+@on_page
 async def _activate(library: Library, theme: dict[str, Any], again: Callable[[], Any]) -> None:
     """Asked first, and the question says when it happens.
 
@@ -404,6 +408,7 @@ async def _activate(library: Library, theme: dict[str, Any], again: Callable[[],
     await again()
 
 
+@on_page
 async def _uninstall(library: Library, theme: dict[str, Any],
                      again: Callable[[], Any]) -> None:
     if not await confirm.ask(
