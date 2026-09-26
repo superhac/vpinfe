@@ -176,13 +176,18 @@ SPEAKS_TO_A_SURFACE = {
     "common/online/app_updater.py": frozenset({"raise"}),
     "frontend/metadata_build_service.py": frozenset({"return"}),
     "common/games/identity_claims.py": frozenset({"return"}),
+    "common/host/about.py": frozenset({"return"}),
 }
 
-# Functions in those modules whose raises are only ever caught and logged, never shown.
+# Functions in those modules whose words are only ever logged or recorded, never shown.
 SAID_TO_THE_LOG = {
     "common/online/themes.py": frozenset({"_validate_manifest"}),
     "common/online/theme_registry_client.py": frozenset({"fetch_json"}),
+    "common/device_client.py": frozenset({"perform_action"}),
 }
+
+# Names a person reads the same in every language: products, and the systems they run on.
+NAMES = frozenset({"VPinFE", "Python", "macOS", "Windows", "Quartz", "Wayland", "X11"})
 
 
 def _logged_lines(name: str) -> set[int]:
@@ -204,14 +209,25 @@ REFUSED = "ValueError"
 
 
 def _pieces(node: ast.expr, held: dict[str, ast.expr]) -> list[ast.expr]:
-    """A value split through tuples, conditionals and joins, and a module constant read
-    through its name where it holds words rather than a code."""
-    if isinstance(node, ast.Tuple):
+    """A value split through the containers, conditionals, fallbacks and joins that build
+    it, and a module constant read through its name where it holds words rather than a
+    code."""
+    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
         return [piece for one in node.elts for piece in _pieces(one, held)]
+    if isinstance(node, ast.Dict):
+        return [piece for one in node.values for piece in _pieces(one, held)]
+    if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
+        return _pieces(node.elt, held)
+    if isinstance(node, ast.DictComp):
+        return _pieces(node.value, held)
     if isinstance(node, ast.IfExp):
         return _pieces(node.body, held) + _pieces(node.orelse, held)
+    if isinstance(node, ast.BoolOp):
+        return [piece for one in node.values for piece in _pieces(one, held)]
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
         return _pieces(node.left, held) + _pieces(node.right, held)
+    if isinstance(node, ast.Call) and _named(node.func) == "str" and len(node.args) == 1:
+        return [node, *_pieces(node.args[0], held)]
     constant = held.get(node.id) if isinstance(node, ast.Name) else None
     if isinstance(constant, ast.Constant) and _words(constant.value):
         return [ast.copy_location(ast.Constant(constant.value), node)]
@@ -274,32 +290,45 @@ def _handed_back(source: str) -> list[tuple[str, ast.expr]]:
                 for at, value in pairs:
                     if _names_reason(at):
                         add("reason", value)
-    for call in _appended_to_what_is_returned(tree):
-        add("return", call.args[0])
+    for value in _built_into_what_is_returned(tree):
+        add("return", value)
     return found
 
 
-def _appended_to_what_is_returned(tree: ast.Module) -> list[ast.Call]:
-    calls: dict[int, ast.Call] = {}
+def _built_into_what_is_returned(tree: ast.Module) -> list[ast.expr]:
+    """Each value a function puts into a name it returns: assigned, added or appended."""
+    values: dict[int, ast.expr] = {}
     for function in ast.walk(tree):
         if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
         returned = {node.value.id for node in ast.walk(function)
                     if isinstance(node, ast.Return) and isinstance(node.value, ast.Name)}
-        calls.update((id(node), node) for node in ast.walk(function)
-                     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-                     and node.func.attr == "append" and node.args
-                     and isinstance(node.func.value, ast.Name)
-                     and node.func.value.id in returned)
-    return list(calls.values())
+        for node in ast.walk(function):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+                    and node.func.attr in ("append", "extend", "insert") and node.args \
+                    and getattr(node.func.value, "id", None) in returned:
+                values[id(node)] = node.args[-1]
+            elif isinstance(node, ast.Assign) and any(
+                    getattr(target, "id", None) in returned for target in node.targets):
+                values[id(node)] = node.value
+            elif isinstance(node, (ast.AugAssign, ast.AnnAssign)) and node.value \
+                    and getattr(node.target, "id", None) in returned:
+                values[id(node)] = node.value
+    return list(values.values())
+
+
+def _only_names(said: str) -> bool:
+    words = re.findall(r"[A-Za-z][A-Za-z0-9]*", said)
+    return bool(words) and set(words) <= NAMES
 
 
 def _not_looked_up(kind: str, one: ast.expr) -> bool:
     if isinstance(one, ast.JoinedStr):
-        return True
+        glued = _glued_words(one)
+        return not _is_identifier(glued) and not _only_names(glued)
     if isinstance(one, ast.Constant) and isinstance(one.value, str):
         said = one.value.strip()
-        return bool(said) and said not in SOURCE
+        return _words(said) and said not in SOURCE and not _only_names(said)
     return kind == "reason" and isinstance(one, ast.Call) and _named(one.func) == "str"
 
 
@@ -362,7 +391,12 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                   "    if not basis:\n"
                   '        found.append(f"{basis} says how nothing is known")\n'
                   "    found.append(t(KEY))\n"
-                  "    return found\n")
+                  "    return found\n"
+                  "def about(host, root, version):\n"
+                  '    held = [{"heading": "Machine", "facts": [("Host", host or "Unknown")]}]\n'
+                  '    held += [(t(KEY), f"macOS {version}")]\n'
+                  '    held.extend([(f"about.{root}.label", str(root or "Not set"))])\n'
+                  "    return held\n")
 
         said = sorted(f"{kind} {ast.unparse(one)}" for kind, one in _handed_back(source)
                       if _not_looked_up(kind, one))
@@ -374,6 +408,11 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                                 "reason 'Nothing performs that.'",
                                 "reason str(exc)",
                                 "refusal f'Table folder already exists: {name}'",
+                                "return 'Host'",
+                                "return 'Machine'",
+                                "return 'Not set'",
+                                "return 'Nothing performs that.'",
+                                "return 'Unknown'",
                                 "return f'{basis} says how nothing is known'"])
 
 
