@@ -150,6 +150,7 @@ SPEAKS_TO_A_SURFACE = {
     "httpapi/core_capabilities.py": EVERY_WAY,
     "common/device_client.py": frozenset({"reason", "raise"}),
     "common/uploads/asset_import_service.py": frozenset({"reason", "raise", "refusal"}),
+    "common/uploads/upload_session_service.py": frozenset({"raise", "refusal"}),
     "common/games/locations.py": frozenset({"reason"}),
     "console/metrics.py": frozenset({"reason"}),
     "common/games/config_backups.py": frozenset({"raise", "refusal"}),

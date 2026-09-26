@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import IO
 
+from common.i18n import t
+
 logger = logging.getLogger("vpinfe.common.uploads.upload_session_service")
 
 MAX_TOTAL_BYTES = 20 * 1024 ** 3      # 20 GiB per session (PUP packs are large)
@@ -51,12 +53,12 @@ def _safe_join(base: Path, relative: str) -> Path:
     rel = PurePosixPath(relative.replace("\\", "/"))
     drive_letter = len(relative) >= 2 and relative[1] == ":"
     if not relative or rel.is_absolute() or ".." in rel.parts or drive_letter:
-        raise UnsafePathError(f"Unsafe upload path: {relative}")
+        raise UnsafePathError(t("error.uploads.unsafe_upload_path", path=relative))
     dest = (base / Path(*rel.parts)).resolve()
     try:
         dest.relative_to(base.resolve())
     except ValueError as exc:
-        raise UnsafePathError(f"Unsafe upload path: {relative}") from exc
+        raise UnsafePathError(t("error.uploads.unsafe_upload_path", path=relative)) from exc
     return dest
 
 
@@ -95,7 +97,7 @@ def _record(upload_id: str) -> dict:
     with _lock:
         rec = _sessions.get(upload_id)
     if rec is None:
-        raise UnknownSessionError("Unknown upload session")
+        raise UnknownSessionError(t("error.uploads.upload_gone"))
     return rec
 
 
@@ -103,7 +105,7 @@ def store_file(upload_id: str, relpath: str, stream: IO[bytes]) -> int:
     """Stream a single uploaded file into the session directory at its relative path."""
     rec = _record(upload_id)
     if rec.get("source"):
-        raise UnsafePathError("This session reads a folder on this machine")
+        raise UnsafePathError(t("error.uploads.reads_folder_here"))
     dest = _safe_join(Path(rec["dir"]), relpath)
     dest.parent.mkdir(parents=True, exist_ok=True)
     written = 0
@@ -117,7 +119,8 @@ def store_file(upload_id: str, relpath: str, stream: IO[bytes]) -> int:
                 rec["bytes"] += len(chunk)
                 total = rec["bytes"]
             if total > MAX_TOTAL_BYTES:
-                raise UploadTooLargeError("Upload exceeds the maximum allowed size")
+                raise UploadTooLargeError(t("error.uploads.over_size_limit",
+                                            limit=MAX_TOTAL_BYTES // 1024 ** 3))
             out.write(chunk)
     return written
 

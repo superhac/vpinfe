@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
+from common.i18n import t
 from common.uploads import upload_session_service
 
 
@@ -63,8 +64,9 @@ class UploadSessionServiceTests(unittest.TestCase):
             other = upload_session_service.begin_session()
         self.addCleanup(upload_session_service.cleanup_session, other.upload_id)
         self.assertFalse(directory.exists())
-        with self.assertRaises(upload_session_service.UnknownSessionError):
+        with self.assertRaises(upload_session_service.UnknownSessionError) as caught:
             upload_session_service.get_session_dir(session.upload_id)
+        self.assertEqual(str(caught.exception), t("error.uploads.upload_gone"))
 
 
 if __name__ == "__main__":
