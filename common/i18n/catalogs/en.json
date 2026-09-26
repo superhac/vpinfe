@@ -2313,6 +2313,8 @@
   "frontend.tutorial.pinball_primer_tutorial": "Pinball Primer Tutorial",
   "grid.andCondition": "AND",
   "grid.applyFilter": "Apply",
+  "grid.ariaRowDeselect": "Press Space to deselect this row",
+  "grid.ariaRowSelect": "Press Space to select this row",
   "grid.autosizeAllColumns": "Autosize All Columns",
   "grid.autosizeThiscolumn": "Autosize This Column",
   "grid.blank": "Blank",

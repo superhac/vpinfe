@@ -2313,6 +2313,8 @@
   "frontend.tutorial.pinball_primer_tutorial": "Þîñƀàŀŀ Þřîɱèř Ţûţöřîàŀ",
   "grid.andCondition": "ÀÑĐ",
   "grid.applyFilter": "Àþþŀý",
+  "grid.ariaRowDeselect": "Þřèšš Šþàçè ţö đèšèŀèçţ ţĥîš řöŵ",
+  "grid.ariaRowSelect": "Þřèšš Šþàçè ţö šèŀèçţ ţĥîš řöŵ",
   "grid.autosizeAllColumns": "Àûţöšîžè Àŀŀ Çöŀûɱñš",
   "grid.autosizeThiscolumn": "Àûţöšîžè Ţĥîš Çöŀûɱñ",
   "grid.blank": "Ɓŀàñķ",

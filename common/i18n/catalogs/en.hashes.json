@@ -2043,6 +2043,8 @@
   "frontend.tutorial.pinball_primer_tutorial": "ef7f56044dbe",
   "grid.andCondition": "bdf29eb80b2f",
   "grid.applyFilter": "417cf9c08b0b",
+  "grid.ariaRowDeselect": "96ed42cb1812",
+  "grid.ariaRowSelect": "9ba98b7467b8",
   "grid.autosizeAllColumns": "872dced06cd3",
   "grid.autosizeThiscolumn": "1be56917f06c",
   "grid.blank": "d6c5f0e29a7c",
