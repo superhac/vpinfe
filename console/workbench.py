@@ -5004,8 +5004,10 @@ def _section_label(section: str, group_label: str) -> str:
 
 def setting_names(groups: Sequence[Any]) -> dict[str, str]:
     """What to call each of one program's settings away from its area, by key: its
-    label, led by its plugin's name, or by the heading or section it sits under where
-    another setting shares the label."""
+    label, led by its plugin's or its window's name, or by the heading or section it
+    sits under where another setting shares the label."""
+    from console import app_settings
+
     fields = [(group, field) for group in groups for field in group.settings]
     shared = Counter(field.label for _group, field in fields)
     plugins = _plugin_names(groups)
@@ -5014,6 +5016,8 @@ def setting_names(groups: Sequence[Any]) -> dict[str, str]:
         section = _section_of(field.key)
         if section.startswith(PLUGIN_SECTION):
             return plugin_row(section, field.label, plugins)
+        if window := app_settings._window_of(field.key, group):
+            return t("console.app_settings.window_row", window=window, label=field.label)
         if shared[field.label] < 2:
             return field.label
         heading = next((one.label for one in getattr(group, "curated", ())

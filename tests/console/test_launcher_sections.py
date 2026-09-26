@@ -2131,6 +2131,21 @@ class SettingNamesTests(unittest.TestCase):
         self.assertEqual(names, {"Player.PlayfieldWidth": "Playfield Width",
                                  "Backglass.BackglassWidth": "Backglass Width"})
 
+    def test_a_window_s_setting_is_led_by_its_window_though_nothing_shares_it(
+            self) -> None:
+        names = workbench.setting_names([_group(
+            "more", _setting("PlayerVR.PreviewDisplay", "Display"),
+            _setting("PlayerVR.PreviewWidth", "Width"), _setting("Player.Shadows", "Shadows"),
+            curated=[_heading("vr_preview", "PlayerVR.PreviewDisplay", "PlayerVR.PreviewWidth",
+                              label="VR Preview")])])
+
+        self.assertEqual(names, {
+            "PlayerVR.PreviewDisplay": t("console.app_settings.window_row",
+                                         window="VR Preview", label="Display"),
+            "PlayerVR.PreviewWidth": t("console.app_settings.window_row",
+                                       window="VR Preview", label="Width"),
+            "Player.Shadows": "Shadows"})
+
     def test_or_by_its_section_where_no_heading_holds_it(self) -> None:
         names = workbench.setting_names([_group(
             "displays", _setting("Player.PlayfieldWidth", "Width"),
