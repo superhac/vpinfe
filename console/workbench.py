@@ -4722,8 +4722,6 @@ async def _setting_entries(context: dict[str, Any],
             except Exception as exc:  # noqa: BLE001
                 ui.notify(t("said.could_not_save_it", exc=(exc)), type="negative")
                 return False
-            if table and key in ((wrote or {}).get("cleared") or ()):
-                ui.notify(t("console.app_settings.now_same_all_tables"), type="positive")
             if cut := (wrote or {}).get("cut"):
                 ui.notify(t("console.app_settings.no_longer_reads_game", count=len(cut),
                             tables=", ".join(_table_line(one, context.get("tables"))
@@ -4733,9 +4731,13 @@ async def _setting_entries(context: dict[str, Any],
                 fresh = await _config_values(context)
             except Exception:  # noqa: BLE001
                 fresh = {}
-            if fresh and typed and (key in redraw_on or _moved(shown, fresh, key)):
+            cleared = bool(table and fresh and key in ((wrote or {}).get("cleared") or ()))
+            stuck = cleared and _whose(fresh, key) not in ("", "launcher")
+            if cleared and not stuck:
+                ui.notify(t("console.app_settings.now_same_all_tables"), type="positive")
+            if fresh and typed and (stuck or key in redraw_on or _moved(shown, fresh, key)):
                 pending["rebuild"] = True
-            elif not fresh or key in redraw_on or _moved(shown, fresh, key):
+            elif not fresh or stuck or key in redraw_on or _moved(shown, fresh, key):
                 asyncio.create_task(context["rebuild"]())
                 return True
             saved = context.get("saved")

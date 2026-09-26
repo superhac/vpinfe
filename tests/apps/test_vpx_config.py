@@ -1115,13 +1115,14 @@ class WritingLikeTheProgramTests(_Case):
 
         self.assertFalse((self.game / "MM (VPW 1.2).ini").exists())
 
-    def test_a_folder_value_in_the_way_gives_the_table_a_file_of_its_own(self) -> None:
+    def test_a_folder_value_in_the_way_still_answers(self) -> None:
         self.folder_file("[DMD]\nProfile1Legacy = 0\n")
 
         self.config.write(SCOPE_ENTRY, str(self.table), {PLAIN: "1"}, self.settings)
 
+        self.assertFalse((self.game / "MM (VPW 1.2).ini").exists())
         found = self.at(SCOPE_ENTRY, key=PLAIN)
-        self.assertEqual((found.value, found.scope), ("1", SCOPE_LAUNCHER))
+        self.assertEqual((found.value, found.scope), ("0", SCOPE_FOLDER))
 
     def test_clearing_a_table_s_last_key_gives_the_game_s_file_back(self) -> None:
         self.folder_file("[DMD]\nProfile1Legacy = 0\n")
@@ -1134,6 +1135,20 @@ class WritingLikeTheProgramTests(_Case):
         found = self.at(SCOPE_ENTRY, key=PLAIN)
         self.assertEqual((found.value, found.scope), ("0", SCOPE_FOLDER))
 
+    def test_a_table_file_s_last_key_clears_back_to_the_game_s_value(self) -> None:
+        self.folder_file("[DMD]\nProfile1Legacy = 0\n")
+        self.table_file("[DMD]\nProfile1Legacy = 1\n")
+
+        found = self.at(SCOPE_ENTRY, key=PLAIN)
+        self.assertEqual((found.fallback, found.fallback_scope), ("0", SCOPE_FOLDER))
+
+    def test_with_another_key_left_it_clears_back_to_the_launcher_s(self) -> None:
+        self.folder_file("[DMD]\nProfile1Legacy = 0\n")
+        self.table_file("[Backglass]\nGrillHeight = 200\n\n[DMD]\nProfile1Legacy = 1\n")
+
+        found = self.at(SCOPE_ENTRY, key=PLAIN)
+        self.assertEqual((found.fallback, found.fallback_scope), ("1", SCOPE_LAUNCHER))
+
     def test_a_file_with_another_key_left_is_written_not_removed(self) -> None:
         self.table_file("[Backglass]\nGrillHeight = 200\n\n[DMD]\nProfile1Legacy = 0\n")
 
@@ -1143,15 +1158,15 @@ class WritingLikeTheProgramTests(_Case):
         self.assertIn("Profile1Legacy = 0", written)
         self.assertNotIn("GrillHeight", written)
 
-    def test_an_emptied_file_is_kept_where_the_game_s_would_answer_instead(self) -> None:
+    def test_an_emptied_file_is_removed_where_the_game_s_answers_instead(self) -> None:
         self.folder_file("[DMD]\nProfile1Legacy = 0\n")
         self.table_file("[DMD]\nProfile1Legacy = 0\n")
 
         self.config.write(SCOPE_ENTRY, str(self.table), {PLAIN: "1"}, self.settings)
 
-        self.assertTrue((self.game / "MM (VPW 1.2).ini").is_file())
+        self.assertFalse((self.game / "MM (VPW 1.2).ini").exists())
         found = self.at(SCOPE_ENTRY, key=PLAIN)
-        self.assertEqual((found.value, found.scope), ("1", SCOPE_LAUNCHER))
+        self.assertEqual((found.value, found.scope), ("0", SCOPE_FOLDER))
 
     def test_a_table_file_that_held_no_key_already_is_left(self) -> None:
         self.folder_file("[DMD]\nProfile1Legacy = 0\n")

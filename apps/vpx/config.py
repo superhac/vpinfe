@@ -386,6 +386,7 @@ class VPXConfig:
         # same file and the two scopes coincide.
         winning = table_layer(target) if target else None
         table_scope = _scope_of(winning, target, settings)
+        beneath = _beneath(target, winning)
         colors = _colors(app)
 
         found: dict[str, ConfigValue] = {}
@@ -402,8 +403,9 @@ class VPXConfig:
             else:
                 effective, source = "", ""
             set_here = mine.value(qualified) is not None
+            last = read_by_vpx is table and set(table.settings) == {qualified}
             fallback, fallback_scope = _without(scope, qualified, app, read_by_vpx,
-                                                table_scope)
+                                                table_scope, beneath if last else vini.Ini())
             if qualified in colors:
                 effective, fallback = web_color(effective), web_color(fallback)
             found[qualified] = ConfigValue(
@@ -427,7 +429,8 @@ class VPXConfig:
 
         **A table layer is not the same as the application layer, and the program does
         not write them the same way.** Saving a table's settings removes a key it has no
-        value for and one whose value equals the application's; saving the application's
+        value for and one whose value equals the application's, and the file once no key
+        is left; saving the application's
         writes every key, blank where it has no value. Doing it our own way would leave a
         file the program rewrites differently the first time it saves - and the parts it
         rewrote would be the parts somebody had set here.
@@ -449,11 +452,9 @@ class VPXConfig:
             keep = {key: value for key, value in values.items() if key not in drop}
             held = _read(path)
             text = vini.written(held, keep, remove=drop)
-            answers = _folder_answers(scope, target, cleared, values)
-            if (scope != SCOPE_LAUNCHER and held.settings and not answers
-                    and not vini.parse(text).settings):
+            if scope != SCOPE_LAUNCHER and held.settings and not vini.parse(text).settings:
                 path.unlink(missing_ok=True)
-            elif keep or path.is_file() or answers:
+            elif keep or path.is_file():
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(text, encoding="utf-8")
         return cleared
@@ -603,30 +604,18 @@ def _alike(key: str, one: str | None, two: str | None) -> bool:
         return False
 
 
-def _folder_answers(scope: str, target: str, cleared: frozenset[str],
-                    values: Mapping[str, str]) -> bool:
-    """Whether the game's file sets a cleared key to something else, so the table needs
-    a file of its own, empty or not, for the application's value to reach it."""
-    if scope != SCOPE_ENTRY or not cleared:
-        return False
-    game_file = Path(str(target).strip())
-    game = _game_layer(game_file)
-    if _same(game, game_file.with_suffix(".ini")):
-        return False
-    answering = _read(game)
-    return any(answering.value(key) is not None
-               and not _alike(key, answering.value(key), values[key]) for key in cleared)
-
-
 def _without(scope: str, qualified: str, app: vini.Ini, table: vini.Ini,
-             table_scope: str) -> tuple[str, str]:
+             table_scope: str, after: vini.Ini) -> tuple[str, str]:
     """What would answer if this scope stopped naming it.
 
     Clearing a value has to be able to say what it will follow, or somebody has to
-    change it to find out what it was following.
+    change it to find out what it was following. `after` is the file VPX reads for the
+    table once clearing this removes the one it reads now.
     """
     if scope != SCOPE_LAUNCHER and table_scope == scope:
-        # The table layer is the one being cleared, so the application answers next.
+        from_game = after.value(qualified)
+        if from_game is not None:
+            return from_game, SCOPE_FOLDER
         from_app = app.value(qualified)
         return (from_app, SCOPE_LAUNCHER) if from_app is not None else ("", "")
     if scope == SCOPE_LAUNCHER:
@@ -639,6 +628,14 @@ def _without(scope: str, qualified: str, app: vini.Ini, table: vini.Ini,
         return from_table, table_scope
     from_app = app.value(qualified)
     return (from_app, SCOPE_LAUNCHER) if from_app is not None else ("", "")
+
+
+def _beneath(target: str, winning: Path | None) -> vini.Ini:
+    """The game's `<folder>.ini` where the table's own file is the one VPX reads."""
+    if not target or winning is None:
+        return vini.Ini()
+    game = _game_layer(Path(str(target).strip()))
+    return vini.Ini() if game is None or _same(game, winning) else _read(game)
 
 
 def _same(one: Path | None, two: Path | None) -> bool:

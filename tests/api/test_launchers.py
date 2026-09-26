@@ -348,8 +348,8 @@ class GameFileTests(_TableCase):
 
 class ClearingTests(_TableCase):
     def test_a_table_s_own_value_says_what_clearing_it_leaves(self) -> None:
-        """The launcher's value, not the folder's: the table's own file is the one
-        read now."""
+        """The game's value, where clearing takes the table file's last key and the file
+        with it."""
         app_ini = pathlib.Path(self.tmp.name, "VPinballX.ini")
         app_ini.write_text("[Player]\nFXAA = 1\n")
         self.client.put("/launchers/l1", json={"app": "vpx", "settings": {
@@ -360,7 +360,7 @@ class ClearingTests(_TableCase):
 
         held = got.json()["values"]["Player.FXAA"]
         self.assertEqual((held["value"], held["fallback"], held["fallback_scope"]),
-                         ("2", "1", "launcher"))
+                         ("2", "3", "folder"))
 
 
 class BlankWordsTests(_TableCase):
