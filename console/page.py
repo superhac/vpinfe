@@ -609,9 +609,10 @@ async def console_page(view: str = "", game: str = "", table: str = "", section:
             job_timer.active = False
             return
         job = running[0]
-        said = str(job.get("message") or "").strip() or str(job.get("kind") or "")
+        said = str(job.get("message") or "").strip() or t("console.page.working")
         pct = int(job.get("pct") or 0)
-        job_text.text = f"{said} {pct}%" if pct else said
+        job_text.text = t("console.page.job_progress", message=said, percent=pct) \
+            if pct else said
 
     # Idle until something starts it. `_rescan` turns it on, and so does anything
     # holding `state["watch_jobs"]`; so does the first draw, once, in case a job was

@@ -13,6 +13,7 @@ from common.games.game_repository import games_under
 from common.games.info_file import MetaConfig
 from common.games.standalone_scripts import StandaloneScripts
 from common.games.vpx_parser import VPXParser
+from common.i18n import t
 from common.jobs import JobReporter, LogCallback, ProgressCallback
 from common.online.vpsdb import VPSdb
 from common.paths import get_ini_config
@@ -63,21 +64,23 @@ def build_metadata(
         refresh_art = media_fill.art_updater(config)
 
     if progress_cb:
-        reporter.progress(0, total, "Starting")
+        reporter.progress(0, total, t("said.starting"))
 
     for current, game in enumerate(games, 1):
         info_path = os.path.join(game.full_path_game, f"{game.game_dir_name}.info")
 
         if os.path.exists(info_path) and not update_all:
             if progress_cb:
-                reporter.progress(current, total, f"Skipping {game.game_dir_name}")
+                reporter.progress(current, total,
+                                  t("said.skipping_game", game=game.game_dir_name))
             continue
 
         meta = MetaConfig(info_path)
 
         log(f"Checking VPSdb for {game.game_dir_name}")
         if progress_cb:
-            reporter.progress(current, total, f"Processing {game.game_dir_name}")
+            reporter.progress(current, total,
+                              t("said.processing_game", game=game.game_dir_name))
 
         vps_data: dict | None = None
         if vps_matched_by(meta.data):
@@ -137,7 +140,7 @@ def build_metadata(
                         log("Updated downloaded media")
 
     if progress_cb:
-        reporter.progress(total, total, "Complete")
+        reporter.progress(total, total, t("word.done"))
 
     return {"found": total, "not_found": not_found_games}
 
