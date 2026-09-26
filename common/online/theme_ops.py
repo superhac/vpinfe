@@ -50,8 +50,9 @@ def _loaded(refresh: bool = False) -> ThemeRegistry:
         if _registry is None and not refresh:
             _registry = _cached()
         if _registry is None or refresh:
-            fresh = theme_service.load_registry()
-            _carry_dates(fresh, _registry or _cached())
+            before = _registry or _cached()
+            fresh = theme_service.load_registry(previous=before)
+            _carry_dates(fresh, before)
             _keep(fresh)
             theme_sync.stamp(get_ini_config())
             _registry = fresh

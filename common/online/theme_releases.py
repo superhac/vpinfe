@@ -29,6 +29,10 @@ class Release:
     def is_default_branch(self) -> bool:
         return self.ref in ("", "HEAD", "refs/heads/master", "refs/heads/main")
 
+    @property
+    def is_tag(self) -> bool:
+        return self.ref.startswith("refs/tags/")
+
 
 def bare_ref(ref: str) -> str:
     """A ref spelled the one way both GitHub and Forgejo serve (PAR-43).

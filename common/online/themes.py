@@ -158,7 +158,9 @@ class ThemeRegistry:
         manifest_url = legacy_url or theme_releases.raw_url(base_url, "HEAD", "manifest.json")
         return chosen, manifest_url, index
 
-    def load_theme_manifests(self, default_only: bool = False) -> None:
+    def load_theme_manifests(self, default_only: bool = False, *, dates: bool = True,
+                             previous: ThemeRegistry | None = None) -> None:
+        """`dates=False` leaves every `updated` empty. `previous` is the last read."""
         # Reset loaded themes for this pass.
         self.themes = {}
 
@@ -180,10 +182,10 @@ class ThemeRegistry:
                 return theme_key, theme_info, None, None, None, ""
             manifest = self._fetch_json(manifest_url)
             self._validate_manifest(theme_key, manifest)
-            updated = theme_dates.committed_at(base_url, release.ref, self._fetch_any)
             # Only now can a repository say what it is called, so the key settles here.
-            return (theme_sources.name_of(theme_key, theme_info, manifest),
-                    theme_info, manifest, release, index, updated)
+            name = theme_sources.name_of(theme_key, theme_info, manifest)
+            updated = self._dated(name, base_url, release, previous) if dates else ""
+            return name, theme_info, manifest, release, index, updated
 
         # Network-bound workload: parallelize manifest fetches. Submitted all at once, then
         # collected in source order rather than completion order - a repository's name is
@@ -216,6 +218,14 @@ class ThemeRegistry:
                     }
                 except Exception as e:
                     logger.error("%s: %s", provisional, e)
+
+    def _dated(self, key: str, base_url: str, release: theme_releases.Release,
+               previous: ThemeRegistry | None) -> str:
+        before = (previous.themes.get(key) if previous is not None else None) or {}
+        kept = str(before.get("updated") or "")
+        if kept and release.is_tag and getattr(before.get("release"), "ref", "") == release.ref:
+            return kept
+        return theme_dates.committed_at(base_url, release.ref, self._fetch_any)
 
     # =========================================================
     # VALIDATION

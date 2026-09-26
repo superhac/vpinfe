@@ -308,5 +308,68 @@ class LoadTests(unittest.TestCase):
                 registry.load_registry()
 
 
+class WhenADateIsAsked(unittest.TestCase):
+    BASE = "https://github.com/o/theme"
+
+    def _read(self, ref: str, *, dates: bool = True,
+              previous: ThemeRegistry | None = None) -> tuple[ThemeRegistry, list[str]]:
+        entry = {"url": self.BASE, "default_install": True, **({"ref": ref} if ref else {})}
+        responses: dict[str, dict] = {
+            STOCK: {"themes": {"Theme": entry}},
+            theme_releases.raw_url(self.BASE, ref or "HEAD", "manifest.json"): {
+                "name": "Theme", "version": "1.0", "author": "a", "description": "d",
+                "preview_image": "p.png", "type": "both", "windows": ["playfield"]},
+            f"https://api.github.com/repos/o/theme/commits/"
+            f"{theme_releases.bare_ref(ref)}": {"commit": {"committer": {
+                "date": "2026-09-01T10:00:00Z"}}},
+        }
+        asked: list[str] = []
+
+        def fetch(url: str) -> dict:
+            asked.append(url)
+            if url not in responses:
+                raise ThemeRegistryError(f"unreachable: {url}")
+            return responses[url]
+
+        registry = ThemeRegistry(sources=theme_sources.ThemeSources(registries=(STOCK,)))
+        registry._fetch_json = fetch  # type: ignore[method-assign]
+        registry._fetch_any = fetch  # type: ignore[method-assign]
+        registry.load_registry()
+        registry.load_theme_manifests(default_only=not dates, dates=dates, previous=previous)
+        return registry, [url for url in asked if "/commits/" in url]
+
+    def _kept(self, ref: str, updated: str) -> ThemeRegistry:
+        kept = ThemeRegistry()
+        kept.themes = {"Theme": {"release": theme_releases.Release(1, ref),
+                                 "updated": updated}}
+        return kept
+
+    def test_a_start_asks_no_date(self) -> None:
+        registry, dated = self._read("", dates=False)
+        self.assertEqual(dated, [])
+        self.assertEqual(registry.themes["Theme"]["updated"], "")
+
+    def test_a_read_asks_for_a_theme_on_its_default_branch(self) -> None:
+        registry, dated = self._read("", previous=self._kept("HEAD", "2026-01-01T00:00:00Z"))
+        self.assertEqual(len(dated), 1)
+        self.assertEqual(registry.themes["Theme"]["updated"], "2026-09-01T10:00:00Z")
+
+    def test_a_tag_keeps_the_date_it_had_without_asking(self) -> None:
+        tag = "refs/tags/v1"
+        registry, dated = self._read(tag, previous=self._kept(tag, "2026-01-01T00:00:00Z"))
+        self.assertEqual(dated, [])
+        self.assertEqual(registry.themes["Theme"]["updated"], "2026-01-01T00:00:00Z")
+
+    def test_a_moved_tag_is_asked(self) -> None:
+        registry, dated = self._read("refs/tags/v2",
+                                     previous=self._kept("refs/tags/v1", "2026-01-01T00:00:00Z"))
+        self.assertEqual(len(dated), 1)
+        self.assertEqual(registry.themes["Theme"]["updated"], "2026-09-01T10:00:00Z")
+
+    def test_a_bare_ref_is_not_taken_for_a_tag(self) -> None:
+        _, dated = self._read("v1", previous=self._kept("v1", "2026-01-01T00:00:00Z"))
+        self.assertEqual(len(dated), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

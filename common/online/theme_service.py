@@ -35,10 +35,10 @@ def set_active_theme(theme_key: str) -> None:
     config.save()
 
 
-def load_registry() -> ThemeRegistry:
+def load_registry(previous: ThemeRegistry | None = None) -> ThemeRegistry:
     registry = ThemeRegistry()
     registry.load_registry()
-    registry.load_theme_manifests()
+    registry.load_theme_manifests(previous=previous)
     return registry
 
 
