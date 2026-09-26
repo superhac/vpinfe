@@ -7,17 +7,20 @@ same for every task.
 
 from __future__ import annotations
 
+import shutil
 import tempfile
 import unittest
 import unittest.mock
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from nicegui import ui
 
 import httpapi
 from common import extensions
 from common.extensions import host, store
 from common.extensions.contract import ContractError
+from console import ext_action
 
 REPO = Path(__file__).resolve().parents[2]
 FIXTURE = REPO / "tests" / "fixtures" / "pinballx"
@@ -223,6 +226,23 @@ class SummaryShapeTests(WizardCase):
         after = [one[0] for one in found["summary"][at + 1:]]
         self.assertEqual(after, ["Games", "Game files", "Artwork files",
                                  "Backglasses and settings"])
+
+    def test_a_database_it_could_not_read_hovers_why_in_the_console(self) -> None:
+        source = self.root / "pinballx"
+        shutil.copytree(FIXTURE, source)
+        (source / "Databases" / "Visual Pinball X" / "Visual Pinball X.xml").write_text(
+            '<menu>\n<game name="A & B"/></menu>')
+
+        found = self._check(source)
+        with ui.column() as body:
+            ext_action._lines(found["notes"], "")
+        tips = {one.props["target"]: one.text
+                for one in body.descendants() if isinstance(one, ui.tooltip)}
+        hovers = {one.text: tips.get(f"#{one.html_id}", "")
+                  for one in body.descendants() if isinstance(one, ui.label)}
+
+        self.assertEqual("Line 2 is not written as it should be",
+                         hovers["Visual Pinball X.xml could not be read"])
 
 
 if __name__ == "__main__":
