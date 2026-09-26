@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest import mock
 
 from common.games.tables import entry_for_filename, is_parsed
+from common.i18n import t
 from common.uploads import asset_import_service
 from common.uploads.asset_analyzer_service import analyze_path
 from common.uploads.asset_import_service import build_import_plan, execute_import_plan
@@ -35,7 +36,8 @@ class PatchAssetTests(unittest.TestCase):
             make_zip(path, ["CactusCanyon.dif"])
             plan = build_import_plan(analyze_path(path), game_dir=Path(tmp))
             self.assertFalse(plan.items)
-            self.assertTrue(any("base table" in b.reason for b in plan.blocked))
+            self.assertEqual([b.reason for b in plan.blocked],
+                             [t("error.uploads.no_table_to_patch")])
 
     def test_the_patched_game_takes_the_patch_name(self):
         """A mod's .ini, .directb2s and artwork are named for the mod, and all of them

@@ -204,7 +204,7 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
     kind = asset.kind
     spec = spec_for(kind)
     if spec.requires_rom and not rom_name:
-        return BlockedItem(asset, "Table has no ROM name; import a ROM first")
+        return BlockedItem(asset, t("error.uploads.game_has_no_rom"))
 
     if kind == "table":
         dest = base / _safe_upload_name(_basename(asset.entries[0].arcname))
@@ -239,13 +239,13 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
         return PlannedItem(asset, str(base / name), "copy")
     if kind == "patch":
         if not vpx_stem:
-            return BlockedItem(asset, "No table to patch; import the base table first")
+            return BlockedItem(asset, t("error.uploads.no_table_to_patch"))
         return PlannedItem(asset, str(base / _patched_vpx_name(asset, base, vpx_stem)),
                            "apply_patch")
     if kind == "media":
         filename = _MEDIA_FILENAMES.get(asset.media_kind, asset.media_kind)
         return PlannedItem(asset, str(base / "medias" / filename), "replace_media")
-    return BlockedItem(asset, f"Unsupported asset type: {kind}")
+    return BlockedItem(asset, t("error.uploads.cannot_import_kind"))
 
 
 def _new_games_under(location_id: str = "") -> str:
@@ -327,10 +327,9 @@ def build_import_plan(analysis: AnalysisResult, *, game_dir: Path | None = None,
 
     for asset in analysis.assets:
         if spec_for(asset.kind).requires_game:
-            blocked.append(BlockedItem(
-                asset, "Select a table row, or drop onto a table's detail dialog"))
+            blocked.append(BlockedItem(asset, t("error.uploads.drop_on_its_game")))
         else:
-            blocked.append(BlockedItem(asset, "Drop onto the Tables page to import as a new table"))
+            blocked.append(BlockedItem(asset, t("error.uploads.drop_to_make_game")))
     return ImportPlan("", "", rom_name, (), tuple(blocked))
 
 
@@ -354,21 +353,19 @@ def build_media_slot_plan(source_path: Path, *, game_dir: Path, media_kind: str)
                           size=size, detail=f"{src.name} → {media_kind}")
 
     if src.is_dir() or src.suffix.lower() in ARCHIVE_EXTENSIONS:
-        blocked = BlockedItem(asset, "Drop a single media file on a slot")
+        blocked = BlockedItem(asset, t("error.uploads.drop_single_file_slot"))
         return ImportPlan(str(game_dir), "", "", (), (blocked,))
 
     slot_suffix = Path(canonical).suffix.lower()
     suffix = src.suffix.lower()
     if slot_suffix in {".mp4", ".mp3"}:
         suitable = suffix == slot_suffix
-        expected = slot_suffix
+        why = t("error.uploads.slot_takes_type", suffix=slot_suffix)
     else:
         suitable = suffix in IMAGE_EXTENSIONS
-        expected = "an image file"
+        why = t("error.uploads.slot_takes_image")
     if not suitable:
-        blocked = BlockedItem(
-            asset, f"This slot expects {expected}, not {suffix or 'a file without extension'}")
-        return ImportPlan(str(game_dir), "", "", (), (blocked,))
+        return ImportPlan(str(game_dir), "", "", (), (BlockedItem(asset, why),))
 
     destination = str(game_dir / "medias" / canonical)
     item = PlannedItem(asset, destination, "replace_media")

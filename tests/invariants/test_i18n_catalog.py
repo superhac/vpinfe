@@ -149,6 +149,7 @@ SPEAKS_TO_A_SURFACE = {
     "httpapi/capabilities.py": EVERY_WAY,
     "httpapi/core_capabilities.py": EVERY_WAY,
     "common/device_client.py": frozenset({"reason", "raise"}),
+    "common/uploads/asset_import_service.py": frozenset({"reason"}),
 }
 
 # Said to whoever wrote the calling code, which has a bug to fix rather than a person
@@ -178,10 +179,25 @@ def _names_reason(target: ast.expr) -> bool:
     return getattr(target, "id", None) == "reason"
 
 
+def _reason_at(tree: ast.Module) -> dict[str, int]:
+    """Where a module's own dataclasses take `reason` when it is given by position."""
+    at = {}
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef) and any(
+                _named(one.func if isinstance(one, ast.Call) else one) == "dataclass"
+                for one in node.decorator_list):
+            fields = [one.target.id for one in node.body
+                      if isinstance(one, ast.AnnAssign) and isinstance(one.target, ast.Name)]
+            if "reason" in fields:
+                at[node.name] = fields.index("reason")
+    return at
+
+
 def _handed_back(source: str) -> list[tuple[str, ast.expr]]:
     """Each value a module returns, gives as a `reason` or raises with, and which."""
     tree = ast.parse(source)
     held = _constants(tree)
+    reason_at = _reason_at(tree)
     found: list[tuple[str, ast.expr]] = []
 
     def add(kind: str, value: ast.expr) -> None:
@@ -192,6 +208,10 @@ def _handed_back(source: str) -> list[tuple[str, ast.expr]]:
             add("return", node.value)
         elif isinstance(node, ast.keyword) and node.arg == "reason":
             add("reason", node.value)
+        elif isinstance(node, ast.Call) and _named(node.func) in reason_at:
+            spot = reason_at[str(_named(node.func))]
+            if len(node.args) > spot:
+                add("reason", node.args[spot])
         elif isinstance(node, ast.Dict):
             for key, value in zip(node.keys, node.values, strict=True):
                 if isinstance(key, ast.Constant) and key.value == "reason":
@@ -256,7 +276,13 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
                   '    raise ContractError("not inside a folder it declared")\n'
                   "def row(found):\n"
                   '    found["reason"] = "Copied"\n'
-                  "    return t(KEY)\n")
+                  "    return t(KEY)\n"
+                  "@dataclass(frozen=True)\n"
+                  "class Blocked:\n"
+                  "    asset: str\n"
+                  "    reason: str\n"
+                  "def blocked(asset):\n"
+                  '    return Blocked(asset, "Drop it on a game")\n')
 
         said = sorted(f"{kind} {ast.unparse(one)}" for kind, one in _handed_back(source)
                       if _not_looked_up(kind, one))
@@ -264,6 +290,7 @@ class TestWhatAModuleHandsBackIsLookedUp(unittest.TestCase):
         self.assertEqual(said, ["raise 'Nothing performs that.'",
                                 "raise f'No game with id {game_id}'",
                                 "reason 'Copied'",
+                                "reason 'Drop it on a game'",
                                 "reason 'Nothing performs that.'",
                                 "reason str(exc)"])
 

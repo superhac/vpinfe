@@ -358,10 +358,10 @@ async def confirmed_import(library: Any, upload_id: str, analysis: dict[str, Any
         await run.io_bound(library.abort_upload, upload_id)
         return
     if not plan.get("items"):
-        reasons = sorted({str(one.get("reason") or "")
-                          for one in plan.get("blocked") or ()})
-        ui.notify("; ".join(one for one in reasons if one)
-                  or t("console.uploads.nothing_import"), type="warning")
+        reasons = dict.fromkeys(import_dialog.not_imported(one)
+                                for one in plan.get("blocked") or ())
+        for said in reasons or [t("console.uploads.nothing_import")]:
+            ui.notify(said, type="warning")
         await run.io_bound(library.abort_upload, upload_id)
         return
 
