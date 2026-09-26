@@ -852,6 +852,43 @@ class ColorTests(_Case):
                 self.assertEqual(self.value(), read)
 
 
+FLOATS_INI = """\
+[Player]
+; Screen Width: Physical width [Default: 95.889999 in 5.0 .. 200.0]
+ScreenWidth =
+; Camera Y: View point height offset [Default: 370.541931 in -1852.709595 .. 1852.709595]
+CameraY =
+; Tilt: How far [Default: 0.000000]
+Tilt =
+"""
+
+
+class FloatTests(_Case):
+    def setUp(self) -> None:
+        super().setUp()
+        self.app_ini.write_text(FLOATS_INI)
+
+    def test_a_default_reads_as_the_fewest_digits_of_its_float32(self) -> None:
+        fields = {f.key: f for g in self.config.groups(self.settings) for f in g.settings}
+
+        self.assertEqual({key: fields[f"Player.{key}"].default
+                          for key in ("ScreenWidth", "CameraY", "Tilt")},
+                         {"ScreenWidth": "95.89", "CameraY": "370.54193", "Tilt": "0"})
+
+    def test_a_table_given_that_float32_holds_nothing(self) -> None:
+        cleared = self.config.write(SCOPE_ENTRY, str(self.table),
+                                    {"Player.ScreenWidth": "95.89"}, self.settings)
+
+        self.assertEqual(cleared, {"Player.ScreenWidth"})
+        self.assertFalse((self.game / "MM (VPW 1.2).ini").exists())
+
+    def test_a_table_given_another_float32_keeps_it(self) -> None:
+        self.config.write(SCOPE_ENTRY, str(self.table), {"Player.ScreenWidth": "95.88999"},
+                          self.settings)
+
+        self.assertTrue(self.at(SCOPE_ENTRY, key="Player.ScreenWidth").set_here)
+
+
 VIEWS_INI = """\
 [Player]
 ; View Mode: Which camera setup to use [Default: 0, 0='Desktop', 1='Cabinet', 2='FSS']

@@ -11,12 +11,15 @@ invisible otherwise and is the bug report we would get.
 
 from __future__ import annotations
 
+import math
 import os
 import re
+import struct
 import sys
 import threading
 from collections.abc import Mapping
 from dataclasses import replace
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -301,6 +304,27 @@ def _default_color(said: str) -> str:
         return _as_web(int(said, 16))
     except ValueError:
         return ""
+
+
+def _single(said: str) -> float | None:
+    """A number as the float32 the program holds it in; None where it is not one."""
+    try:
+        held: float = struct.unpack("f", struct.pack("f", float(said)))[0]
+    except (ValueError, OverflowError):
+        return None
+    return held if math.isfinite(held) else None
+
+
+def _shortest(said: str) -> str:
+    """The fewest digits that read back as the same float32; anything else as it came."""
+    held = _single(said)
+    if held is None:
+        return said
+    for digits in range(1, 10):
+        shown = f"{held:.{digits}g}"
+        if _single(shown) == held:
+            return "0" if held == 0 else format(Decimal(shown), "f")
+    return said
 
 
 def _registered(one: vini.Setting) -> vini.Setting:
@@ -624,6 +648,8 @@ def _alike(key: str, one: str | None, two: str | None) -> bool:
         return False
     if one == two or TYPES.get(key) == "string":
         return one == two
+    if TYPES.get(key) == vini.KIND_NUMBER:
+        return _single(one) is not None and _single(one) == _single(two)
     try:
         return float(one) == float(two)
     except ValueError:
@@ -697,6 +723,7 @@ def _field(one: vini.Setting) -> Field:
         type=_type_of(one),
         default=("" if one.qualified in FROM_THE_SCREEN | FROM_THE_TABLE
                  else _default_color(one.default) if _type_of(one) == vini.KIND_COLOR
+                 else _shortest(one.default) if _type_of(one) == vini.KIND_NUMBER
                  else one.default),
         description="" if areas.is_plugin_switch(one.qualified) else one.description,
         choices=one.choices,
