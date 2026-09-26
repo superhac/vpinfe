@@ -771,6 +771,11 @@ class CuratedTests(unittest.TestCase):
         self.assertEqual([key for key in self.plugin_rows if key not in LABELS
                           and f"field.{key}.label" not in self.words], [])
 
+    def test_every_plugin_setting_has_words_from_its_plugin_or_the_catalog(self) -> None:
+        self.assertEqual([key for key in TYPES if areas.plugin_of(key)
+                          and not areas.is_plugin_switch(key) and key not in LABELS
+                          and f"field.{key}.label" not in self.words], [])
+
     def test_the_catalog_does_not_name_a_setting_its_plugin_names(self) -> None:
         self.assertEqual([key for key in LABELS if f"field.{key}.label" in self.words], [])
 
