@@ -46,7 +46,34 @@ def why(exc: BaseException, at: str | os.PathLike[str] = "") -> str:
     `at` is the URL or path the caller was reaching, used where the exception does not
     carry its own.
     """
+    exc = _unwrapped(exc)
     host, path = _where(at)
+    if upstream(exc):
+        return _unanswered(exc, host)
+    if isinstance(exc, OSError) and exc.errno in _FILES:
+        bare, named = _FILES[exc.errno]
+        path = _path(exc.filename) or path
+        return t(named, path=path) if path else t(bare)
+    return _raw(exc)
+
+
+def upstream(exc: BaseException) -> bool:
+    """Whether another machine failed: it did not answer, could not be reached, or
+    answered with an error. False for a failure on this one, such as a refused write."""
+    exc = _unwrapped(exc)
+    return isinstance(exc, (requests.RequestException, URLError, TimeoutError,
+                            socket.timeout, ConnectionRefusedError, socket.gaierror)) \
+        or (isinstance(exc, OSError) and exc.errno in _UNREACHABLE)
+
+
+def _unwrapped(exc: BaseException) -> BaseException:
+    """urllib's error around the one that happened, which may be a file's."""
+    while isinstance(exc, URLError) and isinstance(exc.reason, BaseException):
+        exc = exc.reason
+    return exc
+
+
+def _unanswered(exc: BaseException, host: str) -> str:
     if isinstance(exc, HostQuietError):
         return t("said.why.asked_to_wait_at", host=exc.host,
                  time=datetime.fromtimestamp(exc.until).strftime("%H:%M"))
@@ -56,21 +83,12 @@ def why(exc: BaseException, at: str | os.PathLike[str] = "") -> str:
         return _answered(exc.code, urlsplit(str(exc.url or "")).hostname or host) \
             or _raw(exc)
     if isinstance(exc, URLError):
-        if isinstance(exc.reason, BaseException):
-            return why(exc.reason, at)
         return str(exc.reason or "") or _raw(exc)
     if isinstance(exc, (TimeoutError, socket.timeout)):
         return _named(_TIMED_OUT, host)
     if isinstance(exc, ConnectionRefusedError):
         return _named(_NOTHING_ANSWERS, host)
-    if isinstance(exc, socket.gaierror) or (
-            isinstance(exc, OSError) and exc.errno in _UNREACHABLE):
-        return _named(_NOT_REACHED, host)
-    if isinstance(exc, OSError) and exc.errno in _FILES:
-        bare, named = _FILES[exc.errno]
-        path = _path(exc.filename) or path
-        return t(named, path=path) if path else t(bare)
-    return _raw(exc)
+    return _named(_NOT_REACHED, host)
 
 
 def _where(at: object) -> tuple[str, str]:

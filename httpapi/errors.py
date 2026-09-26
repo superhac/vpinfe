@@ -17,7 +17,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import Request
 
 from common import service_errors
-from common.failures import why
+from common.failures import upstream, why
 from common.i18n import t
 
 logger = logging.getLogger("vpinfe.httpapi.errors")
@@ -29,6 +29,7 @@ CODE_INVALID_REQUEST = "invalid_request"
 CODE_METHOD_NOT_ALLOWED = "method_not_allowed"
 CODE_FEATURE_UNAVAILABLE = "feature_unavailable"
 CODE_CONFLICT = "conflict"
+CODE_UPSTREAM_UNAVAILABLE = "upstream_unavailable"
 CODE_INTERNAL_ERROR = "internal_error"
 # Reserved for the authorization boundary; nothing raises these yet.
 CODE_UNAUTHORIZED = "unauthorized"
@@ -137,9 +138,11 @@ def install_error_handlers(
         return error_response(api.status_code, api.code, api.message, api.details)
 
     @app.exception_handler(OSError)
-    async def _refused(request: Request, exc: OSError) -> JSONResponse:
+    async def _os_error(request: Request, exc: OSError) -> JSONResponse:
         said = why(exc)
-        logger.warning("%s %s refused: %s", request.method, request.url.path, said)
+        logger.warning("%s %s failed: %s", request.method, request.url.path, said)
+        if upstream(exc):
+            return error_response(502, CODE_UPSTREAM_UNAVAILABLE, said)
         return error_response(409, CODE_CONFLICT, said)
 
     @app.exception_handler(StarletteHTTPException)

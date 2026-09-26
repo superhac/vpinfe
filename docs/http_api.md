@@ -353,14 +353,16 @@ raise FeatureUnavailableError("DOF is not configured on this instance")
 ```
 
 For anything else, `ApiError(code, message, status_code=..., details=...)`. An `OSError`
-that reaches the top, such as a read-only folder, a full disk or a host that did not answer,
-is `409` `conflict` with the reason in words as the message: *VPinFE does not have
-permission for /path/to/the/folder*. Any other uncaught exception becomes a logged
-`internal_error` with no detail in the response — put anything the user needs into an
-explicit `ApiError`.
+that reaches the top comes back with the reason in words as the message. One from this
+machine, such as a read-only folder or a full disk, is `409` `conflict`: *VPinFE does not
+have permission for /path/to/the/folder*. One from another machine, a host that did not
+answer, could not be reached or answered with an error, is `502` `upstream_unavailable`:
+*Nothing answers at 192.168.1.20*, and is worth retrying. Any other uncaught exception
+becomes a logged `internal_error` with no detail in the response — put anything the user
+needs into an explicit `ApiError`.
 
 Codes defined so far: `not_found`, `invalid_request`, `method_not_allowed`, `conflict`,
-`feature_unavailable`, `internal_error`, plus `unauthorized` and `forbidden` reserved for the
+`upstream_unavailable`, `feature_unavailable`, `internal_error`, plus `unauthorized` and `forbidden` reserved for the
 authorization boundary. Add new codes to `httpapi/errors.py` rather than inventing them at a call site.
 
 ## Authorization

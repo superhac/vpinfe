@@ -12,7 +12,7 @@ from urllib.request import urlopen
 import requests
 
 from common import i18n
-from common.failures import why
+from common.failures import upstream, why
 from common.http_client import HostQuietError
 from tests.support.library import TempTree
 from tests.support.skips import needs_posix_permissions
@@ -154,6 +154,21 @@ class WhyTests(TempTree):
         said = why(HostQuietError("api.example", 0.0))
 
         self.assertTrue(said.startswith("api.example asked VPinFE to wait until "), said)
+
+    def test_which_side_failed(self) -> None:
+        with self.assertRaises(URLError) as raised:
+            urlopen((self.root / "gone.json").as_uri(), timeout=5)
+        request = requests.Request("GET", "https://catalog.example/data.json").prepare()
+
+        self.assertEqual(
+            [upstream(one) for one in (
+                OSError(errno.EACCES, "Permission denied"), OSError(errno.ENOSPC, "Full"),
+                OSError(errno.EIO, "Input/output error"), raised.exception,
+                requests.ReadTimeout(request=request), _answered(503),
+                URLError(ConnectionRefusedError()), URLError("unknown url type: gopher"),
+                socket.gaierror(8, "nodename"), OSError(errno.EHOSTUNREACH, "No route"))],
+            [False, False, False, False, True, True, True, True, True, True])
+        self.assertEqual(why(raised.exception), f"Nothing is at {self.root / 'gone.json'}")
 
     def test_anything_else_is_the_exception_s_own_text(self) -> None:
         self.assertEqual([why(ValueError("Unexpected end of archive")), why(KeyError()),

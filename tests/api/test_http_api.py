@@ -1,7 +1,10 @@
 import errno
+import socket
 import unittest
 from unittest import mock
+from urllib.request import urlopen
 
+import requests
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
@@ -328,6 +331,34 @@ class ErrorEnvelopeTests(unittest.TestCase):
 
         self.assertEqual((response.status_code, self._envelope(response)["message"]),
                          (409, t("said.why.no_permission_at", path="/games/Locked")))
+        told.assert_not_called()
+
+    def test_a_host_that_did_not_answer_is_not_a_conflict(self) -> None:
+        with socket.socket() as free:
+            free.bind(("127.0.0.1", 0))
+            port = free.getsockname()[1]
+        told = mock.Mock()
+        api = FastAPI()
+        install_error_handlers(api, on_unhandled=told)
+
+        @api.get("/over-requests")
+        def _over_requests():
+            requests.get(f"http://127.0.0.1:{port}/", timeout=5)
+
+        @api.get("/over-urllib")
+        def _over_urllib():
+            urlopen(f"http://127.0.0.1:{port}/", timeout=5)
+
+        client = TestClient(api, raise_server_exceptions=False)
+        for path, said in (("/over-requests", t("said.why.nothing_answers_at", host="127.0.0.1")),
+                           ("/over-urllib", t("said.why.nothing_answers"))):
+            with self.subTest(path):
+                with self.assertLogs("vpinfe.httpapi.errors", "WARNING"):
+                    response = client.get(path)
+                error = self._envelope(response)
+
+                self.assertEqual((response.status_code, error["code"], error["message"]),
+                                 (502, "upstream_unavailable", said))
         told.assert_not_called()
 
 
