@@ -388,7 +388,7 @@ class ImportSideTests(unittest.TestCase):
             upload = Path(tmp) / "upload.jpg"
             upload.write_bytes(b"jpeg bytes")
 
-            target = replace_media_file(str(root), FOLDER, "wheel", str(upload))
+            target = replace_media_file(root, FOLDER, "wheel", str(upload))
 
         self.assertTrue(target.endswith("wheel.jpg"))
 
@@ -400,13 +400,13 @@ class ImportSideTests(unittest.TestCase):
             upload = Path(tmp) / "upload.jpg"
             upload.write_bytes(b"jpeg bytes")
 
-            replace_media_file(str(root), FOLDER, "wheel", str(upload))
+            replace_media_file(root, FOLDER, "wheel", str(upload))
 
             self.assertFalse((root / "medias" / "wheel.png").exists())
             self.assertFalse((root / "wheel.webp").exists())
-            resolved = source_media_path(str(root), "wheel")
+            resolved = source_media_path(root, "wheel")
 
-        self.assertTrue(resolved.endswith("wheel.jpg"),
+        self.assertTrue(str(resolved).endswith("wheel.jpg"),
                         "the new file is what resolution now finds")
 
     def test_an_unknown_extension_falls_back_to_the_canonical_name(self) -> None:
@@ -415,7 +415,7 @@ class ImportSideTests(unittest.TestCase):
             upload = Path(tmp) / "upload.tiff"
             upload.write_bytes(b"tiff bytes")
 
-            target = replace_media_file(str(root), FOLDER, "wheel", str(upload))
+            target = replace_media_file(root, FOLDER, "wheel", str(upload))
 
         self.assertTrue(target.endswith("wheel.png"))
 
@@ -424,9 +424,9 @@ class ImportSideTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             root = self._game(tmp, f"medias/(Wheel) {FOLDER}.png")
 
-            resolved = source_media_path(str(root), "wheel")
+            resolved = source_media_path(root, "wheel")
 
-        self.assertTrue(resolved.endswith(f"(Wheel) {FOLDER}.png"))
+        self.assertTrue(str(resolved).endswith(f"(Wheel) {FOLDER}.png"))
 
 
 class ParserOrderTests(unittest.TestCase):
@@ -452,13 +452,9 @@ class ParserOrderTests(unittest.TestCase):
             parser = GameParser(tmp)
             game = parser.get_all_games()[0]
 
-        self.assertEqual(os.path.basename(game.wheel_image_path),
+        self.assertEqual(os.path.basename(game.wheel_image_path or ""),
                          f"(Wheel) {TABLE}.png",
                          "the recorded build's wheel, not the other build's")
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class ReportedTierTests(unittest.TestCase):
@@ -522,3 +518,7 @@ class ReportedTierTests(unittest.TestCase):
         paths = _resolve(medias)
 
         self.assertEqual({k: v.path for k, v in entries.items()}, paths)
+
+
+if __name__ == "__main__":
+    unittest.main()

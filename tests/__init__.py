@@ -181,7 +181,7 @@ def _guarded_exec(real, name):
     return guard
 
 
-subprocess.Popen = _GuardedPopen
+subprocess.Popen = _GuardedPopen  # type: ignore[misc]
 os.system = _guarded_system
 os.execv = _guarded_exec(_real_execv, "exec")
 os.execvp = _guarded_exec(_real_execvp, "exec")
