@@ -107,12 +107,13 @@ class TrackTests(unittest.TestCase):
                          [{"job_id": job.id, "error": "scan blew up"}])
         self.assertNotIn(events.JOB_DONE, self.bus.names())
 
-    def test_a_request_nothing_answered_is_recorded_in_words(self) -> None:
+    def test_a_request_nothing_answered_names_the_host_it_asked(self) -> None:
+        request = requests.Request("GET", "https://catalog.example/data.json").prepare()
         with self.assertRaises(requests.ConnectTimeout):
             with jobs.track("test.kind") as job:
-                raise requests.ConnectTimeout("HTTPConnectionPool(host='10.0.0.9')")
+                raise requests.ConnectTimeout(request=request)
 
-        self.assertEqual(job.error, t("device.reason.timed_out"))
+        self.assertEqual(job.error, t("said.why.timed_out_at", host="catalog.example"))
 
     def test_one_kind_at_a_time(self) -> None:
         """Two library scans would interleave writes to the same .info files."""

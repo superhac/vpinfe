@@ -26,9 +26,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
-import requests
-
-from common import device_client, events, service_errors
+from common import events, service_errors
 from common.failures import why
 from common.i18n import t
 
@@ -170,13 +168,6 @@ _active: dict[str, Job] = {}
 _history: list[Job] = []
 
 
-def _reason(error: BaseException) -> str:
-    """Why a job stopped, as a person reads it."""
-    if isinstance(error, requests.RequestException):
-        return t(device_client.why_not(error))
-    return why(error)
-
-
 def _finish(job: Job, error: BaseException | None) -> None:
     with _lock:
         if _active.get(job.kind) is job:
@@ -187,7 +178,7 @@ def _finish(job: Job, error: BaseException | None) -> None:
             job.pct = 100
         else:
             job.state = FAILED
-            job.error = _reason(error)
+            job.error = why(error)
         _history.append(job)
         del _history[:-_HISTORY_LIMIT]
     if error is None:
