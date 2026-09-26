@@ -86,7 +86,7 @@ def read(path: Path | str) -> tuple[list[Played], list[Note]]:
     return found, ([note] if note else [])
 
 
-def _text(raw: bytes, name: str) -> tuple[str, str]:
+def _text(raw: bytes, name: str) -> tuple[str, Note]:
     """The file as text. UTF-16 first because that is what it is written in, and the
     others because a file somebody converted should still be read."""
     for encoding in ("utf-16", "utf-8-sig", "utf-8"):
