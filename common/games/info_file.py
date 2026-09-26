@@ -13,7 +13,7 @@ import os
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from common.games import identity_claims
+from common.games import identity_claims, unwritten
 from common.games.ids import new_id
 from common.games.info_migration import (
     FROM_CATALOG,
@@ -225,6 +225,9 @@ class MetaConfig:
                             INFO_SCHEMA)
         else:
             self.data = {}
+        held = unwritten.held(configfilepath)
+        if held is not None:
+            self.data = held
         self._normalize_detection_flags()
         self._migrate_vpinfe()
 
@@ -381,6 +384,7 @@ class MetaConfig:
             self._pre_migration = ""
             logger.info("Kept the pre-migration metadata at %s", saved)
         write_json_atomic(self.config_file_path, self.data)
+        unwritten.release(self.config_file_path)
 
     def get_config(self) -> dict[str, Any]:
         return self.data

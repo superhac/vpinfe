@@ -15,10 +15,10 @@ from typing import Any
 
 from common import events
 from common.config_store import ConfigStore
-from common.games import derived_tags, locations
+from common.games import derived_tags, locations, unwritten
 from common.games.collection_store import CollectionStore
 from common.games.game import Game
-from common.games.game_identity import ensure_unique_ids, unwritten
+from common.games.game_identity import ensure_unique_ids
 from common.games.game_identity import game_id as vpinfe_id
 from common.games.game_metadata import (
     GAME_OVERRIDES,
@@ -39,6 +39,7 @@ from common.games.game_metadata import (
     section,
     vpinfe_section,
     vps_matched_by,
+    write_held_meta,
 )
 from common.games.game_parser import GameParser
 from common.games.info_migration import INFO_SCHEMA, schema_of
@@ -87,6 +88,8 @@ def all_games(reload: bool = False) -> list[Any]:
     """Every game across every location, read once and held."""
     started_at = perf_counter()
     with _LOCK:
+        if reload:
+            write_held_meta()
         games, read = _held(reload)
 
     # Only when it read the library. Logging every call logged the caller rather than the
@@ -171,10 +174,11 @@ def unreadable_games() -> list[dict[str, str]]:
 
 
 def unwritten_games() -> list[dict[str, str]]:
-    """Games holding an id their .info could not take, each with why, by folder."""
-    held = unwritten()
+    """Games holding what their .info could not take, each with why, by folder."""
+    games = all_games()
+    held = unwritten.reasons(str(game.full_path_game or "") for game in games)
     return sorted(({"folder": game.game_dir_name, "error": held[str(game.full_path_game)]}
-                   for game in all_games() if str(game.full_path_game or "") in held),
+                   for game in games if str(game.full_path_game or "") in held),
                   key=lambda row: row["folder"].lower())
 
 

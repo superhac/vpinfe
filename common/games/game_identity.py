@@ -7,13 +7,13 @@ and keeps its own. Reading never writes; minting is explicit. See docs/http_api.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from common.failures import why
 from common.games.game import Game, GameRecord
 from common.games.game_metadata import (
+    keep_game_meta,
     load_game_meta,
     normalize_meta,
     persist_game_meta,
@@ -55,6 +55,11 @@ def ensure_id(game: Game, *, force_new: bool = False) -> str:
     Re-reads from disk first so a stale in-memory copy isn't written back. Raises if
     the write fails: an id that isn't on disk isn't an identity.
     """
+    return _ensure(game, force_new, persist_game_meta)
+
+
+def _ensure(game: Game, force_new: bool,
+            write: Callable[[Game, dict[str, Any]], None]) -> str:
     if not force_new:
         existing = game_id(game)
         if existing:
@@ -70,53 +75,9 @@ def ensure_id(game: Game, *, force_new: bool = False) -> str:
 
     minted = new_id()
     vpinfe[ID_KEY] = minted
-    persist_game_meta(game, config)
+    write(game, config)
     logger.debug("Assigned game id %s to %s", minted, game.game_dir_name)
     return minted
-
-
-# Folder path -> the id a folder VPinFE could not write to was given, for this run, and why.
-_HELD: dict[str, str] = {}
-_WHY: dict[str, str] = {}
-
-
-def held_id(game: GameRecord) -> str:
-    """The id this game holds for this run because its .info could not take it, or ""."""
-    return _HELD.get(str(getattr(game, "full_path_game", "") or ""), "")
-
-
-def unwritten() -> dict[str, str]:
-    """{folder path: why} for every game holding an id its .info could not take."""
-    return {path: _WHY.get(path, "") for path in _HELD}
-
-
-def _assigned(game: Game) -> str:
-    """`ensure_id`, or for a game whose .info cannot be written, an id held by its path
-    until VPinFE restarts. Once the .info can be written, the held id is the one written."""
-    path = str(game.full_path_game or "")
-    held = _HELD.get(path)
-    if held is None:
-        try:
-            return ensure_id(game)
-        except Exception as exc:
-            logger.exception("Could not write an id to %s; it has one until VPinFE "
-                             "restarts", game.game_dir_name)
-            _WHY[path] = why(exc)
-        held = _HELD[path] = new_id()
-    else:
-        try:
-            config = load_game_meta(game)
-            _vpinfe_section(config)[ID_KEY] = held
-            persist_game_meta(game, config)
-            del _HELD[path]
-            _WHY.pop(path, None)
-            return held
-        except Exception as exc:
-            logger.debug("Still could not write an id to %s", game.game_dir_name)
-            _WHY[path] = why(exc)
-    meta = normalize_meta(game.meta_config)
-    game.meta_config = {**meta, ID_SECTION: {**section(meta, ID_SECTION), ID_KEY: held}}
-    return held
 
 
 @dataclass(frozen=True)
@@ -195,7 +156,7 @@ def resolve_ids(games: Iterable[Any],
     for game in _priority(games, order):
         current = game_id(game)
         if not current:
-            current = _assigned(game)
+            current = _ensure(game, False, keep_game_meta)
             minted += 1
         if current in by_id:
             first = holder[current]

@@ -12,7 +12,7 @@ from unittest import mock
 from starlette.testclient import TestClient
 
 import httpapi
-from common.games import game_identity, game_repository
+from common.games import game_repository, unwritten
 from common.games.locations import KIND_ROOT, Location
 from tests.support.library import TempTree, write_game
 from tests.support.skips import needs_posix_permissions
@@ -43,7 +43,10 @@ class LockedFolderTests(TempTree):
         game_repository._PARSERS.clear()
         self.addCleanup(game_repository._PARSERS.update, previous)
         self.addCleanup(game_repository._PARSERS.clear)
-        logged = mock.patch.object(game_identity.logger, "exception")
+        cleared = mock.patch.dict(unwritten._HELD, clear=True)
+        cleared.start()
+        self.addCleanup(cleared.stop)
+        logged = mock.patch.object(unwritten.logger, "warning")
         self.logged = logged.start()
         self.addCleanup(logged.stop)
 

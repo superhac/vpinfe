@@ -11,7 +11,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from common.games import ids, table_identity
+from common.games import ids, table_identity, unwritten
+from common.games.game_metadata import write_held_meta
 from common.games.info_file import MetaConfig
 from common.games.tables import (
     ADDED_KEY,
@@ -259,7 +260,8 @@ class BackfillTests(TempTree):
         (self.root / "Locked").chmod(0o555)
         self.addCleanup((self.root / "Locked").chmod, 0o755)
 
-        with mock.patch.object(table_identity.logger, "exception") as logged:
+        with mock.patch.dict(unwritten._HELD, clear=True), \
+                mock.patch.object(unwritten.logger, "warning") as logged:
             by_id = table_identity.ensure_unique_table_ids([locked, kept])
 
         self.assertEqual(sorted(name for _game, name in by_id.values()),
@@ -270,15 +272,18 @@ class BackfillTests(TempTree):
 
     @needs_posix_permissions
     def test_a_folder_it_cannot_write_keeps_its_table_ids_when_read_again(self) -> None:
-        meta = _legacy_meta(("a.vpx", {"file_hash": "aaa"}))
-        (self.root / "Locked").mkdir()
+        _game(self.root, "Locked", _legacy_meta(("a.vpx", {"file_hash": "aaa"})))
+        info = self.root / "Locked" / "Locked.info"
         (self.root / "Locked").chmod(0o555)
         self.addCleanup((self.root / "Locked").chmod, 0o755)
+        for patcher in (mock.patch.dict(unwritten._HELD, clear=True),
+                        mock.patch.object(unwritten, "logger")):
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
         def read() -> dict[str, str]:
-            game = fake_game(self.root / "Locked", "Locked", meta=json.loads(json.dumps(meta)))
-            with mock.patch.object(table_identity.logger, "exception"):
-                table_identity.ensure_unique_table_ids([game])
+            game = fake_game(self.root / "Locked", "Locked", meta=MetaConfig(str(info)).data)
+            table_identity.ensure_unique_table_ids([game])
             return table_identity.table_ids(game)
 
         first = read()
@@ -287,9 +292,9 @@ class BackfillTests(TempTree):
         self.assertEqual(read(), first)
 
         (self.root / "Locked").chmod(0o755)
-        read()
+        write_held_meta()
 
-        on_disk = json.loads((self.root / "Locked" / "Locked.info").read_text(encoding="utf-8"))
+        on_disk = json.loads(info.read_text(encoding="utf-8"))
         self.assertEqual(table_id(_by_name(on_disk[TABLES_KEY], "a.vpx")), first["a.vpx"])
 
     def test_a_game_that_needs_nothing_is_not_rewritten(self) -> None:

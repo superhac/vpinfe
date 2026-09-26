@@ -17,13 +17,12 @@ missed and left for a person to act on.
 
 from __future__ import annotations
 
-import copy
 import logging
 from collections.abc import Iterable
 from typing import Any
 
 from common.games.game import Game
-from common.games.game_metadata import load_game_meta, normalize_meta, persist_game_meta
+from common.games.game_metadata import keep_game_meta, load_game_meta
 from common.games.tables import (
     ABSENT_SINCE_KEY,
     TABLE_FILENAME_KEY,
@@ -35,20 +34,13 @@ from common.timestamps import utc_now_iso
 
 logger = logging.getLogger("vpinfe.common.games.library_discovery")
 
-# Folder path -> {filename: entry} for each change discovery could not write there, for
-# this run. Read on the next pass so the change is the same one, and is not news twice.
-_HELD: dict[str, dict[str, dict]] = {}
 
-
-def _reconcile(game: Game, on_disk: list[str],
-               held: dict[str, dict]) -> tuple[dict, dict[str, dict], dict[str, int]]:
-    """The tables map this game should hold, each entry that changed to get there by
-    lowercased filename, and how many of those changes `held` did not already hold."""
+def _reconcile(game: Game, on_disk: list[str]) -> tuple[dict, dict[str, int]]:
+    """The tables map this game should hold, and what changed to get there."""
     config = load_game_meta(game)
     entries = dict(table_entries(config))
     described = {entry_filename(entry).lower() for entry in entries.values()}
     present = {name.lower() for name in on_disk}
-    changed: dict[str, dict] = {}
     news = {"found": 0, "absent": 0, "returned": 0}
 
     for name in on_disk:
@@ -56,9 +48,8 @@ def _reconcile(game: Game, on_disk: list[str],
             continue
         # Keyed by filename with no id, which is the shape the minting pass expects of
         # an entry it has not reached yet.
-        entries[name] = changed[name.lower()] = (held.get(name.lower())
-                                                 or {TABLE_FILENAME_KEY: name})
-        news["found"] += name.lower() not in held
+        entries[name] = {TABLE_FILENAME_KEY: name}
+        news["found"] += 1
 
     for key, entry in list(entries.items()):
         filename = entry_filename(entry).lower()
@@ -66,35 +57,14 @@ def _reconcile(game: Game, on_disk: list[str],
             continue
         recorded = str(entry.get(ABSENT_SINCE_KEY, "") or "")
         if filename not in present and not recorded:
-            since = absent_since(held.get(filename)) or utc_now_iso()
-            entries[key] = changed[filename] = {**entry, ABSENT_SINCE_KEY: since}
-            news["absent"] += filename not in held
+            entries[key] = {**entry, ABSENT_SINCE_KEY: utc_now_iso()}
+            news["absent"] += 1
         elif filename in present and recorded:
-            entries[key] = changed[filename] = {
-                k: v for k, v in entry.items() if k != ABSENT_SINCE_KEY}
-            news["returned"] += filename not in held
+            entries[key] = {k: v for k, v in entry.items() if k != ABSENT_SINCE_KEY}
+            news["returned"] += 1
 
     config[TABLES_KEY] = entries
-    return config, changed, news
-
-
-def _write(game: Game, config: dict, changed: dict[str, dict]) -> None:
-    """Persist the reconciled tables, or where the folder refuses, keep them on the game
-    and in `_HELD` until VPinFE restarts."""
-    path = str(game.full_path_game or "")
-    try:
-        persist_game_meta(game, config)
-    except Exception:
-        if path in _HELD:
-            logger.debug("Still could not write tables for %s", game.game_dir_name)
-        else:
-            logger.exception("Could not write tables for %s; they last until VPinFE "
-                             "restarts", game.game_dir_name)
-        _HELD[path] = copy.deepcopy(changed)
-        game.meta_config = {**normalize_meta(game.meta_config),
-                            TABLES_KEY: copy.deepcopy(config[TABLES_KEY])}
-        return
-    _HELD.pop(path, None)
+    return config, news
 
 
 def discover(games: Iterable[Game]) -> dict[str, int]:
@@ -111,19 +81,18 @@ def discover(games: Iterable[Game]) -> dict[str, int]:
         # not have is the one outcome worth refusing outright.
         if not on_disk:
             continue
-        held = _HELD.get(str(game.full_path_game or ""), {})
         try:
-            config, changed, news = _reconcile(game, list(on_disk), held)
+            config, news = _reconcile(game, list(on_disk))
         except Exception:
             logger.exception("Could not reconcile tables for %s",
                              game.game_dir_name)
             continue
-        if not changed:
+        if not any(news.values()):
             continue
-        _write(game, config, changed)
+        keep_game_meta(game, config)
         for kind, count in news.items():
             totals[kind] += count
-        totals["games"] += any(news.values())
+        totals["games"] += 1
 
     if totals["games"]:
         logger.info("Discovery: %s tables found, %s newly absent, %s back, across %s games",

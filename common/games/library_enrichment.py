@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Protocol
 
 from common.games.game import Game
-from common.games.game_metadata import load_game_meta, persist_game_meta
+from common.games.game_metadata import keep_game_meta, load_game_meta
 from common.games.tables import (
     TABLES_KEY,
     entry_filename,
@@ -131,12 +131,7 @@ def enrich(games: Iterable[Game], reporter: JobReporter | None = None) -> dict[s
         if not changed:
             continue
         config[TABLES_KEY] = entries
-        try:
-            persist_game_meta(game, config)
-        except Exception:
-            logger.exception("Could not write tables for %s",
-                             game.game_dir_name)
-            continue
+        keep_game_meta(game, config)
         totals["games"] += 1
 
     message = (f"Enrichment: read {totals['read']} tables across {totals['games']} games"

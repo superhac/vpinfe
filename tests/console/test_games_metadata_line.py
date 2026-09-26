@@ -14,7 +14,7 @@ from unittest.mock import Mock
 
 from nicegui import core, ui
 
-from common.games import game_identity, game_repository
+from common.games import game_identity, game_repository, unwritten
 from common.games.game_parser import GameParser
 from common.games.info_maintenance import upgrade_library
 from common.i18n import t
@@ -70,9 +70,8 @@ class TheLineAboveTheGrid(unittest.TestCase):
         self.library.load_kept_kinds()
         for patcher in (mock.patch.object(ui, "run_javascript"),
                         mock.patch.object(ui, "notify"),
-                        mock.patch.dict(game_identity._HELD, clear=True),
-                        mock.patch.dict(game_identity._WHY, clear=True),
-                        mock.patch.object(game_identity, "logger")):
+                        mock.patch.dict(unwritten._HELD, clear=True),
+                        mock.patch.object(unwritten, "logger")):
             patcher.start()
             self.addCleanup(patcher.stop)
 

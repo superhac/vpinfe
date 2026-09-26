@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 from collections import Counter
+from pathlib import Path
 from unittest import mock
 
 from starlette.testclient import TestClient
@@ -19,12 +20,12 @@ from common.games import (
     game_identity,
     game_repository,
     game_service,
-    library_discovery,
     library_refresh,
-    table_identity,
+    unwritten,
 )
 from common.games.info_maintenance import upgrade_library
 from common.games.locations import KIND_ROOT, Location
+from common.games.vpx_parser import VPXParser
 from common.i18n import t
 from common.online.vpsdb import VPSdb
 from tests.support.library import TempTree, game_info, write_game
@@ -52,6 +53,7 @@ def _locked_new() -> dict:
 class LockedGameRefreshTests(TempTree):
     def setUp(self) -> None:
         super().setUp()
+        self.reads: list[str] = []
         games = self.root / "games"
         write_game(games, KEPT, info=_legacy(KEPT))
         write_game(games, OLD, info=_legacy(OLD))
@@ -76,13 +78,9 @@ class LockedGameRefreshTests(TempTree):
                 mock.patch.object(game_service, "_vpsdb_cache", None),
                 mock.patch.object(VPSdb, "__init__", side_effect=AssertionError("VPSdb")),
                 mock.patch("socket.socket.connect", side_effect=OSError("offline")),
-                mock.patch.object(library_refresh, "enrich",
-                                  return_value={"read": 0, "failed": 0, "games": 0}),
+                mock.patch.object(VPXParser, "single_file_extract", self._read),
                 mock.patch("common.games.watching.note_games"),
-                mock.patch.dict(game_identity._HELD, clear=True),
-                mock.patch.dict(game_identity._WHY, clear=True),
-                mock.patch.dict(table_identity._HELD, clear=True),
-                mock.patch.dict(library_discovery._HELD, clear=True)):
+                mock.patch.dict(unwritten._HELD, clear=True)):
             patcher.start()
             self.addCleanup(patcher.stop)
         art = mock.patch("common.games.media_fill.request")
@@ -97,8 +95,12 @@ class LockedGameRefreshTests(TempTree):
 
         self.client = TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
 
+    def _read(self, path: str) -> dict[str, str]:
+        self.reads.append(Path(path).name)
+        return {"filename": Path(path).name, "filehash": "f00d", "rom": "sample"}
+
     def _refresh_twice(self) -> tuple[dict, dict, list[logging.LogRecord]]:
-        with self.assertLogs("vpinfe.common.games", level="ERROR") as logged:
+        with self.assertLogs("vpinfe", level="WARNING") as logged:
             first = library_refresh.refresh()
             second = library_refresh.refresh()
         return first, second, logged.records
@@ -134,20 +136,28 @@ class LockedGameRefreshTests(TempTree):
         self.assertEqual(len(first), 5)
         self.assertEqual(self._ids(), first)
 
+    def test_a_second_refresh_reads_no_table_and_warns_of_nothing(self) -> None:
+        library_refresh.refresh()
+        first = sorted(self.reads)
+        self.reads.clear()
+
+        with self.assertNoLogs("vpinfe", level="WARNING"):
+            library_refresh.refresh()
+
+        self.assertEqual(first, [f"{NEW}.vpx", SECOND, SECOND])
+        self.assertEqual(self.reads, [])
+
     def test_a_table_found_there_is_counted_once(self) -> None:
         first, second, _ = self._refresh_twice()
 
         self.assertEqual((first["discovered_found"], second["discovered_found"]), (2, 0))
 
-    def test_each_write_that_failed_is_logged_once(self) -> None:
+    def test_each_folder_it_could_not_write_is_logged_once_with_why(self) -> None:
         _, _, records = self._refresh_twice()
 
-        said = Counter((record.name, record.msg, str(record.args[0]))
-                       for record in records if isinstance(record.args, tuple))
-        self.assertEqual({key: count for key, count in said.items() if count > 1}, {})
-        self.assertIn(("vpinfe.common.games.library_discovery",
-                       "Could not write tables for %s; they last until VPinFE restarts",
-                       OLD), said)
+        self.assertEqual(sorted(record.args for record in records), [
+            (name, t("said.why.no_permission_at", path=str(self.games / name)))
+            for name in sorted(LOCKED)])
 
     def test_a_locked_game_is_matched_once_per_run(self) -> None:
         first, second, _ = self._refresh_twice()
@@ -157,7 +167,7 @@ class LockedGameRefreshTests(TempTree):
         self.assertEqual((first["new_games"], second["new_games"]), (3, 0))
         self.assertEqual(second["new_unmatched_ids"], [])
 
-    def test_each_game_holding_an_id_is_named_with_why(self) -> None:
+    def test_each_game_it_could_not_write_is_named_with_why(self) -> None:
         library_refresh.refresh()
 
         info = self.client.get("/library/info").json()
@@ -166,6 +176,26 @@ class LockedGameRefreshTests(TempTree):
             {"folder": name, "error": t("said.why.no_permission_at",
                                         path=str(self.games / name))}
             for name in sorted(LOCKED)])
+
+    def _on_disk(self, name: str) -> dict:
+        return json.loads((self.games / name / f"{name}.info").read_text(encoding="utf-8"))
+
+    def test_what_it_held_is_written_once_it_can_be(self) -> None:
+        library_refresh.refresh()
+        held = self._ids()
+        for name in LOCKED:
+            (self.games / name).chmod(0o755)
+        self.reads.clear()
+
+        library_refresh.refresh()
+
+        self.assertEqual(self._ids(), held)
+        written = {(info["vpinfe"]["game_id"], entry["filename"]): entry["id"]
+                   for info in map(self._on_disk, (KEPT, *LOCKED))
+                   for entry in info["tables"].values()}
+        self.assertEqual(written, held)
+        self.assertEqual(self.reads, [])
+        self.assertEqual(self.client.get("/library/info").json()["unwritten"], [])
 
 
 @needs_posix_permissions

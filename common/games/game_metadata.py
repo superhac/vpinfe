@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from common.games import unwritten
 from common.games.game import Game, GameRecord
 from common.games.ids import new_id
 from common.games.info_file import VPINFE_SECTION, MetaConfig
@@ -1061,3 +1062,26 @@ def persist_game_meta(game: Game, config: dict[str, Any]) -> None:
     game.info_pending_upgrade = False
     if upgraded:
         game.info_restorable = True
+
+
+def keep_game_meta(game: Game, config: dict[str, Any]) -> None:
+    """`persist_game_meta` for what VPinFE works out on its own. Where the folder refuses
+    the write, the game holds `config` until VPinFE restarts; a person's edit uses
+    `persist_game_meta`, which raises."""
+    try:
+        persist_game_meta(game, config)
+    except Exception as exc:
+        unwritten.hold(meta_file_path(game), config, exc)
+        game.meta_config = config
+
+
+def write_held_meta() -> None:
+    """Write each .info VPinFE could not, where its folder now allows it."""
+    for info in unwritten.infos():
+        config = unwritten.held(info)
+        if config is None:
+            continue
+        try:
+            MetaConfig(info).write_config()
+        except Exception as exc:
+            unwritten.hold(info, config, exc)

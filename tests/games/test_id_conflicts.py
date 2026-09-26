@@ -81,12 +81,12 @@ class NothingIsWrittenTests(unittest.TestCase):
         """Not a clash, and a game with no id cannot be addressed at all."""
         fresh = _game("", "/tables/New", "loc1")
 
-        with mock.patch.object(game_identity, "ensure_id",
-                               return_value="gid0000009") as wrote:
+        with mock.patch.object(game_identity, "keep_game_meta") as wrote:
             found = game_identity.resolve_ids([fresh], order=["loc1"])
 
         wrote.assert_called_once()
-        self.assertIn("gid0000009", found.by_id)
+        written = wrote.call_args.args[1]["vpinfe"]["game_id"]
+        self.assertEqual(list(found.by_id), [written])
 
 
 class ReportTests(unittest.TestCase):

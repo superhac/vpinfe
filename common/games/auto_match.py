@@ -6,7 +6,7 @@ From the catalog on disk only: every caller runs where the network is not allowe
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from common.config_access import cfg_bool
@@ -15,6 +15,7 @@ from common.games.game_metadata import (
     declared_no_match,
     dissolve_agreed_overrides,
     effective_vps_id,
+    keep_game_meta,
     load_game_meta,
     merge_guides,
     normalize_meta,
@@ -38,7 +39,8 @@ def unmatched(meta: dict[str, Any]) -> bool:
     return not effective_vps_id(meta) and not declared_no_match(meta)
 
 
-def adopt_guess(game: Any, entry: dict[str, Any]) -> None:
+def adopt_guess(game: Any, entry: dict[str, Any],
+                write: Callable[[Any, dict[str, Any]], None] = persist_game_meta) -> None:
     """Write `entry` as the game's match from its folder name.
 
     The match alone: tables and a person's overrides are left as they are.
@@ -48,7 +50,7 @@ def adopt_guess(game: Any, entry: dict[str, Any]) -> None:
     config[GUIDES_KEY] = merge_guides(config.get(GUIDES_KEY) or [], guides_from_vps(entry))
     record_vps_match(config, "")
     dissolve_agreed_overrides(config)
-    persist_game_meta(game, config)
+    write(game, config)
 
 
 def match_new(games: Iterable[Any], catalog: list[dict] | None = None) -> dict[str, int]:
@@ -67,9 +69,9 @@ def match_new(games: Iterable[Any], catalog: list[dict] | None = None) -> dict[s
             if entry is None:
                 continue
             try:
-                adopt_guess(game, entry)
+                adopt_guess(game, entry, keep_game_meta)
             except Exception:
-                logger.exception("Could not write the match for %s", game.game_dir_name)
+                logger.exception("Could not match %s", game.game_dir_name)
     metas = [normalize_meta(game.meta_config or {}) for game in games]
     return {"games": len(games),
             "matched": sum(1 for meta in metas if effective_vps_id(meta)),
