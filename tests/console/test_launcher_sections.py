@@ -1488,7 +1488,7 @@ class SetForAllTests(unittest.TestCase):
         options = SimpleNamespace(summarized=False, read_only=True,
                                   settings=[_field("TableOption.Volume")])
         sound = SimpleNamespace(summarized=False, settings=[
-            _field("Player.X"), _field("Player.Stereo3D", scopes=("launcher",))])
+            _field("Player.X"), _field("Player.ShowFPS", scopes=("launcher",))])
 
         self.assertEqual(app_settings._for_every_table([sound, view, options]),
                          {"Player.X", "TableOverride.ViewCabMode"})

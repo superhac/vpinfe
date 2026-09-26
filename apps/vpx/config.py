@@ -92,12 +92,11 @@ _VIEWS_AT = {"0": ("DT", "FSS"), "1": ("Cab",), "2": ("DT",)}
 BGSET = "Player.BGSet"
 
 # What the program keeps for all tables only: the pages of its own menu that save
-# globally (input, plunger, nudge and tilt, cabinet, stereo), the table editor's, and the
-# items any page writes straight to the global file. The playfield window is read from the
-# global file alone, whatever its page saves.
+# globally (input, plunger, nudge and tilt, cabinet), the table editor's, and the items any
+# page writes straight to the global file. The playfield window is read from the global
+# file alone, whatever its page saves.
 ALL_TABLES_ONLY_SECTIONS = frozenset({"Input", "Editor"})
-ALL_TABLES_ONLY_PREFIXES = ("Player.Stereo3D", "Player.Anaglyph", "Controller.DOF",
-                            "Plugin.DMDUtil.")
+ALL_TABLES_ONLY_PREFIXES = ("Controller.DOF", "Plugin.DMDUtil.")
 _SAVED_DIRECTLY = ("FullScreen", "FSWidth", "FSHeight", "RefreshRate", "ColorDepth")
 ALL_TABLES_ONLY = frozenset({
     "Player.PlayfieldDisplay", "Player.PlayfieldWndX", "Player.PlayfieldWndY",

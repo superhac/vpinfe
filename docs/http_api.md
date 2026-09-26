@@ -578,8 +578,8 @@ One with `choices` carries `choice_help`, a line saying what a choice does, by i
 for each that has one.
 
 **A setting is offered at the scopes VPX keeps it at**, listed in its `scopes`. The input,
-plunger, nudge, cabinet and stereo settings, and the ones VPX's menu writes straight to its
-own file, are `launcher` only. The point of view, table options, difficulty, exposure, tone
+plunger, nudge and cabinet settings, and the ones VPX's menu writes straight to its own
+file, are `launcher` only. The point of view, table options, difficulty, exposure, tone
 mapper and scene lighting are `folder` and `entry` only. A scope leaves out a setting it
 does not offer unless its file already holds one, and a write of one is refused.
 

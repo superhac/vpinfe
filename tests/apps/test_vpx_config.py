@@ -245,6 +245,26 @@ class EditorTests(_Case):
                 self.assertEqual(self.config.scopes_for(key), self.config.scopes())
 
 
+class StereoTests(_Case):
+    def test_every_stereo_and_anaglyph_setting_is_offered_for_a_table(self) -> None:
+        stereo = [key for key in TYPES if key.startswith(("Player.Stereo3D", "Player.Anaglyph"))]
+        self.assertTrue(stereo)
+
+        for key in stereo:
+            with self.subTest(key=key):
+                self.assertEqual(self.config.scopes_for(key), self.config.scopes())
+
+    def test_a_table_s_value_is_the_one_in_force(self) -> None:
+        with self.app_ini.open("a") as ini:
+            ini.write("\n[Player]\n; Stereo rendering: Stereo rendering mode [Default: 0]\n"
+                      "Stereo3D = 0\n")
+        self.table_file("[Player]\nStereo3D = 5\n")
+
+        found = self.at(SCOPE_ENTRY, key="Player.Stereo3D")
+        self.assertEqual((found.value, found.scope), ("5", SCOPE_ENTRY))
+        self.assertTrue(found.in_effect)
+
+
 class ReadAtTableStartTests(_Case):
     """Kept for all tables, and still read through a table's settings when it starts."""
 
