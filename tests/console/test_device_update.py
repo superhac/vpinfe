@@ -7,6 +7,8 @@ import re
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
+import requests
+
 from common.i18n import t
 from common.online import app_updater
 from console import devices, verbs
@@ -83,6 +85,31 @@ class SoftwareRows(unittest.TestCase):
 
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0][1][1], t("console.devices.not_known"))
+
+
+class NobodyAnswered(unittest.IsolatedAsyncioTestCase):
+    """A version that could not be asked for says why, the way Connection does."""
+
+    async def _rows(self, failure: Exception) -> list:
+        context = {"device": {"device_id": "Bbbb222222", "address": "192.168.1.50",
+                              "port": 8001},
+                   "local_device_id": "Aaaa111111"}
+        with patch.object(devices.offload, "io", new=AsyncMock(side_effect=failure)), \
+                patch.object(devices.panel, "state", new=lambda text, level: (text, level)), \
+                patch.object(devices.panel, "note", new=lambda text: ("note", text)), \
+                patch.object(devices.settings_page, "last_checked", new=Mock()):
+            return await devices.software_rows(context)
+
+    async def test_one_that_timed_out_may_be_asleep(self) -> None:
+        rows = await self._rows(requests.ConnectTimeout())
+
+        self.assertEqual(rows, [(t("word.version"), (t("console.devices.not_known"), "unknown")),
+                                ("note", t("device.reason.timed_out"))])
+
+    async def test_nothing_on_its_port_is_said_as_that(self) -> None:
+        refused = requests.ConnectionError(ConnectionRefusedError(61, "Connection refused"))
+
+        self.assertEqual((await self._rows(refused))[-1], ("note", t("device.reason.refused")))
 
 
 class EveryReasonIsSaid(unittest.TestCase):

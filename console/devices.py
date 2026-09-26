@@ -189,18 +189,22 @@ async def _confirm_forget(library: Any, device: dict[str, Any],
 
 def _software_rows(device: dict[str, Any], is_local: bool, client: Any,
                    update: dict[str, Any] | None,
-                   check: Callable[[], Any] | None = None) -> list[tuple[Any, Any]]:
+                   check: Callable[[], Any] | None = None,
+                   why: str = "") -> list[tuple[Any, Any]]:
     """What this device is running, and whether it can take what is published.
 
     A device with no answer gets an unknown - one that announced itself before ports were
     recorded cannot be reached, and one that is not answering has not said. Either way
-    "up to date" would be a guess wearing a fact. `check` is Check now.
+    "up to date" would be a guess wearing a fact. `check` is Check now; `why` is what
+    went wrong asking it.
     """
     rows: list[tuple[Any, Any]] = []
     if not update:
         rows.append((t("word.version"), panel.state(t("console.devices.not_known"),
                 "unknown")))
-        if not is_local and client is None:
+        if why:
+            rows.append(panel.note(why))
+        elif not is_local and client is None:
             rows.append(panel.note(t(UNREACHABLE_NOTE)))
         return rows
 
@@ -751,16 +755,17 @@ async def software_rows(context: dict[str, Any]) -> list[tuple[Any, Any]]:
     client = _client_for(context)
     update = context.get("update")
     ask = update_checker(is_local(context), client)
+    why = ""
     if update is None and ask is not None:
         try:
             update = await offload.io(ask)
-        except Exception:  # noqa: BLE001 - unreachable is a state, not a 500
+        except Exception as exc:  # noqa: BLE001 - unreachable is a state, not a 500
             logger.info("Could not ask %s what it is running",
                         device_label(device), exc_info=True)
-            update = None
+            update, why = None, _why(exc)
         context["update"] = update
     return _software_rows(device, is_local(context), client, update,
-                          _check_now(context, ask) if ask is not None else None)
+                          _check_now(context, ask) if ask is not None else None, why)
 
 
 def _check_now(context: dict[str, Any], ask: Callable[..., Any]) -> Callable[[], Any]:
