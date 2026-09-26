@@ -17,6 +17,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.failures import why
 from common.games.collection_store import DIRECTION_WORDS, MANUAL_ORDER, SORT_LABELS
 from common.i18n import t
 from console import art, collection_adds, community, confirm, grid, offload, panel, verbs, views
@@ -250,7 +251,7 @@ def build(collections: list[dict[str, Any]], library: Any,
         try:
             await run.io_bound(what, *args)
         except Exception as exc:
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         ui.notify(said, type="positive")
         if rerender is not None:
@@ -398,7 +399,7 @@ def build(collections: list[dict[str, Any]], library: Any,
         try:
             await run.io_bound(library.arrange_collections, order)
         except Exception as exc:
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
         await reread(focus)
 
     async def dragged() -> None:
@@ -485,7 +486,7 @@ def acts(library: Any, state: dict[str, Any], name: str,
                      for one in await offload.io(library.load_collections)}
             made = await offload.io(library.copy_collection, _copy_name(name, taken), name)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         copy = str(made.get("name") or "")
         ui.notify(t("console.collections.created", strip=copy), type="positive")
@@ -500,7 +501,7 @@ def acts(library: Any, state: dict[str, Any], name: str,
         try:
             await run.io_bound(library.delete_collection, name)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         ui.notify(t("console.collections.deleted", name=(name)), type="positive")
         state.setdefault("collection_drafts", {}).pop(name, None)

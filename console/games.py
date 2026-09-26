@@ -15,6 +15,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.failures import why
 from common.games import asset_registry
 from common.i18n import t
 from common.labels import humanize
@@ -568,7 +569,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
         try:
             result = await offload.io(library.auto_match, ids)
         except Exception as exc:  # noqa: BLE001 - said, and the grid is as it was
-            ui.notify(t("console.games.could_not_auto_match", exc=exc), type="warning")
+            ui.notify(t("console.games.could_not_auto_match"), caption=why(exc), type="warning")
             return
         said, moved = auto_match_outcome(result)
         ui.notify(said, type="positive" if moved else "info")
@@ -1411,7 +1412,7 @@ def build_tables(rows: list[dict[str, Any]], library: Any,
         try:
             after = await run.io_bound(what, *args)
         except Exception as exc:
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         ui.notify(said(after) if callable(said) else said, type="positive")
         game_id = str((row or {}).get("game_id") or "")

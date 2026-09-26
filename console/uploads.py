@@ -24,6 +24,7 @@ from uuid import uuid4
 
 from nicegui import context, run, ui
 
+from common.failures import why
 from common.i18n import t
 from console import import_dialog, offload
 
@@ -333,9 +334,10 @@ async def analyzed(library: Any, upload_id: str) -> dict[str, Any] | None:
     try:
         analysis = await offload.io(library.upload_analysis, upload_id)
     except Exception as exc:  # noqa: BLE001
-        analysis = {"error": exc}
+        analysis = {"error": why(exc)}
     if analysis.get("error"):
-        ui.notify(t("console.uploads.could_not_read", exc=analysis["error"]), type="negative")
+        ui.notify(t("console.uploads.could_not_read"), caption=str(analysis["error"]),
+                  type="negative")
         await run.io_bound(library.abort_upload, upload_id)
         return None
     return analysis
@@ -359,7 +361,8 @@ async def confirmed_import(library: Any, upload_id: str, analysis: dict[str, Any
                                 media_kind=media_kind, location_id=location_id,
                                 asset_kind=asset_kind, add_table=add_table)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.uploads.could_not_work_where", exc=exc), type="negative")
+        ui.notify(t("console.uploads.could_not_work_where"), caption=why(exc),
+                  type="negative")
         await run.io_bound(library.abort_upload, upload_id)
         return
     if not plan.get("items"):

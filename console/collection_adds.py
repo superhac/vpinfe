@@ -12,6 +12,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.failures import why
 from common.games.collection_store import MANUAL_ORDER
 from common.i18n import t
 from console import dialog as frame
@@ -190,7 +191,7 @@ async def add(library: Any, name: str, rows: Iterable[Row], *, what: str = GAMES
     try:
         wrote = await offload.io(write, library, name, asked, at)
     except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
-        ui.notify(t("said.could_not_add_it", exc=exc), type="negative")
+        ui.notify(t("said.could_not_add_it"), caption=why(exc), type="negative")
         return None
     used(name)
     if then is not None:
@@ -342,7 +343,7 @@ async def _taken(taking: Callable[[], Took], library: Any, name: str,
     try:
         took = await offload.io(taking)
     except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
-        ui.notify(t("said.could_not_do_that", exc=exc), type="negative")
+        ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
         return
     if then is not None:
         await then()
@@ -544,7 +545,7 @@ async def pick(offer: Offer) -> None:
         names = [str(one.get("name") or "") for one in collections]
         held = await offload.io(library.held_members, names) if names else {}
     except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
-        ui.notify(t("said.could_not_do_that", exc=exc), type="negative")
+        ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
         return
     title = (t("console.adds.pick_one", name=offer.subject) if offer.subject
              else t(_PICK_TITLE[offer.what], count=len(offer.rows)))
@@ -678,7 +679,7 @@ def ask_new(library: Any, made: Callable[[str], Awaitable[Any]], *,
         try:
             created = await offload.io(library.create_collection, wanted, None)
         except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
-            ui.notify(t("said.could_not_do_that", exc=exc), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         if announce:
             ui.notify(t("console.collections.created", strip=wanted), type="positive")

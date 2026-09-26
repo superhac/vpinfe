@@ -17,6 +17,7 @@ from typing import Any
 
 from nicegui import ui
 
+from common.failures import why
 from common.i18n import t
 from console import dialog as frame
 from console import offload, panel, verbs, workbench
@@ -97,7 +98,7 @@ async def _program_entries(context: dict[str, Any],
         found = await offload.io(library.launcher_config, launcher["launcher_id"],
                                  table_id, SCOPE_ENTRY)
     except Exception as exc:  # noqa: BLE001 - this says why, never 500s
-        return [*entries, panel.intro(t("said.could_not_read_the_settings", exc=exc))]
+        return [*entries, panel.intro(t("said.could_not_read_the_settings"), hint=why(exc))]
 
     groups = config_groups(found)
     values = dict(found.get("values") or {})
@@ -398,7 +399,7 @@ async def _remove(inner: dict[str, Any], keys: list[str]) -> None:
                          inner["launcher"]["launcher_id"], dict.fromkeys(keys, ""),
                          table=inner["config_table"], scope=SCOPE_ENTRY)
     except Exception as exc:  # noqa: BLE001 - said, never raised into the page
-        ui.notify(t("said.could_not_clear_it", exc=exc), type="negative")
+        ui.notify(t("said.could_not_clear_it"), caption=why(exc), type="negative")
         return
     await inner["rebuild"]()
 
@@ -453,7 +454,7 @@ async def _copy_from_game(inner: dict[str, Any], reach: dict[str, str]) -> None:
                          inner["launcher"]["launcher_id"], reach,
                          table=inner["config_table"], scope=SCOPE_ENTRY)
     except Exception as exc:  # noqa: BLE001 - said, never raised into the page
-        ui.notify(t("said.could_not_save_it", exc=exc), type="negative")
+        ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")
         return
     ui.notify(t("console.app_settings.copied_from_game", count=len(reach)), type="positive")
     await inner["rebuild"]()
@@ -631,7 +632,7 @@ async def _set_for_all(inner: dict[str, Any], others: list[dict[str, Any]],
             table for field, value in own
             for table in write_for_all(inner["library"], others, field, value, shares_here)])
     except Exception as exc:  # noqa: BLE001 - said, never raised into the page
-        ui.notify(t("said.could_not_save_it", exc=exc), type="negative")
+        ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")
     else:
         ui.notify(t("console.app_settings.set_for_all_done", count=len(others) + 1),
                   type="positive")

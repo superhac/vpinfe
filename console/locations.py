@@ -18,6 +18,7 @@ from typing import Any
 
 from nicegui import run, ui
 
+from common.failures import why
 from common.games import locations as model
 from common.games import tables
 from common.i18n import t
@@ -117,8 +118,8 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
         found = await offload.io(library.locations)
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
         with body:
-            panel.facts(ui, [panel.intro(t("console.locations.could_not_read_locations",
-                    exc=(exc)))])
+            panel.facts(ui, [panel.intro(t("console.locations.could_not_read_locations"),
+                                         hint=why(exc))])
         return
 
     # Imported here: `workbench` imports this module, and `games` imports `workbench`,
@@ -212,7 +213,7 @@ async def _remove_many(picked: list[dict[str, Any]], library: Library,
         try:
             await run.io_bound(library.delete_location, str(row.get("id") or ""))
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("said.could_not_remove_it", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_remove_it"), caption=why(exc), type="negative")
             return
     if rerender is not None:
         rerender()
@@ -278,7 +279,7 @@ async def _create(library: Library, state: dict[str, Any], rerender: Callable[[]
     try:
         await run.io_bound(library.put_location, made, {"path": path, "kind": kind})
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
+        ui.notify(t("said.could_not_add_it"), caption=why(exc), type="negative")
         return
     state["location"] = made
     grid.land_on(SCOPE, {"id": made})
@@ -313,6 +314,6 @@ async def remove(library: Library, row: dict[str, Any]) -> bool:
     try:
         await run.io_bound(library.delete_location, row["location_id"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("said.could_not_remove_it", exc=(exc)), type="negative")
+        ui.notify(t("said.could_not_remove_it"), caption=why(exc), type="negative")
         return False
     return True

@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 
 from nicegui import run, ui
 
+from common.failures import why
 from common.i18n import t
 from console import (
     confirm,
@@ -157,7 +158,8 @@ async def _fill(library: Library, state: dict[str, Any],
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
         body.clear()
         with body:
-            panel.facts(ui, [panel.intro(t("console.themes.could_not_read_themes", exc=(exc)))])
+            panel.facts(ui, [panel.intro(t("console.themes.could_not_read_themes"),
+                                         hint=why(exc))])
         return
 
     built = rows(list(found.get("themes") or []))
@@ -340,7 +342,8 @@ async def settings_section(context: dict[str, Any]) -> None:
     try:
         found = await offload.io(library.theme_options, theme["key"])
     except Exception as exc:  # noqa: BLE001
-        panel.facts(ui, [panel.intro(t("console.themes.could_not_read_settings", exc=(exc)))])
+        panel.facts(ui, [panel.intro(t("console.themes.could_not_read_settings"),
+                                     hint=why(exc))])
         return
     options = list(found.get("options") or [])
     values = dict(found.get("values") or {})
@@ -351,7 +354,8 @@ async def settings_section(context: dict[str, Any]) -> None:
         try:
             await run.io_bound(library.save_theme_options, theme["key"], dict(wanted))
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.themes.could_not_save_settings", exc=(exc)), type="negative")
+            ui.notify(t("console.themes.could_not_save_settings"), caption=why(exc),
+                      type="negative")
             return False
         return True
 
@@ -367,7 +371,7 @@ async def _install(library: Library, key: str, again: Callable[[], Any]) -> None
     try:
         await run.io_bound(library.install_theme, key)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.themes.could_not_install", exc=(exc)), type="negative")
+        ui.notify(t("console.themes.could_not_install"), caption=why(exc), type="negative")
         return
     ui.notify(t("console.themes.installed", key=(key)), type="positive")
     await again()
@@ -388,7 +392,8 @@ async def _activate(library: Library, theme: dict[str, Any], again: Callable[[],
     try:
         await run.io_bound(library.activate_theme, theme["key"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.themes.could_not_make_active", exc=(exc)), type="negative")
+        ui.notify(t("console.themes.could_not_make_active"), caption=why(exc),
+                  type="negative")
         return
     ui.notify(t("console.themes.plays_frontend_next_starts", value=(theme['name'])),
             type="positive")
@@ -405,7 +410,7 @@ async def _uninstall(library: Library, theme: dict[str, Any],
     try:
         await run.io_bound(library.remove_theme, theme["key"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+        ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
         return
     ui.notify(t("console.themes.uninstalled", value=(theme['name'])), type="positive")
     await again()
@@ -479,8 +484,8 @@ def _saver(option: dict[str, Any], wanted: dict[str, Any],
             try:
                 wanted[key] = json.loads(text) if text else None
             except json.JSONDecodeError as exc:
-                ui.notify(t("console.themes.not_json", value=(option.get('name') or key),
-                            msg=(exc.msg)), type="warning")
+                ui.notify(t("console.themes.not_json", value=(option.get('name') or key)),
+                          caption=why(exc), type="warning")
                 return False
         else:
             wanted[key] = value

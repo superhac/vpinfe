@@ -6,6 +6,7 @@ from typing import Any
 from nicegui import ui
 
 from common.extensions.host import SWITCHED_OFF
+from common.failures import why
 from common.games import rankings
 from common.games.community_lists import keep, kept
 from common.i18n import t
@@ -151,7 +152,7 @@ def read(extension: str, key: str, fetch: Callable[[], dict]) -> dict[str, Any]:
     try:
         found = [one for one in (fetch() or {}).get("rows") or [] if isinstance(one, dict)]
     except (ApiError, OSError) as exc:
-        return {**kept(extension, key), "stale": True, "error": str(exc)}
+        return {**kept(extension, key), "stale": True, "error": why(exc)}
     return keep(extension, key, found)
 
 
@@ -188,7 +189,7 @@ async def _make_collection(library: Library, title: str, filters: dict[str, Any]
         made = await offload.io(library.create_collection, free_name(title, collections),
                                 filters)
     except Exception as exc:  # noqa: BLE001 - the reason belongs on screen
-        ui.notify(t("said.could_not_do_that", exc=exc), type="negative")
+        ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
         return
     name = str(made.get("name") or "")
     ui.notify(t("console.collections.created", strip=name), type="positive")
@@ -283,10 +284,10 @@ async def _fill(extension: dict[str, Any], declared: dict[str, Any], library: Li
     if state["rows"] is None:
         body.clear()
         with body:
-            panel.facts(ui, [panel.intro(
-                t("console.community.not_running", name=said, reason=_why(now))
-                if stopped else t("console.community.could_not_read", name=said,
-                                  exc=state["error"]))])
+            panel.facts(ui, [
+                panel.intro(t("console.community.not_running", name=said, reason=_why(now)))
+                if stopped else panel.intro(t("console.community.could_not_read", name=said),
+                                            hint=str(state["error"]))])
             if tagging:
                 with ui.row().classes("items-center gap-2 px-3"):
                     _tag_chip(tagging, library)
@@ -376,8 +377,8 @@ async def _fill(extension: dict[str, Any], declared: dict[str, Any], library: Li
         if found is not None:
             grid.replace_rows(table, built, by_id, found, lambda _row: True)
         elif asked:
-            ui.notify(t("console.community.could_not_read", name=said, exc=fresh["error"]),
-                      type="negative")
+            ui.notify(t("console.community.could_not_read", name=said),
+                      caption=str(fresh["error"]), type="negative")
 
     if not reading and not stopped:
         await read_again()

@@ -15,8 +15,9 @@ CODE = ("apps", "common", "console", "extensions", "frontend", "httpapi", "cli.p
 
 LOOKUPS = {"t", "t_source"}
 # Calls that draw their first argument as the message itself.
-MESSAGES = {"notify", "notification", "label", "intro", "note", "lede", "tooltip",
-            "markdown"}
+MESSAGES = {"notify", "notification", "label", "intro", "note", "lede", "markdown"}
+# Where the detail goes, which has to have been through why() or a device's own wording.
+DETAIL = {"caption", "hint"}
 # What an exception holds as its own text, rather than as data it carries.
 TEXT = {"args", "msg", "message", "strerror", "reason"}
 
@@ -25,31 +26,17 @@ SLOT = re.compile(r"\{exc(?:[.!:\[][^}]*)?\}")
 NOT_YET: frozenset[str] = frozenset({
     "common/games/media_ops.py",
     "console/about.py",
-    "console/app_settings.py",
     "console/art_fill.py",
-    "console/collection_adds.py",
-    "console/collections.py",
-    "console/community.py",
-    "console/devices.py",
     "console/ext_action.py",
     "console/ext_page.py",
-    "console/games.py",
     "console/import_dialog.py",
-    "console/launchers.py",
-    "console/locations.py",
-    "console/mediasource.py",
     "console/page.py",
     "console/remote.py",
     "console/sections.py",
     "console/send_to_device.py",
-    "console/settings.py",
     "console/stars.py",
-    "console/tageditor.py",
-    "console/themes.py",
     "console/undo.py",
-    "console/uploads.py",
     "console/vps_match.py",
-    "console/workbench.py",
     "extensions/library_importer/adopt.py",
     "extensions/library_importer/emulationstation.py",
     "extensions/library_importer/gamestats.py",
@@ -82,6 +69,18 @@ def _given(call: ast.Call) -> list[ast.expr]:
     return []
 
 
+def _detail(call: ast.Call) -> list[ast.expr]:
+    return [*(call.args[:1] if _named(call.func) == "tooltip" else []),
+            *(kw.value for kw in call.keywords if kw.arg in DETAIL)]
+
+
+def _unworded(value: ast.expr, name: str) -> list[ast.Name]:
+    worded = {id(one) for node in ast.walk(value)
+              if isinstance(node, ast.Call) and "why" in _named(node.func)
+              for one in ast.walk(node)}
+    return [one for one in _as_text(value, name) if id(one) not in worded]
+
+
 def offenders(source: str) -> list[tuple[int, str]]:
     """Each place an exception reaches a message: an `exc=` handed to `t()`, or a caught
     exception's words handed to a lookup or drawn as the message."""
@@ -100,8 +99,10 @@ def offenders(source: str) -> list[tuple[int, str]]:
         calls = [one for line in node.body for one in ast.walk(line)
                  if isinstance(one, ast.Call)]
         for call in reversed(calls):
-            for value in _given(call):
-                for one in _as_text(value, node.name):
+            said = [(value, _as_text(value, node.name)) for value in _given(call)]
+            said += [(value, _unworded(value, node.name)) for value in _detail(call)]
+            for value, names in said:
+                for one in names:
                     if id(one) not in seen:
                         seen.add(id(one))
                         found.append((one.lineno, ast.unparse(value)))
@@ -159,6 +160,9 @@ class TheExceptionGoesUnderTheWords(unittest.TestCase):
                   "        panel.intro(t('x.could_not', reason=_why(exc)))\n"
                   "        ui.notify(t('x.could_not'), caption=why(exc))\n"
                   "        panel.intro(t('x.could_not'), hint=why(exc))\n"
+                  "        ui.label(t('x.could_not')).tooltip(_why(exc))\n"
+                  "        ui.notify(t('x.could_not'), caption=str(exc))\n"
+                  "        ui.label(t('x.could_not')).tooltip(exc.args[0])\n"
                   "    except Exception as error:\n"
                   "        row['error'] = ctx.t('x.game_file', error=f'{error}')\n"
                   "    return lambda exc: t('x.could_not', exc=exc)\n")
@@ -166,7 +170,8 @@ class TheExceptionGoesUnderTheWords(unittest.TestCase):
         said = [f"{line} {text}" for line, text in offenders(source)]
 
         self.assertEqual(said, ["5 exc=exc", "7 str(exc)", "9 exc.msg",
-                                "11 _why(exc)", "15 f'{error}'", "16 exc=exc"])
+                                "11 _why(exc)", "15 str(exc)", "16 exc.args[0]",
+                                "18 f'{error}'", "19 exc=exc"])
 
     def test_a_slot_is_found_however_it_is_written(self) -> None:
         self.assertEqual([_slots(one) for one in

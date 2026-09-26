@@ -645,7 +645,7 @@ async def _tag_details(context: dict[str, Any]) -> None:
         try:
             await run.io_bound(library.merge_tags, [name], said)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         await _tag_changed(context, said)
 
@@ -653,7 +653,7 @@ async def _tag_details(context: dict[str, Any]) -> None:
         try:
             await run.io_bound(library.put_tag, name, {"description": value})
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         refresh = context["state"].get("refresh_tags")
         if callable(refresh):
@@ -684,7 +684,7 @@ def _swatches(context: dict[str, Any]) -> None:
         try:
             await run.io_bound(library.put_tag, name, {"color": color})
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         await _tag_changed(context, name)
 
@@ -1071,7 +1071,7 @@ async def _remove_asset(context: dict[str, Any], kind: str, path: str, tier: str
     try:
         await run.io_bound(context["library"].remove_asset, context["game_id"], path)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("said.could_not_remove_it", exc=exc), type="negative")
+        ui.notify(t("said.could_not_remove_it"), caption=why(exc), type="negative")
         return
     await context["rebuild"]()
 
@@ -1101,7 +1101,8 @@ async def _open_whole(context: dict[str, Any], path: str, label: str) -> None:
     try:
         found = await offload.io(context["library"].asset_detail, context["game_id"], path, 0)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.workbench.could_not_read_file", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_read_file"), caption=why(exc),
+                  type="negative")
         return
     mediaview.open_text(label, str(found.get("head") or ""))
 
@@ -1355,7 +1356,7 @@ async def _draw_collection(container: ui.column, title: ui.column, library: Libr
                 library.preview_collection, name,
                 collection_rules.filters_from(draft["rules"], known))
         except Exception as exc:  # noqa: BLE001 - the list says why in its place
-            preview = {"error": str(exc)}
+            preview = {"error": why(exc)}
 
     container.clear()
     title.clear()
@@ -1875,7 +1876,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
         try:
             result = await offload.io(library.remove_media, game_id, table_id, kind)
         except Exception as exc:
-            ui.notify(t("said.could_not_remove_it", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_remove_it"), caption=why(exc), type="negative")
             return
         gone = len(result.get("removed") or [])
         ui.notify(t("console.workbench.removed_file_s", gone=(gone)) if gone
@@ -1894,7 +1895,7 @@ def _slot(context: dict[str, Any], kind: str, entry: dict[str, Any],
         try:
             await run.io_bound(library.retier_media, game_id, kind, table_id, "")
         except Exception as exc:
-            ui.notify(t("console.workbench.could_not_move", exc=(exc)), type="negative")
+            ui.notify(t("console.workbench.could_not_move"), caption=why(exc), type="negative")
             return
         ui.notify(t("console.workbench.now_used_all_tables"), type="positive")
         for redraw in context["redraws"]:
@@ -2107,7 +2108,7 @@ async def _write(context: dict[str, Any], call: Callable[..., Any],
     try:
         await run.io_bound(call, *args)
     except Exception as exc:
-        ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_save"), caption=why(exc), type="negative")
         return
     await (context["rebuild"]() if shape else context["saved"]())
 
@@ -2124,7 +2125,7 @@ async def _save_overrides(context: dict[str, Any], changes: dict[str, Any], *,
         else:
             await run.io_bound(library.set_game_overrides, context["game_id"], changes)
     except Exception as exc:
-        ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_save"), caption=why(exc), type="negative")
         return
     await context["rebuild"]()
 
@@ -2432,8 +2433,8 @@ async def _collections_block(context: dict[str, Any]) -> None:
         members = await offload.io(library.held_members,
                                    [str(one.get("name") or "") for one in every])
     except Exception as exc:  # noqa: BLE001 - the panel says why, never raises
-        ui.label(t("console.workbench.could_not_read_collections", exc=(exc))) \
-            .classes("console-help px-3")
+        ui.label(t("console.workbench.could_not_read_collections")) \
+            .classes("console-help px-3").tooltip(why(exc))
         return
     with ui.column().classes("gap-0 console-form w-full min-w-0"):
         if not held["collections"] and not held["taken_out"]:
@@ -2459,7 +2460,7 @@ def _collection_row(context: dict[str, Any], one: dict[str, Any]) -> None:
         try:
             await run.io_bound(library.unexclude_from_collection, name, game_id, None)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+            ui.notify(t("console.workbench.could_not_save"), caption=why(exc), type="negative")
             return
         ui.notify(t("console.workbench.put_back_in", name=name), type="positive")
         await context["rebuild"]()
@@ -2570,7 +2571,7 @@ async def _save_guides(context: dict[str, Any], guides: list[dict[str, Any]]) ->
     try:
         await run.io_bound(context["library"].set_game_guides, context["game_id"], guides)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_save"), caption=why(exc), type="negative")
         return
     await context["rebuild"]()
 
@@ -3139,7 +3140,7 @@ async def _pick_a_match(context: dict[str, Any]) -> None:
             if wanted:
                 await run.io_bound(library.adopt_vps_details, context["game_id"], wanted)
     except Exception as exc:
-        ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_save"), caption=why(exc), type="negative")
     await context["rebuild"]()
 
 
@@ -3350,7 +3351,7 @@ def _hidden_row(context: dict[str, Any], table: dict[str, Any]) -> tuple[Any, An
             answer = await run.io_bound(context["library"].set_table_hidden,
                                         context["game_id"], table_id, hidden)
         except Exception as exc:
-            ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+            ui.notify(t("console.workbench.could_not_save"), caption=why(exc), type="negative")
             return
         ui.notify(game_tables.hidden_said(str(context["game"].get("name") or ""), table,
                                           answer, hidden=hidden), type="positive")
@@ -3376,7 +3377,7 @@ def _play_action(context: dict[str, Any], table: dict[str, Any]) -> Callable[[],
         try:
             await run.io_bound(context["library"].launch, context["game_id"], filename)
         except Exception as exc:
-            ui.notify(t("console.workbench.could_not_launch", exc=(exc)), type="negative")
+            ui.notify(t("console.workbench.could_not_launch"), caption=why(exc), type="negative")
 
     def draw() -> None:
         with ui.row().classes("items-center gap-2"):
@@ -3488,8 +3489,8 @@ def _launcher_pick(context: dict[str, Any], table: dict[str, Any]) -> Callable[[
                 await run.io_bound(context["library"].assign_launcher,
                                    table_id, str(field.value or ""))
             except Exception as exc:
-                ui.notify(t("console.workbench.could_not_point_launcher", exc=(exc)),
-                          type="negative")
+                ui.notify(t("console.workbench.could_not_point_launcher"),
+                          caption=why(exc), type="negative")
                 return
             await (context.get("rebuild") or context["saved"])()
 
@@ -3528,13 +3529,13 @@ def _feature_chips(features: dict[str, Any]) -> None:
 
 
 async def _script_act(context: dict[str, Any], call: Any, table_id: str,
-                      done: str, failed: Callable[[Exception], str]) -> None:
+                      done: str, failed: str) -> None:
     """Run one script act and redraw. The panel is showing which script runs, so it is
     exactly what the act changes."""
     try:
         await run.io_bound(call, context["game_id"], table_id)
     except Exception as exc:
-        ui.notify(failed(exc), type="negative")
+        ui.notify(failed, caption=why(exc), type="negative")
         return
     ui.notify(done, type="positive")
     await context["rebuild"]()
@@ -3545,7 +3546,7 @@ async def _extract_script(context: dict[str, Any], table: dict[str, Any]) -> Non
     the Delete beside it."""
     await _script_act(context, context["library"].extract_script,
                       table.get("id") or "", t("console.workbench.extracted_table_now_runs"),
-                      lambda exc: t("console.workbench.could_not_extract_script", exc=exc))
+                      t("console.workbench.could_not_extract_script"))
 
 
 async def _drop_script(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -3562,7 +3563,7 @@ async def _drop_script(context: dict[str, Any], table: dict[str, Any]) -> None:
                       table.get("id") or "",
                       t("console.game_tables.deleted_every_table_runs_own" if every
                         else "console.workbench.deleted_table_runs_own"),
-                      lambda exc: t("console.workbench.could_not_delete_script", exc=exc))
+                      t("console.workbench.could_not_delete_script"))
 
 
 async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
@@ -3588,7 +3589,7 @@ async def _forget_table(context: dict[str, Any], table: dict[str, Any]) -> None:
         await run.io_bound(context["library"].forget_table,
                            context["game_id"], table.get("id") or "")
     except Exception as exc:
-        ui.notify(t("console.workbench.could_not_forget", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_forget"), caption=why(exc), type="negative")
         return
     ui.notify(t("console.workbench.table_forgotten"), type="positive")
     if table.get("id") and table.get("id") == context.get("lens"):
@@ -3725,7 +3726,7 @@ async def _contain_table(context: dict[str, Any], table: dict[str, Any]) -> None
         await run.io_bound(context["library"].contain_table,
                            context["game_id"], table.get("id") or "")
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.workbench.could_not_copy", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_copy"), caption=why(exc), type="negative")
         return
     ui.notify(t("console.workbench.copied"), type="positive")
     await _table_list_changed(context)
@@ -4203,7 +4204,7 @@ def _launch_button(context: dict[str, Any], table: dict[str, Any]) -> None:
         try:
             await run.io_bound(context["library"].launch, context["game_id"], filename)
         except Exception as exc:
-            ui.notify(t("console.workbench.could_not_launch", exc=(exc)), type="negative")
+            ui.notify(t("console.workbench.could_not_launch"), caption=why(exc), type="negative")
 
     button = ui.button(icon="play_arrow", on_click=go) \
         .props("flat dense round size=sm").tooltip(t("console.workbench.play_table"))
@@ -4250,7 +4251,7 @@ async def _lock_default(context: dict[str, Any], table: dict[str, Any], *,
         after = await run.io_bound(context["library"].set_default_table, context["game_id"],
                                    str(table.get("id") or "") if lock else "")
     except Exception as exc:
-        ui.notify(t("console.workbench.could_not_change", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_change"), caption=why(exc), type="negative")
         return
     ui.notify(game_tables.lock_said(str(context["game"].get("name") or ""), table,
                                     (after or {}).get("tables") or [], lock=lock),
@@ -4265,7 +4266,7 @@ async def _make_default(context: dict[str, Any], table: dict[str, Any]) -> None:
         await run.io_bound(context["library"].set_default_table,
                            context["game_id"], str(table.get("id") or ""))
     except Exception as exc:
-        ui.notify(t("console.workbench.could_not_change", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_change"), caption=why(exc), type="negative")
         return
     ui.notify(game_tables.now_plays(str(context["game"].get("name") or ""), table),
               type="positive")
@@ -4845,7 +4846,7 @@ async def _setting_entries(context: dict[str, Any],
                 async with in_turn:
                     await written({key: "" for key in keys if rows[key].get("set_here")})
             except Exception as exc:  # noqa: BLE001
-                ui.notify(t("said.could_not_clear_it", exc=(exc)), type="negative")
+                ui.notify(t("said.could_not_clear_it"), caption=why(exc), type="negative")
                 return
             context.pop("config_values", None)
             await _keeping_place(ui.context.client, context["rebuild"], keys[0])
@@ -4857,7 +4858,7 @@ async def _setting_entries(context: dict[str, Any],
                 async with in_turn:
                     wrote = await written({key: _as_text(value)})
             except Exception as exc:  # noqa: BLE001
-                ui.notify(t("said.could_not_save_it", exc=(exc)), type="negative")
+                ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")
                 return False
             if cut := (wrote or {}).get("cut"):
                 no_longer_reads_game(cut, context.get("tables"))
@@ -5259,7 +5260,7 @@ async def _agreed_to_switch_off(library: Any, launcher: dict[str, Any]) -> bool:
     try:
         found = await offload.io(library.launcher_fallback, launcher["launcher_id"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.workbench.could_not_work", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_work"), caption=why(exc), type="negative")
         return False
     if found.get("refused"):
         ui.notify(found["refused"], type="warning")
@@ -5319,7 +5320,7 @@ async def _launcher_details(context: dict[str, Any]) -> None:
             await run.io_bound(library.put_launcher, launcher["launcher_id"],
                                {**launcher, **changes})
         except Exception as exc:  # noqa: BLE001
-            return str(exc)
+            return why(exc)
         launcher.update(changes)
         for after in ("recheck_trouble", "refresh_launchers"):
             again = context["state"].get(after)
@@ -5330,7 +5331,7 @@ async def _launcher_details(context: dict[str, Any]) -> None:
     async def write(**changes: Any) -> bool:
         refused = await put(changes)
         if refused:
-            ui.notify(t("console.workbench.could_not_save", exc=refused), type="negative")
+            ui.notify(t("console.workbench.could_not_save"), caption=refused, type="negative")
         return not refused
 
     async def rename(text: str) -> str:
@@ -5355,7 +5356,7 @@ async def _launcher_details(context: dict[str, Any]) -> None:
             try:
                 await run.io_bound(library.make_launcher_default, launcher["launcher_id"])
             except Exception as exc:  # noqa: BLE001
-                ui.notify(t("console.workbench.could_not_save", exc=exc), type="negative")
+                ui.notify(t("console.workbench.could_not_save"), caption=why(exc), type="negative")
             again = context["state"].get("refresh_launchers")
             if callable(again):
                 await again()
@@ -5434,7 +5435,7 @@ async def _config_backups(context: dict[str, Any]) -> None:
     try:
         found = await offload.io(library.config_backups, launcher["launcher_id"])
     except Exception as exc:  # noqa: BLE001
-        _rows(ui, [panel.note(t("console.workbench.could_not_read_copies", exc=(exc)))])
+        _rows(ui, [panel.note(t("console.workbench.could_not_read_copies"), hint=why(exc))])
         return
 
     held = list(found.get("backups") or [])
@@ -5445,7 +5446,8 @@ async def _config_backups(context: dict[str, Any]) -> None:
         try:
             await run.io_bound(library.take_config_backup, launcher["launcher_id"], "")
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.workbench.could_not_take_copy", exc=(exc)), type="negative")
+            ui.notify(t("console.workbench.could_not_take_copy"), caption=why(exc),
+                      type="negative")
             return
         ui.notify(t("word.copied"), type="positive")
         await context["rebuild"]()
@@ -5515,7 +5517,8 @@ async def _restore_dialog(held: list[dict], context: dict[str, Any],
         try:
             await run.io_bound(library.restore_config_backup, launcher_id, name)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.workbench.could_not_put_back", exc=(exc)), type="negative")
+            ui.notify(t("console.workbench.could_not_put_back"), caption=why(exc),
+                      type="negative")
             return
         ui.notify(t("console.workbench.restored"), type="positive")
         await context["rebuild"]()
@@ -5557,7 +5560,7 @@ async def _location_details(context: dict[str, Any]) -> None:
         try:
             await run.io_bound(library.put_location, row["location_id"], body)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("said.could_not_save_it", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_save_it"), caption=why(exc), type="negative")
             return
         await rebuild()
 
@@ -5610,7 +5613,8 @@ def _location_priority(context: dict[str, Any],
         try:
             await run.io_bound(context["library"].set_location_order, wanted)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.workbench.could_not_reorder_them", exc=(exc)), type="negative")
+            ui.notify(t("console.workbench.could_not_reorder_them"), caption=why(exc),
+                      type="negative")
             return
         await context["rebuild"]()
 
@@ -5642,7 +5646,8 @@ async def _shadowed_block(context: dict[str, Any], row: dict[str, Any]) -> None:
         held = await offload.io(context["library"].shadowed_here,
                                   row["location_id"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.workbench.could_not_read_what_2", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_read_what_2"), caption=why(exc),
+                  type="negative")
         return
     if not held:
         return
@@ -5686,7 +5691,7 @@ async def _adopt_shadowed(context: dict[str, Any], one: dict[str, Any]) -> None:
                            context["location"]["location_id"],
                            str(one.get("path") or ""))
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+        ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
         return
     ui.notify(t("console.workbench.own_game_now"), type="positive")
     await context["rebuild"]()
@@ -5712,7 +5717,7 @@ def _location_write_to(context: dict[str, Any],
             await run.io_bound(context["library"].set_location_write_to,
                                row["location_id"])
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.workbench.could_not_point", exc=(exc)), type="negative")
+            ui.notify(t("console.workbench.could_not_point"), caption=why(exc), type="negative")
             return
         await context["rebuild"]()
 
@@ -5789,7 +5794,7 @@ async def _rename(context: dict[str, Any], wanted: str) -> None:
     try:
         made = await offload.io(context["library"].patch_collection, old, {"name": wanted})
     except Exception as exc:
-        ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_save"), caption=why(exc), type="negative")
         return
     new = str(made.get("name") or wanted.strip())
     collection_adds.renamed(old, new)
@@ -5831,7 +5836,7 @@ def _opens_on_switch(context: dict[str, Any], row: dict[str, Any]) -> Callable[[
             await run.io_bound(context["library"].put_config, {"behavior": {
                 "startup_collection": name if event.value else ""}})
         except Exception as exc:
-            ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+            ui.notify(t("console.workbench.could_not_save"), caption=why(exc), type="negative")
             return
         await _written(context)
 
@@ -6235,7 +6240,7 @@ async def _save_rules(context: dict[str, Any]) -> None:
         await run.io_bound(library.patch_collection, row["name"],
                            {"filters": wanted, **order})
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_save"), caption=why(exc), type="negative")
         return
     context["draft"].pop("rules", None)
     context["draft"].pop("order", None)
@@ -6264,7 +6269,7 @@ async def _keep_what_it_found(context: dict[str, Any]) -> None:
     try:
         await run.io_bound(context["library"].keep_collection_result, name)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+        ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
         return
     context["draft"].pop("rules", None)
     ui.notify(t("console.workbench.converted", name=name), type="positive")
@@ -6294,7 +6299,7 @@ async def _take_rules_away(context: dict[str, Any]) -> None:
         await run.io_bound(context["library"].patch_collection, name,
                            {"clear_filters": True})
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_save"), caption=why(exc), type="negative")
         return
     context["draft"].pop("rules", None)
     ui.notify(t("console.workbench.converted", name=name), type="positive")
@@ -6443,7 +6448,7 @@ async def _patch(context: dict[str, Any], changes: dict[str, Any]) -> None:
         await run.io_bound(library.patch_collection, _collection(context)["name"],
                            changes)
     except Exception as exc:
-        ui.notify(t("console.workbench.could_not_save", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_save"), caption=why(exc), type="negative")
         return
     await _written(context)
 
@@ -6476,8 +6481,8 @@ def _games_list(context: dict[str, Any], row: dict[str, Any],
                            + deeplink.query({"view": "games", "collection": name}))()
     controls()
     if lens.get("error"):
-        ui.label(t("console.workbench.could_not_work", exc=lens["error"])) \
-            .classes("console-help text-warning")
+        ui.label(t("console.workbench.could_not_work")) \
+            .classes("console-help text-warning").tooltip(str(lens["error"]))
         return
     if live and len((context.get("membership") or {}).get("members") or []) > 8:
         box = ui.input(placeholder=t("console.workbench.find_collection")) \
@@ -6561,7 +6566,7 @@ async def _reorder(context: dict[str, Any], members: list[dict], moved: Any) -> 
         await run.io_bound(library.set_collection_order,
                            _collection(context)["name"], order)
     except Exception as exc:
-        ui.notify(t("console.workbench.could_not_move", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_move"), caption=why(exc), type="negative")
         return
     await _written(context)
 
@@ -6692,7 +6697,8 @@ async def _fill_table_menu(context: dict[str, Any], member: dict[str, Any],
     try:
         choices = await offload.io(context["library"].tables_for, game)
     except Exception as exc:
-        ui.notify(t("console.workbench.could_not_read_game", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_read_game"), caption=why(exc),
+                  type="negative")
         return
     others = [other for other in (context.get("membership") or {}).get("members") or []
               if other is not member and str(other.get("game") or "") == game]
@@ -6770,7 +6776,7 @@ def _table_menu_item(context: dict[str, Any], member: dict[str, Any], table_id: 
         try:
             await _hold(context, member, table_id)
         except Exception as exc:
-            ui.notify(t("console.workbench.could_not_change", exc=(exc)), type="negative")
+            ui.notify(t("console.workbench.could_not_change"), caption=why(exc), type="negative")
             return
         await _written(context)
 
@@ -6825,7 +6831,7 @@ def _add_table_item(context: dict[str, Any], member: dict[str, Any],
             await run.io_bound(library.add_to_collection, name, game,
                                str(table.get("id") or ""), after)
         except Exception as exc:
-            ui.notify(t("said.could_not_add_it", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_add_it"), caption=why(exc), type="negative")
             return
         await _written(context)
 
@@ -6854,7 +6860,7 @@ def _member_action(context: dict[str, Any], member: dict[str, Any],
         try:
             await run.io_bound(library.unexclude_from_collection, name, row.game, row.table)
         except Exception as exc:
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         ui.notify(t("console.workbench.put_back_in", name=name), type="positive")
         await _written(context)

@@ -22,6 +22,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common import config_schema, feature_checks, install_identity, path_checks, tokens
+from common.failures import why
 from common.games.asset_registry import ALWAYS_KEPT, ASSET_SPECS
 from common.i18n import t
 from common.labels import humanize
@@ -59,7 +60,7 @@ async def _write(library: Library, section: str, key: str, value: Any) -> bool:
     try:
         await run.io_bound(library.put_config, {section: {key: value}})
     except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-        ui.notify(t("console.settings.could_not_save", exc=(exc)), type="negative")
+        ui.notify(t("console.settings.could_not_save"), caption=why(exc), type="negative")
         return False
     return True
 
@@ -293,7 +294,7 @@ async def _fill_kinds(library: Library, rerender: Callable[[], None], body: Any,
         policy = await offload.io(library.library_policy)
         known = await offload.io(items, library)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
-        said = [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))]
+        said = [panel.intro(t("said.could_not_read_the_settings"), hint=why(exc))]
         if body is None:
             return said
         with body:
@@ -308,7 +309,7 @@ async def _fill_kinds(library: Library, rerender: Callable[[], None], body: Any,
         try:
             await run.io_bound(library.put_library_policy, {key: store})
         except Exception as exc:  # noqa: BLE001 - the reason belongs on the page
-            ui.notify(t("console.settings.could_not_save", exc=(exc)), type="negative")
+            ui.notify(t("console.settings.could_not_save"), caption=why(exc), type="negative")
             return
         rerender()
 
@@ -350,7 +351,7 @@ async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tupl
     try:
         state = await offload.io(library.vps_sync_state)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
-        return [panel.intro(t("console.settings.could_not_read_sync", exc=(exc)))]
+        return [panel.intro(t("console.settings.could_not_read_sync"), hint=why(exc))]
 
     async def now() -> None:
         # Held: an ongoing notification never times out on its own.
@@ -358,7 +359,7 @@ async def _vps_foot(library: Library, rerender: Callable[[], None]) -> list[tupl
         try:
             done = await offload.io(library.sync_vps)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.settings.could_not_check", exc=(exc)), type="negative")
+            ui.notify(t("console.settings.could_not_check"), caption=why(exc), type="negative")
             return
         finally:
             checking.dismiss()
@@ -391,7 +392,7 @@ async def _themes_foot(library: Library, rerender: Callable[[], None]) -> list[t
     try:
         held = await offload.io(library.themes)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
-        return [panel.intro(t("console.settings.could_not_read_themes", exc=exc))]
+        return [panel.intro(t("console.settings.could_not_read_themes"), hint=why(exc))]
 
     async def now() -> None:
         checking = ui.notification(t("console.settings.checking_themes"), spinner=True,
@@ -399,7 +400,7 @@ async def _themes_foot(library: Library, rerender: Callable[[], None]) -> list[t
         try:
             await offload.io(library.themes, True)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.settings.could_not_check", exc=exc), type="negative")
+            ui.notify(t("console.settings.could_not_check"), caption=why(exc), type="negative")
             return
         finally:
             checking.dismiss()
@@ -928,7 +929,8 @@ async def _draw_system_page(library: Library, redraw: Callable[[], None], body: 
         offered = await _suggestions(library, schema, sections)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
         with body:
-            panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))])
+            panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings"),
+                                         hint=why(exc))])
         return
     blocks = []
     for registry, heading, above in PAGE_KINDS.get(key, ()):
@@ -1000,7 +1002,7 @@ async def _identity_page(library: Library, reported: str,
     try:
         values = await offload.io(library.config_values)
     except Exception as exc:  # noqa: BLE001 - a settings page says why, never 500s
-        panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings", exc=(exc)))])
+        panel.facts(ui, [panel.intro(t("said.could_not_read_the_settings"), hint=why(exc))])
         return
     held = dict(values.get("install") or {})
     on = _listed(held.get("features"))

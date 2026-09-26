@@ -21,6 +21,7 @@ from typing import Any
 from nicegui import run, ui
 
 from common import install_identity, path_checks
+from common.failures import why
 from common.i18n import t
 from console import confirm, grid, offload, panel, verbs, views
 from console import dialog as frame
@@ -127,8 +128,8 @@ async def _fill(library: Library, state: dict[str, Any], on_select: Callable[[di
         found = await offload.io(library.launchers)
     except Exception as exc:  # noqa: BLE001 - this page says why, never 500s
         with body:
-            panel.facts(ui, [panel.intro(t("console.launchers.could_not_read_launchers",
-                    exc=(exc)))])
+            panel.facts(ui, [panel.intro(t("console.launchers.could_not_read_launchers"),
+                                         hint=why(exc))])
         return
 
     # Imported here: `workbench` imports this module, and `games` imports `workbench`,
@@ -327,7 +328,8 @@ async def copy_dialog(library: Library, state: dict[str, Any], launcher: dict) -
     try:
         known = await offload.io(library.devices)
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.launchers.could_not_read_devices", exc=(exc)), type="negative")
+        ui.notify(t("console.launchers.could_not_read_devices"), caption=why(exc),
+                  type="negative")
         return
     reachable = copy_targets(known, str(state.get("install_id") or ""))
     if not reachable:
@@ -372,7 +374,8 @@ async def _do_copy(library: Library, launcher: dict, devices: list[dict],
             mappings = {table: to for table, to in (found.get("mappings") or {}).items()
                         if to == launcher["launcher_id"]}
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("console.launchers.could_not_read_assignments", exc=(exc)), type="negative")
+            ui.notify(t("console.launchers.could_not_read_assignments"), caption=why(exc),
+                      type="negative")
             return
 
     def client_for(device: Any) -> Any:
@@ -428,7 +431,7 @@ async def remove(library: Library, state: dict[str, Any], redraw: Callable[[], N
     try:
         found = await offload.io(library.launcher_fallback, launcher["launcher_id"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("console.workbench.could_not_work", exc=(exc)), type="negative")
+        ui.notify(t("console.workbench.could_not_work"), caption=why(exc), type="negative")
         return
     detail, lines = removal_words(found)
     if not await confirm.ask(
@@ -438,7 +441,7 @@ async def remove(library: Library, state: dict[str, Any], redraw: Callable[[], N
     try:
         await run.io_bound(library.delete_launcher, launcher["launcher_id"])
     except Exception as exc:  # noqa: BLE001
-        ui.notify(t("said.could_not_remove_it", exc=(exc)), type="negative")
+        ui.notify(t("said.could_not_remove_it"), caption=why(exc), type="negative")
         return
     state["launcher"] = ""
     redraw()

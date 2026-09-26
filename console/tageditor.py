@@ -15,6 +15,7 @@ from typing import Any
 
 from nicegui import ui
 
+from common.failures import why
 from common.games.tag_registry import derived_color
 from common.i18n import t
 from console import confirm, grid, offload, panel, renderers, tag_chips, verbs, views
@@ -91,7 +92,7 @@ def build(rows: list[dict[str, Any]], library: Any,
         try:
             changed = await offload.io(call, *args)
         except Exception as exc:
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         ui.notify(t("console.tageditor.game_changed", said=said, count=changed),
                   type="positive")
@@ -136,7 +137,7 @@ def build(rows: list[dict[str, Any]], library: Any,
         try:
             await offload.io(library.put_tag, name, changes)
         except Exception as exc:
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         if rerender is not None:
             rerender()
@@ -279,7 +280,7 @@ def acts(library: Any, tag: str, games: int,
         try:
             await offload.io(library.merge_tags, [tag], said)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         ui.notify(t("console.tageditor.renamed", said=(said)), type="positive")
         await after(said)
@@ -295,7 +296,7 @@ def acts(library: Any, tag: str, games: int,
         try:
             await offload.io(library.merge_tags, [tag], into)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         ui.notify(t("console.tageditor.merged", into=(into)), type="positive")
         await after(into)
@@ -308,7 +309,7 @@ def acts(library: Any, tag: str, games: int,
         try:
             await offload.io(library.delete_tag, tag)
         except Exception as exc:  # noqa: BLE001
-            ui.notify(t("said.could_not_do_that", exc=(exc)), type="negative")
+            ui.notify(t("said.could_not_do_that"), caption=why(exc), type="negative")
             return
         ui.notify(t("console.tageditor.deleted", tag=tag), type="positive")
         await after(None)
