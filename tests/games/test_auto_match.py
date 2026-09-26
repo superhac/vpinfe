@@ -15,6 +15,7 @@ from common.games.game_metadata import (
     VPS_MATCHED_BY_KEY,
     vps_matched_by,
 )
+from common.i18n import t
 from common.online.vpsdb import VPSdb
 from common.uploads import upload_ops
 from httpapi import models
@@ -166,6 +167,14 @@ class AssociateTests(TempTree):
 
         self.assertEqual(vps_matched_by(saved), MATCHED_BY_USER)
         self.assertEqual(saved["vpinfe"]["alt_vpsid"], "")
+
+    def test_a_folder_with_no_table_says_so_in_words(self) -> None:
+        folder = write_game(self.root, FOLDER, info=game_info(vps_id=""), vpx=False)
+
+        with self.assertRaises(FileNotFoundError) as said:
+            game_service.associate_vps_to_folder(folder, _entry("chosen", "Fathom"))
+
+        self.assertEqual(str(said.exception), t("error.games.folder_has_no_table"))
 
 
 def _offline(case: TempTree, catalog: list[dict]) -> None:

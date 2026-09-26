@@ -125,9 +125,8 @@ def extract_script(game_id: str, table_id: str) -> dict:
             t("error.games.extracting_script_runs_visual", exc=(exc))) from exc
     try:
         game_service.extract_vbs(game_dir, filename, table_id)
-    except Exception as exc:
-        raise service_errors.RefusedError(
-            t("error.games.could_not_extract_script", exc=(exc))) from exc
+    except (OSError, launch.LaunchUnavailableError) as exc:
+        raise service_errors.RefusedError(str(exc)) from exc
     return row_or_refuse(game, table_id)
 
 

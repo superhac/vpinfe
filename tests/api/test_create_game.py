@@ -143,6 +143,7 @@ class CreateTests(CreateGameCase):
         found = self.create("///")
 
         self.assertEqual(found.status_code, 400)
+        self.assertEqual(found.json()["error"]["message"], t("error.games.game_needs_name"))
 
     def test_with_nowhere_to_write_it_says_so_rather_than_failing_late(self) -> None:
         found = self.create("Taxi")

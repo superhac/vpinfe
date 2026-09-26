@@ -40,6 +40,7 @@ from common.games.tables import (
     table_names,
 )
 from common.games.vpx_parser import VPXParser
+from common.i18n import t
 from common.jobs import LogCallback, ProgressCallback
 from common.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, get_games_path
 
@@ -314,7 +315,7 @@ def save_upload_bytes(dest_file: Path, content: bytes) -> None:
 def _safe_upload_name(filename: str) -> str:
     safe_name = Path(filename or "").name
     if not safe_name or safe_name in {".", ".."}:
-        raise ValueError("Invalid upload filename")
+        raise ValueError(t("error.games.file_has_no_name"))
     return safe_name
 
 
@@ -341,7 +342,7 @@ def _find_vpx_file(game_dir: Path, preferred_filename: str = "") -> Path:
                    if entry_filename(entry) in names), "")
     chosen = chosen or next(iter(table_names(names)), "")
     if not chosen:
-        raise FileNotFoundError(f"No .vpx found in {game_dir}")
+        raise FileNotFoundError(t("error.games.folder_has_no_table"))
     return game_dir / chosen
 
 
@@ -384,14 +385,14 @@ def replace_table(game_dir: Path, filename: str, content: bytes, file_kind: str,
                   current_vpx_filename: str = "") -> dict[str, str]:
     game_dir = game_dir.expanduser()
     if not game_dir.exists() or not game_dir.is_dir():
-        raise FileNotFoundError(f"Table folder not found: {game_dir}")
+        raise FileNotFoundError(t("error.games.folder_not_there"))
 
     safe_name = _safe_upload_name(filename)
     ext = Path(safe_name).suffix.lower()
 
     if file_kind == "vpx":
         if ext != ".vpx":
-            raise ValueError("Only .vpx files can update the table file")
+            raise ValueError(t("error.uploads.only_vpx_replaces_table"))
 
         old_vpx = _find_vpx_file(game_dir, current_vpx_filename)
         new_vpx = game_dir / safe_name
@@ -435,7 +436,7 @@ def replace_table(game_dir: Path, filename: str, content: bytes, file_kind: str,
 
     if file_kind == "directb2s":
         if ext != ".directb2s":
-            raise ValueError("Only .directb2s files can update the backglass file")
+            raise ValueError(t("error.uploads.only_directb2s_replaces_backglass"))
 
         current_vpx = _find_vpx_file(game_dir, current_vpx_filename)
         old_b2s = _find_directb2s_file(game_dir, current_vpx.stem)
@@ -449,7 +450,7 @@ def replace_table(game_dir: Path, filename: str, content: bytes, file_kind: str,
             "game_dir": str(game_dir),
         }
 
-    raise ValueError("Unsupported table update type")
+    raise RuntimeError(f"replace_table has no {file_kind!r} kind")
 
 
 def associate_vps_to_folder(
@@ -461,7 +462,7 @@ def associate_vps_to_folder(
     from common.games.info_file import MetaConfig
 
     if not game_dir.exists():
-        raise FileNotFoundError(f"Folder not found: {game_dir}")
+        raise FileNotFoundError(t("error.games.folder_not_there"))
 
     meta_path = game_dir / f"{game_dir.name}.info"
     vpx_file = _find_vpx_file(game_dir)
@@ -519,7 +520,7 @@ def extract_vbs(game_dir: Path, vpx_filename: str, table_id: str = "") -> dict:
 
     vpx_file = game_dir / vpx_filename
     if not vpx_file.is_file():
-        raise FileNotFoundError(f"Table file not found: {vpx_file}")
+        raise FileNotFoundError(t("error.games.table_s_file_not"))
 
     # Match the launch env handling: on frozen Linux builds, restore the
     # original LD_LIBRARY_PATH so VPX does not pick up incompatible bundled libs.
@@ -531,15 +532,20 @@ def extract_vbs(game_dir: Path, vpx_filename: str, table_id: str = "") -> dict:
 
     cmd = [str(vpxbin_path), "-extractvbs", str(vpx_file)]
     logger.info("Extracting VBS: %s", cmd)
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        env=launch_env,
-    )
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            env=launch_env,
+        )
+    except OSError as exc:
+        logger.warning("Could not run %s: %s", vpxbin_path, exc)
+        raise ChildProcessError(t("error.games.vpx_did_not_start")) from exc
     if result.returncode != 0:
-        detail = (result.stderr or result.stdout or "").strip()
-        raise RuntimeError(f"VPX exited with code {result.returncode}: {detail}")
+        logger.warning("Extracting %s: VPX exited with code %s: %s", vpx_file.name,
+                       result.returncode, (result.stderr or result.stdout or "").strip())
+        raise ChildProcessError(t("error.games.vpx_wrote_no_script"))
 
     vbs_file = vpx_file.with_suffix('.vbs')
     return {'vbs_path': str(vbs_file), 'vbs_exists': vbs_file.is_file()}
@@ -772,7 +778,7 @@ def record_arrived_table(game_dir: Path, landing: Path, table_id: str) -> str:
     meta = MetaConfig(str(game_dir / f"{game_dir.name}.info"))
     if not meta.add_contained_table(landing.name, table_id):
         landing.unlink(missing_ok=True)
-        raise ValueError(f"Could not record {landing.name}")
+        raise ValueError(t("error.games.game_already_file_name"))
 
     # Read now rather than left for the sweep that enriches a whole library: anything
     # keyed on the ROM - a ROM set, a sound bank, a color set - cannot be placed beside a
@@ -810,7 +816,7 @@ def create_game(name: str, location_id: str = "") -> Path:
 
     wanted = sanitize_dir_name(name)
     if not wanted:
-        raise ValueError("Say what to call it.")
+        raise ValueError(t("error.games.game_needs_name"))
 
     where = locations.destination(location_id)
     if where.location is None:

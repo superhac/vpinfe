@@ -9,6 +9,7 @@ it, choosing the default and taking it out of play, do what they say.
 from __future__ import annotations
 
 import json
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -16,6 +17,8 @@ from starlette.testclient import TestClient
 
 import httpapi
 from common.games import launcher_migration, launchers, table_lens
+from common.host import launch
+from common.i18n import t
 from tests.support.library import TempTree, fake_game, write_game
 
 GAME_ID = "Lens00000001"
@@ -240,6 +243,26 @@ class TableScriptTests(_Lens):
 
         self.assertEqual(response.status_code, 501, response.text)
         self.assertEqual(response.json()["error"]["code"], "feature_unavailable")
+
+    def test_a_script_visual_pinball_did_not_write_is_said_once(self) -> None:
+        failed = subprocess.CompletedProcess([], 1, stdout="", stderr="Unhandled exception")
+        with patch.object(launch, "binary_for", return_value="/opt/vpx/VPinballX"), \
+                patch("subprocess.run", return_value=failed), \
+                self.assertLogs("vpinfe.common.games.game_service", "WARNING") as logged:
+            response = self.client.post(f"/games/{GAME_ID}/tables/tbl0000002/script")
+
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertEqual(response.json()["error"]["message"],
+                         t("error.games.vpx_wrote_no_script"))
+        self.assertIn("Unhandled exception", "\n".join(logged.output))
+
+    def test_visual_pinball_that_will_not_start_is_said_in_words(self) -> None:
+        with patch.object(launch, "binary_for", return_value="/opt/vpx/VPinballX"), \
+                patch("subprocess.run", side_effect=PermissionError(13, "Permission denied")):
+            response = self.client.post(f"/games/{GAME_ID}/tables/tbl0000002/script")
+
+        self.assertEqual(response.json()["error"]["message"],
+                         t("error.games.vpx_did_not_start"))
 
 
 class OwnSettingsTests(_Lens):
