@@ -175,7 +175,7 @@ def _draw_cards(target: Any, held: dict[str, Any]) -> None:
 def _card(card: dict[str, Any], fields: list[dict[str, Any]]) -> None:
     """One card, per card rather than averaged. Two cards averaged is a number that
     describes neither, and a second card is why somebody opened this."""
-    ui.label(str(card.get("name") or "GPU")).classes("console-setting mt-2")
+    ui.label(str(card.get("name") or t("word.unknown"))).classes("console-setting mt-2")
     with ui.row().classes("items-center gap-2 w-full flex-wrap"):
         for field in fields:
             value = card.get(field["key"])
