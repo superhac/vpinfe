@@ -296,13 +296,16 @@ def get_mac_screens() -> list[MonitorInfo]:
     import AppKit
 
     screens = AppKit.NSScreen.screens()
-    # Total virtual height for bottom-left → top-left conversion
-    max_bottom = max(s.frame().origin.y + s.frame().size.height for s in screens)
+    if not screens:
+        return []
+    # The primary screen's top, not the highest top of any screen.
+    primary = screens[0].frame()
+    top = primary.origin.y + primary.size.height
     result = []
     for s in screens:
         frame = s.frame()
         x = int(frame.origin.x)
-        y = int(max_bottom - frame.origin.y - frame.size.height)
+        y = int(top - frame.origin.y - frame.size.height)
         result.append(
             MonitorInfo(
                 x=x, y=y, width=int(frame.size.width), height=int(frame.size.height)

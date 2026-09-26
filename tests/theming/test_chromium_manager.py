@@ -369,5 +369,40 @@ class WindowUrlTests(unittest.TestCase):
         self.assertIn("index_playfield.html?window=playfield&", url)
 
 
+def _ns_screen(x: float, y: float, width: float, height: float) -> types.SimpleNamespace:
+    """An NSScreen as AppKit hands it over: a frame whose origin is its bottom-left corner,
+    measured up from the bottom of the primary screen."""
+    frame = types.SimpleNamespace(origin=types.SimpleNamespace(x=x, y=y),
+                                  size=types.SimpleNamespace(width=width, height=height))
+    return types.SimpleNamespace(frame=lambda: frame)
+
+
+class MacScreenTests(unittest.TestCase):
+    def _placed(self, *screens: types.SimpleNamespace) -> list[tuple[int, int, int, int]]:
+        appkit = types.SimpleNamespace(
+            NSScreen=types.SimpleNamespace(screens=lambda: list(screens)))
+        with mock.patch.dict("sys.modules", {"AppKit": appkit}):
+            return [tuple(one) for one in chromium_manager.get_mac_screens()]
+
+    def test_a_screen_above_the_primary_is_placed_above_its_top(self) -> None:
+        self.assertEqual(self._placed(_ns_screen(0, 0, 1728, 1117),
+                                      _ns_screen(0, 1117, 2560, 1440)),
+                         [(0, 0, 1728, 1117), (0, -1440, 2560, 1440)])
+
+    def test_a_screen_beside_or_below_the_primary_is_placed_from_its_top(self) -> None:
+        self.assertEqual(self._placed(_ns_screen(0, 0, 1728, 1117),
+                                      _ns_screen(1728, 37, 1920, 1080),
+                                      _ns_screen(0, -1080, 1920, 1080)),
+                         [(0, 0, 1728, 1117), (1728, 0, 1920, 1080), (0, 1117, 1920, 1080)])
+
+    def test_the_primary_is_where_positions_start_whatever_else_is_connected(self) -> None:
+        self.assertEqual(self._placed(_ns_screen(0, 0, 1728, 1117),
+                                      _ns_screen(0, 1117, 2560, 1440),
+                                      _ns_screen(1728, 37, 1920, 1080),
+                                      _ns_screen(0, -1080, 1920, 1080)),
+                         [(0, 0, 1728, 1117), (0, -1440, 2560, 1440),
+                          (1728, 0, 1920, 1080), (0, 1117, 1920, 1080)])
+
+
 if __name__ == "__main__":
     unittest.main()
