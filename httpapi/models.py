@@ -2538,18 +2538,18 @@ class PlanRequest(ApiModel):
     # Needs `game_dir`. The drop's table is one more for that game rather than its
     # replacement; a filename the game already has comes back blocked.
     add_table: bool = False
+    # A new game's folder. Omitted falls back to the VPS-derived name, then the vpx stem.
+    new_game_dir_name: str | None = None
 
 
 class ImportRequest(PlanRequest):
     """`selected` picks plan items by index; omitted means the plan's own defaults.
-    `new_game_dir_name` omitted falls back to the VPS-derived name, then the vpx stem.
 
     `declared` is keyed by the uploaded file's name, because a bundle carrying a .vpx, a
     backglass and a ROM is one VPS game and three VPS file records - the binding cannot
     live on the session the way `vps_id` does.
     """
 
-    new_game_dir_name: str | None = None
     selected: list[int] | None = None
     declared: dict[str, DeclaredIdentity] | None = None
 

@@ -322,9 +322,20 @@ def plan_for(upload_id: str, request: dict[str, Any]) -> dict[str, Any]:
     analysis, _source = _analysis_for(upload_id)
     vps_entry = _vps_entry(request.get("vps_id") or "")
     plan = _built_plan(analysis, request)
-    if vps_entry is not None and plan.new_game_dir_name:
-        plan = select_plan_items(plan, None, vps_folder_name(vps_entry))
-    return _plan_to_dict(plan)
+    return _plan_to_dict(_as_asked(plan, request, vps_entry, None))
+
+
+def _as_asked(plan: ImportPlan, request: dict[str, Any], vps_entry: dict | None,
+              selected: list[int] | None) -> ImportPlan:
+    """The plan narrowed to `selected`, and a new game's folder named: the name sent,
+    else the VPS entry's, else the one the drop suggested."""
+    new_name = request.get("new_game_dir_name")
+    if new_name is None and vps_entry is not None:
+        new_name = vps_folder_name(vps_entry)
+    try:
+        return select_plan_items(plan, selected, new_name)
+    except ValueError as exc:
+        raise service_errors.RefusedError(str(exc)) from exc
 
 
 def _declared_identities(declared: Mapping[str, Any] | None) -> dict:
@@ -386,15 +397,7 @@ def execute(upload_id: str, request: dict[str, Any],
     if vps_entry is not None and not plan.new_game_dir_name:
         raise service_errors.RefusedError(t("error.uploads.vps_id_applies_new"))
 
-    # Folder naming precedence: explicit new_game_dir_name > VPS-derived > vpx stem.
-    new_name = request.get("new_game_dir_name")
-    if new_name is None and vps_entry is not None:
-        new_name = vps_folder_name(vps_entry)
-    try:
-        plan = select_plan_items(plan, request.get("selected"), new_name)
-    except ValueError as exc:
-        raise service_errors.RefusedError(str(exc)) from exc
-
+    plan = _as_asked(plan, request, vps_entry, request.get("selected"))
     report = _run(plan, source_path, identities, upload_id)
     if report.get("new_game"):
         if vps_entry is not None:

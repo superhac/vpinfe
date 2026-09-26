@@ -168,6 +168,9 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
     # button already says what will happen.
     single = len(items) == 1 and not blocked
     named: dict[str, Any] = {"folder": new_folder, "vps_id": ""}
+    asked = {"game_dir": game_dir, "rom_name": rom_name, "allow_new_game": allow_new_game,
+             "media_kind": media_kind, "location_id": location_id,
+             "asset_kind": asset_kind, "add_table": add_table}
 
     with frame.opened(
             dropped_title(source, file_count) if new_folder
@@ -198,10 +201,15 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
                           t("console.import_dialog.imported", wanted=(wanted),
                                   len=(len(items))))
 
-        with rows:
-            for one in items:
-                _draw_row(one, plan, chosen, single, recount)
+        def draw(shown: dict[str, Any]) -> None:
+            rows.clear()
+            with rows:
+                for one in shown.get("items") or []:
+                    _draw_row(one, shown, chosen, single, recount)
+
+        draw(plan)
         recount()
+        follow = _following(library, upload_id, asked, named, draw) if new_folder else None
 
         with frame.footer():
             frame.cancel(lambda: dialog.submit(False))
@@ -211,6 +219,8 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
                 go.disable()
 
     said = await dialog
+    if follow is not None:
+        follow.cancel(with_current_invocation=True)
     if not said:
         await run.io_bound(library.abort_upload, upload_id)
         return
@@ -224,9 +234,7 @@ async def open_for(library: Any, upload_id: str, plan: dict[str, Any], *,
     note = ui.notification(t("console.import_dialog.importing"), spinner=True, timeout=None)
     try:
         report = await offload.io(
-            library.upload_import, upload_id, game_dir=game_dir, rom_name=rom_name,
-            allow_new_game=allow_new_game, media_kind=media_kind,
-            location_id=location_id, asset_kind=asset_kind, add_table=add_table,
+            library.upload_import, upload_id, **asked,
             vps_id=str(named["vps_id"] or ""),
             new_game_dir_name=(str(named["folder"]) if new_folder else None),
             selected=wanted, declared=declared)
@@ -301,6 +309,30 @@ def _folder_row(library: Any, named: dict[str, Any], plan: dict[str, Any]) -> No
 
     panel.facts(ui, [(t("word.folder"), draw)])
     del plan
+
+
+def _following(library: Any, upload_id: str, asked: dict[str, Any], named: dict[str, Any],
+               draw: Callable[[dict[str, Any]], None]) -> ui.timer:
+    """The rows drawn again from the plan under the folder name as typed, asked once the
+    typing pauses. A name the install will not take leaves them; the import says why."""
+    seen = {"was": str(named["folder"])}
+
+    async def look() -> None:
+        folder = str(named["folder"])
+        if folder == seen["was"]:
+            return
+        seen["was"] = folder
+        try:
+            fresh = await offload.io(library.upload_plan, upload_id, **asked,
+                                     vps_id=str(named["vps_id"] or ""),
+                                     new_game_dir_name=folder)
+        except Exception:  # noqa: BLE001
+            logger.debug("console: no plan under %r", folder, exc_info=True)
+            return
+        if folder == str(named["folder"]):
+            draw(fresh)
+
+    return ui.timer(0.3, look)
 
 
 async def _match(library: Any, named: dict[str, Any], field: Any) -> None:

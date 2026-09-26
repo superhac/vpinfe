@@ -815,17 +815,20 @@ class ApiClient:
     def upload_plan(self, upload_id: str, *, game_dir: str = "", rom_name: str = "",
                     allow_new_game: bool = False, vps_id: str = "",
                     media_kind: str = "", location_id: str = "",
-                    asset_kind: str = "", add_table: bool = False) -> dict:
+                    asset_kind: str = "", add_table: bool = False,
+                    new_game_dir_name: str | None = None) -> dict:
         """Where each of those files would go. Nothing is written by asking."""
         path = f"/uploads/{upload_id}/plan"
         _refuse_the_event_loop(path)
-        response = self._session.post(
-            f"{self._base}{path}",
-            json={"game_dir": game_dir, "rom_name": rom_name,
-                  "allow_new_game": allow_new_game, "vps_id": vps_id,
-                  "media_kind": media_kind, "location_id": location_id,
-                  "asset_kind": asset_kind, "add_table": add_table},
-            timeout=_TIMEOUT)
+        body: dict[str, Any] = {
+            "game_dir": game_dir, "rom_name": rom_name,
+            "allow_new_game": allow_new_game, "vps_id": vps_id,
+            "media_kind": media_kind, "location_id": location_id,
+            "asset_kind": asset_kind, "add_table": add_table,
+        }
+        if new_game_dir_name is not None:
+            body["new_game_dir_name"] = new_game_dir_name
+        response = self._session.post(f"{self._base}{path}", json=body, timeout=_TIMEOUT)
         self._answered(response)
         return response.json()
 
