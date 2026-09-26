@@ -1056,7 +1056,8 @@ class Library:
 
         A column blank for every row costs width and tells nobody anything, and a good
         many kinds are empty across a whole library. The user can still add them back -
-        the column picker holds every kind, this only sets the default.
+        the column picker holds every kind the library collects, this only sets the
+        default.
         """
         seen: set[str] = set()
         for entries in self.media.values():

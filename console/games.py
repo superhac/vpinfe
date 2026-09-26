@@ -335,8 +335,10 @@ def with_derived_facets(columns: list[dict[str, Any]],
     return built
 
 
-def media_columns(kinds: list[str]) -> list[dict[str, Any]]:
-    """One width for every kind, set by the widest line any of them needs.
+def media_columns(kinds: list[str], shown: list[str] | None = None) -> list[dict[str, Any]]:
+    """One width for the kinds `shown`, every kind by default, set by the widest line any
+    of them needs. A kind not shown is at least as wide, and as wide as its own header
+    where that is wider.
 
     A ragged set of widths reads as noise in a matrix whose cells are all one glyph -
     the columns should scan as a grid, so they are sized together rather than each to
@@ -351,8 +353,10 @@ def media_columns(kinds: list[str]) -> list[dict[str, Any]]:
     # looks unsorted because it is sorted on something the reader cannot see.
     headers = {kind: grid.two_line(labels.get(kind) or humanize(kind))
                for kind in sorted(kinds, key=lambda k: (labels.get(k) or k).lower())}
-    width = max((grid.header_width(header) for header in headers.values()), default=92)
-    return [grid.column(f"media_{kind}", header, width,
+    sized = kinds if shown is None else shown
+    width = max((grid.header_width(header) for kind, header in headers.items()
+                 if kind in sized), default=92)
+    return [grid.column(f"media_{kind}", header, max(width, grid.header_width(header)),
                         cellClass="console-media-cell", group=t(_MEDIA),
                         help=t("help.media_kind", label=(header)),
                         **grid.choice_filter(_STATE_CHOICES),
@@ -426,6 +430,32 @@ def rated(state: dict[str, Any], event: Any) -> Any:
     return rate(event) if rate else None
 
 
+def _collected(kinds: list[str], library: Any) -> list[str]:
+    kept = library.kept_kinds()["media"]
+    return [kind for kind in kinds if kind in kept]
+
+
+def grid_columns(rows: list[dict[str, Any]], kinds: list[str],
+                 library: Any) -> list[dict[str, Any]]:
+    """Every column the Games grid declares: a media column for every kind the library
+    collects, whether or not any game has one yet. `kinds` are the ones some game has."""
+    return with_derived_facets(COLUMNS, rows) \
+        + asset_columns(library.asset_keys()) \
+        + media_columns(sorted(library.kept_kinds()["media"]),
+                        shown=_collected(kinds, library))
+
+
+def grid_presets(kinds: list[str], library: Any) -> dict[str, list[str] | views.Preset]:
+    """The built-in views, the media one showing the collected kinds some game has."""
+    return {**GAME_VIEWS,
+            _MEDIA: views.Preset(
+                columns=("name", *[f"media_{kind}" for kind in _collected(kinds, library)]),
+                help=t("console.view.game_media.help")),
+            _ASSETS: views.Preset(
+                columns=("name", *[f"asset_{key}" for key in library.asset_keys()]),
+                help=t("console.view.game_assets.help"))}
+
+
 def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
           on_select: Callable[[dict | None], Any],
           state: dict[str, Any] | None = None,
@@ -434,8 +464,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     state = state if state is not None else {}
     tag_chips.install(library.tag_looks())
     renderers.install_collection_looks(library.smart_collections())
-    columns = with_derived_facets(COLUMNS, rows) \
-        + asset_columns(library.asset_keys()) + media_columns(kinds)
+    columns = grid_columns(rows, kinds, library)
     all_fields = [definition["field"] for definition in columns]
     selected: list[dict[str, Any]] = []
     context_row: list[dict[str, Any]] = []
@@ -443,15 +472,7 @@ def build(rows: list[dict[str, Any]], kinds: list[str], library: Any,
     with ui.row().classes("w-full items-center gap-2 px-3 py-2 mb-2 shrink-0 "
                                   "console-panel console-grid-bar"):
         bar = panel.grid_bar()
-        # The media preset is the library's own kinds, so it is only knowable here.
-        presets = {**GAME_VIEWS,
-                   _MEDIA: views.Preset(
-                       columns=("name", *[f"media_{kind}" for kind in kinds]),
-                       help=t("console.view.game_media.help")),
-                   _ASSETS: views.Preset(
-                       columns=("name",
-                                *[f"asset_{key}" for key in library.asset_keys()]),
-                       help=t("console.view.game_assets.help"))}
+        presets = grid_presets(kinds, library)
         def annotate() -> None:
             """The key to the marks, on the line that says what the view is for.
 
